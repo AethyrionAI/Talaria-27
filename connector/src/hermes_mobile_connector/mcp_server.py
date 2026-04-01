@@ -15,7 +15,12 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-from .sensor_store import SensorStore
+from .sensor_store import (
+    HEALTH_STALE_AFTER_SECONDS,
+    LOCATION_STALE_AFTER_SECONDS,
+    SensorStore,
+    freshness_metadata,
+)
 from .state import ConnectorStateStore
 
 mcp = FastMCP("hermes-mobile", instructions="Provides real-time location and health data from the user's phone.")
@@ -40,14 +45,20 @@ def get_user_location() -> str:
         current = store.get_current_location()
         if current is None:
             return json.dumps({"error": "No location data available yet. The user's phone may not have sent a location update."})
-        return json.dumps({
-            "latitude": current.latitude,
-            "longitude": current.longitude,
-            "altitude": current.altitude,
-            "accuracy": current.accuracy,
-            "address": current.address,
-            "recordedAt": current.recorded_at,
-        })
+        return json.dumps(
+            {
+                "latitude": current.latitude,
+                "longitude": current.longitude,
+                "altitude": current.altitude,
+                "accuracy": current.accuracy,
+                "address": current.address,
+                **freshness_metadata(
+                    recorded_at=current.recorded_at,
+                    updated_at=current.updated_at,
+                    stale_after_seconds=LOCATION_STALE_AFTER_SECONDS,
+                ),
+            }
+        )
     finally:
         store.close()
 
@@ -67,7 +78,13 @@ def get_location_history(since: str | None = None, limit: int = 50) -> str:
     store = _get_store()
     try:
         history = store.get_location_history(since=since, limit=limit)
-        return json.dumps({"locations": history, "count": len(history)})
+        return json.dumps(
+            {
+                "locations": history,
+                "count": len(history),
+                "current": store.get_location_freshness(),
+            }
+        )
     finally:
         store.close()
 
@@ -104,7 +121,15 @@ def get_health_metric(metric: str, since: str | None = None, limit: int = 50) ->
     store = _get_store()
     try:
         samples = store.get_health_metric(metric, since=since, limit=limit)
-        return json.dumps({"metric": metric, "samples": samples, "count": len(samples)})
+        latest_freshness = store.get_metric_freshness(metric)
+        return json.dumps(
+            {
+                "metric": metric,
+                "samples": samples,
+                "count": len(samples),
+                "latest": latest_freshness,
+            }
+        )
     finally:
         store.close()
 
@@ -120,10 +145,24 @@ def get_health_metrics_list() -> str:
     store = _get_store()
     try:
         metrics = store.get_latest_metrics()
-        return json.dumps({
-            "metrics": [{"metric": m.metric, "value": m.value, "unit": m.unit, "updatedAt": m.updated_at} for m in metrics],
-            "count": len(metrics),
-        })
+        return json.dumps(
+            {
+                "metrics": [
+                    {
+                        "metric": m.metric,
+                        "value": m.value,
+                        "unit": m.unit,
+                        **freshness_metadata(
+                            recorded_at=m.recorded_at,
+                            updated_at=m.updated_at,
+                            stale_after_seconds=HEALTH_STALE_AFTER_SECONDS,
+                        ),
+                    }
+                    for m in metrics
+                ],
+                "count": len(metrics),
+            }
+        )
     finally:
         store.close()
 

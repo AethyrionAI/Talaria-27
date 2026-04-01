@@ -5,6 +5,9 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 import os
+from pathlib import Path
+
+from .state import ConnectorRuntimeConfig
 
 
 @dataclass(frozen=True)
@@ -41,6 +44,18 @@ class ConnectorHermesSettings:
             hermes_history_limit=int(os.getenv("HERMES_HISTORY_LIMIT", "20")),
         )
 
+    @classmethod
+    def from_runtime_config(cls, config: ConnectorRuntimeConfig) -> "ConnectorHermesSettings":
+        return cls(
+            hermes_command=config.hermes_command,
+            hermes_workdir=config.hermes_workdir,
+            hermes_provider=config.hermes_provider,
+            hermes_model=config.hermes_model,
+            hermes_toolsets=config.hermes_toolsets,
+            hermes_source=config.hermes_source,
+            hermes_history_limit=config.hermes_history_limit,
+        )
+
 
 @dataclass(frozen=True)
 class CLIHermesResponse:
@@ -55,12 +70,24 @@ class HermesCLIExecutor:
     def __init__(self, settings: ConnectorHermesSettings | None = None) -> None:
         self.settings = settings or ConnectorHermesSettings.from_env()
 
+    def resolved_command_path(self) -> str | None:
+        match = shutil.which(self.settings.hermes_command)
+        if match:
+            return str(Path(match).resolve())
+
+        candidate = Path(self.settings.hermes_command).expanduser()
+        if candidate.exists():
+            return str(candidate.resolve())
+
+        return None
+
     def detect_version(self) -> str | None:
-        if shutil.which(self.settings.hermes_command) is None:
+        command_path = self.resolved_command_path()
+        if command_path is None:
             return None
 
         completed = subprocess.run(
-            [self.settings.hermes_command, "--version"],
+            [command_path, "--version"],
             cwd=self.settings.hermes_workdir or None,
             capture_output=True,
             text=True,

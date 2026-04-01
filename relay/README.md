@@ -95,22 +95,7 @@ CONNECTOR_IDLE_POLL_INTERVAL_SECONDS=1.0
 
 In connector mode the relay never shells out to Hermes directly. Instead, it persists chat jobs and waits for a connected `hermes-mobile-connector` host process to claim and execute them.
 
-## Legacy mobile setup code
-
-Hermes Mobile production pairing is self-hosted. The operator runs Hermes plus this relay, exposes `PUBLIC_BASE_URL` over HTTPS or a trusted tunnel/VPN, and then generates a single-use setup code locally:
-
-```bash
-cd /Users/dylan-mac-mini/Documents/HermesMobile/relay
-source .venv/bin/activate
-hermes-mobile-relay-admin create-setup-code
-```
-
-That command prints:
-- an opaque setup code that Hermes Mobile can paste manually
-- an ASCII QR code for scanning
-- the relay host and expiry time
-
-In `development`, `PUBLIC_BASE_URL=http://127.0.0.1:8000/v1` is still allowed for same-machine simulator testing. Outside development, pairing should use an externally reachable HTTPS `PUBLIC_BASE_URL`.
+Sensor delivery in connector mode is relay-stateless. The phone uploads location and health samples only when paired and authenticated, the relay forwards them to the live connector WebSocket, and the request is treated as delivered only after the connector ACKs local storage. If the host is offline or busy, the relay returns `202` with `deliveryState=retry` and the phone keeps the payload in its local outbox.
 
 ## Connector-first setup
 
@@ -126,11 +111,18 @@ export HERMES_COMMAND=/absolute/path/to/hermes
 export HERMES_WORKDIR=/path/to/your/hermes/project
 export HERMES_MOBILE_RELAY_URL=https://hermes-mobile-relay-dylan.fly.dev/v1
 
-hermes-mobile-connector setup --owner-display-name "Taylor" --host-display-name "Home Mac mini"
-hermes-mobile-connector pair-phone
-hermes-mobile-connector run
+hermes-mobile setup
+hermes-mobile pair-phone
+hermes-mobile service install
+hermes-mobile service start
 ```
 
 `pair-phone` prints the short-lived manual code plus an ASCII QR. Hermes Mobile release onboarding now expects that connector-generated phone pairing code instead of the old HM1/HC1 two-step flow.
 
+`setup` also auto-registers `mcp_servers.hermes_mobile` in the local Hermes config and validates it with `hermes mcp test hermes_mobile`. If Hermes chat is already open, the connector reports `Reload required`, and the user should run `/reload-mcp` or start a fresh chat before expecting location and health tools to appear in the current session.
+
+`hermes-mobile run` is still available for foreground debugging, but the managed service is the recommended path for a persistent host.
+
 The connector keeps one outbound authenticated WebSocket connection to the relay, executes one Hermes job at a time, resumes Hermes sessions when possible, and sends replies back to the relay for delivery to the iOS app.
+
+Background health delivery and Always-authorized background location still require physical-device validation on iPhone. Simulator testing covers onboarding, foreground sync, and the app-side outbox, but not HealthKit background wakes.

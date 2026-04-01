@@ -1,9 +1,80 @@
 import Foundation
 
-/// Coordinates periodic sensor data uploads to the relay.
+struct SensorOutboxState: Codable, Hashable, Sendable {
+    struct PendingLocation: Codable, Hashable, Sendable {
+        let latitude: Double
+        let longitude: Double
+        let altitude: Double?
+        let accuracy: Double
+        let recordedAt: Date
+    }
+
+    struct PendingHealthSample: Codable, Hashable, Sendable {
+        let metric: String
+        let value: Double
+        let unit: String
+        let startAt: Date
+        let endAt: Date?
+
+        private static let windowedMetrics: Set<String> = [
+            "steps",
+            "active_calories",
+            "distance_walking"
+        ]
+
+        var dedupeKey: String {
+            if Self.windowedMetrics.contains(metric) {
+                return "\(metric)|\(unit)|\(startAt.timeIntervalSince1970)"
+            }
+
+            return [
+                metric,
+                unit,
+                String(startAt.timeIntervalSince1970),
+                String(endAt?.timeIntervalSince1970 ?? 0)
+            ].joined(separator: "|")
+        }
+    }
+
+    var pendingLocation: PendingLocation?
+    var pendingHealthSamples: [PendingHealthSample] = []
+
+    var isEmpty: Bool {
+        pendingLocation == nil && pendingHealthSamples.isEmpty
+    }
+
+    mutating func enqueue(location update: LocationUpdate) {
+        pendingLocation = PendingLocation(
+            latitude: update.latitude,
+            longitude: update.longitude,
+            altitude: update.altitude,
+            accuracy: update.accuracy,
+            recordedAt: update.timestamp
+        )
+    }
+
+    mutating func enqueue(healthSamples: [HealthSnapshot.Sample]) {
+        for sample in healthSamples {
+            let pending = PendingHealthSample(
+                metric: sample.metric,
+                value: sample.value,
+                unit: sample.unit,
+                startAt: sample.startAt,
+                endAt: sample.endAt
+            )
+            if let index = pendingHealthSamples.firstIndex(where: { $0.dedupeKey == pending.dedupeKey }) {
+                pendingHealthSamples[index] = pending
+            } else {
+                pendingHealthSamples.append(pending)
+            }
+        }
+    }
+}
+
+/// Coordinates durable sensor uploads from the phone to the relay.
 ///
-/// Location is sent whenever the location service provides an update.
-/// Health snapshots are collected and sent every 5 minutes while active.
+/// The relay only ACKs a sample once the connector has received and stored it,
+/// so sensor state is persisted locally until a real delivery succeeds.
 @MainActor
 @Observable
 final class SensorUploadService {
@@ -28,17 +99,24 @@ final class SensorUploadService {
         let samples: [Sample]
     }
 
-    private struct ForwardResult: Decodable {
-        let forwarded: Bool
+    private struct DeliveryResult: Decodable {
+        let deliveryState: String
+
+        var wasDelivered: Bool {
+            deliveryState == "delivered"
+        }
     }
 
     private let apiClient: RelayAPIClient
     private let accessTokenProvider: @MainActor () async -> String?
+    private let persistence: AppPersistenceStoreProtocol
+    private let isPairedProvider: @MainActor () -> Bool
     private let locationService: LiveLocationService
     private let healthService: LiveHealthService
 
-    private var healthTimer: Task<Void, Never>?
     private var isActive = false
+    private var isDraining = false
+    private var outboxState: SensorOutboxState
 
     private let iso8601Formatter: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
@@ -49,91 +127,177 @@ final class SensorUploadService {
     init(
         apiClient: RelayAPIClient,
         accessTokenProvider: @escaping @MainActor () async -> String?,
+        persistence: AppPersistenceStoreProtocol,
+        isPairedProvider: @escaping @MainActor () -> Bool,
         locationService: LiveLocationService,
         healthService: LiveHealthService
     ) {
         self.apiClient = apiClient
         self.accessTokenProvider = accessTokenProvider
+        self.persistence = persistence
+        self.isPairedProvider = isPairedProvider
         self.locationService = locationService
         self.healthService = healthService
+        self.outboxState = persistence.loadSensorOutboxState()
     }
 
     func start() {
         guard !isActive else { return }
         isActive = true
+        outboxState = persistence.loadSensorOutboxState()
 
-        // Wire location updates
         locationService.onLocationUpdate = { [weak self] update in
             guard let self else { return }
-            Task { await self.uploadLocation(update) }
-        }
-        locationService.startMonitoring()
-        locationService.requestSingleLocation()
-
-        // Start health snapshot timer
-        healthTimer = Task { [weak self] in
-            while !Task.isCancelled {
-                guard let self else { break }
-                await self.collectAndUploadHealth()
-                try? await Task.sleep(for: .seconds(300)) // 5 minutes
+            Task { @MainActor in
+                self.outboxState.enqueue(location: update)
+                self.persistOutboxState()
+                await self.drainOutboxIfPossible()
             }
         }
+
+        healthService.onHealthUpdate = { [weak self] changedIdentifiers in
+            guard let self else { return }
+            Task { @MainActor in
+                await self.captureHealthSnapshot(changedIdentifiers: changedIdentifiers)
+            }
+        }
+
+        locationService.startMonitoring()
+        healthService.startMonitoring()
     }
 
     func stop() {
         isActive = false
+        isDraining = false
         locationService.onLocationUpdate = nil
+        healthService.onHealthUpdate = nil
         locationService.stopMonitoring()
-        healthTimer?.cancel()
-        healthTimer = nil
+        healthService.stopMonitoring()
     }
 
-    // MARK: - Upload
+    func resetOutbox() {
+        outboxState = SensorOutboxState()
+        persistence.clearSensorOutboxState()
+    }
 
-    private func uploadLocation(_ update: LocationUpdate) async {
+    func handleAppDidBecomeActive() async {
+        guard isActive else { return }
+
+        locationService.requestSingleLocation()
+        await captureHealthSnapshot(forceFullRefresh: true)
+        await drainOutboxIfPossible()
+    }
+
+    func handleSystemLaunch() async {
+        guard isActive else { return }
+
+        await captureHealthSnapshot()
+        await drainOutboxIfPossible()
+    }
+
+    private func captureHealthSnapshot(
+        forceFullRefresh: Bool = false,
+        changedIdentifiers: Set<String>? = nil
+    ) async {
+        guard
+            let snapshot = await healthService.collectSnapshot(
+                forceFullRefresh: forceFullRefresh,
+                changedIdentifiers: changedIdentifiers
+            )
+        else {
+            return
+        }
+        guard !snapshot.samples.isEmpty else { return }
+        outboxState.enqueue(healthSamples: snapshot.samples)
+        persistOutboxState()
+        await drainOutboxIfPossible()
+    }
+
+    private func drainOutboxIfPossible() async {
+        guard !isDraining else { return }
+        guard isActive else { return }
+        guard isPairedProvider() else { return }
+
+        guard let accessToken = await accessTokenProvider(), !accessToken.isEmpty else {
+            return
+        }
+
+        isDraining = true
+        defer { isDraining = false }
+
+        while isActive && isPairedProvider() {
+            if let pendingLocation = outboxState.pendingLocation {
+                let delivered = await uploadLocation(pendingLocation, accessToken: accessToken)
+                guard delivered else { break }
+                outboxState.pendingLocation = nil
+                persistOutboxState()
+                continue
+            }
+
+            if !outboxState.pendingHealthSamples.isEmpty {
+                let delivered = await uploadHealth(outboxState.pendingHealthSamples, accessToken: accessToken)
+                guard delivered else { break }
+                outboxState.pendingHealthSamples.removeAll()
+                persistOutboxState()
+                continue
+            }
+
+            break
+        }
+    }
+
+    private func persistOutboxState() {
+        if outboxState.isEmpty {
+            persistence.clearSensorOutboxState()
+        } else {
+            persistence.saveSensorOutboxState(outboxState)
+        }
+    }
+
+    private func uploadLocation(_ pending: SensorOutboxState.PendingLocation, accessToken: String) async -> Bool {
         let body = SensorLocationBody(
-            latitude: update.latitude,
-            longitude: update.longitude,
-            altitude: update.altitude,
-            accuracy: update.accuracy,
+            latitude: pending.latitude,
+            longitude: pending.longitude,
+            altitude: pending.altitude,
+            accuracy: pending.accuracy,
             address: nil,
-            recordedAt: iso8601Formatter.string(from: update.timestamp)
+            recordedAt: iso8601Formatter.string(from: pending.recordedAt)
         )
 
         do {
-            let _: ForwardResult = try await apiClient.post(
+            let result: DeliveryResult = try await apiClient.post(
                 path: "device/sensor/location",
                 body: body,
-                accessToken: await accessTokenProvider()
+                accessToken: accessToken
             )
+            return result.wasDelivered
         } catch {
-            // Sensor uploads are best-effort — next update will retry
+            return false
         }
     }
 
-    private func collectAndUploadHealth() async {
-        guard let snapshot = await healthService.collectSnapshot() else { return }
-
-        let samples = snapshot.samples.map { sample in
-            SensorHealthBody.Sample(
-                metric: sample.metric,
-                value: sample.value,
-                unit: sample.unit,
-                startAt: iso8601Formatter.string(from: sample.startAt),
-                endAt: sample.endAt.map { iso8601Formatter.string(from: $0) }
-            )
-        }
-
-        guard !samples.isEmpty else { return }
+    private func uploadHealth(_ samples: [SensorOutboxState.PendingHealthSample], accessToken: String) async -> Bool {
+        let body = SensorHealthBody(
+            samples: samples.map { sample in
+                SensorHealthBody.Sample(
+                    metric: sample.metric,
+                    value: sample.value,
+                    unit: sample.unit,
+                    startAt: iso8601Formatter.string(from: sample.startAt),
+                    endAt: sample.endAt.map { iso8601Formatter.string(from: $0) }
+                )
+            }
+        )
 
         do {
-            let _: ForwardResult = try await apiClient.post(
+            let result: DeliveryResult = try await apiClient.post(
                 path: "device/sensor/health",
-                body: SensorHealthBody(samples: samples),
-                accessToken: await accessTokenProvider()
+                body: body,
+                accessToken: accessToken
             )
+            return result.wasDelivered
         } catch {
-            // Best-effort — will retry on next cycle
+            return false
         }
     }
 }

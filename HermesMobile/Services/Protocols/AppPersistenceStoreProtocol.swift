@@ -13,4 +13,10 @@ protocol AppPersistenceStoreProtocol {
     func loadPairedRelayConfiguration() -> PairedRelayConfiguration?
     func savePairedRelayConfiguration(_ configuration: PairedRelayConfiguration)
     func clearPairedRelayConfiguration()
+    func loadSensorOutboxState() -> SensorOutboxState
+    func saveSensorOutboxState(_ state: SensorOutboxState)
+    func clearSensorOutboxState()
+    func loadHealthQueryAnchorData(for identifier: String) -> Data?
+    func saveHealthQueryAnchorData(_ data: Data?, for identifier: String)
+    func clearHealthQueryAnchorData()
 }

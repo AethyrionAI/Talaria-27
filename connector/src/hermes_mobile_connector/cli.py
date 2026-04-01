@@ -7,6 +7,7 @@ import sys
 import qrcode
 
 from .client import HermesMobileConnector
+from .service_management import build_service_manager
 
 
 def prompt(label: str, *, default: str | None = None, optional: bool = False) -> str | None:
@@ -31,6 +32,20 @@ def confirm(question: str, *, default: bool = True) -> bool:
     return response in ("y", "yes")
 
 
+def choose_option(question: str, options: dict[str, str], *, default: str) -> str:
+    print(question)
+    for key, description in options.items():
+        suffix = " (default)" if key == default else ""
+        print(f"  {key}. {description}{suffix}")
+
+    response = input(f"Choose [{default}]: ").strip()
+    if not response:
+        return default
+    if response not in options:
+        raise SystemExit(f"Unsupported choice: {response}")
+    return response
+
+
 def print_qr_code(value: str) -> None:
     qr = qrcode.QRCode(border=1)
     qr.add_data(value)
@@ -53,15 +68,42 @@ def build_parser() -> argparse.ArgumentParser:
 
     setup = subparsers.add_parser("setup", help="Register this machine with Hermes Mobile.")
     setup.add_argument("--relay-url", help="Relay API base URL (default: hosted relay).")
+    setup.add_argument(
+        "--skip-mcp",
+        action="store_true",
+        help="Register the host without editing ~/.hermes/config.yaml. You can run `hermes-mobile configure-mcp` later.",
+    )
 
     enroll = subparsers.add_parser("enroll", help="(Legacy) Redeem an HC1 host setup code.")
     enroll.add_argument("--code", required=True, help="HC1 setup code.")
     enroll.add_argument("--display-name", help="Optional label for this Hermes host.")
+    enroll.add_argument(
+        "--skip-mcp",
+        action="store_true",
+        help="Redeem the host without editing ~/.hermes/config.yaml. You can run `hermes-mobile configure-mcp` later.",
+    )
 
+    subparsers.add_parser(
+        "configure-mcp",
+        help="Write Hermes Mobile MCP tools into the local Hermes config and validate them.",
+    )
     subparsers.add_parser("pair-phone", help="Generate a short-lived phone pairing code and QR.")
     subparsers.add_parser("run", help="Run the long-lived Hermes Mobile connector.")
     subparsers.add_parser("status", help="Show the current connector state.")
+    subparsers.add_parser("validate-mcp", help="Verify Hermes can discover the Hermes Mobile MCP tools.")
     subparsers.add_parser("reset", help="Remove local connector state and start fresh.")
+
+    service = subparsers.add_parser("service", help="Manage the connector background service.")
+    service_subparsers = service.add_subparsers(dest="service_command")
+    install = service_subparsers.add_parser("install", help="Install the background service.")
+    install.add_argument("--force", action="store_true", help="Rewrite service artifacts and registration.")
+    service_subparsers.add_parser("start", help="Start the background service.")
+    service_subparsers.add_parser("stop", help="Stop the background service.")
+    service_subparsers.add_parser("restart", help="Restart the background service.")
+    service_subparsers.add_parser("status", help="Show background service status.")
+    logs = service_subparsers.add_parser("logs", help="Show recent background service logs.")
+    logs.add_argument("--lines", type=int, default=100, help="How many lines to show from each log.")
+    service_subparsers.add_parser("uninstall", help="Remove the background service registration.")
     return parser
 
 
@@ -95,13 +137,30 @@ def run_wizard(connector: HermesMobileConnector) -> int:
 
     # Step 2: Register
     print_header("Step 2 of 3 — Register This Machine")
-    print("Registering with relay...")
+    print("Registering this machine with the Hermes Mobile relay...")
     try:
-        state = connector.setup()
+        state = connector.setup(configure_mcp=False)
     except Exception as e:
         print(f"Setup failed: {e}")
         return 1
     print(f"Account created. Host ID: {state.host_id}")
+    print()
+
+    should_configure_mcp = confirm(
+        "Automatically configure iOS tools MCP (Location Services, Health, and sensor context) in your Hermes Agent config file?",
+        default=True,
+    )
+    if should_configure_mcp:
+        try:
+            connector.configure_mcp()
+            mcp_lines = connector.validate_mcp()
+            print("Native MCP check: ok")
+            print(mcp_lines[-1])
+        except Exception as e:
+            print(f"Native MCP check: warning — {e}")
+    else:
+        print("Skipped native MCP config.")
+        print("You can enable it later with: hermes-mobile configure-mcp")
 
     return _wizard_post_setup(connector)
 
@@ -132,15 +191,44 @@ def _wizard_post_setup(connector: HermesMobileConnector) -> int:
 
     input("Press Enter once your phone is paired...")
 
-    print()
-    if confirm("Start the connector now?"):
-        print_header("Connector Running")
-        print("Listening for messages from your phone. Press Ctrl+C to stop.\n")
+    print_header("Step 4 of 4 — Keep Hermes Available")
+    service_manager = build_service_manager(connector.state_store)
+    service_status = service_manager.status()
+
+    if service_status.supported:
+        selection = choose_option(
+            "How do you want to run the connector?",
+            {
+                "1": "Install and start the background service",
+                "2": "Install the background service, but do not start it yet",
+                "3": "Run in the foreground for development/debugging",
+                "4": "Skip for now",
+            },
+            default="1",
+        )
+
         try:
-            asyncio.run(connector.run_forever())
-        except KeyboardInterrupt:
-            print("\nConnector stopped.")
-        return 0
+            connector.refresh_runtime_config(force=False)
+            if selection == "1":
+                if not service_status.installed:
+                    print(service_manager.install(force=False))
+                print(service_manager.start())
+                return 0
+            if selection == "2":
+                print(service_manager.install(force=service_status.installed))
+                print("Background service installed. Start it later with: hermes-mobile service start")
+                return 0
+            if selection == "3":
+                return _run_foreground(connector)
+            print("You can manage the background service later with: hermes-mobile service <install|start|stop|restart|status>")
+            print("Or run the connector in the foreground with: hermes-mobile run")
+            return 0
+        except Exception as error:  # noqa: BLE001
+            print(f"Background service setup failed: {error}")
+            print("Falling back to foreground instructions.")
+
+    if confirm("Start the connector now in the foreground?"):
+        return _run_foreground(connector)
 
     print("\nStart the connector later with: hermes-mobile run")
     return 0
@@ -157,15 +245,38 @@ def cmd_setup(args: argparse.Namespace, connector: HermesMobileConnector) -> int
     except RuntimeError:
         pass
 
-    state = connector.setup(relay_url=args.relay_url)
+    state = connector.setup(relay_url=args.relay_url, configure_mcp=not args.skip_mcp)
     print(f"Registered. Host: {state.host_id}")
+    if args.skip_mcp:
+        print("Native MCP config skipped.")
+        print("Run `hermes-mobile configure-mcp` when you want to add Hermes Mobile tools to ~/.hermes/config.yaml.")
+    elif state.mcp_last_test_error:
+        print(f"Native MCP check: warning — {state.mcp_last_test_error}")
+    else:
+        print("Native MCP check: ok")
+    if not args.skip_mcp:
+        print(connector.validate_mcp()[-1])
     print("\nNext: hermes-mobile pair-phone")
     return 0
 
 
+def cmd_configure_mcp(connector: HermesMobileConnector) -> int:
+    state = connector.configure_mcp()
+    print(f"Configured Hermes Mobile MCP for host {state.host_id}")
+    for line in connector.validate_mcp():
+        print(line)
+    return 0
+
+
 def cmd_enroll(args: argparse.Namespace, connector: HermesMobileConnector) -> int:
-    state = connector.enroll(code=args.code, display_name=args.display_name)
+    state = connector.enroll(
+        code=args.code,
+        display_name=args.display_name,
+        configure_mcp=not args.skip_mcp,
+    )
     print(f"Enrolled host {state.host_id} against {state.relay_url}")
+    if args.skip_mcp:
+        print("Native MCP config skipped. Run `hermes-mobile configure-mcp` later if you want Hermes Mobile tools in Hermes.")
     return 0
 
 
@@ -181,13 +292,17 @@ def cmd_pair_phone(connector: HermesMobileConnector) -> int:
 
 
 def cmd_run(connector: HermesMobileConnector) -> int:
-    print("Connector running. Press Ctrl+C to stop.\n")
-    asyncio.run(connector.run_forever())
-    return 0
+    return _run_foreground(connector)
 
 
 def cmd_status(connector: HermesMobileConnector) -> int:
     for line in connector.status_lines():
+        print(line)
+    return 0
+
+
+def cmd_validate_mcp(connector: HermesMobileConnector) -> int:
+    for line in connector.validate_mcp():
         print(line)
     return 0
 
@@ -208,6 +323,48 @@ def cmd_reset(connector: HermesMobileConnector) -> int:
     return 0
 
 
+def cmd_service(args: argparse.Namespace, connector: HermesMobileConnector) -> int:
+    manager = build_service_manager(connector.state_store)
+    action = args.service_command
+
+    if action == "install":
+        connector.refresh_runtime_config(force=args.force)
+        print(manager.install(force=args.force))
+        return 0
+    if action == "start":
+        print(manager.start())
+        return 0
+    if action == "stop":
+        print(manager.stop())
+        return 0
+    if action == "restart":
+        print(manager.restart())
+        return 0
+    if action == "status":
+        status = manager.status()
+        print(f"Backend: {status.backend}")
+        print(f"Installed: {'yes' if status.installed else 'no'}")
+        print(f"Running: {'yes' if status.running else 'no'}")
+        print(f"Detail: {status.detail}")
+        print(f"Stdout log: {status.stdout_log}")
+        print(f"Stderr log: {status.stderr_log}")
+        return 0
+    if action == "logs":
+        print(manager.logs(lines=args.lines))
+        return 0
+    if action == "uninstall":
+        print(manager.uninstall())
+        return 0
+
+    raise SystemExit("Service command is required.")
+
+
+def _run_foreground(connector: HermesMobileConnector) -> int:
+    print("Connector running. Press Ctrl+C to stop.\n")
+    asyncio.run(connector.run_forever())
+    return 0
+
+
 # ── Entry point ──────────────────────────────────────────────────
 
 def main(argv: list[str] | None = None) -> int:
@@ -220,6 +377,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "setup":
         return cmd_setup(args, connector)
+    if args.command == "configure-mcp":
+        return cmd_configure_mcp(connector)
     if args.command == "enroll":
         return cmd_enroll(args, connector)
     if args.command == "pair-phone":
@@ -228,8 +387,12 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_run(connector)
     if args.command == "status":
         return cmd_status(connector)
+    if args.command == "validate-mcp":
+        return cmd_validate_mcp(connector)
     if args.command == "reset":
         return cmd_reset(connector)
+    if args.command == "service":
+        return cmd_service(args, connector)
 
     raise SystemExit(f"Unsupported command: {args.command}")
 

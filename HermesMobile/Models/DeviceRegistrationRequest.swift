@@ -13,6 +13,7 @@ struct DeviceRegistrationRequest: Codable, Hashable, Sendable {
 }
 
 extension DeviceRegistrationRequest {
+    @MainActor
     static func current(
         installationID: UUID,
         environment: AppEnvironment

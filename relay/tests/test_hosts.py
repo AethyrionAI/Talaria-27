@@ -87,6 +87,17 @@ def redeem_phone(client: TestClient, code: str, installation_id: str) -> dict:
     return response.json()["data"]
 
 
+def sensor_location_payload() -> dict:
+    return {
+        "latitude": 40.7128,
+        "longitude": -74.0060,
+        "altitude": 12.0,
+        "accuracy": 35.0,
+        "address": "New York, NY",
+        "recordedAt": "2026-04-01T15:00:00Z",
+    }
+
+
 def test_connector_setup_and_phone_pairing_attach_phone_to_existing_user(tmp_path):
     with build_client(tmp_path) as client:
         connector_data = setup_connector(client)
@@ -246,3 +257,142 @@ def test_connected_host_gets_job_and_preserves_session_resume(tmp_path):
             assert second_response["payload"].status_code == 200
             messages = second_response["payload"].json()["data"]["conversation"]["messages"]
             assert messages[-1]["text"] == "Second connector reply"
+
+
+def test_sensor_delivery_returns_retry_offline_and_delivered_after_connector_ack(tmp_path):
+    with build_client(tmp_path) as client:
+        connector_data = setup_connector(client)
+        pairing_code = create_phone_pairing_code(client, connector_data["connectorCredential"])
+        access_token = redeem_phone(
+            client,
+            pairing_code["displayCode"],
+            "12121212-3434-5656-7878-909090909090",
+        )["auth"]["accessToken"]
+
+        offline = client.post(
+            "/v1/device/sensor/location",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json=sensor_location_payload(),
+        )
+        assert offline.status_code == 202
+        assert offline.json()["data"]["deliveryState"] == "retry"
+
+        with client.websocket_connect(
+            "/v1/hosts/ws",
+            headers={"Authorization": f"Bearer {connector_data['connectorCredential']}"},
+        ) as websocket:
+            websocket.send_json(
+                {
+                    "type": "hello",
+                    "connector": {
+                        "platform": "macos",
+                        "hostname": "dylans-mac-mini",
+                        "connectorVersion": "0.1.0",
+                        "hermesCommand": "/Users/dylan/.local/bin/hermes",
+                        "hermesVersion": "hermes 1.2.3",
+                    },
+                }
+            )
+            assert websocket.receive_json()["type"] == "ready"
+
+            response: dict = {}
+
+            def send_location() -> None:
+                response["payload"] = client.post(
+                    "/v1/device/sensor/location",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    json=sensor_location_payload(),
+                )
+
+            thread = Thread(target=send_location)
+            thread.start()
+            sensor_message = websocket.receive_json()
+            assert sensor_message["type"] == "sensor.location"
+            assert sensor_message["deliveryId"]
+
+            websocket.send_json(
+                {
+                    "type": "sensor.ack",
+                    "deliveryId": sensor_message["deliveryId"],
+                    "deliveryState": "delivered",
+                }
+            )
+            thread.join(timeout=5)
+
+            delivered = response["payload"]
+            assert delivered.status_code == 200
+            assert delivered.json()["data"]["deliveryState"] == "delivered"
+
+
+def test_stale_connector_disconnect_does_not_remove_newer_live_socket(tmp_path):
+    with build_client(tmp_path) as client:
+        connector_data = setup_connector(client)
+        pairing_code = create_phone_pairing_code(client, connector_data["connectorCredential"])
+        access_token = redeem_phone(
+            client,
+            pairing_code["displayCode"],
+            "78787878-5656-3434-1212-000000000000",
+        )["auth"]["accessToken"]
+
+        with client.websocket_connect(
+            "/v1/hosts/ws",
+            headers={"Authorization": f"Bearer {connector_data['connectorCredential']}"},
+        ) as first_socket:
+            first_socket.send_json(
+                {
+                    "type": "hello",
+                    "connector": {
+                        "platform": "macos",
+                        "hostname": "dylans-mac-mini",
+                        "connectorVersion": "0.1.0",
+                        "hermesCommand": "/Users/dylan/.local/bin/hermes",
+                        "hermesVersion": "hermes 1.2.3",
+                    },
+                }
+            )
+            assert first_socket.receive_json()["type"] == "ready"
+
+            with client.websocket_connect(
+                "/v1/hosts/ws",
+                headers={"Authorization": f"Bearer {connector_data['connectorCredential']}"},
+            ) as second_socket:
+                second_socket.send_json(
+                    {
+                        "type": "hello",
+                        "connector": {
+                            "platform": "macos",
+                            "hostname": "dylans-mac-mini",
+                            "connectorVersion": "0.1.0",
+                            "hermesCommand": "/Users/dylan/.local/bin/hermes",
+                            "hermesVersion": "hermes 1.2.3",
+                        },
+                    }
+                )
+                assert second_socket.receive_json()["type"] == "ready"
+
+                first_socket.close()
+
+                response: dict = {}
+
+                def send_location() -> None:
+                    response["payload"] = client.post(
+                        "/v1/device/sensor/location",
+                        headers={"Authorization": f"Bearer {access_token}"},
+                        json=sensor_location_payload(),
+                    )
+
+                thread = Thread(target=send_location)
+                thread.start()
+                sensor_message = second_socket.receive_json()
+                assert sensor_message["type"] == "sensor.location"
+
+                second_socket.send_json(
+                    {
+                        "type": "sensor.ack",
+                        "deliveryId": sensor_message["deliveryId"],
+                        "deliveryState": "delivered",
+                    }
+                )
+                thread.join(timeout=5)
+                assert response["payload"].status_code == 200
+                assert response["payload"].json()["data"]["deliveryState"] == "delivered"

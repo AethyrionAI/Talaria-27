@@ -1,8 +1,23 @@
 import SwiftUI
+import UIKit
+
+final class HermesAppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        Task { @MainActor in
+            await AppContainer.sharedDefault().handleSystemLaunch()
+        }
+        return true
+    }
+}
 
 @main
 struct HermesMobileApp: App {
-    @State private var container = AppContainer.makeDefault()
+    @Environment(\.scenePhase) private var scenePhase
+    @UIApplicationDelegateAdaptor(HermesAppDelegate.self) private var appDelegate
+    @State private var container = AppContainer.sharedDefault()
 
     var body: some Scene {
         WindowGroup {
@@ -18,6 +33,10 @@ struct HermesMobileApp: App {
                 .environment(container.settingsStore)
                 .environment(container.talkStore)
                 .task { await container.initialize() }
+                .onChange(of: scenePhase) { _, newPhase in
+                    guard newPhase == .active else { return }
+                    Task { await container.handleAppDidBecomeActive() }
+                }
         }
     }
 }

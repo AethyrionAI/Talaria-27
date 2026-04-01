@@ -28,6 +28,18 @@ struct AppEnvironmentPolicy: Equatable, Sendable {
     }()
 }
 
+enum LocationSyncPreference: String, Codable, Hashable, Sendable {
+    case foregroundOnly
+    case backgroundAllowed
+
+    var displayLabel: String {
+        switch self {
+        case .foregroundOnly: "Foreground Only"
+        case .backgroundAllowed: "Background Allowed"
+        }
+    }
+}
+
 struct UserSettings: Codable, Hashable, Sendable {
     var userName: String
     var avatarInitials: String
@@ -35,6 +47,7 @@ struct UserSettings: Codable, Hashable, Sendable {
     var hapticFeedbackEnabled: Bool
     var environment: AppEnvironment
     var autoConnectOnLaunch: Bool
+    var locationSyncPreference: LocationSyncPreference
 
     init(
         userName: String = "User",
@@ -42,7 +55,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         notificationsEnabled: Bool = true,
         hapticFeedbackEnabled: Bool = true,
         environment: AppEnvironment = AppEnvironmentPolicy.currentBuild.defaultEnvironment,
-        autoConnectOnLaunch: Bool = true
+        autoConnectOnLaunch: Bool = true,
+        locationSyncPreference: LocationSyncPreference = .foregroundOnly
     ) {
         self.userName = userName
         self.avatarInitials = avatarInitials
@@ -50,6 +64,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.hapticFeedbackEnabled = hapticFeedbackEnabled
         self.environment = environment
         self.autoConnectOnLaunch = autoConnectOnLaunch
+        self.locationSyncPreference = locationSyncPreference
     }
 
     func applyingEnvironmentPolicy(_ policy: AppEnvironmentPolicy = .currentBuild) -> UserSettings {

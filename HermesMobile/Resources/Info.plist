@@ -24,12 +24,20 @@
 	<string>Hermes uses the camera to capture photos and documents for analysis.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Hermes reads your health data to offer personalized wellness insights.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Hermes can keep your location context current in the background when you explicitly enable Always access.</string>
+	<key>NSLocationRequireExplicitServiceSession</key>
+	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Hermes uses your location to provide contextual recommendations and nearby suggestions.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Hermes uses the microphone for voice conversations in Talk Mode.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Hermes accesses your photo library to help organize and search your photos.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 </dict>

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import uuid
 
@@ -51,7 +52,9 @@ from .services import (
     fail_message_job,
     get_inbox_item_for_user,
     get_message_job,
+    get_message_job_for_user_message,
     get_or_create_current_conversation,
+    get_user_message_by_client_message_id,
     hermes_host_is_online,
     list_conversation_messages,
     list_inbox_actions,
@@ -109,6 +112,14 @@ def reply_state_for_job(job_status: str) -> str:
     return "pending"
 
 
+@dataclass
+class ConnectorSession:
+    websocket: WebSocket
+    host_id: str
+    connection_nonce: str
+    busy: bool = False
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     database = Database(settings.database_url)
@@ -126,7 +137,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_attempts=settings.phone_pairing_max_attempts_per_ip,
         window_seconds=settings.phone_pairing_rate_limit_window_seconds,
     )
-    app.state.connector_sockets: dict[str, WebSocket] = {}
+    app.state.connector_sessions: dict[str, ConnectorSession] = {}
+    app.state.sensor_delivery_waiters: dict[str, asyncio.Future[bool]] = {}
 
     def require_connector_host(
         authorization: str | None = Header(default=None),
@@ -146,6 +158,60 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     return job
             await asyncio.sleep(0.25)
         return None
+
+    def connector_session_for_user(user_id: str) -> ConnectorSession | None:
+        return app.state.connector_sessions.get(user_id)
+
+    def set_connector_session(user_id: str, session: ConnectorSession) -> None:
+        app.state.connector_sessions[user_id] = session
+
+    def clear_connector_session(user_id: str | None, connection_nonce: str | None) -> None:
+        if user_id is None or connection_nonce is None:
+            return
+        session = connector_session_for_user(user_id)
+        if session is None or session.connection_nonce != connection_nonce:
+            return
+        app.state.connector_sessions.pop(user_id, None)
+
+    def resolve_sensor_delivery(delivery_id: str | None, *, delivered: bool) -> None:
+        if delivery_id is None:
+            return
+        waiter = app.state.sensor_delivery_waiters.pop(delivery_id, None)
+        if waiter is not None and not waiter.done():
+            waiter.set_result(delivered)
+
+    async def forward_sensor_payload(
+        *,
+        user_id: str,
+        payload: dict,
+        ack_timeout_seconds: float,
+    ) -> JSONResponse:
+        session = connector_session_for_user(user_id)
+        if session is None or session.busy:
+            return success_response({"deliveryState": "retry"}, status_code=status.HTTP_202_ACCEPTED)
+
+        delivery_id = str(uuid.uuid4())
+        message = dict(payload)
+        message["deliveryId"] = delivery_id
+        waiter: asyncio.Future[bool] = asyncio.get_running_loop().create_future()
+        app.state.sensor_delivery_waiters[delivery_id] = waiter
+
+        try:
+            await session.websocket.send_json(message)
+        except Exception:
+            clear_connector_session(user_id, session.connection_nonce)
+            app.state.sensor_delivery_waiters.pop(delivery_id, None)
+            return success_response({"deliveryState": "retry"}, status_code=status.HTTP_202_ACCEPTED)
+
+        try:
+            delivered = await asyncio.wait_for(waiter, timeout=ack_timeout_seconds)
+        except asyncio.TimeoutError:
+            app.state.sensor_delivery_waiters.pop(delivery_id, None)
+            return success_response({"deliveryState": "retry"}, status_code=status.HTTP_202_ACCEPTED)
+
+        status_code = status.HTTP_200_OK if delivered else status.HTTP_202_ACCEPTED
+        delivery_state = "delivered" if delivered else "retry"
+        return success_response({"deliveryState": delivery_state}, status_code=status_code)
 
     def build_message_response_payload(db: Session, *, conversation_id: str, job_id: str) -> tuple[dict, int]:
         job = get_message_job(db, job_id=job_id)
@@ -355,16 +421,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/v1/device/sensor/location")
     async def sensor_location(
         payload: SensorLocationRequest,
+        request_settings: Settings = Depends(get_settings),
         auth: AuthContext = Depends(get_auth_context),
-    ) -> dict:
-        connector_ws = app.state.connector_sockets.get(auth.user_id)
-        if connector_ws is None:
-            return JSONResponse(
-                status_code=status.HTTP_202_ACCEPTED,
-                content={"data": {"forwarded": False}, "meta": _meta()},
-            )
-        try:
-            await connector_ws.send_json({
+    ) -> JSONResponse:
+        return await forward_sensor_payload(
+            user_id=auth.user.id,
+            ack_timeout_seconds=request_settings.connector_sensor_ack_timeout_seconds,
+            payload={
                 "type": "sensor.location",
                 "latitude": payload.latitude,
                 "longitude": payload.longitude,
@@ -372,28 +435,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "accuracy": payload.accuracy,
                 "address": payload.address,
                 "recordedAt": payload.recordedAt,
-            })
-            return success({"forwarded": True})
-        except Exception:
-            app.state.connector_sockets.pop(auth.user_id, None)
-            return JSONResponse(
-                status_code=status.HTTP_202_ACCEPTED,
-                content={"data": {"forwarded": False}, "meta": _meta()},
-            )
+            },
+        )
 
     @app.post("/v1/device/sensor/health")
     async def sensor_health(
         payload: SensorHealthRequest,
+        request_settings: Settings = Depends(get_settings),
         auth: AuthContext = Depends(get_auth_context),
-    ) -> dict:
-        connector_ws = app.state.connector_sockets.get(auth.user_id)
-        if connector_ws is None:
-            return JSONResponse(
-                status_code=status.HTTP_202_ACCEPTED,
-                content={"data": {"forwarded": False}, "meta": _meta()},
-            )
-        try:
-            await connector_ws.send_json({
+    ) -> JSONResponse:
+        return await forward_sensor_payload(
+            user_id=auth.user.id,
+            ack_timeout_seconds=request_settings.connector_sensor_ack_timeout_seconds,
+            payload={
                 "type": "sensor.health",
                 "samples": [
                     {
@@ -405,14 +459,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     }
                     for s in payload.samples
                 ],
-            })
-            return success({"forwarded": True})
-        except Exception:
-            app.state.connector_sockets.pop(auth.user_id, None)
-            return JSONResponse(
-                status_code=status.HTTP_202_ACCEPTED,
-                content={"data": {"forwarded": False}, "meta": _meta()},
-            )
+            },
+        )
 
     def _meta() -> dict:
         return {"requestId": str(uuid.uuid4()), "timestamp": datetime.now(timezone.utc).isoformat()}
@@ -757,6 +805,38 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         db: Session = Depends(get_db),
         request_settings: Settings = Depends(get_settings),
     ) -> JSONResponse:
+        client_message_id = str(payload.clientMessageId) if payload.clientMessageId else None
+        if client_message_id is not None:
+            existing_user_message = get_user_message_by_client_message_id(
+                db,
+                user_id=auth.user.id,
+                client_message_id=client_message_id,
+            )
+            if existing_user_message is not None:
+                existing_job = get_message_job_for_user_message(db, user_message_id=existing_user_message.id)
+                if existing_job is not None:
+                    payload_data, status_code = build_message_response_payload(
+                        db,
+                        conversation_id=existing_user_message.conversation_id,
+                        job_id=existing_job.id,
+                    )
+                    record_audit(
+                        db,
+                        actor_type="user",
+                        actor_id=auth.user.id,
+                        action="chat.message.create",
+                        entity_type="conversation",
+                        entity_id=existing_user_message.conversation_id,
+                        payload={
+                            "jobId": existing_job.id,
+                            "replyState": payload_data["replyState"],
+                            "deduplicated": True,
+                            "clientMessageId": client_message_id,
+                        },
+                    )
+                    db.commit()
+                    return success_response(payload_data, status_code=status_code)
+
         conversation = get_or_create_current_conversation(db, user_id=auth.user.id)
         initial_delivery_status = "pending" if request_settings.hermes_adapter == "connector" else "sent"
         user_message = append_message(
@@ -765,7 +845,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             user_id=auth.user.id,
             role="user",
             text=payload.text,
-            client_message_id=str(payload.clientMessageId) if payload.clientMessageId else None,
+            client_message_id=client_message_id,
             delivery_status=initial_delivery_status,
         )
 
@@ -905,6 +985,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         connector_info = hello_message.get("connector") or {}
         connection_nonce = str(uuid.uuid4())
         host_id: str | None = None
+        user_id: str | None = None
 
         try:
             with database.session() as db:
@@ -922,7 +1003,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 )
                 host_id = activated_host.id
                 user_id = activated_host.user_id
-                app.state.connector_sockets[user_id] = websocket
+                set_connector_session(
+                    user_id,
+                    ConnectorSession(
+                        websocket=websocket,
+                        host_id=host_id,
+                        connection_nonce=connection_nonce,
+                    ),
+                )
                 ready_payload = {
                     "type": "ready",
                     "version": 1,
@@ -951,57 +1039,73 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         job_payload = None
 
                 if job_payload is not None:
-                    await websocket.send_json(job_payload)
+                    session = connector_session_for_user(user_id)
+                    if session is not None and session.connection_nonce == connection_nonce:
+                        session.busy = True
 
-                    while True:
-                        try:
-                            incoming = await asyncio.wait_for(
-                                websocket.receive_json(),
-                                timeout=settings.connector_heartbeat_timeout_seconds,
-                            )
-                        except asyncio.TimeoutError:
-                            await websocket.close(code=1011)
-                            return
+                    try:
+                        await websocket.send_json(job_payload)
 
-                        message_type = incoming.get("type")
-                        if message_type == "heartbeat":
-                            with database.session() as db:
-                                touched = touch_hermes_host_connection(db, host_id=host_id, connection_nonce=connection_nonce)
-                            if touched is None:
-                                await websocket.close(code=4401)
+                        while True:
+                            try:
+                                incoming = await asyncio.wait_for(
+                                    websocket.receive_json(),
+                                    timeout=settings.connector_heartbeat_timeout_seconds,
+                                )
+                            except asyncio.TimeoutError:
+                                await websocket.close(code=1011)
                                 return
-                            continue
 
-                        if message_type == "job.result" and incoming.get("jobId") == claimed_job.id:
-                            with database.session() as db:
-                                completed = complete_message_job(
-                                    db,
-                                    job_id=claimed_job.id,
-                                    connection_nonce=connection_nonce,
-                                    text=incoming.get("text", "").strip(),
-                                    session_id=incoming.get("sessionId"),
-                                )
-                                if completed is None:
-                                    await websocket.close(code=1011)
+                            message_type = incoming.get("type")
+                            if message_type == "heartbeat":
+                                with database.session() as db:
+                                    touched = touch_hermes_host_connection(db, host_id=host_id, connection_nonce=connection_nonce)
+                                if touched is None:
+                                    await websocket.close(code=4401)
                                     return
-                            break
+                                continue
 
-                        if message_type == "job.failed" and incoming.get("jobId") == claimed_job.id:
-                            with database.session() as db:
-                                failed = fail_message_job(
-                                    db,
-                                    job_id=claimed_job.id,
-                                    connection_nonce=connection_nonce,
-                                    error_text=incoming.get("error", "Hermes connector failed."),
-                                    retryable=bool(incoming.get("retryable", False)),
+                            if message_type == "sensor.ack":
+                                resolve_sensor_delivery(
+                                    incoming.get("deliveryId"),
+                                    delivered=incoming.get("deliveryState", "delivered") == "delivered",
                                 )
-                                if failed is None:
-                                    await websocket.close(code=1011)
-                                    return
-                            break
+                                continue
 
-                        await websocket.close(code=4400)
-                        return
+                            if message_type == "job.result" and incoming.get("jobId") == claimed_job.id:
+                                with database.session() as db:
+                                    completed = complete_message_job(
+                                        db,
+                                        job_id=claimed_job.id,
+                                        connection_nonce=connection_nonce,
+                                        text=incoming.get("text", "").strip(),
+                                        session_id=incoming.get("sessionId"),
+                                    )
+                                    if completed is None:
+                                        await websocket.close(code=1011)
+                                        return
+                                break
+
+                            if message_type == "job.failed" and incoming.get("jobId") == claimed_job.id:
+                                with database.session() as db:
+                                    failed = fail_message_job(
+                                        db,
+                                        job_id=claimed_job.id,
+                                        connection_nonce=connection_nonce,
+                                        error_text=incoming.get("error", "Hermes connector failed."),
+                                        retryable=bool(incoming.get("retryable", False)),
+                                    )
+                                    if failed is None:
+                                        await websocket.close(code=1011)
+                                        return
+                                break
+
+                            await websocket.close(code=4400)
+                            return
+                    finally:
+                        session = connector_session_for_user(user_id)
+                        if session is not None and session.connection_nonce == connection_nonce:
+                            session.busy = False
 
                     continue
 
@@ -1021,6 +1125,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         return
                     continue
 
+                if incoming.get("type") == "sensor.ack":
+                    resolve_sensor_delivery(
+                        incoming.get("deliveryId"),
+                        delivered=incoming.get("deliveryState", "delivered") == "delivered",
+                    )
+                    with database.session() as db:
+                        touched = touch_hermes_host_connection(db, host_id=host_id, connection_nonce=connection_nonce)
+                    if touched is None:
+                        await websocket.close(code=4401)
+                        return
+                    continue
+
                 await websocket.close(code=4400)
                 return
         except HTTPException:
@@ -1030,7 +1146,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return
         finally:
             if host_id is not None:
-                app.state.connector_sockets.pop(user_id, None)
+                clear_connector_session(user_id, connection_nonce)
                 with database.session() as db:
                     deactivate_hermes_host_connection(db, host_id=host_id, connection_nonce=connection_nonce)
 

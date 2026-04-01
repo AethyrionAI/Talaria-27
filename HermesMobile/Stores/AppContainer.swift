@@ -3,6 +3,8 @@ import Foundation
 @MainActor
 @Observable
 final class AppContainer {
+    private static let sharedDefaultContainer = AppContainer.makeDefault()
+
     let router = TabRouter()
     let sessionStore: AppSessionStore
     let pairingStore: PairingStore
@@ -35,6 +37,10 @@ final class AppContainer {
         self.settingsStore = settingsStore
         self.talkStore = talkStore
         self.sensorUploadService = sensorUploadService
+    }
+
+    static func sharedDefault() -> AppContainer {
+        sharedDefaultContainer
     }
 
     static func makeDefault(
@@ -125,10 +131,13 @@ final class AppContainer {
         )
 
         let liveLocationService = LiveLocationService()
-        let liveHealthService = LiveHealthService()
+        liveLocationService.updateSyncPreference(settingsStore.settings.locationSyncPreference)
+        let liveHealthService = LiveHealthService(persistence: persistence)
         let sensorUploadService: SensorUploadService? = usesMockPairingService ? nil : SensorUploadService(
             apiClient: apiClient,
             accessTokenProvider: { await sessionStore.currentAccessToken() },
+            persistence: persistence,
+            isPairedProvider: { activePairingStore?.isPaired == true },
             locationService: liveLocationService,
             healthService: liveHealthService
         )
@@ -187,7 +196,24 @@ final class AppContainer {
         await chatStore.loadConversationIfNeeded()
         await inboxStore.loadInbox()
         sensorUploadService?.start()
+        await sensorUploadService?.handleAppDidBecomeActive()
         isInitialized = true
+    }
+
+    func handleAppDidBecomeActive() async {
+        guard pairingStore.isPaired else { return }
+        guard await sessionStore.currentAccessToken() != nil else { return }
+
+        await hostStore.refresh()
+        await sensorUploadService?.handleAppDidBecomeActive()
+    }
+
+    func handleSystemLaunch() async {
+        guard pairingStore.isPaired else { return }
+        guard await sessionStore.currentAccessToken() != nil else { return }
+
+        sensorUploadService?.start()
+        await sensorUploadService?.handleSystemLaunch()
     }
 
     private func handlePairingActivated() async {
@@ -209,6 +235,7 @@ final class AppContainer {
     private func handlePairingRemoved() async {
         isInitialized = false
         sensorUploadService?.stop()
+        sensorUploadService?.resetOutbox()
         router.selectedTab = .chat
         router.activeSheet = nil
         router.resetAll()

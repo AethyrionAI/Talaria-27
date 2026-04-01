@@ -36,10 +36,10 @@ final class ResilientHermesClient: HermesClientProtocol {
         await fallback.disconnect()
     }
 
-    func send(message: String) async -> Message {
-        let response = await primary.send(message: message)
+    func send(message: String, clientMessageID: UUID) async -> Message {
+        let response = await primary.send(message: message, clientMessageID: clientMessageID)
         if allowsFallback() && response.status == .failed {
-            return await fallback.send(message: message)
+            return await fallback.send(message: message, clientMessageID: clientMessageID)
         }
         return response
     }

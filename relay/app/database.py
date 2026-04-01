@@ -40,6 +40,12 @@ class Database:
             message_columns = {column["name"] for column in inspector.get_columns("messages")}
             if "delivery_status" not in message_columns:
                 connection.execute(text("ALTER TABLE messages ADD COLUMN delivery_status TEXT"))
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_messages_user_client_message_id "
+                    "ON messages (user_id, client_message_id)"
+                )
+            )
 
     @contextmanager
     def session(self) -> Iterator[Session]:

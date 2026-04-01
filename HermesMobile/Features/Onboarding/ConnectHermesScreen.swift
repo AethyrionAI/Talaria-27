@@ -48,7 +48,7 @@ struct ConnectHermesScreen: View {
                 .font(Design.Typography.heroTitle)
                 .foregroundStyle(.primary)
 
-            Text("On the machine running Hermes, finish connector setup and run `hermes-mobile-connector pair-phone`. Then scan the QR code or enter the 8-character code here.")
+            Text("On the machine running Hermes, finish connector setup and run `hermes-mobile pair-phone`. Then scan the QR code or enter the 8-character code here.")
                 .font(Design.Typography.body)
                 .foregroundStyle(.secondary)
         }

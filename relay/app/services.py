@@ -702,6 +702,27 @@ def list_conversation_messages(db: Session, *, conversation_id: str) -> list[Mes
     )
 
 
+def get_user_message_by_client_message_id(
+    db: Session,
+    *,
+    user_id: str,
+    client_message_id: str,
+) -> Message | None:
+    return db.scalar(
+        select(Message)
+        .where(
+            Message.user_id == user_id,
+            Message.role == "user",
+            Message.client_message_id == client_message_id,
+        )
+        .order_by(Message.created_at.asc())
+    )
+
+
+def get_message_job_for_user_message(db: Session, *, user_message_id: str) -> MessageJob | None:
+    return db.scalar(select(MessageJob).where(MessageJob.user_message_id == user_message_id))
+
+
 def conversation_history_before_message(db: Session, *, conversation_id: str, message_id: str) -> list[Message]:
     history: list[Message] = []
     for message in list_conversation_messages(db, conversation_id=conversation_id):

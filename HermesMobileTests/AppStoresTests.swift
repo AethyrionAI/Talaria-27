@@ -126,6 +126,29 @@ struct AppStoresTests {
         }
     }
 
+    @MainActor
+    private final class RecordingHermesClient: HermesClientProtocol {
+        var connectionStatus: ConnectionStatus = .connected
+        var currentConversation: Conversation?
+        var sendCallCount = 0
+        var lastClientMessageID: UUID?
+        var nextResponse = Message(sender: .hermes, content: "Recorded response", status: .delivered)
+
+        func connect() async {}
+
+        func disconnect() async {}
+
+        func send(message: String, clientMessageID: UUID) async -> Message {
+            sendCallCount += 1
+            lastClientMessageID = clientMessageID
+            return nextResponse
+        }
+
+        func loadConversation() async -> Conversation {
+            currentConversation ?? Conversation(title: "Hermes")
+        }
+    }
+
     @Test @MainActor
     func sessionBootstrapPersistsStateAndTokens() async throws {
         let suiteName = "session-bootstrap-\(UUID().uuidString)"
@@ -208,6 +231,44 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
+    func settingsStorePersistsLocationSyncPreferenceChanges() async throws {
+        let suiteName = "settings-store-location-sync-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let settingsStore = SettingsStore(persistence: persistence)
+
+        settingsStore.settings.locationSyncPreference = .backgroundAllowed
+
+        let reloaded = persistence.loadUserSettings()
+        #expect(reloaded?.locationSyncPreference == .backgroundAllowed)
+    }
+
+    @Test @MainActor
+    func chatStorePassesClientMessageIDAndSkipsPendingDuplicate() async throws {
+        let hermesClient = RecordingHermesClient()
+        let chatStore = ChatStore(hermesClient: hermesClient)
+
+        await chatStore.sendMessage("Hello Hermes")
+
+        #expect(hermesClient.sendCallCount == 1)
+        #expect(hermesClient.lastClientMessageID != nil)
+
+        chatStore.conversation = Conversation(
+            title: "Hermes",
+            messages: [
+                Message(sender: .user, content: "Still waiting", status: .sending),
+            ]
+        )
+
+        await chatStore.sendMessage("Still waiting")
+
+        #expect(hermesClient.sendCallCount == 1)
+        #expect(chatStore.conversation?.messages.count == 1)
+    }
+
+    @Test @MainActor
     func settingsStoreSanitizesDisallowedReleaseEnvironmentToProduction() async throws {
         let suiteName = "settings-store-release-policy-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -249,6 +310,27 @@ struct AppStoresTests {
         let payload = try RelayCoders.makeDecoder().decode(TimestampPayload.self, from: data)
 
         #expect(payload.timestamp == Date(timeIntervalSince1970: 1774983516))
+    }
+
+    @Test @MainActor
+    func persistenceStorePersistsAndClearsHealthQueryAnchors() async throws {
+        let suiteName = "health-anchors-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let anchorData = Data([0x01, 0x02, 0x03])
+
+        persistence.saveHealthQueryAnchorData(anchorData, for: "steps")
+        persistence.saveHealthQueryAnchorData(Data([0x04]), for: "heart_rate")
+
+        #expect(persistence.loadHealthQueryAnchorData(for: "steps") == anchorData)
+        #expect(persistence.loadHealthQueryAnchorData(for: "heart_rate") == Data([0x04]))
+
+        persistence.clearHealthQueryAnchorData()
+
+        #expect(persistence.loadHealthQueryAnchorData(for: "steps") == nil)
+        #expect(persistence.loadHealthQueryAnchorData(for: "heart_rate") == nil)
     }
 
     @Test
@@ -403,5 +485,93 @@ struct AppStoresTests {
 
         #expect(reloadedStore.items.contains(where: { $0.stableIdentifier == firstItem.stableIdentifier && $0.isRead }))
         #expect(!reloadedStore.items.contains(where: { $0.stableIdentifier == secondItem.stableIdentifier }))
+    }
+
+    @Test
+    func sensorOutboxStateDeduplicatesLocationAndWindowedHealthSnapshots() {
+        var outbox = SensorOutboxState()
+        let now = Date(timeIntervalSince1970: 1_774_983_516)
+
+        outbox.enqueue(
+            location: LocationUpdate(
+                latitude: 40.0,
+                longitude: -73.0,
+                altitude: nil,
+                accuracy: 20,
+                timestamp: now
+            )
+        )
+        outbox.enqueue(
+            location: LocationUpdate(
+                latitude: 41.0,
+                longitude: -74.0,
+                altitude: nil,
+                accuracy: 15,
+                timestamp: now.addingTimeInterval(30)
+            )
+        )
+
+        outbox.enqueue(
+            healthSamples: [
+                HealthSnapshot.Sample(
+                    metric: "steps",
+                    value: 1000,
+                    unit: "count",
+                    startAt: now,
+                    endAt: now.addingTimeInterval(300)
+                ),
+                HealthSnapshot.Sample(
+                    metric: "steps",
+                    value: 1200,
+                    unit: "count",
+                    startAt: now,
+                    endAt: now.addingTimeInterval(600)
+                ),
+                HealthSnapshot.Sample(
+                    metric: "heart_rate",
+                    value: 72,
+                    unit: "bpm",
+                    startAt: now,
+                    endAt: nil
+                )
+            ]
+        )
+
+        #expect(outbox.pendingLocation?.latitude == 41.0)
+        #expect(outbox.pendingHealthSamples.count == 2)
+        #expect(outbox.pendingHealthSamples.first(where: { $0.metric == "steps" })?.value == 1200)
+    }
+
+    @Test @MainActor
+    func persistenceStoreRoundTripsSensorOutboxState() {
+        let suiteName = "sensor-outbox-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let date = Date(timeIntervalSince1970: 1_774_983_516)
+        let outbox = SensorOutboxState(
+            pendingLocation: .init(
+                latitude: 40.0,
+                longitude: -73.0,
+                altitude: 12,
+                accuracy: 20,
+                recordedAt: date
+            ),
+            pendingHealthSamples: [
+                .init(
+                    metric: "heart_rate",
+                    value: 72,
+                    unit: "bpm",
+                    startAt: date,
+                    endAt: nil
+                )
+            ]
+        )
+
+        persistence.saveSensorOutboxState(outbox)
+
+        let reloaded = persistence.loadSensorOutboxState()
+        #expect(reloaded == outbox)
     }
 }

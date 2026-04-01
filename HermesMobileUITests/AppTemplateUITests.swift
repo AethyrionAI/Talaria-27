@@ -103,7 +103,7 @@ final class HermesMobileUITests: XCTestCase {
         completePairing(in: app, setupCode: context.setupCode)
 
         app.tabBars.buttons["Settings"].tap()
-        let manageButton = app.buttons["Manage Hermes Host"]
+        let manageButton = app.buttons["Host Status"]
         XCTAssertTrue(manageButton.waitForExistence(timeout: 5))
         manageButton.tap()
 
@@ -115,23 +115,20 @@ final class HermesMobileUITests: XCTestCase {
     }
 
     @MainActor
-    func testSettingsCanShowHostSetupCodeScreen() throws {
+    func testSettingsCanShowHostStatusScreen() throws {
         let context = UITestLaunchContext()
         let app = makeApp(context: context)
         app.launch()
         completePairing(in: app, setupCode: context.setupCode)
 
         app.tabBars.buttons["Settings"].tap()
-        let manageHostButton = app.buttons["Manage Hermes Host"]
+        let manageHostButton = app.buttons["Host Status"]
         XCTAssertTrue(manageHostButton.waitForExistence(timeout: 5))
         manageHostButton.tap()
 
         XCTAssertTrue(app.navigationBars["Connect Host"].waitForExistence(timeout: 5))
-        let generateButton = app.buttons["Generate Setup Code"]
-        XCTAssertTrue(generateButton.waitForExistence(timeout: 5))
-        generateButton.tap()
-
-        XCTAssertTrue(app.staticTexts["HC1:mock-host-setup-code"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Setup From Your Hermes Machine"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "hermes-mobile pair-phone")).firstMatch.exists)
     }
 
     @MainActor

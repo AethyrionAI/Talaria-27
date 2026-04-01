@@ -147,7 +147,11 @@ nonisolated enum DemoData {
     // MARK: - Permissions
 
     static let sampleCapabilities: [DeviceCapability] = [
-        DeviceCapability(permissionType: .location, status: .authorized),
+        DeviceCapability(
+            permissionType: .location,
+            status: .authorizedWhenInUse,
+            statusDetail: "While Using • Full Accuracy"
+        ),
         DeviceCapability(permissionType: .health, status: .notDetermined),
         DeviceCapability(permissionType: .notifications, status: .authorized),
         DeviceCapability(permissionType: .camera, status: .notDetermined),

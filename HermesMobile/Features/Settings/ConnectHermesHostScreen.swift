@@ -13,7 +13,7 @@ struct ConnectHermesHostScreen: View {
                 VStack(alignment: .leading, spacing: Design.Spacing.lg) {
                     heroSection
                     statusSection
-                    setupCodeSection
+                    setupSection
                     dangerZoneSection
 
                     if let errorMessage = hostStore.lastErrorMessage {
@@ -36,7 +36,7 @@ struct ConnectHermesHostScreen: View {
                 .font(Design.Typography.heroTitle)
                 .foregroundStyle(.primary)
 
-            Text("Generate a short-lived setup code here, then run `hermes-mobile-connector enroll --code <HC1...>` on the machine where Hermes lives.")
+            Text("Host setup now starts from the machine running Hermes. Run `hermes-mobile setup`, then `hermes-mobile pair-phone`, and keep the connector available with either the background service or `hermes-mobile run`.")
                 .font(Design.Typography.body)
                 .foregroundStyle(.secondary)
         }
@@ -66,54 +66,26 @@ struct ConnectHermesHostScreen: View {
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Design.CornerRadius.xl))
     }
 
-    private var setupCodeSection: some View {
+    private var setupSection: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.md) {
-            Text("Host Setup Code")
+            Text("Setup From Your Hermes Machine")
                 .font(Design.Typography.sectionTitle)
 
-            if let enrollmentCode = hostStore.activeEnrollmentCode {
-                hostRow(title: "Relay", value: enrollmentCode.relayHost)
-                if let expiresAt = enrollmentCode.expiresAt {
-                    hostRow(title: "Expires", value: expiresAt.formatted(date: .abbreviated, time: .shortened))
-                }
+            Text("1. On the Hermes host, run `hermes-mobile setup` once.")
+                .font(Design.Typography.callout)
+                .foregroundStyle(.primary)
 
-                Text(enrollmentCode.setupCode)
-                    .font(Design.Typography.callout.monospaced())
-                    .textSelection(.enabled)
-                    .padding(Design.Spacing.md)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
+            Text("2. Generate a phone code with `hermes-mobile pair-phone`, then scan or enter that code in the app.")
+                .font(Design.Typography.callout)
+                .foregroundStyle(.primary)
 
-                HStack(spacing: Design.Spacing.sm) {
-                    Button("Generate New Code") {
-                        Task { await hostStore.generateEnrollmentCode() }
-                    }
-                    .buttonStyle(.glass)
+            Text("3. For persistent uptime, run `hermes-mobile service install` and `hermes-mobile service start`.")
+                .font(Design.Typography.callout)
+                .foregroundStyle(.primary)
 
-                    ShareLink(item: enrollmentCode.setupCode) {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.glassProminent)
-                }
-            } else {
-                Text("Generate a code here, then redeem it on the machine running Hermes.")
-                    .font(Design.Typography.callout)
-                    .foregroundStyle(.secondary)
-
-                Button {
-                    Task { await hostStore.generateEnrollmentCode() }
-                } label: {
-                    if hostStore.isWorking {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                    } else {
-                        Label("Generate Setup Code", systemImage: "desktopcomputer.and.arrow.down")
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                .buttonStyle(.glassProminent)
-            }
+            Text("4. Use `hermes-mobile run` when you want foreground debugging instead.")
+                .font(Design.Typography.callout)
+                .foregroundStyle(.primary)
         }
         .padding(Design.Spacing.lg)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Design.CornerRadius.xl))

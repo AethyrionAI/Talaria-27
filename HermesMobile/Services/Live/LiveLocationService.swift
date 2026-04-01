@@ -1,4 +1,5 @@
 import CoreLocation
+import UIKit
 
 struct LocationUpdate: Sendable {
     let latitude: Double
@@ -12,114 +13,275 @@ struct LocationUpdate: Sendable {
 @Observable
 final class LiveLocationService: NSObject, LocationServiceProtocol, CLLocationManagerDelegate {
     private(set) var authorizationStatus: PermissionStatus = .notDetermined
+    private(set) var authorizationLevel: LocationAuthorizationLevel = .notDetermined
+    private(set) var accuracyLevel: LocationAccuracyLevel = .unknown
     private(set) var lastLocation: LocationUpdate?
+    private(set) var syncPreference: LocationSyncPreference = .foregroundOnly
 
     var onLocationUpdate: (@MainActor (LocationUpdate) -> Void)?
 
     private let manager = CLLocationManager()
     private var authContinuation: CheckedContinuation<PermissionStatus, Never>?
+    private var authTimeoutTask: Task<Void, Never>?
     private var isMonitoring = false
+    private var lastEmittedLocation: LocationUpdate?
+    private var serviceSession: CLServiceSession?
+    private var backgroundSession: CLBackgroundActivitySession?
+    private var liveUpdatesTask: Task<Void, Never>?
 
     override init() {
         super.init()
         manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyBest
-        authorizationStatus = mapStatus(manager.authorizationStatus)
+        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        refreshAuthorizationState()
     }
 
     func requestAuthorization() async -> PermissionStatus {
-        let current = manager.authorizationStatus
-        guard current == .notDetermined else {
-            authorizationStatus = mapStatus(current)
+        if authorizationLevel == .whenInUse || authorizationLevel == .always {
             return authorizationStatus
         }
 
-        return await withCheckedContinuation { continuation in
-            self.authContinuation = continuation
-            manager.requestWhenInUseAuthorization()
+        return await awaitAuthorizationChange { [self] in
+            self.serviceSession = CLServiceSession(authorization: .whenInUse)
         }
+    }
+
+    func requestBackgroundAuthorization() async -> PermissionStatus {
+        syncPreference = .backgroundAllowed
+
+        if authorizationLevel == .always {
+            configureMonitoringSessions()
+            return authorizationStatus
+        }
+
+        let status = await awaitAuthorizationChange { [self] in
+            self.serviceSession = CLServiceSession(authorization: .always)
+        }
+        configureMonitoringSessions()
+        return status
+    }
+
+    func refreshAuthorizationState() {
+        let currentStatus = manager.authorizationStatus
+        authorizationLevel = mapAuthorizationLevel(currentStatus)
+        authorizationStatus = mapPermissionStatus(currentStatus)
+        accuracyLevel = mapAccuracy(manager.accuracyAuthorization)
+    }
+
+    func updateSyncPreference(_ preference: LocationSyncPreference) {
+        syncPreference = preference
+        configureMonitoringSessions()
+    }
+
+    func openSystemSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 
     func startMonitoring() {
-        guard !isMonitoring else { return }
-        isMonitoring = true
-
-        let status = manager.authorizationStatus
-        if status == .authorizedAlways {
-            manager.startMonitoringSignificantLocationChanges()
-            manager.startMonitoringVisits()
-        } else if status == .authorizedWhenInUse || status == .authorizedAlways {
-            manager.startUpdatingLocation()
+        guard !isMonitoring else {
+            configureMonitoringSessions()
+            return
         }
+
+        isMonitoring = true
+        configureMonitoringSessions()
     }
 
     func stopMonitoring() {
-        guard isMonitoring else { return }
         isMonitoring = false
+        authTimeoutTask?.cancel()
+        authTimeoutTask = nil
+        authContinuation = nil
+        liveUpdatesTask?.cancel()
+        liveUpdatesTask = nil
+        backgroundSession?.invalidate()
+        backgroundSession = nil
+        serviceSession?.invalidate()
+        serviceSession = nil
         manager.stopUpdatingLocation()
-        manager.stopMonitoringSignificantLocationChanges()
-        manager.stopMonitoringVisits()
     }
 
     func requestSingleLocation() {
+        guard authorizationLevel == .whenInUse || authorizationLevel == .always else { return }
         manager.requestLocation()
     }
 
     // MARK: - CLLocationManagerDelegate
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        let authStatus = manager.authorizationStatus
-        let shouldStartUpdating = authStatus == .authorizedWhenInUse || authStatus == .authorizedAlways
         Task { @MainActor in
-            let mapped = mapStatus(authStatus)
-            authorizationStatus = mapped
-            authContinuation?.resume(returning: mapped)
-            authContinuation = nil
-
-            if isMonitoring && shouldStartUpdating {
-                self.manager.startUpdatingLocation()
+            refreshAuthorizationState()
+            resumeAuthorizationContinuationIfNeeded()
+            if isMonitoring {
+                configureMonitoringSessions()
             }
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
-        let lat = location.coordinate.latitude
-        let lng = location.coordinate.longitude
-        let alt = location.altitude
-        let acc = location.horizontalAccuracy
-        let ts = location.timestamp
         Task { @MainActor in
-            let update = LocationUpdate(latitude: lat, longitude: lng, altitude: alt, accuracy: acc, timestamp: ts)
-            lastLocation = update
-            onLocationUpdate?(update)
+            emitLocation(
+                latitude: location.coordinate.latitude,
+                longitude: location.coordinate.longitude,
+                altitude: location.altitude,
+                accuracy: location.horizontalAccuracy,
+                timestamp: location.timestamp
+            )
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        // Location failures are expected (e.g. indoor, no signal) — silently ignore
+        // Foreground one-shot location requests may fail indoors or without a fix.
     }
 
-    nonisolated func locationManager(_ manager: CLLocationManager, didVisit visit: CLVisit) {
-        let lat = visit.coordinate.latitude
-        let lng = visit.coordinate.longitude
-        guard lat != 0 || lng != 0 else { return }
-        let acc = visit.horizontalAccuracy
-        let ts = visit.arrivalDate
-        Task { @MainActor in
-            let update = LocationUpdate(latitude: lat, longitude: lng, altitude: nil, accuracy: acc, timestamp: ts)
-            lastLocation = update
-            onLocationUpdate?(update)
+    // MARK: - Monitoring
+
+    private func configureMonitoringSessions() {
+        guard isMonitoring else { return }
+
+        liveUpdatesTask?.cancel()
+        liveUpdatesTask = nil
+
+        backgroundSession?.invalidate()
+        backgroundSession = nil
+
+        serviceSession?.invalidate()
+        serviceSession = nil
+
+        refreshAuthorizationState()
+
+        switch syncPreference {
+        case .foregroundOnly:
+            if authorizationLevel == .whenInUse || authorizationLevel == .always {
+                serviceSession = CLServiceSession(authorization: .whenInUse)
+            }
+        case .backgroundAllowed:
+            if authorizationLevel == .always {
+                serviceSession = CLServiceSession(authorization: .always)
+                backgroundSession = CLBackgroundActivitySession()
+                startLiveUpdatesIfNeeded()
+            } else if authorizationLevel == .whenInUse {
+                serviceSession = CLServiceSession(authorization: .whenInUse)
+            }
         }
     }
 
-    private func mapStatus(_ status: CLAuthorizationStatus) -> PermissionStatus {
+    private func startLiveUpdatesIfNeeded() {
+        guard liveUpdatesTask == nil else { return }
+
+        liveUpdatesTask = Task { [weak self] in
+            do {
+                for try await update in CLLocationUpdate.liveUpdates() {
+                    guard let self else { return }
+                    guard let location = update.location else { continue }
+                    await MainActor.run {
+                        self.refreshAuthorizationState()
+                        self.emitLocation(
+                            latitude: location.coordinate.latitude,
+                            longitude: location.coordinate.longitude,
+                            altitude: location.altitude,
+                            accuracy: location.horizontalAccuracy,
+                            timestamp: location.timestamp
+                        )
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self?.liveUpdatesTask = nil
+                }
+            }
+        }
+    }
+
+    // MARK: - Authorization
+
+    private func awaitAuthorizationChange(trigger: @escaping @MainActor () -> Void) async -> PermissionStatus {
+        refreshAuthorizationState()
+        authTimeoutTask?.cancel()
+        return await withCheckedContinuation { continuation in
+            authContinuation = continuation
+            trigger()
+            authTimeoutTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(30))
+                await MainActor.run {
+                    self?.resumeAuthorizationContinuationIfNeeded()
+                }
+            }
+        }
+    }
+
+    private func resumeAuthorizationContinuationIfNeeded() {
+        authTimeoutTask?.cancel()
+        authTimeoutTask = nil
+
+        guard let authContinuation else { return }
+        self.authContinuation = nil
+        authContinuation.resume(returning: authorizationStatus)
+    }
+
+    // MARK: - Updates
+
+    private func emitLocation(
+        latitude: Double,
+        longitude: Double,
+        altitude: Double?,
+        accuracy: Double,
+        timestamp: Date
+    ) {
+        guard shouldEmit(latitude: latitude, longitude: longitude, timestamp: timestamp) else { return }
+        let update = LocationUpdate(
+            latitude: latitude,
+            longitude: longitude,
+            altitude: altitude,
+            accuracy: accuracy,
+            timestamp: timestamp
+        )
+        lastEmittedLocation = update
+        lastLocation = update
+        onLocationUpdate?(update)
+    }
+
+    private func shouldEmit(latitude: Double, longitude: Double, timestamp: Date) -> Bool {
+        guard let previous = lastEmittedLocation else { return true }
+        let secondsSincePrevious = abs(timestamp.timeIntervalSince(previous.timestamp))
+        let previousLocation = CLLocation(latitude: previous.latitude, longitude: previous.longitude)
+        let nextLocation = CLLocation(latitude: latitude, longitude: longitude)
+        let distanceFromPrevious = nextLocation.distance(from: previousLocation)
+        if secondsSincePrevious < 60, distanceFromPrevious < 25 {
+            return false
+        }
+        return true
+    }
+
+    private func mapPermissionStatus(_ status: CLAuthorizationStatus) -> PermissionStatus {
         switch status {
         case .notDetermined: .notDetermined
         case .restricted: .restricted
         case .denied: .denied
-        case .authorizedAlways, .authorizedWhenInUse: .authorized
+        case .authorizedWhenInUse: .authorizedWhenInUse
+        case .authorizedAlways: .authorizedAlways
         @unknown default: .notDetermined
+        }
+    }
+
+    private func mapAuthorizationLevel(_ status: CLAuthorizationStatus) -> LocationAuthorizationLevel {
+        switch status {
+        case .notDetermined: .notDetermined
+        case .restricted: .restricted
+        case .denied: .denied
+        case .authorizedWhenInUse: .whenInUse
+        case .authorizedAlways: .always
+        @unknown default: .notDetermined
+        }
+    }
+
+    private func mapAccuracy(_ accuracy: CLAccuracyAuthorization) -> LocationAccuracyLevel {
+        switch accuracy {
+        case .fullAccuracy: .full
+        case .reducedAccuracy: .reduced
+        @unknown default: .unknown
         }
     }
 }

@@ -32,6 +32,7 @@ final class LiveHermesClient: HermesClientProtocol {
     private struct MessageCreateBody: Encodable {
         let conversationId: UUID?
         let text: String
+        let clientMessageId: UUID
     }
 
     var connectionStatus: ConnectionStatus = .disconnected
@@ -70,14 +71,15 @@ final class LiveHermesClient: HermesClientProtocol {
         connectionStatus = .disconnected
     }
 
-    func send(message: String) async -> Message {
+    func send(message: String, clientMessageID: UUID) async -> Message {
         do {
             let token = await accessTokenProvider()
             let response: MessageResponse = try await apiClient.post(
                 path: "messages",
                 body: MessageCreateBody(
                     conversationId: currentConversation?.id,
-                    text: message
+                    text: message,
+                    clientMessageId: clientMessageID
                 ),
                 accessToken: token
             )

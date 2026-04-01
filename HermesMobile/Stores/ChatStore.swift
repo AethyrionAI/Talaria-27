@@ -27,16 +27,19 @@ final class ChatStore {
     }
 
     func sendMessage(_ content: String) async {
-        guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedContent.isEmpty else { return }
+        guard hasPendingDuplicateMessage(trimmedContent) == false else { return }
 
-        let optimistic = Message(sender: .user, content: content, status: .sending)
+        let clientMessageID = UUID()
+        let optimistic = Message(id: clientMessageID, sender: .user, content: trimmedContent, status: .sending)
         if conversation == nil {
             conversation = Conversation(title: "Hermes")
         }
         conversation?.messages.append(optimistic)
         conversation?.lastActivity = optimistic.timestamp
 
-        let response = await hermesClient.send(message: content)
+        let response = await hermesClient.send(message: trimmedContent, clientMessageID: clientMessageID)
         conversation = hermesClient.currentConversation
 
         if conversation == nil && response.status == .failed {
@@ -68,6 +71,14 @@ final class ChatStore {
 
     private var hasPendingMessages: Bool {
         conversation?.messages.contains(where: { $0.sender == .user && $0.status == .sending }) == true
+    }
+
+    private func hasPendingDuplicateMessage(_ content: String) -> Bool {
+        conversation?.messages.contains(where: {
+            $0.sender == .user
+                && $0.status == .sending
+                && $0.content.trimmingCharacters(in: .whitespacesAndNewlines) == content
+        }) == true
     }
 
     private func restartPendingPollingIfNeeded() {

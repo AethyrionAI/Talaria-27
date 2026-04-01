@@ -181,3 +181,44 @@ def test_chat_roundtrip_persists_hermes_session_id_for_resume(tmp_path):
         assert second_response.status_code == 200
 
         assert stub_adapter.calls == [None, "session-123"]
+
+
+def test_chat_create_message_is_idempotent_for_client_message_id(tmp_path):
+    class StubHermesAdapter:
+        def __init__(self) -> None:
+            self.call_count = 0
+
+        def send_message(self, *, latest_user_message, history, session_id=None):
+            self.call_count += 1
+            return HermesChatResult(text=f"Reply for {latest_user_message}", session_id="session-123")
+
+    stub_adapter = StubHermesAdapter()
+
+    with build_client(tmp_path) as client:
+        client.app.state.hermes_adapter = stub_adapter
+        register_data = register_device(client)
+        access_token = register_data["auth"]["accessToken"]
+        client_message_id = "11111111-2222-3333-4444-555555555555"
+
+        first_response = client.post(
+            "/v1/messages",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"text": "Hello Hermes", "clientMessageId": client_message_id},
+        )
+        second_response = client.post(
+            "/v1/messages",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"text": "Hello Hermes", "clientMessageId": client_message_id},
+        )
+
+        assert first_response.status_code == 200
+        assert second_response.status_code == 200
+        assert stub_adapter.call_count == 1
+        assert first_response.json()["data"]["message"]["id"] == second_response.json()["data"]["message"]["id"]
+
+        updated_conversation = client.get(
+            "/v1/conversations/current",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert updated_conversation.status_code == 200
+        assert len(updated_conversation.json()["data"]["conversation"]["messages"]) == 2

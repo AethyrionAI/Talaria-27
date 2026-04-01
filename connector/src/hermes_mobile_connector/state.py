@@ -15,6 +15,21 @@ def _default_state_dir() -> Path:
 
 
 @dataclass
+class ConnectorRuntimeConfig:
+    python_executable: str
+    state_dir: str
+    relay_url: str
+    hermes_command: str
+    hermes_workdir: str | None
+    hermes_provider: str | None
+    hermes_model: str | None
+    hermes_toolsets: str | None
+    hermes_source: str
+    hermes_history_limit: int
+    hermes_home: str | None = None
+
+
+@dataclass
 class ConnectorState:
     relay_url: str
     web_socket_url: str
@@ -25,6 +40,12 @@ class ConnectorState:
     enrolled_at: str | None = None
     last_connected_at: str | None = None
     last_error: str | None = None
+    mcp_server_name: str = "hermes_mobile"
+    mcp_command_path: str | None = None
+    mcp_registered_at: str | None = None
+    mcp_last_test_at: str | None = None
+    mcp_last_test_error: str | None = None
+    runtime_config: ConnectorRuntimeConfig | None = None
 
     @property
     def enrolled_datetime(self) -> datetime | None:
@@ -40,9 +61,12 @@ class ConnectorStateStore:
         if not self.state_path.exists():
             raise RuntimeError(
                 "Connector is not set up yet. Run `hermes-mobile setup` first "
-                "or use the legacy `enroll --code ...` flow."
+                "or use the legacy `hermes-mobile enroll --code ...` flow."
             )
         data = json.loads(self.state_path.read_text(encoding="utf-8"))
+        runtime_config = data.get("runtime_config")
+        if isinstance(runtime_config, dict):
+            data["runtime_config"] = ConnectorRuntimeConfig(**runtime_config)
         return ConnectorState(**data)
 
     def save(self, state: ConnectorState) -> ConnectorState:

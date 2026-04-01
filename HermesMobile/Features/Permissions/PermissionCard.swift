@@ -45,7 +45,7 @@ struct PermissionCard: View {
 
     private var statusAndAction: some View {
         HStack {
-            Label(capability.status.displayLabel, systemImage: statusIcon)
+            Label(statusLabelText, systemImage: statusIcon)
                 .font(Design.Typography.footnote)
                 .foregroundStyle(capability.status.displayColor)
 
@@ -61,9 +61,13 @@ struct PermissionCard: View {
         }
     }
 
+    private var statusLabelText: String {
+        capability.statusDetail ?? capability.status.displayLabel
+    }
+
     private var statusIcon: String {
         switch capability.status {
-        case .authorized: "checkmark.circle.fill"
+        case .authorized, .authorizedWhenInUse, .authorizedAlways: "checkmark.circle.fill"
         case .limited: "exclamationmark.circle.fill"
         case .denied: "xmark.circle.fill"
         case .notDetermined: "questionmark.circle"

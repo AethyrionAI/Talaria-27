@@ -7,6 +7,8 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         static let sessionState = "hermes.sessionState"
         static let inboxState = "hermes.inboxState"
         static let pairedRelayConfiguration = "hermes.pairedRelayConfiguration"
+        static let sensorOutboxState = "hermes.sensorOutboxState"
+        static let healthAnchorPrefix = "hermes.healthAnchor."
     }
 
     private let defaults: UserDefaults
@@ -67,6 +69,37 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
 
     func clearPairedRelayConfiguration() {
         defaults.removeObject(forKey: Keys.pairedRelayConfiguration)
+    }
+
+    func loadSensorOutboxState() -> SensorOutboxState {
+        load(SensorOutboxState.self, key: Keys.sensorOutboxState) ?? SensorOutboxState()
+    }
+
+    func saveSensorOutboxState(_ state: SensorOutboxState) {
+        save(state, key: Keys.sensorOutboxState)
+    }
+
+    func clearSensorOutboxState() {
+        defaults.removeObject(forKey: Keys.sensorOutboxState)
+    }
+
+    func loadHealthQueryAnchorData(for identifier: String) -> Data? {
+        defaults.data(forKey: Keys.healthAnchorPrefix + identifier)
+    }
+
+    func saveHealthQueryAnchorData(_ data: Data?, for identifier: String) {
+        let key = Keys.healthAnchorPrefix + identifier
+        if let data {
+            defaults.set(data, forKey: key)
+        } else {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
+    func clearHealthQueryAnchorData() {
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(Keys.healthAnchorPrefix) {
+            defaults.removeObject(forKey: key)
+        }
     }
 
     private func load<T: Decodable>(_ type: T.Type, key: String) -> T? {

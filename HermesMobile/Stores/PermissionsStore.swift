@@ -24,6 +24,7 @@ final class PermissionsStore {
     }
 
     func reloadCapabilities() async {
+        locationService.refreshAuthorizationState()
         capabilities = currentCapabilities()
     }
 
@@ -44,13 +45,62 @@ final class PermissionsStore {
         capabilities = currentCapabilities()
     }
 
+    var locationAuthorizationLevel: LocationAuthorizationLevel {
+        locationService.authorizationLevel
+    }
+
+    var locationAccuracyLevel: LocationAccuracyLevel {
+        locationService.accuracyLevel
+    }
+
+    var healthBackgroundDeliveryEnabled: Bool {
+        healthService.backgroundDeliveryEnabled
+    }
+
+    func requestBackgroundLocationAccess() async {
+        _ = await locationService.requestBackgroundAuthorization()
+        capabilities = currentCapabilities()
+    }
+
+    func updateLocationSyncPreference(_ preference: LocationSyncPreference) {
+        locationService.updateSyncPreference(preference)
+        capabilities = currentCapabilities()
+    }
+
+    func openLocationSystemSettings() {
+        locationService.openSystemSettings()
+    }
+
     private func currentCapabilities() -> [DeviceCapability] {
         [
-            DeviceCapability(permissionType: .location, status: locationService.authorizationStatus),
-            DeviceCapability(permissionType: .health, status: healthService.authorizationStatus),
+            DeviceCapability(
+                permissionType: .location,
+                status: locationService.authorizationStatus,
+                statusDetail: locationStatusDetail()
+            ),
+            DeviceCapability(
+                permissionType: .health,
+                status: healthService.authorizationStatus,
+                statusDetail: healthStatusDetail()
+            ),
             DeviceCapability(permissionType: .notifications, status: notificationService.authorizationStatus),
             DeviceCapability(permissionType: .camera, status: mediaService.cameraAuthorizationStatus),
             DeviceCapability(permissionType: .photos, status: mediaService.photosAuthorizationStatus),
         ]
+    }
+
+    private func locationStatusDetail() -> String? {
+        switch locationService.authorizationLevel {
+        case .whenInUse, .always:
+            return "\(locationService.authorizationLevel.displayLabel) • \(locationService.accuracyLevel.displayLabel)"
+        case .notDetermined, .denied, .restricted:
+            return nil
+        }
+    }
+
+    private func healthStatusDetail() -> String? {
+        guard healthService.authorizationStatus == .authorized else { return nil }
+        let backgroundStatus = healthService.backgroundDeliveryEnabled ? "Background Sync On" : "Background Sync Off"
+        return "Read Only • \(backgroundStatus)"
     }
 }

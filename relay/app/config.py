@@ -46,6 +46,7 @@ class Settings:
     connector_job_lease_seconds: int = 180
     connector_heartbeat_timeout_seconds: int = 30
     connector_idle_poll_interval_seconds: float = 1.0
+    connector_sensor_ack_timeout_seconds: float = 3.0
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -75,4 +76,5 @@ class Settings:
             connector_job_lease_seconds=int(os.getenv("CONNECTOR_JOB_LEASE_SECONDS", "180")),
             connector_heartbeat_timeout_seconds=int(os.getenv("CONNECTOR_HEARTBEAT_TIMEOUT_SECONDS", "30")),
             connector_idle_poll_interval_seconds=float(os.getenv("CONNECTOR_IDLE_POLL_INTERVAL_SECONDS", "1.0")),
+            connector_sensor_ack_timeout_seconds=float(os.getenv("CONNECTOR_SENSOR_ACK_TIMEOUT_SECONDS", "3.0")),
         )

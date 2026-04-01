@@ -18,7 +18,7 @@ final class MockHermesClient: HermesClientProtocol {
         connectionStatus = .disconnected
     }
 
-    func send(message content: String) async -> Message {
+    func send(message content: String, clientMessageID: UUID) async -> Message {
         let userMessage = Message(
             sender: .user,
             content: content,

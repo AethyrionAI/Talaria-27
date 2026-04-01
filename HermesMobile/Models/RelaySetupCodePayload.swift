@@ -6,7 +6,7 @@ enum PhonePairingCodeError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidFormat:
-            "Enter the 8-character code from `hermes-mobile-connector pair-phone`."
+            "Enter the 8-character code from `hermes-mobile pair-phone`."
         }
     }
 }
