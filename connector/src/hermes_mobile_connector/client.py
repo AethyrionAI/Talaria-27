@@ -3,6 +3,7 @@ import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
+import os
 import platform as platform_module
 import socket
 
@@ -13,6 +14,8 @@ from . import __version__
 from .hermes_runner import HermesCLIExecutor, HermesConversationMessage
 from .setup_code import decode_host_setup_code
 from .state import ConnectorState, ConnectorStateStore
+
+DEFAULT_RELAY_URL = "https://hermes-mobile-relay-dylan.fly.dev/v1"
 
 
 def utcnow_iso() -> str:
@@ -27,6 +30,13 @@ class ConnectorMetadata:
     hermes_command: str
     hermes_version: str | None
     display_name: str | None = None
+
+
+@dataclass(frozen=True)
+class PhonePairingDetails:
+    code: str
+    display_code: str
+    expires_at: str | None
 
 
 class HermesMobileConnector:
@@ -53,6 +63,52 @@ class HermesMobileConnector:
             display_name=display_name,
         )
 
+    def default_relay_url(self) -> str:
+        return os.getenv("HERMES_MOBILE_RELAY_URL", DEFAULT_RELAY_URL).rstrip("/")
+
+    def setup(
+        self,
+        *,
+        owner_display_name: str,
+        host_display_name: str | None = None,
+        relay_url: str | None = None,
+    ) -> ConnectorState:
+        metadata = self.metadata(display_name=host_display_name)
+        if metadata.hermes_version is None:
+            raise RuntimeError(
+                f"Hermes command not found or not runnable: {self.executor.settings.hermes_command}"
+            )
+
+        resolved_relay_url = (relay_url or self.default_relay_url()).rstrip("/")
+        response = httpx.post(
+            f"{resolved_relay_url}/connector/setup",
+            json={
+                "ownerDisplayName": owner_display_name,
+                "hostDisplayName": host_display_name,
+                "connector": {
+                    "platform": metadata.platform,
+                    "hostname": metadata.hostname,
+                    "connectorVersion": metadata.connector_version,
+                    "hermesCommand": metadata.hermes_command,
+                    "hermesVersion": metadata.hermes_version,
+                },
+            },
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        data = response.json()["data"]
+        state = ConnectorState(
+            relay_url=data["relayURL"],
+            web_socket_url=data["webSocketURL"],
+            user_id=data["user"]["id"],
+            host_id=data["host"]["id"],
+            connector_credential=data["connectorCredential"],
+            owner_display_name=owner_display_name,
+            connector_display_name=host_display_name,
+            enrolled_at=utcnow_iso(),
+        )
+        return self.state_store.save(state)
+
     def enroll(self, *, code: str, display_name: str | None = None) -> ConnectorState:
         payload = decode_host_setup_code(code.strip())
         metadata = self.metadata(display_name=display_name)
@@ -77,12 +133,28 @@ class HermesMobileConnector:
         state = ConnectorState(
             relay_url=data["relayURL"],
             web_socket_url=data["webSocketURL"],
+            user_id=data["host"]["userId"],
             host_id=data["host"]["id"],
             connector_credential=data["connectorCredential"],
             connector_display_name=display_name,
             enrolled_at=utcnow_iso(),
         )
         return self.state_store.save(state)
+
+    def create_phone_pairing_code(self) -> PhonePairingDetails:
+        state = self.state_store.load()
+        response = httpx.post(
+            f"{state.relay_url.rstrip('/')}/connector/phone-pairing-codes",
+            headers={"Authorization": f"Bearer {state.connector_credential}"},
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        data = response.json()["data"]
+        return PhonePairingDetails(
+            code=data["code"],
+            display_code=data["displayCode"],
+            expires_at=data.get("expiresAt"),
+        )
 
     async def run_forever(self) -> None:
         while True:
@@ -183,12 +255,17 @@ class HermesMobileConnector:
     def status_lines(self) -> list[str]:
         state = self.state_store.load()
         metadata = self.metadata(display_name=state.connector_display_name)
-        return [
+        lines = [
             f"Relay URL: {state.relay_url}",
             f"WebSocket URL: {state.web_socket_url}",
+            f"User ID: {state.user_id or 'unknown'}",
             f"Host ID: {state.host_id}",
+            f"Owner: {state.owner_display_name or 'unknown'}",
             f"Hermes command: {metadata.hermes_command}",
             f"Hermes version: {metadata.hermes_version or 'unknown'}",
             f"Last connected: {state.last_connected_at or 'never'}",
             f"Last error: {state.last_error or 'none'}",
         ]
+        if state.connector_display_name:
+            lines.insert(4, f"Host label: {state.connector_display_name}")
+        return lines

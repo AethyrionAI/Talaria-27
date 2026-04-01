@@ -15,8 +15,6 @@ final class HermesMobileUITests: XCTestCase {
         let pairingMode: String
 
         init(
-            relayURL: String = "https://relay.example.test/v1",
-            inviteToken: String = UUID().uuidString,
             setupCodeOverride: String? = ProcessInfo.processInfo.environment["UITEST_SETUP_CODE"],
             pairingMode: String = ProcessInfo.processInfo.environment["UITEST_PAIRING_MODE"] ?? "mock"
         ) {
@@ -29,15 +27,7 @@ final class HermesMobileUITests: XCTestCase {
                 return
             }
 
-            let payload = """
-            {"relay_url":"\(relayURL)","invite_token":"\(inviteToken)"}
-            """
-            let encoded = Data(payload.utf8)
-                .base64EncodedString()
-                .replacingOccurrences(of: "+", with: "-")
-                .replacingOccurrences(of: "/", with: "_")
-                .replacingOccurrences(of: "=", with: "")
-            self.setupCode = "HM1:\(encoded)"
+            self.setupCode = "ABCD-EFGH"
         }
 
         private static func loadExternalConfiguration() -> ExternalConfiguration? {
@@ -60,7 +50,7 @@ final class HermesMobileUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.staticTexts["Connect Your Hermes"].waitForExistence(timeout: 5))
-        completePairing(in: app, setupCode: context.setupCode, displayName: "Morgan")
+        completePairing(in: app, setupCode: context.setupCode)
 
         XCTAssertTrue(app.tabBars.buttons["Chat"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.tabBars.buttons["Talk"].exists)
@@ -76,7 +66,7 @@ final class HermesMobileUITests: XCTestCase {
         let chatResponseTimeout: TimeInterval = context.pairingMode == "mock" ? 20 : 60
 
         app.launch()
-        completePairing(in: app, setupCode: context.setupCode, displayName: "Morgan")
+        completePairing(in: app, setupCode: context.setupCode)
 
         let input = app.textFields["Message Hermes."]
         XCTAssertTrue(input.waitForExistence(timeout: 5))
@@ -93,7 +83,7 @@ final class HermesMobileUITests: XCTestCase {
         let context = UITestLaunchContext()
         let app = makeApp(context: context)
         app.launch()
-        completePairing(in: app, setupCode: context.setupCode, displayName: "Morgan")
+        completePairing(in: app, setupCode: context.setupCode)
         XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 5))
 
         app.terminate()
@@ -110,7 +100,7 @@ final class HermesMobileUITests: XCTestCase {
         let context = UITestLaunchContext()
         let app = makeApp(context: context)
         app.launch()
-        completePairing(in: app, setupCode: context.setupCode, displayName: "Morgan")
+        completePairing(in: app, setupCode: context.setupCode)
 
         app.tabBars.buttons["Settings"].tap()
         let disconnectButton = app.buttons["Disconnect Hermes"]
@@ -125,7 +115,7 @@ final class HermesMobileUITests: XCTestCase {
         let context = UITestLaunchContext()
         let app = makeApp(context: context)
         app.launch()
-        completePairing(in: app, setupCode: context.setupCode, displayName: "Morgan")
+        completePairing(in: app, setupCode: context.setupCode)
 
         app.tabBars.buttons["Settings"].tap()
         let manageHostButton = app.buttons["Manage Hermes Host"]
@@ -159,19 +149,13 @@ final class HermesMobileUITests: XCTestCase {
     }
 
     @MainActor
-    private func completePairing(in app: XCUIApplication, setupCode: String, displayName: String) {
+    private func completePairing(in app: XCUIApplication, setupCode: String) {
         app.buttons["Enter Setup Code"].tap()
 
         let setupCodeField = app.textFields["Setup code"]
         XCTAssertTrue(setupCodeField.waitForExistence(timeout: 5))
         setupCodeField.tap()
         setupCodeField.typeText(setupCode)
-        app.buttons["Continue setup code"].tap()
-
-        let displayNameField = app.textFields["Display name"]
-        XCTAssertTrue(displayNameField.waitForExistence(timeout: 5))
-        displayNameField.tap()
-        displayNameField.typeText(displayName)
         app.buttons["Connect Hermes"].tap()
 
         XCTAssertTrue(app.tabBars.buttons["Chat"].waitForExistence(timeout: 5))

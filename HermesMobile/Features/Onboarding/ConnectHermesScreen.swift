@@ -4,36 +4,23 @@ struct ConnectHermesScreen: View {
     @Environment(PairingStore.self) private var pairingStore
 
     @State private var setupCode = ""
-    @State private var displayName = ""
-    @State private var candidatePayload: RelaySetupCodePayload?
-    @State private var candidateSetupCode: String?
     @State private var isScannerPresented = false
     @State private var isManualEntryVisible = false
     @State private var localErrorMessage: String?
-    @FocusState private var focusedField: Field?
-
-    private enum Field {
-        case setupCode
-        case displayName
-    }
+    @FocusState private var isSetupCodeFocused: Bool
 
     var body: some View {
         ZStack {
-            Design.Brand.backgroundPrimary
+            Color(.systemBackground)
                 .ignoresSafeArea()
 
             ScrollView {
                 VStack(alignment: .leading, spacing: Design.Spacing.lg) {
                     heroSection
+                    entryOptions
 
-                    if let candidatePayload {
-                        confirmationCard(payload: candidatePayload)
-                    } else {
-                        entryOptions
-
-                        if isManualEntryVisible {
-                            manualEntryCard
-                        }
+                    if isManualEntryVisible {
+                        manualEntryCard
                     }
 
                     if let errorMessage {
@@ -47,15 +34,21 @@ struct ConnectHermesScreen: View {
         .sheet(isPresented: $isScannerPresented) {
             scannerSheet
         }
+        .onChange(of: setupCode) { _, newValue in
+            let formatted = PhonePairingCode.format(newValue)
+            if formatted != newValue {
+                setupCode = formatted
+            }
+        }
     }
 
     private var heroSection: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             Text("Connect Your Hermes")
                 .font(Design.Typography.heroTitle)
-                .foregroundStyle(Design.Brand.hermesCharcoal)
+                .foregroundStyle(.primary)
 
-            Text("Pair this app with your own Hermes relay using a QR code or setup code generated on your Mac or server.")
+            Text("On the machine running Hermes, finish connector setup and run `hermes-mobile-connector pair-phone`. Then scan the QR code or enter the 8-character code here.")
                 .font(Design.Typography.body)
                 .foregroundStyle(.secondary)
         }
@@ -82,9 +75,9 @@ struct ConnectHermesScreen: View {
                 withAnimation(Design.Motion.standard) {
                     isManualEntryVisible = true
                 }
-                focusedField = .setupCode
+                isSetupCodeFocused = true
             } label: {
-                Label("Enter Setup Code", systemImage: "number")
+                Label("Enter Pairing Code", systemImage: "number")
                     .font(Design.Typography.headline)
                     .frame(maxWidth: .infinity)
             }
@@ -95,52 +88,20 @@ struct ConnectHermesScreen: View {
 
     private var manualEntryCard: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.md) {
-            Text("Setup Code")
+            Text("Phone Pairing Code")
                 .font(Design.Typography.sectionTitle)
 
-            TextField("Paste setup code", text: $setupCode)
-                .textInputAutocapitalization(.never)
+            TextField("ABCD-EFGH", text: $setupCode)
+                .textInputAutocapitalization(.characters)
                 .autocorrectionDisabled()
                 .font(Design.Typography.callout.monospaced())
                 .padding(Design.Spacing.md)
-                .background(Design.Brand.backgroundSecondary, in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
-                .focused($focusedField, equals: .setupCode)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
+                .focused($isSetupCodeFocused)
                 .accessibilityLabel("Setup code")
 
-            Button("Continue") {
-                previewSetupCode()
-            }
-            .buttonStyle(.glassProminent)
-            .disabled(setupCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            .accessibilityLabel("Continue setup code")
-        }
-        .padding(Design.Spacing.lg)
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Design.CornerRadius.xl))
-    }
-
-    private func confirmationCard(payload: RelaySetupCodePayload) -> some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.md) {
-            Text("Confirm Relay")
-                .font(Design.Typography.sectionTitle)
-
-            hostRow(title: "Relay Host", value: payload.hostDisplayName)
-
-            if let expiresAt = payload.expiresAt {
-                hostRow(
-                    title: "Expires",
-                    value: expiresAt.formatted(date: .abbreviated, time: .shortened)
-                )
-            }
-
-            TextField("Display name", text: $displayName)
-                .textInputAutocapitalization(.words)
-                .padding(Design.Spacing.md)
-                .background(Design.Brand.backgroundSecondary, in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
-                .focused($focusedField, equals: .displayName)
-                .accessibilityLabel("Display name")
-
             Button {
-                Task { await completePairing() }
+                Task { await completePairing(using: setupCode) }
             } label: {
                 if pairingStore.isWorking {
                     ProgressView()
@@ -152,14 +113,8 @@ struct ConnectHermesScreen: View {
                 }
             }
             .buttonStyle(.glassProminent)
-            .disabled(pairingStore.isWorking || displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(pairingStore.isWorking || !PhonePairingCode.isComplete(setupCode))
             .accessibilityLabel("Connect Hermes")
-
-            Button("Use a Different Code") {
-                resetCandidate()
-            }
-            .buttonStyle(.glass)
-            .accessibilityLabel("Use a Different Code")
         }
         .padding(Design.Spacing.lg)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Design.CornerRadius.xl))
@@ -171,8 +126,7 @@ struct ConnectHermesScreen: View {
                 SetupCodeScannerView(
                     onCodeDetected: { code in
                         isScannerPresented = false
-                        setupCode = code
-                        previewSetupCode()
+                        Task { await completePairing(using: code) }
                     },
                     onFailure: { message in
                         isScannerPresented = false
@@ -184,12 +138,12 @@ struct ConnectHermesScreen: View {
                 ContentUnavailableView {
                     Label("Scanner Unavailable", systemImage: "qrcode.viewfinder")
                 } description: {
-                    Text("QR scanning is not available here. Use the setup code option instead.")
+                    Text("QR scanning is not available here. Use the pairing code option instead.")
                 } actions: {
-                    Button("Use Setup Code") {
+                    Button("Use Pairing Code") {
                         isScannerPresented = false
                         isManualEntryVisible = true
-                        focusedField = .setupCode
+                        isSetupCodeFocused = true
                     }
                     .buttonStyle(.glassProminent)
                 }
@@ -202,43 +156,12 @@ struct ConnectHermesScreen: View {
         pairingStore.lastErrorMessage ?? localErrorMessage
     }
 
-    private func previewSetupCode() {
-        do {
-            let payload = try pairingStore.decodeSetupCode(setupCode)
-            candidatePayload = payload
-            candidateSetupCode = setupCode.trimmingCharacters(in: .whitespacesAndNewlines)
-            localErrorMessage = nil
-            focusedField = .displayName
-        } catch {
-            localErrorMessage = error.localizedDescription
-        }
-    }
-
-    private func completePairing() async {
-        guard let candidateSetupCode else { return }
-        let didPair = await pairingStore.pair(
-            using: candidateSetupCode,
-            displayName: displayName
-        )
+    private func completePairing(using rawCode: String) async {
+        let didPair = await pairingStore.pair(using: rawCode)
         if didPair {
-            resetCandidate()
-        }
-    }
-
-    private func resetCandidate() {
-        candidatePayload = nil
-        candidateSetupCode = nil
-        localErrorMessage = nil
-    }
-
-    private func hostRow(title: String, value: String) -> some View {
-        HStack {
-            Text(title)
-                .font(Design.Typography.callout)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
-                .font(Design.Typography.callout.monospaced())
+            localErrorMessage = nil
+        } else if pairingStore.lastErrorMessage == nil {
+            localErrorMessage = PhonePairingCodeError.invalidFormat.localizedDescription
         }
     }
 

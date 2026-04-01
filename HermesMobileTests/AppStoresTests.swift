@@ -8,35 +8,8 @@ struct AppStoresTests {
         let timestamp: Date
     }
 
-    private struct SetupCodeEnvelope: Encodable {
-        let relayURL: String
-        let inviteToken: String
-        let expiresAt: Date?
-
-        enum CodingKeys: String, CodingKey {
-            case relayURL = "relay_url"
-            case inviteToken = "invite_token"
-            case expiresAt = "expires_at"
-        }
-    }
-
-    private func makeSetupCode(
-        relayURL: String = "https://relay.example.test/v1",
-        inviteToken: String = "pair-token"
-    ) throws -> String {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let payload = SetupCodeEnvelope(
-            relayURL: relayURL,
-            inviteToken: inviteToken,
-            expiresAt: nil
-        )
-        let encodedPayload = try encoder.encode(payload)
-        return "HM1:" + encodedPayload
-            .base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
+    private func makeSetupCode(_ code: String = "ABCD-EFGH") -> String {
+        code
     }
 
     @MainActor
@@ -96,37 +69,36 @@ struct AppStoresTests {
 
     @MainActor
     private final class RecordingPairingService: PairingServiceProtocol {
-        func decodeSetupCode(_ rawCode: String) throws -> RelaySetupCodePayload {
-            try RelaySetupCodePayload.decode(from: rawCode)
+        func normalizePairingCode(_ rawCode: String) throws -> String {
+            try PhonePairingCode.normalize(rawCode)
         }
 
-        func redeemSetupCode(
-            payload: RelaySetupCodePayload,
-            displayName: String,
+        func redeemPairingCode(
+            _ normalizedCode: String,
             request: DeviceRegistrationRequest
         ) async throws -> PairingRedeemResult {
             PairingRedeemResult(
                 configuration: PairedRelayConfiguration(
-                    baseURLString: payload.relayURL,
-                    hostDisplayName: payload.hostDisplayName,
+                    baseURLString: request.environment.baseURLString,
+                    hostDisplayName: URL(string: request.environment.baseURLString)?.host ?? request.environment.baseURLString,
                     pairedAt: .now
                 ),
                 state: AppSessionState(
                     userID: UUID(),
-                    displayName: displayName,
+                    displayName: "Morgan",
                     deviceID: UUID(),
                     installationID: request.installationID,
                     deviceRegistered: true,
                     connectionStatus: .connected,
                     syncStatus: .synced,
                     isMockMode: false,
-                    backendEndpoint: payload.relayURL,
+                    backendEndpoint: request.environment.baseURLString,
                     lastSyncAt: .now,
                     pushTokenRegistered: false
                 ),
                 tokens: AuthTokens(
-                    accessToken: "paired-access-token",
-                    refreshToken: "paired-refresh-token",
+                    accessToken: "paired-access-token-\(normalizedCode)",
+                    refreshToken: "paired-refresh-token-\(normalizedCode)",
                     expiresAt: .distantFuture
                 )
             )
@@ -283,26 +255,12 @@ struct AppStoresTests {
     }
 
     @Test
-    func setupCodeDecoderParsesOpaqueBundle() throws {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let payload = SetupCodeEnvelope(
-            relayURL: "https://relay.example.test/v1",
-            inviteToken: "invite-token-123",
-            expiresAt: Date(timeIntervalSince1970: 1_774_983_516)
-        )
-        let encoded = try encoder.encode(payload)
-            .base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
-        let setupCode = "HM1:\(encoded)"
+    func phonePairingCodeNormalizesAndFormatsManualEntry() throws {
+        let normalized = try PhonePairingCode.normalize("ab cd-efgh")
 
-        let decoded = try RelaySetupCodePayload.decode(from: setupCode)
-
-        #expect(decoded.relayURL == "https://relay.example.test/v1")
-        #expect(decoded.inviteToken == "invite-token-123")
-        #expect(decoded.hostDisplayName == "relay.example.test")
+        #expect(normalized == "ABCDEFGH")
+        #expect(PhonePairingCode.format("ab cd-efgh") == "ABCD-EFGH")
+        #expect(PhonePairingCode.isComplete("ABCD-EFGH"))
     }
 
     @Test @MainActor
@@ -328,13 +286,13 @@ struct AppStoresTests {
             environmentProvider: { .production }
         )
 
-        let setupCode = try makeSetupCode()
-        let didPair = await pairingStore.pair(using: setupCode, displayName: "Morgan")
+        let setupCode = makeSetupCode()
+        let didPair = await pairingStore.pair(using: setupCode)
 
         #expect(didPair)
-        #expect(pairingStore.pairedRelayConfiguration?.hostDisplayName == "relay.example.test")
-        #expect(persistence.loadPairedRelayConfiguration()?.baseURLString == "https://relay.example.test/v1")
-        #expect(await secureStore.retrieve(key: "session.accessToken") == "paired-access-token")
+        #expect(pairingStore.pairedRelayConfiguration?.hostDisplayName == "hermes-mobile-relay-dylan.fly.dev")
+        #expect(persistence.loadPairedRelayConfiguration()?.baseURLString == AppEnvironment.production.baseURLString)
+        #expect(await secureStore.retrieve(key: "session.accessToken") == "paired-access-token-ABCDEFGH")
         #expect(sessionStore.state.displayName == "Morgan")
     }
 
@@ -393,8 +351,8 @@ struct AppStoresTests {
             environmentProvider: { .production }
         )
 
-        let setupCode = try makeSetupCode()
-        _ = await pairingStore.pair(using: setupCode, displayName: "Morgan")
+        let setupCode = makeSetupCode()
+        _ = await pairingStore.pair(using: setupCode)
 
         await pairingStore.disconnect()
 

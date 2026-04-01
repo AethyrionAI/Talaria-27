@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 import uuid
 
-from fastapi import Body, Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, status
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
@@ -15,8 +15,10 @@ from .config import Settings
 from .database import Database
 from .hermes_adapter import build_hermes_adapter
 from .models import Conversation, HermesHost, Message, PushRegistration
-from .pairing import HostSetupCodePayload, build_host_setup_code
+from .pairing import HostSetupCodePayload, format_phone_pairing_code, build_host_setup_code
+from .rate_limit import PhonePairingRateLimiter
 from .schemas import (
+    ConnectorSetupRequest,
     DeviceRegisterRequest,
     HostEnrollmentCodeCreateRequest,
     HostRedeemRequest,
@@ -24,6 +26,7 @@ from .schemas import (
     InternalInboxCreateRequest,
     MessageCreateRequest,
     PairingRedeemRequest,
+    PhonePairingRedeemRequest,
     PushRegisterRequest,
     RefreshRequest,
 )
@@ -36,6 +39,7 @@ from .services import (
     claim_next_message_job,
     complete_message_job,
     conversation_history_before_message,
+    create_phone_pairing_code,
     create_host_enrollment_invite,
     create_inbox_item,
     create_message_job,
@@ -53,6 +57,7 @@ from .services import (
     list_message_jobs_for_conversation,
     record_audit,
     record_inbox_action,
+    redeem_phone_pairing_code,
     redeem_host_enrollment_invite,
     redeem_pairing_invite,
     refresh_auth_session,
@@ -63,6 +68,7 @@ from .services import (
     serialize_hermes_host,
     serialize_inbox_item,
     serialize_message,
+    setup_connector_account,
     touch_hermes_host_connection,
     upsert_device,
     upsert_push_registration,
@@ -114,6 +120,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.database = database
     app.state.hermes_adapter = build_hermes_adapter(settings)
+    app.state.phone_pairing_rate_limiter = PhonePairingRateLimiter(
+        max_attempts=settings.phone_pairing_max_attempts_per_ip,
+        window_seconds=settings.phone_pairing_rate_limit_window_seconds,
+    )
+
+    def require_connector_host(
+        authorization: str | None = Header(default=None),
+        db: Session = Depends(get_db),
+    ) -> HermesHost:
+        connector_token = parse_bearer_token(authorization)
+        if connector_token is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing connector credential.")
+        return authenticate_hermes_host(db, connector_token=connector_token)
 
     async def wait_for_job_completion(job_id: str, timeout_seconds: int) -> object | None:
         deadline = asyncio.get_running_loop().time() + timeout_seconds
@@ -190,6 +209,143 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "service": request_settings.service_name,
                 "version": request_settings.version,
                 "environment": request_settings.environment,
+            }
+        )
+
+    @app.post("/v1/connector/setup")
+    def connector_setup(
+        payload: ConnectorSetupRequest,
+        db: Session = Depends(get_db),
+        request_settings: Settings = Depends(get_settings),
+    ) -> dict:
+        user, host, connector_token = setup_connector_account(
+            db,
+            settings=request_settings,
+            owner_display_name=payload.ownerDisplayName,
+            host_display_name=payload.hostDisplayName,
+            platform=payload.connector.platform,
+            hostname=payload.connector.hostname,
+            hermes_command=payload.connector.hermesCommand,
+            hermes_version=payload.connector.hermesVersion,
+            connector_version=payload.connector.connectorVersion,
+        )
+        record_audit(
+            db,
+            actor_type="connector",
+            actor_id=host.id,
+            action="connector.setup",
+            entity_type="hermes_host",
+            entity_id=host.id,
+            payload={"userId": user.id},
+        )
+        db.commit()
+        return success(
+            {
+                "user": {
+                    "id": user.id,
+                    "displayName": user.display_name,
+                },
+                "host": {
+                    "id": host.id,
+                    "userId": host.user_id,
+                },
+                "connectorCredential": connector_token,
+                "webSocketURL": build_connector_websocket_url(request_settings.public_base_url),
+                "relayURL": request_settings.public_base_url,
+            }
+        )
+
+    @app.post("/v1/connector/phone-pairing-codes")
+    def create_phone_pairing(
+        host: HermesHost = Depends(require_connector_host),
+        db: Session = Depends(get_db),
+        request_settings: Settings = Depends(get_settings),
+    ) -> dict:
+        pairing_code, normalized_code = create_phone_pairing_code(
+            db,
+            settings=request_settings,
+            host=host,
+        )
+        display_code = format_phone_pairing_code(normalized_code)
+        record_audit(
+            db,
+            actor_type="connector",
+            actor_id=host.id,
+            action="phone_pairing_code.create",
+            entity_type="phone_pairing_code",
+            entity_id=pairing_code.id,
+            payload={"displayCode": display_code},
+        )
+        db.commit()
+        return success(
+            {
+                "code": normalized_code,
+                "displayCode": display_code,
+                "expiresAt": pairing_code.expires_at,
+            }
+        )
+
+    @app.post("/v1/phone-pairing/redeem")
+    def redeem_phone_pairing(
+        payload: PhonePairingRedeemRequest,
+        request: Request,
+        db: Session = Depends(get_db),
+        request_settings: Settings = Depends(get_settings),
+    ) -> dict:
+        client_host = request.client.host if request.client else ""
+        rate_limiter: PhonePairingRateLimiter = request.app.state.phone_pairing_rate_limiter
+        if rate_limiter.is_limited(client_host):
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many pairing attempts. Try again later.")
+
+        try:
+            pairing_code, user, device, auth_session, access_token, refresh_token = redeem_phone_pairing_code(
+                db,
+                settings=request_settings,
+                raw_code=payload.code,
+                platform=payload.device.platform,
+                installation_id=str(payload.device.installationId),
+                device_name=payload.device.deviceName,
+                device_model=payload.device.deviceModel,
+                system_version=payload.device.systemVersion,
+                app_version=payload.device.appVersion,
+                build_number=payload.device.buildNumber,
+                bundle_id=payload.device.bundleId,
+                environment=payload.client.environment,
+            )
+        except HTTPException as error:
+            rate_limiter.register_failure(client_host)
+            raise error
+
+        record_audit(
+            db,
+            actor_type="app",
+            actor_id=device.id,
+            action="phone_pairing.redeem",
+            entity_type="phone_pairing_code",
+            entity_id=pairing_code.id,
+            payload={"installationId": str(payload.device.installationId)},
+        )
+        db.commit()
+
+        return success(
+            {
+                "user": {
+                    "id": user.id,
+                    "displayName": user.display_name,
+                },
+                "deviceId": device.id,
+                "deviceRegistered": True,
+                "session": {
+                    "connectionStatus": "connected",
+                    "isMockMode": False,
+                    "backendEndpoint": request_settings.public_base_url,
+                    "lastSyncAt": auth_session.updated_at,
+                },
+                "auth": {
+                    "accessToken": access_token,
+                    "refreshToken": refresh_token,
+                    "expiresAt": auth_session.access_expires_at,
+                },
             }
         )
 

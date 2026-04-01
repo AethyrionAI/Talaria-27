@@ -31,6 +31,9 @@ The Fly deployment details for this relay are documented in [`relay/docs/fly-io.
 
 - `GET /v1/health`
 - `GET /v1/version`
+- `POST /v1/connector/setup`
+- `POST /v1/connector/phone-pairing-codes`
+- `POST /v1/phone-pairing/redeem`
 - `POST /v1/device/register`
 - `POST /v1/pairing/redeem`
 - `POST /v1/hosts/enrollment-codes`
@@ -79,6 +82,10 @@ For connector mode, set:
 ```bash
 HERMES_ADAPTER=connector
 PUBLIC_BASE_URL=https://your.public.relay.example/v1
+PHONE_PAIRING_CODE_TTL_SECONDS=600
+PHONE_PAIRING_MAX_ATTEMPTS_PER_CODE=5
+PHONE_PAIRING_MAX_ATTEMPTS_PER_IP=5
+PHONE_PAIRING_RATE_LIMIT_WINDOW_SECONDS=300
 HOST_ENROLLMENT_CODE_TTL_SECONDS=900
 CONNECTOR_SYNC_WAIT_SECONDS=25
 CONNECTOR_JOB_LEASE_SECONDS=180
@@ -88,7 +95,7 @@ CONNECTOR_IDLE_POLL_INTERVAL_SECONDS=1.0
 
 In connector mode the relay never shells out to Hermes directly. Instead, it persists chat jobs and waits for a connected `hermes-mobile-connector` host process to claim and execute them.
 
-## Generating a mobile setup code
+## Legacy mobile setup code
 
 Hermes Mobile production pairing is self-hosted. The operator runs Hermes plus this relay, exposes `PUBLIC_BASE_URL` over HTTPS or a trusted tunnel/VPN, and then generates a single-use setup code locally:
 
@@ -105,9 +112,9 @@ That command prints:
 
 In `development`, `PUBLIC_BASE_URL=http://127.0.0.1:8000/v1` is still allowed for same-machine simulator testing. Outside development, pairing should use an externally reachable HTTPS `PUBLIC_BASE_URL`.
 
-## Connecting a Hermes host
+## Connector-first setup
 
-After the iPhone app is paired to the relay, the user can generate a short-lived host setup code from the Settings screen. On the machine where Hermes lives:
+On the machine where Hermes lives:
 
 ```bash
 cd /Users/dylan-mac-mini/Documents/HermesMobile/connector
@@ -117,9 +124,13 @@ pip install -e .[dev]
 
 export HERMES_COMMAND=/absolute/path/to/hermes
 export HERMES_WORKDIR=/path/to/your/hermes/project
+export HERMES_MOBILE_RELAY_URL=https://hermes-mobile-relay-dylan.fly.dev/v1
 
-hermes-mobile-connector enroll --code 'HC1:...'
+hermes-mobile-connector setup --owner-display-name "Taylor" --host-display-name "Home Mac mini"
+hermes-mobile-connector pair-phone
 hermes-mobile-connector run
 ```
+
+`pair-phone` prints the short-lived manual code plus an ASCII QR. Hermes Mobile release onboarding now expects that connector-generated phone pairing code instead of the old HM1/HC1 two-step flow.
 
 The connector keeps one outbound authenticated WebSocket connection to the relay, executes one Hermes job at a time, resumes Hermes sessions when possible, and sends replies back to the relay for delivery to the iOS app.

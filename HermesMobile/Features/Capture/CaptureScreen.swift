@@ -5,7 +5,7 @@ struct CaptureScreen: View {
 
     var body: some View {
         ZStack {
-            Design.Brand.backgroundPrimary
+            Color(.systemBackground)
                 .ignoresSafeArea()
 
             ContentUnavailableView {

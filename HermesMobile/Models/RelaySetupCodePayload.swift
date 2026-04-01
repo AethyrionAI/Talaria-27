@@ -1,79 +1,54 @@
 import Foundation
 
-enum RelaySetupCodeError: LocalizedError {
-    case unsupportedVersion
-    case invalidPayload
-    case invalidRelayURL
+enum PhonePairingCodeError: LocalizedError {
+    case invalidFormat
 
     var errorDescription: String? {
         switch self {
-        case .unsupportedVersion:
-            "This setup code uses an unsupported version."
-        case .invalidPayload:
-            "This setup code is invalid."
-        case .invalidRelayURL:
-            "This setup code does not contain a valid Hermes relay URL."
+        case .invalidFormat:
+            "Enter the 8-character code from `hermes-mobile-connector pair-phone`."
         }
     }
 }
 
-struct RelaySetupCodePayload: Codable, Hashable, Sendable {
-    static let prefix = "HM1:"
+enum PhonePairingCode {
+    private static let allowedCharacters = Set("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
+    private static let codeLength = 8
+    private static let separatorIndex = 4
 
-    let relayURL: String
-    let inviteToken: String
-    let expiresAt: Date?
+    static func normalize(_ rawCode: String) throws -> String {
+        let normalized = rawCode
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased()
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: " ", with: "")
 
-    enum CodingKeys: String, CodingKey {
-        case relayURL = "relay_url"
-        case inviteToken = "invite_token"
-        case expiresAt = "expires_at"
+        guard normalized.count == codeLength else {
+            throw PhonePairingCodeError.invalidFormat
+        }
+
+        guard normalized.allSatisfy({ allowedCharacters.contains($0) }) else {
+            throw PhonePairingCodeError.invalidFormat
+        }
+
+        return normalized
     }
 
-    var hostDisplayName: String {
-        URL(string: relayURL)?.host ?? relayURL
+    static func format(_ rawCode: String) -> String {
+        let filtered = rawCode
+            .uppercased()
+            .filter { allowedCharacters.contains($0) }
+        let limited = String(filtered.prefix(codeLength))
+        guard limited.count > separatorIndex else {
+            return limited
+        }
+
+        let first = limited.prefix(separatorIndex)
+        let second = limited.dropFirst(separatorIndex)
+        return "\(first)-\(second)"
     }
 
-    static func decode(from rawCode: String) throws -> RelaySetupCodePayload {
-        let trimmed = rawCode.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.hasPrefix(prefix) else {
-            throw RelaySetupCodeError.unsupportedVersion
-        }
-
-        let encoded = String(trimmed.dropFirst(prefix.count))
-        let base64 = encoded
-            .replacingOccurrences(of: "-", with: "+")
-            .replacingOccurrences(of: "_", with: "/")
-        let padded = base64.padding(
-            toLength: ((encoded.count + 3) / 4) * 4,
-            withPad: "=",
-            startingAt: 0
-        )
-
-        guard
-            let data = Data(base64Encoded: padded, options: [.ignoreUnknownCharacters])
-        else {
-            throw RelaySetupCodeError.invalidPayload
-        }
-
-        let decoder = RelayCoders.makeDecoder()
-
-        let payload: RelaySetupCodePayload
-        do {
-            payload = try decoder.decode(RelaySetupCodePayload.self, from: data)
-        } catch {
-            throw RelaySetupCodeError.invalidPayload
-        }
-
-        guard
-            let url = URL(string: payload.relayURL),
-            let scheme = url.scheme,
-            ["http", "https"].contains(scheme),
-            url.host != nil
-        else {
-            throw RelaySetupCodeError.invalidRelayURL
-        }
-
-        return payload
+    static func isComplete(_ rawCode: String) -> Bool {
+        (try? normalize(rawCode)) != nil
     }
 }

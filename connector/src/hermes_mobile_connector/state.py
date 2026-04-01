@@ -20,6 +20,8 @@ class ConnectorState:
     web_socket_url: str
     host_id: str
     connector_credential: str
+    user_id: str | None = None
+    owner_display_name: str | None = None
     connector_display_name: str | None = None
     enrolled_at: str | None = None
     last_connected_at: str | None = None
@@ -37,7 +39,10 @@ class ConnectorStateStore:
 
     def load(self) -> ConnectorState:
         if not self.state_path.exists():
-            raise RuntimeError("Connector is not enrolled yet. Run `hermes-mobile-connector enroll --code ...` first.")
+            raise RuntimeError(
+                "Connector is not set up yet. Run `hermes-mobile-connector setup` first "
+                "or use the legacy `enroll --code ...` flow."
+            )
         data = json.loads(self.state_path.read_text(encoding="utf-8"))
         return ConnectorState(**data)
 

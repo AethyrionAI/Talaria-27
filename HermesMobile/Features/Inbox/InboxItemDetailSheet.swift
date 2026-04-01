@@ -15,7 +15,7 @@ struct InboxItemDetailSheet: View {
                 }
                 .padding(Design.Spacing.lg)
             }
-            .background(Design.Brand.backgroundPrimary)
+            .background(Color(.systemBackground))
             .navigationTitle(item.type.displayLabel)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

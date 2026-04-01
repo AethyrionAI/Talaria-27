@@ -6,7 +6,7 @@ struct InboxScreen: View {
 
     var body: some View {
         ZStack {
-            Design.Brand.backgroundPrimary
+            Color(.systemBackground)
                 .ignoresSafeArea()
 
             if inboxStore.items.isEmpty {

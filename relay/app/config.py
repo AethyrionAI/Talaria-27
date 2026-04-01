@@ -28,6 +28,10 @@ class Settings:
     access_token_ttl_seconds: int = 3600
     refresh_token_ttl_seconds: int = 60 * 60 * 24 * 30
     pairing_code_ttl_seconds: int = 900
+    phone_pairing_code_ttl_seconds: int = 600
+    phone_pairing_max_attempts_per_code: int = 5
+    phone_pairing_max_attempts_per_ip: int = 5
+    phone_pairing_rate_limit_window_seconds: int = 300
     host_enrollment_code_ttl_seconds: int = 900
     default_user_display_name: str = "Hermes User"
     hermes_adapter: str = "mock"
@@ -53,6 +57,10 @@ class Settings:
             access_token_ttl_seconds=int(os.getenv("ACCESS_TOKEN_TTL_SECONDS", "3600")),
             refresh_token_ttl_seconds=int(os.getenv("REFRESH_TOKEN_TTL_SECONDS", str(60 * 60 * 24 * 30))),
             pairing_code_ttl_seconds=int(os.getenv("PAIRING_CODE_TTL_SECONDS", "900")),
+            phone_pairing_code_ttl_seconds=int(os.getenv("PHONE_PAIRING_CODE_TTL_SECONDS", "600")),
+            phone_pairing_max_attempts_per_code=int(os.getenv("PHONE_PAIRING_MAX_ATTEMPTS_PER_CODE", "5")),
+            phone_pairing_max_attempts_per_ip=int(os.getenv("PHONE_PAIRING_MAX_ATTEMPTS_PER_IP", "5")),
+            phone_pairing_rate_limit_window_seconds=int(os.getenv("PHONE_PAIRING_RATE_LIMIT_WINDOW_SECONDS", "300")),
             host_enrollment_code_ttl_seconds=int(os.getenv("HOST_ENROLLMENT_CODE_TTL_SECONDS", "900")),
             default_user_display_name=os.getenv("DEFAULT_USER_DISPLAY_NAME", "Hermes User"),
             hermes_adapter=os.getenv("HERMES_ADAPTER", "mock"),

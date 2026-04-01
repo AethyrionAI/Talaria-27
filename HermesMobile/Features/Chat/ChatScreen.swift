@@ -11,7 +11,7 @@ struct ChatScreen: View {
 
     var body: some View {
         ZStack {
-            Design.Brand.backgroundPrimary
+            Color(.systemBackground)
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {

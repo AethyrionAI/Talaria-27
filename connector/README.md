@@ -31,9 +31,35 @@ Optional connector-local state directory:
 export HERMES_MOBILE_CONNECTOR_HOME=~/.hermes-mobile-connector
 ```
 
-## Enroll
+Relay target:
 
-Generate a host setup code from the Hermes Mobile iPhone app, then redeem it on the Hermes host:
+```bash
+export HERMES_MOBILE_RELAY_URL=https://hermes-mobile-relay-dylan.fly.dev/v1
+```
+
+## Setup
+
+Create or link the relay account from the Hermes host first:
+
+```bash
+hermes-mobile-connector setup \
+  --owner-display-name "Taylor" \
+  --host-display-name "Home Mac mini"
+```
+
+## Pair a phone
+
+After setup, generate a short-lived phone pairing code and QR:
+
+```bash
+hermes-mobile-connector pair-phone
+```
+
+Then open Hermes Mobile on the phone and scan the QR code or enter the displayed `ABCD-EFGH` code manually.
+
+## Legacy enroll
+
+The legacy host-enrollment path still exists for development and migration:
 
 ```bash
 hermes-mobile-connector enroll --code 'HC1:...'

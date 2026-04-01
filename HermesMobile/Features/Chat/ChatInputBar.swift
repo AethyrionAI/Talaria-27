@@ -60,6 +60,6 @@ struct ChatInputBar: View {
     }
 
     private var sendButtonColor: Color {
-        canSend ? Design.Brand.warmGold : .gray.opacity(0.3)
+        canSend ? Design.Brand.accent : .gray.opacity(0.3)
     }
 }

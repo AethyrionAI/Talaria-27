@@ -9,7 +9,7 @@ struct SettingsScreen: View {
 
     var body: some View {
         ZStack {
-            Design.Brand.backgroundPrimary
+            Color(.systemBackground)
                 .ignoresSafeArea()
 
             ScrollView {
@@ -41,7 +41,7 @@ struct SettingsScreen: View {
             HStack(spacing: Design.Spacing.md) {
                 Text(settingsStore.settings.avatarInitials)
                     .font(.system(size: Design.Size.iconMedium, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Design.Brand.warmGold)
+                    .foregroundStyle(Design.Brand.accent)
                     .frame(width: Design.Size.avatarMedium, height: Design.Size.avatarMedium)
                     .clipShape(Circle())
                     .glassEffect(.regular, in: Circle())
@@ -132,19 +132,35 @@ struct SettingsScreen: View {
                         )
                     }
 
-                    Button {
-                        router.navigate(to: .connectHost, in: .settings)
-                    } label: {
-                        HStack {
-                            Label(hostStore.currentHost == nil ? "Connect Hermes Host" : "Manage Hermes Host", systemImage: "desktopcomputer.and.arrow.down")
-                                .font(Design.Typography.callout)
-                                .foregroundStyle(.primary)
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(Design.Typography.caption)
-                                .foregroundStyle(.tertiary)
+                    if settingsStore.availableEnvironments.count > 1 {
+                        Button {
+                            router.navigate(to: .connectHost, in: .settings)
+                        } label: {
+                            HStack {
+                                Label(hostStore.currentHost == nil ? "Connect Hermes Host" : "Manage Hermes Host", systemImage: "desktopcomputer.and.arrow.down")
+                                    .font(Design.Typography.callout)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(Design.Typography.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .frame(minHeight: Design.Size.minTapTarget)
                         }
-                        .frame(minHeight: Design.Size.minTapTarget)
+                    }
+
+                    if hostStore.currentHost != nil {
+                        Button(role: .destructive) {
+                            Task { await hostStore.revokeCurrentHost() }
+                        } label: {
+                            HStack {
+                                Label("Revoke Current Host", systemImage: "desktopcomputer.trianglebadge.exclamationmark")
+                                    .font(Design.Typography.callout)
+                                    .foregroundStyle(.red)
+                                Spacer()
+                            }
+                            .frame(minHeight: Design.Size.minTapTarget)
+                        }
                     }
 
                     Button {
@@ -164,7 +180,7 @@ struct SettingsScreen: View {
                     Label("Auto-Connect on Launch", systemImage: "bolt.fill")
                         .font(Design.Typography.callout)
                 }
-                .tint(Design.Brand.warmGold)
+                .tint(Design.Brand.accent)
             }
         }
     }
@@ -189,7 +205,7 @@ struct SettingsScreen: View {
 
                             if settingsStore.settings.environment == env {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(Design.Brand.warmGold)
+                                    .foregroundStyle(Design.Brand.accent)
                                     .transition(.scale.combined(with: .opacity))
                             }
                         }
@@ -218,13 +234,13 @@ struct SettingsScreen: View {
                     Label("Push Notifications", systemImage: "bell.fill")
                         .font(Design.Typography.callout)
                 }
-                .tint(Design.Brand.warmGold)
+                .tint(Design.Brand.accent)
 
                 Toggle(isOn: $settingsStore.settings.hapticFeedbackEnabled) {
                     Label("Haptic Feedback", systemImage: "hand.tap.fill")
                         .font(Design.Typography.callout)
                 }
-                .tint(Design.Brand.warmGold)
+                .tint(Design.Brand.accent)
             }
         }
     }
@@ -240,7 +256,7 @@ struct SettingsScreen: View {
                     Label("Usage Analytics", systemImage: "chart.bar.fill")
                         .font(Design.Typography.callout)
                 }
-                .tint(Design.Brand.warmGold)
+                .tint(Design.Brand.accent)
 
                 Button {
                     router.navigate(to: .permissions)

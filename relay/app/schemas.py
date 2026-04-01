@@ -66,10 +66,22 @@ class HostConnectorInfo(BaseModel):
     hermesVersion: str | None = None
 
 
+class ConnectorSetupRequest(BaseModel):
+    ownerDisplayName: str = Field(min_length=1, max_length=120)
+    hostDisplayName: str | None = Field(default=None, max_length=120)
+    connector: HostConnectorInfo
+
+
 class HostRedeemRequest(BaseModel):
     enrollmentToken: str = Field(min_length=1)
     displayName: str | None = Field(default=None, max_length=120)
     connector: HostConnectorInfo
+
+
+class PhonePairingRedeemRequest(BaseModel):
+    code: str = Field(min_length=1, max_length=32)
+    device: DeviceInfo
+    client: ClientInfo
 
 
 class RefreshRequest(BaseModel):

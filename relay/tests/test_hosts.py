@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_app
-from app.pairing import decode_host_setup_code
 
 
 def build_client(tmp_path):
@@ -16,6 +15,10 @@ def build_client(tmp_path):
         database_url=f"sqlite:///{tmp_path / 'relay-hosts.db'}",
         internal_api_key="test-internal-key",
         pairing_code_ttl_seconds=900,
+        phone_pairing_code_ttl_seconds=900,
+        phone_pairing_max_attempts_per_code=3,
+        phone_pairing_max_attempts_per_ip=3,
+        phone_pairing_rate_limit_window_seconds=300,
         host_enrollment_code_ttl_seconds=900,
         hermes_adapter="connector",
         connector_sync_wait_seconds=2,
@@ -27,10 +30,23 @@ def build_client(tmp_path):
     return TestClient(app)
 
 
-def pairing_payload(invite_token: str, installation_id: str, display_name: str = "Taylor") -> dict:
+def connector_setup_payload(owner_display_name: str = "Taylor") -> dict:
     return {
-        "inviteToken": invite_token,
-        "displayName": display_name,
+        "ownerDisplayName": owner_display_name,
+        "hostDisplayName": "Home Mac mini",
+        "connector": {
+            "platform": "macos",
+            "hostname": "dylans-mac-mini",
+            "connectorVersion": "0.1.0",
+            "hermesCommand": "/Users/dylan/.local/bin/hermes",
+            "hermesVersion": "hermes 1.2.3",
+        },
+    }
+
+
+def phone_pairing_payload(code: str, installation_id: str) -> dict:
+    return {
+        "code": code,
         "device": {
             "platform": "ios",
             "deviceName": "Taylor's iPhone",
@@ -46,74 +62,95 @@ def pairing_payload(invite_token: str, installation_id: str, display_name: str =
         },
     }
 
-def create_paired_user(client: TestClient, installation_id: str = "11111111-1111-1111-1111-111111111111") -> tuple[str, str]:
-    from app.services import create_pairing_invite
 
-    with client.app.state.database.session() as db:
-        _, invite_token = create_pairing_invite(db, settings=client.app.state.settings)
-
-    response = client.post(
-        "/v1/pairing/redeem",
-        json=pairing_payload(invite_token=invite_token, installation_id=installation_id),
-    )
+def setup_connector(client: TestClient) -> dict:
+    response = client.post("/v1/connector/setup", json=connector_setup_payload())
     assert response.status_code == 200
-    data = response.json()["data"]
-    return data["auth"]["accessToken"], data["user"]["id"]
+    return response.json()["data"]
 
 
-def create_host_code(client: TestClient, access_token: str) -> str:
+def create_phone_pairing_code(client: TestClient, connector_credential: str) -> dict:
     response = client.post(
-        "/v1/hosts/enrollment-codes",
-        headers={"Authorization": f"Bearer {access_token}"},
-        json={},
-    )
-    assert response.status_code == 200
-    return response.json()["data"]["setupCode"]
-
-
-def redeem_host(client: TestClient, host_code: str) -> dict:
-    payload = decode_host_setup_code(host_code)
-    response = client.post(
-        "/v1/hosts/redeem",
-        json={
-            "enrollmentToken": payload.enrollment_token,
-            "displayName": "Home Mac mini",
-            "connector": {
-                "platform": "macos",
-                "hostname": "dylans-mac-mini",
-                "connectorVersion": "0.1.0",
-                "hermesCommand": "/Users/dylan/.local/bin/hermes",
-                "hermesVersion": "hermes 1.2.3",
-            },
-        },
+        "/v1/connector/phone-pairing-codes",
+        headers={"Authorization": f"Bearer {connector_credential}"},
     )
     assert response.status_code == 200
     return response.json()["data"]
 
 
-def test_host_enrollment_code_and_redeem_create_relay_host(tmp_path):
-    with build_client(tmp_path) as client:
-        access_token, _ = create_paired_user(client)
-        host_code = create_host_code(client, access_token)
-        data = redeem_host(client, host_code)
+def redeem_phone(client: TestClient, code: str, installation_id: str) -> dict:
+    response = client.post(
+        "/v1/phone-pairing/redeem",
+        json=phone_pairing_payload(code=code, installation_id=installation_id),
+    )
+    assert response.status_code == 200
+    return response.json()["data"]
 
-        assert data["host"]["id"]
-        assert data["connectorCredential"]
-        assert data["webSocketURL"] == "wss://relay.example.test/v1/hosts/ws"
+
+def test_connector_setup_and_phone_pairing_attach_phone_to_existing_user(tmp_path):
+    with build_client(tmp_path) as client:
+        connector_data = setup_connector(client)
+        pairing_code = create_phone_pairing_code(client, connector_data["connectorCredential"])
+
+        assert pairing_code["displayCode"].count("-") == 1
+        first_phone = redeem_phone(client, pairing_code["displayCode"], "11111111-1111-1111-1111-111111111111")
+        second_pairing_code = create_phone_pairing_code(client, connector_data["connectorCredential"])
+        second_phone = redeem_phone(client, second_pairing_code["code"], "22222222-2222-2222-2222-222222222222")
+
+        assert first_phone["user"]["id"] == connector_data["user"]["id"]
+        assert second_phone["user"]["id"] == connector_data["user"]["id"]
+        assert first_phone["deviceId"] != second_phone["deviceId"]
 
         current_host = client.get(
             "/v1/hosts/current",
-            headers={"Authorization": f"Bearer {access_token}"},
+            headers={"Authorization": f"Bearer {first_phone['auth']['accessToken']}"},
         )
         assert current_host.status_code == 200
-        host = current_host.json()["data"]["host"]
-        assert host["displayName"] == "Home Mac mini"
-        assert host["isOnline"] is False
+        assert current_host.json()["data"]["host"]["id"] == connector_data["host"]["id"]
+
+
+def test_phone_pairing_rejects_reused_and_rate_limited_codes(tmp_path):
+    with build_client(tmp_path) as client:
+        connector_data = setup_connector(client)
+        pairing_code = create_phone_pairing_code(client, connector_data["connectorCredential"])
+
+        redeem_phone(client, pairing_code["displayCode"], "33333333-3333-3333-3333-333333333333")
+
+        reused = client.post(
+            "/v1/phone-pairing/redeem",
+            json=phone_pairing_payload(pairing_code["displayCode"], "44444444-4444-4444-4444-444444444444"),
+        )
+        assert reused.status_code == 400
+        assert reused.json()["detail"] == "This phone pairing code has already been used."
+
+        invalid_one = client.post(
+            "/v1/phone-pairing/redeem",
+            json=phone_pairing_payload("ZZZZ-ZZZZ", "55555555-5555-5555-5555-555555555555"),
+        )
+        invalid_two = client.post(
+            "/v1/phone-pairing/redeem",
+            json=phone_pairing_payload("ZZZZ-ZZZZ", "66666666-6666-6666-6666-666666666666"),
+        )
+        limited = client.post(
+            "/v1/phone-pairing/redeem",
+            json=phone_pairing_payload("ZZZZ-ZZZZ", "77777777-7777-7777-7777-777777777777"),
+        )
+
+        assert invalid_one.status_code == 400
+        assert invalid_two.status_code == 400
+        assert limited.status_code == 429
+        assert limited.json()["detail"] == "Too many pairing attempts. Try again later."
 
 
 def test_messages_return_pending_when_host_is_offline(tmp_path):
     with build_client(tmp_path) as client:
-        access_token, _ = create_paired_user(client)
+        connector_data = setup_connector(client)
+        pairing_code = create_phone_pairing_code(client, connector_data["connectorCredential"])
+        access_token = redeem_phone(
+            client,
+            pairing_code["displayCode"],
+            "99999990-8888-8888-8888-888888888888",
+        )["auth"]["accessToken"]
 
         message_response = client.post(
             "/v1/messages",
@@ -129,14 +166,17 @@ def test_messages_return_pending_when_host_is_offline(tmp_path):
 
 def test_connected_host_gets_job_and_preserves_session_resume(tmp_path):
     with build_client(tmp_path) as client:
-        access_token, _ = create_paired_user(client)
-        host_code = create_host_code(client, access_token)
-        host_data = redeem_host(client, host_code)
-        connector_credential = host_data["connectorCredential"]
+        connector_data = setup_connector(client)
+        pairing_code = create_phone_pairing_code(client, connector_data["connectorCredential"])
+        access_token = redeem_phone(
+            client,
+            pairing_code["displayCode"],
+            "99999999-9999-9999-9999-999999999999",
+        )["auth"]["accessToken"]
 
         with client.websocket_connect(
             "/v1/hosts/ws",
-            headers={"Authorization": f"Bearer {connector_credential}"},
+            headers={"Authorization": f"Bearer {connector_data['connectorCredential']}"},
         ) as websocket:
             websocket.send_json(
                 {
@@ -206,18 +246,3 @@ def test_connected_host_gets_job_and_preserves_session_resume(tmp_path):
             assert second_response["payload"].status_code == 200
             messages = second_response["payload"].json()["data"]["conversation"]["messages"]
             assert messages[-1]["text"] == "Second connector reply"
-
-
-def test_replacing_host_rotates_connector_credential_and_updates_current_host(tmp_path):
-    with build_client(tmp_path) as client:
-        access_token, _ = create_paired_user(client)
-        first_host = redeem_host(client, create_host_code(client, access_token))
-        second_host = redeem_host(client, create_host_code(client, access_token))
-
-        assert first_host["connectorCredential"] != second_host["connectorCredential"]
-        current_host = client.get(
-            "/v1/hosts/current",
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
-        assert current_host.status_code == 200
-        assert current_host.json()["data"]["host"]["id"] == second_host["host"]["id"]

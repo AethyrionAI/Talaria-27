@@ -30,31 +30,24 @@ final class PairingStore {
         pairedRelayConfiguration != nil
     }
 
-    func decodeSetupCode(_ rawCode: String) throws -> RelaySetupCodePayload {
-        try pairingService.decodeSetupCode(rawCode)
+    func normalizePairingCode(_ rawCode: String) throws -> String {
+        try pairingService.normalizePairingCode(rawCode)
     }
 
     @discardableResult
-    func pair(using rawSetupCode: String, displayName: String) async -> Bool {
-        let trimmedDisplayName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedDisplayName.isEmpty else {
-            lastErrorMessage = "Enter a display name to continue."
-            return false
-        }
-
+    func pair(using rawSetupCode: String) async -> Bool {
         isWorking = true
         lastErrorMessage = nil
         defer { isWorking = false }
 
         do {
-            let payload = try pairingService.decodeSetupCode(rawSetupCode)
+            let normalizedCode = try pairingService.normalizePairingCode(rawSetupCode)
             let request = DeviceRegistrationRequest.current(
                 installationID: sessionStore.state.installationID,
                 environment: environmentProvider()
             )
-            let result = try await pairingService.redeemSetupCode(
-                payload: payload,
-                displayName: trimmedDisplayName,
+            let result = try await pairingService.redeemPairingCode(
+                normalizedCode,
                 request: request
             )
 

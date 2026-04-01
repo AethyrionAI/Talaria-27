@@ -6,7 +6,7 @@ struct TalkModeScreen: View {
 
     var body: some View {
         ZStack {
-            Design.Brand.backgroundPrimary
+            Color(.systemBackground)
                 .ignoresSafeArea()
 
             VStack(spacing: Design.Spacing.xl) {

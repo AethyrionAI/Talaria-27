@@ -75,7 +75,7 @@ enum AppEnvironment: String, Codable, CaseIterable, Hashable, Sendable {
 
     var baseURLString: String {
         switch self {
-        case .production: "https://relay.example.com/v1"
+        case .production: "https://hermes-mobile-relay-dylan.fly.dev/v1"
         case .staging: "https://staging.relay.example.com/v1"
         case .development: "http://127.0.0.1:8000/v1"
         }

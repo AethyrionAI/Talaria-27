@@ -22,10 +22,12 @@ from .models import (
     Message,
     MessageJob,
     PairingInvite,
+    PhonePairingCode,
     PushRegistration,
     User,
     utcnow,
 )
+from .pairing import generate_phone_pairing_code, normalize_phone_pairing_code
 from .security import generate_token, hash_token, issue_tokens, normalize_datetime
 
 
@@ -67,6 +69,73 @@ def create_host_enrollment_invite(
     db.commit()
     db.refresh(invite)
     return invite, invite_token
+
+
+def setup_connector_account(
+    db: Session,
+    *,
+    settings: Settings,
+    owner_display_name: str,
+    host_display_name: str | None,
+    platform: str,
+    hostname: str,
+    hermes_command: str,
+    hermes_version: str | None,
+    connector_version: str,
+) -> tuple[User, HermesHost, str]:
+    cleaned_owner_display_name = owner_display_name.strip()
+    if not cleaned_owner_display_name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Owner display name is required.")
+
+    connector_token = generate_token()
+    user = User(display_name=cleaned_owner_display_name)
+    db.add(user)
+    db.flush()
+
+    host = HermesHost(
+        user_id=user.id,
+        display_name=host_display_name.strip() if host_display_name and host_display_name.strip() else None,
+        platform=platform,
+        hostname=hostname,
+        hermes_command=hermes_command,
+        hermes_version=hermes_version,
+        connector_version=connector_version,
+        connector_token_hash=hash_token(connector_token),
+    )
+    db.add(host)
+    db.commit()
+    db.refresh(user)
+    db.refresh(host)
+    return user, host, connector_token
+
+
+def _create_unique_phone_pairing_code(db: Session) -> str:
+    for _ in range(32):
+        code = generate_phone_pairing_code()
+        existing = db.scalar(select(PhonePairingCode.id).where(PhonePairingCode.code_hash == hash_token(code)))
+        if existing is None:
+            return code
+    raise RuntimeError("Could not generate a unique phone pairing code.")
+
+
+def create_phone_pairing_code(
+    db: Session,
+    *,
+    settings: Settings,
+    host: HermesHost,
+) -> tuple[PhonePairingCode, str]:
+    code = _create_unique_phone_pairing_code(db)
+    pairing_code = PhonePairingCode(
+        user_id=host.user_id,
+        host_id=host.id,
+        created_by_host_id=host.id,
+        code_hash=hash_token(code),
+        expires_at=utcnow() + timedelta(seconds=settings.phone_pairing_code_ttl_seconds),
+    )
+    db.add(pairing_code)
+    db.commit()
+    db.refresh(pairing_code)
+    return pairing_code, code
 
 
 def record_audit(
@@ -244,6 +313,75 @@ def redeem_pairing_invite(
     db.refresh(invite)
 
     return invite, user, device, auth_session, access_token, refresh_token
+
+
+def redeem_phone_pairing_code(
+    db: Session,
+    *,
+    settings: Settings,
+    raw_code: str,
+    platform: str,
+    installation_id: str,
+    device_name: str,
+    device_model: str,
+    system_version: str,
+    app_version: str,
+    build_number: str,
+    bundle_id: str,
+    environment: str,
+) -> tuple[PhonePairingCode, User, Device, AuthSession, str, str]:
+    try:
+        normalized_code = normalize_phone_pairing_code(raw_code)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+    pairing_code = db.scalar(select(PhonePairingCode).where(PhonePairingCode.code_hash == hash_token(normalized_code)))
+    if pairing_code is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This phone pairing code is invalid.")
+
+    pairing_code.attempt_count += 1
+    pairing_code.last_attempt_at = utcnow()
+    db.commit()
+    db.refresh(pairing_code)
+
+    if pairing_code.attempt_count > settings.phone_pairing_max_attempts_per_code:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="This phone pairing code has too many attempts.")
+
+    if pairing_code.redeemed_at is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This phone pairing code has already been used.")
+
+    if normalize_datetime(pairing_code.expires_at) < utcnow():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This phone pairing code has expired.")
+
+    host = db.get(HermesHost, pairing_code.host_id)
+    if host is None or host.revoked_at is not None or host.connector_token_hash is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This phone pairing code is invalid.")
+
+    user = db.get(User, pairing_code.user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This phone pairing code is invalid.")
+
+    device = upsert_device(
+        db,
+        user=user,
+        platform=platform,
+        installation_id=installation_id,
+        device_name=device_name,
+        device_model=device_model,
+        system_version=system_version,
+        app_version=app_version,
+        build_number=build_number,
+        bundle_id=bundle_id,
+        environment=environment,
+    )
+    auth_session, access_token, refresh_token = rotate_auth_session(db, settings=settings, user=user, device=device)
+
+    pairing_code.redeemed_at = utcnow()
+    pairing_code.redeemed_device_id = device.id
+    db.commit()
+    db.refresh(pairing_code)
+
+    return pairing_code, user, device, auth_session, access_token, refresh_token
 
 
 def redeem_host_enrollment_invite(

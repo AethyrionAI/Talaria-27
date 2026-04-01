@@ -5,7 +5,7 @@ struct ConnectHermesHostScreen: View {
 
     var body: some View {
         ZStack {
-            Design.Brand.backgroundPrimary
+            Color(.systemBackground)
                 .ignoresSafeArea()
 
             ScrollView {
@@ -32,7 +32,7 @@ struct ConnectHermesHostScreen: View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             Text("Connect Your Hermes Host")
                 .font(Design.Typography.heroTitle)
-                .foregroundStyle(Design.Brand.hermesCharcoal)
+                .foregroundStyle(.primary)
 
             Text("Generate a short-lived setup code here, then run `hermes-mobile-connector enroll --code <HC1...>` on the machine where Hermes lives.")
                 .font(Design.Typography.body)
@@ -90,7 +90,7 @@ struct ConnectHermesHostScreen: View {
                     .textSelection(.enabled)
                     .padding(Design.Spacing.md)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Design.Brand.backgroundSecondary, in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
 
                 HStack(spacing: Design.Spacing.sm) {
                     Button("Generate New Code") {

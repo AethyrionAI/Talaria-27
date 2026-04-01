@@ -5,7 +5,7 @@ struct PermissionsScreen: View {
 
     var body: some View {
         ZStack {
-            Design.Brand.backgroundPrimary
+            Color(.systemBackground)
                 .ignoresSafeArea()
 
             ScrollView {

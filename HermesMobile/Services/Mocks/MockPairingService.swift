@@ -2,37 +2,37 @@ import Foundation
 
 @MainActor
 final class MockPairingService: PairingServiceProtocol {
-    func decodeSetupCode(_ rawCode: String) throws -> RelaySetupCodePayload {
-        try RelaySetupCodePayload.decode(from: rawCode)
+    func normalizePairingCode(_ rawCode: String) throws -> String {
+        try PhonePairingCode.normalize(rawCode)
     }
 
-    func redeemSetupCode(
-        payload: RelaySetupCodePayload,
-        displayName: String,
+    func redeemPairingCode(
+        _ normalizedCode: String,
         request: DeviceRegistrationRequest
     ) async throws -> PairingRedeemResult {
-        PairingRedeemResult(
+        let normalizedCode = try normalizePairingCode(normalizedCode)
+        return PairingRedeemResult(
             configuration: PairedRelayConfiguration(
-                baseURLString: payload.relayURL,
-                hostDisplayName: payload.hostDisplayName,
+                baseURLString: request.environment.baseURLString,
+                hostDisplayName: URL(string: request.environment.baseURLString)?.host ?? request.environment.baseURLString,
                 pairedAt: .now
             ),
             state: AppSessionState(
                 userID: UUID(),
-                displayName: displayName,
+                displayName: "Morgan",
                 deviceID: UUID(),
                 installationID: request.installationID,
                 deviceRegistered: true,
                 connectionStatus: .connected,
                 syncStatus: .synced,
                 isMockMode: false,
-                backendEndpoint: payload.relayURL,
+                backendEndpoint: request.environment.baseURLString,
                 lastSyncAt: .now,
                 pushTokenRegistered: false
             ),
             tokens: AuthTokens(
-                accessToken: "mock-paired-access-token",
-                refreshToken: "mock-paired-refresh-token",
+                accessToken: "mock-paired-access-token-\(normalizedCode)",
+                refreshToken: "mock-paired-refresh-token-\(normalizedCode)",
                 expiresAt: .distantFuture
             )
         )

@@ -18,8 +18,7 @@ final class LivePairingService: PairingServiceProtocol {
             let environment: String
         }
 
-        let inviteToken: String
-        let displayName: String
+        let code: String
         let device: Device
         let client: Client
     }
@@ -50,21 +49,19 @@ final class LivePairingService: PairingServiceProtocol {
         let auth: AuthData
     }
 
-    func decodeSetupCode(_ rawCode: String) throws -> RelaySetupCodePayload {
-        try RelaySetupCodePayload.decode(from: rawCode)
+    func normalizePairingCode(_ rawCode: String) throws -> String {
+        try PhonePairingCode.normalize(rawCode)
     }
 
-    func redeemSetupCode(
-        payload: RelaySetupCodePayload,
-        displayName: String,
+    func redeemPairingCode(
+        _ normalizedCode: String,
         request: DeviceRegistrationRequest
     ) async throws -> PairingRedeemResult {
-        let apiClient = RelayAPIClient(baseURLProvider: { payload.relayURL })
+        let apiClient = RelayAPIClient(baseURLProvider: { request.environment.baseURLString })
         let response: PairingRedeemResponse = try await apiClient.post(
-            path: "pairing/redeem",
+            path: "phone-pairing/redeem",
             body: PairingRedeemBody(
-                inviteToken: payload.inviteToken,
-                displayName: displayName,
+                code: normalizedCode,
                 device: .init(
                     platform: "ios",
                     deviceName: request.deviceName,
@@ -81,8 +78,8 @@ final class LivePairingService: PairingServiceProtocol {
 
         return PairingRedeemResult(
             configuration: PairedRelayConfiguration(
-                baseURLString: payload.relayURL,
-                hostDisplayName: payload.hostDisplayName,
+                baseURLString: request.environment.baseURLString,
+                hostDisplayName: URL(string: request.environment.baseURLString)?.host ?? request.environment.baseURLString,
                 pairedAt: .now
             ),
             state: AppSessionState(

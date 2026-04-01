@@ -6,7 +6,7 @@ struct HermesAvatar: View {
     var body: some View {
         Text("H")
             .font(.system(size: size * 0.45, weight: .semibold, design: .rounded))
-            .foregroundStyle(Design.Brand.warmGold)
+            .foregroundStyle(Design.Brand.accent)
             .frame(width: size, height: size)
             .clipShape(Circle())
             .glassEffect(.regular, in: Circle())

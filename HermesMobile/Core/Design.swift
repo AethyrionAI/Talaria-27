@@ -2,27 +2,20 @@ import SwiftUI
 
 // MARK: - Design Tokens
 // All visual constants for HermesMobile. No magic numbers in view code.
-// Warm cream/beige palette with Liquid Glass throughout.
+// Customize the brand section; use system backgrounds so Liquid Glass renders cleanly.
 
 enum Design {
 
-    // MARK: - Brand
+    // MARK: - Brand (customize per app)
 
     enum Brand {
-        static let accent = Color("BrandAccent", bundle: nil)
-        static let warmCream = Color(red: 0.98, green: 0.97, blue: 0.95)
-        static let warmBeige = Color(red: 0.96, green: 0.94, blue: 0.90)
-        static let warmGold = Color(red: 0.82, green: 0.68, blue: 0.42)
-        static let hermesCharcoal = Color(red: 0.25, green: 0.23, blue: 0.21)
-        static let hermesBrown = Color(red: 0.40, green: 0.35, blue: 0.28)
-
-        // Light mode background
-        static let backgroundPrimary = Color(red: 0.98, green: 0.97, blue: 0.94)
-        static let backgroundSecondary = Color(red: 0.96, green: 0.94, blue: 0.91)
-
-        // Dark mode background (warm dark, not pure black)
-        static let darkBackground = Color(red: 0.12, green: 0.11, blue: 0.10)
-        static let darkSurface = Color(red: 0.18, green: 0.16, blue: 0.14)
+        /// Hermes warm gold — accents, toggles, avatars, send button.
+        static let accent = Color(red: 0.82, green: 0.68, blue: 0.42)
+        static let accentGradient = LinearGradient(
+            colors: [accent, accent.opacity(0.8)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
 
     // MARK: - Spacing (4pt base grid)

@@ -9,6 +9,7 @@ description = "Connector process that bridges a local Hermes CLI to Hermes Mobil
 requires-python = ">=3.11"
 dependencies = [
   "httpx>=0.28.0,<1.0.0",
+  "qrcode>=8.2,<9.0",
   "websockets>=15.0,<16.0",
 ]
 
