@@ -328,15 +328,15 @@ def test_realtime_session_creation_falls_back_to_secondary_model(monkeypatch, tm
             return self._payload
 
     def fake_post(url, headers=None, json=None, timeout=None):  # noqa: ANN001
-        attempted_models.append(json["session"]["model"])
-        captured_sessions.append(json["session"])
+        session = json["session"]
+        attempted_models.append(session["model"])
+        captured_sessions.append(json)
         if len(attempted_models) == 1:
             return FakeResponse(400, {"error": {"message": "Model not available."}})
         return FakeResponse(
             200,
             {
                 "id": "sess_456",
-                "type": "realtime",
                 "model": "gpt-realtime",
                 "client_secret": {
                     "value": "ephemeral-secret",
@@ -355,9 +355,10 @@ def test_realtime_session_creation_falls_back_to_secondary_model(monkeypatch, tm
     )
 
     assert attempted_models == ["gpt-realtime-1.5", "gpt-realtime"]
-    assert captured_sessions[0]["audio"]["output"]["voice"] == "verse"
-    assert "voice" not in captured_sessions[0]
-    assert "modalities" not in captured_sessions[0]
+    session_def = captured_sessions[0]["session"]
+    assert session_def["type"] == "realtime"
+    assert session_def["audio"]["output"]["voice"] == "verse"
+    assert "modalities" not in session_def
     assert selected_model == "gpt-realtime"
     assert payload["client_secret"]["value"] == "ephemeral-secret"
 

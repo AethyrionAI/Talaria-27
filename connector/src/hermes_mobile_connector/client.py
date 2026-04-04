@@ -773,15 +773,14 @@ class HermesMobileConnector:
                     "model": model,
                     "instructions": instructions,
                     "audio": {
+                        "output": {
+                            "voice": config.voice or DEFAULT_REALTIME_VOICE,
+                        },
                         "input": {
                             "turn_detection": {
                                 "type": config.turn_detection_type,
                                 "create_response": config.create_response,
-                                "interrupt_response": config.interrupt_response,
-                            }
-                        },
-                        "output": {
-                            "voice": config.voice or DEFAULT_REALTIME_VOICE,
+                            },
                         },
                     },
                 }
