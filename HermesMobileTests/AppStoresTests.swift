@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UIKit
 @testable import HermesMobile
 
 @Suite(.serialized)
@@ -177,13 +178,13 @@ struct AppStoresTests {
 
         func disconnect() async {}
 
-        func send(message: String, clientMessageID: UUID) async -> Message {
+        func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
             sendCallCount += 1
             lastClientMessageID = clientMessageID
             return nextResponse
         }
 
-        func sendStreaming(message: String, clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+        func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
             AsyncStream { continuation in
                 Task { @MainActor in
                     sendCallCount += 1
@@ -408,11 +409,11 @@ struct AppStoresTests {
             func connect() async {}
             func disconnect() async {}
 
-            func send(message: String, clientMessageID: UUID) async -> Message {
+            func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
                 Message(sender: .hermes, content: "unused", status: .delivered)
             }
 
-            func sendStreaming(message: String, clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+            func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
                 let jobID = UUID()
                 let finalMessageID = UUID()
                 currentConversation = Conversation(
@@ -484,6 +485,154 @@ struct AppStoresTests {
         #expect(hermesMessage?.toolActivities.count == 1)
         #expect(hermesMessage?.codeDiff?.fileCount == 1)
         #expect(hermesMessage?.codeDiff?.summary == "1 file changed, 2 insertions(+), 1 deletion(-)")
+    }
+
+    @Test @MainActor
+    func chatStoreRetriesAttachmentOnlyMessageWithRestoredAttachments() async throws {
+        final class AttachmentRetryClient: HermesClientProtocol {
+            var connectionStatus: ConnectionStatus = .connected
+            var currentConversation: Conversation?
+            var lastMessage: String?
+            var lastAttachments: [PendingAttachment] = []
+
+            func connect() async {}
+            func disconnect() async {}
+
+            func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
+                lastMessage = message
+                lastAttachments = attachments
+                return Message(sender: .hermes, content: "unused", status: .delivered)
+            }
+
+            func sendStreaming(message: String, attachments: [PendingAttachment], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+                lastMessage = message
+                lastAttachments = attachments
+                return AsyncStream { continuation in
+                    Task { @MainActor in
+                        continuation.yield(.messageSent(jobID: UUID()))
+                        continuation.yield(.finished(Message(sender: .hermes, content: "Retried", status: .delivered), nil, nil))
+                        continuation.finish()
+                    }
+                }
+            }
+
+            func loadConversation() async -> Conversation {
+                currentConversation ?? Conversation(title: "Hermes")
+            }
+
+            func clearConversation() async throws -> Conversation {
+                Conversation(title: "Hermes")
+            }
+
+            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
+                currentConversation ?? Conversation(title: "Hermes")
+            }
+        }
+
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("attachment-retry-\(UUID().uuidString).txt")
+        let retryData = try #require("retry me".data(using: .utf8))
+        try retryData.write(to: tempURL)
+        let attachment = try #require(PendingAttachment.file(at: tempURL))
+
+        let suiteName = "chat-store-attachment-retry-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = AttachmentRetryClient()
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        let failedMessage = Message(
+            sender: .user,
+            content: "[1 attachment]",
+            status: .failed,
+            attachments: [MessageAttachment(from: attachment)]
+        )
+        chatStore.conversation = Conversation(title: "Hermes", messages: [failedMessage])
+
+        await chatStore.retryMessage(failedMessage)
+
+        #expect(hermesClient.lastMessage == "")
+        #expect(hermesClient.lastAttachments.count == 1)
+        #expect(hermesClient.lastAttachments.first?.fileName == attachment.fileName)
+    }
+
+    @Test @MainActor
+    func chatStorePreservesUserAttachmentPreviewMetadataAfterRefresh() async throws {
+        final class AttachmentRoundTripClient: HermesClientProtocol {
+            var connectionStatus: ConnectionStatus = .connected
+            var currentConversation: Conversation?
+
+            func connect() async {}
+            func disconnect() async {}
+
+            func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
+                Message(sender: .hermes, content: "unused", status: .delivered)
+            }
+
+            func sendStreaming(message: String, attachments: [PendingAttachment], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+                currentConversation = Conversation(
+                    title: "Hermes",
+                    messages: [
+                        Message(
+                            id: UUID(),
+                            clientMessageID: clientMessageID,
+                            sender: .user,
+                            content: "",
+                            status: .sent,
+                            attachments: attachments.map {
+                                MessageAttachment(
+                                    kind: $0.kind.rawValue,
+                                    fileName: $0.fileName,
+                                    mimeType: $0.mimeType,
+                                    thumbnailBase64: $0.thumbnailBase64
+                                )
+                            }
+                        ),
+                        Message(sender: .hermes, content: "I saw the attachment.", status: .delivered),
+                    ]
+                )
+
+                return AsyncStream { continuation in
+                    Task { @MainActor in
+                        continuation.yield(.messageSent(jobID: UUID()))
+                        continuation.yield(.finished(Message(sender: .hermes, content: "I saw the attachment.", status: .delivered), nil, nil))
+                        continuation.finish()
+                    }
+                }
+            }
+
+            func loadConversation() async -> Conversation {
+                currentConversation ?? Conversation(title: "Hermes")
+            }
+
+            func clearConversation() async throws -> Conversation {
+                Conversation(title: "Hermes")
+            }
+
+            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
+                currentConversation ?? Conversation(title: "Hermes")
+            }
+        }
+
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 16, height: 16)).image { context in
+            UIColor.systemBlue.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 16, height: 16))
+        }
+        let attachment = try #require(PendingAttachment.image(image))
+
+        let suiteName = "chat-store-attachment-roundtrip-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = AttachmentRoundTripClient()
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        await chatStore.sendMessage("", attachments: [attachment])
+
+        let userMessage = try #require(chatStore.conversation?.messages.first(where: { $0.sender == .user }))
+        let mergedAttachment = try #require(userMessage.attachments.first)
+        #expect(mergedAttachment.thumbnailBase64 != nil)
+        #expect(mergedAttachment.localStoragePath != nil)
     }
 
     @Test @MainActor

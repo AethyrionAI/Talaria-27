@@ -62,13 +62,63 @@ class HermesAPIExecutor:
         *,
         latest_user_message: str,
         history: list[HermesConversationMessage] | None,
-    ) -> list[dict[str, str]]:
-        messages = [
+        attachments: list[dict] | None = None,
+    ) -> list[dict]:
+        messages: list[dict] = [
             {"role": self._api_role(message.role), "content": message.text}
             for message in history or []
             if message.text.strip()
         ]
-        messages.append({"role": "user", "content": latest_user_message})
+
+        # Build the final user message — may be multipart if attachments are present
+        if attachments:
+            content_parts: list[dict] = []
+            if latest_user_message.strip():
+                content_parts.append({"type": "text", "text": latest_user_message})
+            for att in attachments:
+                att_type = att.get("type", "file")
+                mime_type = att.get("mimeType", "application/octet-stream")
+                b64_data = att.get("data", "")
+                if att_type == "image" or mime_type.startswith("image/"):
+                    content_parts.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{mime_type};base64,{b64_data}",
+                        },
+                    })
+                else:
+                    # For non-image files, try to decode as text; skip truly binary files
+                    filename = att.get("filename", "file")
+                    text_mimes = {
+                        "text/", "application/json", "application/xml",
+                        "application/yaml", "application/x-yaml",
+                    }
+                    is_text_like = any(mime_type.startswith(prefix) for prefix in text_mimes)
+                    if is_text_like:
+                        try:
+                            import base64
+                            decoded = base64.b64decode(b64_data).decode("utf-8")
+                        except (UnicodeDecodeError, Exception):
+                            decoded = f"[Could not decode file: {filename}]"
+                        content_parts.append({
+                            "type": "text",
+                            "text": f"--- Attached file: {filename} ({mime_type}) ---\n{decoded}",
+                        })
+                    elif mime_type == "application/pdf":
+                        # PDFs can't be passed as text — note their presence
+                        content_parts.append({
+                            "type": "text",
+                            "text": f"[Attached PDF: {filename} — PDF content analysis is not yet supported through this path]",
+                        })
+                    else:
+                        content_parts.append({
+                            "type": "text",
+                            "text": f"[Attached file: {filename} ({mime_type}) — binary file content not readable]",
+                        })
+            messages.append({"role": "user", "content": content_parts})
+        else:
+            messages.append({"role": "user", "content": latest_user_message})
+
         return messages
 
     # ------------------------------------------------------------------
@@ -100,6 +150,7 @@ class HermesAPIExecutor:
         latest_user_message: str,
         history: list[HermesConversationMessage] | None = None,
         session_id: str | None = None,
+        attachments: list[dict] | None = None,
     ) -> HermesChatResult:
         """Send a single message and wait for the full response."""
         headers = {
@@ -114,6 +165,7 @@ class HermesAPIExecutor:
             "messages": self._messages_payload(
                 latest_user_message=latest_user_message,
                 history=history,
+                attachments=attachments,
             ),
             "stream": False,
         }
@@ -155,6 +207,7 @@ class HermesAPIExecutor:
         latest_user_message: str,
         history: list[HermesConversationMessage] | None = None,
         session_id: str | None = None,
+        attachments: list[dict] | None = None,
     ) -> AsyncIterator[StreamEvent]:
         """Stream a chat completion, yielding events as they arrive."""
         headers = {
@@ -169,6 +222,7 @@ class HermesAPIExecutor:
             "messages": self._messages_payload(
                 latest_user_message=latest_user_message,
                 history=history,
+                attachments=attachments,
             ),
             "stream": True,
         }

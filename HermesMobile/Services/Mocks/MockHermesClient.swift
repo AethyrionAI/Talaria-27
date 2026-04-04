@@ -18,11 +18,13 @@ final class MockHermesClient: HermesClientProtocol {
         connectionStatus = .disconnected
     }
 
-    func send(message content: String, clientMessageID: UUID) async -> Message {
+    func send(message content: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
         let userMessage = Message(
+            clientMessageID: clientMessageID,
             sender: .user,
             content: content,
-            status: .sent
+            status: .sent,
+            attachments: attachments.map { MessageAttachment(from: $0) }
         )
 
         currentConversation?.messages.append(userMessage)
@@ -42,7 +44,7 @@ final class MockHermesClient: HermesClientProtocol {
         return hermesMessage
     }
 
-    func sendStreaming(message content: String, clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+    func sendStreaming(message content: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
         AsyncStream { continuation in
             Task { @MainActor [weak self] in
                 guard let self else {
@@ -50,7 +52,13 @@ final class MockHermesClient: HermesClientProtocol {
                     return
                 }
 
-                let userMessage = Message(sender: .user, content: content, status: .sent)
+                let userMessage = Message(
+                    clientMessageID: clientMessageID,
+                    sender: .user,
+                    content: content,
+                    status: .sent,
+                    attachments: attachments.map { MessageAttachment(from: $0) }
+                )
                 self.currentConversation?.messages.append(userMessage)
 
                 continuation.yield(.messageSent(jobID: UUID()))

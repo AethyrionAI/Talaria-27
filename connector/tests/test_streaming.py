@@ -217,10 +217,11 @@ def test_handle_job_streaming_passes_history_and_session(tmp_path):
     class FakeCapturingAdapter:
         supports_streaming = True
 
-        async def send_text_message_streaming(self, *, latest_user_message, history, session_id):
+        async def send_text_message_streaming(self, *, latest_user_message, history, session_id, attachments=None):
             captured["latest_user_message"] = latest_user_message
             captured["history"] = history
             captured["session_id"] = session_id
+            captured["attachments"] = attachments
             yield StreamEvent(type="text_delta", data="OK")
             yield StreamEvent(type="finish", session_id="sess-new")
 
@@ -246,6 +247,48 @@ def test_handle_job_streaming_passes_history_and_session(tmp_path):
     assert captured["history"][1].text == "First reply"
 
 
+def test_handle_job_cli_materializes_attachments_for_tool_access(tmp_path):
+    store = ConnectorStateStore(state_dir=tmp_path / "cli-attachments")
+    store.save(make_enrolled_state())
+    connector = HermesMobileConnector(state_store=store, executor=make_executor())
+
+    captured = {}
+
+    class FakeCLIRuntime:
+        def send_text_message(self, *, latest_user_message, history, session_id=None):
+            captured["latest_user_message"] = latest_user_message
+            return type("Result", (), {"text": "Done", "session_id": "sess-cli"})()
+
+    ws = FakeWebSocket()
+    job = {
+        "id": "job-cli-attachments",
+        "latestUserMessage": "",
+        "history": [],
+        "attachments": [
+            {
+                "type": "image",
+                "filename": "screen.png",
+                "mimeType": "image/png",
+                "data": "aGVsbG8=",
+            },
+            {
+                "type": "file",
+                "filename": "notes.txt",
+                "mimeType": "text/plain",
+                "data": "aGVsbG8=",
+            },
+        ],
+    }
+
+    asyncio.run(connector._handle_job_cli(ws, job, FakeCLIRuntime()))  # noqa: SLF001
+
+    assert ws.sent[0]["type"] == "job.result"
+    assert "vision_analyze" in captured["latest_user_message"]
+    assert "read_file" in captured["latest_user_message"]
+    assert "screen.png" in captured["latest_user_message"]
+    assert "notes.txt" in captured["latest_user_message"]
+
+
 # --------------------------------------------------------------------------
 # HermesAPIRuntimeAdapter streaming pass-through
 # --------------------------------------------------------------------------
@@ -262,7 +305,7 @@ def test_api_runtime_adapter_streaming_yields_all_events():
     ]
 
     class FakeExecutor:
-        async def stream_message(self, *, latest_user_message, history=None, session_id=None):
+        async def stream_message(self, *, latest_user_message, history=None, session_id=None, attachments=None):
             for event in emitted_events:
                 yield event
 
@@ -298,7 +341,7 @@ def test_api_runtime_adapter_streaming_preserves_session_with_history():
     captured = {}
 
     class FakeExecutor:
-        async def stream_message(self, *, latest_user_message, history=None, session_id=None):
+        async def stream_message(self, *, latest_user_message, history=None, session_id=None, attachments=None):
             captured["session_id"] = session_id
             captured["history"] = history
             yield StreamEvent(type="text_delta", data="ok")
@@ -325,7 +368,7 @@ def test_api_runtime_adapter_streaming_keeps_session_when_no_history():
     captured = {}
 
     class FakeExecutor:
-        async def stream_message(self, *, latest_user_message, history=None, session_id=None):
+        async def stream_message(self, *, latest_user_message, history=None, session_id=None, attachments=None):
             captured["session_id"] = session_id
             yield StreamEvent(type="text_delta", data="ok")
             yield StreamEvent(type="finish")

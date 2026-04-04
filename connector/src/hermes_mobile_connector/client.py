@@ -1,10 +1,13 @@
 from __future__ import annotations
 import asyncio
+import base64
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import os
+from pathlib import Path
 import platform as platform_module
+import re
 import socket
 import sys
 import uuid
@@ -497,6 +500,7 @@ class HermesMobileConnector:
                 latest_user_message=job["latestUserMessage"],
                 history=history,
                 session_id=job.get("sessionId"),
+                attachments=job.get("attachments"),
             ):
                 if event.type == "text_delta":
                     accumulated_text += event.data
@@ -548,9 +552,23 @@ class HermesMobileConnector:
 
         async def execute_job() -> dict:
             try:
+                user_message = job["latestUserMessage"]
+                attachments = job.get("attachments") or []
+                if attachments:
+                    attachment_context = self._build_cli_attachment_context(
+                        job_id=str(job["id"]),
+                        attachments=attachments,
+                    )
+                    if attachment_context:
+                        user_message = (
+                            f"{user_message}\n\n{attachment_context}"
+                            if user_message.strip()
+                            else attachment_context
+                        )
+
                 result = await asyncio.to_thread(
                     runtime.send_text_message,
-                    latest_user_message=job["latestUserMessage"],
+                    latest_user_message=user_message,
                     history=[
                         RuntimeConversationMessage(role=item["role"], text=item["text"])
                         for item in job.get("history", [])
@@ -578,6 +596,55 @@ class HermesMobileConnector:
                 await websocket.send(json.dumps(task.result()))
                 return
             await websocket.send(json.dumps({"type": "heartbeat"}))
+
+    def _build_cli_attachment_context(self, *, job_id: str, attachments: list[dict]) -> str:
+        attachment_root = self.state_store.state_dir / "attachment_staging" / job_id
+        attachment_root.mkdir(parents=True, exist_ok=True)
+
+        lines = [
+            "The user attached files for this request. Use them if they are relevant.",
+        ]
+        for index, attachment in enumerate(attachments, start=1):
+            filename = self._sanitize_attachment_filename(attachment.get("filename") or f"attachment-{index}")
+            mime_type = str(attachment.get("mimeType") or "application/octet-stream")
+            data_b64 = str(attachment.get("data") or "")
+            if not data_b64:
+                continue
+
+            try:
+                raw_data = base64.b64decode(data_b64)
+            except Exception:
+                continue
+
+            file_path = attachment_root / filename
+            file_path.write_bytes(raw_data)
+
+            if mime_type.startswith("image/"):
+                lines.append(
+                    f"- Image attachment available at {file_path}. If you need to inspect it, use vision_analyze with image_url: {file_path}"
+                )
+            elif self._is_text_like_attachment(mime_type):
+                lines.append(
+                    f"- Text attachment available at {file_path}. Read it with read_file if you need its contents."
+                )
+            else:
+                lines.append(f"- Binary attachment available at {file_path} ({mime_type}).")
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def _sanitize_attachment_filename(filename: str) -> str:
+        cleaned = re.sub(r'[^A-Za-z0-9._-]+', "_", filename).strip("._")
+        return cleaned or "attachment"
+
+    @staticmethod
+    def _is_text_like_attachment(mime_type: str) -> bool:
+        return mime_type.startswith("text/") or mime_type in {
+            "application/json",
+            "application/xml",
+            "application/yaml",
+            "application/x-yaml",
+        }
 
     async def _handle_rpc_request(self, message: dict) -> dict:
         request_id = message.get("requestId") or str(uuid.uuid4())

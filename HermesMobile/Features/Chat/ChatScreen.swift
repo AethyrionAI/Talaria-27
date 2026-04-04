@@ -8,11 +8,13 @@ struct ChatScreen: View {
     @Environment(TabRouter.self) private var router
 
     @State private var messageText = ""
+    @State private var pendingAttachments: [PendingAttachment] = []
     @State private var showClearConfirmation = false
     @State private var showStatusCard = false
     @State private var scrollProxy: ScrollViewProxy?
     @FocusState private var isComposerFocused: Bool
 
+    @State private var showAttachmentPicker = false
     private let thinkingIndicatorID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
 
     var body: some View {
@@ -27,11 +29,12 @@ struct ChatScreen: View {
                 messageList
                 ChatInputBar(
                     text: $messageText,
+                    pendingAttachments: $pendingAttachments,
                     isStreaming: chatStore.isStreaming,
                     isFocused: $isComposerFocused,
                     onSend: sendMessage,
                     onStop: { chatStore.cancelStreaming() },
-                    onAttach: { router.presentSheet(.attachments) },
+                    onAttach: { showAttachmentPicker = true },
                     onSlashCommand: handleSlashCommand
                 )
             }
@@ -76,6 +79,13 @@ struct ChatScreen: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This will archive the current conversation and start a new session. This cannot be undone.")
+        }
+        .sheet(isPresented: $showAttachmentPicker) {
+            AttachmentPickerSheet { result in
+                handleAttachmentResult(result)
+            }
+            .presentationDetents([.height(220)])
+            .presentationDragIndicator(.hidden)
         }
     }
 
@@ -169,16 +179,32 @@ struct ChatScreen: View {
 
     private func sendMessage() {
         let content = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !content.isEmpty else { return }
+        let attachments = pendingAttachments
+        guard !content.isEmpty || !attachments.isEmpty else { return }
         messageText = ""
+        pendingAttachments = []
 
         if settingsStore.settings.hapticFeedbackEnabled {
             HapticEngine.messageSent()
         }
 
         Task {
-            await chatStore.sendMessage(content)
+            await chatStore.sendMessage(content, attachments: attachments)
             scrollToBottom()
+        }
+    }
+
+    func handleAttachmentResult(_ result: AttachmentResult) {
+        guard pendingAttachments.count < PendingAttachment.maxAttachmentsPerMessage else { return }
+        switch result {
+        case .image(let image):
+            if let attachment = PendingAttachment.image(image) {
+                pendingAttachments.append(attachment)
+            }
+        case .file(let url):
+            if let attachment = PendingAttachment.file(at: url) {
+                pendingAttachments.append(attachment)
+            }
         }
     }
 
@@ -263,7 +289,16 @@ struct ChatScreen: View {
             return
         }
 
-        let lastUserContent = messages[lastUserIdx].content
+        let lastUserMessage = messages[lastUserIdx]
+        let lastUserContent = lastUserMessage.content
+        let attachments = lastUserMessage.attachments.compactMap(PendingAttachment.restore)
+        let normalizedContent: String
+        if !lastUserMessage.attachments.isEmpty,
+           lastUserContent.range(of: #"^\[\d+ attachment"#, options: .regularExpression) != nil {
+            normalizedContent = ""
+        } else {
+            normalizedContent = lastUserContent
+        }
 
         // Remove everything from the last user message onward (user msg + assistant response + tool msgs)
         chatStore.conversation?.messages.removeSubrange(lastUserIdx...)
@@ -271,7 +306,7 @@ struct ChatScreen: View {
         appendSystemMessage("Retrying: \"\(String(lastUserContent.prefix(60)))\(lastUserContent.count > 60 ? "..." : "")\"")
 
         // Re-send the message through the full pipeline
-        await chatStore.sendMessage(lastUserContent)
+        await chatStore.sendMessage(normalizedContent, attachments: attachments)
         scrollToBottom()
     }
 

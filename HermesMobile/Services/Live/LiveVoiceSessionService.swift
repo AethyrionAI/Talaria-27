@@ -716,16 +716,13 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
 
     /// Called when server VAD detects user speech (`input_audio_buffer.speech_started`).
     ///
-    /// With `server_vad` + `interrupt_response: true`, the server **automatically**
-    /// cancels the current response and clears the output audio buffer. Sending
-    /// `response.cancel` or `output_audio_buffer.clear` from the client is redundant
-    /// and can cause errors if the response is already done.
-    ///
-    /// The client's only responsibility is to send `conversation.item.truncate` so
-    /// the server knows how much audio the user actually heard.
+    /// The session config already enables `interrupt_response`, which asks the server
+    /// to automatically cancel the in-flight response on VAD start. The client still
+    /// needs to cut off any buffered playback locally and truncate the assistant item
+    /// to the portion the user actually heard.
     private func handleServerVADInterruption() {
         guard voiceState == .speaking || assistantAudioPlaybackStartedAtUptime != nil else { return }
-        truncateAndCleanUpAssistantState()
+        interruptAssistantOutput(sendCancelAndClear: true)
     }
 
     /// Called when the user explicitly requests interruption (e.g., a stop button).
@@ -734,8 +731,13 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     /// must send the full sequence: cancel → clear → truncate.
     func manuallyInterruptAssistantOutput() {
         guard voiceState == .speaking || assistantAudioPlaybackStartedAtUptime != nil else { return }
+        interruptAssistantOutput(sendCancelAndClear: true)
+        voiceState = .listening
+        statusMessage = "Listening"
+    }
 
-        if let responseID = currentRealtimeResponseID {
+    private func interruptAssistantOutput(sendCancelAndClear: Bool) {
+        if sendCancelAndClear, let responseID = currentRealtimeResponseID {
             if !sendRealtimeEvent([
                 "type": "response.cancel",
                 "event_id": UUID().uuidString,
@@ -745,7 +747,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             }
         }
 
-        if !sendRealtimeEvent([
+        if sendCancelAndClear, !sendRealtimeEvent([
             "type": "output_audio_buffer.clear",
             "event_id": UUID().uuidString,
         ]) {
@@ -753,8 +755,6 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         }
 
         truncateAndCleanUpAssistantState()
-        voiceState = .listening
-        statusMessage = "Listening"
     }
 
     /// Shared cleanup: sends `conversation.item.truncate` and resets local tracking state.

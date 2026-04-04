@@ -31,11 +31,13 @@ struct AttachmentPickerSheet: View {
 
             // Attachment options
             HStack(spacing: Design.Spacing.sm) {
-                attachmentButton(
-                    icon: "camera",
-                    label: "Camera",
-                    action: { showCamera = true }
-                )
+                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    attachmentButton(
+                        icon: "camera",
+                        label: "Camera",
+                        action: { showCamera = true }
+                    )
+                }
 
                 attachmentButton(
                     icon: "photo.on.rectangle",
@@ -156,7 +158,9 @@ struct DocumentPickerView: UIViewControllerRepresentable {
     let onComplete: ([URL]) -> Void
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.item], asCopy: true)
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [
+            .image, .plainText, .sourceCode, .json, .html, .xml, .yaml,
+        ], asCopy: true)
         picker.allowsMultipleSelection = false
         picker.delegate = context.coordinator
         return picker

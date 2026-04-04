@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class Meta(BaseModel):
@@ -93,10 +93,27 @@ class PushRegisterRequest(BaseModel):
     bundleId: str
 
 
+class AttachmentPayload(BaseModel):
+    type: str = Field(min_length=1, max_length=16)    # "image" or "file"
+    filename: str = Field(min_length=1, max_length=256)
+    mimeType: str = Field(min_length=1, max_length=128)
+    data: str = Field(min_length=1, max_length=7_000_000)  # base64-encoded
+    thumbnailData: str | None = Field(default=None, max_length=250_000)
+
+
 class MessageCreateRequest(BaseModel):
     conversationId: UUID | None = None
-    text: str = Field(min_length=1)
+    text: str = Field(default="")
     clientMessageId: UUID | None = None
+    attachments: list[AttachmentPayload] | None = Field(default=None, max_length=4)
+
+    @model_validator(mode="after")
+    def _require_text_or_attachments(self) -> "MessageCreateRequest":
+        has_text = bool(self.text and self.text.strip())
+        has_attachments = bool(self.attachments)
+        if not has_text and not has_attachments:
+            raise ValueError("Either text or attachments must be provided.")
+        return self
 
 
 class InboxActionRequest(BaseModel):

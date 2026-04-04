@@ -54,9 +54,7 @@ struct MainTabView: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         case .attachments:
-            AttachmentPickerSheet()
-                .presentationDetents([.height(220)])
-                .presentationDragIndicator(.hidden)
+            EmptyView()
         case .newChat:
             EmptyView()
         }

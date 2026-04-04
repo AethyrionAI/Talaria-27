@@ -25,13 +25,22 @@ final class LiveHermesClient: HermesClientProtocol {
         let messages: [RelayMessage]
     }
 
+    private struct RelayAttachment: Decodable {
+        let type: String
+        let filename: String
+        let mimeType: String
+        let thumbnailData: String?
+    }
+
     private struct RelayMessage: Decodable {
         let id: UUID
+        let clientMessageId: UUID?
         let role: MessageSender
         let text: String
         let timestamp: Date
         let deliveryStatus: String?
         let jobId: UUID?
+        let attachments: [RelayAttachment]?
     }
 
     private struct StreamProgressPayload: Decodable {
@@ -50,10 +59,19 @@ final class LiveHermesClient: HermesClientProtocol {
         let message: RelayMessage?
     }
 
+    private struct AttachmentPayload: Encodable {
+        let type: String    // "image" or "file"
+        let filename: String
+        let mimeType: String
+        let data: String    // base64 encoded
+        let thumbnailData: String?
+    }
+
     private struct MessageCreateBody: Encodable {
         let conversationId: UUID?
         let text: String
         let clientMessageId: UUID
+        let attachments: [AttachmentPayload]?
     }
 
     var connectionStatus: ConnectionStatus = .disconnected
@@ -96,15 +114,15 @@ final class LiveHermesClient: HermesClientProtocol {
         connectionStatus = .disconnected
     }
 
-    func send(message: String, clientMessageID: UUID) async -> Message {
+    func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
         do {
             let response: MessageResponse = try await performAuthorizedRequest { [self] token in
                 try await self.apiClient.post(
                     path: "messages",
-                    body: MessageCreateBody(
-                        conversationId: self.currentConversation?.id,
+                    body: self.makeCreateBody(
                         text: message,
-                        clientMessageId: clientMessageID
+                        attachments: attachments,
+                        clientMessageID: clientMessageID
                     ),
                     accessToken: token
                 )
@@ -124,7 +142,7 @@ final class LiveHermesClient: HermesClientProtocol {
         }
     }
 
-    func sendStreaming(message content: String, clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+    func sendStreaming(message content: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
         AsyncStream { continuation in
             Task { @MainActor [weak self] in
                 guard let self else {
@@ -137,10 +155,10 @@ final class LiveHermesClient: HermesClientProtocol {
                     let response: MessageResponse = try await self.performAuthorizedRequest { [self] token in
                         try await self.apiClient.post(
                             path: "messages",
-                            body: MessageCreateBody(
-                                conversationId: self.currentConversation?.id,
+                            body: self.makeCreateBody(
                                 text: content,
-                                clientMessageId: clientMessageID
+                                attachments: attachments,
+                                clientMessageID: clientMessageID
                             ),
                             accessToken: token
                         )
@@ -248,6 +266,28 @@ final class LiveHermesClient: HermesClientProtocol {
         return conversation
     }
 
+    private func makeCreateBody(
+        text: String,
+        attachments: [PendingAttachment],
+        clientMessageID: UUID
+    ) -> MessageCreateBody {
+        let payloads: [AttachmentPayload]? = attachments.isEmpty ? nil : attachments.map { att in
+            AttachmentPayload(
+                type: att.kind.rawValue,
+                filename: att.fileName,
+                mimeType: att.mimeType,
+                data: att.base64Data,
+                thumbnailData: att.thumbnailBase64
+            )
+        }
+        return MessageCreateBody(
+            conversationId: currentConversation?.id,
+            text: text,
+            clientMessageId: clientMessageID,
+            attachments: payloads
+        )
+    }
+
     private func fallbackConversation() -> Conversation {
         if allowDemoFallback {
             return DemoData.sampleConversation
@@ -266,13 +306,23 @@ final class LiveHermesClient: HermesClientProtocol {
     }
 
     private func mapMessage(_ relayMessage: RelayMessage) -> Message {
-        Message(
+        let attachments: [MessageAttachment] = (relayMessage.attachments ?? []).map { att in
+            MessageAttachment(
+                kind: att.type,
+                fileName: att.filename,
+                mimeType: att.mimeType,
+                thumbnailBase64: att.thumbnailData
+            )
+        }
+        return Message(
             id: relayMessage.id,
+            clientMessageID: relayMessage.clientMessageId,
             sender: relayMessage.role,
             content: relayMessage.text,
             timestamp: relayMessage.timestamp,
             jobID: relayMessage.jobId,
-            status: mapDeliveryStatus(relayMessage.deliveryStatus, sender: relayMessage.role)
+            status: mapDeliveryStatus(relayMessage.deliveryStatus, sender: relayMessage.role),
+            attachments: attachments
         )
     }
 

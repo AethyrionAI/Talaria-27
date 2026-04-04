@@ -111,6 +111,7 @@ class HermesAPIRuntimeAdapter:
         latest_user_message: str,
         history: list[RuntimeConversationMessage],
         session_id: str | None = None,
+        attachments: list[dict] | None = None,
     ) -> AsyncIterator:
         """Async streaming send — yields StreamEvent objects."""
         async for event in self.executor.stream_message(
@@ -120,6 +121,7 @@ class HermesAPIRuntimeAdapter:
                 for message in history
             ],
             session_id=session_id,
+            attachments=attachments,
         ):
             yield event
 

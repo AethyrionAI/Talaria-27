@@ -67,6 +67,9 @@ class Database:
             if "source" not in message_columns:
                 connection.execute(text("ALTER TABLE messages ADD COLUMN source TEXT"))
 
+            if "attachments_data" not in message_columns:
+                connection.execute(text("ALTER TABLE messages ADD COLUMN attachments_data JSON"))
+
             connection.execute(
                 text(
                     "CREATE INDEX IF NOT EXISTS ix_message_jobs_user_status_created "

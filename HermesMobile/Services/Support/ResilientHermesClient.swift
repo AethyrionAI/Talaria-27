@@ -36,16 +36,16 @@ final class ResilientHermesClient: HermesClientProtocol {
         await fallback.disconnect()
     }
 
-    func send(message: String, clientMessageID: UUID) async -> Message {
-        let response = await primary.send(message: message, clientMessageID: clientMessageID)
+    func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
+        let response = await primary.send(message: message, attachments: attachments, clientMessageID: clientMessageID)
         if allowsFallback() && response.status == .failed {
-            return await fallback.send(message: message, clientMessageID: clientMessageID)
+            return await fallback.send(message: message, attachments: attachments, clientMessageID: clientMessageID)
         }
         return response
     }
 
-    func sendStreaming(message: String, clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
-        primary.sendStreaming(message: message, clientMessageID: clientMessageID)
+    func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+        primary.sendStreaming(message: message, attachments: attachments, clientMessageID: clientMessageID)
     }
 
     func loadConversation() async -> Conversation {

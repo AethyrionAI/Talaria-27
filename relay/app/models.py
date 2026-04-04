@@ -162,6 +162,7 @@ class Message(Base):
     client_message_id: Mapped[str | None] = mapped_column(String(36))
     delivery_status: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str | None] = mapped_column(Text)  # None = chat, "voice_transcript"
+    attachments_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # [{type, filename, mimeType, data}]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
 

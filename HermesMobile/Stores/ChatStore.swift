@@ -33,20 +33,34 @@ final class ChatStore {
     func loadConversation() async {
         isLoading = true
         defer { isLoading = false }
-        conversation = await hermesClient.loadConversation()
+        let cachedConversation = conversation ?? persistence.loadConversationCache()
+        conversation = mergeConversationMetadata(
+            from: cachedConversation,
+            into: await hermesClient.loadConversation()
+        )
         if let conversation {
             persistence.saveConversationCache(conversation)
         }
         restartPendingPollingIfNeeded()
     }
 
-    func sendMessage(_ content: String) async {
+    func sendMessage(_ content: String, attachments: [PendingAttachment] = []) async {
         let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedContent.isEmpty else { return }
-        guard hasPendingDuplicateMessage(trimmedContent) == false else { return }
+        guard !trimmedContent.isEmpty || !attachments.isEmpty else { return }
+        guard hasPendingDuplicateMessage(trimmedContent, attachments: attachments) == false else { return }
 
         let clientMessageID = UUID()
-        let optimistic = Message(id: clientMessageID, sender: .user, content: trimmedContent, status: .sending)
+        let displayContent = trimmedContent.isEmpty && !attachments.isEmpty
+            ? "[\(attachments.count) attachment\(attachments.count == 1 ? "" : "s")]"
+            : trimmedContent
+        let optimistic = Message(
+            id: clientMessageID,
+            clientMessageID: clientMessageID,
+            sender: .user,
+            content: displayContent,
+            status: .sending,
+            attachments: attachments.map { MessageAttachment(from: $0) }
+        )
         if conversation == nil {
             conversation = Conversation(title: "Hermes")
         }
@@ -66,7 +80,7 @@ final class ChatStore {
         conversation?.messages.append(placeholder)
         streamingMessageID = placeholderID
 
-        let stream = hermesClient.sendStreaming(message: trimmedContent, clientMessageID: clientMessageID)
+        let stream = hermesClient.sendStreaming(message: trimmedContent, attachments: attachments, clientMessageID: clientMessageID)
 
         streamingTask = Task { [weak self] in
             guard let self else { return }
@@ -111,7 +125,7 @@ final class ChatStore {
                             self.conversation?.messages[idx].status = .delivered
                         }
                     }
-                    self.conversation = self.mergeStreamingArtifacts(
+                    self.conversation = self.mergeConversationMetadata(
                         from: self.conversation,
                         into: self.hermesClient.currentConversation
                     )
@@ -240,14 +254,20 @@ final class ChatStore {
         // Remove the failed message
         conversation?.messages.removeAll { $0.id == message.id }
 
+        // Determine the user content to retry (attachments can't be recovered from metadata)
+        let sourceMessage: Message?
         if message.sender == .user {
-            await sendMessage(message.content)
+            sourceMessage = message
         } else {
-            // For failed Hermes messages, re-send the last user message
-            if let lastUserMsg = conversation?.messages.last(where: { $0.sender == .user }) {
-                await sendMessage(lastUserMsg.content)
-            }
+            sourceMessage = conversation?.messages.last(where: { $0.sender == .user })
         }
+
+        guard let sourceMessage else { return }
+        let attachments = sourceMessage.attachments.compactMap(PendingAttachment.restore)
+        let content = normalizedRetryContent(for: sourceMessage)
+        guard !content.isEmpty || !attachments.isEmpty else { return }
+
+        await sendMessage(content, attachments: attachments)
     }
 
     func setPollingEnabled(_ isEnabled: Bool) {
@@ -274,11 +294,12 @@ final class ChatStore {
         conversation?.messages.contains(where: { $0.sender == .user && $0.status == .sending }) == true
     }
 
-    private func hasPendingDuplicateMessage(_ content: String) -> Bool {
+    private func hasPendingDuplicateMessage(_ content: String, attachments: [PendingAttachment]) -> Bool {
         conversation?.messages.contains(where: {
             $0.sender == .user
                 && $0.status == .sending
-                && $0.content.trimmingCharacters(in: .whitespacesAndNewlines) == content
+                && normalizedRetryContent(for: $0) == content
+                && attachmentSignature(for: $0.attachments) == attachmentSignature(for: attachments.map { MessageAttachment(from: $0) })
         }) == true
     }
 
@@ -332,7 +353,7 @@ final class ChatStore {
     /// Re-attaches transient streaming artifacts (tool timeline, code diff) onto the
     /// canonical conversation that the relay returned, since the relay knows nothing
     /// about those client-only fields.
-    private func mergeStreamingArtifacts(
+    private func mergeConversationMetadata(
         from localConversation: Conversation?,
         into refreshedConversation: Conversation?
     ) -> Conversation? {
@@ -346,6 +367,10 @@ final class ChatStore {
             let local: Message?
             if let byID = localConversation.messages.first(where: { $0.id == remote.id }) {
                 local = byID
+            } else if let remoteClientMessageID = remote.clientMessageID {
+                local = localConversation.messages.first(where: {
+                    $0.id == remoteClientMessageID || $0.clientMessageID == remoteClientMessageID
+                })
             } else if let remoteJobID = remote.jobID {
                 // Fallback: the streaming placeholder had a client-generated UUID that
                 // differs from the server-assigned message ID.  Match on jobID + sender
@@ -370,8 +395,56 @@ final class ChatStore {
             if let diff = local.codeDiff, refreshedConversation.messages[index].codeDiff == nil {
                 refreshedConversation.messages[index].codeDiff = diff
             }
+
+            if !local.attachments.isEmpty {
+                refreshedConversation.messages[index].attachments = mergeAttachments(
+                    local.attachments,
+                    onto: refreshedConversation.messages[index].attachments
+                )
+            }
         }
 
         return refreshedConversation
+    }
+
+    private func mergeAttachments(_ localAttachments: [MessageAttachment], onto remoteAttachments: [MessageAttachment]) -> [MessageAttachment] {
+        guard !remoteAttachments.isEmpty else { return localAttachments }
+
+        return remoteAttachments.enumerated().map { index, remote in
+            let match = localAttachments.first(where: {
+                $0.fileName == remote.fileName && $0.mimeType == remote.mimeType
+            }) ?? localAttachments[safe: index]
+            guard let match else { return remote }
+            return MessageAttachment(
+                id: remote.id,
+                kind: remote.kind,
+                fileName: remote.fileName,
+                mimeType: remote.mimeType,
+                thumbnailBase64: remote.thumbnailBase64 ?? match.thumbnailBase64,
+                localStoragePath: match.localStoragePath
+            )
+        }
+    }
+
+    private func normalizedRetryContent(for message: Message) -> String {
+        if !message.attachments.isEmpty,
+           message.content.range(of: #"^\[\d+ attachment"#, options: .regularExpression) != nil {
+            return ""
+        }
+        return message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func attachmentSignature(for attachments: [MessageAttachment]) -> String {
+        attachments
+            .map { "\($0.kind)|\($0.fileName)|\($0.mimeType)" }
+            .sorted()
+            .joined(separator: "||")
+    }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        guard indices.contains(index) else { return nil }
+        return self[index]
     }
 }

@@ -388,23 +388,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             conversation_id=job.conversation_id,
             message_id=user_message.id,
         )
+        job_data: dict = {
+            "id": job.id,
+            "conversationId": job.conversation_id,
+            "latestUserMessage": user_message.text,
+            "history": [
+                {
+                    "role": _normalize_role(message.role),
+                    "text": message.text,
+                }
+                for message in history
+            ],
+            "sessionId": job.session_id_snapshot,
+            "timeoutSeconds": settings.connector_job_lease_seconds,
+        }
+        if user_message.attachments_data:
+            job_data["attachments"] = user_message.attachments_data
         return {
             "type": "job.execute",
             "version": 1,
-            "job": {
-                "id": job.id,
-                "conversationId": job.conversation_id,
-                "latestUserMessage": user_message.text,
-                "history": [
-                    {
-                        "role": _normalize_role(message.role),
-                        "text": message.text,
-                    }
-                    for message in history
-                ],
-                "sessionId": job.session_id_snapshot,
-                "timeoutSeconds": settings.connector_job_lease_seconds,
-            },
+            "job": job_data,
         }
 
     @app.get("/v1/health")
@@ -1213,6 +1216,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         conversation = get_or_create_current_conversation(db, user_id=auth.user.id)
         initial_delivery_status = "pending" if request_settings.hermes_adapter == "connector" else "sent"
+        attachments_raw = (
+            [att.model_dump() for att in payload.attachments]
+            if payload.attachments
+            else None
+        )
         user_message = append_message(
             db,
             conversation=conversation,
@@ -1221,6 +1229,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             text=payload.text,
             client_message_id=client_message_id,
             delivery_status=initial_delivery_status,
+            attachments_data=attachments_raw,
         )
 
         job = create_message_job(

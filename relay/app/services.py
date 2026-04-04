@@ -955,6 +955,7 @@ def append_message(
     delivery_status: str | None = None,
     source: str | None = None,
     created_at_override: datetime | None = None,
+    attachments_data: list[dict] | None = None,
 ) -> Message:
     message = Message(
         conversation_id=conversation.id,
@@ -964,6 +965,7 @@ def append_message(
         client_message_id=client_message_id,
         delivery_status=delivery_status,
         source=source,
+        attachments_data=attachments_data,
     )
     if created_at_override is not None:
         message.created_at = created_at_override
@@ -1292,10 +1294,23 @@ def serialize_message(message: Message, *, job: MessageJob | None = None) -> dic
         "timestamp": message.created_at,
         "deliveryStatus": default_message_delivery_status(message),
     }
+    if message.client_message_id:
+        payload["clientMessageId"] = message.client_message_id
     if job is not None and (
         payload["deliveryStatus"] in {"pending", "failed"} or message.id == job.result_message_id
     ):
         payload["jobId"] = job.id
+    if message.attachments_data:
+        # Strip the heavy base64 data — only send metadata for display
+        payload["attachments"] = [
+            {
+                "type": att.get("type", "file"),
+                "filename": att.get("filename", "file"),
+                "mimeType": att.get("mimeType", "application/octet-stream"),
+                "thumbnailData": att.get("thumbnailData"),
+            }
+            for att in message.attachments_data
+        ]
     return payload
 
 

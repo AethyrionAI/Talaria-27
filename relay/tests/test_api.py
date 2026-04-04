@@ -148,6 +148,36 @@ def test_chat_roundtrip_uses_relay_conversation(tmp_path):
         assert len(updated_conversation.json()["data"]["conversation"]["messages"]) == 2
 
 
+def test_chat_accepts_attachment_only_message_and_round_trips_metadata(tmp_path):
+    with build_client(tmp_path) as client:
+        register_data = register_device(client)
+        access_token = register_data["auth"]["accessToken"]
+
+        message_response = client.post(
+            "/v1/messages",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "text": "",
+                "clientMessageId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                "attachments": [
+                    {
+                        "type": "file",
+                        "filename": "note.txt",
+                        "mimeType": "text/plain",
+                        "data": "aGVsbG8=",
+                        "thumbnailData": None,
+                    }
+                ],
+            },
+        )
+        assert message_response.status_code == 200
+        data = message_response.json()["data"]
+        assert data["userMessage"]["text"] == ""
+        assert data["userMessage"]["clientMessageId"] == "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        assert data["userMessage"]["attachments"][0]["filename"] == "note.txt"
+        assert data["conversation"]["messages"][0]["attachments"][0]["mimeType"] == "text/plain"
+
+
 def test_chat_roundtrip_persists_hermes_session_id_for_resume(tmp_path):
     class StubHermesAdapter:
         def __init__(self) -> None:
