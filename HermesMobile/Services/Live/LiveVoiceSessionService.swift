@@ -283,7 +283,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
 
         let base64 = imageData.base64EncodedString()
         let dataURL = "data:\(mimeType);base64,\(base64)"
-        let imageItemID = "img_\(UUID().uuidString)"
+        let imageItemID = "img\(UUID().uuidString.prefix(28))"
 
         let sent = sendRealtimeEvent([
             "type": "conversation.item.create",
