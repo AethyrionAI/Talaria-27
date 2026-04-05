@@ -181,14 +181,26 @@ class SensorStore:
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
-        self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row
-        self._conn.execute("PRAGMA journal_mode = WAL")
-        self._conn.execute("PRAGMA synchronous = NORMAL")
-        self._conn.execute("PRAGMA foreign_keys = ON")
-        self._conn.execute("PRAGMA busy_timeout = 5000")
+
+        # Write connection — used exclusively under self._lock
+        self._conn = self._open_connection(str(self.db_path))
         self._conn.executescript(SCHEMA_SQL)
         self._migrate_schema()
+
+        # Read connection — separate connection for concurrent reads.
+        # WAL mode allows readers and writers to operate concurrently
+        # as long as they use different connections.
+        self._read_conn = self._open_connection(str(self.db_path))
+
+    @staticmethod
+    def _open_connection(path: str) -> sqlite3.Connection:
+        conn = sqlite3.connect(path, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA synchronous = NORMAL")
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA busy_timeout = 5000")
+        return conn
 
     def _commit(self) -> None:
         """Commit — call within a locked context."""
@@ -196,6 +208,7 @@ class SensorStore:
 
     def close(self) -> None:
         self._conn.close()
+        self._read_conn.close()
 
     def _migrate_schema(self) -> None:
         required_columns = {
@@ -261,7 +274,7 @@ class SensorStore:
         return current.address != reading.address
 
     def get_current_location(self) -> CurrentLocation | None:
-        row = self._conn.execute("SELECT * FROM location_current WHERE id = 1").fetchone()
+        row = self._read_conn.execute("SELECT * FROM location_current WHERE id = 1").fetchone()
         if row is None:
             return None
         return CurrentLocation(
@@ -276,12 +289,12 @@ class SensorStore:
 
     def get_location_history(self, *, since: str | None = None, limit: int = 50) -> list[dict]:
         if since:
-            rows = self._conn.execute(
+            rows = self._read_conn.execute(
                 "SELECT * FROM location_history WHERE recorded_at >= ? ORDER BY recorded_at DESC LIMIT ?",
                 (since, limit),
             ).fetchall()
         else:
-            rows = self._conn.execute(
+            rows = self._read_conn.execute(
                 "SELECT * FROM location_history ORDER BY recorded_at DESC LIMIT ?",
                 (limit,),
             ).fetchall()
@@ -365,7 +378,7 @@ class SensorStore:
         )
 
     def get_latest_metrics(self) -> list[LatestMetric]:
-        rows = self._conn.execute("SELECT * FROM health_latest ORDER BY metric").fetchall()
+        rows = self._read_conn.execute("SELECT * FROM health_latest ORDER BY metric").fetchall()
         return [
             LatestMetric(
                 metric=row["metric"],
@@ -381,13 +394,13 @@ class SensorStore:
 
     def get_health_metric(self, metric: str, *, since: str | None = None, limit: int = 50) -> list[dict]:
         if since:
-            rows = self._conn.execute(
+            rows = self._read_conn.execute(
                 "SELECT * FROM health_samples WHERE metric = ? AND COALESCE(end_at, start_at) >= ? "
                 "ORDER BY COALESCE(end_at, start_at) DESC, created_at DESC LIMIT ?",
                 (metric, since, limit),
             ).fetchall()
         else:
-            rows = self._conn.execute(
+            rows = self._read_conn.execute(
                 "SELECT * FROM health_samples WHERE metric = ? "
                 "ORDER BY COALESCE(end_at, start_at) DESC, created_at DESC LIMIT ?",
                 (metric, limit),
@@ -398,7 +411,7 @@ class SensorStore:
         return results
 
     def get_metric_freshness(self, metric: str) -> dict | None:
-        row = self._conn.execute("SELECT * FROM health_latest WHERE metric = ?", (metric,)).fetchone()
+        row = self._read_conn.execute("SELECT * FROM health_latest WHERE metric = ?", (metric,)).fetchone()
         if row is None:
             return None
         return freshness_metadata(

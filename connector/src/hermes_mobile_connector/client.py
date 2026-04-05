@@ -121,17 +121,21 @@ class HermesMobileConnector:
             )
 
         resolved_relay_url = (relay_url or self.default_relay_url()).rstrip("/")
+        setup_body: dict = {
+            "connector": {
+                "platform": metadata.platform,
+                "hostname": metadata.hostname,
+                "connectorVersion": metadata.connector_version,
+                "hermesCommand": metadata.hermes_command,
+                "hermesVersion": metadata.hermes_version,
+            },
+        }
+        setup_secret = os.getenv("CONNECTOR_SETUP_SECRET")
+        if setup_secret:
+            setup_body["installationSecret"] = setup_secret
         response = httpx.post(
             f"{resolved_relay_url}/connector/setup",
-            json={
-                "connector": {
-                    "platform": metadata.platform,
-                    "hostname": metadata.hostname,
-                    "connectorVersion": metadata.connector_version,
-                    "hermesCommand": metadata.hermes_command,
-                    "hermesVersion": metadata.hermes_version,
-                },
-            },
+            json=setup_body,
             timeout=30.0,
         )
         response.raise_for_status()
