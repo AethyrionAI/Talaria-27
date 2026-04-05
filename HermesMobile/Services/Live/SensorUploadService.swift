@@ -1,6 +1,6 @@
 import CoreLocation
 import Foundation
-import MapKit
+@preconcurrency import MapKit
 
 struct SensorOutboxState: Codable, Hashable, Sendable {
     struct PendingLocation: Codable, Hashable, Sendable {
