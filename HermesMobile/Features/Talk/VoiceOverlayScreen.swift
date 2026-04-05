@@ -11,6 +11,7 @@ struct VoiceOverlayScreen: View {
     @State private var showLiveCameraOverlay = false
     @State private var isExplicitlyDismissing = false
     @State private var pendingPhotoData: Data?
+    @State private var pendingCameraOpen = false
 
     var body: some View {
         ZStack {
@@ -77,13 +78,16 @@ struct VoiceOverlayScreen: View {
         }
         .statusBarHidden(true)
         .sheet(isPresented: $showAttachmentSheet, onDismiss: {
-            // Send the photo AFTER the sheet fully dismisses so the data channel
-            // has recovered from any system UI disruption.
-            if let data = pendingPhotoData {
-                pendingPhotoData = nil
-                // Small delay to let the WebRTC connection stabilize
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            // Wait for the sheet to fully dismiss before taking the next action.
+            // Both photo send and camera open must happen AFTER the sheet is gone,
+            // otherwise the system UI transition disrupts WebRTC.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                if let data = pendingPhotoData {
+                    pendingPhotoData = nil
                     talkStore.sendImage(data)
+                } else if pendingCameraOpen {
+                    pendingCameraOpen = false
+                    showLiveCameraOverlay = true
                 }
             }
         }) {
@@ -92,7 +96,7 @@ struct VoiceOverlayScreen: View {
                     pendingPhotoData = imageData
                 },
                 onCameraRequested: {
-                    showLiveCameraOverlay = true
+                    pendingCameraOpen = true
                 }
             )
             .presentationDetents([.height(200)])

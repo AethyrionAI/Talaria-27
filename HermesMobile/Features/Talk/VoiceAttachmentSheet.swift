@@ -22,8 +22,8 @@ struct VoiceAttachmentSheet: View {
                 // Camera button
                 if UIImagePickerController.isSourceTypeAvailable(.camera) {
                     Button {
-                        dismiss()
                         onCameraRequested()
+                        dismiss()
                     } label: {
                         Label("Live Camera", systemImage: "video.fill")
                             .font(Design.Typography.body)
