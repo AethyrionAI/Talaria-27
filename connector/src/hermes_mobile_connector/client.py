@@ -787,7 +787,6 @@ class HermesMobileConnector:
                 turn_detection: dict = {
                     "type": config.turn_detection_type,
                     "create_response": config.create_response,
-                    "interrupt_response": config.interrupt_response,
                 }
                 if config.turn_detection_type == "semantic_vad":
                     turn_detection["eagerness"] = "medium"
@@ -796,7 +795,6 @@ class HermesMobileConnector:
                     "type": "realtime",
                     "model": model,
                     "instructions": instructions,
-                    "output_modalities": ["audio", "text"],
                     "audio": {
                         "output": {
                             "voice": config.voice or DEFAULT_REALTIME_VOICE,
