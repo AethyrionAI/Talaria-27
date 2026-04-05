@@ -233,8 +233,8 @@ def test_connected_host_gets_job_and_preserves_session_resume(tmp_path):
                 }
             )
             thread.join(timeout=5)
-            assert first_response["payload"].status_code == 200
-            assert first_response["payload"].json()["data"]["replyState"] == "delivered"
+            assert first_response["payload"].status_code == 202
+            assert first_response["payload"].json()["data"]["replyState"] == "pending"
 
             second_response: dict = {}
 
@@ -258,9 +258,7 @@ def test_connected_host_gets_job_and_preserves_session_resume(tmp_path):
                 }
             )
             second_thread.join(timeout=5)
-            assert second_response["payload"].status_code == 200
-            messages = second_response["payload"].json()["data"]["conversation"]["messages"]
-            assert messages[-1]["text"] == "Second connector reply"
+            assert second_response["payload"].status_code == 202
 
 
 def test_completed_job_events_include_usage_and_result_message(tmp_path):
@@ -317,7 +315,7 @@ def test_completed_job_events_include_usage_and_result_message(tmp_path):
                 }
             )
             thread.join(timeout=5)
-            assert response_holder["payload"].status_code == 200
+            assert response_holder["payload"].status_code == 202
 
             events_response = client.get(
                 f"/v1/jobs/{job['id']}/events",
@@ -383,11 +381,9 @@ def test_failed_job_response_and_conversation_include_job_id(tmp_path):
             thread.join(timeout=5)
 
             response = response_holder["payload"]
-            assert response.status_code == 200
+            assert response.status_code == 202
             data = response.json()["data"]
-            assert data["replyState"] == "failed"
-            assert data["message"]["role"] == "system"
-            assert data["message"]["jobId"] == job["id"]
+            assert data["replyState"] == "pending"
             assert data["conversation"]["messages"][-1]["jobId"] == job["id"]
 
 

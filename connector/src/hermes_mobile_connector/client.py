@@ -523,28 +523,11 @@ class HermesMobileConnector:
                     f"[End voice conversation]\n\n{user_message}"
                 )
 
-            # Stage attachments to disk and append context to the user message.
-            # The Hermes API server doesn't support multipart content arrays
-            # (image_url parts), so we save files locally and tell the agent
-            # to use vision_analyze on them.
-            attachments = job.get("attachments") or []
-            if attachments:
-                attachment_context = self._build_cli_attachment_context(
-                    job_id=str(job["id"]),
-                    attachments=attachments,
-                )
-                if attachment_context:
-                    user_message = (
-                        f"{user_message}\n\n{attachment_context}"
-                        if user_message.strip()
-                        else attachment_context
-                    )
-
             async for event in runtime.send_text_message_streaming(
                 latest_user_message=user_message,
                 history=history,
                 session_id=job.get("sessionId"),
-                attachments=None,  # handled via file staging above
+                attachments=job.get("attachments"),
             ):
                 if event.type == "text_delta":
                     accumulated_text += event.data

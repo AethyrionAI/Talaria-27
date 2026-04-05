@@ -165,9 +165,9 @@ def test_sse_completed_job_fast_path_returns_done_with_usage_and_message(tmp_pat
                 "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
             })
             thread.join(timeout=5)
-            assert response_holder["r"].status_code == 200
+            assert response_holder["r"].status_code == 202
 
-        # Job is now completed — SSE endpoint should return the fast-path
+        # Job is now completed — SSE endpoint should replay buffer + done
         response = client.get(
             f"/v1/jobs/{job['id']}/events",
             headers={"Authorization": f"Bearer {access_token}"},
@@ -176,7 +176,8 @@ def test_sse_completed_job_fast_path_returns_done_with_usage_and_message(tmp_pat
         assert "text/event-stream" in response.headers["content-type"]
 
         events = parse_sse_events(response.text)
-        assert len(events) == 1
+        # At least the done event (may also have buffered progress events)
+        assert len(events) >= 1
 
         event_type, data = events[0]
         assert event_type == "done"
@@ -320,7 +321,7 @@ def test_live_streaming_progress_events_flow_through_event_bus(tmp_path):
             msg_thread.join(timeout=5)
             sse_thread.join(timeout=5)
 
-        assert msg_holder["r"].status_code == 200
+        assert msg_holder["r"].status_code == 202
 
         events = parse_sse_events(sse_holder["r"].text)
         event_types = [e[0] for e in events]

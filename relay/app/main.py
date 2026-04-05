@@ -1285,6 +1285,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         db.expire_all()
         payload_data, status_code = build_message_response_payload(db, conversation_id=conversation.id, job_id=job.id)
+        # For connector-backed jobs, ALWAYS return "pending" so the iOS client
+        # opens an SSE connection for streaming. If we return "delivered" here
+        # (because the connector finished before db.expire_all), the client
+        # skips SSE and never sees streaming events.
+        if request_settings.hermes_adapter == "connector":
+            payload_data["replyState"] = "pending"
+            status_code = status.HTTP_202_ACCEPTED
         record_audit(
             db,
             actor_type="user",
@@ -1313,36 +1320,48 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if job is None or job.user_id != auth.user.id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.")
 
-        if job.status in ("completed", "failed"):
-            async def completed_stream():
-                event_data: dict = {"jobId": job_id, "status": job.status}
-                if job.usage_data:
-                    event_data["usage"] = job.usage_data
-                if job.diff_data:
-                    event_data["diff"] = job.diff_data
-                if job.error_text:
-                    event_data["error"] = job.error_text
-                if job.result_message_id:
-                    result_message = db.get(Message, job.result_message_id)
-                    if result_message is not None:
-                        event_data["message"] = serialize_message(result_message, job=job)
-                yield f"event: done\ndata: {json.dumps(jsonable_encoder(event_data))}\n\n"
-            return StreamingResponse(
-                completed_stream(),
-                media_type="text/event-stream",
-                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-            )
-
+        # Always subscribe first — this drains any buffered events that were
+        # published before the SSE connection opened.
         queue = subscribe_job_events(job_id)
+
+        # Build the done event from DB (used if job already completed)
+        done_event_data: dict | None = None
+        if job.status in ("completed", "failed"):
+            done_event_data = {"jobId": job_id, "status": job.status}
+            if job.usage_data:
+                done_event_data["usage"] = job.usage_data
+            if job.diff_data:
+                done_event_data["diff"] = job.diff_data
+            if job.error_text:
+                done_event_data["error"] = job.error_text
+            if job.result_message_id:
+                result_message = db.get(Message, job.result_message_id)
+                if result_message is not None:
+                    done_event_data["message"] = serialize_message(result_message, job=job)
 
         async def event_stream():
             try:
+                # First, replay any buffered events (text_delta, tool_activity, etc.)
+                while not queue.empty():
+                    event = queue.get_nowait()
+                    event_type = event.get("event", "progress")
+                    data = json.dumps(jsonable_encoder(event.get("data", {})))
+                    yield f"event: {event_type}\ndata: {data}\n\n"
+                    if event_type == "done":
+                        return
+
+                # If job already completed, emit the done event after replaying buffer
+                if done_event_data is not None:
+                    yield f"event: done\ndata: {json.dumps(jsonable_encoder(done_event_data))}\n\n"
+                    return
+
+                # Otherwise, stream live events as they arrive
                 while True:
                     try:
                         event = await asyncio.wait_for(queue.get(), timeout=float(settings.sse_keepalive_seconds))
                         event_type = event.get("event", "progress")
-                        event_data = json.dumps(jsonable_encoder(event.get("data", {})))
-                        yield f"event: {event_type}\ndata: {event_data}\n\n"
+                        data = json.dumps(jsonable_encoder(event.get("data", {})))
+                        yield f"event: {event_type}\ndata: {data}\n\n"
                         if event_type == "done":
                             break
                     except asyncio.TimeoutError:
