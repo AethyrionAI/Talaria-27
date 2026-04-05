@@ -10,9 +10,12 @@ struct LiveCameraOverlay: View {
 
     @State private var captureManager = CameraCaptureManager()
     @State private var isUsingFrontCamera = false
+    @State private var permissionDenied = false
 
     var body: some View {
         ZStack {
+            Color.black.ignoresSafeArea()
+
             // Camera preview
             CameraPreviewView(session: captureManager.session)
                 .ignoresSafeArea()
@@ -34,7 +37,7 @@ struct LiveCameraOverlay: View {
                             .background(.ultraThinMaterial)
                             .clipShape(Circle())
                     }
-                    .padding(.trailing, Design.Spacing.md)
+                    .padding(.trailing, Design.Spacing.sm)
 
                     // Close camera (back to voice mode)
                     Button {
@@ -54,47 +57,80 @@ struct LiveCameraOverlay: View {
 
                 Spacer()
 
-                // Subtle status
-                Text("Camera active \u{2022} voice continues")
-                    .font(Design.Typography.caption)
-                    .foregroundStyle(.white.opacity(0.6))
-                    .padding(.bottom, Design.Spacing.xxl)
+                if permissionDenied {
+                    Text("Camera access is required.\nGo to Settings to enable it.")
+                        .font(Design.Typography.callout)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                        .padding(.bottom, Design.Spacing.xxl)
+                } else {
+                    // Subtle status
+                    Text("Camera active \u{2022} voice continues")
+                        .font(Design.Typography.caption)
+                        .foregroundStyle(.white.opacity(0.6))
+                        .padding(.bottom, Design.Spacing.xxl)
+                }
             }
         }
-        .onAppear {
-            captureManager.onFrameCaptured = onFrameCaptured
-            captureManager.start(front: isUsingFrontCamera)
+        .task {
+            // Request camera permission, then start
+            let granted = await requestCameraPermission()
+            if granted {
+                captureManager.onFrameCaptured = onFrameCaptured
+                captureManager.start(front: isUsingFrontCamera)
+            } else {
+                permissionDenied = true
+            }
         }
         .onDisappear {
             captureManager.stop()
         }
         .statusBarHidden(true)
     }
+
+    private func requestCameraPermission() async -> Bool {
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        switch status {
+        case .authorized:
+            return true
+        case .notDetermined:
+            return await AVCaptureDevice.requestAccess(for: .video)
+        default:
+            return false
+        }
+    }
 }
 
 // MARK: - Camera Preview (UIKit wrapper)
 
+/// A UIView subclass that keeps its AVCaptureVideoPreviewLayer sized correctly.
+private final class CameraPreviewUIView: UIView {
+    let previewLayer: AVCaptureVideoPreviewLayer
+
+    init(session: AVCaptureSession) {
+        previewLayer = AVCaptureVideoPreviewLayer(session: session)
+        previewLayer.videoGravity = .resizeAspectFill
+        super.init(frame: .zero)
+        layer.addSublayer(previewLayer)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        previewLayer.frame = bounds
+    }
+}
+
 private struct CameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
 
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView(frame: .zero)
-        let previewLayer = AVCaptureVideoPreviewLayer(session: session)
-        previewLayer.videoGravity = .resizeAspectFill
-        view.layer.addSublayer(previewLayer)
-        context.coordinator.previewLayer = previewLayer
-        return view
+    func makeUIView(context: Context) -> CameraPreviewUIView {
+        CameraPreviewUIView(session: session)
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {
-        context.coordinator.previewLayer?.frame = uiView.bounds
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    final class Coordinator {
-        var previewLayer: AVCaptureVideoPreviewLayer?
-    }
+    func updateUIView(_ uiView: CameraPreviewUIView, context: Context) {}
 }
 
 // MARK: - Camera Capture Manager
@@ -108,7 +144,6 @@ final class CameraCaptureManager: NSObject {
     private var videoOutput: AVCaptureVideoDataOutput?
     private var frameTimer: Timer?
     private var latestCompressedFrame: Data?
-    // isFirstFrame removed — camera frames always send with triggerResponse: false
     private var isRunning = false
     private let captureQueue = DispatchQueue(label: "hermes.camera.capture", qos: .userInitiated)
 
@@ -117,7 +152,7 @@ final class CameraCaptureManager: NSObject {
         isRunning = true
 
         session.beginConfiguration()
-        session.sessionPreset = .medium // 480p — good balance of quality and size
+        session.sessionPreset = .medium // 480p
 
         // Add video input (no audio — mic stays on WebRTC)
         let position: AVCaptureDevice.Position = front ? .front : .back
@@ -125,6 +160,7 @@ final class CameraCaptureManager: NSObject {
               let input = try? AVCaptureDeviceInput(device: device),
               session.canAddInput(input) else {
             session.commitConfiguration()
+            isRunning = false
             return
         }
         session.addInput(input)
@@ -139,7 +175,12 @@ final class CameraCaptureManager: NSObject {
         videoOutput = output
 
         session.commitConfiguration()
-        session.startRunning()
+
+        // Start the session on a background queue to avoid blocking main
+        let capturedSession = session
+        captureQueue.async {
+            capturedSession.startRunning()
+        }
 
         // Periodic frame capture timer (every 1.5 seconds)
         frameTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
@@ -152,7 +193,12 @@ final class CameraCaptureManager: NSObject {
     func stop() {
         frameTimer?.invalidate()
         frameTimer = nil
-        session.stopRunning()
+
+        let capturedSession = session
+        captureQueue.async {
+            capturedSession.stopRunning()
+        }
+
         for input in session.inputs { session.removeInput(input) }
         for output in session.outputs { session.removeOutput(output) }
         videoOutput = nil
@@ -163,7 +209,10 @@ final class CameraCaptureManager: NSObject {
     func switchCamera(front: Bool) {
         guard isRunning else { return }
         stop()
-        start(front: front)
+        // Small delay to let the session fully stop before restarting
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            self?.start(front: front)
+        }
     }
 
     private func captureAndSendFrame() {
