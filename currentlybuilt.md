@@ -1,134 +1,93 @@
-# Hermes Mobile: Current Build State
+# HermesMobile — Current Build Status
 
-## What Exists Today
+**Last updated:** April 5, 2026
 
-Hermes Mobile is now a real Hermes companion stack, not a mock shell.
+## Architecture
 
-The current system has three working pieces:
+```
+iOS App ──HTTP/SSE──▶ Relay (Fly.io) ◀──WebSocket──▶ Connector (Mac mini) ──▶ Hermes Agent
+                                      ◀──────────────▶ OpenAI Realtime API (voice, via iOS WebRTC)
+```
 
-- The iOS app in [`/Users/dylan-mac-mini/Documents/HermesMobile/HermesMobile`](/Users/dylan-mac-mini/Documents/HermesMobile/HermesMobile)
-- The public relay in [`/Users/dylan-mac-mini/Documents/HermesMobile/relay`](/Users/dylan-mac-mini/Documents/HermesMobile/relay)
-- The host-side connector in [`/Users/dylan-mac-mini/Documents/HermesMobile/connector`](/Users/dylan-mac-mini/Documents/HermesMobile/connector)
+- **iOS App**: SwiftUI, iOS 26, Swift 6.2 strict concurrency
+- **Relay**: FastAPI on Fly.io, SQLite, WebSocket + SSE
+- **Connector**: Python service on Mac mini, bridges relay to Hermes CLI/API
+- **Hermes Agent**: Local agent with tools, memory, MCP, model gpt-5.4-mini via openai-codex
 
-## Core Product Shape
+---
 
-### Connector-first pairing
-
-- The Hermes host is set up first with `hermes-mobile setup`
-- The connector can generate a short phone pairing code with `hermes-mobile pair-phone`
-- The phone pairs with an 8-character code such as `ABCD-EFGH` or by scanning the QR
-- Release onboarding no longer asks for a relay URL or host enrollment from the phone
+## What Works
 
 ### Chat
+- Single-surface chat with the Hermes agent
+- Image attachments (768px/350KB, staged to disk, agent uses vision_analyze)
+- SSE streaming with event buffering and polling fallback
+- Tool activity rail, inline git diffs, markdown rendering
+- Message retry, conversation persistence
+- Voice transcript injection after voice session ends
+- Voice context shared with Hermes agent via [Recent voice conversation] block
 
-- The app talks to the cloud relay, not directly to Hermes
-- The relay persists conversation state and message jobs
-- The connector claims jobs and executes Hermes locally on the user’s machine
-- Chat supports:
-  - synchronous replies when the host is online
-  - queued pending state when the host is offline or slow
-  - SSE streaming progress
-  - tool activity status
-  - inline code diff rendering for coding turns when the connector can detect git-visible file changes
-  - durable message delivery states on user messages
+### Voice Mode
+- WebRTC via OpenAI Realtime API (gpt-realtime-1.5)
+- SOUL.md personality in voice system prompt
+- MCP tool delegation (hermes_delegate) with voice follow-up
+- Semantic VAD, barge-in, input transcription
+- Live camera (1.5s frame capture, video-only AVCaptureSession)
+- Live transcript, session teardown on dismiss
+- Handles both beta and GA Realtime API events (ready for May 7, 2026 deprecation)
 
-### Talk mode
+### Sensor Pipeline (11 metrics)
+- SQLite at ~/.hermes-mobile/state/sensors.db
+- Location with reverse geocoding
+- Health: steps, active_calories, distance_walking, heart_rate, resting_heart_rate, blood_oxygen, respiratory_rate, body_mass, workout_minutes, stand_hours, sleep_duration
+- Sleep attributed to wake-up day, overnight-aware
+- Daily aggregates with correct rollup semantics
+- 90-day retention, 7 MCP tools including raw SQL query
+- Schema documented in connector/SENSOR_SCHEMA.md
 
-- The app has a real WebRTC-based talk stack for OpenAI Realtime
-- Realtime credentials and model selection live on the connector host, not in the app
-- The relay brokers talk readiness and short-lived session bootstrap
-- Final transcript turns are persisted back to the relay
-- Hermes memory and local sensor summaries are prefetched into a cached voice context snapshot
-- A relay-hosted `hermes_delegate` tool can hand deeper requests back to the Hermes host
+### Permissions
+- Real LiveMediaService for camera/photos
+- Onboarding + settings with "Open Settings" for denied state
+- HealthKit background delivery
+- Foreground refresh on app return
 
-### Host tools and sensor context
+---
 
-- The connector can register a native MCP server in `~/.hermes/config.yaml`
-- The `hermes_mobile` MCP server exposes phone-derived context such as location and health freshness
-- The phone keeps a local outbox for sensor data and only clears it after relay/connector ACK
-- Delivered sensor data is stored on the connector host, not on the relay
+## Known Issues (from code review)
 
-### Background host uptime
+| Severity | Issue |
+|----------|-------|
+| **Critical** | Voice session `performAuthorizedRequest` discards refreshed token on retry |
+| **High** | Force-unwraps on optional conversation in ChatStore streaming loop |
+| **High** | WebRTC properties (`nonisolated(unsafe)`) accessed cross-thread without sync |
+| **High** | `query_sensor_data` SQL injection — safety checks bypassable |
+| **High** | SensorStore SQLite shared across threads without locking |
+| Medium | CIContext per-frame, UIGraphicsImageRenderer on background queue |
+| Medium | Synchronous file I/O in MessageBubble attachment cell |
+| Medium | Unbounded event buffer in relay, attachment staging never cleaned |
+| Low | Static streaming dots, placeholder ToS/Privacy buttons |
 
-- The connector supports managed background execution
-- macOS uses a per-user `launchd` LaunchAgent
-- Windows gateway support is WSL2-only and uses a Windows Scheduled Task to start the WSL-hosted connector
+---
 
-## iOS App Shape
+## Test Coverage
 
-The app is now centered around a single primary chat surface rather than the older multi-tab shell.
+| Suite | Tests | Status |
+|-------|-------|--------|
+| Connector | 76 | All passing |
+| Relay | 44 | All passing |
+| iOS AppStoresTests | ~15 | Passing (streaming, attachments, sleep) |
+| iOS UI Tests | Stale | Not maintained |
 
-Key surfaces:
+---
 
-- [`/Users/dylan-mac-mini/Documents/HermesMobile/HermesMobile/Features/Onboarding/ConnectHermesScreen.swift`](/Users/dylan-mac-mini/Documents/HermesMobile/HermesMobile/Features/Onboarding/ConnectHermesScreen.swift)
-- [`/Users/dylan-mac-mini/Documents/HermesMobile/HermesMobile/Features/Chat/ChatScreen.swift`](/Users/dylan-mac-mini/Documents/HermesMobile/HermesMobile/Features/Chat/ChatScreen.swift)
-- [`/Users/dylan-mac-mini/Documents/HermesMobile/HermesMobile/Features/Talk/TalkModeScreen.swift`](/Users/dylan-mac-mini/Documents/HermesMobile/HermesMobile/Features/Talk/TalkModeScreen.swift)
-- [`/Users/dylan-mac-mini/Documents/HermesMobile/HermesMobile/Features/Inbox/InboxScreen.swift`](/Users/dylan-mac-mini/Documents/HermesMobile/HermesMobile/Features/Inbox/InboxScreen.swift)
-- [`/Users/dylan-mac-mini/Documents/HermesMobile/HermesMobile/Features/Settings/SettingsScreen.swift`](/Users/dylan-mac-mini/Documents/HermesMobile/HermesMobile/Features/Settings/SettingsScreen.swift)
+## Services: Live vs Mock
 
-Notable UI features already present:
-
-- compact live thinking and tool-status UI
-- expandable inline diffs for code-editing turns
-- markdown rendering in assistant replies
-- talk transcript state with latency markers
-- host status and connector management entry points
-- permissions and privacy controls
-
-## Connector / Relay Architecture
-
-### Relay
-
-- public always-on control plane
-- pairing and session bootstrap
-- durable message job queue
-- host presence tracking
-- connector WebSocket control channel
-- talk readiness and voice session bootstrap
-- voice turn persistence
-
-### Connector
-
-- owns Hermes execution
-- owns Realtime API configuration
-- owns local MCP registration
-- owns local sensor SQLite store
-- owns background service installation
-- uses Hermes through supported surfaces instead of patching Hermes source
-
-## What Is Still Unfinished
-
-### Product gaps
-
-- Talk mode is not truly barge-in complete yet. The app reacts to speech-start events but does not yet send an explicit Realtime interruption/cancel command back to cut off assistant audio mid-turn.
-- Inline diffs depend on git-visible changes in the Hermes workdir. They are a connector-side inference layer, not a Hermes-native structured diff stream.
-- Camera/capture remains a stub.
-- Terms of Service and Privacy Policy links in Settings are still placeholders.
-
-### Integration gaps
-
-- The app still uses `MockSyncCoordinator` and `MockMediaService` in the main container, so sync/media plumbing is not fully productionized yet.
-- Background health and Always-authorized location still need real-device validation. Simulator coverage is not enough for those capabilities.
-- Talk mode is foreground-only.
-
-### Test gaps
-
-- Connector and relay automated suites are in good shape.
-- Focused iOS state/store tests pass.
-- The full UI test suite is currently stale against the new single-surface app structure and fails until those expectations are updated.
-
-## Verification Snapshot
-
-Latest review pass:
-
-- connector tests: passing
-- relay tests: passing
-- focused iOS state tests: passing
-- full UI test suite: failing because onboarding/navigation expectations still target the old tab-based shell
-
-## Near-term Next Work
-
-1. Finish true talk barging by sending explicit Realtime interruption/cancel events.
-2. Update stale UI tests to the current single-surface navigation model.
-3. Replace placeholder About links with real URLs.
-4. Decide whether inline diffs stay connector-side or move toward a Hermes-native structured diff event path later.
+| Service | Production | Test |
+|---------|-----------|------|
+| Location | LiveLocationService | MockLocationService |
+| Health | LiveHealthService | MockHealthService |
+| Notifications | LiveNotificationService | MockNotificationService |
+| Media | **LiveMediaService** | MockMediaService |
+| Voice | LiveVoiceSessionService | MockVoiceSessionService |
+| Hermes Client | LiveHermesClient | MockHermesClient |
+| Sync Coordinator | MockSyncCoordinator | MockSyncCoordinator |
