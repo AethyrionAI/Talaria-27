@@ -840,7 +840,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             user_id=auth.user.id,
             host_id=host.id,
         )
-        relay_mcp_url = f"{request_settings.public_base_url}/talk/mcp?token={relay_tool_token}"
+        relay_mcp_url = f"{request_settings.public_base_url}/talk/mcp/?token={relay_tool_token}"
 
         try:
             bootstrap = await send_connector_rpc(
@@ -992,7 +992,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         messages = list_conversation_messages(db, conversation_id=conversation.id)
         return success({
-            "conversation": serialize_conversation(db, conversation=conversation, messages=messages),
+            "conversation": serialize_conversation(conversation=conversation, messages=messages),
         })
 
     @app.post("/v1/hosts/redeem")
