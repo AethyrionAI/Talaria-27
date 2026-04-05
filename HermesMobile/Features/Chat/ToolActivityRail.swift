@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// A compact, expandable view showing the tools Hermes used during a response.
+/// A compact, live-rotating view showing what tools Hermes is using in real time.
 ///
-/// **Collapsed** (default): shows the latest/active tool label with a count badge.
-/// **Expanded**: shows the full timeline of tool invocations.
+/// **Streaming**: cycles through tool labels one at a time with animated transitions.
+/// **Finished**: shows a collapsed summary that expands to the full timeline on tap.
 struct ToolActivityRail: View {
     let activities: [ToolActivity]
     let isStreaming: Bool
@@ -16,65 +16,81 @@ struct ToolActivityRail: View {
 
     var body: some View {
         if !activities.isEmpty {
-            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
-                compactHeader
-                if isExpanded {
-                    expandedTimeline
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
+            if isStreaming {
+                liveIndicator
+            } else {
+                finishedSummary
             }
-            .animation(Design.Motion.quickResponse, value: isExpanded)
-            .animation(Design.Motion.quickResponse, value: activities.count)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Tools: \(activities.map(\.label).joined(separator: ", "))")
         }
     }
 
-    // MARK: - Compact Header
+    // MARK: - Live Streaming Indicator
 
-    private var compactHeader: some View {
-        Button {
-            guard activities.count > 1 || !isStreaming else { return }
-            withAnimation(Design.Motion.quickResponse) {
-                isExpanded.toggle()
+    private var liveIndicator: some View {
+        HStack(spacing: Design.Spacing.xs) {
+            ProgressView()
+                .controlSize(.mini)
+                .tint(Design.Colors.secondaryForeground)
+
+            if let latest = latestActivity {
+                Text(latest.label)
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+                    .lineLimit(1)
+                    .id(latest.id)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .bottom).combined(with: .opacity),
+                        removal: .move(edge: .top).combined(with: .opacity)
+                    ))
+                    .animation(Design.Motion.quickResponse, value: latest.id)
             }
-        } label: {
-            HStack(spacing: Design.Spacing.xs) {
-                if let latest = latestActivity {
-                    if isStreaming && latest.isActive {
-                        ProgressView()
-                            .controlSize(.mini)
-                            .tint(Design.Colors.secondaryForeground)
-                    }
+        }
+        .padding(.horizontal, Design.Spacing.sm)
+        .padding(.vertical, Design.Spacing.xxs + 1)
+        .background(Design.Colors.surface)
+        .clipShape(Capsule())
+    }
 
-                    Text(latest.label)
+    // MARK: - Finished Summary (expandable)
+
+    private var finishedSummary: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+            Button {
+                guard activities.count > 1 else { return }
+                withAnimation(Design.Motion.quickResponse) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: Design.Spacing.xs) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Design.Colors.secondaryForeground)
+
+                    Text("Used \(activities.count) tool\(activities.count == 1 ? "" : "s")")
                         .font(Design.Typography.caption)
                         .foregroundStyle(Design.Colors.secondaryForeground)
-                        .lineLimit(1)
-                        .contentTransition(.numericText())
-                }
 
-                if activities.count > 1 {
-                    Text("\(activities.count)")
-                        .font(Design.Typography.caption2.weight(.medium))
-                        .foregroundStyle(Design.Colors.secondaryForeground)
-                        .padding(.horizontal, Design.Spacing.xxs + 2)
-                        .padding(.vertical, Design.Spacing.xxxs)
-                        .background {
-                            Capsule().fill(Design.Colors.surface)
-                        }
-
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 8, weight: .semibold))
-                        .foregroundStyle(Design.Colors.secondaryForeground)
+                    if activities.count > 1 {
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundStyle(Design.Colors.secondaryForeground)
+                    }
                 }
+                .padding(.horizontal, Design.Spacing.sm)
+                .padding(.vertical, Design.Spacing.xxs + 1)
+                .background(Design.Colors.surface)
+                .clipShape(Capsule())
             }
-            .padding(.horizontal, Design.Spacing.sm)
-            .padding(.vertical, Design.Spacing.xxs + 1)
-            .background(Design.Colors.surface)
-            .clipShape(Capsule())
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                expandedTimeline
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
-        .buttonStyle(.plain)
+        .animation(Design.Motion.quickResponse, value: isExpanded)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Tools: \(activities.map(\.label).joined(separator: ", "))")
     }
 
     // MARK: - Expanded Timeline
@@ -84,29 +100,22 @@ struct ToolActivityRail: View {
             ForEach(activities) { activity in
                 HStack(spacing: Design.Spacing.xs) {
                     Circle()
-                        .fill(activity.isActive ? Design.Brand.accent : Design.Colors.secondaryForeground)
+                        .fill(Design.Colors.secondaryForeground)
                         .frame(width: 5, height: 5)
 
                     Text(activity.label)
                         .font(Design.Typography.caption)
-                        .foregroundStyle(activity.isActive ? Design.Colors.foreground : Design.Colors.secondaryForeground)
+                        .foregroundStyle(Design.Colors.secondaryForeground)
                         .lineLimit(1)
 
                     Spacer()
 
-                    if !activity.isActive {
-                        Text(activity.startedAt, style: .time)
-                            .font(Design.Typography.caption2)
-                            .foregroundStyle(Design.Colors.secondaryForeground)
-                    } else if isStreaming {
-                        ProgressView()
-                            .controlSize(.mini)
-                            .tint(Design.Colors.secondaryForeground)
-                    }
+                    Text(activity.startedAt, style: .time)
+                        .font(Design.Typography.caption2)
+                        .foregroundStyle(Design.Colors.secondaryForeground)
                 }
                 .padding(.horizontal, Design.Spacing.xs)
                 .padding(.vertical, Design.Spacing.xxxs)
-                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .padding(.vertical, Design.Spacing.xxs)
