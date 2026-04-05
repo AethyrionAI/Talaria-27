@@ -12,9 +12,9 @@ import logging
 import uuid
 from urllib.parse import parse_qs
 
-from fastapi import APIRouter, Request, Response
+from fastapi import Request, Response
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from .services import get_voice_session_for_tool_token, record_voice_turn
 
@@ -82,9 +82,35 @@ def register_talk_mcp_routes(app: FastAPI) -> None:
 
         user_id = voice_session.user_id
 
-        # -- GET = SSE stream (not implemented; return method not allowed) -
+        # -- GET = SSE stream for server-to-client notifications ------------
         if request.method == "GET":
-            return Response(status_code=405)
+            async def _sse_keepalive():
+                """Hold the SSE connection open for the MCP protocol.
+
+                OpenAI's MCP client opens this to receive server notifications.
+                We don't send any, but the connection must stay open for the
+                protocol to consider the session healthy.
+                """
+                import asyncio
+                # Send an initial comment to establish the SSE stream
+                yield ": connected\n\n"
+                try:
+                    # Keep alive until the client disconnects
+                    while True:
+                        await asyncio.sleep(15)
+                        yield ": keepalive\n\n"
+                except asyncio.CancelledError:
+                    return
+
+            return StreamingResponse(
+                _sse_keepalive(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "Mcp-Session-Id": voice_session.id,
+                },
+            )
 
         # -- POST = JSON-RPC ---------------------------------------------
         try:
