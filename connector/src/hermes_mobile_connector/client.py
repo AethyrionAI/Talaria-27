@@ -512,8 +512,18 @@ class HermesMobileConnector:
                 for item in job.get("history", [])
             ]
 
+            # Prepend voice transcript context so the Hermes agent sees the
+            # voice conversation even when using its own session history.
+            user_message = job["latestUserMessage"]
+            voice_context = job.get("voiceTranscriptContext")
+            if voice_context:
+                user_message = (
+                    f"[Recent voice conversation for context]\n{voice_context}\n"
+                    f"[End voice conversation]\n\n{user_message}"
+                )
+
             async for event in runtime.send_text_message_streaming(
-                latest_user_message=job["latestUserMessage"],
+                latest_user_message=user_message,
                 history=history,
                 session_id=job.get("sessionId"),
                 attachments=job.get("attachments"),
@@ -569,6 +579,12 @@ class HermesMobileConnector:
         async def execute_job() -> dict:
             try:
                 user_message = job["latestUserMessage"]
+                voice_context = job.get("voiceTranscriptContext")
+                if voice_context:
+                    user_message = (
+                        f"[Recent voice conversation for context]\n{voice_context}\n"
+                        f"[End voice conversation]\n\n{user_message}"
+                    )
                 attachments = job.get("attachments") or []
                 if attachments:
                     attachment_context = self._build_cli_attachment_context(

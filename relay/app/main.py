@@ -388,20 +388,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             conversation_id=job.conversation_id,
             message_id=user_message.id,
         )
+
+        # Extract voice transcript messages so they can be injected into the
+        # Hermes agent's context even when it uses its own session history.
+        voice_transcript_lines: list[str] = []
+        regular_history: list[dict] = []
+        for message in history:
+            if message.source == "voice_transcript" and message.role != "system":
+                speaker = "User" if message.role in ("voice_user", "user") else "Hermes"
+                voice_transcript_lines.append(f"{speaker}: {message.text}")
+            else:
+                regular_history.append({
+                    "role": _normalize_role(message.role),
+                    "text": message.text,
+                })
+
         job_data: dict = {
             "id": job.id,
             "conversationId": job.conversation_id,
             "latestUserMessage": user_message.text,
-            "history": [
-                {
-                    "role": _normalize_role(message.role),
-                    "text": message.text,
-                }
-                for message in history
-            ],
+            "history": regular_history,
             "sessionId": job.session_id_snapshot,
             "timeoutSeconds": settings.connector_job_lease_seconds,
         }
+        if voice_transcript_lines:
+            job_data["voiceTranscriptContext"] = "\n".join(voice_transcript_lines)
         if user_message.attachments_data:
             job_data["attachments"] = user_message.attachments_data
         return {

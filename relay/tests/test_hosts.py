@@ -500,7 +500,7 @@ def test_talk_session_create_and_end_roundtrip(tmp_path):
             create_rpc = websocket.receive_json()
             assert create_rpc["type"] == "rpc.request"
             assert create_rpc["method"] == "talk.session.create"
-            assert create_rpc["params"]["relayMcpURL"].startswith("https://relay.example.test/v1/talk/mcp?token=")
+            assert create_rpc["params"]["relayMcpURL"].startswith("https://relay.example.test/v1/talk/mcp/?token=")
 
             websocket.send_json(
                 {
