@@ -493,6 +493,111 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
+    func chatStorePreservesStreamingPlaceholderDuringConversationRefresh() async throws {
+        final class PlaceholderRefreshClient: HermesClientProtocol {
+            var connectionStatus: ConnectionStatus = .connected
+            var currentConversation: Conversation?
+
+            func connect() async {}
+            func disconnect() async {}
+
+            func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
+                Message(sender: .hermes, content: "unused", status: .delivered)
+            }
+
+            func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+                AsyncStream { continuation in
+                    Task { @MainActor in
+                        continuation.finish()
+                    }
+                }
+            }
+
+            func loadConversation() async -> Conversation {
+                currentConversation ?? Conversation(title: "Hermes")
+            }
+
+            func clearConversation() async throws -> Conversation {
+                Conversation(title: "Hermes")
+            }
+
+            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
+                currentConversation ?? Conversation(title: "Hermes")
+            }
+        }
+
+        let suiteName = "chat-store-placeholder-refresh-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = PlaceholderRefreshClient()
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        let userMessage = Message(sender: .user, content: "Waiting", status: .sending)
+        let placeholder = Message(sender: .hermes, content: "", status: .sending, isStreaming: true)
+        chatStore.conversation = Conversation(title: "Hermes", messages: [userMessage, placeholder])
+        hermesClient.currentConversation = Conversation(title: "Hermes", messages: [userMessage])
+
+        await chatStore.loadConversation()
+
+        #expect(chatStore.conversation?.messages.count == 2)
+        #expect(chatStore.conversation?.messages.last?.isStreaming == true)
+    }
+
+    @Test @MainActor
+    func chatStoreKeepsAcceptedMessagePendingUntilTerminalResultArrives() async throws {
+        final class PendingUntilFinishedClient: HermesClientProtocol {
+            var connectionStatus: ConnectionStatus = .connected
+            var currentConversation: Conversation?
+
+            func connect() async {}
+            func disconnect() async {}
+
+            func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
+                Message(sender: .hermes, content: "unused", status: .delivered)
+            }
+
+            func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+                AsyncStream { continuation in
+                    Task { @MainActor in
+                        continuation.yield(.messageSent(jobID: UUID()))
+                        try? await Task.sleep(for: .milliseconds(50))
+                        continuation.yield(.finished(Message(sender: .hermes, content: "Done", status: .delivered), nil, nil))
+                        continuation.finish()
+                    }
+                }
+            }
+
+            func loadConversation() async -> Conversation {
+                currentConversation ?? Conversation(title: "Hermes")
+            }
+
+            func clearConversation() async throws -> Conversation {
+                Conversation(title: "Hermes")
+            }
+
+            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
+                currentConversation ?? Conversation(title: "Hermes")
+            }
+        }
+
+        let suiteName = "chat-store-pending-until-finished-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = PendingUntilFinishedClient()
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        let task = Task { await chatStore.sendMessage("Hello") }
+        try? await Task.sleep(for: .milliseconds(10))
+
+        let userMessage = try #require(chatStore.conversation?.messages.first(where: { $0.sender == .user }))
+        #expect(userMessage.status == .sending)
+
+        await task.value
+    }
+
+    @Test @MainActor
     func chatStoreRefreshesConversationWhenStreamingFailsAfterJobAccepted() async throws {
         final class StreamingFailureClient: HermesClientProtocol {
             var connectionStatus: ConnectionStatus = .connected

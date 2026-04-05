@@ -598,3 +598,70 @@ def test_pending_message_response_does_not_leak_completed_result_into_conversati
             not (message.get("jobId") == job["id"] and message.get("role") != "user")
             for message in data["conversation"]["messages"]
         )
+
+
+def test_retryable_job_failure_keeps_sse_open_until_requeued_job_completes(tmp_path):
+    with build_client(tmp_path) as client:
+        credential, access_token = setup_environment(
+            client, installation_id="aaaa1111-bbbb-cccc-dddd-eeeeeeee0009"
+        )
+
+        with client.websocket_connect(
+            "/v1/hosts/ws",
+            headers={"Authorization": f"Bearer {credential}"},
+        ) as websocket:
+            websocket.send_json(HELLO_PAYLOAD)
+            assert websocket.receive_json()["type"] == "ready"
+
+            msg_holder: dict = {}
+
+            def send_msg():
+                msg_holder["r"] = client.post(
+                    "/v1/messages",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    json={"text": "Retry this queued job"},
+                )
+
+            msg_thread = Thread(target=send_msg)
+            msg_thread.start()
+            job = websocket.receive_json()["job"]
+
+            sse_holder: dict = {}
+
+            def read_sse():
+                sse_holder["r"] = client.get(
+                    f"/v1/jobs/{job['id']}/events",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                )
+
+            sse_thread = Thread(target=read_sse)
+            sse_thread.start()
+            time.sleep(0.3)
+
+            websocket.send_json({
+                "type": "job.failed",
+                "jobId": job["id"],
+                "retryable": True,
+                "error": "connector temporarily unavailable",
+            })
+
+            retried_job = websocket.receive_json()["job"]
+            assert retried_job["id"] == job["id"]
+
+            websocket.send_json({
+                "type": "job.result",
+                "jobId": job["id"],
+                "text": "Recovered after retry",
+                "sessionId": "sess-retry",
+            })
+
+            msg_thread.join(timeout=5)
+            sse_thread.join(timeout=5)
+
+        assert msg_holder["r"].status_code == 202
+
+        events = parse_sse_events(sse_holder["r"].text)
+        done_events = [(t, d) for t, d in events if t == "done"]
+        assert len(done_events) == 1
+        assert done_events[0][1]["status"] == "completed"
+        assert done_events[0][1]["message"]["text"] == "Recovered after retry"

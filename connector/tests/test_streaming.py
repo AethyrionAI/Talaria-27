@@ -14,6 +14,7 @@ Covers:
 from __future__ import annotations
 
 import asyncio
+import httpx
 import json
 from dataclasses import dataclass
 from typing import AsyncIterator
@@ -191,7 +192,7 @@ def test_handle_job_streaming_sends_failed_on_exception(tmp_path):
 
         async def send_text_message_streaming(self, **kwargs):
             yield StreamEvent(type="text_delta", data="partial ")
-            raise ConnectionError("API server gone")
+            raise RuntimeError("API server gone")
 
     ws = FakeWebSocket()
     job = {"id": "job-error", "latestUserMessage": "Crash", "history": []}
@@ -204,6 +205,30 @@ def test_handle_job_streaming_sends_failed_on_exception(tmp_path):
     assert ws.sent[0]["delta"] == "partial "
     assert ws.sent[1]["type"] == "job.failed"
     assert "API server gone" in ws.sent[1]["error"]
+    assert ws.sent[1]["retryable"] is False
+
+
+def test_handle_job_streaming_marks_transport_failures_retryable(tmp_path):
+    store = ConnectorStateStore(state_dir=tmp_path / "streaming-transport-error")
+    store.save(make_enrolled_state())
+    connector = HermesMobileConnector(state_store=store, executor=make_executor())
+
+    class FakeErrorAdapter:
+        supports_streaming = True
+
+        async def send_text_message_streaming(self, **kwargs):
+            request = httpx.Request("POST", "http://localhost:8642/v1/chat/completions")
+            raise httpx.ConnectError("connection refused", request=request)
+            yield  # pragma: no cover
+
+    ws = FakeWebSocket()
+    job = {"id": "job-transport", "latestUserMessage": "Retry me", "history": []}
+
+    asyncio.run(connector._handle_job_streaming(ws, job, FakeErrorAdapter()))  # noqa: SLF001
+
+    assert len(ws.sent) == 1
+    assert ws.sent[0]["type"] == "job.failed"
+    assert ws.sent[0]["retryable"] is True
 
 
 def test_handle_job_streaming_passes_history_and_session(tmp_path):
@@ -287,6 +312,54 @@ def test_handle_job_cli_materializes_attachments_for_tool_access(tmp_path):
     assert "read_file" in captured["latest_user_message"]
     assert "screen.png" in captured["latest_user_message"]
     assert "notes.txt" in captured["latest_user_message"]
+
+
+def test_handle_job_routes_attachment_jobs_to_cli_even_when_streaming_runtime_exists(tmp_path, monkeypatch):
+    store = ConnectorStateStore(state_dir=tmp_path / "attachment-routing")
+    store.save(make_enrolled_state())
+    connector = HermesMobileConnector(state_store=store, executor=make_executor())
+
+    class FakeCLIRuntime:
+        def send_text_message(self, *, latest_user_message, history, session_id=None):  # noqa: ANN001
+            return type("Result", (), {"text": "Done", "session_id": "sess-cli"})()
+
+    async def fake_runtime_adapter_async(state):  # noqa: ANN001
+        raise AssertionError("Attachment jobs should not request the streaming/API runtime")
+
+    def fake_runtime_adapter(state):  # noqa: ANN001
+        return FakeCLIRuntime()
+
+    captured: dict = {}
+
+    async def fake_handle_job_streaming(websocket, job, runtime, workdir=None):  # noqa: ANN001
+        captured["streaming"] = True
+
+    async def fake_handle_job_cli(websocket, job, runtime):  # noqa: ANN001
+        captured["cli"] = True
+        captured["runtime_type"] = type(runtime).__name__
+
+    monkeypatch.setattr(connector, "runtime_adapter_for_state_async", fake_runtime_adapter_async)
+    monkeypatch.setattr(connector, "runtime_adapter_for_state", fake_runtime_adapter)
+    monkeypatch.setattr(connector, "_handle_job_streaming", fake_handle_job_streaming)
+    monkeypatch.setattr(connector, "_handle_job_cli", fake_handle_job_cli)
+
+    job = {
+        "id": "job-attachments",
+        "latestUserMessage": "What is in this image?",
+        "history": [],
+        "attachments": [
+            {
+                "type": "image",
+                "filename": "photo.jpg",
+                "mimeType": "image/jpeg",
+                "data": "aGVsbG8=",
+            }
+        ],
+    }
+
+    asyncio.run(connector._handle_job(FakeWebSocket(), job))  # noqa: SLF001
+
+    assert captured == {"cli": True, "runtime_type": "FakeCLIRuntime"}
 
 
 # --------------------------------------------------------------------------

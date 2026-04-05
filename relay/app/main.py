@@ -1305,7 +1305,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # opens an SSE connection for streaming. If we return "delivered" here
         # (because the connector finished before db.expire_all), the client
         # skips SSE and never sees streaming events.
-        if request_settings.hermes_adapter == "connector":
+        if request_settings.hermes_adapter == "connector" and payload_data["replyState"] != "failed":
             payload_data["replyState"] = "pending"
             strip_current_job_result_from_pending_payload(payload_data, job_id=job.id)
             status_code = status.HTTP_202_ACCEPTED
@@ -1657,15 +1657,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                                         if failed.result_message_id and db.get(Message, failed.result_message_id) is not None
                                         else None
                                     )
-                                publish_job_event(claimed_job.id, {
-                                    "event": "done",
-                                    "data": {
-                                        "jobId": claimed_job.id,
-                                        "status": "failed",
-                                        "error": incoming.get("error"),
-                                        "message": result_message,
-                                    },
-                                })
+                                if failed.status != "queued":
+                                    publish_job_event(claimed_job.id, {
+                                        "event": "done",
+                                        "data": {
+                                            "jobId": claimed_job.id,
+                                            "status": "failed",
+                                            "error": incoming.get("error"),
+                                            "message": result_message,
+                                        },
+                                    })
                                 break
 
                             await websocket.close(code=4400)

@@ -381,9 +381,9 @@ def test_failed_job_response_and_conversation_include_job_id(tmp_path):
             thread.join(timeout=5)
 
             response = response_holder["payload"]
-            assert response.status_code == 202
+            assert response.status_code == 200
             data = response.json()["data"]
-            assert data["replyState"] == "pending"
+            assert data["replyState"] == "failed"
             assert data["conversation"]["messages"][-1]["jobId"] == job["id"]
 
 

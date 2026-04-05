@@ -488,13 +488,19 @@ class HermesMobileConnector:
 
     async def _handle_job(self, websocket, job: dict) -> None:
         state = self.state_store.load()
-        runtime = await self.runtime_adapter_for_state_async(state)
         workdir = state.runtime_config.hermes_workdir if state.runtime_config else None
 
-        if getattr(runtime, "supports_streaming", False):
-            await self._handle_job_streaming(websocket, job, runtime, workdir=workdir)
-        else:
+        if self._should_use_cli_runtime(job):
+            runtime = self.runtime_adapter_for_state(state)
             await self._handle_job_cli(websocket, job, runtime)
+            return
+
+        runtime = await self.runtime_adapter_for_state_async(state)
+        if not getattr(runtime, "supports_streaming", False):
+            await self._handle_job_cli(websocket, job, runtime)
+            return
+
+        await self._handle_job_streaming(websocket, job, runtime, workdir=workdir)
 
     async def _handle_job_streaming(
         self, websocket, job: dict, runtime, *, workdir: str | None = None,
@@ -570,7 +576,7 @@ class HermesMobileConnector:
             await websocket.send(json.dumps({
                 "type": "job.failed",
                 "jobId": job["id"],
-                "retryable": False,
+                "retryable": self._is_retryable_job_error(error),
                 "error": str(error),
             }))
 
@@ -618,7 +624,7 @@ class HermesMobileConnector:
                 return {
                     "type": "job.failed",
                     "jobId": job["id"],
-                    "retryable": False,
+                    "retryable": self._is_retryable_job_error(error),
                     "error": str(error),
                 }
 
@@ -664,6 +670,31 @@ class HermesMobileConnector:
                 lines.append(f"- Binary attachment available at {file_path} ({mime_type}).")
 
         return "\n".join(lines)
+
+    @staticmethod
+    def _should_use_cli_runtime(job: dict) -> bool:
+        # The local Hermes API server path still mishandles multipart attachment
+        # content and can expose the transport envelope to the model. Route
+        # attachment jobs through the CLI/runtime path, which stages files and
+        # references them explicitly for vision/text tools.
+        return bool(job.get("attachments"))
+
+    @staticmethod
+    def _is_retryable_job_error(error: Exception) -> bool:
+        if isinstance(error, (ConnectionError, TimeoutError, OSError, httpx.TransportError, httpx.TimeoutException)):
+            return True
+
+        message = str(error).lower()
+        transient_markers = (
+            "connection refused",
+            "temporarily unavailable",
+            "timed out",
+            "timeout",
+            "network is unreachable",
+            "connection reset",
+            "broken pipe",
+        )
+        return any(marker in message for marker in transient_markers)
 
     @staticmethod
     def _sanitize_attachment_filename(filename: str) -> str:

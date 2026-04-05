@@ -79,6 +79,7 @@ final class ChatStore {
         )
         conversation?.messages.append(placeholder)
         streamingMessageID = placeholderID
+        restartPendingPollingIfNeeded()
 
         let stream = hermesClient.sendStreaming(message: trimmedContent, attachments: attachments, clientMessageID: clientMessageID)
         var acceptedJobID: UUID?
@@ -91,9 +92,6 @@ final class ChatStore {
                 switch update {
                 case .messageSent(let jobID):
                     acceptedJobID = jobID
-                    if let idx = self.conversation?.messages.firstIndex(where: { $0.id == clientMessageID }) {
-                        self.conversation?.messages[idx].status = .sent
-                    }
 
                 case .textDelta(let delta):
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
@@ -150,7 +148,7 @@ final class ChatStore {
                     }
                     self.streamingMessageID = nil
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == clientMessageID }) {
-                        self.conversation?.messages[idx].status = acceptedJobID == nil ? .failed : .sent
+                        self.conversation?.messages[idx].status = acceptedJobID == nil ? .failed : .sending
                     }
                     if acceptedJobID != nil {
                         needsPollingFallback = true
@@ -425,6 +423,14 @@ final class ChatStore {
                 )
             }
         }
+
+        // Preserve local-only streaming placeholders while the server is still
+        // catching up, so polling doesn't make the active reply disappear.
+        let refreshedIDs = Set(refreshedConversation.messages.map(\.id))
+        let localStreamingPlaceholders = localConversation.messages.filter {
+            $0.isStreaming && !refreshedIDs.contains($0.id)
+        }
+        refreshedConversation.messages.append(contentsOf: localStreamingPlaceholders)
 
         return refreshedConversation
     }

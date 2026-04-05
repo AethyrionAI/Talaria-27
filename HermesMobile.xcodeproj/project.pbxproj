@@ -280,7 +280,7 @@
 		D9D6BC0C9C8D1F32E5A124FA /* MockHermesClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockHermesClient.swift; sourceTree = "<group>"; };
 		DEA50CBA8A24483611C2F528 /* LiveCameraOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveCameraOverlay.swift; sourceTree = "<group>"; };
 		E0F3E6FB4FF8FE4136F81A16 /* AppEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEntry.swift; sourceTree = "<group>"; };
-		E11909D98B0F5781E0DA91D1 /* HermesMobile.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HermesMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E11909D98B0F5781E0DA91D1 /* HermesMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HermesMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E180BD123CA9D0BF9ED53F1D /* StatusCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusCardView.swift; sourceTree = "<group>"; };
 		E19B4F10FBB5D872518481F9 /* NotificationServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationServiceProtocol.swift; sourceTree = "<group>"; };
 		E6D300D8D0E2E28C8BC68615 /* InboxItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxItem.swift; sourceTree = "<group>"; };
@@ -707,7 +707,6 @@
 						TestTargetID = E084E7061D97A1CB68FAED6E;
 					};
 					E084E7061D97A1CB68FAED6E = {
-						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 					F974E240959519AA0BE1D74B = {
@@ -1078,7 +1077,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 99NS7KLF77;
 				INFOPLIST_FILE = HermesMobile/Resources/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = HermesMobile;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1134,7 +1133,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 99NS7KLF77;
 				INFOPLIST_FILE = HermesMobile/Resources/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = HermesMobile;
 				LD_RUNPATH_SEARCH_PATHS = (
