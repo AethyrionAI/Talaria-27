@@ -17,6 +17,12 @@ struct HealthSnapshot: Sendable {
 @MainActor
 @Observable
 final class LiveHealthService: HealthServiceProtocol {
+    internal struct SleepInterval: Sendable {
+        let value: Int
+        let startDate: Date
+        let endDate: Date
+    }
+
     private struct HealthMetricDescriptor {
         let metric: String
         let sampleType: HKSampleType
@@ -285,6 +291,38 @@ final class LiveHealthService: HealthServiceProtocol {
         }
     }
 
+    internal static func sleepBucketDay(
+        for referenceDate: Date = Date(),
+        calendar: Calendar = .current
+    ) -> Date {
+        calendar.startOfDay(for: referenceDate)
+    }
+
+    internal static func aggregateSleepDuration(
+        intervals: [SleepInterval],
+        attributedTo bucketDay: Date,
+        calendar: Calendar = .current
+    ) -> Double? {
+        guard let nextDay = calendar.date(byAdding: .day, value: 1, to: bucketDay) else {
+            return nil
+        }
+
+        let asleepValues: Set<Int> = [
+            HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
+            HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+            HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
+            HKCategoryValueSleepAnalysis.asleepREM.rawValue,
+        ]
+
+        let totalSeconds = intervals
+            .filter { asleepValues.contains($0.value) }
+            .filter { $0.endDate >= bucketDay && $0.endDate < nextDay }
+            .reduce(0.0) { $0 + $1.endDate.timeIntervalSince($1.startDate) }
+
+        let hours = totalSeconds / 3600.0
+        return hours > 0 ? hours : nil
+    }
+
     private static func makeMetricDescriptors() -> [String: HealthMetricDescriptor] {
         var descriptors: [String: HealthMetricDescriptor] = [:]
 
@@ -485,15 +523,17 @@ final class LiveHealthService: HealthServiceProtocol {
             )
         }
 
-        // Sleep duration — sum of asleep intervals in last 24h
+        // Sleep duration — stable day bucket keyed by the day the sleep ends.
+        // This keeps the sample startAt fixed for the current day so the
+        // connector-side dedupe and daily rollup remain correct.
         let sleepType = HKCategoryType(.sleepAnalysis)
         descriptors["sleep_duration"] = HealthMetricDescriptor(
             metric: "sleep_duration",
             sampleType: sleepType,
-            startDateProvider: { Date().addingTimeInterval(-86_400) },
-            builder: { service, startDate in
-                guard let hours = await service.querySleepDuration(from: startDate) else { return nil }
-                return .init(metric: "sleep_duration", value: hours, unit: "hours", startAt: startDate, endAt: Date())
+            startDateProvider: { sleepBucketDay() },
+            builder: { service, bucketDay in
+                guard let hours = await service.querySleepDuration(attributedTo: bucketDay) else { return nil }
+                return .init(metric: "sleep_duration", value: hours, unit: "hours", startAt: bucketDay, endAt: Date())
             }
         )
 
@@ -502,9 +542,16 @@ final class LiveHealthService: HealthServiceProtocol {
 
     // MARK: - Sleep Query
 
-    private func querySleepDuration(from startDate: Date) async -> Double? {
+    private func querySleepDuration(attributedTo bucketDay: Date) async -> Double? {
         let sleepType = HKCategoryType(.sleepAnalysis)
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date())
+        let calendar = Calendar.current
+        guard
+            let queryStart = calendar.date(byAdding: .hour, value: -18, to: bucketDay),
+            let queryEnd = calendar.date(byAdding: .day, value: 1, to: bucketDay)
+        else {
+            return nil
+        }
+        let predicate = HKQuery.predicateForSamples(withStart: queryStart, end: queryEnd)
         let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
 
         return await withCheckedContinuation { continuation in
@@ -518,18 +565,16 @@ final class LiveHealthService: HealthServiceProtocol {
                     continuation.resume(returning: nil)
                     return
                 }
-                // Sum intervals where the user was actually asleep
-                let asleepValues: Set<Int> = [
-                    HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
-                    HKCategoryValueSleepAnalysis.asleepCore.rawValue,
-                    HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
-                    HKCategoryValueSleepAnalysis.asleepREM.rawValue,
-                ]
-                let totalSeconds = samples
-                    .filter { asleepValues.contains($0.value) }
-                    .reduce(0.0) { $0 + $1.endDate.timeIntervalSince($1.startDate) }
-                let hours = totalSeconds / 3600.0
-                continuation.resume(returning: hours > 0 ? hours : nil)
+                let intervals = samples.map {
+                    SleepInterval(value: $0.value, startDate: $0.startDate, endDate: $0.endDate)
+                }
+                continuation.resume(
+                    returning: Self.aggregateSleepDuration(
+                        intervals: intervals,
+                        attributedTo: bucketDay,
+                        calendar: calendar
+                    )
+                )
             }
             store?.execute(query)
         }

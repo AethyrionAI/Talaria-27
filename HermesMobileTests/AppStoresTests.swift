@@ -1,4 +1,5 @@
 import Foundation
+import HealthKit
 import Testing
 import UIKit
 @testable import HermesMobile
@@ -376,6 +377,40 @@ struct AppStoresTests {
 
         let reloaded = persistence.loadUserSettings()
         #expect(reloaded?.locationSyncPreference == .backgroundAllowed)
+    }
+
+    @Test @MainActor
+    func sleepDurationUsesStableWakeDayBucket() async throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let bucketDay = calendar.date(from: DateComponents(year: 2026, month: 4, day: 5))!
+        let intervals: [LiveHealthService.SleepInterval] = [
+            .init(
+                value: HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+                startDate: calendar.date(from: DateComponents(year: 2026, month: 4, day: 4, hour: 23, minute: 0))!,
+                endDate: calendar.date(from: DateComponents(year: 2026, month: 4, day: 5, hour: 7, minute: 0))!
+            ),
+            .init(
+                value: HKCategoryValueSleepAnalysis.asleepREM.rawValue,
+                startDate: calendar.date(from: DateComponents(year: 2026, month: 4, day: 5, hour: 13, minute: 0))!,
+                endDate: calendar.date(from: DateComponents(year: 2026, month: 4, day: 5, hour: 13, minute: 30))!
+            ),
+            .init(
+                value: HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
+                startDate: calendar.date(from: DateComponents(year: 2026, month: 4, day: 5, hour: 23, minute: 0))!,
+                endDate: calendar.date(from: DateComponents(year: 2026, month: 4, day: 6, hour: 6, minute: 0))!
+            ),
+        ]
+
+        let hours = LiveHealthService.aggregateSleepDuration(
+            intervals: intervals,
+            attributedTo: bucketDay,
+            calendar: calendar
+        )
+
+        #expect(hours == 8.5)
+        #expect(LiveHealthService.sleepBucketDay(for: calendar.date(from: DateComponents(year: 2026, month: 4, day: 5, hour: 18))!, calendar: calendar) == bucketDay)
     }
 
     @Test @MainActor

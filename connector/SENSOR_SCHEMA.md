@@ -91,7 +91,7 @@ Primary key: `(metric, date)`. Indexed on `date DESC`. Pruned after 90 days (sam
 | body_mass | kg | Latest sample (7d) | Body weight |
 | workout_minutes | minutes | Cumulative today | Apple Exercise Time |
 | stand_hours | hours | Cumulative today | Standing time |
-| sleep_duration | hours | Sum of asleep intervals (24h) | Total sleep |
+| sleep_duration | hours | Sum of asleep intervals ending that calendar day | Total sleep attributed to the wake-up day |
 
 ## MCP Tools
 
