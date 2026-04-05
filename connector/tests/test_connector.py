@@ -627,7 +627,10 @@ def test_rpc_talk_delegate_supports_neutral_and_legacy_method_names(monkeypatch,
             captured_prompts.append(prompt)
             return type("Result", (), {"text": "Delegated reply", "session_id": "voice-session-1"})()
 
-    monkeypatch.setattr(connector, "runtime_adapter_for_state", lambda state: FakeAdapter())
+    async def fake_runtime_adapter_async(state):  # noqa: ANN001, ARG001
+        return FakeAdapter()
+
+    monkeypatch.setattr(connector, "runtime_adapter_for_state_async", fake_runtime_adapter_async)
 
     neutral_response = asyncio.run(
         connector._handle_rpc_request(  # noqa: SLF001

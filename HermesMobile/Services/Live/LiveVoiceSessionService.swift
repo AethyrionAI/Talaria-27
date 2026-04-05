@@ -507,8 +507,21 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             ignoreCurrentAssistantFinalization = false
             voiceState = .thinking
             statusMessage = "Hermes is thinking."
+        case "response.function_call_arguments.delta",
+             "response.function_call_arguments.done":
+            // MCP tool call in progress — show "working on it" state
+            if voiceState != .thinking {
+                voiceState = .thinking
+            }
+            statusMessage = "Hermes is working on that\u{2026}"
         case "response.done":
-            currentRealtimeResponseID = nil
+            let doneResponse = payload["response"] as? [String: Any]
+            let status = doneResponse?["status"] as? String
+            // If the response completed with tool calls (not "completed"), keep thinking
+            // until the next response starts with the tool result.
+            if status == "completed" {
+                currentRealtimeResponseID = nil
+            }
         case "response.audio_transcript.delta":
             assistantTextSource = assistantTextSource ?? "audio"
             if assistantTextSource == "audio" {

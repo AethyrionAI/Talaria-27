@@ -107,6 +107,7 @@ def build_voice_context_snapshot(
 ) -> VoiceContextSnapshot:
     resolved_home = resolve_hermes_home(hermes_home)
     memories_dir = resolved_home / "memories"
+    soul_summary = read_memory_file(resolved_home / "SOUL.md", max_chars=1500)
     memory_summary = read_memory_file(memories_dir / "MEMORY.md")
     user_summary = read_memory_file(memories_dir / "USER.md")
     sensor_summary = summarize_sensor_freshness(sensor_store)
@@ -115,6 +116,7 @@ def build_voice_context_snapshot(
         hermes_home=str(resolved_home),
     )
     system_prompt = render_voice_system_prompt(
+        soul_summary=soul_summary,
         memory_summary=memory_summary,
         user_summary=user_summary,
         sensor_summary=sensor_summary,
@@ -134,18 +136,34 @@ def build_voice_context_snapshot(
 
 def render_voice_system_prompt(
     *,
+    soul_summary: str = "(not available)",
     memory_summary: str,
     user_summary: str,
     sensor_summary: str,
     memory_provider_summary: str,
     readiness_summary: str,
 ) -> str:
+    # Build persona block from SOUL.md if available, otherwise fall back to default
+    if soul_summary and soul_summary not in ("(not available)", "(empty)"):
+        persona_block = (
+            f"{soul_summary}\n\n"
+            "Adapt the above persona for live duplex voice: keep responses conversational, "
+            "crisp, and natural. No kaomoji or formatting in speech."
+        )
+    else:
+        persona_block = (
+            "You are Hermes: a warm, playful, highly competent AI assistant.\n"
+            "Keep responses conversational, crisp, and natural for live duplex voice."
+        )
+
     return (
-        "You are Hermes speaking through Hermes Mobile talk mode.\n"
-        "Keep responses conversational, crisp, and natural for live duplex voice.\n"
+        f"{persona_block}\n\n"
+        "You are speaking through Hermes Mobile talk mode.\n"
         "You may answer directly from the cached context below when it is enough.\n"
         "When you need deeper memory, tool use, or a more deliberate agentic action, call the "
         "`hermes_delegate` tool instead of guessing.\n"
+        "When delegating, tell the user what you're doing (e.g. \"Let me check on that\") "
+        "so they know to wait.\n"
         "Do not mention internal implementation details unless the user asks.\n\n"
         "Cached Hermes memory:\n"
         f"{memory_summary}\n\n"

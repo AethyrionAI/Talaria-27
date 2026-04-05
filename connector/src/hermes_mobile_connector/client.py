@@ -276,6 +276,22 @@ class HermesMobileConnector:
             state.realtime_talk = config
             return self.state_store.save(state)
 
+    _VOICE_CONTEXT_FRESH_SECONDS = 10.0
+
+    def refresh_voice_context_if_stale(self, *, state: ConnectorState | None = None) -> ConnectorState:
+        """Refresh voice context only if the snapshot is older than _VOICE_CONTEXT_FRESH_SECONDS."""
+        state = state or self.state_store.load()
+        snapshot = state.voice_context_snapshot
+        if snapshot and snapshot.updated_at:
+            try:
+                from datetime import datetime, timezone
+                age = (datetime.now(timezone.utc) - datetime.fromisoformat(snapshot.updated_at)).total_seconds()
+                if age < self._VOICE_CONTEXT_FRESH_SECONDS:
+                    return state
+            except (ValueError, TypeError):
+                pass
+        return self.refresh_voice_context(state=state)
+
     def refresh_voice_context(self, *, state: ConnectorState | None = None) -> ConnectorState:
         state = state or self.state_store.load()
         self.apply_runtime_environment(state)
@@ -683,7 +699,7 @@ class HermesMobileConnector:
         }
 
     def _rpc_talk_session_create(self, params: dict) -> dict:
-        state = self.refresh_voice_context()
+        state = self.refresh_voice_context_if_stale()
         config = state.realtime_talk or RealtimeTalkConfig(enabled=False)
         secrets = self.state_store.load_secrets()
         if not config.enabled or not secrets.openai_api_key:
@@ -741,7 +757,7 @@ class HermesMobileConnector:
             raise RuntimeError("prompt is required.")
 
         state = self.state_store.load()
-        runtime = self.runtime_adapter_for_state(state)
+        runtime = await self.runtime_adapter_for_state_async(state)
         session_id = self._voice_delegate_sessions.get(voice_session_id)
         result = await asyncio.to_thread(
             runtime.delegate_talk_turn,
@@ -768,18 +784,27 @@ class HermesMobileConnector:
         preferred_models = config.preferred_models or list(DEFAULT_REALTIME_MODELS)
         for model in preferred_models:
             try:
+                turn_detection: dict = {
+                    "type": config.turn_detection_type,
+                    "create_response": config.create_response,
+                    "interrupt_response": config.interrupt_response,
+                }
+                if config.turn_detection_type == "semantic_vad":
+                    turn_detection["eagerness"] = "medium"
+
                 session_definition: dict = {
                     "type": "realtime",
                     "model": model,
                     "instructions": instructions,
+                    "output_modalities": ["audio", "text"],
                     "audio": {
                         "output": {
                             "voice": config.voice or DEFAULT_REALTIME_VOICE,
                         },
                         "input": {
-                            "turn_detection": {
-                                "type": config.turn_detection_type,
-                                "create_response": config.create_response,
+                            "turn_detection": turn_detection,
+                            "transcription": {
+                                "model": "gpt-4o-mini-transcribe",
                             },
                         },
                     },
