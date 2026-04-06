@@ -413,7 +413,7 @@ def test_realtime_session_creation_falls_back_to_secondary_model(monkeypatch, tm
     assert attempted_models == ["gpt-realtime-1.5", "gpt-realtime"]
     session_def = captured_sessions[0]["session"]
     assert session_def["type"] == "realtime"
-    assert session_def["audio"]["output"]["voice"] == "verse"
+    assert session_def["audio"]["output"]["voice"] == "ballad"
     assert "modalities" not in session_def
     assert selected_model == "gpt-realtime"
     assert payload["value"] == "ephemeral-secret"

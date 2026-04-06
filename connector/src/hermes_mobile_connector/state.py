@@ -35,7 +35,7 @@ class ConnectorRuntimeConfig:
 class RealtimeTalkConfig:
     enabled: bool = False
     preferred_models: list[str] = field(default_factory=lambda: ["gpt-realtime-1.5", "gpt-realtime"])
-    voice: str = "verse"
+    voice: str = "ballad"
     turn_detection_type: str = "semantic_vad"
     create_response: bool = True
     interrupt_response: bool = True
