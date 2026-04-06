@@ -26,6 +26,7 @@ final class TalkStore {
     var lastCompletedSession: CompletedVoiceSession?
 
     private let voiceService: any VoiceSessionServiceProtocol
+    private let liveActivity = LiveActivityService()
     private var eventTask: Task<Void, Never>?
 
     init(voiceService: any VoiceSessionServiceProtocol) {
@@ -42,6 +43,10 @@ final class TalkStore {
     func startSession() async {
         await voiceService.startSession()
         applySnapshot(voiceService.snapshot)
+        // Start Live Activity on Lock Screen / Dynamic Island
+        if isSessionActive {
+            liveActivity.startVoiceSession()
+        }
     }
 
     func endSession() async {
@@ -49,6 +54,9 @@ final class TalkStore {
         let sessionId = voiceSessionID
         let duration = sessionDuration
         let turnCount = transcriptItems.filter { !$0.isPartial }.count
+
+        // End Live Activity
+        liveActivity.endActivity()
 
         await voiceService.endSession()
         applySnapshot(voiceService.snapshot)
@@ -132,5 +140,20 @@ final class TalkStore {
         latencyMetrics = snapshot.latencyMetrics
         voiceSessionID = snapshot.voiceSessionID
         isSessionActive = connectionState == .connecting || connectionState == .connected
+
+        // Update Live Activity on voice state changes
+        if isSessionActive {
+            let status: String
+            switch snapshot.voiceState {
+            case .listening: status = "Listening"
+            case .thinking:  status = snapshot.statusMessage ?? "Thinking..."
+            case .speaking:  status = "Speaking"
+            default:         status = snapshot.statusMessage ?? "Connected"
+            }
+            // Extract tool name from status message if it mentions a tool
+            let toolName = snapshot.statusMessage?.contains("working") == true
+                ? snapshot.statusMessage : nil
+            liveActivity.updateVoiceState(status, toolName: toolName)
+        }
     }
 }

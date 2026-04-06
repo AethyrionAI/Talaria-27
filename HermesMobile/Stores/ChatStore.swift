@@ -15,6 +15,7 @@ final class ChatStore {
     var isStreaming: Bool { streamingMessageID != nil }
 
     private let hermesClient: any HermesClientProtocol
+    private let chatLiveActivity = LiveActivityService()
     let persistence: any AppPersistenceStoreProtocol
 
     init(hermesClient: any HermesClientProtocol, persistence: any AppPersistenceStoreProtocol) {
@@ -115,6 +116,9 @@ final class ChatStore {
                         conv.messages[idx].toolActivity = label
                         self.conversation = conv
                     }
+                    // Show tool progress on Lock Screen / Dynamic Island
+                    self.chatLiveActivity.startToolCall(toolName: label)
+                    self.chatLiveActivity.updateToolProgress(label)
 
                 case .finished(let finalMessage, let usage, let diff):
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
@@ -137,6 +141,7 @@ final class ChatStore {
                     self.lastTokenUsage = usage
                     self.streamingMessageID = nil
                     self.pendingMessageSentAt = nil
+                    self.chatLiveActivity.endActivity()
 
                 case .failed(let errorMessage):
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
