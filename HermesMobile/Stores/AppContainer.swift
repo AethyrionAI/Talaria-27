@@ -3,6 +3,7 @@ import Foundation
 @MainActor
 @Observable
 final class AppContainer {
+    private static let apnsTokenDefaultsKey = "hermes.apns.deviceToken"
     private static let sharedDefaultContainer = AppContainer.makeDefault()
 
     let router = TabRouter()
@@ -16,6 +17,7 @@ final class AppContainer {
     let talkStore: TalkStore
     let sensorUploadService: SensorUploadService?
     private let apiClient: RelayAPIClient?
+    private let notificationService: (any NotificationServiceProtocol)?
     private var isInitialized = false
 
     init(
@@ -28,7 +30,8 @@ final class AppContainer {
         settingsStore: SettingsStore,
         talkStore: TalkStore,
         sensorUploadService: SensorUploadService? = nil,
-        apiClient: RelayAPIClient? = nil
+        apiClient: RelayAPIClient? = nil,
+        notificationService: (any NotificationServiceProtocol)? = nil
     ) {
         self.sessionStore = sessionStore
         self.pairingStore = pairingStore
@@ -40,6 +43,7 @@ final class AppContainer {
         self.talkStore = talkStore
         self.sensorUploadService = sensorUploadService
         self.apiClient = apiClient
+        self.notificationService = notificationService
     }
 
     static func sharedDefault() -> AppContainer {
@@ -200,7 +204,8 @@ final class AppContainer {
             settingsStore: settingsStore,
             talkStore: TalkStore(voiceService: voiceService),
             sensorUploadService: sensorUploadService,
-            apiClient: apiClient
+            apiClient: apiClient,
+            notificationService: notificationService
         )
 
         let refreshUnpairedRelayContext: @MainActor () async -> Void = { [weak sessionStore, weak container] in
@@ -245,6 +250,7 @@ final class AppContainer {
         await hostStore.refresh()
         await chatStore.loadConversationIfNeeded()
         await inboxStore.loadInbox()
+        await registerStoredPushTokenIfNeeded()
         sensorUploadService?.start()
         await sensorUploadService?.handleAppDidBecomeActive()
         isInitialized = true
@@ -256,6 +262,7 @@ final class AppContainer {
 
         await permissionsStore.reloadCapabilities()
         await hostStore.refresh()
+        await registerStoredPushTokenIfNeeded()
         await sensorUploadService?.handleAppDidBecomeActive()
         talkStore.handleAppDidBecomeActive()
         await talkStore.refreshReadiness()
@@ -267,6 +274,7 @@ final class AppContainer {
 
         sensorUploadService?.start()
         await sensorUploadService?.handleSystemLaunch()
+        await registerStoredPushTokenIfNeeded()
         await talkStore.refreshReadiness()
     }
 
@@ -284,8 +292,38 @@ final class AppContainer {
     /// Registers the APNs device token with the relay so it can send silent push notifications.
     func registerPushTokenIfNeeded(_ token: String) async {
         guard pairingStore.isPaired,
-              let accessToken = await sessionStore.currentAccessToken(),
-              let installationID = sessionStore.state.installationID else { return }
+              let apiClient,
+              let notificationService
+        else { return }
+
+        let normalizedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedToken.isEmpty else { return }
+
+        await notificationService.updatePushToken(normalizedToken)
+
+        guard let accessToken = await sessionStore.currentAccessToken() else {
+            await notificationService.markPushTokenRegistered(false)
+            sessionStore.state.pushTokenRegistered = false
+            return
+        }
+
+        if notificationService.isPushTokenRegistered,
+           notificationService.currentPushToken == normalizedToken {
+            sessionStore.state.pushTokenRegistered = true
+            return
+        }
+
+        guard let deviceID = sessionStore.state.deviceID else {
+            await notificationService.markPushTokenRegistered(false)
+            sessionStore.state.pushTokenRegistered = false
+            return
+        }
+
+        #if DEBUG
+        let pushEnvironment = "development"
+        #else
+        let pushEnvironment = "production"
+        #endif
 
         struct PushRegisterBody: Encodable {
             let deviceId: String
@@ -295,9 +333,9 @@ final class AppContainer {
         }
 
         let body = PushRegisterBody(
-            deviceId: installationID.uuidString.lowercased(),
-            apnsToken: token,
-            pushEnvironment: AppBuildConfiguration.current().isDebug ? "development" : "production",
+            deviceId: deviceID.uuidString.lowercased(),
+            apnsToken: normalizedToken,
+            pushEnvironment: pushEnvironment,
             bundleId: Bundle.main.bundleIdentifier ?? "io.hermesmobile.HermesMobile"
         )
 
@@ -307,14 +345,25 @@ final class AppContainer {
         }
 
         do {
-            let _: PushRegisterResponse = try await apiClient?.post(
+            let _: PushRegisterResponse = try await apiClient.post(
                 path: "push/register",
                 body: body,
                 accessToken: accessToken
-            ) ?? PushRegisterResponse(data: nil)
+            )
+            await notificationService.markPushTokenRegistered(true)
+            sessionStore.state.pushTokenRegistered = true
         } catch {
             // Non-critical — token will be retried on next app launch
+            await notificationService.markPushTokenRegistered(false)
+            sessionStore.state.pushTokenRegistered = false
         }
+    }
+
+    private func registerStoredPushTokenIfNeeded() async {
+        guard let storedToken = UserDefaults.standard.string(forKey: Self.apnsTokenDefaultsKey) else {
+            return
+        }
+        await registerPushTokenIfNeeded(storedToken)
     }
 
     private func handlePairingRemoved() async {

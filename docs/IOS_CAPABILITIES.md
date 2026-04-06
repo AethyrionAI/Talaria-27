@@ -100,11 +100,11 @@ A living document tracking every iOS capability integrated into Hermes iOS — w
 | `CLBackgroundActivitySession` | Built | Already in `LiveLocationService.swift` |
 | `requestBackgroundAuthorization()` | Built | Two-stage flow (When In Use → Always) |
 | `CLBackgroundActivitySession` | Built | Created when `syncPreference == .backgroundAllowed && auth == .always` |
-| Permissions UI | Partial | Location permission exists but UI doesn't expose the background toggle |
+| Permissions UI | Wired | Settings exposes background sync toggle and can request upgraded access |
 | Default sync preference | Foreground-only | `LocationSyncPreference` defaults to foreground; background requires explicit opt-in |
 
 ### Next Steps
-- [ ] Add settings UI toggle for "Background Location" that calls `updateLocationSyncPreference(.backgroundAllowed)` and `requestBackgroundLocationAccess()`
+- [x] Add settings UI toggle for "Background Location" that calls `updateLocationSyncPreference(.backgroundAllowed)` and `requestBackgroundLocationAccess()`
 - [ ] Test background location on physical device (verify blue indicator bar)
 - [ ] Verify location uploads continue when app is backgrounded
 - [ ] Consider iOS 26's `CLBackgroundActivitySession` guidance for While In Use apps
@@ -129,7 +129,7 @@ A living document tracking every iOS capability integrated into Hermes iOS — w
 | `registerForRemoteNotifications()` | Wired | Called in AppDelegate on launch |
 | Device token storage | Wired | Stored in UserDefaults as `hermes.apns.deviceToken` |
 | `didReceiveRemoteNotification` | Wired | Triggers `handleAppDidBecomeActive()` for data refresh |
-| Token upload to relay | Wired | `POST /v1/push/register` called from AppDelegate with deviceId, token, environment, bundleId |
+| Token upload to relay | Wired | `POST /v1/push/register` called from AppDelegate and replayed after pairing/app launch |
 | Relay endpoint | Wired | `POST /v1/push/register` stores token in SQLite, returns `registered: true` |
 | APNs server-side sending | **NOT BUILT** | Relay stores tokens but cannot send push notifications yet |
 | APNs certificate/key | **NOT CONFIGURED** | Need Apple Developer Portal → Keys → APNs |

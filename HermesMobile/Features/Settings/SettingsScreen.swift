@@ -23,6 +23,7 @@ struct SettingsScreen: View {
                         environmentSection
                     }
                     preferencesSection
+                    locationSection
                     privacySection
                     aboutSection
                 }
@@ -213,6 +214,43 @@ struct SettingsScreen: View {
         }
     }
 
+    // MARK: - Location
+
+    private var locationSection: some View {
+        SettingsSectionView(title: "Location") {
+            VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+                settingsRow(
+                    icon: "location.fill",
+                    iconColor: .blue,
+                    title: "Authorization",
+                    value: permissionsStore.locationAuthorizationLevel.displayLabel
+                )
+
+                sectionDivider
+
+                settingsRow(
+                    icon: "scope",
+                    iconColor: .blue,
+                    title: "Accuracy",
+                    value: permissionsStore.locationAccuracyLevel.displayLabel
+                )
+
+                sectionDivider
+
+                settingsToggle(
+                    icon: "location.circle.fill",
+                    iconColor: .blue,
+                    title: "Background Location",
+                    isOn: backgroundLocationBinding
+                )
+
+                Text(backgroundLocationDescription)
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+            }
+        }
+    }
+
     // MARK: - Privacy
 
     private var privacySection: some View {
@@ -301,12 +339,51 @@ struct SettingsScreen: View {
         )
     }
 
+    private var backgroundLocationBinding: Binding<Bool> {
+        Binding(
+            get: { settingsStore.settings.locationSyncPreference == .backgroundAllowed },
+            set: { isEnabled in
+                let preference: LocationSyncPreference = isEnabled ? .backgroundAllowed : .foregroundOnly
+                settingsStore.settings.locationSyncPreference = preference
+                permissionsStore.updateLocationSyncPreference(preference)
+
+                guard isEnabled else { return }
+
+                Task {
+                    switch permissionsStore.locationAuthorizationLevel {
+                    case .denied, .restricted:
+                        permissionsStore.openLocationSystemSettings()
+                    case .always:
+                        break
+                    case .notDetermined, .whenInUse:
+                        await permissionsStore.requestBackgroundLocationAccess()
+                    }
+                }
+            }
+        )
+    }
+
     private var relayConfiguration: RelayConfiguration {
         settingsStore.settings.relayConfiguration
     }
 
     private var relayValidationMessage: String? {
         relayConfiguration.validationMessage
+    }
+
+    private var backgroundLocationDescription: String {
+        if settingsStore.settings.locationSyncPreference == .backgroundAllowed {
+            switch permissionsStore.locationAuthorizationLevel {
+            case .always:
+                return "Hermes can keep receiving location updates when the app is backgrounded."
+            case .whenInUse, .notDetermined:
+                return "Enabling this will prompt iOS to upgrade location access so Hermes can keep syncing while the app is in the background."
+            case .denied, .restricted:
+                return "Location is blocked at the system level. Open Settings to allow Hermes to request background updates."
+            }
+        }
+
+        return "Foreground-only keeps location updates limited to active app use."
     }
 
     private var relayModeBinding: Binding<RelayMode> {
