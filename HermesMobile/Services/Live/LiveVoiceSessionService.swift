@@ -175,7 +175,8 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
 
     func startSession() async {
         latencyMetrics = TalkLatencyMetrics(sessionStartRequestedAt: .now)
-        await refreshReadiness()
+        // Skip readiness check — already done by VoiceOverlayScreen.task before
+        // calling startSession. Removing it saves one HTTP round trip + RPC.
         guard canStartSession else { return }
 
         guard await ensureMicrophonePermission() else {
@@ -195,6 +196,13 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         assistantTextSource = nil
 
         do {
+            #if canImport(WebRTC)
+            // Phase 1: Prepare WebRTC (peer connection + SDP offer) in parallel
+            // with the relay bootstrap request. This saves ~200-500ms.
+            try configureAudioSession()
+            let prepared = try await prepareWebRTC()
+            #endif
+
             let response: TalkSessionResponse = try await performAuthorizedRequest { [self] in
                 let token = await self.accessTokenProvider()
                 return try await self.apiClient.post(
@@ -208,7 +216,8 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             latencyMetrics.relayBootstrapReceivedAt = .now
             startTimer()
             #if canImport(WebRTC)
-            try await connectRealtime(bootstrap: response.bootstrap)
+            // Phase 2: Exchange SDP with the ephemeral key from bootstrap
+            try await connectWithPrepared(prepared, bootstrap: response.bootstrap)
             #else
             try await endRemoteSession()
             blockedReason = "This build does not include the WebRTC client transport yet."
@@ -661,9 +670,16 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     }
 
     #if canImport(WebRTC)
-    private func connectRealtime(bootstrap: TalkBootstrap) async throws {
-        try configureAudioSession()
+    private struct PreparedWebRTC {
+        let connection: RTCPeerConnection
+        let channel: RTCDataChannel?
+        let track: RTCAudioTrack
+        let offerSDP: String
+    }
 
+    /// Phase 1: Create peer connection, audio track, data channel, and generate SDP offer.
+    /// Can run in parallel with the relay bootstrap request.
+    private func prepareWebRTC() async throws -> PreparedWebRTC {
         let rtcConfig = RTCConfiguration()
         rtcConfig.sdpSemantics = .unifiedPlan
         let constraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
@@ -677,21 +693,26 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         let channel = connection.dataChannel(forLabel: "oai-events", configuration: dataChannelConfig)
         channel?.delegate = peerDelegate
 
-        peerConnection = connection
-        dataChannel = channel
-        audioTrack = track
-        audioTrack?.isEnabled = !isMuted
-
         let offer = try await connection.createOfferAsync()
         try await connection.setLocalDescriptionAsync(offer)
 
+        return PreparedWebRTC(connection: connection, channel: channel, track: track, offerSDP: offer.sdp)
+    }
+
+    /// Phase 2: Exchange SDP with the ephemeral key and complete the connection.
+    private func connectWithPrepared(_ prepared: PreparedWebRTC, bootstrap: TalkBootstrap) async throws {
+        peerConnection = prepared.connection
+        dataChannel = prepared.channel
+        audioTrack = prepared.track
+        audioTrack?.isEnabled = !isMuted
+
         let answerSDP = try await exchangeSDP(
-            localSDP: offer.sdp,
+            localSDP: prepared.offerSDP,
             clientSecret: bootstrap.clientSecret,
             model: bootstrap.model
         )
         let answer = RTCSessionDescription(type: .answer, sdp: answerSDP)
-        try await connection.setRemoteDescriptionAsync(answer)
+        try await prepared.connection.setRemoteDescriptionAsync(answer)
 
         latencyMetrics.realtimeConnectedAt = .now
         connectionState = .connected
