@@ -43,7 +43,7 @@ final class LiveSpeechService {
 
         // Configure audio session for recording — must not conflict with WebRTC
         let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
+        try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
         try audioSession.setActive(true)
 
         let request = SFSpeechAudioBufferRecognitionRequest()

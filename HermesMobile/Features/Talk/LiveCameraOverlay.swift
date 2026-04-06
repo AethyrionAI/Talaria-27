@@ -245,7 +245,7 @@ final class CameraCaptureManager: NSObject {
     }
 
     // Reuse a single CIContext — creating one per frame is expensive (GPU resource)
-    nonisolated(unsafe) private static let sharedCIContext = CIContext()
+    nonisolated private static let sharedCIContext = CIContext()
 
     /// Convert a sample buffer to a 512px JPEG at 0.5 quality (~20-40KB).
     /// Uses Core Graphics for thread-safe resizing (UIGraphicsImageRenderer is not safe on background queues).
