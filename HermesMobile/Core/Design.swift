@@ -104,7 +104,7 @@ enum Design {
         static let cardMinHeight: CGFloat = 160
         static let badgeSize: CGFloat = 22
         static let inputBarHeight: CGFloat = 52
-        static let voiceOrbSize: CGFloat = 200
+        static let voiceOrbSize: CGFloat = 140
         static let glassCircleButton: CGFloat = 40
     }
 }

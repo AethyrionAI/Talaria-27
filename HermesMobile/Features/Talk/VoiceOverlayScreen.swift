@@ -100,7 +100,7 @@ struct VoiceOverlayScreen: View {
         }
         .scrollDismissesKeyboard(.never)
         .defaultScrollAnchor(.bottom)
-        .frame(maxHeight: 200)
+        .frame(maxHeight: 320)
     }
 
     @ViewBuilder
