@@ -50,7 +50,7 @@ struct ConnectHermesScreen: View {
                 .font(Design.Typography.heroTitle)
                 .foregroundStyle(Design.Colors.foreground)
 
-            Text("Self-hosted is the default. Enter your relay URL below, then on the machine running Hermes finish connector setup and run `hermes-mobile pair-phone`. After that, scan the QR code or enter the 8-character code here.")
+            Text("On the machine running Hermes, finish connector setup and run `hermes-mobile pair-phone`. Scan the QR code to connect — it includes both the relay URL and pairing code automatically.")
                 .font(Design.Typography.body)
                 .foregroundStyle(Design.Colors.secondaryForeground)
         }
@@ -190,9 +190,9 @@ struct ConnectHermesScreen: View {
         Group {
             if SetupCodeScannerView.isScannerAvailable {
                 SetupCodeScannerView(
-                    onCodeDetected: { code in
+                    onCodeDetected: { scannedValue in
                         isScannerPresented = false
-                        Task { await completePairing(using: code) }
+                        handleScannedValue(scannedValue)
                     },
                     onFailure: { message in
                         isScannerPresented = false
@@ -266,6 +266,28 @@ struct ConnectHermesScreen: View {
                 settingsStore.settings.relayConfiguration = relayConfiguration
             }
         )
+    }
+
+    /// Parse a QR code value — either a JSON payload `{"code":"...","relay":"..."}` or a plain pairing code.
+    /// When JSON includes a relay URL, auto-configures the relay before pairing.
+    private func handleScannedValue(_ value: String) {
+        // Try JSON payload first (new format from connector)
+        if let data = value.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let code = json["code"] as? String {
+            // Auto-fill relay URL from QR if present
+            if let relay = json["relay"] as? String, !relay.isEmpty {
+                var config = settingsStore.settings.relayConfiguration
+                config.relayMode = .custom
+                config.customRelayBaseURL = relay
+                settingsStore.settings.relayConfiguration = config
+            }
+            Task { await completePairing(using: code) }
+            return
+        }
+
+        // Fall back to plain pairing code (backward compatible)
+        Task { await completePairing(using: value) }
     }
 
     private func completePairing(using rawCode: String) async {

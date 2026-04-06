@@ -210,12 +210,20 @@ def _wizard_post_setup(connector: HermesMobileConnector) -> int:
         print(f"Failed to create pairing code: {e}")
         return 1
 
-    print(f"\nYour pairing code:  {pairing.display_code}\n")
+    state = connector.state_store.load()
+    relay_url = state.relay_url or ""
+
+    print(f"\nYour pairing code:  {pairing.display_code}")
+    if relay_url:
+        print(f"Relay:              {relay_url}")
     if pairing.expires_at:
-        print(f"Expires at: {pairing.expires_at}")
+        print(f"Expires at:         {pairing.expires_at}")
     print()
-    print_qr_code(pairing.display_code)
-    print("Open Hermes Mobile on your phone and enter this code (or scan the QR).")
+
+    import json
+    qr_payload = json.dumps({"code": pairing.code, "relay": relay_url}, separators=(",", ":"))
+    print_qr_code(qr_payload)
+    print("Open Hermes Mobile on your phone and scan the QR code.")
     print()
 
     input("Press Enter once your phone is paired...")
@@ -331,12 +339,22 @@ def cmd_enroll(args: argparse.Namespace, connector: HermesMobileConnector) -> in
 
 def cmd_pair_phone(connector: HermesMobileConnector) -> int:
     pairing = connector.create_phone_pairing_code()
-    print(f"\nPairing code:  {pairing.display_code}\n")
+    state = connector.state_store.load()
+    relay_url = state.relay_url or ""
+
+    print(f"\nPairing code:  {pairing.display_code}")
+    if relay_url:
+        print(f"Relay:         {relay_url}")
     if pairing.expires_at:
-        print(f"Expires at: {pairing.expires_at}")
+        print(f"Expires at:    {pairing.expires_at}")
     print()
-    print_qr_code(pairing.display_code)
-    print("Open Hermes Mobile on your phone and enter this code or scan the QR.")
+
+    # QR encodes a JSON payload so the iOS app gets both relay URL and code in one scan
+    import json
+    qr_payload = json.dumps({"code": pairing.code, "relay": relay_url}, separators=(",", ":"))
+    print_qr_code(qr_payload)
+    print("Open Hermes Mobile on your phone and scan the QR code.")
+    print(f"Or enter the code manually: {pairing.display_code}")
     return 0
 
 
