@@ -18,6 +18,10 @@ final class ChatStore {
     private let chatLiveActivity = LiveActivityService()
     let persistence: any AppPersistenceStoreProtocol
 
+    /// Called when conversation content changes (new message, streaming complete).
+    /// Used by AppContainer to push widget data updates.
+    var onConversationChanged: (@MainActor () -> Void)?
+
     init(hermesClient: any HermesClientProtocol, persistence: any AppPersistenceStoreProtocol) {
         self.hermesClient = hermesClient
         self.persistence = persistence
@@ -41,6 +45,7 @@ final class ChatStore {
         )
         if let conversation {
             persistence.saveConversationCache(conversation)
+            onConversationChanged?()
         }
         restartPendingPollingIfNeeded()
     }
@@ -186,6 +191,7 @@ final class ChatStore {
 
         if let conversation {
             persistence.saveConversationCache(conversation)
+            onConversationChanged?()
         }
     }
 
@@ -198,6 +204,7 @@ final class ChatStore {
         conversation = fresh
         pendingMessageSentAt = nil
         persistence.saveConversationCache(fresh)
+        onConversationChanged?()
         pollingTask?.cancel()
         pollingTask = nil
     }
@@ -223,6 +230,7 @@ final class ChatStore {
 
         if let conversation {
             persistence.saveConversationCache(conversation)
+            onConversationChanged?()
         }
     }
 
@@ -240,6 +248,7 @@ final class ChatStore {
 
             if let conversation {
                 persistence.saveConversationCache(conversation)
+                onConversationChanged?()
             }
         } catch {
             // Injection failed — voice transcript not added to chat. Non-fatal.
@@ -284,6 +293,7 @@ final class ChatStore {
         conversation?.title = title
         if let conversation {
             persistence.saveConversationCache(conversation)
+            onConversationChanged?()
         }
     }
 
@@ -363,6 +373,7 @@ final class ChatStore {
                 self.conversation = self.mergeConversationMetadata(from: self.conversation, into: fresh)
                 if let conversation = self.conversation {
                     self.persistence.saveConversationCache(conversation)
+                    self.onConversationChanged?()
                 }
                 if self.hasPendingMessages == false {
                     self.pendingMessageSentAt = nil

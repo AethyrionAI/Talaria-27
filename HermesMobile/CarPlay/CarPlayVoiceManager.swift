@@ -2,8 +2,9 @@ import CarPlay
 import UIKit
 
 /// Bridges `TalkStore` voice state to the CarPlay `CPVoiceControlTemplate`.
-/// The manager observes voice state changes and activates the matching
-/// CarPlay voice control state. Action buttons provide mute and end controls.
+/// Provides interactive controls: start session, mute, end, and interrupt.
+/// Per iOS 26.4 Voice-Based Conversational category, `CPVoiceControlTemplate`
+/// is the primary interface with action buttons below the voice visualization.
 @MainActor
 final class CarPlayVoiceManager {
     private static let maxTranscriptTitleLength = 80
@@ -12,8 +13,8 @@ final class CarPlayVoiceManager {
     private var voiceTemplate: CPVoiceControlTemplate?
     private var observationTask: Task<Void, Never>?
     private var currentSpeakingTitle: String?
+    private var lastSyncedStateID: String?
 
-    // Reference to the shared app container
     private var talkStore: TalkStore { AppContainer.sharedDefault().talkStore }
 
     // MARK: - Voice Control State Identifiers
@@ -30,23 +31,18 @@ final class CarPlayVoiceManager {
         self.interfaceController = interfaceController
     }
 
-    /// Sets up the CPVoiceControlTemplate and starts observing TalkStore state.
+    // MARK: - Lifecycle
+
     func configure() {
         let initialSpeakingTitle = lastAssistantText()
         currentSpeakingTitle = initialSpeakingTitle
-        let template = buildVoiceControlTemplate(speakingTitle: initialSpeakingTitle)
-        voiceTemplate = template
-        interfaceController.setRootTemplate(template, animated: false, completion: nil)
+        setTemplate(speakingTitle: initialSpeakingTitle)
 
-        // If a voice session is already active (started on phone), pick it up
         if talkStore.isSessionActive {
             syncState()
         }
 
-        // Observe voice state changes
         observationTask = Task { [weak self] in
-            // Poll state at a reasonable interval — CPVoiceControlTemplate
-            // doesn't support AsyncSequence observation, so we check periodically.
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(500))
                 guard let self else { return }
@@ -59,21 +55,28 @@ final class CarPlayVoiceManager {
         observationTask?.cancel()
         observationTask = nil
         voiceTemplate = nil
+        lastSyncedStateID = nil
     }
 
     // MARK: - Template Construction
 
+    private func setTemplate(speakingTitle: String?) {
+        let template = buildVoiceControlTemplate(speakingTitle: speakingTitle)
+        voiceTemplate = template
+        interfaceController.setRootTemplate(template, animated: false, completion: nil)
+    }
+
     private func buildVoiceControlTemplate(speakingTitle: String?) -> CPVoiceControlTemplate {
         let idle = CPVoiceControlState(
             identifier: StateID.idle,
-            titleVariants: ["Tap to talk to Hermes", "Talk to Hermes"],
+            titleVariants: ["Tap Start to talk to Hermes", "Talk to Hermes"],
             image: UIImage(systemName: "brain.head.profile")!,
             repeats: false
         )
 
         let connecting = CPVoiceControlState(
             identifier: StateID.connecting,
-            titleVariants: ["Connecting...", "Starting..."],
+            titleVariants: ["Connecting to Hermes...", "Connecting..."],
             image: UIImage(systemName: "antenna.radiowaves.left.and.right")!,
             repeats: true
         )
@@ -99,9 +102,99 @@ final class CarPlayVoiceManager {
             repeats: false
         )
 
-        return CPVoiceControlTemplate(
+        let template = CPVoiceControlTemplate(
             voiceControlStates: [idle, connecting, listening, thinking, speaking]
         )
+
+        // Action buttons appear below the voice visualization.
+        // Which buttons are visible depends on current state — rebuilt on each sync.
+        template.actionButtons = buildActionButtons()
+
+        return template
+    }
+
+    // MARK: - Action Buttons
+
+    /// Builds context-appropriate action buttons for the current voice state.
+    /// - Idle: Start button
+    /// - Active session: Mute toggle + End Session
+    /// - Speaking: Interrupt button + Mute + End
+    private func buildActionButtons() -> [CPButton] {
+        if !talkStore.isSessionActive {
+            return [startButton()]
+        }
+
+        var buttons: [CPButton] = []
+
+        // Interrupt button when assistant is speaking
+        if talkStore.voiceState == .speaking {
+            buttons.append(interruptButton())
+        }
+
+        // Mute toggle
+        buttons.append(muteButton())
+
+        // End session
+        buttons.append(endButton())
+
+        return buttons
+    }
+
+    private func startButton() -> CPButton {
+        let button = CPButton(
+            image: UIImage(systemName: "play.fill")!,
+            handler: { [weak self] _ in
+                guard let self else { return }
+                Task { @MainActor in
+                    await self.talkStore.startSessionDirectly()
+                }
+            }
+        )
+        button.title = "Start"
+        return button
+    }
+
+    private func muteButton() -> CPButton {
+        let isMuted = talkStore.isMuted
+        let button = CPButton(
+            image: UIImage(systemName: isMuted ? "mic.slash.fill" : "mic.fill")!,
+            handler: { [weak self] _ in
+                guard let self else { return }
+                Task { @MainActor in
+                    await self.talkStore.toggleMute()
+                    // Rebuild buttons to reflect new mute state
+                    self.voiceTemplate?.actionButtons = self.buildActionButtons()
+                }
+            }
+        )
+        button.title = isMuted ? "Unmute" : "Mute"
+        return button
+    }
+
+    private func endButton() -> CPButton {
+        let button = CPButton(
+            image: UIImage(systemName: "xmark.circle.fill")!,
+            handler: { [weak self] _ in
+                guard let self else { return }
+                Task { @MainActor in
+                    await self.talkStore.endSession()
+                }
+            }
+        )
+        button.title = "End"
+        return button
+    }
+
+    private func interruptButton() -> CPButton {
+        let button = CPButton(
+            image: UIImage(systemName: "hand.raised.fill")!,
+            handler: { [weak self] _ in
+                guard let self else { return }
+                self.talkStore.interruptAssistant()
+            }
+        )
+        button.title = "Stop"
+        return button
     }
 
     // MARK: - State Sync
@@ -109,7 +202,7 @@ final class CarPlayVoiceManager {
     private func syncState() {
         guard let template = voiceTemplate else { return }
 
-        let stateID: String
+        var stateID: String
         if !talkStore.isSessionActive {
             stateID = StateID.idle
         } else {
@@ -128,18 +221,22 @@ final class CarPlayVoiceManager {
             }
         }
 
-        // Also check connection state
+        // Override with connection state if still connecting
         if talkStore.isSessionActive {
             switch talkStore.connectionState {
             case .connecting, .checking:
-                template.activateVoiceControlState(withIdentifier: StateID.connecting)
-                return
+                stateID = StateID.connecting
             default:
                 break
             }
         }
 
-        template.activateVoiceControlState(withIdentifier: stateID)
+        // Only update if state actually changed to avoid unnecessary redraws
+        if stateID != lastSyncedStateID {
+            lastSyncedStateID = stateID
+            template.actionButtons = buildActionButtons()
+            template.activateVoiceControlState(withIdentifier: stateID)
+        }
     }
 
     private func updateSpeakingTitleIfNeeded() {
@@ -147,12 +244,8 @@ final class CarPlayVoiceManager {
         guard latestTitle != currentSpeakingTitle else { return }
 
         currentSpeakingTitle = latestTitle
-        let template = buildVoiceControlTemplate(speakingTitle: latestTitle)
-        voiceTemplate = template
-        interfaceController.setRootTemplate(template, animated: false) { [weak template] _, _ in
-            guard let template else { return }
-            template.activateVoiceControlState(withIdentifier: StateID.speaking)
-        }
+        setTemplate(speakingTitle: latestTitle)
+        lastSyncedStateID = nil // Force re-sync after template rebuild
     }
 
     private func lastAssistantText() -> String {

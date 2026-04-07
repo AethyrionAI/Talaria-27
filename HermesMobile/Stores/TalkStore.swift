@@ -25,6 +25,9 @@ final class TalkStore {
     /// Set after a voice session ends; consumed by MainTabView to trigger transcript injection.
     var lastCompletedSession: CompletedVoiceSession?
 
+    /// Called when voice session state changes (start/end/state transition).
+    var onSessionStateChanged: (@MainActor () -> Void)?
+
     private let voiceService: any VoiceSessionServiceProtocol
     private let liveActivity = LiveActivityService()
     private var eventTask: Task<Void, Never>?
@@ -172,5 +175,7 @@ final class TalkStore {
                 ? snapshot.statusMessage : nil
             liveActivity.updateVoiceState(status, toolName: toolName)
         }
+
+        onSessionStateChanged?()
     }
 }

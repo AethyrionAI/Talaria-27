@@ -29,11 +29,9 @@ private struct HermesHealthView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
                 Spacer()
-                if let updatedAt = entry.data.lastMessageAt {
-                    Text(updatedAt, style: .relative)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
+                Text(entry.data.updatedAt, style: .relative)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
 
             HStack(spacing: 12) {
