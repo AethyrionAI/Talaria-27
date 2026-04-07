@@ -209,34 +209,38 @@ struct ChatScreen: View {
     }
 
     private func handleSlashCommand(_ command: SlashCommand, _ argument: String?) {
-        switch command {
-        case .new, .reset:
-            // /new and /reset: start a fresh session (new session ID, cleared history)
+        // Agent pass-through: send the raw slash command text as a chat message.
+        // The Hermes agent processes it natively — same as Discord/Telegram.
+        guard command.isLocal else {
+            let messageText: String
+            if let arg = argument?.trimmingCharacters(in: .whitespacesAndNewlines), !arg.isEmpty {
+                messageText = "/\(command.name) \(arg)"
+            } else {
+                messageText = "/\(command.name)"
+            }
+            Task { await sendSlashAsMessage(messageText) }
+            return
+        }
+
+        // Local commands handled by the iOS app directly.
+        switch command.name {
+        case "new", "reset", "clear":
             showClearConfirmation = true
 
-        case .clear:
-            // /clear: same as /new but also scrolls to top for a "clean screen" feel
-            showClearConfirmation = true
-
-        case .history:
-            // /history: show the full conversation with each message previewed
+        case "history":
             showConversationHistory()
 
-        case .save:
-            // /save: export conversation to a JSON file (matches TUI: saves to disk file)
+        case "save":
             chatStore.exportConversationToFile()
             appendSystemMessage("Conversation saved to Documents folder.")
 
-        case .retry:
-            // /retry: remove last exchange and re-send the last user message
+        case "retry":
             Task { await performRetry() }
 
-        case .undo:
-            // /undo: remove everything from the last user message onward
+        case "undo":
             performUndo()
 
-        case .title:
-            // /title [name]: set or show session title
+        case "title":
             if let name = argument?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
                 chatStore.setConversationTitle(name)
                 appendSystemMessage("Session title set: \(name)")
@@ -246,26 +250,15 @@ struct ChatScreen: View {
                 appendSystemMessage("Session ID: \(id)…\nTitle: \(current)\nUsage: /title <your session title>")
             }
 
-        case .compress:
-            // /compress: summarize conversation to reduce token usage
-            appendSystemMessage("Compress is not yet supported. Requires relay endpoint for context summarization.")
-
-        case .rollback:
-            // /rollback [N]: list or restore filesystem checkpoints on the Hermes host
-            appendSystemMessage("Rollback is not yet supported. Requires connector RPC for filesystem checkpoints.")
-
-        case .stop:
-            // /stop: kill all running background processes (NOT streaming — that's the stop button)
-            appendSystemMessage("No running background processes.")
-
-        case .background:
-            // /background <prompt>: run a prompt in a separate background session
-            if let prompt = argument?.trimmingCharacters(in: .whitespacesAndNewlines), !prompt.isEmpty {
-                appendSystemMessage("Background tasks are not yet supported. Requires relay job management.\nPrompt: \"\(prompt)\"")
-            } else {
-                appendSystemMessage("Usage: /background <prompt>\nThe task runs in a separate session and results display here when done.")
-            }
+        default:
+            break
         }
+    }
+
+    /// Sends a slash command as a regular chat message to the Hermes agent.
+    private func sendSlashAsMessage(_ text: String) async {
+        await chatStore.sendMessage(text, attachments: [])
+        scrollToBottom()
     }
 
     private func performClear() async {

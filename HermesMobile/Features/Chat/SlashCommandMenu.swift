@@ -21,7 +21,7 @@ struct SlashCommandMenu: View {
                                 .foregroundStyle(Design.Brand.accent)
                                 .frame(width: 100, alignment: .leading)
 
-                            Text(command.displayDescription)
+                            Text(command.description)
                                 .font(Design.Typography.caption)
                                 .foregroundStyle(Design.Colors.secondaryForeground)
                                 .lineLimit(1)

@@ -37,12 +37,13 @@ struct ChatInputBar: View {
 
     private var filteredCommands: [SlashCommand] {
         let query = parsedSlashInput.command
-        if query.isEmpty { return SlashCommand.allCases }
+        let all = SlashCommand.allBuiltIn
+        if query.isEmpty { return all }
         // If the query exactly matches a command that accepts args, show only that command
-        if let exact = SlashCommand.allCases.first(where: { $0.rawValue == query }), exact.acceptsArgument {
+        if let exact = all.first(where: { $0.name == query }), exact.acceptsArgument {
             return [exact]
         }
-        return SlashCommand.allCases.filter { $0.rawValue.hasPrefix(query) }
+        return all.filter { $0.name.hasPrefix(query) }
     }
 
     var body: some View {
