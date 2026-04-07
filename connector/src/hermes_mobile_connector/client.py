@@ -9,6 +9,7 @@ from pathlib import Path
 import platform as platform_module
 import re
 import socket
+import subprocess
 import sys
 import uuid
 
@@ -864,27 +865,7 @@ class HermesMobileConnector:
                         "gatewayOnly": cmd.gateway_only,
                     })
 
-            # Installed skills
-            skills_dir = Path(hermes_home) / "skills"
-            if skills_dir.is_dir():
-                for skill_dir in sorted(skills_dir.iterdir()):
-                    skill_file = skill_dir / "SKILL.md"
-                    if skill_file.is_file():
-                        # Read first line for description
-                        desc = ""
-                        try:
-                            with open(skill_file, "r") as f:
-                                for line in f:
-                                    line = line.strip()
-                                    if line and not line.startswith("#") and not line.startswith("---"):
-                                        desc = line[:80]
-                                        break
-                        except Exception:
-                            pass
-                        skills.append({
-                            "name": skill_dir.name,
-                            "description": desc or f"Invoke the {skill_dir.name} skill",
-                        })
+            skills = self._load_installed_skills(hermes_home)
 
             personalities = self._load_custom_personalities(hermes_home)
             quick_commands = self._load_quick_commands(hermes_home)
@@ -927,6 +908,75 @@ class HermesMobileConnector:
                 }
             )
         return personalities
+
+    def _load_installed_skills(self, hermes_home: Path) -> list[dict]:
+        skills = self._load_installed_skills_from_cli(hermes_home)
+        if skills:
+            return skills
+        return self._load_installed_skills_from_directory(hermes_home)
+
+    def _load_installed_skills_from_cli(self, hermes_home: Path) -> list[dict]:
+        env = dict(os.environ)
+        env["HERMES_HOME"] = str(hermes_home)
+
+        try:
+            completed = subprocess.run(
+                [self.executor.resolved_command_path() or self.executor.settings.hermes_command, "skills", "list"],
+                cwd=self.executor.settings.hermes_workdir or None,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except Exception:
+            return []
+
+        if completed.returncode != 0:
+            return []
+
+        skills: list[dict] = []
+        seen_names: set[str] = set()
+        for raw_line in completed.stdout.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            match = re.match(r"^(?P<name>[A-Za-z0-9._-]+)\s{2,}(?P<description>.+)$", line)
+            if not match:
+                continue
+            name = match.group("name")
+            if name in seen_names:
+                continue
+            seen_names.add(name)
+            skills.append(
+                {
+                    "name": name,
+                    "description": match.group("description").strip()[:140],
+                }
+            )
+        return skills
+
+    def _load_installed_skills_from_directory(self, hermes_home: Path) -> list[dict]:
+        skills: list[dict] = []
+        skills_dir = hermes_home / "skills"
+        if skills_dir.is_dir():
+            for skill_dir in sorted(skills_dir.iterdir()):
+                skill_file = skill_dir / "SKILL.md"
+                if skill_file.is_file():
+                    desc = ""
+                    try:
+                        with open(skill_file, "r", encoding="utf-8") as f:
+                            for line in f:
+                                line = line.strip()
+                                if line and not line.startswith("#") and not line.startswith("---"):
+                                    desc = line[:80]
+                                    break
+                    except Exception:
+                        pass
+                    skills.append({
+                        "name": skill_dir.name,
+                        "description": desc or f"Invoke the {skill_dir.name} skill",
+                    })
+        return skills
 
     def _load_quick_commands(self, hermes_home: Path) -> list[dict]:
         entries = self._read_quick_command_map(hermes_home / "config.yaml")
@@ -1369,13 +1419,6 @@ class HermesMobileConnector:
                 adapter = HermesAPIRuntimeAdapter(executor)
                 self._health_cache = (now, adapter)
                 return adapter
-
-        # Try default localhost even without explicit config
-        executor = HermesAPIExecutor(api_server_key=api_key)
-        if await executor.health_check():
-            adapter = HermesAPIRuntimeAdapter(executor)
-            self._health_cache = (now, adapter)
-            return adapter
 
         cli_adapter = HermesRuntimeAdapter(self.executor_for_state(state))
         self._health_cache = (now, cli_adapter)

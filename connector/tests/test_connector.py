@@ -290,6 +290,73 @@ quick_commands:
     ]
 
 
+def test_rpc_commands_catalog_prefers_cli_skill_listing(monkeypatch, tmp_path):
+    hermes_home = tmp_path / ".hermes"
+    hermes_cli_dir = hermes_home / "hermes-agent" / "hermes_cli"
+    hermes_cli_dir.mkdir(parents=True)
+    (hermes_cli_dir / "__init__.py").write_text("", encoding="utf-8")
+    (hermes_cli_dir / "commands.py").write_text(
+        """
+COMMAND_REGISTRY = []
+
+
+def _is_gateway_available(cmd, overrides):
+    return True
+
+
+def _resolve_config_gates():
+    return {}
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+    sys.modules.pop("hermes_cli.commands", None)
+    sys.modules.pop("hermes_cli", None)
+
+    class FakeCompletedProcess:
+        returncode = 0
+        stdout = "manim-video  Render short manim clips from prompts\nshell-helper  Misc shell support\n"
+
+    monkeypatch.setattr(
+        "hermes_mobile_connector.client.subprocess.run",
+        lambda *args, **kwargs: FakeCompletedProcess(),
+    )
+
+    connector = HermesMobileConnector(
+        state_store=ConnectorStateStore(state_dir=tmp_path / "connector-state"),
+        executor=make_executor(),
+    )
+
+    catalog = connector._rpc_commands_catalog()
+    assert catalog["skills"] == [
+        {
+            "name": "manim-video",
+            "description": "Render short manim clips from prompts",
+        },
+        {
+            "name": "shell-helper",
+            "description": "Misc shell support",
+        },
+    ]
+
+
+def test_runtime_adapter_falls_back_to_cli_without_explicit_api_config(monkeypatch, tmp_path):
+    store = ConnectorStateStore(state_dir=tmp_path / "connector-runtime")
+    state = make_enrolled_state()
+    store.save(state)
+    connector = HermesMobileConnector(state_store=store, executor=make_executor())
+
+    async def fail_health_check(self):  # noqa: ANN001
+        raise AssertionError("Implicit localhost API health check should not run without explicit config")
+
+    monkeypatch.delenv("HERMES_API_SERVER_URL", raising=False)
+    monkeypatch.delenv("HERMES_API_SERVER_KEY", raising=False)
+    monkeypatch.setattr("hermes_mobile_connector.client.HermesAPIExecutor.health_check", fail_health_check)
+
+    adapter = asyncio.run(connector.runtime_adapter_for_state_async(state))
+    assert isinstance(adapter, HermesRuntimeAdapter)
+
+
 def test_setup_can_skip_native_mcp_configuration(monkeypatch, tmp_path):
     store = ConnectorStateStore(state_dir=tmp_path / "connector-setup-skip")
     connector = HermesMobileConnector(state_store=store, executor=make_executor())
