@@ -423,13 +423,11 @@ final class AppContainer {
               let client = apiClient else { return }
 
         struct CatalogResponse: Decodable {
-            let data: CatalogData?
-            struct CatalogData: Decodable {
-                let commands: [RemoteCommand]?
-                let skills: [RemoteSkill]?
-                let personalities: [RemotePersonality]?
-                let quickCommands: [RemoteQuickCommand]?
-            }
+            let commands: [RemoteCommand]?
+            let skills: [RemoteSkill]?
+            let personalities: [RemotePersonality]?
+            let quickCommands: [RemoteQuickCommand]?
+
             struct RemoteCommand: Decodable {
                 let name: String
                 let description: String
@@ -458,10 +456,10 @@ final class AppContainer {
 
             var catalog = SlashCommand.localCommands
             var catalogIDs = Set(catalog.map(\.id))
-            let remoteCommands = response.data?.commands ?? []
-            let skills = response.data?.skills ?? []
-            let personalities = response.data?.personalities ?? []
-            let quickCommands = response.data?.quickCommands ?? []
+            let remoteCommands = response.commands ?? []
+            let skills = response.skills ?? []
+            let personalities = response.personalities ?? []
+            let quickCommands = response.quickCommands ?? []
 
             // Add remote built-in commands (skip any that overlap with local)
             for cmd in remoteCommands {
