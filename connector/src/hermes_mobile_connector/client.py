@@ -20,6 +20,41 @@ import httpx
 from websockets.asyncio.client import connect as websocket_connect
 
 from . import __version__
+
+# Gateway-available commands from Hermes COMMAND_REGISTRY.
+# These are the commands available on messaging platforms (not cli_only).
+# Kept as static data to avoid importing hermes_cli (different venv).
+_GATEWAY_COMMANDS: list[dict] = [
+    {"name": "new", "description": "Start a new session", "category": "Session", "args": None, "aliases": ["reset"], "gatewayOnly": False},
+    {"name": "retry", "description": "Retry the last message", "category": "Session", "args": None, "aliases": [], "gatewayOnly": False},
+    {"name": "undo", "description": "Remove the last user/assistant exchange", "category": "Session", "args": None, "aliases": [], "gatewayOnly": False},
+    {"name": "title", "description": "Set a title for the current session", "category": "Session", "args": "[name]", "aliases": [], "gatewayOnly": False},
+    {"name": "branch", "description": "Branch the current session", "category": "Session", "args": "[name]", "aliases": ["fork"], "gatewayOnly": False},
+    {"name": "compress", "description": "Manually compress conversation context", "category": "Session", "args": None, "aliases": [], "gatewayOnly": False},
+    {"name": "rollback", "description": "List or restore filesystem checkpoints", "category": "Session", "args": "[number]", "aliases": [], "gatewayOnly": False},
+    {"name": "stop", "description": "Kill all running background processes", "category": "Session", "args": None, "aliases": [], "gatewayOnly": False},
+    {"name": "approve", "description": "Approve a pending dangerous command", "category": "Session", "args": "[session|always]", "aliases": [], "gatewayOnly": True},
+    {"name": "deny", "description": "Deny a pending dangerous command", "category": "Session", "args": None, "aliases": [], "gatewayOnly": True},
+    {"name": "background", "description": "Run a prompt in the background", "category": "Session", "args": "<prompt>", "aliases": ["bg"], "gatewayOnly": False},
+    {"name": "btw", "description": "Ephemeral side question (no tools, not persisted)", "category": "Session", "args": "<question>", "aliases": [], "gatewayOnly": False},
+    {"name": "queue", "description": "Queue a prompt for the next turn", "category": "Session", "args": "<prompt>", "aliases": ["q"], "gatewayOnly": False},
+    {"name": "status", "description": "Show session info", "category": "Session", "args": None, "aliases": [], "gatewayOnly": True},
+    {"name": "profile", "description": "Show active profile and home directory", "category": "Info", "args": None, "aliases": [], "gatewayOnly": False},
+    {"name": "sethome", "description": "Set this chat as the home channel", "category": "Session", "args": None, "aliases": ["set-home"], "gatewayOnly": True},
+    {"name": "resume", "description": "Resume a previously-named session", "category": "Session", "args": "[name]", "aliases": [], "gatewayOnly": False},
+    {"name": "model", "description": "Switch model for this session", "category": "Configuration", "args": "[model] [--global]", "aliases": [], "gatewayOnly": False},
+    {"name": "provider", "description": "Show available providers", "category": "Configuration", "args": None, "aliases": [], "gatewayOnly": False},
+    {"name": "personality", "description": "Set a predefined personality", "category": "Configuration", "args": "[name]", "aliases": [], "gatewayOnly": False},
+    {"name": "yolo", "description": "Toggle auto-approve mode", "category": "Configuration", "args": None, "aliases": [], "gatewayOnly": False},
+    {"name": "reasoning", "description": "Manage reasoning effort and display", "category": "Configuration", "args": "[level|show|hide]", "aliases": [], "gatewayOnly": False},
+    {"name": "voice", "description": "Toggle voice mode", "category": "Configuration", "args": "[on|off|tts|status]", "aliases": [], "gatewayOnly": False},
+    {"name": "reload-mcp", "description": "Reload MCP servers from config", "category": "Tools & Skills", "args": None, "aliases": ["reload_mcp"], "gatewayOnly": False},
+    {"name": "commands", "description": "Browse all commands and skills", "category": "Info", "args": "[page]", "aliases": [], "gatewayOnly": True},
+    {"name": "help", "description": "Show available commands", "category": "Info", "args": None, "aliases": [], "gatewayOnly": False},
+    {"name": "usage", "description": "Show token usage", "category": "Info", "args": None, "aliases": [], "gatewayOnly": False},
+    {"name": "insights", "description": "Show usage insights", "category": "Info", "args": "[days]", "aliases": [], "gatewayOnly": False},
+    {"name": "update", "description": "Update Hermes Agent", "category": "Info", "args": None, "aliases": [], "gatewayOnly": True},
+]
 from .git_diff import capture_diff, capture_snapshot
 from .hermes_api_executor import HermesAPIExecutor
 from .hermes_runner import ConnectorHermesSettings, HermesCLIExecutor
@@ -842,38 +877,12 @@ class HermesMobileConnector:
         docs say they resolve at dispatch time and are not shown in the built-in
         autocomplete tables.
         """
-        commands: list[dict] = []
-        skills: list[dict] = []
-        personalities: list[dict] = []
-        quick_commands: list[dict] = []
+        hermes_home = self._resolve_hermes_home()
 
-        try:
-            import sys
-            hermes_home = self._resolve_hermes_home()
-            agent_dir = hermes_home / "hermes-agent"
-            if str(agent_dir) not in sys.path:
-                sys.path.insert(0, str(agent_dir))
-
-            from hermes_cli.commands import COMMAND_REGISTRY, _is_gateway_available, _resolve_config_gates
-
-            overrides = _resolve_config_gates()
-            for cmd in COMMAND_REGISTRY:
-                if _is_gateway_available(cmd, overrides):
-                    commands.append({
-                        "name": cmd.name,
-                        "description": cmd.description,
-                        "category": cmd.category,
-                        "args": cmd.args_hint or None,
-                        "aliases": list(cmd.aliases) if cmd.aliases else [],
-                        "gatewayOnly": cmd.gateway_only,
-                    })
-
-            skills = self._load_installed_skills(hermes_home)
-
-            personalities = self._load_custom_personalities(hermes_home)
-            quick_commands = self._load_quick_commands(hermes_home)
-        except Exception as e:
-            logger.warning("Failed to build command catalog: %s", e)
+        commands = _GATEWAY_COMMANDS
+        skills = self._load_installed_skills(hermes_home)
+        personalities = self._load_custom_personalities(hermes_home)
+        quick_commands = self._load_quick_commands(hermes_home)
 
         return {
             "commands": commands,
@@ -921,10 +930,23 @@ class HermesMobileConnector:
     def _load_installed_skills_from_cli(self, hermes_home: Path) -> list[dict]:
         env = dict(os.environ)
         env["HERMES_HOME"] = str(hermes_home)
+        env["COLUMNS"] = "200"
+        env["NO_COLOR"] = "1"
+        env["TERM"] = "dumb"
+
+        # Resolve the hermes command path: try executor, then state, then bare name
+        hermes_cmd = self.executor.resolved_command_path() or self.executor.settings.hermes_command
+        if hermes_cmd == "hermes":
+            try:
+                state = self.state_store.load()
+                if state.runtime_config and state.runtime_config.hermes_command:
+                    hermes_cmd = state.runtime_config.hermes_command
+            except Exception:
+                pass
 
         try:
             completed = subprocess.run(
-                [self.executor.resolved_command_path() or self.executor.settings.hermes_command, "skills", "list"],
+                [hermes_cmd, "skills", "list"],
                 cwd=self.executor.settings.hermes_workdir or None,
                 env=env,
                 capture_output=True,
@@ -943,20 +965,59 @@ class HermesMobileConnector:
             line = raw_line.strip()
             if not line:
                 continue
-            match = re.match(r"^(?P<name>[A-Za-z0-9._-]+)\s{2,}(?P<description>.+)$", line)
-            if not match:
+            # Rich table format: │ name │ category │ source │ trust │
+            if "│" in line:
+                # Split on │ keeping all cells (including empty ones)
+                cells = [c.strip() for c in line.split("│")]
+                # First and last are empty from leading/trailing │
+                cells = cells[1:-1] if len(cells) > 2 else cells
+                if len(cells) >= 1:
+                    name = cells[0].strip()
+                    # Skip header row and separator lines
+                    if not name or name.lower() == "name" or not re.match(r"^[A-Za-z0-9._-]+$", name):
+                        continue
+                    if name in seen_names:
+                        continue
+                    seen_names.add(name)
+                    category = cells[1].strip() if len(cells) > 1 else ""
+                    # Try to get a better description from SKILL.md
+                    desc = self._read_skill_description(hermes_home, name)
+                    if not desc:
+                        desc = f"{category} skill" if category else f"Invoke the {name} skill"
+                    skills.append({"name": name, "description": desc})
                 continue
-            name = match.group("name")
-            if name in seen_names:
-                continue
-            seen_names.add(name)
-            skills.append(
-                {
-                    "name": name,
-                    "description": match.group("description").strip()[:140],
-                }
-            )
+            # Plain text fallback: name  description
+            match = re.match(r"^(?P<name>[A-Za-z0-9._-]+)\s{2,}(?P<desc>.+)$", line)
+            if match:
+                name = match.group("name")
+                if name not in seen_names:
+                    seen_names.add(name)
+                    skills.append({"name": name, "description": match.group("desc").strip()[:140]})
         return skills
+
+    @staticmethod
+    def _read_skill_description(hermes_home: Path, skill_name: str) -> str:
+        """Read the first non-header, non-frontmatter line from a skill's SKILL.md."""
+        # Skills can be nested: skills/category/skill-name/SKILL.md or skills/skill-name/SKILL.md
+        for candidate in [
+            hermes_home / "skills" / skill_name / "SKILL.md",
+            *(hermes_home / "skills").glob(f"*/{skill_name}/SKILL.md"),
+        ]:
+            if candidate.is_file():
+                try:
+                    with open(candidate, "r", encoding="utf-8") as f:
+                        in_frontmatter = False
+                        for line in f:
+                            stripped = line.strip()
+                            if stripped == "---":
+                                in_frontmatter = not in_frontmatter
+                                continue
+                            if in_frontmatter or not stripped or stripped.startswith("#"):
+                                continue
+                            return stripped[:120]
+                except Exception:
+                    pass
+        return ""
 
     def _load_installed_skills_from_directory(self, hermes_home: Path) -> list[dict]:
         skills: list[dict] = []

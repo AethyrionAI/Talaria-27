@@ -261,7 +261,10 @@ quick_commands:
     catalog = connector._rpc_commands_catalog()
 
     assert any(command["name"] == "help" for command in catalog["commands"])
-    assert any(command["name"] == "skills" for command in catalog["commands"])
+    # "skills" is cli_only, so it should NOT be in gateway commands
+    assert not any(command["name"] == "skills" for command in catalog["commands"])
+    # But gateway commands like "model" should be present
+    assert any(command["name"] == "model" for command in catalog["commands"])
     assert catalog["skills"] == [
         {
             "name": "ios-context",
