@@ -41,7 +41,6 @@ targets:
         com.apple.developer.healthkit.background-delivery: true
         com.apple.security.application-groups:
           - group.io.hermesmobile.HermesMobile
-        com.apple.developer.carplay-voice-based-conversation: true
     sources:
       - path: HermesMobile
         excludes:

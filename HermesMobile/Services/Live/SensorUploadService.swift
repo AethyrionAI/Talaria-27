@@ -240,6 +240,7 @@ final class SensorUploadService {
         }
         guard !snapshot.samples.isEmpty else { return }
         outboxState.enqueue(healthSamples: snapshot.samples)
+        SharedWidgetDataStore.updateHealthMetrics(from: snapshot.samples)
         persistOutboxState()
         await drainOutboxIfPossible()
     }

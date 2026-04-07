@@ -486,6 +486,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             if voiceState == .interrupted {
                 voiceState = .listening
             }
+            statusMessage = "Audio route changed."
             // Re-assert speaker output when a device is removed (e.g. headphones unplugged)
             // or the route is reconfigured by the system / WebRTC.
             forceSpeakerIfNeeded()

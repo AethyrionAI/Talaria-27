@@ -125,7 +125,8 @@ CarPlay provides hands-free voice conversations with Hermes while driving. **Thi
 3. Describe your app: "AI assistant companion app with voice-based conversational interface"
 4. Wait for Apple's approval (typically 1-2 weeks)
 5. Once approved, the entitlement is tied to your App ID in the Developer Portal
-6. Add it to your local provisioning profile — the code already includes the CarPlay scene delegate and voice control template
+6. Add the capability in your local Xcode signing setup or local entitlement override — keep that entitlement change out of tracked source if you're maintaining the public-safe defaults
+7. Rebuild; the code already includes the CarPlay scene delegate and voice control template
 
 ### Without CarPlay
 

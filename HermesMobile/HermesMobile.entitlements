@@ -6,8 +6,6 @@
 	<array>
 		<string>group.io.hermesmobile.HermesMobile</string>
 	</array>
-	<key>com.apple.developer.carplay-voice-based-conversation</key>
-	<true/>
 	<key>com.apple.developer.healthkit</key>
 	<true/>
 	<key>com.apple.developer.healthkit.access</key>

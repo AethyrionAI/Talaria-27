@@ -87,7 +87,14 @@ struct HermesMobileApp: App {
         guard url.scheme == "hermes" else { return }
         switch url.host {
         case "chat":
+            container.router.activeSheet = nil
+            container.router.popToRoot()
             container.router.selectedTab = .chat
+        case "health":
+            container.router.activeSheet = nil
+            container.router.popToRoot()
+            container.router.selectedTab = .chat
+            container.router.navigate(to: .permissions)
         case "voice":
             container.router.isVoiceOverlayPresented = true
         default:

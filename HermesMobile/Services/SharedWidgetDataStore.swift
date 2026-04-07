@@ -23,4 +23,26 @@ enum SharedWidgetDataStore {
         }
         return decoded
     }
+
+    static func updateHealthMetrics(from samples: [HealthSnapshot.Sample]) {
+        guard !samples.isEmpty else { return }
+
+        var data = read()
+        for sample in samples {
+            switch sample.metric {
+            case "steps":
+                data.steps = Int(sample.value.rounded())
+            case "active_calories":
+                data.activeCalories = Int(sample.value.rounded())
+            case "sleep_duration":
+                data.sleepHours = sample.value
+            case "heart_rate":
+                data.heartRate = Int(sample.value.rounded())
+            default:
+                continue
+            }
+        }
+        data.updatedAt = .now
+        write(data)
+    }
 }

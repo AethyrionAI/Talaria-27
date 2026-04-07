@@ -6,9 +6,12 @@ import UIKit
 /// CarPlay voice control state. Action buttons provide mute and end controls.
 @MainActor
 final class CarPlayVoiceManager {
+    private static let maxTranscriptTitleLength = 80
+
     private let interfaceController: CPInterfaceController
     private var voiceTemplate: CPVoiceControlTemplate?
     private var observationTask: Task<Void, Never>?
+    private var currentSpeakingTitle: String?
 
     // Reference to the shared app container
     private var talkStore: TalkStore { AppContainer.sharedDefault().talkStore }
@@ -29,7 +32,9 @@ final class CarPlayVoiceManager {
 
     /// Sets up the CPVoiceControlTemplate and starts observing TalkStore state.
     func configure() {
-        let template = buildVoiceControlTemplate()
+        let initialSpeakingTitle = lastAssistantText()
+        currentSpeakingTitle = initialSpeakingTitle
+        let template = buildVoiceControlTemplate(speakingTitle: initialSpeakingTitle)
         voiceTemplate = template
         interfaceController.setRootTemplate(template, animated: false, completion: nil)
 
@@ -58,7 +63,7 @@ final class CarPlayVoiceManager {
 
     // MARK: - Template Construction
 
-    private func buildVoiceControlTemplate() -> CPVoiceControlTemplate {
+    private func buildVoiceControlTemplate(speakingTitle: String?) -> CPVoiceControlTemplate {
         let idle = CPVoiceControlState(
             identifier: StateID.idle,
             titleVariants: ["Tap to talk to Hermes", "Talk to Hermes"],
@@ -89,7 +94,7 @@ final class CarPlayVoiceManager {
 
         let speaking = CPVoiceControlState(
             identifier: StateID.speaking,
-            titleVariants: [lastAssistantText(), "Hermes is speaking"],
+            titleVariants: [speakingTitle ?? "Hermes is speaking", "Hermes is speaking"],
             image: UIImage(systemName: "speaker.wave.2.fill")!,
             repeats: false
         )
@@ -116,8 +121,7 @@ final class CarPlayVoiceManager {
             case .thinking:
                 stateID = StateID.thinking
             case .speaking:
-                // Update speaking state title with latest transcript
-                updateSpeakingTitle()
+                updateSpeakingTitleIfNeeded()
                 stateID = StateID.speaking
             case .interrupted:
                 stateID = StateID.listening
@@ -138,16 +142,23 @@ final class CarPlayVoiceManager {
         template.activateVoiceControlState(withIdentifier: stateID)
     }
 
-    private func updateSpeakingTitle() {
-        // Rebuild the template to show latest transcript in speaking state
-        // CPVoiceControlTemplate doesn't support updating individual state titles,
-        // so we capture the latest text when building the state.
-        // The 500ms polling handles this naturally on next sync.
+    private func updateSpeakingTitleIfNeeded() {
+        let latestTitle = lastAssistantText()
+        guard latestTitle != currentSpeakingTitle else { return }
+
+        currentSpeakingTitle = latestTitle
+        let template = buildVoiceControlTemplate(speakingTitle: latestTitle)
+        voiceTemplate = template
+        interfaceController.setRootTemplate(template, animated: false) { [weak template] _, _ in
+            guard let template else { return }
+            template.activateVoiceControlState(withIdentifier: StateID.speaking)
+        }
     }
 
     private func lastAssistantText() -> String {
-        let lastAssistant = talkStore.transcriptItems
-            .last(where: { $0.speaker == .assistant && !$0.isPartial })
-        return lastAssistant?.text.prefix(80).description ?? "Hermes is speaking"
+        let lastAssistant = talkStore.transcriptItems.reversed().first(where: { $0.speaker == .hermes })
+        let trimmed = lastAssistant?.text.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !trimmed.isEmpty else { return "Hermes is speaking" }
+        return String(trimmed.prefix(Self.maxTranscriptTitleLength))
     }
 }
