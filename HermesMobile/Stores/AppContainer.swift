@@ -19,6 +19,10 @@ final class AppContainer {
     private let apiClient: RelayAPIClient?
     private let notificationService: (any NotificationServiceProtocol)?
     private var isInitialized = false
+    private var lastCommandCatalogRefreshAt: Date?
+    private var lastKnownHostOnline = false
+
+    private static let commandCatalogRefreshInterval: TimeInterval = 60
 
     init(
         sessionStore: AppSessionStore,
@@ -241,7 +245,14 @@ final class AppContainer {
             container?.updateWidgetData()
         }
         container.hostStore.onHostChanged = { [weak container] in
-            container?.updateWidgetData()
+            guard let container else { return }
+            let isOnline = container.hostStore.isHostOnline
+            let becameOnline = isOnline && container.lastKnownHostOnline == false
+            container.lastKnownHostOnline = isOnline
+            container.updateWidgetData()
+            Task { [weak container] in
+                await container?.refreshCommandCatalog(force: becameOnline)
+            }
         }
 
         return container
@@ -259,9 +270,10 @@ final class AppContainer {
         await sessionStore.bootstrap()
         guard sessionStore.state.connectionStatus == .connected else { return }
         await hostStore.refresh()
+        lastKnownHostOnline = hostStore.isHostOnline
         await chatStore.loadConversationIfNeeded()
         await inboxStore.loadInbox()
-        await refreshCommandCatalog()
+        await refreshCommandCatalog(force: true)
         await registerStoredPushTokenIfNeeded()
         sensorUploadService?.start()
         await sensorUploadService?.handleAppDidBecomeActive()
@@ -275,6 +287,8 @@ final class AppContainer {
 
         await permissionsStore.reloadCapabilities()
         await hostStore.refresh()
+        lastKnownHostOnline = hostStore.isHostOnline
+        await refreshCommandCatalog(force: true)
         await registerStoredPushTokenIfNeeded()
         await sensorUploadService?.handleAppDidBecomeActive()
         talkStore.handleAppDidBecomeActive()
@@ -289,6 +303,7 @@ final class AppContainer {
 
         await permissionsStore.reloadCapabilities()
         await hostStore.refresh()
+        lastKnownHostOnline = hostStore.isHostOnline
         await registerStoredPushTokenIfNeeded()
         await sensorUploadService?.handleAppDidBecomeActive()
         talkStore.handleAppDidBecomeActive()
@@ -396,8 +411,14 @@ final class AppContainer {
     }
 
     /// Fetches the dynamic slash command catalog from the connected Hermes host.
-    /// Merges built-in gateway commands + installed skills into the chat store.
-    func refreshCommandCatalog() async {
+    /// Merges built-in commands, gateway commands, skills, and personality options.
+    func refreshCommandCatalog(force: Bool = false) async {
+        if !force,
+           let lastCommandCatalogRefreshAt,
+           Date().timeIntervalSince(lastCommandCatalogRefreshAt) < Self.commandCatalogRefreshInterval {
+            return
+        }
+
         guard let token = await sessionStore.currentAccessToken(),
               let client = apiClient else { return }
 
@@ -406,6 +427,8 @@ final class AppContainer {
             struct CatalogData: Decodable {
                 let commands: [RemoteCommand]?
                 let skills: [RemoteSkill]?
+                let personalities: [RemotePersonality]?
+                let quickCommands: [RemoteQuickCommand]?
             }
             struct RemoteCommand: Decodable {
                 let name: String
@@ -414,6 +437,14 @@ final class AppContainer {
                 let args: String?
             }
             struct RemoteSkill: Decodable {
+                let name: String
+                let description: String
+            }
+            struct RemotePersonality: Decodable {
+                let name: String
+                let description: String
+            }
+            struct RemoteQuickCommand: Decodable {
                 let name: String
                 let description: String
             }
@@ -426,32 +457,67 @@ final class AppContainer {
             )
 
             var catalog = SlashCommand.localCommands
-            let localNames = Set(catalog.map(\.name))
+            var catalogIDs = Set(catalog.map(\.id))
+            let remoteCommands = response.data?.commands ?? []
+            let skills = response.data?.skills ?? []
+            let personalities = response.data?.personalities ?? []
+            let quickCommands = response.data?.quickCommands ?? []
 
             // Add remote built-in commands (skip any that overlap with local)
-            if let remoteCommands = response.data?.commands {
-                for cmd in remoteCommands where !localNames.contains(cmd.name) {
-                    catalog.append(.fromRemote(
-                        name: cmd.name,
-                        description: cmd.description,
-                        category: cmd.category ?? "Agent",
-                        args: cmd.args
-                    ))
+            for cmd in remoteCommands {
+                let command = SlashCommand.fromRemote(
+                    name: cmd.name,
+                    description: cmd.description,
+                    category: cmd.category ?? "Agent",
+                    args: cmd.args
+                )
+                if catalogIDs.insert(command.id).inserted {
+                    catalog.append(command)
                 }
             }
 
             // Add skill commands
-            if let skills = response.data?.skills {
-                let existingNames = Set(catalog.map(\.name))
-                for skill in skills where !existingNames.contains(skill.name) {
-                    catalog.append(.fromSkill(name: skill.name, description: skill.description))
+            for skill in skills {
+                let command = SlashCommand.fromSkill(name: skill.name, description: skill.description)
+                if catalogIDs.insert(command.id).inserted {
+                    catalog.append(command)
                 }
             }
 
-            chatStore.commandCatalog = catalog
+            // `/personality <name>` suggestions only appear once the user starts
+            // typing `/personality`, keeping the top-level dropdown manageable.
+            for personality in personalities {
+                let command = SlashCommand.fromPersonality(
+                    name: personality.name,
+                    description: personality.description
+                )
+                if catalogIDs.insert(command.id).inserted {
+                    catalog.append(command)
+                }
+            }
+
+            // Hermes docs say quick commands resolve at dispatch time and are not
+            // included in built-in autocomplete tables, but we still track them so
+            // typed commands can be considered part of the known catalog.
+            for quickCommand in quickCommands {
+                let command = SlashCommand.fromQuickCommand(
+                    name: quickCommand.name,
+                    description: quickCommand.description
+                )
+                if catalogIDs.insert(command.id).inserted {
+                    catalog.append(command)
+                }
+            }
+
+            if remoteCommands.isEmpty && skills.isEmpty && personalities.isEmpty && quickCommands.isEmpty {
+                chatStore.resetCommandCatalog()
+            } else {
+                chatStore.replaceCommandCatalog(catalog)
+                lastCommandCatalogRefreshAt = .now
+            }
         } catch {
             // Fallback to built-in list — catalog is a nice-to-have
-            chatStore.commandCatalog = SlashCommand.allBuiltIn
+            chatStore.resetCommandCatalog()
         }
     }
 
@@ -502,6 +568,8 @@ final class AppContainer {
         chatStore.reset()
         inboxStore.reset()
         hostStore.reset()
+        lastKnownHostOnline = false
+        lastCommandCatalogRefreshAt = nil
         SharedWidgetDataStore.write(.empty)
     }
 }

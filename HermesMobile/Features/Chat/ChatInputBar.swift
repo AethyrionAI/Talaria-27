@@ -20,7 +20,8 @@ struct ChatInputBar: View {
     private var canSend: Bool {
         let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let hasAttachments = !pendingAttachments.isEmpty
-        return (hasText || hasAttachments) && !isSlashMode
+        let hasRunnableSlashCommand = isSlashMode && hasText && text.trimmingCharacters(in: .whitespacesAndNewlines) != "/" && !hasAttachments
+        return hasRunnableSlashCommand || ((hasText || hasAttachments) && !isSlashMode)
     }
 
     private var isSlashMode: Bool {
@@ -39,20 +40,38 @@ struct ChatInputBar: View {
     /// Uses the dynamic catalog from ChatStore (fetched from the Hermes host).
     /// Falls back to the built-in list if the catalog hasn't loaded yet.
     private var filteredCommands: [SlashCommand] {
-        let query = parsedSlashInput.command
-        let all = chatStore.commandCatalog
-        if query.isEmpty { return all }
-        if let exact = all.first(where: { $0.name == query }), exact.acceptsArgument {
+        let query = parsedSlashInput.command.lowercased()
+        let argument = parsedSlashInput.argument?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let all = chatStore.commandCatalog.filter(\.showInAutocomplete)
+
+        if query.isEmpty {
+            return all.filter { $0.suggestedArgument == nil }
+        }
+
+        if let exact = all.first(where: { $0.name == query && $0.suggestedArgument == nil }), exact.acceptsArgument {
+            let argumentSuggestions = all.filter { command in
+                command.name == query
+                    && command.suggestedArgument != nil
+                    && (argument == nil
+                        || argument!.isEmpty
+                        || command.suggestedArgument!.lowercased().hasPrefix(argument!))
+            }
+            if !argumentSuggestions.isEmpty {
+                return argumentSuggestions
+            }
             return [exact]
         }
-        return all.filter { $0.name.hasPrefix(query) }
+
+        return all.filter {
+            $0.suggestedArgument == nil && $0.name.hasPrefix(query)
+        }
     }
 
     var body: some View {
         VStack(spacing: Design.Spacing.xs) {
             if isSlashMode && !filteredCommands.isEmpty {
                 SlashCommandMenu(commands: filteredCommands) { command in
-                    let arg = command.acceptsArgument ? parsedSlashInput.argument : nil
+                    let arg = command.suggestedArgument ?? (command.acceptsArgument ? parsedSlashInput.argument : nil)
                     text = ""
                     onSlashCommand(command, arg)
                 }
@@ -77,6 +96,12 @@ struct ChatInputBar: View {
                     .lineLimit(1...5)
                     .focused(isFocused)
                     .disabled(speechService.isListening)
+                    .submitLabel(.send)
+                    .onSubmit {
+                        if canSend {
+                            onSend()
+                        }
+                    }
                     .padding(.horizontal, Design.Spacing.md)
                     .padding(.top, pendingAttachments.isEmpty ? Design.Spacing.sm : Design.Spacing.xs)
                     .padding(.bottom, Design.Spacing.xs)

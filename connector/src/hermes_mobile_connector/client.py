@@ -825,18 +825,28 @@ class HermesMobileConnector:
         }
 
     def _rpc_commands_catalog(self) -> dict:
-        """Return the full slash command catalog: built-in gateway commands + installed skills.
+        """Return the slash command catalog for iOS autocomplete and manual dispatch.
 
         The iOS app uses this to populate its slash command menu dynamically,
-        matching the same surface available on Discord, Telegram, and the TUI.
+        matching Hermes docs more closely:
+        - gateway-available built-in commands
+        - installed skills
+        - custom personalities from ~/.hermes/config.yaml
+        - quick commands from ~/.hermes/config.yaml
+
+        Quick commands are included in the payload for completeness, but Hermes
+        docs say they resolve at dispatch time and are not shown in the built-in
+        autocomplete tables.
         """
         commands: list[dict] = []
         skills: list[dict] = []
+        personalities: list[dict] = []
+        quick_commands: list[dict] = []
 
         try:
             import sys
-            hermes_home = self.executor.settings.hermes_home or Path.home() / ".hermes"
-            agent_dir = Path(hermes_home) / "hermes-agent"
+            hermes_home = self._resolve_hermes_home()
+            agent_dir = hermes_home / "hermes-agent"
             if str(agent_dir) not in sys.path:
                 sys.path.insert(0, str(agent_dir))
 
@@ -875,10 +885,214 @@ class HermesMobileConnector:
                             "name": skill_dir.name,
                             "description": desc or f"Invoke the {skill_dir.name} skill",
                         })
+
+            personalities = self._load_custom_personalities(hermes_home)
+            quick_commands = self._load_quick_commands(hermes_home)
         except Exception as e:
             logger.warning("Failed to build command catalog: %s", e)
 
-        return {"commands": commands, "skills": skills}
+        return {
+            "commands": commands,
+            "skills": skills,
+            "personalities": personalities,
+            "quickCommands": quick_commands,
+        }
+
+    def _resolve_hermes_home(self) -> Path:
+        try:
+            state = self.state_store.load()
+            runtime_home = state.runtime_config.hermes_home if state.runtime_config else None
+            if runtime_home:
+                return Path(runtime_home).expanduser()
+        except Exception:
+            pass
+
+        env_home = os.getenv("HERMES_HOME")
+        if env_home:
+            return Path(env_home).expanduser()
+        return Path.home() / ".hermes"
+
+    def _load_custom_personalities(self, hermes_home: Path) -> list[dict]:
+        entries = self._read_named_yaml_string_map(
+            hermes_home / "config.yaml",
+            section_name="personalities",
+        )
+        personalities: list[dict] = []
+        for name, description in sorted(entries.items()):
+            summary = description.strip() or f"Use the {name} personality"
+            personalities.append(
+                {
+                    "name": name,
+                    "description": summary[:140],
+                }
+            )
+        return personalities
+
+    def _load_quick_commands(self, hermes_home: Path) -> list[dict]:
+        entries = self._read_quick_command_map(hermes_home / "config.yaml")
+        quick_commands: list[dict] = []
+        for name in sorted(entries):
+            description = entries[name]
+            quick_commands.append(
+                {
+                    "name": name,
+                    "description": description,
+                }
+            )
+        return quick_commands
+
+    def _read_named_yaml_string_map(self, config_path: Path, *, section_name: str) -> dict[str, str]:
+        text = self._read_text_file(config_path)
+        if not text:
+            return {}
+
+        section_lines = self._extract_top_level_yaml_section(text, section_name)
+        results: dict[str, str] = {}
+        index = 0
+
+        while index < len(section_lines):
+            indent, raw_line = section_lines[index]
+            stripped = raw_line.strip()
+
+            if not stripped or stripped.startswith("#") or indent != 2 or ":" not in stripped:
+                index += 1
+                continue
+
+            key, value = stripped.split(":", 1)
+            key = key.strip()
+            value = value.strip()
+            if not key:
+                index += 1
+                continue
+
+            if value in {"|", ">", "|-", ">-", "|+", ">+"}:
+                block_lines: list[str] = []
+                index += 1
+                while index < len(section_lines):
+                    next_indent, next_line = section_lines[index]
+                    if next_indent <= indent:
+                        break
+                    block_lines.append(next_line[indent + 2 :] if len(next_line) > indent + 2 else "")
+                    index += 1
+                joined = self._normalize_yaml_block_scalar(block_lines, folded=value.startswith(">"))
+                if joined:
+                    results[key] = joined
+                continue
+
+            normalized = self._strip_yaml_scalar(value)
+            if normalized:
+                results[key] = normalized
+            index += 1
+
+        return results
+
+    def _read_quick_command_map(self, config_path: Path) -> dict[str, str]:
+        text = self._read_text_file(config_path)
+        if not text:
+            return {}
+
+        section_lines = self._extract_top_level_yaml_section(text, "quick_commands")
+        results: dict[str, str] = {}
+        index = 0
+
+        while index < len(section_lines):
+            indent, raw_line = section_lines[index]
+            stripped = raw_line.strip()
+            if not stripped or stripped.startswith("#") or indent != 2 or not stripped.endswith(":"):
+                index += 1
+                continue
+
+            command_name = stripped[:-1].strip()
+            index += 1
+            command_type: str | None = None
+            shell_command: str | None = None
+            description: str | None = None
+
+            while index < len(section_lines):
+                next_indent, next_line = section_lines[index]
+                next_stripped = next_line.strip()
+
+                if not next_stripped or next_stripped.startswith("#"):
+                    index += 1
+                    continue
+                if next_indent <= indent:
+                    break
+                if next_indent != 4 or ":" not in next_stripped:
+                    index += 1
+                    continue
+
+                key, value = next_stripped.split(":", 1)
+                key = key.strip()
+                value = value.strip()
+
+                if value in {"|", ">", "|-", ">-", "|+", ">+"}:
+                    block_lines: list[str] = []
+                    index += 1
+                    while index < len(section_lines):
+                        block_indent, block_line = section_lines[index]
+                        if block_indent <= next_indent:
+                            break
+                        block_lines.append(block_line[next_indent + 2 :] if len(block_line) > next_indent + 2 else "")
+                        index += 1
+                    parsed_value = self._normalize_yaml_block_scalar(block_lines, folded=value.startswith(">"))
+                else:
+                    parsed_value = self._strip_yaml_scalar(value)
+                    index += 1
+
+                if key == "type":
+                    command_type = parsed_value
+                elif key == "command":
+                    shell_command = parsed_value
+                elif key in {"description", "help"}:
+                    description = parsed_value
+
+            if command_type == "exec":
+                summary = description or shell_command or f"Run the {command_name} quick command"
+                results[command_name] = summary[:140]
+
+        return results
+
+    def _read_text_file(self, path: Path) -> str | None:
+        try:
+            if path.is_file():
+                return path.read_text(encoding="utf-8")
+        except Exception:
+            return None
+        return None
+
+    def _extract_top_level_yaml_section(self, text: str, section_name: str) -> list[tuple[int, str]]:
+        section_lines: list[tuple[int, str]] = []
+        in_section = False
+        section_indent = 0
+
+        for raw_line in text.splitlines():
+            stripped = raw_line.strip()
+            indent = len(raw_line) - len(raw_line.lstrip(" "))
+
+            if not in_section:
+                if indent == 0 and stripped.startswith(f"{section_name}:"):
+                    in_section = True
+                    section_indent = indent
+                continue
+
+            if stripped and not stripped.startswith("#") and indent <= section_indent:
+                break
+
+            section_lines.append((indent, raw_line))
+
+        return section_lines
+
+    def _strip_yaml_scalar(self, value: str) -> str:
+        normalized = value.strip()
+        if len(normalized) >= 2 and normalized[0] == normalized[-1] and normalized[0] in {"'", '"'}:
+            return normalized[1:-1]
+        return normalized
+
+    def _normalize_yaml_block_scalar(self, lines: list[str], *, folded: bool) -> str:
+        cleaned = [line.rstrip() for line in lines]
+        if folded:
+            return " ".join(line.strip() for line in cleaned if line.strip())
+        return "\n".join(cleaned).strip()
 
     def _rpc_talk_session_end(self, params: dict) -> dict:
         voice_session_id = str(params.get("voiceSessionId") or "").strip()

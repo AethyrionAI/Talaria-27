@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import sys
 
 from hermes_mobile_connector.client import HermesMobileConnector
 from hermes_mobile_connector.hermes_runner import ConnectorHermesSettings, HermesCLIExecutor
@@ -187,6 +188,106 @@ def test_setup_requires_explicit_relay_url_when_env_missing(monkeypatch, tmp_pat
         raise AssertionError("Expected setup() to fail without relay URL")
     except RuntimeError as error:
         assert "Relay URL is required" in str(error)
+
+
+def test_rpc_commands_catalog_includes_personalities_and_quick_commands(monkeypatch, tmp_path):
+    hermes_home = tmp_path / ".hermes"
+    hermes_cli_dir = hermes_home / "hermes-agent" / "hermes_cli"
+    hermes_cli_dir.mkdir(parents=True)
+    (hermes_cli_dir / "__init__.py").write_text("", encoding="utf-8")
+    (hermes_cli_dir / "commands.py").write_text(
+        """
+class Command:
+    def __init__(self, name, description, category, args_hint=None, aliases=None, gateway_only=False):
+        self.name = name
+        self.description = description
+        self.category = category
+        self.args_hint = args_hint
+        self.aliases = aliases or []
+        self.gateway_only = gateway_only
+
+
+COMMAND_REGISTRY = [
+    Command("help", "Show command help", "Info"),
+    Command("skills", "Browse installed skills", "Tools & Skills", "browse"),
+]
+
+
+def _is_gateway_available(cmd, overrides):
+    return True
+
+
+def _resolve_config_gates():
+    return {}
+""",
+        encoding="utf-8",
+    )
+    (hermes_home / "config.yaml").write_text(
+        """
+personalities:
+  mentor: "Helpful, practical, and direct."
+  pirate: >
+    Arrr! Be direct and nautical.
+quick_commands:
+  gpu:
+    type: exec
+    command: nvidia-smi
+  health:
+    type: exec
+    description: Check Hermes health status
+    command: hermes doctor
+  ignored:
+    type: webhook
+    command: ignored
+""",
+        encoding="utf-8",
+    )
+    skill_dir = hermes_home / "skills" / "ios-context"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        "# iOS Context\n\nCapture iOS-specific context.\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+    sys.modules.pop("hermes_cli.commands", None)
+    sys.modules.pop("hermes_cli", None)
+
+    connector = HermesMobileConnector(
+        state_store=ConnectorStateStore(state_dir=tmp_path / "connector-state"),
+        executor=make_executor(),
+    )
+
+    catalog = connector._rpc_commands_catalog()
+
+    assert any(command["name"] == "help" for command in catalog["commands"])
+    assert any(command["name"] == "skills" for command in catalog["commands"])
+    assert catalog["skills"] == [
+        {
+            "name": "ios-context",
+            "description": "Capture iOS-specific context.",
+        }
+    ]
+    assert catalog["personalities"] == [
+        {
+            "name": "mentor",
+            "description": "Helpful, practical, and direct.",
+        },
+        {
+            "name": "pirate",
+            "description": "Arrr! Be direct and nautical.",
+        },
+    ]
+    assert catalog["quickCommands"] == [
+        {
+            "name": "gpu",
+            "description": "nvidia-smi",
+        },
+        {
+            "name": "health",
+            "description": "Check Hermes health status",
+        },
+    ]
 
 
 def test_setup_can_skip_native_mcp_configuration(monkeypatch, tmp_path):

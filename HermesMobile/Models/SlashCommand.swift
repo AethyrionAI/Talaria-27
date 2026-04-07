@@ -16,16 +16,53 @@ struct SlashCommand: Identifiable, Hashable {
     let acceptsArgument: Bool
     let isDestructive: Bool
     let isLocal: Bool
+    let suggestedArgument: String?
+    let showInAutocomplete: Bool
 
-    var id: String { name }
-    var displayTitle: String { "/\(name)" }
+    init(
+        name: String,
+        description: String,
+        category: String,
+        acceptsArgument: Bool,
+        isDestructive: Bool,
+        isLocal: Bool,
+        suggestedArgument: String? = nil,
+        showInAutocomplete: Bool = true
+    ) {
+        self.name = name
+        self.description = description
+        self.category = category
+        self.acceptsArgument = acceptsArgument
+        self.isDestructive = isDestructive
+        self.isLocal = isLocal
+        self.suggestedArgument = suggestedArgument
+        self.showInAutocomplete = showInAutocomplete
+    }
+
+    var id: String {
+        suggestedArgument.map { "\(name)::\($0)" } ?? name
+    }
+
+    var displayTitle: String {
+        if let suggestedArgument {
+            return "/\(name) \(suggestedArgument)"
+        }
+        return "/\(name)"
+    }
+
+    var autocompleteQuery: String {
+        if let suggestedArgument {
+            return "\(name) \(suggestedArgument)".lowercased()
+        }
+        return name.lowercased()
+    }
 
     func hash(into hasher: inout Hasher) {
-        hasher.combine(name)
+        hasher.combine(id)
     }
 
     static func == (lhs: SlashCommand, rhs: SlashCommand) -> Bool {
-        lhs.name == rhs.name
+        lhs.id == rhs.id
     }
 }
 
@@ -103,6 +140,33 @@ extension SlashCommand {
             acceptsArgument: true,
             isDestructive: false,
             isLocal: false
+        )
+    }
+
+    /// Creates a `/personality <name>` autocomplete suggestion.
+    static func fromPersonality(name: String, description: String) -> SlashCommand {
+        SlashCommand(
+            name: "personality",
+            description: description,
+            category: "Personalities",
+            acceptsArgument: true,
+            isDestructive: false,
+            isLocal: false,
+            suggestedArgument: name
+        )
+    }
+
+    /// Quick commands are valid Hermes slash commands, but Hermes docs state
+    /// they are resolved at dispatch time and omitted from built-in autocomplete.
+    static func fromQuickCommand(name: String, description: String) -> SlashCommand {
+        SlashCommand(
+            name: name,
+            description: description,
+            category: "Quick Commands",
+            acceptsArgument: true,
+            isDestructive: false,
+            isLocal: false,
+            showInAutocomplete: false
         )
     }
 }

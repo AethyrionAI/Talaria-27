@@ -189,7 +189,11 @@ struct ChatScreen: View {
         }
 
         Task {
-            await chatStore.sendMessage(content, attachments: attachments)
+            if content.hasPrefix("/") && attachments.isEmpty {
+                await dispatchTypedSlashCommand(content)
+            } else {
+                await chatStore.sendMessage(content, attachments: attachments)
+            }
             scrollToBottom()
         }
     }
@@ -259,6 +263,29 @@ struct ChatScreen: View {
     private func sendSlashAsMessage(_ text: String) async {
         await chatStore.sendMessage(text, attachments: [])
         scrollToBottom()
+    }
+
+    private func dispatchTypedSlashCommand(_ text: String) async {
+        let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard raw.hasPrefix("/") else {
+            await chatStore.sendMessage(raw, attachments: [])
+            return
+        }
+
+        let body = String(raw.dropFirst())
+        let parts = body.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+        guard let first = parts.first else { return }
+
+        let commandName = String(first).lowercased()
+        let argument = parts.count > 1 ? String(parts[1]) : nil
+        let localCommand = (chatStore.commandCatalog + SlashCommand.localCommands)
+            .first { $0.name == commandName && $0.suggestedArgument == nil && $0.isLocal }
+
+        if let localCommand {
+            handleSlashCommand(localCommand, argument)
+        } else {
+            await sendSlashAsMessage(raw)
+        }
     }
 
     private func performClear() async {

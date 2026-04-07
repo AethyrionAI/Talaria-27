@@ -15,8 +15,8 @@ final class ChatStore {
     var isStreaming: Bool { streamingMessageID != nil }
 
     /// Dynamic slash command catalog fetched from the connected Hermes host.
-    /// Includes built-in gateway commands + installed skill commands.
-    /// Falls back to `SlashCommand.allBuiltIn` when unavailable.
+    /// Includes gateway commands, installed skills, custom personalities,
+    /// and hidden quick-command metadata for manual slash dispatch.
     private(set) var commandCatalog: [SlashCommand] = SlashCommand.allBuiltIn
 
     private let hermesClient: any HermesClientProtocol
@@ -332,10 +332,19 @@ final class ChatStore {
         }
     }
 
+    func replaceCommandCatalog(_ catalog: [SlashCommand]) {
+        commandCatalog = catalog.isEmpty ? SlashCommand.allBuiltIn : catalog
+    }
+
+    func resetCommandCatalog() {
+        commandCatalog = SlashCommand.allBuiltIn
+    }
+
     func reset() {
         pollingTask?.cancel()
         pollingTask = nil
         isPollingEnabled = false
+        resetCommandCatalog()
         conversation = nil
         isLoading = false
         pendingMessageSentAt = nil
