@@ -51,3 +51,5 @@ __pycache__/
 hermes-mobile-plans/
 build-log.md
 build-evidence.json
+AuthKey_*.p8
+*.p8
