@@ -6,6 +6,12 @@ final class HermesAppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        // If the app was previously killed while a Live Activity was active,
+        // the OS can still show that stale activity. Clear any orphaned Hermes
+        // activities immediately on launch; real active sessions will recreate
+        // or adopt an activity once state is restored.
+        LiveActivityService.endAllActivities()
+
         // Register for remote (silent push) notifications
         application.registerForRemoteNotifications()
 
