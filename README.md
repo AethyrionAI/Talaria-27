@@ -2,6 +2,7 @@
 
 <img width="128" height="128" alt="image" src="https://github.com/user-attachments/assets/f9aa29c4-f08d-483e-97b5-3fab985ad4a2" />
 
+
 > [!NOTE]
 > Hermes iOS is an independent community project. It is not affiliated with, endorsed by, or part of [Nous Research](https://nousresearch.com/) or the official [Hermes Agent](https://github.com/NousResearch/hermes-agent) project.
 
