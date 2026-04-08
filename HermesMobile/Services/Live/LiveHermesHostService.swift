@@ -22,6 +22,7 @@ final class LiveHermesHostService: HermesHostServiceProtocol {
         let connectorVersion: String?
         let hermesCommand: String?
         let hermesVersion: String?
+        let hermesModel: String?
         let lastSeenAt: Date?
         let lastConnectedAt: Date?
         let isOnline: Bool
@@ -83,6 +84,7 @@ final class LiveHermesHostService: HermesHostServiceProtocol {
             connectorVersion: host.connectorVersion,
             hermesCommand: host.hermesCommand,
             hermesVersion: host.hermesVersion,
+            hermesModel: host.hermesModel,
             lastSeenAt: host.lastSeenAt,
             lastConnectedAt: host.lastConnectedAt,
             isOnline: host.isOnline

@@ -10,6 +10,7 @@ final class MockHermesHostService: HermesHostServiceProtocol {
         connectorVersion: "0.1.0",
         hermesCommand: "hermes",
         hermesVersion: "hermes mock",
+        hermesModel: "gpt-5.4-mini",
         lastSeenAt: .now,
         lastConnectedAt: .now,
         isOnline: true

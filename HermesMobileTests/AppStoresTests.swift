@@ -1557,6 +1557,7 @@ struct AppStoresTests {
             connectorVersion: "0.1.0",
             hermesCommand: "hermes",
             hermesVersion: "hermes 1.2.3",
+            hermesModel: "gpt-5.4-mini",
             lastSeenAt: .now,
             lastConnectedAt: .now,
             isOnline: false
