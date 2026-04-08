@@ -97,13 +97,17 @@ struct ChatScreen: View {
             modelStatusChip
         }
         ToolbarItem(placement: .topBarTrailing) {
-            GlassCircleButton(icon: "gearshape.fill") {
+            GlassCircleButton(icon: "gearshape") {
                 router.presentSheet(.settings)
             }
         }
     }
 
     @State private var showContextPopover = false
+
+    private var displayedModelName: String? {
+        chatStore.activeModelName ?? hostStore.currentHost?.hermesModel
+    }
 
     /// Context usage as 0.0–1.0. Shows 0 when no usage data yet.
     private var contextProgress: Double {
@@ -124,25 +128,35 @@ struct ChatScreen: View {
                     .fill(hostStore.isHostOnline ? .green : .gray)
                     .frame(width: 6, height: 6)
 
-                if let model = chatStore.activeModelName ?? hostStore.currentHost?.hermesModel {
-                    Text(model)
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundStyle(Design.Colors.foreground)
-                        .lineLimit(1)
+                if let model = displayedModelName {
+                    ViewThatFits(in: .horizontal) {
+                        chipModelText(model)
+                        chipModelText(compactModelName(model))
+                    }
                 }
 
                 contextRing(progress: contextProgress)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(.ultraThinMaterial)
-            .clipShape(Capsule())
+            .fixedSize(horizontal: true, vertical: false)
         }
         .buttonStyle(.plain)
+        .contentShape(Capsule())
         .popover(isPresented: $showContextPopover) {
             contextPopoverContent
                 .presentationCompactAdaptation(.popover)
         }
+    }
+
+    private func chipModelText(_ model: String) -> some View {
+        Text(model)
+            .font(.system(size: 12, weight: .medium, design: .monospaced))
+            .foregroundStyle(Design.Colors.foreground)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .minimumScaleFactor(0.8)
+            .layoutPriority(1)
     }
 
     private func contextRing(progress: Double) -> some View {
@@ -160,29 +174,78 @@ struct ChatScreen: View {
     // MARK: - Popover: Context Window X of Y (%)
 
     private var contextPopoverContent: some View {
-        VStack(spacing: Design.Spacing.sm) {
-            if let model = chatStore.activeModelName ?? hostStore.currentHost?.hermesModel {
-                Text(model)
-                    .font(.system(.subheadline, design: .monospaced, weight: .semibold))
-                    .foregroundStyle(Design.Colors.foreground)
+        VStack(alignment: .leading, spacing: Design.Spacing.md) {
+            HStack(spacing: Design.Spacing.xs) {
+                Circle()
+                    .fill(hostStore.isHostOnline ? .green : .gray)
+                    .frame(width: 7, height: 7)
+
+                if let model = displayedModelName {
+                    Text(model)
+                        .font(.system(.subheadline, design: .monospaced, weight: .semibold))
+                        .foregroundStyle(Design.Colors.foreground)
+                        .lineLimit(1)
+                } else {
+                    Text("Model unavailable")
+                        .font(Design.Typography.callout)
+                        .foregroundStyle(Design.Colors.secondaryForeground)
+                }
             }
 
             if let usage = chatStore.lastTokenUsage,
                let maxCtx = chatStore.contextWindow, maxCtx > 0 {
                 let progress = min(Double(usage.totalTokens) / Double(maxCtx), 1.0)
+                let used = formatTokenCount(usage.totalTokens)
+                let total = formatTokenCount(maxCtx)
 
-                Text("Context Window")
-                    .font(.system(.caption2, weight: .semibold))
+                VStack(alignment: .leading, spacing: Design.Spacing.xs) {
+                    Text("Context Window")
+                        .font(.system(.caption2, weight: .semibold))
+                        .foregroundStyle(Design.Colors.secondaryForeground)
+                        .textCase(.uppercase)
+
+                    HStack(alignment: .lastTextBaseline, spacing: 4) {
+                        Text(used)
+                            .font(.system(size: 24, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(Design.Colors.foreground)
+                        Text("/")
+                            .font(.system(size: 18, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Design.Colors.secondaryForeground)
+                        Text(total)
+                            .font(.system(size: 18, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Design.Colors.secondaryForeground)
+                    }
+
+                    HStack(spacing: Design.Spacing.sm) {
+                        Capsule()
+                            .fill(Design.Colors.surface)
+                            .overlay(alignment: .leading) {
+                                GeometryReader { proxy in
+                                    Capsule()
+                                        .fill(contextColor(progress))
+                                        .frame(width: max(proxy.size.width * progress, 3))
+                                }
+                            }
+                            .frame(height: 8)
+
+                        Text("\(Int(progress * 100))%")
+                            .font(.system(.caption, design: .monospaced, weight: .semibold))
+                            .foregroundStyle(Design.Colors.secondaryForeground)
+                    }
+
+                    Text("\(max(maxCtx - usage.totalTokens, 0).formatted()) tokens remaining")
+                        .font(Design.Typography.caption)
+                        .foregroundStyle(Design.Colors.secondaryForeground)
+                }
+            } else {
+                Text("Context usage will appear after the first response.")
+                    .font(Design.Typography.caption)
                     .foregroundStyle(Design.Colors.secondaryForeground)
-                    .textCase(.uppercase)
-
-                Text("\(formatTokenCount(usage.totalTokens)) of \(formatTokenCount(maxCtx)) (\(Int(progress * 100))%)")
-                    .font(.system(.callout, design: .monospaced, weight: .medium))
-                    .foregroundStyle(Design.Colors.foreground)
             }
         }
+        .frame(width: 230, alignment: .leading)
         .padding(.horizontal, Design.Spacing.lg)
-        .padding(.vertical, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.lg)
     }
 
     private func contextColor(_ progress: Double) -> Color {
@@ -193,11 +256,24 @@ struct ChatScreen: View {
 
     private func formatTokenCount(_ count: Int) -> String {
         if count >= 1_000_000 {
-            return String(format: "%.1fM", Double(count) / 1_000_000)
+            return compactDecimal(Double(count) / 1_000_000, suffix: "M")
         } else if count >= 1_000 {
-            return String(format: "%.1fK", Double(count) / 1_000)
+            return compactDecimal(Double(count) / 1_000, suffix: "K")
         }
         return "\(count)"
+    }
+
+    private func compactModelName(_ model: String) -> String {
+        guard model.count > 16 else { return model }
+        return String(model.prefix(16)) + "…"
+    }
+
+    private func compactDecimal(_ value: Double, suffix: String) -> String {
+        let rounded = (value * 10).rounded() / 10
+        if rounded == floor(rounded) {
+            return "\(Int(rounded))\(suffix)"
+        }
+        return String(format: "%.1f%@", rounded, suffix)
     }
 
     // MARK: - Message List

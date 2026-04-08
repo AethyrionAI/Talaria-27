@@ -14,7 +14,6 @@ struct GlassCircleButton: View {
                     height: Design.Size.glassCircleButton
                 )
         }
-        .clipShape(Circle())
-        .glassEffect(.regular.interactive(), in: Circle())
+        .contentShape(Circle())
     }
 }
