@@ -1,6 +1,6 @@
-import AVFoundation
+@preconcurrency import AVFoundation
 import Foundation
-import Speech
+@preconcurrency import Speech
 
 /// On-device speech-to-text using Apple's Speech framework.
 /// Used for dictation in the chat composer — not for voice mode (which uses OpenAI Realtime).
@@ -21,10 +21,10 @@ final class LiveSpeechService {
     /// Core Audio hardware calls block — they must never run on the main thread.
     private nonisolated let audioQueue = DispatchQueue(label: "hermes.speech.audio", qos: .userInitiated)
 
-    private nonisolated let speechRecognizer = SFSpeechRecognizer(locale: Locale.current)
+    private nonisolated(unsafe) let speechRecognizer = SFSpeechRecognizer(locale: Locale.current)
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
-    private nonisolated let audioEngine = AVAudioEngine()
+    private nonisolated(unsafe) let audioEngine = AVAudioEngine()
     private var activeSessionID = UUID()
 
     var supportsOnDevice: Bool {
