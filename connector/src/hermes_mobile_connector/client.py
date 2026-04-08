@@ -57,6 +57,74 @@ _GATEWAY_COMMANDS: list[dict] = [
 ]
 
 
+_MEDIA_PATTERN = re.compile(
+    r'''[`"']?MEDIA:\s*(?P<path>`[^`\n]+`|"[^"\n]+"|'[^'\n]+'|(?:~/|/)\S+(?:[^\S\n]+\S+)*?\.(?:png|jpe?g|gif|webp|mp4|mov|avi|mkv|webm|ogg|opus|mp3|wav|m4a)(?=[\s`"',;:)\]}]|$)|\S+)[`"']?'''
+)
+
+_MIME_TYPES = {
+    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+    ".gif": "image/gif", ".webp": "image/webp",
+    ".mp4": "video/mp4", ".mov": "video/quicktime", ".avi": "video/x-msvideo",
+    ".mkv": "video/x-matroska", ".webm": "video/webm",
+    ".ogg": "audio/ogg", ".opus": "audio/opus", ".mp3": "audio/mpeg",
+    ".wav": "audio/wav", ".m4a": "audio/mp4",
+}
+
+
+def _extract_media_from_response(text: str) -> tuple[list[dict], str]:
+    """Extract MEDIA: tags from agent response and encode files as attachments.
+
+    Uses the same regex pattern as the Hermes gateway's extract_media().
+    Files are read from disk, base64-encoded, and returned as attachment dicts
+    compatible with the relay's attachments_data schema.
+
+    Returns (attachments_list, cleaned_text).
+    """
+    import base64
+
+    attachments: list[dict] = []
+    cleaned = text.replace("[[audio_as_voice]]", "")
+
+    for match in _MEDIA_PATTERN.finditer(text):
+        raw_path = match.group("path").strip()
+        # Strip surrounding quotes/backticks
+        if len(raw_path) >= 2 and raw_path[0] == raw_path[-1] and raw_path[0] in "`\"'":
+            raw_path = raw_path[1:-1].strip()
+        raw_path = raw_path.lstrip("`\"'").rstrip("`\"',.;:)}]")
+        if not raw_path:
+            continue
+
+        # Resolve path
+        file_path = Path(raw_path).expanduser()
+        if not file_path.is_file():
+            continue
+
+        ext = file_path.suffix.lower()
+        mime = _MIME_TYPES.get(ext, "application/octet-stream")
+        kind = "image" if mime.startswith("image/") else "file"
+
+        try:
+            data = file_path.read_bytes()
+            # Skip files larger than 10MB
+            if len(data) > 10 * 1024 * 1024:
+                continue
+            encoded = base64.b64encode(data).decode("ascii")
+            attachments.append({
+                "type": kind,
+                "filename": file_path.name,
+                "mimeType": mime,
+                "data": encoded,
+            })
+        except Exception:
+            continue
+
+    if attachments:
+        cleaned = _MEDIA_PATTERN.sub("", cleaned)
+        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+
+    return attachments, cleaned
+
+
 def _context_window_for(model_name: str, hermes_home: Path | None = None) -> int:
     """Resolve context window size using Hermes's own model_metadata.
 
@@ -685,13 +753,19 @@ class HermesMobileConnector:
             # Capture what files Hermes changed during this job
             diff_data = await capture_diff(workdir, pre_snapshot) if pre_snapshot else None
 
+            # Extract MEDIA: tags from the response — same pattern the
+            # Hermes gateway uses to deliver files on Discord/Telegram.
+            media_attachments, cleaned_text = _extract_media_from_response(final_text)
+
             result_payload: dict = {
                 "type": "job.result",
                 "jobId": job["id"],
-                "text": final_text,
+                "text": cleaned_text,
                 "sessionId": session_id,
                 "usage": usage,
             }
+            if media_attachments:
+                result_payload["attachments"] = media_attachments
             if diff_data is not None:
                 result_payload["diff"] = diff_data
 

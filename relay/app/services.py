@@ -1149,6 +1149,7 @@ def _finalize_job_message(
     role: str,
     text: str,
     delivery_status: str,
+    attachments_data: list[dict] | None = None,
 ) -> Message:
     conversation = db.get(Conversation, job.conversation_id)
     if conversation is None:
@@ -1160,6 +1161,7 @@ def _finalize_job_message(
         role=role,
         text=text,
         delivery_status=delivery_status,
+        attachments_data=attachments_data,
     )
     conversation.last_message_at = utcnow()
     conversation.updated_at = utcnow()
@@ -1177,6 +1179,7 @@ def complete_message_job(
     session_id: str | None,
     usage: dict | None = None,
     diff: dict | None = None,
+    attachments: list[dict] | None = None,
 ) -> MessageJob | None:
     job = db.get(MessageJob, job_id)
     if job is None:
@@ -1197,6 +1200,7 @@ def complete_message_job(
         role="hermes",
         text=text,
         delivery_status="delivered",
+        attachments_data=attachments,
     )
     user_message.delivery_status = "delivered"
     conversation.hermes_session_id = session_id or conversation.hermes_session_id

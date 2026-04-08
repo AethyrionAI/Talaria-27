@@ -1862,6 +1862,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                                         session_id=incoming.get("sessionId"),
                                         usage=incoming.get("usage"),
                                         diff=incoming.get("diff"),
+                                        attachments=incoming.get("attachments"),
                                     )
                                     if completed is None:
                                         await websocket.close(code=1011)
