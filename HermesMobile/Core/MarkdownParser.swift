@@ -18,6 +18,8 @@ enum MarkdownSegment: Identifiable {
 // Regex for markdown images: ![alt text](url)
 // nonisolated(unsafe) satisfies Swift 6.2 strict concurrency for global Regex.
 nonisolated(unsafe) private let markdownImagePattern = /!\[([^\]]*)\]\(([^)]+)\)/
+// HTML img tags: <img src="url"> or <img src="url"/> or <img src="url"></img>
+nonisolated(unsafe) private let htmlImagePattern = /<img\s+src=["']?(https?:\/\/[^\s"'<>]+)["']?\s*\/?\s*>(\s*<\/img>)?/
 
 /// Image file extensions the parser recognizes.
 private let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "svg"]
@@ -39,12 +41,33 @@ private func isImageURL(_ urlString: String) -> Bool {
     return false
 }
 
+/// An image match found in prose text.
+private struct ImageMatch: Comparable {
+    let range: Range<String.Index>
+    let url: String
+    let alt: String
+
+    static func < (lhs: ImageMatch, rhs: ImageMatch) -> Bool {
+        lhs.range.lowerBound < rhs.range.lowerBound
+    }
+}
+
 /// Splits prose text into interleaved prose and image segments, preserving order.
-/// Input:  "before ![alt](url) after"
-/// Output: [.prose("before"), .image(url, "alt"), .prose("after")]
+/// Handles both markdown ![alt](url) and HTML <img src="url"> syntax.
 private func splitProseAndImages(_ text: String) -> [MarkdownSegment] {
-    let matches = text.matches(of: markdownImagePattern)
-    guard !matches.isEmpty else {
+    // Collect all image matches from both patterns
+    var imageMatches: [ImageMatch] = []
+
+    for match in text.matches(of: markdownImagePattern) {
+        imageMatches.append(ImageMatch(range: match.range, url: String(match.2), alt: String(match.1)))
+    }
+    for match in text.matches(of: htmlImagePattern) {
+        imageMatches.append(ImageMatch(range: match.range, url: String(match.1), alt: ""))
+    }
+
+    imageMatches.sort()
+
+    guard !imageMatches.isEmpty else {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? [] : [.prose(text: trimmed)]
     }
@@ -52,27 +75,26 @@ private func splitProseAndImages(_ text: String) -> [MarkdownSegment] {
     var segments: [MarkdownSegment] = []
     var lastEnd = text.startIndex
 
-    for match in matches {
-        let alt = String(match.1)
-        let urlString = String(match.2)
+    for img in imageMatches {
+        // Skip overlapping matches
+        guard img.range.lowerBound >= lastEnd else { continue }
 
         // Emit prose before this image
-        let before = String(text[lastEnd..<match.range.lowerBound])
+        let before = String(text[lastEnd..<img.range.lowerBound])
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if !before.isEmpty {
             segments.append(.prose(text: before))
         }
 
         // Emit image if it's a recognized image URL
-        if isImageURL(urlString), let url = URL(string: urlString) {
-            segments.append(.image(url: url, altText: alt))
+        if isImageURL(img.url), let url = URL(string: img.url) {
+            segments.append(.image(url: url, altText: img.alt))
         } else {
-            // Not a recognized image — keep the markdown as prose
-            let raw = String(text[match.range])
+            let raw = String(text[img.range])
             segments.append(.prose(text: raw))
         }
 
-        lastEnd = match.range.upperBound
+        lastEnd = img.range.upperBound
     }
 
     // Emit prose after the last image
