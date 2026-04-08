@@ -8,7 +8,8 @@
 
 Hermes iOS is a self-hosted-first iPhone companion for a user-owned Hermes runtime. It adds a native iOS app, a public relay, and a host-side connector so Hermes can move between desktop, phone, sensors, widgets, and voice without turning your runtime into a hosted service.
 
-<insert image> Hermes iOS chat screen showing the host connection dot, current model chip, context ring, and an inline image returned by Hermes.
+<img width="3168" height="1344" alt="Gemini_Generated_Image_nsyz1ynsyz1ynsyz" src="https://github.com/user-attachments/assets/4ff03aec-e2d8-4174-a194-5aa2839a1f1f" />
+
 
 ## Why use it
 
@@ -144,13 +145,6 @@ Or start a fresh Hermes chat/session if you prefer.
 - [connector/SENSOR_SCHEMA.md](connector/SENSOR_SCHEMA.md): connector SQLite schema and MCP query surface
 - [docs/IOS_CAPABILITIES.md](docs/IOS_CAPABILITIES.md): technical iOS capability ledger for maintainers
 - [MAINTAINER_NOTES.md](MAINTAINER_NOTES.md): maintainer-facing implementation snapshot, not onboarding
-
-## Screenshots to add
-
-- `<insert image> Hermes iOS chat screen with inline returned image, tool activity, and model chip.`
-- `<insert image> Connector setup wizard showing the Fly / existing relay / local network options.`
-- `<insert image> Connector pair-phone output with QR code and manual pairing code.`
-- `<insert image> Hermes skill install step or `/reload-mcp` confirmation in a Hermes chat session.`
 
 ## Project status
 
