@@ -1,3 +1,4 @@
+import Photos
 import SwiftUI
 
 /// Renders message content with inline markdown formatting, fenced code blocks,
@@ -166,11 +167,11 @@ struct ImageViewerScreen: View {
                     downloadToPhotos()
                 } label: {
                     Label(
-                        savedToPhotos ? "Saved" : "Save to Photos",
-                        systemImage: savedToPhotos ? "checkmark.circle.fill" : "arrow.down.to.line"
+                        savedToPhotos ? "Saved" : (saveError ?? "Save to Photos"),
+                        systemImage: savedToPhotos ? "checkmark.circle.fill" : (saveError != nil ? "exclamationmark.triangle" : "arrow.down.to.line")
                     )
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(saveError != nil ? .red : .white)
                     .padding(.horizontal, Design.Spacing.md)
                     .padding(.vertical, Design.Spacing.sm)
                     .background(.ultraThinMaterial)
@@ -193,15 +194,31 @@ struct ImageViewerScreen: View {
         .statusBarHidden(true)
     }
 
+    @State private var saveError: String?
+
     private func downloadToPhotos() {
         Task {
             do {
+                // Check photo library authorization first
+                let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+                guard status == .authorized || status == .limited else {
+                    withAnimation { saveError = "Photo library access denied" }
+                    return
+                }
+
                 let (data, _) = try await URLSession.shared.data(from: url)
-                guard let uiImage = UIImage(data: data) else { return }
-                UIImageWriteToSavedPhotosAlbum(uiImage, nil, nil, nil)
+                guard let uiImage = UIImage(data: data) else {
+                    withAnimation { saveError = "Invalid image data" }
+                    return
+                }
+
+                // Save using PHPhotoLibrary for proper completion handling
+                try await PHPhotoLibrary.shared().performChanges {
+                    PHAssetChangeRequest.creationRequestForAsset(from: uiImage)
+                }
                 withAnimation { savedToPhotos = true }
             } catch {
-                // Download failed — silently ignore
+                withAnimation { saveError = "Save failed" }
             }
         }
     }

@@ -160,21 +160,34 @@ def deploy_relay_to_fly() -> tuple[str, str]:
         if result.returncode != 0:
             print(f"App creation failed. It may already exist — continuing.")
 
-        # 9. Create Postgres
+        # 9. Create Postgres (Managed Postgres — current Fly recommendation)
         db_name = f"{app_name}-db"
-        print(f"\nCreating Postgres database: {db_name}...")
-        _run_fly(flyctl, [
-            "postgres", "create",
-            "--name", db_name,
-            "--region", region,
-            "--vm-size", "shared-cpu-1x",
-            "--initial-cluster-size", "1",
-            "--volume-size", "1",
-        ])
+        print(f"\nCreating Managed Postgres database: {db_name}...")
+        print("  See: https://fly.io/docs/mpg/overview/")
+        try:
+            _run_fly(flyctl, [
+                "mpg", "create",
+                "--name", db_name,
+                "--region", region,
+            ])
+        except Exception:
+            # Fall back to legacy postgres create if mpg isn't available
+            print("  Managed Postgres not available, trying legacy postgres create...")
+            _run_fly(flyctl, [
+                "postgres", "create",
+                "--name", db_name,
+                "--region", region,
+                "--vm-size", "shared-cpu-1x",
+                "--initial-cluster-size", "1",
+                "--volume-size", "1",
+            ])
 
         # 10. Attach Postgres
         print(f"\nAttaching database to app...")
-        _run_fly(flyctl, ["postgres", "attach", db_name, "-a", app_name])
+        try:
+            _run_fly(flyctl, ["mpg", "attach", db_name, "-a", app_name])
+        except Exception:
+            _run_fly(flyctl, ["postgres", "attach", db_name, "-a", app_name])
 
         # 11. Set secrets
         print("\nSetting secrets...")
@@ -232,7 +245,7 @@ def resolve_relay_url(connector: HermesMobileConnector) -> tuple[str, str | None
     if relay_dir and _find_flyctl():
         options["1"] = "Deploy a new relay on Fly.io (recommended)"
     options["2"] = "Enter an existing relay URL"
-    options["3"] = "Use localhost (development only — same network required)"
+    options["3"] = "Use local network relay (simulator or same-network testing)"
 
     default = "1" if "1" in options else "2"
     choice = choose_option("\nHow would you like to connect to a relay?", options, default=default)
@@ -248,10 +261,21 @@ def resolve_relay_url(connector: HermesMobileConnector) -> tuple[str, str | None
             print("Warning: relay is not responding. Continuing anyway...")
         return url or "", os.getenv("CONNECTOR_SETUP_SECRET")
 
-    # choice == "3" — localhost
-    print("\nNote: localhost relay only works when your phone is on the same network.")
-    print("For production use, deploy a cloud relay instead.")
-    return "http://127.0.0.1:8000/v1", None
+    # choice == "3" — local network
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        local_ip = "127.0.0.1"
+    default_url = f"http://{local_ip}:8000/v1"
+    print(f"\nYour local network IP: {local_ip}")
+    print("IMPORTANT: 127.0.0.1 does NOT work on physical devices — it resolves to the phone itself.")
+    print("Use your Mac's local IP address so the phone can reach the relay over Wi-Fi.")
+    url = prompt(f"Relay URL [{default_url}]") or default_url
+    return url, None
 
 
 def print_qr_code(value: str) -> None:
