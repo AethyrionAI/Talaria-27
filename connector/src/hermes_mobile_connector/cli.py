@@ -99,6 +99,44 @@ def _run_fly(
     )
 
 
+def _resolve_mpg_cluster_id(flyctl: str, cluster_name: str) -> str | None:
+    """Resolve a Managed Postgres cluster ID from its name via fly mpg list.
+
+    Returns the cluster ID string, or None if not found.
+    """
+    try:
+        result = subprocess.run(
+            [flyctl, "mpg", "list", "--json"],
+            capture_output=True, text=True, check=True,
+        )
+        import json
+        clusters = json.loads(result.stdout)
+        if isinstance(clusters, list):
+            for cluster in clusters:
+                if cluster.get("name") == cluster_name:
+                    return cluster.get("id") or cluster.get("ID")
+        # If --json isn't supported, try parsing text output
+    except (subprocess.CalledProcessError, json.JSONDecodeError, Exception):
+        pass
+
+    # Fallback: try fly mpg list without --json and parse the table
+    try:
+        result = subprocess.run(
+            [flyctl, "mpg", "list"],
+            capture_output=True, text=True, check=True,
+        )
+        for line in result.stdout.splitlines():
+            if cluster_name in line:
+                # Table format usually has ID as the first column
+                parts = line.split()
+                if parts:
+                    return parts[0]
+    except Exception:
+        pass
+
+    return None
+
+
 def deploy_relay_to_fly() -> tuple[str, str]:
     """Guided Fly.io relay deployment. Returns (relay_url, setup_secret)."""
     print()
@@ -172,15 +210,17 @@ def deploy_relay_to_fly() -> tuple[str, str]:
             print("  App creation failed — it may already exist. Continuing.")
 
         # 9. Create Postgres (try Managed Postgres first, fall back to legacy)
+        # See: https://fly.io/docs/mpg/create-and-connect/
         db_name = f"{app_name}-db"
+        use_managed = False
         print(f"\nCreating Postgres database: {db_name}...")
         print("  Trying Managed Postgres (fly mpg) first...")
-        print("  See: https://fly.io/docs/mpg/overview/")
         try:
             _run_fly(flyctl, ["mpg", "create", "--name", db_name, "--region", region])
+            use_managed = True
             print("  Managed Postgres created.")
         except subprocess.CalledProcessError:
-            print("  Managed Postgres failed. Falling back to legacy Fly Postgres...")
+            print("  Managed Postgres not available. Falling back to legacy Fly Postgres...")
             try:
                 _run_fly(flyctl, [
                     "postgres", "create",
@@ -193,23 +233,38 @@ def deploy_relay_to_fly() -> tuple[str, str]:
                 print("  Legacy Postgres created.")
             except subprocess.CalledProcessError as e:
                 print(f"  ERROR: Postgres creation failed: {e}")
-                print("  You may need to create the database manually:")
+                print("  Create the database manually, then re-run setup:")
                 print(f"    fly mpg create --name {db_name} --region {region}")
                 raise
 
         # 10. Attach Postgres
         print(f"\nAttaching database to app...")
-        try:
-            _run_fly(flyctl, ["mpg", "attach", db_name, "-a", app_name])
-            print("  Database attached (managed).")
-        except subprocess.CalledProcessError:
+        if use_managed:
+            # Managed Postgres: fly mpg attach requires the cluster ID, not name.
+            # Resolve it from fly mpg list.
+            cluster_id = _resolve_mpg_cluster_id(flyctl, db_name)
+            if cluster_id:
+                try:
+                    _run_fly(flyctl, ["mpg", "attach", cluster_id, "-a", app_name])
+                    print(f"  Database attached (managed, cluster {cluster_id}).")
+                except subprocess.CalledProcessError as e:
+                    print(f"  ERROR: Managed attach failed: {e}")
+                    print(f"  Attach manually using the cluster ID from 'fly mpg list':")
+                    print(f"    fly mpg attach <CLUSTER_ID> -a {app_name}")
+                    raise
+            else:
+                print(f"  WARNING: Could not resolve cluster ID for '{db_name}'.")
+                print(f"  Run 'fly mpg list' to find the cluster ID, then attach manually:")
+                print(f"    fly mpg attach <CLUSTER_ID> -a {app_name}")
+        else:
+            # Legacy Postgres: attach by app name
             try:
                 _run_fly(flyctl, ["postgres", "attach", db_name, "-a", app_name])
                 print("  Database attached (legacy).")
             except subprocess.CalledProcessError as e:
                 print(f"  ERROR: Database attach failed: {e}")
-                print("  You may need to attach manually:")
-                print(f"    fly mpg attach {db_name} -a {app_name}")
+                print(f"  Attach manually:")
+                print(f"    fly postgres attach {db_name} -a {app_name}")
                 raise
 
         # 11. Set secrets
