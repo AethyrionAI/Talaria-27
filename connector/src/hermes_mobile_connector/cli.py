@@ -100,26 +100,30 @@ def _run_fly(
 
 
 def _resolve_mpg_cluster_id(flyctl: str, cluster_name: str) -> str | None:
-    """Resolve a Managed Postgres cluster ID from its name via fly mpg list.
+    """Resolve a Managed Postgres cluster ID from its name via ``fly mpg list``.
 
-    Returns the cluster ID string, or None if not found.
+    Tries ``--json`` first for reliable parsing, then falls back to
+    plain-text table parsing.  Returns the cluster ID string, or None.
     """
+    import json as _json  # imported at function scope so except can reference it
+
+    # Try JSON output first
     try:
         result = subprocess.run(
             [flyctl, "mpg", "list", "--json"],
             capture_output=True, text=True, check=True,
         )
-        import json
-        clusters = json.loads(result.stdout)
+        clusters = _json.loads(result.stdout)
         if isinstance(clusters, list):
             for cluster in clusters:
                 if cluster.get("name") == cluster_name:
                     return cluster.get("id") or cluster.get("ID")
-        # If --json isn't supported, try parsing text output
-    except (subprocess.CalledProcessError, json.JSONDecodeError, Exception):
+    except (subprocess.CalledProcessError, _json.JSONDecodeError, ValueError):
+        pass
+    except Exception:
         pass
 
-    # Fallback: try fly mpg list without --json and parse the table
+    # Fallback: plain-text table parsing
     try:
         result = subprocess.run(
             [flyctl, "mpg", "list"],
@@ -127,7 +131,6 @@ def _resolve_mpg_cluster_id(flyctl: str, cluster_name: str) -> str | None:
         )
         for line in result.stdout.splitlines():
             if cluster_name in line:
-                # Table format usually has ID as the first column
                 parts = line.split()
                 if parts:
                     return parts[0]
