@@ -1,6 +1,4 @@
-# Hermes iOS
-
-<img width="128" height="128" alt="image" src="https://github.com/user-attachments/assets/f9aa29c4-f08d-483e-97b5-3fab985ad4a2" />
+# Hermes iOS <img width="32" height="32" alt="image" src="https://github.com/user-attachments/assets/f9aa29c4-f08d-483e-97b5-3fab985ad4a2" />
 
 
 > [!NOTE]
