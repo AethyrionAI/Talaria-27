@@ -76,10 +76,20 @@ final class LivePairingService: PairingServiceProtocol {
             )
         )
 
+        // A misconfigured relay can report its own `backendEndpoint` as a
+        // link-local IPv6 (fe80::…) even though the device just reached it at a
+        // routable address to redeem the code. Link-local addresses only route on
+        // a single link and need an interface scope, so trusting that value yields
+        // "No route to host" on every later request. Keep the address that worked.
+        let resolvedEndpoint = Self.routableEndpoint(
+            reported: response.session.backendEndpoint,
+            fallback: request.relayBaseURLString
+        )
+
         return PairingRedeemResult(
             configuration: PairedRelayConfiguration(
-                baseURLString: response.session.backendEndpoint,
-                hostDisplayName: URL(string: response.session.backendEndpoint)?.host ?? response.session.backendEndpoint,
+                baseURLString: resolvedEndpoint,
+                hostDisplayName: URL(string: resolvedEndpoint)?.host ?? resolvedEndpoint,
                 pairedAt: .now
             ),
             state: AppSessionState(
@@ -91,7 +101,7 @@ final class LivePairingService: PairingServiceProtocol {
                 connectionStatus: response.session.connectionStatus,
                 syncStatus: .synced,
                 isMockMode: response.session.isMockMode,
-                backendEndpoint: response.session.backendEndpoint,
+                backendEndpoint: resolvedEndpoint,
                 lastSyncAt: response.session.lastSyncAt,
                 pushTokenRegistered: false
             ),
@@ -101,5 +111,26 @@ final class LivePairingService: PairingServiceProtocol {
                 expiresAt: response.auth.expiresAt
             )
         )
+    }
+
+    // MARK: - Endpoint resolution
+
+    /// Returns the relay's reported endpoint when it's routable, otherwise the
+    /// fallback address the device already used successfully to redeem the code.
+    private static func routableEndpoint(reported: String, fallback: String) -> String {
+        guard let host = URL(string: reported)?.host, !host.isEmpty else { return fallback }
+        return isUnroutableHost(host) ? fallback : reported
+    }
+
+    /// True for hosts a phone can't reach across the network: IPv6 link-local
+    /// (fe80::/10), IPv4 link-local (169.254/16), and the unspecified address.
+    private static func isUnroutableHost(_ host: String) -> Bool {
+        let normalized = host
+            .trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+            .lowercased()
+        if normalized.hasPrefix("fe80:") { return true }
+        if normalized.hasPrefix("169.254.") { return true }
+        if normalized == "::" || normalized == "0.0.0.0" { return true }
+        return false
     }
 }
