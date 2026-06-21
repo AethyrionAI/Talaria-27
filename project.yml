@@ -60,6 +60,9 @@ targets:
         DEVELOPMENT_TEAM: ""
         CODE_SIGN_STYLE: Automatic
         INFOPLIST_KEY_CFBundleDisplayName: Talaria
+    scheme:
+      testTargets:
+        - TalariaTests
     info:
       path: Talaria/Resources/Info.plist
       properties:
@@ -119,6 +122,7 @@ targets:
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ""
         TARGETED_DEVICE_FAMILY: "1,2"
+    scheme: {}
 
   TalariaTests:
     type: bundle.unit-test

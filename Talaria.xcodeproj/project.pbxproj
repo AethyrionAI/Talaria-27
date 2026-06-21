@@ -330,7 +330,7 @@
 		C9DB35CE33537DD35FFADDB5 /* TranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptView.swift; sourceTree = "<group>"; };
 		CA2D5D9BB35C5C3D189C711E /* ChatStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStore.swift; sourceTree = "<group>"; };
 		CB23EEE4091D1A2F309E9B3C /* MockSessionBootstrapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockSessionBootstrapService.swift; sourceTree = "<group>"; };
-		CF4DD77146A6664BBB6ABC3F /* Talaria for Hermes Desktop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Talaria for Hermes Desktop.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		CF4DD77146A6664BBB6ABC3F /* Talaria.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Talaria.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D016765CED5AAD80FF5411F5 /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
 		D2AEA3CBF82B7CB832FC0EB1 /* LivePairingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivePairingService.swift; sourceTree = "<group>"; };
 		D84D166D8E272CB6E7DF3DC6 /* VoiceSessionBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSessionBanner.swift; sourceTree = "<group>"; };
@@ -610,7 +610,7 @@
 		A37EFAE62F3229349E34F508 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				CF4DD77146A6664BBB6ABC3F /* Talaria for Hermes Desktop.app */,
+				CF4DD77146A6664BBB6ABC3F /* Talaria.app */,
 				154B99C2DB8349C94F4C6ECF /* TalariaTests.xctest */,
 				40C7430E8F5950871E3B3B8E /* TalariaUITests.xctest */,
 				843DA9094BCC14595B48C63B /* TalariaWidgets.appex */,
@@ -783,7 +783,7 @@
 				C3E2984E6A338E7582E9A01C /* WebRTC */,
 			);
 			productName = Talaria;
-			productReference = CF4DD77146A6664BBB6ABC3F /* Talaria for Hermes Desktop.app */;
+			productReference = CF4DD77146A6664BBB6ABC3F /* Talaria.app */;
 			productType = "com.apple.product-type.application";
 		};
 		23F486750C75CAACFBF51049 /* TalariaUITests */ = {
