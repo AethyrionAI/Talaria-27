@@ -144,8 +144,12 @@ final class SessionsHermesClient: HermesClientProtocol {
                             // Phase 1 (the disclosure UI is Phase 2 work).
                             break
                         case "assistant.completed":
-                            let finalContent = self.decodeJSONString(currentData, key: "content")
-                                ?? assembledContent
+                            // Streaming returns an empty final_response (text already
+                            // streamed via assistant.delta), so the server sends content:"".
+                            // Empty string is non-nil, so `?? assembledContent` won't fire;
+                            // fall back to the assembled deltas when content is blank.
+                            let declared = self.decodeJSONString(currentData, key: "content")
+                            let finalContent = (declared?.isEmpty == false) ? declared! : assembledContent
                             let finalMessage = Message(
                                 sender: .hermes,
                                 content: finalContent,
@@ -168,6 +172,10 @@ final class SessionsHermesClient: HermesClientProtocol {
                             continue
                         }
                         if line.hasPrefix("event:") {
+                            // URLSession's bytes.lines swallows the blank lines that
+                            // separate SSE events, so the `line.isEmpty` dispatch above
+                            // never fires. Flush the previous event when a new one begins.
+                            if !currentData.isEmpty { dispatchEvent() }
                             currentEvent = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces)
                         } else if line.hasPrefix("data:") {
                             let value = String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces)
