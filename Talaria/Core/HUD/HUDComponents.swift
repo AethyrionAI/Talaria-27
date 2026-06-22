@@ -294,7 +294,7 @@ struct GhostButton: View {
                 Text(title)
                     .font(Design.Typography.body(14, weight: .medium))
             }
-            .foregroundStyle(Design.Colors.accentBright)
+            .foregroundStyle(Design.Brand.accentBright)
             .frame(maxWidth: .infinity)
             .frame(height: height)
             .background(Design.Colors.accentTint(0.1), in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))

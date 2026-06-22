@@ -245,7 +245,7 @@ struct SettingsScreen: View {
                                     .font(Design.Typography.mono(11, weight: .medium))
                                     .tracking(Design.Tracking.mono)
                             }
-                            .foregroundStyle(Design.Colors.accentBright)
+                            .foregroundStyle(Design.Brand.accentBright)
                             .padding(.horizontal, Design.Spacing.md)
                             .padding(.vertical, Design.Spacing.xs)
                             .background(Design.Colors.accentTint(0.10), in: Capsule())

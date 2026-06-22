@@ -96,7 +96,7 @@ struct LiveCameraOverlay: View {
                             Text("OPEN SETTINGS")
                                 .font(Design.Typography.mono(11, weight: .medium))
                                 .tracking(Design.Tracking.monoWide)
-                                .foregroundStyle(Design.Colors.accentBright)
+                                .foregroundStyle(Design.Brand.accentBright)
                                 .padding(.horizontal, Design.Spacing.lg)
                                 .padding(.vertical, Design.Spacing.sm)
                                 .background(Design.Colors.accentTint(0.1), in: Capsule())
@@ -136,7 +136,7 @@ struct LiveCameraOverlay: View {
     private func cameraControlIcon(_ systemName: String, size: CGFloat) -> some View {
         Image(systemName: systemName)
             .font(.system(size: size, weight: .semibold))
-            .foregroundStyle(Design.Colors.accentBright)
+            .foregroundStyle(Design.Brand.accentBright)
             .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
             .background(Design.Colors.surface, in: Circle())
             .overlay { Circle().strokeBorder(Design.Colors.cyanBorder, lineWidth: 1) }

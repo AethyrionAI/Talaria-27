@@ -239,7 +239,7 @@ struct VoiceOverlayScreen: View {
                         Text("OPEN SETTINGS")
                             .font(Design.Typography.mono(11, weight: .medium))
                             .tracking(Design.Tracking.monoWide)
-                            .foregroundStyle(Design.Colors.accentBright)
+                            .foregroundStyle(Design.Brand.accentBright)
                             .padding(.horizontal, Design.Spacing.lg)
                             .padding(.vertical, Design.Spacing.xs)
                             .background(Design.Colors.accentTint(0.1), in: Capsule())
