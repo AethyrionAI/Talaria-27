@@ -35,7 +35,7 @@ struct ChatScreen: View {
             VStack(spacing: 0) {
                 agentIdentityStrip
 
-                if pairingStore.isPaired, effectiveConnectionState != .online {
+                if showsConnectionBanner {
                     connectionBanner
                 }
                 messageList
@@ -57,7 +57,7 @@ struct ChatScreen: View {
                 model: sessionsModel,
                 hostName: (hostStore.currentHost?.resolvedDisplayName ?? "HERMES HOST"),
                 hostDetail: sessionsHostDetail,
-                hostOnline: effectiveConnectionState == .online
+                hostOnline: isChatHostOnline
             )
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -70,20 +70,8 @@ struct ChatScreen: View {
         .onChange(of: displayedModelName) { _, newValue in
             modelModel.activeModelNameOverride = newValue
         }
-        .task {
-            chatStore.setPollingEnabled(true)
-            await hostStore.refresh()
-            await chatStore.refreshDirectHealth()
-            await chatStore.loadConversationIfNeeded()
-        }
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(10))
-                guard !Task.isCancelled else { break }
-                await hostStore.refresh()
-                await chatStore.refreshDirectHealth()
-            }
-        }
+        .task { await startChatSession() }
+        .task { await monitorConnectionStatus() }
         .onDisappear {
             chatStore.setPollingEnabled(false)
         }
@@ -165,6 +153,27 @@ struct ChatScreen: View {
         sessionsModel.sessions = infos.map(Self.sessionSummary(from:))
     }
 
+    /// Initial chat bootstrap: enable polling, refresh relay host + direct
+    /// Sessions API health, then load the conversation. Extracted from `body`'s
+    /// `.task` to keep that view expression cheap to type-check.
+    private func startChatSession() async {
+        chatStore.setPollingEnabled(true)
+        await hostStore.refresh()
+        await chatStore.refreshDirectHealth()
+        await chatStore.loadConversationIfNeeded()
+    }
+
+    /// Periodically re-checks relay host status and direct Sessions API health
+    /// while the chat screen is visible.
+    private func monitorConnectionStatus() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(10))
+            guard !Task.isCancelled else { break }
+            await hostStore.refresh()
+            await chatStore.refreshDirectHealth()
+        }
+    }
+
     private static func sessionSummary(from info: HermesSessionInfo) -> SessionsDrawerModel.SessionSummary {
         let title = (info.title?.isEmpty == false)
             ? info.title!
@@ -231,7 +240,7 @@ struct ChatScreen: View {
             .accessibilityLabel("Sessions")
         }
         ToolbarItem(placement: .principal) {
-            ModelSelector(model: modelModel, isOnline: effectiveConnectionState == .online)
+            ModelSelector(model: modelModel, isOnline: isChatHostOnline)
         }
         ToolbarItem(placement: .topBarTrailing) {
             GlassCircleButton(icon: "gearshape", accessibilityLabel: "Open settings") {
@@ -256,6 +265,17 @@ struct ChatScreen: View {
             // never flash a false offline state before the first probe resolves.
             return .online
         }
+    }
+
+    // Explicitly-typed projections of `effectiveConnectionState`. Keeping these
+    // out of `body` as plain Bools keeps that (already large) view expression
+    // within the Swift type-checker's complexity budget.
+    private var showsConnectionBanner: Bool {
+        pairingStore.isPaired && effectiveConnectionState != .online
+    }
+
+    private var isChatHostOnline: Bool {
+        effectiveConnectionState == .online
     }
 
     private var displayedModelName: String? {
