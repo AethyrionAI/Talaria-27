@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Full-screen voice overlay, inspired by ChatGPT's voice mode.
+/// Full-screen arc-reactor "VOICE LINK" overlay.
 /// Auto-starts a voice session on appear and tears it down on dismiss.
 struct VoiceOverlayScreen: View {
     @Environment(TalkStore.self) private var talkStore
@@ -9,24 +9,28 @@ struct VoiceOverlayScreen: View {
 
     @State private var showLiveCameraOverlay = false
 
+    private var isSpeaking: Bool { talkStore.voiceState == .speaking }
+    private var isLive: Bool {
+        talkStore.connectionState == .connected && {
+            switch talkStore.voiceState {
+            case .listening, .thinking, .speaking: return true
+            default: return false
+            }
+        }()
+    }
+
     var body: some View {
         ZStack {
-            Design.Colors.background
+            HUDScreenBackground(gridIntensity: 0.4)
+                .ignoresSafeArea()
+
+            CornerBrackets(arm: Design.Size.bracket, lineWidth: 1.5, inset: Design.Spacing.md)
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Top bar
-                HStack {
-                    Text("Hermes")
-                        .font(Design.Typography.headline)
-                        .foregroundStyle(Design.Colors.foreground)
-                    Text("Voice")
-                        .font(Design.Typography.headline)
-                        .foregroundStyle(Design.Colors.secondaryForeground)
-                    Spacer()
-                }
-                .padding(.horizontal, Design.Spacing.lg)
-                .padding(.top, Design.Spacing.md)
+                header
+                    .padding(.horizontal, Design.Spacing.lg)
+                    .padding(.top, Design.Spacing.md)
 
                 Spacer()
 
@@ -49,6 +53,11 @@ struct VoiceOverlayScreen: View {
                     .padding(.horizontal, Design.Spacing.xl)
                     .animation(Design.Motion.quickResponse, value: talkStore.connectionState)
                     .animation(Design.Motion.quickResponse, value: talkStore.voiceState)
+
+                VoiceWaveform(isActive: isLive)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, Design.Spacing.xxl)
+                    .padding(.top, Design.Spacing.md)
 
                 Spacer()
 
@@ -93,20 +102,61 @@ struct VoiceOverlayScreen: View {
         }
     }
 
+    // MARK: - Header
+
+    private var header: some View {
+        VStack(spacing: Design.Spacing.xs) {
+            MonoLabel(sessionHeaderLabel, tracking: Design.Tracking.monoWide)
+
+            Text("HERMES")
+                .font(Design.Typography.display(20, weight: .semibold, relativeTo: .title2))
+                .tracking(Design.Tracking.display)
+                .foregroundStyle(Design.Colors.foregroundBright)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var sessionHeaderLabel: String {
+        if talkStore.isSessionActive {
+            return "VOICE SESSION · \(formattedDuration)"
+        }
+        return "VOICE LINK · CONNECTING"
+    }
+
+    private var formattedDuration: String {
+        let minutes = Int(talkStore.sessionDuration) / 60
+        let seconds = Int(talkStore.sessionDuration) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
+
     // MARK: - Transcript
 
     private var transcriptSection: some View {
-        ScrollView {
-            LazyVStack(spacing: Design.Spacing.sm) {
-                ForEach(talkStore.transcriptItems) { item in
-                    transcriptBubble(item)
+        HUDPanel(cornerRadius: Design.CornerRadius.lg) {
+            VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+                HStack(spacing: Design.Spacing.xs) {
+                    MonoLabel("LIVE TRANSCRIPT", tracking: Design.Tracking.monoWide)
+                    Spacer(minLength: 0)
+                    if isLive {
+                        StatusPip(color: Design.Brand.accent, diameter: 6, blinks: true)
+                    }
                 }
+
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: Design.Spacing.sm) {
+                        ForEach(talkStore.transcriptItems) { item in
+                            transcriptBubble(item)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .scrollDismissesKeyboard(.never)
+                .defaultScrollAnchor(.bottom)
+                .frame(maxHeight: 280)
             }
-            .padding(.horizontal, Design.Spacing.lg)
+            .padding(Design.Spacing.md)
         }
-        .scrollDismissesKeyboard(.never)
-        .defaultScrollAnchor(.bottom)
-        .frame(maxHeight: 320)
+        .padding(.horizontal, Design.Spacing.lg)
     }
 
     @ViewBuilder
@@ -121,30 +171,48 @@ struct VoiceOverlayScreen: View {
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 80, height: 80)
                         .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                                .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+                        }
                 } else if !item.text.isEmpty {
-                    Text(item.text)
-                        .font(Design.Typography.body)
-                        .foregroundStyle(Design.Colors.foreground)
-                        .padding(.horizontal, Design.Spacing.md)
-                        .padding(.vertical, Design.Spacing.sm)
-                        .background(Design.Colors.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.xl))
-                        .opacity(item.isPartial ? 0.6 : 1)
+                    VStack(alignment: .trailing, spacing: Design.Spacing.xxxs) {
+                        MonoLabel("YOU", tracking: Design.Tracking.mono)
+                        Text(item.text)
+                            .font(Design.Typography.body)
+                            .foregroundStyle(Design.Colors.coolForeground)
+                            .multilineTextAlignment(.trailing)
+                            .padding(.horizontal, Design.Spacing.md)
+                            .padding(.vertical, Design.Spacing.sm)
+                            .background(Design.Colors.accentTint(0.08), in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: Design.CornerRadius.lg)
+                                    .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+                            }
+                            .opacity(item.isPartial ? 0.6 : 1)
+                    }
                 }
             }
         case .hermes:
-            HStack {
-                Text(item.text)
-                    .font(Design.Typography.body)
-                    .foregroundStyle(Design.Colors.foreground)
-                    .opacity(item.isPartial ? 0.6 : 1)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: Design.Spacing.xxxs) {
+                    MonoLabel("HERMES", tracking: Design.Tracking.mono, color: Design.Colors.accentTint(0.7))
+                    HStack(alignment: .firstTextBaseline, spacing: 0) {
+                        Text(item.text)
+                            .font(Design.Typography.body)
+                            .foregroundStyle(Design.Colors.coolForeground)
+                            .opacity(item.isPartial ? 0.72 : 1)
+                        if item.isPartial && isLive {
+                            BlinkingCaret()
+                        }
+                    }
+                }
                 Spacer()
             }
         case .system:
-            Text(item.text)
-                .font(Design.Typography.caption)
-                .foregroundStyle(Design.Colors.secondaryForeground)
+            MonoLabel(item.text, tracking: Design.Tracking.mono, color: Design.Colors.mutedForeground)
                 .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
         }
     }
 
@@ -157,7 +225,7 @@ struct VoiceOverlayScreen: View {
             VStack(spacing: Design.Spacing.sm) {
                 Text(talkStore.blockedReason ?? "Unable to connect")
                     .font(Design.Typography.callout)
-                    .foregroundStyle(Design.Colors.secondaryForeground)
+                    .foregroundStyle(Design.Brand.forge)
                     .multilineTextAlignment(.center)
 
                 // Show "Open Settings" for permission-related blocks
@@ -168,13 +236,16 @@ struct VoiceOverlayScreen: View {
                             UIApplication.shared.open(url)
                         }
                     } label: {
-                        Text("Open Settings")
-                            .font(Design.Typography.callout.weight(.medium))
+                        Text("OPEN SETTINGS")
+                            .font(Design.Typography.mono(11, weight: .medium))
+                            .tracking(Design.Tracking.monoWide)
+                            .foregroundStyle(Design.Colors.accentBright)
                             .padding(.horizontal, Design.Spacing.lg)
                             .padding(.vertical, Design.Spacing.xs)
-                            .background(Design.Colors.surface)
-                            .clipShape(Capsule())
+                            .background(Design.Colors.accentTint(0.1), in: Capsule())
+                            .overlay { Capsule().strokeBorder(Design.Colors.cyanBorder, lineWidth: 1) }
                     }
+                    .buttonStyle(.plain)
                 }
             }
 
@@ -182,98 +253,120 @@ struct VoiceOverlayScreen: View {
             HStack(spacing: Design.Spacing.xs) {
                 ProgressView()
                     .controlSize(.small)
-                    .tint(Design.Colors.secondaryForeground)
-                Text("Connecting\u{2026}")
-                    .font(Design.Typography.callout)
-                    .foregroundStyle(Design.Colors.secondaryForeground)
+                    .tint(Design.Brand.accent)
+                MonoLabel("ESTABLISHING LINK", weight: .medium, tracking: Design.Tracking.monoWide, color: Design.Brand.accent)
             }
 
         case (.connected, .listening):
-            Text("Listening")
-                .font(Design.Typography.callout)
-                .foregroundStyle(Design.Colors.secondaryForeground)
+            statusPipLabel("LISTENING", color: Design.Brand.accent, blinks: true)
 
         case (.connected, .thinking):
-            Text(talkStore.statusMessage ?? "")
-                .font(Design.Typography.callout)
-                .foregroundStyle(Design.Colors.secondaryForeground)
+            statusPipLabel(
+                (talkStore.statusMessage?.isEmpty == false ? talkStore.statusMessage! : "PROCESSING").uppercased(),
+                color: Design.Brand.accent,
+                blinks: true
+            )
 
         case (.connected, .speaking):
-            EmptyView()
+            statusPipLabel("SPEAKING", color: Design.Brand.accent, blinks: true)
 
         case (_, .disconnected):
-            Text("Disconnected")
-                .font(Design.Typography.callout)
-                .foregroundStyle(Design.Colors.secondaryForeground)
+            statusPipLabel("DISCONNECTED", color: Design.Colors.danger, blinks: false)
 
         default:
             EmptyView()
         }
     }
 
+    private func statusPipLabel(_ text: String, color: Color, blinks: Bool) -> some View {
+        HStack(spacing: Design.Spacing.xs) {
+            StatusPip(color: color, diameter: 7, blinks: blinks)
+            MonoLabel(text, size: 11, weight: .medium, tracking: Design.Tracking.monoWide, color: color)
+        }
+    }
+
     // MARK: - Controls
 
     private var controlBar: some View {
-        HStack(spacing: Design.Spacing.xl) {
+        HStack(spacing: Design.Spacing.lg) {
             if talkStore.isSessionActive {
-                // Live camera button
-                Button { showLiveCameraOverlay = true } label: {
-                    Image(systemName: "video.fill")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(Design.Colors.foreground)
-                        .frame(width: 52, height: 52)
-                        .background(Design.Colors.surface)
-                        .clipShape(Circle())
-                }
-                .accessibilityLabel("Open live camera")
+                // Left secondary — live camera (neutral chip)
+                secondaryButton(
+                    systemName: "video.fill",
+                    accessibility: "Open live camera",
+                    tint: Design.Colors.foreground,
+                    accent: false
+                ) { showLiveCameraOverlay = true }
 
-                // Mute button
-                Button {
-                    Task { await talkStore.toggleMute() }
-                } label: {
-                    Image(systemName: talkStore.isMuted ? "mic.slash.fill" : "mic.fill")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(talkStore.isMuted ? .red : Design.Colors.foreground)
-                        .frame(width: 52, height: 52)
-                        .background(Design.Colors.surface)
-                        .clipShape(Circle())
-                }
-                .accessibilityLabel(talkStore.isMuted ? "Unmute" : "Mute")
+                // Left secondary — mute (neutral chip)
+                secondaryButton(
+                    systemName: talkStore.isMuted ? "mic.slash.fill" : "mic.fill",
+                    accessibility: talkStore.isMuted ? "Unmute" : "Mute",
+                    tint: talkStore.isMuted ? Design.Colors.danger : Design.Colors.foreground,
+                    accent: false
+                ) { Task { await talkStore.toggleMute() } }
 
                 Spacer()
 
-                // Close button
-                Button {
+                // Centre / end — danger, glowing
+                endButton {
                     Task {
                         await talkStore.endSession()
                         router.isVoiceOverlayPresented = false
                     }
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(Design.Colors.foreground)
-                        .frame(width: 52, height: 52)
-                        .background(Design.Colors.surface)
-                        .clipShape(Circle())
                 }
-                .accessibilityLabel("End voice session")
             } else {
                 Spacer()
 
                 // Close button when not active (e.g. failed to start)
-                Button {
+                endButton {
                     router.isVoiceOverlayPresented = false
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(Design.Colors.foreground)
-                        .frame(width: 52, height: 52)
-                        .background(Design.Colors.surface)
-                        .clipShape(Circle())
                 }
-                .accessibilityLabel("Close")
             }
         }
         .padding(.horizontal, Design.Spacing.xl)
+    }
+
+    private func secondaryButton(
+        systemName: String,
+        accessibility: String,
+        tint: Color,
+        accent: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(tint)
+                .frame(width: 52, height: 52)
+                .background(
+                    accent ? Design.Colors.accentTint(0.1) : Design.Colors.chipSurface,
+                    in: Circle()
+                )
+                .overlay {
+                    Circle().strokeBorder(
+                        accent ? Design.Colors.cyanBorder : Design.Colors.chipBorder,
+                        lineWidth: 1
+                    )
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibility)
+    }
+
+    private func endButton(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: "phone.down.fill")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Design.Colors.dangerBright)
+                .frame(width: 56, height: 56)
+                .background(Design.Colors.danger.opacity(0.22), in: Circle())
+                .overlay {
+                    Circle().strokeBorder(Design.Colors.danger.opacity(0.7), lineWidth: 1.5)
+                }
+                .hudGlow(Design.Colors.danger, radius: 20, strength: 0.5)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("End voice session")
     }
 }

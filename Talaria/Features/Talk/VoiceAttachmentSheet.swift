@@ -11,49 +11,48 @@ struct VoiceAttachmentSheet: View {
     @State private var selectedPhoto: PhotosPickerItem?
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Drag indicator
-            RoundedRectangle(cornerRadius: 2.5)
-                .fill(Design.Colors.secondaryForeground.opacity(0.3))
-                .frame(width: 36, height: 5)
-                .padding(.top, Design.Spacing.sm)
+        ZStack {
+            HUDScreenBackground(gridIntensity: 0.3)
+                .ignoresSafeArea()
 
-            VStack(spacing: Design.Spacing.xs) {
-                // Camera button
-                if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                    Button {
-                        onCameraRequested()
-                        dismiss()
-                    } label: {
-                        Label("Live Camera", systemImage: "video.fill")
-                            .font(Design.Typography.body)
-                            .foregroundStyle(Design.Colors.foreground)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(Design.Spacing.md)
-                            .background(Design.Colors.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+            VStack(spacing: 0) {
+                // Drag indicator
+                RoundedRectangle(cornerRadius: 2.5)
+                    .fill(Design.Colors.accentTint(0.4))
+                    .frame(width: 36, height: 5)
+                    .padding(.top, Design.Spacing.sm)
+
+                MonoLabel("ADD VISUAL INPUT", tracking: Design.Tracking.monoWide)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, Design.Spacing.lg)
+                    .padding(.top, Design.Spacing.md)
+
+                VStack(spacing: Design.Spacing.sm) {
+                    // Camera button
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        Button {
+                            onCameraRequested()
+                            dismiss()
+                        } label: {
+                            attachmentRow("Live Camera", systemImage: "video.fill")
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    // Photo library picker
+                    PhotosPicker(
+                        selection: $selectedPhoto,
+                        matching: .images,
+                        photoLibrary: .shared()
+                    ) {
+                        attachmentRow("Photo Library", systemImage: "photo.on.rectangle")
                     }
                 }
-
-                // Photo library picker
-                PhotosPicker(
-                    selection: $selectedPhoto,
-                    matching: .images,
-                    photoLibrary: .shared()
-                ) {
-                    Label("Photo Library", systemImage: "photo.on.rectangle")
-                        .font(Design.Typography.body)
-                        .foregroundStyle(Design.Colors.foreground)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(Design.Spacing.md)
-                        .background(Design.Colors.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.md))
-                }
+                .padding(.horizontal, Design.Spacing.lg)
+                .padding(.vertical, Design.Spacing.md)
             }
-            .padding(.horizontal, Design.Spacing.lg)
-            .padding(.vertical, Design.Spacing.md)
         }
-        .background(Design.Colors.background)
+        .presentationBackground(Design.Colors.background)
         .onChange(of: selectedPhoto) {
             guard let selectedPhoto else { return }
             Task {
@@ -65,6 +64,28 @@ struct VoiceAttachmentSheet: View {
                 dismiss()
             }
         }
+    }
+
+    /// HUD attachment row: cyan glyph + label on a panelled chip.
+    private func attachmentRow(_ title: String, systemImage: String) -> some View {
+        HStack(spacing: Design.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.system(size: Design.Size.iconSmall, weight: .medium))
+                .foregroundStyle(Design.Brand.accent)
+                .frame(width: Design.Size.iconLarge)
+            Text(title)
+                .font(Design.Typography.body)
+                .foregroundStyle(Design.Colors.coolForeground)
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Design.Colors.accentTint(0.5))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: Design.Size.minTapTarget)
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+        .hudPanel(cornerRadius: Design.CornerRadius.md)
     }
 
     /// Downscale to 512px longest side and compress for WebRTC data channel.

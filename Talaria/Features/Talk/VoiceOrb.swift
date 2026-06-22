@@ -1,66 +1,39 @@
 import SwiftUI
 
+/// The arc-reactor voice hero. Wraps `ReactorOrb(style: .voice)` and maps the
+/// existing voice/connection state onto the reactor's glow intensity.
+///
+/// The init signature is preserved (referenced from TalkModeScreen and
+/// VoiceOverlayScreen). The orb itself is decorative — ReactorOrb is already
+/// `accessibilityHidden`, so this wrapper carries the status accessibilityLabel.
 struct VoiceOrb: View {
     let voiceState: VoiceState
     let connectionState: TalkConnectionState
 
-    @State private var pulseScale: CGFloat = 1.0
-
-    /// Always blue when connected, muted grey otherwise.
-    private var orbColor: Color {
-        switch connectionState {
-        case .connected: .blue
-        default: .secondary
-        }
-    }
-
-    private var isActive: Bool {
+    private var isConnected: Bool {
         connectionState == .connected
     }
 
-    var body: some View {
-        ZStack {
-            // Outer pulse ring — only visible when Hermes is responding
-            Circle()
-                .fill(orbColor.opacity(0.15))
-                .frame(width: Design.Size.voiceOrbSize * 1.3, height: Design.Size.voiceOrbSize * 1.3)
-                .scaleEffect(pulseScale)
-
-            // Middle ring
-            Circle()
-                .fill(orbColor.opacity(0.1))
-                .frame(width: Design.Size.voiceOrbSize * 1.15, height: Design.Size.voiceOrbSize * 1.15)
-                .scaleEffect(pulseScale * 0.95)
-
-            // Main orb
-            Circle()
-                .fill(orbColor.gradient)
-                .frame(width: Design.Size.voiceOrbSize, height: Design.Size.voiceOrbSize)
-                .glassEffect(.regular, in: Circle())
-                .overlay {
-                    Image(systemName: "mic.fill")
-                        .font(.system(size: Design.Size.iconHero, weight: .light))
-                        .foregroundStyle(.white)
-                }
+    /// Brighter glow when Hermes is speaking, dim when disconnected.
+    private var glowIntensity: Double {
+        guard isConnected else { return 0.35 }
+        switch voiceState {
+        case .speaking: return 1.4
+        case .thinking: return 1.1
+        case .listening: return 1.0
+        default: return 0.7
         }
-        .onChange(of: voiceState) { updateAnimation() }
-        .onChange(of: connectionState) { updateAnimation() }
-        .onAppear { updateAnimation() }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Voice status: \(voiceState.displayLabel)")
     }
 
-    private func updateAnimation() {
-        switch voiceState {
-        case .speaking:
-            // Pulsing when Hermes is talking
-            withAnimation(Design.Motion.breathe) { pulseScale = 1.12 }
-        case .thinking:
-            // Gentle pulse when processing
-            withAnimation(Design.Motion.pulse) { pulseScale = 1.04 }
-        default:
-            // Static when idle, listening, or disconnected
-            withAnimation(Design.Motion.gentle) { pulseScale = 1.0 }
-        }
+    var body: some View {
+        ReactorOrb(
+            size: Design.Size.voiceOrbSize,
+            style: .voice,
+            glowIntensity: glowIntensity
+        )
+        .opacity(isConnected ? 1.0 : 0.55)
+        .animation(Design.Motion.gentle, value: glowIntensity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Voice status: \(voiceState.displayLabel)")
     }
 }
