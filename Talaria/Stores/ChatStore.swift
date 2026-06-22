@@ -7,6 +7,13 @@ final class ChatStore {
     var isLoading = false
     var pendingMessageSentAt: Date?
     var lastTokenUsage: TokenUsage?
+
+    /// Reachability of the Hermes Sessions API itself — the direct connection
+    /// (localhost:8642) that actually carries chat, independent of the relay.
+    /// The relay is offline by design, so the Chat screen drives its connectivity
+    /// UI from this rather than relay-sourced host status (which would otherwise
+    /// paint a false "offline" banner). Updated by `refreshDirectHealth()`.
+    private(set) var directConnectionStatus: ConnectionStatus = .disconnected
     private var isPollingEnabled = false
     private var pollingTask: Task<Void, Never>?
     private var streamingTask: Task<Void, Never>?
@@ -357,6 +364,22 @@ final class ChatStore {
             pollingTask?.cancel()
             pollingTask = nil
         }
+    }
+
+    // MARK: - Direct Sessions API health
+
+    /// Probes the direct Sessions API (`/v1/models`, via the client's `connect()`)
+    /// and records the outcome in `directConnectionStatus`. The probe creates no
+    /// chat session and has no side effect beyond the status. While a response is
+    /// actively streaming the connection is, by definition, live, so we skip the
+    /// probe and report `.connected`.
+    func refreshDirectHealth() async {
+        guard !isStreaming else {
+            directConnectionStatus = .connected
+            return
+        }
+        await hermesClient.connect()
+        directConnectionStatus = hermesClient.connectionStatus
     }
 
     // MARK: - Model controls

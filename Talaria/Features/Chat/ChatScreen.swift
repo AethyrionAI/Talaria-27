@@ -35,7 +35,7 @@ struct ChatScreen: View {
             VStack(spacing: 0) {
                 agentIdentityStrip
 
-                if pairingStore.isPaired, hostStore.connectionState != .online {
+                if pairingStore.isPaired, effectiveConnectionState != .online {
                     connectionBanner
                 }
                 messageList
@@ -57,7 +57,7 @@ struct ChatScreen: View {
                 model: sessionsModel,
                 hostName: (hostStore.currentHost?.resolvedDisplayName ?? "HERMES HOST"),
                 hostDetail: sessionsHostDetail,
-                hostOnline: hostStore.connectionState == .online
+                hostOnline: effectiveConnectionState == .online
             )
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -73,6 +73,7 @@ struct ChatScreen: View {
         .task {
             chatStore.setPollingEnabled(true)
             await hostStore.refresh()
+            await chatStore.refreshDirectHealth()
             await chatStore.loadConversationIfNeeded()
         }
         .task {
@@ -80,6 +81,7 @@ struct ChatScreen: View {
                 try? await Task.sleep(for: .seconds(10))
                 guard !Task.isCancelled else { break }
                 await hostStore.refresh()
+                await chatStore.refreshDirectHealth()
             }
         }
         .onDisappear {
@@ -205,7 +207,7 @@ struct ChatScreen: View {
     }()
 
     private var sessionsHostDetail: String {
-        switch hostStore.connectionState {
+        switch effectiveConnectionState {
         case .online: return "LINKED · ONLINE"
         case .offline: return "OFFLINE"
         case .unreachable: return "UNREACHABLE"
@@ -229,7 +231,7 @@ struct ChatScreen: View {
             .accessibilityLabel("Sessions")
         }
         ToolbarItem(placement: .principal) {
-            ModelSelector(model: modelModel, isOnline: hostStore.connectionState == .online)
+            ModelSelector(model: modelModel, isOnline: effectiveConnectionState == .online)
         }
         ToolbarItem(placement: .topBarTrailing) {
             GlassCircleButton(icon: "gearshape", accessibilityLabel: "Open settings") {
@@ -238,8 +240,30 @@ struct ChatScreen: View {
         }
     }
 
+    /// Connection state for the chat UI. Chat talks **directly** to the Hermes
+    /// Sessions API (localhost:8642), not the relay, so the banner and status
+    /// indicators must reflect that direct reachability. `hostStore.connectionState`
+    /// is relay-sourced and the relay is offline by design, which would otherwise
+    /// paint a false "Hermes host offline" banner and a stale/offline model chip.
+    private var effectiveConnectionState: HermesHostConnectionState {
+        switch chatStore.directConnectionStatus {
+        case .connected:
+            return .online
+        case .error:
+            return .offline
+        case .connecting, .disconnected:
+            // Not yet probed (or a probe is in flight). Stay optimistic so we
+            // never flash a false offline state before the first probe resolves.
+            return .online
+        }
+    }
+
     private var displayedModelName: String? {
-        chatStore.activeModelName ?? hostStore.currentHost?.hermesModel
+        // The live model comes from the direct Sessions API path (selection /
+        // `/model` switch detection). The relay's `hermesModel` is intentionally
+        // not used as a fallback — the relay is offline by design, so it would
+        // only ever surface a stale value.
+        chatStore.activeModelName
     }
 
     private var effectiveContextWindow: Int? {
@@ -271,7 +295,7 @@ struct ChatScreen: View {
                         .tracking(Design.Tracking.button)
                         .foregroundStyle(Design.Colors.foregroundBright)
                     StatusPip(color: connectionIndicatorColor, diameter: 6,
-                              blinks: hostStore.connectionState != .online)
+                              blinks: effectiveConnectionState != .online)
                     MonoLabel(connectionTelemetry, size: 9, tracking: Design.Tracking.mono)
                 }
                 MonoLabel(messageTelemetry, size: 9, tracking: Design.Tracking.mono,
@@ -313,7 +337,7 @@ struct ChatScreen: View {
 
     private var connectionTelemetry: String {
         let host = hostStore.currentHost?.resolvedDisplayName.uppercased()
-        switch hostStore.connectionState {
+        switch effectiveConnectionState {
         case .online: return "ONLINE\(host.map { " · \($0)" } ?? "")"
         case .offline: return "OFFLINE"
         case .unreachable: return "UNREACHABLE"
@@ -333,7 +357,7 @@ struct ChatScreen: View {
     }
 
     private var connectionIndicatorColor: Color {
-        switch hostStore.connectionState {
+        switch effectiveConnectionState {
         case .online:
             return Design.Brand.accent
         case .offline, .unreachable:
@@ -344,7 +368,7 @@ struct ChatScreen: View {
     }
 
     private var connectionStatusLabel: String {
-        switch hostStore.connectionState {
+        switch effectiveConnectionState {
         case .online:
             return "Online"
         case .offline:
@@ -430,7 +454,7 @@ struct ChatScreen: View {
     }
 
     private var connectionBannerIcon: String {
-        switch hostStore.connectionState {
+        switch effectiveConnectionState {
         case .online:
             return "desktopcomputer"
         case .offline:
@@ -443,7 +467,7 @@ struct ChatScreen: View {
     }
 
     private var connectionBannerTitle: String {
-        switch hostStore.connectionState {
+        switch effectiveConnectionState {
         case .online:
             return "Hermes host online"
         case .offline:
@@ -456,11 +480,11 @@ struct ChatScreen: View {
     }
 
     private var connectionBannerMessage: String {
-        switch hostStore.connectionState {
+        switch effectiveConnectionState {
         case .online:
             return "Your Hermes host is connected."
         case .offline:
-            return "Messages will queue until your Hermes host reconnects."
+            return "Your Hermes host isn't responding. Check that it's running and your connection settings."
         case .unreachable:
             return hostStore.lastErrorMessage ?? "Check your relay connection or refresh your session."
         case .notConnected:
@@ -469,7 +493,7 @@ struct ChatScreen: View {
     }
 
     private var connectionBannerActionLabel: String {
-        switch hostStore.connectionState {
+        switch effectiveConnectionState {
         case .online, .offline, .notConnected:
             return "Settings"
         case .unreachable:
@@ -478,7 +502,7 @@ struct ChatScreen: View {
     }
 
     private func connectionBannerAction() {
-        switch hostStore.connectionState {
+        switch effectiveConnectionState {
         case .unreachable:
             Task { await hostStore.refresh() }
         case .online, .offline, .notConnected:
