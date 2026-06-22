@@ -8,7 +8,7 @@ struct TypingDotsView: View {
         HStack(spacing: 4) {
             ForEach(0..<3, id: \.self) { index in
                 Circle()
-                    .fill(Design.Colors.secondaryForeground)
+                    .fill(Design.Brand.accent)
                     .frame(width: 6, height: 6)
                     .offset(y: animating ? -4 : 0)
                     .animation(

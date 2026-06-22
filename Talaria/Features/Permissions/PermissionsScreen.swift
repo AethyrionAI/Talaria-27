@@ -5,11 +5,11 @@ struct PermissionsScreen: View {
 
     var body: some View {
         ZStack {
-            Design.Colors.background
+            HUDScreenBackground(gridIntensity: 0.35)
                 .ignoresSafeArea()
 
             ScrollView {
-                VStack(spacing: Design.Spacing.md) {
+                VStack(alignment: .leading, spacing: Design.Spacing.md) {
                     headerText
 
                     ForEach(permissionsStore.capabilities) { capability in
@@ -34,10 +34,20 @@ struct PermissionsScreen: View {
     }
 
     private var headerText: some View {
-        Text("Hermes works best with your permission. You control what data Hermes can access.")
-            .font(Design.Typography.callout)
-            .foregroundStyle(Design.Colors.secondaryForeground)
-            .padding(.horizontal, Design.Spacing.xxs)
-    }
+        VStack(alignment: .leading, spacing: Design.Spacing.xs) {
+            MonoLabel(
+                "SENSOR ACCESS",
+                size: 10,
+                weight: .medium,
+                tracking: Design.Tracking.monoWide,
+                color: Design.Colors.mutedForeground
+            )
 
+            Text("Hermes works best with your permission. You control what data Hermes can access.")
+                .font(Design.Typography.callout)
+                .foregroundStyle(Design.Colors.secondaryForeground)
+        }
+        .padding(.horizontal, Design.Spacing.xxs)
+        .padding(.bottom, Design.Spacing.xxs)
+    }
 }

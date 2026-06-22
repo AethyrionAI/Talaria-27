@@ -21,9 +21,38 @@ struct LiveCameraOverlay: View {
             CameraPreviewView(session: captureManager.session)
                 .ignoresSafeArea()
 
+            // HUD targeting reticle framing the live feed
+            CornerBrackets(
+                arm: Design.Size.bracket + 8,
+                lineWidth: 1.5,
+                color: Design.Colors.accentTint(0.55),
+                inset: Design.Spacing.xl
+            )
+            .ignoresSafeArea()
+
+            // Faint cyan grid for the HUD scan look
+            GridOverlay()
+                .opacity(0.12)
+                .ignoresSafeArea()
+
             // Controls overlay
             VStack {
-                HStack {
+                HStack(alignment: .top) {
+                    // Live feed telemetry
+                    HStack(spacing: Design.Spacing.xs) {
+                        StatusPip(color: Design.Brand.accent, diameter: 6, blinks: true)
+                        MonoLabel(
+                            "VISUAL LINK · LIVE",
+                            weight: .medium,
+                            tracking: Design.Tracking.monoWide,
+                            color: Design.Brand.accent
+                        )
+                    }
+                    .padding(.horizontal, Design.Spacing.sm)
+                    .padding(.vertical, Design.Spacing.xs)
+                    .background(Design.Colors.surface, in: Capsule())
+                    .overlay { Capsule().strokeBorder(Design.Colors.cyanHairline, lineWidth: 1) }
+
                     Spacer()
 
                     // Flip camera
@@ -31,13 +60,9 @@ struct LiveCameraOverlay: View {
                         isUsingFrontCamera.toggle()
                         captureManager.switchCamera(front: isUsingFrontCamera)
                     } label: {
-                        Image(systemName: "camera.rotate.fill")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
+                        cameraControlIcon("camera.rotate.fill", size: 18)
                     }
+                    .accessibilityLabel("Flip camera")
                     .padding(.trailing, Design.Spacing.sm)
 
                     // Close camera (back to voice mode)
@@ -45,47 +70,49 @@ struct LiveCameraOverlay: View {
                         captureManager.stop()
                         onDismiss()
                     } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
+                        cameraControlIcon("xmark", size: 16)
                     }
-                    .padding(.trailing, Design.Spacing.md)
+                    .accessibilityLabel("Close camera")
                 }
+                .padding(.horizontal, Design.Spacing.md)
                 .padding(.top, Design.Spacing.xl)
 
                 Spacer()
 
                 if permissionDenied {
                     VStack(spacing: Design.Spacing.sm) {
-                        Text("Camera access is required.")
-                            .font(Design.Typography.callout)
-                            .foregroundStyle(.white.opacity(0.7))
-                            .multilineTextAlignment(.center)
+                        MonoLabel(
+                            "CAMERA ACCESS REQUIRED",
+                            weight: .medium,
+                            tracking: Design.Tracking.monoWide,
+                            color: Design.Brand.forge
+                        )
 
                         Button {
                             if let url = URL(string: UIApplication.openSettingsURLString) {
                                 UIApplication.shared.open(url)
                             }
                         } label: {
-                            Text("Open Settings")
-                                .font(Design.Typography.callout.weight(.medium))
-                                .foregroundStyle(.white)
+                            Text("OPEN SETTINGS")
+                                .font(Design.Typography.mono(11, weight: .medium))
+                                .tracking(Design.Tracking.monoWide)
+                                .foregroundStyle(Design.Brand.accentBright)
                                 .padding(.horizontal, Design.Spacing.lg)
                                 .padding(.vertical, Design.Spacing.sm)
-                                .background(.ultraThinMaterial)
-                                .clipShape(Capsule())
+                                .background(Design.Colors.accentTint(0.1), in: Capsule())
+                                .overlay { Capsule().strokeBorder(Design.Colors.cyanBorder, lineWidth: 1) }
                         }
+                        .buttonStyle(.plain)
                     }
                     .padding(.bottom, Design.Spacing.xxl)
                 } else {
                     // Subtle status
-                    Text("Camera active \u{2022} voice continues")
-                        .font(Design.Typography.caption)
-                        .foregroundStyle(.white.opacity(0.6))
-                        .padding(.bottom, Design.Spacing.xxl)
+                    MonoLabel(
+                        "VOICE CONTINUES \u{2022} FRAME SYNC ACTIVE",
+                        tracking: Design.Tracking.mono,
+                        color: Design.Colors.accentTint(0.6)
+                    )
+                    .padding(.bottom, Design.Spacing.xxl)
                 }
             }
         }
@@ -103,6 +130,16 @@ struct LiveCameraOverlay: View {
             captureManager.stop()
         }
         .statusBarHidden(true)
+    }
+
+    /// Round HUD camera-control glyph: chip surface + cyan hairline border.
+    private func cameraControlIcon(_ systemName: String, size: CGFloat) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: size, weight: .semibold))
+            .foregroundStyle(Design.Brand.accentBright)
+            .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+            .background(Design.Colors.surface, in: Circle())
+            .overlay { Circle().strokeBorder(Design.Colors.cyanBorder, lineWidth: 1) }
     }
 
     private func requestCameraPermission() async -> Bool {

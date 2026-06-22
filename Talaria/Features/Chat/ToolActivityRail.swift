@@ -2,7 +2,7 @@ import SwiftUI
 
 /// A compact, live-rotating view showing what tools Hermes is using in real time.
 ///
-/// **Streaming**: cycles through tool labels one at a time with animated transitions.
+/// **Streaming**: shows a "TOOL ACTIVITY" HUD panel with a per-step timeline.
 /// **Finished**: shows a collapsed summary that expands to the full timeline on tap.
 struct ToolActivityRail: View {
     let activities: [ToolActivity]
@@ -24,31 +24,44 @@ struct ToolActivityRail: View {
         }
     }
 
-    // MARK: - Live Streaming Indicator
+    // MARK: - Live Streaming Panel
 
     private var liveIndicator: some View {
-        HStack(spacing: Design.Spacing.xs) {
-            ProgressView()
-                .controlSize(.mini)
-                .tint(Design.Colors.secondaryForeground)
-
-            if let latest = latestActivity {
-                Text(latest.label)
-                    .font(Design.Typography.caption)
-                    .foregroundStyle(Design.Colors.secondaryForeground)
-                    .lineLimit(1)
-                    .id(latest.id)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .bottom).combined(with: .opacity),
-                        removal: .move(edge: .top).combined(with: .opacity)
-                    ))
-                    .animation(Design.Motion.quickResponse, value: latest.id)
+        VStack(alignment: .leading, spacing: 0) {
+            // Header row
+            HStack {
+                MonoLabel("Tool Activity", size: 10, tracking: Design.Tracking.monoWide)
+                Spacer()
+                MonoLabel(
+                    "\(activities.count) Step\(activities.count == 1 ? "" : "s")",
+                    size: 10,
+                    weight: .medium,
+                    tracking: Design.Tracking.monoWide,
+                    color: Design.Brand.accent
+                )
             }
+            .padding(.horizontal, Design.Spacing.sm + 1)
+            .padding(.vertical, Design.Spacing.xs + 1)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(Design.Colors.accentTint(0.12))
+                    .frame(height: 1)
+            }
+
+            // Step rows
+            VStack(alignment: .leading, spacing: Design.Spacing.sm - 1) {
+                ForEach(activities) { activity in
+                    activityRow(activity, running: activity.isActive)
+                }
+            }
+            .padding(.horizontal, Design.Spacing.sm + 1)
+            .padding(.vertical, Design.Spacing.sm - 1)
         }
-        .padding(.horizontal, Design.Spacing.sm)
-        .padding(.vertical, Design.Spacing.xxs + 1)
-        .background(Design.Colors.surface)
-        .clipShape(Capsule())
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.sm + 4,
+            borderColor: Design.Colors.accentTint(0.18),
+            fill: Design.Colors.surface
+        )
     }
 
     // MARK: - Finished Summary (expandable)
@@ -62,24 +75,30 @@ struct ToolActivityRail: View {
                 }
             } label: {
                 HStack(spacing: Design.Spacing.xs) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Design.Colors.secondaryForeground)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Design.Brand.accent)
 
-                    Text("Used \(activities.count) tool\(activities.count == 1 ? "" : "s")")
-                        .font(Design.Typography.caption)
-                        .foregroundStyle(Design.Colors.secondaryForeground)
+                    MonoLabel(
+                        "Used \(activities.count) Tool\(activities.count == 1 ? "" : "s")",
+                        size: 10,
+                        tracking: Design.Tracking.mono,
+                        color: Design.Colors.secondaryForeground
+                    )
 
                     if activities.count > 1 {
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 8, weight: .semibold))
-                            .foregroundStyle(Design.Colors.secondaryForeground)
+                            .foregroundStyle(Design.Colors.mutedForeground)
                     }
                 }
                 .padding(.horizontal, Design.Spacing.sm)
-                .padding(.vertical, Design.Spacing.xxs + 1)
-                .background(Design.Colors.surface)
-                .clipShape(Capsule())
+                .padding(.vertical, Design.Spacing.xxs + 2)
+                .hudPanel(
+                    cornerRadius: Design.CornerRadius.full,
+                    borderColor: Design.Colors.cyanHairline,
+                    fill: Design.Colors.surface
+                )
             }
             .buttonStyle(.plain)
 
@@ -96,31 +115,52 @@ struct ToolActivityRail: View {
     // MARK: - Expanded Timeline
 
     private var expandedTimeline: some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.xxxs) {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm - 2) {
             ForEach(activities) { activity in
-                HStack(spacing: Design.Spacing.xs) {
-                    Circle()
-                        .fill(Design.Colors.secondaryForeground)
-                        .frame(width: 5, height: 5)
-
-                    Text(activity.label)
-                        .font(Design.Typography.caption)
-                        .foregroundStyle(Design.Colors.secondaryForeground)
-                        .lineLimit(1)
-
-                    Spacer()
-
-                    Text(activity.startedAt, style: .time)
-                        .font(Design.Typography.caption2)
-                        .foregroundStyle(Design.Colors.secondaryForeground)
-                }
-                .padding(.horizontal, Design.Spacing.xs)
-                .padding(.vertical, Design.Spacing.xxxs)
+                activityRow(activity, running: false)
             }
         }
-        .padding(.vertical, Design.Spacing.xxs)
-        .padding(.horizontal, Design.Spacing.xxs)
-        .background(Design.Colors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
+        .padding(.horizontal, Design.Spacing.sm)
+        .padding(.vertical, Design.Spacing.xs + 1)
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.sm + 4,
+            borderColor: Design.Colors.accentTint(0.18),
+            fill: Design.Colors.surface
+        )
+    }
+
+    // MARK: - Shared step row
+
+    private func activityRow(_ activity: ToolActivity, running: Bool) -> some View {
+        HStack(spacing: Design.Spacing.xs + 2) {
+            if running {
+                Image(systemName: "circle.dotted")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Design.Brand.forge)
+                    .hudPulse(Design.Motion.blink, from: 1, to: 0.35)
+            } else {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 8))
+                    .foregroundStyle(Design.Brand.accent)
+                    .frame(width: 11, height: 11)
+            }
+
+            Text(activity.label)
+                .font(Design.Typography.mono(12))
+                .foregroundStyle(Design.Colors.coolForeground)
+                .lineLimit(1)
+
+            Spacer(minLength: Design.Spacing.xs)
+
+            if running {
+                Text("running")
+                    .font(Design.Typography.monoSmall)
+                    .foregroundStyle(Design.Brand.accent)
+            } else {
+                Text(activity.startedAt, style: .time)
+                    .font(Design.Typography.monoSmall)
+                    .foregroundStyle(Design.Colors.dimForeground)
+            }
+        }
     }
 }

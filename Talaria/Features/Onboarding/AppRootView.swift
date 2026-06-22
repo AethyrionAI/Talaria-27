@@ -37,54 +37,26 @@ struct AppRootView: View {
 }
 
 private struct LaunchSplashView: View {
-    @State private var animateGlyph = false
-
     var body: some View {
         ZStack {
-            Design.Colors.background
+            HUDScreenBackground()
                 .ignoresSafeArea()
 
-            Circle()
-                .fill(Design.Brand.accent.opacity(0.18))
-                .frame(width: 280, height: 280)
-                .blur(radius: 48)
-                .scaleEffect(animateGlyph ? 1.06 : 0.94)
+            CornerBrackets(arm: Design.Size.bracket, lineWidth: 1.5, inset: Design.Spacing.md)
+                .ignoresSafeArea()
 
-            VStack(spacing: Design.Spacing.lg) {
-                ZStack {
-                    Circle()
-                        .fill(Design.Colors.surface)
-                        .frame(width: 108, height: 108)
-                    Circle()
-                        .stroke(Design.Brand.accent.opacity(0.35), lineWidth: 1)
-                        .frame(width: 108, height: 108)
+            VStack(spacing: Design.Spacing.md) {
+                ReactorOrb(size: Design.Size.orbOnboarding, style: .onboarding)
 
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 30, weight: .semibold))
-                        .foregroundStyle(Design.Brand.accentGradient)
-                        .scaleEffect(animateGlyph ? 1.04 : 0.96)
-                }
+                Text("TALARIA")
+                    .font(Design.Typography.display(25, weight: .bold, relativeTo: .title))
+                    .tracking(Design.Tracking.display)
+                    .foregroundStyle(Design.Colors.foregroundBright)
+                    .padding(.top, Design.Spacing.xs)
 
-                VStack(spacing: Design.Spacing.xs) {
-                    Text("Hermes")
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .foregroundStyle(Design.Colors.foreground)
-
-                    Text("Mobile companion")
-                        .font(Design.Typography.callout)
-                        .foregroundStyle(Design.Colors.secondaryForeground)
-                }
-
-                ProgressView()
-                    .tint(Design.Brand.accent)
-                    .controlSize(.small)
+                MonoLabel("ESTABLISH UPLINK", tracking: Design.Tracking.monoWide)
             }
             .padding(Design.Spacing.xl)
-        }
-        .task {
-            withAnimation(Design.Motion.breathe) {
-                animateGlyph = true
-            }
         }
     }
 }

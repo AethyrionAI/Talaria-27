@@ -16,14 +16,25 @@ struct ChatScreen: View {
     @FocusState private var isComposerFocused: Bool
 
     @State private var showAttachmentPicker = false
+
+    // HUD shells (presentation only — see SessionsDrawer / ModelSelector).
+    @State private var sessionsOpen = false
+    @State private var sessionsModel = SessionsDrawerModel()
+    @State private var modelModel = ModelSelectorModel()
+
     private let thinkingIndicatorID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
 
     var body: some View {
         ZStack {
-            Design.Colors.background
+            HUDScreenBackground(gridIntensity: 0.4)
+                .ignoresSafeArea()
+
+            ScanLine(intensity: 0.32)
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
+                agentIdentityStrip
+
                 if pairingStore.isPaired, hostStore.connectionState != .online {
                     connectionBanner
                 }
@@ -40,9 +51,22 @@ struct ChatScreen: View {
                 )
             }
         }
+        .overlay {
+            SessionsDrawer(
+                isPresented: $sessionsOpen,
+                model: sessionsModel,
+                hostName: (hostStore.currentHost?.resolvedDisplayName ?? "HERMES HOST"),
+                hostDetail: sessionsHostDetail,
+                hostOnline: hostStore.connectionState == .online
+            )
+        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
         .toolbarBackground(.hidden, for: .navigationBar)
+        .onAppear { configureChatSeams() }
+        .onChange(of: displayedModelName) { _, newValue in
+            modelModel.activeModelNameOverride = newValue
+        }
         .task {
             chatStore.setPollingEnabled(true)
             await hostStore.refresh()
@@ -95,12 +119,44 @@ struct ChatScreen: View {
         }
     }
 
+    // MARK: - Shell wiring (presentation seams)
+
+    /// Connects the Sessions drawer / Model selector shells to existing flows.
+    /// No backend integration — see the `// TODO: wire …` markers in the models.
+    private func configureChatSeams() {
+        modelModel.activeModelNameOverride = displayedModelName
+        sessionsModel.onNewChat = { showClearConfirmation = true }
+        sessionsModel.onOpenHostSettings = { router.presentSheet(.settings) }
+        // TODO: wire to Sessions API — switch the active conversation here.
+        sessionsModel.onSelectSession = { _ in }
+    }
+
+    private var sessionsHostDetail: String {
+        switch hostStore.connectionState {
+        case .online: return "LINKED · ONLINE"
+        case .offline: return "OFFLINE"
+        case .unreachable: return "UNREACHABLE"
+        case .notConnected: return "NOT CONNECTED"
+        }
+    }
+
     // MARK: - Toolbar
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            modelStatusChip
+            Button {
+                withAnimation(Design.Motion.standard) { sessionsOpen = true }
+            } label: {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+                    .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+            }
+            .accessibilityLabel("Sessions")
+        }
+        ToolbarItem(placement: .principal) {
+            ModelSelector(model: modelModel, isOnline: hostStore.connectionState == .online)
         }
         ToolbarItem(placement: .topBarTrailing) {
             GlassCircleButton(icon: "gearshape", accessibilityLabel: "Open settings") {
@@ -108,8 +164,6 @@ struct ChatScreen: View {
             }
         }
     }
-
-    @State private var showContextPopover = false
 
     private var displayedModelName: String? {
         chatStore.activeModelName ?? hostStore.currentHost?.hermesModel
@@ -131,183 +185,88 @@ struct ChatScreen: View {
         return min(Double(usedTokens) / Double(maxCtx), 1.0)
     }
 
-    // MARK: - Compact chip: 🟢 model-name [ring%]
+    // MARK: - Agent identity strip (HUD telemetry header)
 
-    private var modelStatusChip: some View {
-        Button {
-            showContextPopover.toggle()
-        } label: {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(connectionIndicatorColor)
-                    .frame(width: 6, height: 6)
+    private var agentIdentityStrip: some View {
+        HStack(spacing: Design.Spacing.sm) {
+            ReactorOrb(size: Design.Size.orbNav, style: .standard)
 
-                if let model = displayedModelName {
-                    ViewThatFits(in: .horizontal) {
-                        chipModelText(model)
-                        chipModelText(compactModelName(model))
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: Design.Spacing.xs) {
+                    Text("HERMES")
+                        .font(Design.Typography.display(16, weight: .semibold, relativeTo: .headline))
+                        .tracking(Design.Tracking.button)
+                        .foregroundStyle(Design.Colors.foregroundBright)
+                    StatusPip(color: connectionIndicatorColor, diameter: 6,
+                              blinks: hostStore.connectionState != .online)
+                    MonoLabel(connectionTelemetry, size: 9, tracking: Design.Tracking.mono)
+                }
+                MonoLabel(messageTelemetry, size: 9, tracking: Design.Tracking.mono,
+                          color: Design.Colors.dimForeground)
+            }
+
+            Spacer(minLength: Design.Spacing.sm)
+
+            if effectiveContextWindow != nil {
+                contextGauge
+            }
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.top, Design.Spacing.xs)
+        .padding(.bottom, Design.Spacing.sm)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Design.Colors.cyanHairline).frame(height: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Hermes \(connectionStatusLabel)")
+    }
+
+    private var contextGauge: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            MonoLabel("CTX \(Int(contextProgress * 100))%", size: 10, tracking: Design.Tracking.mono)
+            Capsule()
+                .fill(Design.Colors.accentTint(0.16))
+                .frame(width: 48, height: 5)
+                .overlay(alignment: .leading) {
+                    GeometryReader { proxy in
+                        Capsule()
+                            .fill(contextColor(contextProgress))
+                            .frame(width: max(proxy.size.width * contextProgress, 2))
+                            .hudGlow(contextColor(contextProgress), radius: 4, strength: 0.8)
                     }
                 }
-
-                contextRing(progress: contextProgress)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .fixedSize(horizontal: true, vertical: false)
-        }
-        .buttonStyle(.plain)
-        .contentShape(Capsule())
-        .popover(isPresented: $showContextPopover) {
-            contextPopoverContent
-                .presentationCompactAdaptation(.popover)
         }
     }
 
-    private func chipModelText(_ model: String) -> some View {
-        Text(model)
-            .font(.system(size: 12, weight: .medium, design: .monospaced))
-            .foregroundStyle(Design.Colors.foreground)
-            .lineLimit(1)
-            .truncationMode(.tail)
-            .minimumScaleFactor(0.8)
-            .layoutPriority(1)
+    private var connectionTelemetry: String {
+        let host = hostStore.currentHost?.resolvedDisplayName.uppercased()
+        switch hostStore.connectionState {
+        case .online: return "ONLINE\(host.map { " · \($0)" } ?? "")"
+        case .offline: return "OFFLINE"
+        case .unreachable: return "UNREACHABLE"
+        case .notConnected: return "NO HOST"
+        }
     }
 
-    private func contextRing(progress: Double) -> some View {
-        ZStack {
-            Circle()
-                .stroke(Design.Colors.divider, lineWidth: 2.5)
-            Circle()
-                .trim(from: 0, to: max(progress, 0.001))
-                .stroke(contextColor(progress), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-        }
-        .frame(width: 16, height: 16)
-    }
-
-    // MARK: - Popover: Context Window X of Y (%)
-
-    private var contextPopoverContent: some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.md) {
-            HStack(spacing: Design.Spacing.xs) {
-                Circle()
-                    .fill(connectionIndicatorColor)
-                    .frame(width: 7, height: 7)
-
-                if let model = displayedModelName {
-                    Text(model)
-                        .font(.system(.subheadline, design: .monospaced, weight: .semibold))
-                        .foregroundStyle(Design.Colors.foreground)
-                        .lineLimit(1)
-                } else {
-                    Text("Model unavailable")
-                        .font(Design.Typography.callout)
-                        .foregroundStyle(Design.Colors.secondaryForeground)
-                }
-            }
-
-            if let maxCtx = effectiveContextWindow, maxCtx > 0 {
-                let total = formatTokenCount(maxCtx)
-
-                VStack(alignment: .leading, spacing: Design.Spacing.xs) {
-                    Text("Context Window")
-                        .font(.system(.caption2, weight: .semibold))
-                        .foregroundStyle(Design.Colors.secondaryForeground)
-                        .textCase(.uppercase)
-
-                    if let usedTokens = currentContextTokens {
-                        let progress = min(Double(usedTokens) / Double(maxCtx), 1.0)
-                        let used = formatTokenCount(usedTokens)
-
-                        HStack(alignment: .lastTextBaseline, spacing: 4) {
-                            Text(used)
-                                .font(.system(size: 24, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(Design.Colors.foreground)
-                            Text("/")
-                                .font(.system(size: 18, weight: .medium, design: .monospaced))
-                                .foregroundStyle(Design.Colors.secondaryForeground)
-                            Text(total)
-                                .font(.system(size: 18, weight: .medium, design: .monospaced))
-                                .foregroundStyle(Design.Colors.secondaryForeground)
-                        }
-
-                        HStack(spacing: Design.Spacing.sm) {
-                            Capsule()
-                                .fill(Design.Colors.surface)
-                                .overlay(alignment: .leading) {
-                                    GeometryReader { proxy in
-                                        Capsule()
-                                            .fill(contextColor(progress))
-                                            .frame(width: max(proxy.size.width * progress, 3))
-                                    }
-                                }
-                                .frame(height: 8)
-
-                            Text("\(Int(progress * 100))%")
-                                .font(.system(.caption, design: .monospaced, weight: .semibold))
-                                .foregroundStyle(Design.Colors.secondaryForeground)
-                        }
-
-                        Text("\(max(maxCtx - usedTokens, 0).formatted()) prompt tokens remaining")
-                            .font(Design.Typography.caption)
-                            .foregroundStyle(Design.Colors.secondaryForeground)
-                    } else {
-                        Text(total)
-                            .font(.system(size: 24, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(Design.Colors.foreground)
-
-                        Text("Total window available now. Usage appears after the first Hermes response.")
-                            .font(Design.Typography.caption)
-                            .foregroundStyle(Design.Colors.secondaryForeground)
-                    }
-                }
-            } else {
-                Text("Context window unavailable for the active model.")
-                    .font(Design.Typography.caption)
-                    .foregroundStyle(Design.Colors.secondaryForeground)
-            }
-        }
-        .frame(width: 230, alignment: .leading)
-        .padding(.horizontal, Design.Spacing.lg)
-        .padding(.vertical, Design.Spacing.lg)
+    private var messageTelemetry: String {
+        let count = chatStore.conversation?.messages.count ?? 0
+        return "\(count) MESSAGE\(count == 1 ? "" : "S")"
     }
 
     private func contextColor(_ progress: Double) -> Color {
-        if progress > 0.85 { return .red }
-        if progress > 0.65 { return .orange }
+        if progress > 0.85 { return Design.Colors.danger }
+        if progress > 0.65 { return Design.Brand.forge }
         return Design.Brand.accent
-    }
-
-    private func formatTokenCount(_ count: Int) -> String {
-        if count >= 1_000_000 {
-            return compactDecimal(Double(count) / 1_000_000, suffix: "M")
-        } else if count >= 1_000 {
-            return compactDecimal(Double(count) / 1_000, suffix: "K")
-        }
-        return "\(count)"
-    }
-
-    private func compactModelName(_ model: String) -> String {
-        guard model.count > 16 else { return model }
-        return String(model.prefix(16)) + "…"
-    }
-
-    private func compactDecimal(_ value: Double, suffix: String) -> String {
-        let rounded = (value * 10).rounded() / 10
-        if rounded == floor(rounded) {
-            return "\(Int(rounded))\(suffix)"
-        }
-        return String(format: "%.1f%@", rounded, suffix)
     }
 
     private var connectionIndicatorColor: Color {
         switch hostStore.connectionState {
         case .online:
-            return .green
+            return Design.Brand.accent
         case .offline, .unreachable:
-            return .orange
+            return Design.Brand.forge
         case .notConnected:
-            return .gray
+            return Design.Colors.dimForeground
         }
     }
 
@@ -371,12 +330,12 @@ struct ChatScreen: View {
     private var connectionBanner: some View {
         HStack(alignment: .center, spacing: Design.Spacing.sm) {
             Image(systemName: connectionBannerIcon)
+                .font(.system(size: Design.Size.iconSmall))
                 .foregroundStyle(connectionIndicatorColor)
 
             VStack(alignment: .leading, spacing: Design.Spacing.xxxs) {
-                Text(connectionBannerTitle)
-                    .font(Design.Typography.callout)
-                    .foregroundStyle(Design.Colors.foreground)
+                MonoLabel(connectionBannerTitle, size: 11, weight: .medium,
+                          tracking: Design.Tracking.mono, color: Design.Colors.foregroundBright)
                 Text(connectionBannerMessage)
                     .font(Design.Typography.caption)
                     .foregroundStyle(Design.Colors.secondaryForeground)
@@ -387,13 +346,12 @@ struct ChatScreen: View {
             Button(connectionBannerActionLabel) {
                 connectionBannerAction()
             }
-            .font(Design.Typography.caption)
+            .font(Design.Typography.mono(11, weight: .medium))
             .foregroundStyle(Design.Brand.accent)
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)
-        .background(Design.Colors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
+        .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Brand.forge.opacity(0.35))
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.md)
     }

@@ -8,6 +8,8 @@ struct MarkdownContentView: View {
     let content: String
     let isStreaming: Bool
     var showCursor: Bool = false
+    /// Base color for rendered prose (code blocks/images carry their own styling).
+    var textColor: Color = Design.Colors.foreground
 
     @State private var fullscreenImage: MarkdownSegment?
 
@@ -50,17 +52,26 @@ struct MarkdownContentView: View {
     }
 
     private func formattedText(_ text: String) -> Text {
-        if let attributed = try? AttributedString(
+        if var attributed = try? AttributedString(
             markdown: text,
             options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         ) {
+            styleInlineCode(&attributed)
             return Text(attributed)
                 .font(Design.Typography.body)
-                .foregroundColor(Design.Colors.foreground)
+                .foregroundColor(textColor)
         } else {
             return Text(text)
                 .font(Design.Typography.body)
-                .foregroundColor(Design.Colors.foreground)
+                .foregroundColor(textColor)
+        }
+    }
+
+    /// Restyle inline `code` runs in mono with a subtle cyan tint.
+    private func styleInlineCode(_ attributed: inout AttributedString) {
+        for run in attributed.runs where run.inlinePresentationIntent?.contains(.code) == true {
+            attributed[run.range].font = Design.Typography.mono(14, relativeTo: .body)
+            attributed[run.range].foregroundColor = Design.Brand.accentBright
         }
     }
 

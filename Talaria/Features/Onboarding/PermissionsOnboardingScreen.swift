@@ -6,7 +6,10 @@ struct PermissionsOnboardingScreen: View {
 
     var body: some View {
         ZStack {
-            Design.Colors.background
+            HUDScreenBackground()
+                .ignoresSafeArea()
+
+            CornerBrackets(arm: Design.Size.bracket, lineWidth: 1.5, inset: Design.Spacing.md)
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
@@ -15,7 +18,7 @@ struct PermissionsOnboardingScreen: View {
                         headerSection
                         permissionsList
                     }
-                    .padding(.horizontal, Design.Spacing.md)
+                    .padding(.horizontal, Design.Spacing.lg)
                     .padding(.vertical, Design.Spacing.lg)
                 }
 
@@ -31,9 +34,13 @@ struct PermissionsOnboardingScreen: View {
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
-            Text("Permissions")
-                .font(Design.Typography.heroTitle)
-                .foregroundStyle(Design.Colors.foreground)
+            MonoLabel("DEVICE ACCESS", tracking: Design.Tracking.monoXWide,
+                      color: Design.Brand.accent)
+
+            Text("PERMISSIONS")
+                .font(Design.Typography.display(26, weight: .bold, relativeTo: .title))
+                .tracking(Design.Tracking.display)
+                .foregroundStyle(Design.Colors.foregroundBright)
 
             Text("Enable only what you need. You can change these anytime in Settings.")
                 .font(Design.Typography.body)
@@ -61,9 +68,16 @@ struct PermissionsOnboardingScreen: View {
         HStack(spacing: Design.Spacing.md) {
             Image(systemName: capability.permissionType.displayIcon)
                 .font(.system(size: Design.Size.iconMedium))
-                .foregroundStyle(.white)
+                .foregroundStyle(Design.Brand.accentBright)
                 .frame(width: Design.Size.avatarSmall, height: Design.Size.avatarSmall)
-                .background(capability.permissionType.displayColor, in: .rect(cornerRadius: Design.CornerRadius.md))
+                .background(
+                    Design.Colors.accentTint(0.10),
+                    in: RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                        .strokeBorder(Design.Colors.cyanBorder, lineWidth: 1)
+                }
 
             VStack(alignment: .leading, spacing: Design.Spacing.xxxs) {
                 Text(capability.permissionType.displayLabel)
@@ -76,9 +90,11 @@ struct PermissionsOnboardingScreen: View {
                     .lineLimit(2)
 
                 if capability.status.isGranted {
-                    Text("Granted")
-                        .font(Design.Typography.caption)
-                        .foregroundStyle(.green)
+                    HStack(spacing: Design.Spacing.xs) {
+                        StatusPip(color: Design.Brand.accent, diameter: 6)
+                        MonoLabel("GRANTED", tracking: Design.Tracking.mono,
+                                  color: Design.Brand.accent)
+                    }
                 }
             }
 
@@ -87,8 +103,7 @@ struct PermissionsOnboardingScreen: View {
             permissionAction(for: capability)
         }
         .padding(Design.Spacing.md)
-        .background(Design.Colors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
+        .hudPanel(cornerRadius: Design.CornerRadius.lg)
     }
 
     @ViewBuilder
@@ -98,19 +113,28 @@ struct PermissionsOnboardingScreen: View {
             Button {
                 Task { await permissionsStore.requestPermission(for: capability.permissionType) }
             } label: {
-                Text("Enable")
-                    .font(Design.Typography.footnote.weight(.semibold))
-                    .foregroundStyle(Design.Colors.foreground)
+                Text("ENABLE")
+                    .font(Design.Typography.mono(11, weight: .medium))
+                    .tracking(Design.Tracking.monoWide)
+                    .foregroundStyle(Design.Colors.foregroundBright)
                     .padding(.horizontal, Design.Spacing.md)
-                    .padding(.vertical, Design.Spacing.xs)
+                    .frame(minHeight: Design.Size.minTapTarget)
             }
-            .background(Design.Brand.accent)
-            .clipShape(Capsule())
+            .background(
+                Design.Colors.accentTint(0.12),
+                in: Capsule()
+            )
+            .overlay {
+                Capsule().strokeBorder(Design.Colors.accentTint(0.6), lineWidth: 1)
+            }
+            .accessibilityLabel("Enable \(capability.permissionType.displayLabel)")
 
         case .authorized, .authorizedWhenInUse, .authorizedAlways:
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 22))
-                .foregroundStyle(.green)
+                .foregroundStyle(Design.Brand.accent)
+                .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+                .accessibilityLabel("Granted")
 
         case .denied:
             Button {
@@ -118,33 +142,30 @@ struct PermissionsOnboardingScreen: View {
                     UIApplication.shared.open(url)
                 }
             } label: {
-                Text("Settings")
-                    .font(Design.Typography.caption.weight(.semibold))
-                    .foregroundStyle(.orange)
+                Text("SETTINGS")
+                    .font(Design.Typography.mono(10, weight: .medium))
+                    .tracking(Design.Tracking.monoWide)
+                    .foregroundStyle(Design.Brand.forge)
+                    .frame(minHeight: Design.Size.minTapTarget)
             }
+            .accessibilityLabel("Open Settings for \(capability.permissionType.displayLabel)")
 
         case .limited, .restricted, .unsupported:
             Image(systemName: "minus.circle")
                 .font(.system(size: 22))
-                .foregroundStyle(Design.Colors.secondaryForeground)
+                .foregroundStyle(Design.Colors.mutedForeground)
+                .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+                .accessibilityLabel("Unavailable")
         }
     }
 
     // MARK: - Continue Button
 
     private var continueButton: some View {
-        Button {
+        GlowButton(title: "Continue") {
             pairingStore.completePermissionsOnboarding()
-        } label: {
-            Text("Continue")
-                .font(Design.Typography.headline)
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Design.Spacing.sm)
         }
-        .background(Design.Brand.accent)
-        .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
-        .padding(.horizontal, Design.Spacing.md)
+        .padding(.horizontal, Design.Spacing.lg)
         .padding(.bottom, Design.Spacing.xl)
     }
 }

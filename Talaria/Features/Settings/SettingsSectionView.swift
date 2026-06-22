@@ -6,19 +6,25 @@ struct SettingsSectionView<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
-            Text(title)
-                .font(Design.Typography.footnote)
-                .foregroundStyle(Design.Colors.secondaryForeground)
-                .textCase(.uppercase)
-                .padding(.leading, Design.Spacing.xxs)
+            MonoLabel(
+                title,
+                size: 10,
+                weight: .medium,
+                tracking: Design.Tracking.monoWide,
+                color: Design.Colors.mutedForeground
+            )
+            .padding(.leading, Design.Spacing.xxs)
 
             VStack(spacing: 0) {
                 content
             }
             .padding(Design.Spacing.md)
             .frame(maxWidth: .infinity)
-            .background(Design.Colors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.cyanHairline,
+                fill: Design.Colors.surface
+            )
         }
     }
 }

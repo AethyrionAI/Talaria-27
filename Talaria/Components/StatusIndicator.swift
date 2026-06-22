@@ -4,14 +4,20 @@ struct StatusIndicator: View {
     let status: ConnectionStatus
 
     var body: some View {
-        HStack(spacing: Design.Spacing.xxs) {
-            Circle()
-                .fill(status.displayColor)
-                .frame(width: Design.Spacing.xs, height: Design.Spacing.xs)
+        HStack(spacing: Design.Spacing.xs) {
+            StatusPip(
+                color: status.displayColor,
+                diameter: 7,
+                blinks: status == .connecting
+            )
 
-            Text(status.displayLabel)
-                .font(Design.Typography.caption)
-                .foregroundStyle(Design.Colors.secondaryForeground)
+            MonoLabel(
+                status.displayLabel,
+                size: 10,
+                weight: .medium,
+                tracking: Design.Tracking.mono,
+                color: Design.Colors.coolForeground
+            )
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Connection status: \(status.displayLabel)")

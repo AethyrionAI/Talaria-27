@@ -12,8 +12,11 @@ struct PermissionCard: View {
         }
         .padding(Design.Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Design.Colors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.lg,
+            borderColor: Design.Colors.cyanHairline,
+            fill: Design.Colors.surface
+        )
     }
 
     // MARK: - Header
@@ -21,14 +24,18 @@ struct PermissionCard: View {
     private var headerRow: some View {
         HStack(spacing: Design.Spacing.sm) {
             Image(systemName: capability.permissionType.displayIcon)
-                .font(.system(size: Design.Size.iconMedium))
-                .foregroundStyle(.white)
+                .font(.system(size: Design.Size.iconSmall, weight: .medium))
+                .foregroundStyle(Design.Brand.accentBright)
                 .frame(width: Design.Size.avatarSmall, height: Design.Size.avatarSmall)
-                .background(capability.permissionType.displayColor, in: .rect(cornerRadius: Design.CornerRadius.sm))
+                .background(Design.Colors.accentTint(0.10), in: RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Design.CornerRadius.sm)
+                        .strokeBorder(Design.Colors.cyanBorder, lineWidth: 1)
+                }
 
             Text(capability.permissionType.displayLabel)
                 .font(Design.Typography.headline)
-                .foregroundStyle(Design.Colors.foreground)
+                .foregroundStyle(Design.Colors.foregroundBright)
 
             Spacer()
         }
@@ -47,9 +54,18 @@ struct PermissionCard: View {
 
     private var statusAndAction: some View {
         HStack {
-            Label(statusLabelText, systemImage: statusIcon)
-                .font(Design.Typography.footnote)
-                .foregroundStyle(capability.status.displayColor)
+            HStack(spacing: Design.Spacing.xs) {
+                Image(systemName: statusIcon)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(capability.status.displayColor)
+                MonoLabel(
+                    statusLabelText,
+                    size: 10,
+                    weight: .medium,
+                    tracking: Design.Tracking.mono,
+                    color: capability.status.displayColor
+                )
+            }
 
             Spacer()
 
@@ -57,14 +73,27 @@ struct PermissionCard: View {
                 Button {
                     onRequest()
                 } label: {
-                    Text(actionLabel)
-                        .font(Design.Typography.footnote.weight(.semibold))
-                        .foregroundStyle(Design.Colors.foreground)
+                    Text(actionLabel.uppercased())
+                        .font(Design.Typography.mono(11, weight: .medium))
+                        .tracking(Design.Tracking.mono)
+                        .foregroundStyle(Design.Colors.foregroundBright)
                         .padding(.horizontal, Design.Spacing.md)
-                        .padding(.vertical, Design.Spacing.xs)
+                        .frame(minHeight: Design.Size.minTapTarget)
+                        .background(
+                            LinearGradient(
+                                colors: [Design.Colors.accentTint(0.24), Design.Colors.accentTint(0.08)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            in: Capsule()
+                        )
+                        .overlay {
+                            Capsule().strokeBorder(Design.Colors.accentTint(0.6), lineWidth: 1)
+                        }
+                        .hudGlow(Design.Brand.accent, radius: 14, strength: 0.3)
                 }
-                .background(Design.Brand.accent)
-                .clipShape(Capsule())
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(actionLabel) \(capability.permissionType.displayLabel)")
             }
         }
     }

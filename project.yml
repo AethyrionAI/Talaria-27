@@ -81,6 +81,16 @@ targets:
         NSSpeechRecognitionUsageDescription: "Hermes uses speech recognition for voice commands and local transcription."
         NSSupportsLiveActivities: true
         NSSupportsLiveActivitiesFrequentUpdates: true
+        UIAppFonts:
+          - ChakraPetch-Medium.ttf
+          - ChakraPetch-SemiBold.ttf
+          - ChakraPetch-Bold.ttf
+          - SpaceGrotesk-Regular.ttf
+          - SpaceGrotesk-Medium.ttf
+          - SpaceGrotesk-Bold.ttf
+          - JetBrainsMono-Regular.ttf
+          - JetBrainsMono-Medium.ttf
+          - JetBrainsMono-Bold.ttf
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
         UIBackgroundModes:

@@ -17,11 +17,13 @@ struct SettingsScreen: View {
 
     var body: some View {
         ZStack {
-            Design.Colors.background
+            HUDScreenBackground(gridIntensity: 0.35)
                 .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: Design.Spacing.lg) {
+                    systemHeader
+                    hostLinkPanel
                     connectionSection
                     hermesAPISection
                     relaySection
@@ -32,26 +34,112 @@ struct SettingsScreen: View {
                     locationSection
                     privacySection
                     aboutSection
+                    footer
                 }
                 .padding(.horizontal, Design.Spacing.md)
                 .padding(.vertical, Design.Spacing.sm)
             }
         }
         .navigationTitle("Settings")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: Design.Size.iconSmall, weight: .semibold))
-                        .foregroundStyle(Design.Colors.foreground)
-                }
-            }
-        }
+        .toolbarVisibility(.hidden, for: .navigationBar)
         .task {
             await hostStore.refresh()
             await permissionsStore.reloadCapabilities()
         }
+    }
+
+    // MARK: - Header
+
+    private var systemHeader: some View {
+        HStack {
+            Text("SYSTEM")
+                .font(Design.Typography.screenTitle2)
+                .tracking(Design.Tracking.display)
+                .foregroundStyle(Design.Colors.foregroundBright)
+
+            Spacer()
+
+            GlassCircleButton(icon: "xmark", accessibilityLabel: "Close settings") {
+                dismiss()
+            }
+        }
+        .padding(.top, Design.Spacing.xs)
+    }
+
+    // MARK: - Host link panel
+
+    private var hostLinkPanel: some View {
+        HStack(spacing: Design.Spacing.sm) {
+            ReactorOrb(size: Design.Size.orbPanel, style: .standard)
+
+            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                Text(hostStatusRowValue)
+                    .font(Design.Typography.display(16, weight: .semibold, relativeTo: .headline))
+                    .tracking(Design.Tracking.mono)
+                    .foregroundStyle(Design.Colors.foregroundBright)
+                    .lineLimit(1)
+
+                MonoLabel(
+                    hostLinkStatusLine,
+                    size: 10,
+                    weight: .medium,
+                    tracking: Design.Tracking.mono,
+                    color: hostLinkStatusColor
+                )
+            }
+
+            Spacer(minLength: Design.Spacing.xs)
+
+            StatusPip(
+                color: hostLinkStatusColor,
+                diameter: 9,
+                blinks: hostStore.connectionState == .unreachable
+            )
+        }
+        .padding(Design.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.xl,
+            borderColor: Design.Colors.cyanBorder,
+            fill: Design.Colors.accentTint(0.08),
+            innerGlow: true
+        )
+    }
+
+    private var hostLinkStatusColor: Color {
+        switch hostStore.connectionState {
+        case .online: Design.Brand.accent
+        case .offline, .unreachable: Design.Brand.forge
+        case .notConnected: Design.Colors.mutedForeground
+        }
+    }
+
+    private var hostLinkStatusLine: String {
+        switch hostStore.connectionState {
+        case .online: "LINKED · \(sessionStore.state.connectionStatus.displayLabel.uppercased())"
+        case .offline: "OFFLINE · STANDBY"
+        case .unreachable: "UNREACHABLE · CHECK UPLINK"
+        case .notConnected: "NOT LINKED"
+        }
+    }
+
+    // MARK: - Footer
+
+    private var footer: some View {
+        MonoLabel(
+            "TALARIA v\(appVersionString) · DEVICE-BOUND",
+            size: 9,
+            weight: .regular,
+            tracking: Design.Tracking.monoWide,
+            color: Design.Colors.dimForeground
+        )
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.top, Design.Spacing.sm)
+        .padding(.bottom, Design.Spacing.lg)
+    }
+
+    private var appVersionString: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
     }
 
     // MARK: - Connection
@@ -102,10 +190,13 @@ struct SettingsScreen: View {
         SettingsSectionView(title: "Hermes API") {
             VStack(alignment: .leading, spacing: Design.Spacing.sm) {
                 VStack(alignment: .leading, spacing: Design.Spacing.xs) {
-                    Text("Base URL")
-                        .font(.system(.caption2, weight: .semibold))
-                        .foregroundStyle(Design.Colors.secondaryForeground)
-                        .textCase(.uppercase)
+                    MonoLabel(
+                        "Base URL",
+                        size: 9,
+                        weight: .medium,
+                        tracking: Design.Tracking.monoWide,
+                        color: Design.Colors.mutedForeground
+                    )
 
                     TextField("http://ojamd:8642", text: hermesAPIBaseURLBinding)
                         .textInputAutocapitalization(.never)
@@ -114,7 +205,7 @@ struct SettingsScreen: View {
                         .font(Design.Typography.callout.monospaced())
                         .foregroundStyle(Design.Colors.foreground)
                         .padding(Design.Spacing.md)
-                        .background(Design.Colors.background, in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
+                        .modifier(HUDFieldBackground())
 
                     Text("Hermes Sessions API endpoint, e.g. http://ojamd:8642.")
                         .font(Design.Typography.caption)
@@ -122,10 +213,13 @@ struct SettingsScreen: View {
                 }
 
                 VStack(alignment: .leading, spacing: Design.Spacing.xs) {
-                    Text("API Key")
-                        .font(.system(.caption2, weight: .semibold))
-                        .foregroundStyle(Design.Colors.secondaryForeground)
-                        .textCase(.uppercase)
+                    MonoLabel(
+                        "API Key",
+                        size: 9,
+                        weight: .medium,
+                        tracking: Design.Tracking.monoWide,
+                        color: Design.Colors.mutedForeground
+                    )
 
                     SecureField("Bearer key from ~/.hermes/.env", text: $hermesAPIKeyDraft)
                         .textInputAutocapitalization(.never)
@@ -133,7 +227,7 @@ struct SettingsScreen: View {
                         .font(Design.Typography.callout.monospaced())
                         .foregroundStyle(Design.Colors.foreground)
                         .padding(Design.Spacing.md)
-                        .background(Design.Colors.background, in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
+                        .modifier(HUDFieldBackground())
 
                     HStack {
                         Text(container.hermesAPIKey.isEmpty ? "No key stored." : "Key stored in Keychain.")
@@ -143,14 +237,21 @@ struct SettingsScreen: View {
                         Button {
                             Task { await saveHermesAPIKey() }
                         } label: {
-                            HStack(spacing: 4) {
+                            HStack(spacing: Design.Spacing.xs) {
                                 if hermesAPIKeySaving {
                                     ProgressView().controlSize(.mini)
                                 }
-                                Text(hermesAPIKeyJustSaved ? "Saved" : "Save")
-                                    .font(Design.Typography.callout)
+                                Text((hermesAPIKeyJustSaved ? "Saved" : "Save").uppercased())
+                                    .font(Design.Typography.mono(11, weight: .medium))
+                                    .tracking(Design.Tracking.mono)
                             }
+                            .foregroundStyle(Design.Brand.accentBright)
+                            .padding(.horizontal, Design.Spacing.md)
+                            .padding(.vertical, Design.Spacing.xs)
+                            .background(Design.Colors.accentTint(0.10), in: Capsule())
+                            .overlay { Capsule().strokeBorder(Design.Colors.accentTint(0.4), lineWidth: 1) }
                         }
+                        .buttonStyle(.plain)
                         .disabled(hermesAPIKeyDraft == container.hermesAPIKey)
                     }
                 }
@@ -185,7 +286,7 @@ struct SettingsScreen: View {
                     sectionDivider
                     settingsRow(
                         icon: "link",
-                        iconColor: .secondary,
+                        iconColor: Design.Colors.mutedForeground,
                         title: "Base URL",
                         value: pairingStore.pairedRelayConfiguration?.baseURLString ?? relayConfiguration.activeBaseURLString ?? "Not configured"
                     )
@@ -213,7 +314,7 @@ struct SettingsScreen: View {
                                 .font(Design.Typography.callout.monospaced())
                                 .foregroundStyle(Design.Colors.foreground)
                                 .padding(Design.Spacing.md)
-                                .background(Design.Colors.background, in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
+                                .modifier(HUDFieldBackground())
 
                             Text("Enter the relay API base URL your connector will use.")
                                 .font(Design.Typography.caption)
@@ -231,7 +332,7 @@ struct SettingsScreen: View {
                     if let relayValidationMessage {
                         Text(relayValidationMessage)
                             .font(Design.Typography.caption)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Design.Brand.forge)
                     }
                 }
             }
@@ -313,7 +414,7 @@ struct SettingsScreen: View {
             VStack(spacing: 0) {
                 settingsToggle(
                     icon: "bell.fill",
-                    iconColor: .orange,
+                    iconColor: Design.Brand.accent,
                     title: "Notifications",
                     isOn: notificationsBinding
                 )
@@ -322,7 +423,7 @@ struct SettingsScreen: View {
 
                 settingsToggle(
                     icon: "hand.tap.fill",
-                    iconColor: .purple,
+                    iconColor: Design.Brand.accent,
                     title: "Haptic Feedback",
                     isOn: hapticBinding
                 )
@@ -337,7 +438,7 @@ struct SettingsScreen: View {
             VStack(alignment: .leading, spacing: Design.Spacing.sm) {
                 settingsRow(
                     icon: "location.fill",
-                    iconColor: .blue,
+                    iconColor: Design.Brand.accent,
                     title: "Authorization",
                     value: permissionsStore.locationAuthorizationLevel.displayLabel
                 )
@@ -346,7 +447,7 @@ struct SettingsScreen: View {
 
                 settingsRow(
                     icon: "scope",
-                    iconColor: .blue,
+                    iconColor: Design.Brand.accent,
                     title: "Accuracy",
                     value: permissionsStore.locationAccuracyLevel.displayLabel
                 )
@@ -355,7 +456,7 @@ struct SettingsScreen: View {
 
                 settingsToggle(
                     icon: "location.circle.fill",
-                    iconColor: .blue,
+                    iconColor: Design.Brand.accent,
                     title: "Background Location",
                     isOn: backgroundLocationBinding
                 )
@@ -373,7 +474,7 @@ struct SettingsScreen: View {
         SettingsSectionView(title: "Privacy") {
             settingsNavRow(
                 icon: "lock.shield.fill",
-                iconColor: .green,
+                iconColor: Design.Brand.accent,
                 title: "Permissions"
             ) {
                 dismiss()
@@ -392,7 +493,7 @@ struct SettingsScreen: View {
             VStack(spacing: 0) {
                 settingsRow(
                     icon: "info.circle",
-                    iconColor: .secondary,
+                    iconColor: Design.Colors.mutedForeground,
                     title: "Version",
                     value: "\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0") (\(Bundle.main.object(forInfoDictionaryKey: kCFBundleVersionKey as String) as? String ?? "1"))"
                 )
@@ -401,7 +502,7 @@ struct SettingsScreen: View {
 
                 settingsNavRow(
                     icon: "doc.text",
-                    iconColor: .secondary,
+                    iconColor: Design.Colors.mutedForeground,
                     title: "Terms of Service"
                 ) {
                     openConfiguredURL(settingsStore.buildConfiguration.termsOfServiceURL)
@@ -411,7 +512,7 @@ struct SettingsScreen: View {
 
                 settingsNavRow(
                     icon: "hand.raised",
-                    iconColor: .secondary,
+                    iconColor: Design.Colors.mutedForeground,
                     title: "Privacy Policy"
                 ) {
                     openConfiguredURL(settingsStore.buildConfiguration.privacyPolicyURL)
@@ -422,7 +523,7 @@ struct SettingsScreen: View {
 
                     settingsNavRow(
                         icon: "questionmark.circle",
-                        iconColor: .secondary,
+                        iconColor: Design.Colors.mutedForeground,
                         title: "Support"
                     ) {
                         openConfiguredURL(settingsStore.buildConfiguration.supportURL)
@@ -549,8 +650,9 @@ struct SettingsScreen: View {
     // MARK: - Row Components
 
     private var sectionDivider: some View {
-        Divider()
-            .overlay(Design.Colors.divider)
+        Rectangle()
+            .fill(Design.Colors.cyanHairline)
+            .frame(height: 1)
     }
 
     private func settingsRow(icon: String, iconColor: Color, title: String, value: String?) -> some View {
@@ -567,9 +669,11 @@ struct SettingsScreen: View {
             Spacer()
 
             if let value {
-                Text(value)
-                    .font(Design.Typography.callout)
-                    .foregroundStyle(Design.Colors.secondaryForeground)
+                Text(value.uppercased())
+                    .font(Design.Typography.mono(11, weight: .medium))
+                    .tracking(Design.Tracking.mono)
+                    .foregroundStyle(Design.Brand.accent)
+                    .multilineTextAlignment(.trailing)
             }
         }
         .frame(minHeight: Design.Size.minTapTarget)
@@ -598,14 +702,16 @@ struct SettingsScreen: View {
                 Spacer()
 
                 if let value {
-                    Text(value)
-                        .font(Design.Typography.callout)
-                        .foregroundStyle(Design.Colors.secondaryForeground)
+                    Text(value.uppercased())
+                        .font(Design.Typography.mono(11, weight: .medium))
+                        .tracking(Design.Tracking.mono)
+                        .foregroundStyle(Design.Brand.accent)
+                        .multilineTextAlignment(.trailing)
                 }
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Design.Colors.secondaryForeground)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Design.Colors.accentTint(0.7))
             }
             .frame(minHeight: Design.Size.minTapTarget)
         }
@@ -642,5 +748,23 @@ struct SettingsScreen: View {
     private func openConfiguredURL(_ url: URL?) {
         guard let url else { return }
         openURL(url)
+    }
+}
+
+// MARK: - HUD field background
+
+/// Dark input-field background with a cyan hairline border, matching the HUD
+/// text-entry treatment in the design reference.
+private struct HUDFieldBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .background(
+                Design.Colors.background.opacity(0.6),
+                in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: Design.CornerRadius.lg)
+                    .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+            }
     }
 }
