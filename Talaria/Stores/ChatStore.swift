@@ -359,6 +359,29 @@ final class ChatStore {
         }
     }
 
+    // MARK: - Model controls
+
+    /// Model identifiers exposed by the connected host. Returns [] when the host
+    /// is unreachable so callers can fall back to placeholder options.
+    func availableModels() async -> [String] {
+        (try? await hermesClient.availableModels()) ?? []
+    }
+
+    /// Switches the active model. Applies to the NEXT session (the Hermes agent
+    /// dispatches `/model` as a command turn), so start a new chat for it to take
+    /// effect. Updates the displayed model immediately for toolbar feedback.
+    @discardableResult
+    func selectModel(_ identifier: String) async -> Bool {
+        do {
+            try await hermesClient.switchModel(identifier)
+            activeModelName = identifier
+            contextWindow = Self.inferredContextWindow(for: identifier)
+            return true
+        } catch {
+            return false
+        }
+    }
+
     func replaceCommandCatalog(_ catalog: [SlashCommand], activeModel: String? = nil, contextWindow: Int? = nil) {
         commandCatalog = catalog.isEmpty ? SlashCommand.allBuiltIn : catalog
         if let activeModel { activeModelName = activeModel }

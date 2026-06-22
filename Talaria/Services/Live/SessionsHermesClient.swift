@@ -233,6 +233,14 @@ final class SessionsHermesClient: HermesClientProtocol {
         return fresh
     }
 
+    // MARK: - Model controls
+
+    /// Lists model identifiers from the host's OpenAI-compatible /v1/models.
+    func availableModels() async throws -> [String] {
+        let response: ModelsResponse = try await getJSON(path: Self.modelsPath)
+        return (response.data ?? []).compactMap(\.id)
+    }
+
     // MARK: - Session lifecycle
 
     /// Switches the active model for the NEXT session. The Hermes agent

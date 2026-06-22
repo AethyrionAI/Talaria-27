@@ -36,6 +36,10 @@ final class ModelSelectorModel {
     /// Wiring seam — connected to real model-switch behavior later.
     var onSelectModel: ((ModelOption) -> Void)? = nil
 
+    /// Wiring seam — start a fresh session so a newly selected model takes effect.
+    /// A selected model applies on the NEXT session, so the picker surfaces this.
+    var onStartNewSession: (() -> Void)? = nil
+
     init(selectedModelID: String? = nil, activeModelNameOverride: String? = nil) {
         self.activeModelNameOverride = activeModelNameOverride
         self.selectedModelID = selectedModelID
@@ -97,7 +101,6 @@ struct ModelSelector: View {
             ForEach(model.availableModels) { option in
                 Button {
                     model.select(option)
-                    isPickerPresented = false
                 } label: {
                     HStack(spacing: Design.Spacing.sm) {
                         StatusPip(
@@ -123,6 +126,39 @@ struct ModelSelector: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+            }
+
+            if model.onStartNewSession != nil {
+                Rectangle()
+                    .fill(Design.Colors.cyanHairline)
+                    .frame(height: 1)
+                    .padding(.vertical, Design.Spacing.xxs)
+                MonoLabel("APPLIES ON NEXT SESSION", size: 8, tracking: Design.Tracking.mono,
+                          color: Design.Colors.mutedForeground)
+                Button {
+                    model.onStartNewSession?()
+                    isPickerPresented = false
+                } label: {
+                    HStack(spacing: Design.Spacing.xs) {
+                        Image(systemName: "plus.circle")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Start New Session")
+                            .font(Design.Typography.body(13, weight: .medium))
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundStyle(Design.Brand.accent)
+                    .padding(.vertical, Design.Spacing.xs)
+                    .padding(.horizontal, Design.Spacing.sm)
+                    .frame(maxWidth: .infinity)
+                    .background(Design.Colors.accentTint(0.08), in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                            .strokeBorder(Design.Colors.accentTint(0.4), lineWidth: 1)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.top, Design.Spacing.xxs)
             }
         }
         .padding(Design.Spacing.md)

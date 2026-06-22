@@ -122,13 +122,31 @@ struct ChatScreen: View {
     // MARK: - Shell wiring (presentation seams)
 
     /// Connects the Sessions drawer / Model selector shells to existing flows.
-    /// No backend integration — see the `// TODO: wire …` markers in the models.
+    /// Model selector is wired to the Hermes Sessions API; the Sessions drawer
+    /// list/selection is still pending (see its `// TODO: wire …` markers).
     private func configureChatSeams() {
         modelModel.activeModelNameOverride = displayedModelName
         sessionsModel.onNewChat = { showClearConfirmation = true }
         sessionsModel.onOpenHostSettings = { router.presentSheet(.settings) }
         // TODO: wire to Sessions API — switch the active conversation here.
         sessionsModel.onSelectSession = { _ in }
+
+        // Model selector → Hermes Sessions API. A selection applies on the NEXT
+        // session, so the picker also offers a "Start New Session" action.
+        modelModel.onSelectModel = { option in
+            Task { await chatStore.selectModel(option.id) }
+        }
+        modelModel.onStartNewSession = { showClearConfirmation = true }
+        Task {
+            let ids = await chatStore.availableModels()
+            guard !ids.isEmpty else { return }
+            modelModel.availableModels = ids.map {
+                ModelSelectorModel.ModelOption(id: $0, displayName: $0, detail: nil)
+            }
+            if let active = chatStore.activeModelName, ids.contains(active) {
+                modelModel.selectedModelID = active
+            }
+        }
     }
 
     private var sessionsHostDetail: String {
