@@ -153,9 +153,11 @@ final class ChatStore {
                         resolved.codeDiff = diff
                         self.conversation?.messages[idx] = resolved
                     }
-                    // Mark user message as delivered if it's still in sending state
+                    // The direct stream completed, so this message definitively
+                    // succeeded — mark it delivered, recovering even if the relay
+                    // polling fallback had already flipped it to .failed.
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == clientMessageID }) {
-                        if self.conversation?.messages[idx].status == .sending {
+                        if self.conversation?.messages[idx].status != .delivered {
                             self.conversation?.messages[idx].status = .delivered
                         }
                     }
@@ -432,8 +434,11 @@ final class ChatStore {
                 }
             }
 
-            // If we exhausted attempts, mark stuck messages as failed
-            if attempts >= Self.maxPollAttempts, self.hasPendingMessages {
+            // If we exhausted attempts, mark stuck messages as failed — but only
+            // when no direct stream is still in flight. A tool-heavy turn can run
+            // past the 60s poll window, and the stream (not the relay) is the
+            // authority on delivery, so we must not preempt it with a false failure.
+            if attempts >= Self.maxPollAttempts, self.hasPendingMessages, self.streamingMessageID == nil {
                 if var conv = self.conversation {
                     for i in conv.messages.indices where conv.messages[i].sender == .user && conv.messages[i].status == .sending {
                         conv.messages[i].status = .failed
