@@ -34,9 +34,10 @@ struct MessageBubble: View {
     // MARK: - System Message
 
     private var systemMessage: some View {
-        Text(message.content)
-            .font(Design.Typography.caption)
-            .foregroundStyle(Design.Colors.secondaryForeground)
+        Text(message.content.uppercased())
+            .font(Design.Typography.monoSmall)
+            .tracking(Design.Tracking.monoWide)
+            .foregroundStyle(Design.Colors.mutedForeground)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
             .padding(.horizontal, Design.Spacing.lg)
@@ -45,14 +46,27 @@ struct MessageBubble: View {
 
     // MARK: - User Bubble
 
+    /// Cyan-tinted user bubble shape — 16pt corners with the bottom-trailing
+    /// corner tightened (per the HUD chat reference `16 16 4 16`).
+    private var userBubbleShape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(
+            topLeadingRadius: Design.CornerRadius.xl,
+            bottomLeadingRadius: Design.CornerRadius.xl,
+            bottomTrailingRadius: Design.CornerRadius.xs,
+            topTrailingRadius: Design.CornerRadius.xl
+        )
+    }
+
     private var userBubble: some View {
         VStack(alignment: .trailing, spacing: Design.Spacing.xxs) {
             if message.isVoiceTranscript {
                 voiceTranscriptText(message.content)
                     .padding(.horizontal, Design.Spacing.md)
                     .padding(.vertical, Design.Spacing.sm)
-                    .background(Design.Colors.surface.opacity(0.5))
-                    .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.xl))
+                    .background(Design.Colors.accentTint(0.1), in: userBubbleShape)
+                    .overlay {
+                        userBubbleShape.strokeBorder(Design.Colors.accentTint(0.28), lineWidth: 1)
+                    }
 
                 voiceModeLabel
             } else {
@@ -66,19 +80,22 @@ struct MessageBubble: View {
                     let isAttachmentPlaceholder = !message.attachments.isEmpty
                         && message.content.range(of: #"^\[\d+ attachment"#, options: .regularExpression) != nil
                     if !message.content.isEmpty && !isAttachmentPlaceholder {
-                        MarkdownContentView(content: message.content, isStreaming: false)
-                            .foregroundStyle(Design.Colors.foreground)
+                        MarkdownContentView(content: message.content, isStreaming: false, textColor: Design.Colors.foregroundBright)
+                            .foregroundStyle(Design.Colors.foregroundBright)
                             .padding(.horizontal, Design.Spacing.md)
                             .padding(.vertical, Design.Spacing.sm)
-                            .background(Design.Colors.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.xl))
+                            .background(Design.Colors.accentTint(0.1), in: userBubbleShape)
+                            .overlay {
+                                userBubbleShape.strokeBorder(Design.Colors.accentTint(0.28), lineWidth: 1)
+                            }
                     }
                 }
 
                 HStack(spacing: Design.Spacing.xxs) {
                     Text(message.timestamp, style: .time)
-                        .font(Design.Typography.caption2)
-                        .foregroundStyle(Design.Colors.secondaryForeground)
+                        .font(Design.Typography.monoSmall)
+                        .tracking(Design.Tracking.mono)
+                        .foregroundStyle(Design.Colors.mutedForeground)
 
                     Image(systemName: message.status.displayIcon)
                         .font(.system(size: Design.Size.iconTiny))
@@ -91,7 +108,7 @@ struct MessageBubble: View {
                 Button { onRetry?(message) } label: {
                     Label("Retry", systemImage: "arrow.clockwise")
                         .font(Design.Typography.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Design.Colors.danger)
                 }
             }
         }
@@ -133,8 +150,9 @@ struct MessageBubble: View {
 
                 if !message.isStreaming {
                     Text(message.timestamp, style: .time)
-                        .font(Design.Typography.caption2)
-                        .foregroundStyle(Design.Colors.secondaryForeground)
+                        .font(Design.Typography.monoSmall)
+                        .tracking(Design.Tracking.mono)
+                        .foregroundStyle(Design.Colors.mutedForeground)
                 }
 
                 if message.status == .failed {
@@ -160,9 +178,12 @@ struct MessageBubble: View {
     }
 
     private var voiceModeLabel: some View {
-        Text("Voice Mode")
-            .font(Design.Typography.caption2)
-            .foregroundStyle(Design.Colors.secondaryForeground.opacity(0.6))
+        MonoLabel(
+            "Voice Mode",
+            size: 9,
+            tracking: Design.Tracking.mono,
+            color: Design.Colors.dimForeground
+        )
     }
 
     // MARK: - Streaming Components
@@ -176,9 +197,10 @@ struct MessageBubble: View {
         MarkdownContentView(
             content: displayContent,
             isStreaming: message.isStreaming,
-            showCursor: message.isStreaming
+            showCursor: message.isStreaming,
+            textColor: Design.Colors.coolForeground
         )
-        .foregroundStyle(Design.Colors.foreground)
+        .foregroundStyle(Design.Colors.coolForeground)
         .padding(.vertical, Design.Spacing.xxs)
     }
 
@@ -188,13 +210,20 @@ struct MessageBubble: View {
     }
 
     private func toolActivityPill(_ label: String) -> some View {
-        Text(label)
-            .font(Design.Typography.caption)
-            .foregroundStyle(Design.Colors.secondaryForeground)
-            .padding(.horizontal, Design.Spacing.sm)
-            .padding(.vertical, Design.Spacing.xxs)
-            .background(Design.Colors.surface)
-            .clipShape(Capsule())
+        HStack(spacing: Design.Spacing.xs) {
+            StatusPip(color: Design.Brand.accent, diameter: 6)
+            Text(label.uppercased())
+                .font(Design.Typography.monoSmall)
+                .tracking(Design.Tracking.mono)
+                .foregroundStyle(Design.Colors.coolForeground)
+        }
+        .padding(.horizontal, Design.Spacing.sm)
+        .padding(.vertical, Design.Spacing.xxs + 1)
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.full,
+            borderColor: Design.Colors.accentTint(0.18),
+            fill: Design.Colors.surface
+        )
     }
 
     // MARK: - Attachment Grid
@@ -236,35 +265,45 @@ struct MessageBubble: View {
                 .aspectRatio(contentMode: .fit)
                 .frame(maxWidth: 120, maxHeight: 120)
                 .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                        .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+                }
         } else {
             HStack(spacing: Design.Spacing.xxs) {
                 Image(systemName: "doc")
                     .font(.system(size: Design.Size.iconSmall))
-                    .foregroundStyle(Design.Colors.secondaryForeground)
+                    .foregroundStyle(Design.Brand.accent)
                 Text(attachment.fileName)
-                    .font(Design.Typography.caption)
-                    .foregroundStyle(Design.Colors.secondaryForeground)
+                    .font(Design.Typography.mono(11, relativeTo: .caption))
+                    .foregroundStyle(Design.Colors.coolForeground)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
             .padding(.horizontal, Design.Spacing.sm)
             .padding(.vertical, Design.Spacing.xs)
-            .background(Design.Colors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.md,
+                borderColor: Design.Colors.accentTint(0.18),
+                fill: Design.Colors.surface
+            )
         }
     }
 
     // MARK: - Context Compaction Banner
 
     private var compactionBanner: some View {
-        HStack(spacing: Design.Spacing.sm) {
+        HStack(spacing: Design.Spacing.xs) {
             Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")
-                .font(.system(size: Design.Size.iconSmall))
-                .foregroundStyle(Design.Colors.secondaryForeground)
+                .font(.system(size: Design.Size.iconTiny))
+                .foregroundStyle(Design.Colors.mutedForeground)
 
-            Text("Context compacted")
-                .font(Design.Typography.caption)
-                .foregroundStyle(Design.Colors.secondaryForeground)
+            MonoLabel(
+                "Context Compacted",
+                size: 9,
+                tracking: Design.Tracking.monoWide,
+                color: Design.Colors.mutedForeground
+            )
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Design.Spacing.sm)

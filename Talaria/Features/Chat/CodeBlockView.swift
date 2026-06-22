@@ -18,15 +18,18 @@ struct CodeBlockView: View {
             // Code content
             ScrollView(.horizontal, showsIndicators: false) {
                 Text(code)
-                    .font(.system(size: 13, design: .monospaced))
-                    .foregroundStyle(Design.Colors.foreground)
+                    .font(Design.Typography.mono(13, relativeTo: .footnote))
+                    .foregroundStyle(Design.Colors.coolForeground)
                     .textSelection(.enabled)
                     .padding(.horizontal, Design.Spacing.sm)
                     .padding(.vertical, Design.Spacing.xs)
             }
         }
-        .background(Color.white.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.md,
+            borderColor: Design.Colors.accentTint(0.18),
+            fill: Design.Colors.surface
+        )
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Code block\(language.map { ", \($0)" } ?? "")")
         .accessibilityAction(named: "Copy code") { copyToClipboard() }
@@ -34,28 +37,36 @@ struct CodeBlockView: View {
 
     private var header: some View {
         HStack(spacing: Design.Spacing.xs) {
-            if let language, !language.isEmpty {
-                Text(language)
-                    .font(Design.Typography.caption2.monospaced())
-                    .foregroundStyle(Design.Colors.secondaryForeground)
-            }
+            MonoLabel(
+                (language?.isEmpty == false ? language! : "code"),
+                size: 10,
+                tracking: Design.Tracking.monoWide,
+                color: Design.Colors.mutedForeground
+            )
 
             Spacer()
 
             Button(action: copyToClipboard) {
-                HStack(spacing: Design.Spacing.xxxs) {
+                HStack(spacing: Design.Spacing.xxs) {
                     Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
                         .font(.system(size: 10, weight: .medium))
-                    Text(didCopy ? "Copied" : "Copy")
-                        .font(Design.Typography.caption2)
+                    Text(didCopy ? "COPIED" : "COPY")
+                        .font(Design.Typography.mono(10, weight: .medium, relativeTo: .caption2))
+                        .tracking(Design.Tracking.mono)
                 }
-                .foregroundStyle(didCopy ? .green : Design.Colors.secondaryForeground)
+                .foregroundStyle(didCopy ? Design.Brand.accent : Design.Colors.mutedForeground)
                 .animation(Design.Motion.quickResponse, value: didCopy)
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, Design.Spacing.sm)
         .padding(.top, Design.Spacing.xs)
+        .padding(.bottom, Design.Spacing.xxs)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Design.Colors.accentTint(0.12))
+                .frame(height: 1)
+        }
     }
 
     private func copyToClipboard() {

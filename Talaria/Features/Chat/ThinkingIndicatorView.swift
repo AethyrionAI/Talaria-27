@@ -9,14 +9,15 @@ struct ThinkingIndicatorView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: Design.Spacing.xs) {
-            HermesAvatar(size: Design.Size.avatarSmall)
-                .opacity(isPulsing ? 0.5 : 1.0)
+            ReactorOrb(size: Design.Size.avatarSmall, style: .standard)
+                .frame(width: Design.Size.avatarSmall, height: Design.Size.avatarSmall)
+                .opacity(isPulsing ? 0.6 : 1.0)
 
             VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
                 if let activity = toolActivity {
                     toolActivityLabel(activity)
                 } else {
-                    thinkingDots
+                    reasoningLine
                 }
                 elapsedTimeLabel
             }
@@ -34,24 +35,43 @@ struct ThinkingIndicatorView: View {
     }
 
     private func toolActivityLabel(_ label: String) -> some View {
-        Text(label)
-            .font(Design.Typography.caption)
-            .foregroundStyle(Design.Colors.secondaryForeground)
-            .padding(.horizontal, Design.Spacing.sm)
-            .padding(.vertical, Design.Spacing.xxs)
-            .background(Design.Colors.surface)
-            .clipShape(Capsule())
-            .transition(.opacity)
-            .animation(Design.Motion.quickResponse, value: label)
+        MonoLabel(
+            label,
+            size: 10,
+            tracking: Design.Tracking.mono,
+            color: Design.Colors.secondaryForeground
+        )
+        .padding(.horizontal, Design.Spacing.sm)
+        .padding(.vertical, Design.Spacing.xxs + 1)
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.full,
+            borderColor: Design.Colors.cyanHairline,
+            fill: Design.Colors.surface
+        )
+        .transition(.opacity)
+        .animation(Design.Motion.quickResponse, value: label)
     }
 
-    private var thinkingDots: some View {
-        HStack(spacing: Design.Spacing.xxs) {
+    private var reasoningLine: some View {
+        HStack(spacing: Design.Spacing.xs) {
+            reasoningDots
+            MonoLabel(
+                "Hermes Is Reasoning",
+                size: 11,
+                tracking: Design.Tracking.mono,
+                color: Design.Colors.mutedForeground
+            )
+        }
+        .padding(.vertical, Design.Spacing.xs)
+    }
+
+    private var reasoningDots: some View {
+        HStack(spacing: Design.Spacing.xxs - 1) {
             ForEach(0 ..< 3, id: \.self) { index in
                 Circle()
-                    .fill(Design.Colors.secondaryForeground)
-                    .frame(width: 6, height: 6)
-                    .opacity(isPulsing ? 0.3 : 0.8)
+                    .fill(Design.Brand.accent)
+                    .frame(width: 5, height: 5)
+                    .opacity(isPulsing ? 0.3 : 0.9)
                     .animation(
                         .easeInOut(duration: 0.6)
                             .repeatForever(autoreverses: true)
@@ -60,7 +80,6 @@ struct ThinkingIndicatorView: View {
                     )
             }
         }
-        .padding(.vertical, Design.Spacing.sm)
     }
 
     @ViewBuilder
@@ -69,8 +88,8 @@ struct ThinkingIndicatorView: View {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 let elapsed = context.date.timeIntervalSince(startTime)
                 Text(formatElapsed(elapsed))
-                    .font(Design.Typography.caption2)
-                    .foregroundStyle(Design.Colors.secondaryForeground)
+                    .font(Design.Typography.monoSmall)
+                    .foregroundStyle(Design.Colors.dimForeground)
             }
         }
     }

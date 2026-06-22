@@ -5,7 +5,7 @@ struct VoiceSessionBanner: View {
     var duration: TimeInterval?
 
     var body: some View {
-        HStack(spacing: Design.Spacing.xs) {
+        HStack(spacing: Design.Spacing.sm) {
             dashedLine
             bannerContent
             dashedLine
@@ -15,26 +15,35 @@ struct VoiceSessionBanner: View {
     }
 
     private var bannerContent: some View {
-        HStack(spacing: Design.Spacing.xxs) {
-            Image(systemName: "waveform")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Design.Colors.secondaryForeground)
+        HStack(spacing: Design.Spacing.xs) {
+            StatusPip(color: Design.Brand.accent, diameter: 6)
 
-            Text("Voice chat ended")
-                .font(Design.Typography.caption)
-                .foregroundStyle(Design.Colors.secondaryForeground)
+            MonoLabel(
+                "Voice Link Ended",
+                size: 10,
+                tracking: Design.Tracking.monoWide,
+                color: Design.Colors.mutedForeground
+            )
 
             if let duration {
                 Text(formattedDuration(duration))
-                    .font(Design.Typography.caption.monospacedDigit())
-                    .foregroundStyle(Design.Colors.secondaryForeground)
+                    .font(Design.Typography.mono(10, relativeTo: .caption2).monospacedDigit())
+                    .tracking(Design.Tracking.mono)
+                    .foregroundStyle(Design.Brand.accent)
             }
         }
+        .padding(.horizontal, Design.Spacing.sm)
+        .padding(.vertical, Design.Spacing.xs)
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.full,
+            borderColor: Design.Colors.cyanHairline,
+            fill: Design.Colors.surface
+        )
     }
 
     private var dashedLine: some View {
         Rectangle()
-            .fill(Design.Colors.divider)
+            .fill(Design.Colors.cyanHairline)
             .frame(height: 1)
     }
 

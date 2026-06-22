@@ -19,15 +19,19 @@ struct AttachmentPickerSheet: View {
     var body: some View {
         VStack(spacing: Design.Spacing.md) {
             // Drag indicator area
-            RoundedRectangle(cornerRadius: 2.5)
-                .fill(Design.Colors.secondaryForeground.opacity(0.4))
+            Capsule()
+                .fill(Design.Colors.accentTint(0.4))
                 .frame(width: 36, height: 5)
                 .padding(.top, Design.Spacing.sm)
 
             // Header
-            Text("Add to Chat")
-                .font(Design.Typography.headline)
-                .foregroundStyle(Design.Colors.foreground)
+            MonoLabel(
+                "Add to Chat",
+                size: 12,
+                weight: .medium,
+                tracking: Design.Tracking.monoWide,
+                color: Design.Colors.coolForeground
+            )
 
             // Attachment options
             HStack(spacing: Design.Spacing.sm) {
@@ -96,16 +100,24 @@ struct AttachmentPickerSheet: View {
             VStack(spacing: Design.Spacing.sm) {
                 Image(systemName: icon)
                     .font(.system(size: Design.Size.iconLarge))
-                    .foregroundStyle(Design.Colors.foreground)
-                Text(label)
-                    .font(Design.Typography.caption)
-                    .foregroundStyle(Design.Colors.foreground)
+                    .foregroundStyle(Design.Brand.accent)
+                MonoLabel(
+                    label,
+                    size: 10,
+                    tracking: Design.Tracking.mono,
+                    color: Design.Colors.coolForeground
+                )
             }
             .frame(maxWidth: .infinity)
             .frame(height: 80)
-            .background(Design.Colors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.md,
+                borderColor: Design.Colors.cyanHairline,
+                fill: Design.Colors.surface,
+                innerGlow: true
+            )
         }
+        .buttonStyle(.plain)
     }
 }
 

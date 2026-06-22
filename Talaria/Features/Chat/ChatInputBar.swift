@@ -79,6 +79,12 @@ struct ChatInputBar: View {
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
+            // Decorative mono hint chips ("/ slash", "@ context")
+            if pendingAttachments.isEmpty && !speechService.isListening {
+                hintChips
+                    .padding(.horizontal, Design.Spacing.md)
+            }
+
             // Composer container
             VStack(spacing: 0) {
                 // Attachment preview strip
@@ -88,7 +94,7 @@ struct ChatInputBar: View {
 
                 // Text input area
                 TextField(
-                    speechService.isListening ? "Listening..." : "Reply to Hermes",
+                    "",
                     text: $text,
                     axis: .vertical
                 )
@@ -96,12 +102,21 @@ struct ChatInputBar: View {
                     .accessibilityLabel("Reply to Hermes")
                     .font(Design.Typography.body)
                     .foregroundStyle(Design.Colors.foreground)
+                    .tint(Design.Brand.accent)
                     .lineLimit(1...5)
                     .focused(isFocused)
                     .submitLabel(.send)
                     .onSubmit {
                         if canSend {
                             handlePrimaryAction()
+                        }
+                    }
+                    .overlay(alignment: .leading) {
+                        if text.isEmpty {
+                            Text(speechService.isListening ? "Listening…" : "Message Hermes…")
+                                .font(Design.Typography.body)
+                                .foregroundStyle(Design.Colors.mutedForeground)
+                                .allowsHitTesting(false)
                         }
                     }
                     .padding(.horizontal, Design.Spacing.md)
@@ -114,10 +129,9 @@ struct ChatInputBar: View {
                     Button(action: onAttach) {
                         Image(systemName: "plus")
                             .font(.system(size: Design.Size.iconMedium, weight: .medium))
-                            .foregroundStyle(Design.Colors.secondaryForeground)
-                            .frame(width: 36, height: 36)
-                            .background(Design.Colors.surface)
-                            .clipShape(Circle())
+                            .foregroundStyle(Design.Colors.mutedForeground)
+                            .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+                            .contentShape(Rectangle())
                     }
                     .accessibilityLabel("Add attachment")
 
@@ -129,11 +143,18 @@ struct ChatInputBar: View {
                             toggleDictation()
                         } label: {
                             Image(systemName: speechService.isListening ? "stop.fill" : "mic")
-                                .font(.system(size: Design.Size.iconMedium, weight: .medium))
-                                .foregroundStyle(speechService.isListening ? .red : Design.Colors.secondaryForeground)
-                                .frame(width: 36, height: 36)
-                                .background(speechService.isListening ? Design.Colors.surface : .clear)
-                                .clipShape(Circle())
+                                .font(.system(size: Design.Size.iconSmall, weight: .medium))
+                                .foregroundStyle(speechService.isListening ? Design.Colors.danger : Design.Colors.mutedForeground)
+                                .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+                                .background {
+                                    if speechService.isListening {
+                                        Circle()
+                                            .fill(Design.Colors.accentTint(0.1))
+                                            .frame(width: 36, height: 36)
+                                            .overlay(Circle().strokeBorder(Design.Colors.danger.opacity(0.4), lineWidth: 1).frame(width: 36, height: 36))
+                                    }
+                                }
+                                .contentShape(Rectangle())
                         }
                         .accessibilityLabel(speechService.isListening ? "Stop dictation" : "Start dictation")
                     }
@@ -144,11 +165,16 @@ struct ChatInputBar: View {
                             router.isVoiceOverlayPresented = true
                         } label: {
                             Image(systemName: "waveform")
-                                .font(.system(size: Design.Size.iconMedium, weight: .medium))
-                                .foregroundStyle(Design.Colors.foreground)
-                                .frame(width: 36, height: 36)
-                                .background(Design.Brand.accent)
-                                .clipShape(Circle())
+                                .font(.system(size: Design.Size.iconSmall, weight: .medium))
+                                .foregroundStyle(Design.Brand.accentBright)
+                                .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+                                .background {
+                                    Circle()
+                                        .fill(Design.Colors.accentTint(0.12))
+                                        .frame(width: 36, height: 36)
+                                        .overlay(Circle().strokeBorder(Design.Colors.cyanBorder, lineWidth: 1).frame(width: 36, height: 36))
+                                }
+                                .contentShape(Rectangle())
                         }
                         .accessibilityLabel("Start voice mode")
                         .transition(.scale.combined(with: .opacity))
@@ -157,11 +183,15 @@ struct ChatInputBar: View {
                     // Send / Stop button
                     actionButton
                 }
-                .padding(.horizontal, Design.Spacing.sm)
-                .padding(.bottom, Design.Spacing.sm)
+                .padding(.horizontal, Design.Spacing.xs)
+                .padding(.bottom, Design.Spacing.xs)
             }
-            .background(Design.Colors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.xxl))
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.xl,
+                borderColor: Design.Colors.cyanBorder,
+                fill: Design.Colors.surface,
+                innerGlow: true
+            )
             .padding(.horizontal, Design.Spacing.md)
             .padding(.bottom, Design.Spacing.md)
         }
@@ -207,10 +237,10 @@ struct ChatInputBar: View {
                     VStack(spacing: 4) {
                         Image(systemName: fileIcon(for: attachment.mimeType))
                             .font(.system(size: 20))
-                            .foregroundStyle(Design.Colors.secondaryForeground)
+                            .foregroundStyle(Design.Brand.accent)
                         Text(attachment.fileName)
-                            .font(Design.Typography.caption)
-                            .foregroundStyle(Design.Colors.secondaryForeground)
+                            .font(Design.Typography.caption2)
+                            .foregroundStyle(Design.Colors.coolForeground)
                             .lineLimit(1)
                             .truncationMode(.middle)
                     }
@@ -218,11 +248,11 @@ struct ChatInputBar: View {
                     .background(Design.Colors.surface)
                 }
             }
-            .frame(width: 64, height: 64)
+            .frame(width: Design.Size.thumbnailSmall, height: Design.Size.thumbnailSmall)
             .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
             .overlay(
                 RoundedRectangle(cornerRadius: Design.CornerRadius.sm)
-                    .stroke(Design.Colors.divider, lineWidth: 1)
+                    .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
             )
 
             // Remove button
@@ -233,7 +263,7 @@ struct ChatInputBar: View {
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 18))
-                    .foregroundStyle(Design.Colors.foreground)
+                    .foregroundStyle(Design.Colors.foregroundBright)
                     .background(Circle().fill(Design.Colors.background).padding(2))
             }
             .offset(x: 6, y: -6)
@@ -247,26 +277,69 @@ struct ChatInputBar: View {
         return "doc"
     }
 
+    // MARK: - Hint Chips (decorative)
+
+    private var hintChips: some View {
+        HStack(spacing: Design.Spacing.xs) {
+            hintChip("/ slash", color: Design.Brand.accent, border: Design.Colors.cyanBorder, fill: Design.Colors.accentTint(0.1))
+            hintChip("@ context", color: Design.Colors.secondaryForeground, border: Design.Colors.chipBorder, fill: Design.Colors.chipSurface)
+            Spacer(minLength: 0)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func hintChip(_ title: String, color: Color, border: Color, fill: Color) -> some View {
+        Text(title)
+            .font(Design.Typography.monoSmall)
+            .tracking(Design.Tracking.mono)
+            .foregroundStyle(color)
+            .padding(.horizontal, Design.Spacing.xs + 1)
+            .padding(.vertical, Design.Spacing.xxs)
+            .background(fill, in: RoundedRectangle(cornerRadius: Design.CornerRadius.xs + 2))
+            .overlay {
+                RoundedRectangle(cornerRadius: Design.CornerRadius.xs + 2)
+                    .strokeBorder(border, lineWidth: 1)
+            }
+    }
+
     @ViewBuilder
     private var actionButton: some View {
         if isStreaming {
             Button(action: onStop) {
                 Image(systemName: "stop.fill")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Design.Colors.foreground)
-                    .frame(width: 36, height: 36)
-                    .background(Design.Colors.surface)
-                    .clipShape(Circle())
+                    .foregroundStyle(Design.Colors.foregroundBright)
+                    .frame(width: 38, height: 38)
+                    .background(Design.Colors.accentTint(0.12), in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                            .strokeBorder(Design.Colors.cyanBorder, lineWidth: 1)
+                    }
+                    .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("Stop generating")
         } else if canSend {
             Button(action: handlePrimaryAction) {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(Design.Colors.background)
-                    .frame(width: 36, height: 36)
-                    .background(Design.Brand.accent)
-                    .clipShape(Circle())
+                    .foregroundStyle(Design.Colors.foregroundBright)
+                    .frame(width: 38, height: 38)
+                    .background(
+                        LinearGradient(
+                            colors: [Design.Colors.accentTint(0.3), Design.Colors.accentTint(0.12)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        in: RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                    )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                            .strokeBorder(Design.Colors.accentTint(0.6), lineWidth: 1)
+                    }
+                    .hudGlow(Design.Brand.accent, radius: 16, strength: 0.4)
+                    .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("Send message")
             .transition(.scale.combined(with: .opacity))

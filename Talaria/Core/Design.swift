@@ -84,6 +84,16 @@ enum Design {
         /// Stronger cyan border (`rgba(84,230,240,.3)`).
         static let cyanBorder = accentTint(0.30)
 
+        /// Modal/drawer backdrop scrim.
+        static let scrim = Color(hex: 0x02060A, opacity: 0.62)
+
+        /// Sessions-drawer vertical gradient.
+        static let drawerGradient = LinearGradient(
+            colors: [Color(hex: 0x0A1822), Color(hex: 0x060C13), Color(hex: 0x05090F)],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+
         // --- Screen background gradient ----------------------------------
         /// Screen radial gradient: `radial(120% 70% at 50% -8%, #0c2730 → #070d15 → #04070c)`.
         static let screenGradient = RadialGradient(

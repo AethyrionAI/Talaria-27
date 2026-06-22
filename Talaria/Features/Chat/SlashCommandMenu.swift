@@ -9,17 +9,19 @@ struct SlashCommandMenu: View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(commands.enumerated()), id: \.element.id) { index, command in
                     if index > 0 {
-                        Divider()
-                            .background(Design.Colors.divider)
+                        Rectangle()
+                            .fill(Design.Colors.accentTint(0.1))
+                            .frame(height: 1)
                             .padding(.horizontal, Design.Spacing.md)
                     }
 
                     Button { onSelect(command) } label: {
                         HStack(spacing: Design.Spacing.sm) {
                             Text(command.displayTitle)
-                                .font(.system(.subheadline, design: .monospaced, weight: .semibold))
+                                .font(Design.Typography.mono(13, weight: .medium))
                                 .foregroundStyle(Design.Brand.accent)
-                                .frame(width: 100, alignment: .leading)
+                                .frame(width: 110, alignment: .leading)
+                                .lineLimit(1)
 
                             Text(command.description)
                                 .font(Design.Typography.caption)
@@ -32,18 +34,30 @@ struct SlashCommandMenu: View {
                         .padding(.horizontal, Design.Spacing.md)
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(SlashCommandButtonStyle())
                 }
             }
         }
         .scrollBounceBehavior(.basedOnSize)
         .frame(maxHeight: 260)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                .stroke(Design.Colors.divider, lineWidth: 1)
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.md,
+            borderColor: Design.Colors.cyanBorder,
+            fill: Design.Colors.surface,
+            innerGlow: true
         )
         .padding(.horizontal, Design.Spacing.md)
+    }
+}
+
+/// Highlights a slash-command row with a cyan wash while pressed.
+private struct SlashCommandButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                configuration.isPressed
+                    ? Design.Colors.accentTint(0.12)
+                    : Color.clear
+            )
     }
 }
