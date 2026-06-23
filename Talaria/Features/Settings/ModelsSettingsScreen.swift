@@ -27,6 +27,14 @@ final class ModelsSettingsModel {
     /// Pending expensive-model confirmation, if the shim asked for one.
     var pendingConfirm: PendingConfirm?
 
+    /// Optimistic active pointer set right after a successful set-default. The shim
+    /// caches its GET payload for an hour and does NOT bust the cache on set, so a
+    /// `refresh=0` re-GET still reports the OLD current; this override keeps the
+    /// checkmark truthful until a manual "Refresh models" reconciles against ground.
+    private var activeOverride: ActiveOverride?
+
+    struct ActiveOverride: Equatable { let slug: String; let model: String }
+
     struct PendingConfirm: Identifiable {
         let id = UUID()
         let providerSlug: String
@@ -63,6 +71,8 @@ final class ModelsSettingsModel {
         statusMessage = nil
         do {
             options = try await shim.fetchModels(refresh: true)
+            // Fresh payload is ground truth — drop any optimistic override.
+            activeOverride = nil
             statusMessage = "Refreshed \(compiledAgoText ?? "just now")"
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
@@ -91,11 +101,13 @@ final class ModelsSettingsModel {
                 pendingConfirm = PendingConfirm(providerSlug: providerSlug, modelID: modelID, message: message)
                 return
             case .success:
+                // The shim caches its GET payload for an hour and does NOT bust it on
+                // set, so a `refresh=0` re-GET would still show the OLD current. Move
+                // the active pointer optimistically; "Refresh models" reconciles later.
+                activeOverride = ActiveOverride(slug: providerSlug, model: modelID)
                 // Pin the live session too (gateway `/model`). Non-fatal if the
                 // gateway is unreachable — the persistent default still landed.
                 let sessionOK = await chat.selectModel(modelID)
-                // Reflect the new persistent state from the source of truth.
-                options = try await shim.fetchModels(refresh: false)
                 statusMessage = sessionOK
                     ? "Default → \(modelID) · pinned this session"
                     : "Default → \(modelID) · session pin unavailable (gateway offline?)"
@@ -120,6 +132,9 @@ final class ModelsSettingsModel {
     /// Active model = the row whose id == top-level `model`, inside the provider
     /// with is_current == true. (Provider slug != top-level `provider` for kimi.)
     func isActive(providerSlug: String, modelID: String) -> Bool {
+        if let activeOverride {
+            return activeOverride.slug == providerSlug && activeOverride.model == modelID
+        }
         guard let options else { return false }
         guard let row = options.providers.first(where: { $0.slug == providerSlug }) else { return false }
         return row.current && modelID == options.model
