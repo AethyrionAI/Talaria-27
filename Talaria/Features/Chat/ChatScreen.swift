@@ -147,8 +147,11 @@ struct ChatScreen: View {
             Task { await chatStore.openSession(summary.id) }
         }
 
-        // Model selector → Hermes Sessions API. A selection applies on the NEXT
-        // session, so the picker also offers a "Start New Session" action.
+        // Model selector → Hermes Sessions API. A selection is dispatched as a
+        // `/model` switch that pins the CURRENT session (effective on the next
+        // message); NEW sessions revert to the persistent default (set via
+        // Settings → Models / the models shim). The picker also offers a
+        // "Start New Session" action as a convenience.
         // FUTURE: offer the native /api/model/options + /api/model/set endpoints
         // as a Settings toggle (immediate switch) vs. today's /model-command path.
         modelModel.onSelectModel = { option in

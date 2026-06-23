@@ -36,8 +36,10 @@ final class ModelSelectorModel {
     /// Wiring seam — connected to real model-switch behavior later.
     var onSelectModel: ((ModelOption) -> Void)? = nil
 
-    /// Wiring seam — start a fresh session so a newly selected model takes effect.
-    /// A selected model applies on the NEXT session, so the picker surfaces this.
+    /// Wiring seam — starts a fresh session. A model picked here is dispatched as
+    /// a `/model` switch that applies to the CURRENT session (effective on the next
+    /// message). NEW sessions instead start from the persistent default (set in
+    /// Settings → Models / the models shim), so this is offered as a convenience.
     var onStartNewSession: (() -> Void)? = nil
 
     init(selectedModelID: String? = nil, activeModelNameOverride: String? = nil) {
@@ -138,7 +140,7 @@ struct ModelSelector: View {
                     .fill(Design.Colors.cyanHairline)
                     .frame(height: 1)
                     .padding(.vertical, Design.Spacing.xxs)
-                MonoLabel("APPLIES ON NEXT SESSION", size: 8, tracking: Design.Tracking.mono,
+                MonoLabel("SWITCH APPLIES THIS SESSION", size: 8, tracking: Design.Tracking.mono,
                           color: Design.Colors.mutedForeground)
                 Button {
                     model.onStartNewSession?()

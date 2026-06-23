@@ -648,9 +648,12 @@ final class ChatStore {
 
     private func detectModelSwitch(from text: String) {
         // Match: "Model switched to `claude-sonnet-4-6`" or "Model switched: gpt-4-turbo"
+        // Model ids can be slashed (e.g. "anthropic/claude-opus-4.8" from the nous
+        // portal), so the capture class must include `/`. Inside a `/.../` regex
+        // literal the slash is escaped as `\/`. Keep `-` last so it stays literal.
         let patterns: [Regex<(Substring, Substring)>] = [
-            /[Mm]odel\s+switched\s+to\s+`?([A-Za-z0-9._-]+)`?/,
-            /[Mm]odel\s+switched:\s+`?([A-Za-z0-9._-]+)`?/,
+            /[Mm]odel\s+switched\s+to\s+`?([A-Za-z0-9._\/-]+)`?/,
+            /[Mm]odel\s+switched:\s+`?([A-Za-z0-9._\/-]+)`?/,
         ]
         for pattern in patterns {
             if let match = text.firstMatch(of: pattern) {
