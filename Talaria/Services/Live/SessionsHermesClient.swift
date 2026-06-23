@@ -10,6 +10,7 @@ import os
 final class SessionsHermesClient: HermesClientProtocol {
     private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "SessionsHermesClient")
     private static let modelsPath = "/v1/models"
+    private static let modelOptionsPath = "/api/model/options"
     private static let sessionsPath = "/api/sessions"
 
     var connectionStatus: ConnectionStatus = .disconnected
@@ -235,10 +236,22 @@ final class SessionsHermesClient: HermesClientProtocol {
 
     // MARK: - Model controls
 
-    /// Lists model identifiers from the host's OpenAI-compatible /v1/models.
+    /// Lists switchable model identifiers from the host's /api/model/options.
     func availableModels() async throws -> [String] {
-        let response: ModelsResponse = try await getJSON(path: Self.modelsPath)
-        return (response.data ?? []).compactMap(\.id)
+        // The OpenAI-compatible /v1/models endpoint reports only the Hermes
+        // agent itself as a single pseudo-model ("hermes-agent"). The real list
+        // of switchable models lives at /api/model/options (provider-grouped —
+        // the same source `hermes model` uses). Flatten the authenticated
+        // providers' models into a de-duplicated, ordered id list.
+        let response: ModelOptionsResponse = try await getJSON(path: Self.modelOptionsPath)
+        var ids: [String] = []
+        var seen = Set<String>()
+        for provider in response.providers where provider.authenticated == true {
+            for model in provider.models ?? [] where !model.isEmpty {
+                if seen.insert(model).inserted { ids.append(model) }
+            }
+        }
+        return ids
     }
 
     // MARK: - Session lifecycle
@@ -417,6 +430,17 @@ final class SessionsHermesClient: HermesClientProtocol {
         let data: [ModelInfo]?
         struct ModelInfo: Decodable {
             let id: String?
+        }
+    }
+
+    /// Subset of /api/model/options needed to flatten the picker list. Extra
+    /// keys (provider labels, auth hints, pricing, current selection) are
+    /// ignored; `models` is a flat list of model-id strings per provider.
+    private struct ModelOptionsResponse: Decodable {
+        let providers: [ProviderRow]
+        struct ProviderRow: Decodable {
+            let models: [String]?
+            let authenticated: Bool?
         }
     }
 

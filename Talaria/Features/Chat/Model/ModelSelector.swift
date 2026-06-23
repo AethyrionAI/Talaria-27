@@ -98,6 +98,8 @@ struct ModelSelector: View {
         VStack(alignment: .leading, spacing: Design.Spacing.xs) {
             MonoLabel("SELECT MODEL", size: 10, tracking: Design.Tracking.monoWide)
                 .padding(.bottom, Design.Spacing.xxs)
+            ScrollView {
+                VStack(alignment: .leading, spacing: Design.Spacing.xs) {
             ForEach(model.availableModels) { option in
                 Button {
                     model.select(option)
@@ -127,6 +129,9 @@ struct ModelSelector: View {
                 }
                 .buttonStyle(.plain)
             }
+                }
+            }
+            .frame(maxHeight: 300)
 
             if model.onStartNewSession != nil {
                 Rectangle()
