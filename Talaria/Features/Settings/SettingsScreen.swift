@@ -26,6 +26,7 @@ struct SettingsScreen: View {
                     hostLinkPanel
                     connectionSection
                     hermesAPISection
+                    modelsSection
                     relaySection
                     if settingsStore.availableEnvironments.count > 1 {
                         environmentSection
@@ -269,6 +270,38 @@ struct SettingsScreen: View {
         hermesAPIKeyJustSaved = true
         try? await Task.sleep(for: .seconds(1.5))
         hermesAPIKeyJustSaved = false
+    }
+
+    // MARK: - Models
+
+    private var modelsSection: some View {
+        SettingsSectionView(title: "Models") {
+            NavigationLink {
+                ModelsSettingsScreen()
+            } label: {
+                HStack(spacing: Design.Spacing.sm) {
+                    Image(systemName: "cpu")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Design.Brand.accent)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Model Picker")
+                            .font(Design.Typography.body(15, weight: .medium))
+                            .foregroundStyle(Design.Colors.foreground)
+                        Text(container.chatStore.activeModelName ?? "Pick the active + default model")
+                            .font(Design.Typography.caption)
+                            .foregroundStyle(Design.Colors.secondaryForeground)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    Spacer(minLength: Design.Spacing.sm)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Design.Colors.mutedForeground)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     // MARK: - Environment

@@ -226,6 +226,10 @@ enum LocationSyncPreference: String, Codable, Hashable, Sendable {
 
 struct UserSettings: Codable, Hashable, Sendable {
     static let defaultHermesAPIBaseURL = "http://ojamd:8642"
+    /// Default Talaria models-shim endpoint — the mini's tailnet IP. The shim
+    /// exposes the Hermes model list + persistent set-default without the
+    /// privileged dashboard plane. See tools/models-shim/.
+    static let defaultModelsShimBaseURL = "http://100.79.222.100:8765"
 
     var userName: String
     var avatarInitials: String
@@ -236,6 +240,7 @@ struct UserSettings: Codable, Hashable, Sendable {
     var autoConnectOnLaunch: Bool
     var locationSyncPreference: LocationSyncPreference
     var hermesAPIBaseURL: String
+    var modelsShimBaseURL: String
 
     init(
         userName: String = "User",
@@ -246,7 +251,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         relayConfiguration: RelayConfiguration = RelayConfiguration.defaultValue(),
         autoConnectOnLaunch: Bool = true,
         locationSyncPreference: LocationSyncPreference = .foregroundOnly,
-        hermesAPIBaseURL: String = UserSettings.defaultHermesAPIBaseURL
+        hermesAPIBaseURL: String = UserSettings.defaultHermesAPIBaseURL,
+        modelsShimBaseURL: String = UserSettings.defaultModelsShimBaseURL
     ) {
         self.userName = userName
         self.avatarInitials = avatarInitials
@@ -257,6 +263,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.autoConnectOnLaunch = autoConnectOnLaunch
         self.locationSyncPreference = locationSyncPreference
         self.hermesAPIBaseURL = hermesAPIBaseURL
+        self.modelsShimBaseURL = modelsShimBaseURL
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -269,6 +276,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         case autoConnectOnLaunch
         case locationSyncPreference
         case hermesAPIBaseURL
+        case modelsShimBaseURL
     }
 
     init(from decoder: Decoder) throws {
@@ -283,6 +291,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         autoConnectOnLaunch = try container.decodeIfPresent(Bool.self, forKey: .autoConnectOnLaunch) ?? true
         locationSyncPreference = try container.decodeIfPresent(LocationSyncPreference.self, forKey: .locationSyncPreference) ?? .foregroundOnly
         hermesAPIBaseURL = try container.decodeIfPresent(String.self, forKey: .hermesAPIBaseURL) ?? UserSettings.defaultHermesAPIBaseURL
+        modelsShimBaseURL = try container.decodeIfPresent(String.self, forKey: .modelsShimBaseURL) ?? UserSettings.defaultModelsShimBaseURL
     }
 
     func encode(to encoder: Encoder) throws {
@@ -296,6 +305,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         try container.encode(autoConnectOnLaunch, forKey: .autoConnectOnLaunch)
         try container.encode(locationSyncPreference, forKey: .locationSyncPreference)
         try container.encode(hermesAPIBaseURL, forKey: .hermesAPIBaseURL)
+        try container.encode(modelsShimBaseURL, forKey: .modelsShimBaseURL)
     }
 
     func applyingEnvironmentPolicy(

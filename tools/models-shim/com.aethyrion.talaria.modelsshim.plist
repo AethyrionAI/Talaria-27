@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.aethyrion.talaria.modelsshim</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/owenjones/.hermes/hermes-agent/venv/bin/python</string>
+    <string>/Users/owenjones/Documents/Claude/Talaria/tools/models-shim/shim.py</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>TALARIA_SHIM_HOST</key><string>100.79.222.100</string>
+    <key>TALARIA_SHIM_PORT</key><string>8765</string>
+    <key>TALARIA_SHIM_TTL</key><string>3600</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ProcessType</key><string>Background</string>
+  <key>StandardOutPath</key><string>/Users/owenjones/.hermes/logs/talaria-shim.out.log</string>
+  <key>StandardErrorPath</key><string>/Users/owenjones/.hermes/logs/talaria-shim.err.log</string>
+</dict>
+</plist>

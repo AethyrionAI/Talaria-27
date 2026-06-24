@@ -5,6 +5,7 @@ import Foundation
 final class AppContainer {
     private static let apnsTokenDefaultsKey = "hermes.apns.deviceToken"
     static let hermesAPIKeyKeychainKey = "hermes.apiServerKey"
+    static let modelsShimTokenKeychainKey = "talaria.modelsShimToken"
     private static let sharedDefaultContainer = AppContainer.makeDefault()
 
     let router = TabRouter()
@@ -16,12 +17,15 @@ final class AppContainer {
     let permissionsStore: PermissionsStore
     let settingsStore: SettingsStore
     let talkStore: TalkStore
+    let modelsShimClient: ModelsShimClient
     let sensorUploadService: SensorUploadService?
     private let apiClient: RelayAPIClient?
     private let notificationService: (any NotificationServiceProtocol)?
     private let secureStore: (any SecureStoreProtocol)?
     private(set) var hermesAPIKey: String = ""
+    private(set) var modelsShimToken: String = ""
     private var _chatAPIKeyBox: MutableHermesAPIKeyBox?
+    private var _shimTokenBox: MutableShimTokenBox?
     private var isInitialized = false
     private var lastCommandCatalogRefreshAt: Date?
     private var lastKnownHostOnline = false
@@ -37,6 +41,7 @@ final class AppContainer {
         permissionsStore: PermissionsStore,
         settingsStore: SettingsStore,
         talkStore: TalkStore,
+        modelsShimClient: ModelsShimClient,
         sensorUploadService: SensorUploadService? = nil,
         apiClient: RelayAPIClient? = nil,
         notificationService: (any NotificationServiceProtocol)? = nil,
@@ -50,6 +55,7 @@ final class AppContainer {
         self.permissionsStore = permissionsStore
         self.settingsStore = settingsStore
         self.talkStore = talkStore
+        self.modelsShimClient = modelsShimClient
         self.sensorUploadService = sensorUploadService
         self.apiClient = apiClient
         self.notificationService = notificationService
@@ -167,6 +173,27 @@ final class AppContainer {
             allowsFallback: { allowMockFallbacks && (activePairingStore?.isPaired != true || usesMockPairingService) }
         )
 
+        // Talaria models-shim client (mini tailnet). Token comes from the Keychain
+        // box (hydrated below); in DEBUG only, a `TALARIA_SHIM_TOKEN` launch-env var
+        // is used as a fallback so the picker can be driven in the simulator without
+        // pasting (idb has no keyboard injection). The token never ships in git.
+        let shimTokenBox = MutableShimTokenBox()
+        let modelsShimClient = ModelsShimClient(
+            baseURLProvider: {
+                let raw = settingsStore.settings.modelsShimBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                return raw.isEmpty ? nil : raw
+            },
+            tokenProvider: {
+                if !shimTokenBox.value.isEmpty { return shimTokenBox.value }
+                #if DEBUG
+                if let envToken = processEnvironment["TALARIA_SHIM_TOKEN"], !envToken.isEmpty {
+                    return envToken
+                }
+                #endif
+                return nil
+            }
+        )
+
         let liveLocationService = LiveLocationService()
         liveLocationService.updateSyncPreference(settingsStore.settings.locationSyncPreference)
         let liveHealthService = LiveHealthService(persistence: persistence)
@@ -217,6 +244,7 @@ final class AppContainer {
             ),
             settingsStore: settingsStore,
             talkStore: TalkStore(voiceService: voiceService),
+            modelsShimClient: modelsShimClient,
             sensorUploadService: sensorUploadService,
             apiClient: apiClient,
             notificationService: notificationService,
@@ -224,6 +252,7 @@ final class AppContainer {
         )
 
         container.chatAPIKeyBox = hermesAPIKeyBox
+        container.shimTokenBox = shimTokenBox
 
         // Restore any persisted Hermes Sessions-API key into the in-memory box
         // so the chat client can pick it up on first send without blocking startup.
@@ -231,6 +260,14 @@ final class AppContainer {
             if let stored = await secureStore.retrieve(key: AppContainer.hermesAPIKeyKeychainKey) {
                 hermesAPIKeyBox.value = stored
                 container?.hermesAPIKey = stored
+            }
+        }
+
+        // Restore the persisted models-shim bearer token (same pattern).
+        Task { @MainActor [weak container, shimTokenBox] in
+            if let stored = await secureStore.retrieve(key: AppContainer.modelsShimTokenKeychainKey) {
+                shimTokenBox.value = stored
+                container?.modelsShimToken = stored
             }
         }
 
@@ -661,6 +698,27 @@ final class AppContainer {
     fileprivate var chatAPIKeyBox: MutableHermesAPIKeyBox? {
         get { _chatAPIKeyBox }
         set { _chatAPIKeyBox = newValue }
+    }
+
+    // MARK: - Models shim token
+
+    /// Persists the models-shim bearer token in the Keychain and updates the
+    /// in-memory copy that `ModelsShimClient` reads on each request.
+    func saveModelsShimToken(_ value: String) async {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        modelsShimToken = trimmed
+        shimTokenBox?.value = trimmed
+        guard let secureStore else { return }
+        if trimmed.isEmpty {
+            await secureStore.delete(key: Self.modelsShimTokenKeychainKey)
+        } else {
+            await secureStore.store(key: Self.modelsShimTokenKeychainKey, value: trimmed)
+        }
+    }
+
+    fileprivate var shimTokenBox: MutableShimTokenBox? {
+        get { _shimTokenBox }
+        set { _shimTokenBox = newValue }
     }
 }
 

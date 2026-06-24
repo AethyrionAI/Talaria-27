@@ -7,6 +7,13 @@ final class ChatStore {
     var isLoading = false
     var pendingMessageSentAt: Date?
     var lastTokenUsage: TokenUsage?
+
+    /// Reachability of the Hermes Sessions API itself — the direct connection
+    /// (localhost:8642) that actually carries chat, independent of the relay.
+    /// The relay is offline by design, so the Chat screen drives its connectivity
+    /// UI from this rather than relay-sourced host status (which would otherwise
+    /// paint a false "offline" banner). Updated by `refreshDirectHealth()`.
+    private(set) var directConnectionStatus: ConnectionStatus = .disconnected
     private var isPollingEnabled = false
     private var pollingTask: Task<Void, Never>?
     private var streamingTask: Task<Void, Never>?
@@ -359,6 +366,72 @@ final class ChatStore {
         }
     }
 
+    // MARK: - Direct Sessions API health
+
+    /// Probes the direct Sessions API (`/v1/models`, via the client's `connect()`)
+    /// and records the outcome in `directConnectionStatus`. The probe creates no
+    /// chat session and has no side effect beyond the status. While a response is
+    /// actively streaming the connection is, by definition, live, so we skip the
+    /// probe and report `.connected`.
+    func refreshDirectHealth() async {
+        guard !isStreaming else {
+            directConnectionStatus = .connected
+            return
+        }
+        await hermesClient.connect()
+        directConnectionStatus = hermesClient.connectionStatus
+    }
+
+    // MARK: - Model controls
+
+    /// Model identifiers exposed by the connected host. Returns [] when the host
+    /// is unreachable so callers can fall back to placeholder options.
+    func availableModels() async -> [String] {
+        (try? await hermesClient.availableModels()) ?? []
+    }
+
+    /// Switches the active model. Applies to the NEXT session (the Hermes agent
+    /// dispatches `/model` as a command turn), so start a new chat for it to take
+    /// effect. Updates the displayed model immediately for toolbar feedback.
+    @discardableResult
+    func selectModel(_ identifier: String) async -> Bool {
+        do {
+            try await hermesClient.switchModel(identifier)
+            activeModelName = identifier
+            contextWindow = Self.inferredContextWindow(for: identifier)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    // MARK: - Sessions
+
+    /// Recent sessions from the host. Returns [] when unreachable.
+    func loadSessions() async -> [HermesSessionInfo] {
+        (try? await hermesClient.listSessions()) ?? []
+    }
+
+    /// Opens an existing session: loads its history and continues that thread.
+    func openSession(_ id: String) async {
+        streamingTask?.cancel()
+        streamingTask = nil
+        streamingMessageID = nil
+        chatLiveActivity.endActivity()
+        pollingTask?.cancel()
+        pollingTask = nil
+        do {
+            let convo = try await hermesClient.openSession(id)
+            conversation = convo
+            lastTokenUsage = convo.latestUsage
+            pendingMessageSentAt = nil
+            persistence.saveConversationCache(convo)
+            onConversationChanged?()
+        } catch {
+            // Keep the current conversation if the open fails.
+        }
+    }
+
     func replaceCommandCatalog(_ catalog: [SlashCommand], activeModel: String? = nil, contextWindow: Int? = nil) {
         commandCatalog = catalog.isEmpty ? SlashCommand.allBuiltIn : catalog
         if let activeModel { activeModelName = activeModel }
@@ -575,9 +648,12 @@ final class ChatStore {
 
     private func detectModelSwitch(from text: String) {
         // Match: "Model switched to `claude-sonnet-4-6`" or "Model switched: gpt-4-turbo"
+        // Model ids can be slashed (e.g. "anthropic/claude-opus-4.8" from the nous
+        // portal), so the capture class must include `/`. Inside a `/.../` regex
+        // literal the slash is escaped as `\/`. Keep `-` last so it stays literal.
         let patterns: [Regex<(Substring, Substring)>] = [
-            /[Mm]odel\s+switched\s+to\s+`?([A-Za-z0-9._-]+)`?/,
-            /[Mm]odel\s+switched:\s+`?([A-Za-z0-9._-]+)`?/,
+            /[Mm]odel\s+switched\s+to\s+`?([A-Za-z0-9._\/-]+)`?/,
+            /[Mm]odel\s+switched:\s+`?([A-Za-z0-9._\/-]+)`?/,
         ]
         for pattern in patterns {
             if let match = text.firstMatch(of: pattern) {

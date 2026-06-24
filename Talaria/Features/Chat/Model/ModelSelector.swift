@@ -36,6 +36,12 @@ final class ModelSelectorModel {
     /// Wiring seam — connected to real model-switch behavior later.
     var onSelectModel: ((ModelOption) -> Void)? = nil
 
+    /// Wiring seam — starts a fresh session. A model picked here is dispatched as
+    /// a `/model` switch that applies to the CURRENT session (effective on the next
+    /// message). NEW sessions instead start from the persistent default (set in
+    /// Settings → Models / the models shim), so this is offered as a convenience.
+    var onStartNewSession: (() -> Void)? = nil
+
     init(selectedModelID: String? = nil, activeModelNameOverride: String? = nil) {
         self.activeModelNameOverride = activeModelNameOverride
         self.selectedModelID = selectedModelID
@@ -94,10 +100,11 @@ struct ModelSelector: View {
         VStack(alignment: .leading, spacing: Design.Spacing.xs) {
             MonoLabel("SELECT MODEL", size: 10, tracking: Design.Tracking.monoWide)
                 .padding(.bottom, Design.Spacing.xxs)
+            ScrollView {
+                VStack(alignment: .leading, spacing: Design.Spacing.xs) {
             ForEach(model.availableModels) { option in
                 Button {
                     model.select(option)
-                    isPickerPresented = false
                 } label: {
                     HStack(spacing: Design.Spacing.sm) {
                         StatusPip(
@@ -123,6 +130,42 @@ struct ModelSelector: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+            }
+                }
+            }
+            .frame(maxHeight: 300)
+
+            if model.onStartNewSession != nil {
+                Rectangle()
+                    .fill(Design.Colors.cyanHairline)
+                    .frame(height: 1)
+                    .padding(.vertical, Design.Spacing.xxs)
+                MonoLabel("SWITCH APPLIES THIS SESSION", size: 8, tracking: Design.Tracking.mono,
+                          color: Design.Colors.mutedForeground)
+                Button {
+                    model.onStartNewSession?()
+                    isPickerPresented = false
+                } label: {
+                    HStack(spacing: Design.Spacing.xs) {
+                        Image(systemName: "plus.circle")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Start New Session")
+                            .font(Design.Typography.body(13, weight: .medium))
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundStyle(Design.Brand.accent)
+                    .padding(.vertical, Design.Spacing.xs)
+                    .padding(.horizontal, Design.Spacing.sm)
+                    .frame(maxWidth: .infinity)
+                    .background(Design.Colors.accentTint(0.08), in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                            .strokeBorder(Design.Colors.accentTint(0.4), lineWidth: 1)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.top, Design.Spacing.xxs)
             }
         }
         .padding(Design.Spacing.md)
