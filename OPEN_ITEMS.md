@@ -214,3 +214,22 @@ Possible approaches (pick one or combine):
 
 The goal: zero manual token entry for the end user. The shim URL can default to
 auto-discovery or the tailnet IP; the token should be exchanged, not typed.
+
+
+---
+
+## 15. 📝 In-app sensor diagnostics panel
+
+Add a diagnostic section to Settings (or a hidden debug screen) that surfaces the sensor
+pipeline's internal state at a glance:
+- `SensorUploadService.isActive` (was `start()` called?)
+- `isPairedProvider()` result
+- `accessTokenProvider()` result (non-nil / nil — don't display the actual token)
+- Outbox state: pending location (lat/lon/age), pending health sample count
+- Last drain result (success / which gate blocked / HTTP error)
+- `LiveHealthService.authorizationStatus`
+- `LiveLocationService.authorizationStatus` + `authorizationLevel`
+- `LiveMotionService` status
+- Last location update timestamp + last health snapshot timestamp
+
+This lets Owen (and eventually Shelley) see the pipeline state without Console.app.

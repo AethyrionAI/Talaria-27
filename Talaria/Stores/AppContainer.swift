@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let containerLog = Logger(subsystem: "org.aethyrion.talaria", category: "AppContainer")
 
 @MainActor
 @Observable
@@ -327,13 +330,17 @@ final class AppContainer {
 
         await permissionsStore.reloadCapabilities()
         await sessionStore.bootstrap()
-        guard sessionStore.state.connectionStatus == .connected else { return }
+        guard sessionStore.state.connectionStatus == .connected else {
+            containerLog.warning("initialize: ABORT — connectionStatus != .connected (is \(String(describing: self.sessionStore.state.connectionStatus), privacy: .public))")
+            return
+        }
         await hostStore.refresh()
         lastKnownHostOnline = hostStore.isHostOnline
         await chatStore.loadConversationIfNeeded()
         await inboxStore.loadInbox()
         await refreshCommandCatalog(force: true)
         await registerStoredPushTokenIfNeeded()
+        containerLog.notice("initialize: starting sensor service + handleAppDidBecomeActive")
         sensorUploadService?.start()
         await sensorUploadService?.handleAppDidBecomeActive()
         reconcileLiveActivities()
@@ -342,8 +349,15 @@ final class AppContainer {
     }
 
     func handleAppDidBecomeActive() async {
-        guard pairingStore.isPaired else { return }
-        guard await sessionStore.currentAccessToken() != nil else { return }
+        guard pairingStore.isPaired else {
+            containerLog.warning("handleAppDidBecomeActive: BLOCKED — not paired")
+            return
+        }
+        guard await sessionStore.currentAccessToken() != nil else {
+            containerLog.warning("handleAppDidBecomeActive: BLOCKED — no access token")
+            return
+        }
+        containerLog.info("handleAppDidBecomeActive: paired + token OK, proceeding")
 
         await permissionsStore.reloadCapabilities()
         await hostStore.refresh()
