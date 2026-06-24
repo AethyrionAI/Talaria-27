@@ -912,11 +912,11 @@
 				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					1B5CF70C2165B59E27FDF0BA = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = DNL25ZFSD2;
 						ProvisioningStyle = Automatic;
 					};
 					1E8262A30297B30A6BC1DDAA = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = DNL25ZFSD2;
 						ProvisioningStyle = Automatic;
 					};
 					23F486750C75CAACFBF51049 = {
@@ -1184,7 +1184,7 @@
 				CODE_SIGN_ENTITLEMENTS = TalariaWidgets/TalariaWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = DNL25ZFSD2;
 				INFOPLIST_FILE = TalariaWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1290,7 +1290,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = DNL25ZFSD2;
 				INFOPLIST_FILE = Talaria/Resources/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Talaria;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1329,7 +1329,7 @@
 				CODE_SIGN_ENTITLEMENTS = TalariaWidgets/TalariaWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = DNL25ZFSD2;
 				INFOPLIST_FILE = TalariaWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1458,7 +1458,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = DNL25ZFSD2;
 				INFOPLIST_FILE = Talaria/Resources/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Talaria;
 				LD_RUNPATH_SEARCH_PATHS = (
