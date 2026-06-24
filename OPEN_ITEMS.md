@@ -4,7 +4,7 @@
 **Landed this session (on `main`, merge `98a9a89`):** T1 (Settings→Models dual-write
 picker), T2 (regex + copy fixes), shim cache-bust. See the merge commit for detail.
 
-Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 📝 note / decision · ✅ done.
+Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · 📝 note / decision · ✅ done.
 
 ---
 
@@ -109,4 +109,26 @@ deliberate and the wait is covered.
 it to `ModelsSettingsModel.applyingModelID` (already drives the in-flight state). Should
 cover the whole apply() window and dismiss on success / surface the error or confirm
 dialog. Ties to the existing optimistic-checkmark behavior.
+
+---
+
+## 10. 🐛 Top-center model chip shows a placeholder, not the active model
+
+The ChatScreen top-center `ModelSelector` chip displays the hardcoded placeholder
+("CLAUDE OPUS 4.6") instead of the actually-selected/active model. It should reflect the
+real active model — seed it on launch from the gateway's active model / the shim's current
+`model` (e.g. `kimi-k2.7-code`) and keep it in sync after a pick. Today `activeModelName`
+is nil until a `/model` switch is detected over chat, so a fresh launch shows the
+placeholder and the chip's `availableModels` is still the opus/sonnet/haiku stub.
+
+---
+
+## 11. 🐛 Settings back-nav exits Settings instead of popping
+
+Navigating into some Settings sub-screens and tapping Back exits Settings entirely instead
+of returning to the previous screen. Back should pop to the prior screen within the
+Settings stack. Audit the Settings navigation (NavigationStack push vs sheet presentation;
+the custom HUD back buttons' `dismiss()` vs an explicit path pop). Owen to pinpoint which
+screens on-device.
+
 
