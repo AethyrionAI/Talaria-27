@@ -84,7 +84,8 @@ final class ModelsSettingsModel {
 
     /// Tap handler. Persists the default via the shim first (so the expensive guard
     /// can interrupt before we touch the live session), then pins the current
-    /// session via `/model`, then re-GETs so `is_current` / `model` reflect reality.
+    /// session via `/model`, and moves the checkmark optimistically (the shim caches
+    /// its GET payload, so we don't trust an immediate re-GET — "Refresh" reconciles).
     func apply(providerSlug: String, modelID: String, confirmExpensive: Bool = false) async {
         guard applyingModelID == nil else { return }
         applyingModelID = modelID
