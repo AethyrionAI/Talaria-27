@@ -157,7 +157,7 @@ final class SensorUploadService {
 
     func start() {
         guard !isActive else {
-            sensorLog.info("start() skipped — already active")
+            sensorLog.notice("start() skipped — already active")
             return
         }
         isActive = true
@@ -167,7 +167,7 @@ final class SensorUploadService {
         locationService.onLocationUpdate = { [weak self] update in
             guard let self else { return }
             Task { @MainActor in
-                sensorLog.info("📍 location update: (\(update.latitude), \(update.longitude)) accuracy=\(update.accuracy)")
+                sensorLog.notice("📍 location update: (\(update.latitude), \(update.longitude)) accuracy=\(update.accuracy)")
                 self.outboxState.enqueue(location: update)
                 self.persistOutboxState()
                 await self.drainOutboxIfPossible()
@@ -177,7 +177,7 @@ final class SensorUploadService {
         healthService.onHealthUpdate = { [weak self] changedIdentifiers in
             guard let self else { return }
             Task { @MainActor in
-                sensorLog.info("💓 health update for: \(changedIdentifiers.joined(separator: ", "))")
+                sensorLog.notice("💓 health update for: \(changedIdentifiers.joined(separator: ", "))")
                 await self.captureHealthSnapshot(changedIdentifiers: changedIdentifiers)
             }
         }
@@ -185,7 +185,7 @@ final class SensorUploadService {
         motionService?.onActivityUpdate = { [weak self] activityCode in
             guard let self else { return }
             Task { @MainActor in
-                sensorLog.info("🏃 activity update: code=\(activityCode.rawValue)")
+                sensorLog.notice("🏃 activity update: code=\(activityCode.rawValue)")
                 let now = Date()
                 let sample = HealthSnapshot.Sample(
                     metric: "user_activity",
@@ -227,7 +227,7 @@ final class SensorUploadService {
             sensorLog.warning("handleAppDidBecomeActive: service not active — skipping")
             return
         }
-        sensorLog.info("handleAppDidBecomeActive: requesting location + full health refresh")
+        sensorLog.notice("handleAppDidBecomeActive: requesting location + full health refresh")
 
         locationService.requestSingleLocation()
         await captureHealthSnapshot(forceFullRefresh: true)
@@ -235,7 +235,11 @@ final class SensorUploadService {
     }
 
     func handleSystemLaunch() async {
-        guard isActive else { return }
+        guard isActive else {
+            sensorLog.warning("handleSystemLaunch: service not active — skipping")
+            return
+        }
+        sensorLog.notice("handleSystemLaunch: capturing health + draining outbox")
 
         await captureHealthSnapshot()
         await drainOutboxIfPossible()
@@ -251,14 +255,14 @@ final class SensorUploadService {
                 changedIdentifiers: changedIdentifiers
             )
         else {
-            sensorLog.info("captureHealth: collectSnapshot returned nil (auth=\(String(describing: self.healthService.authorizationStatus), privacy: .public))")
+            sensorLog.notice("captureHealth: collectSnapshot returned nil (auth=\(String(describing: self.healthService.authorizationStatus), privacy: .public))")
             return
         }
         guard !snapshot.samples.isEmpty else {
-            sensorLog.info("captureHealth: snapshot empty (no changed metrics)")
+            sensorLog.notice("captureHealth: snapshot empty (no changed metrics)")
             return
         }
-        sensorLog.info("captureHealth: got \(snapshot.samples.count) samples — \(snapshot.samples.map(\.metric).joined(separator: ", "))")
+        sensorLog.notice("captureHealth: got \(snapshot.samples.count) samples — \(snapshot.samples.map(\.metric).joined(separator: ", "))")
         outboxState.enqueue(healthSamples: snapshot.samples)
         SharedWidgetDataStore.updateHealthMetrics(from: snapshot.samples)
         persistOutboxState()
@@ -285,7 +289,7 @@ final class SensorUploadService {
         }
         _ = accessToken
 
-        sensorLog.info("drain: starting. Outbox: loc=\(self.outboxState.pendingLocation != nil), health=\(self.outboxState.pendingHealthSamples.count)")
+        sensorLog.notice("drain: starting. Outbox: loc=\(self.outboxState.pendingLocation != nil), health=\(self.outboxState.pendingHealthSamples.count)")
 
         isDraining = true
         defer { isDraining = false }
@@ -293,7 +297,7 @@ final class SensorUploadService {
         while isActive && isPairedProvider() {
             if let pendingLocation = outboxState.pendingLocation {
                 let delivered = await uploadLocation(pendingLocation)
-                sensorLog.info("drain: location upload \(delivered ? "✅ delivered" : "❌ failed")")
+                sensorLog.notice("drain: location upload \(delivered ? "✅ delivered" : "❌ failed")")
                 guard delivered else { break }
                 outboxState.pendingLocation = nil
                 persistOutboxState()
@@ -302,7 +306,7 @@ final class SensorUploadService {
 
             if !outboxState.pendingHealthSamples.isEmpty {
                 let delivered = await uploadHealth(outboxState.pendingHealthSamples)
-                sensorLog.info("drain: health upload (\(self.outboxState.pendingHealthSamples.count) samples) \(delivered ? "✅ delivered" : "❌ failed")")
+                sensorLog.notice("drain: health upload (\(self.outboxState.pendingHealthSamples.count) samples) \(delivered ? "✅ delivered" : "❌ failed")")
                 guard delivered else { break }
                 outboxState.pendingHealthSamples.removeAll()
                 persistOutboxState()
@@ -311,7 +315,7 @@ final class SensorUploadService {
 
             break
         }
-        sensorLog.info("drain: finished. Outbox remaining: loc=\(self.outboxState.pendingLocation != nil), health=\(self.outboxState.pendingHealthSamples.count)")
+        sensorLog.notice("drain: finished. Outbox remaining: loc=\(self.outboxState.pendingLocation != nil), health=\(self.outboxState.pendingHealthSamples.count)")
     }
 
     private func persistOutboxState() {
@@ -412,7 +416,7 @@ final class SensorUploadService {
             body: body,
             accessToken: accessToken
         )
-        sensorLog.info("executeUpload \(path): deliveryState=\(result.deliveryState) wasDelivered=\(result.wasDelivered)")
+        sensorLog.notice("executeUpload \(path): deliveryState=\(result.deliveryState) wasDelivered=\(result.wasDelivered)")
         return result.wasDelivered
     }
 }

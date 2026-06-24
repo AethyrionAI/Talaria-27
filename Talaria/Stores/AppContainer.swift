@@ -321,9 +321,16 @@ final class AppContainer {
     }
 
     func initialize() async {
-        guard pairingStore.isPaired else { return }
-        guard !isInitialized else { return }
+        guard pairingStore.isPaired else {
+            containerLog.warning("initialize: ABORT — not paired")
+            return
+        }
+        guard !isInitialized else {
+            containerLog.notice("initialize: SKIP — already initialized")
+            return
+        }
         guard await sessionStore.currentAccessToken() != nil else {
+            containerLog.warning("initialize: ABORT — no access token, clearing pairing")
             await pairingStore.clearLocalPairing()
             return
         }
@@ -357,7 +364,7 @@ final class AppContainer {
             containerLog.warning("handleAppDidBecomeActive: BLOCKED — no access token")
             return
         }
-        containerLog.info("handleAppDidBecomeActive: paired + token OK, proceeding")
+        containerLog.notice("handleAppDidBecomeActive: paired + token OK, proceeding")
 
         await permissionsStore.reloadCapabilities()
         await hostStore.refresh()
@@ -373,8 +380,15 @@ final class AppContainer {
     }
 
     func handleRemoteNotificationWake() async {
-        guard pairingStore.isPaired else { return }
-        guard await sessionStore.currentAccessToken() != nil else { return }
+        containerLog.notice("handleRemoteNotificationWake: entered")
+        guard pairingStore.isPaired else {
+            containerLog.warning("handleRemoteNotificationWake: BLOCKED — not paired")
+            return
+        }
+        guard await sessionStore.currentAccessToken() != nil else {
+            containerLog.warning("handleRemoteNotificationWake: BLOCKED — no access token")
+            return
+        }
 
         await permissionsStore.reloadCapabilities()
         await hostStore.refresh()
@@ -388,8 +402,16 @@ final class AppContainer {
     }
 
     func handleSystemLaunch() async {
-        guard pairingStore.isPaired else { return }
-        guard await sessionStore.currentAccessToken() != nil else { return }
+        containerLog.notice("handleSystemLaunch: entered")
+        guard pairingStore.isPaired else {
+            containerLog.warning("handleSystemLaunch: BLOCKED — not paired")
+            return
+        }
+        guard await sessionStore.currentAccessToken() != nil else {
+            containerLog.warning("handleSystemLaunch: BLOCKED — no access token")
+            return
+        }
+        containerLog.notice("handleSystemLaunch: guards passed, starting sensor service")
 
         sensorUploadService?.start()
         await sensorUploadService?.handleSystemLaunch()
