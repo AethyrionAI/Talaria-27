@@ -85,12 +85,15 @@ on-device switch testing — the phone chats with OJAMD, not the mini.
 
 ---
 
-## 2. ⛔ T3 — Settings screens build (BLOCKED)
+## 2. 💤 T3 — Settings screens build (UNBLOCKED)
 
 Needs the Claude Design deliverable: the 8-screen **`Settings.dc.html`** (from
 `TalariaSettings.zip`) placed at **`design/Settings.dc.html`** in the repo. Then build the
 6 non-MODELS screens (01 SYSTEM, 02 UPLINK, 05 VOICE, 06 APPEARANCE-HUD, 07 SESSIONS,
-08 DIAGNOSTICS). MODELS (03/04) is already done (T1). **Blocker: hand off the design file.**
+08 DIAGNOSTICS). MODELS (03/04) is already done (T1).
+
+**Unblocked (2026-06-25):** `design/Settings.dc.html` + `design/support.js` placed in repo
+(byte-perfect copy from the Claude Design canvas export in Downloads). Ready to build.
 
 ---
 
@@ -290,31 +293,40 @@ This lets Owen (and eventually Shelley) see the pipeline state without Console.a
 
 ---
 
-## 16. 🐛 HealthKit authorization never requested on Talaria install
+## 16. ✅ HealthKit authorization — fixed: re-assert on sensor start
 
-**Status:** Confirmed blocker — all health sensor data is blocked.
+**Status:** Fix applied 2026-06-25, pending device verification.
 
-The app's `healthService.authorizationStatus` is `notDetermined`. HealthKit callbacks fire
-(distance_walking, respiratory_rate, resting_heart_rate, etc.) but `collectSnapshot()`
-returns nil every time because the app has never called `HKHealthStore.requestAuthorization()`.
+**Corrected diagnosis:** The original tracker note ("the app has never called
+`requestAuthorization()`") was wrong — `LiveHealthService.requestAuthorization()` exists
+and is wired through `PermissionsStore.requestPermission(for: .health)`. The real root
+cause is subtler:
 
-Granting permissions in iOS Settings is NOT sufficient — HealthKit requires an explicit
-in-app `requestAuthorization()` call before queries return data. The permissions flow in
-`PermissionsStore.reloadCapabilities()` or the onboarding/pairing sequence needs to trigger
-this.
+1. `LiveHealthService.authorizationStatus` is **in-memory only** — initialized to
+   `.notDetermined` in `init()`, set to `.authorized` only when `requestAuthorization()`
+   runs *this process*.
+2. Apple's read-privacy model: `HKHealthStore.authorizationStatus(for:)` deliberately
+   returns `.notDetermined` for read-only types even after the user grants access — iOS
+   hides read status to prevent apps from inferring what the user denied.
+3. `collectSnapshot()` hard-gates on `authorizationStatus == .authorized` (line 145).
+4. `SensorUploadService.start()` — which runs on every launch — called
+   `healthService.startMonitoring()` but **never** called `requestAuthorization()`.
+5. The only caller of `requestAuthorization()` was a manual onboarding/Permissions UI tap.
 
-**Console evidence (console2.txt):**
-```
-start() — monitoring started. Health auth=notDetermined, loc auth=authorizedWhenInUse
-💓 health update for: distance_walking
-captureHealth: collectSnapshot returned nil (auth=notDetermined)
-💓 health update for: respiratory_rate
-captureHealth: collectSnapshot returned nil (auth=notDetermined)
-```
+Result: after a relaunch, the in-memory flag resets to `.notDetermined`, the Apple API
+can't recover it, and `start()` never re-asserts it → `collectSnapshot()` returns nil
+forever until/unless the user manually re-taps ENABLE.
 
-**Fix:** Add `HKHealthStore.requestAuthorization(toShare:read:)` to the app lifecycle —
-either in `PermissionsStore`, on first launch, or when the user enables health sync in
-Settings. Must be called at least once per install.
+**Fix (SensorUploadService.swift):** `start()` now awaits
+`healthService.requestAuthorization()` inside a Task before calling
+`healthService.startMonitoring()`. For read-only types, iOS shows the system permission
+sheet at most once per install — every subsequent call is a silent no-op — so this is safe
+on every launch with zero nagging. After re-asserting, it does an immediate
+`forceFullRefresh` capture to prime the outbox.
+
+**Note:** This unblocks the app-side collection gate. Fresh samples will flow into the
+outbox, but **#17** (relay `deliveryState=retry`) still blocks delivery to Hermes — both
+fixes are needed for end-to-end sensor data.
 
 ---
 
@@ -430,3 +442,20 @@ on the fresh install, not changed by the re-pair). Reported 2026-06-24.
 lives on **OJAMD** at `C:\Users\Owen\.hermes\talaria_shim_token` (auto-created on first run),
 paired into the app, and switching is confirmed end-to-end. The mini token is moot — the phone
 never used the mini shim.
+
+---
+
+## 23. 📝 Add a "revoke permissions" affordance
+
+The app can request permissions (HealthKit, Location, Notifications, etc.) via the
+Permissions/Onboarding screens, but there is **no in-app way to revoke** them. Users must
+navigate to iOS Settings manually to disable individual permissions.
+
+**What's needed:** a revoke/disable control per permission type in the Settings →
+Permissions screen (or wherever permissions are surfaced). For HealthKit specifically this
+means calling `HKHealthStore` methods to disable background delivery and stopping observer
+queries; for Location, stopping monitoring and resetting the sync preference; for
+Notifications, deregistering from the relay. Some permissions (Camera, Photos) can only be
+toggled in iOS Settings — for those, surface a "Manage in Settings" deep-link.
+
+Logged 2026-06-25.

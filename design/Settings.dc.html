@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--accent:#54e6f0;--accent-bright:#cdf8fb;--accent-deep:#14636e;--glow:1;--grid-op:1}
+*{box-sizing:border-box}
+body{margin:0;background:#080b0f}
+@keyframes tal-spin{to{transform:rotate(360deg)}}
+@keyframes tal-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@keyframes tal-blink{0%,100%{opacity:1}50%{opacity:.35}}
+</style>
+</helmet>
+<div style="min-width:100%;min-height:100vh;width:max-content;box-sizing:border-box;padding:60px;background:#080b0f">
+  <div style="{{ rootStyle }}">
+
+    <div style="margin-bottom:44px">
+      <div style="font-family:'Chakra Petch',sans-serif;font-size:13px;letter-spacing:7px;color:#7c93a6;font-weight:600">TALARIA · SETTINGS ARCHITECTURE</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:2px;color:#4d6273;margin-top:9px">ARC-REACTOR HUD · INDEX → DRILL-DOWN · 8 SCREENS</div>
+    </div>
+
+    <div style="display:flex;gap:48px;align-items:flex-start;margin-bottom:60px">
+
+      <div style="flex:none;width:392px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:#5d7488;margin:0 0 13px 6px">01 · SYSTEM — index</div>
+        <div style="width:392px;height:850px;background:#000;border-radius:48px;padding:11px;border:1px solid rgba(120,150,175,.18);box-shadow:0 30px 70px rgba(0,0,0,.55)">
+          <div style="position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:radial-gradient(120% 70% at 50% -8%, #0c2730 0%, #070d15 52%, #04070c 100%)">
+            <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.045) 1px,transparent 1px);background-size:26px 26px;opacity:var(--grid-op);pointer-events:none"></div>
+            <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:18px;z-index:6"></div>
+            <div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:5">
+              <div style="font-family:'Chakra Petch',sans-serif;font-size:15px;color:#cfe1ea;letter-spacing:.5px;font-weight:600">9:41</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#7c93a6;letter-spacing:1.4px">DIRECT&nbsp;&nbsp;▮▮▮</div>
+            </div>
+
+            <div style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow:hidden;padding:10px 22px 22px">
+
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:14px 2px 24px">
+                <div>
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:25px;font-weight:700;letter-spacing:3px;color:#eaf6f8">SYSTEM</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488;margin-top:5px">TALARIA CONTROL</div>
+                </div>
+                <div style="width:40px;height:40px;border-radius:50%;border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);display:flex;align-items:center;justify-content:center;color:var(--accent-bright);font-size:15px;background:color-mix(in srgb,var(--accent) 7%,transparent)">✕</div>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:16px;padding:17px 18px;border-radius:16px;background:color-mix(in srgb,var(--accent) 7%,rgba(8,18,26,.55));border:1px solid color-mix(in srgb,var(--accent) 28%,transparent);margin-bottom:30px;box-shadow:0 0 calc(26px * var(--glow)) color-mix(in srgb,var(--accent) calc(10% * var(--glow)),transparent)">
+                <div style="position:relative;width:46px;height:46px;flex:none">
+                  <div style="position:absolute;inset:0;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--accent) 35%,transparent);animation:tal-spin 10s linear infinite"></div>
+                  <div style="position:absolute;inset:6px;border-radius:50%;border:2px solid transparent;border-top-color:var(--accent);animation:tal-spin 4s linear infinite reverse"></div>
+                  <div style="position:absolute;inset:14px;border-radius:50%;background:radial-gradient(circle at 50% 40%,var(--accent-bright),var(--accent) 45%,var(--accent-deep));box-shadow:0 0 calc(14px * var(--glow)) color-mix(in srgb,var(--accent) 70%,transparent);animation:tal-breathe 3s ease-in-out infinite"></div>
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:17px;font-weight:600;letter-spacing:1.5px;color:#eaf6f8">OJAMD-HOST</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;color:var(--accent);margin-top:5px">LINKED · DIRECT · 12MS</div>
+                </div>
+                <div style="width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);flex:none"></div>
+              </div>
+
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.4px;color:#5d7488;margin:0 0 11px 4px">// CONNECTION</div>
+              <div style="border-radius:14px;background:rgba(8,18,26,.5);border:1px solid color-mix(in srgb,var(--accent) 12%,transparent);overflow:hidden;margin-bottom:24px">
+                <div style="display:flex;align-items:center;gap:14px;padding:15px 16px">
+                  <div style="width:32px;height:32px;border-radius:9px;border:1px solid color-mix(in srgb,var(--accent) 18%,transparent);background:color-mix(in srgb,var(--accent) 5%,transparent);display:flex;align-items:center;justify-content:center;flex:none">
+                    <div style="width:13px;height:13px;border-radius:50%;border:1.5px solid var(--accent)"></div>
+                  </div>
+                  <div style="flex:1;min-width:0;font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">Hermes Host</div>
+                  <div style="width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);flex:none"></div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--accent)">OJAMD · DIRECT</div>
+                  <div style="color:color-mix(in srgb,var(--accent) 70%,transparent);font-size:15px;flex:none">›</div>
+                </div>
+                <div style="height:1px;background:color-mix(in srgb,var(--accent) 10%,transparent);margin:0 16px"></div>
+                <div style="display:flex;align-items:center;gap:14px;padding:15px 16px">
+                  <div style="width:32px;height:32px;border-radius:9px;border:1px solid color-mix(in srgb,var(--accent) 18%,transparent);background:color-mix(in srgb,var(--accent) 5%,transparent);display:flex;align-items:center;justify-content:center;flex:none">
+                    <div style="width:11px;height:11px;border:1.5px solid var(--accent);transform:rotate(45deg)"></div>
+                  </div>
+                  <div style="flex:1;min-width:0;font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">Models</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--accent)">OPUS 4.6</div>
+                  <div style="color:color-mix(in srgb,var(--accent) 70%,transparent);font-size:15px;flex:none">›</div>
+                </div>
+              </div>
+
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.4px;color:#5d7488;margin:0 0 11px 4px">// EXPERIENCE</div>
+              <div style="border-radius:14px;background:rgba(8,18,26,.5);border:1px solid color-mix(in srgb,var(--accent) 12%,transparent);overflow:hidden;margin-bottom:24px">
+                <div style="display:flex;align-items:center;gap:14px;padding:15px 16px">
+                  <div style="width:32px;height:32px;border-radius:9px;border:1px solid color-mix(in srgb,var(--accent) 18%,transparent);background:color-mix(in srgb,var(--accent) 5%,transparent);display:flex;align-items:center;justify-content:center;flex:none">
+                    <div style="width:14px;height:14px;border-radius:50%;border:1.5px solid var(--accent);display:flex;align-items:center;justify-content:center"><div style="width:4px;height:4px;border-radius:50%;background:var(--accent)"></div></div>
+                  </div>
+                  <div style="flex:1;min-width:0;font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">Voice &amp; Talk</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--accent)">NOVA · EN</div>
+                  <div style="color:color-mix(in srgb,var(--accent) 70%,transparent);font-size:15px;flex:none">›</div>
+                </div>
+                <div style="height:1px;background:color-mix(in srgb,var(--accent) 10%,transparent);margin:0 16px"></div>
+                <div style="display:flex;align-items:center;gap:14px;padding:15px 16px">
+                  <div style="width:32px;height:32px;border-radius:9px;border:1px solid color-mix(in srgb,var(--accent) 18%,transparent);background:color-mix(in srgb,var(--accent) 5%,transparent);display:flex;align-items:center;justify-content:center;flex:none">
+                    <div style="display:grid;grid-template-columns:5px 5px;grid-template-rows:5px 5px;gap:2px"><div style="background:var(--accent)"></div><div style="background:color-mix(in srgb,var(--accent) 40%,transparent)"></div><div style="background:color-mix(in srgb,var(--accent) 40%,transparent)"></div><div style="background:var(--accent)"></div></div>
+                  </div>
+                  <div style="flex:1;min-width:0;font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">Appearance &amp; HUD</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--accent)">REACTOR</div>
+                  <div style="color:color-mix(in srgb,var(--accent) 70%,transparent);font-size:15px;flex:none">›</div>
+                </div>
+              </div>
+
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.4px;color:#5d7488;margin:0 0 11px 4px">// DATA &amp; SYSTEM</div>
+              <div style="border-radius:14px;background:rgba(8,18,26,.5);border:1px solid color-mix(in srgb,var(--accent) 12%,transparent);overflow:hidden;margin-bottom:22px">
+                <div style="display:flex;align-items:center;gap:14px;padding:15px 16px">
+                  <div style="width:32px;height:32px;border-radius:9px;border:1px solid color-mix(in srgb,var(--accent) 18%,transparent);background:color-mix(in srgb,var(--accent) 5%,transparent);display:flex;align-items:center;justify-content:center;flex:none">
+                    <div style="display:flex;flex-direction:column;gap:3px;width:14px"><div style="height:1.5px;background:var(--accent)"></div><div style="height:1.5px;background:color-mix(in srgb,var(--accent) 50%,transparent)"></div><div style="height:1.5px;background:var(--accent)"></div></div>
+                  </div>
+                  <div style="flex:1;min-width:0;font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">Sessions &amp; Data</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:#7c93a6">48 SESSIONS</div>
+                  <div style="color:color-mix(in srgb,var(--accent) 70%,transparent);font-size:15px;flex:none">›</div>
+                </div>
+                <div style="height:1px;background:color-mix(in srgb,var(--accent) 10%,transparent);margin:0 16px"></div>
+                <div style="display:flex;align-items:center;gap:14px;padding:15px 16px">
+                  <div style="width:32px;height:32px;border-radius:9px;border:1px solid color-mix(in srgb,var(--accent) 18%,transparent);background:color-mix(in srgb,var(--accent) 5%,transparent);display:flex;align-items:center;justify-content:center;flex:none">
+                    <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)"></div>
+                  </div>
+                  <div style="flex:1;min-width:0;font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">About &amp; Diagnostics</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--accent)">HEALTHY</div>
+                  <div style="color:color-mix(in srgb,var(--accent) 70%,transparent);font-size:15px;flex:none">›</div>
+                </div>
+              </div>
+
+              <div style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2.2px;color:#4d6273;padding-top:6px">TALARIA v2.4.0 · DEVICE-BOUND</div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:none;width:392px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:#5d7488;margin:0 0 13px 6px">02 · UPLINK — host / connection</div>
+        <div style="width:392px;height:850px;background:#000;border-radius:48px;padding:11px;border:1px solid rgba(120,150,175,.18);box-shadow:0 30px 70px rgba(0,0,0,.55)">
+          <div style="position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:radial-gradient(120% 70% at 50% -8%, #0c2730 0%, #070d15 52%, #04070c 100%)">
+            <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.045) 1px,transparent 1px);background-size:26px 26px;opacity:var(--grid-op);pointer-events:none"></div>
+            <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:18px;z-index:6"></div>
+            <div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:5">
+              <div style="font-family:'Chakra Petch',sans-serif;font-size:15px;color:#cfe1ea;letter-spacing:.5px;font-weight:600">9:41</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#7c93a6;letter-spacing:1.4px">5G&nbsp;&nbsp;▮▮▮▮</div>
+            </div>
+
+            <div style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow:hidden;padding:10px 22px 22px">
+
+              <div style="display:flex;align-items:center;gap:14px;padding:14px 2px 24px">
+                <div style="width:38px;height:38px;border-radius:50%;border:1px solid color-mix(in srgb,var(--accent) 26%,transparent);display:flex;align-items:center;justify-content:center;color:var(--accent-bright);font-size:19px;line-height:0;padding-bottom:3px;background:color-mix(in srgb,var(--accent) 6%,transparent);flex:none">‹</div>
+                <div>
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:23px;font-weight:700;letter-spacing:3px;color:#eaf6f8">UPLINK</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488;margin-top:4px">HERMES HOST</div>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:16px;padding:18px;border-radius:16px;background:color-mix(in srgb,var(--accent) 7%,rgba(8,18,26,.55));border:1px solid color-mix(in srgb,var(--accent) 28%,transparent);margin-bottom:28px">
+                <div style="position:relative;width:44px;height:44px;flex:none">
+                  <div style="position:absolute;inset:0;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--accent) 35%,transparent);animation:tal-spin 10s linear infinite"></div>
+                  <div style="position:absolute;inset:6px;border-radius:50%;border:2px solid transparent;border-top-color:var(--accent);animation:tal-spin 4s linear infinite reverse"></div>
+                  <div style="position:absolute;inset:14px;border-radius:50%;background:radial-gradient(circle at 50% 40%,var(--accent-bright),var(--accent) 45%,var(--accent-deep));box-shadow:0 0 calc(14px * var(--glow)) color-mix(in srgb,var(--accent) 70%,transparent);animation:tal-breathe 3s ease-in-out infinite"></div>
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:19px;font-weight:700;letter-spacing:2px;color:#eaf6f8">DIRECT LINK</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--accent);margin-top:5px">localhost:8642 · RTT 12MS</div>
+                </div>
+                <div style="width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);flex:none"></div>
+              </div>
+
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.4px;color:#5d7488;margin:0 0 11px 4px">// LINK MODE</div>
+              <div style="display:flex;gap:4px;padding:4px;border-radius:13px;background:rgba(6,8,12,.5);border:1px solid color-mix(in srgb,var(--accent) 12%,transparent);margin-bottom:26px">
+                <div style="flex:1;text-align:center;padding:10px;border-radius:10px;font-family:'Chakra Petch',sans-serif;font-size:12px;letter-spacing:2px;color:#7c93a6">RELAY</div>
+                <div style="flex:1;text-align:center;padding:10px;border-radius:10px;font-family:'Chakra Petch',sans-serif;font-size:12px;letter-spacing:2px;font-weight:600;color:#04070c;background:var(--accent);box-shadow:0 0 calc(12px*var(--glow)) color-mix(in srgb,var(--accent) 50%,transparent)">DIRECT</div>
+              </div>
+
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2.2px;color:#5d7488;margin-bottom:8px">BASE URL</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#e8eef5;padding:14px 16px;border-radius:14px;background:rgba(6,8,12,.6);border:1px solid color-mix(in srgb,var(--accent) 16%,transparent);margin-bottom:20px">http://ojamd:8642<span style="display:inline-block;width:1.5px;height:13px;background:var(--accent);margin-left:2px;vertical-align:middle;animation:tal-blink 1s steps(1) infinite"></span></div>
+
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2.2px;color:#5d7488">API KEY</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:var(--accent);display:flex;align-items:center;gap:6px"><span style="width:5px;height:5px;border-radius:50%;background:var(--accent);box-shadow:0 0 5px var(--accent)"></span>KEYCHAIN</div>
+              </div>
+              <div style="display:flex;gap:10px;margin-bottom:26px">
+                <div style="flex:1;font-family:'JetBrains Mono',monospace;font-size:14px;letter-spacing:2px;color:#7c93a6;padding:14px 16px;border-radius:14px;background:rgba(6,8,12,.6);border:1px solid color-mix(in srgb,var(--accent) 16%,transparent)">••••••••••••••</div>
+                <div style="display:flex;align-items:center;padding:0 18px;border-radius:14px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.6px;color:var(--accent-bright);background:color-mix(in srgb,var(--accent) 10%,transparent);border:1px solid color-mix(in srgb,var(--accent) 40%,transparent)">SAVE</div>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:13px">
+                <div style="text-align:center;padding:17px;border-radius:14px;font-family:'Chakra Petch',sans-serif;font-size:15px;font-weight:600;letter-spacing:2.4px;color:#eaf6f8;background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 22%,transparent),color-mix(in srgb,var(--accent) 8%,transparent));border:1px solid color-mix(in srgb,var(--accent) 55%,transparent);box-shadow:0 0 calc(24px*var(--glow)) color-mix(in srgb,var(--accent) calc(32%*var(--glow)),transparent)">PAIR DEVICE</div>
+                <div style="text-align:center;padding:14px;border-radius:14px;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:500;color:var(--accent-bright);background:color-mix(in srgb,var(--accent) 9%,transparent);border:1px solid color-mix(in srgb,var(--accent) 36%,transparent)">Test Connection</div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:none;width:392px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:#5d7488;margin:0 0 13px 6px">03 · MODELS — picker</div>
+        <div style="width:392px;height:850px;background:#000;border-radius:48px;padding:11px;border:1px solid rgba(120,150,175,.18);box-shadow:0 30px 70px rgba(0,0,0,.55)">
+          <div style="position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:radial-gradient(120% 70% at 50% -8%, #0c2730 0%, #070d15 52%, #04070c 100%)">
+            <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.045) 1px,transparent 1px);background-size:26px 26px;opacity:var(--grid-op);pointer-events:none"></div>
+            <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:18px;z-index:6"></div>
+            <div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:5">
+              <div style="font-family:'Chakra Petch',sans-serif;font-size:15px;color:#cfe1ea;letter-spacing:.5px;font-weight:600">9:41</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#7c93a6;letter-spacing:1.4px">5G&nbsp;&nbsp;▮▮▮▮</div>
+            </div>
+
+            <div style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow:hidden;padding:10px 22px 22px">
+
+              <div style="display:flex;align-items:center;gap:14px;padding:14px 2px 22px">
+                <div style="width:38px;height:38px;border-radius:50%;border:1px solid color-mix(in srgb,var(--accent) 26%,transparent);display:flex;align-items:center;justify-content:center;color:var(--accent-bright);font-size:19px;line-height:0;padding-bottom:3px;background:color-mix(in srgb,var(--accent) 6%,transparent);flex:none">‹</div>
+                <div>
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:23px;font-weight:700;letter-spacing:3px;color:#eaf6f8">MODELS</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488;margin-top:4px">INFERENCE</div>
+                </div>
+              </div>
+
+              <div style="padding:18px;border-radius:16px;background:color-mix(in srgb,var(--accent) 7%,rgba(8,18,26,.55));border:1px solid color-mix(in srgb,var(--accent) 28%,transparent);margin-bottom:26px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2.2px;color:#5d7488">ACTIVE</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:var(--accent);display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent)"></span>ONLINE</div>
+                </div>
+                <div style="font-family:'Chakra Petch',sans-serif;font-size:21px;font-weight:700;letter-spacing:1.5px;color:#eaf6f8">CLAUDE OPUS 4.6</div>
+                <div style="display:flex;gap:8px;margin-top:12px">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:#7c93a6;padding:5px 10px;border-radius:7px;background:rgba(120,150,175,.08);border:1px solid rgba(120,150,175,.18)">ANTHROPIC</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:#7c93a6;padding:5px 10px;border-radius:7px;background:rgba(120,150,175,.08);border:1px solid rgba(120,150,175,.18)">200K CTX</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:#7c93a6;padding:5px 10px;border-radius:7px;background:rgba(120,150,175,.08);border:1px solid rgba(120,150,175,.18)">VISION</div>
+                </div>
+              </div>
+
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.4px;color:#5d7488;margin:0 0 11px 4px">// AVAILABLE · 5</div>
+              <div style="border-radius:14px;background:rgba(8,18,26,.5);border:1px solid color-mix(in srgb,var(--accent) 12%,transparent);overflow:hidden;margin-bottom:18px">
+
+                <div style="display:flex;align-items:center;gap:13px;padding:14px 16px;background:color-mix(in srgb,var(--accent) 8%,transparent)">
+                  <div style="width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 7px var(--accent);flex:none"></div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;color:#eaf6f8">Claude Opus 4.6</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:#7c93a6;margin-top:3px">ANTHROPIC · 200K</div>
+                  </div>
+                  <div style="color:var(--accent);font-size:14px;font-weight:700;flex:none">✓</div>
+                </div>
+                <div style="height:1px;background:color-mix(in srgb,var(--accent) 10%,transparent);margin:0 16px"></div>
+
+                <div style="display:flex;align-items:center;gap:13px;padding:14px 16px">
+                  <div style="width:7px;height:7px;border-radius:50%;background:#4d6273;flex:none"></div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">Claude Sonnet 4.6</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:#5d7488;margin-top:3px">ANTHROPIC · 200K</div>
+                  </div>
+                </div>
+                <div style="height:1px;background:color-mix(in srgb,var(--accent) 10%,transparent);margin:0 16px"></div>
+
+                <div style="display:flex;align-items:center;gap:13px;padding:14px 16px">
+                  <div style="width:7px;height:7px;border-radius:50%;background:#4d6273;flex:none"></div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">Claude Haiku 4.5</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:#5d7488;margin-top:3px">ANTHROPIC · 200K</div>
+                  </div>
+                </div>
+                <div style="height:1px;background:color-mix(in srgb,var(--accent) 10%,transparent);margin:0 16px"></div>
+
+                <div style="display:flex;align-items:center;gap:13px;padding:14px 16px">
+                  <div style="width:7px;height:7px;border-radius:50%;background:#4d6273;flex:none"></div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">GPT-5.5</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:#5d7488;margin-top:3px">OPENAI · 256K</div>
+                  </div>
+                </div>
+                <div style="height:1px;background:color-mix(in srgb,var(--accent) 10%,transparent);margin:0 16px"></div>
+
+                <div style="display:flex;align-items:center;gap:13px;padding:14px 16px">
+                  <div style="width:7px;height:7px;border-radius:50%;background:#4d6273;flex:none"></div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">Llama 4 70B</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:#5d7488;margin-top:3px">LOCAL · 128K</div>
+                  </div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.2px;color:var(--accent);padding:3px 7px;border-radius:6px;border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);flex:none">ON-DEVICE</div>
+                </div>
+
+              </div>
+
+              <div style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2.2px;color:#4d6273">APPLIES ON NEXT SESSION</div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:none;width:392px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:#5d7488;margin:0 0 13px 6px">04 · MODELS — unavailable</div>
+        <div style="width:392px;height:850px;background:#000;border-radius:48px;padding:11px;border:1px solid rgba(120,150,175,.18);box-shadow:0 30px 70px rgba(0,0,0,.55)">
+          <div style="position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:radial-gradient(120% 70% at 50% -8%, #221a0c 0%, #0e0b07 52%, #06070c 100%)">
+            <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(255,193,77,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,193,77,.04) 1px,transparent 1px);background-size:26px 26px;opacity:var(--grid-op);pointer-events:none"></div>
+            <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:18px;z-index:6"></div>
+            <div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:5">
+              <div style="font-family:'Chakra Petch',sans-serif;font-size:15px;color:#cfe1ea;letter-spacing:.5px;font-weight:600">9:41</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#ffc14d;letter-spacing:1.4px">⚠ OFFLINE</div>
+            </div>
+
+            <div style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow:hidden;padding:10px 22px 22px">
+
+              <div style="display:flex;align-items:center;gap:14px;padding:14px 2px 24px">
+                <div style="width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,193,77,.26);display:flex;align-items:center;justify-content:center;color:#ffe2a6;font-size:19px;line-height:0;padding-bottom:3px;background:rgba(255,193,77,.06);flex:none">‹</div>
+                <div>
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:23px;font-weight:700;letter-spacing:3px;color:#eaf6f8">MODELS</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488;margin-top:4px">INFERENCE</div>
+                </div>
+              </div>
+
+              <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:34px 24px;border-radius:16px;background:rgba(255,193,77,.05);border:1px solid rgba(255,193,77,.3);margin-bottom:24px">
+                <div style="position:relative;width:60px;height:60px;margin-bottom:18px">
+                  <div style="position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(255,193,77,.28)"></div>
+                  <div style="position:absolute;inset:6px;border-radius:50%;border:1.5px dashed rgba(255,193,77,.3)"></div>
+                  <div style="position:absolute;inset:18px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#ffe2a6,#ffc14d 50%,#6e4d14);opacity:.55;box-shadow:0 0 14px rgba(255,193,77,.4);animation:tal-blink 1.6s ease-in-out infinite"></div>
+                </div>
+                <div style="font-family:'Chakra Petch',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;color:#ffe2a6">MODELS UNAVAILABLE</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;color:#ffc14d;margin-top:8px">HOST UNREACHABLE · CHECK UPLINK</div>
+                <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;line-height:1.6;color:#7c93a6;margin-top:16px;max-width:250px">The model list populates from the Hermes host. It will refresh automatically once the uplink is restored.</div>
+                <div style="display:flex;gap:10px;margin-top:22px">
+                  <div style="padding:11px 22px;border-radius:12px;font-family:'Chakra Petch',sans-serif;font-size:12px;font-weight:600;letter-spacing:2px;color:#04070c;background:#ffc14d;box-shadow:0 0 18px rgba(255,193,77,.35)">RETRY</div>
+                  <div style="padding:11px 20px;border-radius:12px;font-family:'Space Grotesk',sans-serif;font-size:13px;color:#ffe2a6;background:rgba(255,193,77,.08);border:1px solid rgba(255,193,77,.34)">Check Uplink</div>
+                </div>
+              </div>
+
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.4px;color:#5d7488;margin:0 0 11px 4px">// CACHED · LAST KNOWN · 6M AGO</div>
+              <div style="border-radius:14px;background:rgba(8,18,26,.4);border:1px solid rgba(120,150,175,.14);overflow:hidden;opacity:.5">
+                <div style="display:flex;align-items:center;gap:13px;padding:14px 16px">
+                  <div style="width:7px;height:7px;border-radius:50%;background:#4d6273;flex:none"></div>
+                  <div style="flex:1;min-width:0;font-family:'Space Grotesk',sans-serif;font-size:15px;color:#cfe1ea">Claude Opus 4.6</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.2px;color:#5d7488;padding:3px 7px;border-radius:6px;border:1px solid rgba(120,150,175,.2)">CACHED</div>
+                </div>
+                <div style="height:1px;background:rgba(120,150,175,.12);margin:0 16px"></div>
+                <div style="display:flex;align-items:center;gap:13px;padding:14px 16px">
+                  <div style="width:7px;height:7px;border-radius:50%;background:#4d6273;flex:none"></div>
+                  <div style="flex:1;min-width:0;font-family:'Space Grotesk',sans-serif;font-size:15px;color:#cfe1ea">GPT-5.5</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.2px;color:#5d7488;padding:3px 7px;border-radius:6px;border:1px solid rgba(120,150,175,.2)">CACHED</div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!--ROW1-->
+    </div>
+
+    <div style="display:flex;gap:48px;align-items:flex-start">
+      <div style="flex:none;width:392px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:#5d7488;margin:0 0 13px 6px">05 · VOICE — talk engine</div>
+        <div style="width:392px;height:850px;background:#000;border-radius:48px;padding:11px;border:1px solid rgba(120,150,175,.18);box-shadow:0 30px 70px rgba(0,0,0,.55)">
+          <div style="position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:radial-gradient(120% 70% at 50% -8%, #0c2730 0%, #070d15 52%, #04070c 100%)">
+            <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.045) 1px,transparent 1px);background-size:26px 26px;opacity:var(--grid-op);pointer-events:none"></div>
+            <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:18px;z-index:6"></div>
+            <div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:5">
+              <div style="font-family:'Chakra Petch',sans-serif;font-size:15px;color:#cfe1ea;letter-spacing:.5px;font-weight:600">9:41</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#7c93a6;letter-spacing:1.4px">5G&nbsp;&nbsp;▮▮▮▮</div>
+            </div>
+
+            <div style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow:hidden;padding:10px 22px 22px">
+
+              <div style="display:flex;align-items:center;gap:14px;padding:14px 2px 20px">
+                <div style="width:38px;height:38px;border-radius:50%;border:1px solid color-mix(in srgb,var(--accent) 26%,transparent);display:flex;align-items:center;justify-content:center;color:var(--accent-bright);font-size:19px;line-height:0;padding-bottom:3px;background:color-mix(in srgb,var(--accent) 6%,transparent);flex:none">‹</div>
+                <div>
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:23px;font-weight:700;letter-spacing:3px;color:#eaf6f8">VOICE</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488;margin-top:4px">TALK ENGINE</div>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:18px;padding:18px;border-radius:16px;background:color-mix(in srgb,var(--accent) 7%,rgba(8,18,26,.55));border:1px solid color-mix(in srgb,var(--accent) 28%,transparent);margin-bottom:26px">
+                <div style="position:relative;width:56px;height:56px;flex:none">
+                  <div style="position:absolute;inset:0;border-radius:50%;border:1px dashed color-mix(in srgb,var(--accent) 30%,transparent);animation:tal-spin 22s linear infinite"></div>
+                  <div style="position:absolute;inset:8px;border-radius:50%;border:2px solid transparent;border-top-color:var(--accent);animation:tal-spin 6s linear infinite reverse"></div>
+                  <div style="position:absolute;inset:17px;border-radius:50%;background:radial-gradient(circle at 50% 38%,#e2fbfd,var(--accent) 50%,#0f5867);box-shadow:0 0 calc(16px*var(--glow)) color-mix(in srgb,var(--accent) 70%,transparent);animation:tal-breathe 3s ease-in-out infinite"></div>
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:20px;font-weight:700;letter-spacing:2px;color:#eaf6f8">NOVA</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--accent);margin-top:5px">ENGLISH (US) · WARM</div>
+                  <div style="display:flex;align-items:flex-end;gap:2.5px;height:16px;margin-top:9px">
+                    <div style="width:2.5px;height:40%;background:var(--accent);border-radius:1px"></div><div style="width:2.5px;height:75%;background:var(--accent);border-radius:1px"></div><div style="width:2.5px;height:100%;background:var(--accent);border-radius:1px"></div><div style="width:2.5px;height:55%;background:var(--accent);border-radius:1px"></div><div style="width:2.5px;height:85%;background:var(--accent);border-radius:1px"></div><div style="width:2.5px;height:35%;background:var(--accent);border-radius:1px"></div><div style="width:2.5px;height:65%;background:var(--accent);border-radius:1px"></div><div style="width:2.5px;height:45%;background:var(--accent);border-radius:1px"></div><div style="width:2.5px;height:90%;background:color-mix(in srgb,var(--accent) 55%,transparent);border-radius:1px"></div><div style="width:2.5px;height:30%;background:color-mix(in srgb,var(--accent) 55%,transparent);border-radius:1px"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.4px;color:#5d7488;margin:0 0 11px 4px">// VOICE</div>
+              <div style="display:flex;gap:9px;margin-bottom:24px">
+                <div style="flex:1;text-align:center;padding:13px 4px;border-radius:12px;background:color-mix(in srgb,var(--accent) 10%,transparent);border:1px solid color-mix(in srgb,var(--accent) 40%,transparent)">
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:13px;font-weight:600;letter-spacing:1.5px;color:var(--accent-bright)">NOVA</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--accent);margin-top:4px">ACTIVE</div>
+                </div>
+                <div style="flex:1;text-align:center;padding:13px 4px;border-radius:12px;background:rgba(8,18,26,.5);border:1px solid rgba(120,150,175,.16)">
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:13px;font-weight:600;letter-spacing:1.5px;color:#cfe1ea">ECHO</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1px;color:#5d7488;margin-top:4px">CRISP</div>
+                </div>
+                <div style="flex:1;text-align:center;padding:13px 4px;border-radius:12px;background:rgba(8,18,26,.5);border:1px solid rgba(120,150,175,.16)">
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:13px;font-weight:600;letter-spacing:1.5px;color:#cfe1ea">SAGE</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1px;color:#5d7488;margin-top:4px">CALM</div>
+                </div>
+                <div style="flex:1;text-align:center;padding:13px 4px;border-radius:12px;background:rgba(8,18,26,.5);border:1px solid rgba(120,150,175,.16)">
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:13px;font-weight:600;letter-spacing:1.5px;color:#cfe1ea">VERSE</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1px;color:#5d7488;margin-top:4px">BRIGHT</div>
+                </div>
+              </div>
+
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.4px;color:#5d7488;margin:0 0 11px 4px">// BEHAVIOR</div>
+              <div style="border-radius:14px;background:rgba(8,18,26,.5);border:1px solid color-mix(in srgb,var(--accent) 12%,transparent);overflow:hidden;margin-bottom:24px">
+                <div style="display:flex;align-items:center;gap:14px;padding:15px 16px">
+                  <div style="flex:1;font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">Push-to-Talk</div>
+                  <div style="width:46px;height:27px;border-radius:14px;background:var(--accent);box-shadow:0 0 calc(10px*var(--glow)) color-mix(in srgb,var(--accent) 50%,transparent);position:relative;flex:none"><div style="position:absolute;top:3px;right:3px;width:21px;height:21px;border-radius:50%;background:#04070c"></div></div>
+                </div>
+                <div style="height:1px;background:color-mix(in srgb,var(--accent) 10%,transparent);margin:0 16px"></div>
+                <div style="display:flex;align-items:center;gap:14px;padding:15px 16px">
+                  <div style="flex:1;font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">Barge-in Interrupt</div>
+                  <div style="width:46px;height:27px;border-radius:14px;background:rgba(120,150,175,.16);border:1px solid rgba(120,150,175,.22);position:relative;flex:none"><div style="position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#5d7488"></div></div>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;padding:0 4px">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.4px;color:#5d7488">// SPEAKING RATE</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;color:var(--accent)">1.0×</div>
+              </div>
+              <div style="height:4px;border-radius:2px;background:rgba(120,150,175,.18);position:relative;margin:8px 6px 0">
+                <div style="position:absolute;left:0;top:0;bottom:0;width:50%;border-radius:2px;background:var(--accent);box-shadow:0 0 calc(8px*var(--glow)) color-mix(in srgb,var(--accent) 50%,transparent)"></div>
+                <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:17px;height:17px;border-radius:50%;background:var(--accent-bright);box-shadow:0 0 calc(10px*var(--glow)) var(--accent)"></div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:none;width:392px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:#5d7488;margin:0 0 13px 6px">06 · APPEARANCE — HUD</div>
+        <div style="width:392px;height:850px;background:#000;border-radius:48px;padding:11px;border:1px solid rgba(120,150,175,.18);box-shadow:0 30px 70px rgba(0,0,0,.55)">
+          <div style="position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:radial-gradient(120% 70% at 50% -8%, #0c2730 0%, #070d15 52%, #04070c 100%)">
+            <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.045) 1px,transparent 1px);background-size:26px 26px;opacity:var(--grid-op);pointer-events:none"></div>
+            <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:18px;z-index:6"></div>
+            <div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:5">
+              <div style="font-family:'Chakra Petch',sans-serif;font-size:15px;color:#cfe1ea;letter-spacing:.5px;font-weight:600">9:41</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#7c93a6;letter-spacing:1.4px">5G&nbsp;&nbsp;▮▮▮▮</div>
+            </div>
+
+            <div style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow:hidden;padding:10px 22px 22px">
+
+              <div style="display:flex;align-items:center;gap:14px;padding:14px 2px 22px">
+                <div style="width:38px;height:38px;border-radius:50%;border:1px solid color-mix(in srgb,var(--accent) 26%,transparent);display:flex;align-items:center;justify-content:center;color:var(--accent-bright);font-size:19px;line-height:0;padding-bottom:3px;background:color-mix(in srgb,var(--accent) 6%,transparent);flex:none">‹</div>
+                <div>
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:23px;font-weight:700;letter-spacing:3px;color:#eaf6f8">APPEARANCE</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488;margin-top:4px">HEADS-UP DISPLAY</div>
+                </div>
+              </div>
+
+              <div style="position:relative;height:150px;border-radius:16px;overflow:hidden;background:radial-gradient(120% 90% at 50% 0%,#0c2730,#04070c);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);margin-bottom:28px">
+                <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.06) 1px,transparent 1px);background-size:22px 22px;opacity:var(--grid-op)"></div>
+                <div style="position:absolute;top:10px;left:12px;width:16px;height:16px;border-left:1.5px solid color-mix(in srgb,var(--accent) 55%,transparent);border-top:1.5px solid color-mix(in srgb,var(--accent) 55%,transparent)"></div>
+                <div style="position:absolute;top:10px;right:12px;width:16px;height:16px;border-right:1.5px solid color-mix(in srgb,var(--accent) 55%,transparent);border-top:1.5px solid color-mix(in srgb,var(--accent) 55%,transparent)"></div>
+                <div style="position:absolute;bottom:10px;left:12px;width:16px;height:16px;border-left:1.5px solid color-mix(in srgb,var(--accent) 55%,transparent);border-bottom:1.5px solid color-mix(in srgb,var(--accent) 55%,transparent)"></div>
+                <div style="position:absolute;bottom:10px;right:12px;width:16px;height:16px;border-right:1.5px solid color-mix(in srgb,var(--accent) 55%,transparent);border-bottom:1.5px solid color-mix(in srgb,var(--accent) 55%,transparent)"></div>
+                <div style="position:absolute;top:14px;left:34px;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:2px;color:#5d7488">PREVIEW</div>
+                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+                  <div style="position:relative;width:56px;height:56px">
+                    <div style="position:absolute;inset:0;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--accent) 35%,transparent);animation:tal-spin 10s linear infinite"></div>
+                    <div style="position:absolute;inset:7px;border-radius:50%;border:2px solid transparent;border-top-color:var(--accent);animation:tal-spin 4s linear infinite reverse"></div>
+                    <div style="position:absolute;inset:17px;border-radius:50%;background:radial-gradient(circle at 50% 40%,var(--accent-bright),var(--accent) 45%,var(--accent-deep));box-shadow:0 0 calc(16px*var(--glow)) color-mix(in srgb,var(--accent) 70%,transparent);animation:tal-breathe 3s ease-in-out infinite"></div>
+                  </div>
+                </div>
+                <div style="position:absolute;bottom:14px;right:34px;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.5px;color:var(--accent)">REACTOR · GLOW 1.0</div>
+              </div>
+
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.4px;color:#5d7488;margin:0 0 13px 4px">// ACCENT</div>
+              <div style="display:flex;gap:14px;align-items:center;margin-bottom:26px;padding:0 4px">
+                <div style="width:34px;height:34px;border-radius:50%;padding:3px;border:1.5px solid var(--accent);box-shadow:0 0 12px color-mix(in srgb,var(--accent) 45%,transparent)"><div style="width:100%;height:100%;border-radius:50%;background:var(--accent)"></div></div>
+                <div style="width:30px;height:30px;border-radius:50%;background:#ffc14d;opacity:.85"></div>
+                <div style="width:30px;height:30px;border-radius:50%;background:#b18cff;opacity:.85"></div>
+                <div style="flex:1"></div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:var(--accent)">CYAN · ARC</div>
+              </div>
+
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;padding:0 4px">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.4px;color:#5d7488">// GLOW INTENSITY</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;color:var(--accent)">1.0</div>
+              </div>
+              <div style="height:4px;border-radius:2px;background:rgba(120,150,175,.18);position:relative;margin:8px 6px 26px">
+                <div style="position:absolute;left:0;top:0;bottom:0;width:62%;border-radius:2px;background:var(--accent);box-shadow:0 0 calc(8px*var(--glow)) color-mix(in srgb,var(--accent) 50%,transparent)"></div>
+                <div style="position:absolute;left:62%;top:50%;transform:translate(-50%,-50%);width:17px;height:17px;border-radius:50%;background:var(--accent-bright);box-shadow:0 0 calc(10px*var(--glow)) var(--accent)"></div>
+              </div>
+
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.4px;color:#5d7488;margin:0 0 11px 4px">// GRID DENSITY</div>
+              <div style="display:flex;gap:4px;padding:4px;border-radius:13px;background:rgba(6,8,12,.5);border:1px solid color-mix(in srgb,var(--accent) 12%,transparent);margin-bottom:24px">
+                <div style="flex:1;text-align:center;padding:9px;border-radius:10px;font-family:'Chakra Petch',sans-serif;font-size:11px;letter-spacing:2px;color:#7c93a6">OFF</div>
+                <div style="flex:1;text-align:center;padding:9px;border-radius:10px;font-family:'Chakra Petch',sans-serif;font-size:11px;letter-spacing:2px;font-weight:600;color:#04070c;background:var(--accent)">FAINT</div>
+                <div style="flex:1;text-align:center;padding:9px;border-radius:10px;font-family:'Chakra Petch',sans-serif;font-size:11px;letter-spacing:2px;color:#7c93a6">BOLD</div>
+              </div>
+
+              <div style="border-radius:14px;background:rgba(8,18,26,.5);border:1px solid color-mix(in srgb,var(--accent) 12%,transparent);overflow:hidden">
+                <div style="display:flex;align-items:center;gap:14px;padding:15px 16px">
+                  <div style="flex:1;font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">Reduce Motion</div>
+                  <div style="width:46px;height:27px;border-radius:14px;background:rgba(120,150,175,.16);border:1px solid rgba(120,150,175,.22);position:relative;flex:none"><div style="position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#5d7488"></div></div>
+                </div>
+                <div style="height:1px;background:color-mix(in srgb,var(--accent) 10%,transparent);margin:0 16px"></div>
+                <div style="display:flex;align-items:center;gap:14px;padding:15px 16px">
+                  <div style="flex:1;font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">Theme</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:#5d7488">DEEP FIELD · LOCKED</div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:none;width:392px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:#5d7488;margin:0 0 13px 6px">07 · SESSIONS — data</div>
+        <div style="width:392px;height:850px;background:#000;border-radius:48px;padding:11px;border:1px solid rgba(120,150,175,.18);box-shadow:0 30px 70px rgba(0,0,0,.55)">
+          <div style="position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:radial-gradient(120% 70% at 50% -8%, #0c2730 0%, #070d15 52%, #04070c 100%)">
+            <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.045) 1px,transparent 1px);background-size:26px 26px;opacity:var(--grid-op);pointer-events:none"></div>
+            <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:18px;z-index:6"></div>
+            <div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:5">
+              <div style="font-family:'Chakra Petch',sans-serif;font-size:15px;color:#cfe1ea;letter-spacing:.5px;font-weight:600">9:41</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#7c93a6;letter-spacing:1.4px">5G&nbsp;&nbsp;▮▮▮▮</div>
+            </div>
+
+            <div style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow:hidden;padding:10px 22px 22px">
+
+              <div style="display:flex;align-items:center;gap:14px;padding:14px 2px 22px">
+                <div style="width:38px;height:38px;border-radius:50%;border:1px solid color-mix(in srgb,var(--accent) 26%,transparent);display:flex;align-items:center;justify-content:center;color:var(--accent-bright);font-size:19px;line-height:0;padding-bottom:3px;background:color-mix(in srgb,var(--accent) 6%,transparent);flex:none">‹</div>
+                <div>
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:23px;font-weight:700;letter-spacing:3px;color:#eaf6f8">SESSIONS</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488;margin-top:4px">STORAGE &amp; DATA</div>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:10px;margin-bottom:28px">
+                <div style="flex:1;text-align:center;padding:16px 6px;border-radius:14px;background:rgba(8,18,26,.5);border:1px solid color-mix(in srgb,var(--accent) 14%,transparent)">
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:25px;font-weight:700;color:var(--accent-bright)">48</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.6px;color:#5d7488;margin-top:6px">SESSIONS</div>
+                </div>
+                <div style="flex:1;text-align:center;padding:16px 6px;border-radius:14px;background:rgba(8,18,26,.5);border:1px solid color-mix(in srgb,var(--accent) 14%,transparent)">
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:25px;font-weight:700;color:var(--accent-bright)">1.2K</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.6px;color:#5d7488;margin-top:6px">MESSAGES</div>
+                </div>
+                <div style="flex:1;text-align:center;padding:16px 6px;border-radius:14px;background:rgba(8,18,26,.5);border:1px solid color-mix(in srgb,var(--accent) 14%,transparent)">
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:25px;font-weight:700;color:var(--accent-bright)">18<span style="font-size:13px"> MB</span></div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.6px;color:#5d7488;margin-top:6px">ON DEVICE</div>
+                </div>
+              </div>
+
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.4px;color:#5d7488;margin:0 0 11px 4px">// RECENT</div>
+              <div style="border-radius:14px;background:rgba(8,18,26,.5);border:1px solid color-mix(in srgb,var(--accent) 12%,transparent);overflow:hidden;margin-bottom:24px">
+                <div style="display:flex;align-items:center;gap:13px;padding:14px 16px">
+                  <div style="width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);flex:none"></div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Relay deployment plan</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:#5d7488;margin-top:3px">2H AGO · 42 MSGS</div>
+                  </div>
+                  <div style="color:color-mix(in srgb,var(--accent) 70%,transparent);font-size:15px;flex:none">›</div>
+                </div>
+                <div style="height:1px;background:color-mix(in srgb,var(--accent) 10%,transparent);margin:0 16px"></div>
+                <div style="display:flex;align-items:center;gap:13px;padding:14px 16px">
+                  <div style="width:6px;height:6px;border-radius:50%;background:#4d6273;flex:none"></div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Swift concurrency refactor</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:#5d7488;margin-top:3px">YESTERDAY · 118 MSGS</div>
+                  </div>
+                  <div style="color:color-mix(in srgb,var(--accent) 70%,transparent);font-size:15px;flex:none">›</div>
+                </div>
+                <div style="height:1px;background:color-mix(in srgb,var(--accent) 10%,transparent);margin:0 16px"></div>
+                <div style="display:flex;align-items:center;gap:13px;padding:14px 16px">
+                  <div style="width:6px;height:6px;border-radius:50%;background:#4d6273;flex:none"></div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Hermes pairing flow QA</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:#5d7488;margin-top:3px">JUN 18 · 64 MSGS</div>
+                  </div>
+                  <div style="color:color-mix(in srgb,var(--accent) 70%,transparent);font-size:15px;flex:none">›</div>
+                </div>
+              </div>
+
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.4px;color:#5d7488;margin:0 0 11px 4px">// MANAGE</div>
+              <div style="display:flex;flex-direction:column;gap:11px;margin-bottom:20px">
+                <div style="display:flex;align-items:center;gap:13px;padding:15px 16px;border-radius:13px;background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 32%,transparent)">
+                  <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--accent-bright);flex:1">Export Conversations</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:var(--accent)">.JSON</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:13px;padding:15px 16px;border-radius:13px;background:rgba(224,98,95,.07);border:1px solid rgba(224,98,95,.34)">
+                  <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;color:#ff8a86;flex:1">Clear All Sessions</div>
+                  <div style="width:18px;height:18px;border-radius:6px;border:1px solid rgba(255,138,134,.5);display:flex;align-items:center;justify-content:center;color:#ff8a86;font-size:11px;flex:none">✕</div>
+                </div>
+              </div>
+
+              <div style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2.2px;color:#4d6273">DATA STORED ON-DEVICE · NEVER SYNCED</div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:none;width:392px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:#5d7488;margin:0 0 13px 6px">08 · DIAGNOSTICS — about</div>
+        <div style="width:392px;height:850px;background:#000;border-radius:48px;padding:11px;border:1px solid rgba(120,150,175,.18);box-shadow:0 30px 70px rgba(0,0,0,.55)">
+          <div style="position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:radial-gradient(120% 70% at 50% -8%, #0c2730 0%, #070d15 52%, #04070c 100%)">
+            <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.045) 1px,transparent 1px);background-size:26px 26px;opacity:var(--grid-op);pointer-events:none"></div>
+            <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:18px;z-index:6"></div>
+            <div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:5">
+              <div style="font-family:'Chakra Petch',sans-serif;font-size:15px;color:#cfe1ea;letter-spacing:.5px;font-weight:600">9:41</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#7c93a6;letter-spacing:1.4px">5G&nbsp;&nbsp;▮▮▮▮</div>
+            </div>
+
+            <div style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow:hidden;padding:10px 22px 22px">
+
+              <div style="display:flex;align-items:center;gap:14px;padding:14px 2px 22px">
+                <div style="width:38px;height:38px;border-radius:50%;border:1px solid color-mix(in srgb,var(--accent) 26%,transparent);display:flex;align-items:center;justify-content:center;color:var(--accent-bright);font-size:19px;line-height:0;padding-bottom:3px;background:color-mix(in srgb,var(--accent) 6%,transparent);flex:none">‹</div>
+                <div>
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:22px;font-weight:700;letter-spacing:2.6px;color:#eaf6f8">DIAGNOSTICS</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488;margin-top:4px">SYSTEM HEALTH</div>
+                </div>
+              </div>
+
+              <div style="border-radius:14px;background:rgba(8,18,26,.5);border:1px solid color-mix(in srgb,var(--accent) 12%,transparent);overflow:hidden;margin-bottom:24px">
+                <div style="display:flex;align-items:center;gap:13px;padding:13px 16px">
+                  <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 7px var(--accent);flex:none"></div>
+                  <div style="flex:1;font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">Hermes API</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--accent)">REACHABLE</div>
+                </div>
+                <div style="height:1px;background:color-mix(in srgb,var(--accent) 10%,transparent);margin:0 16px"></div>
+                <div style="display:flex;align-items:center;gap:13px;padding:13px 16px">
+                  <div style="width:8px;height:8px;border-radius:50%;background:#ffc14d;box-shadow:0 0 7px #ffc14d;flex:none;animation:tal-blink 1.4s ease-in-out infinite"></div>
+                  <div style="flex:1;font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">Relay Link</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:#ffc14d">STANDBY</div>
+                </div>
+                <div style="height:1px;background:color-mix(in srgb,var(--accent) 10%,transparent);margin:0 16px"></div>
+                <div style="display:flex;align-items:center;gap:13px;padding:13px 16px">
+                  <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 7px var(--accent);flex:none"></div>
+                  <div style="flex:1;font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">Push Token</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--accent)">REGISTERED</div>
+                </div>
+                <div style="height:1px;background:color-mix(in srgb,var(--accent) 10%,transparent);margin:0 16px"></div>
+                <div style="display:flex;align-items:center;gap:13px;padding:13px 16px">
+                  <div style="width:8px;height:8px;border-radius:50%;background:#5d7488;flex:none"></div>
+                  <div style="flex:1;font-family:'Space Grotesk',sans-serif;font-size:15px;color:#e8eef5">Location</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:#7c93a6">FOREGROUND</div>
+                </div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px">
+                <div style="padding:13px 14px;border-radius:12px;background:rgba(8,18,26,.5);border:1px solid color-mix(in srgb,var(--accent) 12%,transparent)">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.6px;color:#5d7488">APP VERSION</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:.5px;color:#cfe1ea;margin-top:5px">2.4.0 (412)</div>
+                </div>
+                <div style="padding:13px 14px;border-radius:12px;background:rgba(8,18,26,.5);border:1px solid color-mix(in srgb,var(--accent) 12%,transparent)">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.6px;color:#5d7488">HOST VERSION</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:.5px;color:#cfe1ea;margin-top:5px">hermes 1.9.2</div>
+                </div>
+                <div style="padding:13px 14px;border-radius:12px;background:rgba(8,18,26,.5);border:1px solid color-mix(in srgb,var(--accent) 12%,transparent)">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.6px;color:#5d7488">UPTIME</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:.5px;color:#cfe1ea;margin-top:5px">04:12:38</div>
+                </div>
+                <div style="padding:13px 14px;border-radius:12px;background:rgba(8,18,26,.5);border:1px solid color-mix(in srgb,var(--accent) 12%,transparent)">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.6px;color:#5d7488">DEVICE</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:.5px;color:#cfe1ea;margin-top:5px">iPhone 17 Pro</div>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;justify-content:space-between;margin:0 4px 11px">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.4px;color:#5d7488">// LOGS</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:var(--accent)">EXPORT ↧</div>
+              </div>
+              <div style="border-radius:12px;background:#04070c;border:1px solid color-mix(in srgb,var(--accent) 14%,transparent);padding:13px 14px;font-family:'JetBrains Mono',monospace;font-size:9.5px;line-height:1.85;color:#7c93a6;margin-bottom:22px">
+                <div><span style="color:var(--accent)">12:04:51</span>&nbsp; uplink established · direct</div>
+                <div><span style="color:var(--accent)">12:04:52</span>&nbsp; models synced · 5 available</div>
+                <div><span style="color:#ffc14d">12:05:10</span>&nbsp; relay standby · no host</div>
+                <div><span style="color:var(--accent)">12:09:33</span>&nbsp; push token registered</div>
+              </div>
+
+              <div style="display:flex;justify-content:center;gap:18px;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.6px;color:#5d7488">
+                <span style="color:var(--accent)">TERMS</span><span style="color:#2a3a44">·</span><span style="color:var(--accent)">PRIVACY</span><span style="color:#2a3a44">·</span><span style="color:var(--accent)">SUPPORT</span>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!--ROW2-->
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1760,&quot;height&quot;:2040},&quot;accent&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;cyan&quot;,&quot;amber&quot;,&quot;violet&quot;],&quot;default&quot;:&quot;cyan&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;glow&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:1,&quot;min&quot;:0,&quot;max&quot;:1.6,&quot;step&quot;:0.1,&quot;tsType&quot;:&quot;number&quot;},&quot;gridOverlay&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const accents = {
+      cyan: ['#54e6f0', '#cdf8fb', '#14636e'],
+      amber: ['#ffc14d', '#ffe2a6', '#6e4d14'],
+      violet: ['#b18cff', '#e2d4ff', '#3a2d6e']
+    };
+    const a = accents[this.props.accent] || accents.cyan;
+    const glow = this.props.glow ?? 1;
+    const grid = (this.props.gridOverlay ?? true) ? 1 : 0;
+    const rootStyle = `--accent:${a[0]};--accent-bright:${a[1]};--accent-deep:${a[2]};--glow:${glow};--grid-op:${grid}`;
+    return { rootStyle };
+  }
+}
+</script>
+</body>
+</html>

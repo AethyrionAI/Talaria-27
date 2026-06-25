@@ -201,9 +201,26 @@ final class SensorUploadService {
         }
 
         locationService.startMonitoring()
-        healthService.startMonitoring()
         motionService?.startMonitoring()
-        sensorLog.notice("start() — monitoring started (loc/health/motion). Health auth=\(String(describing: self.healthService.authorizationStatus), privacy: .public), loc auth=\(String(describing: self.locationService.authorizationStatus), privacy: .public)")
+
+        // Health authorization is in-memory only: LiveHealthService resets it to
+        // .notDetermined on every launch, and Apple's read-privacy model means it
+        // cannot be recovered via authorizationStatus(for:) (read status stays hidden).
+        // collectSnapshot() hard-gates on .authorized, so without re-asserting here,
+        // every snapshot returns nil after a relaunch even when the user already
+        // granted access. Re-request on each start() to restore .authorized AND
+        // re-enable background delivery. For read-only types iOS shows the system
+        // sheet at most once per install, so repeat calls after the first decision
+        // are silent — no nagging, even on denial.
+        Task { [weak self] in
+            guard let self else { return }
+            let status = await self.healthService.requestAuthorization()
+            self.healthService.startMonitoring()
+            sensorLog.notice("start() — health auth re-asserted: \(String(describing: status), privacy: .public)")
+            await self.captureHealthSnapshot(forceFullRefresh: true)
+        }
+
+        sensorLog.notice("start() — monitoring started (loc/motion; health pending re-auth). loc auth=\(String(describing: self.locationService.authorizationStatus), privacy: .public)")
     }
 
     func stop() {
