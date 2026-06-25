@@ -33,10 +33,9 @@ final class SessionsDrawerModel {
         var badge: String? = nil
     }
 
-    // TODO: wire to Sessions API — replace this placeholder list with the
-    // real session threads (title, last-activity time, active/pinned state).
-    // The relay/sessions client is intentionally not touched here.
-    var sessions: [SessionSummary] = SessionsDrawerModel.placeholders
+    // Wired to Hermes Sessions API — ChatScreen.refreshSessions() populates
+    // this from chatStore.loadSessions() on drawer open and on initial load.
+    var sessions: [SessionSummary] = []
 
     var searchText: String = ""
 

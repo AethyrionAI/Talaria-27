@@ -247,14 +247,17 @@ struct ChatScreen: View {
                     .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
             }
             .accessibilityLabel("Sessions")
+            .allowsHitTesting(!sessionsOpen)
         }
         ToolbarItem(placement: .principal) {
             ModelSelector(model: modelModel, isOnline: isChatHostOnline)
+                .allowsHitTesting(!sessionsOpen)
         }
         ToolbarItem(placement: .topBarTrailing) {
             GlassCircleButton(icon: "gearshape", accessibilityLabel: "Open settings") {
                 router.presentSheet(.settings)
             }
+            .allowsHitTesting(!sessionsOpen)
         }
     }
 

@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let chatLog = Logger(subsystem: "org.aethyrion.talaria", category: "ChatStore")
 
 @MainActor
 @Observable
@@ -409,7 +412,14 @@ final class ChatStore {
 
     /// Recent sessions from the host. Returns [] when unreachable.
     func loadSessions() async -> [HermesSessionInfo] {
-        (try? await hermesClient.listSessions()) ?? []
+        do {
+            let sessions = try await hermesClient.listSessions()
+            chatLog.notice("loadSessions: got \(sessions.count, privacy: .public) sessions")
+            return sessions
+        } catch {
+            chatLog.error("loadSessions: FAILED — \(error.localizedDescription, privacy: .public)")
+            return []
+        }
     }
 
     /// Opens an existing session: loads its history and continues that thread.

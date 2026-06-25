@@ -271,10 +271,20 @@ final class SessionsHermesClient: HermesClientProtocol {
     // MARK: - Sessions list / open
 
     func listSessions() async throws -> [HermesSessionInfo] {
-        let response: SessionsListResponse = try await getJSON(
-            path: "\(Self.sessionsPath)?limit=50&order=recent&min_messages=1"
-        )
-        return response.sessions.map { row in
+        let path = "\(Self.sessionsPath)?limit=50&order=recent&min_messages=1"
+        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json")
+        let (data, httpResponse) = try await session.data(for: request)
+        try ensureSuccess(response: httpResponse, data: data)
+        let response: SessionsListResponse
+        do {
+            response = try decoder.decode(SessionsListResponse.self, from: data)
+        } catch {
+            let snippet = String(data: data.prefix(500), encoding: .utf8) ?? "(binary)"
+            Self.logger.error("listSessions: decode FAILED — \(error.localizedDescription, privacy: .public). Raw: \(snippet, privacy: .public)")
+            throw error
+        }
+        Self.logger.notice("listSessions: decoded \(response.data.count, privacy: .public) rows")
+        return response.data.map { row in
             HermesSessionInfo(
                 id: row.id,
                 title: row.title,
@@ -445,7 +455,7 @@ final class SessionsHermesClient: HermesClientProtocol {
     }
 
     private struct SessionsListResponse: Decodable {
-        let sessions: [Row]
+        let data: [Row]
         struct Row: Decodable {
             let id: String
             let title: String?

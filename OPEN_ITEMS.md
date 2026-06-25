@@ -396,31 +396,35 @@ and checked in the diagnostics panel (#15).
 
 ---
 
-## 18. 🐛 Session shelf is too transparent — content behind it shows through and stays tappable
+## 18. ✅ Session shelf — scrim opacity increased, toolbar hit-testing blocked
 
-The session shelf (sessions drawer) overlay is too transparent: the top-center
-`ModelSelector` chip sitting behind it is visible **and still receives taps** through the
-shelf. Opening the shelf should present an opaque (or heavily scrimmed) surface that also
-**blocks hit-testing** on the chat content behind it, so a tap meant for the shelf can't
-land on the model chip underneath.
+The session shelf (sessions drawer) overlay was too transparent (62% opacity) and let
+taps fall through to the toolbar (model chip, settings gear) because SwiftUI's navigation
+toolbar renders above `.overlay` content.
 
-**Fix:** raise the shelf's background opacity / add a dimming scrim, and make the
-underlying `ChatScreen` (esp. the top-center chip) non-interactive while the shelf is open
-(`.allowsHitTesting(false)` on the backdrop, or present the shelf so it captures all
-touches). Reported on-device 2026-06-24.
+**Fixed 2026-06-25:**
+- Scrim opacity bumped from 0.62 → 0.85 (`Design.Colors.scrim`)
+- All three toolbar items (sessions button, model chip, settings gear) now have
+  `.allowsHitTesting(!sessionsOpen)` — taps on the toolbar area pass to the scrim
+  dismiss gesture when the drawer is open
 
 ---
 
-## 19. 🐛 Session shelf → "Conversation history" is always blank
+## 19. ✅ Session shelf — history now populated from Hermes Sessions API
 
-The session shelf's **Conversation history** section never populates — no past sessions
-ever show up, on any launch. New-session creation and switching work (chat itself is
-fine), but the history list stays empty.
+**Root cause:** `SessionsListResponse` expected a `"sessions"` key in the API JSON,
+but the Hermes Sessions API returns `"data"`. One-word DTO mismatch. The `try?` in
+`ChatStore.loadSessions()` silently swallowed the decode error, returning `[]`.
 
-**Investigate:** is the shelf reading the right source (gateway `GET /api/sessions` vs. a
-local store), is the list fetched at all on shelf-open, and is a decode / empty-state path
-swallowing results? Tie to the `SessionsHermesClient` / sessions-drawer wiring. Reported
-on-device 2026-06-24.
+**Fixed 2026-06-25:**
+- Changed `SessionsListResponse.sessions` → `.data` to match the API contract
+- Added diagnostic logging to `loadSessions()` (ChatStore) and `listSessions()`
+  (SessionsHermesClient) so decode failures surface with the raw response body
+- Removed placeholder sessions from `SessionsDrawerModel` (was showing fake
+  "Morning Briefing" / "Reschedule afternoon" entries)
+- Updated stale TODO comment
+
+**Verified on-device:** `listSessions: decoded 50 rows`, `loadSessions: got 50 sessions`.
 
 ---
 

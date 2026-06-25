@@ -85,7 +85,7 @@ enum Design {
         static let cyanBorder = accentTint(0.30)
 
         /// Modal/drawer backdrop scrim.
-        static let scrim = Color(hex: 0x02060A, opacity: 0.62)
+        static let scrim = Color(hex: 0x02060A, opacity: 0.85)
 
         /// Sessions-drawer vertical gradient.
         static let drawerGradient = LinearGradient(
