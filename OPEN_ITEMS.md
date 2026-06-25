@@ -8,7 +8,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 
 ---
 
-## 1. 🔧 T4 — Host reconciliation (chat gateway ↔ shim)
+## 1. ✅ T4 — Host reconciliation (chat gateway ↔ shim) — RESOLVED
 
 **Recon (done):** the **mini** runs *both* Hermes services on one box, sharing
 `~/.hermes/config.yaml`:
@@ -32,6 +32,56 @@ is why the dual-write's `/model` leg succeeded with a kimi model.
 address — either `http://100.79.222.100:8642` or, preferably, a `tailscale serve` HTTPS
 MagicDNS name (also removes the `NSAllowsArbitraryLoads` ATS exception). Then chat +
 picker are the same box from any network.
+
+**Update 2026-06-24 (live probe from the mini, prompted by the token re-pair question):**
+- **OJAMD's gateway is now up** — `http://ojamd:8642` and `100.110.102.59:8642` both
+  respond (404 at root = server alive). The "OJAMD :8642 did not answer" note above is now
+  **stale**. The mini's gateway is also up (`localhost:8642`).
+- **The shim runs only on the mini** — `100.79.222.100:8765` → 401 (alive, needs auth);
+  OJAMD has **no** shim (`ojamd:8765` / `100.110.102.59:8765` → no response).
+- **App defaults split the two backends:** chat
+  `defaultHermesAPIBaseURL = http://ojamd:8642` (OJAMD) but the models-shim URL =
+  `http://100.79.222.100:8765` (mini) — `UserSettings.swift:228/232`. So on the physical
+  phone (header "HERMES · OJAMD") chat lands on **OJAMD** while the picker's persistent-
+  default write lands on the **mini** — different boxes. Re-pairing the shim token makes the
+  picker authenticate, but its `POST /models/default` leg still writes the *mini's* config,
+  not OJAMD's, so switches won't fully take on-device. **Consolidate** (stand the shim up on
+  OJAMD + point the app's shim URL there, or point the app's chat base URL at the mini)
+  before model-switching is coherent on the phone.
+
+**Owen clarification (2026-06-24):** OJAMD is the **intended production host**; the mini was
+only up incidentally (left on) and was **mid Hermes-update** during the earlier recon — which
+is why OJAMD `:8642` looked dead then (being updated, not absent). The phone is connected to
+OJAMD (`100.110.102.59:8642`). So the consolidation direction is unambiguous: **move the shim
+to OJAMD**, not chat → mini. Concretely: deploy `tools/models-shim/shim.py` on OJAMD (Windows —
+Task Scheduler / NSSM, not launchd), generate a token in OJAMD's `~/.hermes/talaria_shim_token`,
+and repoint the app's shim URL to `http://ojamd:8765` (`UserSettings.swift:232` /
+`ModelsSettingsScreen.swift:256`). The mini-side token re-pair (Item #22) **won't** enable real
+on-device switch testing — the phone chats with OJAMD, not the mini.
+
+**RESOLVED (2026-06-25): shim deployed on OJAMD; model-switching works end-to-end on-device.**
+- **Shim ported to OJAMD** — native Windows Hermes (NOT WSL); home `%LOCALAPPDATA%\hermes`,
+  gateway runs as a Windows service. `tools/models-shim/shim.py` is **byte-identical** to repo
+  (sha256 `d57eef8f…84e11d`); runs under OJAMD's Hermes venv
+  `C:\Users\Owen\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe` (Py 3.11.9). All four
+  shim internals (`build_models_payload`, `load_picker_context`, `_apply_model_assignment_sync`,
+  `_profile_scope`) import cleanly → **no version skew**.
+- **Bind:** `TALARIA_SHIM_HOST=100.110.102.59` `:8765` (OJAMD tailnet IP). Token at
+  `C:\Users\Owen\.hermes\talaria_shim_token` (note `~/.hermes`, *not* the Hermes home). No
+  firewall rule needed — the phone reached `:8765` over the tailnet first try.
+- **Persistence:** wrapper `tools/models-shim/run-shim.cmd` (sets env + logs to
+  `%LOCALAPPDATA%\hermes\logs\talaria-shim.log`) launched by Scheduled Task **`TalariaModelsShim`**
+  (at-logon, restart-on-failure, hidden). `O:` is a local M2 SSD, so the at-logon start is safe
+  (no mapped-drive race).
+- **Verified live:** picker loads the real list; three switches (Claude Haiku 4.5 → Gemini 2.5
+  Flash Lite → Kimi K2.6) each took on a fresh session — the *answering* model actually changed.
+
+**Follow-ups (small):**
+- Update the **in-code shim-URL default** from the mini IP to OJAMD so future installs (Shelley)
+  don't need manual entry: `UserSettings.swift:232` + `ModelsSettingsScreen.swift:256` →
+  `http://ojamd:8765` (chat base URL `:228` is already `ojamd:8642`).
+- **Retire the mini's launchd shim** (`com.aethyrion.talaria.modelsshim`) — now redundant and a
+  source of two-shims/two-configs confusion. The phone uses OJAMD's.
 
 ---
 
@@ -120,6 +170,9 @@ real active model — seed it on launch from the gateway's active model / the sh
 `model` (e.g. `kimi-k2.7-code`) and keep it in sync after a pick. Today `activeModelName`
 is nil until a `/model` switch is detected over chat, so a fresh launch shows the
 placeholder and the chip's `availableModels` is still the opus/sonnet/haiku stub.
+
+**Confirmed in the wild (2026-06-25):** on-device the chip read "CLAUDE OPUS…" while the session
+was actually answering as **Kimi K2.6** — exactly this gap. Fix tracked in #20.
 
 ---
 
@@ -294,3 +347,86 @@ The connector appears connected to the relay, but delivery isn't completing. Pos
 **Next step:** Ask Hermes on OJAMD to check relay + connector logs for sensor delivery
 errors and verify the `hermes_mobile` MCP tools are registered and the connector session
 is alive.
+
+
+---
+
+## 18. 🐛 Session shelf is too transparent — content behind it shows through and stays tappable
+
+The session shelf (sessions drawer) overlay is too transparent: the top-center
+`ModelSelector` chip sitting behind it is visible **and still receives taps** through the
+shelf. Opening the shelf should present an opaque (or heavily scrimmed) surface that also
+**blocks hit-testing** on the chat content behind it, so a tap meant for the shelf can't
+land on the model chip underneath.
+
+**Fix:** raise the shelf's background opacity / add a dimming scrim, and make the
+underlying `ChatScreen` (esp. the top-center chip) non-interactive while the shelf is open
+(`.allowsHitTesting(false)` on the backdrop, or present the shelf so it captures all
+touches). Reported on-device 2026-06-24.
+
+---
+
+## 19. 🐛 Session shelf → "Conversation history" is always blank
+
+The session shelf's **Conversation history** section never populates — no past sessions
+ever show up, on any launch. New-session creation and switching work (chat itself is
+fine), but the history list stays empty.
+
+**Investigate:** is the shelf reading the right source (gateway `GET /api/sessions` vs. a
+local store), is the list fetched at all on shelf-open, and is a decode / empty-state path
+swallowing results? Tie to the `SessionsHermesClient` / sessions-drawer wiring. Reported
+on-device 2026-06-24.
+
+---
+
+## 20. 🔧 Top-center model chip — route tap to the real picker; drop the stub dropdown + "Start New Session"
+
+Separate from the placeholder-text bug (→ Open Item #10). **Decision (Owen, 2026-06-24):
+option (b)** — the top-center `ModelSelector` chip stays tappable, but the tap is a
+**shortcut that opens the live Settings → MODELS picker** (the shim-backed list) instead of
+the current stub opus/sonnet/haiku dropdown.
+
+- Remove the stub `availableModels` dropdown entirely.
+- **Remove the "Start New Session" action** from the chip / `ModelSelector` — new-session
+  lives in the left session drawer, so it shouldn't be duplicated here.
+- Chip still needs to show the real active model (→ #10).
+
+Reported on-device 2026-06-24.
+
+---
+
+## 21. 📝 No way to present/download agent-generated files (reports, text, etc.)
+
+Ask the agent to produce a file — a markdown report, a text file — and the app has **no
+surface to present it for viewing or download**, the way claude.ai and Hermes Desktop do.
+The content is effectively stuck in (or absent from) the chat stream.
+
+**Open questions / what's needed:**
+- **Does the Sessions API emit file artifacts at all?** Confirm whether `/chat` or the SSE
+  stream surfaces generated files (a tool result with a path/blob, an artifact event) or
+  whether the agent only writes them to its working dir on the host. If surfaced, the app
+  can render a download affordance; if not, the gateway needs an endpoint to fetch them.
+- **App side:** a file/attachment bubble in the transcript with view + share-sheet / save
+  to Files. Ties into Phase 2 markdown rendering.
+
+Feature gap, not a regression. Reported on-device 2026-06-24.
+
+---
+
+## 22. ✅ Shim token re-established — model switching works (shim now on OJAMD)
+
+After re-pairing/reinstalling, the **phone no longer has a valid models-shim bearer token**,
+so the picker's set-default leg (shim `POST /models/default`) can't authenticate and model
+switching couldn't be tested this session. This is the concrete near-term instance of the
+onboarding-friction problem in Open Item #14 (and the DEBUG seam in #7).
+
+**Near-term:** re-establish the shim token on the device (re-copy from
+`~/.hermes/talaria_shim_token` on the mini into the Keychain via the Settings field).
+**Resolved (2026-06-24):** `~/.hermes/talaria_shim_token` is intact on the mini — no
+rotation needed. Re-pair the existing value onto the phone (it was lost from the Keychain
+on the fresh install, not changed by the re-pair). Reported 2026-06-24.
+
+**Closed (2026-06-25):** superseded by the OJAMD shim deploy (→ #1). The token that matters now
+lives on **OJAMD** at `C:\Users\Owen\.hermes\talaria_shim_token` (auto-created on first run),
+paired into the app, and switching is confirmed end-to-end. The mini token is moot — the phone
+never used the mini shim.

@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Models settings screen (Settings → MODELS)
 //
-// Wires the live Talaria models shim (mini tailnet) into the HUD. Lists the
+// Wires the live Talaria models shim (OJAMD tailnet) into the HUD. Lists the
 // authenticated providers/models, marks the active model, refreshes the shim's
 // per-provider cache on demand, and — on tap — DUAL-WRITES the selection:
 //   1. current session  → ChatStore.selectModel (gateway `/model <id>`)
@@ -253,7 +253,7 @@ struct ModelsSettingsScreen: View {
             VStack(alignment: .leading, spacing: Design.Spacing.sm) {
                 VStack(alignment: .leading, spacing: Design.Spacing.xs) {
                     MonoLabel("Shim URL", size: 9, weight: .medium, color: Design.Colors.mutedForeground)
-                    TextField("http://100.79.222.100:8765", text: shimURLBinding)
+                    TextField("http://ojamd:8765", text: shimURLBinding)
                         .textInputAutocapitalization(.never)
                         .keyboardType(.URL)
                         .autocorrectionDisabled()
@@ -261,7 +261,7 @@ struct ModelsSettingsScreen: View {
                         .foregroundStyle(Design.Colors.foreground)
                         .padding(Design.Spacing.md)
                         .modifier(ShimFieldBackground())
-                    Text("Talaria models-shim endpoint on the mini tailnet.")
+                    Text("Talaria models-shim endpoint on OJAMD (tailnet).")
                         .font(Design.Typography.caption)
                         .foregroundStyle(Design.Colors.secondaryForeground)
                 }

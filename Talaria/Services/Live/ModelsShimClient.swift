@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Talaria Models Shim client
 //
-// Talks to the tailnet-bound "models shim" on the mini (see tools/models-shim/).
+// Talks to the tailnet-bound "models shim" on OJAMD (see tools/models-shim/).
 // The shim exposes Hermes's real model list and a persistent set-default without
 // the privileged dashboard plane:
 //   GET  /models?refresh=0|1   → ShimModelOptions

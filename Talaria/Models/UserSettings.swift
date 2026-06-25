@@ -226,10 +226,10 @@ enum LocationSyncPreference: String, Codable, Hashable, Sendable {
 
 struct UserSettings: Codable, Hashable, Sendable {
     static let defaultHermesAPIBaseURL = "http://ojamd:8642"
-    /// Default Talaria models-shim endpoint — the mini's tailnet IP. The shim
-    /// exposes the Hermes model list + persistent set-default without the
-    /// privileged dashboard plane. See tools/models-shim/.
-    static let defaultModelsShimBaseURL = "http://100.79.222.100:8765"
+    /// Default Talaria models-shim endpoint — OJAMD, the production Hermes host (same
+    /// box as the chat gateway above). The shim exposes the Hermes model list +
+    /// persistent set-default without the privileged dashboard plane. See tools/models-shim/.
+    static let defaultModelsShimBaseURL = "http://ojamd:8765"
 
     var userName: String
     var avatarInitials: String

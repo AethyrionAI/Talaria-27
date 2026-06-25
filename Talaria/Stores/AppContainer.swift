@@ -176,7 +176,7 @@ final class AppContainer {
             allowsFallback: { allowMockFallbacks && (activePairingStore?.isPaired != true || usesMockPairingService) }
         )
 
-        // Talaria models-shim client (mini tailnet). Token comes from the Keychain
+        // Talaria models-shim client (OJAMD tailnet). Token comes from the Keychain
         // box (hydrated below); in DEBUG only, a `TALARIA_SHIM_TOKEN` launch-env var
         // is used as a fallback so the picker can be driven in the simulator without
         // pasting (idb has no keyboard injection). The token never ships in git.
