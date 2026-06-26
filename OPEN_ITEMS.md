@@ -120,11 +120,15 @@ cost-guard is enabled.
 
 ---
 
-## 5. 📝 Host-status display quirk
+## 5. ✅ Host-status display quirk — Settings now uses direct connection state
 
-In Settings, the host orb briefly showed "OFFLINE · STANDBY" (amber) while the Connection
-row's "Status" read "CONNECTED". Likely transient / two sources of truth for host health.
-Worth a glance; not a blocker.
+Settings was reading `hostStore.connectionState` (relay-based) while chat used
+`chatStore.directConnectionStatus` (direct Sessions API). When the relay was down but
+chat worked, Settings showed "OFFLINE · STANDBY" while chat was fully operational.
+
+**Fixed 2026-06-25:** Added `effectiveConnectionState` to SettingsScreen that prefers
+the direct Sessions API probe over the relay-based host store — same pattern ChatScreen
+uses. All 6 references to `hostStore.connectionState` updated.
 
 ---
 
@@ -196,27 +200,21 @@ screens on-device.
 
 ---
 
-## 12. 🐛 Sensor data stale / not collecting on-device
+## 12. ✅ Sensor data stale / not collecting on-device — app-side resolved
 
-First on-device run shows sensor data via the MCP bridge (Location, HealthKit, Activity)
-but everything is **stale since June 16**. The relay path (iPhone → Hermes) works — the
-MCP calls return cached data — but the phone's local SQLite hasn't had fresh samples
-written. This is a fresh install on whoGoesThere.
+**Status:** App-side fixes complete. Remaining gap is OJAMD server-side (#24a).
 
-Likely causes (investigate in order):
-1. **Permissions not granted.** The Permissions screen (Settings → Permissions) has
-   Location, Health, Notifications, Microphone — all showed "NOT SET" / "ENABLE" in the
-   simulator. On the physical device, did all four get enabled? HealthKit in particular
-   requires explicit per-type authorization.
-2. **Background collection not running.** The `SensorUploadService` may need an active
-   session or a relay enrollment to start its background timer. Check whether the service
-   is instantiated (it's optional in AppContainer) and whether it starts collecting on
-   permission grant.
-3. **Relay enrollment.** The model mentioned "OJAMD connector being unenrolled/paused."
-   If sensor upload requires an active relay enrollment, re-enroll.
+**What was fixed (2026-06-25):**
+- **HealthKit auth** (#16): `requestAuthorization()` re-asserted on every sensor start.
+  11 health observer types now fire, fresh samples captured (`distance_walking`, `steps`).
+- **iCloud Private Relay** blocking all Tailscale HTTP: discovered and documented.
+  Disabling Private Relay restored connectivity to relay (`:8000`) and shim (`:8765`).
+- **Location delivery** now works end-to-end: `deliveryState=delivered` confirmed.
 
-The data coming back (steps 4937, walking 3198m, location at Saucier) is real but week-old.
-Fresh collection needs to flow before sensors are useful.
+**What remains (OJAMD server-side, → #24a):**
+Health uploads are rejected by the relay with HTTP 422. The app captures and queues
+health samples (1700+ in outbox) but the relay rejects the payload format. This is a
+server-side schema/content-type issue, not app code.
 
 ---
 

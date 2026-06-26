@@ -15,6 +15,16 @@ struct SettingsScreen: View {
     @State private var hermesAPIKeySaving = false
     @State private var hermesAPIKeyJustSaved = false
 
+    /// Combined host connection state. Prefers the direct Sessions API probe
+    /// (`chatStore.directConnectionStatus`) over the relay-based `hostStore`
+    /// so Settings shows "ONLINE" when chat works even if the relay is down.
+    private var effectiveConnectionState: HermesHostConnectionState {
+        if container.chatStore.directConnectionStatus == .connected {
+            return .online
+        }
+        return hostStore.connectionState
+    }
+
     var body: some View {
         ZStack {
             HUDScreenBackground(gridIntensity: 0.35)
@@ -94,7 +104,7 @@ struct SettingsScreen: View {
             StatusPip(
                 color: hostLinkStatusColor,
                 diameter: 9,
-                blinks: hostStore.connectionState == .unreachable
+                blinks: effectiveConnectionState == .unreachable
             )
         }
         .padding(Design.Spacing.md)
@@ -108,7 +118,7 @@ struct SettingsScreen: View {
     }
 
     private var hostLinkStatusColor: Color {
-        switch hostStore.connectionState {
+        switch effectiveConnectionState {
         case .online: Design.Brand.accent
         case .offline, .unreachable: Design.Brand.forge
         case .notConnected: Design.Colors.mutedForeground
@@ -116,7 +126,7 @@ struct SettingsScreen: View {
     }
 
     private var hostLinkStatusLine: String {
-        switch hostStore.connectionState {
+        switch effectiveConnectionState {
         case .online: "LINKED · \(sessionStore.state.connectionStatus.displayLabel.uppercased())"
         case .offline: "OFFLINE · STANDBY"
         case .unreachable: "UNREACHABLE · CHECK UPLINK"
@@ -373,7 +383,7 @@ struct SettingsScreen: View {
     }
 
     private var hostStatusRowIcon: String {
-        switch hostStore.connectionState {
+        switch effectiveConnectionState {
         case .online:
             return "desktopcomputer"
         case .offline:
@@ -386,7 +396,7 @@ struct SettingsScreen: View {
     }
 
     private var hostStatusRowColor: Color {
-        switch hostStore.connectionState {
+        switch effectiveConnectionState {
         case .online:
             return .green
         case .offline, .unreachable:
@@ -397,7 +407,7 @@ struct SettingsScreen: View {
     }
 
     private var hostStatusRowValue: String {
-        switch hostStore.connectionState {
+        switch effectiveConnectionState {
         case .online, .offline:
             return hostStore.currentHost?.resolvedDisplayName ?? "Hermes Host"
         case .unreachable:
