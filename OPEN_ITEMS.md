@@ -220,42 +220,12 @@ Fresh collection needs to flow before sensors are useful.
 
 ---
 
-## 13. 🐛 Model identification is unreliable — app displays config, not reality
+## 13. ✅ Model identification — resolved (SOUL.md was the cause)
 
-On-device conversation reveals model identity is wrong at multiple levels:
-
-1. **Top chip** says "CLAUDE OPUS…" — hardcoded placeholder (→ Open Item #10).
-2. **The app displayed "kimi"** as the active model/provider (from the shim config), but
-   the model that **actually responded is MiniMax-M3** (which is vocal about its own
-   identity). This is not a cosmetic issue — the routing itself sent the request to a
-   different model than what the config/shim reports. Either Hermes is aliasing
-   `kimi-k2.7-code` to MiniMax under the hood, or the config pointer has drifted from
-   what's actually being served.
-3. **The Hermes system header** reported `kimi-k2.6` (stale session pin from an earlier
-   test) while the persistent default is `kimi-k2.7-code`.
-
-**Root problem:** Talaria currently echoes whatever the shim config says (provider slug +
-model id) without verifying what actually answered. Hermes supports dozens of providers
-and models — anthropic, deepseek, kimi, minimax, openai, nous, etc. The app must work
-with **all of them**, not assume the config is correct.
-
-**What needs to happen:**
-- **Talaria (app):** the model display should reflect what's actually being served, not
-  just parrot the shim's config slug. Options: (a) parse the gateway's response headers
-  for the real model id / provider, (b) ask the model to self-identify on session start,
-  (c) add a lightweight `/status` or `/whoami` endpoint to the gateway that returns the
-  actual routed model after resolution.
-- **Hermes (upstream):** investigate why `kimi-k2.7-code` via `kimi-coding` resolved to
-  MiniMax-M3. Is this a provider alias, a fallback chain, or a config bug? The shim and
-  gateway need to agree on what's actually being served.
-- **General:** model identification must be provider-agnostic. Don't tie display logic to
-  any single provider's naming convention.
-
-**Progress (2026-06-25):** Sub-issue #1 (hardcoded placeholder) resolved — chip now
-shows the shim's `model` field or "HERMES" fallback (→ #10). Sub-issues #2 and #3
-(Hermes aliasing kimi→MiniMax, stale session pin) are **upstream Hermes issues**, not
-app-side. The app now faithfully displays whatever the shim reports; if the shim
-reports the wrong model, that's a Hermes config/routing problem.
+**Closed 2026-06-25.** The app-side placeholder issue was fixed in #10 (chip now shows
+the shim's real model name). The "MiniMax-M3 responding when config says kimi" confusion
+was caused by SOUL.md on Hermes being edited to identify as MiniMax after a persona
+experiment — not an app or routing bug.
 
 ---
 
@@ -560,3 +530,32 @@ This needs to be:
 - Potentially mitigated by using HTTPS via `tailscale serve` (which may bypass the proxy)
 
 Logged 2026-06-25.
+
+---
+
+## 25. 🐛 CTX meter always shows 0% — SSE usage not parsed
+
+The "CTX 0%" telemetry in the agent identity strip never updates. Root cause:
+`SessionsHermesClient` emits `.finished(message, nil, nil)` at the `assistant.completed`
+SSE event — it never parses the `run.completed` event which carries token usage data
+(`input_tokens`, `output_tokens`, etc.).
+
+The pipeline from `.finished` → `ChatStore.lastTokenUsage` → `ChatScreen.contextProgress`
+is already wired; the client just needs to extract `TokenUsage` from `run.completed` and
+pass it through.
+
+Also depends on `contextWindow` being set (the denominator). Currently seeded from the
+command catalog's `activeModel.contextWindow` or `inferredContextWindow(for:)` — both may
+return nil if the catalog doesn't include context info for the active model.
+
+Logged 2026-06-25.
+
+---
+
+## 26. ✅ Removed non-functional "/ slash" and "@ context" hint chips
+
+The decorative hint chips ("/ slash", "@ context") above the text input area were
+purely cosmetic and non-interactive — tapping them did nothing. Removed from
+`ChatInputBar.swift` (31 lines deleted).
+
+Fixed 2026-06-25.

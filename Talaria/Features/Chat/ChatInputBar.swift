@@ -79,12 +79,6 @@ struct ChatInputBar: View {
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
-            // Decorative mono hint chips ("/ slash", "@ context")
-            if pendingAttachments.isEmpty && !speechService.isListening {
-                hintChips
-                    .padding(.horizontal, Design.Spacing.md)
-            }
-
             // Composer container
             VStack(spacing: 0) {
                 // Attachment preview strip
@@ -275,31 +269,6 @@ struct ChatInputBar: View {
         if mimeType == "application/pdf" { return "doc.richtext" }
         if mimeType.hasPrefix("text/") { return "doc.text" }
         return "doc"
-    }
-
-    // MARK: - Hint Chips (decorative)
-
-    private var hintChips: some View {
-        HStack(spacing: Design.Spacing.xs) {
-            hintChip("/ slash", color: Design.Brand.accent, border: Design.Colors.cyanBorder, fill: Design.Colors.accentTint(0.1))
-            hintChip("@ context", color: Design.Colors.secondaryForeground, border: Design.Colors.chipBorder, fill: Design.Colors.chipSurface)
-            Spacer(minLength: 0)
-        }
-        .accessibilityHidden(true)
-    }
-
-    private func hintChip(_ title: String, color: Color, border: Color, fill: Color) -> some View {
-        Text(title)
-            .font(Design.Typography.monoSmall)
-            .tracking(Design.Tracking.mono)
-            .foregroundStyle(color)
-            .padding(.horizontal, Design.Spacing.xs + 1)
-            .padding(.vertical, Design.Spacing.xxs)
-            .background(fill, in: RoundedRectangle(cornerRadius: Design.CornerRadius.xs + 2))
-            .overlay {
-                RoundedRectangle(cornerRadius: Design.CornerRadius.xs + 2)
-                    .strokeBorder(border, lineWidth: 1)
-            }
     }
 
     @ViewBuilder
