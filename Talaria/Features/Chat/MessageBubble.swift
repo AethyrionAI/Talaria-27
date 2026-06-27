@@ -148,6 +148,11 @@ struct MessageBubble: View {
                     InlineDiffView(diff: diff)
                 }
 
+                // #21 Tier 1: files the agent wrote, reconstructed from the stream.
+                if !message.attachments.isEmpty {
+                    hermesAttachments(message.attachments)
+                }
+
                 if !message.isStreaming {
                     Text(message.timestamp, style: .time)
                         .font(Design.Typography.monoSmall)
@@ -288,6 +293,75 @@ struct MessageBubble: View {
                 fill: Design.Colors.surface
             )
         }
+    }
+
+    // MARK: - Agent File Bubbles (#21 Tier 1)
+
+    @ViewBuilder
+    private func hermesAttachments(_ attachments: [MessageAttachment]) -> some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+            ForEach(attachments) { attachment in
+                agentFileBubble(attachment)
+            }
+        }
+        .padding(.top, Design.Spacing.xxs)
+    }
+
+    /// A tappable file chip that hands the staged file to the system share sheet
+    /// (`ShareLink` covers Save to Files, AirDrop, Quick Look, etc.).
+    @ViewBuilder
+    private func agentFileBubble(_ attachment: MessageAttachment) -> some View {
+        if let path = attachment.localStoragePath {
+            let url = URL(fileURLWithPath: path)
+            ShareLink(item: url) {
+                HStack(spacing: Design.Spacing.sm) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: Design.Size.iconSmall))
+                        .foregroundStyle(Design.Brand.accent)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(attachment.fileName)
+                            .font(Design.Typography.mono(12, relativeTo: .caption))
+                            .foregroundStyle(Design.Colors.coolForeground)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+
+                        Text(Self.fileSubtitle(for: url, fileName: attachment.fileName))
+                            .font(Design.Typography.monoSmall)
+                            .tracking(Design.Tracking.mono)
+                            .foregroundStyle(Design.Colors.mutedForeground)
+                    }
+
+                    Spacer(minLength: Design.Spacing.sm)
+
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: Design.Size.iconTiny))
+                        .foregroundStyle(Design.Colors.mutedForeground)
+                }
+                .padding(.horizontal, Design.Spacing.md)
+                .padding(.vertical, Design.Spacing.sm)
+                .hudPanel(
+                    cornerRadius: Design.CornerRadius.md,
+                    borderColor: Design.Colors.accentTint(0.18),
+                    fill: Design.Colors.surface
+                )
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: 280, alignment: .leading)
+            .accessibilityLabel("Share file \(attachment.fileName)")
+        }
+    }
+
+    /// "MARKDOWN · 2 KB" style caption — file type from extension, size read
+    /// from disk (omitted if unavailable).
+    static func fileSubtitle(for url: URL, fileName: String) -> String {
+        let ext = (fileName as NSString).pathExtension.uppercased()
+        let typeLabel = ext.isEmpty ? "FILE" : ext
+        if let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, size > 0 {
+            let formatted = ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
+            return "\(typeLabel) · \(formatted)"
+        }
+        return typeLabel
     }
 
     // MARK: - Context Compaction Banner

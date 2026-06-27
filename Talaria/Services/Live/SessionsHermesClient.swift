@@ -121,6 +121,9 @@ final class SessionsHermesClient: HermesClientProtocol {
                     var assembledContent = ""
                     var finalMessageDelivered = false
                     var pendingFinalMessage: Message?
+                    // #21 Tier 1: files the agent writes are streamed inline on
+                    // `tool.started`; reconstruct them and attach to the final message.
+                    var producedFiles: [MessageAttachment] = []
 
                     func dispatchEvent() {
                         defer {
@@ -141,6 +144,12 @@ final class SessionsHermesClient: HermesClientProtocol {
                                toolName != "_thinking" {
                                 continuation.yield(.toolActivity(toolName))
                             }
+                            // #21 Tier 1: a write surfaces only on `tool.started`,
+                            // carrying the bytes inline. `tool.completed` is empty.
+                            if currentEvent == "tool.started",
+                               let file = self.parseWrittenFile(currentData) {
+                                producedFiles.append(file)
+                            }
                         case "tool.progress":
                             // Reasoning chunks ride on `_thinking`; drop them in
                             // Phase 1 (the disclosure UI is Phase 2 work).
@@ -160,8 +169,9 @@ final class SessionsHermesClient: HermesClientProtocol {
                             // Defer `.finished` until run.completed delivers token usage.
                         case "run.completed":
                             let usage = self.decodeRunUsage(currentData)
-                            let message = pendingFinalMessage
+                            var message = pendingFinalMessage
                                 ?? Message(sender: .hermes, content: assembledContent, status: .delivered)
+                            if !producedFiles.isEmpty { message.attachments = producedFiles }
                             continuation.yield(.finished(message, usage, nil))
                             finalMessageDelivered = true
                         case "done":
@@ -198,11 +208,12 @@ final class SessionsHermesClient: HermesClientProtocol {
                     if !currentData.isEmpty { dispatchEvent() }
 
                     if !finalMessageDelivered {
-                        let fallbackMessage = pendingFinalMessage ?? Message(
+                        var fallbackMessage = pendingFinalMessage ?? Message(
                             sender: .hermes,
                             content: assembledContent,
                             status: .delivered
                         )
+                        if !producedFiles.isEmpty { fallbackMessage.attachments = producedFiles }
                         continuation.yield(.finished(fallbackMessage, nil, nil))
                     }
                     continuation.finish()
@@ -421,6 +432,24 @@ final class SessionsHermesClient: HermesClientProtocol {
         return nil
     }
 
+    /// #21 Tier 1: pulls an agent-written file out of a `tool.started` payload.
+    /// Recognizes `write_file` / `create_file`; tolerant of arg-key drift
+    /// (`args`/`arguments`/`input`, `path`/`file_path`, `content`/`text`) so a
+    /// minor server-shape change doesn't silently drop the attachment. Returns
+    /// nil for any other tool or when path/content are absent.
+    nonisolated private func parseWrittenFile(_ raw: String) -> MessageAttachment? {
+        guard let data = raw.data(using: .utf8),
+              let envelope = try? JSONDecoder().decode(ToolStartedEnvelope.self, from: data)
+        else { return nil }
+        let tool = (envelope.toolName ?? "").lowercased()
+        guard tool == "write_file" || tool == "create_file" else { return nil }
+        guard let args = envelope.args,
+              let path = args.path, !path.isEmpty,
+              let content = args.content
+        else { return nil }
+        return MessageAttachment.agentFile(remotePath: path, content: content)
+    }
+
     private func failureMessage(for error: Error) -> String {
         if let sessionsError = error as? SessionsClientError {
             return sessionsError.errorDescription ?? "Hermes API request failed."
@@ -460,6 +489,75 @@ final class SessionsHermesClient: HermesClientProtocol {
             case inputTokens = "input_tokens"
             case outputTokens = "output_tokens"
             case totalTokens = "total_tokens"
+        }
+    }
+
+    /// `tool.started` payload for the file-write probe (#21). Tolerant of arg-key
+    /// drift across Hermes versions — the canonical shape is
+    /// `{tool_name, args:{path, content}}`.
+    private struct ToolStartedEnvelope: Decodable {
+        let toolName: String?
+        let args: WrittenFileArgs?
+
+        enum CodingKeys: String, CodingKey {
+            case toolName = "tool_name"
+            case name, tool
+            case args, arguments, input
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+
+            var resolvedName: String?
+            for key in [CodingKeys.toolName, .name, .tool] {
+                if let value = try? c.decodeIfPresent(String.self, forKey: key) {
+                    resolvedName = value
+                    break
+                }
+            }
+            toolName = resolvedName
+
+            var resolvedArgs: WrittenFileArgs?
+            for key in [CodingKeys.args, .arguments, .input] {
+                if let value = try? c.decodeIfPresent(WrittenFileArgs.self, forKey: key) {
+                    resolvedArgs = value
+                    break
+                }
+            }
+            args = resolvedArgs
+        }
+    }
+
+    private struct WrittenFileArgs: Decodable {
+        let path: String?
+        let content: String?
+
+        enum CodingKeys: String, CodingKey {
+            case path, content
+            case filePath = "file_path"
+            case filename, text
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+
+            var resolvedPath: String?
+            for key in [CodingKeys.path, .filePath, .filename] {
+                if let value = try? c.decodeIfPresent(String.self, forKey: key) {
+                    resolvedPath = value
+                    break
+                }
+            }
+            path = resolvedPath
+
+            var resolvedContent: String?
+            for key in [CodingKeys.content, .text] {
+                if let value = try? c.decodeIfPresent(String.self, forKey: key) {
+                    resolvedContent = value
+                    break
+                }
+            }
+            content = resolvedContent
         }
     }
 
