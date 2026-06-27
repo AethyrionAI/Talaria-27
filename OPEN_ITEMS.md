@@ -277,6 +277,16 @@ take effect. The app-side fallback is already active.
 
 Fixed 2026-06-25.
 
+**Verified live on OJAMD (2026-06-26):** the server-side key fallback now authenticates
+end-to-end — Hermes API key → 200, dedicated token → 200, bogus → 401. The mechanism on
+OJAMD is `run-shim.cmd` exporting `API_SERVER_KEY` from `%LOCALAPPDATA%\hermes\.env` (→ #24g),
+which feeds source 1 of `_load_api_server_key()`. So after a re-pair/reinstall the app needs
+no shim-token paste. **Caveat:** OJAMD currently runs an *interim* patched `shim.py`
+(env-only fallback, 7249 B) re-implemented in the OJAMD session before the canonical file was
+visible from that box — functionally identical to canonical (7681 B, which additionally has
+the `config.yaml` source-2 fallback) since both read the env key. Follow-up: deploy the
+canonical `shim.py` over the interim patch on OJAMD so deployed == repo byte-for-byte.
+
 
 ---
 
@@ -510,7 +520,7 @@ Logged 2026-06-25.
 
 ---
 
-## 24. 🐛 OJAMD server-side work — health 422, relay bind, shim persistence
+## 24. 🐛 OJAMD server-side work — health 422, relay bind (shim + gateway persistence ✅)
 
 Consolidated tracker for server-side fixes on OJAMD (Windows desktop, Tailscale
 `100.110.102.59`). None of these are app code — they require work on the OJAMD host.
@@ -537,11 +547,13 @@ fixed. Needs `0.0.0.0` treatment + Windows Firewall rule so the phone can reach 
 over Tailscale without the iCloud Private Relay workaround. (Currently works because
 Private Relay is off, but shouldn't depend on that.)
 
-### 24c. Shim Task Scheduler persistence
+### 24c. ✅ Shim Task Scheduler persistence — RESOLVED (2026-06-26)
 
-The models shim (`tools/models-shim/shim.py`) runs in a CMD window on OJAMD. It needs
-a Task Scheduler entry so it survives reboot/logoff — currently depends on Owen leaving
-the CMD window open.
+The models shim runs as Scheduled Task **`TalariaModelsShim`**, hardened: **S4U** principal
+(runs as Owen, passwordless — survives logoff), **boot + logon** triggers (auto-start at
+reboot), launched via a hidden `wscript` wrapper (`run-shim-hidden.vbs` → `run-shim.cmd`) so
+**no console window ever appears**, no execution time limit, auto-restart on crash. Replaces
+the old logon-only task whose console teardown kept dropping it.
 
 ### 24d. Windows Firewall rule for port 8765
 
@@ -572,7 +584,7 @@ hard-abort that turned this into a permanent splash hang is fixed (soft fall-thr
 device registry to disk so restarts don't brick paired devices. Until fixed, every Hermes
 restart forces a re-pair.
 
-### 24g. Shim API-key fallback can't locate the Hermes key on Windows
+### 24g. ✅ Shim API-key fallback on Windows — RESOLVED (2026-06-26)
 
 The shim accepts *either* its dedicated token *or* the Hermes `API_SERVER_KEY` (the app's
 zero-token fallback, #14). But on OJAMD the shim never loads that key: `API_SERVER_KEY` env is
@@ -582,6 +594,34 @@ token) the app's key-fallback **401s** against the shim. Fix: have `run-shim.cmd
 `API_SERVER_KEY` from `%LOCALAPPDATA%\hermes\.env` and export it before launching python
 (OJAMD-local, no shim.py/repo divergence). Also harden the Task Scheduler trigger (24c) — it's
 logon-only and a console teardown took the shim down (2026-06-26).
+
+**Resolved (2026-06-26):** `run-shim.cmd` now reads `API_SERVER_KEY` from
+`%LOCALAPPDATA%\hermes\.env` and exports it before launching python, so the shim's
+`_load_api_server_key()` finds it (source 1). Verified: API-key path → 200. The logon-only
+trigger fragility is fixed via 24c (S4U + boot trigger). Note: the file deployed on OJAMD is
+the interim env-only patch — see the #14 caveat for the canonical-vs-deployed follow-up.
+
+### 24h. ✅ Gateway / API server now a persistent windowless service — NEW (2026-06-26)
+
+The Hermes **gateway** (which hosts the **API Server adapter on `:8642`** — the phone's chat
+path) was being run in a foreground console (`hermes gateway run`), so it dropped whenever the
+window was closed, and the bare console "looked suspicious." Now it runs as Scheduled Task
+**`HermesGateway`** with the same hardening as the shim: S4U, boot + logon triggers, hidden
+`wscript` wrapper (`~/.hermes/scripts/run-gateway-hidden.vbs` → `run-gateway.cmd` →
+`hermes.exe gateway run`), no time limit, auto-restart. Verified: `:8642` serves a real
+`POST /api/sessions`, `hermes gateway status` → running. (`hermes gateway install` was **not**
+used — on Windows it only makes a login-only, possibly-flashing task; running it would fight
+`HermesGateway` for `:8642`.)
+
+**Discord is one token away:** the API Server is just one gateway adapter; the same
+`HermesGateway` process will also serve Discord once a `DISCORD_BOT_TOKEN` exists (none yet —
+needs a bot created in Discord's dev portal + invited to the server). No new service required:
+add the token, restart the task.
+
+**OJAMD service inventory (all windowless + reboot-proof):**
+- Relay `:8000` → `HermesMobileRelay` (NSSM service, uvicorn)
+- Shim `:8765` → `TalariaModelsShim` (Scheduled Task, hardened)
+- Gateway/API `:8642` → `HermesGateway` (Scheduled Task, hardened)
 
 ---
 
