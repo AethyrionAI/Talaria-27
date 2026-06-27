@@ -58,6 +58,10 @@ class Settings:
     apns_bundle_id: str = "io.hermesmobile.HermesMobile"
     apns_environment: str = "development"
     app_presence_stale_seconds: int = 120
+    # #21 Tier 2: directory the relay is allowed to serve agent-written files from.
+    # Files are returned only if they resolve to a real file *inside* this dir.
+    # On OJAMD this is the dedicated mobile-download dir (e.g. O:\Hermes\MobileDL).
+    agent_files_dir: str | None = None
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -98,4 +102,5 @@ class Settings:
             apns_bundle_id=os.getenv("APNS_BUNDLE_ID", "io.hermesmobile.HermesMobile"),
             apns_environment=os.getenv("APNS_ENVIRONMENT", "development"),
             app_presence_stale_seconds=int(os.getenv("APP_PRESENCE_STALE_SECONDS", "120")),
+            agent_files_dir=os.getenv("AGENT_FILES_DIR") or None,
         )

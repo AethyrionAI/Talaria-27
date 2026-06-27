@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import inspect
 import logging
+import mimetypes
+from pathlib import Path
 import uuid
 
 logger = logging.getLogger("hermes.relay")
@@ -14,7 +16,7 @@ import json
 
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -140,6 +142,32 @@ class ConnectorSession:
     host_id: str
     connection_nonce: str
     busy: bool = False
+
+
+def resolve_agent_file(requested: str, agent_files_dir: str | None) -> Path:
+    """Resolve a client-requested path to a real file inside the whitelisted
+    agent-files directory (#21 Tier 2).
+
+    Accepts an absolute path (which must already sit inside the dir) or a path
+    relative to it. Symlinks and ``..`` segments are fully resolved *before* the
+    containment check, so traversal can't escape the base directory. Every
+    failure mode returns 404 — we never reveal whether a path outside the
+    whitelist exists.
+    """
+    if not agent_files_dir or not requested or not requested.strip():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found.")
+
+    base = Path(agent_files_dir).expanduser().resolve()
+    candidate = Path(requested)
+    target = candidate.resolve() if candidate.is_absolute() else (base / candidate).resolve()
+
+    try:
+        target.relative_to(base)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found.")
+    if not target.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found.")
+    return target
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -719,6 +747,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 ],
             },
         )
+
+    @app.get("/v1/device/files")
+    def download_agent_file(
+        path: str,
+        request_settings: Settings = Depends(get_settings),
+        auth: AuthContext = Depends(get_auth_context),
+    ) -> FileResponse:
+        # #21 Tier 2: serve a file the agent wrote on the host, but ONLY from the
+        # whitelisted agent-files dir, and only to an authenticated paired device.
+        # `auth` is required for its side effect (401 if the bearer is bad); the
+        # file isn't user-scoped on disk, so we don't filter by auth.user here.
+        resolved = resolve_agent_file(path, request_settings.agent_files_dir)
+        media_type = mimetypes.guess_type(resolved.name)[0] or "application/octet-stream"
+        return FileResponse(path=str(resolved), filename=resolved.name, media_type=media_type)
 
     def _meta() -> dict:
         return {"requestId": str(uuid.uuid4()), "timestamp": datetime.now(timezone.utc).isoformat()}
