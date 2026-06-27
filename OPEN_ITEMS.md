@@ -487,7 +487,7 @@ dropdown, no popover, no "Start New Session" — straight to the shim-backed lis
 
 ---
 
-## 21. 🔧 Present/download agent-generated files — Tier 1 (app) in progress, Tier 2 (relay) follow-up
+## 21. 🔧 Present/download agent-generated files — Tier 1 (app) ✅ done, Tier 2 (relay) follow-up
 
 Ask the agent to produce a file — a markdown report, a text file — and the app has **no
 surface to present it for viewing or download**, the way claude.ai and Hermes Desktop do.
@@ -533,7 +533,23 @@ replaces `~/.hermes/hermes-agent` and would wipe core edits, while `config.yaml`
 skills/sessions persist. Zero-code stopgap: ask the agent to `read_file` the file back via a
 chat turn (durable but an LLM round-trip).
 
-Status (2026-06-27): Tier 1 = next build; Tier 2 = server-side follow-up.
+Status (2026-06-27): Tier 1 = ✅ DONE (see note below); Tier 2 = server-side follow-up.
+
+**Tier 1 shipped + verified on-device 2026-06-27 (`96b291f`).** `write_file`/`create_file`
+`tool.started` (`args.path` + `args.content`) is parsed in `SessionsHermesClient`'s SSE
+loop, the bytes are staged into the app's Attachments dir, attached to the final assistant
+`Message`, and rendered as a tappable `ShareLink` file bubble in the Hermes bubble (covers
+Save to Files / AirDrop / Quick Look). No server change; `ChatStore` already preserves
+`finalMessage.attachments`. Parser is tolerant of arg-key drift
+(`args`/`arguments`/`input`, `path`/`file_path`/`filename`, `content`/`text`).
+**On-device (whoGoesThere):** a plain "write a report" returns prose with no bubble (correct
+— the agent didn't invoke the tool); asking for it "as a shareable file" produced the bubble
+and shared cleanly to a TestFlight contact. **Tier 1 done.** Tier 2 (durable relay
+file-fetch route for binaries / non-reconstructable files) remains the server-side follow-up.
+
+**Known Tier 1 boundary (not a gap):** reconstructed files live for the active session;
+reopening a session from the server won't restore them (the server never stored the local
+copy). Persistence across reloads would ride on Tier 2.
 
 ---
 

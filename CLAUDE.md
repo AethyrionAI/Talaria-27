@@ -152,7 +152,8 @@ build tinted pills for amber/red), `GhostButton`, `ReactorOrb`
   numerator done; denominator reads ~1.4× high — follow-up). All committed + pushed to
   `origin` (`ChronoRixun/Talaria`).
 - #9 model-transition overlay shipped + both regressions fixed, committed (`64da247`).
-- **In progress:** #21 (present/download agent-generated files). Probe done — see the
-  "Agent-generated files" section. Building **Tier 1** (app-only file bubble + share-sheet
-  from the stream's `write_file` content); **Tier 2** (durable relay file-fetch route) is the
-  server-side follow-up.
+- #21 **Tier 1 shipped + verified on-device** (`96b291f`): agent `write_file`/`create_file`
+  writes are reconstructed from the SSE stream (`tool.started.args.{path,content}`), staged
+  locally, and surfaced as a tappable `ShareLink` file bubble in the Hermes bubble (Save to
+  Files / AirDrop). No server change. **Tier 2** (durable relay file-fetch route for binaries
+  / non-reconstructable files) is the remaining server-side follow-up.
