@@ -288,7 +288,7 @@ final class SensorUploadService {
 
     private func drainOutboxIfPossible() async {
         guard !isDraining else {
-            sensorLog.debug("drain: skipped — already draining")
+            sensorLog.verbose("drain: skipped — already draining")
             return
         }
         guard isActive else {

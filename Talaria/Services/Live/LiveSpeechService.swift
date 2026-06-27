@@ -30,7 +30,7 @@ final class LiveSpeechService {
 
     init() {
         authorizationStatus = SFSpeechRecognizer.authorizationStatus()
-        Self.logger.info("Initialized speech authorization status: \(String(describing: self.authorizationStatus), privacy: .public)")
+        Self.logger.verbose("Initialized speech authorization status: \(String(describing: self.authorizationStatus))")
     }
 
     var supportsOnDevice: Bool {
@@ -41,7 +41,7 @@ final class LiveSpeechService {
         let currentStatus = SFSpeechRecognizer.authorizationStatus()
         if currentStatus != .notDetermined {
             authorizationStatus = currentStatus
-            Self.logger.info("Speech authorization already resolved: \(String(describing: currentStatus), privacy: .public)")
+            Self.logger.verbose("Speech authorization already resolved: \(String(describing: currentStatus))")
             return currentStatus
         }
 
@@ -51,29 +51,29 @@ final class LiveSpeechService {
             }
         }
         authorizationStatus = status
-        Self.logger.info("Speech authorization callback returned: \(String(describing: status), privacy: .public)")
+        Self.logger.verbose("Speech authorization callback returned: \(String(describing: status))")
         return status
     }
 
     func startListening() async throws {
-        Self.logger.info("Dictation start requested")
+        Self.logger.verbose("Dictation start requested")
 
         let speechAuthorized: Bool
         if authorizationStatus == .authorized {
             speechAuthorized = true
         } else {
-            Self.logger.info("Requesting speech authorization")
+            Self.logger.verbose("Requesting speech authorization")
             speechAuthorized = await requestAuthorization() == .authorized
         }
         guard speechAuthorized else {
             Self.logger.error("Speech authorization denied or unavailable")
             throw SpeechError.unavailable
         }
-        Self.logger.info("Speech authorization granted")
+        Self.logger.verbose("Speech authorization granted")
 
         let microphoneStatus = AVAudioApplication.shared.recordPermission
         if microphoneStatus == .undetermined {
-            Self.logger.info("Requesting microphone permission")
+            Self.logger.verbose("Requesting microphone permission")
             guard await AVAudioApplication.requestRecordPermission() else {
                 Self.logger.error("Microphone permission denied")
                 throw SpeechError.microphoneDenied
@@ -82,7 +82,7 @@ final class LiveSpeechService {
             Self.logger.error("Microphone permission unavailable")
             throw SpeechError.microphoneDenied
         }
-        Self.logger.info("Microphone permission granted")
+        Self.logger.verbose("Microphone permission granted")
 
         guard !isListening else { return }
 
@@ -100,7 +100,7 @@ final class LiveSpeechService {
             throw error
         }
 
-        Self.logger.info("Dictation startup completed")
+        Self.logger.verbose("Dictation startup completed")
         isListening = true
 
         streamTask = Task { [weak self] in
@@ -109,11 +109,11 @@ final class LiveSpeechService {
                 await MainActor.run {
                     switch event {
                     case .partial(let text):
-                        Self.logger.debug("Dictation partial received")
+                        Self.logger.verbose("Dictation partial received")
                         self.transcript = text
                         self.onTranscriptChange?(text)
                     case .finished(let text):
-                        Self.logger.info("Dictation finished")
+                        Self.logger.verbose("Dictation finished")
                         self.transcript = text
                         self.isListening = false
                         self.onTranscriptChange?(text)
@@ -131,7 +131,7 @@ final class LiveSpeechService {
 
     func stopListening() {
         guard isListening else { return }
-        Self.logger.info("Dictation stop requested")
+        Self.logger.verbose("Dictation stop requested")
         isListening = false
         streamTask?.cancel()
         streamTask = nil
@@ -203,7 +203,7 @@ private actor DictationController {
 
     func start() async throws -> AsyncStream<Event> {
         stop()
-        Self.logger.info("Preparing dictation controller")
+        Self.logger.verbose("Preparing dictation controller")
 
         guard let locale = await DictationTranscriber.supportedLocale(equivalentTo: .current) else {
             Self.logger.error("No supported locale equivalent to current locale")
@@ -214,14 +214,14 @@ private actor DictationController {
         self.transcriber = transcriber
         if try await AssetInventory.reserve(locale: locale) {
             reservedLocale = locale
-            Self.logger.info("Reserved speech locale: \(locale.identifier, privacy: .public)")
+            Self.logger.verbose("Reserved speech locale: \(locale.identifier)")
         }
 
         let assetStatus = await AssetInventory.status(forModules: [transcriber])
-        Self.logger.info("Speech asset status: \(String(describing: assetStatus), privacy: .public)")
+        Self.logger.verbose("Speech asset status: \(String(describing: assetStatus))")
 
         let session = AVAudioSession.sharedInstance()
-        Self.logger.info("Configuring audio session")
+        Self.logger.verbose("Configuring audio session")
         try session.setCategory(.record, mode: .measurement, options: [.duckOthers])
         try session.setActive(true, options: .notifyOthersOnDeactivation)
 
@@ -240,14 +240,14 @@ private actor DictationController {
         let converter = formatsMatch ? nil : AVAudioConverter(from: inputFormat, to: analyzerFormat)
         converter?.primeMethod = .none
         audioConverter = converter
-        Self.logger.info(
-            "Using analyzer format sampleRate=\(analyzerFormat.sampleRate, privacy: .public) channels=\(analyzerFormat.channelCount, privacy: .public)"
+        Self.logger.verbose(
+            "Using analyzer format sampleRate=\(analyzerFormat.sampleRate) channels=\(analyzerFormat.channelCount)"
         )
 
         let analyzer = SpeechAnalyzer(modules: [transcriber])
-        Self.logger.info("Preparing speech analyzer")
+        Self.logger.verbose("Preparing speech analyzer")
         try await analyzer.prepareToAnalyze(in: analyzerFormat) { progress in
-            Self.logger.info("Speech asset progress totalUnitCount=\(progress.totalUnitCount, privacy: .public) completedUnitCount=\(progress.completedUnitCount, privacy: .public)")
+            Self.logger.verbose("Speech asset progress totalUnitCount=\(progress.totalUnitCount) completedUnitCount=\(progress.completedUnitCount)")
         }
         self.analyzer = analyzer
 
@@ -261,21 +261,21 @@ private actor DictationController {
             self.outputContinuation = continuation
         }
 
-        Self.logger.info("Installing audio tap")
+        Self.logger.verbose("Installing audio tap")
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { buffer, _ in
             if let convertedBuffer = Self.convertBuffer(buffer, using: converter, outputFormat: analyzerFormat) {
                 localInputContinuation?.yield(AnalyzerInput(buffer: convertedBuffer))
             }
         }
 
-        Self.logger.info("Starting audio engine")
+        Self.logger.verbose("Starting audio engine")
         audioEngine.prepare()
         try audioEngine.start()
-        Self.logger.info("Audio engine started")
+        Self.logger.verbose("Audio engine started")
 
         analyzerTask = Task { [weak self] in
             do {
-                Self.logger.info("Speech analyzer start(inputSequence:) entered")
+                Self.logger.verbose("Speech analyzer start(inputSequence:) entered")
                 try await analyzer.start(inputSequence: inputStream)
             } catch {
                 Self.logger.error("Speech analyzer failed: \(error.localizedDescription, privacy: .public)")
@@ -289,12 +289,12 @@ private actor DictationController {
                 for try await result in transcriber.results {
                     let text = String(result.text.characters)
                     if result.isFinal {
-                        Self.logger.info("Received final dictation result")
+                        Self.logger.verbose("Received final dictation result")
                         await self?.emit(.finished(text))
                         await self?.stop()
                         break
                     } else {
-                        Self.logger.debug("Received partial dictation result")
+                        Self.logger.verbose("Received partial dictation result")
                         await self?.emit(.partial(text))
                     }
                 }
@@ -309,7 +309,7 @@ private actor DictationController {
     }
 
     func stop() {
-        Self.logger.info("Stopping dictation controller")
+        Self.logger.verbose("Stopping dictation controller")
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
         inputContinuation?.finish()

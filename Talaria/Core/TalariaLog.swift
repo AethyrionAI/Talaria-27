@@ -53,3 +53,19 @@ enum TalariaLog {
         logger.notice("\(line, privacy: .public)")
     }
 }
+
+// MARK: - Per-category verbose logging
+//
+// Lets each service keep its own Logger category (LiveSpeechService, SensorUpload,
+// …) while routing diagnostic (`.info`/`.debug`-level) lines through the global
+// Verbose Logging flag. Errors, warnings, and `.notice` breadcrumbs stay on the
+// service's own logger (always-on, by design). The os_log emission — the costly
+// part — is skipped when verbose is off; interpolation argument expressions are
+// still evaluated, so wrap genuinely hot paths in `if TalariaLog.isVerbose { … }`.
+extension Logger {
+    func verbose(_ message: @autoclosure () -> String) {
+        guard TalariaLog.isVerbose else { return }
+        let line = message()
+        debug("\(line, privacy: .public)")
+    }
+}
