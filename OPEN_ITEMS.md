@@ -642,6 +642,16 @@ return nil if the catalog doesn't include context info for the active model.
 
 Logged 2026-06-25.
 
+**Update 2026-06-27 — numerator fixed; denominator follow-up.** `SessionsHermesClient`
+now defers `.finished` to the `run.completed` SSE event and parses its top-level `usage`
+(Hermes emits Anthropic-style `input_tokens`/`output_tokens`/`total_tokens`, mapped onto
+TokenUsage's prompt/completion/total). Verified on device — the CTX meter populates from
+real usage. REMAINING: the percentage reads low (~36% where Hermes estimates ~50%), so the
+`contextWindow` denominator is ~1.4x too large. The numerator is server-authoritative
+(`input_tokens`), so the gap is the denominator: the seeded model contextWindow exceeds
+Hermes's effective/compacted window. Reconcile against a Hermes-provided limit (shim model
+list or a run/session limit field) rather than the catalog's nominal window.
+
 ---
 
 ## 26. ✅ Removed non-functional "/ slash" and "@ context" hint chips

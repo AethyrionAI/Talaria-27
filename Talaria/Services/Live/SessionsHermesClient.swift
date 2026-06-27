@@ -120,6 +120,7 @@ final class SessionsHermesClient: HermesClientProtocol {
                     var currentData = ""
                     var assembledContent = ""
                     var finalMessageDelivered = false
+                    var pendingFinalMessage: Message?
 
                     func dispatchEvent() {
                         defer {
@@ -151,12 +152,17 @@ final class SessionsHermesClient: HermesClientProtocol {
                             // fall back to the assembled deltas when content is blank.
                             let declared = self.decodeJSONString(currentData, key: "content")
                             let finalContent = (declared?.isEmpty == false) ? declared! : assembledContent
-                            let finalMessage = Message(
+                            pendingFinalMessage = Message(
                                 sender: .hermes,
                                 content: finalContent,
                                 status: .delivered
                             )
-                            continuation.yield(.finished(finalMessage, nil, nil))
+                            // Defer `.finished` until run.completed delivers token usage.
+                        case "run.completed":
+                            let usage = self.decodeRunUsage(currentData)
+                            let message = pendingFinalMessage
+                                ?? Message(sender: .hermes, content: assembledContent, status: .delivered)
+                            continuation.yield(.finished(message, usage, nil))
                             finalMessageDelivered = true
                         case "done":
                             break
@@ -192,7 +198,7 @@ final class SessionsHermesClient: HermesClientProtocol {
                     if !currentData.isEmpty { dispatchEvent() }
 
                     if !finalMessageDelivered {
-                        let fallbackMessage = Message(
+                        let fallbackMessage = pendingFinalMessage ?? Message(
                             sender: .hermes,
                             content: assembledContent,
                             status: .delivered
@@ -426,6 +432,36 @@ final class SessionsHermesClient: HermesClientProtocol {
     // MARK: - Wire types
 
     private struct EmptyBody: Encodable {}
+
+    /// Extracts token usage from a `run.completed` SSE payload. Hermes emits
+    /// Anthropic-style keys (input/output/total); map onto TokenUsage's
+    /// prompt/completion/total. Returns nil if usage is absent or unparseable.
+    nonisolated private func decodeRunUsage(_ data: String) -> TokenUsage? {
+        guard let raw = data.data(using: .utf8),
+              let envelope = try? JSONDecoder().decode(RunCompletedEnvelope.self, from: raw),
+              let usage = envelope.usage
+        else { return nil }
+        return TokenUsage(
+            promptTokens: usage.inputTokens,
+            completionTokens: usage.outputTokens,
+            totalTokens: usage.totalTokens
+        )
+    }
+
+    private struct RunCompletedEnvelope: Decodable {
+        let usage: RunCompletedUsage?
+    }
+
+    private struct RunCompletedUsage: Decodable {
+        let inputTokens: Int
+        let outputTokens: Int
+        let totalTokens: Int
+        enum CodingKeys: String, CodingKey {
+            case inputTokens = "input_tokens"
+            case outputTokens = "output_tokens"
+            case totalTokens = "total_tokens"
+        }
+    }
 
     private struct ChatTurnBody: Encodable {
         let input: String
