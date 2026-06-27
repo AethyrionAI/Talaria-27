@@ -155,5 +155,10 @@ build tinted pills for amber/red), `GhostButton`, `ReactorOrb`
 - #21 **Tier 1 shipped + verified on-device** (`96b291f`): agent `write_file`/`create_file`
   writes are reconstructed from the SSE stream (`tool.started.args.{path,content}`), staged
   locally, and surfaced as a tappable `ShareLink` file bubble in the Hermes bubble (Save to
-  Files / AirDrop). No server change. **Tier 2** (durable relay file-fetch route for binaries
-  / non-reconstructable files) is the remaining server-side follow-up.
+  Files / AirDrop). No server change. **Tier 2 relay route** (`ccf6e5a`, branch
+  `feat/agent-files-tier2`): `GET /v1/device/files` — device-bearer auth, whitelisted to
+  `AGENT_FILES_DIR` (`O:\Hermes\MobileDL` on OJAMD), traversal-safe, `FileResponse`. Tested
+  (8 + 55 suite) and **deployed + live on OJAMD** (health 200, route 401-gated). **Tier 2
+  app-side fetch** is the remaining piece — blocked on probing the binary-write SSE shape
+  (does a non-text `write_file` carry `args.content`?), which decides the fetch trigger. See
+  `OPEN_ITEMS.md` #21 (full plan), #36 (OJAMD↔fork reconcile), #37 (upstream connector win32 fix).
