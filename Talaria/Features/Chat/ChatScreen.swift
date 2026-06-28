@@ -54,7 +54,7 @@ struct ChatScreen: View {
 
     private var mainStack: some View {
         ZStack {
-            HUDScreenBackground(gridIntensity: 0.4)
+            HUDScreenBackground()
                 .ignoresSafeArea()
 
             ScanLine(intensity: 0.32)

@@ -30,7 +30,8 @@ struct SetupCodeScannerView: View {
 // MARK: - HUD reticle overlay
 
 private struct ScannerReticleOverlay: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
     @State private var bob = false
 
     private let reticleSize: CGFloat = 240

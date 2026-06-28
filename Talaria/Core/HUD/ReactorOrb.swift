@@ -96,7 +96,8 @@ private struct BreathingCore: View {
     let glowRadius: CGFloat
     let glow: Double
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
     @State private var pulse = false
 
     var body: some View {
@@ -117,14 +118,17 @@ private struct VoiceCore: View {
     let glowRadius: CGFloat
     let glow: Double
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
     @State private var pulse = false
 
     var body: some View {
         Circle()
             .fill(
                 RadialGradient(
-                    colors: [Color(hex: 0xE2FBFD), Design.Brand.accent, Color(hex: 0x0F5867)],
+                    colors: [ThemeRuntime.shared.palette.coreHighlight,
+                             Design.Brand.accent,
+                             ThemeRuntime.shared.palette.coreShadow],
                     center: UnitPoint(x: 0.5, y: 0.38),
                     startRadius: 0,
                     endRadius: diameter * 0.6
@@ -149,7 +153,8 @@ private struct VoiceCore: View {
 private struct PingHalo: View {
     let diameter: CGFloat
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
     @State private var expand = false
 
     var body: some View {

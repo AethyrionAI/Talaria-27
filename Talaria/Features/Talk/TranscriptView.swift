@@ -109,7 +109,8 @@ struct VoiceWaveform: View {
     var height: CGFloat = 38
     var color: Color = Design.Brand.accent
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
     @State private var phase: Double = 0
 
     var body: some View {

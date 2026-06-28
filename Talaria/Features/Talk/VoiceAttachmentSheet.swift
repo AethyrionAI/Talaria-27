@@ -12,7 +12,7 @@ struct VoiceAttachmentSheet: View {
 
     var body: some View {
         ZStack {
-            HUDScreenBackground(gridIntensity: 0.3)
+            HUDScreenBackground()
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {

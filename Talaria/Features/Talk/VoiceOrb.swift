@@ -29,7 +29,8 @@ struct VoiceOrb: View {
         ReactorOrb(
             size: Design.Size.voiceOrbSize,
             style: .voice,
-            glowIntensity: glowIntensity
+            // Per-state glow scaled by the user's Glow Intensity pref (default 1.0).
+            glowIntensity: glowIntensity * Design.Glow.k
         )
         .opacity(isConnected ? 1.0 : 0.55)
         .animation(Design.Motion.gentle, value: glowIntensity)

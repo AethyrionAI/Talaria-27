@@ -14,7 +14,7 @@ struct TalkModeScreen: View {
 
     var body: some View {
         ZStack {
-            HUDScreenBackground(gridIntensity: 0.4)
+            HUDScreenBackground()
                 .ignoresSafeArea()
 
             CornerBrackets(arm: Design.Size.bracket, lineWidth: 1.5, inset: Design.Spacing.md)

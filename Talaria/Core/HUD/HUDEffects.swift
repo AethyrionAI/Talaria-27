@@ -25,7 +25,8 @@ private struct ContinuousRotation: ViewModifier {
     let duration: Double
     let reverse: Bool
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
     @State private var angle: Double = 0
 
     func body(content: Content) -> some View {
@@ -54,7 +55,8 @@ private struct PulseEffect: ViewModifier {
     let from: Double
     let to: Double
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
     @State private var active = false
 
     func body(content: Content) -> some View {

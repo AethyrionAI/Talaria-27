@@ -13,7 +13,8 @@ import SwiftUI
 ///   • activation resolved with an error   → ERROR (Retry / Dismiss; model never mutated)
 struct ModelTransitionOverlay: View {
     @Bindable var model: ModelsSettingsModel
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
 
     private enum Phase { case hidden, activating, success, error }
 

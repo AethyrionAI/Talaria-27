@@ -9,14 +9,16 @@ import SwiftUI
 /// The base HUD field: deep radial gradient with an optional faint cyan grid.
 /// Drop behind a screen's content with `.ignoresSafeArea()`.
 struct HUDScreenBackground: View {
-    var gridIntensity: Double = 0.5
+    /// Optional fixed override. When nil (the default), the grid intensity
+    /// follows the user's APPEARANCE → Grid Density pref via `ThemeRuntime`.
+    var gridIntensity: Double? = nil
 
     var body: some View {
         ZStack {
             Design.Colors.background
             Design.Colors.screenGradient
             GridOverlay()
-                .opacity(gridIntensity)
+                .opacity(gridIntensity ?? ThemeRuntime.shared.gridDensity.gridIntensity)
         }
     }
 }
@@ -99,7 +101,8 @@ struct ScanLine: View {
     var height: CGFloat = 120
     var intensity: Double = 0.45
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
     @State private var sweep = false
 
     var body: some View {

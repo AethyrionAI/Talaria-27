@@ -8,7 +8,7 @@ struct InboxItemDetailSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                HUDScreenBackground(gridIntensity: 0.35)
+                HUDScreenBackground()
                     .ignoresSafeArea()
 
                 ScrollView {

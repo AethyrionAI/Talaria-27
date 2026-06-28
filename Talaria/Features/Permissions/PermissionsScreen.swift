@@ -5,7 +5,7 @@ struct PermissionsScreen: View {
 
     var body: some View {
         ZStack {
-            HUDScreenBackground(gridIntensity: 0.35)
+            HUDScreenBackground()
                 .ignoresSafeArea()
 
             ScrollView {

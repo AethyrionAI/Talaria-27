@@ -334,15 +334,22 @@ struct AccentPalette: Equatable, Sendable {
     let base: Color
     let bright: Color
     let deep: Color
+    /// Extra-bright near-white highlight for the voice orb's radial core.
+    let coreHighlight: Color
+    /// Extra-deep falloff for the voice orb's radial core.
+    let coreShadow: Color
 
     init(_ accent: AppearanceAccent) {
         switch accent {
         case .cyan:
             base = Color(hex: 0x54E6F0); bright = Color(hex: 0xCDF8FB); deep = Color(hex: 0x14636E)
+            coreHighlight = Color(hex: 0xE2FBFD); coreShadow = Color(hex: 0x0F5867)
         case .amber:
             base = Color(hex: 0xFFC14D); bright = Color(hex: 0xFFE2A6); deep = Color(hex: 0x6E4D14)
+            coreHighlight = Color(hex: 0xFFF1D2); coreShadow = Color(hex: 0x3E2C08)
         case .violet:
             base = Color(hex: 0xB18CFF); bright = Color(hex: 0xE2D4FF); deep = Color(hex: 0x3A2D6E)
+            coreHighlight = Color(hex: 0xF1E8FF); coreShadow = Color(hex: 0x241A47)
         }
     }
 }

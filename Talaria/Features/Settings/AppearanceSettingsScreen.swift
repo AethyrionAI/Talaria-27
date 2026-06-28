@@ -2,11 +2,12 @@ import SwiftUI
 
 // MARK: - Appearance settings screen (Settings → APPEARANCE)
 //
-// HUD appearance prefs. Mirrors design/Settings.dc.html screen 06. Per the locked
-// T3 decision these are PERSISTED to UserSettings and drive the live PREVIEW on
-// this screen only — app-wide re-theming is deferred (Design.* tokens are static
-// constants), and the Theme row is shown locked. Accent / glow / grid / reduce-
-// motion all round-trip through UserSettings for when theming is wired later.
+// HUD appearance prefs. Mirrors design/Settings.dc.html screen 06. These are
+// PERSISTED to UserSettings and now drive the whole app live: accent / glow /
+// grid / reduce-motion are mirrored into `ThemeRuntime` at the app root, so the
+// `Design.*` accent tokens re-skin every surface on change. The on-screen PREVIEW
+// mirrors the same prefs; the Theme row reflects the active accent (the deep
+// "Deep Field" background is fixed — the single field option).
 struct AppearanceSettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SettingsStore.self) private var settingsStore
@@ -20,7 +21,7 @@ struct AppearanceSettingsScreen: View {
 
     var body: some View {
         ZStack {
-            HUDScreenBackground(gridIntensity: 0.35)
+            HUDScreenBackground()
                 .ignoresSafeArea()
 
             ScrollView {
@@ -267,8 +268,8 @@ struct AppearanceSettingsScreen: View {
                     .font(Design.Typography.callout)
                     .foregroundStyle(Design.Colors.foreground)
                 Spacer()
-                MonoLabel("Deep Field · Locked", size: 10, weight: .medium,
-                          tracking: Design.Tracking.mono, color: Design.Colors.mutedForeground)
+                MonoLabel("Deep Field · \(accent.displayLabel)", size: 10, weight: .medium,
+                          tracking: Design.Tracking.mono, color: accentColors(accent).base)
             }
             .padding(.horizontal, Design.Spacing.md)
             .padding(.vertical, Design.Spacing.sm)
