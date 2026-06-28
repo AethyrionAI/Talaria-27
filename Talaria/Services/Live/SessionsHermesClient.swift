@@ -66,7 +66,7 @@ final class SessionsHermesClient: HermesClientProtocol {
             let path = "\(Self.sessionsPath)/\(sessionId)/chat"
             let response: SyncChatResponse = try await postJSON(
                 path: path,
-                body: ChatTurnBody(input: message)
+                body: ChatTurnBody.make(message: message, attachments: attachments)
             )
             connectionStatus = .connected
             let content = response.message?.content ?? response.content ?? ""
@@ -105,7 +105,7 @@ final class SessionsHermesClient: HermesClientProtocol {
                     let sessionId = try await self.ensureSession()
                     capturedSessionId = sessionId
                     let path = "\(Self.sessionsPath)/\(sessionId)/chat/stream"
-                    let body = try self.encoder.encode(ChatTurnBody(input: content))
+                    let body = try self.encoder.encode(ChatTurnBody.make(message: content, attachments: attachments))
                     let request = try self.makeRequest(path: path, method: "POST", body: body, accept: "text/event-stream")
 
                     let (bytes, response) = try await self.session.bytes(for: request)
@@ -303,7 +303,7 @@ final class SessionsHermesClient: HermesClientProtocol {
         let path = "\(Self.sessionsPath)/\(sessionId)/chat"
         let _: SyncChatResponse = try await postJSON(
             path: path,
-            body: ChatTurnBody(input: "/model \(identifier)")
+            body: ChatTurnBody.make(message: "/model \(identifier)", attachments: [])
         )
     }
 
@@ -583,8 +583,100 @@ final class SessionsHermesClient: HermesClientProtocol {
         }
     }
 
+    /// The chat-turn request body. `input` encodes either as a plain string
+    /// (text-only turn — byte-identical to the old behavior) or, when image
+    /// attachments are present, as an OpenAI-style content-parts array the
+    /// Hermes API server's `_normalize_multimodal_content` accepts:
+    /// `{"type":"text",...}` + `{"type":"image_url","image_url":{"url":
+    /// "data:<mime>;base64,<data>"}}`. Only image attachments are transmitted —
+    /// the endpoint rejects file/document parts (`unsupported_content_type`). (#43)
     private struct ChatTurnBody: Encodable {
-        let input: String
+        let input: TurnInput
+
+        private enum CodingKeys: String, CodingKey { case input }
+
+        // Nonisolated logger — the enclosing client is @MainActor, but this
+        // nested value type isn't, so it can't reach the class's isolated one.
+        private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "SessionsHermesClient")
+
+        /// Build a turn body from the composer's message + staged attachments.
+        /// Images become `image_url` data-URL parts; a non-empty message becomes
+        /// a leading text part. With no images the body stays a plain string so
+        /// existing text turns are unchanged on the wire.
+        static func make(message: String, attachments: [PendingAttachment]) -> ChatTurnBody {
+            let images = attachments.filter { $0.kind == .image }
+            guard !images.isEmpty else {
+                return ChatTurnBody(input: .text(message))
+            }
+
+            var parts: [ContentPart] = []
+            if !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                parts.append(.text(message))
+            }
+
+            // Respect the API server's ~1 MB request-body budget. Each image is
+            // already capped at 350 KB raw (~470 KB base64) by PendingAttachment;
+            // accumulate up to a conservative aggregate budget so a stack of
+            // images can't trip a hard server rejection, then stop.
+            var remainingBudget = 900 * 1024
+            for image in images {
+                let dataURL = "data:\(image.mimeType);base64,\(image.base64Data)"
+                let cost = dataURL.utf8.count
+                guard cost <= remainingBudget else {
+                    Self.logger.warning("Skipping image attachment — aggregate body budget exceeded")
+                    continue
+                }
+                remainingBudget -= cost
+                parts.append(.imageURL(dataURL: dataURL))
+            }
+
+            // If every image was skipped and there's no text, fall back to a
+            // string so we never emit an empty array (the server 400s empty turns).
+            guard !parts.isEmpty else {
+                return ChatTurnBody(input: .text(message))
+            }
+            return ChatTurnBody(input: .parts(parts))
+        }
+
+        /// `input` is a string for text-only turns, or an array of content parts
+        /// when images ride along. Encoded as an unkeyed single value either way.
+        enum TurnInput: Encodable {
+            case text(String)
+            case parts([ContentPart])
+
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.singleValueContainer()
+                switch self {
+                case .text(let text):
+                    try container.encode(text)
+                case .parts(let parts):
+                    try container.encode(parts)
+                }
+            }
+        }
+
+        enum ContentPart: Encodable {
+            case text(String)
+            case imageURL(dataURL: String)
+
+            private enum CodingKeys: String, CodingKey {
+                case type, text
+                case imageURL = "image_url"
+            }
+            private struct ImageURLValue: Encodable { let url: String }
+
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                switch self {
+                case .text(let text):
+                    try container.encode("text", forKey: .type)
+                    try container.encode(text, forKey: .text)
+                case .imageURL(let dataURL):
+                    try container.encode("image_url", forKey: .type)
+                    try container.encode(ImageURLValue(url: dataURL), forKey: .imageURL)
+                }
+            }
+        }
     }
 
     private struct CreateSessionResponse: Decodable {
