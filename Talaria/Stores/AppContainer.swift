@@ -95,6 +95,10 @@ final class AppContainer {
             persistence: persistence,
             buildConfiguration: buildConfiguration
         )
+        // Seed the runtime theme from the persisted appearance prefs before the
+        // first frame renders, so a saved non-cyan accent never flashes cyan.
+        // (Live updates are mirrored from the app root via ThemeRuntime.apply.)
+        ThemeRuntime.shared.apply(settingsStore.settings)
         let syncCoordinator = MockSyncCoordinator()
         let notificationService = LiveNotificationService()
         let allowMockFallbacks = AppEnvironmentPolicy.currentBuild.allowsEnvironmentOverrides

@@ -6,7 +6,9 @@ import SwiftUI
 // reactor orbs.
 
 extension View {
-    /// Outer cyan (or amber) glow. `intensity` maps to the design's `--glowK`.
+    /// Outer accent glow. `intensity` maps to the design's `--glowK` (driven by
+    /// the user's Glow Intensity pref via `Design.Glow.k`).
+    @MainActor
     func hudGlow(
         _ color: Color = Design.Brand.accent,
         radius: CGFloat = 16,

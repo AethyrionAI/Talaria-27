@@ -153,6 +153,7 @@ struct HUDPanel<Content: View>: View {
 
 /// Convenience modifier form of `HUDPanel` for views that already have padding.
 extension View {
+    @MainActor
     func hudPanel(
         cornerRadius: CGFloat = Design.CornerRadius.lg,
         borderColor: Color = Design.Colors.cyanHairline,

@@ -72,7 +72,13 @@ struct TalariaApp: App {
                 .environment(container.permissionsStore)
                 .environment(container.settingsStore)
                 .environment(container.talkStore)
+                .environment(ThemeRuntime.shared)
                 .task { await container.initialize() }
+                .onChange(of: container.settingsStore.settings) { _, newSettings in
+                    // Mirror the appearance prefs into the runtime theme so the
+                    // whole app re-skins live (accent / glow / grid / reduce-motion).
+                    ThemeRuntime.shared.apply(newSettings)
+                }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         Task { await container.handleAppDidBecomeActive() }

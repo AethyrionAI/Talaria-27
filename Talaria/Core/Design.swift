@@ -13,28 +13,36 @@ enum Design {
     // MARK: - Brand
 
     enum Brand {
-        /// Arc-reactor cyan — THE theme accent (`#54e6f0`).
-        static let accent = Color(hex: 0x54E6F0)
-        /// Bright cyan highlight (`#cdf8fb`).
-        static let accentBright = Color(hex: 0xCDF8FB)
-        /// Deep cyan (`#14636e`) — orb core falloff, deep fills.
-        static let accentDeep = Color(hex: 0x14636E)
-        /// Secondary "Forge" amber (`#ffc14d`) — warnings / running state.
-        static let forge = Color(hex: 0xFFC14D)
+        /// Arc-reactor accent — THE theme accent. Resolves live from the user's
+        /// APPEARANCE → Accent pref via `ThemeRuntime`. Cyan default `#54e6f0`
+        /// (byte-identical to the pre-theming constant).
+        @MainActor static var accent: Color { ThemeRuntime.shared.palette.base }
+        /// Bright accent highlight (cyan default `#cdf8fb`).
+        @MainActor static var accentBright: Color { ThemeRuntime.shared.palette.bright }
+        /// Deep accent (cyan default `#14636e`) — orb core falloff, deep fills.
+        @MainActor static var accentDeep: Color { ThemeRuntime.shared.palette.deep }
+        /// Secondary "Forge" warning accent. Fixed amber `#ffc14d` under the
+        /// cyan/violet themes; shifts to a distinct orange under the AMBER accent
+        /// so warning stays separable from the accent (e.g. status pips).
+        @MainActor static var forge: Color { ThemeRuntime.shared.warning }
 
-        /// Primary CTA gradient — soft cyan fill for glowing buttons.
-        static let accentGradient = LinearGradient(
-            colors: [accent.opacity(0.30), accent.opacity(0.10)],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        /// Orb core radial — bright center → cyan → deep.
-        static let reactorCore = RadialGradient(
-            colors: [accentBright, accent, accentDeep],
-            center: UnitPoint(x: 0.5, y: 0.4),
-            startRadius: 0,
-            endRadius: 22
-        )
+        /// Primary CTA gradient — soft accent fill for glowing buttons.
+        @MainActor static var accentGradient: LinearGradient {
+            LinearGradient(
+                colors: [accent.opacity(0.30), accent.opacity(0.10)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        /// Orb core radial — bright center → accent → deep.
+        @MainActor static var reactorCore: RadialGradient {
+            RadialGradient(
+                colors: [accentBright, accent, accentDeep],
+                center: UnitPoint(x: 0.5, y: 0.4),
+                startRadius: 0,
+                endRadius: 22
+            )
+        }
     }
 
     // MARK: - Colors
@@ -61,8 +69,8 @@ enum Design {
         static let surface = Color(hex: 0x08121A, opacity: 0.6)
         /// Slightly lighter neutral chip surface (`rgba(120,150,175,.08)`).
         static let chipSurface = Color(hex: 0x7896AF, opacity: 0.08)
-        /// Faint cyan-tinted panel fill (`rgba(84,230,240,.06)`).
-        static let surfaceTint = accentTint(0.06)
+        /// Faint accent-tinted panel fill (cyan default `rgba(84,230,240,.06)`).
+        @MainActor static var surfaceTint: Color { accentTint(0.06) }
 
         /// Neutral subtle border / divider (`rgba(120,150,175,.16)`).
         static let divider = Color(hex: 0x7896AF, opacity: 0.16)
@@ -74,15 +82,15 @@ enum Design {
         /// Bright danger glyph (`#ff8a86`).
         static let dangerBright = Color(hex: 0xFF8A86)
 
-        // --- Cyan hairline helpers ---------------------------------------
-        /// Cyan accent at an arbitrary opacity (`rgba(84,230,240,a)`).
-        static func accentTint(_ opacity: Double) -> Color {
+        // --- Accent hairline helpers -------------------------------------
+        /// Active accent at an arbitrary opacity (cyan default `rgba(84,230,240,a)`).
+        @MainActor static func accentTint(_ opacity: Double) -> Color {
             Brand.accent.opacity(opacity)
         }
-        /// Default cyan hairline border (`rgba(84,230,240,.14)`).
-        static let cyanHairline = accentTint(0.14)
-        /// Stronger cyan border (`rgba(84,230,240,.3)`).
-        static let cyanBorder = accentTint(0.30)
+        /// Default accent hairline border (cyan default `rgba(84,230,240,.14)`).
+        @MainActor static var cyanHairline: Color { accentTint(0.14) }
+        /// Stronger accent border (cyan default `rgba(84,230,240,.3)`).
+        @MainActor static var cyanBorder: Color { accentTint(0.30) }
 
         /// Modal/drawer backdrop scrim.
         static let scrim = Color(hex: 0x02060A, opacity: 0.85)
@@ -312,8 +320,75 @@ enum Design {
     // MARK: - Glow
 
     enum Glow {
-        /// Global glow intensity knob (the design's `--glowK`).
-        static let k: Double = 1.0
+        /// Global glow intensity knob (the design's `--glowK`) — driven live by
+        /// the user's APPEARANCE → Glow Intensity pref. Default 1.0 (unchanged).
+        @MainActor static var k: Double { ThemeRuntime.shared.glowIntensity }
+    }
+}
+
+// MARK: - Runtime theme
+
+/// The resolved accent triplet for one `AppearanceAccent`. Cyan values are
+/// byte-identical to the pre-theming `Design.Brand` constants.
+struct AccentPalette: Equatable, Sendable {
+    let base: Color
+    let bright: Color
+    let deep: Color
+
+    init(_ accent: AppearanceAccent) {
+        switch accent {
+        case .cyan:
+            base = Color(hex: 0x54E6F0); bright = Color(hex: 0xCDF8FB); deep = Color(hex: 0x14636E)
+        case .amber:
+            base = Color(hex: 0xFFC14D); bright = Color(hex: 0xFFE2A6); deep = Color(hex: 0x6E4D14)
+        case .violet:
+            base = Color(hex: 0xB18CFF); bright = Color(hex: 0xE2D4FF); deep = Color(hex: 0x3A2D6E)
+        }
+    }
+}
+
+/// Live, app-wide theme state. The accent-derived `Design.Brand.*` /
+/// `Design.Colors.*` tokens resolve through this singleton, so flipping the
+/// APPEARANCE pref re-skins every surface that reads those tokens during its
+/// SwiftUI `body` — Swift's Observation registers the access automatically, so
+/// there is no per-call-site wiring.
+///
+/// The single source of truth stays `SettingsStore.settings`; the app root
+/// mirrors the four appearance prefs into this object via `apply(_:)`.
+@MainActor
+@Observable
+final class ThemeRuntime {
+    static let shared = ThemeRuntime()
+
+    /// Active accent identity — drives `palette` and the warning-hue swap.
+    var accent: AppearanceAccent = .cyan
+    /// HUD glow multiplier (APPEARANCE → Glow Intensity). Default 1.0.
+    var glowIntensity: Double = 1.0
+    /// Background grid density (APPEARANCE → Grid Density). Default `.faint`.
+    var gridDensity: GridDensity = .faint
+    /// App-level Reduce Motion override. Combined with the system setting at the
+    /// motion modifiers — the app toggle can only *add* restriction.
+    var appReduceMotion: Bool = false
+
+    /// Resolved accent triplet for the active accent.
+    var palette: AccentPalette { AccentPalette(accent) }
+
+    /// Semantic "forge" warning color. Amber for the cyan/violet themes; a
+    /// distinct orange under the amber accent so warning ≠ accent. (Hue tunable.)
+    var warning: Color {
+        accent == .amber ? Color(hex: 0xFF7A18) : Color(hex: 0xFFC14D)
+    }
+
+    private init() {}
+
+    /// Mirror the appearance-related prefs from `UserSettings` into the runtime.
+    /// Per-field guards avoid spurious Observation invalidations when an
+    /// unrelated setting changes.
+    func apply(_ settings: UserSettings) {
+        if accent != settings.appearanceAccent { accent = settings.appearanceAccent }
+        if glowIntensity != settings.hudGlowIntensity { glowIntensity = settings.hudGlowIntensity }
+        if gridDensity != settings.gridDensity { gridDensity = settings.gridDensity }
+        if appReduceMotion != settings.reduceMotion { appReduceMotion = settings.reduceMotion }
     }
 }
 
