@@ -75,7 +75,8 @@ struct ChatScreen: View {
                     onSend: sendMessage,
                     onStop: { chatStore.cancelStreaming() },
                     onAttach: { showAttachmentPicker = true },
-                    onSlashCommand: handleSlashCommand
+                    onSlashCommand: handleSlashCommand,
+                    onPasteImage: { handleAttachmentResult(.image($0)) }
                 )
             }
         }

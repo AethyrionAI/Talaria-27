@@ -1,5 +1,6 @@
 import Speech
 import SwiftUI
+import UIKit
 
 struct ChatInputBar: View {
     @Binding var text: String
@@ -10,6 +11,7 @@ struct ChatInputBar: View {
     let onStop: () -> Void
     let onAttach: () -> Void
     let onSlashCommand: (SlashCommand, String?) -> Void
+    let onPasteImage: (UIImage) -> Void
 
     @Environment(TalkStore.self) private var talkStore
     @Environment(ChatStore.self) private var chatStore
@@ -128,6 +130,21 @@ struct ChatInputBar: View {
                             .contentShape(Rectangle())
                     }
                     .accessibilityLabel("Add attachment")
+
+                    // Paste image from clipboard (#31)
+                    if !isStreaming {
+                        Button {
+                            pasteImageFromClipboard()
+                        } label: {
+                            Image(systemName: "doc.on.clipboard")
+                                .font(.system(size: Design.Size.iconSmall, weight: .medium))
+                                .foregroundStyle(Design.Colors.mutedForeground)
+                                .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+                                .contentShape(Rectangle())
+                        }
+                        .accessibilityLabel("Paste image")
+                        .transition(.scale.combined(with: .opacity))
+                    }
 
                     Spacer()
 
@@ -313,6 +330,16 @@ struct ChatInputBar: View {
             .accessibilityLabel("Send message")
             .transition(.scale.combined(with: .opacity))
         }
+    }
+
+    // MARK: - Clipboard
+
+    /// Reads an image off the system pasteboard and routes it through the same
+    /// attachment pipeline the photo picker uses, so pasted and picked images are
+    /// indistinguishable downstream (#31).
+    private func pasteImageFromClipboard() {
+        guard let image = UIPasteboard.general.image else { return }
+        onPasteImage(image)
     }
 
     // MARK: - Dictation
