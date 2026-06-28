@@ -1,68 +1,63 @@
-# Contributing to Hermes iOS
+# Contributing to Talaria
 
-Thanks for your interest in contributing! This project is an independent iOS companion app for the [Hermes Agent](https://github.com/NousResearch/hermes-agent) framework, with a self-hosted relay and connector architecture.
+Talaria is a personal self-hosting project. Issues and pull requests are welcome, but please read this first.
 
-## Getting Started
+## What this project is
 
-1. Read the [README](README.md) for architecture overview
-2. Read [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for env var reference
-3. Set up local development:
-   - **Relay:** `cd relay && pip install -e . && uvicorn app.main:app`
-   - **Connector:** `cd connector && pip install -e . && hermes-mobile setup`
-   - **iOS App:** Open `HermesMobile.xcodeproj` in Xcode 26+
+Talaria is a native iOS app + relay sidecar built specifically for self-hosters running [Hermes Agent](https://github.com/NousResearch/hermes-agent) on their own hardware. It is not a general-purpose Hermes client and is not designed for managed or cloud-hosted backends.
 
-## Development Requirements
+## Before you open a PR
 
-- **iOS App:** Xcode 26+, iOS 26 SDK, Swift 6.2
-- **Relay:** Python 3.12+
-- **Connector:** Python 3.11+
-- **Hermes Agent:** Installed locally with MCP support
+- Check [OPEN_ITEMS.md](OPEN_ITEMS.md) — active work items and known issues are tracked there
+- For anything architecture-affecting, open an issue first to align before writing code
+- The iOS app requires Xcode with the **iOS 26 SDK** (Xcode-beta as of mid-2026)
 
-## Running Tests
+## Development setup
+
+**iOS app**
 
 ```bash
-# Connector (78 tests)
-cd connector && pip install -e ".[dev]" && pytest tests/
-
-# Relay (44 tests)
-cd relay && pip install -e ".[dev]" && pytest tests/
-
-# iOS (Xcode)
-xcodebuild test -project HermesMobile.xcodeproj -scheme HermesMobile \
-  -destination 'platform=iOS Simulator,name=iPhone 17'
+# Requires Xcode (iOS 26 SDK)
+open Talaria.xcodeproj
 ```
 
-## Pull Request Guidelines
+> ⚠️ The project uses explicit source file listings via XcodeGen. If you add or remove Swift files, run `xcodegen generate` and commit the regenerated `project.pbxproj`.
 
-- Keep PRs focused — one feature or fix per PR
-- Include tests for new functionality
-- Run the full test suite before submitting
-- Update docs if you change env vars, APIs, or MCP tools
-- Don't commit secrets, personal paths, or hardcoded URLs
+**Relay sidecar**
 
-## Code Style
-
-- **Swift:** Follow existing patterns (protocol-oriented services, `@MainActor` isolation, strict concurrency)
-- **Python:** Standard formatting, type hints on public APIs, docstrings on MCP tools
-
-## Architecture Notes
-
-The codebase has three independent pieces that communicate over the network:
-
-```
-iOS App ──HTTP/SSE──▶ Relay ◀──WebSocket──▶ Connector ──▶ Hermes Agent
+```bash
+cd relay
+pip install -e .
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-- **Relay** is stateless and deployable anywhere (Fly.io, Railway, your own server)
-- **Connector** runs alongside the Hermes Agent on the user's machine
-- **iOS App** connects to the relay via the URL configured during onboarding
+**Models shim**
 
-Changes to wire protocols (WebSocket messages, SSE events, REST endpoints) require coordination across all three. Changes within a single component (UI, MCP tools, sensor storage) can be developed independently.
+```bash
+cd tools/models-shim
+python shim.py
+```
 
-## Reporting Issues
+## Code conventions
 
-Please use GitHub Issues. Include:
-- Which component (iOS app, relay, connector)
-- Steps to reproduce
-- Relevant logs (strip personal info)
-- Your deployment setup (self-hosted relay URL, Hermes version)
+- Swift 6 strict concurrency — no `@unchecked Sendable` without a comment explaining why
+- Real data only in settings UI — `"—"` placeholders where values aren't knowable at runtime; no mocked toggles
+- Relay-side and app-side changes should be separate commits
+- Read `CLEAN_CHAT_PATH.md` before touching the SSE parsing or Sessions API integration
+
+## Testing
+
+The relay has a test suite. Run it before submitting relay changes:
+
+```bash
+cd relay
+pytest
+```
+
+The iOS app has no automated test suite — changes are verified on-device.
+
+## Not in scope
+
+- App Store distribution
+- Managed or cloud relay hosting
+- Hermes Agent core changes (file issues upstream at [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent))
