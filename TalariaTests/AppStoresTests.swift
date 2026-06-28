@@ -1737,6 +1737,179 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
+    func pairingStoreMirrorsConfigurationIntoKeychainOnPair() async throws {
+        let suiteName = "pairing-mirror-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let secureStore = MockSecureStore()
+        let sessionStore = AppSessionStore(
+            bootstrapService: MockSessionBootstrapService(),
+            syncCoordinator: MockSyncCoordinator(),
+            secureStore: secureStore,
+            persistence: persistence,
+            notificationService: MockNotificationService(),
+            environmentProvider: { .production }
+        )
+        let pairingStore = PairingStore(
+            pairingService: RecordingPairingService(),
+            sessionStore: sessionStore,
+            persistence: persistence,
+            environmentProvider: { .production },
+            relayBaseURLProvider: { "https://relay.example.test/v1" },
+            secureStore: secureStore
+        )
+
+        _ = await pairingStore.pair(using: makeSetupCode())
+
+        let mirrored = await secureStore.retrieve(key: "hermes.pairedRelayConfiguration")
+        #expect(mirrored != nil)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = mirrored
+            .flatMap { $0.data(using: .utf8) }
+            .flatMap { try? decoder.decode(PairedRelayConfiguration.self, from: $0) }
+        #expect(decoded?.baseURLString == "https://relay.example.test/v1")
+    }
+
+    @Test @MainActor
+    func pairingStoreRecoversConfigurationFromKeychainWhenUserDefaultsWiped() async throws {
+        let suiteName = "pairing-recover-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let secureStore = MockSecureStore()
+        let sessionStore = AppSessionStore(
+            bootstrapService: MockSessionBootstrapService(),
+            syncCoordinator: MockSyncCoordinator(),
+            secureStore: secureStore,
+            persistence: persistence,
+            notificationService: MockNotificationService(),
+            environmentProvider: { .production }
+        )
+
+        // Pair once so both UserDefaults and the Keychain mirror hold the config.
+        let pairingStore = PairingStore(
+            pairingService: RecordingPairingService(),
+            sessionStore: sessionStore,
+            persistence: persistence,
+            environmentProvider: { .production },
+            relayBaseURLProvider: { "https://relay.example.test/v1" },
+            secureStore: secureStore
+        )
+        _ = await pairingStore.pair(using: makeSetupCode())
+
+        // Simulate a clean-reinstall UserDefaults wipe; the Keychain survives.
+        persistence.clearPairedRelayConfiguration()
+        #expect(persistence.loadPairedRelayConfiguration() == nil)
+
+        // A fresh PairingStore (as on next launch) loads nil from UserDefaults...
+        let relaunched = PairingStore(
+            pairingService: RecordingPairingService(),
+            sessionStore: sessionStore,
+            persistence: persistence,
+            environmentProvider: { .production },
+            relayBaseURLProvider: { "https://relay.example.test/v1" },
+            secureStore: secureStore
+        )
+        #expect(relaunched.isPaired == false)
+
+        // ...then recovers from the Keychain mirror and re-hydrates UserDefaults.
+        await relaunched.hydratePairingFromKeychainIfNeeded()
+
+        #expect(relaunched.isPaired)
+        #expect(relaunched.pairedRelayConfiguration?.baseURLString == "https://relay.example.test/v1")
+        #expect(persistence.loadPairedRelayConfiguration()?.baseURLString == "https://relay.example.test/v1")
+    }
+
+    @Test @MainActor
+    func pairingStoreBackfillsKeychainMirrorForExistingUserDefaultsPairing() async throws {
+        let suiteName = "pairing-backfill-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let secureStore = MockSecureStore()
+        let sessionStore = AppSessionStore(
+            bootstrapService: MockSessionBootstrapService(),
+            syncCoordinator: MockSyncCoordinator(),
+            secureStore: secureStore,
+            persistence: persistence,
+            notificationService: MockNotificationService(),
+            environmentProvider: { .production }
+        )
+
+        // A user paired before the mirror existed: config in UserDefaults only.
+        persistence.savePairedRelayConfiguration(
+            PairedRelayConfiguration(
+                baseURLString: "https://relay.example.test/v1",
+                hostDisplayName: "relay.example.test",
+                pairedAt: Date(timeIntervalSince1970: 1_700_000_000)
+            )
+        )
+        #expect(await secureStore.retrieve(key: "hermes.pairedRelayConfiguration") == nil)
+
+        let pairingStore = PairingStore(
+            pairingService: RecordingPairingService(),
+            sessionStore: sessionStore,
+            persistence: persistence,
+            environmentProvider: { .production },
+            relayBaseURLProvider: { "https://relay.example.test/v1" },
+            secureStore: secureStore
+        )
+        await pairingStore.hydratePairingFromKeychainIfNeeded()
+
+        #expect(await secureStore.retrieve(key: "hermes.pairedRelayConfiguration") != nil)
+    }
+
+    @Test @MainActor
+    func pairingStoreClearsKeychainMirrorOnDisconnect() async throws {
+        let suiteName = "pairing-clear-mirror-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let secureStore = MockSecureStore()
+        let sessionStore = AppSessionStore(
+            bootstrapService: MockSessionBootstrapService(),
+            syncCoordinator: MockSyncCoordinator(),
+            secureStore: secureStore,
+            persistence: persistence,
+            notificationService: MockNotificationService(),
+            environmentProvider: { .production }
+        )
+        let pairingStore = PairingStore(
+            pairingService: RecordingPairingService(),
+            sessionStore: sessionStore,
+            persistence: persistence,
+            environmentProvider: { .production },
+            relayBaseURLProvider: { "https://relay.example.test/v1" },
+            secureStore: secureStore
+        )
+
+        _ = await pairingStore.pair(using: makeSetupCode())
+        #expect(await secureStore.retrieve(key: "hermes.pairedRelayConfiguration") != nil)
+
+        await pairingStore.disconnect()
+        #expect(await secureStore.retrieve(key: "hermes.pairedRelayConfiguration") == nil)
+    }
+
+    @Test @MainActor
+    func persistenceStoreReturnsNilAndDoesNotCrashOnCorruptPayload() async throws {
+        let suiteName = "persistence-corrupt-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+
+        // Garbage bytes under the pairing key — a schema mismatch / corruption.
+        defaults.set(Data([0x00, 0x01, 0x02, 0x03]), forKey: "hermes.pairedRelayConfiguration")
+
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        #expect(persistence.loadPairedRelayConfiguration() == nil)
+    }
+
+    @Test @MainActor
     func inboxStorePersistsReadAndDismissState() async throws {
         let suiteName = "inbox-store-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
