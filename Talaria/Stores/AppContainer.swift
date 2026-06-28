@@ -144,7 +144,8 @@ final class AppContainer {
             sessionStore: sessionStore,
             persistence: persistence,
             environmentProvider: { settingsStore.settings.environment },
-            relayBaseURLProvider: { settingsStore.settings.relayConfiguration.activeBaseURLString }
+            relayBaseURLProvider: { settingsStore.settings.relayConfiguration.activeBaseURLString },
+            secureStore: secureStore
         )
         activePairingStore = runtimePairingStore
 
@@ -330,6 +331,10 @@ final class AppContainer {
     }
 
     func initialize() async {
+        // #41: recover pairing from the Keychain mirror if UserDefaults was wiped
+        // (clean reinstall). Runs before the isPaired guard so a recovered config
+        // lets initialize() proceed instead of stranding the user at re-pair.
+        await pairingStore.hydratePairingFromKeychainIfNeeded()
         guard pairingStore.isPaired else {
             containerLog.warning("initialize: ABORT — not paired")
             return

@@ -117,7 +117,15 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
 
     private func load<T: Decodable>(_ type: T.Type, key: String) -> T? {
         guard let data = defaults.data(forKey: key) else { return nil }
-        return try? decoder.decode(type, from: data)
+        do {
+            return try decoder.decode(type, from: data)
+        } catch {
+            // #42: a silent `try?` here made a schema-change decode failure look
+            // identical to a never-stored key (e.g. a phantom unpair). Surface it
+            // through the always-on TalariaLog event channel so triage is a log read.
+            TalariaLog.event("UserDefaults decode failed for key '\(key)' as \(T.self): \(error.localizedDescription)")
+            return nil
+        }
     }
 
     private func save<T: Encodable>(_ value: T, key: String) {
