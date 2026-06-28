@@ -32,6 +32,7 @@ final class PermissionsStore {
         locationService.refreshAuthorizationState()
         await healthService.refreshAuthorizationStatus()
         await notificationService.refreshAuthorizationStatus()
+        motionService?.refreshAuthorizationStatus()
         capabilities = currentCapabilities()
     }
 

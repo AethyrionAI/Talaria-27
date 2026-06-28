@@ -45,7 +45,33 @@ final class LiveMotionService {
     private let activityManager = CMMotionActivityManager()
     private var isMonitoring = false
 
+    init() {
+        refreshAuthorizationStatus()
+    }
+
     // MARK: - Authorization
+
+    /// Seeds `authorizationStatus` from the system's persisted CoreMotion grant.
+    /// Unlike HealthKit reads, `CMMotionActivityManager.authorizationStatus()` reflects
+    /// the real grant across process launches, so re-reading it on launch fixes the
+    /// cold-start "off" display (#39) without re-presenting the permission prompt.
+    func refreshAuthorizationStatus() {
+        guard CMMotionActivityManager.isActivityAvailable() else {
+            authorizationStatus = .unsupported
+            return
+        }
+        authorizationStatus = Self.mapStatus(CMMotionActivityManager.authorizationStatus())
+    }
+
+    private static func mapStatus(_ status: CMAuthorizationStatus) -> PermissionStatus {
+        switch status {
+        case .authorized:    return .authorized
+        case .denied:        return .denied
+        case .restricted:    return .restricted
+        case .notDetermined: return .notDetermined
+        @unknown default:    return .notDetermined
+        }
+    }
 
     func requestAuthorization() async -> PermissionStatus {
         guard CMMotionActivityManager.isActivityAvailable() else {
