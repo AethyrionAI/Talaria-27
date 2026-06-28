@@ -85,7 +85,11 @@ on-device switch testing — the phone chats with OJAMD, not the mini.
 
 ---
 
-## 2. 💤 T3 — Settings screens build (UNBLOCKED)
+## 2. ✅ T3 — Settings screens build — SUPERSEDED BY #28
+
+**Closed 2026-06-28:** the non-MODELS screens plus sub-pages 09–12 and the SYSTEM index
+swap shipped — see #28 (and #30 for the dead-monolith removal). This broad tracker is
+superseded; original scope retained below for history.
 
 Needs the Claude Design deliverable: the 8-screen **`Settings.dc.html`** (from
 `TalariaSettings.zip`) placed at **`design/Settings.dc.html`** in the repo. Then build the
@@ -313,6 +317,11 @@ visible from that box — functionally identical to canonical (7681 B, which add
 the `config.yaml` source-2 fallback) since both read the env key. Follow-up: deploy the
 canonical `shim.py` over the interim patch on OJAMD so deployed == repo byte-for-byte.
 
+**Status 2026-06-28:** this canonical-redeploy follow-up is **blocked on #36** (the OJAMD
+checkout must track the `ChronoRixun` fork before the canonical file is visible there) and is
+low-priority — the interim env-only patch is functionally identical. One of the two remaining
+OJAMD blockers.
+
 
 ---
 
@@ -533,7 +542,7 @@ replaces `~/.hermes/hermes-agent` and would wipe core edits, while `config.yaml`
 skills/sessions persist. Zero-code stopgap: ask the agent to `read_file` the file back via a
 chat turn (durable but an LLM round-trip).
 
-Status (2026-06-27): Tier 1 = ✅ DONE (see note below); Tier 2 = server-side follow-up.
+Status (2026-06-27): Tier 1 = ✅ DONE; Tier 2 relay route = ✅ BUILT + DEPLOYED + LIVE on OJAMD; Tier 2 app-side fetch = ⏳ pending the binary-write SSE probe (see notes below).
 
 **Tier 1 shipped + verified on-device 2026-06-27 (`96b291f`).** `write_file`/`create_file`
 `tool.started` (`args.path` + `args.content`) is parsed in `SessionsHermesClient`'s SSE
@@ -550,6 +559,27 @@ file-fetch route for binaries / non-reconstructable files) remains the server-si
 **Known Tier 1 boundary (not a gap):** reconstructed files live for the active session;
 reopening a session from the server won't restore them (the server never stored the local
 copy). Persistence across reloads would ride on Tier 2.
+
+**Tier 2 relay route — built + deployed + live 2026-06-27 (`ccf6e5a`, branch
+`feat/agent-files-tier2`).** `GET /v1/device/files?path=…` on the relay serves a file the
+agent wrote on the host, gated by device-bearer auth (`get_auth_context`) and whitelisted to
+`agent_files_dir` (env `AGENT_FILES_DIR`). `resolve_agent_file()` resolves symlinks/`..` then
+enforces containment via `relative_to(base)`; every failure → 404 (never leaks existence).
+Streams via `FileResponse` (content-type + filename). 8 new tests + full relay suite (55)
+green on the Mac. **Deployed on OJAMD** (edits hand-applied — see #36 re: why not a git pull;
+`AGENT_FILES_DIR=O:\Hermes\MobileDL`; relay restarted) and **smoke-tested live**: `/v1/health`
+200, `/v1/device/files` (no token) → **401** (route loaded + auth-gated). The DB is file-backed
+(`hermes_mobile.db`), so device pairings survive the restart.
+
+**Tier 2 app-side fetch — NEXT, blocked on one probe.** Plan: add `remotePath` to
+`MessageAttachment` + a `fetchableAgentFile` factory; add `downloadFile(path:accessToken:)`
+to `RelayAPIClient`; branch `parseWrittenFile` so *content present → Tier 1*, *content absent
+→ Tier 2 fetchable bubble*; plumb a "tap → download → stage → ShareLink" path through
+`MessageBubble → ChatScreen → ChatStore` (giving `ChatStore` the relay client + device token).
+**Gate:** the binary-write SSE shape is unprobed — we need one real non-text `write_file`
+(e.g. save a small PDF to `MobileDL`) captured off `:8642/chat/stream` to confirm whether
+`args.content` is present/absent for binaries, which decides the fetch trigger. Also needs the
+Hermes-side nudge so the agent writes shareable artifacts into `MobileDL`.
 
 ---
 
@@ -594,12 +624,12 @@ Logged 2026-06-25.
 
 ---
 
-## 24. 🐛 OJAMD server-side work — health 422, relay bind (shim + gateway persistence ✅)
+## 24. 🔧 OJAMD server-side work — 422 → Mac-side; Private Relay doc + relay-JWT persistence remain (bind/firewall/persistence/update-stability ✅)
 
 Consolidated tracker for server-side fixes on OJAMD (Windows desktop, Tailscale
 `100.110.102.59`). None of these are app code — they require work on the OJAMD host.
 
-### 24a. Health upload rejected with 422
+### 24a. 🔧 Health upload 422 — DIAGNOSED 2026-06-28, fix is Mac-side (chunking)
 
 The relay on `:8000` accepts location uploads (`deliveryState=delivered`) but rejects
 health payloads with **HTTP 422**. This is a payload format / schema issue — the relay
@@ -610,16 +640,25 @@ upload device/sensor/health: error — Relay request failed with status 422.
 drain: health upload (1607 samples) FAILED
 ```
 
-**Investigate:** check OJAMD relay logs for the 422 response body / validation error.
-Compare the health upload body structure against what the relay endpoint expects.
-Location works, so the auth + routing is fine — it's specifically the health payload.
+**Root cause confirmed (2026-06-28):** `SensorHealthRequest.samples` is capped at
+`max_length=100` (`relay/app/schemas.py:146`). The phone drains its whole HealthKit backlog
+(console showed 1607 samples) in one request -> Pydantic 422 before any field-level check.
+Location works because it sends one reading per request (no array); it's purely the array
+length, not the per-sample fields.
 
-### 24b. Relay bind to `0.0.0.0`
+**Decision — Option A (relay unchanged):** keep the relay cap at 100 and **chunk on the phone
+to <=100 samples/request**, sent **sequentially** — the connector handles one sensor payload at
+a time and returns **202 "retry"** when `session.busy`, so await each chunk and honor the 202
+with backoff. No relay rate limiter on sensor endpoints, so sequencing is driven by the
+connector busy-flag, not throttling. **The fix now lives on the Mac / iOS uploader, not
+OJAMD** — tracked here, executed app-side.
 
-The relay on `:8000` has the same localhost-bind issue the gateway had before it was
-fixed. Needs `0.0.0.0` treatment + Windows Firewall rule so the phone can reach it
-over Tailscale without the iCloud Private Relay workaround. (Currently works because
-Private Relay is off, but shouldn't depend on that.)
+### 24b. ✅ Relay bind to `0.0.0.0` — RESOLVED 2026-06-28
+
+Confirmed the relay already binds `0.0.0.0:8000` (NSSM `AppParameters: app.main:app --host
+0.0.0.0 --port 8000`). Tailnet reachability is carried by the existing `Tailscale-Process`
+inbound **Allow (Profile: Any)** rule — no per-port rule is required for tailnet access (a
+per-port rule would only matter for non-Tailscale/LAN clients, which isn't the use case).
 
 ### 24c. ✅ Shim Task Scheduler persistence — RESOLVED (2026-06-26)
 
@@ -629,10 +668,17 @@ reboot), launched via a hidden `wscript` wrapper (`run-shim-hidden.vbs` → `run
 **no console window ever appears**, no execution time limit, auto-restart on crash. Replaces
 the old logon-only task whose console teardown kept dropping it.
 
-### 24d. Windows Firewall rule for port 8765
+**Update 2026-06-28 — converted to an NSSM service.** The hardened Scheduled Task was replaced
+by NSSM service **`TalariaModelsShim`** (LocalSystem, Automatic, `AppRestartDelay 5000`),
+matching the relay, so auto-restart is native and the update-failure outage pattern (-> 24i) is
+closed. The old Scheduled Task is **disabled, not deleted** (rollback path). **Recovery is now
+`Start-Service TalariaModelsShim` — not `Start-ScheduledTask`.**
 
-The shim listens on `:8765`. Needs an inbound firewall rule on OJAMD for Tailscale
-access. Currently works when Private Relay is off, but should be explicitly allowed.
+### 24d. ✅ Windows Firewall rule for port 8765 — RESOLVED 2026-06-28
+
+Carried by the same `Tailscale-Process` Allow(Any) rule as 24b. The shim was rebound to
+`0.0.0.0` (from the Tailscale-only `100.110.102.59`), so it's loopback-reachable for local
+health checks too. Verified: `:8765` -> 401 on both loopback and tailnet.
 
 ### 24e. iCloud Private Relay networking requirement
 
@@ -675,7 +721,7 @@ logon-only and a console teardown took the shim down (2026-06-26).
 trigger fragility is fixed via 24c (S4U + boot trigger). Note: the file deployed on OJAMD is
 the interim env-only patch — see the #14 caveat for the canonical-vs-deployed follow-up.
 
-### 24h. ✅ Gateway / API server now a persistent windowless service — NEW (2026-06-26)
+### 24h. ✅ Gateway / API server now a persistent windowless service — NEW (2026-06-26; converted to NSSM 2026-06-28 -> 24i)
 
 The Hermes **gateway** (which hosts the **API Server adapter on `:8642`** — the phone's chat
 path) was being run in a foreground console (`hermes gateway run`), so it dropped whenever the
@@ -692,14 +738,48 @@ used — on Windows it only makes a login-only, possibly-flashing task; running 
 needs a bot created in Discord's dev portal + invited to the server). No new service required:
 add the token, restart the task.
 
-**OJAMD service inventory (all windowless + reboot-proof):**
+**OJAMD service inventory (all windowless + reboot-proof — all NSSM as of 2026-06-28):**
 - Relay `:8000` → `HermesMobileRelay` (NSSM service, uvicorn)
-- Shim `:8765` → `TalariaModelsShim` (Scheduled Task, hardened)
-- Gateway/API `:8642` → `HermesGateway` (Scheduled Task, hardened)
+- Shim `:8765` → `TalariaModelsShim` (NSSM service)
+- Gateway/API `:8642` → `HermesGateway` (NSSM service)
+
+### 24i. ✅ Update stability — gateway + shim survive `hermes update` — RESOLVED 2026-06-28
+
+**Root cause:** the gateway (`hermes.exe`) and shim (`python.exe`) both run out of the same
+`hermes-agent\venv` that `hermes update` replaces; as Scheduled Tasks they had no auto-restart,
+so an update left them down (the NSSM relay survived because it has a separate `.venv` +
+auto-restart). This was the recurring "update knocks `:8642`/`:8765` offline" outage.
+
+**Fix shipped:**
+1. Gateway + shim **converted from Scheduled Tasks to NSSM services** (LocalSystem, Automatic,
+   `AppRestartDelay 5000`) via `~/.hermes/scripts/convert-gateway-shim-to-nssm.ps1`. Both run as
+   `LocalSystem` with injected env (`HERMES_HOME`, `LOCALAPPDATA`, `APPDATA`, `USERPROFILE`) so
+   the profile-dependent launchers work and `API_SERVER_KEY` stays in `.env` (never the
+   registry). Old Scheduled Tasks **disabled, not deleted** (rollback).
+2. `~/.hermes/scripts/hermes-update-safe.ps1` — stops gateway+shim, runs `hermes update`, then
+   restarts with a warmup-aware verify (gateway answers ~15–20s after start); the relay stays up.
+   **Use this instead of bare `hermes update`.**
+
+**Recovery if ever down (supersedes the old `Start-ScheduledTask` note):**
+`Start-Service HermesGateway,TalariaModelsShim`, then confirm `:8642`/`:8765` return 404/401.
+
+### 24j. ✅ bookstack MCP registration bug — RESOLVED 2026-06-28
+
+Found in the gateway log during the 24i verification. `config.yaml` had
+`args: '["O:/Hermes/BookStackMCP/build/bookstack-mcp-server.js"]'` — a **string** that looks
+like a JSON array — so Pydantic rejected it (`StdioServerParameters.args` expects a list) and
+bookstack failed all 3 connection attempts on every gateway start. Environment-independent (not
+caused by the NSSM conversion). Fixed to a real YAML list
+`args: ["O:/Hermes/BookStackMCP/build/bookstack-mcp-server.js"]`; YAML re-validated; config
+backed up; confirmed no bookstack error in the post-fix startup.
 
 ---
 
 ## 25. 🔧 CTX meter — 0% fixed (usage parsed); denominator reads ~1.4x high
+
+**Update 2026-06-28 (Owen):** the meter now shows a live, non-zero reading — the 0% bug is
+resolved. The denominator still reads ~1.4x high; **left open pending further testing**
+before the model → context-window map is corrected.
 
 The "CTX 0%" telemetry in the agent identity strip never updates. Root cause:
 `SessionsHermesClient` emits `.finished(message, nil, nil)` at the `assistant.completed`
@@ -817,7 +897,27 @@ Logged 2026-06-26.
 
 ---
 
-## 31. 📝 Paste image into the chat composer (clipboard)
+## 31. 🔧 Paste image into the chat composer (clipboard) — UI built & verified; HELD, blocked on image transmission (#43)
+
+**Update 2026-06-28 (on-device, whoGoesThere):** the paste UI works — the button shows in the
+composer and pasting attaches the image correctly. Switched from a `hasImages`-gated button to
+an **always-visible, read-on-tap** button because background pasteboard detection is unreliable
+(a `RunCodeSnippet` probe couldn't read the clipboard from the non-foreground harness). **But
+sending fails:** an image-only send returns `HTTP 400`, because the chat client never transmits
+attachments — `ChatTurnBody` is text-only, so an image-only turn POSTs `input: ""` and the API
+server rejects it. Picked photos hit the identical wall; **not paste-specific, not a regression.**
+Root fix tracked as **#43**. The paste UI is built but **held uncommitted** until #43 lands —
+shipping a paste button that 400s is worse than not shipping it.
+
+**Implemented 2026-06-28 (compiles clean; not yet device-verified).** Added a clipboard
+paste affordance to `ChatInputBar`: a `doc.on.clipboard` button appears in the composer's
+action bar whenever `UIPasteboard.general.hasImages` is true (seeded on appear, refreshed on
+`scenePhase` active + `UIPasteboard.changedNotification`). On tap, `pasteImageFromClipboard()`
+reads `UIPasteboard.general.image` and routes it through `onPasteImage` →
+`ChatScreen.handleAttachmentResult(.image(_))` → `PendingAttachment.image(_)` — the *same*
+path the photo picker uses, so pasted and picked images are byte-identical downstream (same
+768px downscale, 350 KB cap, 4-attachment limit, local staging). Files: `ChatInputBar.swift`,
+`ChatScreen.swift`.
 
 On-device (whoGoesThere, 2026-06-27): pasting an image from the clipboard into the chat
 input does nothing, while adding an image from the local photo store works. Add clipboard
@@ -832,3 +932,328 @@ data, so the missing piece is only an ingest route from `UIPasteboard`:
   images are indistinguishable downstream.
 
 Reported on-device 2026-06-27. Feature gap, not a regression.
+
+## 32. ✅ SiriKit deprecation audit (forked shell) — CLEAN
+
+**Status:** Resolved 2026-06-27 — no SiriKit usage; nothing on the deprecation clock.
+
+**Why:** WWDC26 (2026-06-09) gave SiriKit a formal deprecation notice — App Intents is now
+the only path for Siri to reach a third-party app (~2–3yr support window before removal).
+Talaria forks `dylan-buck/Hermes-iOS`, so any inherited SiriKit code would have been on that
+clock.
+
+**Audit (Mac Mini repo, 167 Swift files):** grep for `import Intents` / `import IntentsUI`,
+`INExtension`, `INIntent`, `INInteraction`, `IntentsSupported`,
+`com.apple.intents-(ui-)service`, `*.intentdefinition`, and `intent` in `project.yml`
+→ all absent. Positive control (`import SwiftUI` → 68 files) confirms the search reached the
+sources. No App Intents adoption present either.
+
+**Action:** None — note and close. Future Siri reachability (optional) is clean greenfield
+App Intents 2.0 adoption (Siri AI / Spotlight / Shortcuts discoverability) — additive,
+complementary to the in-app voice work, not a migration.
+
+Logged 2026-06-27.
+
+
+---
+
+## 33. 📝 Apple app integrations — device-side (universal) + Hermes connectors (Mac-host only)
+
+Idea (Owen, 2026-06-27): let the agent work with Apple apps. iOS reality splits these
+into two layers, and the layer decides where the capability lives:
+
+- **Device-side (universal — any backend host):** Calendar + Reminders via iOS EventKit.
+  These live on the phone, so they work no matter which machine hosts Talaria's Hermes —
+  buildable on the current OJAMD (Windows) backend. Needs full-access usage strings
+  (`NSCalendarsFullAccessUsageDescription`, `NSRemindersFullAccessUsageDescription`),
+  ties into the Permissions screens + #23 (revoke). Writes want a confirm gate — reuse
+  the #4 confirm-dialog pattern.
+- **Server-side (Mac-host only — additive):** iMessage + Notes + FindMy via Hermes's
+  macOS-CLI connectors (`imsg`, `memo`, FindMy.app). They shell out to macOS binaries,
+  so they only function when Talaria's backend runs on a Mac → gated on T6 (#34). No
+  iOS-native path (no chat.db / AppleScript / Messages automation on iOS); the "key" is
+  macOS session state — signed-in iMessage + Full Disk Access + Automation TCC + SMS
+  forwarding — not a portable token. On Windows (OJAMD) these connectors' check_fn fails,
+  so they're inert there.
+
+Also from the original list: Mail has no iOS inbox-read API (compose-sheet send only;
+true read/send would be a server-side provider API on Hermes — Gmail/Graph/IMAP). Maps
+is device-side MapKit utility (search/geocode/directions/open), not personal-Maps-data read.
+
+Near-term scope if pursued = device-side EventKit only. Connectors land with T6.
+
+Logged 2026-06-27.
+
+
+---
+
+## 34. 💤 T6 — Mac-hosted Talaria backend (unlocks additive Apple connectors) — LATER
+
+**Deferred rationale (Owen, 2026-06-28):** hold until the app is closer to feature-complete —
+don't ship an incomplete Mac-hosted version. Revisit once the active open items resolve.
+
+Milestone (Owen, 2026-06-27), explicitly deferred until the rest of the open-items list
+is squared away. Re-home Talaria's full backend stack — models shim (:8765), relay/
+connector (:8000), gateway (:8642), and any sidecars — onto the Mac Mini (macOS Hermes)
+as the primary host, with the same reboot-proof hardening built for OJAMD but in macOS
+terms (launchd / login items instead of NSSM / Task Scheduler).
+
+Why: macOS Hermes exposes connectors Windows Hermes can't, so a Mac-hosted install gets
+the additive layer — iMessage, Notes, FindMy — on top of the universal device-side
+Calendar/Reminders (#33). The host OS is effectively the feature flag: Windows install =
+device-side baseline; Mac install = baseline + connectors.
+
+Scope: re-home + harden on macOS; install / boot-survival testing on the Mac; wire #33's
+server-side connectors once the Mac backend is live. Forks (or partly reverses) the
+OJAMD-as-production consolidation (→ #1) — accepted as the cost of the richer feature set.
+
+Optional accelerator (if iMessage is wanted before full re-homing): keep OJAMD primary
+and expose just the mini's Apple toolset to it via `hermes mcp serve` (mini) → `hermes
+mcp add` (OJAMD) over the tailnet — "Windows brain, Mac hands." Not planned now; noted so
+it isn't rediscovered later.
+
+Deferred 2026-06-27 — revisit after the active items clear.
+
+## 35. 🎙️ VOICE settings screen — build truthful status/launch panel
+
+**Status:** Design resolved 2026-06-27 (truthful); SwiftUI build pending.
+
+**Context:** First Design pass (`Voice_dc.html`) modeled a fictional on-device
+`SpeechTranscriber → AVSpeechSynthesizer` pipeline (voice picker, rate/pitch, speak-replies,
+PTT) — none of which exist. The real Talk engine (`LiveVoiceSessionService`, ~1185 LOC) is a
+realtime WebRTC speech-to-speech session: relay readiness → relay bootstrap (ephemeral
+clientSecret + RealtimeSession) → WebRTC peer → Hermes; transcripts persisted via relay,
+latency tracked, image-send supported. Live controls (mute, interrupt, camera, end) already
+live in `VoiceOverlayScreen`; model/voice are server-driven and READ-ONLY in the iOS surface
+(no client set-voice — `VoiceSessionServiceProtocol` has none).
+
+**Corrected design:** New `Settings_dc.html` → "05 · VOICE — status & launch" (TALK ENGINE ·
+REALTIME): read-only STATUS + a START VOICE SESSION action; fictional controls removed
+(verified — no AVSpeech / Speak-Replies / PTT / SpeechTranscriber / Rate / Pitch / Barge).
+Good to build from.
+
+**Action:** Build the SwiftUI VOICE status/launch screen from the new design. Bind real fields,
+`"—"` where unknowable — host online / configured / ready + blockedReason (readiness), model
+(selectedModel, read-only), server voice + voiceContextUpdatedAt (read-only), last-session
+latency (TalkLatencyMetrics). START gated on `canStartSession` → presents `VoiceOverlayScreen`.
+Retire `Voice_dc.html`. Run `xcodegen generate` after adding the file.
+
+**Out of scope (future):** user-selectable voice would be a new relay + iOS feature (server-side
+today); separate from this build.
+
+**Insertion point (confirmed 2026-06-27):** No Voice/Talk entry exists in the live Settings
+feature (10 screens: System, Uplink, Models, Sessions, Diagnostics, Appearance, Notifications,
+Privacy, Developer, Relay) — verified by grep; voice mode launches only from chat
+(`ChatInputBar`) + `AppEntry` via `router.isVoiceOverlayPresented`. So this is a clean tactical
+insertion: add `VoiceSettingsScreen` + a "Voice & Talk" row in `SystemSettingsScreen`
+(`// EXPERIENCE`) that drills into it; START sets `isVoiceOverlayPresented = true` gated on
+`canStartSession` (reuses the existing launch path). `xcodegen generate` after adding the file.
+
+Logged 2026-06-27.
+
+
+---
+
+## 36. 📝 Reconcile OJAMD's Talaria checkout onto the ChronoRixun fork
+
+OJAMD's `O:\Hermes\Talaria` tracks **`dylan-buck/Hermes-iOS` `master`** (the upstream
+parent), not Owen's `ChronoRixun/Talaria`. As of 2026-06-27 it is **0 ahead / 65 behind**
+`fork/main` — a strict ancestor, so a fast-forward is clean. Crucially, **those 65 commits
+change nothing in `relay/` or `connector/`** (all iOS-app + docs), so OJAMD's running
+service code is already byte-identical to the fork; a sync would only drop iOS-app files
+into the checkout.
+
+**Decision (Owen, 2026-06-27):** repoint now, defer the FF. The `fork` remote
+(`ChronoRixun/Talaria`) has been **added** on OJAMD (non-destructive). Do the one-time clean
+reconciliation **after Tier 2 merges to `main`**, in a single pass:
+1. `git stash` the lone local mod (`connector/.../mcp_registration.py` — see #37) + the
+   hand-applied Tier 2 relay edits.
+2. Repoint `master` → track `fork/main` (or check out `main` from `fork`).
+3. `git pull` (by then includes Tier 2, subsuming the hand-applied edits).
+4. `git stash pop` and reconcile `mcp_registration.py`.
+
+**Must NOT be clobbered** during any sync: live `.env`, `hermes_mobile.db` (+ `-shm`/`-wal`),
+`connector/.hermes/`, `relay/logs/`, `connector/logs/`, untracked debug scripts — all are
+gitignored/untracked and a FF leaves them alone, but verify before any reset.
+
+**Status 2026-06-28:** still **blocked / low-priority** — the one-pass reconciliation waits on
+Tier 2 merging to `main`. This is one of the two remaining OJAMD blockers; it gates the
+canonical-`shim.py` redeploy (#14 caveat / 24g).
+
+Logged 2026-06-27.
+
+---
+
+## 37. 📝 Upstream the connector `win32` fix to the fork
+
+`connector/src/hermes_mobile_connector/mcp_registration.py` is modified **only on OJAMD**
+(not in the fork). The change makes `_hermes_chat_running()` Windows-compatible: the upstream
+version shells out to `ps -axo` (Unix-only); the OJAMD edit adds a `sys.platform == "win32"`
+branch using `tasklist /FO CSV /NH`. This is a legitimate cross-platform fix that a blind
+re-sync would silently revert.
+
+**Patch saved** (durable, outside the repo): `C:\Users\Owen\.hermes\scripts\connector-win32-chat-running.patch`
+(33 insertions / 25 deletions). **Action:** apply the same edit to the fork's
+`connector/.../mcp_registration.py` on the Mac, commit, push — then it's part of `main` and
+survives the #36 reconciliation.
+
+**Status 2026-06-28:** still open, low-priority (not blocked). The Mac-side apply/commit/push
+can be done independently of #36; doing it before the reconciliation lets the FF subsume the
+OJAMD-local edit cleanly.
+
+Logged 2026-06-27.
+
+---
+
+## 38. 📌 Remote push (APNs) for instant background-run completion notify — deferred
+
+**Context:** The agent-run background-completion fix (detach + reconcile + local
+notification, on `feat/agent-files-tier2`) handles the common case — an interrupted
+run no longer errors; it reconciles on resume via `GET /api/sessions/{id}/messages`,
+and a local notification fires when completion is detected. A background `URLSession`
+download task against the sync endpoint lets iOS hold a *deliberately-backgrounded*
+send across lock and relaunch with the result for up to ~a couple minutes.
+
+**Gap this covers:** guaranteed *instant* "answer ready" notification while the phone
+is locked/pocketed for a run that was started in the foreground and then walked away
+from (not issued through the background-download path) and that outlasts the ~30s
+background-task window. Such a run reconciles cleanly on resume but cannot buzz the
+user while suspended — iOS offers no client-side way to fire a notification from a
+server-side completion event while the app is suspended. The only reliable path is a
+remote push.
+
+**Design when picked up:** Hermes/relay fires APNs on `run.completed`; app registers
+for remote notifications and sends its device token to the relay at pair time; push
+payload carries `session_id`; tap deep-links and fetches via `GET /messages`. Depends
+on the relay persisting the device registry across restarts (#24f) and ties into the
+NOTIFICATIONS settings screen (#10).
+
+**Verified prerequisite (2026-06-27):** runs already complete server-side after SSE
+disconnect and persist — a push only needs to announce an already-finished result.
+Probe: client cut at 8s mid-run (only `run.started`/`message.started` had streamed);
+the final assistant message (`finish: stop`) landed in the session post-cut, twice.
+Reconciliation endpoint confirmed: `GET /api/sessions/{id}/messages`.
+
+Logged 2026-06-27. Deferred — local-notification path is sufficient for now.
+
+---
+
+## 39. ✅ Motion & Fitness authorization shows "off" on every launch — fixed + verified + committed
+
+**Fixed 2026-06-28 — verified on whoGoesThere (Motion & Fitness reads Enabled and stays correct across force-quit + relaunch); committed as `f84dc19`.** Confirmed root cause:
+`LiveMotionService.authorizationStatus` initialized to `.notDetermined` and was only updated
+inside `requestAuthorization()`; `PermissionsStore.reloadCapabilities()` refreshed
+location/health/notifications from the system but **omitted motion**, so the Privacy row kept
+rendering the stale in-memory value after a cold launch. Fix: added
+`LiveMotionService.refreshAuthorizationStatus()` (maps `CMMotionActivityManager.authorizationStatus()`
+→ `PermissionStatus`; CoreMotion's static persists the real grant across launches, unlike
+HealthKit reads), seeded it from a new `init()`, and added `motionService?.refreshAuthorizationStatus()`
+to `reloadCapabilities()`. Files: `LiveMotionService.swift`, `PermissionsStore.swift`.
+
+**Settings → Privacy → Motion and Fitness** displays the toggle/status as **disabled**
+each time the app launches, even though iOS Settings (System Settings → Talaria →
+Motion & Fitness) correctly shows it as **on**.
+
+**Likely root cause:** same pattern as #16 (HealthKit) — `CMMotionActivityManager`
+authorization status is **in-memory only** and resets to `.notDetermined` on each
+process launch. Apple's read-privacy model returns `.unknown` or `.notDetermined` for
+`CMMotionActivityManager.authorizationStatus()` until the system permission sheet has
+been presented in *this process*. If `LiveMotionService` gates its "authorized" display
+on that in-memory value without re-checking via the actual CMMotion API, it will always
+show "off" after a cold start.
+
+**What to check:**
+- `LiveMotionService.authorizationStatus` initialization — does it reset to
+  `.notDetermined` in `init()` even when permission was previously granted?
+- Is `CMMotionActivityManager.authorizationStatus()` called on launch to seed the
+  displayed state, or only after a fresh `requestActivityUpdates()` call?
+- Compare pattern with #16 fix: `SensorUploadService.start()` now re-asserts
+  `requestAuthorization()` on each launch for HealthKit; Motion may need the same.
+
+**Repro:** fresh cold launch → Settings → Privacy → Motion and Fitness → shows off.
+Go to iOS Settings → Talaria → Motion & Fitness → shows on.
+
+Reported on-device 2026-06-28.
+
+---
+
+## 40. ✅ Theming refactor — runtime accent re-skin shipped
+
+**Closed 2026-06-28 (Owen).** The `Design.Brand` / `Design.Colors` migration off hardwired
+static constants landed, and `AppearanceSettingsScreen` preferences now drive the app live
+(accent theme, glow, grid, reduce-motion, voice orb, Theme row unlocked). Tracked during the
+build in `THEMING_REFACTOR_PROMPT.md`; shipped in `9076381` (runtime accent foundation) and
+`a9007ce` (wire glow/grid/reduce-motion + voice orb + unlock Theme row). Recorded here for the
+closure trail.
+
+---
+
+## 41. 🔧 Keychain-back the relay pairing config so reinstalls don't drop pairing
+
+**Diagnosed 2026-06-28 on whoGoesThere.** A device "lost pairing" event was traced to a
+wholesale wipe of the app's `.standard` UserDefaults container — an on-device read showed
+`hermes.pairedRelayConfiguration` ABSENT and **zero** `hermes.*` keys remaining (not a targeted
+loss, not a decode failure). Cause: iOS did a **clean install** (delete + data wipe) instead of
+an upgrade install — the signature of a provisioning/cert rotation or an iOS 27 beta reinstall
+quirk. Backend, relay, bundle ID (`org.aethyrion.talaria`), app group
+(`group.org.aethyrion.talaria`), entitlements, and pairing code were all verified unchanged, so
+this is **not** a code regression.
+
+**Why fix:** session tokens already persist in the Keychain (`KeychainSecureStore`, service
+`org.aethyrion.talaria.session`), which **survives reinstalls** — but `PairedRelayConfiguration`
+is persisted **only** in UserDefaults (`UserDefaultsAppPersistenceStore`, key
+`hermes.pairedRelayConfiguration`), which a clean install wipes. `PairingStore.isPaired` keys
+solely off that config, so a container wipe forces a full re-pair even though the tokens were
+sitting safe in the Keychain the whole time.
+
+**Fix:** mirror (or move) `PairedRelayConfiguration` into the Keychain so it survives reinstalls.
+- Write to both stores on `pair()`; clear from both on `disconnect()` / `clearLocalPairing()`.
+- On load, prefer Keychain, fall back to UserDefaults, and re-hydrate UserDefaults from the
+  Keychain copy when only it survived (the reinstall-recovery path).
+- Net: a UserDefaults wipe like tonight's no longer costs a re-pair; also protects Shelley
+  (TestFlight) across build/signing transitions.
+
+Found via on-device `RunCodeSnippet` forensics 2026-06-28.
+
+## 42. 📝 Pairing-config loader silently swallows decode errors
+
+`UserDefaultsAppPersistenceStore.load(_:key:)` (generic loader, ~line 120) uses
+`try? decoder.decode(...)`, so any decode failure returns `nil` with no log. For
+`loadPairedRelayConfiguration()` that means a future `PairedRelayConfiguration` schema change
+would present as a **silent unpair** — identical symptom to a container wipe, with nothing in
+the log to tell them apart.
+
+**Fix (low priority):** in the decode-failure branch, `os_log` the type + key + error before
+returning nil (route through the Verbose Logging seam, #29). Diagnostics only, no behavior
+change. Not the cause of the 2026-06-28 wipe (that container was genuinely empty), but it would
+have turned tonight's triage into a one-line log read instead of an on-device probe.
+
+---
+
+## 43. 🔧 Wire image attachments into the Hermes API-server chat payload (unblocks #31 + photo picker)
+
+**Diagnosed 2026-06-28 on whoGoesThere.** Image attachments — pasted or picked — never reach
+Hermes. `SessionsHermesClient.send()` and `sendStreaming()` accept `attachments:
+[PendingAttachment]` but never serialize it; the body is always `ChatTurnBody { let input: String }`
+(text only), POSTed to `/api/sessions/{id}/chat` and `/chat/stream`. Consequences:
+- image **with text** → normal reply, image silently dropped;
+- image **with no text** → `input: ""` → API server rejects the empty turn → **HTTP 400**
+  (the "Hermes API returned status 400" seen when sending a paste-only message).
+
+Not paste-specific, not a regression — the photo picker hits the same wall; image
+**transmission** on the clean-chat `:8642` path was simply never built.
+
+**Gate — probe before building (verification-first):**
+- Does `/chat` / `/chat/stream` accept a structured `input` (content blocks) or only a string?
+- What image shape does it want — base64 + `media_type`? an `image_url` / `source` block? a
+  separate `attachments` / `images` field?
+- Does the configured text model (Kimi K2.6 / MiniMax) accept image input at all, or is
+  multimodal only wired on the WebRTC voice path?
+
+**Then build:** extend `ChatTurnBody` (or a multimodal variant) to carry each image attachment's
+`base64Data` + `mimeType` in the confirmed shape; respect the 350 KB per-image / ~1 MB aggregate
+body limits.
+
+**Net:** unblocks #31 (paste) and makes the photo picker actually send images. Found via
+on-device send test + client read 2026-06-28.
+
