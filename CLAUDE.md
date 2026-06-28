@@ -2,7 +2,7 @@
 
 Guidance for Claude / Claude Code working in this repo. This is the living, in-repo source
 of truth (the project-knowledge snapshot may lag). `OPEN_ITEMS.md` tracks issues with dated
-notes; the `*_HANDOFF.md` docs + `CLEAN_CHAT_PATH.md` carry per-session detail.
+notes; the local `handoffs/` notes (gitignored) + in-repo `CLEAN_CHAT_PATH.md` carry per-session detail.
 
 ## What this is
 
@@ -142,7 +142,7 @@ build tinted pills for amber/red), `GhostButton`, `ReactorOrb`
 - **Verification-first:** honest corrections over confident guesses; mid-session corrections
   are normal and valued. The **"Questions for Owen"** header surfaces decisions.
 - Issues tracked in `OPEN_ITEMS.md` (dated update notes); session continuity in
-  `*_HANDOFF.md` + `CLEAN_CHAT_PATH.md`.
+  the local `handoffs/` notes (gitignored) + `CLEAN_CHAT_PATH.md`.
 
 ## Current state (2026-06-27)
 

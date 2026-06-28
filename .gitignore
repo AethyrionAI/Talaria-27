@@ -53,3 +53,6 @@ build-log.md
 build-evidence.json
 AuthKey_*.p8
 *.p8
+
+# Local handoff / session scratch (kept out of the public repo)
+handoffs/
