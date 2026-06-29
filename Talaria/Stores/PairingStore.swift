@@ -47,6 +47,7 @@ final class PairingStore {
         self.relayBaseURLProvider = relayBaseURLProvider
         self.secureStore = secureStore
         self.pairedRelayConfiguration = persistence.loadPairedRelayConfiguration()
+        TalariaLog.event("PairingStore.init: UserDefaults config \(self.pairedRelayConfiguration != nil ? "PRESENT" : "NIL")")
         self.needsPermissionsOnboarding = UserDefaults.standard.bool(forKey: Self.onboardingKey)
     }
 
@@ -130,15 +131,23 @@ final class PairingStore {
     /// neither copy survives that case — a re-pair is unavoidable there.
     func hydratePairingFromKeychainIfNeeded() async {
         if let configuration = pairedRelayConfiguration {
+            TalariaLog.event("PairingStore.hydrate: config in memory — backing up to Keychain")
             await storeConfigurationInKeychain(configuration)
             return
         }
-        guard
-            let secureStore,
-            let stored = await secureStore.retrieve(key: Self.pairingConfigKeychainKey),
-            let data = stored.data(using: .utf8),
-            let configuration = try? Self.keychainDecoder.decode(PairedRelayConfiguration.self, from: data)
+        guard let secureStore else {
+            TalariaLog.event("PairingStore.hydrate: secureStore is nil — cannot attempt Keychain recovery")
+            return
+        }
+        let stored = await secureStore.retrieve(key: Self.pairingConfigKeychainKey)
+        guard let stored else {
+            TalariaLog.event("PairingStore.hydrate: Keychain key \"\(Self.pairingConfigKeychainKey)\" returned NIL — no mirror to recover")
+            return
+        }
+        guard let data = stored.data(using: .utf8),
+              let configuration = try? Self.keychainDecoder.decode(PairedRelayConfiguration.self, from: data)
         else {
+            TalariaLog.event("PairingStore.hydrate: Keychain data present but decode FAILED — raw length=\(stored.count)")
             return
         }
         persistence.savePairedRelayConfiguration(configuration)
@@ -155,6 +164,7 @@ final class PairingStore {
             return
         }
         await secureStore.store(key: Self.pairingConfigKeychainKey, value: json)
+        TalariaLog.event("PairingStore: wrote Keychain mirror (\(json.count) chars)")
     }
 
     private func setNeedsPermissionsOnboarding(_ value: Bool) {
