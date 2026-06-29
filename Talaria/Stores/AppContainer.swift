@@ -350,10 +350,22 @@ final class AppContainer {
             containerLog.notice("initialize: SKIP — already initialized")
             return
         }
-        guard await sessionStore.currentAccessToken() != nil else {
-            containerLog.warning("initialize: ABORT — no access token, clearing pairing")
-            await pairingStore.clearLocalPairing()
-            return
+        // No stored access token despite a surviving pairing config (e.g. the
+        // Keychain session item didn't survive a signed rebuild, or the tokens
+        // were invalidated). Before forcing the user back through onboarding, try
+        // a silent re-registration against the already-known relay: bootstrap
+        // reuses the retained installation identity, so it re-issues tokens for
+        // the SAME logical device. Only clear the pairing if that genuinely yields
+        // no session. (app-side mitigation of the relay-restart re-pair; rel. #24f)
+        if await sessionStore.currentAccessToken() == nil {
+            containerLog.warning("initialize: no access token — attempting silent re-registration before re-pair")
+            await sessionStore.bootstrap(forceRegistration: true)
+            guard await sessionStore.currentAccessToken() != nil else {
+                containerLog.warning("initialize: silent re-registration failed — clearing pairing")
+                await pairingStore.clearLocalPairing()
+                return
+            }
+            containerLog.notice("initialize: silent re-registration succeeded — pairing retained")
         }
 
         await permissionsStore.reloadCapabilities()
