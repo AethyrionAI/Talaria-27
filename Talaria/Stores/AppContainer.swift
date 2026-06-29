@@ -99,6 +99,13 @@ final class AppContainer {
         // first frame renders, so a saved non-cyan accent never flashes cyan.
         // (Live updates are mirrored from the app root via ThemeRuntime.apply.)
         ThemeRuntime.shared.apply(settingsStore.settings)
+        // #29: Launch-sync Verbose Logging. UserSettings.verboseLogging (encoded
+        // inside the persisted settings struct) is the single source of truth;
+        // mirror it into TalariaLog's UserDefaults bridge ("talaria.verboseLogging")
+        // here at the composition root so any site gated on TalariaLog.isVerbose
+        // reflects the persisted setting from the first log line — no re-toggle
+        // needed after a cold launch. The Developer toggle keeps both in sync after.
+        TalariaLog.setVerbose(settingsStore.settings.verboseLogging)
         let syncCoordinator = MockSyncCoordinator()
         let notificationService = LiveNotificationService()
         let allowMockFallbacks = AppEnvironmentPolicy.currentBuild.allowsEnvironmentOverrides
