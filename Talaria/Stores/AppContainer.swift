@@ -411,6 +411,18 @@ final class AppContainer {
         updateWidgetData()
     }
 
+    /// User tapped a completion notification — bring the app to chat and reconcile
+    /// so the finished reply is fetched. `sessionID` (from the push payload) is
+    /// accepted for forward-compatible targeted selection; v1 reconciles the active
+    /// pending run, which covers the common single-session case.
+    func handleNotificationTap(sessionID: String?) async {
+        guard pairingStore.isPaired else { return }
+        router.activeSheet = nil
+        router.popToRoot()
+        router.selectedTab = .chat
+        await chatStore.reconcilePendingRuns()
+    }
+
     func handleRemoteNotificationWake() async {
         containerLog.notice("handleRemoteNotificationWake: entered")
         guard pairingStore.isPaired else {
@@ -421,6 +433,10 @@ final class AppContainer {
             containerLog.warning("handleRemoteNotificationWake: BLOCKED — no access token")
             return
         }
+
+        // A push that woke us almost always means a run finished server-side;
+        // reconcile so the reply is fetched and the completion notification can fire.
+        await chatStore.reconcilePendingRuns()
 
         await permissionsStore.reloadCapabilities()
         await hostStore.refresh()

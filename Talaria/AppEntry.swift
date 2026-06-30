@@ -1,7 +1,8 @@
 import SwiftUI
 import UIKit
+import UserNotifications
 
-final class HermesAppDelegate: NSObject, UIApplicationDelegate {
+final class HermesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -14,6 +15,9 @@ final class HermesAppDelegate: NSObject, UIApplicationDelegate {
 
         // Register for remote (silent push) notifications
         application.registerForRemoteNotifications()
+
+        // Receive notification taps + foreground presentation
+        UNUserNotificationCenter.current().delegate = self
 
         Task { @MainActor in
             await AppContainer.sharedDefault().handleSystemLaunch()
@@ -50,6 +54,31 @@ final class HermesAppDelegate: NSObject, UIApplicationDelegate {
             await container.handleRemoteNotificationWake()
             completionHandler(.newData)
         }
+    }
+
+    // MARK: - UNUserNotificationCenterDelegate
+
+    // Show banner + sound even when the app is in the foreground.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
+    }
+
+    // User tapped a notification. The push payload carries `session_id` (set by
+    // the relay); route to chat and reconcile so the finished reply is fetched.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let sessionID = response.notification.request.content.userInfo["session_id"] as? String
+        Task { @MainActor in
+            await AppContainer.sharedDefault().handleNotificationTap(sessionID: sessionID)
+        }
+        completionHandler()
     }
 }
 
