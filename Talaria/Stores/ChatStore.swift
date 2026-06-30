@@ -56,6 +56,7 @@ final class ChatStore {
     }
     private var pendingRun: PendingRun?
     private var reconcileTask: Task<Void, Never>?
+    private var reconcileBGTask: UIBackgroundTaskIdentifier = .invalid
 
     /// Called when conversation content changes (new message, streaming complete).
     /// Used by AppContainer to push widget data updates.
@@ -595,8 +596,10 @@ final class ChatStore {
 
     private func startReconcileLoopIfNeeded() {
         guard reconcileTask == nil, pendingRun != nil else { return }
+        beginReconcileBackgroundTask()
         reconcileTask = Task { [weak self] in
             guard let self else { return }
+            defer { self.endReconcileBackgroundTask() }
             var attempts = 0
             let maxAttempts = 60 // 60 x 2s = ~2 min, the background-run ceiling
             while !Task.isCancelled, attempts < maxAttempts {
@@ -607,6 +610,28 @@ final class ChatStore {
             }
             self.reconcileTask = nil
         }
+    }
+
+    /// Holds a background-execution assertion so the reconcile loop keeps ticking
+    /// for iOS's granted window after the screen locks, instead of being suspended
+    /// within seconds. This is what lets the completion notification actually fire
+    /// while backgrounded; without it the loop freezes on suspend and the reply is
+    /// only caught on next foreground, where the not-active guard suppresses it.
+    /// Runs that outlast the granted window still need remote push (#38).
+    private func beginReconcileBackgroundTask() {
+        guard reconcileBGTask == .invalid else { return }
+        reconcileBGTask = UIApplication.shared.beginBackgroundTask(withName: "hermes.run.reconcile") { [weak self] in
+            MainActor.assumeIsolated {
+                self?.reconcileTask?.cancel()
+                self?.endReconcileBackgroundTask()
+            }
+        }
+    }
+
+    private func endReconcileBackgroundTask() {
+        guard reconcileBGTask != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(reconcileBGTask)
+        reconcileBGTask = .invalid
     }
 
     /// One reconcile pass: fetch the server's view of the session; if the
