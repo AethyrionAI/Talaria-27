@@ -243,7 +243,9 @@ fallback when relay is down.
 
 ---
 
-## 11. 🐛 Settings back-nav exits Settings instead of popping
+## 11. ✅ Settings back-nav exits Settings instead of popping — fixed by the Settings redesign
+
+**Resolved 2026-06-29 (Owen):** fixed by the Settings redesign — the rebuilt navigation pops correctly within the Settings stack instead of dismissing the whole flow.
 
 Navigating into some Settings sub-screens and tapping Back exits Settings entirely instead
 of returning to the previous screen. Back should pop to the prior screen within the
@@ -587,6 +589,8 @@ to `RelayAPIClient`; branch `parseWrittenFile` so *content present → Tier 1*, 
 `args.content` is present/absent for binaries, which decides the fetch trigger. Also needs the
 Hermes-side nudge so the agent writes shareable artifacts into `MobileDL`.
 
+**Update 2026-06-29 (Owen):** Tier 1 confirmed working great in real on-device use. Tier 2 (app-side fetch for binaries / non-reconstructable files) is the only remaining piece — open question whether to pursue it or park it.
+
 ---
 
 ## 22. ✅ Shim token re-established — model switching works (shim now on OJAMD)
@@ -828,6 +832,8 @@ real usage. REMAINING: the percentage reads low (~36% where Hermes estimates ~50
 Hermes's effective/compacted window. Reconcile against a Hermes-provided limit (shim model
 list or a run/session limit field) rather than the catalog's nominal window.
 
+**Update 2026-06-29 (Owen):** still bugged — the denominator overshoot persists. Needs more testing; Owen to gather concrete examples when time allows before the model→context-window map is corrected.
+
 ---
 
 ## 26. ✅ Removed non-functional "/ slash" and "@ context" hint chips
@@ -838,18 +844,9 @@ purely cosmetic and non-interactive — tapping them did nothing. Removed from
 
 Fixed 2026-06-25.
 
-## 27. 📝 Developer screen flags — keep Verbose Logging, drop Mock Responses
+## 27. ✅ Developer screen flags — keep Verbose Logging, drop Mock Responses
 
-From the Claude Design DEVELOPER (12) mockup `// FLAGS` panel. Decision (Owen, 2026-06-26):
-
-- **Mock Responses:** **dropped** — no real backing, not building it.
-- **Verbose Logging:** **keep**, but only as a real control — wire the toggle to an actual
-  os_log level change (raise diagnostic-log visibility, e.g. `.info`→`.notice`/`.debug`, or
-  gate the verbose `privacy:.public` diagnostics). Persist as a DEBUG-scoped `UserSettings`
-  flag. Until wired, omit it rather than ship a dead toggle.
-
-**Resolved 2026-06-27.** Verbose Logging shipped & wired (#29, committed 9d3972f); Mock
-Responses dropped from the Developer screen (#28).
+**Resolved 2026-06-27.** From the DEVELOPER (12) `// FLAGS` panel: Mock Responses dropped (no real backing), and Verbose Logging kept but wired to a real os_log level control, persisted as a DEBUG-scoped `UserSettings` flag. Shipped via #29 (committed `9d3972f`) and surfaced on the Developer screen via #28.
 
 Logged 2026-06-26.
 
@@ -1004,7 +1001,7 @@ Logged 2026-06-27.
 
 ---
 
-## 33. 📝 Apple app integrations — device-side (universal) + Hermes connectors (Mac-host only)
+## 33. 📝 Apple app integrations — device-side (universal) + Hermes connectors (Mac-host only) — ON DECK
 
 Idea (Owen, 2026-06-27): let the agent work with Apple apps. iOS reality splits these
 into two layers, and the layer decides where the capability lives:
@@ -1028,6 +1025,8 @@ true read/send would be a server-side provider API on Hermes — Gmail/Graph/IMA
 is device-side MapKit utility (search/geocode/directions/open), not personal-Maps-data read.
 
 Near-term scope if pursued = device-side EventKit only. Connectors land with T6.
+
+**On deck (Owen, 2026-06-29):** prioritized as the next thread. Near-term scope = device-side EventKit (Calendar + Reminders) on the current OJAMD/Windows backend; the iMessage/Notes/FindMy connectors stay gated on T6 (#34).
 
 Logged 2026-06-27.
 
@@ -1154,7 +1153,7 @@ Logged 2026-06-27.
 
 ---
 
-## 38. 📌 Remote push (APNs) for instant background-run completion notify — deferred
+## 38. 🔧 Remote push (APNs) for instant background-run completion notify — PLANNING
 
 **Context:** The agent-run background-completion fix (detach + reconcile + local
 notification, on `feat/agent-files-tier2`) handles the common case — an interrupted
@@ -1183,7 +1182,16 @@ Probe: client cut at 8s mid-run (only `run.started`/`message.started` had stream
 the final assistant message (`finish: stop`) landed in the session post-cut, twice.
 Reconciliation endpoint confirmed: `GET /api/sessions/{id}/messages`.
 
-Logged 2026-06-27. Deferred — local-notification path is sufficient for now.
+**Update 2026-06-29 — picked up; full plan written.** Implementation plan at
+`APNS_PUSH_PLAN.md` (repo root). Key finding: the relay is **not** in the chat path and
+Hermes webhooks are inbound-only, so a `run.completed`→APNs trigger needs a server-side
+hook regardless; the real fork is how a finished run is correlated to a device token —
+**Option A** (Hermes API Server fires APNs, device token rides with the Sessions request) vs
+**Option B** (relay fires APNs, reusing the existing token-registration plumbing; needs a
+session→device `watch` call + #24f). Recommendation: **B**. The A-vs-B decision gates any
+server work. Pairs with the bg-task fix (#45), which covers the short post-lock window.
+
+Logged 2026-06-27. Deferred path superseded — now in planning (see `APNS_PUSH_PLAN.md`).
 
 ---
 
@@ -1344,3 +1352,30 @@ vision-capable model + credential is wired there, then re-test image analysis fr
 non-vision chat model. Until then, use a native-vision model for image analysis.
 
 Logged 2026-06-28.
+
+---
+
+## 45. ✅ Run-completion notification never fired — missing background-execution assertion (fixed, own branch)
+
+The local "Hermes finished" notification was wired (`ChatStore.attemptReconcile` →
+`LocalNotificationService.notifyRunCompleted`) but **never fired in practice**. Root cause: the
+reconcile loop ran in a plain `Task` with no background-execution assertion, so iOS suspended it
+within seconds of the screen locking. The completed reply was then only caught on the next
+foreground pass — where the `applicationState != .active` guard *correctly* suppresses the
+notification. Net: the only window it could fire was the couple of seconds between lock and
+suspend, i.e. effectively never — which is why no notification had ever been seen.
+
+**Fixed** on branch `fix/reconcile-bg-task` (off `main`, commit `264f895`, `ChatStore.swift` only):
+wrapped the reconcile loop in a `UIApplication.beginBackgroundTask` assertion with an expiration
+handler that cancels the loop cleanly, so it keeps ticking through iOS's granted post-lock window
+and fires the notification while still backgrounded. Compiles (simulator build green). Covers runs
+that finish within that window (~30s, sometimes more); runs that outlast it (pocketed for minutes)
+still need remote push (#38). Validate on TestFlight — suspend behavior doesn't reproduce in the
+simulator or via dev deploy.
+
+Also confirmed this session: the "needs permission to proceed" half of the original ask has **no
+trigger**. Hermes never pauses-and-asks mid-run, and the Sessions API SSE stream
+(`run.started`/`assistant.delta`/`tool.*`/`assistant.completed`/`run.completed`) carries no
+awaiting-approval event — nothing to notify on unless a tool-approval gate is added to Hermes first.
+
+Logged 2026-06-29.
