@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import UIKit
 
 // MARK: - Diagnostics settings screen (Settings → DIAGNOSTICS)
 //
@@ -56,13 +57,19 @@ struct DiagnosticsSettingsScreen: View {
 
     // MARK: Status panel
 
+    @State private var tokenCopied = false
+
     private var statusPanel: some View {
         VStack(spacing: 0) {
             statusRow("Hermes API", hermesAPIStatus)
             rowDivider
             statusRow("Relay Link", relayStatus)
             rowDivider
-            statusRow("Push Token", pushStatus)
+            statusRow("Push Token", tokenCopied
+                ? RowStatus(text: "COPIED", color: Design.Brand.accent, blinks: false)
+                : pushStatus)
+                .contentShape(Rectangle())
+                .onTapGesture { copyPushToken() }
             rowDivider
             statusRow("Location", locationStatus)
         }
@@ -86,6 +93,20 @@ struct DiagnosticsSettingsScreen: View {
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)
+    }
+
+    /// Tap the Push Token row to copy the full APNs device token to the clipboard
+    /// (the row otherwise only shows REGISTERED, so there was nothing to copy).
+    private func copyPushToken() {
+        guard let token = UserDefaults.standard.string(forKey: "hermes.apns.deviceToken"),
+              !token.isEmpty else { return }
+        UIPasteboard.general.string = token
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        withAnimation { tokenCopied = true }
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            withAnimation { tokenCopied = false }
+        }
     }
 
     private var rowDivider: some View {
