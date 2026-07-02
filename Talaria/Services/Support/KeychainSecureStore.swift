@@ -10,6 +10,24 @@ final class KeychainSecureStore: SecureStoreProtocol {
     }
 
     func store(key: String, value: String) async {
+        storeSync(key: key, value: value)
+    }
+
+    func retrieve(key: String) async -> String? {
+        retrieveSync(key: key)
+    }
+
+    func delete(key: String) async {
+        deleteSync(key: key)
+    }
+
+    // MARK: Synchronous variants
+    //
+    // SecItem calls are synchronous at the OS level; these exist for @MainActor
+    // sync paths that can't await — e.g. the persistence store's pairing-config
+    // load, which runs during store construction (#41).
+
+    func storeSync(key: String, value: String) {
         let data = Data(value.utf8)
         let query = baseQuery(for: key)
 
@@ -22,7 +40,7 @@ final class KeychainSecureStore: SecureStoreProtocol {
         }
     }
 
-    func retrieve(key: String) async -> String? {
+    func retrieveSync(key: String) -> String? {
         var query = baseQuery(for: key)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -39,7 +57,7 @@ final class KeychainSecureStore: SecureStoreProtocol {
         return String(data: data, encoding: .utf8)
     }
 
-    func delete(key: String) async {
+    func deleteSync(key: String) {
         SecItemDelete(baseQuery(for: key) as CFDictionary)
     }
 

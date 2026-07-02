@@ -106,11 +106,19 @@ struct DiagnosticsSettingsScreen: View {
         }
     }
 
+    // Same three-state source of truth the Notifications screen renders
+    // (AppContainer.pushTokenPipelineState). A locally cached APNs token alone
+    // is NOT "registered" — the relay handshake is a separate stage, and
+    // claiming otherwise made this row contradict Settings → Notifications.
     private var pushStatus: RowStatus {
-        if let token = UserDefaults.standard.string(forKey: "hermes.apns.deviceToken"), !token.isEmpty {
-            return RowStatus(text: "REGISTERED", color: Design.Brand.accent, blinks: false)
+        switch container.pushTokenPipelineState {
+        case .registered:
+            return RowStatus(text: "RELAY REGISTERED", color: Design.Brand.accent, blinks: false)
+        case .awaitingRelay:
+            return RowStatus(text: "TOKEN HELD · AWAITING RELAY", color: Design.Brand.forge, blinks: true)
+        case .notIssued:
+            return RowStatus(text: "NO APNS TOKEN", color: Design.Colors.mutedForeground, blinks: false)
         }
-        return RowStatus(text: "NOT REGISTERED", color: Design.Colors.mutedForeground, blinks: false)
     }
 
     private var locationStatus: RowStatus {

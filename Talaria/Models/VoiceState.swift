@@ -123,6 +123,19 @@ struct TalkLatencyMetrics: Codable, Hashable, Sendable {
     }
 }
 
+/// Read-only detail from the relay's talk/readiness probe. All fields are
+/// optional — nil means the probe hasn't answered (or failed), rendered as
+/// "—" per the real-data-only rule. Model + voice are server-managed; the
+/// iOS surface has no set-voice, so these are display-only (#35).
+struct TalkReadinessInfo: Hashable, Sendable {
+    var hostOnline: Bool? = nil
+    var configured: Bool? = nil
+    var ready: Bool? = nil
+    var selectedModel: String? = nil
+    var voice: String? = nil
+    var voiceContextUpdatedAt: Date? = nil
+}
+
 struct TalkSessionSnapshot: Hashable, Sendable {
     var voiceState: VoiceState
     var connectionState: TalkConnectionState
@@ -134,6 +147,7 @@ struct TalkSessionSnapshot: Hashable, Sendable {
     var canStartSession: Bool
     var latencyMetrics: TalkLatencyMetrics
     var voiceSessionID: UUID?
+    var readiness: TalkReadinessInfo = TalkReadinessInfo()
 }
 
 enum TalkSessionEvent: Hashable, Sendable {

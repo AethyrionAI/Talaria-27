@@ -145,7 +145,12 @@ final class AppSessionStore {
         loadedState = mergeInstallationID(into: loadedState, from: installationID)
         loadedState.syncStatus = .synced
         loadedState.lastSyncAt = .now
-        loadedState.pushTokenRegistered = notificationService.isPushTokenRegistered
+        // The relay's /session response is authoritative for whether it holds an
+        // active push registration for this device; the in-memory flag only adds
+        // a registration that succeeded after this load (it starts false every
+        // launch, so overwriting with it hid live server registrations).
+        loadedState.pushTokenRegistered =
+            loadedState.pushTokenRegistered || notificationService.isPushTokenRegistered
         state = loadedState
     }
 

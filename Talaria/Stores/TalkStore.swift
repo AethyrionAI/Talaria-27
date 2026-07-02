@@ -21,6 +21,7 @@ final class TalkStore {
     var canStartSession = true
     var latencyMetrics = TalkLatencyMetrics()
     var voiceSessionID: UUID?
+    var readiness = TalkReadinessInfo()
 
     /// Set after a voice session ends; consumed by MainTabView to trigger transcript injection.
     var lastCompletedSession: CompletedVoiceSession?
@@ -131,6 +132,7 @@ final class TalkStore {
         canStartSession = true
         latencyMetrics = TalkLatencyMetrics()
         voiceSessionID = nil
+        readiness = TalkReadinessInfo()
         lastCompletedSession = nil
     }
 
@@ -159,6 +161,7 @@ final class TalkStore {
         canStartSession = snapshot.canStartSession
         latencyMetrics = snapshot.latencyMetrics
         voiceSessionID = snapshot.voiceSessionID
+        readiness = snapshot.readiness
         isSessionActive = connectionState == .connecting || connectionState == .connected
 
         // Update Live Activity on voice state changes

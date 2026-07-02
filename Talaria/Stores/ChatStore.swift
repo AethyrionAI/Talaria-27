@@ -453,7 +453,7 @@ final class ChatStore {
     func loadSessions() async -> [HermesSessionInfo] {
         do {
             let sessions = try await hermesClient.listSessions()
-            chatLog.notice("loadSessions: got \(sessions.count, privacy: .public) sessions")
+            chatLog.verbose("loadSessions: got \(sessions.count) sessions")
             return sessions
         } catch {
             chatLog.error("loadSessions: FAILED — \(error.localizedDescription, privacy: .public)")
@@ -463,7 +463,7 @@ final class ChatStore {
 
     /// Opens an existing session: loads its history and continues that thread.
     func openSession(_ id: String) async {
-        chatLog.notice("openSession: opening '\(id, privacy: .public)'")
+        chatLog.verbose("openSession: opening '\(id)'")
         streamingTask?.cancel()
         streamingTask = nil
         streamingMessageID = nil
@@ -477,7 +477,7 @@ final class ChatStore {
             pendingMessageSentAt = nil
             persistence.saveConversationCache(convo)
             onConversationChanged?()
-            chatLog.notice("openSession: loaded \(convo.messages.count, privacy: .public) messages for '\(id, privacy: .public)'")
+            chatLog.verbose("openSession: loaded \(convo.messages.count) messages for '\(id)'")
         } catch {
             chatLog.error("openSession: FAILED for '\(id, privacy: .public)' — \(error.localizedDescription, privacy: .public)")
         }

@@ -1,5 +1,8 @@
 import SwiftUI
 import UIKit
+import os
+
+private let appDelegateLog = Logger(subsystem: "org.aethyrion.talaria", category: "AppDelegate")
 
 final class HermesAppDelegate: NSObject, UIApplicationDelegate {
     func application(
@@ -26,8 +29,9 @@ final class HermesAppDelegate: NSObject, UIApplicationDelegate {
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
         let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+        appDelegateLog.notice("APNs device token delivered")
         Task { @MainActor in
-            UserDefaults.standard.set(token, forKey: "hermes.apns.deviceToken")
+            UserDefaults.standard.set(token, forKey: AppContainer.apnsTokenDefaultsKey)
             await AppContainer.sharedDefault().registerPushTokenIfNeeded(token)
         }
     }
@@ -36,7 +40,9 @@ final class HermesAppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
-        // Push token registration failed — this is normal on simulators
+        // Normal on simulators; on-device it means no token was issued this
+        // launch (e.g. missing aps-environment entitlement or no network).
+        appDelegateLog.notice("APNs registration failed: \(error.localizedDescription, privacy: .public)")
     }
 
     func application(

@@ -3,8 +3,8 @@ import SwiftUI
 // MARK: - System settings index (Settings → SYSTEM, screen 01)
 //
 // The top-level Settings index from design/Settings.dc.html: host panel + grouped
-// navigation into the drill-down sub-screens. The Voice row is intentionally
-// absent (the VOICE screen was cut from T3).
+// navigation into the drill-down sub-screens. Voice & Talk (05) joined the
+// Experience group with #35 (the truthful status/launch rebuild).
 //
 // As of T3 sub-pages 09–12 this index now has a home for every section the
 // monolith owned — relay (09), notifications/haptics (10), permissions/location
@@ -124,6 +124,11 @@ struct SystemSettingsScreen: View {
             VStack(spacing: 0) {
                 navRow(icon: "paintpalette", title: "Appearance & HUD", value: "REACTOR") {
                     AppearanceSettingsScreen()
+                }
+                rowDivider
+                navRow(icon: "waveform", title: "Voice & Talk", value: "REALTIME",
+                       valueColor: Design.Colors.secondaryForeground) {
+                    VoiceSettingsScreen()
                 }
                 rowDivider
                 navRow(icon: "bell", title: "Notifications", value: notificationsValue,

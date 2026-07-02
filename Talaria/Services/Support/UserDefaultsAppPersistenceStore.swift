@@ -15,9 +15,14 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
     private let defaults: UserDefaults
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
+    /// Mirrors the pairing config into the Keychain, which — unlike this
+    /// UserDefaults container — survives clean reinstalls and signing
+    /// transitions (#41). Optional so tests can run UserDefaults-only.
+    private let keychainMirror: KeychainSecureStore?
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, keychainMirror: KeychainSecureStore? = nil) {
         self.defaults = defaults
+        self.keychainMirror = keychainMirror
 
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -60,16 +65,52 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         defaults.removeObject(forKey: Keys.inboxState)
     }
 
+    // The pairing config is dual-stored (#41): UserDefaults (primary, fast) +
+    // Keychain (survives the clean-install container wipes that forced
+    // re-pairs even though session tokens were sitting safe in the Keychain).
+    // Load prefers the Keychain and re-hydrates whichever store is missing.
+
     func loadPairedRelayConfiguration() -> PairedRelayConfiguration? {
-        load(PairedRelayConfiguration.self, key: Keys.pairedRelayConfiguration)
+        let defaultsCopy = load(PairedRelayConfiguration.self, key: Keys.pairedRelayConfiguration)
+        guard let keychainMirror else { return defaultsCopy }
+
+        if let json = keychainMirror.retrieveSync(key: Keys.pairedRelayConfiguration) {
+            do {
+                let keychainCopy = try decoder.decode(PairedRelayConfiguration.self, from: Data(json.utf8))
+                if defaultsCopy == nil {
+                    // Reinstall recovery: the UserDefaults container was wiped
+                    // but the Keychain copy survived — re-hydrate UserDefaults.
+                    save(keychainCopy, key: Keys.pairedRelayConfiguration)
+                }
+                return keychainCopy
+            } catch {
+                TalariaLog.event("persistence: decode of PairedRelayConfiguration (Keychain mirror) failed: \(error)")
+            }
+        }
+
+        if let defaultsCopy {
+            // Upgrade path for installs paired before the Keychain mirror
+            // existed: back-fill the Keychain from the UserDefaults copy.
+            mirrorToKeychain(defaultsCopy)
+        }
+        return defaultsCopy
     }
 
     func savePairedRelayConfiguration(_ configuration: PairedRelayConfiguration) {
         save(configuration, key: Keys.pairedRelayConfiguration)
+        mirrorToKeychain(configuration)
     }
 
     func clearPairedRelayConfiguration() {
         defaults.removeObject(forKey: Keys.pairedRelayConfiguration)
+        keychainMirror?.deleteSync(key: Keys.pairedRelayConfiguration)
+    }
+
+    private func mirrorToKeychain(_ configuration: PairedRelayConfiguration) {
+        guard let keychainMirror,
+              let data = try? encoder.encode(configuration),
+              let json = String(data: data, encoding: .utf8) else { return }
+        keychainMirror.storeSync(key: Keys.pairedRelayConfiguration, value: json)
     }
 
     func loadSensorOutboxState() -> SensorOutboxState {
@@ -117,7 +158,15 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
 
     private func load<T: Decodable>(_ type: T.Type, key: String) -> T? {
         guard let data = defaults.data(forKey: key) else { return nil }
-        return try? decoder.decode(type, from: data)
+        do {
+            return try decoder.decode(type, from: data)
+        } catch {
+            // Always-on: a decode failure here presents downstream as missing
+            // state (e.g. a schema change reading as a silent unpair, #42) —
+            // this line is what tells that apart from a real container wipe.
+            TalariaLog.event("persistence: decode of \(type) failed for key \(key): \(error)")
+            return nil
+        }
     }
 
     private func save<T: Encodable>(_ value: T, key: String) {

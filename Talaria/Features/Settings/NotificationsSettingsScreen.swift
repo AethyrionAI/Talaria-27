@@ -7,12 +7,13 @@ import SwiftUI
 //   • The Push toggle drives the real notificationsEnabled flag and re-runs
 //     registerPushTokenIfNeeded so the relay registration follows the switch.
 //   • The hero + status reflect live truth: OS authorization (PermissionsStore)
-//     and the actual relay token-registration state (sessionStore). When the OS
-//     has denied notifications we say so rather than implying alerts are active.
+//     and the push-token pipeline state (AppContainer.pushTokenPipelineState —
+//     the same source Diagnostics renders, so the two screens agree). When the
+//     OS has denied notifications we say so rather than implying alerts are
+//     active.
 struct NotificationsSettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var container
-    @Environment(AppSessionStore.self) private var sessionStore
     @Environment(PermissionsStore.self) private var permissionsStore
     @Environment(SettingsStore.self) private var settingsStore
 
@@ -77,10 +78,14 @@ struct NotificationsSettingsScreen: View {
         guard notificationsEnabled else {
             return ("bell.slash", "ALERTS PAUSED", "PUSH DISABLED", Design.Colors.mutedForeground)
         }
-        if tokenRegistered {
+        switch pipelineState {
+        case .registered:
             return ("bell.badge", "ALERTS ACTIVE", activeSubtitle, Design.Brand.accent)
+        case .awaitingRelay:
+            return ("bell", "ALERTS PENDING", "AWAITING RELAY REGISTRATION", Design.Brand.forge)
+        case .notIssued:
+            return ("bell", "ALERTS PENDING", "AWAITING APNS TOKEN", Design.Brand.forge)
         }
-        return ("bell", "ALERTS PENDING", "AWAITING TOKEN REGISTRATION", Design.Brand.forge)
     }
 
     private var activeSubtitle: String {
@@ -136,10 +141,16 @@ struct NotificationsSettingsScreen: View {
         }
     }
 
+    // Same three-state source of truth Diagnostics renders (AppContainer.
+    // pushTokenPipelineState) so the two screens can never contradict:
+    // APNs token issuance and relay registration are separate stages.
     private var tokenState: (text: String, color: Color) {
         if osDenied { return ("OS DENIED", Design.Colors.danger) }
-        if tokenRegistered { return ("TOKEN REGISTERED", Design.Brand.accent) }
-        return ("TOKEN NOT REGISTERED", Design.Colors.mutedForeground)
+        switch pipelineState {
+        case .registered:    return ("RELAY REGISTERED", Design.Brand.accent)
+        case .awaitingRelay: return ("TOKEN HELD · AWAITING RELAY", Design.Brand.forge)
+        case .notIssued:     return ("NO APNS TOKEN", Design.Colors.mutedForeground)
+        }
     }
 
     // MARK: Feedback
@@ -183,7 +194,7 @@ struct NotificationsSettingsScreen: View {
 
     private var notificationsEnabled: Bool { settingsStore.settings.notificationsEnabled }
     private var hapticsEnabled: Bool { settingsStore.settings.hapticFeedbackEnabled }
-    private var tokenRegistered: Bool { sessionStore.state.pushTokenRegistered }
+    private var pipelineState: AppContainer.PushTokenPipelineState { container.pushTokenPipelineState }
 
     private var notifAuthStatus: PermissionStatus {
         permissionsStore.capabilities.first { $0.permissionType == .notifications }?.status ?? .notDetermined
@@ -202,7 +213,7 @@ struct NotificationsSettingsScreen: View {
                 settingsStore.settings.notificationsEnabled = newValue
                 // Mirror the relay registration to the switch, like the live app.
                 Task {
-                    if let token = UserDefaults.standard.string(forKey: "hermes.apns.deviceToken") {
+                    if let token = container.cachedAPNsDeviceToken {
                         await container.registerPushTokenIfNeeded(token)
                     }
                 }

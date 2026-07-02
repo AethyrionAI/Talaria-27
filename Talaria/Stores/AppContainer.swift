@@ -6,7 +6,7 @@ private let containerLog = Logger(subsystem: "org.aethyrion.talaria", category: 
 @MainActor
 @Observable
 final class AppContainer {
-    private static let apnsTokenDefaultsKey = "hermes.apns.deviceToken"
+    static let apnsTokenDefaultsKey = "hermes.apns.deviceToken"
     static let hermesAPIKeyKeychainKey = "hermes.apiServerKey"
     static let modelsShimTokenKeychainKey = "talaria.modelsShimToken"
     private static let sharedDefaultContainer = AppContainer.makeDefault()
@@ -86,10 +86,15 @@ final class AppContainer {
             resolvedDefaults = .standard
         }
 
-        let persistence = UserDefaultsAppPersistenceStore(defaults: resolvedDefaults)
         let buildConfiguration = AppBuildConfiguration.current()
         let secureStore = KeychainSecureStore(
             serviceName: processEnvironment["UITEST_KEYCHAIN_SERVICE"] ?? "org.aethyrion.talaria.session"
+        )
+        // Keychain-mirrored so the pairing config survives clean reinstalls,
+        // like the session tokens already do (#41).
+        let persistence = UserDefaultsAppPersistenceStore(
+            defaults: resolvedDefaults,
+            keychainMirror: secureStore
         )
         let settingsStore = SettingsStore(
             persistence: persistence,
@@ -99,6 +104,10 @@ final class AppContainer {
         // first frame renders, so a saved non-cyan accent never flashes cyan.
         // (Live updates are mirrored from the app root via ThemeRuntime.apply.)
         ThemeRuntime.shared.apply(settingsStore.settings)
+        // Sync the verbose-logging bridge from the persisted flag at launch —
+        // otherwise the Developer toggle is the only writer and the bridge can
+        // drift from UserSettings across restores (#29).
+        TalariaLog.setVerbose(settingsStore.settings.verboseLogging)
         let syncCoordinator = MockSyncCoordinator()
         let notificationService = LiveNotificationService()
         let allowMockFallbacks = AppEnvironmentPolicy.currentBuild.allowsEnvironmentOverrides
@@ -335,7 +344,7 @@ final class AppContainer {
             return
         }
         guard !isInitialized else {
-            containerLog.notice("initialize: SKIP — already initialized")
+            containerLog.verbose("initialize: SKIP — already initialized")
             return
         }
         guard await sessionStore.currentAccessToken() != nil else {
@@ -385,7 +394,7 @@ final class AppContainer {
             containerLog.warning("handleAppDidBecomeActive: BLOCKED — no access token")
             return
         }
-        containerLog.notice("handleAppDidBecomeActive: paired + token OK, proceeding")
+        containerLog.verbose("handleAppDidBecomeActive: paired + token OK, proceeding")
 
         await permissionsStore.reloadCapabilities()
         await hostStore.refresh()
@@ -459,6 +468,34 @@ final class AppContainer {
         await talkStore.refreshReadiness()
     }
 
+    /// The push-token pipeline has two independent stages, and conflating them
+    /// produced contradictory Settings readouts (Notifications vs Diagnostics).
+    /// This is the single source of truth both screens render from:
+    ///   1. iOS issues an APNs device token (requires the aps-environment
+    ///      entitlement; cached under `apnsTokenDefaultsKey` when delivered).
+    ///   2. The relay accepts that token via POST push/register
+    ///      (`sessionStore.state.pushTokenRegistered`).
+    enum PushTokenPipelineState {
+        /// iOS has not delivered an APNs device token on this install.
+        case notIssued
+        /// A token is held locally but the relay registration is unconfirmed.
+        case awaitingRelay
+        /// The relay has confirmed the push registration.
+        case registered
+    }
+
+    var pushTokenPipelineState: PushTokenPipelineState {
+        if sessionStore.state.pushTokenRegistered { return .registered }
+        return cachedAPNsDeviceToken == nil ? .notIssued : .awaitingRelay
+    }
+
+    /// The APNs device token most recently delivered by iOS, if any.
+    var cachedAPNsDeviceToken: String? {
+        guard let token = UserDefaults.standard.string(forKey: Self.apnsTokenDefaultsKey),
+              !token.isEmpty else { return nil }
+        return token
+    }
+
     /// Registers the APNs device token with the relay so it can send silent push notifications.
     func registerPushTokenIfNeeded(_ token: String) async {
         guard pairingStore.isPaired,
@@ -484,6 +521,7 @@ final class AppContainer {
         await notificationService.updatePushToken(normalizedToken)
 
         guard let accessToken = await sessionStore.currentAccessToken() else {
+            containerLog.notice("registerPushToken: no relay access token — registration deferred")
             await notificationService.markPushTokenRegistered(false)
             sessionStore.state.pushTokenRegistered = false
             return
@@ -496,6 +534,7 @@ final class AppContainer {
         }
 
         guard let deviceID = sessionStore.state.deviceID else {
+            containerLog.notice("registerPushToken: no deviceID in session state — registration deferred")
             await notificationService.markPushTokenRegistered(false)
             sessionStore.state.pushTokenRegistered = false
             return
@@ -532,10 +571,12 @@ final class AppContainer {
                 body: body,
                 accessToken: accessToken
             )
+            containerLog.notice("registerPushToken: relay accepted push registration")
             await notificationService.markPushTokenRegistered(true)
             sessionStore.state.pushTokenRegistered = true
         } catch {
             // Non-critical — token will be retried on next app launch
+            containerLog.notice("registerPushToken: relay push/register failed: \(error.localizedDescription, privacy: .public)")
             await notificationService.markPushTokenRegistered(false)
             sessionStore.state.pushTokenRegistered = false
         }
@@ -693,7 +734,7 @@ final class AppContainer {
                     chatStore.commandCatalog,
                     activeModel: currentModel
                 )
-                containerLog.notice("seedActiveModelFromShim: seeded '\(currentModel, privacy: .public)'")
+                containerLog.verbose("seedActiveModelFromShim: seeded '\(currentModel)'")
             }
         } catch {
             // Shim unreachable / not configured — chip will show fallback ("HERMES")

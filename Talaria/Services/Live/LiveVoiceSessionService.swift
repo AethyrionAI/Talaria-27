@@ -75,6 +75,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     var statusMessage: String? { didSet { publishSnapshot() } }
     var canStartSession = false { didSet { publishSnapshot() } }
     var latencyMetrics = TalkLatencyMetrics() { didSet { publishSnapshot() } }
+    var readinessInfo = TalkReadinessInfo() { didSet { publishSnapshot() } }
 
     var snapshot: TalkSessionSnapshot {
         TalkSessionSnapshot(
@@ -87,7 +88,8 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             statusMessage: statusMessage,
             canStartSession: canStartSession,
             latencyMetrics: latencyMetrics,
-            voiceSessionID: voiceSessionID
+            voiceSessionID: voiceSessionID,
+            readiness: readinessInfo
         )
     }
 
@@ -161,6 +163,14 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             }
             blockedReason = response.blockedReason
             canStartSession = response.ready
+            readinessInfo = TalkReadinessInfo(
+                hostOnline: response.hostOnline,
+                configured: response.configured,
+                ready: response.ready,
+                selectedModel: response.selectedModel,
+                voice: response.voice,
+                voiceContextUpdatedAt: response.voiceContextUpdatedAt
+            )
             statusMessage = response.ready ? "Hermes talk is ready." : (response.blockedReason ?? "Talk is unavailable.")
             connectionState = response.ready ? .ready : .blocked
             if !response.ready {
@@ -169,6 +179,8 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         } catch {
             blockedReason = error.localizedDescription
             canStartSession = false
+            // The probe failed — every readiness detail is now unknowable.
+            readinessInfo = TalkReadinessInfo()
             statusMessage = friendlyStatusMessage(for: error)
             connectionState = .failed
             voiceState = .disconnected
