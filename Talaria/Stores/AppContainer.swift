@@ -104,6 +104,10 @@ final class AppContainer {
         // first frame renders, so a saved non-cyan accent never flashes cyan.
         // (Live updates are mirrored from the app root via ThemeRuntime.apply.)
         ThemeRuntime.shared.apply(settingsStore.settings)
+        // Sync the verbose-logging bridge from the persisted flag at launch —
+        // otherwise the Developer toggle is the only writer and the bridge can
+        // drift from UserSettings across restores (#29).
+        TalariaLog.setVerbose(settingsStore.settings.verboseLogging)
         let syncCoordinator = MockSyncCoordinator()
         let notificationService = LiveNotificationService()
         let allowMockFallbacks = AppEnvironmentPolicy.currentBuild.allowsEnvironmentOverrides
@@ -340,7 +344,7 @@ final class AppContainer {
             return
         }
         guard !isInitialized else {
-            containerLog.notice("initialize: SKIP — already initialized")
+            containerLog.verbose("initialize: SKIP — already initialized")
             return
         }
         guard await sessionStore.currentAccessToken() != nil else {
@@ -390,7 +394,7 @@ final class AppContainer {
             containerLog.warning("handleAppDidBecomeActive: BLOCKED — no access token")
             return
         }
-        containerLog.notice("handleAppDidBecomeActive: paired + token OK, proceeding")
+        containerLog.verbose("handleAppDidBecomeActive: paired + token OK, proceeding")
 
         await permissionsStore.reloadCapabilities()
         await hostStore.refresh()
@@ -730,7 +734,7 @@ final class AppContainer {
                     chatStore.commandCatalog,
                     activeModel: currentModel
                 )
-                containerLog.notice("seedActiveModelFromShim: seeded '\(currentModel, privacy: .public)'")
+                containerLog.verbose("seedActiveModelFromShim: seeded '\(currentModel)'")
             }
         } catch {
             // Shim unreachable / not configured — chip will show fallback ("HERMES")

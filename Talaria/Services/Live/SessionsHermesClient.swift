@@ -322,7 +322,7 @@ final class SessionsHermesClient: HermesClientProtocol {
             Self.logger.error("listSessions: decode FAILED — \(error.localizedDescription, privacy: .public). Raw: \(snippet, privacy: .public)")
             throw error
         }
-        Self.logger.notice("listSessions: decoded \(response.data.count, privacy: .public) rows")
+        Self.logger.verbose("listSessions: decoded \(response.data.count) rows")
         return response.data.map { row in
             HermesSessionInfo(
                 id: row.id,
@@ -352,7 +352,7 @@ final class SessionsHermesClient: HermesClientProtocol {
             Self.logger.error("openSession: decode FAILED for '\(id, privacy: .public)' — \(error.localizedDescription, privacy: .public). Raw: \(snippet, privacy: .public)")
             throw error
         }
-        Self.logger.notice("openSession: decoded \(response.data.count, privacy: .public) messages for '\(id, privacy: .public)'")
+        Self.logger.verbose("openSession: decoded \(response.data.count) messages for '\(id)'")
         apiSessionId = response.sessionId ?? id
         let messages = response.data.compactMap(Self.mapStoredMessage)
         let convo = Conversation(
