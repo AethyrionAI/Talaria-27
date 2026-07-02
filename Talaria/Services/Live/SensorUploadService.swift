@@ -115,6 +115,22 @@ final class SensorUploadService {
         }
     }
 
+    private enum HealthUploadOutcome {
+        case delivered
+        /// Relay accepted the payload but the connector was busy (202 "retry")
+        /// — the same chunk should be re-sent after a backoff.
+        case retry
+        case failed
+    }
+
+    /// The relay hard-caps SensorHealthRequest.samples at 100
+    /// (relay/app/schemas.py) — larger payloads 422 before any field check,
+    /// so backlog drains must be chunked (#24a).
+    private static let healthUploadChunkSize = 100
+    /// How many consecutive connector-busy (202 "retry") responses to absorb
+    /// per drain before giving up and leaving the rest for the next trigger.
+    private static let maxHealthBusyRetries = 3
+
     private let apiClient: RelayAPIClient
     private let accessTokenProvider: @MainActor () async -> String?
     private let accessTokenRefresher: @MainActor () async -> String?
@@ -311,6 +327,8 @@ final class SensorUploadService {
         isDraining = true
         defer { isDraining = false }
 
+        var healthBusyRetries = 0
+
         while isActive && isPairedProvider() {
             if let pendingLocation = outboxState.pendingLocation {
                 let delivered = await uploadLocation(pendingLocation)
@@ -322,12 +340,26 @@ final class SensorUploadService {
             }
 
             if !outboxState.pendingHealthSamples.isEmpty {
-                let delivered = await uploadHealth(outboxState.pendingHealthSamples)
-                sensorLog.notice("drain: health upload (\(self.outboxState.pendingHealthSamples.count) samples) \(delivered ? "delivered" : "FAILED", privacy: .public)")
-                guard delivered else { break }
-                outboxState.pendingHealthSamples.removeAll()
-                persistOutboxState()
-                continue
+                // Chunk to the relay's 100-sample cap and send sequentially —
+                // the connector handles one payload at a time (#24a).
+                let chunk = Array(outboxState.pendingHealthSamples.prefix(Self.healthUploadChunkSize))
+                let outcome = await uploadHealth(chunk)
+                sensorLog.notice("drain: health chunk (\(chunk.count) of \(self.outboxState.pendingHealthSamples.count) pending) → \(String(describing: outcome), privacy: .public)")
+                if case .delivered = outcome {
+                    healthBusyRetries = 0
+                    outboxState.pendingHealthSamples.removeFirst(chunk.count)
+                    persistOutboxState()
+                    continue
+                }
+                if case .retry = outcome, healthBusyRetries < Self.maxHealthBusyRetries {
+                    // Connector busy — back off, then re-send the same chunk.
+                    healthBusyRetries += 1
+                    let delay = Double(1 << healthBusyRetries)
+                    sensorLog.notice("drain: connector busy — retrying chunk in \(delay, privacy: .public)s (attempt \(healthBusyRetries)/\(Self.maxHealthBusyRetries))")
+                    try? await Task.sleep(for: .seconds(delay))
+                    continue
+                }
+                break
             }
 
             break
@@ -356,7 +388,7 @@ final class SensorUploadService {
             recordedAt: iso8601Formatter.string(from: pending.recordedAt)
         )
 
-        return await performAuthorizedUpload(path: "device/sensor/location", body: body)
+        return await performAuthorizedUpload(path: "device/sensor/location", body: body)?.wasDelivered ?? false
     }
 
     private func reverseGeocode(latitude: Double, longitude: Double) async -> String? {
@@ -391,7 +423,7 @@ final class SensorUploadService {
         }
     }
 
-    private func uploadHealth(_ samples: [SensorOutboxState.PendingHealthSample]) async -> Bool {
+    private func uploadHealth(_ samples: [SensorOutboxState.PendingHealthSample]) async -> HealthUploadOutcome {
         let body = SensorHealthBody(
             samples: samples.map { sample in
                 SensorHealthBody.Sample(
@@ -404,29 +436,33 @@ final class SensorUploadService {
             }
         )
 
-        return await performAuthorizedUpload(path: "device/sensor/health", body: body)
+        guard let result = await performAuthorizedUpload(path: "device/sensor/health", body: body) else {
+            return .failed
+        }
+        if result.wasDelivered { return .delivered }
+        return result.deliveryState == "retry" ? .retry : .failed
     }
 
-    private func performAuthorizedUpload<Body: Encodable>(path: String, body: Body) async -> Bool {
+    private func performAuthorizedUpload<Body: Encodable>(path: String, body: Body) async -> DeliveryResult? {
         do {
             return try await executeUpload(path: path, body: body, accessToken: await accessTokenProvider())
         } catch RelayAPIClient.ClientError.unauthorized {
             sensorLog.warning("upload \(path): 401 unauthorized, attempting token refresh…")
             guard let refreshedToken = await accessTokenRefresher(), !refreshedToken.isEmpty else {
                 sensorLog.error("upload \(path): token refresh failed/empty")
-                return false
+                return nil
             }
-            return (try? await executeUpload(path: path, body: body, accessToken: refreshedToken)) ?? false
+            return (try? await executeUpload(path: path, body: body, accessToken: refreshedToken)) ?? nil
         } catch {
             sensorLog.error("upload \(path): error — \(error.localizedDescription)")
-            return false
+            return nil
         }
     }
 
-    private func executeUpload<Body: Encodable>(path: String, body: Body, accessToken: String?) async throws -> Bool {
+    private func executeUpload<Body: Encodable>(path: String, body: Body, accessToken: String?) async throws -> DeliveryResult? {
         guard let accessToken, !accessToken.isEmpty else {
             sensorLog.warning("executeUpload \(path): no access token")
-            return false
+            return nil
         }
         let result: DeliveryResult = try await apiClient.post(
             path: path,
@@ -434,6 +470,6 @@ final class SensorUploadService {
             accessToken: accessToken
         )
         sensorLog.notice("executeUpload \(path, privacy: .public): deliveryState=\(result.deliveryState, privacy: .public) wasDelivered=\(result.wasDelivered, privacy: .public)")
-        return result.wasDelivered
+        return result
     }
 }
