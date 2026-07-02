@@ -74,14 +74,18 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         let defaultsCopy = load(PairedRelayConfiguration.self, key: Keys.pairedRelayConfiguration)
         guard let keychainMirror else { return defaultsCopy }
 
-        if let json = keychainMirror.retrieveSync(key: Keys.pairedRelayConfiguration),
-           let keychainCopy = try? decoder.decode(PairedRelayConfiguration.self, from: Data(json.utf8)) {
-            if defaultsCopy == nil {
-                // Reinstall recovery: the UserDefaults container was wiped but
-                // the Keychain copy survived — re-hydrate UserDefaults.
-                save(keychainCopy, key: Keys.pairedRelayConfiguration)
+        if let json = keychainMirror.retrieveSync(key: Keys.pairedRelayConfiguration) {
+            do {
+                let keychainCopy = try decoder.decode(PairedRelayConfiguration.self, from: Data(json.utf8))
+                if defaultsCopy == nil {
+                    // Reinstall recovery: the UserDefaults container was wiped
+                    // but the Keychain copy survived — re-hydrate UserDefaults.
+                    save(keychainCopy, key: Keys.pairedRelayConfiguration)
+                }
+                return keychainCopy
+            } catch {
+                TalariaLog.event("persistence: decode of PairedRelayConfiguration (Keychain mirror) failed: \(error)")
             }
-            return keychainCopy
         }
 
         if let defaultsCopy {
@@ -154,7 +158,15 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
 
     private func load<T: Decodable>(_ type: T.Type, key: String) -> T? {
         guard let data = defaults.data(forKey: key) else { return nil }
-        return try? decoder.decode(type, from: data)
+        do {
+            return try decoder.decode(type, from: data)
+        } catch {
+            // Always-on: a decode failure here presents downstream as missing
+            // state (e.g. a schema change reading as a silent unpair, #42) —
+            // this line is what tells that apart from a real container wipe.
+            TalariaLog.event("persistence: decode of \(type) failed for key \(key): \(error)")
+            return nil
+        }
     }
 
     private func save<T: Encodable>(_ value: T, key: String) {
