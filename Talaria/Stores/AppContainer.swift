@@ -769,6 +769,9 @@ final class AppContainer {
         data.hostOnline = hostStore.isHostOnline
         data.voiceSessionActive = talkStore.isSessionActive
         data.updatedAt = .now
+        // Appearance snapshot for "Match App" widget themes.
+        data.appearanceTheme = settingsStore.settings.appearanceTheme.rawValue
+        data.appearanceAccent = settingsStore.settings.appearanceAccent.rawValue
         if let msg = lastMessage {
             data.lastMessagePreview = String(msg.content.prefix(120))
             data.lastMessageSender = msg.sender.rawValue

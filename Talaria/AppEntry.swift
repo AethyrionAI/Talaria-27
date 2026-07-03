@@ -80,10 +80,18 @@ struct TalariaApp: App {
                 .environment(container.talkStore)
                 .environment(ThemeRuntime.shared)
                 .task { await container.initialize() }
-                .onChange(of: container.settingsStore.settings) { _, newSettings in
+                .onChange(of: container.settingsStore.settings) { oldSettings, newSettings in
                     // Mirror the appearance prefs into the runtime theme so the
-                    // whole app re-skins live (accent / glow / grid / reduce-motion).
+                    // whole app re-skins live (theme / accent / glow / grid /
+                    // reduce-motion).
                     ThemeRuntime.shared.apply(newSettings)
+                    // Push the new appearance to "Match App" widgets (write +
+                    // timeline reload). Only on theme/accent changes — not for
+                    // every settings mutation (e.g. glow-slider drags).
+                    if oldSettings.appearanceTheme != newSettings.appearanceTheme
+                        || oldSettings.appearanceAccent != newSettings.appearanceAccent {
+                        container.updateWidgetData()
+                    }
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {

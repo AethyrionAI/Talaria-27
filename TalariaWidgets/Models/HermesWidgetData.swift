@@ -15,6 +15,11 @@ struct HermesWidgetData: Codable, Sendable {
     var sleepHours: Double?
     var heartRate: Int?
     var updatedAt: Date = .now
+    // Active app appearance (raw AppearanceTheme/AppearanceAccent values) so
+    // widgets set to "Match App" can resolve the same ThemePalette. Optional -
+    // absent in pre-theme snapshots, resolved as Deep Field x cyan.
+    var appearanceTheme: String?
+    var appearanceAccent: String?
 
     static let empty = HermesWidgetData()
 }

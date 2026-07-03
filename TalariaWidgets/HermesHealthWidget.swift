@@ -1,15 +1,21 @@
 import SwiftUI
 import WidgetKit
 
-/// Health metrics grid — steps, calories, sleep, heart rate.
+/// Health metrics grid — steps, calories, sleep, heart rate. Renders with the
+/// configured widget theme; metric icons keep their semantic system colors
+/// (they read on all four theme backgrounds).
 struct HermesHealthWidget: Widget {
     let kind = "HermesHealth"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: HermesTimelineProvider()) { entry in
+        AppIntentConfiguration(
+            kind: kind,
+            intent: HermesWidgetConfigurationIntent.self,
+            provider: HermesTimelineProvider()
+        ) { entry in
             HermesHealthView(entry: entry)
                 .containerBackground(for: .widget) {
-                    Color(.systemBackground)
+                    WidgetThemeBackground(palette: entry.palette)
                 }
         }
         .configurationDisplayName("Hermes Health")
@@ -24,16 +30,17 @@ private struct HermesHealthView: View {
     let entry: HermesWidgetEntry
 
     var body: some View {
-        VStack(spacing: 8) {
+        let palette = entry.palette
+        return VStack(spacing: 8) {
             HStack {
-                HermesBrandIcon(size: 16)
+                WidgetOrbGlyph(palette: palette, size: 16)
                 Text("Hermes Health")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(palette.foreground)
                 Spacer()
                 Text(entry.data.updatedAt, style: .relative)
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(palette.mutedForeground)
             }
 
             HStack(spacing: 12) {
@@ -41,42 +48,46 @@ private struct HermesHealthView: View {
                     icon: "figure.walk",
                     color: .green,
                     label: "Steps",
-                    value: entry.data.steps.map { formatNumber($0) } ?? "--"
+                    value: entry.data.steps.map { formatNumber($0) } ?? "--",
+                    palette: palette
                 )
                 metricCard(
                     icon: "flame.fill",
                     color: .orange,
                     label: "Calories",
-                    value: entry.data.activeCalories.map { formatNumber($0) } ?? "--"
+                    value: entry.data.activeCalories.map { formatNumber($0) } ?? "--",
+                    palette: palette
                 )
                 metricCard(
                     icon: "bed.double.fill",
                     color: .indigo,
                     label: "Sleep",
-                    value: entry.data.sleepHours.map { String(format: "%.1fh", $0) } ?? "--"
+                    value: entry.data.sleepHours.map { String(format: "%.1fh", $0) } ?? "--",
+                    palette: palette
                 )
                 metricCard(
                     icon: "heart.fill",
                     color: .red,
                     label: "Heart",
-                    value: entry.data.heartRate.map { "\($0)" } ?? "--"
+                    value: entry.data.heartRate.map { "\($0)" } ?? "--",
+                    palette: palette
                 )
             }
         }
         .widgetURL(URL(string: "hermes://health"))
     }
 
-    private func metricCard(icon: String, color: Color, label: String, value: String) -> some View {
+    private func metricCard(icon: String, color: Color, label: String, value: String, palette: ThemePalette) -> some View {
         VStack(spacing: 4) {
             Image(systemName: icon)
                 .font(.title3)
                 .foregroundStyle(color)
             Text(value)
                 .font(.subheadline.weight(.semibold).monospacedDigit())
-                .foregroundStyle(.primary)
+                .foregroundStyle(palette.foreground)
             Text(label)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.secondaryForeground)
         }
         .frame(maxWidth: .infinity)
     }
@@ -96,4 +107,6 @@ private struct HermesHealthView: View {
 } timeline: {
     HermesWidgetEntry.placeholder
     HermesWidgetEntry(date: .now, data: .empty)
+    HermesWidgetEntry(date: .now, data: .empty, widgetTheme: .terminal)
+    HermesWidgetEntry(date: .now, data: .empty, widgetTheme: .paperTape)
 }

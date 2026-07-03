@@ -2,14 +2,21 @@ import SwiftUI
 import WidgetKit
 
 /// Glanceable Hermes status — connection state, last message, voice indicator.
+/// Home Screen family renders with the configured widget theme; lock-screen
+/// accessory families stay system-rendered (the system applies vibrant/tinted
+/// modes there and ignores custom backgrounds).
 struct HermesStatusWidget: Widget {
     let kind = "HermesStatus"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: HermesTimelineProvider()) { entry in
+        AppIntentConfiguration(
+            kind: kind,
+            intent: HermesWidgetConfigurationIntent.self,
+            provider: HermesTimelineProvider()
+        ) { entry in
             HermesStatusView(entry: entry)
                 .containerBackground(for: .widget) {
-                    Color(.systemBackground)
+                    WidgetThemeBackground(palette: entry.palette)
                 }
         }
         .configurationDisplayName("Hermes Status")
@@ -41,25 +48,26 @@ private struct HermesStatusView: View {
         }
     }
 
-    // MARK: - System Small (Home Screen)
+    // MARK: - System Small (Home Screen — themed)
 
     private var systemSmallView: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        let palette = entry.palette
+        return VStack(alignment: .leading, spacing: 6) {
             HStack {
-                HermesBrandIcon(size: 22)
+                WidgetOrbGlyph(palette: palette, size: 22)
                 Text("Hermes")
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(palette.foreground)
                 Spacer()
                 Circle()
-                    .fill(entry.data.hostOnline ? .green : .gray)
+                    .fill(entry.data.hostOnline ? palette.base : palette.mutedForeground)
                     .frame(width: 8, height: 8)
             }
 
             if entry.data.voiceSessionActive {
                 Label("Voice Active", systemImage: "waveform")
                     .font(.caption)
-                    .foregroundStyle(.yellow)
+                    .foregroundStyle(palette.forge)
             }
 
             Spacer()
@@ -67,24 +75,24 @@ private struct HermesStatusView: View {
             if let preview = entry.data.lastMessagePreview {
                 Text(preview)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.secondaryForeground)
                     .lineLimit(3)
             } else {
                 Text(entry.data.hostOnline ? "Ready" : "Offline")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.secondaryForeground)
             }
 
             if let messageAt = entry.data.lastMessageAt {
                 Text(messageAt, style: .relative)
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(palette.mutedForeground)
             }
         }
         .widgetURL(URL(string: "hermes://chat"))
     }
 
-    // MARK: - Accessory Circular (Lock Screen + CarPlay)
+    // MARK: - Accessory Circular (Lock Screen + CarPlay — system-rendered)
 
     private var circularView: some View {
         VStack(spacing: 2) {
@@ -102,7 +110,7 @@ private struct HermesStatusView: View {
         .widgetURL(URL(string: "hermes://chat"))
     }
 
-    // MARK: - Accessory Rectangular (Lock Screen)
+    // MARK: - Accessory Rectangular (Lock Screen — system-rendered)
 
     private var rectangularView: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -140,6 +148,9 @@ private struct HermesStatusView: View {
 } timeline: {
     HermesWidgetEntry.placeholder
     HermesWidgetEntry(date: .now, data: .empty)
+    HermesWidgetEntry(date: .now, data: .empty, widgetTheme: .solarForge)
+    HermesWidgetEntry(date: .now, data: .empty, widgetTheme: .terminal)
+    HermesWidgetEntry(date: .now, data: .empty, widgetTheme: .paperTape)
 }
 
 #Preview("Circular", as: .accessoryCircular) {
