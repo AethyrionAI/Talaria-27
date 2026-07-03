@@ -188,7 +188,7 @@ struct InlineDiffView: View {
         .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
         .overlay {
             RoundedRectangle(cornerRadius: Design.CornerRadius.sm)
-                .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+                .strokeBorder(Design.Colors.hairline, lineWidth: 1)
         }
         .padding(.horizontal, Design.Spacing.xs)
         .padding(.bottom, Design.Spacing.xxs)

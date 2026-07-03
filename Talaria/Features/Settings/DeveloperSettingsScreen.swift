@@ -72,7 +72,7 @@ struct DeveloperSettingsScreen: View {
                     environmentRow(env)
                     if index < envs.count - 1 {
                         Rectangle()
-                            .fill(Design.Colors.cyanHairline)
+                            .fill(Design.Colors.hairline)
                             .frame(height: 1)
                             .padding(.horizontal, Design.Spacing.md)
                     }

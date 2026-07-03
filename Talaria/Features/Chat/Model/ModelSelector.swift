@@ -46,7 +46,7 @@ struct ModelSelector: View {
             }
             .padding(.horizontal, Design.Spacing.sm)
             .padding(.vertical, Design.Spacing.xs)
-            .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.cyanBorder,
+            .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.strongBorder,
                       fill: Design.Colors.accentTint(0.08), innerGlow: true)
         }
         .buttonStyle(.plain)

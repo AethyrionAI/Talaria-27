@@ -154,7 +154,7 @@ struct ModelTransitionOverlay: View {
         }
         .padding(Design.Spacing.xl)
         .frame(maxWidth: 320)
-        .hudPanel(borderColor: Design.Colors.cyanHairline, innerGlow: true)
+        .hudPanel(borderColor: Design.Colors.hairline, innerGlow: true)
     }
 
     private var successCard: some View {

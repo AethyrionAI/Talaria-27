@@ -131,7 +131,7 @@ struct ScanLine: View {
 /// Dark translucent panel with a cyan hairline border and a subtle inner glow.
 struct HUDPanel<Content: View>: View {
     var cornerRadius: CGFloat = Design.CornerRadius.lg
-    var borderColor: Color = Design.Colors.cyanHairline
+    var borderColor: Color = Design.Colors.hairline
     var fill: Color = Design.Colors.surface
     var innerGlow: Bool = true
     @ViewBuilder var content: Content
@@ -159,7 +159,7 @@ extension View {
     @MainActor
     func hudPanel(
         cornerRadius: CGFloat = Design.CornerRadius.lg,
-        borderColor: Color = Design.Colors.cyanHairline,
+        borderColor: Color = Design.Colors.hairline,
         fill: Color = Design.Colors.surface,
         innerGlow: Bool = false
     ) -> some View {

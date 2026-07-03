@@ -345,7 +345,7 @@ struct ChatScreen: View {
         .padding(.top, Design.Spacing.xs)
         .padding(.bottom, Design.Spacing.sm)
         .overlay(alignment: .bottom) {
-            Rectangle().fill(Design.Colors.cyanHairline).frame(height: 1)
+            Rectangle().fill(Design.Colors.hairline).frame(height: 1)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Hermes \(connectionStatusLabel)")

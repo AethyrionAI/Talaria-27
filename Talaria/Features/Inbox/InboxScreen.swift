@@ -75,7 +75,7 @@ struct InboxScreen: View {
         .padding(.bottom, Design.Spacing.md)
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(Design.Colors.cyanHairline)
+                .fill(Design.Colors.hairline)
                 .frame(height: 1)
         }
     }

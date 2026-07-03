@@ -167,7 +167,7 @@ struct ConnectHermesHostScreen: View {
                 .background(Design.Colors.accentTint(0.12))
                 .clipShape(Circle())
                 .overlay {
-                    Circle().strokeBorder(Design.Colors.cyanBorder, lineWidth: 1)
+                    Circle().strokeBorder(Design.Colors.strongBorder, lineWidth: 1)
                 }
 
             VStack(alignment: .leading, spacing: 2) {

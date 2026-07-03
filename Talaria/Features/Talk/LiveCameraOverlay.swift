@@ -51,7 +51,7 @@ struct LiveCameraOverlay: View {
                     .padding(.horizontal, Design.Spacing.sm)
                     .padding(.vertical, Design.Spacing.xs)
                     .background(Design.Colors.surface, in: Capsule())
-                    .overlay { Capsule().strokeBorder(Design.Colors.cyanHairline, lineWidth: 1) }
+                    .overlay { Capsule().strokeBorder(Design.Colors.hairline, lineWidth: 1) }
 
                     Spacer()
 
@@ -100,7 +100,7 @@ struct LiveCameraOverlay: View {
                                 .padding(.horizontal, Design.Spacing.lg)
                                 .padding(.vertical, Design.Spacing.sm)
                                 .background(Design.Colors.accentTint(0.1), in: Capsule())
-                                .overlay { Capsule().strokeBorder(Design.Colors.cyanBorder, lineWidth: 1) }
+                                .overlay { Capsule().strokeBorder(Design.Colors.strongBorder, lineWidth: 1) }
                         }
                         .buttonStyle(.plain)
                     }
@@ -139,7 +139,7 @@ struct LiveCameraOverlay: View {
             .foregroundStyle(Design.Brand.accentBright)
             .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
             .background(Design.Colors.surface, in: Circle())
-            .overlay { Circle().strokeBorder(Design.Colors.cyanBorder, lineWidth: 1) }
+            .overlay { Circle().strokeBorder(Design.Colors.strongBorder, lineWidth: 1) }
     }
 
     private func requestCameraPermission() async -> Bool {

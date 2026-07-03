@@ -153,7 +153,7 @@ struct SessionsDrawer: View {
         }
         .overlay(alignment: .trailing) {
             Rectangle()
-                .fill(Design.Colors.cyanBorder)
+                .fill(Design.Colors.strongBorder)
                 .frame(width: 1)
         }
     }
@@ -208,7 +208,7 @@ struct SessionsDrawer: View {
         }
         .padding(.horizontal, Design.Spacing.sm)
         .frame(height: 42)
-        .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.cyanHairline)
+        .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
     }
 
     private var newChatButton: some View {
@@ -255,7 +255,7 @@ struct SessionsDrawer: View {
         }
         .padding(.horizontal, Design.Spacing.sm)
         .padding(.vertical, Design.Spacing.sm)
-        .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.cyanHairline)
+        .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.sm)
         .padding(.bottom, Design.Spacing.xl)

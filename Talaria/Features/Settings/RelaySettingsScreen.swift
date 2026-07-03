@@ -71,7 +71,7 @@ struct RelaySettingsScreen: View {
                         in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
             .overlay {
                 RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                    .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+                    .strokeBorder(Design.Colors.hairline, lineWidth: 1)
             }
 
             Text(modeCaption)
@@ -170,7 +170,7 @@ struct RelaySettingsScreen: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .hudPanel(
             cornerRadius: Design.CornerRadius.lg,
-            borderColor: Design.Colors.cyanBorder,
+            borderColor: Design.Colors.strongBorder,
             fill: Design.Colors.accentTint(0.07),
             innerGlow: true
         )
@@ -346,7 +346,7 @@ private struct RelayFieldBackground: ViewModifier {
             )
             .overlay {
                 RoundedRectangle(cornerRadius: Design.CornerRadius.lg)
-                    .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+                    .strokeBorder(Design.Colors.hairline, lineWidth: 1)
             }
     }
 }

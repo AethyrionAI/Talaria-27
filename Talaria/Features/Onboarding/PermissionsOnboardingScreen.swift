@@ -76,7 +76,7 @@ struct PermissionsOnboardingScreen: View {
                 )
                 .overlay {
                     RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                        .strokeBorder(Design.Colors.cyanBorder, lineWidth: 1)
+                        .strokeBorder(Design.Colors.strongBorder, lineWidth: 1)
                 }
 
             VStack(alignment: .leading, spacing: Design.Spacing.xxxs) {

@@ -36,14 +36,14 @@ struct VoiceSessionBanner: View {
         .padding(.vertical, Design.Spacing.xs)
         .hudPanel(
             cornerRadius: Design.CornerRadius.full,
-            borderColor: Design.Colors.cyanHairline,
+            borderColor: Design.Colors.hairline,
             fill: Design.Colors.surface
         )
     }
 
     private var dashedLine: some View {
         Rectangle()
-            .fill(Design.Colors.cyanHairline)
+            .fill(Design.Colors.hairline)
             .frame(height: 1)
     }
 

@@ -42,7 +42,7 @@ struct SlashCommandMenu: View {
         .frame(maxHeight: 260)
         .hudPanel(
             cornerRadius: Design.CornerRadius.md,
-            borderColor: Design.Colors.cyanBorder,
+            borderColor: Design.Colors.strongBorder,
             fill: Design.Colors.surface,
             innerGlow: true
         )

@@ -400,7 +400,7 @@ struct ModelsSettingsScreen: View {
         }
         .padding(Design.Spacing.md)
         .frame(maxWidth: .infinity)
-        .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Colors.cyanHairline,
+        .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Colors.hairline,
                   fill: Design.Colors.surface)
         .overlay(alignment: .bottomLeading) {
             if model.isRefreshing {
@@ -429,7 +429,7 @@ struct ModelsSettingsScreen: View {
             }
             .padding(Design.Spacing.sm)
             .frame(maxWidth: .infinity)
-            .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Colors.cyanHairline,
+            .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Colors.hairline,
                       fill: Design.Colors.surface)
         }
     }
@@ -478,7 +478,7 @@ struct ModelsSettingsScreen: View {
         }
         .padding(Design.Spacing.lg)
         .frame(maxWidth: .infinity)
-        .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Colors.cyanHairline,
+        .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Colors.hairline,
                   fill: Design.Colors.surface)
     }
 

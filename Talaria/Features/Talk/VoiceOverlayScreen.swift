@@ -173,7 +173,7 @@ struct VoiceOverlayScreen: View {
                         .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.md))
                         .overlay {
                             RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                                .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+                                .strokeBorder(Design.Colors.hairline, lineWidth: 1)
                         }
                 } else if !item.text.isEmpty {
                     VStack(alignment: .trailing, spacing: Design.Spacing.xxxs) {
@@ -187,7 +187,7 @@ struct VoiceOverlayScreen: View {
                             .background(Design.Colors.accentTint(0.08), in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
                             .overlay {
                                 RoundedRectangle(cornerRadius: Design.CornerRadius.lg)
-                                    .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+                                    .strokeBorder(Design.Colors.hairline, lineWidth: 1)
                             }
                             .opacity(item.isPartial ? 0.6 : 1)
                     }
@@ -243,7 +243,7 @@ struct VoiceOverlayScreen: View {
                             .padding(.horizontal, Design.Spacing.lg)
                             .padding(.vertical, Design.Spacing.xs)
                             .background(Design.Colors.accentTint(0.1), in: Capsule())
-                            .overlay { Capsule().strokeBorder(Design.Colors.cyanBorder, lineWidth: 1) }
+                            .overlay { Capsule().strokeBorder(Design.Colors.strongBorder, lineWidth: 1) }
                     }
                     .buttonStyle(.plain)
                 }
@@ -345,7 +345,7 @@ struct VoiceOverlayScreen: View {
                 )
                 .overlay {
                     Circle().strokeBorder(
-                        accent ? Design.Colors.cyanBorder : Design.Colors.chipBorder,
+                        accent ? Design.Colors.strongBorder : Design.Colors.chipBorder,
                         lineWidth: 1
                     )
                 }

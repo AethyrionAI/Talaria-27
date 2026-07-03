@@ -232,7 +232,7 @@ struct TalkModeScreen: View {
                 .overlay {
                     Circle()
                         .strokeBorder(
-                            accent ? Design.Colors.cyanBorder : Design.Colors.chipBorder,
+                            accent ? Design.Colors.strongBorder : Design.Colors.chipBorder,
                             lineWidth: 1
                         )
                 }
@@ -274,7 +274,7 @@ struct TalkModeScreen: View {
         .padding(.horizontal, Design.Spacing.xs)
         .padding(.vertical, Design.Spacing.xxs)
         .overlay {
-            Capsule().strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+            Capsule().strokeBorder(Design.Colors.hairline, lineWidth: 1)
         }
     }
 

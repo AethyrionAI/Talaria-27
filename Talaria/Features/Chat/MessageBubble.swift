@@ -272,7 +272,7 @@ struct MessageBubble: View {
                 .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.md))
                 .overlay {
                     RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                        .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+                        .strokeBorder(Design.Colors.hairline, lineWidth: 1)
                 }
         } else {
             HStack(spacing: Design.Spacing.xxs) {

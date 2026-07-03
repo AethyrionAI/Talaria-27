@@ -20,7 +20,7 @@ struct GlassCircleButton: View {
                 )
                 .overlay {
                     Circle()
-                        .strokeBorder(Design.Colors.cyanBorder, lineWidth: 1)
+                        .strokeBorder(Design.Colors.strongBorder, lineWidth: 1)
                 }
                 .hudGlow(Design.Brand.accent, radius: 12, strength: 0.25)
         }

@@ -46,7 +46,7 @@ private struct ScannerReticleOverlay: View {
             ZStack {
                 // Faint cyan frame + center scanning bar.
                 RoundedRectangle(cornerRadius: Design.CornerRadius.lg)
-                    .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+                    .strokeBorder(Design.Colors.hairline, lineWidth: 1)
 
                 Rectangle()
                     .fill(

@@ -88,7 +88,7 @@ struct UplinkSettingsScreen: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .hudPanel(
             cornerRadius: Design.CornerRadius.xl,
-            borderColor: Design.Colors.cyanBorder,
+            borderColor: Design.Colors.strongBorder,
             fill: Design.Colors.accentTint(0.08),
             innerGlow: true
         )
@@ -142,7 +142,7 @@ struct UplinkSettingsScreen: View {
                         in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
             .overlay {
                 RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                    .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+                    .strokeBorder(Design.Colors.hairline, lineWidth: 1)
             }
 
             Text("Chat uses the direct Sessions API; the relay carries the independent sensor path.")
@@ -292,7 +292,7 @@ private struct HUDFieldBackground: ViewModifier {
             )
             .overlay {
                 RoundedRectangle(cornerRadius: Design.CornerRadius.lg)
-                    .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+                    .strokeBorder(Design.Colors.hairline, lineWidth: 1)
             }
     }
 }

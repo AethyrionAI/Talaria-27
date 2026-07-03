@@ -4,9 +4,13 @@ import SwiftUI
 // All visual constants for Talaria. No magic numbers or raw hex in view code —
 // every view consumes `Design.*`.
 //
-// Visual language: "Arc-Reactor HUD" — a cool cyan heads-up-display over a deep
-// near-black radial field, with mono telemetry labels, cyan hairlines, glowing
-// CTAs, and an amber "Forge" warning accent. See design/Talaria.dc.html.
+// Theming: a THEME (Deep Field / Solar Forge / Terminal / Paper Tape) owns the
+// whole color environment; the ACCENT picks the energetic hue inside it. Both
+// resolve live through `ThemeRuntime` → `ThemePalette` (Shared/
+// ThemePaletteCore.swift — the single source of truth for color values), so
+// flipping either pref re-skins every token-reading view. Deep Field × cyan is
+// byte-identical to the original "Arc-Reactor HUD" design
+// (design/Talaria.dc.html); see design/THEME_SYSTEM_PLAN.md for the system.
 
 enum Design {
 
@@ -21,10 +25,9 @@ enum Design {
         @MainActor static var accentBright: Color { ThemeRuntime.shared.palette.bright }
         /// Deep accent (cyan default `#14636e`) — orb core falloff, deep fills.
         @MainActor static var accentDeep: Color { ThemeRuntime.shared.palette.deep }
-        /// Secondary "Forge" warning accent. Fixed amber `#ffc14d` under the
-        /// cyan/violet themes; shifts to a distinct orange under the AMBER accent
-        /// so warning stays separable from the accent (e.g. status pips).
-        @MainActor static var forge: Color { ThemeRuntime.shared.warning }
+        /// Secondary "Forge" warning accent. Theme-resolved; always separable
+        /// from the active accent (e.g. status pips).
+        @MainActor static var forge: Color { ThemeRuntime.shared.palette.forge }
 
         /// Primary CTA gradient — soft accent fill for glowing buttons.
         @MainActor static var accentGradient: LinearGradient {
@@ -48,72 +51,76 @@ enum Design {
     // MARK: - Colors
 
     enum Colors {
-        /// Deep base background (`#06080c`).
-        static let background = Color(hex: 0x06080C)
+        /// Base screen background (Deep Field `#06080c`).
+        @MainActor static var background: Color { ThemeRuntime.shared.palette.background }
 
-        // Foreground ramp (cool slate-cyan).
-        /// Primary foreground text (`#e8eef5`).
-        static let foreground = Color(hex: 0xE8EEF5)
-        /// Brightest foreground (`#eaf6f8`) — headings on glow.
-        static let foregroundBright = Color(hex: 0xEAF6F8)
-        /// Secondary foreground (`#7c93a6`).
-        static let secondaryForeground = Color(hex: 0x7C93A6)
-        /// Muted label foreground (`#5d7488`) — mono telemetry.
-        static let mutedForeground = Color(hex: 0x5D7488)
-        /// Dim foreground (`#4d6273`) — faintest captions.
-        static let dimForeground = Color(hex: 0x4D6273)
-        /// Cool steel text used on list rows (`#cfe1ea`).
-        static let coolForeground = Color(hex: 0xCFE1EA)
+        // Foreground ramp (theme-resolved; Deep Field = cool slate-cyan).
+        /// Primary foreground text.
+        @MainActor static var foreground: Color { ThemeRuntime.shared.palette.foreground }
+        /// Highest-emphasis foreground — headings on glow.
+        @MainActor static var foregroundBright: Color { ThemeRuntime.shared.palette.foregroundBright }
+        /// Secondary foreground.
+        @MainActor static var secondaryForeground: Color { ThemeRuntime.shared.palette.secondaryForeground }
+        /// Muted label foreground — mono telemetry.
+        @MainActor static var mutedForeground: Color { ThemeRuntime.shared.palette.mutedForeground }
+        /// Dim foreground — faintest captions.
+        @MainActor static var dimForeground: Color { ThemeRuntime.shared.palette.dimForeground }
+        /// Cool steel text used on list rows.
+        @MainActor static var coolForeground: Color { ThemeRuntime.shared.palette.coolForeground }
 
-        /// Translucent dark panel surface (`rgba(8,18,26,.6)`).
-        static let surface = Color(hex: 0x08121A, opacity: 0.6)
-        /// Slightly lighter neutral chip surface (`rgba(120,150,175,.08)`).
-        static let chipSurface = Color(hex: 0x7896AF, opacity: 0.08)
-        /// Faint accent-tinted panel fill (cyan default `rgba(84,230,240,.06)`).
+        /// Translucent panel surface.
+        @MainActor static var surface: Color { ThemeRuntime.shared.palette.surface }
+        /// Slightly lighter neutral chip surface.
+        @MainActor static var chipSurface: Color { ThemeRuntime.shared.palette.chipSurface }
+        /// Faint accent-tinted panel fill.
         @MainActor static var surfaceTint: Color { accentTint(0.06) }
 
-        /// Neutral subtle border / divider (`rgba(120,150,175,.16)`).
-        static let divider = Color(hex: 0x7896AF, opacity: 0.16)
-        /// Neutral border at chip strength (`rgba(120,150,175,.22)`).
-        static let chipBorder = Color(hex: 0x7896AF, opacity: 0.22)
+        /// Neutral subtle border / divider.
+        @MainActor static var divider: Color { ThemeRuntime.shared.palette.divider }
+        /// Neutral border at chip strength.
+        @MainActor static var chipBorder: Color { ThemeRuntime.shared.palette.chipBorder }
 
-        /// Status / danger red (`#e0625f`).
-        static let danger = Color(hex: 0xE0625F)
-        /// Bright danger glyph (`#ff8a86`).
-        static let dangerBright = Color(hex: 0xFF8A86)
+        /// Status / danger red.
+        @MainActor static var danger: Color { ThemeRuntime.shared.palette.danger }
+        /// High-emphasis danger glyph.
+        @MainActor static var dangerBright: Color { ThemeRuntime.shared.palette.dangerBright }
 
         // --- Accent hairline helpers -------------------------------------
-        /// Active accent at an arbitrary opacity (cyan default `rgba(84,230,240,a)`).
+        /// Active accent at an arbitrary opacity.
         @MainActor static func accentTint(_ opacity: Double) -> Color {
             Brand.accent.opacity(opacity)
         }
-        /// Default accent hairline border (cyan default `rgba(84,230,240,.14)`).
-        @MainActor static var cyanHairline: Color { accentTint(0.14) }
-        /// Stronger accent border (cyan default `rgba(84,230,240,.3)`).
-        @MainActor static var cyanBorder: Color { accentTint(0.30) }
+        /// Default hairline border. Accent-tinted on the dark themes; ink on
+        /// Paper Tape (borders shouldn't read as colored marks on paper).
+        @MainActor static var hairline: Color { ThemeRuntime.shared.palette.hairline }
+        /// Stronger border.
+        @MainActor static var strongBorder: Color { ThemeRuntime.shared.palette.strongBorder }
 
         /// Modal/drawer backdrop scrim.
-        static let scrim = Color(hex: 0x02060A, opacity: 0.85)
+        @MainActor static var scrim: Color { ThemeRuntime.shared.palette.scrim }
 
         /// Sessions-drawer vertical gradient.
-        static let drawerGradient = LinearGradient(
-            colors: [Color(hex: 0x0A1822), Color(hex: 0x060C13), Color(hex: 0x05090F)],
-            startPoint: .top,
-            endPoint: .bottom
-        )
+        @MainActor static var drawerGradient: LinearGradient {
+            LinearGradient(
+                colors: ThemeRuntime.shared.palette.drawerColors,
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
 
         // --- Screen background gradient ----------------------------------
-        /// Screen radial gradient: `radial(120% 70% at 50% -8%, #0c2730 → #070d15 → #04070c)`.
-        static let screenGradient = RadialGradient(
-            stops: [
-                .init(color: Color(hex: 0x0C2730), location: 0.0),
-                .init(color: Color(hex: 0x070D15), location: 0.52),
-                .init(color: Color(hex: 0x04070C), location: 1.0),
-            ],
-            center: UnitPoint(x: 0.5, y: -0.08),
-            startRadius: 0,
-            endRadius: 760
-        )
+        /// Screen radial gradient (Deep Field:
+        /// `radial(120% 70% at 50% -8%, #0c2730 → #070d15 → #04070c)`).
+        @MainActor static var screenGradient: RadialGradient {
+            RadialGradient(
+                stops: ThemeRuntime.shared.palette.screenGradientStops.map {
+                    Gradient.Stop(color: $0.color, location: $0.location)
+                },
+                center: UnitPoint(x: 0.5, y: -0.08),
+                startRadius: 0,
+                endRadius: 760
+            )
+        }
     }
 
     // MARK: - Spacing (4pt base grid)
@@ -328,46 +335,22 @@ enum Design {
 
 // MARK: - Runtime theme
 
-/// The resolved accent triplet for one `AppearanceAccent`. Cyan values are
-/// byte-identical to the pre-theming `Design.Brand` constants.
-struct AccentPalette: Equatable, Sendable {
-    let base: Color
-    let bright: Color
-    let deep: Color
-    /// Extra-bright near-white highlight for the voice orb's radial core.
-    let coreHighlight: Color
-    /// Extra-deep falloff for the voice orb's radial core.
-    let coreShadow: Color
-
-    init(_ accent: AppearanceAccent) {
-        switch accent {
-        case .cyan:
-            base = Color(hex: 0x54E6F0); bright = Color(hex: 0xCDF8FB); deep = Color(hex: 0x14636E)
-            coreHighlight = Color(hex: 0xE2FBFD); coreShadow = Color(hex: 0x0F5867)
-        case .amber:
-            base = Color(hex: 0xFFC14D); bright = Color(hex: 0xFFE2A6); deep = Color(hex: 0x6E4D14)
-            coreHighlight = Color(hex: 0xFFF1D2); coreShadow = Color(hex: 0x3E2C08)
-        case .violet:
-            base = Color(hex: 0xB18CFF); bright = Color(hex: 0xE2D4FF); deep = Color(hex: 0x3A2D6E)
-            coreHighlight = Color(hex: 0xF1E8FF); coreShadow = Color(hex: 0x241A47)
-        }
-    }
-}
-
-/// Live, app-wide theme state. The accent-derived `Design.Brand.*` /
-/// `Design.Colors.*` tokens resolve through this singleton, so flipping the
+/// Live, app-wide theme state. The theme/accent-derived `Design.Brand.*` /
+/// `Design.Colors.*` tokens resolve through this singleton, so flipping either
 /// APPEARANCE pref re-skins every surface that reads those tokens during its
 /// SwiftUI `body` — Swift's Observation registers the access automatically, so
 /// there is no per-call-site wiring.
 ///
 /// The single source of truth stays `SettingsStore.settings`; the app root
-/// mirrors the four appearance prefs into this object via `apply(_:)`.
+/// mirrors the five appearance prefs into this object via `apply(_:)`.
 @MainActor
 @Observable
 final class ThemeRuntime {
     static let shared = ThemeRuntime()
 
-    /// Active accent identity — drives `palette` and the warning-hue swap.
+    /// Active theme identity — owns the whole color environment.
+    var theme: AppearanceTheme = .deepField
+    /// Active accent slot — the energetic hue inside the theme.
     var accent: AppearanceAccent = .cyan
     /// HUD glow multiplier (APPEARANCE → Glow Intensity). Default 1.0.
     var glowIntensity: Double = 1.0
@@ -377,14 +360,9 @@ final class ThemeRuntime {
     /// motion modifiers — the app toggle can only *add* restriction.
     var appReduceMotion: Bool = false
 
-    /// Resolved accent triplet for the active accent.
-    var palette: AccentPalette { AccentPalette(accent) }
-
-    /// Semantic "forge" warning color. Amber for the cyan/violet themes; a
-    /// distinct orange under the amber accent so warning ≠ accent. (Hue tunable.)
-    var warning: Color {
-        accent == .amber ? Color(hex: 0xFF7A18) : Color(hex: 0xFFC14D)
-    }
+    /// Fully resolved palette for the active (theme, accent). Values live in
+    /// Shared/ThemePaletteCore.swift.
+    var palette: ThemePalette { ThemePalette(theme: theme.themeID, accent: accent.slot) }
 
     private init() {}
 
@@ -392,6 +370,7 @@ final class ThemeRuntime {
     /// Per-field guards avoid spurious Observation invalidations when an
     /// unrelated setting changes.
     func apply(_ settings: UserSettings) {
+        if theme != settings.appearanceTheme { theme = settings.appearanceTheme }
         if accent != settings.appearanceAccent { accent = settings.appearanceAccent }
         if glowIntensity != settings.hudGlowIntensity { glowIntensity = settings.hudGlowIntensity }
         if gridDensity != settings.gridDensity { gridDensity = settings.gridDensity }
@@ -399,15 +378,27 @@ final class ThemeRuntime {
     }
 }
 
-// MARK: - Color Hex Extension
+// MARK: - Palette-core bridges
+// UserSettings enums stay model-pure; these map them onto the Shared palette
+// identities (same raw cases, explicit switch — no force-unwrapped rawValue).
 
-extension Color {
-    init(hex: UInt, opacity: Double = 1.0) {
-        self.init(
-            red: Double((hex >> 16) & 0xFF) / 255.0,
-            green: Double((hex >> 8) & 0xFF) / 255.0,
-            blue: Double(hex & 0xFF) / 255.0,
-            opacity: opacity
-        )
+extension AppearanceTheme {
+    var themeID: ThemeID {
+        switch self {
+        case .deepField: .deepField
+        case .solarForge: .solarForge
+        case .terminal: .terminal
+        case .paperTape: .paperTape
+        }
+    }
+}
+
+extension AppearanceAccent {
+    var slot: AccentSlot {
+        switch self {
+        case .cyan: .cyan
+        case .amber: .amber
+        case .violet: .violet
+        }
     }
 }

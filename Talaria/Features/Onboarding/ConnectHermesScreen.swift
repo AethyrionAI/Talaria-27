@@ -108,7 +108,7 @@ struct ConnectHermesScreen: View {
                                     in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
                         .overlay {
                             RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                                .strokeBorder(Design.Colors.cyanBorder, lineWidth: 1)
+                                .strokeBorder(Design.Colors.strongBorder, lineWidth: 1)
                         }
                         .accessibilityLabel("Relay URL")
 
@@ -372,7 +372,7 @@ private struct QRReticle: View {
                 }
                 .overlay {
                     RoundedRectangle(cornerRadius: Design.CornerRadius.sm)
-                        .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+                        .strokeBorder(Design.Colors.hairline, lineWidth: 1)
                 }
                 .padding(14)
 
@@ -473,7 +473,7 @@ private struct CodeBoxRow: View {
                 .overlay {
                     RoundedRectangle(cornerRadius: Design.CornerRadius.sm)
                         .strokeBorder(
-                            char != nil ? Design.Colors.cyanBorder
+                            char != nil ? Design.Colors.strongBorder
                                 : (isActive ? Design.Brand.accent : Design.Colors.divider),
                             lineWidth: isActive ? 1.5 : 1
                         )

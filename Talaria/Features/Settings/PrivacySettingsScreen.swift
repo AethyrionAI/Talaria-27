@@ -53,7 +53,7 @@ struct PrivacySettingsScreen: View {
                     permissionRow(cap)
                     if index < rows.count - 1 {
                         Rectangle()
-                            .fill(Design.Colors.cyanHairline)
+                            .fill(Design.Colors.hairline)
                             .frame(height: 1)
                             .padding(.horizontal, Design.Spacing.md)
                     }
@@ -141,7 +141,7 @@ struct PrivacySettingsScreen: View {
                             in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
                 .overlay {
                     RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                        .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+                        .strokeBorder(Design.Colors.hairline, lineWidth: 1)
                 }
             }
             .padding(Design.Spacing.md)

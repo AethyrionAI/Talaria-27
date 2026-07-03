@@ -219,7 +219,7 @@ struct AppearanceSettingsScreen: View {
                         in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
             .overlay {
                 RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                    .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+                    .strokeBorder(Design.Colors.hairline, lineWidth: 1)
             }
         }
     }
@@ -259,7 +259,7 @@ struct AppearanceSettingsScreen: View {
             .padding(.vertical, Design.Spacing.sm)
 
             Rectangle()
-                .fill(Design.Colors.cyanHairline)
+                .fill(Design.Colors.hairline)
                 .frame(height: 1)
                 .padding(.horizontal, Design.Spacing.md)
 

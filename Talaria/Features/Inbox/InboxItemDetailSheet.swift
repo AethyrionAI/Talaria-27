@@ -71,7 +71,7 @@ struct InboxItemDetailSheet: View {
                 .padding(Design.Spacing.md)
                 .hudPanel(
                     cornerRadius: Design.CornerRadius.lg,
-                    borderColor: Design.Colors.cyanHairline,
+                    borderColor: Design.Colors.hairline,
                     fill: Design.Colors.surface
                 )
         }

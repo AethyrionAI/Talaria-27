@@ -14,7 +14,7 @@ struct PermissionCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .hudPanel(
             cornerRadius: Design.CornerRadius.lg,
-            borderColor: Design.Colors.cyanHairline,
+            borderColor: Design.Colors.hairline,
             fill: Design.Colors.surface
         )
     }
@@ -30,7 +30,7 @@ struct PermissionCard: View {
                 .background(Design.Colors.accentTint(0.10), in: RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
                 .overlay {
                     RoundedRectangle(cornerRadius: Design.CornerRadius.sm)
-                        .strokeBorder(Design.Colors.cyanBorder, lineWidth: 1)
+                        .strokeBorder(Design.Colors.strongBorder, lineWidth: 1)
                 }
 
             Text(capability.permissionType.displayLabel)

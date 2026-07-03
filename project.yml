@@ -45,6 +45,9 @@ targets:
       - path: Talaria
         excludes:
           - "**/.DS_Store"
+      # Theme palette tables shared with the widget extension (single source
+      # of truth for theme/accent color values).
+      - path: Shared
     resources:
       - path: Talaria/Resources
         optional: true
@@ -111,6 +114,8 @@ targets:
     platform: iOS
     sources:
       - path: TalariaWidgets
+      # Shared theme palette tables (also compiled into the app target).
+      - path: Shared
     entitlements:
       path: TalariaWidgets/TalariaWidgets.entitlements
       properties:

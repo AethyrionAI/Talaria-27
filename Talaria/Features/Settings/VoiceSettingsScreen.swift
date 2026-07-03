@@ -229,7 +229,7 @@ struct VoiceSettingsScreen: View {
 
     private var rowDivider: some View {
         Rectangle()
-            .fill(Design.Colors.cyanHairline)
+            .fill(Design.Colors.hairline)
             .frame(height: 1)
             .padding(.horizontal, Design.Spacing.md)
     }

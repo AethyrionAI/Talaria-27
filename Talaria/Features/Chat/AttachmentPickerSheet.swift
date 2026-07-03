@@ -112,7 +112,7 @@ struct AttachmentPickerSheet: View {
             .frame(height: 80)
             .hudPanel(
                 cornerRadius: Design.CornerRadius.md,
-                borderColor: Design.Colors.cyanHairline,
+                borderColor: Design.Colors.hairline,
                 fill: Design.Colors.surface,
                 innerGlow: true
             )

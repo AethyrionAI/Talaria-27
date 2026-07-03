@@ -22,7 +22,7 @@ struct SettingsSectionView<Content: View>: View {
             .frame(maxWidth: .infinity)
             .hudPanel(
                 cornerRadius: Design.CornerRadius.lg,
-                borderColor: Design.Colors.cyanHairline,
+                borderColor: Design.Colors.hairline,
                 fill: Design.Colors.surface
             )
         }

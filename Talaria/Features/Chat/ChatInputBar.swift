@@ -183,7 +183,7 @@ struct ChatInputBar: View {
                                     Circle()
                                         .fill(Design.Colors.accentTint(0.12))
                                         .frame(width: 36, height: 36)
-                                        .overlay(Circle().strokeBorder(Design.Colors.cyanBorder, lineWidth: 1).frame(width: 36, height: 36))
+                                        .overlay(Circle().strokeBorder(Design.Colors.strongBorder, lineWidth: 1).frame(width: 36, height: 36))
                                 }
                                 .contentShape(Rectangle())
                         }
@@ -199,7 +199,7 @@ struct ChatInputBar: View {
             }
             .hudPanel(
                 cornerRadius: Design.CornerRadius.xl,
-                borderColor: Design.Colors.cyanBorder,
+                borderColor: Design.Colors.strongBorder,
                 fill: Design.Colors.surface,
                 innerGlow: true
             )
@@ -263,7 +263,7 @@ struct ChatInputBar: View {
             .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
             .overlay(
                 RoundedRectangle(cornerRadius: Design.CornerRadius.sm)
-                    .strokeBorder(Design.Colors.cyanHairline, lineWidth: 1)
+                    .strokeBorder(Design.Colors.hairline, lineWidth: 1)
             )
 
             // Remove button
@@ -299,7 +299,7 @@ struct ChatInputBar: View {
                     .background(Design.Colors.accentTint(0.12), in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
                     .overlay {
                         RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                            .strokeBorder(Design.Colors.cyanBorder, lineWidth: 1)
+                            .strokeBorder(Design.Colors.strongBorder, lineWidth: 1)
                     }
                     .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
                     .contentShape(Rectangle())

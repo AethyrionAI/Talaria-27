@@ -89,7 +89,7 @@ struct SystemSettingsScreen: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .hudPanel(
             cornerRadius: Design.CornerRadius.xl,
-            borderColor: Design.Colors.cyanBorder,
+            borderColor: Design.Colors.strongBorder,
             fill: Design.Colors.accentTint(0.08),
             innerGlow: true
         )
@@ -231,7 +231,7 @@ struct SystemSettingsScreen: View {
 
     private var rowDivider: some View {
         Rectangle()
-            .fill(Design.Colors.cyanHairline)
+            .fill(Design.Colors.hairline)
             .frame(height: 1)
             .padding(.horizontal, Design.Spacing.md)
     }

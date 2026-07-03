@@ -45,7 +45,7 @@ struct ThinkingIndicatorView: View {
         .padding(.vertical, Design.Spacing.xxs + 1)
         .hudPanel(
             cornerRadius: Design.CornerRadius.full,
-            borderColor: Design.Colors.cyanHairline,
+            borderColor: Design.Colors.hairline,
             fill: Design.Colors.surface
         )
         .transition(.opacity)
