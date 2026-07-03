@@ -325,7 +325,10 @@ OJAMD blockers.
 
 ---
 
-## 15. 📝 In-app sensor diagnostics panel
+## 15. ✅ In-app sensor diagnostics panel — built + reconciled onto main + live on device
+
+
+**Reconciled 2026-07-02 (session results, verified):** Built 06-28 (`c5f01a4`) as a Sensors section in Settings → Diagnostics (`sensorDiagnostics` snapshot + `recordDrain`). It was NOT missing/reverted — it lived only on the local lineage while the tested builds ran on the origin (Fable) lineage (see #48). Cherry-picked onto canonical main during the 07-02 reconcile; on-device log confirmed drain/delivery. Owen was right — he seen't it.
 
 Add a diagnostic section to Settings (or a hidden debug screen) that surfaces the sensor
 pipeline's internal state at a glance:
@@ -387,7 +390,10 @@ samples — distance_walking, steps`.
 
 ---
 
-## 17. 🐛 Relay sensor delivery returns `retry` — connector handoff failing
+## 17. ✅ Relay sensor delivery — RESOLVED end-to-end (crash + identity + RPC pump), confirmed on device
+
+
+**Reconciled 2026-07-02 (session results, verified):** Three stacked failures, all fixed on OJAMD 07-02: (1) connector crash-looped on `UnicodeDecodeError` (cp1252) reading Hermes CLI output — patched 12 `subprocess` sites with `encoding='utf-8', errors='replace'` + `PYTHONUTF8=1` (→ #37); (2) phone re-paired onto a stale/revoked relay user after reinstall — re-paired to the live user (→ #46); (3) `talk.prewarm` RPC ran synchronously in the websocket recv loop, blocking heartbeats past the 30s timeout so the relay killed the session — detached RPCs to `asyncio.create_task`/`to_thread`. Confirmed two ways: live Hermes MCP query returned fresh location (39s) + steps/HR, and on-device drain log showed `deliveryState=delivered wasDelivered=true` with #24a chunking. All connector changes are UNCOMMITTED on the OJAMD checkout (→ #24, #36).
 
 **Status:** Confirmed blocker — location uploads reach the relay but never deliver.
 
@@ -629,7 +635,10 @@ Logged 2026-06-25.
 Consolidated tracker for server-side fixes on OJAMD (Windows desktop, Tailscale
 `100.110.102.59`). None of these are app code — they require work on the OJAMD host.
 
-### 24a. 🔧 Health upload 422 — DIAGNOSED 2026-06-28, fix is Mac-side (chunking)
+### 24a. ✅ Health upload — chunking shipped + delivering (confirmed on device 2026-07-02)
+
+
+**Reconciled 2026-07-02 (session results, verified):** iOS chunks health drains to ≤100 samples/request with 2/4/8s backoff. On-device log 07-02: `drain: health chunk (7 of 7 pending) → delivered`, outbox drains to 0. The earlier 'still blocked' state was #17's connector crash, now fixed — end-to-end health delivery verified.
 
 The relay on `:8000` accepts location uploads (`deliveryState=delivered`) but rejects
 health payloads with **HTTP 422**. This is a payload format / schema issue — the relay
@@ -862,7 +871,7 @@ Experience, DEBUG Developer group) and **swapped the live Settings entry**:
 
 Build: SUCCEEDED (Debug, iOS Simulator, Xcode-beta). Committed (2468471); SYSTEM index validated on whoGoesThere 2026-06-27. Logged 2026-06-26.
 
-## 29. 🔧 Verbose Logging — downstream adoption
+## 29. ✅ Verbose Logging — downstream adoption complete (launch sync + call sites)
 
 `TalariaLog` (`Talaria/Core/TalariaLog.swift`) now backs the Developer screen's Verbose
 Logging toggle: it persists `UserSettings.verboseLogging`, mirrors the flag into a
@@ -897,7 +906,7 @@ Logged 2026-06-26.
 
 ---
 
-## 31. 🔧 Paste image into the chat composer (clipboard) — UI built & verified; HELD, blocked on image transmission (#43)
+## 31. ✅ Paste image into the chat composer — unblocked by #43, reconciled onto main
 
 **Update 2026-06-28 (on-device, whoGoesThere):** the paste UI works — the button shows in the
 composer and pasting attaches the image correctly. Switched from a `hasImages`-gated button to
@@ -1014,7 +1023,10 @@ it isn't rediscovered later.
 
 Deferred 2026-06-27 — revisit after the active items clear.
 
-## 35. 🎙️ VOICE settings screen — build truthful status/launch panel
+## 35. ✅ VOICE settings screen — built + Host ONLINE confirmed on device
+
+
+**Reconciled 2026-07-02 (session results, verified):** Two implementations existed (origin 251-line + local 204-line); origin's is canonical (kept in reconcile). On device 07-02 after the #17 connector fixes: Host **ONLINE**, voice **BALLAD**, live voice-context age. Remaining NOT CONFIGURED is truthful host config (→ #47 OpenAI Realtime), not a bug.
 
 **Status:** Design resolved 2026-06-27 (truthful); SwiftUI build pending.
 
@@ -1084,7 +1096,7 @@ Logged 2026-06-27.
 
 ---
 
-## 37. 📝 Upstream the connector `win32` fix to the fork
+## 37. 🔧 Connector win32/encoding fix — APPLIED on OJAMD 2026-07-02 (12 sites, uncommitted on that checkout); upstreaming to the fork still pending
 
 `connector/src/hermes_mobile_connector/mcp_registration.py` is modified **only on OJAMD**
 (not in the fork). The change makes `_hermes_chat_running()` Windows-compatible: the upstream
@@ -1188,7 +1200,7 @@ closure trail.
 
 ---
 
-## 41. 🔧 Keychain-back the relay pairing config so reinstalls don't drop pairing
+## 41. ✅ Keychain-back the relay pairing config — shipped + survived delete/reinstall on device
 
 **Diagnosed 2026-06-28 on whoGoesThere.** A device "lost pairing" event was traced to a
 wholesale wipe of the app's `.standard` UserDefaults container — an on-device read showed
@@ -1215,7 +1227,7 @@ sitting safe in the Keychain the whole time.
 
 Found via on-device `RunCodeSnippet` forensics 2026-06-28.
 
-## 42. 📝 Pairing-config loader silently swallows decode errors
+## 42. ✅ Pairing-config loader — decode failures now logged
 
 `UserDefaultsAppPersistenceStore.load(_:key:)` (generic loader, ~line 120) uses
 `try? decoder.decode(...)`, so any decode failure returns `nil` with no log. For
@@ -1230,7 +1242,7 @@ have turned tonight's triage into a one-line log read instead of an on-device pr
 
 ---
 
-## 43. 🔧 Wire image attachments into the Hermes API-server chat payload (unblocks #31 + photo picker)
+## 43. ✅ Image attachments wired into the Hermes API-server chat payload — reconciled onto main
 
 **Diagnosed 2026-06-28 on whoGoesThere.** Image attachments — pasted or picked — never reach
 Hermes. `SessionsHermesClient.send()` and `sendStreaming()` accept `attachments:
@@ -1257,3 +1269,35 @@ body limits.
 **Net:** unblocks #31 (paste) and makes the photo picker actually send images. Found via
 on-device send test + client read 2026-06-28.
 
+---
+
+## 44. ✅ Notifications — truthful push-token readout + `aps-environment` entitlement (VERIFIED on device)
+
+Fixed on the Fable batch (`c097a8d`), on origin/main, verified 07-02. `Talaria.entitlements` was missing `aps-environment` (no APNs token issued); added `development`. Settings→Notifications and Diagnostics unified on `AppContainer.PushTokenPipelineState` (notIssued/awaitingRelay/registered). On device both read **RELAY REGISTERED**. Push *delivery* still deferred (needs `.p8`, → #38). **Caveat:** `aps-environment=development` is dev/sandbox — a TestFlight/Release build needs production (→ #8). **Trap found 07-02:** `xcodegen generate` STRIPS `aps-environment` from the entitlements (it's not declared in `project.yml`) — fix project.yml or don't regenerate without restoring it (→ #48).
+
+---
+
+## 45. 🔧 CarPlay voice mode — scaffold on main, gated on Apple's voice-conversational entitlement
+
+Working CarPlay voice scaffold exists in `Talaria/CarPlay/` (`CarPlaySceneDelegate` + `CarPlayVoiceManager` bridging `TalkStore` → `CPVoiceControlTemplate`); scene declared in `project.yml`, `audio` background mode present. Can't run on device without the CarPlay entitlement (managed capability; new **voice-based conversational apps** category, requestable from iOS 26.4). App Store distribution NOT required — a granted entitlement works on a development profile — but the grant is discretionary; only way to know is to file at `developer.apple.com/contact/carplay/`. Functional gap (sim-testable without grant): the manager only reflects `TalkStore`, never starts a session — needs auto-start on connect + WebRTC↔AVAudioSession routing. Depends on voice working on the phone first (→ #47). Full reference + weekend sim plan in `CARPLAY.md`.
+
+---
+
+## 46. 🐛 Reinstall resurrects a stale Keychain identity (post-#41)
+
+Discovered 07-02, bit us immediately. After delete+reinstall the app came back authenticated as a **revoked** relay user (`15deb25d…`) instead of the live user (`707547ee…`) — #41's Keychain persistence preserved a dead identity. Consequence: sensors 202-forever + 'Connect a Hermes host' on VOICE, while chat (direct :8642) worked — a half-broken app with no obvious cause. **Needs (app-side):** on `pair()`, overwrite/clear ALL prior credentials in the Keychain (no stale survivors); store relay `user_id` with the pairing and validate on session restore (surface 're-pair' if the relay reports no active host for that user); Diagnostics (#15) should show the authenticated relay `user_id`. **Workaround:** unpair (clears both stores) → `hermes-mobile.exe pair-phone` on OJAMD → re-pair. Test-gap note: the dropped test suite covered a clear-on-disconnect guard for exactly this — see `handoffs/RECONCILE_TEST_GAP.md`.
+
+---
+
+## 47. 🎯 Configure OpenAI Realtime talk on the Hermes host (voice enablement)
+
+Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully reports `hostOnline:true, configured:false` — 'OpenAI Realtime is not configured on this Hermes host.' Per `client.py:_rpc_talk_session_create`, talk needs `realtime_talk.enabled` + an `openai_api_key` in the connector secrets (`~/.hermes-mobile` on OJAMD). Voice already reports BALLAD + live context, so everything downstream is warm. **Owen-gated** (needs an OpenAI key with Realtime access; billed per audio minute — worth a cap). Also unblocks CarPlay voice (#45).
+
+---
+
+## 48. 🔧 Repo hygiene — lineage divergence cleanup + xcodegen entitlements trap + logging polish
+
+**Lineage divergence (root cause of days of 'didn't we already do this?'):** local `main` and `origin/main` forked at `cf50688` (06-28 16:43) and evolved in parallel — Fable's branch was merged to origin via PR #1, while a separate local session committed 12 different commits implementing the SAME items (#35/#41/#24a) differently, never pushed. The Mac's local checkout also hadn't fetched in days, hiding it. **Resolved 07-02:** chose origin as canonical, reset local main to `origin/main` + cherry-picked the genuinely-unique local work (#31 paste, #43 image serializer, #15 sensor panel), dropped local's redundant #41 approach. Full local lineage preserved at tag `prereconcile/local-main-20260702`. Build verified on device.
+- **Prevention (TODO, → item for next session):** write `BRANCHING.md` — canonical-main rule, mandatory `git fetch` + divergence check at session start, one-lineage-at-a-time. Parallel Claude sessions must not both commit to main-equivalents.
+- **xcodegen trap:** `xcodegen generate` regenerates entitlements from `project.yml`, which does NOT list `aps-environment` — so every regen silently drops the #44 push entitlement. **Fix project.yml to declare it**, or never redeploy after a bare `xcodegen` without restoring the entitlements.
+- **Low-pri polish:** on-device drain log shows `collectSnapshot returned nil (auth=authorized)` interleaved with successful captures — health callbacks fire faster than HealthKit has a queryable sample; self-correcting, log noise only. Consider debouncing or downgrading that log line.
