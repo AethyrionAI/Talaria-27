@@ -80,6 +80,14 @@ final class RelayAPIClient {
         case unauthorized(String)
         case invalidURL(String)
         case requestFailed(String)
+        /// The relay parsed the request and rejected the PAYLOAD itself
+        /// (400/422 — e.g. Pydantic validation): retrying identical bytes can
+        /// never succeed. Distinct from `requestFailed` so uploaders can
+        /// isolate poison data instead of wedging on infinite retries of the
+        /// same rejected body (OPEN_ITEMS #24a follow-up). Other 4xx (403/404
+        /// etc.) intentionally stay `requestFailed` — they're about auth or
+        /// routing, not the payload, and other services key off that mapping.
+        case payloadRejected(statusCode: Int, message: String)
 
         var errorDescription: String? {
             switch self {
@@ -89,6 +97,8 @@ final class RelayAPIClient {
                 "Invalid relay URL: \(url)"
             case .requestFailed(let message):
                 message
+            case .payloadRejected(let statusCode, let message):
+                "Relay rejected the payload (\(statusCode)): \(message)"
             }
         }
     }
@@ -259,10 +269,14 @@ final class RelayAPIClient {
 
         guard (200 ..< 300).contains(httpResponse.statusCode) else {
             let makeError: (String) -> ClientError = { message in
-                if httpResponse.statusCode == 401 {
+                switch httpResponse.statusCode {
+                case 401:
                     return .unauthorized(message)
+                case 400, 422:
+                    return .payloadRejected(statusCode: httpResponse.statusCode, message: message)
+                default:
+                    return .requestFailed(message)
                 }
-                return .requestFailed(message)
             }
 
             if let errorEnvelope = try? decoder.decode(ErrorEnvelope.self, from: data) {
