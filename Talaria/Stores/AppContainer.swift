@@ -228,6 +228,8 @@ final class AppContainer {
             },
             persistence: persistence,
             isPairedProvider: { activePairingStore?.isPaired == true },
+            isHealthCollectionEnabled: { settingsStore.settings.healthCollectionEnabled },
+            isLocationCollectionEnabled: { settingsStore.settings.locationCollectionEnabled },
             locationService: liveLocationService,
             healthService: liveHealthService,
             motionService: liveMotionService
@@ -580,6 +582,56 @@ final class AppContainer {
             await notificationService.markPushTokenRegistered(false)
             sessionStore.state.pushTokenRegistered = false
         }
+    }
+
+    // MARK: - In-app permission revocation (#6 / OPEN_ITEMS #23)
+    //
+    // The app can't rescind an iOS grant, so in-app revoke means durably
+    // stopping Talaria's USE of it: collection halts immediately, and the
+    // persisted UserSettings flag keeps SensorUploadService.start() from
+    // resurrecting it on the next launch. Camera/Photos stay deep-link-only.
+
+    /// Revoke (`false`) or restore (`true`) the app's HealthKit use.
+    func setHealthCollectionEnabled(_ enabled: Bool) async {
+        settingsStore.settings.healthCollectionEnabled = enabled
+        if enabled {
+            restartSensorPipelineIfPaired()
+        } else {
+            await sensorUploadService?.disableHealthCollection()
+        }
+        await permissionsStore.reloadCapabilities()
+    }
+
+    /// Revoke (`false`) or restore (`true`) the app's location use. Revoking
+    /// also resets the sync preference to foreground-only so a later
+    /// re-enable doesn't silently resume background sync.
+    func setLocationCollectionEnabled(_ enabled: Bool) async {
+        settingsStore.settings.locationCollectionEnabled = enabled
+        if enabled {
+            restartSensorPipelineIfPaired()
+        } else {
+            sensorUploadService?.disableLocationCollection()
+            settingsStore.settings.locationSyncPreference = .foregroundOnly
+            permissionsStore.updateLocationSyncPreference(.foregroundOnly)
+        }
+        await permissionsStore.reloadCapabilities()
+    }
+
+    /// Revoke (`false`) or restore (`true`) push notifications. The existing
+    /// register path deactivates the relay registration when the flag is off
+    /// and re-registers the cached APNs token when it's on.
+    func setNotificationsEnabled(_ enabled: Bool) async {
+        settingsStore.settings.notificationsEnabled = enabled
+        await registerPushTokenIfNeeded(cachedAPNsDeviceToken ?? "")
+        await permissionsStore.reloadCapabilities()
+    }
+
+    /// Re-enabling a sensor rides the normal start() wiring, which is gated
+    /// on the collection flags — a stop/start rebuilds exactly the enabled set.
+    private func restartSensorPipelineIfPaired() {
+        guard pairingStore.isPaired else { return }
+        sensorUploadService?.stop()
+        sensorUploadService?.start()
     }
 
     /// Tells the relay to deactivate push registrations for this device.

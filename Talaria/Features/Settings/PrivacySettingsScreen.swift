@@ -8,16 +8,48 @@ import UIKit
 //   • Permission rows reflect the live PermissionsStore capability statuses.
 //     A not-yet-determined permission prompts in-app; otherwise MANAGE deep-links
 //     to iOS Settings.
-//   • The app cannot programmatically revoke OS grants, so the mockup's
-//     "Revoke / Reset Permissions" becomes an honest "Manage in System Settings"
-//     deep-link. A real in-app revoke flow is tracked separately (#23).
+//   • In-app revoke (#6): the app can't rescind an iOS grant, but it CAN
+//     durably stop using it. The Revoke section halts HealthKit collection
+//     (observers + background delivery), location monitoring, or the relay
+//     push registration — persisted so a relaunch doesn't resurrect them.
+//     Camera/Photos stay deep-link-only ("Manage in System Settings").
 struct PrivacySettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(AppContainer.self) private var container
     @Environment(PermissionsStore.self) private var permissionsStore
     @Environment(SettingsStore.self) private var settingsStore
 
+    /// Permission whose revoke confirmation dialog is showing.
+    @State private var pendingRevoke: RevocablePermission?
+
     private let shownPermissions: [PermissionType] = [.location, .health, .motion, .notifications, .microphone]
+
+    /// The three grants Talaria can genuinely stop using in-app (#6).
+    /// Camera/Photos are intentionally absent — deep-link-only.
+    private enum RevocablePermission: String, Identifiable, CaseIterable {
+        case health
+        case location
+        case notifications
+
+        var id: String { rawValue }
+
+        var displayLabel: String {
+            switch self {
+            case .health: "Health Collection"
+            case .location: "Location Sync"
+            case .notifications: "Push Notifications"
+            }
+        }
+
+        var revokeEffect: String {
+            switch self {
+            case .health: "Stops health observers and background delivery, and drops queued samples."
+            case .location: "Stops location monitoring and drops the queued fix. Sync resets to foreground-only."
+            case .notifications: "Deactivates this device's push registration on the relay."
+            }
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -29,6 +61,7 @@ struct PrivacySettingsScreen: View {
                     SettingsScreenHeader(title: "Privacy", subtitle: "Permissions") { dismiss() }
                     permissionsSection
                     locationSection
+                    revokeSection
                     manageSection
                 }
                 .padding(.horizontal, Design.Spacing.md)
@@ -189,6 +222,113 @@ struct PrivacySettingsScreen: View {
                 permissionsStore.openLocationSystemSettings()
             case .always, .whenInUse, .notDetermined:
                 await permissionsStore.requestBackgroundLocationAccess()
+            }
+        }
+    }
+
+    // MARK: Revoke (#6)
+
+    private var revokeSection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            MonoLabel("// Revoke / Reset", size: 10, tracking: Design.Tracking.monoXWide,
+                      color: Design.Colors.mutedForeground)
+
+            VStack(spacing: 0) {
+                let all = RevocablePermission.allCases
+                ForEach(Array(all.enumerated()), id: \.element.id) { index, permission in
+                    revokeRow(permission)
+                    if index < all.count - 1 {
+                        Rectangle()
+                            .fill(Design.Colors.hairline)
+                            .frame(height: 1)
+                            .padding(.horizontal, Design.Spacing.md)
+                    }
+                }
+            }
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
+
+            Text("Revoking stops Talaria's use of the grant — it does not change the iOS grant itself. Camera and Photos can only be managed in System Settings.")
+                .font(Design.Typography.caption)
+                .foregroundStyle(Design.Colors.secondaryForeground)
+                .padding(.horizontal, Design.Spacing.xxs)
+        }
+        .confirmationDialog(
+            "Revoke \(pendingRevoke?.displayLabel ?? "")?",
+            isPresented: Binding(
+                get: { pendingRevoke != nil },
+                set: { if !$0 { pendingRevoke = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingRevoke
+        ) { permission in
+            Button("Revoke", role: .destructive) {
+                revoke(permission)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { permission in
+            Text(permission.revokeEffect)
+        }
+    }
+
+    private func revokeRow(_ permission: RevocablePermission) -> some View {
+        let active = isCollectionActive(permission)
+        return HStack(spacing: Design.Spacing.sm) {
+            StatusPip(color: active ? Design.Brand.accent : Design.Colors.mutedForeground, diameter: 7)
+            Text(permission.displayLabel)
+                .font(Design.Typography.callout)
+                .foregroundStyle(Design.Colors.foreground)
+            Spacer(minLength: Design.Spacing.xs)
+            MonoLabel(active ? "ACTIVE" : "OFF", size: 9, weight: .medium,
+                      tracking: Design.Tracking.mono,
+                      color: active ? Design.Brand.accent : Design.Colors.mutedForeground)
+            Button {
+                if active {
+                    pendingRevoke = permission
+                } else {
+                    reenable(permission)
+                }
+            } label: {
+                MonoLabel(active ? "REVOKE ✕" : "ENABLE ›", size: 9, weight: .medium,
+                          tracking: Design.Tracking.mono,
+                          color: active ? Design.Colors.danger : Design.Colors.accentTint(0.7))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+    }
+
+    private func isCollectionActive(_ permission: RevocablePermission) -> Bool {
+        switch permission {
+        case .health: settingsStore.settings.healthCollectionEnabled
+        case .location: settingsStore.settings.locationCollectionEnabled
+        case .notifications: settingsStore.settings.notificationsEnabled
+        }
+    }
+
+    private func revoke(_ permission: RevocablePermission) {
+        pendingRevoke = nil
+        Task {
+            switch permission {
+            case .health: await container.setHealthCollectionEnabled(false)
+            case .location: await container.setLocationCollectionEnabled(false)
+            case .notifications: await container.setNotificationsEnabled(false)
+            }
+        }
+    }
+
+    private func reenable(_ permission: RevocablePermission) {
+        Task {
+            switch permission {
+            case .health: await container.setHealthCollectionEnabled(true)
+            case .location: await container.setLocationCollectionEnabled(true)
+            case .notifications: await container.setNotificationsEnabled(true)
             }
         }
     }

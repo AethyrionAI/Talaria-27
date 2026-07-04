@@ -167,6 +167,18 @@ final class LiveHealthService: HealthServiceProtocol {
 
     // MARK: - Background Delivery
 
+    /// In-app revoke support (#6): iOS can't rescind a HealthKit read grant,
+    /// but the app can stop waking for new samples.
+    func disableBackgroundDelivery() async {
+        guard let store else { return }
+        do {
+            try await store.disableAllBackgroundDelivery()
+            backgroundDeliveryEnabled = false
+        } catch {
+            // Leave the flag truthful — delivery may still be active.
+        }
+    }
+
     private func configureBackgroundDeliveryIfNeeded() async {
         guard let store, authorizationStatus == .authorized else { return }
 

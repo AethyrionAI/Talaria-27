@@ -330,6 +330,12 @@ struct UserSettings: Codable, Hashable, Sendable {
     var relayConfiguration: RelayConfiguration
     var autoConnectOnLaunch: Bool
     var locationSyncPreference: LocationSyncPreference
+    // In-app permission revocation (#6): the app can't rescind an iOS grant,
+    // so revoke = durably stop USING it. These gate SensorUploadService's
+    // launch-time wiring so a revoke survives relaunch (start() would
+    // otherwise re-assert health auth and restart monitoring every launch).
+    var healthCollectionEnabled: Bool
+    var locationCollectionEnabled: Bool
     var hermesAPIBaseURL: String
     var modelsShimBaseURL: String
     var appearanceTheme: AppearanceTheme
@@ -348,6 +354,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         relayConfiguration: RelayConfiguration = RelayConfiguration.defaultValue(),
         autoConnectOnLaunch: Bool = true,
         locationSyncPreference: LocationSyncPreference = .foregroundOnly,
+        healthCollectionEnabled: Bool = true,
+        locationCollectionEnabled: Bool = true,
         hermesAPIBaseURL: String = UserSettings.defaultHermesAPIBaseURL,
         modelsShimBaseURL: String = UserSettings.defaultModelsShimBaseURL,
         appearanceTheme: AppearanceTheme = .deepField,
@@ -365,6 +373,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.relayConfiguration = relayConfiguration
         self.autoConnectOnLaunch = autoConnectOnLaunch
         self.locationSyncPreference = locationSyncPreference
+        self.healthCollectionEnabled = healthCollectionEnabled
+        self.locationCollectionEnabled = locationCollectionEnabled
         self.hermesAPIBaseURL = hermesAPIBaseURL
         self.modelsShimBaseURL = modelsShimBaseURL
         self.appearanceTheme = appearanceTheme
@@ -384,6 +394,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         case relayConfiguration
         case autoConnectOnLaunch
         case locationSyncPreference
+        case healthCollectionEnabled
+        case locationCollectionEnabled
         case hermesAPIBaseURL
         case modelsShimBaseURL
         case appearanceTheme
@@ -405,6 +417,8 @@ struct UserSettings: Codable, Hashable, Sendable {
             ?? RelayConfiguration.migratedLegacyValue(environment: environment)
         autoConnectOnLaunch = try container.decodeIfPresent(Bool.self, forKey: .autoConnectOnLaunch) ?? true
         locationSyncPreference = try container.decodeIfPresent(LocationSyncPreference.self, forKey: .locationSyncPreference) ?? .foregroundOnly
+        healthCollectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .healthCollectionEnabled) ?? true
+        locationCollectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .locationCollectionEnabled) ?? true
         hermesAPIBaseURL = try container.decodeIfPresent(String.self, forKey: .hermesAPIBaseURL) ?? UserSettings.defaultHermesAPIBaseURL
         modelsShimBaseURL = try container.decodeIfPresent(String.self, forKey: .modelsShimBaseURL) ?? UserSettings.defaultModelsShimBaseURL
         appearanceTheme = try container.decodeIfPresent(AppearanceTheme.self, forKey: .appearanceTheme) ?? .deepField
@@ -425,6 +439,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         try container.encode(relayConfiguration, forKey: .relayConfiguration)
         try container.encode(autoConnectOnLaunch, forKey: .autoConnectOnLaunch)
         try container.encode(locationSyncPreference, forKey: .locationSyncPreference)
+        try container.encode(healthCollectionEnabled, forKey: .healthCollectionEnabled)
+        try container.encode(locationCollectionEnabled, forKey: .locationCollectionEnabled)
         try container.encode(hermesAPIBaseURL, forKey: .hermesAPIBaseURL)
         try container.encode(modelsShimBaseURL, forKey: .modelsShimBaseURL)
         try container.encode(appearanceTheme, forKey: .appearanceTheme)

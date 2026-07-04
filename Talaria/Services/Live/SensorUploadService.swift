@@ -136,6 +136,11 @@ final class SensorUploadService {
     private let accessTokenRefresher: @MainActor () async -> String?
     private let persistence: AppPersistenceStoreProtocol
     private let isPairedProvider: @MainActor () -> Bool
+    // In-app revoke gates (#6): when false, start() must not wire or (re)start
+    // that sensor — otherwise the launch-time health re-assert / location
+    // startMonitoring resurrects a collection the user revoked.
+    private let isHealthCollectionEnabled: @MainActor () -> Bool
+    private let isLocationCollectionEnabled: @MainActor () -> Bool
     private let locationService: LiveLocationService
     private let healthService: LiveHealthService
     private let motionService: LiveMotionService?
@@ -160,6 +165,8 @@ final class SensorUploadService {
         accessTokenRefresher: @escaping @MainActor () async -> String? = { nil },
         persistence: AppPersistenceStoreProtocol,
         isPairedProvider: @escaping @MainActor () -> Bool,
+        isHealthCollectionEnabled: @escaping @MainActor () -> Bool = { true },
+        isLocationCollectionEnabled: @escaping @MainActor () -> Bool = { true },
         locationService: LiveLocationService,
         healthService: LiveHealthService,
         motionService: LiveMotionService? = nil
@@ -169,6 +176,8 @@ final class SensorUploadService {
         self.accessTokenRefresher = accessTokenRefresher
         self.persistence = persistence
         self.isPairedProvider = isPairedProvider
+        self.isHealthCollectionEnabled = isHealthCollectionEnabled
+        self.isLocationCollectionEnabled = isLocationCollectionEnabled
         self.locationService = locationService
         self.healthService = healthService
         self.motionService = motionService
@@ -236,22 +245,30 @@ final class SensorUploadService {
         outboxState = persistence.loadSensorOutboxState()
         sensorLog.notice("start() — activating sensor pipeline. Outbox: loc=\(self.outboxState.pendingLocation != nil), health=\(self.outboxState.pendingHealthSamples.count)")
 
-        locationService.onLocationUpdate = { [weak self] update in
-            guard let self else { return }
-            Task { @MainActor in
-                sensorLog.notice("📍 location update: (\(update.latitude), \(update.longitude)) accuracy=\(update.accuracy)")
-                self.outboxState.enqueue(location: update)
-                self.persistOutboxState()
-                await self.drainOutboxIfPossible()
+        if isLocationCollectionEnabled() {
+            locationService.onLocationUpdate = { [weak self] update in
+                guard let self else { return }
+                Task { @MainActor in
+                    sensorLog.notice("📍 location update: (\(update.latitude), \(update.longitude)) accuracy=\(update.accuracy)")
+                    self.outboxState.enqueue(location: update)
+                    self.persistOutboxState()
+                    await self.drainOutboxIfPossible()
+                }
             }
+        } else {
+            sensorLog.notice("start() — location collection disabled in-app (#6); not wiring")
         }
 
-        healthService.onHealthUpdate = { [weak self] changedIdentifiers in
-            guard let self else { return }
-            Task { @MainActor in
-                sensorLog.notice("💓 health update for: \(changedIdentifiers.joined(separator: ", "), privacy: .public)")
-                await self.captureHealthSnapshot(changedIdentifiers: changedIdentifiers)
+        if isHealthCollectionEnabled() {
+            healthService.onHealthUpdate = { [weak self] changedIdentifiers in
+                guard let self else { return }
+                Task { @MainActor in
+                    sensorLog.notice("💓 health update for: \(changedIdentifiers.joined(separator: ", "), privacy: .public)")
+                    await self.captureHealthSnapshot(changedIdentifiers: changedIdentifiers)
+                }
             }
+        } else {
+            sensorLog.notice("start() — health collection disabled in-app (#6); not wiring")
         }
 
         motionService?.onActivityUpdate = { [weak self] activityCode in
@@ -272,7 +289,9 @@ final class SensorUploadService {
             }
         }
 
-        locationService.startMonitoring()
+        if isLocationCollectionEnabled() {
+            locationService.startMonitoring()
+        }
         motionService?.startMonitoring()
 
         // Health authorization is in-memory only: LiveHealthService resets it to
@@ -284,12 +303,14 @@ final class SensorUploadService {
         // re-enable background delivery. For read-only types iOS shows the system
         // sheet at most once per install, so repeat calls after the first decision
         // are silent — no nagging, even on denial.
-        Task { [weak self] in
-            guard let self else { return }
-            let status = await self.healthService.requestAuthorization()
-            self.healthService.startMonitoring()
-            sensorLog.notice("start() — health auth re-asserted: \(String(describing: status), privacy: .public)")
-            await self.captureHealthSnapshot(forceFullRefresh: true)
+        if isHealthCollectionEnabled() {
+            Task { [weak self] in
+                guard let self else { return }
+                let status = await self.healthService.requestAuthorization()
+                self.healthService.startMonitoring()
+                sensorLog.notice("start() — health auth re-asserted: \(String(describing: status), privacy: .public)")
+                await self.captureHealthSnapshot(forceFullRefresh: true)
+            }
         }
 
         sensorLog.notice("start() — monitoring started (loc/motion; health pending re-auth). loc auth=\(String(describing: self.locationService.authorizationStatus), privacy: .public)")
@@ -311,6 +332,30 @@ final class SensorUploadService {
         persistence.clearSensorOutboxState()
     }
 
+    // MARK: - In-app revoke (#6 / OPEN_ITEMS #23)
+
+    /// Halts HealthKit use now: observers stopped, background delivery
+    /// disabled, queued samples dropped. The caller persists the
+    /// `healthCollectionEnabled` flag that keeps start() from re-asserting.
+    func disableHealthCollection() async {
+        healthService.onHealthUpdate = nil
+        healthService.stopMonitoring()
+        await healthService.disableBackgroundDelivery()
+        outboxState.pendingHealthSamples.removeAll()
+        persistOutboxState()
+        sensorLog.notice("health collection revoked in-app — observers stopped, background delivery off, outbox cleared")
+    }
+
+    /// Halts location use now: monitoring sessions invalidated, queued fix
+    /// dropped. The caller persists the `locationCollectionEnabled` flag.
+    func disableLocationCollection() {
+        locationService.onLocationUpdate = nil
+        locationService.stopMonitoring()
+        outboxState.pendingLocation = nil
+        persistOutboxState()
+        sensorLog.notice("location collection revoked in-app — monitoring stopped, pending fix dropped")
+    }
+
     func handleAppDidBecomeActive() async {
         guard isActive else {
             sensorLog.warning("handleAppDidBecomeActive: service not active — skipping")
@@ -318,7 +363,9 @@ final class SensorUploadService {
         }
         sensorLog.notice("handleAppDidBecomeActive: requesting location + full health refresh")
 
-        locationService.requestSingleLocation()
+        if isLocationCollectionEnabled() {
+            locationService.requestSingleLocation()
+        }
         await captureHealthSnapshot(forceFullRefresh: true)
         await drainOutboxIfPossible()
     }
@@ -338,6 +385,7 @@ final class SensorUploadService {
         forceFullRefresh: Bool = false,
         changedIdentifiers: Set<String>? = nil
     ) async {
+        guard isHealthCollectionEnabled() else { return }
         guard
             let snapshot = await healthService.collectSnapshot(
                 forceFullRefresh: forceFullRefresh,
