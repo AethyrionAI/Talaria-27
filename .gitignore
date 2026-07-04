@@ -56,3 +56,6 @@ AuthKey_*.p8
 
 # Local handoff / session scratch (kept out of the public repo)
 handoffs/
+
+# Local scratch (Hermes session attachments / plans)
+.hermes/
