@@ -72,24 +72,42 @@ private struct HermesStatusView: View {
 
             Spacer()
 
-            if let preview = entry.data.lastMessagePreview {
-                Text(preview)
-                    .font(.caption)
-                    .foregroundStyle(palette.secondaryForeground)
-                    .lineLimit(3)
+            // Smart 3-line message block (#14): attribution line + up to two
+            // sentence-bounded summary lines. Prefers `lastMessageSummary`;
+            // falls back to the raw prefix for pre-#14 App Group snapshots.
+            if let summary = entry.data.lastMessageSummary ?? entry.data.lastMessagePreview {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text(senderLabel)
+                        if let messageAt = entry.data.lastMessageAt {
+                            Text("·")
+                            Text(messageAt, style: .relative)
+                        }
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(palette.mutedForeground)
+
+                    Text(summary)
+                        .font(.caption)
+                        .foregroundStyle(palette.secondaryForeground)
+                        .lineLimit(2)
+                }
             } else {
                 Text(entry.data.hostOnline ? "Ready" : "Offline")
                     .font(.caption)
                     .foregroundStyle(palette.secondaryForeground)
             }
-
-            if let messageAt = entry.data.lastMessageAt {
-                Text(messageAt, style: .relative)
-                    .font(.caption2)
-                    .foregroundStyle(palette.mutedForeground)
-            }
         }
         .widgetURL(URL(string: "hermes://chat"))
+    }
+
+    /// Attribution for the last-message block ("Hermes · 2m ago").
+    private var senderLabel: String {
+        switch entry.data.lastMessageSender {
+        case "user": "You"
+        case "system": "System"
+        default: "Hermes"
+        }
     }
 
     // MARK: - Accessory Circular (Lock Screen + CarPlay — system-rendered)
@@ -126,8 +144,8 @@ private struct HermesStatusView: View {
                 }
             }
 
-            if let preview = entry.data.lastMessagePreview {
-                Text(preview)
+            if let summary = entry.data.lastMessageSummary ?? entry.data.lastMessagePreview {
+                Text(summary)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)

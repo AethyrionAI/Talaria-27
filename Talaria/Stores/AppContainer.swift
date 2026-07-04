@@ -774,6 +774,7 @@ final class AppContainer {
         data.appearanceAccent = settingsStore.settings.appearanceAccent.rawValue
         if let msg = lastMessage {
             data.lastMessagePreview = String(msg.content.prefix(120))
+            data.lastMessageSummary = HermesWidgetData.summarize(msg.content)
             data.lastMessageSender = msg.sender.rawValue
             data.lastMessageAt = msg.timestamp
         }
