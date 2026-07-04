@@ -120,7 +120,30 @@ final class SensorUploadService {
         /// Relay accepted the payload but the connector was busy (202 "retry")
         /// — the same chunk should be re-sent after a backoff.
         case retry
+        /// Permanent payload rejection (relay 400/422): identical bytes can
+        /// never deliver — the chunk carries at least one poison sample that
+        /// must be isolated, not retried forever (#24a follow-up).
+        case rejected(String)
+        /// Transient failure (network / 5xx / failed token refresh) — the same
+        /// payload may succeed later; keep the backlog.
         case failed
+    }
+
+    private enum LocationUploadOutcome {
+        case delivered
+        /// Permanent payload rejection — this exact fix can never deliver.
+        case rejected
+        case failed
+    }
+
+    /// What a single authorized POST attempt resolved to, separating the
+    /// can-never-succeed rejections from retry-worthy failures. Previously
+    /// every non-401 failure collapsed into one undifferentiated nil, so a
+    /// single 422 sample wedged the entire health outbox forever (#24a).
+    private enum UploadAttempt {
+        case response(DeliveryResult?)
+        case rejected(String)
+        case transientFailure
     }
 
     /// The relay hard-caps SensorHealthRequest.samples at 100
@@ -388,14 +411,25 @@ final class SensorUploadService {
 
         var healthBusyRetries = 0
 
-        while isActive && isPairedProvider() {
+        drainLoop: while isActive && isPairedProvider() {
             if let pendingLocation = outboxState.pendingLocation {
-                let delivered = await uploadLocation(pendingLocation)
-                sensorLog.notice("drain: location upload \(delivered ? "delivered" : "FAILED", privacy: .public)")
-                guard delivered else { recordDrain("Location upload failed"); break }
-                outboxState.pendingLocation = nil
-                persistOutboxState()
-                continue
+                let outcome = await uploadLocation(pendingLocation)
+                sensorLog.notice("drain: location upload → \(String(describing: outcome), privacy: .public)")
+                switch outcome {
+                case .delivered:
+                    clearPendingLocationIfUnchanged(pendingLocation)
+                    continue
+                case .rejected:
+                    // Permanent rejection: identical bytes can never deliver,
+                    // and a fresh fix supersedes this one — drop, don't wedge
+                    // the drain (health waits behind location).
+                    sensorLog.error("drain: location fix permanently rejected — dropped")
+                    clearPendingLocationIfUnchanged(pendingLocation)
+                    continue
+                case .failed:
+                    recordDrain("Location upload failed")
+                    break drainLoop
+                }
             }
 
             if !outboxState.pendingHealthSamples.isEmpty {
@@ -404,24 +438,35 @@ final class SensorUploadService {
                 let chunk = Array(outboxState.pendingHealthSamples.prefix(Self.healthUploadChunkSize))
                 let outcome = await uploadHealth(chunk)
                 sensorLog.notice("drain: health chunk (\(chunk.count) of \(self.outboxState.pendingHealthSamples.count) pending) → \(String(describing: outcome), privacy: .public)")
-                if case .delivered = outcome {
+                switch outcome {
+                case .delivered:
                     healthBusyRetries = 0
                     outboxState.pendingHealthSamples.removeFirst(chunk.count)
                     persistOutboxState()
                     continue
-                }
-                if case .retry = outcome, healthBusyRetries < Self.maxHealthBusyRetries {
+                case .retry:
                     // Connector busy — back off, then re-send the same chunk.
+                    guard healthBusyRetries < Self.maxHealthBusyRetries else { break drainLoop }
                     healthBusyRetries += 1
                     let delay = Double(1 << healthBusyRetries)
                     sensorLog.notice("drain: connector busy — retrying chunk in \(delay, privacy: .public)s (attempt \(healthBusyRetries)/\(Self.maxHealthBusyRetries))")
                     try? await Task.sleep(for: .seconds(delay))
                     continue
+                case .rejected(let message):
+                    // Permanent 400/422: at least one sample in this chunk can
+                    // NEVER deliver. Binary-split to deliver the good samples
+                    // and drop the poison instead of retaining the whole
+                    // backlog while motion samples pile up behind it (#24a).
+                    sensorLog.error("drain: health chunk permanently rejected — \(message, privacy: .public); isolating poison sample(s)")
+                    recordDrain("Isolating rejected health sample(s)")
+                    guard await resolveRejectedChunk(size: chunk.count) else { break drainLoop }
+                    continue
+                case .failed:
+                    break drainLoop
                 }
-                break
             }
 
-            break
+            break drainLoop
         }
         sensorLog.notice("drain: finished. Outbox remaining: loc=\(self.outboxState.pendingLocation != nil), health=\(self.outboxState.pendingHealthSamples.count)")
         recordDrain(outboxState.isEmpty ? "Delivered · outbox clear" : "Partial · loc=\(outboxState.pendingLocation != nil ? 1 : 0), health=\(outboxState.pendingHealthSamples.count)")
@@ -435,7 +480,53 @@ final class SensorUploadService {
         }
     }
 
-    private func uploadLocation(_ pending: SensorOutboxState.PendingLocation) async -> Bool {
+    /// Clears the pending location ONLY when it is still the exact fix that
+    /// was just uploaded/resolved. A fresh fix can arrive during the upload's
+    /// await and land in `pendingLocation`; blindly nil-ing it afterwards
+    /// silently discarded that newer fix (#24a follow-up, item 4). When a
+    /// newer fix replaced it, it stays queued and the drain loop sends it next.
+    private func clearPendingLocationIfUnchanged(_ uploaded: SensorOutboxState.PendingLocation) {
+        if outboxState.pendingLocation == uploaded {
+            outboxState.pendingLocation = nil
+        }
+        persistOutboxState()
+    }
+
+    /// Resolves a permanently rejected chunk from the FRONT of the health
+    /// outbox by binary split: halves that deliver are removed, the rejection
+    /// narrows to single samples, and each poison sample is dropped with its
+    /// fields logged (#24a follow-up, items 2+3). Progress persists after
+    /// every step, so an interruption never loses resolved work. Returns
+    /// false on a transient failure — the drain stops and the remaining
+    /// backlog re-attempts on the next trigger.
+    private func resolveRejectedChunk(size: Int) async -> Bool {
+        guard size > 0, !outboxState.pendingHealthSamples.isEmpty else { return true }
+
+        if size == 1 {
+            let poison = outboxState.pendingHealthSamples.removeFirst()
+            sensorLog.error("drain: dropping poison health sample — metric=\(poison.metric, privacy: .public) value=\(poison.value, privacy: .public) unit=\(poison.unit, privacy: .public) startAt=\(poison.startAt.description, privacy: .public) endAt=\(poison.endAt?.description ?? "nil", privacy: .public)")
+            persistOutboxState()
+            return true
+        }
+
+        let firstHalf = size / 2
+        for partSize in [firstHalf, size - firstHalf] {
+            let part = Array(outboxState.pendingHealthSamples.prefix(partSize))
+            guard !part.isEmpty else { continue }
+            switch await uploadHealth(part) {
+            case .delivered:
+                outboxState.pendingHealthSamples.removeFirst(part.count)
+                persistOutboxState()
+            case .rejected:
+                guard await resolveRejectedChunk(size: part.count) else { return false }
+            case .retry, .failed:
+                return false
+            }
+        }
+        return true
+    }
+
+    private func uploadLocation(_ pending: SensorOutboxState.PendingLocation) async -> LocationUploadOutcome {
         // Reverse geocode to get a human-readable address
         let address = await reverseGeocode(latitude: pending.latitude, longitude: pending.longitude)
 
@@ -448,7 +539,14 @@ final class SensorUploadService {
             recordedAt: iso8601Formatter.string(from: pending.recordedAt)
         )
 
-        return await performAuthorizedUpload(path: "device/sensor/location", body: body)?.wasDelivered ?? false
+        switch await performAuthorizedUpload(path: "device/sensor/location", body: body) {
+        case .response(let result):
+            return (result?.wasDelivered ?? false) ? .delivered : .failed
+        case .rejected:
+            return .rejected
+        case .transientFailure:
+            return .failed
+        }
     }
 
     private func reverseGeocode(latitude: Double, longitude: Double) async -> String? {
@@ -496,26 +594,46 @@ final class SensorUploadService {
             }
         )
 
-        guard let result = await performAuthorizedUpload(path: "device/sensor/health", body: body) else {
+        switch await performAuthorizedUpload(path: "device/sensor/health", body: body) {
+        case .response(let result):
+            guard let result else { return .failed }
+            if result.wasDelivered { return .delivered }
+            return result.deliveryState == "retry" ? .retry : .failed
+        case .rejected(let message):
+            return .rejected(message)
+        case .transientFailure:
             return .failed
         }
-        if result.wasDelivered { return .delivered }
-        return result.deliveryState == "retry" ? .retry : .failed
     }
 
-    private func performAuthorizedUpload<Body: Encodable>(path: String, body: Body) async -> DeliveryResult? {
+    /// One authorized POST, classified: a 401 gets one token-refresh retry; a
+    /// relay 400/422 is a PERMANENT payload rejection (retrying identical
+    /// bytes can never succeed); everything else — network, 5xx, failed
+    /// refresh — is transient and keeps the backlog for the next drain (#24a).
+    private func performAuthorizedUpload<Body: Encodable>(path: String, body: Body) async -> UploadAttempt {
         do {
-            return try await executeUpload(path: path, body: body, accessToken: await accessTokenProvider())
+            return .response(try await executeUpload(path: path, body: body, accessToken: await accessTokenProvider()))
         } catch RelayAPIClient.ClientError.unauthorized {
             sensorLog.warning("upload \(path): 401 unauthorized, attempting token refresh…")
             guard let refreshedToken = await accessTokenRefresher(), !refreshedToken.isEmpty else {
                 sensorLog.error("upload \(path): token refresh failed/empty")
-                return nil
+                return .transientFailure
             }
-            return (try? await executeUpload(path: path, body: body, accessToken: refreshedToken)) ?? nil
+            do {
+                return .response(try await executeUpload(path: path, body: body, accessToken: refreshedToken))
+            } catch RelayAPIClient.ClientError.payloadRejected(let statusCode, let message) {
+                sensorLog.error("upload \(path): permanent \(statusCode) rejection — \(message, privacy: .public)")
+                return .rejected(message)
+            } catch {
+                sensorLog.error("upload \(path): error after refresh — \(error.localizedDescription)")
+                return .transientFailure
+            }
+        } catch RelayAPIClient.ClientError.payloadRejected(let statusCode, let message) {
+            sensorLog.error("upload \(path): permanent \(statusCode) rejection — \(message, privacy: .public)")
+            return .rejected(message)
         } catch {
             sensorLog.error("upload \(path): error — \(error.localizedDescription)")
-            return nil
+            return .transientFailure
         }
     }
 
