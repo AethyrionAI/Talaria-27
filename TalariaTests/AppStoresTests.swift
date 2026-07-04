@@ -2025,4 +2025,77 @@ struct AppStoresTests {
         #expect(ChatStore.inferredContextWindow(for: "gpt-5.4-mini") == 128_000)
         #expect(ChatStore.inferredContextWindow(for: "claude-sonnet-4.6") == 1_000_000)
     }
+
+    // MARK: - CTX denominator reconciliation (#4)
+
+    @Test @MainActor
+    func reportedContextWindowParsesModelSwitchResponse() {
+        let response = """
+        Model switched to `kimi-k2.6`
+        Provider: kimi-coding
+        Context: 262,144 tokens
+        """
+        #expect(ChatStore.reportedContextWindow(in: response) == 262_144)
+        #expect(ChatStore.reportedContextWindow(in: "Context: 1,000,000 tokens") == 1_000_000)
+        #expect(ChatStore.reportedContextWindow(in: "Model switched to `x`") == nil)
+        #expect(ChatStore.reportedContextWindow(in: "Context: 0 tokens") == nil)
+    }
+
+    @Test @MainActor
+    func selectModelStoresHermesReportedWindowNotTheTable() async {
+        @MainActor
+        final class SwitchResponseClient: HermesClientProtocol {
+            var connectionStatus: ConnectionStatus = .connected
+            var currentConversation: Conversation?
+            func connect() async {}
+            func disconnect() async {}
+            func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
+                Message(sender: .hermes, content: "unused", status: .delivered)
+            }
+            func sendStreaming(message: String, attachments: [PendingAttachment], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+                AsyncStream { $0.finish() }
+            }
+            func loadConversation() async -> Conversation { Conversation(title: "Hermes") }
+            func clearConversation() async throws -> Conversation { Conversation(title: "Hermes") }
+            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation { Conversation(title: "Hermes") }
+            func switchModel(_ identifier: String) async throws -> String? {
+                "Model switched to `kimi-k2.6`\nContext: 190,000 tokens"
+            }
+        }
+
+        let suiteName = "chat-ctx-denominator-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let chatStore = ChatStore(hermesClient: SwitchResponseClient(), persistence: persistence)
+
+        let ok = await chatStore.selectModel("kimi-k2.6")
+
+        // The Hermes-reported window wins — NOT inferredContextWindow's
+        // nominal 262,144 for kimi (#4).
+        #expect(ok)
+        #expect(chatStore.activeModelName == "kimi-k2.6")
+        #expect(chatStore.contextWindow == 190_000)
+        #expect(chatStore.resolvedContextWindow(fallbackModelName: "kimi-k2.6") == 190_000)
+    }
+
+    @Test @MainActor
+    func failedCatalogRefreshPreservesHermesReportedWindow() {
+        let suiteName = "chat-ctx-preserve-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let chatStore = ChatStore(hermesClient: MockHermesClient(), persistence: persistence)
+
+        chatStore.replaceCommandCatalog(SlashCommand.allBuiltIn, activeModel: "kimi-k2.6", contextWindow: 190_000)
+        // A transient catalog-fetch failure (relay offline) must not demote
+        // the denominator to the nominal table (#4).
+        chatStore.restoreBuiltInCatalog()
+        #expect(chatStore.contextWindow == 190_000)
+        #expect(chatStore.activeModelName == "kimi-k2.6")
+
+        // The real reset path (unpair) still clears it.
+        chatStore.resetCommandCatalog()
+        #expect(chatStore.contextWindow == nil)
+    }
 }

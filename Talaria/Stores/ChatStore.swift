@@ -435,12 +435,21 @@ final class ChatStore {
     /// Switches the active model. Applies to the NEXT session (the Hermes agent
     /// dispatches `/model` as a command turn), so start a new chat for it to take
     /// effect. Updates the displayed model immediately for toolbar feedback.
+    ///
+    /// The CTX denominator reconciles against the host's `/model` response
+    /// ("Context: N tokens") — Hermes's own number for the switched model. It is
+    /// NEVER seeded from the client-side nominal table here; that table stays a
+    /// read-time display fallback only (resolvedContextWindow), because its
+    /// nominal windows run ~1.4x above Hermes's effective ones (#4).
     @discardableResult
     func selectModel(_ identifier: String) async -> Bool {
         do {
-            try await hermesClient.switchModel(identifier)
+            let responseText = try await hermesClient.switchModel(identifier)
             activeModelName = identifier
-            contextWindow = Self.inferredContextWindow(for: identifier)
+            updateContextWindow(
+                responseText.flatMap(Self.reportedContextWindow(in:)),
+                source: "model-switch response"
+            )
             return true
         } catch {
             return false
@@ -486,13 +495,22 @@ final class ChatStore {
     func replaceCommandCatalog(_ catalog: [SlashCommand], activeModel: String? = nil, contextWindow: Int? = nil) {
         commandCatalog = catalog.isEmpty ? SlashCommand.allBuiltIn : catalog
         if let activeModel { activeModelName = activeModel }
-        if let contextWindow { self.contextWindow = contextWindow }
+        if let contextWindow { updateContextWindow(contextWindow, source: "command catalog") }
     }
 
     func resetCommandCatalog() {
         commandCatalog = SlashCommand.allBuiltIn
         activeModelName = nil
-        contextWindow = nil
+        updateContextWindow(nil, source: "catalog reset")
+    }
+
+    /// Drops back to the built-in command list WITHOUT discarding the active
+    /// model or its Hermes-reported context window. Used when a catalog refresh
+    /// merely failed (the relay is offline by design much of the time) — a
+    /// transient fetch failure must not demote the CTX denominator from a
+    /// Hermes-reported value to the nominal client-side table (#4).
+    func restoreBuiltInCatalog() {
+        commandCatalog = SlashCommand.allBuiltIn
     }
 
     func reset() {
@@ -753,6 +771,28 @@ final class ChatStore {
     // Regex for context window in /model response: "Context: 1,000,000 tokens"
     nonisolated(unsafe) private static let contextWindowPattern = /Context:\s*([\d,]+)\s*tokens/
 
+    /// Extracts the Hermes-reported context window from a `/model` response
+    /// ("Context: 262,144 tokens"). This is the authoritative denominator
+    /// source for the CTX meter (#4). Nil when the response carries none.
+    nonisolated static func reportedContextWindow(in text: String) -> Int? {
+        guard let match = text.firstMatch(of: contextWindowPattern) else { return nil }
+        let raw = String(match.1).replacingOccurrences(of: ",", with: "")
+        guard let value = Int(raw), value > 0 else { return nil }
+        return value
+    }
+
+    /// Single write path for the CTX denominator, logging every change with its
+    /// source so a wrong meter reading is a one-line log read (#4 acceptance).
+    private func updateContextWindow(_ value: Int?, source: String) {
+        guard value != contextWindow else { return }
+        contextWindow = value
+        if let value {
+            chatLog.notice("contextWindow ← \(value) [\(source, privacy: .public)]")
+        } else {
+            chatLog.notice("contextWindow ← nil [\(source, privacy: .public)] — display falls back to inferred table")
+        }
+    }
+
     private func detectModelSwitch(from text: String) {
         // Match: "Model switched to `claude-sonnet-4-6`" or "Model switched: gpt-4-turbo"
         // Model ids can be slashed (e.g. "anthropic/claude-opus-4.8" from the nous
@@ -769,15 +809,11 @@ final class ChatStore {
 
                 // v0.8.0: the /model response includes "Context: N tokens"
                 // — parse it directly instead of relying on a heuristic table.
-                if let ctxMatch = text.firstMatch(of: Self.contextWindowPattern) {
-                    let raw = String(ctxMatch.1).replacingOccurrences(of: ",", with: "")
-                    if let ctxValue = Int(raw), ctxValue > 0 {
-                        contextWindow = ctxValue
-                        return
-                    }
-                }
-                // If context not in response, clear and let next catalog refresh resolve it
-                contextWindow = nil
+                // If absent, clear and let the next catalog refresh resolve it.
+                updateContextWindow(
+                    Self.reportedContextWindow(in: text),
+                    source: "chat /model response"
+                )
                 return
             }
         }

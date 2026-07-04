@@ -68,7 +68,8 @@ final class ResilientHermesClient: HermesClientProtocol {
         try await primary.availableModels()
     }
 
-    func switchModel(_ identifier: String) async throws {
+    @discardableResult
+    func switchModel(_ identifier: String) async throws -> String? {
         try await primary.switchModel(identifier)
     }
 

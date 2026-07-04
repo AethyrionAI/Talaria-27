@@ -30,7 +30,11 @@ protocol HermesClientProtocol {
 
     /// Requests a model switch. Per the Hermes Sessions API this applies to the
     /// NEXT session, so callers should start a fresh session for it to take effect.
-    func switchModel(_ identifier: String) async throws
+    /// Returns the host's response text — it carries the authoritative
+    /// "Context: N tokens" for the switched model (#4). Nil when the client
+    /// has no response to report.
+    @discardableResult
+    func switchModel(_ identifier: String) async throws -> String?
 
     /// Lists recent sessions from the host's Sessions API.
     func listSessions() async throws -> [HermesSessionInfo]
@@ -51,7 +55,7 @@ extension HermesClientProtocol {
     // wrapper override these. Declaring them as requirements above (not just here)
     // keeps dynamic dispatch through `any HermesClientProtocol` intact.
     func availableModels() async throws -> [String] { [] }
-    func switchModel(_ identifier: String) async throws {}
+    func switchModel(_ identifier: String) async throws -> String? { nil }
     func listSessions() async throws -> [HermesSessionInfo] { [] }
     func openSession(_ id: String) async throws -> Conversation { await loadConversation() }
     func reconcileFromServer() async -> Conversation? { nil }

@@ -297,14 +297,18 @@ final class SessionsHermesClient: HermesClientProtocol {
 
     /// Switches the active model for the NEXT session. The Hermes agent
     /// dispatches `/model …` as a command turn; the chosen model applies once a
-    /// fresh session is created. Phase 3 wiring will call this from the picker.
-    func switchModel(_ identifier: String) async throws {
+    /// fresh session is created. Returns the response text — it carries the
+    /// authoritative "Context: N tokens" for the switched model, which the
+    /// CTX meter's denominator reconciles against (#4).
+    @discardableResult
+    func switchModel(_ identifier: String) async throws -> String? {
         let sessionId = try await ensureSession()
         let path = "\(Self.sessionsPath)/\(sessionId)/chat"
-        let _: SyncChatResponse = try await postJSON(
+        let response: SyncChatResponse = try await postJSON(
             path: path,
             body: ChatTurnBody.make(message: "/model \(identifier)", attachments: [])
         )
+        return response.message?.content ?? response.content
     }
 
     // MARK: - Sessions list / open

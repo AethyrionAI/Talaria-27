@@ -722,8 +722,11 @@ final class AppContainer {
                 lastCommandCatalogRefreshAt = .now
             }
         } catch {
-            // Fallback to built-in list — catalog is a nice-to-have
-            chatStore.resetCommandCatalog()
+            // Fallback to built-in list — catalog is a nice-to-have. Keep the
+            // active model + Hermes-reported context window: the catalog rides
+            // the relay, and a transient fetch failure must not demote the CTX
+            // denominator to the nominal client-side table (#4).
+            chatStore.restoreBuiltInCatalog()
         }
     }
 
