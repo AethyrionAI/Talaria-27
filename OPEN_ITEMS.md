@@ -1150,6 +1150,8 @@ Reconciliation endpoint confirmed: `GET /api/sessions/{id}/messages`.
 
 Logged 2026-06-27. Deferred — local-notification path is sufficient for now.
 
+**Exploratory branch archived (2026-07-03):** the app-side APNs spike — `feat/apns-push` (Option B: remote-notification receive plumbing, the missing `aps-environment` entitlement, and tap-to-copy push token in Diagnostics) — was tag-archived at `archive/apns-push-20260703` (pushed to origin) and the branch deleted during repo cleanup. Push *delivery* still isn't wired (no `.p8`), but the receive scaffolding is reusable when this is picked up. Restore: `git switch -c apns-push archive/apns-push-20260703`.
+
 ---
 
 ## 39. ✅ Motion & Fitness authorization shows "off" on every launch — fixed + verified + committed
