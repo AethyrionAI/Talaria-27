@@ -489,7 +489,7 @@ struct AppStoresTests {
                 return AsyncStream { continuation in
                     Task { @MainActor in
                         continuation.yield(.messageSent(jobID: jobID))
-                        continuation.yield(.toolActivity("🔍 Searching files"))
+                        continuation.yield(.toolActivity(ToolCallEvent(name: "🔍 Searching files")))
                         continuation.yield(.finished(
                             Message(
                                 id: finalMessageID,
@@ -2097,5 +2097,81 @@ struct AppStoresTests {
         // The real reset path (unpair) still clears it.
         chatStore.resetCommandCatalog()
         #expect(chatStore.contextWindow == nil)
+    }
+
+    // MARK: - Inline tool-call transcript segments (#10)
+
+    @Test @MainActor
+    func transcriptSegmentsAnchorToolChipsInline() {
+        // "Looking…" streams (9 chars), a tool fires, then the answer streams.
+        let content = "Looking… Here is the answer."
+        let tool = ToolActivity(label: "read_file", isActive: false, anchorOffset: 9)
+        let segments = MessageBubble.transcriptSegments(content: content, activities: [tool])
+
+        #expect(segments.count == 3)
+        guard case .text(let head, 0) = segments[0],
+              case .tools(let group, 9) = segments[1],
+              case .text(let tail, 9) = segments[2]
+        else {
+            Issue.record("unexpected segment shape")
+            return
+        }
+        #expect(head == "Looking… ")
+        #expect(group.map(\.label) == ["read_file"])
+        #expect(tail == "Here is the answer.")
+    }
+
+    @Test @MainActor
+    func transcriptSegmentsGroupSameAnchorAndLeadWithPreTextTools() {
+        // Two calls before any content share one leading group.
+        let tools = [
+            ToolActivity(label: "search", isActive: false, anchorOffset: 0),
+            ToolActivity(label: "read_file", isActive: false, anchorOffset: 0),
+        ]
+        let segments = MessageBubble.transcriptSegments(content: "Answer.", activities: tools)
+
+        #expect(segments.count == 2)
+        guard case .tools(let group, 0) = segments[0],
+              case .text(let text, 0) = segments[1]
+        else {
+            Issue.record("unexpected segment shape")
+            return
+        }
+        #expect(group.map(\.label) == ["search", "read_file"])
+        #expect(text == "Answer.")
+    }
+
+    @Test @MainActor
+    func transcriptSegmentsClampOutOfRangeAnchors() {
+        // A stale cache / server reload can carry anchors past the content.
+        let tool = ToolActivity(label: "write_file", isActive: false, anchorOffset: 999)
+        let segments = MessageBubble.transcriptSegments(content: "Short.", activities: [tool])
+
+        #expect(segments.count == 2)
+        guard case .text("Short.", 0) = segments[0],
+              case .tools(let group, 6) = segments[1]
+        else {
+            Issue.record("unexpected segment shape")
+            return
+        }
+        #expect(group.count == 1)
+    }
+
+    @Test @MainActor
+    func messageCodableRoundTripsToolActivities() throws {
+        // #10: the tool timeline must survive the conversation cache.
+        let message = Message(
+            sender: .hermes,
+            content: "Done.",
+            toolActivities: [
+                ToolActivity(label: "write_file", isActive: false, detail: "path: notes.md", anchorOffset: 0),
+            ]
+        )
+        let data = try JSONEncoder().encode(message)
+        let decoded = try JSONDecoder().decode(Message.self, from: data)
+        #expect(decoded.toolActivities.count == 1)
+        #expect(decoded.toolActivities.first?.label == "write_file")
+        #expect(decoded.toolActivities.first?.detail == "path: notes.md")
+        #expect(decoded.toolActivities.first?.anchorOffset == 0)
     }
 }

@@ -3,7 +3,8 @@ import SwiftUI
 /// A compact, live-rotating view showing what tools Hermes is using in real time.
 ///
 /// **Streaming**: shows a "TOOL ACTIVITY" HUD panel with a per-step timeline.
-/// **Finished**: shows a collapsed summary that expands to the full timeline on tap.
+/// **Finished**: shows a collapsed chip naming the call(s) that expands to the
+/// full timeline — tool name, key inputs, completion status — on tap (#11).
 struct ToolActivityRail: View {
     let activities: [ToolActivity]
     let isStreaming: Bool
@@ -66,10 +67,18 @@ struct ToolActivityRail: View {
 
     // MARK: - Finished Summary (expandable)
 
+    /// Collapsed label: the tool's name when there's a single call, a count
+    /// otherwise — never just "a tool ran" (#11).
+    private var collapsedLabel: String {
+        if activities.count == 1, let only = activities.first {
+            return only.label
+        }
+        return "\(activities.count) Tool Calls"
+    }
+
     private var finishedSummary: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
             Button {
-                guard activities.count > 1 else { return }
                 withAnimation(Design.Motion.quickResponse) {
                     isExpanded.toggle()
                 }
@@ -80,17 +89,15 @@ struct ToolActivityRail: View {
                         .foregroundStyle(Design.Brand.accent)
 
                     MonoLabel(
-                        "Used \(activities.count) Tool\(activities.count == 1 ? "" : "s")",
+                        collapsedLabel,
                         size: 10,
                         tracking: Design.Tracking.mono,
                         color: Design.Colors.secondaryForeground
                     )
 
-                    if activities.count > 1 {
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 8, weight: .semibold))
-                            .foregroundStyle(Design.Colors.mutedForeground)
-                    }
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(Design.Colors.mutedForeground)
                 }
                 .padding(.horizontal, Design.Spacing.sm)
                 .padding(.vertical, Design.Spacing.xxs + 2)
@@ -132,7 +139,7 @@ struct ToolActivityRail: View {
     // MARK: - Shared step row
 
     private func activityRow(_ activity: ToolActivity, running: Bool) -> some View {
-        HStack(spacing: Design.Spacing.xs + 2) {
+        HStack(alignment: .top, spacing: Design.Spacing.xs + 2) {
             if running {
                 Image(systemName: "circle.dotted")
                     .font(.system(size: 11, weight: .semibold))
@@ -145,10 +152,22 @@ struct ToolActivityRail: View {
                     .frame(width: 11, height: 11)
             }
 
-            Text(activity.label)
-                .font(Design.Typography.mono(12))
-                .foregroundStyle(Design.Colors.coolForeground)
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(activity.label)
+                    .font(Design.Typography.mono(12))
+                    .foregroundStyle(Design.Colors.coolForeground)
+                    .lineLimit(1)
+
+                // Key inputs from the tool.started payload (#11); truncated —
+                // long values are already elided at parse time.
+                if let detail = activity.detail, !detail.isEmpty {
+                    Text(detail)
+                        .font(Design.Typography.monoSmall)
+                        .foregroundStyle(Design.Colors.mutedForeground)
+                        .lineLimit(2)
+                        .truncationMode(.middle)
+                }
+            }
 
             Spacer(minLength: Design.Spacing.xs)
 

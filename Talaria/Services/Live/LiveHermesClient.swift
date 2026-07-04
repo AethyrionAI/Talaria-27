@@ -396,7 +396,7 @@ final class LiveHermesClient: HermesClientProtocol {
                         if let payload = decode(StreamProgressPayload.self, from: sseEvent.data),
                            let label = payload.label,
                            !label.isEmpty {
-                            continuation.yield(.toolActivity(label))
+                            continuation.yield(.toolActivity(ToolCallEvent(name: label)))
                         }
                     case "done":
                         return decode(StreamDonePayload.self, from: sseEvent.data)

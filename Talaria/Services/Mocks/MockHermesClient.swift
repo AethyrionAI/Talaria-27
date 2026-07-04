@@ -65,7 +65,7 @@ final class MockHermesClient: HermesClientProtocol {
 
                 // Simulate tool activity
                 try? await Task.sleep(for: .seconds(0.5))
-                continuation.yield(.toolActivity("Searching..."))
+                continuation.yield(.toolActivity(ToolCallEvent(name: "Searching...")))
 
                 // Simulate streaming text
                 try? await Task.sleep(for: .seconds(0.3))

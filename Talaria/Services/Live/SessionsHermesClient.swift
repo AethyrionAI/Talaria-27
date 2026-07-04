@@ -148,10 +148,15 @@ final class SessionsHermesClient: HermesClientProtocol {
                                 continuation.yield(.textDelta(delta))
                             }
                         case "tool.started", "tool.completed":
-                            if let toolName = self.decodeJSONString(currentData, key: "tool_name"),
-                               !toolName.isEmpty,
-                               toolName != "_thinking" {
-                                continuation.yield(.toolActivity(toolName))
+                            // #11: `tool.started` carries name + args + preview;
+                            // `tool.completed` is usually empty (no result payload
+                            // today — verified against the live host), so it only
+                            // yields when the server names the finished tool.
+                            if let event = self.parseToolCallEvent(
+                                currentData,
+                                phase: currentEvent == "tool.started" ? .started : .completed
+                            ) {
+                                continuation.yield(.toolActivity(event))
                             }
                             // #21 Tier 1: a write surfaces only on `tool.started`,
                             // carrying the bytes inline. `tool.completed` is empty.
@@ -377,9 +382,31 @@ final class SessionsHermesClient: HermesClientProtocol {
         default: return nil   // skip system / tool / other roles
         }
         let text = (m.content ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return nil }
         let ts = m.timestamp.map { Date(timeIntervalSince1970: $0) } ?? .now
-        return Message(sender: sender, content: text, timestamp: ts, status: .delivered)
+
+        // #10: restore the tool timeline when the API includes tool_calls on
+        // an assistant row. The stored transcript carries no position data, so
+        // reloaded chips anchor at the head of the message (offset 0).
+        let activities: [ToolActivity]
+        if sender == .hermes {
+            activities = m.toolCalls.compactMap { call in
+                guard let name = call.name, !name.isEmpty, name != "_thinking" else { return nil }
+                return ToolActivity(label: name, startedAt: ts, isActive: false, detail: call.detail)
+            }
+        } else {
+            activities = []
+        }
+
+        // An assistant row can be tool-calls-only (the text lands on a later
+        // row) — keep it so the chips survive history reload.
+        guard !text.isEmpty || !activities.isEmpty else { return nil }
+        return Message(
+            sender: sender,
+            content: text,
+            timestamp: ts,
+            status: .delivered,
+            toolActivities: activities
+        )
     }
 
     private func ensureSession() async throws -> String {
@@ -456,6 +483,62 @@ final class SessionsHermesClient: HermesClientProtocol {
             return dict[key] as? String
         }
         return nil
+    }
+
+    /// #11: builds a `ToolCallEvent` from a `tool.started` / `tool.completed`
+    /// payload (`{tool_name, args:{…}, preview}`). `_thinking` is the reasoning
+    /// channel, never a tool call. Returns nil when no tool name is present —
+    /// the norm for `tool.completed`, whose payload is empty on the wire today.
+    nonisolated private func parseToolCallEvent(_ raw: String, phase: ToolCallEvent.Phase) -> ToolCallEvent? {
+        guard let data = raw.data(using: .utf8),
+              let payload = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let name = payload["tool_name"] as? String,
+              !name.isEmpty,
+              name != "_thinking"
+        else { return nil }
+        guard phase == .started else {
+            return ToolCallEvent(name: name, phase: .completed)
+        }
+        return ToolCallEvent(name: name, phase: .started, detail: Self.toolCallDetail(from: payload))
+    }
+
+    /// Compact single-line input summary for a tool chip (#11): the server's
+    /// `preview` when present, else up to three `args` entries with long values
+    /// elided so the collapsed chip stays phone-sized.
+    nonisolated private static func toolCallDetail(from payload: [String: Any]) -> String? {
+        if let preview = payload["preview"] as? String,
+           !preview.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return preview
+        }
+        guard let args = payload["args"] as? [String: Any], !args.isEmpty else { return nil }
+        // Lead with the params that identify what the call touched.
+        let priority = ["path", "file_path", "filename", "command", "query", "url", "pattern"]
+        let orderedKeys = args.keys.sorted { a, b in
+            let ia = priority.firstIndex(of: a) ?? Int.max
+            let ib = priority.firstIndex(of: b) ?? Int.max
+            return ia == ib ? a < b : ia < ib
+        }
+        let pairs = orderedKeys.prefix(3).map { "\($0): \(compactArgValue(args[$0] ?? ""))" }
+        return pairs.isEmpty ? nil : pairs.joined(separator: " · ")
+    }
+
+    nonisolated private static func compactArgValue(_ value: Any) -> String {
+        switch value {
+        case let string as String:
+            if string.count > 80 {
+                let bytes = ByteCountFormatter.string(fromByteCount: Int64(string.utf8.count), countStyle: .file)
+                return "\(bytes) text"
+            }
+            return string.replacingOccurrences(of: "\n", with: " ")
+        case let number as NSNumber:
+            return number.stringValue
+        case is [Any]:
+            return "[…]"
+        case is [String: Any]:
+            return "{…}"
+        default:
+            return String(describing: value)
+        }
     }
 
     /// #21 Tier 1: pulls an agent-written file out of a `tool.started` payload.
@@ -747,9 +830,13 @@ final class SessionsHermesClient: HermesClientProtocol {
             let role: String?
             let content: String?
             let timestamp: Double?
+            /// Tool calls the API attaches to an assistant row, when it does
+            /// (#10 — tolerant: absent/unknown shapes decode to []).
+            let toolCalls: [StoredToolCall]
             enum CodingKeys: String, CodingKey {
                 case role, content, timestamp
                 case createdAt = "created_at"
+                case toolCalls = "tool_calls"
             }
             init(from decoder: Decoder) throws {
                 let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -765,10 +852,43 @@ final class SessionsHermesClient: HermesClientProtocol {
                 } else {
                     content = nil
                 }
+                toolCalls = (try? c.decodeIfPresent([StoredToolCall].self, forKey: .toolCalls)) ?? []
             }
             struct ContentPart: Decodable {
                 let type: String?
                 let text: String?
+            }
+        }
+
+        /// One stored tool call — tolerant of shape drift: flat
+        /// `{name|tool_name|tool}` or OpenAI-style `{function:{name}}`;
+        /// `preview` is kept as the chip detail when present.
+        struct StoredToolCall: Decodable {
+            let name: String?
+            let detail: String?
+
+            enum CodingKeys: String, CodingKey {
+                case name, tool, function, preview
+                case toolName = "tool_name"
+            }
+            struct FunctionEnvelope: Decodable {
+                let name: String?
+            }
+            init(from decoder: Decoder) throws {
+                let c = try decoder.container(keyedBy: CodingKeys.self)
+                var resolved: String?
+                for key in [CodingKeys.name, .toolName, .tool] {
+                    if let value = try? c.decodeIfPresent(String.self, forKey: key), value.isEmpty == false {
+                        resolved = value
+                        break
+                    }
+                }
+                if resolved == nil,
+                   let function = try? c.decodeIfPresent(FunctionEnvelope.self, forKey: .function) {
+                    resolved = function.name
+                }
+                name = resolved
+                detail = (try? c.decodeIfPresent(String.self, forKey: .preview)) ?? nil
             }
         }
     }

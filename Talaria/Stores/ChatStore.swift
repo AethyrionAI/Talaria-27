@@ -156,20 +156,41 @@ final class ChatStore {
                         self.conversation = conv
                     }
 
-                case .toolActivity(let label):
+                case .toolActivity(let event):
                     if var conv = self.conversation,
                        let idx = conv.messages.firstIndex(where: { $0.id == placeholderID }) {
-                        for i in conv.messages[idx].toolActivities.indices {
-                            conv.messages[idx].toolActivities[i].isActive = false
+                        switch event.phase {
+                        case .started:
+                            // Tools run serially, so a new start resolves any
+                            // still-active predecessor.
+                            for i in conv.messages[idx].toolActivities.indices {
+                                conv.messages[idx].toolActivities[i].isActive = false
+                            }
+                            // Anchor at the content streamed so far — this is
+                            // what places the chip inline in the transcript (#10).
+                            let activity = ToolActivity(
+                                label: event.name,
+                                detail: event.detail,
+                                anchorOffset: conv.messages[idx].content.count
+                            )
+                            conv.messages[idx].toolActivities.append(activity)
+                            conv.messages[idx].toolActivity = event.name
+                        case .completed:
+                            // tool.completed is usually empty on the wire; when
+                            // it does name the tool, resolve its newest chip.
+                            if let last = conv.messages[idx].toolActivities.lastIndex(where: {
+                                $0.isActive && $0.label == event.name
+                            }) {
+                                conv.messages[idx].toolActivities[last].isActive = false
+                            }
                         }
-                        let activity = ToolActivity(label: label)
-                        conv.messages[idx].toolActivities.append(activity)
-                        conv.messages[idx].toolActivity = label
                         self.conversation = conv
                     }
-                    // Show tool progress on Lock Screen / Dynamic Island
-                    self.chatLiveActivity.startToolCall(toolName: label)
-                    self.chatLiveActivity.updateToolProgress(label)
+                    if event.phase == .started {
+                        // Show tool progress on Lock Screen / Dynamic Island
+                        self.chatLiveActivity.startToolCall(toolName: event.name)
+                        self.chatLiveActivity.updateToolProgress(event.name)
+                    }
 
                 case .finished(let finalMessage, let usage, let diff):
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {

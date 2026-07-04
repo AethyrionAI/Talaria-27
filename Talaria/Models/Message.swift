@@ -87,7 +87,7 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, clientMessageID, sender, content, timestamp, jobID, status, attachments
+        case id, clientMessageID, sender, content, timestamp, jobID, status, attachments, toolActivities
     }
 
     init(from decoder: Decoder) throws {
@@ -101,7 +101,9 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         status = try container.decode(MessageStatus.self, forKey: .status)
         attachments = try container.decodeIfPresent([MessageAttachment].self, forKey: .attachments) ?? []
         toolActivity = nil
-        toolActivities = []
+        // Persisted with the message (#10) so the tool timeline survives the
+        // conversation cache; absent in pre-#10 caches.
+        toolActivities = try container.decodeIfPresent([ToolActivity].self, forKey: .toolActivities) ?? []
         codeDiff = nil
         isStreaming = false
         voiceSessionDuration = nil
@@ -118,6 +120,9 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         try container.encode(status, forKey: .status)
         if !attachments.isEmpty {
             try container.encode(attachments, forKey: .attachments)
+        }
+        if !toolActivities.isEmpty {
+            try container.encode(toolActivities, forKey: .toolActivities)
         }
     }
 }

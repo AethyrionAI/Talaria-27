@@ -128,20 +128,24 @@ struct MessageBubble: View {
             } else if message.isStreaming && message.content.isEmpty && message.toolActivities.isEmpty {
                 streamingPlaceholder
             } else {
-                if !message.content.isEmpty {
-                    streamingText
-                } else if message.isStreaming {
-                    // Content still empty but tool activities exist — show a subtle placeholder
-                    streamingPlaceholder
-                }
+                if message.toolActivities.isEmpty {
+                    if !message.content.isEmpty {
+                        streamingText
+                    } else if message.isStreaming {
+                        streamingPlaceholder
+                    }
+                    if let activity = message.toolActivity {
+                        toolActivityPill(activity)
+                    }
+                } else {
+                    // #10: tool-call chips render inline at the point in the
+                    // content where each call actually fired, and persist as
+                    // part of the message.
+                    interleavedTranscript
 
-                if !message.toolActivities.isEmpty {
-                    ToolActivityRail(
-                        activities: message.toolActivities,
-                        isStreaming: message.isStreaming
-                    )
-                } else if let activity = message.toolActivity {
-                    toolActivityPill(activity)
+                    if message.isStreaming && message.content.isEmpty {
+                        streamingPlaceholder
+                    }
                 }
 
                 if let diff = message.codeDiff, !diff.isEmpty {
@@ -189,6 +193,91 @@ struct MessageBubble: View {
             tracking: Design.Tracking.mono,
             color: Design.Colors.dimForeground
         )
+    }
+
+    // MARK: - Interleaved Transcript (#10)
+
+    /// One ordered slice of an assistant turn: either a run of streamed text or
+    /// a group of tool calls that fired at that point in the content.
+    enum TranscriptSegment: Identifiable {
+        case text(String, offset: Int)
+        case tools([ToolActivity], offset: Int)
+
+        var id: String {
+            switch self {
+            case .text(_, let offset): "text-\(offset)"
+            case .tools(let group, let offset): "tools-\(offset)-\(group.first?.id.uuidString ?? "")"
+            }
+        }
+    }
+
+    /// Splits the assistant content at each tool call's anchor so chips render
+    /// where the model actually invoked them. Anchors are non-decreasing while
+    /// streaming; clamping keeps reloaded history (anchor 0) and any stale
+    /// cache safe. Consecutive calls at the same anchor share one chip group.
+    static func transcriptSegments(content: String, activities: [ToolActivity]) -> [TranscriptSegment] {
+        guard !activities.isEmpty else {
+            return content.isEmpty ? [] : [.text(content, offset: 0)]
+        }
+        let characters = Array(content)
+        var segments: [TranscriptSegment] = []
+        var cursor = 0
+        var group: [ToolActivity] = []
+        var groupAnchor = 0
+
+        func emitText(upTo end: Int) {
+            guard end > cursor else { return }
+            let slice = String(characters[cursor ..< end])
+            if !slice.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                segments.append(.text(slice, offset: cursor))
+            }
+            cursor = end
+        }
+        func emitGroup() {
+            guard !group.isEmpty else { return }
+            segments.append(.tools(group, offset: groupAnchor))
+            group = []
+        }
+
+        for activity in activities {
+            let anchor = min(max(activity.anchorOffset, cursor), characters.count)
+            if group.isEmpty || anchor != groupAnchor {
+                emitGroup()
+                emitText(upTo: anchor)
+                groupAnchor = anchor
+            }
+            group.append(activity)
+        }
+        emitGroup()
+        emitText(upTo: characters.count)
+        return segments
+    }
+
+    @ViewBuilder
+    private var interleavedTranscript: some View {
+        let segments = Self.transcriptSegments(
+            content: message.content,
+            activities: message.toolActivities
+        )
+        let lastID = segments.last?.id
+        ForEach(segments) { segment in
+            switch segment {
+            case .text(let slice, _):
+                MarkdownContentView(
+                    content: isBudgetWarning ? Self.strippingBudgetWarnings(from: slice) : slice,
+                    isStreaming: message.isStreaming,
+                    showCursor: message.isStreaming && segment.id == lastID,
+                    textColor: Design.Colors.coolForeground
+                )
+                .foregroundStyle(Design.Colors.coolForeground)
+                .padding(.vertical, Design.Spacing.xxs)
+            case .tools(let group, _):
+                ToolActivityRail(
+                    activities: group,
+                    isStreaming: message.isStreaming && group.contains(where: \.isActive)
+                )
+            }
+        }
     }
 
     // MARK: - Streaming Components
