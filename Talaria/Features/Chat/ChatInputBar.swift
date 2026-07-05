@@ -16,6 +16,7 @@ struct ChatInputBar: View {
     @Environment(TalkStore.self) private var talkStore
     @Environment(ChatStore.self) private var chatStore
     @Environment(TabRouter.self) private var router
+    @Environment(SettingsStore.self) private var settingsStore
 
     @State private var speechService = LiveSpeechService()
     @State private var dictationBaseText = ""
@@ -101,6 +102,13 @@ struct ChatInputBar: View {
                         .background(.clear)
                         .frame(minHeight: 22, maxHeight: 120)
                         .fixedSize(horizontal: false, vertical: true)
+                        // #4: .complete froze the device on iOS 27 beta 2
+                        // (broken PresentWritingToolsResult handoff), so the
+                        // full tier is opt-in via the Developer flag until a
+                        // beta fixes it. .automatic = today's safe baseline.
+                        .writingToolsBehavior(
+                            settingsStore.settings.composerWritingToolsEnabled ? .complete : .automatic
+                        )
 
                     if text.isEmpty {
                         Text(speechService.isListening ? "Listening…" : "Message Hermes…")

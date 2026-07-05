@@ -350,6 +350,12 @@ struct UserSettings: Codable, Hashable, Sendable {
     var readAloudVoiceIdentifier: String?
     /// `AVSpeechUtterance` rate on its native 0…1 scale (0.5 = system default).
     var readAloudRate: Double
+    /// Opts the composer into `.writingToolsBehavior(.complete)` (#4). Default
+    /// OFF: the full Writing Tools panel froze the device on iOS 27 beta 2
+    /// (broken PresentWritingToolsResult handoff — see 73034b7/03f3862). The
+    /// Developer screen exposes this for re-testing on newer betas; off means
+    /// the system-default (.automatic) inline tier, which is safe.
+    var composerWritingToolsEnabled: Bool
     var appearanceTheme: AppearanceTheme
     var appearanceAccent: AppearanceAccent
     var hudGlowIntensity: Double
@@ -374,6 +380,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         readAloudAutoPlay: Bool = false,
         readAloudVoiceIdentifier: String? = nil,
         readAloudRate: Double = 0.5,
+        composerWritingToolsEnabled: Bool = false,
         appearanceTheme: AppearanceTheme = .deepField,
         appearanceAccent: AppearanceAccent = .cyan,
         hudGlowIntensity: Double = 1.0,
@@ -397,6 +404,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.readAloudAutoPlay = readAloudAutoPlay
         self.readAloudVoiceIdentifier = readAloudVoiceIdentifier
         self.readAloudRate = readAloudRate
+        self.composerWritingToolsEnabled = composerWritingToolsEnabled
         self.appearanceTheme = appearanceTheme
         self.appearanceAccent = appearanceAccent
         self.hudGlowIntensity = hudGlowIntensity
@@ -422,6 +430,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         case readAloudAutoPlay
         case readAloudVoiceIdentifier
         case readAloudRate
+        case composerWritingToolsEnabled
         case appearanceTheme
         case appearanceAccent
         case hudGlowIntensity
@@ -449,6 +458,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         readAloudAutoPlay = try container.decodeIfPresent(Bool.self, forKey: .readAloudAutoPlay) ?? false
         readAloudVoiceIdentifier = try container.decodeIfPresent(String.self, forKey: .readAloudVoiceIdentifier)
         readAloudRate = try container.decodeIfPresent(Double.self, forKey: .readAloudRate) ?? 0.5
+        composerWritingToolsEnabled = try container.decodeIfPresent(Bool.self, forKey: .composerWritingToolsEnabled) ?? false
         appearanceTheme = try container.decodeIfPresent(AppearanceTheme.self, forKey: .appearanceTheme) ?? .deepField
         appearanceAccent = try container.decodeIfPresent(AppearanceAccent.self, forKey: .appearanceAccent) ?? .cyan
         hudGlowIntensity = try container.decodeIfPresent(Double.self, forKey: .hudGlowIntensity) ?? 1.0
@@ -475,6 +485,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         try container.encode(readAloudAutoPlay, forKey: .readAloudAutoPlay)
         try container.encodeIfPresent(readAloudVoiceIdentifier, forKey: .readAloudVoiceIdentifier)
         try container.encode(readAloudRate, forKey: .readAloudRate)
+        try container.encode(composerWritingToolsEnabled, forKey: .composerWritingToolsEnabled)
         try container.encode(appearanceTheme, forKey: .appearanceTheme)
         try container.encode(appearanceAccent, forKey: .appearanceAccent)
         try container.encode(hudGlowIntensity, forKey: .hudGlowIntensity)
