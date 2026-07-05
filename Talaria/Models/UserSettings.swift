@@ -342,6 +342,14 @@ struct UserSettings: Codable, Hashable, Sendable {
     /// as a normal text turn so the agent has voice context for the next
     /// exchange (#1). Off = voice sessions stay local-only.
     var postVoiceTranscriptsToHermes: Bool
+    // Read-aloud (#2): local AVSpeechSynthesizer output for Hermes replies.
+    /// Speak replies automatically as they stream (sentence-buffered). The
+    /// per-bubble speaker toggle works regardless of this flag.
+    var readAloudAutoPlay: Bool
+    /// Persisted `AVSpeechSynthesisVoice` identifier; nil = best system voice.
+    var readAloudVoiceIdentifier: String?
+    /// `AVSpeechUtterance` rate on its native 0…1 scale (0.5 = system default).
+    var readAloudRate: Double
     var appearanceTheme: AppearanceTheme
     var appearanceAccent: AppearanceAccent
     var hudGlowIntensity: Double
@@ -363,6 +371,9 @@ struct UserSettings: Codable, Hashable, Sendable {
         hermesAPIBaseURL: String = UserSettings.defaultHermesAPIBaseURL,
         modelsShimBaseURL: String = UserSettings.defaultModelsShimBaseURL,
         postVoiceTranscriptsToHermes: Bool = true,
+        readAloudAutoPlay: Bool = false,
+        readAloudVoiceIdentifier: String? = nil,
+        readAloudRate: Double = 0.5,
         appearanceTheme: AppearanceTheme = .deepField,
         appearanceAccent: AppearanceAccent = .cyan,
         hudGlowIntensity: Double = 1.0,
@@ -383,6 +394,9 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.hermesAPIBaseURL = hermesAPIBaseURL
         self.modelsShimBaseURL = modelsShimBaseURL
         self.postVoiceTranscriptsToHermes = postVoiceTranscriptsToHermes
+        self.readAloudAutoPlay = readAloudAutoPlay
+        self.readAloudVoiceIdentifier = readAloudVoiceIdentifier
+        self.readAloudRate = readAloudRate
         self.appearanceTheme = appearanceTheme
         self.appearanceAccent = appearanceAccent
         self.hudGlowIntensity = hudGlowIntensity
@@ -405,6 +419,9 @@ struct UserSettings: Codable, Hashable, Sendable {
         case hermesAPIBaseURL
         case modelsShimBaseURL
         case postVoiceTranscriptsToHermes
+        case readAloudAutoPlay
+        case readAloudVoiceIdentifier
+        case readAloudRate
         case appearanceTheme
         case appearanceAccent
         case hudGlowIntensity
@@ -429,6 +446,9 @@ struct UserSettings: Codable, Hashable, Sendable {
         hermesAPIBaseURL = try container.decodeIfPresent(String.self, forKey: .hermesAPIBaseURL) ?? UserSettings.defaultHermesAPIBaseURL
         modelsShimBaseURL = try container.decodeIfPresent(String.self, forKey: .modelsShimBaseURL) ?? UserSettings.defaultModelsShimBaseURL
         postVoiceTranscriptsToHermes = try container.decodeIfPresent(Bool.self, forKey: .postVoiceTranscriptsToHermes) ?? true
+        readAloudAutoPlay = try container.decodeIfPresent(Bool.self, forKey: .readAloudAutoPlay) ?? false
+        readAloudVoiceIdentifier = try container.decodeIfPresent(String.self, forKey: .readAloudVoiceIdentifier)
+        readAloudRate = try container.decodeIfPresent(Double.self, forKey: .readAloudRate) ?? 0.5
         appearanceTheme = try container.decodeIfPresent(AppearanceTheme.self, forKey: .appearanceTheme) ?? .deepField
         appearanceAccent = try container.decodeIfPresent(AppearanceAccent.self, forKey: .appearanceAccent) ?? .cyan
         hudGlowIntensity = try container.decodeIfPresent(Double.self, forKey: .hudGlowIntensity) ?? 1.0
@@ -452,6 +472,9 @@ struct UserSettings: Codable, Hashable, Sendable {
         try container.encode(hermesAPIBaseURL, forKey: .hermesAPIBaseURL)
         try container.encode(modelsShimBaseURL, forKey: .modelsShimBaseURL)
         try container.encode(postVoiceTranscriptsToHermes, forKey: .postVoiceTranscriptsToHermes)
+        try container.encode(readAloudAutoPlay, forKey: .readAloudAutoPlay)
+        try container.encodeIfPresent(readAloudVoiceIdentifier, forKey: .readAloudVoiceIdentifier)
+        try container.encode(readAloudRate, forKey: .readAloudRate)
         try container.encode(appearanceTheme, forKey: .appearanceTheme)
         try container.encode(appearanceAccent, forKey: .appearanceAccent)
         try container.encode(hudGlowIntensity, forKey: .hudGlowIntensity)

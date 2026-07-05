@@ -78,6 +78,7 @@ struct TalariaApp: App {
                 .environment(container.permissionsStore)
                 .environment(container.settingsStore)
                 .environment(container.talkStore)
+                .environment(container.speechOutput)
                 .environment(ThemeRuntime.shared)
                 .task { await container.initialize() }
                 .onChange(of: container.settingsStore.settings) { oldSettings, newSettings in

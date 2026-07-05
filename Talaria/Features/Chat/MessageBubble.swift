@@ -4,6 +4,9 @@ struct MessageBubble: View {
     let message: Message
     var onRetry: ((Message) -> Void)? = nil
 
+    @Environment(SpeechOutputService.self) private var speechOutput
+    @Environment(TalkStore.self) private var talkStore
+
     private var isUser: Bool { message.sender == .user || message.sender == .voiceUser }
     private var isHermes: Bool { message.sender == .hermes || message.sender == .voiceHermes }
     private var isCompactionMessage: Bool { message.content.hasPrefix("[CONTEXT COMPACTION]") }
@@ -158,10 +161,18 @@ struct MessageBubble: View {
                 }
 
                 if !message.isStreaming {
-                    Text(message.timestamp, style: .time)
-                        .font(Design.Typography.monoSmall)
-                        .tracking(Design.Tracking.mono)
-                        .foregroundStyle(Design.Colors.mutedForeground)
+                    HStack(spacing: Design.Spacing.sm) {
+                        Text(message.timestamp, style: .time)
+                            .font(Design.Typography.monoSmall)
+                            .tracking(Design.Tracking.mono)
+                            .foregroundStyle(Design.Colors.mutedForeground)
+
+                        // Read-aloud (#2) — hidden while a Talk session owns
+                        // the audio session.
+                        if !message.content.isEmpty && !talkStore.isSessionActive {
+                            speakerToggle
+                        }
+                    }
                 }
 
                 if message.status == .failed {
@@ -176,6 +187,29 @@ struct MessageBubble: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Hermes: \(message.content)")
         .accessibilityAddTraits(message.isStreaming ? .updatesFrequently : [])
+    }
+
+    // MARK: - Read-Aloud (#2)
+
+    private var isSpeakingThisMessage: Bool {
+        speechOutput.speakingMessageID == message.id
+    }
+
+    private var speakerToggle: some View {
+        Button {
+            if isSpeakingThisMessage {
+                speechOutput.stop()
+            } else {
+                speechOutput.speak(message.content, messageID: message.id)
+            }
+        } label: {
+            Image(systemName: isSpeakingThisMessage ? "speaker.slash.fill" : "speaker.wave.2")
+                .font(.system(size: Design.Size.iconTiny))
+                .foregroundStyle(isSpeakingThisMessage ? Design.Brand.accent : Design.Colors.mutedForeground)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isSpeakingThisMessage ? "Stop reading aloud" : "Read aloud")
     }
 
     // MARK: - Voice Transcript Components

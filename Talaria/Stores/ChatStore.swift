@@ -44,6 +44,12 @@ final class ChatStore {
     private let notifications = LocalNotificationService()
     let persistence: any AppPersistenceStoreProtocol
 
+    /// Read-aloud (#2), wired by AppContainer. When `autoReadAloudEnabled`
+    /// returns true, streamed `assistant.delta` chunks are fed to the TTS
+    /// sentence buffer as they arrive. Both stay nil in tests.
+    var speechOutput: SpeechOutputService?
+    var autoReadAloudEnabled: (@MainActor () -> Bool)?
+
     /// A run whose stream dropped (e.g. backgrounded on lock) but which is still
     /// running server-side. Reconciled via the Sessions messages endpoint when it
     /// completes. `sentAt` is captured here so reconcile is insulated from the
@@ -155,6 +161,9 @@ final class ChatStore {
                         }
                         self.conversation = conv
                     }
+                    if self.autoReadAloudEnabled?() == true {
+                        self.speechOutput?.enqueueStreamChunk(delta, messageID: placeholderID)
+                    }
 
                 case .toolActivity(let event):
                     if var conv = self.conversation,
@@ -221,6 +230,7 @@ final class ChatStore {
                     self.streamingMessageID = nil
                     self.pendingMessageSentAt = nil
                     self.chatLiveActivity.endActivity()
+                    self.speechOutput?.finishStream(messageID: placeholderID)
 
                 case .interrupted(let sessionId, let runId):
                     // Run committed server-side but the stream dropped (lock /
@@ -234,6 +244,7 @@ final class ChatStore {
                     }
                     self.streamingMessageID = nil
                     self.chatLiveActivity.endActivity()
+                    self.speechOutput?.cancelStream(messageID: placeholderID)
                     self.pendingRun = PendingRun(
                         sessionId: sessionId,
                         runId: runId,
@@ -256,6 +267,7 @@ final class ChatStore {
                     }
                     self.streamingMessageID = nil
                     self.chatLiveActivity.endActivity()
+                    self.speechOutput?.cancelStream(messageID: placeholderID)
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == clientMessageID }) {
                         self.conversation?.messages[idx].status = acceptedJobID == nil ? .failed : .sending
                     }
@@ -300,6 +312,7 @@ final class ChatStore {
         streamingTask = nil
         streamingMessageID = nil
         chatLiveActivity.endActivity()
+        speechOutput?.stop()
         let fresh = try await hermesClient.clearConversation()
         conversation = fresh
         lastTokenUsage = fresh.latestUsage
@@ -314,6 +327,8 @@ final class ChatStore {
         streamingTask?.cancel()
         streamingTask = nil
         chatLiveActivity.endActivity()
+        // User asked for silence along with the stop — cut read-aloud too.
+        speechOutput?.stop()
 
         // Finalize current streaming message with content received so far
         if let sid = streamingMessageID,
