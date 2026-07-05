@@ -89,35 +89,33 @@ struct ChatInputBar: View {
                 }
 
                 // Text input area
-                TextField(
-                    "",
-                    text: $text,
-                    axis: .vertical
-                )
-                    .accessibilityIdentifier("chat.composer")
-                    .accessibilityLabel("Reply to Hermes")
-                    .font(Design.Typography.body)
-                    .foregroundStyle(Design.Colors.foreground)
-                    .tint(Design.Brand.accent)
-                    .lineLimit(1...5)
-                    .focused(isFocused)
-                    .submitLabel(.send)
-                    .onSubmit {
-                        if canSend {
-                            handlePrimaryAction()
-                        }
+                ZStack(alignment: .topLeading) {
+                    TextEditor(text: $text)
+                        .accessibilityIdentifier("chat.composer")
+                        .accessibilityLabel("Reply to Hermes")
+                        .font(Design.Typography.body)
+                        .foregroundStyle(Design.Colors.foreground)
+                        .tint(Design.Brand.accent)
+                        .focused(isFocused)
+                        .scrollContentBackground(.hidden)
+                        .background(.clear)
+                        .frame(minHeight: 22, maxHeight: 120)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .writingToolsBehavior(.complete)
+
+                    if text.isEmpty {
+                        Text(speechService.isListening ? "Listening…" : "Message Hermes…")
+                            .font(Design.Typography.body)
+                            .foregroundStyle(Design.Colors.mutedForeground)
+                            .allowsHitTesting(false)
+                            .padding(.top, 8)
+                            .padding(.leading, 4)
+                            .accessibilityHidden(true)
                     }
-                    .overlay(alignment: .leading) {
-                        if text.isEmpty {
-                            Text(speechService.isListening ? "Listening…" : "Message Hermes…")
-                                .font(Design.Typography.body)
-                                .foregroundStyle(Design.Colors.mutedForeground)
-                                .allowsHitTesting(false)
-                        }
-                    }
-                    .padding(.horizontal, Design.Spacing.md)
-                    .padding(.top, pendingAttachments.isEmpty ? Design.Spacing.sm : Design.Spacing.xs)
-                    .padding(.bottom, Design.Spacing.xs)
+                }
+                .padding(.horizontal, Design.Spacing.md)
+                .padding(.top, pendingAttachments.isEmpty ? Design.Spacing.sm : Design.Spacing.xs)
+                .padding(.bottom, Design.Spacing.xs)
 
                 // Bottom action bar
                 HStack(spacing: Design.Spacing.xs) {
