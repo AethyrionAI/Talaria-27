@@ -4,8 +4,8 @@ options:
   # for a private deployment with your own signing/bundle identifiers.
   bundleIdPrefix: org.aethyrion
   deploymentTarget:
-    iOS: "26.0"
-  xcodeVersion: "26.3"
+    iOS: "27.0"
+  xcodeVersion: "27.0"
   defaultConfig: Debug
   generateEmptyDirectories: true
   groupSortPosition: top
@@ -60,8 +60,8 @@ targets:
       - target: TalariaWidgets
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria
-        PRODUCT_NAME: "Talaria for Hermes Desktop"
+        PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria27
+        PRODUCT_NAME: "Talaria 27"
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
         DEVELOPMENT_TEAM: "DNL25ZFSD2"
@@ -133,7 +133,7 @@ targets:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria.Widgets
+        PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria27.Widgets
         PRODUCT_NAME: TalariaWidgets
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
@@ -152,7 +152,7 @@ targets:
       - target: Talaria
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria.tests
+        PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria27.tests
         TEST_TARGET_NAME: Talaria
         GENERATE_INFOPLIST_FILE: true
 
@@ -165,6 +165,6 @@ targets:
       - target: Talaria
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria27.uitests
         TEST_TARGET_NAME: Talaria
         GENERATE_INFOPLIST_FILE: true
