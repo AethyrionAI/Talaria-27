@@ -81,6 +81,7 @@ from .services import (
     record_audit,
     record_inbox_action,
     redeem_phone_pairing_code,
+    resolve_registration_user,
     redeem_host_enrollment_invite,
     redeem_pairing_invite,
     refresh_auth_session,
@@ -771,7 +772,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         db: Session = Depends(get_db),
         request_settings: Settings = Depends(get_settings),
     ) -> dict:
-        user = ensure_default_user(db, request_settings)
+        # A known installation keeps its paired user — re-registration is the
+        # app's credential-recovery path (GH #15) and must not rebind the
+        # device to whichever user row happens to be the default (#46 family).
+        user = resolve_registration_user(
+            db,
+            settings=request_settings,
+            installation_id=str(payload.device.installationId),
+        )
         device = upsert_device(
             db,
             user=user,

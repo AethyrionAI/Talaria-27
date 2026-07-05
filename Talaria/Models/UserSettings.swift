@@ -248,6 +248,22 @@ enum AppearanceTheme: String, Codable, CaseIterable, Hashable, Sendable {
     var isLight: Bool { self == .paperTape }
 }
 
+/// How the active theme is chosen (issue #24). `.manual` (default) uses the
+/// user's persisted `appearanceTheme` unchanged — so default behavior, and the
+/// Deep Field byte-identical guarantee, are preserved. `.automatic` rotates the
+/// theme by season (see `ThemeCatalog`), with manual selection still overriding.
+enum AppearanceThemeMode: String, Codable, CaseIterable, Hashable, Sendable {
+    case manual
+    case automatic
+
+    var displayLabel: String {
+        switch self {
+        case .manual: "Manual"
+        case .automatic: "Automatic"
+        }
+    }
+}
+
 /// Three persisted accent *slots*. Raw values are stable (`cyan`/`amber`/`violet`,
 /// no migration); each theme re-interprets the slots as its own hue family, with
 /// the `.cyan` slot always resolving to the theme's hero accent (Cyan Arc /
@@ -357,6 +373,7 @@ struct UserSettings: Codable, Hashable, Sendable {
     /// the system-default (.automatic) inline tier, which is safe.
     var composerWritingToolsEnabled: Bool
     var appearanceTheme: AppearanceTheme
+    var appearanceThemeMode: AppearanceThemeMode
     var appearanceAccent: AppearanceAccent
     var hudGlowIntensity: Double
     var gridDensity: GridDensity
@@ -382,6 +399,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         readAloudRate: Double = 0.5,
         composerWritingToolsEnabled: Bool = false,
         appearanceTheme: AppearanceTheme = .deepField,
+        appearanceThemeMode: AppearanceThemeMode = .manual,
         appearanceAccent: AppearanceAccent = .cyan,
         hudGlowIntensity: Double = 1.0,
         gridDensity: GridDensity = .faint,
@@ -406,6 +424,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.readAloudRate = readAloudRate
         self.composerWritingToolsEnabled = composerWritingToolsEnabled
         self.appearanceTheme = appearanceTheme
+        self.appearanceThemeMode = appearanceThemeMode
         self.appearanceAccent = appearanceAccent
         self.hudGlowIntensity = hudGlowIntensity
         self.gridDensity = gridDensity
@@ -432,6 +451,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         case readAloudRate
         case composerWritingToolsEnabled
         case appearanceTheme
+        case appearanceThemeMode
         case appearanceAccent
         case hudGlowIntensity
         case gridDensity
@@ -460,6 +480,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         readAloudRate = try container.decodeIfPresent(Double.self, forKey: .readAloudRate) ?? 0.5
         composerWritingToolsEnabled = try container.decodeIfPresent(Bool.self, forKey: .composerWritingToolsEnabled) ?? false
         appearanceTheme = try container.decodeIfPresent(AppearanceTheme.self, forKey: .appearanceTheme) ?? .deepField
+        appearanceThemeMode = try container.decodeIfPresent(AppearanceThemeMode.self, forKey: .appearanceThemeMode) ?? .manual
         appearanceAccent = try container.decodeIfPresent(AppearanceAccent.self, forKey: .appearanceAccent) ?? .cyan
         hudGlowIntensity = try container.decodeIfPresent(Double.self, forKey: .hudGlowIntensity) ?? 1.0
         gridDensity = try container.decodeIfPresent(GridDensity.self, forKey: .gridDensity) ?? .faint
@@ -487,6 +508,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         try container.encode(readAloudRate, forKey: .readAloudRate)
         try container.encode(composerWritingToolsEnabled, forKey: .composerWritingToolsEnabled)
         try container.encode(appearanceTheme, forKey: .appearanceTheme)
+        try container.encode(appearanceThemeMode, forKey: .appearanceThemeMode)
         try container.encode(appearanceAccent, forKey: .appearanceAccent)
         try container.encode(hudGlowIntensity, forKey: .hudGlowIntensity)
         try container.encode(gridDensity, forKey: .gridDensity)
@@ -504,6 +526,17 @@ struct UserSettings: Codable, Hashable, Sendable {
             sanitized.relayConfiguration.relayMode = .custom
         }
         return sanitized
+    }
+
+    /// The theme actually rendered: the manual pick, or the seasonal theme when
+    /// automatic mode is on. `.manual` (the default) returns `appearanceTheme`
+    /// unchanged, so default behavior — and the Deep Field byte-identical
+    /// guarantee — is preserved.
+    func effectiveAppearanceTheme(on date: Date = Date()) -> AppearanceTheme {
+        switch appearanceThemeMode {
+        case .manual: return appearanceTheme
+        case .automatic: return ThemeCatalog.seasonalTheme(on: date)
+        }
     }
 }
 

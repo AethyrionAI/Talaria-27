@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let sessionLog = Logger(subsystem: "org.aethyrion.talaria", category: "AppSessionStore")
 
 @MainActor
 @Observable
@@ -8,11 +11,35 @@ final class AppSessionStore {
         static let refreshToken = "session.refreshToken"
     }
 
+    /// How an on-demand access-token refresh resolved (#15). Distinguishes
+    /// "retry the request with the fresh token" from "this credential set is
+    /// dead and needs recovery" — the old `Void` return collapsed both into
+    /// silence, so 401 handlers retried with the same stale token that had
+    /// just been rejected.
+    enum TokenRefreshOutcome: Equatable {
+        /// New tokens were minted and persisted.
+        case refreshed
+        /// No refresh token in the secure store — nothing to refresh with.
+        case missingRefreshToken
+        /// The relay examined the refresh token and refused it; retrying the
+        /// same token can never succeed.
+        case rejected
+        /// Network or server failure — the refresh token may still be good.
+        case transientFailure
+    }
+
     var state: AppSessionState {
         didSet { persistence.saveSessionState(state) }
     }
     var isBootstrapping = false
     var lastErrorMessage: String?
+
+    private var tokenRefreshTask: Task<TokenRefreshOutcome, Never>?
+    private var sessionRecoveryTask: Task<Bool, Never>?
+    private var lastSessionRecoveryAttemptAt: Date?
+    /// Floor between silent re-registration attempts so a relay that keeps
+    /// rejecting fresh credentials can't be hammered once per failed request.
+    private static let sessionRecoveryRetryInterval: TimeInterval = 60
 
     private let bootstrapService: any SessionBootstrapServiceProtocol
     private let syncCoordinator: any SyncCoordinatorProtocol
@@ -67,6 +94,13 @@ final class AppSessionStore {
             if await attemptRefreshAndReload(installationID: request.installationID) {
                 return
             }
+            // #15: launch-time self-heal. When the refresh path couldn't save
+            // the session (refresh token gone or rejected) and this pass
+            // didn't already try registering, a silent re-registration can
+            // still mint fresh credentials for this known installation.
+            if !needsRegistration, await recoverSessionByReRegistering() {
+                return
+            }
 
             lastErrorMessage = error.localizedDescription
             state.connectionStatus = .error
@@ -88,14 +122,83 @@ final class AppSessionStore {
         await secureStore.retrieve(key: SecureKeys.refreshToken)
     }
 
-    func refreshAccessTokenIfNeeded() async {
-        guard let refreshToken = await currentRefreshToken() else { return }
+    /// Single-flight: concurrent 401s from talk, sensors, and the host
+    /// service coalesce onto one relay round trip instead of racing the
+    /// rotation (the loser's refresh would present an already-rotated token).
+    @discardableResult
+    func refreshAccessTokenIfNeeded() async -> TokenRefreshOutcome {
+        if let tokenRefreshTask {
+            return await tokenRefreshTask.value
+        }
+        let task = Task { await performTokenRefresh() }
+        tokenRefreshTask = task
+        let outcome = await task.value
+        tokenRefreshTask = nil
+        return outcome
+    }
+
+    private func performTokenRefresh() async -> TokenRefreshOutcome {
+        guard let refreshToken = await currentRefreshToken() else {
+            return .missingRefreshToken
+        }
 
         do {
             let tokens = try await bootstrapService.refreshAuth(refreshToken: refreshToken)
             try await persist(tokens: tokens)
+            return .refreshed
+        } catch let error as RelayAPIClient.ClientError {
+            lastErrorMessage = error.localizedDescription
+            switch error {
+            case .unauthorized, .payloadRejected:
+                sessionLog.error("token refresh rejected by relay — credential set is dead: \(error.localizedDescription, privacy: .public)")
+                return .rejected
+            case .invalidURL, .requestFailed:
+                return .transientFailure
+            }
         } catch {
             lastErrorMessage = error.localizedDescription
+            return .transientFailure
+        }
+    }
+
+    /// Last-resort self-heal for a dead credential set (#15): re-register
+    /// this installation over the unauthenticated register route. The relay
+    /// preserves the device→user binding server-side, so a previously paired
+    /// device gets fresh tokens for the same user without a manual re-pair.
+    /// Callers must re-validate identity afterwards
+    /// (`PairingStore.validateRestoredIdentity()`).
+    func recoverSessionByReRegistering() async -> Bool {
+        if let sessionRecoveryTask {
+            return await sessionRecoveryTask.value
+        }
+        // A never-registered installation has no identity to recover — it
+        // must go through pairing.
+        guard state.deviceRegistered else { return false }
+        if let lastSessionRecoveryAttemptAt,
+           Date.now.timeIntervalSince(lastSessionRecoveryAttemptAt) < Self.sessionRecoveryRetryInterval {
+            return false
+        }
+        let task = Task { await performSessionRecovery() }
+        sessionRecoveryTask = task
+        let recovered = await task.value
+        sessionRecoveryTask = nil
+        return recovered
+    }
+
+    private func performSessionRecovery() async -> Bool {
+        lastSessionRecoveryAttemptAt = .now
+        let request = makeRegistrationRequest()
+        sessionLog.notice("attempting silent re-registration to recover a dead relay session (#15)")
+        do {
+            let response = try await bootstrapService.registerDevice(request)
+            await applySessionState(response.state, tokens: response.tokens)
+            try await loadAndApplySessionState(installationID: request.installationID)
+            sessionLog.notice("silent re-registration recovered the relay session")
+            return true
+        } catch {
+            lastErrorMessage = error.localizedDescription
+            sessionLog.error("silent re-registration failed: \(error.localizedDescription, privacy: .public)")
+            return false
         }
     }
 
@@ -160,11 +263,9 @@ final class AppSessionStore {
     }
 
     private func attemptRefreshAndReload(installationID: UUID) async -> Bool {
-        guard let refreshToken = await currentRefreshToken() else { return false }
+        guard await refreshAccessTokenIfNeeded() == .refreshed else { return false }
 
         do {
-            let tokens = try await bootstrapService.refreshAuth(refreshToken: refreshToken)
-            try await persist(tokens: tokens)
             try await loadAndApplySessionState(installationID: installationID)
             return true
         } catch {

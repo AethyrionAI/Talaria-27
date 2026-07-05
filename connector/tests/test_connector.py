@@ -595,6 +595,189 @@ def test_configure_realtime_clear_removes_api_key_and_disables_talk(tmp_path):
     assert state.voice_context_snapshot is None
 
 
+def test_load_secrets_tolerates_unknown_keys_and_reads_dotted_realtime_enabled(tmp_path):
+    store = ConnectorStateStore(state_dir=tmp_path / "connector-secrets-dotted")
+    store.state_dir.mkdir(parents=True)
+    store.secrets_path.write_text(
+        json.dumps(
+            {
+                "openai_api_key": "sk-hand-edited",
+                "realtime_talk.enabled": True,
+                "some_future_key": "ignored",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    secrets = store.load_secrets()
+
+    assert secrets.openai_api_key == "sk-hand-edited"
+    assert secrets.realtime_talk_enabled is True
+
+
+def test_load_secrets_reads_nested_realtime_block(tmp_path):
+    store = ConnectorStateStore(state_dir=tmp_path / "connector-secrets-nested")
+    store.state_dir.mkdir(parents=True)
+    store.secrets_path.write_text(
+        json.dumps(
+            {
+                "openai_api_key": "sk-hand-edited",
+                "realtime_talk": {"enabled": True},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    secrets = store.load_secrets()
+
+    assert secrets.openai_api_key == "sk-hand-edited"
+    assert secrets.realtime_talk_enabled is True
+
+
+def test_state_load_tolerates_unknown_keys(tmp_path):
+    store = ConnectorStateStore(state_dir=tmp_path / "connector-state-unknown")
+    store.save(make_enrolled_state())
+    data = json.loads(store.state_path.read_text(encoding="utf-8"))
+    data["openai_api_key"] = "sk-misplaced"
+    data["realtime_talk"] = {"enabled": True, "unexpected_field": 1}
+    store.state_path.write_text(json.dumps(data), encoding="utf-8")
+
+    state = store.load()
+
+    assert state.host_id == "host-123"
+    assert state.realtime_talk is not None
+    assert state.realtime_talk.enabled is True
+
+
+def test_talk_readiness_configured_via_hand_edited_secrets(monkeypatch, tmp_path):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / ".hermes"))
+    store = ConnectorStateStore(state_dir=tmp_path / "connector-readiness-secrets")
+    store.save(make_enrolled_state())
+    store.state_dir.mkdir(parents=True, exist_ok=True)
+    store.secrets_path.write_text(
+        json.dumps(
+            {
+                "openai_api_key": "sk-hand-edited",
+                "realtime_talk.enabled": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    connector = HermesMobileConnector(state_store=store, executor=make_executor())
+
+    payload = connector.talk_readiness_payload()
+
+    assert payload["configured"] is True
+    assert payload["apiKeyPresent"] is True
+    assert payload["blockedReason"] is None
+
+
+def test_talk_readiness_api_key_from_hermes_env_file(monkeypatch, tmp_path):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    hermes_home = tmp_path / ".hermes"
+    hermes_home.mkdir(parents=True)
+    (hermes_home / ".env").write_text(
+        "# Hermes settings\nAPI_SERVER_KEY=abc\nOPENAI_API_KEY=\"sk-from-hermes-env\"\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+    store = ConnectorStateStore(state_dir=tmp_path / "connector-readiness-env")
+    state = make_enrolled_state()
+    state.realtime_talk = RealtimeTalkConfig(enabled=True)
+    store.save(state)
+    connector = HermesMobileConnector(state_store=store, executor=make_executor())
+
+    payload = connector.talk_readiness_payload()
+
+    assert payload["configured"] is True
+    assert payload["apiKeyPresent"] is True
+    assert payload["blockedReason"] is None
+    assert connector.resolve_openai_api_key() == "sk-from-hermes-env"
+
+
+def test_talk_readiness_blocked_when_key_present_but_disabled(monkeypatch, tmp_path):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / ".hermes"))
+    store = ConnectorStateStore(state_dir=tmp_path / "connector-readiness-disabled")
+    store.save(make_enrolled_state())
+    store.save_secrets(ConnectorSecrets(openai_api_key="sk-test-realtime"))
+    connector = HermesMobileConnector(state_store=store, executor=make_executor())
+
+    payload = connector.talk_readiness_payload()
+
+    assert payload["configured"] is False
+    assert payload["apiKeyPresent"] is True
+    assert "disabled" in payload["blockedReason"]
+
+
+def test_talk_readiness_clears_stale_no_key_validation_error(monkeypatch, tmp_path):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / ".hermes"))
+    store = ConnectorStateStore(state_dir=tmp_path / "connector-readiness-stale")
+    state = make_enrolled_state()
+    state.realtime_talk = RealtimeTalkConfig(
+        enabled=True,
+        last_validation_error="OpenAI API key is not configured.",
+    )
+    store.save(state)
+    store.save_secrets(ConnectorSecrets(openai_api_key="sk-added-later"))
+    connector = HermesMobileConnector(state_store=store, executor=make_executor())
+
+    payload = connector.talk_readiness_payload()
+
+    assert payload["configured"] is True
+    assert payload["lastValidationError"] is None
+    assert payload["blockedReason"] is None
+
+
+def test_talk_session_create_uses_secrets_level_enabled_flag(monkeypatch, tmp_path):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    store = ConnectorStateStore(state_dir=tmp_path / "connector-session-secrets-enabled")
+    state = make_enrolled_state()
+    state.voice_context_snapshot = VoiceContextSnapshot(
+        system_prompt="System prompt",
+        memory_summary="Memory",
+        user_summary="User",
+        sensor_summary="Sensors",
+        readiness_summary="Ready",
+        updated_at="2026-04-01T12:00:00+00:00",
+    )
+    store.save(state)
+    store.state_dir.mkdir(parents=True, exist_ok=True)
+    store.secrets_path.write_text(
+        json.dumps(
+            {
+                "openai_api_key": "sk-hand-edited",
+                "realtime_talk": {"enabled": True},
+            }
+        ),
+        encoding="utf-8",
+    )
+    connector = HermesMobileConnector(state_store=store, executor=make_executor())
+
+    monkeypatch.setattr(connector, "refresh_voice_context_if_stale", lambda *, state=None: state or store.load())
+    captured_keys: list[str] = []
+
+    def fake_create(**kwargs):
+        captured_keys.append(kwargs["api_key"])
+        return (
+            {
+                "value": "ephemeral-secret",
+                "expires_at": 1_775_001_600,
+                "session": {"id": "sess_secrets", "type": "realtime"},
+            },
+            "gpt-realtime-1.5",
+        )
+
+    monkeypatch.setattr(connector, "_create_openai_realtime_session", fake_create)
+
+    payload = connector._rpc_talk_session_create({"relayMcpURL": "https://relay.example.com/v1/talk/mcp?token=test"})  # noqa: SLF001
+
+    assert payload["clientSecret"] == "ephemeral-secret"
+    assert captured_keys == ["sk-hand-edited"]
+
+
 def test_realtime_session_creation_falls_back_to_secondary_model(monkeypatch, tmp_path):
     connector = HermesMobileConnector(state_store=ConnectorStateStore(state_dir=tmp_path / "connector-realtime-fallback"), executor=make_executor())
     attempted_models: list[str] = []

@@ -373,7 +373,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             // The retry calls accessTokenProvider() which reads from the same store,
             // so it will pick up the refreshed token automatically.
             guard let refreshedToken = await accessTokenRefresher(), !refreshedToken.isEmpty else {
-                throw RelayAPIClient.ClientError.unauthorized("Expired or invalid access token.")
+                throw RelayAPIClient.ClientError.unauthorized("Hermes session expired and couldn't be renewed automatically — re-pair this device with your Hermes relay.")
             }
             return try await operation()
         }
@@ -381,7 +381,10 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
 
     private func friendlyStatusMessage(for error: Error) -> String {
         if case RelayAPIClient.ClientError.unauthorized = error {
-            return "Your Hermes session expired. Reconnect or try again."
+            // Reaching here means the recovery ladder (token refresh, then
+            // silent re-registration) already failed — a manual re-pair is
+            // the only remaining fix (#15).
+            return "Your Hermes session expired and couldn't be renewed. Re-pair this device with your Hermes relay."
         }
         return "Could not reach the relay."
     }

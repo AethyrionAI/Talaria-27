@@ -19,7 +19,7 @@ def build_client(tmp_path, **overrides):
     return TestClient(app)
 
 
-def register_device(client: TestClient):
+def register_device(client: TestClient, installation_id: str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"):
     response = client.post(
         "/v1/device/register",
         json={
@@ -29,7 +29,7 @@ def register_device(client: TestClient):
                 "appVersion": "1.0.0",
                 "buildNumber": "1",
                 "bundleId": "io.hermesmobile.HermesMobile",
-                "installationId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "installationId": installation_id,
                 "deviceModel": "iPhone17,2",
                 "systemVersion": "26.4",
             },
@@ -323,3 +323,127 @@ def test_chat_create_message_is_idempotent_for_client_message_id(tmp_path):
         )
         assert updated_conversation.status_code == 200
         assert len(updated_conversation.json()["data"]["conversation"]["messages"]) == 2
+
+
+def test_reregister_preserves_paired_user_binding(tmp_path):
+    # GH #15 recovery path: a device whose refresh token died re-registers to
+    # mint fresh tokens. The device must keep the user its pairing bound it
+    # to — not fall back to the default (first) user row (#46 family).
+    from app.models import Device
+    from app.services import create_pairing_invite
+    from sqlalchemy import select
+
+    with build_client(tmp_path) as client:
+        # First user row = the default user, minted by a plain registration.
+        register_device(client, installation_id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+
+        # Pair a second installation to a distinct user via an invite.
+        with client.app.state.database.session() as db:
+            _, invite_token = create_pairing_invite(db, settings=client.app.state.settings)
+        paired_installation = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+        redeem_response = client.post(
+            "/v1/pairing/redeem",
+            json={
+                "inviteToken": invite_token,
+                "displayName": "Taylor",
+                "device": {
+                    "platform": "ios",
+                    "deviceName": "Taylor's iPhone",
+                    "appVersion": "1.0.0",
+                    "buildNumber": "1",
+                    "bundleId": "io.hermesmobile.HermesMobile",
+                    "installationId": paired_installation,
+                    "deviceModel": "iPhone17,2",
+                    "systemVersion": "26.4",
+                },
+                "client": {"environment": "production"},
+            },
+        )
+        assert redeem_response.status_code == 200
+        paired_user_id = redeem_response.json()["data"]["user"]["id"]
+
+        # Recovery: the paired installation re-registers with no bearer token.
+        recovered = register_device(client, installation_id=paired_installation)
+
+        with client.app.state.database.session() as db:
+            device = db.scalar(select(Device).where(Device.installation_id == paired_installation))
+            assert device is not None
+            assert device.user_id == paired_user_id
+
+        # The recovered credentials authenticate as the paired user.
+        session_response = client.get(
+            "/v1/session",
+            headers={"Authorization": f"Bearer {recovered['auth']['accessToken']}"},
+        )
+        assert session_response.status_code == 200
+        assert session_response.json()["data"]["user"]["id"] == paired_user_id
+        assert session_response.json()["data"]["user"]["displayName"] == "Taylor"
+
+        # A brand-new installation still binds to the default user.
+        fresh = register_device(client, installation_id="cccccccc-cccc-cccc-cccc-cccccccccccc")
+        fresh_session = client.get(
+            "/v1/session",
+            headers={"Authorization": f"Bearer {fresh['auth']['accessToken']}"},
+        )
+        assert fresh_session.status_code == 200
+        assert fresh_session.json()["data"]["user"]["id"] != paired_user_id
+
+
+def test_refresh_grace_honors_previous_token_after_rotation(tmp_path):
+    # GH #15: if the rotation response is lost in transit, the client retries
+    # with the token it still holds — that retry must succeed within the
+    # grace window instead of stranding the device until a manual re-pair.
+    with build_client(tmp_path) as client:
+        register_data = register_device(client)
+        original_refresh = register_data["auth"]["refreshToken"]
+
+        first_refresh = client.post("/v1/auth/refresh", json={"refreshToken": original_refresh})
+        assert first_refresh.status_code == 200
+
+        # Simulated lost response: retry with the pre-rotation token.
+        graced_retry = client.post("/v1/auth/refresh", json={"refreshToken": original_refresh})
+        assert graced_retry.status_code == 200
+        recovered = graced_retry.json()["data"]
+
+        session_response = client.get(
+            "/v1/session",
+            headers={"Authorization": f"Bearer {recovered['accessToken']}"},
+        )
+        assert session_response.status_code == 200
+
+        # The freshly-minted refresh token rotates normally afterwards.
+        final_refresh = client.post("/v1/auth/refresh", json={"refreshToken": recovered["refreshToken"]})
+        assert final_refresh.status_code == 200
+
+
+def test_refresh_grace_window_expires(tmp_path):
+    import time
+
+    with build_client(tmp_path, refresh_token_grace_seconds=0) as client:
+        register_data = register_device(client)
+        original_refresh = register_data["auth"]["refreshToken"]
+
+        first_refresh = client.post("/v1/auth/refresh", json={"refreshToken": original_refresh})
+        assert first_refresh.status_code == 200
+
+        time.sleep(0.05)
+        expired_retry = client.post("/v1/auth/refresh", json={"refreshToken": original_refresh})
+        assert expired_retry.status_code == 401
+        assert expired_retry.json()["detail"] == "Invalid refresh token."
+
+
+def test_identity_rotation_revokes_refresh_grace(tmp_path):
+    # Pairing/registration rotations are identity events: no refresh token
+    # from the previous credential set may survive them, grace or not.
+    with build_client(tmp_path) as client:
+        register_data = register_device(client)
+        original_refresh = register_data["auth"]["refreshToken"]
+
+        first_refresh = client.post("/v1/auth/refresh", json={"refreshToken": original_refresh})
+        assert first_refresh.status_code == 200
+
+        # Re-registration rotates the auth session without grace.
+        register_device(client)
+
+        graced_retry = client.post("/v1/auth/refresh", json={"refreshToken": original_refresh})
+        assert graced_retry.status_code == 401

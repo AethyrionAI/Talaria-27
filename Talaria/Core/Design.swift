@@ -370,7 +370,11 @@ final class ThemeRuntime {
     /// Per-field guards avoid spurious Observation invalidations when an
     /// unrelated setting changes.
     func apply(_ settings: UserSettings) {
-        if theme != settings.appearanceTheme { theme = settings.appearanceTheme }
+        // `.automatic` mode resolves the seasonal theme; `.manual` (the default)
+        // returns the persisted theme unchanged (issue #24), so this is a no-op
+        // for existing installs.
+        let effectiveTheme = settings.effectiveAppearanceTheme()
+        if theme != effectiveTheme { theme = effectiveTheme }
         if accent != settings.appearanceAccent { accent = settings.appearanceAccent }
         if glowIntensity != settings.hudGlowIntensity { glowIntensity = settings.hudGlowIntensity }
         if gridDensity != settings.gridDensity { gridDensity = settings.gridDensity }

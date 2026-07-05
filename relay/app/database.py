@@ -42,6 +42,17 @@ class Database:
                 else:
                     connection.execute(text("ALTER TABLE devices ADD COLUMN app_state_updated_at TIMESTAMP WITH TIME ZONE"))
 
+            auth_session_columns = {column["name"] for column in inspector.get_columns("auth_sessions")}
+            if "previous_refresh_token_hash" not in auth_session_columns:
+                connection.execute(text("ALTER TABLE auth_sessions ADD COLUMN previous_refresh_token_hash TEXT"))
+            if "previous_refresh_valid_until" not in auth_session_columns:
+                if str(self.engine.url).startswith("sqlite"):
+                    connection.execute(text("ALTER TABLE auth_sessions ADD COLUMN previous_refresh_valid_until DATETIME"))
+                else:
+                    connection.execute(
+                        text("ALTER TABLE auth_sessions ADD COLUMN previous_refresh_valid_until TIMESTAMP WITH TIME ZONE")
+                    )
+
             host_columns = {column["name"] for column in inspector.get_columns("hermes_hosts")}
             if "hermes_model" not in host_columns:
                 connection.execute(text("ALTER TABLE hermes_hosts ADD COLUMN hermes_model TEXT"))

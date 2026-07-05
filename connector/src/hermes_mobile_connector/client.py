@@ -198,6 +198,30 @@ from .talk_support import DEFAULT_REALTIME_MODELS, DEFAULT_REALTIME_VOICE, build
 OPENAI_REALTIME_CLIENT_SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets"
 
 
+def _read_env_file_value(path: Path, key: str) -> str | None:
+    """Read a single KEY=value entry from a dotenv-style file."""
+    if not path.is_file():
+        return None
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.lower().startswith("export "):
+            line = line[7:].lstrip()
+        name, sep, value = line.partition("=")
+        if not sep or name.strip() != key:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        return value or None
+    return None
+
+
 def utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -384,6 +408,7 @@ class HermesMobileConnector:
 
         if clear:
             secrets.openai_api_key = None
+            secrets.realtime_talk_enabled = None
             self.state_store.save_secrets(secrets)
             state.realtime_talk = RealtimeTalkConfig(enabled=False)
             state.voice_context_snapshot = None
@@ -394,7 +419,7 @@ class HermesMobileConnector:
             secrets.openai_api_key = normalized_api_key
             self.state_store.save_secrets(secrets)
 
-        if not secrets.openai_api_key:
+        if not self.resolve_openai_api_key(secrets):
             raise RuntimeError("An OpenAI API key is required to configure Realtime talk mode.")
 
         config = state.realtime_talk or RealtimeTalkConfig()
@@ -414,11 +439,13 @@ class HermesMobileConnector:
     def validate_realtime_configuration(self) -> ConnectorState:
         state = self.state_store.load()
         secrets = self.state_store.load_secrets()
-        if not secrets.openai_api_key:
+        self.apply_runtime_environment(state)
+        api_key = self.resolve_openai_api_key(secrets)
+        if not api_key:
             config = state.realtime_talk or RealtimeTalkConfig(enabled=False)
             config.enabled = False
             config.last_validated_at = utcnow_iso()
-            config.last_validation_error = "OpenAI API key is not configured."
+            config.last_validation_error = self._NO_KEY_VALIDATION_ERROR
             config.last_selected_model = None
             state.realtime_talk = config
             return self.state_store.save(state)
@@ -427,7 +454,7 @@ class HermesMobileConnector:
         state = self.refresh_voice_context(state=state)
         try:
             _, selected_model = self._create_openai_realtime_session(
-                api_key=secrets.openai_api_key,
+                api_key=api_key,
                 config=config,
                 instructions="Validation run for Hermes Mobile talk mode.",
                 relay_mcp_url=None,
@@ -478,27 +505,77 @@ class HermesMobileConnector:
         )
         return self.state_store.save(state)
 
+    def resolve_openai_api_key(self, secrets: ConnectorSecrets | None = None) -> str | None:
+        """Locate the OpenAI API key across every supported storage location.
+
+        Order: connector secrets store (`~/.hermes-mobile/secrets.json`),
+        the OPENAI_API_KEY environment variable, then the Hermes settings
+        (`$HERMES_HOME/.env`).
+        """
+        secrets = secrets or self.state_store.load_secrets()
+        if secrets.openai_api_key:
+            return secrets.openai_api_key
+        env_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+        if env_key:
+            return env_key
+        return _read_env_file_value(self._resolve_hermes_home() / ".env", "OPENAI_API_KEY")
+
+    @staticmethod
+    def realtime_talk_enabled(state: ConnectorState, secrets: ConnectorSecrets) -> bool:
+        """Effective talk-mode toggle: the secrets store wins when set there.
+
+        Issue #7 documents `realtime_talk.enabled` in the connector secrets;
+        `configure-realtime` stores it in state.json. Honor both.
+        """
+        if secrets.realtime_talk_enabled is not None:
+            return secrets.realtime_talk_enabled
+        return bool(state.realtime_talk and state.realtime_talk.enabled)
+
+    _NO_KEY_VALIDATION_ERROR = "OpenAI API key is not configured."
+
+    @classmethod
+    def _effective_validation_error(cls, config: RealtimeTalkConfig, *, has_api_key: bool) -> str | None:
+        """Drop the recorded no-key validation error once a key exists.
+
+        A key added out-of-band (secrets.json hand-edit, env var, Hermes .env)
+        doesn't re-run validation, so the persisted error would otherwise block
+        readiness forever.
+        """
+        if has_api_key and config.last_validation_error == cls._NO_KEY_VALIDATION_ERROR:
+            return None
+        return config.last_validation_error
+
     def talk_readiness_payload(self) -> dict:
         state = self.state_store.load()
         config = state.realtime_talk or RealtimeTalkConfig(enabled=False)
         secrets = self.state_store.load_secrets()
         self.apply_runtime_environment(state)
         runtime = self.settings_for_state(state)
-        has_api_key = bool(secrets.openai_api_key)
-        configured = bool(config.enabled and has_api_key)
+        has_api_key = bool(self.resolve_openai_api_key(secrets))
+        enabled = self.realtime_talk_enabled(state, secrets)
+        configured = bool(enabled and has_api_key)
+        validation_error = self._effective_validation_error(config, has_api_key=has_api_key)
         blocked_reason = None
         if not has_api_key:
-            blocked_reason = "OpenAI Realtime is not configured on this Hermes host."
-        elif config.last_validation_error:
-            blocked_reason = config.last_validation_error
+            blocked_reason = (
+                "No OpenAI API key found. Run `hermes-mobile configure-realtime` "
+                "or add openai_api_key to ~/.hermes-mobile/secrets.json."
+            )
+        elif not enabled:
+            blocked_reason = (
+                "Realtime talk is disabled. Run `hermes-mobile configure-realtime` "
+                "or set realtime_talk.enabled in ~/.hermes-mobile/secrets.json."
+            )
+        elif validation_error:
+            blocked_reason = validation_error
         return {
-            "configured": configured and config.last_validation_error is None,
+            "configured": configured and validation_error is None,
             "apiKeyPresent": has_api_key,
             "preferredModels": config.preferred_models or list(DEFAULT_REALTIME_MODELS),
             "selectedModel": config.last_selected_model,
             "voice": config.voice or DEFAULT_REALTIME_VOICE,
             "lastValidatedAt": config.last_validated_at,
-            "lastValidationError": config.last_validation_error,
+            "lastValidationError": validation_error,
             "blockedReason": blocked_reason,
             "mcpReadiness": native_mcp_readiness_message(hermes_command=runtime.hermes_command),
             "voiceContextUpdatedAt": state.voice_context_snapshot.updated_at if state.voice_context_snapshot else None,
@@ -946,10 +1023,12 @@ class HermesMobileConnector:
         state = self.refresh_voice_context_if_stale()
         config = state.realtime_talk or RealtimeTalkConfig(enabled=False)
         secrets = self.state_store.load_secrets()
-        if not config.enabled or not secrets.openai_api_key:
+        resolved_api_key = self.resolve_openai_api_key(secrets)
+        if not self.realtime_talk_enabled(state, secrets) or not resolved_api_key:
             raise RuntimeError("OpenAI Realtime talk mode is not configured on this Hermes host.")
-        if config.last_validation_error:
-            raise RuntimeError(config.last_validation_error)
+        validation_error = self._effective_validation_error(config, has_api_key=True)
+        if validation_error:
+            raise RuntimeError(validation_error)
 
         relay_mcp_url = params.get("relayMcpURL")
         if not relay_mcp_url:
@@ -960,7 +1039,7 @@ class HermesMobileConnector:
             raise RuntimeError("Voice context is not ready yet.")
 
         session_payload, selected_model = self._create_openai_realtime_session(
-            api_key=secrets.openai_api_key,
+            api_key=resolved_api_key,
             config=config,
             instructions=snapshot.system_prompt,
             relay_mcp_url=relay_mcp_url,
