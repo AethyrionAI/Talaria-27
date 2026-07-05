@@ -634,6 +634,11 @@ Logged 2026-06-25.
 
 ## 24. 🔧 OJAMD server-side work — 422 → Mac-side; Private Relay doc + relay-JWT persistence remain (bind/firewall/persistence/update-stability ✅)
 
+> **2026-07-04 (evening):** the NSSM service architecture described in 24c/24h/24i has been
+> **reverted** -- see **#55**. Startup-folder scripts are the production launch path again and
+> `hermes-update-safe.ps1` was rewritten for that world. 24e and 24f remain the open
+> server-side gaps (24f now has a cousin in #54).
+
 Consolidated tracker for server-side fixes on OJAMD (Windows desktop, Tailscale
 `100.110.102.59`). None of these are app code — they require work on the OJAMD host.
 
@@ -755,6 +760,11 @@ add the token, restart the task.
 - Gateway/API `:8642` → `HermesGateway` (NSSM service)
 
 ### 24i. ✅ Update stability — gateway + shim survive `hermes update` — RESOLVED 2026-06-28
+
+> **SUPERSEDED 2026-07-04 by #55.** Updates kept tanking under this arrangement: nssm stops
+> left detached venv processes (incl. a LocalSystem `hermes.exe` zombie) holding install-tree
+> locks, and the services raced the Startup-folder scripts at boot. The conversion below is
+> retained for history only.
 
 **Root cause:** the gateway (`hermes.exe`) and shim (`python.exe`) both run out of the same
 `hermes-agent\venv` that `hermes update` replaces; as Scheduled Tasks they had no auto-restart,
@@ -1117,6 +1127,14 @@ OJAMD-local edit cleanly.
 
 **Status 2026-07-04:** The **encoding** half (cp1252 `UnicodeDecodeError` on Hermes CLI output) now has a **durable** mitigation: the connector runs as the new `HermesMobileConnector` NSSM service (resolves GitHub #8 "NSSM-ify the connector") with `PYTHONUTF8=1` baked into `AppEnvironmentExtra`, so a manual `hermes-mobile run` without the env var can no longer resurface the crash. Verified 07-04: service Running/Automatic, `Last error: none`, sensors fresh (location 572s; 6/11 health metrics). The **source-level** patches (the subprocess `encoding=` sites + the `mcp_registration.py` win32 branch) remain uncommitted/unversioned on OJAMD — the durable fix is the service env, not the source; committing the source to the fork is still pending for #36/upstream.
 
+**Status 2026-07-04 (evening):** the `HermesMobileConnector` NSSM service was removed in the
+#55 reversion, so the `PYTHONUTF8=1` service-env mitigation is gone with it. The env moved to
+the launcher: `start-connector.bat` (and `start-relay.bat`) now set `PYTHONIOENCODING=utf-8`,
+but that variable does **not** cover the subprocess *pipe* decode that produced this crash
+(cp1252 in `subprocess.py`'s reader thread) -- `PYTHONUTF8=1` must be added to both bats and
+the connector restarted. **Queued as the first task of the next OJAMD pass (see #55).** The
+source-level commit + upstream remains pending regardless.
+
 Logged 2026-06-27.
 
 ---
@@ -1352,3 +1370,67 @@ Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully rep
 ## 54. 🔧 Relay restart forces connector re-attach — host session not auto-recovered
 
 **Found 2026-07-04** (OJAMD, during the #15 relay hotfix). When `HermesMobileRelay` restarts (deploy/hotfix), it drops the connector's host WebSocket with close code 1012 (service restart). The connector does not reliably self-reconnect, and a subsequent reconnect can hit a transient **4401** — the relay still holds the stale host session from the unclean drop. Until the connector is restarted, sensor forwards return `deliveryState=retry` and no sensor data flows, which then wedges health app-side (→ #53). Root-caused this session: the 07-04 relay restart for #15 left the connector in exactly this state for hours. **Mitigations (in place):** operational — always restart the connector after a relay bounce (the new "Restart All" desktop shortcut does this in dependency order, and the connector NSSM service from GitHub #8 auto-restarts on crash). **Durable fix (server-side, #24f-adjacent):** persist the host-connection nonce so a relay restart doesn't force re-enroll/4401, and/or evict a stale host session promptly so a reconnect isn't rejected; connector-side, add auto-reconnect with backoff on 1012/4401. GitHub issue snippet drafted.
+**Update 2026-07-04 (evening):** the mitigations shifted under #55 -- the `HermesMobileConnector`
+NSSM service no longer exists (so "service auto-restarts on crash" no longer applies), and the
+"Restart All" desktop shortcut references deleted services and needs rework for the
+Startup-script world (queued in #55). The durable server-side fix (persist/evict the
+host-connection nonce; connector auto-reconnect with backoff) remains open.
+
+---
+
+## 55. 🔧 OJAMD service layer reverted to out-of-the-box (nssm removed); safe-update rewritten
+
+**Context (2026-07-04 evening session).** Updates kept tanking even via `hermes-update-safe.ps1`,
+requiring manual intervention every time, and `HermesGateway` sat Paused in services.msc while
+the gateway showed connected in Hermes. Audit findings on OJAMD:
+
+- **Three competing launch layers** existed for the same components: nssm services (LocalSystem,
+  Auto), the disabled S4U Scheduled Tasks, and the **Startup-folder scripts**
+  (`Hermes_Gateway.vbs`, `Hermes_Relay.cmd`, `Hermes_Connector.cmd`) -- and the Startup scripts
+  were the *actual* production path: port `:8642` was owned by the VBS-launched gateway, not the
+  Paused service.
+- The Paused `HermesGateway` service held a live **LocalSystem `hermes.exe` zombie** with locks
+  inside `hermes-agent\venv` -- unkillable from an unelevated shell; the true update-tanker.
+- The relay was **down** (`:8000` closed; last clean shutdown 19:03) and the standalone connector
+  had been dead since 07-02 (the #37 cp1252 crash) -- the sensor path was broken and unnoticed.
+- `HermesMobileConnector` (created earlier the same day by a parallel session per #37 /
+  GitHub #8) was itself nssm-wrapped -- rediscovered here without provenance; a coordination
+  gap. **Rule reinforced: pull live OPEN_ITEMS.md before any OJAMD remediation.**
+
+**Decision (Owen):** revert to out-of-the-box, login-time startup through Hermes itself;
+add capabilities back only on proven need. Keep the shim service; keep the relay service dormant.
+
+**Executed 2026-07-04 (all verified):**
+1. Zombie tree killed; **`HermesGateway` and `HermesMobileConnector` services deleted**
+   (elevated; transcript at `C:\Users\Owen\.hermes\logs\service-removal-20260704.log`).
+2. **`HermesMobileRelay` set to Disabled** -- dormant fallback per Owen, cannot race the
+   Startup script at boot. `TalariaModelsShim` untouched (Running/Auto) -- still earns its keep.
+3. `start-relay.bat` / `start-connector.bat` patched (backups `.bak-20260704`):
+   `PYTHONIOENCODING=utf-8` + a launch **breadcrumb** to
+   `C:\Users\Owen\.hermes\logs\launcher-breadcrumbs.log` (diagnoses any future silent
+   login-launch failure). Relay + connector relaunched; **sensor path restored** (Owen
+   smoke-tested green; phone traffic observed on `:8000`).
+4. **`hermes-update-safe.ps1` rewritten** (old script at `.bak-20260704`): stops the shim,
+   gracefully closes the Hermes desktop app, then a **kill-and-verify loop** over every process
+   holding the hermes install tree -- matched by executable path / command line *including* the
+   PYTHONPATH-injected system-Python processes (`hermes_cli`, `tui_gateway` matchers) that the
+   old script's `Get-Process hermes` could never see -- aborts if the tree will not clear, runs
+   `hermes update`, relaunches via the normal login-time launchers (shim service, gateway VBS,
+   connector bat; relay stays up throughout). Supports `-DryRun`; parse-clean; dry-run validated
+   with the full expected kill list.
+
+**Remaining (next OJAMD pass):**
+- [ ] Add `PYTHONUTF8=1` to both bats (see #37 status note -- `PYTHONIOENCODING` does not cover
+      the subprocess pipe decode) and restart the connector.
+- [ ] Rework or retire the "Restart All" desktop shortcut (references deleted services); its
+      replacement should encode #54's dependency-order restart (relay -> connector).
+- [ ] Reboot + login validation: check `launcher-breadcrumbs.log` fired and all four ports come
+      up (`:8642` allows 15-20s warmup). The 19:03-19:04 event timeline is not yet fully
+      explained (manual stops vs. relogin); breadcrumbs will settle it.
+- [ ] First real `hermes-update-safe.ps1` run (note: it closes + relaunches the desktop app).
+
+**Rollback:** disabled S4U Scheduled Tasks retained; `HermesMobileRelay` service retained
+(Disabled); nssm binary untouched at `O:\Hermes\nssm\nssm.exe`; all replaced files have
+dated `.bak` copies.
+
+Logged 2026-07-04.
