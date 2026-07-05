@@ -44,6 +44,25 @@ def ensure_default_user(db: Session, settings: Settings) -> User:
     return user
 
 
+def resolve_registration_user(db: Session, *, settings: Settings, installation_id: str) -> User:
+    """The user a device/register call binds the device to.
+
+    An installation that already has a device row keeps that device's current
+    user: re-registration is the credential-recovery path (a device whose
+    refresh token is gone or rejected re-registers to mint fresh tokens), and
+    rebinding it to the default user would silently adopt whatever user row
+    happens to sort first — on a database with stale users from pairing churn
+    that can be a revoked identity. Only a brand-new installation falls back
+    to the default user.
+    """
+    device = db.scalar(select(Device).where(Device.installation_id == installation_id))
+    if device is not None:
+        user = db.get(User, device.user_id)
+        if user is not None:
+            return user
+    return ensure_default_user(db, settings)
+
+
 def create_pairing_invite(db: Session, *, settings: Settings) -> tuple[PairingInvite, str]:
     invite_token = generate_token()
     invite = PairingInvite(
@@ -205,7 +224,14 @@ def upsert_device(
     return device
 
 
-def rotate_auth_session(db: Session, *, settings: Settings, user: User, device: Device) -> tuple[AuthSession, str, str]:
+def rotate_auth_session(
+    db: Session,
+    *,
+    settings: Settings,
+    user: User,
+    device: Device,
+    grace_previous_refresh: bool = False,
+) -> tuple[AuthSession, str, str]:
     access_token, refresh_token, access_expires_at, refresh_expires_at = issue_tokens(settings)
     auth_session = db.scalar(
         select(AuthSession).where(
@@ -225,6 +251,20 @@ def rotate_auth_session(db: Session, *, settings: Settings, user: User, device: 
         )
         db.add(auth_session)
     else:
+        if grace_previous_refresh:
+            # Keep the outgoing refresh token honored for a short window: if
+            # the client never receives this response (network drop between
+            # rotation and persistence), its retry with the old token can
+            # still recover instead of being locked out until a re-pair.
+            auth_session.previous_refresh_token_hash = auth_session.refresh_token_hash
+            auth_session.previous_refresh_valid_until = utcnow() + timedelta(
+                seconds=settings.refresh_token_grace_seconds
+            )
+        else:
+            # Pairing / registration rotations are identity events — no
+            # stragglers from the previous credential set survive them.
+            auth_session.previous_refresh_token_hash = None
+            auth_session.previous_refresh_valid_until = None
         auth_session.user_id = user.id
         auth_session.access_token_hash = hash_token(access_token)
         auth_session.refresh_token_hash = hash_token(refresh_token)
@@ -238,12 +278,29 @@ def rotate_auth_session(db: Session, *, settings: Settings, user: User, device: 
 
 
 def refresh_auth_session(db: Session, *, settings: Settings, refresh_token: str) -> tuple[AuthSession, str, str]:
+    token_hash = hash_token(refresh_token)
     auth_session = db.scalar(
         select(AuthSession).where(
-            AuthSession.refresh_token_hash == hash_token(refresh_token),
+            AuthSession.refresh_token_hash == token_hash,
             AuthSession.revoked_at.is_(None),
         )
     )
+
+    if auth_session is None:
+        # Grace path: the presented token was already rotated away, but the
+        # rotation response may never have reached the client. Honor the
+        # previous token briefly so a lost response doesn't strand the device.
+        auth_session = db.scalar(
+            select(AuthSession).where(
+                AuthSession.previous_refresh_token_hash == token_hash,
+                AuthSession.revoked_at.is_(None),
+            )
+        )
+        if auth_session is not None and (
+            auth_session.previous_refresh_valid_until is None
+            or normalize_datetime(auth_session.previous_refresh_valid_until) < utcnow()
+        ):
+            auth_session = None
 
     if auth_session is None or normalize_datetime(auth_session.refresh_expires_at) < utcnow():
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token.")
@@ -253,7 +310,7 @@ def refresh_auth_session(db: Session, *, settings: Settings, refresh_token: str)
     if user is None or device is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid auth session.")
 
-    return rotate_auth_session(db, settings=settings, user=user, device=device)
+    return rotate_auth_session(db, settings=settings, user=user, device=device, grace_previous_refresh=True)
 
 
 def redeem_pairing_invite(

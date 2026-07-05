@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Appearance settings screen (Settings → APPEARANCE)
 //
@@ -17,7 +18,9 @@ struct AppearanceSettingsScreen: View {
 
     @State private var spin = false
 
-    private var theme: AppearanceTheme { settingsStore.settings.appearanceTheme }
+    /// The theme actually in effect — honors automatic (seasonal) mode (#24).
+    private var theme: AppearanceTheme { settingsStore.settings.effectiveAppearanceTheme() }
+    private var isAutomatic: Bool { settingsStore.settings.appearanceThemeMode == .automatic }
     private var accent: AppearanceAccent { settingsStore.settings.appearanceAccent }
     private var glow: Double { settingsStore.settings.hudGlowIntensity }
     private var grid: GridDensity { settingsStore.settings.gridDensity }
@@ -52,6 +55,7 @@ struct AppearanceSettingsScreen: View {
                     }
                     glowSection
                     gridSection
+                    appIconRow
                     togglePanel
                 }
                 .padding(.horizontal, Design.Spacing.md)
@@ -166,21 +170,72 @@ struct AppearanceSettingsScreen: View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             MonoLabel("// Theme", size: 10, tracking: Design.Tracking.monoXWide,
                       color: Design.Colors.mutedForeground)
+            automaticPanel
             LazyVGrid(columns: [GridItem(.flexible(), spacing: Design.Spacing.sm),
                                 GridItem(.flexible())],
                       spacing: Design.Spacing.sm) {
-                ForEach(AppearanceTheme.allCases, id: \.self) { themeCard($0) }
+                // Data-driven from the catalog: holiday themes appear only in
+                // their window, flagship + seasonal themes always show (#24).
+                ForEach(ThemeCatalog.availableDefinitions(on: Date())) { themeCard($0) }
             }
         }
     }
 
-    private func themeCard(_ t: AppearanceTheme) -> some View {
+    // MARK: Automatic (seasonal) mode
+
+    /// Seasonal auto-rotation toggle (#24). When on, the app resolves the theme
+    /// from the calendar; picking a card below switches back to manual.
+    private var automaticPanel: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                Text("Seasonal (Auto)")
+                    .font(Design.Typography.callout)
+                    .foregroundStyle(Design.Colors.foreground)
+                MonoLabel(automaticCaption, size: 9, weight: .regular,
+                          tracking: Design.Tracking.mono, color: Design.Colors.mutedForeground)
+            }
+            Spacer()
+            Toggle("", isOn: automaticBinding)
+                .labelsHidden()
+                .tint(palette.base)
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.lg,
+            borderColor: isAutomatic ? Design.Colors.accentTint(0.3) : Design.Colors.accentTint(0.12),
+            fill: Design.Colors.background.opacity(0.5),
+            innerGlow: false
+        )
+    }
+
+    private var automaticCaption: String {
+        if isAutomatic {
+            return "\(ThemeCatalog.season(on: Date()).displayLabel.uppercased()) · \(theme.displayLabel.uppercased())"
+        }
+        return "Rotate theme by season"
+    }
+
+    private var automaticBinding: Binding<Bool> {
+        Binding(
+            get: { settingsStore.settings.appearanceThemeMode == .automatic },
+            set: { settingsStore.settings.appearanceThemeMode = $0 ? .automatic : .manual }
+        )
+    }
+
+    private func themeCard(_ definition: ThemeDefinition) -> some View {
         // Each card renders its own environment, resolved with the user's
         // current accent slot so it previews what they'd actually get.
+        let t = definition.appearanceTheme
         let p = ThemePalette(theme: t.themeID, accent: accent.slot)
+        // In automatic mode the active season's theme reads as selected.
         let selected = (t == theme)
         return Button {
-            settingsStore.settings.appearanceTheme = t
+            // Picking a specific theme is a manual override (leaves auto mode).
+            var updated = settingsStore.settings
+            updated.appearanceThemeMode = .manual
+            updated.appearanceTheme = t
+            settingsStore.settings = updated
         } label: {
             VStack(spacing: Design.Spacing.xs) {
                 ZStack {
@@ -193,10 +248,13 @@ struct AppearanceSettingsScreen: View {
                                              startRadius: 0, endRadius: 9))
                         .frame(width: 16, height: 16)
                         .shadow(color: p.base.opacity(0.6 * p.glowScale), radius: 6)
+                    if definition.locked {
+                        lockBadge(p)
+                    }
                 }
                 .padding(.top, Design.Spacing.sm)
 
-                MonoLabel(t.displayLabel, size: 9, weight: .medium,
+                MonoLabel(definition.displayName, size: 9, weight: .medium,
                           tracking: Design.Tracking.mono, color: p.foreground)
                     .padding(.bottom, Design.Spacing.sm)
             }
@@ -215,8 +273,19 @@ struct AppearanceSettingsScreen: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(t.displayLabel)
+        .accessibilityLabel(definition.displayName)
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    /// Reserved premium/paid gate (#24). Inert today — no shipped theme is
+    /// locked — but the affordance exists so a future tier is a flag flip.
+    private func lockBadge(_ p: ThemePalette) -> some View {
+        Image(systemName: "lock.fill")
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(p.foreground)
+            .padding(4)
+            .background(Circle().fill(p.deep.opacity(0.85)))
+            .offset(x: 15, y: -15)
     }
 
     // MARK: Accent
@@ -354,6 +423,53 @@ struct AppearanceSettingsScreen: View {
             fill: Design.Colors.background.opacity(0.5),
             innerGlow: false
         )
+    }
+
+    // MARK: App icon
+
+    /// Navigates to the data-driven icon picker (issue #25). Shows the current
+    /// icon's name so the row reads as real state, not a static label.
+    private var appIconRow: some View {
+        NavigationLink {
+            AppIconSettingsScreen()
+        } label: {
+            HStack(spacing: Design.Spacing.sm) {
+                Image(systemName: "app.badge")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Design.Brand.accent)
+                    .frame(width: 32, height: 32)
+                    .background(Design.Colors.accentTint(0.05),
+                                in: RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Design.CornerRadius.sm)
+                            .strokeBorder(Design.Colors.accentTint(0.18), lineWidth: 1)
+                    }
+                Text("App Icon")
+                    .font(Design.Typography.body(15, weight: .medium))
+                    .foregroundStyle(Design.Colors.foreground)
+                Spacer(minLength: Design.Spacing.xs)
+                MonoLabel(currentIconName.uppercased(), size: 10, weight: .medium,
+                          tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                    .lineLimit(1)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Design.Colors.accentTint(0.7))
+            }
+            .padding(.horizontal, Design.Spacing.md)
+            .padding(.vertical, Design.Spacing.sm)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.lg,
+            borderColor: Design.Colors.accentTint(0.12),
+            fill: Design.Colors.background.opacity(0.5),
+            innerGlow: false
+        )
+    }
+
+    private var currentIconName: String {
+        AppIconCatalog.option(forAlternateIconName: UIApplication.shared.alternateIconName).displayName
     }
 
     // MARK: Bindings

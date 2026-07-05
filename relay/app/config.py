@@ -27,6 +27,9 @@ class Settings:
     internal_api_key: str = "replace-me"
     access_token_ttl_seconds: int = 3600
     refresh_token_ttl_seconds: int = 60 * 60 * 24 * 30
+    # How long a rotated-away refresh token stays honored after a refresh,
+    # so a client that lost the rotation response can retry (GH #15).
+    refresh_token_grace_seconds: int = 60
     pairing_code_ttl_seconds: int = 900
     phone_pairing_code_ttl_seconds: int = 600
     phone_pairing_max_attempts_per_code: int = 5
@@ -72,6 +75,7 @@ class Settings:
             internal_api_key=os.getenv("INTERNAL_API_KEY", "replace-me"),
             access_token_ttl_seconds=int(os.getenv("ACCESS_TOKEN_TTL_SECONDS", "3600")),
             refresh_token_ttl_seconds=int(os.getenv("REFRESH_TOKEN_TTL_SECONDS", str(60 * 60 * 24 * 30))),
+            refresh_token_grace_seconds=int(os.getenv("REFRESH_TOKEN_GRACE_SECONDS", "60")),
             pairing_code_ttl_seconds=int(os.getenv("PAIRING_CODE_TTL_SECONDS", "900")),
             phone_pairing_code_ttl_seconds=int(os.getenv("PHONE_PAIRING_CODE_TTL_SECONDS", "600")),
             phone_pairing_max_attempts_per_code=int(os.getenv("PHONE_PAIRING_MAX_ATTEMPTS_PER_CODE", "5")),

@@ -88,13 +88,17 @@ struct TalariaApp: App {
                     // Push the new appearance to "Match App" widgets (write +
                     // timeline reload). Only on theme/accent changes — not for
                     // every settings mutation (e.g. glow-slider drags).
-                    if oldSettings.appearanceTheme != newSettings.appearanceTheme
+                    if oldSettings.effectiveAppearanceTheme() != newSettings.effectiveAppearanceTheme()
                         || oldSettings.appearanceAccent != newSettings.appearanceAccent {
                         container.updateWidgetData()
                     }
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
+                        // Re-resolve automatic (seasonal) theme on foreground so a
+                        // season rollover applies without a relaunch (issue #24).
+                        // No-op in manual mode.
+                        ThemeRuntime.shared.apply(container.settingsStore.settings)
                         Task { await container.handleAppDidBecomeActive() }
                     } else if newPhase == .background {
                         Task { await container.reportAppStateIfNeeded("background") }

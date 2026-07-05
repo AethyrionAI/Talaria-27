@@ -1,10 +1,21 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 import json
 import os
 from pathlib import Path
+
+
+def _dataclass_from_dict(cls, data: dict):
+    """Build a dataclass instance from JSON data, ignoring unknown keys.
+
+    State and secrets files are user-editable (issue #7 documents hand-editing
+    ``~/.hermes-mobile``); an unrecognized key must not make the whole
+    connector unable to load its state.
+    """
+    known = {f.name for f in fields(cls)}
+    return cls(**{key: value for key, value in data.items() if key in known})
 
 
 def _default_state_dir() -> Path:
@@ -84,6 +95,9 @@ class ConnectorState:
 @dataclass
 class ConnectorSecrets:
     openai_api_key: str | None = None
+    # Tri-state: True/False = explicit choice stored in secrets.json,
+    # None = not set there, fall back to realtime_talk.enabled in state.json.
+    realtime_talk_enabled: bool | None = None
 
 
 class ConnectorStateStore:
@@ -101,18 +115,18 @@ class ConnectorStateStore:
         data = json.loads(self.state_path.read_text(encoding="utf-8"))
         runtime_config = data.get("runtime_config")
         if isinstance(runtime_config, dict):
-            data["runtime_config"] = ConnectorRuntimeConfig(**runtime_config)
+            data["runtime_config"] = _dataclass_from_dict(ConnectorRuntimeConfig, runtime_config)
         realtime_talk = data.get("realtime_talk")
         if isinstance(realtime_talk, dict):
-            data["realtime_talk"] = RealtimeTalkConfig(**realtime_talk)
+            data["realtime_talk"] = _dataclass_from_dict(RealtimeTalkConfig, realtime_talk)
         voice_context_snapshot = data.get("voice_context_snapshot")
         if isinstance(voice_context_snapshot, dict):
-            data["voice_context_snapshot"] = VoiceContextSnapshot(**voice_context_snapshot)
+            data["voice_context_snapshot"] = _dataclass_from_dict(VoiceContextSnapshot, voice_context_snapshot)
         data.setdefault(
             "mcp_configured",
             bool(data.get("mcp_registered_at") or data.get("mcp_command_path")),
         )
-        return ConnectorState(**data)
+        return _dataclass_from_dict(ConnectorState, data)
 
     def save(self, state: ConnectorState) -> ConnectorState:
         self.state_dir.mkdir(parents=True, exist_ok=True)
@@ -132,7 +146,20 @@ class ConnectorStateStore:
         if not self.secrets_path.exists():
             return ConnectorSecrets()
         data = json.loads(self.secrets_path.read_text(encoding="utf-8"))
-        return ConnectorSecrets(**data)
+        # Issue #7 documents enabling talk mode via the secrets store. Accept
+        # every shape a hand-edit plausibly produces:
+        #   {"realtime_talk_enabled": true}
+        #   {"realtime_talk": {"enabled": true}}
+        #   {"realtime_talk.enabled": true}
+        if "realtime_talk_enabled" not in data:
+            nested = data.get("realtime_talk")
+            if isinstance(nested, dict) and "enabled" in nested:
+                data["realtime_talk_enabled"] = nested["enabled"]
+            elif "realtime_talk.enabled" in data:
+                data["realtime_talk_enabled"] = data["realtime_talk.enabled"]
+        if data.get("realtime_talk_enabled") is not None:
+            data["realtime_talk_enabled"] = bool(data["realtime_talk_enabled"])
+        return _dataclass_from_dict(ConnectorSecrets, data)
 
     def save_secrets(self, secrets: ConnectorSecrets) -> ConnectorSecrets:
         self.state_dir.mkdir(parents=True, exist_ok=True)

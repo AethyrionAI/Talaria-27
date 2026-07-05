@@ -358,6 +358,275 @@ struct AppStoresTests {
         #expect(await secureStore.retrieve(key: "session.accessToken") == "recording-access-token")
     }
 
+    /// Bootstrap service whose refresh/register behavior is scripted per test —
+    /// the #15 recovery-ladder tests need refresh rejections, register
+    /// failures, and slow refreshes on demand.
+    @MainActor
+    private final class ScriptedSessionBootstrapService: SessionBootstrapServiceProtocol {
+        var registerCallCount = 0
+        var refreshCallCount = 0
+        var refreshDelayMilliseconds = 0
+        var refreshError: Error?
+        var registerError: Error?
+        /// Access tokens loadSession must reject with a 401, simulating a
+        /// relay that no longer honors them.
+        var rejectedAccessTokens: Set<String> = []
+        let sessionUserID = UUID()
+
+        func registerDevice(_ request: DeviceRegistrationRequest) async throws -> SessionBootstrapResponse {
+            registerCallCount += 1
+            if let registerError { throw registerError }
+            return SessionBootstrapResponse(
+                state: AppSessionState(
+                    userID: sessionUserID,
+                    deviceID: UUID(),
+                    installationID: request.installationID,
+                    deviceRegistered: true,
+                    connectionStatus: .connected,
+                    syncStatus: .synced,
+                    isMockMode: false,
+                    backendEndpoint: request.relayBaseURLString,
+                    lastSyncAt: nil,
+                    pushTokenRegistered: false
+                ),
+                tokens: AuthTokens(
+                    accessToken: "scripted-recovered-access",
+                    refreshToken: "scripted-recovered-refresh",
+                    expiresAt: .distantFuture
+                )
+            )
+        }
+
+        func loadSession(accessToken: String?) async throws -> AppSessionState {
+            if let accessToken, rejectedAccessTokens.contains(accessToken) {
+                throw RelayAPIClient.ClientError.unauthorized("Expired or invalid access token.")
+            }
+            return AppSessionState(
+                userID: sessionUserID,
+                displayName: "Hermes User",
+                deviceID: UUID(),
+                installationID: UUID(),
+                deviceRegistered: true,
+                connectionStatus: .connected,
+                syncStatus: .synced,
+                isMockMode: false,
+                backendEndpoint: AppEnvironment.development.baseURLString,
+                lastSyncAt: .now,
+                pushTokenRegistered: false
+            )
+        }
+
+        func refreshAuth(refreshToken: String) async throws -> AuthTokens {
+            refreshCallCount += 1
+            if refreshDelayMilliseconds > 0 {
+                try? await Task.sleep(for: .milliseconds(refreshDelayMilliseconds))
+            }
+            if let refreshError { throw refreshError }
+            return AuthTokens(
+                accessToken: "scripted-refreshed-access",
+                refreshToken: "scripted-refreshed-refresh",
+                expiresAt: .distantFuture
+            )
+        }
+
+        func revokeCurrentSession(accessToken: String?) async throws {}
+    }
+
+    @MainActor
+    private func makeScriptedSessionStore(
+        suiteName: String,
+        bootstrapService: ScriptedSessionBootstrapService,
+        secureStore: MockSecureStore,
+        registered: Bool
+    ) -> AppSessionStore {
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        if registered {
+            persistence.saveSessionState(
+                AppSessionState(
+                    userID: UUID(),
+                    displayName: "Hermes User",
+                    deviceID: UUID(),
+                    installationID: UUID(),
+                    deviceRegistered: true,
+                    connectionStatus: .connected,
+                    syncStatus: .synced,
+                    isMockMode: false,
+                    backendEndpoint: AppEnvironment.development.baseURLString,
+                    lastSyncAt: .now,
+                    pushTokenRegistered: false
+                )
+            )
+        }
+        return AppSessionStore(
+            bootstrapService: bootstrapService,
+            syncCoordinator: MockSyncCoordinator(),
+            secureStore: secureStore,
+            persistence: persistence,
+            notificationService: MockNotificationService(),
+            environmentProvider: { .development }
+        )
+    }
+
+    @Test @MainActor
+    func tokenRefreshReportsMissingRefreshToken() async throws {
+        let bootstrapService = ScriptedSessionBootstrapService()
+        let sessionStore = makeScriptedSessionStore(
+            suiteName: "token-refresh-missing-\(UUID().uuidString)",
+            bootstrapService: bootstrapService,
+            secureStore: MockSecureStore(),
+            registered: true
+        )
+
+        let outcome = await sessionStore.refreshAccessTokenIfNeeded()
+
+        #expect(outcome == .missingRefreshToken)
+        #expect(bootstrapService.refreshCallCount == 0)
+    }
+
+    @Test @MainActor
+    func tokenRefreshDistinguishesRejectionFromTransientFailure() async throws {
+        let bootstrapService = ScriptedSessionBootstrapService()
+        let secureStore = MockSecureStore()
+        await secureStore.store(key: "session.accessToken", value: "stale-access")
+        await secureStore.store(key: "session.refreshToken", value: "stale-refresh")
+        let sessionStore = makeScriptedSessionStore(
+            suiteName: "token-refresh-classify-\(UUID().uuidString)",
+            bootstrapService: bootstrapService,
+            secureStore: secureStore,
+            registered: true
+        )
+
+        bootstrapService.refreshError = URLError(.notConnectedToInternet)
+        #expect(await sessionStore.refreshAccessTokenIfNeeded() == .transientFailure)
+
+        bootstrapService.refreshError = RelayAPIClient.ClientError.requestFailed("relay 500")
+        #expect(await sessionStore.refreshAccessTokenIfNeeded() == .transientFailure)
+
+        bootstrapService.refreshError = RelayAPIClient.ClientError.unauthorized("Invalid refresh token.")
+        #expect(await sessionStore.refreshAccessTokenIfNeeded() == .rejected)
+
+        // Failed refreshes never clobber the stored tokens.
+        #expect(await secureStore.retrieve(key: "session.accessToken") == "stale-access")
+        #expect(await secureStore.retrieve(key: "session.refreshToken") == "stale-refresh")
+
+        bootstrapService.refreshError = nil
+        #expect(await sessionStore.refreshAccessTokenIfNeeded() == .refreshed)
+        #expect(await secureStore.retrieve(key: "session.accessToken") == "scripted-refreshed-access")
+        #expect(await secureStore.retrieve(key: "session.refreshToken") == "scripted-refreshed-refresh")
+    }
+
+    @Test @MainActor
+    func concurrentTokenRefreshesCoalesceIntoOneRelayCall() async throws {
+        let bootstrapService = ScriptedSessionBootstrapService()
+        bootstrapService.refreshDelayMilliseconds = 50
+        let secureStore = MockSecureStore()
+        await secureStore.store(key: "session.refreshToken", value: "stale-refresh")
+        let sessionStore = makeScriptedSessionStore(
+            suiteName: "token-refresh-coalesce-\(UUID().uuidString)",
+            bootstrapService: bootstrapService,
+            secureStore: secureStore,
+            registered: true
+        )
+
+        // Talk + sensors 401ing at once must not race the rotation: with
+        // rotate-on-refresh, the second caller's stale refresh token would
+        // be rejected server-side.
+        let first = Task { await sessionStore.refreshAccessTokenIfNeeded() }
+        let second = Task { await sessionStore.refreshAccessTokenIfNeeded() }
+
+        #expect(await first.value == .refreshed)
+        #expect(await second.value == .refreshed)
+        #expect(bootstrapService.refreshCallCount == 1)
+    }
+
+    @Test @MainActor
+    func sessionRecoveryReRegistersKnownInstallationAndReloadsIdentity() async throws {
+        let bootstrapService = ScriptedSessionBootstrapService()
+        let secureStore = MockSecureStore()
+        await secureStore.store(key: "session.accessToken", value: "stale-access")
+        await secureStore.store(key: "session.refreshToken", value: "dead-refresh")
+        let sessionStore = makeScriptedSessionStore(
+            suiteName: "session-recovery-\(UUID().uuidString)",
+            bootstrapService: bootstrapService,
+            secureStore: secureStore,
+            registered: true
+        )
+
+        let recovered = await sessionStore.recoverSessionByReRegistering()
+
+        #expect(recovered)
+        #expect(bootstrapService.registerCallCount == 1)
+        #expect(await secureStore.retrieve(key: "session.accessToken") == "scripted-recovered-access")
+        #expect(await secureStore.retrieve(key: "session.refreshToken") == "scripted-recovered-refresh")
+        // The reloaded session user is what PairingStore.validateRestoredIdentity
+        // compares against the pairing's minted user.
+        #expect(sessionStore.state.userID == bootstrapService.sessionUserID)
+    }
+
+    @Test @MainActor
+    func sessionRecoveryRefusesNeverRegisteredInstallation() async throws {
+        let bootstrapService = ScriptedSessionBootstrapService()
+        let sessionStore = makeScriptedSessionStore(
+            suiteName: "session-recovery-unregistered-\(UUID().uuidString)",
+            bootstrapService: bootstrapService,
+            secureStore: MockSecureStore(),
+            registered: false
+        )
+
+        let recovered = await sessionStore.recoverSessionByReRegistering()
+
+        #expect(!recovered)
+        #expect(bootstrapService.registerCallCount == 0)
+    }
+
+    @Test @MainActor
+    func sessionRecoveryAttemptsAreRateLimited() async throws {
+        let bootstrapService = ScriptedSessionBootstrapService()
+        bootstrapService.registerError = URLError(.cannotConnectToHost)
+        let sessionStore = makeScriptedSessionStore(
+            suiteName: "session-recovery-ratelimit-\(UUID().uuidString)",
+            bootstrapService: bootstrapService,
+            secureStore: MockSecureStore(),
+            registered: true
+        )
+
+        #expect(await sessionStore.recoverSessionByReRegistering() == false)
+        #expect(await sessionStore.recoverSessionByReRegistering() == false)
+
+        // The second attempt inside the cooldown window never hits the relay.
+        #expect(bootstrapService.registerCallCount == 1)
+    }
+
+    @Test @MainActor
+    func bootstrapSelfHealsWhenRefreshTokenIsDead() async throws {
+        // The #15 launch shape: stored access token is expired (relay 401s
+        // it), the refresh token is rejected, and the old code parked the app
+        // in an error state until a manual re-pair. Bootstrap must now walk
+        // the ladder down to silent re-registration and come back connected.
+        let bootstrapService = ScriptedSessionBootstrapService()
+        bootstrapService.rejectedAccessTokens = ["expired-access"]
+        bootstrapService.refreshError = RelayAPIClient.ClientError.unauthorized("Invalid refresh token.")
+        let secureStore = MockSecureStore()
+        await secureStore.store(key: "session.accessToken", value: "expired-access")
+        await secureStore.store(key: "session.refreshToken", value: "dead-refresh")
+        let sessionStore = makeScriptedSessionStore(
+            suiteName: "bootstrap-self-heal-\(UUID().uuidString)",
+            bootstrapService: bootstrapService,
+            secureStore: secureStore,
+            registered: true
+        )
+
+        await sessionStore.bootstrap()
+
+        #expect(bootstrapService.registerCallCount == 1)
+        #expect(sessionStore.state.connectionStatus == .connected)
+        #expect(sessionStore.state.syncStatus == .synced)
+        #expect(await secureStore.retrieve(key: "session.accessToken") == "scripted-recovered-access")
+        #expect(await secureStore.retrieve(key: "session.refreshToken") == "scripted-recovered-refresh")
+    }
+
     @Test @MainActor
     func settingsStorePersistsEnvironmentChanges() async throws {
         let suiteName = "settings-store-\(UUID().uuidString)"
