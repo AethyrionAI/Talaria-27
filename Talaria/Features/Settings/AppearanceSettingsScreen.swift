@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Appearance settings screen (Settings → APPEARANCE)
 //
@@ -52,6 +53,7 @@ struct AppearanceSettingsScreen: View {
                     }
                     glowSection
                     gridSection
+                    appIconRow
                     togglePanel
                 }
                 .padding(.horizontal, Design.Spacing.md)
@@ -354,6 +356,53 @@ struct AppearanceSettingsScreen: View {
             fill: Design.Colors.background.opacity(0.5),
             innerGlow: false
         )
+    }
+
+    // MARK: App icon
+
+    /// Navigates to the data-driven icon picker (issue #25). Shows the current
+    /// icon's name so the row reads as real state, not a static label.
+    private var appIconRow: some View {
+        NavigationLink {
+            AppIconSettingsScreen()
+        } label: {
+            HStack(spacing: Design.Spacing.sm) {
+                Image(systemName: "app.badge")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Design.Brand.accent)
+                    .frame(width: 32, height: 32)
+                    .background(Design.Colors.accentTint(0.05),
+                                in: RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Design.CornerRadius.sm)
+                            .strokeBorder(Design.Colors.accentTint(0.18), lineWidth: 1)
+                    }
+                Text("App Icon")
+                    .font(Design.Typography.body(15, weight: .medium))
+                    .foregroundStyle(Design.Colors.foreground)
+                Spacer(minLength: Design.Spacing.xs)
+                MonoLabel(currentIconName.uppercased(), size: 10, weight: .medium,
+                          tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                    .lineLimit(1)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Design.Colors.accentTint(0.7))
+            }
+            .padding(.horizontal, Design.Spacing.md)
+            .padding(.vertical, Design.Spacing.sm)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.lg,
+            borderColor: Design.Colors.accentTint(0.12),
+            fill: Design.Colors.background.opacity(0.5),
+            innerGlow: false
+        )
+    }
+
+    private var currentIconName: String {
+        AppIconCatalog.option(forAlternateIconName: UIApplication.shared.alternateIconName).displayName
     }
 
     // MARK: Bindings
