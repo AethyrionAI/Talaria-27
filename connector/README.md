@@ -195,6 +195,21 @@ hermes-mobile status
 
 `status` reports whether talk is configured, the selected model, and the last validation result without printing secrets.
 
+Talk mode counts as configured when both of these resolve:
+
+- **Enabled flag** — `realtime_talk.enabled` in the connector state
+  (written by `configure-realtime`), or set by hand in the secrets store
+  (`~/.hermes-mobile/secrets.json`) as `"realtime_talk_enabled": true`,
+  `"realtime_talk": {"enabled": true}`, or `"realtime_talk.enabled": true`.
+  A value in the secrets store takes precedence over the state file.
+- **OpenAI API key** — looked up in order: `openai_api_key` in
+  `~/.hermes-mobile/secrets.json`, the `OPENAI_API_KEY` environment
+  variable, then `OPENAI_API_KEY` in the Hermes settings
+  (`$HERMES_HOME/.env`).
+
+Unknown keys in hand-edited state/secrets files are ignored rather than
+treated as fatal.
+
 ## Troubleshooting
 
 ### Relay setup
