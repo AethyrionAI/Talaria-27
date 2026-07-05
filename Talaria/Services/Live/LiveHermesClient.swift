@@ -356,7 +356,7 @@ final class LiveHermesClient: HermesClientProtocol {
             return try await operation(await accessTokenProvider())
         } catch RelayAPIClient.ClientError.unauthorized {
             guard let refreshedToken = await accessTokenRefresher(), !refreshedToken.isEmpty else {
-                throw RelayAPIClient.ClientError.unauthorized("Expired or invalid access token.")
+                throw RelayAPIClient.ClientError.unauthorized("Hermes session expired and couldn't be renewed automatically — re-pair this device with your Hermes relay.")
             }
             return try await operation(refreshedToken)
         }
@@ -408,10 +408,10 @@ final class LiveHermesClient: HermesClientProtocol {
                 return nil
             } catch RelayAPIClient.ClientError.unauthorized {
                 guard !didRetryUnauthorized else {
-                    throw RelayAPIClient.ClientError.unauthorized("Expired or invalid access token.")
+                    throw RelayAPIClient.ClientError.unauthorized("Hermes session expired and couldn't be renewed automatically — re-pair this device with your Hermes relay.")
                 }
                 guard let refreshedToken = await accessTokenRefresher(), !refreshedToken.isEmpty else {
-                    throw RelayAPIClient.ClientError.unauthorized("Expired or invalid access token.")
+                    throw RelayAPIClient.ClientError.unauthorized("Hermes session expired and couldn't be renewed automatically — re-pair this device with your Hermes relay.")
                 }
                 didRetryUnauthorized = true
                 overrideToken = refreshedToken

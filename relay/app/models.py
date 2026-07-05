@@ -56,6 +56,11 @@ class AuthSession(Base):
     device_id: Mapped[str] = mapped_column(String(36), ForeignKey("devices.id"), nullable=False)
     access_token_hash: Mapped[str] = mapped_column(Text, nullable=False)
     refresh_token_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    # Refresh rotation keeps the outgoing token valid for a short grace
+    # window so a client that never received the rotation response isn't
+    # stranded with a dead refresh token (GH #15).
+    previous_refresh_token_hash: Mapped[str | None] = mapped_column(Text)
+    previous_refresh_valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     access_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     refresh_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -157,16 +157,38 @@ final class AppContainer {
         )
         activePairingStore = runtimePairingStore
 
+        // #15: one 401-recovery ladder for every relay-token consumer (host,
+        // sensors, talk). Refresh first; if the refresh token itself is dead,
+        // silently re-register this installation (the relay preserves the
+        // device→user binding) and re-validate identity before handing the
+        // fresh token back. Returns nil when nothing was recovered — the
+        // stored token just 401'd, so retrying with it would only burn a
+        // doomed request.
+        let relayAccessTokenRefresher: @MainActor () async -> String? = {
+            switch await sessionStore.refreshAccessTokenIfNeeded() {
+            case .refreshed:
+                return await sessionStore.currentAccessToken()
+            case .transientFailure:
+                return nil
+            case .missingRefreshToken, .rejected:
+                guard await sessionStore.recoverSessionByReRegistering() else { return nil }
+                runtimePairingStore.validateRestoredIdentity()
+                // A recovered session that authenticates as the wrong relay
+                // user is the #46 half-broken state — flag it (Diagnostics
+                // shows RE-PAIR) and fail the request instead of quietly
+                // acting as someone else.
+                guard !runtimePairingStore.identityMismatchDetected else { return nil }
+                return await sessionStore.currentAccessToken()
+            }
+        }
+
         let hostService: any HermesHostServiceProtocol
         if usesMockPairingService {
             hostService = MockHermesHostService()
         } else {
             hostService = LiveHermesHostService(
                 apiClient: apiClient,
-                accessTokenRefresher: {
-                    await sessionStore.refreshAccessTokenIfNeeded()
-                    return await sessionStore.currentAccessToken()
-                }
+                accessTokenRefresher: relayAccessTokenRefresher
             )
         }
 
@@ -222,10 +244,7 @@ final class AppContainer {
         let sensorUploadService: SensorUploadService? = usesMockPairingService ? nil : SensorUploadService(
             apiClient: apiClient,
             accessTokenProvider: { await sessionStore.currentAccessToken() },
-            accessTokenRefresher: {
-                await sessionStore.refreshAccessTokenIfNeeded()
-                return await sessionStore.currentAccessToken()
-            },
+            accessTokenRefresher: relayAccessTokenRefresher,
             persistence: persistence,
             isPairedProvider: { activePairingStore?.isPaired == true },
             isHealthCollectionEnabled: { settingsStore.settings.healthCollectionEnabled },
@@ -240,10 +259,7 @@ final class AppContainer {
             LiveVoiceSessionService(
                 apiClient: apiClient,
                 accessTokenProvider: { await sessionStore.currentAccessToken() },
-                accessTokenRefresher: {
-                    await sessionStore.refreshAccessTokenIfNeeded()
-                    return await sessionStore.currentAccessToken()
-                }
+                accessTokenRefresher: relayAccessTokenRefresher
             )
         }
 

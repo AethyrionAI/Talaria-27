@@ -99,7 +99,7 @@ final class LiveHermesHostService: HermesHostServiceProtocol {
             return try await operation(initialAccessToken)
         } catch RelayAPIClient.ClientError.unauthorized {
             guard let refreshedToken = await accessTokenRefresher(), !refreshedToken.isEmpty else {
-                throw RelayAPIClient.ClientError.unauthorized("Expired or invalid access token.")
+                throw RelayAPIClient.ClientError.unauthorized("Hermes session expired and couldn't be renewed automatically — re-pair this device with your Hermes relay.")
             }
             return try await operation(refreshedToken)
         }
