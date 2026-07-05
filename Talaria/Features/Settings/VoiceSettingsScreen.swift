@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 
 // MARK: - Voice settings screen (Settings → VOICE, sub-screen 05)
@@ -18,6 +19,8 @@ struct VoiceSettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var container
     @Environment(TalkStore.self) private var talkStore
+    @Environment(SettingsStore.self) private var settingsStore
+    @Environment(SpeechOutputService.self) private var speechOutput
 
     var body: some View {
         ZStack {
@@ -30,6 +33,8 @@ struct VoiceSettingsScreen: View {
                     heroPanel
                     statusSection
                     modelSection
+                    readAloudSection
+                    transcriptsSection
                     latencySection
                     startSection
                     footer
@@ -143,6 +148,168 @@ struct VoiceSettingsScreen: View {
         value == nil ? Design.Colors.mutedForeground : Design.Colors.foreground
     }
 
+    // MARK: Read-aloud (#2) — local TTS, the one voice surface iOS controls
+
+    private var readAloudSection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            groupLabel("// Read-Aloud")
+            VStack(spacing: 0) {
+                toggleRow(
+                    "Auto-Read Replies",
+                    detail: "SPEAKS AS THE REPLY STREAMS",
+                    isOn: Binding(
+                        get: { settingsStore.settings.readAloudAutoPlay },
+                        set: { settingsStore.settings.readAloudAutoPlay = $0 }
+                    )
+                )
+                rowDivider
+                voicePickerRow
+                rowDivider
+                rateRow
+            }
+            .groupPanel()
+
+            personalVoiceFooter
+
+            GhostButton(title: "Preview Voice", systemImage: "play.circle") {
+                speechOutput.previewVoice()
+            }
+            .disabled(talkStore.isSessionActive)
+            .opacity(talkStore.isSessionActive ? 0.45 : 1)
+
+            Text("Read-aloud uses this device's speech voices — download higher-quality voices in Settings → Accessibility → Spoken Content. Paused automatically while a Talk session is live.")
+                .font(Design.Typography.caption)
+                .foregroundStyle(Design.Colors.secondaryForeground)
+        }
+    }
+
+    private var voicePickerRow: some View {
+        HStack(spacing: Design.Spacing.sm) {
+            Text("Voice")
+                .font(Design.Typography.callout)
+                .foregroundStyle(Design.Colors.foreground)
+            Spacer()
+            Menu {
+                Button {
+                    settingsStore.settings.readAloudVoiceIdentifier = nil
+                } label: {
+                    if settingsStore.settings.readAloudVoiceIdentifier == nil {
+                        Label("System Default", systemImage: "checkmark")
+                    } else {
+                        Text("System Default")
+                    }
+                }
+                ForEach(SpeechOutputService.availableVoices(), id: \.identifier) { voice in
+                    Button {
+                        settingsStore.settings.readAloudVoiceIdentifier = voice.identifier
+                    } label: {
+                        if settingsStore.settings.readAloudVoiceIdentifier == voice.identifier {
+                            Label(voiceMenuLabel(voice), systemImage: "checkmark")
+                        } else {
+                            Text(voiceMenuLabel(voice))
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: Design.Spacing.xxs) {
+                    MonoLabel(selectedVoiceLabel, size: 10, weight: .medium,
+                              tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(Design.Colors.mutedForeground)
+                }
+            }
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+    }
+
+    private var rateRow: some View {
+        HStack(spacing: Design.Spacing.sm) {
+            Text("Speed")
+                .font(Design.Typography.callout)
+                .foregroundStyle(Design.Colors.foreground)
+            MonoLabel("SLOW", size: 8, weight: .regular,
+                      tracking: Design.Tracking.mono, color: Design.Colors.mutedForeground)
+            Slider(
+                value: Binding(
+                    get: { settingsStore.settings.readAloudRate },
+                    set: { settingsStore.settings.readAloudRate = $0 }
+                ),
+                in: 0.3 ... 0.7
+            )
+            .tint(Design.Brand.accent)
+            MonoLabel("FAST", size: 8, weight: .regular,
+                      tracking: Design.Tracking.mono, color: Design.Colors.mutedForeground)
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+    }
+
+    @ViewBuilder
+    private var personalVoiceFooter: some View {
+        switch speechOutput.personalVoiceAuthorization {
+        case .notDetermined:
+            GhostButton(title: "Enable Personal Voice", systemImage: "person.wave.2") {
+                Task { await speechOutput.requestPersonalVoiceAuthorization() }
+            }
+        case .authorized:
+            Text("Personal Voice enabled — your voices appear in the picker.")
+                .font(Design.Typography.caption)
+                .foregroundStyle(Design.Colors.secondaryForeground)
+        case .denied:
+            Text("Personal Voice request denied — allow it in Settings → Accessibility → Personal Voice.")
+                .font(Design.Typography.caption)
+                .foregroundStyle(Design.Colors.secondaryForeground)
+        case .unsupported:
+            // Simulators and older hardware — no control to show (real data only).
+            EmptyView()
+        @unknown default:
+            EmptyView()
+        }
+    }
+
+    private var selectedVoiceLabel: String {
+        guard let identifier = settingsStore.settings.readAloudVoiceIdentifier else {
+            return "SYSTEM DEFAULT"
+        }
+        return AVSpeechSynthesisVoice(identifier: identifier)?.name.uppercased() ?? "UNAVAILABLE"
+    }
+
+    private func voiceMenuLabel(_ voice: AVSpeechSynthesisVoice) -> String {
+        var label = voice.name
+        if voice.voiceTraits.contains(.isPersonalVoice) {
+            label += " · Personal"
+        } else if voice.quality == .premium {
+            label += " · Premium"
+        } else if voice.quality == .enhanced {
+            label += " · Enhanced"
+        }
+        return label
+    }
+
+    // MARK: Transcripts (#1)
+
+    private var transcriptsSection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            groupLabel("// Transcripts")
+            toggleRow(
+                "Send Transcripts to Hermes",
+                detail: "SESSIONS API · TEXT TURN",
+                isOn: Binding(
+                    get: { settingsStore.settings.postVoiceTranscriptsToHermes },
+                    set: { settingsStore.settings.postVoiceTranscriptsToHermes = $0 }
+                )
+            )
+            .groupPanel()
+
+            Text("Transcripts always appear in chat and persist on this device. When enabled, they are also posted to the agent so it has voice context for the next exchange. Off keeps voice sessions local-only.")
+                .font(Design.Typography.caption)
+                .foregroundStyle(Design.Colors.secondaryForeground)
+        }
+    }
+
     // MARK: Latency (last session)
 
     private var latencySection: some View {
@@ -207,6 +374,26 @@ struct VoiceSettingsScreen: View {
     }
 
     // MARK: Shared row builders
+
+    private func toggleRow(_ label: String, detail: String? = nil, isOn: Binding<Bool>) -> some View {
+        HStack(spacing: Design.Spacing.sm) {
+            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                Text(label)
+                    .font(Design.Typography.callout)
+                    .foregroundStyle(Design.Colors.foreground)
+                if let detail {
+                    MonoLabel(detail, size: 8, weight: .regular,
+                              tracking: Design.Tracking.mono, color: Design.Colors.mutedForeground)
+                }
+            }
+            Spacer()
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(Design.Brand.accent)
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+    }
 
     private func statusRow(_ label: String, _ status: (text: String, color: Color)) -> some View {
         HStack(spacing: Design.Spacing.sm) {

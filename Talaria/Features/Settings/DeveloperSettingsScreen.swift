@@ -136,28 +136,55 @@ struct DeveloperSettingsScreen: View {
             MonoLabel("// Flags", size: 10, tracking: Design.Tracking.monoXWide,
                       color: Design.Colors.mutedForeground)
 
-            HStack {
-                VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
-                    Text("Verbose Logging")
-                        .font(Design.Typography.callout)
-                        .foregroundStyle(Design.Colors.foreground)
-                    MonoLabel("os_log · \(TalariaLog.subsystem)", size: 8, weight: .regular,
-                              tracking: Design.Tracking.mono, color: Design.Colors.mutedForeground)
-                }
-                Spacer()
-                Toggle("", isOn: verboseLoggingBinding)
-                    .labelsHidden()
-                    .tint(Design.Brand.accent)
+            VStack(spacing: 0) {
+                flagRow(
+                    "Verbose Logging",
+                    detail: "os_log · \(TalariaLog.subsystem)",
+                    isOn: verboseLoggingBinding
+                )
+
+                Rectangle()
+                    .fill(Design.Colors.hairline)
+                    .frame(height: 1)
+                    .padding(.horizontal, Design.Spacing.md)
+
+                flagRow(
+                    "Composer Writing Tools",
+                    detail: "FULL PANEL · .writingToolsBehavior(.complete)",
+                    isOn: writingToolsBinding
+                )
             }
-            .padding(.horizontal, Design.Spacing.md)
-            .padding(.vertical, Design.Spacing.sm)
             .hudPanel(
                 cornerRadius: Design.CornerRadius.lg,
                 borderColor: Design.Colors.accentTint(0.12),
                 fill: Design.Colors.background.opacity(0.5),
                 innerGlow: false
             )
+
+            if settingsStore.settings.composerWritingToolsEnabled {
+                Text("The full Writing Tools panel froze the device on iOS 27 beta 2. Leave this on only while re-testing on a newer beta (#4).")
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Brand.forge)
+            }
         }
+    }
+
+    private func flagRow(_ label: String, detail: String, isOn: Binding<Bool>) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                Text(label)
+                    .font(Design.Typography.callout)
+                    .foregroundStyle(Design.Colors.foreground)
+                MonoLabel(detail, size: 8, weight: .regular,
+                          tracking: Design.Tracking.mono, color: Design.Colors.mutedForeground)
+            }
+            Spacer()
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(Design.Brand.accent)
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
     }
 
     // MARK: Build
@@ -211,6 +238,13 @@ struct DeveloperSettingsScreen: View {
                 settingsStore.settings.verboseLogging = newValue
                 TalariaLog.setVerbose(newValue)
             }
+        )
+    }
+
+    private var writingToolsBinding: Binding<Bool> {
+        Binding(
+            get: { settingsStore.settings.composerWritingToolsEnabled },
+            set: { settingsStore.settings.composerWritingToolsEnabled = $0 }
         )
     }
 }

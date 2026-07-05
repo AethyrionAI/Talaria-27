@@ -20,6 +20,9 @@ final class AppContainer {
     let permissionsStore: PermissionsStore
     let settingsStore: SettingsStore
     let talkStore: TalkStore
+    /// Local read-aloud TTS for Hermes replies (#2). Created here (not via
+    /// init) so every construction path gets one; wired in makeDefault().
+    let speechOutput = SpeechOutputService()
     let modelsShimClient: ModelsShimClient
     let sensorUploadService: SensorUploadService?
     private let apiClient: RelayAPIClient?
@@ -335,12 +338,34 @@ final class AppContainer {
             }
         }
 
+        // Read-aloud (#2): wire the TTS service to persisted voice/rate prefs,
+        // gate it off while a Talk session owns the .playAndRecord audio
+        // session, and let ChatStore feed streamed replies when auto-read is on.
+        container.speechOutput.isBlocked = { [weak container] in
+            container?.talkStore.isSessionActive == true
+        }
+        container.speechOutput.voiceIdentifierProvider = {
+            settingsStore.settings.readAloudVoiceIdentifier
+        }
+        container.speechOutput.rateProvider = {
+            settingsStore.settings.readAloudRate
+        }
+        container.chatStore.speechOutput = container.speechOutput
+        container.chatStore.autoReadAloudEnabled = {
+            settingsStore.settings.readAloudAutoPlay
+        }
+
         // Keep widget data fresh while app is foregrounded
         container.chatStore.onConversationChanged = { [weak container] in
             container?.updateWidgetData()
         }
         container.talkStore.onSessionStateChanged = { [weak container] in
             container?.updateWidgetData()
+            // A Talk session starting takes the audio session — cut any
+            // in-flight read-aloud instead of colliding with it (#2).
+            if container?.talkStore.isSessionActive == true {
+                container?.speechOutput.stop()
+            }
         }
         container.hostStore.onHostChanged = { [weak container] in
             guard let container else { return }

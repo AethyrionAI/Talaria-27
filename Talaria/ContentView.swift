@@ -4,6 +4,7 @@ struct MainTabView: View {
     @Environment(TabRouter.self) private var router
     @Environment(TalkStore.self) private var talkStore
     @Environment(ChatStore.self) private var chatStore
+    @Environment(SettingsStore.self) private var settingsStore
 
     var body: some View {
         @Bindable var router = router
@@ -21,13 +22,13 @@ struct MainTabView: View {
         }
         .onChange(of: talkStore.lastCompletedSession != nil) { _, hasSession in
             if hasSession, let session = talkStore.lastCompletedSession {
-                Task {
-                    await chatStore.injectVoiceTranscript(
-                        voiceSessionId: session.voiceSessionId,
-                        duration: session.duration
-                    )
-                    talkStore.clearLastCompletedSession()
-                }
+                // Composed locally from the captured transcript (#1) — never
+                // touches the relay, so it works with the host unreachable.
+                chatStore.appendVoiceTranscript(
+                    session,
+                    postToHermes: settingsStore.settings.postVoiceTranscriptsToHermes
+                )
+                talkStore.clearLastCompletedSession()
             }
         }
     }

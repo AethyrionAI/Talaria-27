@@ -216,9 +216,6 @@ struct AppStoresTests {
             return conversation
         }
 
-        func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-            currentConversation ?? Conversation(title: "Hermes")
-        }
     }
 
     @MainActor
@@ -785,9 +782,6 @@ struct AppStoresTests {
                 return conversation
             }
 
-            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-                currentConversation ?? Conversation(title: "Hermes")
-            }
         }
 
         let suiteName = "chat-store-stream-artifacts-\(UUID().uuidString)"
@@ -834,9 +828,6 @@ struct AppStoresTests {
                 Conversation(title: "Hermes")
             }
 
-            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-                currentConversation ?? Conversation(title: "Hermes")
-            }
         }
 
         let suiteName = "chat-store-placeholder-refresh-\(UUID().uuidString)"
@@ -889,9 +880,6 @@ struct AppStoresTests {
                 Conversation(title: "Hermes")
             }
 
-            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-                currentConversation ?? Conversation(title: "Hermes")
-            }
         }
 
         let suiteName = "chat-store-pending-until-finished-\(UUID().uuidString)"
@@ -961,9 +949,6 @@ struct AppStoresTests {
                 Conversation(title: "Hermes")
             }
 
-            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-                currentConversation ?? Conversation(title: "Hermes")
-            }
         }
 
         let suiteName = "chat-store-stream-failure-\(UUID().uuidString)"
@@ -1201,9 +1186,6 @@ struct AppStoresTests {
                 Conversation(title: "Hermes")
             }
 
-            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-                currentConversation ?? Conversation(title: "Hermes")
-            }
         }
 
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("attachment-retry-\(UUID().uuidString).txt")
@@ -1286,9 +1268,6 @@ struct AppStoresTests {
                 Conversation(title: "Hermes")
             }
 
-            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-                currentConversation ?? Conversation(title: "Hermes")
-            }
         }
 
         let image = UIGraphicsImageRenderer(size: CGSize(width: 16, height: 16)).image { context in
@@ -2326,7 +2305,6 @@ struct AppStoresTests {
             }
             func loadConversation() async -> Conversation { Conversation(title: "Hermes") }
             func clearConversation() async throws -> Conversation { Conversation(title: "Hermes") }
-            func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation { Conversation(title: "Hermes") }
             func switchModel(_ identifier: String) async throws -> String? {
                 "Model switched to `kimi-k2.6`\nContext: 190,000 tokens"
             }

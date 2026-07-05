@@ -354,6 +354,24 @@ struct UserSettings: Codable, Hashable, Sendable {
     var locationCollectionEnabled: Bool
     var hermesAPIBaseURL: String
     var modelsShimBaseURL: String
+    /// After a Talk session ends, also POST the transcript to the Sessions API
+    /// as a normal text turn so the agent has voice context for the next
+    /// exchange (#1). Off = voice sessions stay local-only.
+    var postVoiceTranscriptsToHermes: Bool
+    // Read-aloud (#2): local AVSpeechSynthesizer output for Hermes replies.
+    /// Speak replies automatically as they stream (sentence-buffered). The
+    /// per-bubble speaker toggle works regardless of this flag.
+    var readAloudAutoPlay: Bool
+    /// Persisted `AVSpeechSynthesisVoice` identifier; nil = best system voice.
+    var readAloudVoiceIdentifier: String?
+    /// `AVSpeechUtterance` rate on its native 0…1 scale (0.5 = system default).
+    var readAloudRate: Double
+    /// Opts the composer into `.writingToolsBehavior(.complete)` (#4). Default
+    /// OFF: the full Writing Tools panel froze the device on iOS 27 beta 2
+    /// (broken PresentWritingToolsResult handoff — see 73034b7/03f3862). The
+    /// Developer screen exposes this for re-testing on newer betas; off means
+    /// the system-default (.automatic) inline tier, which is safe.
+    var composerWritingToolsEnabled: Bool
     var appearanceTheme: AppearanceTheme
     var appearanceThemeMode: AppearanceThemeMode
     var appearanceAccent: AppearanceAccent
@@ -375,6 +393,11 @@ struct UserSettings: Codable, Hashable, Sendable {
         locationCollectionEnabled: Bool = true,
         hermesAPIBaseURL: String = UserSettings.defaultHermesAPIBaseURL,
         modelsShimBaseURL: String = UserSettings.defaultModelsShimBaseURL,
+        postVoiceTranscriptsToHermes: Bool = true,
+        readAloudAutoPlay: Bool = false,
+        readAloudVoiceIdentifier: String? = nil,
+        readAloudRate: Double = 0.5,
+        composerWritingToolsEnabled: Bool = false,
         appearanceTheme: AppearanceTheme = .deepField,
         appearanceThemeMode: AppearanceThemeMode = .manual,
         appearanceAccent: AppearanceAccent = .cyan,
@@ -395,6 +418,11 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.locationCollectionEnabled = locationCollectionEnabled
         self.hermesAPIBaseURL = hermesAPIBaseURL
         self.modelsShimBaseURL = modelsShimBaseURL
+        self.postVoiceTranscriptsToHermes = postVoiceTranscriptsToHermes
+        self.readAloudAutoPlay = readAloudAutoPlay
+        self.readAloudVoiceIdentifier = readAloudVoiceIdentifier
+        self.readAloudRate = readAloudRate
+        self.composerWritingToolsEnabled = composerWritingToolsEnabled
         self.appearanceTheme = appearanceTheme
         self.appearanceThemeMode = appearanceThemeMode
         self.appearanceAccent = appearanceAccent
@@ -417,6 +445,11 @@ struct UserSettings: Codable, Hashable, Sendable {
         case locationCollectionEnabled
         case hermesAPIBaseURL
         case modelsShimBaseURL
+        case postVoiceTranscriptsToHermes
+        case readAloudAutoPlay
+        case readAloudVoiceIdentifier
+        case readAloudRate
+        case composerWritingToolsEnabled
         case appearanceTheme
         case appearanceThemeMode
         case appearanceAccent
@@ -441,6 +474,11 @@ struct UserSettings: Codable, Hashable, Sendable {
         locationCollectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .locationCollectionEnabled) ?? true
         hermesAPIBaseURL = try container.decodeIfPresent(String.self, forKey: .hermesAPIBaseURL) ?? UserSettings.defaultHermesAPIBaseURL
         modelsShimBaseURL = try container.decodeIfPresent(String.self, forKey: .modelsShimBaseURL) ?? UserSettings.defaultModelsShimBaseURL
+        postVoiceTranscriptsToHermes = try container.decodeIfPresent(Bool.self, forKey: .postVoiceTranscriptsToHermes) ?? true
+        readAloudAutoPlay = try container.decodeIfPresent(Bool.self, forKey: .readAloudAutoPlay) ?? false
+        readAloudVoiceIdentifier = try container.decodeIfPresent(String.self, forKey: .readAloudVoiceIdentifier)
+        readAloudRate = try container.decodeIfPresent(Double.self, forKey: .readAloudRate) ?? 0.5
+        composerWritingToolsEnabled = try container.decodeIfPresent(Bool.self, forKey: .composerWritingToolsEnabled) ?? false
         appearanceTheme = try container.decodeIfPresent(AppearanceTheme.self, forKey: .appearanceTheme) ?? .deepField
         appearanceThemeMode = try container.decodeIfPresent(AppearanceThemeMode.self, forKey: .appearanceThemeMode) ?? .manual
         appearanceAccent = try container.decodeIfPresent(AppearanceAccent.self, forKey: .appearanceAccent) ?? .cyan
@@ -464,6 +502,11 @@ struct UserSettings: Codable, Hashable, Sendable {
         try container.encode(locationCollectionEnabled, forKey: .locationCollectionEnabled)
         try container.encode(hermesAPIBaseURL, forKey: .hermesAPIBaseURL)
         try container.encode(modelsShimBaseURL, forKey: .modelsShimBaseURL)
+        try container.encode(postVoiceTranscriptsToHermes, forKey: .postVoiceTranscriptsToHermes)
+        try container.encode(readAloudAutoPlay, forKey: .readAloudAutoPlay)
+        try container.encodeIfPresent(readAloudVoiceIdentifier, forKey: .readAloudVoiceIdentifier)
+        try container.encode(readAloudRate, forKey: .readAloudRate)
+        try container.encode(composerWritingToolsEnabled, forKey: .composerWritingToolsEnabled)
         try container.encode(appearanceTheme, forKey: .appearanceTheme)
         try container.encode(appearanceThemeMode, forKey: .appearanceThemeMode)
         try container.encode(appearanceAccent, forKey: .appearanceAccent)

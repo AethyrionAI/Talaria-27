@@ -105,10 +105,6 @@ final class MockHermesClient: HermesClientProtocol {
         return fresh
     }
 
-    func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-        return currentConversation ?? Conversation(title: "Hermes")
-    }
-
     private func generateResponse(for input: String) -> String {
         let responses = [
             "I've looked into that for you. Based on what I can see, here's what I'd suggest...",

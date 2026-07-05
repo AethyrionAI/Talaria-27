@@ -23,7 +23,6 @@ protocol HermesClientProtocol {
     func sendStreaming(message: String, attachments: [PendingAttachment], clientMessageID: UUID) -> AsyncStream<StreamingUpdate>
     func loadConversation() async -> Conversation
     func clearConversation() async throws -> Conversation
-    func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation
 
     /// Lists the model identifiers the connected host exposes (e.g. /v1/models).
     func availableModels() async throws -> [String]

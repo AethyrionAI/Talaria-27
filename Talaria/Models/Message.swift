@@ -88,6 +88,7 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id, clientMessageID, sender, content, timestamp, jobID, status, attachments, toolActivities
+        case voiceSessionDuration
     }
 
     init(from decoder: Decoder) throws {
@@ -106,7 +107,9 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         toolActivities = try container.decodeIfPresent([ToolActivity].self, forKey: .toolActivities) ?? []
         codeDiff = nil
         isStreaming = false
-        voiceSessionDuration = nil
+        // Persisted with the message (#1) so the voice-session banner keeps its
+        // duration across relaunch; absent in older caches.
+        voiceSessionDuration = try container.decodeIfPresent(TimeInterval.self, forKey: .voiceSessionDuration)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -124,6 +127,7 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         if !toolActivities.isEmpty {
             try container.encode(toolActivities, forKey: .toolActivities)
         }
+        try container.encodeIfPresent(voiceSessionDuration, forKey: .voiceSessionDuration)
     }
 }
 
