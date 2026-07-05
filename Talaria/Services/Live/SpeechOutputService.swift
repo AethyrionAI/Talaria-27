@@ -65,7 +65,7 @@ final class SpeechOutputService: NSObject {
         streamBuffer = ""
         streamMessageID = nil
         activeUtterances.removeAll()
-        synthesizer.stopSpeaking(at: .immediate)
+        _ = synthesizer.stopSpeaking(at: .immediate)
         speakingMessageID = nil
         releaseAudioSessionIfIdle()
     }
@@ -141,7 +141,7 @@ final class SpeechOutputService: NSObject {
     /// excluded), best quality first. Personal voices ride along once
     /// authorized.
     nonisolated static func availableVoices() -> [AVSpeechSynthesisVoice] {
-        let languagePrefix = AVSpeechSynthesisVoice.currentLanguageCode().prefix(2)
+        let languagePrefix = String(AVSpeechSynthesisVoice.currentLanguageCode().prefix(2))
         return AVSpeechSynthesisVoice.speechVoices()
             .filter { $0.language.hasPrefix(languagePrefix) && !$0.voiceTraits.contains(.isNoveltyVoice) }
             .sorted {
