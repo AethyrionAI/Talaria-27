@@ -338,6 +338,10 @@ struct UserSettings: Codable, Hashable, Sendable {
     var locationCollectionEnabled: Bool
     var hermesAPIBaseURL: String
     var modelsShimBaseURL: String
+    /// After a Talk session ends, also POST the transcript to the Sessions API
+    /// as a normal text turn so the agent has voice context for the next
+    /// exchange (#1). Off = voice sessions stay local-only.
+    var postVoiceTranscriptsToHermes: Bool
     var appearanceTheme: AppearanceTheme
     var appearanceAccent: AppearanceAccent
     var hudGlowIntensity: Double
@@ -358,6 +362,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         locationCollectionEnabled: Bool = true,
         hermesAPIBaseURL: String = UserSettings.defaultHermesAPIBaseURL,
         modelsShimBaseURL: String = UserSettings.defaultModelsShimBaseURL,
+        postVoiceTranscriptsToHermes: Bool = true,
         appearanceTheme: AppearanceTheme = .deepField,
         appearanceAccent: AppearanceAccent = .cyan,
         hudGlowIntensity: Double = 1.0,
@@ -377,6 +382,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.locationCollectionEnabled = locationCollectionEnabled
         self.hermesAPIBaseURL = hermesAPIBaseURL
         self.modelsShimBaseURL = modelsShimBaseURL
+        self.postVoiceTranscriptsToHermes = postVoiceTranscriptsToHermes
         self.appearanceTheme = appearanceTheme
         self.appearanceAccent = appearanceAccent
         self.hudGlowIntensity = hudGlowIntensity
@@ -398,6 +404,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         case locationCollectionEnabled
         case hermesAPIBaseURL
         case modelsShimBaseURL
+        case postVoiceTranscriptsToHermes
         case appearanceTheme
         case appearanceAccent
         case hudGlowIntensity
@@ -421,6 +428,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         locationCollectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .locationCollectionEnabled) ?? true
         hermesAPIBaseURL = try container.decodeIfPresent(String.self, forKey: .hermesAPIBaseURL) ?? UserSettings.defaultHermesAPIBaseURL
         modelsShimBaseURL = try container.decodeIfPresent(String.self, forKey: .modelsShimBaseURL) ?? UserSettings.defaultModelsShimBaseURL
+        postVoiceTranscriptsToHermes = try container.decodeIfPresent(Bool.self, forKey: .postVoiceTranscriptsToHermes) ?? true
         appearanceTheme = try container.decodeIfPresent(AppearanceTheme.self, forKey: .appearanceTheme) ?? .deepField
         appearanceAccent = try container.decodeIfPresent(AppearanceAccent.self, forKey: .appearanceAccent) ?? .cyan
         hudGlowIntensity = try container.decodeIfPresent(Double.self, forKey: .hudGlowIntensity) ?? 1.0
@@ -443,6 +451,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         try container.encode(locationCollectionEnabled, forKey: .locationCollectionEnabled)
         try container.encode(hermesAPIBaseURL, forKey: .hermesAPIBaseURL)
         try container.encode(modelsShimBaseURL, forKey: .modelsShimBaseURL)
+        try container.encode(postVoiceTranscriptsToHermes, forKey: .postVoiceTranscriptsToHermes)
         try container.encode(appearanceTheme, forKey: .appearanceTheme)
         try container.encode(appearanceAccent, forKey: .appearanceAccent)
         try container.encode(hudGlowIntensity, forKey: .hudGlowIntensity)

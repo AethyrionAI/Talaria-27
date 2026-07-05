@@ -18,6 +18,7 @@ struct VoiceSettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var container
     @Environment(TalkStore.self) private var talkStore
+    @Environment(SettingsStore.self) private var settingsStore
 
     var body: some View {
         ZStack {
@@ -30,6 +31,7 @@ struct VoiceSettingsScreen: View {
                     heroPanel
                     statusSection
                     modelSection
+                    transcriptsSection
                     latencySection
                     startSection
                     footer
@@ -143,6 +145,27 @@ struct VoiceSettingsScreen: View {
         value == nil ? Design.Colors.mutedForeground : Design.Colors.foreground
     }
 
+    // MARK: Transcripts (#1)
+
+    private var transcriptsSection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            groupLabel("// Transcripts")
+            toggleRow(
+                "Send Transcripts to Hermes",
+                detail: "SESSIONS API · TEXT TURN",
+                isOn: Binding(
+                    get: { settingsStore.settings.postVoiceTranscriptsToHermes },
+                    set: { settingsStore.settings.postVoiceTranscriptsToHermes = $0 }
+                )
+            )
+            .groupPanel()
+
+            Text("Transcripts always appear in chat and persist on this device. When enabled, they are also posted to the agent so it has voice context for the next exchange. Off keeps voice sessions local-only.")
+                .font(Design.Typography.caption)
+                .foregroundStyle(Design.Colors.secondaryForeground)
+        }
+    }
+
     // MARK: Latency (last session)
 
     private var latencySection: some View {
@@ -207,6 +230,26 @@ struct VoiceSettingsScreen: View {
     }
 
     // MARK: Shared row builders
+
+    private func toggleRow(_ label: String, detail: String? = nil, isOn: Binding<Bool>) -> some View {
+        HStack(spacing: Design.Spacing.sm) {
+            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                Text(label)
+                    .font(Design.Typography.callout)
+                    .foregroundStyle(Design.Colors.foreground)
+                if let detail {
+                    MonoLabel(detail, size: 8, weight: .regular,
+                              tracking: Design.Tracking.mono, color: Design.Colors.mutedForeground)
+                }
+            }
+            Spacer()
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(Design.Brand.accent)
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+    }
 
     private func statusRow(_ label: String, _ status: (text: String, color: Color)) -> some View {
         HStack(spacing: Design.Spacing.sm) {

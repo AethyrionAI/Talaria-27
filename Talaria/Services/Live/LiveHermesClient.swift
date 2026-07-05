@@ -259,18 +259,6 @@ final class LiveHermesClient: HermesClientProtocol {
         return conversation
     }
 
-    func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-        let response: ConversationResponse = try await performAuthorizedRequest { [self] token in
-            try await self.apiClient.post(
-                path: "talk/session/\(voiceSessionId.uuidString.lowercased())/inject",
-                accessToken: token
-            )
-        }
-        let conversation = mapConversation(response.conversation)
-        currentConversation = conversation
-        return conversation
-    }
-
     private func makeCreateBody(
         text: String,
         attachments: [PendingAttachment],

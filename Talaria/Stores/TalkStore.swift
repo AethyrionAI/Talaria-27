@@ -1,10 +1,14 @@
 import Foundation
 
 /// Metadata captured when a voice session completes, used to trigger transcript injection.
+/// Carries the finalized transcript itself (#1): the relay inject endpoint is out of the
+/// chat path, so the hand-off into the conversation is composed entirely from this
+/// on-device snapshot — it must be captured before the voice service resets its state.
 struct CompletedVoiceSession: Sendable {
     let voiceSessionId: UUID
     let duration: TimeInterval
     let turnCount: Int
+    let transcript: [TranscriptItem]
 }
 
 @MainActor
@@ -74,7 +78,8 @@ final class TalkStore {
         // Capture session metadata before the service resets
         let sessionId = voiceSessionID
         let duration = sessionDuration
-        let turnCount = transcriptItems.filter { !$0.isPartial }.count
+        let finalizedTranscript = transcriptItems.filter { !$0.isPartial }
+        let turnCount = finalizedTranscript.count
 
         // End Live Activity
         liveActivity.endActivity()
@@ -87,7 +92,8 @@ final class TalkStore {
             lastCompletedSession = CompletedVoiceSession(
                 voiceSessionId: sessionId,
                 duration: duration,
-                turnCount: turnCount
+                turnCount: turnCount,
+                transcript: finalizedTranscript
             )
         }
     }

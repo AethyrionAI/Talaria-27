@@ -335,26 +335,90 @@ final class ChatStore {
         }
     }
 
-    func injectVoiceTranscript(voiceSessionId: UUID, duration: TimeInterval) async {
-        do {
-            let updated = try await hermesClient.injectVoiceTranscript(voiceSessionId: voiceSessionId)
-            conversation = updated
-            lastTokenUsage = updated.latestUsage
+    // MARK: - Voice transcript hand-off (#1)
 
-            // Set voiceSessionDuration on the system banner message
-            if let idx = conversation?.messages.lastIndex(where: {
-                $0.sender == .system && $0.content.contains("[Voice session ended]")
-            }) {
-                conversation?.messages[idx].voiceSessionDuration = duration
-            }
+    /// Appends a completed voice session to the conversation, composed entirely
+    /// on-device from the TalkStore snapshot: the "[Voice session ended]" banner
+    /// plus the finalized transcript turns. The old relay inject endpoint is out
+    /// of the path — the transcript renders and persists (UserDefaults cache)
+    /// even when the relay/host is unreachable.
+    ///
+    /// When `postToHermes` is true, the transcript is also POSTed to the Sessions
+    /// API as a normal text turn so the agent has the voice context for the next
+    /// exchange. Best-effort and fire-and-forget: the reply is discarded and a
+    /// failure never touches the locally composed messages.
+    func appendVoiceTranscript(_ session: CompletedVoiceSession, postToHermes: Bool) {
+        let transcriptMessages = Self.voiceTranscriptMessages(from: session)
+        guard !transcriptMessages.isEmpty else { return }
 
-            if let conversation {
-                persistence.saveConversationCache(conversation)
-                onConversationChanged?()
-            }
-        } catch {
-            // Injection failed — voice transcript not added to chat. Non-fatal.
+        if conversation == nil {
+            conversation = Conversation(title: "Hermes")
         }
+        conversation?.messages.append(contentsOf: transcriptMessages)
+        conversation?.lastActivity = transcriptMessages.last?.timestamp ?? .now
+        if let conversation {
+            persistence.saveConversationCache(conversation)
+            onConversationChanged?()
+        }
+
+        guard postToHermes else { return }
+        let contextTurn = Self.voiceTranscriptTurnText(from: session)
+        guard !contextTurn.isEmpty else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            let reply = await self.hermesClient.send(
+                message: contextTurn,
+                attachments: [],
+                clientMessageID: UUID()
+            )
+            if reply.status == .failed {
+                chatLog.notice("voice transcript context turn failed — transcript stays local-only this session")
+            }
+        }
+    }
+
+    /// Builds the chat messages for a completed voice session: a system banner
+    /// (carrying the duration for `VoiceSessionBanner`) followed by one message
+    /// per finalized spoken turn (`.voiceUser` / `.voiceHermes`). Partial turns,
+    /// empty turns (e.g. image-only frames), and system notices are dropped.
+    /// Returns [] when nothing was actually spoken.
+    nonisolated static func voiceTranscriptMessages(from session: CompletedVoiceSession) -> [Message] {
+        var messages: [Message] = []
+        for item in session.transcript where !item.isPartial {
+            let text = item.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { continue }
+            let sender: MessageSender
+            switch item.speaker {
+            case .user: sender = .voiceUser
+            case .hermes: sender = .voiceHermes
+            case .system: continue
+            }
+            messages.append(Message(sender: sender, content: text, status: .delivered))
+        }
+        guard !messages.isEmpty else { return [] }
+        let banner = Message(
+            sender: .system,
+            content: "[Voice session ended]",
+            status: .delivered,
+            voiceSessionDuration: session.duration
+        )
+        return [banner] + messages
+    }
+
+    /// The plain-text turn POSTed to the Sessions API so the agent sees the
+    /// voice exchange as context. Empty when the session had no spoken turns.
+    nonisolated static func voiceTranscriptTurnText(from session: CompletedVoiceSession) -> String {
+        let lines: [String] = session.transcript.compactMap { item in
+            guard !item.isPartial, item.speaker != .system else { return nil }
+            let text = item.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { return nil }
+            return "\(item.speaker == .user ? "User" : "Hermes"): \(text)"
+        }
+        guard !lines.isEmpty else { return "" }
+        return """
+        [Voice session transcript — shared for context. No reply needed.]
+        \(lines.joined(separator: "\n"))
+        """
     }
 
     func exportConversationToFile() {

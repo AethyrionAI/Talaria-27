@@ -268,16 +268,6 @@ final class SessionsHermesClient: HermesClientProtocol {
         return fresh
     }
 
-    func injectVoiceTranscript(voiceSessionId: UUID) async throws -> Conversation {
-        // Voice transcript injection is a relay-side concept. The Sessions API
-        // doesn't expose an equivalent endpoint, so leave the local conversation
-        // untouched and let callers decide how to surface this.
-        if let currentConversation { return currentConversation }
-        let fresh = Conversation(title: "Hermes")
-        currentConversation = fresh
-        return fresh
-    }
-
     // MARK: - Model controls
 
     /// Lists switchable model identifiers from the host's /api/model/options.
