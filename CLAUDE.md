@@ -130,7 +130,13 @@ Phosphor Green / Tracker Red). **All color values live in
 (theme/accent/glow/grid/reduce-motion) resolves them live. Deep Field × cyan is
 byte-identical to the pre-theming app (guarded by `DesignThemeTests`). Paper Tape is
 light: root `preferredColorScheme` follows `theme.isLight`, and `hudGlow` multiplies by
-`palette.glowScale` (≈0.15 on paper).
+`palette.glowScale` (≈0.15 on paper). **Data-driven since #49 (2026-07-05):** palettes are
+`ThemePaletteDefinition` entries in `ThemePaletteCatalog` (same file) — resolution is a
+catalog lookup, Terminal's accent pin (#12) is `lockedAccentSlot` data, `AppearanceTheme`
+is a thin id (names from `ThemeCatalog.displayName`, `isLight`/orb/texture from palette
+data), and a new theme = one `ThemeID` case + one palette definition + one
+`ThemeDefinition` (+ a `WidgetTheme` case for the widget edit sheet) — no switch-arm
+edits. Xcode build + `DesignThemeTests` run still owed on the Mac (see the handoff doc).
 
 Tokens in `Talaria/Core/Design.swift` — note the **two** namespaces:
 - `Design.Brand.*` — `accent`/`accentBright`/`accentDeep` (theme-resolved; Deep Field

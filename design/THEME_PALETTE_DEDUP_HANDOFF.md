@@ -1,7 +1,39 @@
 # Palette-Core De-Duplication — Handoff (Issue #49)
 
 **For:** a Mac Claude Desktop session (Xcode + `DesignThemeTests` must run locally).
-**Status:** not started. Written 2026-07-05 after PR #38 (theme catalog foundation) merged.
+**Status:** **EXECUTED 2026-07-05** (cloud session, branch `claude/theme-palette-dedup-4cdc35`) —
+code complete, all four themes ported in the planned order (Solar Forge → Paper Tape →
+Terminal → Deep Field), consumers collapsed. **Still owed to a Mac session:** Xcode build +
+`DesignThemeTests`/`ThemeCatalogTests` run + the device pass below. No files were added or
+removed, so **`xcodegen generate` is NOT required** for this change set.
+
+## What the Mac session still owes (2026-07-05)
+
+- [ ] `xcodebuild build` (command below) — BUILD SUCCEEDED
+- [ ] `DesignThemeTests` in Xcode — green (incl. 4 new #49 guards: catalog totality,
+      displayName single-source, payload linkage, orbStyle-as-data)
+- [ ] `ThemeCatalogTests` in Xcode — green
+- [ ] Device: cycle 4 themes × 3 accents; Deep Field pixel-identity; Terminal pins green
+- [ ] Then close #49
+
+Cloud-side verification already done (see the PR/commit messages): the pre-port and ported
+files were both compiled on Linux against a mock `SwiftUI.Color` that preserves construction
+paths (sRGB components + `.opacity()` modifier stack); all 4 themes × 3 slots — 364 resolved
+properties — diffed **byte-identical**, and the data-driven labels/`isLight`/lock pin were
+execution-checked against the deleted switch arms. The Xcode run remains the authoritative
+guard on the real toolchain.
+
+**Decisions taken** (per the open questions below): `ReactorOrb` dispatches on a new
+`palette.orbStyle` (`ThemeOrbStyle` in the palette data — same pattern as
+`ThemeBackgroundTexture`), drawing code stays in the view; `AppearanceTheme.displayLabel`
+delegates to `ThemeDefinition.displayName` (catalog is the single source);
+`AppearanceAccent`'s contextual labels became per-slot `ThemeAccentVariant.displayName`
+data; Terminal's #12 pin is `lockedAccentSlot` data on its definition; Terminal's curated
+amber/IBM-cyan variants are preserved as data (unreachable while the lock stands).
+
+---
+
+Original handoff (pre-execution) below.
 
 ## Mission
 

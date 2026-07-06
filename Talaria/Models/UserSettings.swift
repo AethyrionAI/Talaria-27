@@ -227,25 +227,26 @@ enum LocationSyncPreference: String, Codable, Hashable, Sendable {
 /// Full visual environment (background, foregrounds, surfaces, textures, orb
 /// identity). The accent (`AppearanceAccent`) selects the energetic hue *inside*
 /// a theme — see `ThemePaletteCore.swift` for the resolved color tables.
+///
+/// A thin persisted id (#49): naming lives on the catalog's `ThemeDefinition`,
+/// render data on the shared `ThemePaletteCatalog` — no per-case behavior here.
 enum AppearanceTheme: String, Codable, CaseIterable, Hashable, Sendable {
     case deepField
     case solarForge
     case terminal
     case paperTape
 
+    /// Display name — single source of truth is the catalog definition (#49).
     var displayLabel: String {
-        switch self {
-        case .deepField:  "Deep Field"
-        case .solarForge: "Solar Forge"
-        case .terminal:   "Terminal"
-        case .paperTape:  "Paper Tape"
-        }
+        ThemeCatalog.definition(id: rawValue)?.displayName ?? rawValue
     }
 
-    /// Paper Tape is the one light environment — drives the root
+    /// Whether this is a light environment — drives the root
     /// `preferredColorScheme` so system chrome (keyboard, sheets, toggles)
-    /// follows the theme.
-    var isLight: Bool { self == .paperTape }
+    /// follows the theme. Resolved from the palette data (#49).
+    var isLight: Bool {
+        ThemePaletteCatalog.definition(for: themeID).isLight
+    }
 }
 
 /// How the active theme is chosen (issue #24). `.manual` (default) uses the
@@ -273,38 +274,14 @@ enum AppearanceAccent: String, Codable, CaseIterable, Hashable, Sendable {
     case amber
     case violet
 
-    var displayLabel: String {
-        switch self {
-        case .cyan: "Cyan · Arc"
-        case .amber: "Amber · Forge"
-        case .violet: "Violet · Flux"
-        }
-    }
+    /// The slot's canonical (Deep Field) label.
+    var displayLabel: String { displayLabel(for: .deepField) }
 
-    /// Contextual label for the slot as resolved inside a theme.
+    /// Contextual label for the slot as resolved inside a theme — read from
+    /// the theme's accent-variant data (#49), so a new theme names its slots
+    /// in its catalog entry instead of a switch arm here.
     func displayLabel(for theme: AppearanceTheme) -> String {
-        switch theme {
-        case .deepField:
-            displayLabel
-        case .solarForge:
-            switch self {
-            case .cyan: "Amber · Forge"
-            case .amber: "Cyan · Plasma"
-            case .violet: "Violet · Flux"
-            }
-        case .terminal:
-            switch self {
-            case .cyan: "Green · Phosphor"
-            case .amber: "Amber · Phosphor"
-            case .violet: "Cyan · IBM"
-            }
-        case .paperTape:
-            switch self {
-            case .cyan: "Red · Tracker"
-            case .amber: "Cyan · Ink"
-            case .violet: "Amber · Ink"
-            }
-        }
+        ThemePaletteCatalog.definition(for: theme.themeID).accents[slot].displayName
     }
 }
 

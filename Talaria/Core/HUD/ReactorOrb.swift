@@ -4,11 +4,13 @@ import SwiftUI
 /// onboarding 74pt, voice 232pt. See design/Talaria.dc.html.
 ///
 /// The four `Style` presets are the public API; the *drawing* re-skins per
-/// theme (`ThemeRuntime.shared.theme`):
-///  • Deep Field  — the original arc-reactor rings + glowing core (unchanged).
-///  • Solar Forge — heavier concentric rings around an ember core.
-///  • Terminal    — thin ring + crosshair ticks, CRT-bloomed core.
-///  • Paper Tape  — mechanical reel: sprocket holes + tick ring + inked hub.
+/// theme via `palette.orbStyle` (#49) — the theme data selects one of the
+/// compositions below (same pattern as `ThemeTextureView`), so a new catalog
+/// theme reuses an existing orb without touching this file:
+///  • arcReactor   — the original rings + glowing core (Deep Field; unchanged).
+///  • forgeSun     — heavier concentric rings around an ember core.
+///  • crtCrosshair — thin ring + crosshair ticks, CRT-bloomed core.
+///  • paperReel    — mechanical reel: sprocket holes + tick ring + inked hub.
 ///
 /// All motion is reduce-motion-aware (each animated piece checks
 /// `accessibilityReduceMotion`). The orb is decorative — marked accessibilityHidden.
@@ -32,20 +34,20 @@ struct ReactorOrb: View {
 
     var body: some View {
         ZStack {
-            switch ThemeRuntime.shared.theme {
-            case .deepField: deepFieldLayers
-            case .solarForge: solarForgeLayers
-            case .terminal: terminalLayers
-            case .paperTape: paperTapeLayers
+            switch ThemeRuntime.shared.palette.orbStyle {
+            case .arcReactor: arcReactorLayers
+            case .forgeSun: forgeSunLayers
+            case .crtCrosshair: crtCrosshairLayers
+            case .paperReel: paperReelLayers
             }
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)
     }
 
-    // MARK: - Deep Field (original arc reactor — do not retune)
+    // MARK: - Arc reactor (Deep Field's original — do not retune)
 
-    @ViewBuilder private var deepFieldLayers: some View {
+    @ViewBuilder private var arcReactorLayers: some View {
         switch style {
         case .minimal:
             outerRing(opacity: 0.4, lineWidth: lw(0.033))
@@ -78,9 +80,9 @@ struct ReactorOrb: View {
         }
     }
 
-    // MARK: - Solar Forge (forge sun — heavier rings, ember core)
+    // MARK: - Forge sun (heavier rings, ember core)
 
-    @ViewBuilder private var solarForgeLayers: some View {
+    @ViewBuilder private var forgeSunLayers: some View {
         switch style {
         case .minimal:
             outerRing(opacity: 0.45, lineWidth: lw(0.05))
@@ -116,9 +118,9 @@ struct ReactorOrb: View {
         }
     }
 
-    // MARK: - Terminal (CRT crosshair — static ticks, bloomed core)
+    // MARK: - CRT crosshair (static ticks, bloomed core)
 
-    @ViewBuilder private var terminalLayers: some View {
+    @ViewBuilder private var crtCrosshairLayers: some View {
         switch style {
         case .minimal:
             outerRing(opacity: 0.5, lineWidth: 1)
@@ -150,9 +152,9 @@ struct ReactorOrb: View {
         }
     }
 
-    // MARK: - Paper Tape (mechanical reel — sprockets, ticks, inked hub)
+    // MARK: - Paper reel (sprockets, ticks, inked hub)
 
-    @ViewBuilder private var paperTapeLayers: some View {
+    @ViewBuilder private var paperReelLayers: some View {
         switch style {
         case .minimal:
             outerRing(opacity: 0.55, lineWidth: 1.5)

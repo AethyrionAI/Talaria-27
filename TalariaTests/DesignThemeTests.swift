@@ -121,6 +121,40 @@ struct DesignThemeTests {
         #expect(AppearanceAccent.amber.displayLabel(for: .solarForge) == "Cyan · Plasma")
     }
 
+    // MARK: Catalog resolution (#49)
+
+    @Test func paletteCatalogCoversEveryTheme() {
+        // Resolution is a pure catalog lookup — every render identity must
+        // have a definition (definition(for:) falls back visibly otherwise).
+        for theme in ThemeID.allCases {
+            #expect(ThemePaletteCatalog.definitions[theme] != nil)
+        }
+    }
+
+    @Test func themeDisplayNamesHaveASingleSource() {
+        // AppearanceTheme.displayLabel delegates to the catalog definition,
+        // so the two names can no longer drift apart (#49 reconcile).
+        for theme in AppearanceTheme.allCases {
+            #expect(theme.displayLabel == ThemeCatalog.definition(id: theme.rawValue)?.displayName)
+        }
+    }
+
+    @Test func flagshipDefinitionsExposeTheirPalettePayload() {
+        for definition in ThemeCatalog.flagship {
+            #expect(definition.paletteDefinition ==
+                    ThemePaletteCatalog.definition(for: definition.appearanceTheme.themeID))
+        }
+    }
+
+    @Test func orbStyleIsThemeData() {
+        // ReactorOrb dispatches on palette data, not theme identity — a new
+        // catalog theme picks an existing composition without view edits.
+        #expect(ThemePalette(theme: .deepField, accent: .cyan).orbStyle == .arcReactor)
+        #expect(ThemePalette(theme: .solarForge, accent: .cyan).orbStyle == .forgeSun)
+        #expect(ThemePalette(theme: .terminal, accent: .cyan).orbStyle == .crtCrosshair)
+        #expect(ThemePalette(theme: .paperTape, accent: .cyan).orbStyle == .paperReel)
+    }
+
     // MARK: Runtime mirroring
 
     @MainActor

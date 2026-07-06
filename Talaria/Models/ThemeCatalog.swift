@@ -1,19 +1,16 @@
 import Foundation
 
-// MARK: - Theme catalog / framework foundation (issue #24)
+// MARK: - Theme catalog / framework foundation (issues #24 + #49)
 //
-// A data-driven description of the app's themes, layered ON TOP of the existing
-// `AppearanceTheme` render enum WITHOUT touching the pixel-identical palette core
-// (Shared/ThemePaletteCore.swift, guarded by DesignThemeTests). This foundation
-// delivers the framework behaviors the issue asks for — seasonal auto-rotation,
-// holiday date-windowed availability, a per-theme `locked` flag, and a catalog
-// model the picker reads — while the render-layer de-duplication (making a NEW
-// theme a pure catalog entry with no palette switch-arm edits) is the sequenced
-// follow-up specified in design/THEME_FRAMEWORK_PLAN.md.
+// A data-driven description of the app's themes: identity, availability
+// (seasonal auto-rotation, holiday date windows), and the `locked` gate. The
+// render layer is data too (#49): each definition's colors live in the shared
+// `ThemePaletteCatalog` (Shared/ThemePaletteCore.swift — compiled into the
+// widget target as well), reachable here via `paletteDefinition`.
 //
 // Today every definition renders through a flagship `AppearanceTheme`. A future
-// seasonal/holiday theme with a bespoke palette gets its own render identity once
-// the palette core is data-driven; nothing here needs to change to add it.
+// seasonal/holiday theme with a bespoke palette is one `ThemeID` +
+// `ThemePaletteCatalog` entry + one definition here — no switch-arm edits.
 
 /// Northern-Hemisphere meteorological season (hemisphere hardcoded per the
 /// issue's stated scope). Meteorological (month-based) boundaries are used over
@@ -86,6 +83,14 @@ struct ThemeDefinition: Identifiable, Hashable, Sendable {
     var season: Season? {
         if case let .seasonal(season) = availability { return season }
         return nil
+    }
+
+    /// The render-layer palette payload this definition renders with — the
+    /// data `ThemePalette(theme:accent:)` resolves from (#49). Owned by the
+    /// shared `ThemePaletteCatalog` (not stored here) so the widget target,
+    /// which never sees this app-level catalog, reads the same table.
+    var paletteDefinition: ThemePaletteDefinition {
+        ThemePaletteCatalog.definition(for: appearanceTheme.themeID)
     }
 }
 
