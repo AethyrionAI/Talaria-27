@@ -31,7 +31,9 @@ struct StartVoiceSessionIntent: AppIntent {
 }
 
 /// Registers the Siri phrases. Every phrase must carry the
-/// `\(.applicationName)` token — fixed, pre-declared strings only.
+/// `\(.applicationName)` token — fixed, pre-declared strings only. An app may
+/// declare only ONE AppShortcutsProvider, so every intent's shortcut lives
+/// here.
 struct TalariaAppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
@@ -44,6 +46,20 @@ struct TalariaAppShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Start Voice Session",
             systemImageName: "waveform"
+        )
+        // Ask Hermes (#6). The question can't ride the phrase itself — App
+        // Shortcut phrase parameters must be AppEnum/AppEntity, not free-form
+        // String — so Siri prompts for it (the parameter's requestValueDialog).
+        AppShortcut(
+            intent: AskHermesIntent(),
+            phrases: [
+                "Ask \(.applicationName)",
+                "Ask \(.applicationName) a question",
+                "Ask \(.applicationName) something",
+                "Send \(.applicationName) a question",
+            ],
+            shortTitle: "Ask Hermes",
+            systemImageName: "text.bubble"
         )
     }
 }
