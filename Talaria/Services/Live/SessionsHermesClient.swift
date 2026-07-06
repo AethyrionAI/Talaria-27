@@ -520,7 +520,7 @@ final class SessionsHermesClient: HermesClientProtocol {
 
     /// #4.15 wire-mode hedge: whether `_thinking` events carry increments or
     /// cumulative snapshots is unverified (same probe as the delta key — see
-    /// OPEN_ITEMS #57). A chunk that starts with everything assembled so far
+    /// OPEN_ITEMS #60). A chunk that starts with everything assembled so far
     /// is a snapshot — only its new suffix is the delta. Returns nil when the
     /// chunk adds nothing. In genuine increment mode the prefix compare fails
     /// on the first character, so the hedge is effectively free there.
@@ -719,12 +719,16 @@ final class SessionsHermesClient: HermesClientProtocol {
     }
 
     /// The chat-turn request body. `input` encodes either as a plain string
-    /// (text-only turn — byte-identical to the old behavior) or, when image
-    /// attachments are present, as an OpenAI-style content-parts array the
-    /// Hermes API server's `_normalize_multimodal_content` accepts:
+    /// (text-only turn — byte-identical to the old behavior) or, when
+    /// transmittable attachments are present, as an OpenAI-style content-parts
+    /// array the Hermes API server's `_normalize_multimodal_content` accepts:
     /// `{"type":"text",...}` + `{"type":"image_url","image_url":{"url":
-    /// "data:<mime>;base64,<data>"}}`. Only image attachments are transmitted —
-    /// the endpoint rejects file/document parts (`unsupported_content_type`). (#43)
+    /// "data:<mime>;base64,<data>"}}`. Images ship as data-URL parts; text-MIME
+    /// files inline as delimited `{type:"text"}` parts (#43 — the endpoint
+    /// rejects real file/document parts with `unsupported_content_type`, and
+    /// they used to be silently dropped here). The assembly rules (ordering,
+    /// budget, delimiting, truncation) live in `AttachmentInlining` so they're
+    /// unit-testable and shared with the voice-memo transcript path.
     private struct ChatTurnBody: Encodable {
         let input: TurnInput
 
@@ -735,42 +739,35 @@ final class SessionsHermesClient: HermesClientProtocol {
         private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "SessionsHermesClient")
 
         /// Build a turn body from the composer's message + staged attachments.
-        /// Images become `image_url` data-URL parts; a non-empty message becomes
-        /// a leading text part. With no images the body stays a plain string so
+        /// With no transmittable attachments the body stays a plain string so
         /// existing text turns are unchanged on the wire.
         static func make(message: String, attachments: [PendingAttachment]) -> ChatTurnBody {
-            let images = attachments.filter { $0.kind == .image }
-            guard !images.isEmpty else {
+            let assembly = AttachmentInlining.assemble(message: message, attachments: attachments)
+
+            // A raw (un-extracted) PDF or other binary has no wire shape; the
+            // composer blocks send while one is staged (#8), so reaching this
+            // means a non-UI path leaked one — log loudly, don't fail the turn.
+            for fileName in assembly.notTransmittable {
+                Self.logger.warning("Attachment \(fileName, privacy: .public) has no wire representation — not transmitted (#8)")
+            }
+            // Over-budget attachments already carry an in-band omission stub
+            // so the agent (and the user, through it) sees the gap.
+            for fileName in assembly.omittedForBudget {
+                Self.logger.warning("Attachment \(fileName, privacy: .public) over aggregate body budget — omission stub sent instead")
+            }
+
+            // Empty parts = text-only turn (or nothing transmittable): plain
+            // string, byte-identical to the pre-attachment wire shape. Also
+            // the defensive fallback — the server 400s empty-array turns.
+            guard !assembly.parts.isEmpty else {
                 return ChatTurnBody(input: .text(message))
             }
-
-            var parts: [ContentPart] = []
-            if !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                parts.append(.text(message))
-            }
-
-            // Respect the API server's ~1 MB request-body budget. Each image is
-            // already capped at 350 KB raw (~470 KB base64) by PendingAttachment;
-            // accumulate up to a conservative aggregate budget so a stack of
-            // images can't trip a hard server rejection, then stop.
-            var remainingBudget = 900 * 1024
-            for image in images {
-                let dataURL = "data:\(image.mimeType);base64,\(image.base64Data)"
-                let cost = dataURL.utf8.count
-                guard cost <= remainingBudget else {
-                    Self.logger.warning("Skipping image attachment — aggregate body budget exceeded")
-                    continue
+            return ChatTurnBody(input: .parts(assembly.parts.map { part in
+                switch part {
+                case .text(let text): ContentPart.text(text)
+                case .imageDataURL(let dataURL): ContentPart.imageURL(dataURL: dataURL)
                 }
-                remainingBudget -= cost
-                parts.append(.imageURL(dataURL: dataURL))
-            }
-
-            // If every image was skipped and there's no text, fall back to a
-            // string so we never emit an empty array (the server 400s empty turns).
-            guard !parts.isEmpty else {
-                return ChatTurnBody(input: .text(message))
-            }
-            return ChatTurnBody(input: .parts(parts))
+            }))
         }
 
         /// `input` is a string for text-only turns, or an array of content parts

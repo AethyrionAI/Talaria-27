@@ -9,6 +9,11 @@ struct MessageAttachment: Codable, Identifiable, Hashable, Sendable {
     /// Base64-encoded thumbnail (for images) — small enough to cache/persist.
     let thumbnailBase64: String?
     let localStoragePath: String?
+    /// Local path of the source audio when this is a voice memo (#9): the
+    /// transcript is what shipped; the audio stays playable from the sent
+    /// bubble. Optional + synthesized Codable ⇒ pre-#9 caches (no key) still
+    /// decode.
+    let voiceMemoAudioPath: String?
 
     init(
         id: UUID = UUID(),
@@ -16,7 +21,8 @@ struct MessageAttachment: Codable, Identifiable, Hashable, Sendable {
         fileName: String,
         mimeType: String,
         thumbnailBase64: String? = nil,
-        localStoragePath: String? = nil
+        localStoragePath: String? = nil,
+        voiceMemoAudioPath: String? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -24,6 +30,7 @@ struct MessageAttachment: Codable, Identifiable, Hashable, Sendable {
         self.mimeType = mimeType
         self.thumbnailBase64 = thumbnailBase64
         self.localStoragePath = localStoragePath
+        self.voiceMemoAudioPath = voiceMemoAudioPath
     }
 
     init(from pending: PendingAttachment) {
@@ -33,6 +40,7 @@ struct MessageAttachment: Codable, Identifiable, Hashable, Sendable {
         self.mimeType = pending.mimeType
         self.thumbnailBase64 = pending.thumbnailBase64
         self.localStoragePath = pending.localStoragePath
+        self.voiceMemoAudioPath = pending.voiceMemoAudioPath
     }
 }
 

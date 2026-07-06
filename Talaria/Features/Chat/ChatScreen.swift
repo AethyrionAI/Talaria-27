@@ -577,6 +577,9 @@ struct ChatScreen: View {
             if let attachment = PendingAttachment.file(at: url) {
                 pendingAttachments.append(attachment)
             }
+        case .voiceMemo(let attachment):
+            // Staged by the recorder flow (#9) — transcript data + audio path.
+            pendingAttachments.append(attachment)
         }
     }
 

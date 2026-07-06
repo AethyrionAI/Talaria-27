@@ -160,7 +160,32 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
 - Issues tracked in `OPEN_ITEMS.md` (dated update notes); session continuity in
   the local `handoffs/` notes (gitignored) + `CLEAN_CHAT_PATH.md`.
 
-## Current state (2026-07-03)
+## Current state (2026-07-06)
+
+- **Wave 2 (Issues E–H / GitHub #6–#9) built on `claude/issues-5-8-batches-cue3vb`**
+  (AethyrionAI/Talaria-27): Ask Hermes App Intent (OPEN_ITEMS #56), attachment
+  text-inlining + explicit Extract Text OCR closing the #43 silent drop (#57), Control
+  Center / Lock Screen controls (#58), voice-memo attachments (#59). **Cloud-written,
+  NOT compiled or device-verified** — next Mac session must `xcodegen generate`
+  (re-verify `aps-environment`, #44/#48), run the CLI build + tests, and work the
+  per-item checklists in OPEN_ITEMS #56–#59. The iOS 27 beta LongRunningIntent adoption
+  is parked behind the undefined `TALARIA_IOS27_INTENTS` flag; the delimited text-part
+  surface lives in `Services/Support/AttachmentInlining.swift` (shared by #57 file
+  inlining and #59 transcripts).
+- **Wave 3 built on `claude/wave-3-on-device-intelligence-rxht4l`** (Wave 2 merged in):
+  on-device intelligence. 4.15: `_thinking` reasoning deltas forwarded as
+  `StreamingUpdate.reasoningDelta` → live line in the streaming placeholder + collapsed
+  REASONING chevron on the bubble (raw text persisted on `Message.reasoning`; the exact
+  `tool.progress` delta key still needs a device probe — tolerant parser + wire-mode
+  hedge, OPEN_ITEMS #60). 4.8: `LocalIntelligenceService` (FoundationModels) generates
+  `{title, preview}` after the first completed exchange → `setConversationTitle` +
+  `Conversation.generatedPreview`; truncation fallback off-AI-hardware; reasoning
+  condensed to one line when foregrounded (OPEN_ITEMS #61). Adversarially reviewed
+  same-session (10 findings fixed — see the #60/#61 update notes). **Not yet compiled** —
+  next Mac session: `xcodegen generate` (1 new source file + 2 test files), CLI build,
+  device verify.
+
+## Prior state (2026-07-03)
 
 - **Theme system built on `claude/theming-options-plan-c4356l`** (#49): four themes ×
   three accent slots, palette core in `Shared/`, textures, per-theme orbs, theme picker,
@@ -184,13 +209,3 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
   app-side fetch** is the remaining piece — blocked on probing the binary-write SSE shape
   (does a non-text `write_file` carry `args.content`?), which decides the fetch trigger. See
   `OPEN_ITEMS.md` #21 (full plan), #36 (OJAMD↔fork reconcile), #37 (upstream connector win32 fix).
-- **Wave 3 (2026-07-06, branch `claude/wave-3-on-device-intelligence-rxht4l`): on-device
-  intelligence.** 4.15: `_thinking` reasoning deltas forwarded as
-  `StreamingUpdate.reasoningDelta` → live line in the streaming placeholder + collapsed
-  REASONING chevron on the bubble (raw text persisted on `Message.reasoning`; the exact
-  `tool.progress` delta key still needs a device probe — tolerant parser, OPEN_ITEMS #57).
-  4.8: `LocalIntelligenceService` (FoundationModels) generates `{title, preview}` after the
-  first completed exchange → `setConversationTitle` + `Conversation.generatedPreview`;
-  truncation fallback off-AI-hardware; reasoning condensed to one line when foregrounded
-  (OPEN_ITEMS #58). **Not yet compiled** — next Mac session: `xcodegen generate` (1 new
-  source file + 2 test files), CLI build, device verify.

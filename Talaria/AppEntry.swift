@@ -129,6 +129,10 @@ struct TalariaApp: App {
             container.router.selectedTab = .chat
             container.router.navigate(to: .permissions)
         case "voice":
+            // Same flag StartVoiceSessionIntent sets; the Talk to Hermes
+            // control (#7) launches through this link. Clear any sheet first —
+            // MainTabView presentations can't overlap (parity with the intent).
+            container.router.activeSheet = nil
             container.router.isVoiceOverlayPresented = true
         default:
             break
