@@ -54,6 +54,12 @@ final class ChatStore {
     /// AppContainer: conversation title + preview after the first completed
     /// exchange, one-line reasoning condensation. Stays nil in tests.
     var localIntelligence: LocalIntelligenceService?
+
+    /// #14: wraps a deliberately-backgroundable long send (attachments — the
+    /// #38 long-send path) in a BGContinuedProcessingTask so iOS shows system
+    /// progress and keeps the run alive past app exit. Wired by AppContainer;
+    /// stays nil in tests (no BGTaskScheduler in the test host).
+    var beginContinuedSend: (@MainActor (String) -> ContinuedProcessingHandle?)?
     private var isGeneratingConversationCard = false
 
     /// A run whose stream dropped (e.g. backgrounded on lock) but which is still
@@ -197,6 +203,15 @@ final class ChatStore {
         restartPendingPollingIfNeeded()
 
         Task { await self.notifications.requestAuthorizationIfNeeded() }
+
+        // #14: attachment sends are the deliberately-backgroundable long path —
+        // wrap them in a continued-processing task (submitted here, in the
+        // foreground, from the user's explicit send). Plain text turns stay
+        // lightweight. On system revocation the stream would die on suspension
+        // anyway, so expiration finalizes partial content via cancelStreaming.
+        let continuedSend = attachments.isEmpty ? nil : beginContinuedSend?(displayContent)
+        continuedSend?.onExpiration = { [weak self] in self?.cancelStreaming() }
+
         let stream = hermesClient.sendStreaming(message: trimmedContent, attachments: attachments, clientMessageID: clientMessageID)
         var acceptedJobID: UUID?
         var needsPollingFallback = false
@@ -208,6 +223,7 @@ final class ChatStore {
                 switch update {
                 case .messageSent(let jobID):
                     acceptedJobID = jobID
+                    continuedSend?.advance(to: .accepted)
 
                 case .textDelta(let delta):
                     if var conv = self.conversation,
@@ -222,8 +238,11 @@ final class ChatStore {
                     if self.autoReadAloudEnabled?() == true {
                         self.speechOutput?.enqueueStreamChunk(delta, messageID: placeholderID)
                     }
+                    continuedSend?.advance(to: .streaming)
+                    continuedSend?.tick()
 
                 case .reasoningDelta(let delta):
+                    continuedSend?.tick()
                     // #4.15: accumulate the `_thinking` channel on the streaming
                     // placeholder — the bubble shows the newest line verbatim
                     // while the model reasons, ahead of any answer text.
@@ -268,6 +287,7 @@ final class ChatStore {
                         self.chatLiveActivity.startToolCall(toolName: event.name)
                         self.chatLiveActivity.updateToolProgress(event.name)
                     }
+                    continuedSend?.tick()
 
                 case .finished(let finalMessage, let usage, let diff):
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
@@ -303,6 +323,7 @@ final class ChatStore {
                     self.pendingMessageSentAt = nil
                     self.chatLiveActivity.endActivity()
                     self.speechOutput?.finishStream(messageID: placeholderID)
+                    continuedSend?.finish(success: true)
 
                 case .interrupted(let sessionId, let runId):
                     // Run committed server-side but the stream dropped (lock /
@@ -327,6 +348,10 @@ final class ChatStore {
                         partialReasoning: partialReasoning
                     )
                     self.startReconcileLoopIfNeeded()
+                    // #14: the continued task's job — keeping the stream alive —
+                    // is over; the reconcile loop owns recovery from here. Not a
+                    // failure in the system progress UI.
+                    continuedSend?.finish(success: true)
 
                 case .failed(let errorMessage):
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
@@ -351,11 +376,16 @@ final class ChatStore {
                     } else {
                         self.pendingMessageSentAt = nil
                     }
+                    continuedSend?.finish(success: false)
                 }
             }
         }
         await streamingTask?.value
         streamingTask = nil
+
+        // #14: belt-and-braces — a stream that ended without a terminal case
+        // must still complete its continued-processing task (idempotent).
+        continuedSend?.finish(success: true)
 
         // If streaming failed after the job was accepted, immediately refresh once
         // and then fall back to polling only if the server still hasn't delivered.

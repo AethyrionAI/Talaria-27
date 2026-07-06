@@ -363,6 +363,13 @@ final class AppContainer {
         // condensation ride the chat turn lifecycle inside ChatStore.
         container.chatStore.localIntelligence = container.localIntelligence
 
+        // #14: attachment sends (the deliberately-backgroundable long path,
+        // #38) ride a BGContinuedProcessingTask — system progress UI, and the
+        // run survives the user leaving the app.
+        container.chatStore.beginContinuedSend = { subtitle in
+            ContinuedProcessing.beginLongSend(subtitle: subtitle)
+        }
+
         // Keep widget data fresh while app is foregrounded
         container.chatStore.onConversationChanged = { [weak container] in
             container?.updateWidgetData()
@@ -513,6 +520,32 @@ final class AppContainer {
         await talkStore.refreshReadiness()
         reconcileLiveActivities()
         await reportAppStateIfNeeded("foreground")
+    }
+
+    /// #14: one BGAppRefreshTask pass — the native safety net complementing
+    /// relay APNs (which stays the real-time path). Drains the sensor outbox,
+    /// runs one reconcile fetch (the existing local "run finished" notification
+    /// fires on found completions), and rewrites widget data.
+    func handleBackgroundRefresh() async {
+        containerLog.notice("handleBackgroundRefresh: entered")
+        guard pairingStore.isPaired else {
+            containerLog.warning("handleBackgroundRefresh: BLOCKED — not paired")
+            return
+        }
+        guard await sessionStore.currentAccessToken() != nil else {
+            containerLog.warning("handleBackgroundRefresh: BLOCKED — no access token")
+            return
+        }
+        // Cold background launches never mount the scene, so initialize()'s
+        // .task hook doesn't run — start the sensor pipeline the same way
+        // handleSystemLaunch does (idempotent for the warm case).
+        sensorUploadService?.start()
+        await sensorUploadService?.handleSystemLaunch()
+        // In-memory pendingRun survives warm relaunches only — on a cold
+        // background launch there is nothing pending by design (the sessions
+        // drawer stays the authoritative recovery surface).
+        await chatStore.reconcilePendingRuns()
+        updateWidgetData()
     }
 
     private func handlePairingActivated() async {
