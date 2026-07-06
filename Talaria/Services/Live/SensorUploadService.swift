@@ -131,6 +131,9 @@ final class SensorUploadService {
 
     private enum LocationUploadOutcome {
         case delivered
+        /// Relay accepted the payload but the connector was busy (202 "retry")
+        /// — the same fix should be re-sent after a backoff.
+        case retry
         /// Permanent payload rejection — this exact fix can never deliver.
         case rejected
         case failed
@@ -153,6 +156,9 @@ final class SensorUploadService {
     /// How many consecutive connector-busy (202 "retry") responses to absorb
     /// per drain before giving up and leaving the rest for the next trigger.
     private static let maxHealthBusyRetries = 3
+    /// How many consecutive connector-busy (202 "retry") responses to absorb
+    /// for location uploads before falling through to health.
+    private static let maxLocationBusyRetries = 2
 
     private let apiClient: RelayAPIClient
     private let accessTokenProvider: @MainActor () async -> String?
@@ -458,63 +464,79 @@ final class SensorUploadService {
         defer { isDraining = false }
 
         var healthBusyRetries = 0
+        var locationBusyRetries = 0
 
-        drainLoop: while isActive && isPairedProvider() {
-            if let pendingLocation = outboxState.pendingLocation {
-                let outcome = await uploadLocation(pendingLocation)
-                sensorLog.notice("drain: location upload → \(String(describing: outcome), privacy: .public)")
-                switch outcome {
-                case .delivered:
-                    clearPendingLocationIfUnchanged(pendingLocation)
-                    continue
-                case .rejected:
-                    // Permanent rejection: identical bytes can never deliver,
-                    // and a fresh fix supersedes this one — drop, don't wedge
-                    // the drain (health waits behind location).
-                    sensorLog.error("drain: location fix permanently rejected — dropped")
-                    clearPendingLocationIfUnchanged(pendingLocation)
-                    continue
-                case .failed:
-                    recordDrain("Location upload failed")
-                    break drainLoop
+        // ── Location phase ──────────────────────────────────────────
+        // Drained independently of health — a location failure (transient
+        // or retry-exhausted) falls through to health instead of wedging
+        // the entire outbox drain (#27).
+        while isActive && isPairedProvider(), let pendingLocation = outboxState.pendingLocation {
+            let outcome = await uploadLocation(pendingLocation)
+            sensorLog.notice("drain: location upload → \(String(describing: outcome), privacy: .public)")
+            switch outcome {
+            case .delivered:
+                locationBusyRetries = 0
+                clearPendingLocationIfUnchanged(pendingLocation)
+            case .rejected:
+                locationBusyRetries = 0
+                // Permanent rejection: identical bytes can never deliver,
+                // and a fresh fix supersedes this one — drop, don't wedge
+                // the drain (health waits behind location).
+                sensorLog.error("drain: location fix permanently rejected — dropped")
+                clearPendingLocationIfUnchanged(pendingLocation)
+            case .retry:
+                guard locationBusyRetries < Self.maxLocationBusyRetries else {
+                    sensorLog.notice("drain: location retries exhausted — deferring to next trigger")
+                    recordDrain("Location upload busy — retries exhausted")
+                    break
                 }
+                locationBusyRetries += 1
+                let delay = Double(1 << locationBusyRetries)
+                sensorLog.notice("drain: location connector busy — retrying in \(delay, privacy: .public)s (attempt \(locationBusyRetries)/\(Self.maxLocationBusyRetries))")
+                try? await Task.sleep(for: .seconds(delay))
+                continue
+            case .failed:
+                recordDrain("Location upload failed")
+                break
             }
+            break  // delivered, rejected, retry-exhausted, or failed — exit location phase
+        }
 
-            if !outboxState.pendingHealthSamples.isEmpty {
-                // Chunk to the relay's 100-sample cap and send sequentially —
-                // the connector handles one payload at a time (#24a).
-                let chunk = Array(outboxState.pendingHealthSamples.prefix(Self.healthUploadChunkSize))
-                let outcome = await uploadHealth(chunk)
-                sensorLog.notice("drain: health chunk (\(chunk.count) of \(self.outboxState.pendingHealthSamples.count) pending) → \(String(describing: outcome), privacy: .public)")
-                switch outcome {
-                case .delivered:
-                    healthBusyRetries = 0
-                    outboxState.pendingHealthSamples.removeFirst(chunk.count)
-                    persistOutboxState()
-                    continue
-                case .retry:
-                    // Connector busy — back off, then re-send the same chunk.
-                    guard healthBusyRetries < Self.maxHealthBusyRetries else { break drainLoop }
-                    healthBusyRetries += 1
-                    let delay = Double(1 << healthBusyRetries)
-                    sensorLog.notice("drain: connector busy — retrying chunk in \(delay, privacy: .public)s (attempt \(healthBusyRetries)/\(Self.maxHealthBusyRetries))")
-                    try? await Task.sleep(for: .seconds(delay))
-                    continue
-                case .rejected(let message):
-                    // Permanent 400/422: at least one sample in this chunk can
-                    // NEVER deliver. Binary-split to deliver the good samples
-                    // and drop the poison instead of retaining the whole
-                    // backlog while motion samples pile up behind it (#24a).
-                    sensorLog.error("drain: health chunk permanently rejected — \(message, privacy: .public); isolating poison sample(s)")
-                    recordDrain("Isolating rejected health sample(s)")
-                    guard await resolveRejectedChunk(size: chunk.count) else { break drainLoop }
-                    continue
-                case .failed:
-                    break drainLoop
-                }
+        // ── Health phase ────────────────────────────────────────────
+        // Independent of location — runs even when location failed above
+        // (#27: location failure no longer starves health).
+        while isActive && isPairedProvider(), !outboxState.pendingHealthSamples.isEmpty {
+            // Chunk to the relay's 100-sample cap and send sequentially —
+            // the connector handles one payload at a time (#24a).
+            let chunk = Array(outboxState.pendingHealthSamples.prefix(Self.healthUploadChunkSize))
+            let outcome = await uploadHealth(chunk)
+            sensorLog.notice("drain: health chunk (\(chunk.count) of \(self.outboxState.pendingHealthSamples.count) pending) → \(String(describing: outcome), privacy: .public)")
+            switch outcome {
+            case .delivered:
+                healthBusyRetries = 0
+                outboxState.pendingHealthSamples.removeFirst(chunk.count)
+                persistOutboxState()
+                continue
+            case .retry:
+                // Connector busy — back off, then re-send the same chunk.
+                guard healthBusyRetries < Self.maxHealthBusyRetries else { break }
+                healthBusyRetries += 1
+                let delay = Double(1 << healthBusyRetries)
+                sensorLog.notice("drain: connector busy — retrying chunk in \(delay, privacy: .public)s (attempt \(healthBusyRetries)/\(Self.maxHealthBusyRetries))")
+                try? await Task.sleep(for: .seconds(delay))
+                continue
+            case .rejected(let message):
+                // Permanent 400/422: at least one sample in this chunk can
+                // NEVER deliver. Binary-split to deliver the good samples
+                // and drop the poison instead of retaining the whole
+                // backlog while motion samples pile up behind it (#24a).
+                sensorLog.error("drain: health chunk permanently rejected — \(message, privacy: .public); isolating poison sample(s)")
+                recordDrain("Isolating rejected health sample(s)")
+                guard await resolveRejectedChunk(size: chunk.count) else { break }
+                continue
+            case .failed:
+                break
             }
-
-            break drainLoop
         }
         sensorLog.notice("drain: finished. Outbox remaining: loc=\(self.outboxState.pendingLocation != nil), health=\(self.outboxState.pendingHealthSamples.count)")
         recordDrain(outboxState.isEmpty ? "Delivered · outbox clear" : "Partial · loc=\(outboxState.pendingLocation != nil ? 1 : 0), health=\(outboxState.pendingHealthSamples.count)")
@@ -589,7 +611,9 @@ final class SensorUploadService {
 
         switch await performAuthorizedUpload(path: "device/sensor/location", body: body) {
         case .response(let result):
-            return (result?.wasDelivered ?? false) ? .delivered : .failed
+            guard let result else { return .failed }
+            if result.wasDelivered { return .delivered }
+            return result.deliveryState == "retry" ? .retry : .failed
         case .rejected:
             return .rejected
         case .transientFailure:
