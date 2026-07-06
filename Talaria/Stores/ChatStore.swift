@@ -843,7 +843,10 @@ final class ChatStore {
                 fileName: remote.fileName,
                 mimeType: remote.mimeType,
                 thumbnailBase64: remote.thumbnailBase64 ?? match.thumbnailBase64,
-                localStoragePath: match.localStoragePath
+                localStoragePath: match.localStoragePath,
+                // Client-only (#9): the server never echoes the audio path;
+                // the local copy is the source of truth for playback.
+                voiceMemoAudioPath: match.voiceMemoAudioPath
             )
         }
     }

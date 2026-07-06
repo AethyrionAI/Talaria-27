@@ -11,11 +11,21 @@ struct PendingAttachment: Identifiable, Sendable {
     let localStoragePath: String?
     /// Thumbnail for display — stored separately since UIImage isn't Sendable.
     let thumbnailData: Data?
+    /// Local path of the recorded audio when this attachment is a voice memo
+    /// (#9). The attachment's `data` is the TRANSCRIPT (what actually ships,
+    /// via the #8 text-inlining branch); the audio itself never transmits and
+    /// stays on-device for playback. Defaulted so every existing construction
+    /// site is untouched.
+    var voiceMemoAudioPath: String? = nil
 
     enum Kind: String, Sendable {
         case image
         case file
     }
+
+    /// A voice memo is a text attachment (the transcript) carrying its source
+    /// audio alongside for local playback (#9).
+    var isVoiceMemo: Bool { voiceMemoAudioPath != nil }
 
     /// Maximum file size: 350 KB (before base64 encoding -> ~470KB base64).
     /// The Hermes API server accepts a 1 MB request body for the whole message payload,
@@ -184,6 +194,56 @@ struct PendingAttachment: Identifiable, Sendable {
         )
     }
 
+    /// Stage a completed voice-memo recording (#9): the TRANSCRIPT becomes the
+    /// attachment's `data` — a plain-text file the #8 inlining branch ships as
+    /// a delimited `{type:"text"}` part with zero send-path changes — while the
+    /// audio stays referenced for local playback only. The transcript body
+    /// leads with a one-line bracketed provenance header (recorded time +
+    /// duration), mirroring the voice-session context-turn convention (#1).
+    static func voiceMemo(
+        transcript: String,
+        audioFileURL: URL,
+        duration: TimeInterval,
+        recordedAt: Date = .now
+    ) -> PendingAttachment {
+        let fileName = voiceMemoFileName(recordedAt: recordedAt)
+        let body = """
+        [Voice memo transcript — recorded \(voiceMemoTimestamp(recordedAt)), \(voiceMemoDuration(duration))]
+        \(transcript)
+        """
+        let data = Data(body.utf8)
+        return PendingAttachment(
+            kind: .file,
+            fileName: fileName,
+            mimeType: "text/plain",
+            data: data,
+            localStoragePath: stageLocally(data: data, preferredFileName: fileName),
+            thumbnailData: nil,
+            voiceMemoAudioPath: audioFileURL.path
+        )
+    }
+
+    /// `Voice Memo 2026-07-06 14.30.05.txt` — the `.txt`/text-plain pairing is
+    /// what routes it through the #8 text-inlining branch.
+    static func voiceMemoFileName(recordedAt: Date) -> String {
+        "Voice Memo \(voiceMemoTimestamp(recordedAt).replacingOccurrences(of: ":", with: ".")).txt"
+    }
+
+    static func voiceMemoTimestamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter.string(from: date)
+    }
+
+    /// "4m 05s" / "32s" — human duration for the transcript provenance header.
+    static func voiceMemoDuration(_ duration: TimeInterval) -> String {
+        let total = max(0, Int(duration.rounded()))
+        let minutes = total / 60
+        let seconds = total % 60
+        return minutes > 0 ? String(format: "%dm %02ds", minutes, seconds) : "\(seconds)s"
+    }
+
     static func restore(from attachment: MessageAttachment) -> PendingAttachment? {
         guard let localStoragePath = attachment.localStoragePath else { return nil }
         let url = URL(fileURLWithPath: localStoragePath)
@@ -198,7 +258,8 @@ struct PendingAttachment: Identifiable, Sendable {
             mimeType: attachment.mimeType,
             data: data,
             localStoragePath: localStoragePath,
-            thumbnailData: thumbnailData
+            thumbnailData: thumbnailData,
+            voiceMemoAudioPath: attachment.voiceMemoAudioPath
         )
     }
 

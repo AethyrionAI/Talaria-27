@@ -11,6 +11,7 @@ struct AttachmentPickerSheet: View {
     @State private var showCamera = false
     @State private var showPhotoPicker = false
     @State private var showFilePicker = false
+    @State private var showVoiceMemoRecorder = false
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
 
     /// Called with the user-friendly description of what was picked (for chat input).
@@ -54,6 +55,12 @@ struct AttachmentPickerSheet: View {
                     label: "Files",
                     action: { showFilePicker = true }
                 )
+
+                attachmentButton(
+                    icon: "waveform",
+                    label: "Voice Memo",
+                    action: { showVoiceMemoRecorder = true }
+                )
             }
             .padding(.horizontal, Design.Spacing.md)
             .padding(.bottom, Design.Spacing.md)
@@ -93,6 +100,16 @@ struct AttachmentPickerSheet: View {
                 dismiss()
             }
         }
+        .sheet(isPresented: $showVoiceMemoRecorder) {
+            // Record → on-device transcribe → review → attach (#9). The staged
+            // attachment is the TRANSCRIPT (ships via the #8 text-inlining
+            // branch); the audio stays local for playback.
+            VoiceMemoRecorderSheet { attachment in
+                onAttachmentPicked?(.voiceMemo(attachment))
+                dismiss()
+            }
+            .presentationDetents([.medium])
+        }
     }
 
     private func attachmentButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
@@ -126,6 +143,9 @@ struct AttachmentPickerSheet: View {
 enum AttachmentResult {
     case image(UIImage)
     case file(URL)
+    /// Already fully staged by the recorder flow (#9) — transcript as data,
+    /// audio path alongside.
+    case voiceMemo(PendingAttachment)
 }
 
 // MARK: - Camera Picker (UIImagePickerController wrapper)

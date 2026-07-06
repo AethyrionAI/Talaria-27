@@ -286,8 +286,10 @@ struct ChatInputBar: View {
                     // File icon fallback — this is also what an extracted-text
                     // chip shows (no thumbnail is carried over, #8), so the
                     // flip from image thumb to text-doc chip is visible.
+                    // Voice memos (#9) get a waveform: transcript ships, audio
+                    // stays local for playback.
                     VStack(spacing: 4) {
-                        Image(systemName: fileIcon(for: attachment.mimeType))
+                        Image(systemName: attachment.isVoiceMemo ? "waveform" : fileIcon(for: attachment.mimeType))
                             .font(.system(size: 20))
                             .foregroundStyle(Design.Brand.accent)
                         Text(attachment.fileName)
@@ -337,6 +339,19 @@ struct ChatInputBar: View {
                         extractText(from: attachment)
                     } label: {
                         Label("Extract text", systemImage: "text.viewfinder")
+                    }
+                }
+                // Local playback of a staged voice memo's audio (#9) — only
+                // while the file actually exists (no dead buttons).
+                if let audioPath = attachment.voiceMemoAudioPath,
+                   VoiceMemoPlayer.canPlay(path: audioPath) {
+                    Button {
+                        VoiceMemoPlayer.shared.togglePlayback(path: audioPath)
+                    } label: {
+                        Label(
+                            VoiceMemoPlayer.shared.isPlaying(path: audioPath) ? "Stop playback" : "Play memo",
+                            systemImage: VoiceMemoPlayer.shared.isPlaying(path: audioPath) ? "stop.circle" : "play.circle"
+                        )
                     }
                 }
                 Button(role: .destructive) {
