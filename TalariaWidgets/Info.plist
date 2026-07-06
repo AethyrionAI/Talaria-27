@@ -25,5 +25,7 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.widgetkit-extension</string>
 	</dict>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Talaria reads steps, calories, sleep, and heart rate to keep the Health widget tiles current.</string>
 </dict>
 </plist>

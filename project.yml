@@ -152,6 +152,12 @@ targets:
     entitlements:
       path: TalariaWidgets/TalariaWidgets.entitlements
       properties:
+        # HealthKit on the WIDGET target so the health tiles query HealthKit
+        # directly in the extension (#15). Declared here — not just in the
+        # .entitlements file — because the #44/#48 xcodegen strip trap applies
+        # to this target too.
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.access: []
         com.apple.security.application-groups:
           - group.org.aethyrion.talaria
     info:
@@ -160,6 +166,9 @@ targets:
         CFBundleDisplayName: Talaria27 Widgets
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        # Widget-side HealthKit reads (#15). Authorization is only ever
+        # requested in the main app; the string is here for completeness.
+        NSHealthShareUsageDescription: Talaria reads steps, calories, sleep, and heart rate to keep the Health widget tiles current.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria27.Widgets
