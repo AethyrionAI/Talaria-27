@@ -17,11 +17,10 @@ struct HealthSnapshot: Sendable {
 @MainActor
 @Observable
 final class LiveHealthService: HealthServiceProtocol {
-    internal struct SleepInterval: Sendable {
-        let value: Int
-        let startDate: Date
-        let endDate: Date
-    }
+    /// Sleep aggregation types + logic live in `Shared/HealthQueryCore.swift`
+    /// (#15) so the widget extension runs the identical queries; these stay as
+    /// forwards to keep the service's public surface (and its tests) stable.
+    internal typealias SleepInterval = HealthQueryCore.SleepInterval
 
     private struct HealthMetricDescriptor {
         let metric: String
@@ -277,25 +276,18 @@ final class LiveHealthService: HealthServiceProtocol {
 
     // MARK: - Metric Queries
 
+    // Thin wrappers over the shared primitives (Shared/HealthQueryCore.swift,
+    // #15) — the widget extension runs the exact same query code, so the app
+    // snapshot and the widget tiles can never drift.
+
     private func queryCumulativeSum(
         _ identifier: HKQuantityTypeIdentifier,
         unit: HKUnit,
         from startDate: Date,
         to endDate: Date
     ) async -> Double? {
-        guard let quantityType = HKQuantityType.quantityType(forIdentifier: identifier) else { return nil }
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKStatisticsQuery(
-                quantityType: quantityType,
-                quantitySamplePredicate: predicate,
-                options: .cumulativeSum
-            ) { _, result, _ in
-                continuation.resume(returning: result?.sumQuantity()?.doubleValue(for: unit))
-            }
-            store?.execute(query)
-        }
+        guard let store else { return nil }
+        return await HealthQueryCore.cumulativeSum(identifier, unit: unit, from: startDate, to: endDate, store: store)
     }
 
     private func queryLatestSample(
@@ -303,37 +295,15 @@ final class LiveHealthService: HealthServiceProtocol {
         unit: HKUnit,
         from startDate: Date? = nil
     ) async -> (Double, Date)? {
-        guard let quantityType = HKQuantityType.quantityType(forIdentifier: identifier) else { return nil }
-        let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-        let predicate = startDate.map { HKQuery.predicateForSamples(withStart: $0, end: nil) }
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: quantityType,
-                predicate: predicate,
-                limit: 1,
-                sortDescriptors: [sort]
-            ) { _, results, _ in
-                guard let sample = results?.first as? HKQuantitySample else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-                continuation.resume(
-                    returning: (
-                        sample.quantity.doubleValue(for: unit),
-                        sample.startDate
-                    )
-                )
-            }
-            store?.execute(query)
-        }
+        guard let store else { return nil }
+        return await HealthQueryCore.latestSample(identifier, unit: unit, from: startDate, store: store)
     }
 
     nonisolated internal static func sleepBucketDay(
         for referenceDate: Date = Date(),
         calendar: Calendar = .current
     ) -> Date {
-        calendar.startOfDay(for: referenceDate)
+        HealthQueryCore.sleepBucketDay(for: referenceDate, calendar: calendar)
     }
 
     nonisolated internal static func aggregateSleepDuration(
@@ -341,24 +311,7 @@ final class LiveHealthService: HealthServiceProtocol {
         attributedTo bucketDay: Date,
         calendar: Calendar = .current
     ) -> Double? {
-        guard let nextDay = calendar.date(byAdding: .day, value: 1, to: bucketDay) else {
-            return nil
-        }
-
-        let asleepValues: Set<Int> = [
-            HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
-            HKCategoryValueSleepAnalysis.asleepCore.rawValue,
-            HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
-            HKCategoryValueSleepAnalysis.asleepREM.rawValue,
-        ]
-
-        let totalSeconds = intervals
-            .filter { asleepValues.contains($0.value) }
-            .filter { $0.endDate >= bucketDay && $0.endDate < nextDay }
-            .reduce(0.0) { $0 + $1.endDate.timeIntervalSince($1.startDate) }
-
-        let hours = totalSeconds / 3600.0
-        return hours > 0 ? hours : nil
+        HealthQueryCore.aggregateSleepDuration(intervals: intervals, attributedTo: bucketDay, calendar: calendar)
     }
 
     private static func makeMetricDescriptors() -> [String: HealthMetricDescriptor] {
@@ -368,7 +321,8 @@ final class LiveHealthService: HealthServiceProtocol {
             descriptors["steps"] = HealthMetricDescriptor(
                 metric: "steps",
                 sampleType: steps,
-                startDateProvider: { Calendar.current.startOfDay(for: Date()) },
+                // Widget-shared window (#15) — see HealthQueryCore.loadWidgetMetrics.
+                startDateProvider: { HealthQueryCore.startOfToday() },
                 builder: { service, startDate in
                     guard
                         let value = await service.queryCumulativeSum(
@@ -395,7 +349,8 @@ final class LiveHealthService: HealthServiceProtocol {
             descriptors["active_calories"] = HealthMetricDescriptor(
                 metric: "active_calories",
                 sampleType: calories,
-                startDateProvider: { Calendar.current.startOfDay(for: Date()) },
+                // Widget-shared window (#15) — see HealthQueryCore.loadWidgetMetrics.
+                startDateProvider: { HealthQueryCore.startOfToday() },
                 builder: { service, startDate in
                     guard
                         let value = await service.queryCumulativeSum(
@@ -449,7 +404,8 @@ final class LiveHealthService: HealthServiceProtocol {
             descriptors["heart_rate"] = HealthMetricDescriptor(
                 metric: "heart_rate",
                 sampleType: heartRate,
-                startDateProvider: { Date().addingTimeInterval(-86_400) },
+                // Widget-shared window (#15) — see HealthQueryCore.loadWidgetMetrics.
+                startDateProvider: { Date().addingTimeInterval(-HealthQueryCore.heartRateLookback) },
                 builder: { service, startDate in
                     guard
                         let (value, date) = await service.queryLatestSample(
@@ -581,40 +537,7 @@ final class LiveHealthService: HealthServiceProtocol {
     // MARK: - Sleep Query
 
     private func querySleepDuration(attributedTo bucketDay: Date) async -> Double? {
-        let sleepType = HKCategoryType(.sleepAnalysis)
-        let calendar = Calendar.current
-        guard
-            let queryStart = calendar.date(byAdding: .hour, value: -18, to: bucketDay),
-            let queryEnd = calendar.date(byAdding: .day, value: 1, to: bucketDay)
-        else {
-            return nil
-        }
-        let predicate = HKQuery.predicateForSamples(withStart: queryStart, end: queryEnd)
-        let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: sleepType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: [sort]
-            ) { _, results, _ in
-                guard let samples = results as? [HKCategorySample] else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-                let intervals = samples.map {
-                    SleepInterval(value: $0.value, startDate: $0.startDate, endDate: $0.endDate)
-                }
-                continuation.resume(
-                    returning: Self.aggregateSleepDuration(
-                        intervals: intervals,
-                        attributedTo: bucketDay,
-                        calendar: calendar
-                    )
-                )
-            }
-            store?.execute(query)
-        }
+        guard let store else { return nil }
+        return await HealthQueryCore.sleepDuration(attributedTo: bucketDay, store: store)
     }
 }

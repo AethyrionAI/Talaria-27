@@ -11,7 +11,7 @@ struct HermesHealthWidget: Widget {
         AppIntentConfiguration(
             kind: kind,
             intent: HermesWidgetConfigurationIntent.self,
-            provider: HermesTimelineProvider()
+            provider: HermesTimelineProvider(queriesHealthKit: true)
         ) { entry in
             HermesHealthView(entry: entry)
                 .containerBackground(for: .widget) {
