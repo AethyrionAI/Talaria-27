@@ -346,6 +346,10 @@ struct UserSettings: Codable, Hashable, Sendable {
     var gridDensity: GridDensity
     var reduceMotion: Bool
     var verboseLogging: Bool
+    /// When true (default), the voice transcript is also sent to the Sessions API
+    /// as a text turn so the agent has context for the next exchange. Toggleable
+    /// in Voice settings for users who want voice sessions to stay local-only.
+    var voiceTranscriptSyncEnabled: Bool
 
     init(
         userName: String = "User",
@@ -366,7 +370,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         hudGlowIntensity: Double = 1.0,
         gridDensity: GridDensity = .faint,
         reduceMotion: Bool = false,
-        verboseLogging: Bool = false
+        verboseLogging: Bool = false,
+        voiceTranscriptSyncEnabled: Bool = true
     ) {
         self.userName = userName
         self.avatarInitials = avatarInitials
@@ -387,6 +392,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.gridDensity = gridDensity
         self.reduceMotion = reduceMotion
         self.verboseLogging = verboseLogging
+        self.voiceTranscriptSyncEnabled = voiceTranscriptSyncEnabled
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -409,6 +415,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         case gridDensity
         case reduceMotion
         case verboseLogging
+        case voiceTranscriptSyncEnabled
     }
 
     init(from decoder: Decoder) throws {
@@ -433,6 +440,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         gridDensity = try container.decodeIfPresent(GridDensity.self, forKey: .gridDensity) ?? .faint
         reduceMotion = try container.decodeIfPresent(Bool.self, forKey: .reduceMotion) ?? false
         verboseLogging = try container.decodeIfPresent(Bool.self, forKey: .verboseLogging) ?? false
+        voiceTranscriptSyncEnabled = try container.decodeIfPresent(Bool.self, forKey: .voiceTranscriptSyncEnabled) ?? true
     }
 
     func encode(to encoder: Encoder) throws {
@@ -456,6 +464,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         try container.encode(gridDensity, forKey: .gridDensity)
         try container.encode(reduceMotion, forKey: .reduceMotion)
         try container.encode(verboseLogging, forKey: .verboseLogging)
+        try container.encode(voiceTranscriptSyncEnabled, forKey: .voiceTranscriptSyncEnabled)
     }
 
     func applyingEnvironmentPolicy(

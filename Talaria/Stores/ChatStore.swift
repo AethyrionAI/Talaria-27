@@ -359,26 +359,83 @@ final class ChatStore {
         }
     }
 
-    func injectVoiceTranscript(voiceSessionId: UUID, duration: TimeInterval) async {
-        do {
-            let updated = try await hermesClient.injectVoiceTranscript(voiceSessionId: voiceSessionId)
-            conversation = updated
-            lastTokenUsage = updated.latestUsage
+    func injectVoiceTranscript(
+        voiceSessionId: UUID,
+        duration: TimeInterval,
+        transcriptItems: [TranscriptItem],
+        voiceTranscriptSyncEnabled: Bool = true
+    ) async {
+        // Compose transcript messages locally — the Sessions API has no
+        // inject endpoint, so the old hermesClient.injectVoiceTranscript
+        // was a documented no-op. The full transcript is already on-device.
+        let finalizedItems = transcriptItems.filter { !$0.isPartial }
+        guard !finalizedItems.isEmpty else { return }
 
-            // Set voiceSessionDuration on the system banner message
-            if let idx = conversation?.messages.lastIndex(where: {
-                $0.sender == .system && $0.content.contains("[Voice session ended]")
-            }) {
-                conversation?.messages[idx].voiceSessionDuration = duration
-            }
-
-            if let conversation {
-                persistence.saveConversationCache(conversation)
-                onConversationChanged?()
-            }
-        } catch {
-            // Injection failed — voice transcript not added to chat. Non-fatal.
+        if conversation == nil {
+            conversation = Conversation(title: "Hermes")
         }
+
+        // System banner
+        let systemBanner = Message(
+            sender: .system,
+            content: "[Voice session ended]",
+            voiceSessionDuration: duration
+        )
+
+        // Map transcript speakers to message senders
+        let transcriptMessages: [Message] = finalizedItems.compactMap { item in
+            let sender: MessageSender = switch item.speaker {
+            case .user: .voiceUser
+            case .hermes: .voiceHermes
+            case .system: .system
+            }
+            let trimmed = item.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return nil }
+            return Message(sender: sender, content: trimmed)
+        }
+
+        conversation?.messages.append(systemBanner)
+        conversation?.messages.append(contentsOf: transcriptMessages)
+        conversation?.lastActivity = systemBanner.timestamp
+
+        if let conversation {
+            persistence.saveConversationCache(conversation)
+            onConversationChanged?()
+        }
+
+        // Optionally sync transcript to Sessions API as a text turn
+        if voiceTranscriptSyncEnabled {
+            let transcriptText = buildTranscriptText(
+                transcriptItems: finalizedItems,
+                duration: duration
+            )
+            // Non-fatal: local transcript persists even if the sync send fails.
+            _ = await hermesClient.send(
+                message: transcriptText,
+                attachments: [],
+                clientMessageID: UUID()
+            )
+        }
+    }
+
+    /// Builds a plain-text transcript from voice session items for delivery
+    /// to the Sessions API so the agent has context for the next exchange.
+    private func buildTranscriptText(
+        transcriptItems: [TranscriptItem],
+        duration: TimeInterval
+    ) -> String {
+        let minutes = Int(duration) / 60
+        let secs = Int(duration) % 60
+        var lines = ["[Voice session ended — \(minutes):\(String(format: "%02d", secs))]"]
+        for item in transcriptItems {
+            let speaker = switch item.speaker {
+            case .user: "User"
+            case .hermes: "Hermes"
+            case .system: "System"
+            }
+            lines.append("\(speaker): \(item.text)")
+        }
+        return lines.joined(separator: "\n\n")
     }
 
     func exportConversationToFile() {

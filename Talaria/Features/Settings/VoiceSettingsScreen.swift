@@ -18,6 +18,7 @@ struct VoiceSettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var container
     @Environment(TalkStore.self) private var talkStore
+    @Environment(SettingsStore.self) private var settingsStore
 
     var body: some View {
         ZStack {
@@ -31,6 +32,7 @@ struct VoiceSettingsScreen: View {
                     statusSection
                     modelSection
                     latencySection
+                    transcriptSyncSection
                     startSection
                     footer
                 }
@@ -165,6 +167,33 @@ struct VoiceSettingsScreen: View {
             return ("\(Int(interval * 1000)) MS", Design.Colors.foreground)
         }
         return (String(format: "%.2f S", interval), Design.Colors.foreground)
+    }
+
+    // MARK: Transcript Sync
+
+    private var transcriptSyncSection: some View {
+        @Bindable var settingsStore = settingsStore
+        return VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            groupLabel("// Transcript")
+            VStack(spacing: 0) {
+                HStack(spacing: Design.Spacing.sm) {
+                    Text("Sync to Agent")
+                        .font(Design.Typography.callout)
+                        .foregroundStyle(Design.Colors.foreground)
+                    Spacer()
+                    Toggle("", isOn: $settingsStore.settings.voiceTranscriptSyncEnabled)
+                        .labelsHidden()
+                        .tint(Design.Brand.accent)
+                }
+                .padding(.horizontal, Design.Spacing.md)
+                .padding(.vertical, Design.Spacing.sm)
+            }
+            .groupPanel()
+
+            Text("When enabled, the voice transcript is sent to the agent after each session so it has context for the next exchange. Disable to keep voice sessions local-only.")
+                .font(Design.Typography.caption)
+                .foregroundStyle(Design.Colors.secondaryForeground)
+        }
     }
 
     // MARK: Start

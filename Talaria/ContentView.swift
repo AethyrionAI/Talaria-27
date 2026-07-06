@@ -4,6 +4,7 @@ struct MainTabView: View {
     @Environment(TabRouter.self) private var router
     @Environment(TalkStore.self) private var talkStore
     @Environment(ChatStore.self) private var chatStore
+    @Environment(SettingsStore.self) private var settingsStore
 
     var body: some View {
         @Bindable var router = router
@@ -21,10 +22,16 @@ struct MainTabView: View {
         }
         .onChange(of: talkStore.lastCompletedSession != nil) { _, hasSession in
             if hasSession, let session = talkStore.lastCompletedSession {
+                // Capture transcript items before the async call so they
+                // aren't lost if the TalkStore snapshot updates mid-flight.
+                let items = talkStore.transcriptItems
+                let syncEnabled = settingsStore.settings.voiceTranscriptSyncEnabled
                 Task {
                     await chatStore.injectVoiceTranscript(
                         voiceSessionId: session.voiceSessionId,
-                        duration: session.duration
+                        duration: session.duration,
+                        transcriptItems: items,
+                        voiceTranscriptSyncEnabled: syncEnabled
                     )
                     talkStore.clearLastCompletedSession()
                 }
