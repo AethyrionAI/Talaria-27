@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -9,12 +10,44 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+# Directory above this file — the relay project root (the directory that
+# contains the ``app`` package, the ``.env``, and ``hermes_mobile.db``).
+# Used to resolve relative SQLite database URLs so the DB doesn't silently
+# move when the process working directory changes (GH #59).
+_RELAY_DIR = Path(__file__).resolve().parent.parent
+
+
+def _resolve_sqlite_path(database_url: str) -> str:
+    """Resolve a relative ``sqlite:///./...`` URL to an absolute path.
+
+    SQLite URLs use **three** slashes for a relative path
+    (``sqlite:///./relay.db``) and **four** for an absolute one
+    (``sqlite:////var/data/relay.db``).  When the path is relative it
+    resolves against ``os.getcwd()``, which means the DB silently moves
+    if the process is launched from a different directory — orphaning
+    all pairings and creating a fresh empty DB (GH #59).
+
+    This helper anchors any relative SQLite path to the relay package
+    directory so the DB location is stable regardless of how the relay
+    is launched.
+    """
+    prefix = "sqlite:///"
+    if not database_url.startswith(prefix):
+        return database_url
+    # Already absolute (4 slashes) or in-memory — leave as-is.
+    rest = database_url[len(prefix):]
+    if not rest or rest == ":memory:" or rest.startswith("/"):
+        return database_url
+    abs_path = (_RELAY_DIR / rest).resolve()
+    return f"sqlite:///{abs_path}"
+
+
 def normalize_database_url(database_url: str) -> str:
     if database_url.startswith("postgresql://"):
         return database_url.replace("postgresql://", "postgresql+psycopg://", 1)
     if database_url.startswith("postgres://"):
         return database_url.replace("postgres://", "postgresql+psycopg://", 1)
-    return database_url
+    return _resolve_sqlite_path(database_url)
 
 
 @dataclass(frozen=True)
