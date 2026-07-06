@@ -27,6 +27,9 @@ final class AppContainer {
     /// titles + previews, reasoning condensation. Cheap to create (no model
     /// load until first use); wired to ChatStore in makeDefault().
     let localIntelligence = LocalIntelligenceService()
+    /// #16: AlarmKit executor behind the /alarm confirm gate. Stateless until
+    /// first use (authorization requested on first schedule).
+    let alarmService = AlarmService()
     let modelsShimClient: ModelsShimClient
     let sensorUploadService: SensorUploadService?
     private let apiClient: RelayAPIClient?
