@@ -1491,9 +1491,14 @@ then add the flag to `SWIFT_ACTIVE_COMPILATION_CONDITIONS` to enable.
 
 **Questions for Owen:** (1) "Ask Talaria" prompting for the question (vs. one-breath phrase —
 impossible for String params) OK? (2) Snippet is always Deep-Field-styled (system process can't
-read live theme) OK? (3) Known edge: if iOS kills the background launch mid-run after the
-budget dialog, the exchange isn't cache-persisted (fix = persist optimistic sends in ChatStore —
-say the word). (4) Shortcuts chaining value is "" on still-working paths.
+read live theme) OK? (3) ~~Known edge: process death mid-run loses the cache write~~ —
+**resolved 2026-07-06 (Owen approved):** ChatStore now persists the optimistic turn BEFORE
+streaming starts, and cold load finalizes stranded `.sending` user turns to `.failed` (retry
+affordance; same terminal as polling exhaustion) + scrubs cached streaming placeholders. The
+reply of a completed-but-killed run still needs a session refresh to appear (pendingRun/session
+id don't survive process death — persisting the API session id is a session-lifecycle decision,
+deliberately not taken here). Tests: `ChatStorePersistenceTests`. (4) Shortcuts chaining value
+is "" on still-working paths.
 
 Logged 2026-07-06.
 

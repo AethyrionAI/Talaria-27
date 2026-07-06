@@ -78,9 +78,45 @@ final class ChatStore {
             if let cachedUsage = conversation?.latestUsage {
                 lastTokenUsage = cachedUsage
             }
+            finalizeStaleSendsFromCache()
         }
         guard conversation == nil else { return }
         await loadConversation()
+    }
+
+    /// Cache hygiene on cold load (#56). A user message still `.sending` in a
+    /// freshly loaded cache belongs to a process that died mid-stream — no
+    /// stream survives a relaunch, so that state can never resolve; flip it to
+    /// `.failed` (the same terminal the polling-exhaustion path uses) so it
+    /// renders with the retry affordance instead of pending forever. Honest
+    /// caveat: the run may in fact have completed server-side (the in-memory
+    /// pendingRun/session id don't survive process death), so the sessions
+    /// drawer remains the authoritative view and retry is user-mediated, not
+    /// automatic. Also scrubs any cached streaming placeholder (empty Hermes
+    /// `.sending` row) that a mid-stream save (e.g. relay polling) let slip in.
+    private func finalizeStaleSendsFromCache() {
+        guard var conv = conversation else { return }
+        var didChange = false
+
+        for i in conv.messages.indices
+        where conv.messages[i].sender == .user && conv.messages[i].status == .sending {
+            conv.messages[i].status = .failed
+            didChange = true
+        }
+
+        let placeholderCount = conv.messages.count
+        conv.messages.removeAll {
+            $0.sender == .hermes
+                && $0.status == .sending
+                && $0.content.isEmpty
+                && $0.toolActivities.isEmpty
+        }
+        didChange = didChange || conv.messages.count != placeholderCount
+
+        guard didChange else { return }
+        chatLog.notice("cold load: finalized stale in-flight send state from cache (#56)")
+        conversation = conv
+        persistence.saveConversationCache(conv)
     }
 
     func loadConversation() async {
@@ -124,6 +160,18 @@ final class ChatStore {
         conversation?.messages.append(optimistic)
         conversation?.lastActivity = optimistic.timestamp
         pendingMessageSentAt = optimistic.timestamp
+
+        // Persist the optimistic turn NOW, before streaming starts — the next
+        // save otherwise only happens after the stream ends, so a process
+        // death mid-run (Siri background launch reaped past the intent budget
+        // (#56), app killed mid-stream) used to lose the sent exchange from
+        // the cache entirely. Deliberately saved BEFORE the placeholder below
+        // is appended: the placeholder is transient stream UI, and cold load
+        // treats a cached one as garbage (see loadConversationIfNeeded).
+        if let conversation {
+            persistence.saveConversationCache(conversation)
+            onConversationChanged?()
+        }
 
         // Append a placeholder Hermes message for streaming content
         let placeholderID = UUID()
