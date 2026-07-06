@@ -65,6 +65,10 @@ final class ChatStore {
         let runId: String?
         let userMessageID: UUID
         let sentAt: Date
+        /// Reasoning streamed before the drop (#4.15). The server transcript
+        /// filters `_thinking`, so this local copy is the only survivor —
+        /// re-attached to the reply when reconcile adopts it.
+        let partialReasoning: String?
     }
     private var pendingRun: PendingRun?
     private var reconcileTask: Task<Void, Never>?
@@ -125,7 +129,7 @@ final class ChatStore {
             attachments: attachments.map { MessageAttachment(from: $0) }
         )
         if conversation == nil {
-            conversation = Conversation(title: "Hermes")
+            conversation = Conversation(title: Conversation.defaultTitle)
         }
         conversation?.messages.append(optimistic)
         conversation?.lastActivity = optimistic.timestamp
@@ -256,7 +260,9 @@ final class ChatStore {
                     // Run committed server-side but the stream dropped (lock /
                     // background). Not a failure: mark the turn working and let the
                     // reconcile loop pick up the reply when it lands.
+                    var partialReasoning: String?
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
+                        partialReasoning = self.conversation?.messages[idx].reasoning
                         self.conversation?.messages.remove(at: idx)
                     }
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == clientMessageID }) {
@@ -269,7 +275,8 @@ final class ChatStore {
                         sessionId: sessionId,
                         runId: runId,
                         userMessageID: clientMessageID,
-                        sentAt: self.pendingMessageSentAt ?? .now
+                        sentAt: self.pendingMessageSentAt ?? .now,
+                        partialReasoning: partialReasoning
                     )
                     self.startReconcileLoopIfNeeded()
 
@@ -389,7 +396,7 @@ final class ChatStore {
         guard !transcriptMessages.isEmpty else { return }
 
         if conversation == nil {
-            conversation = Conversation(title: "Hermes")
+            conversation = Conversation(title: Conversation.defaultTitle)
         }
         conversation?.messages.append(contentsOf: transcriptMessages)
         conversation?.lastActivity = transcriptMessages.last?.timestamp ?? .now
@@ -763,6 +770,16 @@ final class ChatStore {
         guard let reply else { return false }
 
         conversation = mergeConversationMetadata(from: conversation, into: serverConvo)
+        // #4.15: the server transcript filters `_thinking`, so the reasoning
+        // that streamed before the drop survives only in the pending run —
+        // re-attach it (partial by definition: the stream died mid-think).
+        if let partial = pending.partialReasoning, !partial.isEmpty,
+           var conv = conversation,
+           let idx = conv.messages.firstIndex(where: { $0.id == reply.id }),
+           conv.messages[idx].reasoning == nil {
+            conv.messages[idx].reasoning = partial
+            conversation = conv
+        }
         if let latestUsage = conversation?.latestUsage {
             lastTokenUsage = latestUsage
         }
@@ -802,10 +819,6 @@ final class ChatStore {
               let conversation,
               conversation.title == Conversation.defaultTitle,
               !isGeneratingConversationCard,
-              let firstUser = conversation.messages.first(where: {
-                  $0.sender == .user
-                      && !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-              }),
               let firstReply = conversation.messages.first(where: {
                   $0.sender == .hermes
                       && $0.status == .delivered
@@ -813,11 +826,19 @@ final class ChatStore {
               })
         else { return }
 
+        // The user side of the exchange. normalizedRetryContent maps the
+        // synthetic "[N attachment(s)]" display placeholder to "" — it's not
+        // user words and must never become the title; with it empty, the card
+        // (and the truncation fallback) derives everything from the reply.
+        let firstUserText = conversation.messages
+            .first(where: { $0.sender == .user })
+            .map { normalizedRetryContent(for: $0) } ?? ""
+
         let conversationID = conversation.id
         isGeneratingConversationCard = true
         Task { [weak self] in
             let card = await intelligence.conversationCard(
-                userText: firstUser.content,
+                userText: firstUserText,
                 assistantText: firstReply.content
             )
             guard let self else { return }
@@ -840,35 +861,39 @@ final class ChatStore {
         }
     }
 
-    /// Condenses the newest un-summarized reasoning into one line (#4.15) via
-    /// the on-device model — only while foregrounded (background scheduling
-    /// isn't worth fighting for; the collapsed row already falls back to the
-    /// last raw reasoning line). One message per pass bounds the work; also
-    /// invoked from AppContainer on foreground so a turn that finished while
-    /// backgrounded gets its summary on return.
+    /// Condenses un-summarized reasoning into one line each (#4.15) via the
+    /// on-device model — only while foregrounded (background scheduling isn't
+    /// worth fighting for; the collapsed row already falls back to the last
+    /// raw reasoning line). Newest first, a few per pass: a foreground return
+    /// can owe more than one (several turns settled while backgrounded), and
+    /// a nil summary ends the pass — model unavailable or a guardrail veto
+    /// would otherwise hammer the same input. Also invoked from AppContainer
+    /// on foreground so backgrounded turns get their summaries on return.
     func condensePendingReasoning() async {
-        guard let intelligence = localIntelligence,
-              UIApplication.shared.applicationState == .active,
-              let conv = conversation,
-              let index = conv.messages.lastIndex(where: {
-                  $0.sender == .hermes
-                      && ($0.reasoning?.isEmpty == false)
-                      && $0.reasoningSummary == nil
-                      && !$0.isStreaming
-              }),
-              let reasoning = conv.messages[index].reasoning
-        else { return }
+        for _ in 0 ..< 3 {
+            guard let intelligence = localIntelligence,
+                  UIApplication.shared.applicationState == .active,
+                  let conv = conversation,
+                  let index = conv.messages.lastIndex(where: {
+                      $0.sender == .hermes
+                          && ($0.reasoning?.isEmpty == false)
+                          && $0.reasoningSummary == nil
+                          && !$0.isStreaming
+                  }),
+                  let reasoning = conv.messages[index].reasoning
+            else { return }
 
-        let messageID = conv.messages[index].id
-        guard let summary = await intelligence.condensedReasoning(reasoning) else { return }
-        // The conversation may have changed while the model ran — re-find.
-        guard var current = conversation,
-              let idx = current.messages.firstIndex(where: { $0.id == messageID })
-        else { return }
-        current.messages[idx].reasoningSummary = summary
-        conversation = current
-        persistence.saveConversationCache(current)
-        onConversationChanged?()
+            let messageID = conv.messages[index].id
+            guard let summary = await intelligence.condensedReasoning(reasoning) else { return }
+            // The conversation may have changed while the model ran — re-find.
+            guard var current = conversation,
+                  let idx = current.messages.firstIndex(where: { $0.id == messageID })
+            else { return }
+            current.messages[idx].reasoningSummary = summary
+            conversation = current
+            persistence.saveConversationCache(current)
+            onConversationChanged?()
+        }
     }
 
     private func mergeConversationMetadata(
@@ -880,6 +905,20 @@ final class ChatStore {
 
         if refreshedConversation.latestUsage == nil {
             refreshedConversation.latestUsage = localConversation.latestUsage
+        }
+
+        // Conversation-level metadata is client-local (#4.8): the Sessions
+        // client's base conversation only ever carries the placeholder title
+        // and no preview, so a merge must not demote the local ones. (Also
+        // fixes the long-standing quirk of a manual /title reverting on the
+        // next exchange — and without this, the title-generation gate would
+        // re-trip and re-run the on-device model every single turn.)
+        if refreshedConversation.title == Conversation.defaultTitle,
+           localConversation.title != Conversation.defaultTitle {
+            refreshedConversation.title = localConversation.title
+        }
+        if refreshedConversation.generatedPreview == nil {
+            refreshedConversation.generatedPreview = localConversation.generatedPreview
         }
 
         for index in refreshedConversation.messages.indices {

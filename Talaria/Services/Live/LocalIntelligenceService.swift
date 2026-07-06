@@ -43,14 +43,14 @@ final class LocalIntelligenceService {
     /// veto, context overflow) falls back to deterministic truncation of the
     /// inputs, so the caller always gets a real card.
     func conversationCard(userText: String, assistantText: String) async -> ConversationCard {
-        let fallback = Self.fallbackCard(userText: userText, assistantText: assistantText)
-        guard isModelAvailable else { return fallback }
+        guard isModelAvailable else {
+            return Self.fallbackCard(userText: userText, assistantText: assistantText)
+        }
 
-        // Budget the inputs against the on-device context window (8192 tokens
-        // on iOS 27 hardware — read live, never hardcoded): leave headroom for
-        // instructions + output, then split the rest user ⅓ / assistant ⅔ (the
-        // reply usually carries more of what the conversation is about).
-        let inputBudget = max(512, model.contextSize - 1024)
+        // Budget the inputs against the shared context headroom, split
+        // user ⅓ / assistant ⅔ (the reply usually carries more of what the
+        // conversation is about).
+        let inputBudget = promptInputBudget
         let user = await trimmed(userText, toTokenBudget: inputBudget / 3)
         let assistant = await trimmed(assistantText, toTokenBudget: inputBudget - inputBudget / 3)
 
@@ -73,11 +73,17 @@ final class LocalIntelligenceService {
             )
             let title = Self.condensedLine(response.content.title, limit: 48)
             let preview = Self.condensedLine(response.content.preview, limit: 90)
+            // Fallback is computed only on the branches that need it — the
+            // happy path shouldn't pay for line scans it throws away.
+            if !title.isEmpty, !preview.isEmpty {
+                return ConversationCard(title: title, preview: preview)
+            }
+            let fallback = Self.fallbackCard(userText: userText, assistantText: assistantText)
             guard !title.isEmpty else { return fallback }
-            return ConversationCard(title: title, preview: preview.isEmpty ? fallback.preview : preview)
+            return ConversationCard(title: title, preview: fallback.preview)
         } catch {
             Self.logger.notice("conversationCard: generation failed — \(error.localizedDescription, privacy: .public); using truncation fallback")
-            return fallback
+            return Self.fallbackCard(userText: userText, assistantText: assistantText)
         }
     }
 
@@ -90,8 +96,7 @@ final class LocalIntelligenceService {
         let trimmedInput = reasoning.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedInput.isEmpty, isModelAvailable else { return nil }
 
-        let budget = max(512, model.contextSize - 1024)
-        let input = await trimmed(trimmedInput, toTokenBudget: budget)
+        let input = await trimmed(trimmedInput, toTokenBudget: promptInputBudget)
 
         let session = LanguageModelSession(instructions: """
             You condense an AI assistant's private reasoning transcript into one \
@@ -116,12 +121,21 @@ final class LocalIntelligenceService {
 
     // MARK: - Context budgeting (#4.8)
 
+    /// Prompt-input token budget: the on-device context window (8192 tokens
+    /// on iOS 27 hardware — read live, never hardcoded) minus headroom for
+    /// instructions + output.
+    private var promptInputBudget: Int { max(512, model.contextSize - 1024) }
+
     /// Trims `text` to roughly `budget` tokens, measured with the model's own
     /// tokenizer where available (`tokenCount(for:)`, iOS 26.4+) and a
     /// conservative chars/3 estimate otherwise. Proportional cuts re-measured
     /// over up to three passes, so a pathological tokenization can't overshoot
     /// the context window.
     private func trimmed(_ text: String, toTokenBudget budget: Int) async -> String {
+        // Every token is at least one UTF-8 byte, so a byte count inside the
+        // budget can never overflow it — skip the tokenizer round trip for
+        // the common short-exchange case.
+        guard text.utf8.count > budget else { return text }
         var candidate = text
         for _ in 0 ..< 3 {
             let tokens = await measuredTokenCount(of: candidate)

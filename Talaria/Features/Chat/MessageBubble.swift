@@ -137,8 +137,8 @@ struct MessageBubble: View {
                 // #4.15: reasoning sits above the answer — where it happened.
                 // While still content-less the live line renders inside the
                 // streaming placeholder instead, so don't double it up here.
-                if message.reasoning?.isEmpty == false,
-                   !(message.isStreaming && message.content.isEmpty) {
+                // (Presence/blankness is the disclosure's own guard.)
+                if !(message.isStreaming && message.content.isEmpty) {
                     reasoningDisclosure
                 }
                 if message.toolActivities.isEmpty {
@@ -364,10 +364,12 @@ struct MessageBubble: View {
 
     /// Collapsed: chevron + one line — the on-device condensation when
     /// available (#4.8), else the last raw reasoning line. Expanded: the raw
-    /// reasoning verbatim.
+    /// reasoning verbatim. Owns the presence check, and requires actual words:
+    /// a whitespace-only `_thinking` stream must not render a blank row.
     @ViewBuilder
     private var reasoningDisclosure: some View {
-        if let reasoning = message.reasoning, !reasoning.isEmpty {
+        if let reasoning = message.reasoning,
+           !reasoning.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
                 Button {
                     withAnimation(Design.Motion.standard) { isReasoningExpanded.toggle() }
@@ -425,11 +427,22 @@ struct MessageBubble: View {
 
     /// Last non-blank line of the reasoning stream — the "what is it working
     /// out right now" line shown verbatim while streaming, and the collapsed
-    /// fallback afterwards.
+    /// fallback afterwards. Scans backward without splitting: this runs on
+    /// every render of a streaming bubble whose reasoning grows per delta, so
+    /// an O(whole-string) split here would be O(N²) across a long think.
     static func lastReasoningLine(_ reasoning: String) -> String? {
-        for line in reasoning.split(separator: "\n").reversed() {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
+        var searchEnd = reasoning.endIndex
+        while searchEnd > reasoning.startIndex {
+            let lineStart: String.Index
+            if let newline = reasoning[..<searchEnd].lastIndex(of: "\n") {
+                lineStart = reasoning.index(after: newline)
+            } else {
+                lineStart = reasoning.startIndex
+            }
+            let trimmed = reasoning[lineStart ..< searchEnd].trimmingCharacters(in: .whitespaces)
             if !trimmed.isEmpty { return trimmed }
+            guard lineStart > reasoning.startIndex else { return nil }
+            searchEnd = reasoning.index(before: lineStart)
         }
         return nil
     }

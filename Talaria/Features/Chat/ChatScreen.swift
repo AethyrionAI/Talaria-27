@@ -617,7 +617,7 @@ struct ChatScreen: View {
                 chatStore.setConversationTitle(name)
                 appendSystemMessage("Session title set: \(name)")
             } else {
-                let current = chatStore.conversation?.title ?? "Hermes"
+                let current = chatStore.conversation?.title ?? Conversation.defaultTitle
                 let id = chatStore.conversation.map { String($0.id.uuidString.prefix(8)) } ?? "—"
                 // #4.8: the on-device preview, when the first exchange has
                 // been summarized.

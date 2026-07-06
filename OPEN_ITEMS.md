@@ -1482,6 +1482,22 @@ fallback) deliberately not built — no observed need on the Sessions API.
 Written cloud-side 2026-07-06 (branch `claude/wave-3-on-device-intelligence-rxht4l`);
 not yet compiled — needs `xcodegen generate` + CLI build + device verify.
 
+**Update 2026-07-06 (same-session adversarial review pass, 8 finder angles + verify):**
+- **Wire-mode hedge added:** whether `_thinking` events carry increments or cumulative
+  snapshots is as unverified as the delta key. `incrementalReasoningDelta(from:assembled:)`
+  forwards only the new suffix when a chunk starts with everything assembled so far
+  (unit-tested both modes) — cumulative hosts can no longer duplicate text quadratically.
+- **Late reasoning kept:** reasoning now attaches to the final message at the yield
+  (run.completed / stream-end fallback) from the full accumulator, not frozen at
+  assistant.completed.
+- **Interrupted runs keep their reasoning:** the `.interrupted` path captures the
+  placeholder's partial reasoning onto the pending run and re-attaches it when reconcile
+  adopts the server reply (the server transcript filters `_thinking`).
+- **Blank-row guard:** a whitespace-only `_thinking` stream no longer renders an empty
+  Reasoning chevron row; `lastReasoningLine` also rewritten as a backward scan (the split
+  version was O(N²) across a long think). Foreground condensation now drains up to 3
+  pending replies per pass instead of only the newest.
+
 ## 58. 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels
 
 New `Services/Live/LocalIntelligenceService.swift` (FoundationModels): after the
@@ -1507,3 +1523,19 @@ to one line when foregrounded (also caught up on foreground return via
 Same not-compiled caveat as #57. Device verify: first exchange in a fresh chat
 titles itself (~seconds later, `/title` shows Title + Preview); reasoning row
 collapses to a generated one-liner on AI hardware, last raw line otherwise.
+
+**Update 2026-07-06 (same-session adversarial review pass):**
+- **Critical fix — title/preview merge revert:** `mergeConversationMetadata` now preserves
+  the local conversation title (when the refreshed base still has the placeholder) and
+  `generatedPreview`. Without this, every post-turn merge into the Sessions client's empty
+  `currentConversation` reverted the title to "Hermes" — re-tripping the generation gate
+  every turn — and wiped the preview. Also fixes the long-standing quirk of a manual
+  `/title` reverting on the next exchange. Regression-tested
+  (`mergeKeepsLocalTitleAndPreviewOverPlaceholderBase`).
+- **Attachment-only first turn:** the synthetic "[N attachment(s)]" display placeholder is
+  no longer eligible as a title source (`normalizedRetryContent` maps it to "" — card
+  derives from the reply instead).
+- Placeholder-title literals consolidated onto `Conversation.defaultTitle` at every
+  construction site; token budget deduped (`promptInputBudget`); tokenizer round-trip
+  skipped when `utf8.count <= budget` (every token ≥ 1 byte); fallback card computed
+  lazily off the happy path.

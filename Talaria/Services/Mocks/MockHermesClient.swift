@@ -113,7 +113,7 @@ final class MockHermesClient: HermesClientProtocol {
     }
 
     func clearConversation() async throws -> Conversation {
-        let fresh = Conversation(title: "Hermes")
+        let fresh = Conversation(title: Conversation.defaultTitle)
         currentConversation = fresh
         return fresh
     }

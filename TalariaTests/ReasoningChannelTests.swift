@@ -45,6 +45,28 @@ struct ReasoningChannelTests {
         #expect(SessionsHermesClient.thinkingDelta(fromToolProgress: "not json") == nil)
     }
 
+    // MARK: Wire-mode hedge (increments vs cumulative snapshots)
+
+    @Test func incrementalDeltaPassesThroughIncrementMode() {
+        #expect(SessionsHermesClient.incrementalReasoningDelta(from: "Step two.", assembled: "Step one.") == "Step two.")
+        #expect(SessionsHermesClient.incrementalReasoningDelta(from: "Step one.", assembled: "") == "Step one.")
+        #expect(SessionsHermesClient.incrementalReasoningDelta(from: "", assembled: "anything") == nil)
+    }
+
+    @Test func incrementalDeltaUnwrapsCumulativeSnapshots() {
+        // A chunk that starts with everything assembled so far is a snapshot —
+        // only the new suffix may be forwarded, or the text duplicates.
+        #expect(SessionsHermesClient.incrementalReasoningDelta(
+            from: "Step one. Step two.",
+            assembled: "Step one. "
+        ) == "Step two.")
+        // An identical re-send adds nothing.
+        #expect(SessionsHermesClient.incrementalReasoningDelta(
+            from: "Step one.",
+            assembled: "Step one."
+        ) == nil)
+    }
+
     // MARK: Last-line extraction (streaming placeholder + collapsed fallback)
 
     @Test func lastReasoningLineSkipsTrailingBlanks() {
@@ -143,5 +165,29 @@ struct ReasoningChannelTests {
         let cached = try #require(persistence.loadConversationCache())
         let cachedReply = try #require(cached.messages.last(where: { $0.sender == .hermes }))
         #expect(cachedReply.reasoning == "Step one.\nStep two.")
+    }
+
+    @Test @MainActor
+    func mergeKeepsLocalTitleAndPreviewOverPlaceholderBase() async throws {
+        // The Sessions client's base conversation only ever carries the
+        // placeholder title and no preview; the post-turn merge must not
+        // demote a generated (or manual) title back to it — otherwise the
+        // #4.8 gate re-trips and regenerates the card every turn.
+        let suiteName = "title-merge-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let client = ReasoningStreamClient()
+        client.currentConversation = Conversation(title: Conversation.defaultTitle)
+        let chatStore = ChatStore(hermesClient: client, persistence: persistence)
+        chatStore.conversation = Conversation(
+            title: "Reverse proxy setup",
+            generatedPreview: "Caddy for the home lab"
+        )
+
+        await chatStore.sendMessage("More detail?")
+
+        #expect(chatStore.conversation?.title == "Reverse proxy setup")
+        #expect(chatStore.conversation?.generatedPreview == "Caddy for the home lab")
     }
 }

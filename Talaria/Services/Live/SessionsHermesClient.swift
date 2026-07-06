@@ -173,7 +173,8 @@ final class SessionsHermesClient: HermesClientProtocol {
                             // the answer (SSE taxonomy, Phase 0). Forward the
                             // deltas so the UI can show thinking live; progress
                             // events for real tools stay dropped (no UI yet).
-                            if let delta = Self.thinkingDelta(fromToolProgress: currentData) {
+                            if let chunk = Self.thinkingDelta(fromToolProgress: currentData),
+                               let delta = Self.incrementalReasoningDelta(from: chunk, assembled: assembledReasoning) {
                                 assembledReasoning += delta
                                 continuation.yield(.reasoningDelta(delta))
                             }
@@ -187,17 +188,18 @@ final class SessionsHermesClient: HermesClientProtocol {
                             pendingFinalMessage = Message(
                                 sender: .hermes,
                                 content: finalContent,
-                                status: .delivered,
-                                reasoning: assembledReasoning.isEmpty ? nil : assembledReasoning
+                                status: .delivered
                             )
                             // Defer `.finished` until run.completed delivers token usage.
                         case "run.completed":
                             let usage = self.decodeRunUsage(currentData)
                             var message = pendingFinalMessage
                                 ?? Message(sender: .hermes, content: assembledContent, status: .delivered)
-                            if message.reasoning == nil, !assembledReasoning.isEmpty {
-                                message.reasoning = assembledReasoning
-                            }
+                            // Reasoning attaches HERE, at the yield, from the full
+                            // accumulator — never earlier: a `_thinking` chunk can
+                            // land between assistant.completed and run.completed,
+                            // and a value frozen at assistant.completed would lose it.
+                            if !assembledReasoning.isEmpty { message.reasoning = assembledReasoning }
                             if !producedFiles.isEmpty { message.attachments = producedFiles }
                             continuation.yield(.finished(message, usage, nil))
                             finalMessageDelivered = true
@@ -240,9 +242,7 @@ final class SessionsHermesClient: HermesClientProtocol {
                             content: assembledContent,
                             status: .delivered
                         )
-                        if fallbackMessage.reasoning == nil, !assembledReasoning.isEmpty {
-                            fallbackMessage.reasoning = assembledReasoning
-                        }
+                        if !assembledReasoning.isEmpty { fallbackMessage.reasoning = assembledReasoning }
                         if !producedFiles.isEmpty { fallbackMessage.attachments = producedFiles }
                         continuation.yield(.finished(fallbackMessage, nil, nil))
                     }
@@ -265,7 +265,7 @@ final class SessionsHermesClient: HermesClientProtocol {
 
     func loadConversation() async -> Conversation {
         if let currentConversation { return currentConversation }
-        let fresh = Conversation(title: "Hermes")
+        let fresh = Conversation(title: Conversation.defaultTitle)
         currentConversation = fresh
         return fresh
     }
@@ -279,7 +279,7 @@ final class SessionsHermesClient: HermesClientProtocol {
 
     func clearConversation() async throws -> Conversation {
         apiSessionId = nil
-        let fresh = Conversation(title: "Hermes")
+        let fresh = Conversation(title: Conversation.defaultTitle)
         currentConversation = fresh
         return fresh
     }
@@ -371,7 +371,7 @@ final class SessionsHermesClient: HermesClientProtocol {
         apiSessionId = response.sessionId ?? id
         let messages = response.data.compactMap(Self.mapStoredMessage)
         let convo = Conversation(
-            title: "Hermes",
+            title: Conversation.defaultTitle,
             messages: messages,
             lastActivity: messages.last?.timestamp ?? .now
         )
@@ -423,7 +423,7 @@ final class SessionsHermesClient: HermesClientProtocol {
         )
         apiSessionId = response.session.id
         if currentConversation == nil {
-            currentConversation = Conversation(title: "Hermes")
+            currentConversation = Conversation(title: Conversation.defaultTitle)
         }
         return response.session.id
     }
@@ -516,6 +516,21 @@ final class SessionsHermesClient: HermesClientProtocol {
             }
         }
         return nil
+    }
+
+    /// #4.15 wire-mode hedge: whether `_thinking` events carry increments or
+    /// cumulative snapshots is unverified (same probe as the delta key — see
+    /// OPEN_ITEMS #57). A chunk that starts with everything assembled so far
+    /// is a snapshot — only its new suffix is the delta. Returns nil when the
+    /// chunk adds nothing. In genuine increment mode the prefix compare fails
+    /// on the first character, so the hedge is effectively free there.
+    nonisolated static func incrementalReasoningDelta(from chunk: String, assembled: String) -> String? {
+        guard !chunk.isEmpty else { return nil }
+        if !assembled.isEmpty, chunk.hasPrefix(assembled) {
+            let suffix = String(chunk.dropFirst(assembled.count))
+            return suffix.isEmpty ? nil : suffix
+        }
+        return chunk
     }
 
     /// #11: builds a `ToolCallEvent` from a `tool.started` / `tool.completed`
