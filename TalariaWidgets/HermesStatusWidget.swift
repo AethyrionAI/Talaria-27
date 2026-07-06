@@ -23,6 +23,13 @@ struct HermesStatusWidget: Widget {
         .description("Connection status and recent messages.")
         .supportedFamilies([
             .systemSmall,
+            // iOS 27 API — verify against SDK on Mac (#7 polish). Full-height
+            // portrait family (previously visionOS-only; iOS 27 brings
+            // extra-large widgets to iPhone). Renders via the switch's
+            // default case (the small layout) until a dedicated layout is
+            // designed on-device. If the symbol is still visionOS-only in
+            // the SDK, delete this one line.
+            .systemExtraLargePortrait,
             .accessoryCircular,
             .accessoryRectangular,
         ])
@@ -44,6 +51,9 @@ private struct HermesStatusView: View {
         case .accessoryRectangular:
             rectangularView
         default:
+            // Covers systemExtraLargePortrait (#7 polish) — reuses the small
+            // layout (VStack + Spacer fills the taller canvas) until a
+            // dedicated extra-large layout is verified on-device.
             systemSmallView
         }
     }
