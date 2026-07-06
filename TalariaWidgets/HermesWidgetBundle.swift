@@ -5,6 +5,9 @@ import WidgetKit
 struct HermesWidgetBundle: WidgetBundle {
     var body: some Widget {
         HermesLiveActivity()
+        // AlarmKit countdown presentation (#16) — its own configuration typed
+        // on AlarmAttributes, never a new case on the Hermes activity.
+        TalariaAlarmLiveActivity()
         HermesStatusWidget()
         HermesHealthWidget()
         // Control Center / Lock Screen / Action-button controls (#7) —

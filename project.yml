@@ -90,6 +90,9 @@ targets:
         NSLocationAlwaysAndWhenInUseUsageDescription: "Hermes uses your location in the background to provide contextual awareness and proactive suggestions."
         NSMotionUsageDescription: "Hermes uses motion data to understand your current activity for contextual awareness."
         NSSpeechRecognitionUsageDescription: "Hermes uses speech recognition for voice commands and local transcription."
+        # #16: AlarmKit executor (/alarm). User authorization only — no App
+        # Store entitlement involved.
+        NSAlarmKitUsageDescription: "Hermes schedules alarms and timers you ask for — each one is confirmed in-app before it's set."
         NSSupportsLiveActivities: true
         NSSupportsLiveActivitiesFrequentUpdates: true
         UIAppFonts:

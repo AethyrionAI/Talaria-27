@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ChatScreen: View {
+    @Environment(AppContainer.self) private var container
     @Environment(ChatStore.self) private var chatStore
     @Environment(HermesHostStore.self) private var hostStore
     @Environment(PairingStore.self) private var pairingStore
@@ -11,6 +12,9 @@ struct ChatScreen: View {
     @State private var messageText = ""
     @State private var pendingAttachments: [PendingAttachment] = []
     @State private var showClearConfirmation = false
+    /// #16: a parsed /alarm staged behind the in-app confirm gate — nothing
+    /// schedules until the user confirms (decided policy for alarm writes).
+    @State private var pendingAlarmConfirm: AlarmService.AlarmRequest?
     @State private var showStatusCard = false
     @State private var scrollProxy: ScrollViewProxy?
     @FocusState private var isComposerFocused: Bool
@@ -42,6 +46,23 @@ struct ChatScreen: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("This will archive the current conversation and start a new session. This cannot be undone.")
+            }
+            .confirmationDialog(
+                "Schedule on this iPhone?",
+                isPresented: Binding(
+                    get: { pendingAlarmConfirm != nil },
+                    set: { if !$0 { pendingAlarmConfirm = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: pendingAlarmConfirm
+            ) { request in
+                Button("Schedule") {
+                    pendingAlarmConfirm = nil
+                    Task { await scheduleAlarm(request) }
+                }
+                Button("Cancel", role: .cancel) { pendingAlarmConfirm = nil }
+            } message: { request in
+                Text("Set \(request.summary)? It will ring through Silent mode and Focus.")
             }
             .sheet(isPresented: $showAttachmentPicker) {
                 AttachmentPickerSheet { result in
@@ -628,8 +649,31 @@ struct ChatScreen: View {
                 appendSystemMessage("Session ID: \(id)…\nTitle: \(current)\(previewLine)\nUsage: /title <your session title>")
             }
 
+        case "alarm":
+            // #16: parse → stage → confirm gate. Scheduling happens only in
+            // scheduleAlarm(_:) after the dialog's explicit confirm.
+            let trimmedArg = argument?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if trimmedArg.isEmpty {
+                appendSystemMessage("Usage: /alarm 6:30am [label] for an alarm, or /alarm 25m [label] for a timer.")
+            } else if let request = AlarmService.parse(trimmedArg) {
+                pendingAlarmConfirm = request
+            } else {
+                appendSystemMessage("Couldn't read a time from \"\(trimmedArg)\". Try /alarm 6:30am, /alarm 18:45, or /alarm 25m.")
+            }
+
         default:
             break
+        }
+    }
+
+    /// #16: runs only after the confirm gate. Success and failure both land in
+    /// the transcript so the command always has a visible receipt.
+    private func scheduleAlarm(_ request: AlarmService.AlarmRequest) async {
+        do {
+            try await container.alarmService.schedule(request)
+            appendSystemMessage("Scheduled \(request.summary) — it will ring through Silent mode and Focus.")
+        } catch {
+            appendSystemMessage("Couldn't schedule the \(request.kindNoun): \(error.localizedDescription)")
         }
     }
 
