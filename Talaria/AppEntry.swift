@@ -18,6 +18,10 @@ final class HermesAppDelegate: NSObject, UIApplicationDelegate {
         // Register for remote (silent push) notifications
         application.registerForRemoteNotifications()
 
+        // #14: the BGAppRefreshTask launch handler must be registered before
+        // the app finishes launching; scheduling happens on background entry.
+        BackgroundRefreshScheduler.register()
+
         Task { @MainActor in
             await AppContainer.sharedDefault().handleSystemLaunch()
         }
@@ -102,6 +106,9 @@ struct TalariaApp: App {
                         ThemeRuntime.shared.apply(container.settingsStore.settings)
                         Task { await container.handleAppDidBecomeActive() }
                     } else if newPhase == .background {
+                        // #14: arm the native background-refresh safety net
+                        // alongside the relay app-state report.
+                        BackgroundRefreshScheduler.schedule()
                         Task { await container.reportAppStateIfNeeded("background") }
                     }
                     // Note: voice sessions are NOT ended on background.

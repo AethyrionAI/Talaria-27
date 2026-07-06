@@ -130,10 +130,17 @@ targets:
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
         UIBackgroundModes:
+          - fetch
           - processing
           - location
           - remote-notification
           - audio
+        # #14 native background wake. `fetch` above powers BGAppRefreshTask;
+        # the wildcard covers per-send BGContinuedProcessingTask identifiers.
+        # Keep in sync with BackgroundTaskService.swift.
+        BGTaskSchedulerPermittedIdentifiers:
+          - org.aethyrion.talaria27.refresh
+          - org.aethyrion.talaria27.continued.*
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: true
           UISceneConfigurations:
