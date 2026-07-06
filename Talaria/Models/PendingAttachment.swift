@@ -11,17 +11,36 @@ struct PendingAttachment: Identifiable, Sendable {
     let localStoragePath: String?
     /// Thumbnail for display — stored separately since UIImage isn't Sendable.
     let thumbnailData: Data?
+    /// Local path of the recorded audio when this attachment is a voice memo
+    /// (#9). The attachment's `data` is the TRANSCRIPT (what actually ships,
+    /// via the #8 text-inlining branch); the audio itself never transmits and
+    /// stays on-device for playback. Defaulted so every existing construction
+    /// site is untouched.
+    var voiceMemoAudioPath: String? = nil
 
     enum Kind: String, Sendable {
         case image
         case file
     }
 
+    /// A voice memo is a text attachment (the transcript) carrying its source
+    /// audio alongside for local playback (#9).
+    var isVoiceMemo: Bool { voiceMemoAudioPath != nil }
+
     /// Maximum file size: 350 KB (before base64 encoding -> ~470KB base64).
     /// The Hermes API server accepts a 1 MB request body for the whole message payload,
     /// so individual attachments still need additional aggregate request-size validation.
     static let maxFileSize = 350 * 1024
+
+    /// PDFs get their own, larger staging cap (#8): a raw PDF is NEVER
+    /// transmitted — only its OCR-extracted text ships (as a delimited text
+    /// part) — so the wire-oriented 350 KB cap doesn't apply. 10 MB keeps
+    /// per-page rasterization + OCR memory sane.
+    static let maxPDFFileSize = 10 * 1024 * 1024
+
     static let maxAttachmentsPerMessage = 4
+
+    static let pdfMimeType = "application/pdf"
 
     private static let supportedTextMimeTypes: Set<String> = [
         "text/plain",
@@ -39,7 +58,36 @@ struct PendingAttachment: Identifiable, Sendable {
     ]
 
     static func supportsMimeType(_ mimeType: String) -> Bool {
-        mimeType.hasPrefix("image/") || supportedTextMimeTypes.contains(mimeType)
+        mimeType.hasPrefix("image/")
+            || supportedTextMimeTypes.contains(mimeType)
+            || mimeType == pdfMimeType
+    }
+
+    /// Staging size cap by MIME type — see `maxPDFFileSize` for why PDFs differ.
+    static func stagingCap(forMimeType mimeType: String) -> Int {
+        mimeType == pdfMimeType ? maxPDFFileSize : maxFileSize
+    }
+
+    /// True when the file's bytes can be inlined as a `{type:"text"}` content
+    /// part on the chat turn (#43): any `text/*` plus the structured-text
+    /// application types above.
+    static func isInlinableTextMime(_ mimeType: String) -> Bool {
+        mimeType.hasPrefix("text/") || supportedTextMimeTypes.contains(mimeType)
+    }
+
+    /// Whether this attachment has a wire representation on the Sessions API:
+    /// images ship as `image_url` data-URL parts, text-MIME files inline as
+    /// delimited `{type:"text"}` parts (#43). A raw PDF (or other binary) has
+    /// NO representation — it must be OCR-extracted first (#8); the composer
+    /// blocks send while one is staged so it can never *look* sent.
+    var isTransmittable: Bool {
+        kind == .image || Self.isInlinableTextMime(mimeType)
+    }
+
+    /// Whether the explicit "Extract text" action (#8) can run on this
+    /// attachment — images and PDFs go through `DocumentTextExtractor`.
+    var isExtractable: Bool {
+        kind == .image || mimeType == Self.pdfMimeType
     }
 
     /// Create an image attachment from a UIImage.
@@ -102,7 +150,9 @@ struct PendingAttachment: Identifiable, Sendable {
             return Self.image(image, fileName: url.lastPathComponent)
         }
 
-        guard data.count <= maxFileSize else { return nil }
+        // Per-mime cap: 350 KB for text (it ships inline), 10 MB for PDFs
+        // (never transmitted raw — only their extracted text ships, #8).
+        guard data.count <= stagingCap(forMimeType: mimeType) else { return nil }
 
         var thumbData: Data?
         if let image = UIImage(data: data) {
@@ -124,10 +174,81 @@ struct PendingAttachment: Identifiable, Sendable {
         )
     }
 
+    /// Convert an OCR extraction result into a staged TEXT attachment (#8).
+    /// Self-describing and honest: the file name keeps the source's name plus
+    /// an `.extracted.md` suffix, kind flips to `.file`, and NO thumbnail is
+    /// carried over — the chip must read as "text will be sent", never as the
+    /// original image ("real data only"). No size guard here: over-cap text is
+    /// truncated at inline time with an explicit in-block notice
+    /// (`AttachmentInlining.maxInlinedTextBytes`).
+    static func extractedText(from source: PendingAttachment, text: String) -> PendingAttachment {
+        let fileName = "\(source.fileName).extracted.md"
+        let data = Data(text.utf8)
+        return PendingAttachment(
+            kind: .file,
+            fileName: fileName,
+            mimeType: "text/markdown",
+            data: data,
+            localStoragePath: stageLocally(data: data, preferredFileName: fileName),
+            thumbnailData: nil
+        )
+    }
+
+    /// Stage a completed voice-memo recording (#9): the TRANSCRIPT becomes the
+    /// attachment's `data` — a plain-text file the #8 inlining branch ships as
+    /// a delimited `{type:"text"}` part with zero send-path changes — while the
+    /// audio stays referenced for local playback only. The transcript body
+    /// leads with a one-line bracketed provenance header (recorded time +
+    /// duration), mirroring the voice-session context-turn convention (#1).
+    static func voiceMemo(
+        transcript: String,
+        audioFileURL: URL,
+        duration: TimeInterval,
+        recordedAt: Date = .now
+    ) -> PendingAttachment {
+        let fileName = voiceMemoFileName(recordedAt: recordedAt)
+        let body = """
+        [Voice memo transcript — recorded \(voiceMemoTimestamp(recordedAt)), \(voiceMemoDuration(duration))]
+        \(transcript)
+        """
+        let data = Data(body.utf8)
+        return PendingAttachment(
+            kind: .file,
+            fileName: fileName,
+            mimeType: "text/plain",
+            data: data,
+            localStoragePath: stageLocally(data: data, preferredFileName: fileName),
+            thumbnailData: nil,
+            voiceMemoAudioPath: audioFileURL.path
+        )
+    }
+
+    /// `Voice Memo 2026-07-06 14.30.05.txt` — the `.txt`/text-plain pairing is
+    /// what routes it through the #8 text-inlining branch.
+    static func voiceMemoFileName(recordedAt: Date) -> String {
+        "Voice Memo \(voiceMemoTimestamp(recordedAt).replacingOccurrences(of: ":", with: ".")).txt"
+    }
+
+    static func voiceMemoTimestamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter.string(from: date)
+    }
+
+    /// "4m 05s" / "32s" — human duration for the transcript provenance header.
+    static func voiceMemoDuration(_ duration: TimeInterval) -> String {
+        let total = max(0, Int(duration.rounded()))
+        let minutes = total / 60
+        let seconds = total % 60
+        return minutes > 0 ? String(format: "%dm %02ds", minutes, seconds) : "\(seconds)s"
+    }
+
     static func restore(from attachment: MessageAttachment) -> PendingAttachment? {
         guard let localStoragePath = attachment.localStoragePath else { return nil }
         let url = URL(fileURLWithPath: localStoragePath)
-        guard let data = try? Data(contentsOf: url), data.count <= maxFileSize else { return nil }
+        guard let data = try? Data(contentsOf: url),
+              data.count <= stagingCap(forMimeType: attachment.mimeType) else { return nil }
 
         let thumbnailData = attachment.thumbnailBase64.flatMap { Data(base64Encoded: $0) }
         let kind = attachment.kind == "image" ? Kind.image : Kind.file
@@ -137,7 +258,8 @@ struct PendingAttachment: Identifiable, Sendable {
             mimeType: attachment.mimeType,
             data: data,
             localStoragePath: localStoragePath,
-            thumbnailData: thumbnailData
+            thumbnailData: thumbnailData,
+            voiceMemoAudioPath: attachment.voiceMemoAudioPath
         )
     }
 
@@ -155,6 +277,7 @@ struct PendingAttachment: Identifiable, Sendable {
         let map: [String: String] = [
             "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
             "gif": "image/gif", "webp": "image/webp", "heic": "image/heic",
+            "pdf": "application/pdf",
             "txt": "text/plain",
             "json": "application/json", "csv": "text/csv",
             "md": "text/markdown", "swift": "text/x-swift",

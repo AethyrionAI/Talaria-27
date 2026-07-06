@@ -985,6 +985,10 @@ complementary to the in-app voice work, not a migration.
 
 Logged 2026-06-27.
 
+**Update 2026-07-06:** the greenfield is now populated — `StartVoiceSessionIntent` (Wave 1)
+and `AskHermesIntent` (#56 / Wave 2 Issue E), both registered in the single
+`TalariaAppShortcuts` provider; Control Center controls wrap them (#58).
+
 
 ---
 
@@ -1309,6 +1313,10 @@ body limits.
 **Net:** unblocks #31 (paste) and makes the photo picker actually send images. Found via
 on-device send test + client read 2026-06-28.
 
+**Update 2026-07-06:** the NON-image half of this pathology (text-MIME files staged but
+silently never transmitted) is now closed too — #57 (Wave 2 Issue G) inlines them as
+delimited `{type:"text"}` parts, with in-band omission stubs instead of silent drops.
+
 ---
 
 ## 44. ✅ Notifications — truthful push-token readout + `aps-environment` entitlement (VERIFIED on device)
@@ -1457,3 +1465,120 @@ add capabilities back only on proven need. Keep the shim service; keep the relay
 dated `.bak` copies.
 
 Logged 2026-07-04.
+
+---
+
+## 56. 🔧 Wave 2 Issue E (GitHub #6) — "Ask Hermes" App Intent — BUILT IN CLOUD, not compiled
+
+**Shipped (`3ef4695`, branch `claude/issues-5-8-batches-cue3vb`, 2026-07-06).**
+`Intents/AskHermesIntent.swift`: background Siri/Shortcuts query (`openAppWhenRun = false`)
+through `ChatStore.sendMessage` — the exchange lands in the cached conversation and widgets
+update; answer returned as spoken dialog (2-sentence/280-char summary) + HUD-styled snippet +
+`ReturnsValue<String>` for Shortcuts chaining. 25 s budget: on expiry the run is NOT cancelled —
+Siri says "still working", the reply lands in-app (pendingRun/reconcile). Failures throw the
+REAL error text into Siri UI. Siri Stop → `cancelStreaming()`. Registered in the single
+`TalariaAppShortcuts` provider ("Ask Talaria" — free-form Strings can't ride phrases, Siri
+prompts for the question). Tests: `AskHermesIntentTests`.
+
+**Tier B parked:** `AskHermesLongRunSupport.swift` holds the iOS 27 beta
+`LongRunningIntent`/`CancellableIntent` adoption ENTIRELY behind `#if TALARIA_IOS27_INTENTS`
+(defined nowhere). Mac session: verify every "iOS 27 beta API" comment against the beta SDK,
+then add the flag to `SWIFT_ACTIVE_COMPILATION_CONDITIONS` to enable.
+
+**Mac-session checklist:** `xcodegen generate` (new files; re-verify `aps-environment` — #44/#48)
+→ CLI build → run tests → device: Siri short answer, >25 s run hand-off, stop button,
+`hermes://chat` deep link, exchange visible in app, tailnet-unreachable error.
+
+**Questions for Owen:** (1) "Ask Talaria" prompting for the question (vs. one-breath phrase —
+impossible for String params) OK? (2) Snippet is always Deep-Field-styled (system process can't
+read live theme) OK? (3) ~~Known edge: process death mid-run loses the cache write~~ —
+**resolved 2026-07-06 (Owen approved):** ChatStore now persists the optimistic turn BEFORE
+streaming starts, and cold load finalizes stranded `.sending` user turns to `.failed` (retry
+affordance; same terminal as polling exhaustion) + scrubs cached streaming placeholders. The
+reply of a completed-but-killed run still needs a session refresh to appear (pendingRun/session
+id don't survive process death — persisting the API session id is a session-lifecycle decision,
+deliberately not taken here). Tests: `ChatStorePersistenceTests`. (4) Shortcuts chaining value
+is "" on still-working paths.
+
+Logged 2026-07-06.
+
+---
+
+## 57. 🔧 Wave 2 Issue G (GitHub #8) — attachment text-inlining + Extract Text OCR — BUILT IN CLOUD, not compiled
+
+**Shipped (`25bf98c`, 2026-07-06).** Fixes the #43 remainder: staged text-MIME files now reach
+the agent as delimited `{type:"text"}` parts instead of silently dropping.
+`Services/Support/AttachmentInlining.swift` owns assembly (ordering, 900 KB aggregate budget,
+200 KB per-file cap with in-block truncation notice, omission STUBS instead of silent drops;
+text-only turns stay byte-identical plain strings) — unit-tested (`AttachmentInliningTests`, 13)
+and the shared surface #9 voice memos ride. Explicit per-chip "Extract text" (context menu —
+never auto; confirmed decision) runs Vision `RecognizeDocumentsRequest` (iOS 26 GA) with
+`RecognizeTextRequest` fallback, isolated in `Services/Support/DocumentTextExtractor.swift`;
+PDFs stage to 10 MB (never transmit raw), rasterize per-page via PDFKit, OCR into `## Page N`
+sections. Honest UI: un-extracted PDF = forge badge + banner + send held; sent bubbles render
+text chips for inlined files, thumbnails only for images that actually shipped.
+
+**Mac-session checklist:** build; verify the Vision API shapes flagged
+"verify against SDK on Mac" in DocumentTextExtractor (DocumentObservation containers: transcript
+/ tables / lists / barcodes / detectedData accessors); run AttachmentInliningTests; device:
+.txt/.md/.csv/.json reach the agent, Extract Text on a screenshot + a multi-page PDF, UI truth.
+
+**Questions for Owen:** (1) Budget-omitted attachments now tell the agent in-band (stub) — OK?
+(2) Extraction failure = alert + chip stays for retry; want a persistent per-chip error state?
+(3) Oversized/unsupported picks still silently don't stage (pre-existing) — worth a toast?
+
+Logged 2026-07-06.
+
+---
+
+## 58. 🔧 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — BUILT IN CLOUD, not compiled
+
+**Shipped (`db9a03a`, 2026-07-06).** `TalariaWidgets/Controls/HermesControls.swift`: "Ask
+Hermes" + "Talk to Hermes" `ControlWidget` buttons (iOS 18 GA) in `HermesWidgetBundle` —
+Control Center gallery, Lock Screen, Action-button picker. Deliberate architecture: the app's
+real intents are NOT shared into the extension (they'd drag `AppContainer` in, and control
+intents perform in the EXTENSION process where router state is meaningless); extension-local
+`isDiscoverable = false` intents launch the app via `OpenURLIntent` on `hermes://chat` /
+`hermes://voice`, running exactly the code paths the real intents use. `hermes://voice` deep
+link gained sheet-clearing parity with `StartVoiceSessionIntent` (real fix). iOS 27
+`ExecutionTargets.main` upgrade path noted in comments. Polish: `systemExtraLargePortrait`
+added to `HermesStatusWidget` — public docs still list the symbol as visionOS; if the beta SDK
+rejects it, it's a flagged one-line deletion.
+
+**Mac-session checklist:** build (watch the `systemExtraLargePortrait` line) → device: controls
+in gallery after reinstall (+ unlock; don't judge failure from an immediate look), Lock Screen +
+Action button assignment, taps open the right surfaces. Action-button test needs an
+Action-button iPhone.
+
+**Questions for Owen:** dedicated extra-large-portrait status-widget layout later, or is the
+stretched small layout fine?
+
+Logged 2026-07-06.
+
+---
+
+## 59. 🔧 Wave 2 Issue H (GitHub #9) — voice-memo attachments — BUILT IN CLOUD, not compiled
+
+**Shipped (`3aa638a`, 2026-07-06).** Record (`VoiceMemoRecorder` — AVAudioRecorder, AAC mono,
+real metering, session held only while recording) → transcribe fully on-device
+(`VoiceMemoTranscriber` — DictationTranscriber `.longDictation` + SpeechAnalyzer
+`analyzeSequence(from: AVAudioFile)`, accumulating EVERY finalized result so multi-minute memos
+don't truncate; iOS 27 `AssetInputSequenceProvider` deliberately not used) → review sheet
+(playback + transcript preview + "SENDS AS TEXT") → staged as a text/plain attachment whose
+`data` IS the transcript (bracketed provenance header: recorded time + duration) — ships through
+#57's inlining branch with zero send-path changes. Audio never transmits; additive optional
+`voiceMemoAudioPath` on Pending/MessageAttachment (pre-#9 caches still decode) keeps it playable
+from the staged chip and the sent bubble via shared `VoiceMemoPlayer` — play affordance only
+renders while the file exists. Honest failures: mic denied / transcription error / Talk session
+owns audio. Tests: `VoiceMemoAttachmentTests`.
+
+**Mac-session checklist:** build; verify `.longDictation` preset name and
+`analyzeSequence(from:)` / `finalizeAndFinish(through:)` shapes (flagged in-file); run tests;
+device: multi-minute memo end-to-end offline (airplane mode: record → transcribe → stage →
+play), then send over tailnet; confirm finalized-result concatenation spacing on a real memo.
+
+**Questions for Owen:** (1) Review-before-attach step (vs. auto-attach on transcription) OK?
+(2) Removing a staged memo chip orphans its audio/transcript files on disk (consistent with all
+attachments today) — worth a sweep task later?
+
+Logged 2026-07-06.

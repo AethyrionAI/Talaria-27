@@ -398,8 +398,30 @@ struct MessageBubble: View {
                         .strokeBorder(Design.Colors.hairline, lineWidth: 1)
                 }
         } else {
+            // Doc/text chip — what was ACTUALLY sent: a file whose text was
+            // inlined into the turn (#43), including OCR-extracted
+            // `…extracted.md` attachments (#8) and voice-memo transcripts
+            // (#9). Images that shipped as image_url parts render as
+            // thumbnails in the branch above; a text-inlined file must never
+            // masquerade as an image.
             HStack(spacing: Design.Spacing.xxs) {
-                Image(systemName: "doc")
+                // Voice memo (#9): the transcript shipped; the audio stays
+                // playable from the bubble — but only while the local file
+                // actually exists (no dead play button, real data only).
+                if let audioPath = attachment.voiceMemoAudioPath,
+                   VoiceMemoPlayer.canPlay(path: audioPath) {
+                    let player = VoiceMemoPlayer.shared
+                    Button {
+                        player.togglePlayback(path: audioPath)
+                    } label: {
+                        Image(systemName: player.isPlaying(path: audioPath) ? "stop.circle.fill" : "play.circle.fill")
+                            .font(.system(size: Design.Size.iconMedium))
+                            .foregroundStyle(Design.Brand.accent)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(player.isPlaying(path: audioPath) ? "Stop voice memo" : "Play voice memo")
+                }
+                Image(systemName: attachmentChipIcon(for: attachment))
                     .font(.system(size: Design.Size.iconSmall))
                     .foregroundStyle(Design.Brand.accent)
                 Text(attachment.fileName)
@@ -416,6 +438,11 @@ struct MessageBubble: View {
                 fill: Design.Colors.surface
             )
         }
+    }
+
+    private func attachmentChipIcon(for attachment: MessageAttachment) -> String {
+        if attachment.voiceMemoAudioPath != nil { return "waveform" }
+        return attachment.mimeType == "application/pdf" ? "doc.richtext" : "doc.text"
     }
 
     // MARK: - Agent File Bubbles (#21 Tier 1)

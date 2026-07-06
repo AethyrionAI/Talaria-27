@@ -160,7 +160,20 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
 - Issues tracked in `OPEN_ITEMS.md` (dated update notes); session continuity in
   the local `handoffs/` notes (gitignored) + `CLEAN_CHAT_PATH.md`.
 
-## Current state (2026-07-03)
+## Current state (2026-07-06)
+
+- **Wave 2 (Issues E–H / GitHub #6–#9) built on `claude/issues-5-8-batches-cue3vb`**
+  (AethyrionAI/Talaria-27): Ask Hermes App Intent (OPEN_ITEMS #56), attachment
+  text-inlining + explicit Extract Text OCR closing the #43 silent drop (#57), Control
+  Center / Lock Screen controls (#58), voice-memo attachments (#59). **Cloud-written,
+  NOT compiled or device-verified** — next Mac session must `xcodegen generate`
+  (re-verify `aps-environment`, #44/#48), run the CLI build + tests, and work the
+  per-item checklists in OPEN_ITEMS #56–#59. The iOS 27 beta LongRunningIntent adoption
+  is parked behind the undefined `TALARIA_IOS27_INTENTS` flag; the delimited text-part
+  surface lives in `Services/Support/AttachmentInlining.swift` (shared by #57 file
+  inlining and #59 transcripts).
+
+## Prior state (2026-07-03)
 
 - **Theme system built on `claude/theming-options-plan-c4356l`** (#49): four themes ×
   three accent slots, palette core in `Shared/`, textures, per-theme orbs, theme picker,
