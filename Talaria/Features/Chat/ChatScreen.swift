@@ -619,7 +619,10 @@ struct ChatScreen: View {
             } else {
                 let current = chatStore.conversation?.title ?? "Hermes"
                 let id = chatStore.conversation.map { String($0.id.uuidString.prefix(8)) } ?? "—"
-                appendSystemMessage("Session ID: \(id)…\nTitle: \(current)\nUsage: /title <your session title>")
+                // #4.8: the on-device preview, when the first exchange has
+                // been summarized.
+                let previewLine = chatStore.conversation?.generatedPreview.map { "\nPreview: \($0)" } ?? ""
+                appendSystemMessage("Session ID: \(id)…\nTitle: \(current)\(previewLine)\nUsage: /title <your session title>")
             }
 
         default:
