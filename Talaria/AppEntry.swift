@@ -1,10 +1,11 @@
 import SwiftUI
 import UIKit
+import UserNotifications
 import os
 
 private let appDelegateLog = Logger(subsystem: "org.aethyrion.talaria", category: "AppDelegate")
 
-final class HermesAppDelegate: NSObject, UIApplicationDelegate {
+final class HermesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -18,10 +19,40 @@ final class HermesAppDelegate: NSObject, UIApplicationDelegate {
         // Register for remote (silent push) notifications
         application.registerForRemoteNotifications()
 
+        // Receive notification taps + foreground presentation
+        UNUserNotificationCenter.current().delegate = self
+
         Task { @MainActor in
             await AppContainer.sharedDefault().handleSystemLaunch()
         }
         return true
+    }
+
+    // MARK: - UNUserNotificationCenterDelegate
+
+    // Show banner + sound even when the app is in the foreground.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
+    }
+
+    // User tapped a notification. Remote completion pushes carry `session_id`
+    // (set by the relay's run-completion watcher); local completion
+    // notifications don't. Route to chat, open the pushed session when named,
+    // and reconcile so the finished reply is fetched.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let sessionID = response.notification.request.content.userInfo["session_id"] as? String
+        Task { @MainActor in
+            await AppContainer.sharedDefault().handleNotificationTap(sessionID: sessionID)
+        }
+        completionHandler()
     }
 
     func application(
@@ -101,7 +132,13 @@ struct TalariaApp: App {
                         ThemeRuntime.shared.apply(container.settingsStore.settings)
                         Task { await container.handleAppDidBecomeActive() }
                     } else if newPhase == .background {
-                        Task { await container.reportAppStateIfNeeded("background") }
+                        Task {
+                            await container.reportAppStateIfNeeded("background")
+                            // Walking away mid-run: hand the completion notify
+                            // off to the relay's APNs watcher (#38), since the
+                            // in-app reconcile loop can't tick while suspended.
+                            await container.watchPendingRunIfNeeded()
+                        }
                     }
                     // Note: voice sessions are NOT ended on background.
                     // The "audio" background mode keeps WebRTC alive so

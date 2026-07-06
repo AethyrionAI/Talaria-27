@@ -339,6 +339,16 @@ final class AppContainer {
         container.chatStore.onConversationChanged = { [weak container] in
             container?.updateWidgetData()
         }
+        // Run-completion push watch (#38): when a stream detaches while the
+        // app is leaving the foreground, ask the relay to watch the session
+        // and fire APNs on completion; when the app reconciles the run on its
+        // own, withdraw the watch so no stale push arrives.
+        container.chatStore.onRunDetached = { [weak container] sessionId in
+            Task { await container?.postPushWatch(sessionId: sessionId) }
+        }
+        container.chatStore.onRunResolved = { [weak container] sessionId in
+            Task { await container?.cancelPushWatch(sessionId: sessionId) }
+        }
         container.talkStore.onSessionStateChanged = { [weak container] in
             container?.updateWidgetData()
         }
@@ -437,6 +447,21 @@ final class AppContainer {
         updateWidgetData()
     }
 
+    /// User tapped a completion notification — bring the app to chat and
+    /// reconcile so the finished reply is fetched. `sessionID` (from the
+    /// remote push payload) targets the specific conversation; local
+    /// completion notifications pass nil and land on the active one.
+    func handleNotificationTap(sessionID: String?) async {
+        guard pairingStore.isPaired else { return }
+        router.activeSheet = nil
+        router.popToRoot()
+        router.selectedTab = .chat
+        if let sessionID, !sessionID.isEmpty {
+            await chatStore.openSession(sessionID)
+        }
+        await chatStore.reconcilePendingRuns()
+    }
+
     func handleRemoteNotificationWake() async {
         containerLog.notice("handleRemoteNotificationWake: entered")
         guard pairingStore.isPaired else {
@@ -447,6 +472,11 @@ final class AppContainer {
             containerLog.warning("handleRemoteNotificationWake: BLOCKED — no access token")
             return
         }
+
+        // A push that woke us almost always means a run finished server-side;
+        // reconcile so the reply is fetched and the completion notification
+        // can fire.
+        await chatStore.reconcilePendingRuns()
 
         await permissionsStore.reloadCapabilities()
         await hostStore.refresh()
@@ -674,6 +704,60 @@ final class AppContainer {
             return
         }
         await registerPushTokenIfNeeded(storedToken)
+    }
+
+    // MARK: - Run-completion push watch (#38)
+    //
+    // Chat rides the direct :8642 path, so the relay never sees a run happen.
+    // These calls are the bridge: on detach the app names the session it
+    // walked away from, the relay polls the gateway's messages endpoint, and
+    // an APNs alert (payload `session_id`) fires when the reply lands. All
+    // best-effort — a failed watch just means no push, and the existing
+    // foreground reconcile still recovers the reply.
+
+    /// Asks the relay to watch the currently pending run, if there is one.
+    /// Called on the background transition; the stream-detach callback
+    /// (`onRunDetached`) covers the lock-mid-stream case where the scene
+    /// phase change has already passed.
+    func watchPendingRunIfNeeded() async {
+        guard let sessionId = chatStore.pendingRunSessionId else { return }
+        await postPushWatch(sessionId: sessionId)
+    }
+
+    func postPushWatch(sessionId: String) async {
+        guard settingsStore.settings.notificationsEnabled,
+              sessionStore.state.pushTokenRegistered,
+              let apiClient,
+              let accessToken = await sessionStore.currentAccessToken()
+        else { return }
+
+        struct WatchBody: Encodable { let sessionId: String }
+        struct WatchResponse: Decodable {}
+
+        do {
+            let _: WatchResponse = try await apiClient.post(
+                path: "push/watch",
+                body: WatchBody(sessionId: sessionId),
+                accessToken: accessToken
+            )
+            containerLog.notice("postPushWatch: relay watching session for completion push")
+        } catch {
+            containerLog.notice("postPushWatch: failed (no completion push this run): \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    func cancelPushWatch(sessionId: String) async {
+        guard let apiClient,
+              let accessToken = await sessionStore.currentAccessToken() else { return }
+
+        struct CancelBody: Encodable { let sessionId: String }
+        struct CancelResponse: Decodable {}
+
+        _ = try? await apiClient.post(
+            path: "push/watch/cancel",
+            body: CancelBody(sessionId: sessionId),
+            accessToken: accessToken
+        ) as CancelResponse
     }
 
     /// Fetches the dynamic slash command catalog from the connected Hermes host.

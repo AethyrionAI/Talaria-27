@@ -57,9 +57,22 @@ final class ChatStore {
     private var pendingRun: PendingRun?
     private var reconcileTask: Task<Void, Never>?
 
+    /// Session id of the run awaiting reconcile, if any — what the relay's
+    /// completion watcher needs to be told about (#38).
+    var pendingRunSessionId: String? { pendingRun?.sessionId }
+
     /// Called when conversation content changes (new message, streaming complete).
     /// Used by AppContainer to push widget data updates.
     var onConversationChanged: (@MainActor () -> Void)?
+
+    /// A run detached while the app was leaving the foreground — the in-app
+    /// reconcile loop can't tick once suspended, so AppContainer hands the
+    /// completion notify to the relay's APNs watcher (#38).
+    var onRunDetached: (@MainActor (String) -> Void)?
+
+    /// A previously detached run was reconciled in-app; AppContainer
+    /// withdraws the relay watch so no stale push arrives.
+    var onRunResolved: (@MainActor (String) -> Void)?
 
     init(hermesClient: any HermesClientProtocol, persistence: any AppPersistenceStoreProtocol) {
         self.hermesClient = hermesClient
@@ -241,6 +254,14 @@ final class ChatStore {
                         sentAt: self.pendingMessageSentAt ?? .now
                     )
                     self.startReconcileLoopIfNeeded()
+                    // Streams overwhelmingly detach because the app left the
+                    // foreground (lock/background) — that's the case where only
+                    // a remote push can announce completion. A rare in-app
+                    // network blip also lands here; the watch is still harmless
+                    // (the reconcile loop resolves first and cancels it).
+                    if UIApplication.shared.applicationState != .active {
+                        self.onRunDetached?(sessionId)
+                    }
 
                 case .failed(let errorMessage):
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
@@ -295,6 +316,9 @@ final class ChatStore {
     func clearConversation() async throws {
         reconcileTask?.cancel()
         reconcileTask = nil
+        if let abandoned = pendingRun {
+            onRunResolved?(abandoned.sessionId)
+        }
         pendingRun = nil
         streamingTask?.cancel()
         streamingTask = nil
@@ -667,6 +691,7 @@ final class ChatStore {
         }
         pendingRun = nil
         pendingMessageSentAt = nil
+        onRunResolved?(pending.sessionId)
         if let conversation {
             persistence.saveConversationCache(conversation)
             onConversationChanged?()
