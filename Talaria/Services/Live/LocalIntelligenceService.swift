@@ -21,8 +21,10 @@ final class LocalIntelligenceService {
     }
 
     /// Guided-generation shape for the title + preview call (#4.8).
+    // fileprivate, not private: the @Generable macro expansion emits code
+    // that cannot see a private nested type.
     @Generable
-    private struct GeneratedCard {
+    fileprivate struct GeneratedCard {
         @Guide(description: "Title for the conversation: 2 to 6 plain-text words, no quotes, no trailing punctuation.")
         var title: String
         @Guide(description: "One sentence, at most 90 characters, saying what the conversation is about.")

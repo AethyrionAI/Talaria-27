@@ -38,7 +38,9 @@ struct LocalIntelligenceTests {
             userText: "",
             assistantText: "That photo shows the Golden Gate Bridge at sunset."
         )
-        #expect(card.title == "That photo shows the Golden Gate Bridge at sunset")
+        // The reply is 50 chars — over the 48-char title cap, so the title
+        // word-boundary-truncates; the 90-char preview keeps it whole.
+        #expect(card.title == "That photo shows the Golden Gate Bridge at…")
         #expect(card.preview == "That photo shows the Golden Gate Bridge at sunset")
     }
 
