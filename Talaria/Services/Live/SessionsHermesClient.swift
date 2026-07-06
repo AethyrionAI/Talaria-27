@@ -497,7 +497,7 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// tolerantly (`delta`/`content`/`text`/`message`/`preview`, then
     /// `args.{delta,content,text}`) — the same shape-drift posture as the
     /// other SSE parsers here. The exact key ships unverified against the live
-    /// host (device probe pending — see OPEN_ITEMS #4.15); the fallback chain
+    /// host (device probe pending — see OPEN_ITEMS #60); the fallback chain
     /// keeps a key drift from silently killing the feature.
     nonisolated static func thinkingDelta(fromToolProgress raw: String) -> String? {
         guard let data = raw.data(using: .utf8),
