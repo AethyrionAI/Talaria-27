@@ -159,13 +159,13 @@ enum DocumentTextExtractor {
 
     // MARK: - Structured formatting (iOS 26 shapes — verify on Mac)
 
-    /// Render a `DocumentObservation.Container.Document` as readable
-    /// markdown-ish text: the running transcript first (paragraphs in reading
-    /// order), then structured tables/lists, then barcode payloads and a
-    /// detected-data trailer — each section only when present. Table/list text
-    /// may repeat content from the transcript; the duplication is deliberate
-    /// (a repeat is cheaper for the agent than an omission).
-    private static func format(_ document: DocumentObservation.Container.Document) -> String {
+    /// Render a `DocumentObservation.Container` as readable markdown-ish
+    /// text: the running transcript first (paragraphs in reading order), then
+    /// structured tables/lists, then barcode payloads and a detected-data
+    /// trailer — each section only when present. Table/list text may repeat
+    /// content from the transcript; the duplication is deliberate (a repeat
+    /// is cheaper for the agent than an omission).
+    private static func format(_ document: DocumentObservation.Container) -> String {
         var sections: [String] = []
 
         // iOS 26 Vision API — verify on Mac: `document.text.transcript`.
@@ -220,11 +220,11 @@ enum DocumentTextExtractor {
         return lines.joined(separator: "\n")
     }
 
-    /// iOS 26 Vision API — verify on Mac: `list.items` elements expose
-    /// `.text.transcript` like the other containers.
+    /// iOS 26 Vision API — verified on Mac: `list.items` elements expose
+    /// `.content.text.transcript` (item wraps a Container, not Text directly).
     private static func markdownList(_ list: DocumentObservation.Container.List) -> String? {
         let items = list.items
-            .map { $0.text.transcript.replacingOccurrences(of: "\n", with: " ") }
+            .map { $0.content.text.transcript.replacingOccurrences(of: "\n", with: " ") }
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         guard !items.isEmpty else { return nil }
         return items.map { "- \($0)" }.joined(separator: "\n")
@@ -236,7 +236,7 @@ enum DocumentTextExtractor {
     /// addresses / other kinds need their payload shapes checked against the
     /// SDK before formatting (their raw text is in the transcript regardless),
     /// so they fall through `default` for now.
-    private static func detectedDataLines(in document: DocumentObservation.Container.Document) -> [String] {
+    private static func detectedDataLines(in document: DocumentObservation.Container) -> [String] {
         var lines: [String] = []
         for item in document.text.detectedData {
             switch item.match.details {
@@ -244,8 +244,8 @@ enum DocumentTextExtractor {
                 lines.append("Email: \(email.emailAddress)")
             case .phoneNumber(let phone):
                 lines.append("Phone: \(phone.phoneNumber)")
-            case .link(let url):
-                lines.append("URL: \(url.absoluteString)")
+            case .link(let link):
+                lines.append("URL: \(link.url.absoluteString)")
             default:
                 break
             }

@@ -54,7 +54,7 @@ struct ChatStorePersistenceTests {
         }
     }
 
-    private func makePersistence() -> UserDefaultsAppPersistenceStore {
+    @MainActor private func makePersistence() -> UserDefaultsAppPersistenceStore {
         let suiteName = "chat-store-persistence-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
