@@ -168,7 +168,7 @@ final class AlarmService {
         let titleResource = LocalizedStringResource(String.LocalizationValue(title))
         // Deep Field hero cyan (ThemePaletteCore) — a static value because the
         // attributes are encoded into the system alarm, not theme-resolved live.
-        let tint = Color(hex: "54E6F0")
+        let tint = Color(hex: 0x54E6F0)
         let stopButton = AlarmButton(text: "Stop", textColor: .white, systemImageName: "stop.circle")
         let alert = AlarmPresentation.Alert(title: titleResource, stopButton: stopButton)
         let metadata = TalariaAlarmMetadata(label: request.label)
