@@ -162,6 +162,21 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
 
 ## Current state (2026-07-06)
 
+- **Wave 4 (GitHub #13–#17) built as five per-issue branches off this branch's
+  tip (656dee2), one PR each into `claude/wave-4-issues-13-17-qu38px`:**
+  PR #20 = #13 stale-test fixes (test-only, OPEN_ITEMS #62); PR #22 = #14
+  BGAppRefreshTask + BGContinuedProcessingTask background wake (#63); PR #21 =
+  #15 widget-side HealthKit queries via new `Shared/HealthQueryCore.swift`
+  (#64); PR #23 = #16 AlarmKit `/alarm` executor behind the in-app confirm
+  gate (#65); PR #24 = #17 Spotlight IndexedEntity donation + OpenSessionIntent,
+  toggle default OFF (#66). **Cloud-written, NOT compiled or device-verified** —
+  next Mac session: merge the PRs (project.yml/Info.plist edits from #14/#15/#16
+  land in different hunks), `xcodegen generate` (9 new files; re-verify
+  `aps-environment` + the new widget HealthKit entitlement per #44/#48), CLI
+  build + tests, then the per-item device checklists in OPEN_ITEMS #62–#66.
+  New-API compile risks flagged in the PRs: AlarmKit configuration/presentation
+  shapes (#16), `BGContinuedProcessingTaskRequest` (#14), `indexAppEntities`
+  (#17).
 - **Wave 2 (Issues E–H / GitHub #6–#9) built on `claude/issues-5-8-batches-cue3vb`**
   (AethyrionAI/Talaria-27): Ask Hermes App Intent (OPEN_ITEMS #56), attachment
   text-inlining + explicit Extract Text OCR closing the #43 silent drop (#57), Control
