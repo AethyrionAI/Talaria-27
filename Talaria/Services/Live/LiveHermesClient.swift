@@ -288,7 +288,7 @@ final class LiveHermesClient: HermesClientProtocol {
             return DemoData.sampleConversation
         }
 
-        return Conversation(title: "Hermes")
+        return Conversation(title: Conversation.defaultTitle)
     }
 
     private func mapConversation(_ relayConversation: RelayConversation) -> Conversation {

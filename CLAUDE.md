@@ -172,6 +172,18 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
   is parked behind the undefined `TALARIA_IOS27_INTENTS` flag; the delimited text-part
   surface lives in `Services/Support/AttachmentInlining.swift` (shared by #57 file
   inlining and #59 transcripts).
+- **Wave 3 built on `claude/wave-3-on-device-intelligence-rxht4l`** (Wave 2 merged in):
+  on-device intelligence. 4.15: `_thinking` reasoning deltas forwarded as
+  `StreamingUpdate.reasoningDelta` → live line in the streaming placeholder + collapsed
+  REASONING chevron on the bubble (raw text persisted on `Message.reasoning`; the exact
+  `tool.progress` delta key still needs a device probe — tolerant parser + wire-mode
+  hedge, OPEN_ITEMS #60). 4.8: `LocalIntelligenceService` (FoundationModels) generates
+  `{title, preview}` after the first completed exchange → `setConversationTitle` +
+  `Conversation.generatedPreview`; truncation fallback off-AI-hardware; reasoning
+  condensed to one line when foregrounded (OPEN_ITEMS #61). Adversarially reviewed
+  same-session (10 findings fixed — see the #60/#61 update notes). **Not yet compiled** —
+  next Mac session: `xcodegen generate` (1 new source file + 2 test files), CLI build,
+  device verify.
 
 ## Prior state (2026-07-03)
 

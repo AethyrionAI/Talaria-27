@@ -7,6 +7,9 @@ struct MessageBubble: View {
     @Environment(SpeechOutputService.self) private var speechOutput
     @Environment(TalkStore.self) private var talkStore
 
+    // #4.15: reasoning disclosure. Collapsed by default; per-bubble state.
+    @State private var isReasoningExpanded = false
+
     private var isUser: Bool { message.sender == .user || message.sender == .voiceUser }
     private var isHermes: Bool { message.sender == .hermes || message.sender == .voiceHermes }
     private var isCompactionMessage: Bool { message.content.hasPrefix("[CONTEXT COMPACTION]") }
@@ -131,6 +134,13 @@ struct MessageBubble: View {
             } else if message.isStreaming && message.content.isEmpty && message.toolActivities.isEmpty {
                 streamingPlaceholder
             } else {
+                // #4.15: reasoning sits above the answer — where it happened.
+                // While still content-less the live line renders inside the
+                // streaming placeholder instead, so don't double it up here.
+                // (Presence/blankness is the disclosure's own guard.)
+                if !(message.isStreaming && message.content.isEmpty) {
+                    reasoningDisclosure
+                }
                 if message.toolActivities.isEmpty {
                     if !message.content.isEmpty {
                         streamingText
@@ -333,8 +343,108 @@ struct MessageBubble: View {
     }
 
     private var streamingPlaceholder: some View {
-        TypingDotsView()
-            .padding(.vertical, Design.Spacing.sm)
+        VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+            TypingDotsView()
+
+            // #4.15: while the model is still reasoning (no answer text yet),
+            // show the newest `_thinking` line verbatim under the dots.
+            if let reasoning = message.reasoning,
+               let line = Self.lastReasoningLine(reasoning) {
+                Text(line)
+                    .font(Design.Typography.monoSmall)
+                    .tracking(Design.Tracking.mono)
+                    .foregroundStyle(Design.Colors.mutedForeground)
+                    .lineLimit(2)
+            }
+        }
+        .padding(.vertical, Design.Spacing.sm)
+    }
+
+    // MARK: - Reasoning Disclosure (#4.15)
+
+    /// Collapsed: chevron + one line — the on-device condensation when
+    /// available (#4.8), else the last raw reasoning line. Expanded: the raw
+    /// reasoning verbatim. Owns the presence check, and requires actual words:
+    /// a whitespace-only `_thinking` stream must not render a blank row.
+    @ViewBuilder
+    private var reasoningDisclosure: some View {
+        if let reasoning = message.reasoning,
+           !reasoning.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                Button {
+                    withAnimation(Design.Motion.standard) { isReasoningExpanded.toggle() }
+                } label: {
+                    HStack(spacing: Design.Spacing.xs) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(Design.Colors.dimForeground)
+                            .rotationEffect(.degrees(isReasoningExpanded ? 90 : 0))
+
+                        MonoLabel(
+                            "Reasoning",
+                            size: 9,
+                            tracking: Design.Tracking.monoWide,
+                            color: Design.Colors.dimForeground
+                        )
+
+                        if !isReasoningExpanded, let line = collapsedReasoningLine {
+                            Text(line)
+                                .font(Design.Typography.monoSmall)
+                                .tracking(Design.Tracking.mono)
+                                .foregroundStyle(Design.Colors.mutedForeground)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isReasoningExpanded ? "Hide reasoning" : "Show reasoning")
+
+                if isReasoningExpanded {
+                    Text(reasoning)
+                        .font(Design.Typography.monoSmall)
+                        .foregroundStyle(Design.Colors.mutedForeground)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(Design.Spacing.sm)
+                        .hudPanel(
+                            cornerRadius: Design.CornerRadius.md,
+                            borderColor: Design.Colors.accentTint(0.12),
+                            fill: Design.Colors.surface
+                        )
+                }
+            }
+        }
+    }
+
+    /// The one-liner for the collapsed row: prefer the on-device condensation
+    /// (#4.8); fall back to the last raw line so the row is never blank.
+    private var collapsedReasoningLine: String? {
+        if let summary = message.reasoningSummary, !summary.isEmpty { return summary }
+        return message.reasoning.flatMap(Self.lastReasoningLine)
+    }
+
+    /// Last non-blank line of the reasoning stream — the "what is it working
+    /// out right now" line shown verbatim while streaming, and the collapsed
+    /// fallback afterwards. Scans backward without splitting: this runs on
+    /// every render of a streaming bubble whose reasoning grows per delta, so
+    /// an O(whole-string) split here would be O(N²) across a long think.
+    static func lastReasoningLine(_ reasoning: String) -> String? {
+        var searchEnd = reasoning.endIndex
+        while searchEnd > reasoning.startIndex {
+            let lineStart: String.Index
+            if let newline = reasoning[..<searchEnd].lastIndex(of: "\n") {
+                lineStart = reasoning.index(after: newline)
+            } else {
+                lineStart = reasoning.startIndex
+            }
+            let trimmed = reasoning[lineStart ..< searchEnd].trimmingCharacters(in: .whitespaces)
+            if !trimmed.isEmpty { return trimmed }
+            guard lineStart > reasoning.startIndex else { return nil }
+            searchEnd = reasoning.index(before: lineStart)
+        }
+        return nil
     }
 
     private func toolActivityPill(_ label: String) -> some View {

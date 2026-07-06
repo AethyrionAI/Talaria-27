@@ -1582,3 +1582,84 @@ play), then send over tailnet; confirm finalized-result concatenation spacing on
 attachments today) — worth a sweep task later?
 
 Logged 2026-07-06.
+## 60. 🔧 Wave 3 / 4.15 — `_thinking` reasoning channel surfaced; delta key needs device probe
+
+Reasoning deltas are no longer dropped at the `tool.progress` handler:
+`SessionsHermesClient` forwards `tool_name:"_thinking"` payloads as
+`StreamingUpdate.reasoningDelta`, `ChatStore` accumulates them on the streaming
+placeholder, and the Hermes bubble shows the newest line verbatim under the
+typing dots, then a collapsed **Reasoning** chevron row after the turn
+(expanded = raw reasoning, selectable). Raw reasoning + its one-line summary
+persist on `Message` (`reasoning` / `reasoningSummary`, decodeIfPresent — old
+caches fine) and survive server refreshes (the stored transcript filters
+`_thinking`, so the merge preserves the local copy). Mock client streams demo
+reasoning so the UI is exercisable without a host.
+
+**Unverified:** the exact delta-text key inside the `tool.progress` payload.
+The parser tries `delta`/`content`/`text`/`message`/`preview`, then
+`args.{delta,content,text}` (`SessionsHermesClient.thinkingDelta`, unit-tested
+for all spellings). **Next OJAMD session:** run a reasoning-model streaming turn
+with `curl -N` and pin the real key; if it's something else entirely, add it to
+the chain. `<think>…</think>` fold-in splitter (CLEAN_CHAT_PATH Phase 2
+fallback) deliberately not built — no observed need on the Sessions API.
+
+Written cloud-side 2026-07-06 (branch `claude/wave-3-on-device-intelligence-rxht4l`);
+not yet compiled — needs `xcodegen generate` + CLI build + device verify.
+
+**Update 2026-07-06 (same-session adversarial review pass, 8 finder angles + verify):**
+- **Wire-mode hedge added:** whether `_thinking` events carry increments or cumulative
+  snapshots is as unverified as the delta key. `incrementalReasoningDelta(from:assembled:)`
+  forwards only the new suffix when a chunk starts with everything assembled so far
+  (unit-tested both modes) — cumulative hosts can no longer duplicate text quadratically.
+- **Late reasoning kept:** reasoning now attaches to the final message at the yield
+  (run.completed / stream-end fallback) from the full accumulator, not frozen at
+  assistant.completed.
+- **Interrupted runs keep their reasoning:** the `.interrupted` path captures the
+  placeholder's partial reasoning onto the pending run and re-attaches it when reconcile
+  adopts the server reply (the server transcript filters `_thinking`).
+- **Blank-row guard:** a whitespace-only `_thinking` stream no longer renders an empty
+  Reasoning chevron row; `lastReasoningLine` also rewritten as a backward scan (the split
+  version was O(N²) across a long think). Foreground condensation now drains up to 3
+  pending replies per pass instead of only the newest.
+
+## 61. 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels
+
+New `Services/Live/LocalIntelligenceService.swift` (FoundationModels): after the
+first completed exchange, `ChatStore` generates `{title, preview}` on-device and
+writes through `setConversationTitle`; the preview lands on
+`Conversation.generatedPreview` (persisted; surfaced in the `/title` readout).
+Runs only while the title is still the `Conversation.defaultTitle` placeholder —
+a manual `/title` is never overwritten. Same service condenses #60's reasoning
+to one line when foregrounded (also caught up on foreground return via
+`AppContainer.handleAppDidBecomeActive`).
+
+- Input trimming: `SystemLanguageModel.contextSize` (back-deployed 26.0; 8192 on
+  iOS 27 hardware) minus headroom; measured with `tokenCount(for:)` behind an
+  `#available(iOS 26.4, *)` guard (chars/3 conservative estimate below it).
+  API signatures verified against Apple docs JSON 2026-07-06.
+- Model unavailable (non-AI hardware, Apple Intelligence off, model
+  downloading) → deterministic truncation fallback (first meaningful lines,
+  word-boundary caps; fenced code never becomes a title). Unit-tested.
+- Guided generation via `@Generable` struct; guardrail/context errors also fall
+  back to truncation. Titles stay local — no Sessions-API title write (the API
+  has no verified endpoint for it; candidate follow-up).
+
+Same not-compiled caveat as #60. Device verify: first exchange in a fresh chat
+titles itself (~seconds later, `/title` shows Title + Preview); reasoning row
+collapses to a generated one-liner on AI hardware, last raw line otherwise.
+
+**Update 2026-07-06 (same-session adversarial review pass):**
+- **Critical fix — title/preview merge revert:** `mergeConversationMetadata` now preserves
+  the local conversation title (when the refreshed base still has the placeholder) and
+  `generatedPreview`. Without this, every post-turn merge into the Sessions client's empty
+  `currentConversation` reverted the title to "Hermes" — re-tripping the generation gate
+  every turn — and wiped the preview. Also fixes the long-standing quirk of a manual
+  `/title` reverting on the next exchange. Regression-tested
+  (`mergeKeepsLocalTitleAndPreviewOverPlaceholderBase`).
+- **Attachment-only first turn:** the synthetic "[N attachment(s)]" display placeholder is
+  no longer eligible as a title source (`normalizedRetryContent` maps it to "" — card
+  derives from the reply instead).
+- Placeholder-title literals consolidated onto `Conversation.defaultTitle` at every
+  construction site; token budget deduped (`promptInputBudget`); tokenizer round-trip
+  skipped when `utf8.count <= budget` (every token ≥ 1 byte); fallback card computed
+  lazily off the happy path.

@@ -67,6 +67,18 @@ final class MockHermesClient: HermesClientProtocol {
                 try? await Task.sleep(for: .seconds(0.5))
                 continuation.yield(.toolActivity(ToolCallEvent(name: "Searching...")))
 
+                // #4.15: exercise the reasoning channel in mock/demo sessions
+                // so the live line + disclosure UI are visible without a host.
+                let reasoningLines = [
+                    "Reading the request…",
+                    "Checking what I already know…",
+                    "Composing a reply…",
+                ]
+                for (index, line) in reasoningLines.enumerated() {
+                    try? await Task.sleep(for: .milliseconds(250))
+                    continuation.yield(.reasoningDelta(index == 0 ? line : "\n" + line))
+                }
+
                 // Simulate streaming text
                 try? await Task.sleep(for: .seconds(0.3))
                 let response = self.generateResponse(for: content)
@@ -79,7 +91,8 @@ final class MockHermesClient: HermesClientProtocol {
                 let hermesMessage = Message(
                     sender: .hermes,
                     content: response,
-                    status: .delivered
+                    status: .delivered,
+                    reasoning: reasoningLines.joined(separator: "\n")
                 )
                 self.currentConversation?.messages.append(hermesMessage)
 
@@ -100,7 +113,7 @@ final class MockHermesClient: HermesClientProtocol {
     }
 
     func clearConversation() async throws -> Conversation {
-        let fresh = Conversation(title: "Hermes")
+        let fresh = Conversation(title: Conversation.defaultTitle)
         currentConversation = fresh
         return fresh
     }
