@@ -70,6 +70,10 @@ enum ThemeBackgroundTexture: Hashable, Sendable {
     case scanlines
     /// Static ink speckle + fiber grain (Paper Tape).
     case paperGrain
+    /// Drifting multi-hue star specks (Event Horizon lensed starlight).
+    /// Speck hues come from the app-side `ThemeArtDirectionCatalog` — widgets
+    /// never draw textures, so the shared palette only *selects* this.
+    case starfield
 }
 
 /// Which of `ReactorOrb`'s view compositions a theme renders. Like
@@ -1187,7 +1191,7 @@ enum ThemePaletteCatalog {
             ThemeGradientStop(color: Color(hex: 0x040208), location: 1.0),
         ],
         drawerColors: [Color(hex: 0x100A1A), Color(hex: 0x08050F), Color(hex: 0x040208)],
-        texture: .embers,
+        texture: .starfield,
         ramp: ThemeForegroundRamp(
             foreground: Color(hex: 0xF7F4FF),
             foregroundBright: Color(hex: 0xF7F4FF),
@@ -1208,7 +1212,8 @@ enum ThemePaletteCatalog {
         dangerBright: Color(hex: 0xFF5858),
         accents: ThemeAccentVariants(
             cyan: ThemeAccentVariant(
-                displayName: "Violet · Horizon",
+                // Handoff-native slot names (theme-event-horizon.html).
+                displayName: "Accretion Violet",
                 base: Color(hex: 0x8A5CFF),
                 bright: Color(hex: 0xA784FF),
                 deep: Color(hex: 0x6040B2),
@@ -1217,7 +1222,7 @@ enum ThemePaletteCatalog {
                 forge: Color(hex: 0xFF9E00)
             ),
             amber: ThemeAccentVariant(
-                displayName: "Cyan · Horizon",
+                displayName: "Hawking Cyan",
                 base: Color(hex: 0x00F0FF),
                 bright: Color(hex: 0x3FF3FF),
                 deep: Color(hex: 0x00A8B2),
@@ -1226,7 +1231,7 @@ enum ThemePaletteCatalog {
                 forge: Color(hex: 0xFF9E00)
             ),
             violet: ThemeAccentVariant(
-                displayName: "Gold · Horizon",
+                displayName: "Supernova Gold",
                 base: Color(hex: 0xFFDC50),
                 bright: Color(hex: 0xFFE47B),
                 deep: Color(hex: 0xB29A38),
