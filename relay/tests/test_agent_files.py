@@ -104,7 +104,7 @@ def test_resolver_404_when_unconfigured_or_missing(tmp_path):
 def test_download_route_happy_path(tmp_path):
     files_dir = tmp_path / "MobileDL"
     files_dir.mkdir()
-    (files_dir / "report.md").write_text("# Hermes report\nbody")
+    (files_dir / "report.md").write_bytes(b"# Hermes report\nbody")
 
     with build_client(tmp_path, agent_files_dir=str(files_dir)) as client:
         token = register_device(client)["auth"]["accessToken"]
@@ -121,7 +121,7 @@ def test_download_route_happy_path(tmp_path):
 def test_download_route_requires_auth(tmp_path):
     files_dir = tmp_path / "MobileDL"
     files_dir.mkdir()
-    (files_dir / "report.md").write_text("x")
+    (files_dir / "report.md").write_bytes(b"x")
 
     with build_client(tmp_path, agent_files_dir=str(files_dir)) as client:
         response = client.get("/v1/device/files", params={"path": "report.md"})
