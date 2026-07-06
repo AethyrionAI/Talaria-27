@@ -398,8 +398,13 @@ struct MessageBubble: View {
                         .strokeBorder(Design.Colors.hairline, lineWidth: 1)
                 }
         } else {
+            // Doc/text chip — what was ACTUALLY sent: a file whose text was
+            // inlined into the turn (#43), including OCR-extracted
+            // `…extracted.md` attachments (#8). Images that shipped as
+            // image_url parts render as thumbnails in the branch above; a
+            // text-inlined file must never masquerade as an image.
             HStack(spacing: Design.Spacing.xxs) {
-                Image(systemName: "doc")
+                Image(systemName: attachment.mimeType == "application/pdf" ? "doc.richtext" : "doc.text")
                     .font(.system(size: Design.Size.iconSmall))
                     .foregroundStyle(Design.Brand.accent)
                 Text(attachment.fileName)

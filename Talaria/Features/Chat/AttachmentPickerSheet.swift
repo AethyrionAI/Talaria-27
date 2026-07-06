@@ -170,8 +170,12 @@ struct DocumentPickerView: UIViewControllerRepresentable {
     let onComplete: ([URL]) -> Void
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        // .pdf routes through PendingAttachment.file(at:) like everything else;
+        // it stages under the larger PDF cap and requires "Extract text" before
+        // send (#8). .commaSeparatedText covers .csv, which doesn't conform to
+        // .plainText.
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: [
-            .image, .plainText, .sourceCode, .json, .html, .xml, .yaml,
+            .image, .pdf, .plainText, .commaSeparatedText, .sourceCode, .json, .html, .xml, .yaml,
         ], asCopy: true)
         picker.allowsMultipleSelection = false
         picker.delegate = context.coordinator

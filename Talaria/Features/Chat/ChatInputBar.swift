@@ -21,11 +21,28 @@ struct ChatInputBar: View {
     @State private var speechService = LiveSpeechService()
     @State private var dictationBaseText = ""
 
+    // Text extraction (#8): ids of chips with an OCR pass in flight, and the
+    // last failure surfaced as an alert.
+    @State private var extractingAttachmentIDs: Set<UUID> = []
+    @State private var extractionFailureMessage: String?
+
     private var canSend: Bool {
         let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let hasAttachments = !pendingAttachments.isEmpty
         let hasRunnableSlashCommand = isSlashMode && hasText && text.trimmingCharacters(in: .whitespacesAndNewlines) != "/" && !hasAttachments
-        return hasRunnableSlashCommand || ((hasText || hasAttachments) && !isSlashMode)
+        return (hasRunnableSlashCommand || ((hasText || hasAttachments) && !isSlashMode))
+            && !sendBlockedByAttachments
+    }
+
+    /// Send is held while (a) a staged attachment has no wire representation —
+    /// a raw PDF must be extracted or removed, otherwise it would silently
+    /// never transmit, which is exactly #43's pathology — or (b) an extraction
+    /// is in flight for a staged chip. (b) is a deliberate choice over racing
+    /// the original image out mid-OCR: the user explicitly asked for text, so
+    /// the send waits the second or two extraction takes. (#8)
+    private var sendBlockedByAttachments: Bool {
+        pendingAttachments.contains { !$0.isTransmittable }
+            || pendingAttachments.contains { extractingAttachmentIDs.contains($0.id) }
     }
 
     private var isSlashMode: Bool {
@@ -87,6 +104,9 @@ struct ChatInputBar: View {
                 // Attachment preview strip
                 if !pendingAttachments.isEmpty {
                     attachmentPreviewStrip
+                    if pendingAttachments.contains(where: { !$0.isTransmittable }) {
+                        untransmittableHint
+                    }
                 }
 
                 // Text input area
@@ -175,8 +195,10 @@ struct ChatInputBar: View {
                         .accessibilityLabel(speechService.isListening ? "Stop dictation" : "Start dictation")
                     }
 
-                    // Talk mode button (right side, before send)
-                    if !isStreaming && !speechService.isListening && !canSend {
+                    // Talk mode button (right side, before send). Hidden while
+                    // send is blocked on attachments (#8) — the dimmed send
+                    // arrow takes that slot to explain the held state.
+                    if !isStreaming && !speechService.isListening && !canSend && !sendBlockedByAttachments {
                         Button {
                             router.isVoiceOverlayPresented = true
                         } label: {
@@ -223,6 +245,17 @@ struct ChatInputBar: View {
                 dictationBaseText = ""
             }
         }
+        .alert(
+            "Text extraction failed",
+            isPresented: Binding(
+                get: { extractionFailureMessage != nil },
+                set: { if !$0 { extractionFailureMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(extractionFailureMessage ?? "")
+        }
     }
 
     // MARK: - Attachment Preview Strip
@@ -241,7 +274,8 @@ struct ChatInputBar: View {
     }
 
     private func attachmentThumbnail(_ attachment: PendingAttachment) -> some View {
-        ZStack(alignment: .topTrailing) {
+        let isExtracting = extractingAttachmentIDs.contains(attachment.id)
+        return ZStack(alignment: .topTrailing) {
             Group {
                 if let thumbData = attachment.thumbnailData,
                    let uiImage = UIImage(data: thumbData) {
@@ -249,7 +283,9 @@ struct ChatInputBar: View {
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                 } else {
-                    // File icon fallback
+                    // File icon fallback — this is also what an extracted-text
+                    // chip shows (no thumbnail is carried over, #8), so the
+                    // flip from image thumb to text-doc chip is visible.
                     VStack(spacing: 4) {
                         Image(systemName: fileIcon(for: attachment.mimeType))
                             .font(.system(size: 20))
@@ -270,6 +306,47 @@ struct ChatInputBar: View {
                 RoundedRectangle(cornerRadius: Design.CornerRadius.sm)
                     .strokeBorder(Design.Colors.hairline, lineWidth: 1)
             )
+            .overlay {
+                // OCR-in-flight scrim (#8)
+                if isExtracting {
+                    RoundedRectangle(cornerRadius: Design.CornerRadius.sm)
+                        .fill(Design.Colors.scrim)
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(Design.Brand.accent)
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                // Forge badge: this chip has no wire representation yet — an
+                // un-extracted PDF never *looks* sendable (#8).
+                if !attachment.isTransmittable && !isExtracting {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: Design.Size.iconTiny))
+                        .foregroundStyle(Design.Brand.forge)
+                        .padding(3)
+                        .background(Circle().fill(Design.Colors.background))
+                        .offset(x: 4, y: 4)
+                        .accessibilityLabel("Not sendable yet — extract text first")
+                }
+            }
+            .contextMenu {
+                // Explicit per-attachment extraction (#8) — never automatic;
+                // the default for images stays "send the actual image".
+                if attachment.isExtractable && !isExtracting {
+                    Button {
+                        extractText(from: attachment)
+                    } label: {
+                        Label("Extract text", systemImage: "text.viewfinder")
+                    }
+                }
+                Button(role: .destructive) {
+                    withAnimation(Design.Motion.quickResponse) {
+                        pendingAttachments.removeAll { $0.id == attachment.id }
+                    }
+                } label: {
+                    Label("Remove", systemImage: "trash")
+                }
+            }
 
             // Remove button
             Button {
@@ -283,6 +360,49 @@ struct ChatInputBar: View {
                     .background(Circle().fill(Design.Colors.background).padding(2))
             }
             .offset(x: 6, y: -6)
+        }
+    }
+
+    /// Forge banner under the chips while a staged file has no wire shape
+    /// (un-extracted PDF): send is held until it's extracted or removed, so
+    /// an untransmittable attachment can never silently ride a sent message (#8).
+    private var untransmittableHint: some View {
+        HStack(spacing: Design.Spacing.xxs) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: Design.Size.iconTiny))
+                .foregroundStyle(Design.Brand.forge)
+            MonoLabel(
+                "PDF SENDS AS EXTRACTED TEXT — HOLD CHIP TO EXTRACT",
+                size: 9,
+                tracking: Design.Tracking.mono,
+                color: Design.Brand.forge
+            )
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.top, Design.Spacing.xxs)
+    }
+
+    // MARK: - Text Extraction (#8)
+
+    /// Runs on-device OCR (`DocumentTextExtractor`) and swaps the staged
+    /// image/PDF for the resulting text attachment IN PLACE, so the chip shows
+    /// exactly what will transmit. If the user removes the chip mid-OCR, the
+    /// result is discarded rather than re-staged.
+    private func extractText(from attachment: PendingAttachment) {
+        extractingAttachmentIDs.insert(attachment.id)
+        Task {
+            do {
+                let extracted = try await DocumentTextExtractor.extractText(from: attachment)
+                if let index = pendingAttachments.firstIndex(where: { $0.id == attachment.id }) {
+                    withAnimation(Design.Motion.quickResponse) {
+                        pendingAttachments[index] = PendingAttachment.extractedText(from: attachment, text: extracted)
+                    }
+                }
+            } catch {
+                extractionFailureMessage = error.localizedDescription
+            }
+            extractingAttachmentIDs.remove(attachment.id)
         }
     }
 
@@ -334,6 +454,22 @@ struct ChatInputBar: View {
             }
             .accessibilityLabel("Send message")
             .transition(.scale.combined(with: .opacity))
+        } else if sendBlockedByAttachments {
+            // Dimmed, inert send arrow: content is staged but not yet
+            // transmittable (un-extracted PDF, or OCR in flight). Paired with
+            // the forge hint banner so the held state is self-explanatory (#8).
+            Image(systemName: "arrow.up")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(Design.Colors.mutedForeground)
+                .frame(width: 38, height: 38)
+                .background(Design.Colors.surface, in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                        .strokeBorder(Design.Colors.hairline, lineWidth: 1)
+                }
+                .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+                .accessibilityLabel("Send unavailable — extract text from or remove the attachment")
+                .transition(.scale.combined(with: .opacity))
         }
     }
 
