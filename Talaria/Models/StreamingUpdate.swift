@@ -25,6 +25,10 @@ struct ToolCallEvent: Sendable {
 enum StreamingUpdate: Sendable {
     case messageSent(jobID: UUID)
     case textDelta(String)
+    /// Reasoning-channel delta (#4.15): the model's thinking, streamed over
+    /// `tool.progress` events with `tool_name:"_thinking"`. A separate channel
+    /// from the answer — never folded into `textDelta`.
+    case reasoningDelta(String)
     case toolActivity(ToolCallEvent)
     case finished(Message, TokenUsage?, CodeDiff?)
     case failed(String)

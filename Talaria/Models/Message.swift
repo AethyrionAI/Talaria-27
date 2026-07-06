@@ -47,6 +47,14 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
     var toolActivity: String?
     var toolActivities: [ToolActivity]
     var codeDiff: CodeDiff?
+    /// Raw reasoning streamed over the `_thinking` channel (#4.15). Persisted
+    /// with the message so the disclosure survives relaunch; nil for models
+    /// that don't reason (and for pre-#4.15 caches).
+    var reasoning: String?
+    /// One-line on-device condensation of `reasoning` (#4.8 × #4.15).
+    /// Generated after the turn completes while the app is foregrounded; nil
+    /// until then — the UI falls back to the last raw reasoning line.
+    var reasoningSummary: String?
     var isStreaming: Bool
     var voiceSessionDuration: TimeInterval?
     var attachments: [MessageAttachment]
@@ -67,6 +75,8 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         toolActivity: String? = nil,
         toolActivities: [ToolActivity] = [],
         codeDiff: CodeDiff? = nil,
+        reasoning: String? = nil,
+        reasoningSummary: String? = nil,
         isStreaming: Bool = false,
         voiceSessionDuration: TimeInterval? = nil,
         attachments: [MessageAttachment] = []
@@ -81,6 +91,8 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         self.toolActivity = toolActivity
         self.toolActivities = toolActivities
         self.codeDiff = codeDiff
+        self.reasoning = reasoning
+        self.reasoningSummary = reasoningSummary
         self.isStreaming = isStreaming
         self.voiceSessionDuration = voiceSessionDuration
         self.attachments = attachments
@@ -89,6 +101,7 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
     enum CodingKeys: String, CodingKey {
         case id, clientMessageID, sender, content, timestamp, jobID, status, attachments, toolActivities
         case voiceSessionDuration
+        case reasoning, reasoningSummary
     }
 
     init(from decoder: Decoder) throws {
@@ -106,6 +119,10 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         // conversation cache; absent in pre-#10 caches.
         toolActivities = try container.decodeIfPresent([ToolActivity].self, forKey: .toolActivities) ?? []
         codeDiff = nil
+        // Persisted with the message (#4.15) so the reasoning disclosure
+        // survives relaunch; absent in pre-#4.15 caches.
+        reasoning = try container.decodeIfPresent(String.self, forKey: .reasoning)
+        reasoningSummary = try container.decodeIfPresent(String.self, forKey: .reasoningSummary)
         isStreaming = false
         // Persisted with the message (#1) so the voice-session banner keeps its
         // duration across relaunch; absent in older caches.
@@ -128,6 +145,8 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
             try container.encode(toolActivities, forKey: .toolActivities)
         }
         try container.encodeIfPresent(voiceSessionDuration, forKey: .voiceSessionDuration)
+        try container.encodeIfPresent(reasoning, forKey: .reasoning)
+        try container.encodeIfPresent(reasoningSummary, forKey: .reasoningSummary)
     }
 }
 

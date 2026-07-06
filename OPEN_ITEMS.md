@@ -1457,3 +1457,53 @@ add capabilities back only on proven need. Keep the shim service; keep the relay
 dated `.bak` copies.
 
 Logged 2026-07-04.
+
+## 57. 🔧 Wave 3 / 4.15 — `_thinking` reasoning channel surfaced; delta key needs device probe
+
+Reasoning deltas are no longer dropped at the `tool.progress` handler:
+`SessionsHermesClient` forwards `tool_name:"_thinking"` payloads as
+`StreamingUpdate.reasoningDelta`, `ChatStore` accumulates them on the streaming
+placeholder, and the Hermes bubble shows the newest line verbatim under the
+typing dots, then a collapsed **Reasoning** chevron row after the turn
+(expanded = raw reasoning, selectable). Raw reasoning + its one-line summary
+persist on `Message` (`reasoning` / `reasoningSummary`, decodeIfPresent — old
+caches fine) and survive server refreshes (the stored transcript filters
+`_thinking`, so the merge preserves the local copy). Mock client streams demo
+reasoning so the UI is exercisable without a host.
+
+**Unverified:** the exact delta-text key inside the `tool.progress` payload.
+The parser tries `delta`/`content`/`text`/`message`/`preview`, then
+`args.{delta,content,text}` (`SessionsHermesClient.thinkingDelta`, unit-tested
+for all spellings). **Next OJAMD session:** run a reasoning-model streaming turn
+with `curl -N` and pin the real key; if it's something else entirely, add it to
+the chain. `<think>…</think>` fold-in splitter (CLEAN_CHAT_PATH Phase 2
+fallback) deliberately not built — no observed need on the Sessions API.
+
+Written cloud-side 2026-07-06 (branch `claude/wave-3-on-device-intelligence-rxht4l`);
+not yet compiled — needs `xcodegen generate` + CLI build + device verify.
+
+## 58. 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels
+
+New `Services/Live/LocalIntelligenceService.swift` (FoundationModels): after the
+first completed exchange, `ChatStore` generates `{title, preview}` on-device and
+writes through `setConversationTitle`; the preview lands on
+`Conversation.generatedPreview` (persisted; surfaced in the `/title` readout).
+Runs only while the title is still the `Conversation.defaultTitle` placeholder —
+a manual `/title` is never overwritten. Same service condenses #57's reasoning
+to one line when foregrounded (also caught up on foreground return via
+`AppContainer.handleAppDidBecomeActive`).
+
+- Input trimming: `SystemLanguageModel.contextSize` (back-deployed 26.0; 8192 on
+  iOS 27 hardware) minus headroom; measured with `tokenCount(for:)` behind an
+  `#available(iOS 26.4, *)` guard (chars/3 conservative estimate below it).
+  API signatures verified against Apple docs JSON 2026-07-06.
+- Model unavailable (non-AI hardware, Apple Intelligence off, model
+  downloading) → deterministic truncation fallback (first meaningful lines,
+  word-boundary caps; fenced code never becomes a title). Unit-tested.
+- Guided generation via `@Generable` struct; guardrail/context errors also fall
+  back to truncation. Titles stay local — no Sessions-API title write (the API
+  has no verified endpoint for it; candidate follow-up).
+
+Same not-compiled caveat as #57. Device verify: first exchange in a fresh chat
+titles itself (~seconds later, `/title` shows Title + Preview); reasoning row
+collapses to a generated one-liner on AI hardware, last raw line otherwise.

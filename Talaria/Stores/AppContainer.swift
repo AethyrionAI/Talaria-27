@@ -23,6 +23,10 @@ final class AppContainer {
     /// Local read-aloud TTS for Hermes replies (#2). Created here (not via
     /// init) so every construction path gets one; wired in makeDefault().
     let speechOutput = SpeechOutputService()
+    /// On-device FoundationModels intelligence (#4.8 × #4.15): conversation
+    /// titles + previews, reasoning condensation. Cheap to create (no model
+    /// load until first use); wired to ChatStore in makeDefault().
+    let localIntelligence = LocalIntelligenceService()
     let modelsShimClient: ModelsShimClient
     let sensorUploadService: SensorUploadService?
     private let apiClient: RelayAPIClient?
@@ -355,6 +359,10 @@ final class AppContainer {
             settingsStore.settings.readAloudAutoPlay
         }
 
+        // On-device intelligence (#4.8 × #4.15): titles/previews + reasoning
+        // condensation ride the chat turn lifecycle inside ChatStore.
+        container.chatStore.localIntelligence = container.localIntelligence
+
         // Keep widget data fresh while app is foregrounded
         container.chatStore.onConversationChanged = { [weak container] in
             container?.updateWidgetData()
@@ -457,6 +465,9 @@ final class AppContainer {
         talkStore.handleAppDidBecomeActive()
         await talkStore.refreshReadiness()
         await chatStore.reconcilePendingRuns()
+        // #4.15: a turn that finished while backgrounded skipped reasoning
+        // condensation (foreground-only work) — catch it up now.
+        await chatStore.condensePendingReasoning()
         reconcileLiveActivities()
         await reportAppStateIfNeeded("foreground")
         updateWidgetData()

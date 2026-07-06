@@ -184,3 +184,13 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
   app-side fetch** is the remaining piece — blocked on probing the binary-write SSE shape
   (does a non-text `write_file` carry `args.content`?), which decides the fetch trigger. See
   `OPEN_ITEMS.md` #21 (full plan), #36 (OJAMD↔fork reconcile), #37 (upstream connector win32 fix).
+- **Wave 3 (2026-07-06, branch `claude/wave-3-on-device-intelligence-rxht4l`): on-device
+  intelligence.** 4.15: `_thinking` reasoning deltas forwarded as
+  `StreamingUpdate.reasoningDelta` → live line in the streaming placeholder + collapsed
+  REASONING chevron on the bubble (raw text persisted on `Message.reasoning`; the exact
+  `tool.progress` delta key still needs a device probe — tolerant parser, OPEN_ITEMS #57).
+  4.8: `LocalIntelligenceService` (FoundationModels) generates `{title, preview}` after the
+  first completed exchange → `setConversationTitle` + `Conversation.generatedPreview`;
+  truncation fallback off-AI-hardware; reasoning condensed to one line when foregrounded
+  (OPEN_ITEMS #58). **Not yet compiled** — next Mac session: `xcodegen generate` (1 new
+  source file + 2 test files), CLI build, device verify.

@@ -123,6 +123,9 @@ final class SessionsHermesClient: HermesClientProtocol {
                     var currentEvent = "message"
                     var currentData = ""
                     var assembledContent = ""
+                    // #4.15: reasoning deltas from the `_thinking` channel,
+                    // assembled so the final message carries the full text.
+                    var assembledReasoning = ""
                     var finalMessageDelivered = false
                     var pendingFinalMessage: Message?
                     // #21 Tier 1: files the agent writes are streamed inline on
@@ -165,9 +168,15 @@ final class SessionsHermesClient: HermesClientProtocol {
                                 producedFiles.append(file)
                             }
                         case "tool.progress":
-                            // Reasoning chunks ride on `_thinking`; drop them in
-                            // Phase 1 (the disclosure UI is Phase 2 work).
-                            break
+                            // #4.15: reasoning rides `tool.progress` with
+                            // `tool_name:"_thinking"` — a separate channel from
+                            // the answer (SSE taxonomy, Phase 0). Forward the
+                            // deltas so the UI can show thinking live; progress
+                            // events for real tools stay dropped (no UI yet).
+                            if let delta = Self.thinkingDelta(fromToolProgress: currentData) {
+                                assembledReasoning += delta
+                                continuation.yield(.reasoningDelta(delta))
+                            }
                         case "assistant.completed":
                             // Streaming returns an empty final_response (text already
                             // streamed via assistant.delta), so the server sends content:"".
@@ -178,13 +187,17 @@ final class SessionsHermesClient: HermesClientProtocol {
                             pendingFinalMessage = Message(
                                 sender: .hermes,
                                 content: finalContent,
-                                status: .delivered
+                                status: .delivered,
+                                reasoning: assembledReasoning.isEmpty ? nil : assembledReasoning
                             )
                             // Defer `.finished` until run.completed delivers token usage.
                         case "run.completed":
                             let usage = self.decodeRunUsage(currentData)
                             var message = pendingFinalMessage
                                 ?? Message(sender: .hermes, content: assembledContent, status: .delivered)
+                            if message.reasoning == nil, !assembledReasoning.isEmpty {
+                                message.reasoning = assembledReasoning
+                            }
                             if !producedFiles.isEmpty { message.attachments = producedFiles }
                             continuation.yield(.finished(message, usage, nil))
                             finalMessageDelivered = true
@@ -227,6 +240,9 @@ final class SessionsHermesClient: HermesClientProtocol {
                             content: assembledContent,
                             status: .delivered
                         )
+                        if fallbackMessage.reasoning == nil, !assembledReasoning.isEmpty {
+                            fallbackMessage.reasoning = assembledReasoning
+                        }
                         if !producedFiles.isEmpty { fallbackMessage.attachments = producedFiles }
                         continuation.yield(.finished(fallbackMessage, nil, nil))
                     }
@@ -471,6 +487,33 @@ final class SessionsHermesClient: HermesClientProtocol {
         guard let data = raw.data(using: .utf8) else { return nil }
         if let dict = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
             return dict[key] as? String
+        }
+        return nil
+    }
+
+    /// #4.15: extracts a reasoning delta from a `tool.progress` payload. Only
+    /// `tool_name:"_thinking"` events qualify — that's the reasoning channel
+    /// (verified Phase 0), never a real tool. The delta text key is read
+    /// tolerantly (`delta`/`content`/`text`/`message`/`preview`, then
+    /// `args.{delta,content,text}`) — the same shape-drift posture as the
+    /// other SSE parsers here. The exact key ships unverified against the live
+    /// host (device probe pending — see OPEN_ITEMS #4.15); the fallback chain
+    /// keeps a key drift from silently killing the feature.
+    nonisolated static func thinkingDelta(fromToolProgress raw: String) -> String? {
+        guard let data = raw.data(using: .utf8),
+              let payload = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        else { return nil }
+        let name = (payload["tool_name"] as? String)
+            ?? (payload["name"] as? String)
+            ?? (payload["tool"] as? String)
+        guard name == "_thinking" else { return nil }
+        for key in ["delta", "content", "text", "message", "preview"] {
+            if let value = payload[key] as? String, !value.isEmpty { return value }
+        }
+        if let args = payload["args"] as? [String: Any] {
+            for key in ["delta", "content", "text"] {
+                if let value = args[key] as? String, !value.isEmpty { return value }
+            }
         }
         return nil
     }

@@ -50,6 +50,12 @@ final class ChatStore {
     var speechOutput: SpeechOutputService?
     var autoReadAloudEnabled: (@MainActor () -> Bool)?
 
+    /// On-device FoundationModels intelligence (#4.8 × #4.15), wired by
+    /// AppContainer: conversation title + preview after the first completed
+    /// exchange, one-line reasoning condensation. Stays nil in tests.
+    var localIntelligence: LocalIntelligenceService?
+    private var isGeneratingConversationCard = false
+
     /// A run whose stream dropped (e.g. backgrounded on lock) but which is still
     /// running server-side. Reconciled via the Sessions messages endpoint when it
     /// completes. `sentAt` is captured here so reconcile is insulated from the
@@ -165,6 +171,16 @@ final class ChatStore {
                         self.speechOutput?.enqueueStreamChunk(delta, messageID: placeholderID)
                     }
 
+                case .reasoningDelta(let delta):
+                    // #4.15: accumulate the `_thinking` channel on the streaming
+                    // placeholder — the bubble shows the newest line verbatim
+                    // while the model reasons, ahead of any answer text.
+                    if var conv = self.conversation,
+                       let idx = conv.messages.firstIndex(where: { $0.id == placeholderID }) {
+                        conv.messages[idx].reasoning = (conv.messages[idx].reasoning ?? "") + delta
+                        self.conversation = conv
+                    }
+
                 case .toolActivity(let event):
                     if var conv = self.conversation,
                        let idx = conv.messages.firstIndex(where: { $0.id == placeholderID }) {
@@ -204,9 +220,13 @@ final class ChatStore {
                 case .finished(let finalMessage, let usage, let diff):
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
                         let activities = self.conversation?.messages[idx].toolActivities ?? []
+                        let streamedReasoning = self.conversation?.messages[idx].reasoning
                         var resolved = finalMessage
                         resolved.toolActivities = activities
                         resolved.codeDiff = diff
+                        // #4.15: keep the accumulated reasoning when the final
+                        // message doesn't carry its own (relay/mock clients).
+                        if resolved.reasoning == nil { resolved.reasoning = streamedReasoning }
                         self.conversation?.messages[idx] = resolved
                     }
                     // The direct stream completed, so this message definitively
@@ -302,6 +322,8 @@ final class ChatStore {
             persistence.saveConversationCache(conversation)
             onConversationChanged?()
         }
+
+        finalizeOnDeviceIntelligence()
     }
 
     func clearConversation() async throws {
@@ -753,7 +775,100 @@ final class ChatStore {
         if UIApplication.shared.applicationState != .active {
             notifications.notifyRunCompleted(preview: reply.content)
         }
+        finalizeOnDeviceIntelligence()
         return true
+    }
+
+    // MARK: - On-device intelligence (#4.8 × #4.15)
+
+    /// Post-turn on-device work: a real title + preview once the first
+    /// exchange completes, and a one-line condensation of any reasoning the
+    /// turn streamed. Fire-and-forget; every path is guarded so it can run
+    /// after every turn without redoing work. No-op when AppContainer hasn't
+    /// wired `localIntelligence` (tests).
+    private func finalizeOnDeviceIntelligence() {
+        generateConversationCardIfNeeded()
+        Task { [weak self] in await self?.condensePendingReasoning() }
+    }
+
+    /// Generates the conversation's `{title, preview}` after the first
+    /// completed exchange (#4.8). Runs only while the title is still the
+    /// placeholder, so a manual `/title` (or an earlier generation) is never
+    /// overwritten. When the on-device model is unavailable the service
+    /// falls back to truncation internally — the conversation still gets a
+    /// real label.
+    private func generateConversationCardIfNeeded() {
+        guard let intelligence = localIntelligence,
+              let conversation,
+              conversation.title == Conversation.defaultTitle,
+              !isGeneratingConversationCard,
+              let firstUser = conversation.messages.first(where: {
+                  $0.sender == .user
+                      && !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+              }),
+              let firstReply = conversation.messages.first(where: {
+                  $0.sender == .hermes
+                      && $0.status == .delivered
+                      && !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+              })
+        else { return }
+
+        let conversationID = conversation.id
+        isGeneratingConversationCard = true
+        Task { [weak self] in
+            let card = await intelligence.conversationCard(
+                userText: firstUser.content,
+                assistantText: firstReply.content
+            )
+            guard let self else { return }
+            self.isGeneratingConversationCard = false
+            // Re-check before writing: the chat may have been cleared or
+            // retitled by hand while the model ran.
+            guard var conv = self.conversation,
+                  conv.id == conversationID,
+                  conv.title == Conversation.defaultTitle
+            else { return }
+            if !card.preview.isEmpty { conv.generatedPreview = card.preview }
+            self.conversation = conv
+            if !card.title.isEmpty {
+                chatLog.notice("on-device conversation card generated (#4.8)")
+                self.setConversationTitle(card.title)   // persists + notifies
+            } else {
+                self.persistence.saveConversationCache(conv)
+                self.onConversationChanged?()
+            }
+        }
+    }
+
+    /// Condenses the newest un-summarized reasoning into one line (#4.15) via
+    /// the on-device model — only while foregrounded (background scheduling
+    /// isn't worth fighting for; the collapsed row already falls back to the
+    /// last raw reasoning line). One message per pass bounds the work; also
+    /// invoked from AppContainer on foreground so a turn that finished while
+    /// backgrounded gets its summary on return.
+    func condensePendingReasoning() async {
+        guard let intelligence = localIntelligence,
+              UIApplication.shared.applicationState == .active,
+              let conv = conversation,
+              let index = conv.messages.lastIndex(where: {
+                  $0.sender == .hermes
+                      && ($0.reasoning?.isEmpty == false)
+                      && $0.reasoningSummary == nil
+                      && !$0.isStreaming
+              }),
+              let reasoning = conv.messages[index].reasoning
+        else { return }
+
+        let messageID = conv.messages[index].id
+        guard let summary = await intelligence.condensedReasoning(reasoning) else { return }
+        // The conversation may have changed while the model ran — re-find.
+        guard var current = conversation,
+              let idx = current.messages.firstIndex(where: { $0.id == messageID })
+        else { return }
+        current.messages[idx].reasoningSummary = summary
+        conversation = current
+        persistence.saveConversationCache(current)
+        onConversationChanged?()
     }
 
     private func mergeConversationMetadata(
@@ -801,6 +916,15 @@ final class ChatStore {
 
             if let diff = local.codeDiff, refreshedConversation.messages[index].codeDiff == nil {
                 refreshedConversation.messages[index].codeDiff = diff
+            }
+
+            // Reasoning is client-only (#4.15) — the server transcript filters
+            // the `_thinking` channel out, so a refresh would otherwise drop it.
+            if refreshedConversation.messages[index].reasoning == nil, let reasoning = local.reasoning {
+                refreshedConversation.messages[index].reasoning = reasoning
+            }
+            if refreshedConversation.messages[index].reasoningSummary == nil, let summary = local.reasoningSummary {
+                refreshedConversation.messages[index].reasoningSummary = summary
             }
 
             if !local.attachments.isEmpty {
