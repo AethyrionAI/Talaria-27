@@ -131,6 +131,19 @@ enum ThemeCatalog {
         ThemeDefinition(id: AppearanceTheme.autumnHarvest.rawValue, displayName: "Autumn Harvest",
                         subtitle: "Pumpkin", appearanceTheme: .autumnHarvest,
                         availability: .seasonal(.autumn), locked: false),
+        // Signature complex themes — always available, ungated (issue #54).
+        ThemeDefinition(id: AppearanceTheme.cerealBox.rawValue, displayName: "Cereal Box",
+                        subtitle: "Breakfast", appearanceTheme: .cerealBox,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.bubblegumMecha.rawValue, displayName: "Bubblegum Mecha",
+                        subtitle: "Sugar", appearanceTheme: .bubblegumMecha,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.retroSciFi.rawValue, displayName: "Retro Sci-Fi",
+                        subtitle: "Retro", appearanceTheme: .retroSciFi,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.eventHorizon.rawValue, displayName: "Event Horizon",
+                        subtitle: "Singularity", appearanceTheme: .eventHorizon,
+                        availability: .always, locked: false),
     ]
 
     /// Every known definition (order: flagships, then special).
