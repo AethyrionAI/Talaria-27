@@ -133,7 +133,11 @@ final class LocalIntelligenceService {
     /// conservative chars/3 estimate otherwise. Proportional cuts re-measured
     /// over up to three passes, so a pathological tokenization can't overshoot
     /// the context window.
-    private func trimmed(_ text: String, toTokenBudget budget: Int) async -> String {
+    ///
+    /// Internal (not private) since #26: `LocalChatBackend` reuses this and
+    /// `measuredTokenCount(of:)` for its context-window condensation, so the
+    /// tokenizer-facing surface stays in exactly one place.
+    func trimmed(_ text: String, toTokenBudget budget: Int) async -> String {
         // Every token is at least one UTF-8 byte, so a byte count inside the
         // budget can never overflow it — skip the tokenizer round trip for
         // the common short-exchange case.
@@ -149,9 +153,12 @@ final class LocalIntelligenceService {
         return candidate
     }
 
-    private func measuredTokenCount(of text: String) async -> Int {
+    func measuredTokenCount(of text: String) async -> Int {
         if #available(iOS 26.4, *) {
-            if let count = try? await model.tokenCount(for: Prompt("\(text)")) {
+            // `tokenCount(for:)` takes Instructions, not Prompt (verified
+            // against the SDK docs 2026-07-07) — either wraps the same text,
+            // and the count is what matters here.
+            if let count = try? await model.tokenCount(for: Instructions("\(text)")) {
                 return count
             }
         }
