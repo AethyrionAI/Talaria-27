@@ -305,13 +305,41 @@ final class AppContainer {
             healthService: liveHealthService,
             motionService: liveMotionService
         )
-        let voiceService: any VoiceSessionServiceProtocol = if usesMockPairingService {
-            MockVoiceSessionService()
+        // #18: two voice engines behind TalkStore's one seam. The Realtime
+        // (relay + OpenAI WebRTC) engine wins when the relay is paired and
+        // talk is configured; the native pipeline (SpeechAnalyzer → the chat
+        // brain router → AVSpeechSynthesizer) takes over when talk is
+        // unconfigured, the relay is unreachable, or the device was never
+        // paired. The native pipeline's TTS instance manages no audio session
+        // (the pipeline owns .playAndRecord) and rides the same persisted
+        // read-aloud voice/rate as the chat read-aloud path.
+        let voiceService: any VoiceSessionServiceProtocol
+        if usesMockPairingService {
+            voiceService = MockVoiceSessionService()
         } else {
-            LiveVoiceSessionService(
-                apiClient: apiClient,
-                accessTokenProvider: { await sessionStore.currentAccessToken() },
-                accessTokenRefresher: relayAccessTokenRefresher
+            let nativeSpeechOutput = SpeechOutputService()
+            nativeSpeechOutput.managesAudioSession = false
+            nativeSpeechOutput.voiceIdentifierProvider = {
+                settingsStore.settings.readAloudVoiceIdentifier
+            }
+            nativeSpeechOutput.rateProvider = {
+                settingsStore.settings.readAloudRate
+            }
+            let nativeVoice = NativeVoicePipelineService(
+                // The #18 amendment: the ACTIVE backend, never a hardcoded
+                // SessionsHermesClient — with the local brain routed, this is
+                // a fully offline voice assistant.
+                backendProvider: { chatBackendRouter },
+                speechOutput: nativeSpeechOutput
+            )
+            voiceService = VoiceEngineRouter(
+                realtime: LiveVoiceSessionService(
+                    apiClient: apiClient,
+                    accessTokenProvider: { await sessionStore.currentAccessToken() },
+                    accessTokenRefresher: relayAccessTokenRefresher
+                ),
+                native: nativeVoice,
+                isRelayPaired: { activePairingStore?.isPaired == true }
             )
         }
 

@@ -58,7 +58,9 @@ struct VoiceSettingsScreen: View {
                     .font(Design.Typography.display(16, weight: .semibold, relativeTo: .headline))
                     .tracking(Design.Tracking.display)
                     .foregroundStyle(Design.Colors.foregroundBright)
-                MonoLabel("REALTIME · SPEECH-TO-SPEECH", size: 9, weight: .medium,
+                // #18: the engine line is live — local voice is a distinct
+                // mode, never presented as the Realtime experience.
+                MonoLabel(engineDescriptor, size: 9, weight: .medium,
                           tracking: Design.Tracking.mono, color: Design.Colors.mutedForeground)
                 MonoLabel(engineState.text, size: 10, weight: .medium,
                           tracking: Design.Tracking.mono, color: engineState.color)
@@ -74,6 +76,13 @@ struct VoiceSettingsScreen: View {
             fill: Design.Colors.accentTint(0.07),
             innerGlow: true
         )
+    }
+
+    private var engineDescriptor: String {
+        switch talkStore.voiceEngine {
+        case .realtime: "REALTIME · SPEECH-TO-SPEECH"
+        case .native: "LOCAL · ON-DEVICE PIPELINE"
+        }
     }
 
     private var engineState: (text: String, color: Color, blinks: Bool) {
@@ -94,6 +103,9 @@ struct VoiceSettingsScreen: View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             groupLabel("// Status")
             VStack(spacing: 0) {
+                statusRow("Engine", (talkStore.voiceEngine.monoLabel,
+                                     talkStore.voiceEngine == .native ? Design.Brand.forge : Design.Brand.accent))
+                rowDivider
                 statusRow("Host", boolStatus(readiness.hostOnline, yes: "ONLINE", no: "OFFLINE",
                                              noColor: Design.Colors.danger))
                 rowDivider
@@ -366,8 +378,12 @@ struct VoiceSettingsScreen: View {
     // MARK: Footer
 
     private var footer: some View {
-        MonoLabel("TALK ENGINE · RELAY-BOOTSTRAPPED · WEBRTC", size: 9, weight: .regular,
-                  tracking: Design.Tracking.monoWide, color: Design.Colors.dimForeground)
+        MonoLabel(
+            talkStore.voiceEngine == .native
+                ? "TALK ENGINE · ON-DEVICE · SPEECHANALYZER + TTS"
+                : "TALK ENGINE · RELAY-BOOTSTRAPPED · WEBRTC",
+            size: 9, weight: .regular,
+            tracking: Design.Tracking.monoWide, color: Design.Colors.dimForeground)
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.top, Design.Spacing.xs)
             .padding(.bottom, Design.Spacing.md)

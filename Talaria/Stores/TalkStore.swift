@@ -9,6 +9,10 @@ struct CompletedVoiceSession: Sendable {
     let duration: TimeInterval
     let turnCount: Int
     let transcript: [TranscriptItem]
+    /// Which engine ran the session (#18). Native-engine turns already rode
+    /// the chat backend, so the post-to-Hermes context turn is skipped for
+    /// them — only the local transcript rendering applies.
+    let engine: VoiceEngine
 }
 
 @MainActor
@@ -26,6 +30,9 @@ final class TalkStore {
     var latencyMetrics = TalkLatencyMetrics()
     var voiceSessionID: UUID?
     var readiness = TalkReadinessInfo()
+    /// The engine driving (or last driving) the voice session (#18) — feeds
+    /// the overlay's LOCAL VOICE badge and the Voice settings engine row.
+    var voiceEngine: VoiceEngine = .realtime
 
     /// Set after a voice session ends; consumed by MainTabView to trigger transcript injection.
     var lastCompletedSession: CompletedVoiceSession?
@@ -80,6 +87,7 @@ final class TalkStore {
         let duration = sessionDuration
         let finalizedTranscript = transcriptItems.filter { !$0.isPartial }
         let turnCount = finalizedTranscript.count
+        let engine = voiceEngine
 
         // End Live Activity
         liveActivity.endActivity()
@@ -93,7 +101,8 @@ final class TalkStore {
                 voiceSessionId: sessionId,
                 duration: duration,
                 turnCount: turnCount,
-                transcript: finalizedTranscript
+                transcript: finalizedTranscript,
+                engine: engine
             )
         }
     }
@@ -139,6 +148,7 @@ final class TalkStore {
         latencyMetrics = TalkLatencyMetrics()
         voiceSessionID = nil
         readiness = TalkReadinessInfo()
+        voiceEngine = .realtime
         lastCompletedSession = nil
     }
 
@@ -168,6 +178,7 @@ final class TalkStore {
         latencyMetrics = snapshot.latencyMetrics
         voiceSessionID = snapshot.voiceSessionID
         readiness = snapshot.readiness
+        voiceEngine = snapshot.engine
         isSessionActive = connectionState == .connecting || connectionState == .connected
 
         // Update Live Activity on voice state changes

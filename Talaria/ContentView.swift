@@ -25,9 +25,13 @@ struct MainTabView: View {
             if hasSession, let session = talkStore.lastCompletedSession {
                 // Composed locally from the captured transcript (#1) — never
                 // touches the relay, so it works with the host unreachable.
+                // Native-engine sessions (#18) skip the context turn: every
+                // utterance already rode the chat backend as a real turn, so
+                // posting the transcript again would duplicate context.
                 chatStore.appendVoiceTranscript(
                     session,
                     postToHermes: settingsStore.settings.postVoiceTranscriptsToHermes
+                        && session.engine == .realtime
                 )
                 talkStore.clearLastCompletedSession()
             }
