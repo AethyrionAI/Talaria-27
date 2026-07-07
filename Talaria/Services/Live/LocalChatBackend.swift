@@ -51,6 +51,12 @@ final class LocalChatBackend: HermesClientProtocol {
 
     private var model: SystemLanguageModel { SystemLanguageModel.default }
     private var session: LanguageModelSession?
+    /// Device tool belt (#28), installed by AppContainer after construction.
+    /// Empty = the tool-less #26 configuration (tests, early boot).
+    private(set) var tools: [any Tool] = []
+    /// Bridges the belt's invocations onto `StreamingUpdate.toolActivity` —
+    /// pointed at the live stream's continuation for the duration of a turn.
+    private(set) var toolRelay: ToolEventRelay?
     /// The memory block synthesized by the last condensation, kept for
     /// diagnostics. Session-lifetime only: rebuilds re-derive it from the full
     /// message history, which the Conversation always retains.
@@ -71,6 +77,14 @@ final class LocalChatBackend: HermesClientProtocol {
     ) {
         self.persistence = persistence
         self.intelligence = intelligence
+    }
+
+    /// Installs the device tool belt (#28). Invalidates the live session so
+    /// the next turn is created with the tools (and tool-aware instructions).
+    func installTools(_ tools: [any Tool], relay: ToolEventRelay) {
+        self.tools = tools
+        self.toolRelay = relay
+        session = nil
     }
 
     // MARK: - HermesClientProtocol
@@ -163,6 +177,11 @@ final class LocalChatBackend: HermesClientProtocol {
         let prompt = Self.composePrompt(message: message, attachments: attachments)
         var liveSession = await preparedSession(nextPrompt: prompt, excludingClientMessageID: clientMessageID)
         appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
+
+        // #28: tool invocations surface on the existing toolActivity channel
+        // for the duration of this turn — the tool-chip UI renders them free.
+        toolRelay?.emit = { event in continuation.yield(.toolActivity(event)) }
+        defer { toolRelay?.emit = nil }
 
         var didCondenseRetry = false
         while true {
@@ -309,7 +328,7 @@ final class LocalChatBackend: HermesClientProtocol {
     }
 
     private func sessionBlueprint(for turns: [TranscriptTurn], forceCondense: Bool) async -> SessionBlueprint {
-        let baseInstructions = Self.instructionsText(deviceContext: Self.deviceContextLine())
+        let baseInstructions = Self.instructionsText(deviceContext: Self.deviceContextLine(), hasTools: !tools.isEmpty)
         // Budget from the model at RUNTIME — never hardcoded (#26 ground rule).
         let contextBudget = max(1024, model.contextSize - Self.responseHeadroomTokens)
 
@@ -362,7 +381,7 @@ final class LocalChatBackend: HermesClientProtocol {
     /// context budget. Byte count is a safe upper bound for token count, so
     /// the tokenizer only runs once histories actually get long.
     private func fitsContext(turns: [TranscriptTurn], nextPrompt: String) async -> Bool {
-        let baseInstructions = Self.instructionsText(deviceContext: Self.deviceContextLine())
+        let baseInstructions = Self.instructionsText(deviceContext: Self.deviceContextLine(), hasTools: !tools.isEmpty)
         let contextBudget = max(1024, model.contextSize - Self.responseHeadroomTokens)
         let byteTotal = baseInstructions.utf8.count
             + nextPrompt.utf8.count
@@ -404,8 +423,12 @@ final class LocalChatBackend: HermesClientProtocol {
                 )))
             }
         }
-        // Tool-less by design in #26 — the device tool belt wires in with #28.
-        return LanguageModelSession(model: model, tools: [], transcript: Transcript(entries: entries))
+        // Tools come from the #28 belt (empty until AppContainer installs it).
+        // The transcript's Instructions entry carries no toolDefinitions —
+        // the session's `tools:` parameter is the operative wiring; if
+        // tool-calling misbehaves on replayed sessions, populate
+        // `Transcript.ToolDefinition`s here (flagged for device verify).
+        return LanguageModelSession(model: model, tools: tools, transcript: Transcript(entries: entries))
     }
 
     // MARK: - Conversation bookkeeping
@@ -567,13 +590,20 @@ final class LocalChatBackend: HermesClientProtocol {
     as prior conversation memory:
     """
 
-    nonisolated static func instructionsText(deviceContext: String, date: Date = .now) -> String {
+    nonisolated static func instructionsText(deviceContext: String, date: Date = .now, hasTools: Bool = false) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
+        let capabilities = hasTools
+            ? """
+            Be direct, warm, and concise. You have device tools — health, location, motion, calendar, reminders, weather, places, contacts, device status, image text/barcode reading, and conversation search. Use them to answer questions about the user's real data instead of guessing. When a tool reports that a permission isn't granted or no data exists, relay that honestly — never invent a value.
+            """
+            : """
+            Be direct, warm, and concise. You have no internet access and no external tools in this mode — when you don't know something or can't do it on-device, say so plainly instead of guessing.
+            """
         return """
         You are Hermes, the user's personal assistant, running entirely on their iPhone with Apple's on-device foundation model. The conversation is private and never leaves the device.
         Today is \(day).
         \(deviceContext)
-        Be direct, warm, and concise. You have no internet access and no external tools in this mode — when you don't know something or can't do it on-device, say so plainly instead of guessing.
+        \(capabilities)
         """
     }
 
