@@ -25,8 +25,13 @@ final class AppContainer {
     let speechOutput = SpeechOutputService()
     /// On-device FoundationModels intelligence (#4.8 × #4.15): conversation
     /// titles + previews, reasoning condensation. Cheap to create (no model
-    /// load until first use); wired to ChatStore in makeDefault().
-    let localIntelligence = LocalIntelligenceService()
+    /// load until first use); wired to ChatStore in makeDefault(). Shared
+    /// with LocalChatBackend (#26) so the tokenizer-facing helpers have one
+    /// home — injected via init since #27.
+    let localIntelligence: LocalIntelligenceService
+    /// #27: the two-brain router in front of ChatStore's client seam. Nil in
+    /// bare test containers that construct stores directly.
+    private(set) var chatBackendRouter: ChatBackendRouter?
     /// #17: Spotlight donation for sessions + agent files, strictly behind the
     /// Privacy toggle (default OFF); wired in makeDefault().
     let spotlightIndexing = SpotlightIndexingService()
@@ -61,7 +66,9 @@ final class AppContainer {
         sensorUploadService: SensorUploadService? = nil,
         apiClient: RelayAPIClient? = nil,
         notificationService: (any NotificationServiceProtocol)? = nil,
-        secureStore: (any SecureStoreProtocol)? = nil
+        secureStore: (any SecureStoreProtocol)? = nil,
+        localIntelligence: LocalIntelligenceService = LocalIntelligenceService(),
+        chatBackendRouter: ChatBackendRouter? = nil
     ) {
         self.sessionStore = sessionStore
         self.pairingStore = pairingStore
@@ -76,6 +83,8 @@ final class AppContainer {
         self.apiClient = apiClient
         self.notificationService = notificationService
         self.secureStore = secureStore
+        self.localIntelligence = localIntelligence
+        self.chatBackendRouter = chatBackendRouter
     }
 
     static func sharedDefault() -> AppContainer {
@@ -224,6 +233,29 @@ final class AppContainer {
             allowsFallback: { allowMockFallbacks && (activePairingStore?.isPaired != true || usesMockPairingService) }
         )
 
+        // #26/#27: the on-device brain + the two-brain router. The retry
+        // wrapper stays on the Hermes side only — retries are a network
+        // concern the local brain doesn't have. ChatStore talks to the router
+        // as its one `any HermesClientProtocol`.
+        let localIntelligence = LocalIntelligenceService()
+        let localChatBackend = LocalChatBackend(
+            persistence: persistence,
+            intelligence: localIntelligence
+        )
+        let chatBackendRouter = ChatBackendRouter(
+            hermes: hermesClient,
+            local: localChatBackend,
+            // Routing signal: the direct chat path needs the Sessions API
+            // key. (The key restores from the Keychain asynchronously below;
+            // until it lands, a keyed device may briefly route local — the
+            // chat screen's health probe re-resolves within seconds.)
+            isHermesConfigured: { [hermesAPIKeyBox] in !hermesAPIKeyBox.value.isEmpty },
+            // Picker-visibility signal: any Hermes host has ever been set up.
+            hasHermesHost: { [hermesAPIKeyBox] in
+                activePairingStore?.isPaired == true || !hermesAPIKeyBox.value.isEmpty
+            }
+        )
+
         // Talaria models-shim client (OJAMD tailnet). Auth priority:
         //  1. Dedicated shim token from Keychain (legacy / explicit override)
         //  2. DEBUG launch-env TALARIA_SHIM_TOKEN (simulator convenience)
@@ -280,7 +312,7 @@ final class AppContainer {
             sessionStore: sessionStore,
             pairingStore: runtimePairingStore,
             hostStore: hostStore,
-            chatStore: ChatStore(hermesClient: hermesClient, persistence: persistence),
+            chatStore: ChatStore(hermesClient: chatBackendRouter, persistence: persistence),
             inboxStore: InboxStore(
                 inboxService: inboxService,
                 persistence: persistence,
@@ -300,11 +332,20 @@ final class AppContainer {
             sensorUploadService: sensorUploadService,
             apiClient: apiClient,
             notificationService: notificationService,
-            secureStore: secureStore
+            secureStore: secureStore,
+            localIntelligence: localIntelligence,
+            chatBackendRouter: chatBackendRouter
         )
 
         container.chatAPIKeyBox = hermesAPIKeyBox
         container.shimTokenBox = shimTokenBox
+
+        // #27: per-conversation brain preferences key off the live
+        // conversation, which ChatStore owns — wire the lookup now that both
+        // exist. (The router was built first; ChatStore sits on top of it.)
+        chatBackendRouter.conversationIDProvider = { [weak container] in
+            container?.chatStore.conversation?.id
+        }
 
         // Restore any persisted Hermes Sessions-API key into the in-memory box
         // so the chat client can pick it up on first send without blocking startup.
@@ -312,6 +353,9 @@ final class AppContainer {
             if let stored = await secureStore.retrieve(key: AppContainer.hermesAPIKeyKeychainKey) {
                 hermesAPIKeyBox.value = stored
                 container?.hermesAPIKey = stored
+                // #27: the restored key flips the routing signal — update the
+                // brain indicator without waiting for the next health probe.
+                container?.chatBackendRouter?.refreshActiveBrain()
             }
         }
 
@@ -986,6 +1030,9 @@ final class AppContainer {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         hermesAPIKey = trimmed
         chatAPIKeyBox?.value = trimmed
+        // #27: the key is the chat-routing signal — re-resolve the brain
+        // indicator immediately instead of waiting for the next health probe.
+        chatBackendRouter?.refreshActiveBrain()
         guard let secureStore else { return }
         if trimmed.isEmpty {
             await secureStore.delete(key: Self.hermesAPIKeyKeychainKey)

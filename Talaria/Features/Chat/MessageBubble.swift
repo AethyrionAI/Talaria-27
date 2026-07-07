@@ -177,6 +177,14 @@ struct MessageBubble: View {
                             .tracking(Design.Tracking.mono)
                             .foregroundStyle(Design.Colors.mutedForeground)
 
+                        // #27: producing-brain tag — transcript honesty across
+                        // brain switches and reconnects. Hermes (the default)
+                        // stays untagged; on-device / PCC replies are marked.
+                        if let brainTag = ChatBackendRouter.transcriptTag(forMessageBrain: message.brain) {
+                            MonoLabel(brainTag, size: 8, tracking: Design.Tracking.mono,
+                                      color: Design.Colors.dimForeground)
+                        }
+
                         // Read-aloud (#2) — hidden while a Talk session owns
                         // the audio session.
                         if !message.content.isEmpty && !talkStore.isSessionActive {

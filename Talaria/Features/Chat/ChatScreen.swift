@@ -358,6 +358,12 @@ struct ChatScreen: View {
 
             Spacer(minLength: Design.Spacing.sm)
 
+            // #27: always-visible brain indicator; becomes the picker menu
+            // once any Hermes host exists.
+            if let brainRouter = container.chatBackendRouter {
+                brainIndicator(brainRouter)
+            }
+
             if effectiveContextWindow != nil {
                 contextGauge
             }
@@ -369,7 +375,72 @@ struct ChatScreen: View {
             Rectangle().fill(Design.Colors.hairline).frame(height: 1)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Hermes \(connectionStatusLabel)")
+        .accessibilityLabel("Hermes \(connectionStatusLabel), brain \(container.chatBackendRouter?.activeBrain.displayLabel ?? "Hermes")")
+    }
+
+    // MARK: - Brain indicator + picker (#27)
+
+    @ViewBuilder
+    private func brainIndicator(_ brainRouter: ChatBackendRouter) -> some View {
+        if brainRouter.showsBrainPicker {
+            Menu {
+                brainPickerEntries(brainRouter)
+            } label: {
+                brainChip(brainRouter.activeBrain, showsChevron: true)
+            }
+            .accessibilityLabel("Chat brain: \(brainRouter.activeBrain.displayLabel). Tap to change.")
+        } else {
+            brainChip(brainRouter.activeBrain, showsChevron: false)
+                .accessibilityLabel("Chat brain: \(brainRouter.activeBrain.displayLabel)")
+        }
+    }
+
+    @ViewBuilder
+    private func brainPickerEntries(_ brainRouter: ChatBackendRouter) -> some View {
+        let conversationID = chatStore.conversation?.id
+        let current = brainRouter.preferredBrain(forConversation: conversationID)
+        Button {
+            brainRouter.setPreferredBrain(nil, forConversation: conversationID)
+        } label: {
+            if current == nil {
+                Label("Automatic", systemImage: "checkmark")
+            } else {
+                Text("Automatic")
+            }
+        }
+        ForEach(brainRouter.selectableBrains, id: \.rawValue) { brain in
+            Button {
+                brainRouter.setPreferredBrain(brain, forConversation: conversationID)
+            } label: {
+                if current == brain {
+                    Label(brain.displayLabel, systemImage: "checkmark")
+                } else {
+                    Label(brain.displayLabel, systemImage: brain.glyph)
+                }
+            }
+        }
+    }
+
+    private func brainChip(_ brain: ChatBackendRouter.Brain, showsChevron: Bool) -> some View {
+        HStack(spacing: Design.Spacing.xxs) {
+            Image(systemName: brain.glyph)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(Design.Brand.accent)
+            MonoLabel(brain.monoLabel, size: 9, tracking: Design.Tracking.mono,
+                      color: Design.Colors.coolForeground)
+            if showsChevron {
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 7, weight: .semibold))
+                    .foregroundStyle(Design.Colors.dimForeground)
+            }
+        }
+        .padding(.horizontal, Design.Spacing.sm)
+        .padding(.vertical, Design.Spacing.xxs + 1)
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.full,
+            borderColor: Design.Colors.accentTint(0.18),
+            fill: Design.Colors.surface
+        )
     }
 
     private var contextGauge: some View {
