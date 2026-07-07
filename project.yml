@@ -90,6 +90,9 @@ targets:
         NSLocationAlwaysAndWhenInUseUsageDescription: "Hermes uses your location in the background to provide contextual awareness and proactive suggestions."
         NSMotionUsageDescription: "Hermes uses motion data to understand your current activity for contextual awareness."
         NSSpeechRecognitionUsageDescription: "Hermes uses speech recognition for voice commands and local transcription."
+        # #16: AlarmKit executor (/alarm). User authorization only — no App
+        # Store entitlement involved.
+        NSAlarmKitUsageDescription: "Hermes schedules alarms and timers you ask for — each one is confirmed in-app before it's set."
         NSSupportsLiveActivities: true
         NSSupportsLiveActivitiesFrequentUpdates: true
         UIAppFonts:
@@ -130,10 +133,17 @@ targets:
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
         UIBackgroundModes:
+          - fetch
           - processing
           - location
           - remote-notification
           - audio
+        # #14 native background wake. `fetch` above powers BGAppRefreshTask;
+        # the wildcard covers per-send BGContinuedProcessingTask identifiers.
+        # Keep in sync with BackgroundTaskService.swift.
+        BGTaskSchedulerPermittedIdentifiers:
+          - org.aethyrion.talaria27.refresh
+          - org.aethyrion.talaria27.continued.*
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: true
           UISceneConfigurations:
@@ -152,6 +162,12 @@ targets:
     entitlements:
       path: TalariaWidgets/TalariaWidgets.entitlements
       properties:
+        # HealthKit on the WIDGET target so the health tiles query HealthKit
+        # directly in the extension (#15). Declared here — not just in the
+        # .entitlements file — because the #44/#48 xcodegen strip trap applies
+        # to this target too.
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.access: []
         com.apple.security.application-groups:
           - group.org.aethyrion.talaria
     info:
@@ -160,6 +176,9 @@ targets:
         CFBundleDisplayName: Talaria27 Widgets
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        # Widget-side HealthKit reads (#15). Authorization is only ever
+        # requested in the main app; the string is here for completeness.
+        NSHealthShareUsageDescription: Talaria reads steps, calories, sleep, and heart rate to keep the Health widget tiles current.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria27.Widgets

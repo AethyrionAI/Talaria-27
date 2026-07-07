@@ -899,11 +899,15 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
-    func chatStoreRefreshesConversationWhenStreamingFailsAfterJobAccepted() async throws {
-        final class StreamingFailureClient: HermesClientProtocol {
+    func chatStoreRefreshesConversationWhenStreamingInterruptedAfterJobAccepted() async throws {
+        // The "run committed server-side, stream dropped" recovery path fires on
+        // `.interrupted`, not `.failed` — a hard failure deliberately no longer
+        // reconciles (#13). Recovery flows through reconcilePendingRuns() →
+        // reconcileFromServer(), so that's what the mock exercises and counts.
+        final class StreamingInterruptedClient: HermesClientProtocol {
             var connectionStatus: ConnectionStatus = .connected
             var currentConversation: Conversation?
-            var loadConversationCallCount = 0
+            var reconcileFromServerCallCount = 0
             let jobID = UUID()
             let userID = UUID()
             let assistantID = UUID()
@@ -926,14 +930,22 @@ struct AppStoresTests {
                 return AsyncStream { continuation in
                     Task { @MainActor in
                         continuation.yield(.messageSent(jobID: jobID))
-                        continuation.yield(.failed("Stream interrupted"))
+                        continuation.yield(.interrupted(sessionId: "probe-session", runId: nil))
                         continuation.finish()
                     }
                 }
             }
 
             func loadConversation() async -> Conversation {
-                loadConversationCallCount += 1
+                currentConversation ?? Conversation(title: "Hermes")
+            }
+
+            func clearConversation() async throws -> Conversation {
+                Conversation(title: "Hermes")
+            }
+
+            func reconcileFromServer() async -> Conversation? {
+                reconcileFromServerCallCount += 1
                 let conversation = Conversation(
                     title: "Hermes",
                     messages: [
@@ -945,22 +957,22 @@ struct AppStoresTests {
                 return conversation
             }
 
-            func clearConversation() async throws -> Conversation {
-                Conversation(title: "Hermes")
-            }
-
         }
 
-        let suiteName = "chat-store-stream-failure-\(UUID().uuidString)"
+        let suiteName = "chat-store-stream-interrupted-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        let hermesClient = StreamingFailureClient()
+        let hermesClient = StreamingInterruptedClient()
         let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
 
         await chatStore.sendMessage("Fix it")
 
-        #expect(hermesClient.loadConversationCallCount == 1)
+        // The in-store reconcile loop ticks on a 2s cadence; drive one pass
+        // deterministically the way app foregrounding does.
+        await chatStore.reconcilePendingRuns()
+
+        #expect(hermesClient.reconcileFromServerCallCount == 1)
         #expect(chatStore.conversation?.messages.last?.content == "Recovered after polling")
         #expect(chatStore.pendingMessageSentAt == nil)
         #expect(chatStore.isStreaming == false)

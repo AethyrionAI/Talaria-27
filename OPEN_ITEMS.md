@@ -1663,3 +1663,100 @@ collapses to a generated one-liner on AI hardware, last raw line otherwise.
   construction site; token budget deduped (`promptInputBudget`); tokenizer round-trip
   skipped when `utf8.count <= budget` (every token ≥ 1 byte); fallback card computed
   lazily off the happy path.
+
+## 62. 🔧 Wave 4 — stale test expectations fixed (GitHub #13 → PR #20)
+
+Test-only surgical pass, per the issue: `permissionTypeHasDistinctColorsAndIcons`
+now asserts icon uniqueness against `PermissionType.allCases.count` (the enum
+grew 6 → 8 and the literal staled); the streaming-failure recovery test renamed
+to `...WhenStreamingInterruptedAfterJobAccepted` and rewritten against the
+current semantics — the mock yields `.interrupted` and implements
+`reconcileFromServer()`, with one reconcile pass driven deterministically via
+`reconcilePendingRuns()` (the 2s loop is never slept on). No product code.
+Expected 163/163 after the Mac test run.
+
+## 63. 🔧 Wave 4 — native background wake: BGAppRefreshTask + BGContinuedProcessingTask (GitHub #14 → PR #22)
+
+First BackgroundTasks usage. `Services/Live/BackgroundTaskService.swift`:
+`BackgroundRefreshScheduler` registers in `didFinishLaunchingWithOptions` and
+arms on scene background entry; each pass re-arms first, then runs
+`AppContainer.handleBackgroundRefresh()` — sensor pipeline start + health
+snapshot + outbox drain, one `reconcilePendingRuns()` pass (the existing
+"Hermes finished" local notification fires on found completions), widget-data
+rewrite. Positioned honestly: discretionary safety net complementing relay
+APNs, never real-time. Attachment sends (the #38 long path) ride a
+`BGContinuedProcessingTask` — submitted in-foreground from the user's send,
+progress advanced per accept/delta/tool event (capped 95; cap-then-stall on a
+very long tail is a known trade), expiration finalizes via `cancelStreaming()`.
+Config: `fetch` background mode + `BGTaskSchedulerPermittedIdentifiers`
+(`…talaria27.refresh` + `…talaria27.continued.*`) in project.yml AND the
+materialized Info.plist. **Needs Mac:** compile-check
+`BGContinuedProcessingTaskRequest.strategy` naming + `register` return handling;
+re-verify `aps-environment` post-regen (#44/#48); device-verify with the
+BGTaskScheduler `_simulateLaunchForTaskWithIdentifier` debugger trigger. Known
+limitation (pre-existing): `pendingRun` doesn't survive process death, so a
+cold BG launch has nothing to reconcile by design.
+
+## 64. 🔧 Wave 4 — health widget tiles query HealthKit directly (GitHub #15 → PR #21)
+
+`Shared/HealthQueryCore.swift` (compiled into app + widget targets, same
+pattern as ThemePaletteCore): cumulativeSum / latest-sample / sleep-duration
+primitives, the shared query windows (start-of-day rollups, 24h HR look-back,
+wake-day sleep bucket), and `loadWidgetMetrics()` for the four tiles.
+`HermesTimelineProvider` gains `queriesHealthKit` (health widget only): each
+timeline pass overlays live values onto the App Group snapshot; all-empty
+results — which is also what denied read-auth and a locked device
+(`errorDatabaseInaccessible`) produce — fall back to the snapshot untouched,
+deliberately with NO auth check (the #16 gotcha; widgets can't prompt).
+`LiveHealthService` delegates its primitives to the core (statics kept as
+forwards — its tests untouched). Widget target gains the HealthKit entitlement
+declared in project.yml (strip trap applies to this target's own entitlements)
++ mirrored .entitlements + purpose string. `HealthQueryCoreTests` added.
+**Needs Mac:** build, then device-verify tiles advance with the app killed and
+show the snapshot (not blanks) when locked. Freshness bounded by the WidgetKit
+reload budget (~40–70/day) — honest ceiling.
+
+## 65. 🔧 Wave 4 — AlarmKit executor: /alarm behind the confirm gate (GitHub #16 → PR #23)
+
+Phase 1 of the phone-side-tool pattern (zero server work). `/alarm` registered
+in `SlashCommand.localCommands`; `Services/Live/AlarmService.swift` parses
+durations (`25m`, `1h30m`, `90s`) → countdown timers and wall-clock forms
+(`6:30`, `6:30pm`, `18:45`, `7pm`, standalone am/pm folding) → next-occurrence
+alarms; bare numbers rejected as ambiguous; tail tokens = label. Nothing
+schedules silently: the request is STAGED and a value-carrying
+`confirmationDialog` in ChatScreen must be confirmed before
+`AlarmService.schedule` runs (decided policy — the fast-follow relay-sidecar
+`phone_alarm` tool inherits the same gate). Countdown presentation renders via
+`TalariaWidgets/TalariaAlarmLiveActivity.swift` — its OWN ActivityConfiguration
+typed on `AlarmAttributes<TalariaAlarmMetadata>` (metadata in `Shared/`), never
+a new case on the Hermes activity. `NSAlarmKitUsageDescription` added (user
+auth only; no App Store entitlement). `AlarmCommandParsingTests` pin the
+grammar. **Needs Mac:** AlarmKit API surface is new (iOS 26) — compile-check
+`AlarmManager.AlarmConfiguration` labels, `AlarmPresentationState.mode` cases,
+`AlarmAttributes.metadata` optionality; device-verify ring through Silent mode
++ the countdown Live Activity.
+
+## 66. 🔧 Wave 4 — Spotlight IndexedEntity donation + OpenSessionIntent (GitHub #17 → PR #24)
+
+First AppEntity surface. `Intents/SpotlightEntities.swift`: `ChatSessionEntity`
+(id = Sessions API string id) + `AgentFileEntity` (#21 Tier 1 staged files —
+file attachments on HERMES-sent messages; user uploads stay out) as
+`AppEntity + IndexedEntity`; queries resolve from the last-donated cache
+(sessions mirrored to UserDefaults) so "open that" survives relaunch without a
+network hop. `Services/Live/SpotlightIndexingService.swift` donates via
+`CSSearchableIndex.indexAppEntities`, gated on EVERY path by
+`UserSettings.spotlightIndexingEnabled` (default OFF, decode-fallback OFF —
+the privacy trade is explicit opt-in); toggle-off calls
+`deleteAllSearchableItems` + cache teardown, so no orphaned entries. Donation
+triggers: session-list fetches (`ChatStore.onSessionsLoaded`), conversation
+changes (fresh agent files), and an immediate fill when the toggle flips on.
+`OpenSessionIntent` (OpenIntent) routes through `hermes://session/{id}`;
+`AppEntry.handleDeeplink` gained the `session` case → Chat tab +
+`openSession(id)`. PRIVACY screen: "System Search" panel.
+`SpotlightIndexingTests` added. **Needs Mac:** compile-check the iOS 18
+`indexAppEntities`/entity-query shapes; device-verify Spotlight find →
+tap-through → right session, and that toggling off removes results. Note:
+`hermes://` has no `CFBundleURLTypes` registration — in-app `OpenURLIntent`
+routing doesn't need it (same as the #7 controls); external openers would.
+Fast-follow (own issue): View Annotations on `MessageBubble`/`ChatScreen` +
+entity ids on the finished-notification.

@@ -82,6 +82,8 @@ extension SlashCommand {
         SlashCommand(name: "save", description: "Save the conversation", category: "Session", acceptsArgument: false, isDestructive: false, isLocal: true),
         SlashCommand(name: "title", description: "Set session title", category: "Session", acceptsArgument: true, isDestructive: false, isLocal: true),
         SlashCommand(name: "history", description: "Show conversation history", category: "Session", acceptsArgument: false, isDestructive: false, isLocal: true),
+        // #16: AlarmKit executor — confirmed in-app before anything schedules.
+        SlashCommand(name: "alarm", description: "Set an alarm or timer on this iPhone", category: "Device", acceptsArgument: true, isDestructive: false, isLocal: true),
     ]
 
     // Commands passed through to the Hermes agent — matches the gateway-available

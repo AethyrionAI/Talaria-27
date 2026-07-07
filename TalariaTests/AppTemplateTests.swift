@@ -27,11 +27,11 @@ struct TalariaTests {
     }
 
     @Test func permissionTypeHasDistinctColorsAndIcons() async throws {
+        // Tracks the enum instead of a hardcoded literal so adding a case
+        // can't stale this test — the invariant is icon uniqueness (#13).
         let types = PermissionType.allCases
-        #expect(types.count == 6)
-
         let icons = Set(types.map(\.displayIcon))
-        #expect(icons.count == 6, "Each permission type should have a unique icon")
+        #expect(icons.count == types.count, "Each permission type should have a unique icon")
     }
 
     @Test func inboxItemTypeVisualIdentityIsComplete() async throws {
