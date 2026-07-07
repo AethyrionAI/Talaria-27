@@ -12,7 +12,7 @@ import UIKit
 /// state carrying `blockedReason` — never a dead idle screen.
 @MainActor
 final class CarPlayVoiceManager {
-    private static let maxTranscriptTitleLength = 80
+    private nonisolated static let maxTranscriptTitleLength = 80
 
     private let interfaceController: CPInterfaceController
     private var voiceTemplate: CPVoiceControlTemplate?
