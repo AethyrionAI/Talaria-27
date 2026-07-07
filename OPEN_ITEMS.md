@@ -1865,3 +1865,35 @@ events; weather (WiFi on) → live conditions; "find the conversation about X"
 invented. Flagged: transcript replay passes empty `toolDefinitions` (the
 session's `tools:` param is the wiring) — if tool calls misbehave after
 restore, populate `Transcript.ToolDefinition`s.
+
+## 70. 🔧 Wave 4.5 — action tools + ToolConfirmationCenter (GitHub #29)
+
+Side-effecting device tools behind ONE shared confirm gate (the #16
+authority rule generalized: the model can never silently mutate the phone).
+`DeviceTools/ToolConfirmationCenter.swift` (@Observable): a tool stages a
+card and suspends on an awaited continuation; the transcript renders
+`Features/Chat/ToolConfirmationCard.swift` (editable fields, forge-tinted
+APPROVE/CANCEL) at the tail of the message list; approve resolves with the
+CURRENT field values (edits included), decline resolves a "user declined"
+result the model reacts to conversationally. Gate defaults CLOSED — app
+death kills the continuation, nothing created. Second concurrent request
+auto-declines (tools run serially; the gate never queues silently).
+Tools (`DeviceActionTools.swift`): createReminder (EventKit; due-date
+re-parse of edited values, list lookup by name else default),
+createCalendarEvent (start/duration/location; duration clamped 5m–24h),
+scheduleAlarm (the #16 grammar + executor unchanged: `AlarmService.parse` →
+gate → `AlarmService.schedule`, same Silent-mode wording; edits re-parse
+through the same grammar). Unreadable edited dates REFUSE creation — never
+guess a time. `DeviceActionParsing` (ISO + human date forms, local
+wall-clock) unit-tested in `DeviceActionToolsTests` along with the gate
+mechanics. **Interpretation note:** "#16 confirm gate verbatim" implemented
+as the same parse→stage→confirm→schedule policy + wording routed through
+the shared card (a dialog can't resolve an awaiting tool continuation);
+`/alarm` in ChatScreen still uses its original dialog. **Known limitation
+(flagged):** cancelling the stream while a card is pending leaves the card
+staged (the FM call stays suspended until decided) — decide-then-continue
+is the honest state, but a per-card timeout may be worth a follow-up.
+**Needs Mac:** compile + device: "Remind me to call Shelley tomorrow at 9"
+→ card with parsed fields → Approve → reminder EXISTS in Reminders.app →
+model confirms; Decline → nothing created + graceful acknowledgment; edit
+on card → edited values created; kill mid-confirmation → nothing created.

@@ -145,6 +145,14 @@ struct ChatScreen: View {
                 guard chatStore.streamingMessageID == nil else { return }
                 scrollToBottom()
             }
+            .onChange(of: container.toolConfirmationCenter.pending?.id) { _, newValue in
+                // #29: bring a freshly staged confirmation card into view.
+                if let newValue {
+                    withAnimation(Design.Motion.standard) {
+                        scrollProxy?.scrollTo(newValue, anchor: .bottom)
+                    }
+                }
+            }
             .onChange(of: chatStore.streamingMessageID) { old, new in
                 if let new, old == nil {
                     scrollToResponseTop(new)
@@ -525,6 +533,18 @@ struct ChatScreen: View {
                         ThinkingIndicatorView(startTime: sentAt)
                             .id(thinkingIndicatorID)
                             .transition(.opacity)
+                    }
+
+                    // #29: a side-effecting tool is suspended on the confirm
+                    // gate — the card renders in the transcript until the
+                    // user approves (with edits) or cancels.
+                    if let pendingConfirmation = container.toolConfirmationCenter.pending {
+                        ToolConfirmationCard(
+                            center: container.toolConfirmationCenter,
+                            confirmation: pendingConfirmation
+                        )
+                        .id(pendingConfirmation.id)
+                        .transition(.opacity)
                     }
 
                     if showStatusCard {

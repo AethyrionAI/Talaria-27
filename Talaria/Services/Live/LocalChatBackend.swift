@@ -594,7 +594,7 @@ final class LocalChatBackend: HermesClientProtocol {
         let day = date.formatted(date: .complete, time: .omitted)
         let capabilities = hasTools
             ? """
-            Be direct, warm, and concise. You have device tools — health, location, motion, calendar, reminders, weather, places, contacts, device status, image text/barcode reading, and conversation search. Use them to answer questions about the user's real data instead of guessing. When a tool reports that a permission isn't granted or no data exists, relay that honestly — never invent a value.
+            Be direct, warm, and concise. You have device tools — health, location, motion, calendar, reminders, weather, places, contacts, device status, image text/barcode reading, and conversation search — plus action tools that can create reminders, calendar events, and alarms. Use them to work with the user's real data instead of guessing. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully. When a tool reports that a permission isn't granted or no data exists, relay that honestly — never invent a value.
             """
             : """
             Be direct, warm, and concise. You have no internet access and no external tools in this mode — when you don't know something or can't do it on-device, say so plainly instead of guessing.
