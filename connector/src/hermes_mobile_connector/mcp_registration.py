@@ -247,14 +247,43 @@ def native_mcp_readiness_message(*, hermes_command: str) -> str:
 
 
 def _hermes_chat_running(hermes_command: str) -> bool:
+    """Check whether a ``hermes … chat`` process is already running.
+
+    Uses ``ps -axo`` on macOS/Linux; falls back to ``tasklist`` on Windows.
+    Returns *False* (rather than crashing) when process enumeration fails so
+    that ``talk_readiness_payload()`` can still complete on any platform.
+    """
     command_parts = shlex.split(hermes_command)
     executable = Path(command_parts[0]).name if command_parts else "hermes"
-    process = subprocess.run(
-        ["ps", "-axo", "pid=,command="],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+
+    if sys.platform == "win32":
+        try:
+            process = subprocess.run(
+                ["tasklist", "/FO", "CSV", "/NH"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if process.returncode != 0:
+                return False
+            # tasklist CSV: "Image Name","PID","Session Name","Session#","Mem Usage"
+            for line in process.stdout.splitlines():
+                if executable.lower() in line.lower() and "chat" in line.lower():
+                    return True
+            return False
+        except Exception:  # noqa: BLE001
+            return False
+
+    # macOS / Linux path
+    try:
+        process = subprocess.run(
+            ["ps", "-axo", "pid=,command="],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except Exception:  # noqa: BLE001
+        return False
     if process.returncode != 0:
         return False
 

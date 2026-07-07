@@ -38,6 +38,12 @@ Config/*.local.xcconfig
 # Claude
 .claude/task-output/
 
+# Local backups / reconciliation artifacts
+*.bak
+*.bak-*
+*.local.bak
+*.local.bak-*
+
 # Python / relay
 .venv/
 venv/

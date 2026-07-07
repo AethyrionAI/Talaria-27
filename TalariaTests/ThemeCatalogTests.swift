@@ -35,10 +35,10 @@ struct ThemeCatalogTests {
     }
 
     @Test func seasonalThemeMappingIsStable() {
-        #expect(ThemeCatalog.seasonalTheme(on: date(2026, 1, 15), calendar: utc) == .deepField)
-        #expect(ThemeCatalog.seasonalTheme(on: date(2026, 4, 15), calendar: utc) == .terminal)
-        #expect(ThemeCatalog.seasonalTheme(on: date(2026, 7, 15), calendar: utc) == .solarForge)
-        #expect(ThemeCatalog.seasonalTheme(on: date(2026, 10, 15), calendar: utc) == .paperTape)
+        #expect(ThemeCatalog.seasonalTheme(on: date(2026, 1, 15), calendar: utc) == .winterFrost)
+        #expect(ThemeCatalog.seasonalTheme(on: date(2026, 4, 15), calendar: utc) == .springSprout)
+        #expect(ThemeCatalog.seasonalTheme(on: date(2026, 7, 15), calendar: utc) == .summerSolar)
+        #expect(ThemeCatalog.seasonalTheme(on: date(2026, 10, 15), calendar: utc) == .autumnHarvest)
     }
 
     // MARK: Date windows
@@ -94,9 +94,9 @@ struct ThemeCatalogTests {
 
     // MARK: Catalog model
 
-    @Test func flagshipCoversEveryRenderTheme() {
+    @Test func allDefinitionsCoverEveryRenderTheme() {
         for theme in AppearanceTheme.allCases {
-            #expect(ThemeCatalog.flagship.contains { $0.appearanceTheme == theme })
+            #expect(ThemeCatalog.all.contains { $0.appearanceTheme == theme })
         }
     }
 

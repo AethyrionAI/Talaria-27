@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from .apns import PushResult, create_apns_client
 from .config import Settings
 from .database import Database
+from .gateway import GatewayError, create_gateway_client
 from .hermes_adapter import build_hermes_adapter
 from .models import Conversation, HermesHost, Message, PushRegistration
 from .pairing import HostSetupCodePayload, format_phone_pairing_code, build_host_setup_code
@@ -41,6 +42,8 @@ from .schemas import (
     SensorHealthRequest,
     SensorLocationRequest,
     PushRegisterRequest,
+    PushWatchCancelRequest,
+    PushWatchRequest,
     RefreshRequest,
     VoiceTurnCreateRequest,
 )
@@ -192,6 +195,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI):
         database.create_all()
         app.state.apns_client = create_apns_client(settings)
+        app.state.gateway_client = create_gateway_client(settings)
 
         async def _cleanup_stale_job_queues():
             """Periodically remove event queues for completed/failed jobs."""
@@ -217,12 +221,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             yield
         finally:
             cleanup_task.cancel()
-            if app.state.apns_client:
-                close_method = getattr(app.state.apns_client, "close", None)
-                if callable(close_method):
-                    close_result = close_method()
-                    if inspect.isawaitable(close_result):
-                        await close_result
+            for watcher in list(app.state.push_watchers.values()):
+                watcher.cancel()
+            app.state.push_watchers.clear()
+            for client_attr in ("apns_client", "gateway_client"):
+                client = getattr(app.state, client_attr, None)
+                if client:
+                    close_method = getattr(client, "close", None)
+                    if callable(close_method):
+                        close_result = close_method()
+                        if inspect.isawaitable(close_result):
+                            await close_result
 
     app = FastAPI(title=settings.service_name, version=settings.version, lifespan=lifespan)
     app.state.settings = settings
@@ -237,6 +246,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.connector_rpc_waiters: dict[str, asyncio.Future[dict]] = {}
     app.state.job_event_queues: dict[str, list[asyncio.Queue]] = {}
     app.state.job_event_buffers: dict[str, list[dict]] = {}
+    # Active run-completion watchers (#38), keyed by (user_id, session_id).
+    # In-memory by design: a watch is a short-lived promise to one detached
+    # run, and the app re-posts it on the next background transition if the
+    # relay restarted in between.
+    app.state.push_watchers: dict[tuple[str, str], asyncio.Task] = {}
 
     def subscribe_job_events(job_id: str) -> asyncio.Queue:
         queue: asyncio.Queue = asyncio.Queue(maxsize=1024)
@@ -346,6 +360,89 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 logger.info("Deactivated invalid APNs token for device %s", device.id)
             elif result != PushResult.SENT:
                 logger.warning("APNs delivery %s for device %s", result.value, device.id)
+
+    async def send_run_completion_push(
+        *,
+        db: Session,
+        user_id: str,
+        session_id: str,
+        reply_text: str,
+    ) -> None:
+        """Announce a finished gateway run (#38). The payload carries
+        `session_id` so a tap can deep-link into the right conversation."""
+        apns_client = app.state.apns_client
+        if apns_client is None:
+            return
+
+        preview = " ".join(reply_text.split()).strip()[:160] or "Hermes finished a run."
+
+        for device, registration in active_push_registrations_for_user(db, user_id=user_id):
+            if device_is_foreground(device, stale_seconds=settings.app_presence_stale_seconds):
+                continue
+
+            result = await apns_client.send_alert_push(
+                registration.apns_token,
+                title="Hermes",
+                body=preview,
+                bundle_id=registration.bundle_id,
+                environment=registration.push_environment,
+                payload_extra={"session_id": session_id},
+            )
+            if result == PushResult.TOKEN_INVALID:
+                registration.is_active = False
+                db.commit()
+                logger.info("Deactivated invalid APNs token for device %s", device.id)
+            elif result != PushResult.SENT:
+                logger.warning("APNs run-completion delivery %s for device %s", result.value, device.id)
+
+    async def watch_session_for_completion(*, user_id: str, session_id: str) -> None:
+        """Poll the gateway until the watched session's detached run
+        completes, then push. Registered by POST /v1/push/watch; removes
+        itself from the registry on every exit path."""
+        gateway = app.state.gateway_client
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+        deadline = started + settings.push_watch_ttl_seconds
+        consecutive_failures = 0
+        try:
+            while loop.time() < deadline:
+                try:
+                    reply = await gateway.fetch_completed_reply(session_id)
+                    consecutive_failures = 0
+                except GatewayError as e:
+                    consecutive_failures += 1
+                    logger.warning(
+                        "push watch: gateway poll failed for session %s (%d consecutive): %s",
+                        session_id, consecutive_failures, e,
+                    )
+                    if consecutive_failures >= 20:
+                        logger.error("push watch: abandoning session %s after repeated gateway failures", session_id)
+                        return
+                    reply = None
+                if reply is not None:
+                    with database.session() as db:
+                        await send_run_completion_push(
+                            db=db,
+                            user_id=user_id,
+                            session_id=session_id,
+                            reply_text=reply,
+                        )
+                    logger.info("push watch: session %s completed, push dispatched", session_id)
+                    return
+                elapsed = loop.time() - started
+                interval = (
+                    settings.push_watch_poll_seconds
+                    if elapsed < settings.push_watch_fast_window_seconds
+                    else settings.push_watch_slow_poll_seconds
+                )
+                await asyncio.sleep(interval)
+            logger.info("push watch: TTL expired for session %s", session_id)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.warning("push watch: unexpected error for session %s", session_id, exc_info=True)
+        finally:
+            app.state.push_watchers.pop((user_id, session_id), None)
 
     def resolve_sensor_delivery(delivery_id: str | None, *, delivered: bool) -> None:
         if delivery_id is None:
@@ -1365,6 +1462,75 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             db.commit()
 
         return success({"deactivated": True, "count": len(registrations)})
+
+    @app.post("/v1/push/watch")
+    async def watch_push(
+        payload: PushWatchRequest,
+        request: Request,
+        auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
+    ) -> dict:
+        """Watch a gateway session for run completion (#38).
+
+        The phone calls this when it detaches from an in-flight run
+        (backgrounded/locked mid-stream). Chat never transits the relay,
+        so this is how the relay learns a run exists: it polls the
+        gateway's messages endpoint and fires an APNs alert (payload
+        `session_id`) when the reply lands. Sessions are gateway
+        resources with no relay-side ownership, so any authenticated
+        device of this single-user deployment may watch any session.
+        """
+        if request.app.state.apns_client is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="APNs not configured. Set APNS_KEY_PATH, APNS_KEY_ID, APNS_TEAM_ID.",
+            )
+        if request.app.state.gateway_client is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Gateway polling not configured. Set GATEWAY_API_KEY.",
+            )
+
+        # A watch request is itself evidence the app is leaving the
+        # foreground. Reflect that now so the presence gate can't race the
+        # separate device/app-state report and swallow the push.
+        update_device_app_state(db, device=auth.device, state="background")
+
+        key = (auth.user.id, payload.sessionId)
+        existing = request.app.state.push_watchers.get(key)
+        if existing is not None and not existing.done():
+            return success({"watching": True, "deduplicated": True})
+
+        request.app.state.push_watchers[key] = asyncio.create_task(
+            watch_session_for_completion(user_id=auth.user.id, session_id=payload.sessionId)
+        )
+        record_audit(
+            db,
+            actor_type="app",
+            actor_id=auth.device.id,
+            action="push.watch",
+            entity_type="gateway_session",
+            entity_id=payload.sessionId,
+        )
+        db.commit()
+        return success({"watching": True})
+
+    @app.post("/v1/push/watch/cancel")
+    async def cancel_push_watch(
+        payload: PushWatchCancelRequest,
+        request: Request,
+        auth: AuthContext = Depends(get_auth_context),
+    ) -> dict:
+        """Cancel a run-completion watch — the app reconciled the run on
+        its own (e.g. foregrounded before completion), so a push would
+        announce a reply the user has already seen."""
+        key = (auth.user.id, payload.sessionId)
+        watcher = request.app.state.push_watchers.pop(key, None)
+        cancelled = False
+        if watcher is not None and not watcher.done():
+            watcher.cancel()
+            cancelled = True
+        return success({"cancelled": cancelled})
 
     @app.post("/v1/device/app-state")
     def device_app_state(

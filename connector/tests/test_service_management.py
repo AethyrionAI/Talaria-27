@@ -113,6 +113,7 @@ def test_macos_install_writes_launchagent_plist_and_runner(monkeypatch, tmp_path
     assert payload["RunAtLoad"] is True
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS LaunchAgent service test — requires launchctl and os.getuid()")
 def test_macos_service_start_stop_restart_and_uninstall_issue_expected_launchctl_calls(monkeypatch, tmp_path):
     home_dir = tmp_path / "home"
     home_dir.mkdir(parents=True)

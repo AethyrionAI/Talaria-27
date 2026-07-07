@@ -27,7 +27,9 @@ from .config import Settings
 
 logger = logging.getLogger("hermes.relay.apns")
 
-APNS_DEVELOPMENT_URL = "https://api.development.push.apple.com"
+# Apple's current canonical sandbox host (api.development.push.apple.com is
+# the legacy alias for the same environment).
+APNS_DEVELOPMENT_URL = "https://api.sandbox.push.apple.com"
 APNS_PRODUCTION_URL = "https://api.push.apple.com"
 
 
@@ -128,8 +130,14 @@ class APNsClient:
         category: str | None = None,
         bundle_id: str | None = None,
         environment: str | None = None,
+        payload_extra: dict | None = None,
     ) -> PushResult:
-        """Send a visible alert push notification."""
+        """Send a visible alert push notification.
+
+        `payload_extra` keys are merged at the payload root (outside
+        `aps`) and surface in the app as `userInfo` — e.g.
+        `{"session_id": ...}` for tap deep-linking.
+        """
         topic = bundle_id or self.default_bundle_id
         base_url = self._base_url_for(environment)
         url = f"{base_url}/3/device/{device_token}"
@@ -144,6 +152,10 @@ class APNsClient:
         if category:
             aps["category"] = category
         payload = {"aps": aps}
+        if payload_extra:
+            for key, value in payload_extra.items():
+                if key != "aps":
+                    payload[key] = value
 
         return await self._send(url, headers, payload, device_token)
 

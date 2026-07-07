@@ -100,9 +100,10 @@ struct DesignThemeTests {
 
     // MARK: Theme behaviors
 
-    @Test func paperTapeIsTheOnlyLightTheme() {
+    @Test func lightThemesMatchExpectedSet() {
+        let lightThemes: Set<AppearanceTheme> = [.paperTape, .winterFrost, .springSprout]
         for theme in AppearanceTheme.allCases {
-            #expect(theme.isLight == (theme == .paperTape))
+            #expect(theme.isLight == lightThemes.contains(theme))
             #expect(ThemePalette(theme: theme.themeID, accent: .cyan).isLight == theme.isLight)
         }
     }
@@ -112,6 +113,10 @@ struct DesignThemeTests {
         #expect(ThemePalette(theme: .solarForge, accent: .cyan).base == Color(hex: 0xFFC14D))
         #expect(ThemePalette(theme: .terminal, accent: .cyan).base == Color(hex: 0x33FF00))
         #expect(ThemePalette(theme: .paperTape, accent: .cyan).base == Color(hex: 0xB5382E))
+        #expect(ThemePalette(theme: .winterFrost, accent: .cyan).base == Color(hex: 0x3AB3F0))
+        #expect(ThemePalette(theme: .summerSolar, accent: .cyan).base == Color(hex: 0xFFA028))
+        #expect(ThemePalette(theme: .springSprout, accent: .cyan).base == Color(hex: 0xFF6B8A))
+        #expect(ThemePalette(theme: .autumnHarvest, accent: .cyan).base == Color(hex: 0xFF8C28))
     }
 
     @Test func contextualAccentLabels() {
@@ -119,6 +124,48 @@ struct DesignThemeTests {
         #expect(AppearanceAccent.cyan.displayLabel(for: .terminal) == "Green · Phosphor")
         #expect(AppearanceAccent.cyan.displayLabel(for: .paperTape) == "Red · Tracker")
         #expect(AppearanceAccent.amber.displayLabel(for: .solarForge) == "Cyan · Plasma")
+        #expect(AppearanceAccent.cyan.displayLabel(for: .winterFrost) == "Ice · Winter")
+        #expect(AppearanceAccent.cyan.displayLabel(for: .summerSolar) == "Mango · Summer")
+        #expect(AppearanceAccent.cyan.displayLabel(for: .springSprout) == "Blossom · Spring")
+        #expect(AppearanceAccent.cyan.displayLabel(for: .autumnHarvest) == "Pumpkin · Autumn")
+    }
+
+    // MARK: Catalog resolution (#49)
+
+    @Test func paletteCatalogCoversEveryTheme() {
+        // Resolution is a pure catalog lookup — every render identity must
+        // have a definition (definition(for:) falls back visibly otherwise).
+        for theme in ThemeID.allCases {
+            #expect(ThemePaletteCatalog.definitions[theme] != nil)
+        }
+    }
+
+    @Test func themeDisplayNamesHaveASingleSource() {
+        // AppearanceTheme.displayLabel delegates to the catalog definition,
+        // so the two names can no longer drift apart (#49 reconcile).
+        for theme in AppearanceTheme.allCases {
+            #expect(theme.displayLabel == ThemeCatalog.definition(id: theme.rawValue)?.displayName)
+        }
+    }
+
+    @Test func flagshipDefinitionsExposeTheirPalettePayload() {
+        for definition in ThemeCatalog.flagship {
+            #expect(definition.paletteDefinition ==
+                    ThemePaletteCatalog.definition(for: definition.appearanceTheme.themeID))
+        }
+    }
+
+    @Test func orbStyleIsThemeData() {
+        // ReactorOrb dispatches on palette data, not theme identity — a new
+        // catalog theme picks an existing composition without view edits.
+        #expect(ThemePalette(theme: .deepField, accent: .cyan).orbStyle == .arcReactor)
+        #expect(ThemePalette(theme: .solarForge, accent: .cyan).orbStyle == .forgeSun)
+        #expect(ThemePalette(theme: .terminal, accent: .cyan).orbStyle == .crtCrosshair)
+        #expect(ThemePalette(theme: .paperTape, accent: .cyan).orbStyle == .paperReel)
+        #expect(ThemePalette(theme: .winterFrost, accent: .cyan).orbStyle == .arcReactor)
+        #expect(ThemePalette(theme: .summerSolar, accent: .cyan).orbStyle == .arcReactor)
+        #expect(ThemePalette(theme: .springSprout, accent: .cyan).orbStyle == .arcReactor)
+        #expect(ThemePalette(theme: .autumnHarvest, accent: .cyan).orbStyle == .arcReactor)
     }
 
     // MARK: Runtime mirroring

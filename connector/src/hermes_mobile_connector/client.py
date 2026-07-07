@@ -21,6 +21,19 @@ from websockets.asyncio.client import connect as websocket_connect
 
 from . import __version__
 
+
+def _close_code(error: BaseException) -> int | None:
+    """Extract the WebSocket close code from an exception, if available."""
+    try:
+        from websockets.exceptions import ConnectionClosed
+
+        if isinstance(error, ConnectionClosed):
+            return error.code
+    except ImportError:
+        pass
+    return None
+
+
 # Gateway-available commands from Hermes COMMAND_REGISTRY.
 # These are the commands available on messaging platforms (not cli_only).
 # Kept as static data to avoid importing hermes_cli (different venv).
@@ -605,16 +618,56 @@ class HermesMobileConnector:
         )
 
     async def run_forever(self) -> None:
+        consecutive_failures = 0
         while True:
             state = self.state_store.load()
             try:
                 await self._run_once(state)
+                # _run_once returned cleanly (rare — the inner loop is infinite).
+                # Reset the backoff counter so the next legitimate reconnect
+                # starts from the base delay.
+                consecutive_failures = 0
             except KeyboardInterrupt:
                 raise
             except Exception as error:  # noqa: BLE001
+                consecutive_failures += 1
                 state.last_error = str(error)
                 self.state_store.save(state)
-                await asyncio.sleep(self.reconnect_delay_seconds)
+                delay = self._reconnect_delay(error, consecutive_failures)
+                logger.debug(
+                    "Connector disconnected (failure #%d, code=%s), "
+                    "reconnecting in %.1fs",
+                    consecutive_failures,
+                    _close_code(error),
+                    delay,
+                )
+                await asyncio.sleep(delay)
+
+    def _reconnect_delay(self, error: Exception, failure_count: int) -> float:
+        """Exponential backoff with close-code-aware base delays.
+
+        * **1012** (Service Restart) — relay is rebooting.  Allow one fast
+          retry at the configured base delay; if it keeps failing, back off.
+        * **4401** (Unauthorized / nonce mismatch) — competing connector
+          instances are fighting over the connection nonce.  Start with a
+          longer delay (15 s) so the cascade has time to settle.
+        * **All others** — standard exponential backoff starting at
+          ``reconnect_delay_seconds`` (default 3 s).
+
+        Maximum delay is capped at 60 seconds regardless of the close code.
+        """
+        code = _close_code(error)
+
+        if failure_count == 1 and code == 1012:
+            # One fast retry for a relay restart.
+            base = self.reconnect_delay_seconds
+        elif code == 4401:
+            # Competing connectors — give the nonce fight time to resolve.
+            base = 15.0
+        else:
+            base = self.reconnect_delay_seconds
+
+        return min(base * (2 ** (failure_count - 1)), 60.0)
 
     async def _run_once(self, state: ConnectorState) -> None:
         state = self.refresh_runtime_config(force=False)

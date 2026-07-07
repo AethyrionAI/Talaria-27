@@ -9,17 +9,52 @@ import SwiftUI
 
 /// Draws the active theme's texture (`ThemePalette.texture`). Deep Field has
 /// none — its background stays byte-identical to the pre-theming app.
+/// Texture colors resolve through `ThemeArtDirection` where a theme curates
+/// them; the fallbacks are the pre-art-direction values.
 struct ThemeTextureView: View {
     var body: some View {
+        let art = ThemeRuntime.shared.artDirection
         switch ThemeRuntime.shared.palette.texture {
         case .none:
             EmptyView()
         case .embers:
-            EmberTexture(color: Design.Brand.forge)
+            EmberTexture(color: art.emberTint ?? Design.Brand.forge)
         case .scanlines:
             ScanlineTexture(color: Design.Colors.accentTint(0.04))
         case .paperGrain:
             PaperGrainTexture(ink: Design.Colors.foreground)
+        case .starfield:
+            // A starfield theme curates its own speck hues; the accent
+            // fallback only exists so a missing entry fails soft, not blank.
+            StarfieldTexture(field: art.starfield ?? ThemeStarfield(colors: [Design.Brand.accent]))
+        }
+    }
+}
+
+// MARK: Glow pools (art-direction nebula layer)
+
+/// Radial glow pools painted between the screen gradient and the texture —
+/// `ThemeArtDirection.glowPools`. Empty for every theme without an art-
+/// direction entry, so the default screen stack is unchanged.
+struct GlowPoolField: View {
+    var body: some View {
+        let pools = ThemeRuntime.shared.artDirection.glowPools
+        if !pools.isEmpty {
+            GeometryReader { proxy in
+                let radiusBase = max(proxy.size.width, proxy.size.height)
+                ZStack {
+                    ForEach(pools.indices, id: \.self) { index in
+                        let pool = pools[index]
+                        RadialGradient(
+                            colors: [pool.color, .clear],
+                            center: pool.center,
+                            startRadius: 0,
+                            endRadius: max(1, radiusBase * pool.radiusFraction)
+                        )
+                    }
+                }
+            }
+            .allowsHitTesting(false)
         }
     }
 }
@@ -109,6 +144,72 @@ struct ScanlineTexture: View {
             context.stroke(path, with: .color(color), lineWidth: 1)
         }
         .allowsHitTesting(false)
+    }
+}
+
+// MARK: Starfield (Event Horizon)
+
+/// Multi-hue star specks drifting in slow diagonals — the handoff's four
+/// `.page-bg` layers panning over 24s. Seeded/deterministic like the other
+/// textures; static under Reduce Motion.
+struct StarfieldTexture: View {
+    let field: ThemeStarfield
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+
+    /// Per-layer drift vectors (pt/s) — four diagonals mirroring the
+    /// handoff's `starfieldDrift` background-position pans.
+    private static let drifts: [(dx: Double, dy: Double)] = [
+        (3.75, 3.75), (-5.0, 5.0), (6.25, -6.25), (-4.6, 4.6),
+    ]
+
+    var body: some View {
+        Group {
+            if reduceMotion {
+                Canvas { context, size in
+                    Self.draw(context: context, size: size, time: 0, field: field)
+                }
+            } else {
+                TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { timeline in
+                    Canvas { context, size in
+                        Self.draw(
+                            context: context,
+                            size: size,
+                            time: timeline.date.timeIntervalSinceReferenceDate,
+                            field: field
+                        )
+                    }
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private static func draw(context: GraphicsContext, size: CGSize, time: Double, field: ThemeStarfield) {
+        guard size.width > 0, size.height > 0, !field.colors.isEmpty else { return }
+        // Specks wrap across a margin-padded span so drift never pops at edges.
+        let margin: Double = 20
+        let spanW = size.width + margin * 2
+        let spanH = size.height + margin * 2
+
+        for i in 0..<field.count {
+            let drift = drifts[i % drifts.count]
+            let color = field.colors[i % field.colors.count]
+
+            let baseX = seededUnit(i, 31) * spanW
+            let baseY = seededUnit(i, 32) * spanH
+            let rawX = (baseX + time * drift.dx * field.driftScale).truncatingRemainder(dividingBy: spanW)
+            let rawY = (baseY + time * drift.dy * field.driftScale).truncatingRemainder(dividingBy: spanH)
+            let x = (rawX + spanW).truncatingRemainder(dividingBy: spanW) - margin
+            let y = (rawY + spanH).truncatingRemainder(dividingBy: spanH) - margin
+
+            let radius = 0.7 + seededUnit(i, 33) * 1.1
+            let opacity = 0.10 + seededUnit(i, 34) * 0.18
+
+            let rect = CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2)
+            context.fill(Path(ellipseIn: rect), with: .color(color.opacity(opacity)))
+        }
     }
 }
 

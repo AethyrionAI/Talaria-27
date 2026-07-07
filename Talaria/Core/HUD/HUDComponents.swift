@@ -18,6 +18,7 @@ struct HUDScreenBackground: View {
         ZStack {
             Design.Colors.background
             Design.Colors.screenGradient
+            GlowPoolField()
             ThemeTextureView()
             GridOverlay()
                 .opacity(gridIntensity ?? ThemeRuntime.shared.gridDensity.gridIntensity)
@@ -188,6 +189,7 @@ struct HUDPanel<Content: View>: View {
                         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
                 }
             }
+            .panelHalo(cornerRadius: cornerRadius)
     }
 }
 
@@ -214,6 +216,30 @@ extension View {
                         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
                 }
             }
+            .panelHalo(cornerRadius: cornerRadius)
+    }
+
+    /// Art-direction panel halo (`ThemeArtDirection.panelHalo`): a rim ring
+    /// just outside the border plus an outer glow. Inert (clear shadow, no
+    /// overlay) for every theme without a halo, so default panels render
+    /// exactly as before.
+    @MainActor
+    func panelHalo(cornerRadius: CGFloat) -> some View {
+        let halo = ThemeRuntime.shared.artDirection.panelHalo
+        let glowOpacity = 0.16 * Design.Glow.k * ThemeRuntime.shared.palette.glowScale
+        return self
+            .overlay {
+                if let halo {
+                    RoundedRectangle(cornerRadius: cornerRadius + 3)
+                        .strokeBorder(halo.ringColor, lineWidth: 1)
+                        .padding(-3)
+                        .allowsHitTesting(false)
+                }
+            }
+            .shadow(
+                color: halo.map { $0.glowColor.opacity(glowOpacity) } ?? .clear,
+                radius: halo?.glowRadius ?? 0
+            )
     }
 }
 
