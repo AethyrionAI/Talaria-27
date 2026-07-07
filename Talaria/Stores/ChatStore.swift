@@ -206,8 +206,6 @@ final class ChatStore {
         streamingMessageID = placeholderID
         restartPendingPollingIfNeeded()
 
-        Task { await self.notifications.requestAuthorizationIfNeeded() }
-
         // #14: attachment sends are the deliberately-backgroundable long path —
         // wrap them in a continued-processing task (submitted here, in the
         // foreground, from the user's explicit send). Plain text turns stay
@@ -215,6 +213,13 @@ final class ChatStore {
         // anyway, so expiration finalizes partial content via cancelStreaming.
         let continuedSend = attachments.isEmpty ? nil : beginContinuedSend?(displayContent)
         continuedSend?.onExpiration = { [weak self] in self?.cancelStreaming() }
+
+        // #31 contextual priming: the notification prompt rides the first
+        // LONG-RUN — a send that can outlive the foreground and want a
+        // completion notify — not the first message ever sent.
+        if continuedSend != nil {
+            Task { await self.notifications.requestAuthorizationIfNeeded() }
+        }
 
         let stream = hermesClient.sendStreaming(message: trimmedContent, attachments: attachments, clientMessageID: clientMessageID)
         var acceptedJobID: UUID?
@@ -352,6 +357,11 @@ final class ChatStore {
                         partialReasoning: partialReasoning
                     )
                     self.startReconcileLoopIfNeeded()
+                    // #31: this run just went long (finishing server-side
+                    // while we may background) — the completion notify needs
+                    // authorization. Best-effort: the prompt can only present
+                    // while foregrounded; idempotent on the next long run.
+                    Task { await self.notifications.requestAuthorizationIfNeeded() }
                     // #14: the continued task's job — keeping the stream alive —
                     // is over; the reconcile loop owns recovery from here. Not a
                     // failure in the system progress UI.

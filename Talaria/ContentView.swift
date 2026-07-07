@@ -5,6 +5,7 @@ struct MainTabView: View {
     @Environment(TalkStore.self) private var talkStore
     @Environment(ChatStore.self) private var chatStore
     @Environment(SettingsStore.self) private var settingsStore
+    @Environment(PairingStore.self) private var pairingStore
 
     var body: some View {
         @Bindable var router = router
@@ -41,7 +42,14 @@ struct MainTabView: View {
         case .capture:
             CaptureScreen()
         case .connectHost:
-            ConnectHermesHostScreen()
+            // #31: the pairing flow's new home. Unpaired → the full pairing
+            // screen (relocated from the removed launch wall); paired → the
+            // host status/management screen as before.
+            if pairingStore.isPaired {
+                ConnectHermesHostScreen()
+            } else {
+                ConnectHermesScreen()
+            }
         }
     }
 

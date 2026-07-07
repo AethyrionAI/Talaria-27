@@ -84,7 +84,12 @@ struct ChatScreen: View {
             VStack(spacing: 0) {
                 agentIdentityStrip
 
-                if showsConnectionBanner {
+                // #31: the standalone brain can't run (Apple Intelligence off /
+                // unsupported / downloading) and no Hermes is carrying chat —
+                // show the honest explanation state, never a dead screen.
+                if let explanation = standaloneUnavailableExplanation {
+                    standaloneUnavailableBanner(explanation)
+                } else if showsConnectionBanner {
                     connectionBanner
                 }
                 messageList
@@ -567,6 +572,48 @@ struct ChatScreen: View {
             }
             .onAppear { scrollProxy = proxy }
         }
+    }
+
+    // MARK: - Standalone availability (#31)
+
+    /// Non-nil while the NEXT message would route to the on-device brain and
+    /// that brain is unavailable — the message carries reason-specific enable
+    /// instructions (#26's honest unavailability strings).
+    private var standaloneUnavailableExplanation: String? {
+        guard let brainRouter = container.chatBackendRouter,
+              brainRouter.activeBrain != .hermes else { return nil }
+        return container.localChatBackend?.availabilityExplanation
+    }
+
+    private func standaloneUnavailableBanner(_ explanation: String) -> some View {
+        HStack(alignment: .center, spacing: Design.Spacing.sm) {
+            Image(systemName: "brain.head.profile")
+                .font(.system(size: Design.Size.iconSmall))
+                .foregroundStyle(Design.Brand.forge)
+
+            VStack(alignment: .leading, spacing: Design.Spacing.xxxs) {
+                MonoLabel("ON-DEVICE INTELLIGENCE UNAVAILABLE", size: 11, weight: .medium,
+                          tracking: Design.Tracking.mono, color: Design.Colors.foregroundBright)
+                Text(explanation)
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+            }
+
+            Spacer()
+
+            Button("Connect") {
+                router.dismissSheet()
+                router.navigate(to: .connectHost)
+            }
+            .font(Design.Typography.mono(11, weight: .medium))
+            .foregroundStyle(Design.Brand.accent)
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+        .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Brand.forge.opacity(0.35))
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.top, Design.Spacing.md)
+        .accessibilityElement(children: .combine)
     }
 
     private var connectionBanner: some View {
