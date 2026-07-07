@@ -104,9 +104,25 @@ struct ReminderReadTool: Tool {
         let predicate = store.predicateForIncompleteReminders(
             withDueDateStarting: nil, ending: nil, calendars: nil
         )
-        let reminders: [EKReminder] = await withCheckedContinuation { continuation in
+        // Snapshot Sendable fields inside the completion handler — EKReminder
+        // is not Sendable and must not cross the continuation boundary.
+        struct ReminderSnapshot: Sendable {
+            let title: String
+            let due: Date?
+            let hasTime: Bool
+            let calendarTitle: String
+        }
+        let reminders: [ReminderSnapshot] = await withCheckedContinuation { continuation in
             store.fetchReminders(matching: predicate) { found in
-                continuation.resume(returning: found ?? [])
+                let snapshots = (found ?? []).map { reminder in
+                    ReminderSnapshot(
+                        title: reminder.title ?? "Untitled reminder",
+                        due: reminder.dueDateComponents?.date,
+                        hasTime: reminder.dueDateComponents?.hour != nil,
+                        calendarTitle: reminder.calendar.title
+                    )
+                }
+                continuation.resume(returning: snapshots)
             }
         }
         guard !reminders.isEmpty else { return "No open reminders." }
@@ -120,20 +136,19 @@ struct ReminderReadTool: Tool {
 
         // Due-dated reminders first (soonest first), then the undated pile.
         let sorted = reminders.sorted { lhs, rhs in
-            switch (lhs.dueDateComponents?.date, rhs.dueDateComponents?.date) {
+            switch (lhs.due, rhs.due) {
             case (let l?, let r?): return l < r
             case (_?, nil): return true
             case (nil, _?): return false
-            case (nil, nil): return (lhs.title ?? "") < (rhs.title ?? "")
+            case (nil, nil): return lhs.title < rhs.title
             }
         }
         let lines = sorted.prefix(25).map { reminder -> String in
-            var line = "• \(reminder.title ?? "Untitled reminder")"
-            if let components = reminder.dueDateComponents, let due = components.date {
-                let hasTime = components.hour != nil
-                line += " — due \((hasTime ? timedFormatter : dayFormatter).string(from: due))"
+            var line = "• \(reminder.title)"
+            if let due = reminder.due {
+                line += " — due \((reminder.hasTime ? timedFormatter : dayFormatter).string(from: due))"
             }
-            line += " [\(reminder.calendar.title)]"
+            line += " [\(reminder.calendarTitle)]"
             return line
         }
         var result = lines.joined(separator: "\n")

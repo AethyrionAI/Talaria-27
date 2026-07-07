@@ -29,8 +29,8 @@ final class LocalChatBackend: HermesClientProtocol {
     /// Model identifiers exposed by `availableModels()` and accepted by
     /// `switchModel`. PCC appears only when the entitlement + availability
     /// check actually passes (#30) — never assumed.
-    static let onDeviceModelID = "on-device"
-    static let privateCloudModelID = "private-cloud-beta"
+    nonisolated static let onDeviceModelID = "on-device"
+    nonisolated static let privateCloudModelID = "private-cloud-beta"
 
     /// The two tiers the local brain can run (#30). PCC is a MODE of this
     /// backend — one seam, never a third client. On-device is the permanent
@@ -43,7 +43,7 @@ final class LocalChatBackend: HermesClientProtocol {
     /// `HermesSessionInfo.source` tag for locally-produced conversations, so
     /// the sessions drawer can distinguish the standalone thread from server
     /// history once both exist (#27 transcript honesty).
-    static let localSessionSource = "local"
+    nonisolated static let localSessionSource = "local"
 
     private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "LocalChatBackend")
 
@@ -193,11 +193,23 @@ final class LocalChatBackend: HermesClientProtocol {
         escalationOfferDismissed = true
     }
 
+    /// PCC context window, fetched once per process and cached — the window
+    /// is a fixed property of the model class, not live state. (The beta-27
+    /// SDK exposes `contextSize` as `async throws` on PCC, unlike the sync
+    /// on-device accessor.)
+    private var pccContextSize: Int?
+
     /// The context budget follows the ACTIVE tier's model, read at runtime —
-    /// 32K on PCC vs the on-device window; neither is ever hardcoded.
-    private var activeContextSize: Int {
+    /// 32K on PCC vs the on-device window; neither is ever hardcoded. If the
+    /// PCC fetch fails, falls back to the on-device window: a conservative
+    /// budget that can never over-commit the larger tier.
+    private func activeContextSize() async -> Int {
         if #available(iOS 27.0, *), activeTier == .privateCloud {
-            return PrivateCloudComputeLanguageModel().contextSize
+            if let cached = pccContextSize { return cached }
+            if let size = try? await PrivateCloudComputeLanguageModel().contextSize {
+                pccContextSize = size
+                return size
+            }
         }
         return model.contextSize
     }
@@ -319,7 +331,7 @@ final class LocalChatBackend: HermesClientProtocol {
                         continuation.yield(.textDelta(delta))
                     }
                     if #available(iOS 27.0, *), activeTier == .privateCloud {
-                        let reasoningFull = Self.reasoningText(from: snapshot.transcriptEntries)
+                        let reasoningFull = Self.reasoningText(from: Array(snapshot.transcriptEntries))
                         if let delta = Self.streamDelta(from: emittedReasoning, to: reasoningFull) {
                             emittedReasoning += delta
                             continuation.yield(.reasoningDelta(delta))
@@ -419,7 +431,7 @@ final class LocalChatBackend: HermesClientProtocol {
         default:
             throw LocalChatBackendError.unknownModel(identifier)
         }
-        return Self.modelSwitchResponseText(modelID: identifier, contextSize: activeContextSize)
+        return Self.modelSwitchResponseText(modelID: identifier, contextSize: await activeContextSize())
     }
 
     // MARK: - Sessions (local-only by design)
@@ -493,7 +505,7 @@ final class LocalChatBackend: HermesClientProtocol {
     private func sessionBlueprint(for turns: [TranscriptTurn], forceCondense: Bool) async -> SessionBlueprint {
         let baseInstructions = Self.instructionsText(deviceContext: Self.deviceContextLine(), hasTools: !tools.isEmpty)
         // Budget from the model at RUNTIME — never hardcoded (#26 ground rule).
-        let contextBudget = max(1024, activeContextSize - Self.responseHeadroomTokens)
+        let contextBudget = max(1024, await activeContextSize() - Self.responseHeadroomTokens)
 
         // Cheap upper bound first: every token is at least one UTF-8 byte, so
         // a byte total inside the budget can never overflow it — skip the
@@ -552,7 +564,7 @@ final class LocalChatBackend: HermesClientProtocol {
     /// the tokenizer only runs once histories actually get long.
     private func fitsContext(turns: [TranscriptTurn], nextPrompt: String) async -> Bool {
         let baseInstructions = Self.instructionsText(deviceContext: Self.deviceContextLine(), hasTools: !tools.isEmpty)
-        let contextBudget = max(1024, activeContextSize - Self.responseHeadroomTokens)
+        let contextBudget = max(1024, await activeContextSize() - Self.responseHeadroomTokens)
         let byteTotal = baseInstructions.utf8.count
             + nextPrompt.utf8.count
             + turns.reduce(0) { $0 + $1.text.utf8.count }

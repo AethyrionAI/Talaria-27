@@ -21,7 +21,7 @@ struct ToolConfirmationCard: View {
             }
 
             Text(confirmation.title)
-                .font(Design.Typography.body(15, weight: .semibold))
+                .font(Design.Typography.body(15, weight: .medium))
                 .foregroundStyle(Design.Colors.foregroundBright)
 
             VStack(spacing: Design.Spacing.xs) {
