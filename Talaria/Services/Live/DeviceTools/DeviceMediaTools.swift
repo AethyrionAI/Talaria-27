@@ -60,16 +60,16 @@ struct ImageTextTool: Tool {
             return "The image \"\(fileName)\" couldn't be decoded for text recognition."
         }
 
-        let observations: [VNRecognizedTextObservation]? = await Task.detached(priority: .userInitiated) {
+        // Extract Sendable [String] inside the detached task — VN observation
+        // types are not Sendable and must not cross the concurrency boundary.
+        let lines: [String] = await Task.detached(priority: .userInitiated) {
             let request = VNRecognizeTextRequest()
             request.recognitionLevel = .accurate
             request.usesLanguageCorrection = true
             let handler = VNImageRequestHandler(cgImage: cgImage)
             try? handler.perform([request])
-            return request.results
+            return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
         }.value
-
-        let lines = (observations ?? []).compactMap { $0.topCandidates(1).first?.string }
         guard !lines.isEmpty else {
             return "No readable text was found in \"\(fileName)\"."
         }
@@ -99,17 +99,17 @@ struct BarcodeReaderTool: Tool {
             return "The image \"\(fileName)\" couldn't be decoded for scanning."
         }
 
-        let observations: [VNBarcodeObservation]? = await Task.detached(priority: .userInitiated) {
+        // Extract Sendable [String] inside the detached task — VN observation
+        // types are not Sendable and must not cross the concurrency boundary.
+        let found: [String] = await Task.detached(priority: .userInitiated) {
             let request = VNDetectBarcodesRequest()
             let handler = VNImageRequestHandler(cgImage: cgImage)
             try? handler.perform([request])
-            return request.results
+            return (request.results ?? []).compactMap { observation -> String? in
+                guard let payload = observation.payloadStringValue else { return nil }
+                return "\(observation.symbology.rawValue): \(payload)"
+            }
         }.value
-
-        let found = (observations ?? []).compactMap { observation -> String? in
-            guard let payload = observation.payloadStringValue else { return nil }
-            return "\(observation.symbology.rawValue): \(payload)"
-        }
         guard !found.isEmpty else {
             return "No barcode or QR code was found in \"\(fileName)\"."
         }

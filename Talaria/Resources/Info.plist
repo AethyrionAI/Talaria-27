@@ -79,8 +79,12 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Hermes reads your calendar to answer questions about your schedule, and only creates events you approve.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Hermes uses the camera to capture photos and documents for analysis.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Hermes looks up contacts you ask about — for example, to find a phone number or email address.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Hermes reads your health data to offer personalized wellness insights.</string>
 	<key>NSHealthUpdateUsageDescription</key>
@@ -95,6 +99,8 @@
 	<string>Hermes uses motion data to understand your current activity for contextual awareness.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Hermes accesses your photo library to help organize and search your photos.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Hermes reads your reminders to answer questions about your to-dos, and only creates reminders you approve.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Hermes uses speech recognition for voice commands and local transcription.</string>
 	<key>NSSupportsLiveActivities</key>

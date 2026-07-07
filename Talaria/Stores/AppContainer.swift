@@ -385,6 +385,20 @@ final class AppContainer {
         // the backend directly.
         container.localChatBackend = localChatBackend
 
+        // #30: PCC tier gates — the picker entry appears only when the
+        // entitlement + availability check actually passes, the router
+        // consults quota per new message, and locally-routed turns carry
+        // their tier to the backend.
+        chatBackendRouter.isPrivateCloudSelectable = { [weak localChatBackend] in
+            localChatBackend?.isPrivateCloudAvailable ?? false
+        }
+        chatBackendRouter.isPrivateCloudUsable = { [weak localChatBackend] in
+            localChatBackend?.isPrivateCloudUsable ?? false
+        }
+        chatBackendRouter.applyLocalTier = { [weak localChatBackend] brain in
+            localChatBackend?.setPreferredTier(privateCloud: brain == .privateCloud)
+        }
+
         // Restore any persisted Hermes Sessions-API key into the in-memory box
         // so the chat client can pick it up on first send without blocking startup.
         Task { @MainActor [weak container, hermesAPIKeyBox] in

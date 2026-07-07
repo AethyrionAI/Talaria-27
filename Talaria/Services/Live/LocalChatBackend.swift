@@ -23,17 +23,27 @@ import os
 /// token usage is reported only where the OS actually provides it
 /// (`LanguageModelSession.usage`, iOS 27) — never estimated client-side.
 @MainActor
+@Observable
 final class LocalChatBackend: HermesClientProtocol {
 
-    /// Model identifier exposed by `availableModels()` and accepted by
-    /// `switchModel`. The Private Cloud Compute tier ("private-cloud-beta")
-    /// joins this list with #30 — until then on-device is the whole catalog.
-    static let onDeviceModelID = "on-device"
+    /// Model identifiers exposed by `availableModels()` and accepted by
+    /// `switchModel`. PCC appears only when the entitlement + availability
+    /// check actually passes (#30) — never assumed.
+    nonisolated static let onDeviceModelID = "on-device"
+    nonisolated static let privateCloudModelID = "private-cloud-beta"
+
+    /// The two tiers the local brain can run (#30). PCC is a MODE of this
+    /// backend — one seam, never a third client. On-device is the permanent
+    /// free floor; PCC is opportunistic and visibly labeled beta.
+    enum LocalModelTier: String, Sendable {
+        case onDevice = "on-device"
+        case privateCloud = "private-cloud-beta"
+    }
 
     /// `HermesSessionInfo.source` tag for locally-produced conversations, so
     /// the sessions drawer can distinguish the standalone thread from server
     /// history once both exist (#27 transcript honesty).
-    static let localSessionSource = "local"
+    nonisolated static let localSessionSource = "local"
 
     private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "LocalChatBackend")
 
@@ -51,6 +61,13 @@ final class LocalChatBackend: HermesClientProtocol {
 
     private var model: SystemLanguageModel { SystemLanguageModel.default }
     private var session: LanguageModelSession?
+    /// The tier the NEXT session runs on (#30). Switching invalidates the
+    /// live session; the replayed (condensed) transcript is the handover.
+    private(set) var activeTier: LocalModelTier = .onDevice
+    /// One-shot escalation offer (#30): set when on-device condensation first
+    /// kicks in while PCC is available — the user decides, never silent.
+    private(set) var shouldOfferPrivateCloudEscalation = false
+    private var escalationOfferDismissed = false
     /// Device tool belt (#28), installed by AppContainer after construction.
     /// Empty = the tool-less #26 configuration (tests, early boot).
     private(set) var tools: [any Tool] = []
@@ -96,6 +113,105 @@ final class LocalChatBackend: HermesClientProtocol {
             return Self.unavailabilityMessage(for: reason)
         }
         return nil
+    }
+
+    // MARK: - Private Cloud Compute tier (#30)
+
+    /// Whether PCC exists for this install at all: iOS 27+, entitlement
+    /// granted, device/region eligible. Denied/pending Apple approval reads
+    /// as unavailable — the on-device path is unaffected.
+    var isPrivateCloudAvailable: Bool {
+        guard #available(iOS 27.0, *) else { return false }
+        return PrivateCloudComputeLanguageModel().isAvailable
+    }
+
+    /// Whether PCC can take a turn RIGHT NOW: available and not over the
+    /// daily quota. The router consults this per new message, so a
+    /// rate-limited tier degrades to on-device with a visible indicator
+    /// change instead of failing turns.
+    var isPrivateCloudUsable: Bool {
+        guard #available(iOS 27.0, *) else { return false }
+        let pcc = PrivateCloudComputeLanguageModel()
+        return pcc.isAvailable && !pcc.quotaUsage.isLimitReached
+    }
+
+    /// Version-agnostic quota snapshot for persistent UI (Settings → Models)
+    /// — status, not alerts, per the PCC design guidance. Nil pre-iOS 27 or
+    /// while PCC is unavailable.
+    struct PrivateCloudStatus: Equatable, Sendable {
+        enum Quota: Equatable, Sendable {
+            case belowLimit(approaching: Bool)
+            case limitReached(resetDate: Date?)
+        }
+
+        let quota: Quota
+        let hasLimitIncreaseSuggestion: Bool
+    }
+
+    func privateCloudStatus() -> PrivateCloudStatus? {
+        guard #available(iOS 27.0, *) else { return nil }
+        let pcc = PrivateCloudComputeLanguageModel()
+        guard pcc.isAvailable else { return nil }
+        let usage = pcc.quotaUsage
+        let quota: PrivateCloudStatus.Quota
+        if usage.isLimitReached {
+            quota = .limitReached(resetDate: usage.resetDate)
+        } else if case .belowLimit(let info) = usage.status {
+            quota = .belowLimit(approaching: info.isApproachingLimit)
+        } else {
+            quota = .belowLimit(approaching: false)
+        }
+        return PrivateCloudStatus(
+            quota: quota,
+            hasLimitIncreaseSuggestion: usage.limitIncreaseSuggestion != nil
+        )
+    }
+
+    /// Presents the system's iCloud+ upgrade path for more PCC access.
+    func showPrivateCloudLimitIncreaseOptions() {
+        guard #available(iOS 27.0, *) else { return }
+        PrivateCloudComputeLanguageModel().quotaUsage.limitIncreaseSuggestion?.show()
+    }
+
+    /// Applies the tier for the NEXT turn (called by the router per message).
+    /// PCC requested while unavailable degrades to on-device — the router
+    /// already made that visible via its own resolution.
+    func setPreferredTier(privateCloud: Bool) {
+        let tier: LocalModelTier = (privateCloud && isPrivateCloudAvailable) ? .privateCloud : .onDevice
+        guard tier != activeTier else { return }
+        activeTier = tier
+        // Recreate on next send: the replayed (condensed where needed)
+        // transcript IS the escalation handover context.
+        session = nil
+        Self.logger.notice("local tier → \(tier.rawValue, privacy: .public)")
+    }
+
+    /// User answered the escalation offer (either way) — one offer per
+    /// conversation; cleared by clearConversation.
+    func dismissPrivateCloudEscalationOffer() {
+        shouldOfferPrivateCloudEscalation = false
+        escalationOfferDismissed = true
+    }
+
+    /// PCC context window, fetched once per process and cached — the window
+    /// is a fixed property of the model class, not live state. (The beta-27
+    /// SDK exposes `contextSize` as `async throws` on PCC, unlike the sync
+    /// on-device accessor.)
+    private var pccContextSize: Int?
+
+    /// The context budget follows the ACTIVE tier's model, read at runtime —
+    /// 32K on PCC vs the on-device window; neither is ever hardcoded. If the
+    /// PCC fetch fails, falls back to the on-device window: a conservative
+    /// budget that can never over-commit the larger tier.
+    private func activeContextSize() async -> Int {
+        if #available(iOS 27.0, *), activeTier == .privateCloud {
+            if let cached = pccContextSize { return cached }
+            if let size = try? await PrivateCloudComputeLanguageModel().contextSize {
+                pccContextSize = size
+                return size
+            }
+        }
+        return model.contextSize
     }
 
     // MARK: - HermesClientProtocol
@@ -145,7 +261,7 @@ final class LocalChatBackend: HermesClientProtocol {
                     continue
                 }
                 connectionStatus = .error
-                return Message(sender: .system, content: Self.failureMessage(for: error), status: .failed)
+                return Message(sender: .system, content: failureMessageForActiveTier(error), status: .failed)
             }
         }
     }
@@ -202,6 +318,10 @@ final class LocalChatBackend: HermesClientProtocol {
                 // works unmodified.
                 var emitted = ""
                 var latestFull = ""
+                // #30: PCC reasoning is a SEPARATE channel (the #4.15 rule) —
+                // reasoning transcript entries diff onto reasoningDelta,
+                // never folded into the answer text.
+                var emittedReasoning = ""
                 let stream = liveSession.streamResponse(to: Prompt(prompt))
                 for try await snapshot in stream {
                     if Task.isCancelled { break }
@@ -210,12 +330,20 @@ final class LocalChatBackend: HermesClientProtocol {
                         emitted += delta
                         continuation.yield(.textDelta(delta))
                     }
+                    if #available(iOS 27.0, *), activeTier == .privateCloud {
+                        let reasoningFull = Self.reasoningText(from: Array(snapshot.transcriptEntries))
+                        if let delta = Self.streamDelta(from: emittedReasoning, to: reasoningFull) {
+                            emittedReasoning += delta
+                            continuation.yield(.reasoningDelta(delta))
+                        }
+                    }
                 }
                 connectionStatus = .connected
                 // `latestFull` is authoritative: if a snapshot ever rewrote
                 // earlier text (no incremental delta exists for that), the
                 // finished message still carries the model's real final text.
-                let reply = Message(sender: .hermes, content: latestFull, status: .delivered)
+                var reply = Message(sender: .hermes, content: latestFull, status: .delivered)
+                if !emittedReasoning.isEmpty { reply.reasoning = emittedReasoning }
                 let usage = currentTokenUsage()
                 appendAssistantMessage(reply, usage: usage)
                 continuation.yield(.finished(reply, usage, nil))
@@ -228,10 +356,34 @@ final class LocalChatBackend: HermesClientProtocol {
                     continue
                 }
                 connectionStatus = .error
-                continuation.yield(.failed(Self.failureMessage(for: error)))
+                continuation.yield(.failed(failureMessageForActiveTier(error)))
                 return
             }
         }
+    }
+
+    /// #30: a failed PCC turn names its tier and what happens next — the
+    /// router's per-message resolution moves the NEXT turn on-device when the
+    /// tier stays rate-limited/unavailable (visible indicator change).
+    private func failureMessageForActiveTier(_ error: Error) -> String {
+        let base = Self.failureMessage(for: error)
+        guard activeTier == .privateCloud else { return base }
+        return "Private Cloud β: \(base) The next message continues on-device if the tier stays unavailable."
+    }
+
+    /// Concatenated reasoning text from a snapshot's transcript entries (#30).
+    /// Reasoning segments never appear in the response content — this is the
+    /// only place they surface.
+    @available(iOS 27.0, *)
+    nonisolated static func reasoningText(from entries: [Transcript.Entry]) -> String {
+        entries.compactMap { entry -> String? in
+            guard case .reasoning(let reasoning) = entry else { return nil }
+            let text = reasoning.segments.compactMap { segment -> String? in
+                if case .text(let textSegment) = segment { return textSegment.content }
+                return nil
+            }.joined(separator: "\n")
+            return text.isEmpty ? nil : text
+        }.joined(separator: "\n")
     }
 
     func loadConversation() async -> Conversation {
@@ -245,6 +397,9 @@ final class LocalChatBackend: HermesClientProtocol {
     func clearConversation() async throws -> Conversation {
         session = nil
         condensedMemory = nil
+        // #30: the escalation offer is per-conversation.
+        shouldOfferPrivateCloudEscalation = false
+        escalationOfferDismissed = false
         let fresh = Conversation(title: Conversation.defaultTitle)
         currentConversation = fresh
         return fresh
@@ -253,9 +408,13 @@ final class LocalChatBackend: HermesClientProtocol {
     // MARK: - Model controls
 
     func availableModels() async throws -> [String] {
-        // PCC ("private-cloud-beta") joins with #30, gated on entitlement +
-        // availability. Until then the catalog is the on-device model alone.
-        [Self.onDeviceModelID]
+        // PCC appears ONLY when the entitlement + availability check passes
+        // (#30) — a denied/pending Apple application never fakes a tier.
+        var models = [Self.onDeviceModelID]
+        if isPrivateCloudAvailable {
+            models.append(Self.privateCloudModelID)
+        }
+        return models
     }
 
     /// Matches Sessions API semantics the UI already knows: the switch applies
@@ -264,10 +423,15 @@ final class LocalChatBackend: HermesClientProtocol {
     /// the model at runtime, never hardcoded.
     @discardableResult
     func switchModel(_ identifier: String) async throws -> String? {
-        guard identifier == Self.onDeviceModelID else {
+        switch identifier {
+        case Self.onDeviceModelID:
+            setPreferredTier(privateCloud: false)
+        case Self.privateCloudModelID where isPrivateCloudAvailable:
+            setPreferredTier(privateCloud: true)
+        default:
             throw LocalChatBackendError.unknownModel(identifier)
         }
-        return Self.modelSwitchResponseText(modelID: identifier, contextSize: model.contextSize)
+        return Self.modelSwitchResponseText(modelID: identifier, contextSize: await activeContextSize())
     }
 
     // MARK: - Sessions (local-only by design)
@@ -341,7 +505,7 @@ final class LocalChatBackend: HermesClientProtocol {
     private func sessionBlueprint(for turns: [TranscriptTurn], forceCondense: Bool) async -> SessionBlueprint {
         let baseInstructions = Self.instructionsText(deviceContext: Self.deviceContextLine(), hasTools: !tools.isEmpty)
         // Budget from the model at RUNTIME — never hardcoded (#26 ground rule).
-        let contextBudget = max(1024, model.contextSize - Self.responseHeadroomTokens)
+        let contextBudget = max(1024, await activeContextSize() - Self.responseHeadroomTokens)
 
         // Cheap upper bound first: every token is at least one UTF-8 byte, so
         // a byte total inside the budget can never overflow it — skip the
@@ -370,6 +534,13 @@ final class LocalChatBackend: HermesClientProtocol {
             return SessionBlueprint(instructions: baseInstructions, verbatimTurns: turns, condensedMemory: nil)
         }
 
+        // #30: the conversation just outgrew the on-device window — offer the
+        // 32K PCC tier ONCE per conversation, only when it's actually
+        // available. The user decides; nothing escalates silently.
+        if activeTier == .onDevice, !escalationOfferDismissed, isPrivateCloudAvailable {
+            shouldOfferPrivateCloudEscalation = true
+        }
+
         var memoryLines: [String] = []
         for turn in turns[..<split] {
             let head = await intelligence.trimmed(turn.text, toTokenBudget: Self.condensedPerTurnTokens)
@@ -393,7 +564,7 @@ final class LocalChatBackend: HermesClientProtocol {
     /// the tokenizer only runs once histories actually get long.
     private func fitsContext(turns: [TranscriptTurn], nextPrompt: String) async -> Bool {
         let baseInstructions = Self.instructionsText(deviceContext: Self.deviceContextLine(), hasTools: !tools.isEmpty)
-        let contextBudget = max(1024, model.contextSize - Self.responseHeadroomTokens)
+        let contextBudget = max(1024, await activeContextSize() - Self.responseHeadroomTokens)
         let byteTotal = baseInstructions.utf8.count
             + nextPrompt.utf8.count
             + turns.reduce(0) { $0 + $1.text.utf8.count }
@@ -439,6 +610,17 @@ final class LocalChatBackend: HermesClientProtocol {
         // the session's `tools:` parameter is the operative wiring; if
         // tool-calling misbehaves on replayed sessions, populate
         // `Transcript.ToolDefinition`s here (flagged for device verify).
+        //
+        // #30: both SystemLanguageModel and PrivateCloudComputeLanguageModel
+        // conform to LanguageModel (iOS 27) — the session API is unified, so
+        // the PCC tier is one argument, not a second code path.
+        if #available(iOS 27.0, *), activeTier == .privateCloud {
+            return LanguageModelSession(
+                model: PrivateCloudComputeLanguageModel(),
+                tools: tools,
+                transcript: Transcript(entries: entries)
+            )
+        }
         return LanguageModelSession(model: model, tools: tools, transcript: Transcript(entries: entries))
     }
 

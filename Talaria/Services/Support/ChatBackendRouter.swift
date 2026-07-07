@@ -84,6 +84,17 @@ final class ChatBackendRouter: HermesClientProtocol {
     /// Wired by AppContainer after construction (ChatStore owns the live
     /// conversation, and ChatStore is built on top of this router).
     var conversationIDProvider: @MainActor () -> UUID? = { nil }
+    /// #30: PCC gates, wired by AppContainer to the local backend. Selectable
+    /// = entitlement + availability pass (the picker entry exists at all);
+    /// usable = can take a turn right now (also below the daily quota).
+    var isPrivateCloudSelectable: @MainActor () -> Bool = { false }
+    var isPrivateCloudUsable: @MainActor () -> Bool = { false }
+    /// #30: tells the local backend which tier a locally-routed turn runs on.
+    var applyLocalTier: (@MainActor (Brain) -> Void)?
+    /// #30: honest one-line notice when a PCC-pinned conversation degrades to
+    /// on-device (unavailable / rate-limited). Cleared when PCC recovers or
+    /// the preference changes; ChatScreen renders it under the header.
+    private(set) var privateCloudFallbackNotice: String?
     private let defaults: UserDefaults
 
     init(
@@ -103,19 +114,42 @@ final class ChatBackendRouter: HermesClientProtocol {
 
     // MARK: - Routing
 
-    /// Brains the picker offers. `.privateCloud` joins once #30 exposes it
-    /// from the local backend.
-    var selectableBrains: [Brain] { [.hermes, .onDevice] }
+    /// Brains the picker offers. Hermes needs a host; Private Cloud β needs
+    /// the entitlement + availability check to actually pass (#30).
+    var selectableBrains: [Brain] {
+        var brains: [Brain] = hasHermesHost() ? [.hermes, .onDevice] : [.onDevice]
+        if isPrivateCloudSelectable() {
+            brains.append(.privateCloud)
+        }
+        return brains
+    }
 
-    /// The picker appears only once any Hermes host has been set up — a
-    /// never-paired device has exactly one brain and nothing to pick.
-    var showsBrainPicker: Bool { hasHermesHost() }
+    /// The picker appears once there is genuinely more than one brain to
+    /// pick — a Hermes host exists, or the PCC tier is live (#30).
+    var showsBrainPicker: Bool { selectableBrains.count > 1 }
 
     /// Routing decision for a NEW turn. Evaluated per message; never flips a
     /// run already in flight.
     func resolvedBrainForNextTurn() -> Brain {
+        let preferred = resolvePreferenceForCurrentConversation()
+
+        // #30: a PCC pin degrades to on-device when the tier can't take the
+        // turn (unavailable / daily quota reached) — visible via the header
+        // indicator plus the one-line fallback notice, never silent.
+        if preferred == .privateCloud {
+            if isPrivateCloudUsable() {
+                privateCloudFallbackNotice = nil
+                return .privateCloud
+            }
+            if privateCloudFallbackNotice == nil {
+                privateCloudFallbackNotice = "Private Cloud β is unavailable or over its daily limit — continuing on-device."
+                Self.logger.notice("PCC pin degraded to on-device (unavailable/rate-limited)")
+            }
+            return .onDevice
+        }
+
         guard isHermesConfigured() else { return .onDevice }
-        if let preferred = resolvePreferenceForCurrentConversation() { return preferred }
+        if let preferred { return preferred }
         // Hermes wins by default; known-unreachable at send time routes new
         // turns local (the header indicator makes the change visible).
         return hermes.connectionStatus == .error ? .onDevice : .hermes
@@ -146,6 +180,9 @@ final class ChatBackendRouter: HermesClientProtocol {
             preferences.removeValue(forKey: key)
         }
         defaults.set(preferences, forKey: Self.preferencesDefaultsKey)
+        // A fresh pick clears any stale PCC degradation notice — the next
+        // resolution re-derives it if the tier is still down (#30).
+        privateCloudFallbackNotice = nil
         refreshActiveBrain()
         Self.logger.notice("brain preference for \(key, privacy: .public) → \(brain?.rawValue ?? "automatic", privacy: .public)")
     }
@@ -231,6 +268,7 @@ final class ChatBackendRouter: HermesClientProtocol {
         activeBrain = brain
         runningBrain = brain
         lastRunBrain = brain
+        if brain != .hermes { applyLocalTier?(brain) }
         defer {
             runningBrain = nil
             refreshActiveBrain()
@@ -257,6 +295,7 @@ final class ChatBackendRouter: HermesClientProtocol {
         activeBrain = brain
         runningBrain = brain
         lastRunBrain = brain
+        if brain != .hermes { applyLocalTier?(brain) }
         Self.logger.notice("sendStreaming routed to \(brain.rawValue, privacy: .public)")
         let upstream = backend(for: brain).sendStreaming(
             message: message,

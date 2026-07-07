@@ -309,6 +309,12 @@ struct ModelsSettingsScreen: View {
                         brainRouter.setPreferredBrain(brain, forConversation: conversationID)
                     }
                 }
+                // #30: PCC quota as PERSISTENT status, not an alert — below /
+                // nearing / reached, with the system's upgrade path when the
+                // OS offers one.
+                if let status = container.localChatBackend?.privateCloudStatus() {
+                    privateCloudQuotaRow(status)
+                }
                 MonoLabel(
                     "ROUTING NEXT MESSAGE: \(brainRouter.activeBrain.monoLabel)",
                     size: 8,
@@ -319,6 +325,35 @@ struct ModelsSettingsScreen: View {
                 .padding(.top, Design.Spacing.xs)
             }
         }
+    }
+
+    private func privateCloudQuotaRow(_ status: LocalChatBackend.PrivateCloudStatus) -> some View {
+        let label: String
+        let color: Color
+        switch status.quota {
+        case .belowLimit(approaching: false):
+            label = "PRIVATE CLOUD β · BELOW DAILY LIMIT"
+            color = Design.Colors.mutedForeground
+        case .belowLimit(approaching: true):
+            label = "PRIVATE CLOUD β · NEARING DAILY LIMIT"
+            color = Design.Brand.forge
+        case .limitReached(let resetDate):
+            let resets = resetDate.map { " · RESETS \($0.formatted(date: .omitted, time: .shortened))" } ?? ""
+            label = "PRIVATE CLOUD β · DAILY LIMIT REACHED\(resets)"
+            color = Design.Colors.danger
+        }
+        return HStack(spacing: Design.Spacing.sm) {
+            MonoLabel(label, size: 8, tracking: Design.Tracking.mono, color: color)
+            Spacer()
+            if status.hasLimitIncreaseSuggestion {
+                Button("Show options") {
+                    container.localChatBackend?.showPrivateCloudLimitIncreaseOptions()
+                }
+                .font(Design.Typography.mono(10, weight: .medium))
+                .foregroundStyle(Design.Brand.accent)
+            }
+        }
+        .padding(.top, Design.Spacing.xs)
     }
 
     private func brainRow(

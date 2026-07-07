@@ -155,19 +155,25 @@ struct MotionTool: Tool {
 
         if CMMotionActivityManager.isActivityAvailable() {
             let manager = CMMotionActivityManager()
-            let recent: CMMotionActivity? = await withCheckedContinuation { continuation in
+            // Classify inside the completion handler — CMMotionActivity is
+            // not Sendable and must not cross the continuation boundary.
+            let activityKind: String? = await withCheckedContinuation { continuation in
                 manager.queryActivityStarting(from: Date().addingTimeInterval(-600), to: Date(), to: .main) { activities, _ in
-                    continuation.resume(returning: activities?.last)
+                    guard let recent = activities?.last else {
+                        continuation.resume(returning: nil)
+                        return
+                    }
+                    var kind = "unknown"
+                    if recent.walking { kind = "walking" }
+                    if recent.running { kind = "running" }
+                    if recent.cycling { kind = "cycling" }
+                    if recent.automotive { kind = "driving" }
+                    if recent.stationary { kind = "stationary" }
+                    continuation.resume(returning: kind)
                 }
             }
-            if let recent {
-                var kind = "unknown"
-                if recent.walking { kind = "walking" }
-                if recent.running { kind = "running" }
-                if recent.cycling { kind = "cycling" }
-                if recent.automotive { kind = "driving" }
-                if recent.stationary { kind = "stationary" }
-                lines.append("Current activity: \(kind)")
+            if let activityKind {
+                lines.append("Current activity: \(activityKind)")
             }
         }
         return lines.joined(separator: "\n")
