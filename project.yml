@@ -43,6 +43,10 @@ targets:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
         com.apple.developer.healthkit.background-delivery: true
+        # #28: WeatherTool in the device tool belt (Apple Weather, 500k
+        # calls/mo free tier). Declared HERE (not just in the .entitlements
+        # file) because of the #44/#48 xcodegen strip trap.
+        com.apple.developer.weatherkit: true
         com.apple.security.application-groups:
           - group.org.aethyrion.talaria
     sources:
@@ -90,6 +94,11 @@ targets:
         NSLocationAlwaysAndWhenInUseUsageDescription: "Hermes uses your location in the background to provide contextual awareness and proactive suggestions."
         NSMotionUsageDescription: "Hermes uses motion data to understand your current activity for contextual awareness."
         NSSpeechRecognitionUsageDescription: "Hermes uses speech recognition for voice commands and local transcription."
+        # #28 device tool belt: contextual permission prompts fire on first
+        # tool use (calendar/reminder/contact questions in chat).
+        NSCalendarsFullAccessUsageDescription: "Hermes reads your calendar to answer questions about your schedule, and only creates events you approve."
+        NSRemindersFullAccessUsageDescription: "Hermes reads your reminders to answer questions about your to-dos, and only creates reminders you approve."
+        NSContactsUsageDescription: "Hermes looks up contacts you ask about — for example, to find a phone number or email address."
         # #16: AlarmKit executor (/alarm). User authorization only — no App
         # Store entitlement involved.
         NSAlarmKitUsageDescription: "Hermes schedules alarms and timers you ask for — each one is confirmed in-app before it's set."
