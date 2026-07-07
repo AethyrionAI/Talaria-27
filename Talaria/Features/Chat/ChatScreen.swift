@@ -87,8 +87,15 @@ struct ChatScreen: View {
                 // #31: the standalone brain can't run (Apple Intelligence off /
                 // unsupported / downloading) and no Hermes is carrying chat —
                 // show the honest explanation state, never a dead screen.
+                // #30: a PCC pin that degraded to on-device gets its one-line
+                // notice; a conversation outgrowing the on-device window gets
+                // the escalation offer (user decides, never silent).
                 if let explanation = standaloneUnavailableExplanation {
                     standaloneUnavailableBanner(explanation)
+                } else if let notice = container.chatBackendRouter?.privateCloudFallbackNotice {
+                    privateCloudNoticeBanner(notice)
+                } else if showsPrivateCloudEscalationOffer {
+                    privateCloudEscalationBanner
                 } else if showsConnectionBanner {
                     connectionBanner
                 }
@@ -611,6 +618,73 @@ struct ChatScreen: View {
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)
         .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Brand.forge.opacity(0.35))
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.top, Design.Spacing.md)
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - Private Cloud β surfaces (#30)
+
+    /// One-line honest notice: a PCC-pinned conversation degraded to
+    /// on-device (unavailable / daily quota). The router clears it when PCC
+    /// recovers or the preference changes.
+    private func privateCloudNoticeBanner(_ notice: String) -> some View {
+        HStack(alignment: .center, spacing: Design.Spacing.sm) {
+            Image(systemName: "cloud")
+                .font(.system(size: Design.Size.iconSmall))
+                .foregroundStyle(Design.Brand.forge)
+            Text(notice)
+                .font(Design.Typography.caption)
+                .foregroundStyle(Design.Colors.secondaryForeground)
+            Spacer()
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+        .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Brand.forge.opacity(0.35))
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.top, Design.Spacing.md)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// The conversation outgrew the on-device context window and PCC is
+    /// actually available — offer the 32K tier once. The user decides.
+    private var showsPrivateCloudEscalationOffer: Bool {
+        container.localChatBackend?.shouldOfferPrivateCloudEscalation == true
+            && container.chatBackendRouter?.activeBrain == .onDevice
+    }
+
+    private var privateCloudEscalationBanner: some View {
+        HStack(alignment: .center, spacing: Design.Spacing.sm) {
+            Image(systemName: "cloud")
+                .font(.system(size: Design.Size.iconSmall))
+                .foregroundStyle(Design.Brand.accent)
+
+            VStack(alignment: .leading, spacing: Design.Spacing.xxxs) {
+                MonoLabel("CONVERSATION GETTING LONG", size: 11, weight: .medium,
+                          tracking: Design.Tracking.mono, color: Design.Colors.foregroundBright)
+                Text("Continue on Private Cloud β? Larger context, same privacy — labeled beta.")
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+            }
+
+            Spacer()
+
+            Button("Not now") {
+                container.localChatBackend?.dismissPrivateCloudEscalationOffer()
+            }
+            .font(Design.Typography.mono(11, weight: .medium))
+            .foregroundStyle(Design.Colors.mutedForeground)
+
+            Button("Continue on β") {
+                container.chatBackendRouter?.setPreferredBrain(.privateCloud, forConversation: chatStore.conversation?.id)
+                container.localChatBackend?.dismissPrivateCloudEscalationOffer()
+            }
+            .font(Design.Typography.mono(11, weight: .medium))
+            .foregroundStyle(Design.Brand.accent)
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+        .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Colors.accentTint(0.35))
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.md)
         .accessibilityElement(children: .combine)

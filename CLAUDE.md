@@ -160,8 +160,37 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
 - Issues tracked in `OPEN_ITEMS.md` (dated update notes); session continuity in
   the local `handoffs/` notes (gitignored) + `CLEAN_CHAT_PATH.md`.
 
-## Current state (2026-07-06)
+## Current state (2026-07-07)
 
+- **Wave 4.5 (GitHub #26–#31, label standalone-wave-4.5) built as six STACKED
+  per-issue branches off `claude/talaria-wave-4-5-sg7kdj` (6332869), one PR
+  each, each based on the previous** (merge order: #32 → #33 → #34 → #35 →
+  #36 → #37): PR #32 = #26 `LocalChatBackend` (FoundationModels behind
+  `HermesClientProtocol`; runtime `contextSize`; cumulative-snapshot →
+  `textDelta` diffing; deterministic condensation via the
+  LocalIntelligenceService trimming helpers, now internal; OPEN_ITEMS #67).
+  PR #33 = #27 `ChatBackendRouter` (two brains one seam; never-configured →
+  local, Hermes wins when keyed, per-message routing, no mid-thread swap;
+  `Message.brain` transcript tags; header brain chip + picker; #68). PR #34 =
+  #28 device tool belt (read tools on `ToolEventRelay` →
+  `StreamingUpdate.toolActivity`; WeatherKit entitlement in its own surgical
+  commit; the issue's "FM built-ins" DON'T exist in the framework — Vision/
+  CoreSpotlight implementations instead; #69). PR #35 = #29 action tools +
+  `ToolConfirmationCenter` (awaited-continuation confirm gate, defaults
+  closed; #70). PR #36 = #31 standalone onboarding (pairing wall removed;
+  pairing lives in Settings as the upgrade; honest Apple-Intelligence-off
+  state; notification priming moved to first long-run; #71). PR #37 = #30
+  PCC tier (a MODE of LocalChatBackend behind `#available(iOS 27)` +
+  availability gates; picker entry + quota UI + escalation offer + honest
+  degradation; externally blocked on Apple approval — merges behind gates;
+  #72). **Cloud-written, NOT compiled or device-verified.** FoundationModels
+  names verified against Apple's live SDK-doc JSON 2026-07-07 (incl. the
+  27-beta surface), not the installed SDK — compile-risk shortlists in each
+  PR. Next Mac session: merge the stack in order, `xcodegen generate`
+  (14 new source + 5 new test files; re-verify `aps-environment` AND the new
+  `com.apple.developer.weatherkit` survive regen per #44/#48), CLI build +
+  tests, then the per-item device checklists in OPEN_ITEMS #67–#72
+  (airplane-mode bar for #26/#28).
 - **Wave 4 (GitHub #13–#17) built as five per-issue branches off this branch's
   tip (656dee2), one PR each into `claude/wave-4-issues-13-17-qu38px`:**
   PR #20 = #13 stale-test fixes (test-only, OPEN_ITEMS #62); PR #22 = #14

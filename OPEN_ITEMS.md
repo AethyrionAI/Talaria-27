@@ -1926,3 +1926,52 @@ walkthrough completes without leaving the app; pairing from its new
 Settings home works; unpair returns to standalone; Apple-Intelligence-off
 sim shows the explanation banner (Simulate Apple Foundation Models
 Availability → unavailable states).
+
+## 72. 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30)
+
+Per the 2026-07-05 decision: on-device is the permanent free floor; PCC is
+opportunistic and VISIBLY labeled beta. PCC is a MODE of LocalChatBackend
+(`LocalModelTier`), never a third client — both models conform to the iOS 27
+`LanguageModel` protocol, so the session construction differs by one
+argument. Everything sits behind `#available(iOS 27.0, *)` + live
+availability checks (SDK-doc-verified 2026-07-07:
+`PrivateCloudComputeLanguageModel()` / `.isAvailable` / `.availability` /
+`.quotaUsage{isLimitReached,status(.belowLimit(info.isApproachingLimit)/
+.limitReached),limitIncreaseSuggestion?.show(),resetDate}` / `.contextSize`;
+entitlement `com.apple.developer.private-cloud-compute` — NOT added to
+project.yml yet, Apple approval chain pending: SBP submitted → PCC request →
+entitlement). Denied/pending reads as unavailable; on-device unaffected.
+- Picker: `Brain.privateCloud` appears only when the availability check
+  passes; a standalone (never-paired) device now gets the picker too once
+  PCC exists (On-Device / PCC β — no Hermes entry). `availableModels()`
+  gains "private-cloud-beta" under the same gate.
+- Per-message honesty: a PCC pin degrades to ON-DEVICE (never Hermes) when
+  unavailable/over quota — visible indicator change + one-line notice
+  banner (`privateCloudFallbackNotice`), cleared on recovery or preference
+  change. Mid-turn PCC errors fail honestly with a tier-labeled message.
+- Escalation offer: when on-device condensation first kicks in and PCC is
+  available, ChatScreen offers "continue on Private Cloud β?" ONCE per
+  conversation — accept pins the conversation to PCC; the replayed
+  (condensed) transcript is the handover context. User decides, never
+  silent.
+- Reasoning: PCC reasoning surfaces from `Snapshot.transcriptEntries`
+  `.reasoning` entries, diffed onto `StreamingUpdate.reasoningDelta` — the
+  #4.15 separate-channel rule preserved; raw text persists on
+  `Message.reasoning`. Explicit `ContextOptions(reasoningLevel:)` left at
+  the framework default for now (`.light/.moderate/.deep` verified for a
+  follow-up knob).
+- Quota as persistent UI (Settings → Models → Chat Brain): BELOW / NEARING /
+  REACHED (+ reset time) with the system "Show options" iCloud+ path via
+  `limitIncreaseSuggestion.show()`. Context budgets read the ACTIVE tier's
+  `contextSize` at runtime (32K PCC) — never hardcoded.
+`PrivateCloudRoutingTests` pin picker gating, degradation notice, recovery,
+and tier hand-off. **Blocked externally** on Apple PCC approval — all of
+this merges behind the gates first. **Needs Mac:** compile-check the 27-beta
+surface (PCC init/quota/limitIncreaseSuggestion.show(),
+`Snapshot.transcriptEntries` + `Transcript.Entry.reasoning` segment shapes,
+`LanguageModelSession(model: PCC)` overload); test quota paths with Xcode's
+Simulate Apple Foundation Models Availability (Approaching / Reached);
+device checklist: picker shows β only when live; long conversation triggers
+the offer; accepting continues with condensed handover; forced rate limit
+degrades on-device with notice, no crash, no fabrication; add the
+entitlement to project.yml (surgical commit) only once Apple grants it.
