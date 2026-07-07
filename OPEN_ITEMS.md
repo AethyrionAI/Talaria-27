@@ -2082,6 +2082,28 @@ transcript hand-off renders once, no duplicate context turn.
 
 ## 74. 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19)
 
+**Update 2026-07-07 (Mac session — MERGED to `main`, PR #40 / GitHub #19):**
+Reviewed → xcodegen regen → built + tested (iPhone 17 Pro Max iOS 27 sim) →
+merged. One compile fix during review: `maxTranscriptTitleLength` marked
+`nonisolated` so the `nonisolated static blockedTitle(reason:)` can read it
+(it was MainActor-isolated inside the `@MainActor` class).
+
+⚠️ **CarPlay entitlement DISABLED on `main` (hotfix):** leaving
+`com.apple.developer.carplay-voice-based-conversation` active in the committed
+entitlements broke **signed device builds** — the dev provisioning profile
+can't carry an ungranted restricted entitlement, so Xcode/device signing fails
+at `GatherProvisioningInputs` (Apple's guidance: remove until approved). The
+key is now COMMENTED OUT in `project.yml`; `xcodegen generate` drops it from
+`Talaria.entitlements` (aps-environment + weatherkit confirmed surviving).
+Signed `generic/platform=iOS` build → **BUILD SUCCEEDED**.
+→ **To run the CarPlay Simulator pass:** uncomment the
+`com.apple.developer.carplay-voice-based-conversation` line in `project.yml`,
+`xcodegen generate`, build to the **simulator** (signed device builds fail
+again while it's on). Re-enable permanently once Apple grants the capability
+for team DNL25ZFSD2 / org.aethyrion.talaria27.
+
+Pre-existing (unrelated) `main` test failures filed: ChronoRixun/Talaria#72.
+
 **Update 2026-07-07 (cloud session, branch `claude/w5-19-carplay-voice`,
 stacked on #73's branch):** BUILT IN CLOUD, not compiled — and NOT sim-validated
 (the CarPlay Simulator step is the whole point of this issue's plan; it needs
