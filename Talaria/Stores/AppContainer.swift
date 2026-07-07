@@ -38,6 +38,10 @@ final class AppContainer {
     /// #16: AlarmKit executor behind the /alarm confirm gate. Stateless until
     /// first use (authorization requested on first schedule).
     let alarmService = AlarmService()
+    /// #29: the shared confirm gate for side-effecting device tools — stages
+    /// a card in the chat transcript and suspends the tool until the user
+    /// decides. Defaults closed (app death = nothing created).
+    let toolConfirmationCenter = ToolConfirmationCenter()
     let modelsShimClient: ModelsShimClient
     let sensorUploadService: SensorUploadService?
     private let apiClient: RelayAPIClient?
@@ -347,12 +351,12 @@ final class AppContainer {
             container?.chatStore.conversation?.id
         }
 
-        // #28: the device tool belt — read tools only (action tools + the
-        // confirm gate are #29). Providers read ChatStore / Spotlight state,
-        // so the belt installs after the container exists; installTools
-        // invalidates the local session so the next turn picks the tools up.
+        // #28/#29: the device tool belt — the read set plus the confirm-gated
+        // action set. Providers read ChatStore / Spotlight state, so the belt
+        // installs after the container exists; installTools invalidates the
+        // local session so the next turn picks the tools up.
         let toolRelay = ToolEventRelay()
-        let deviceTools = DeviceToolBelt.makeReadTools(
+        var deviceTools = DeviceToolBelt.makeReadTools(
             relay: toolRelay,
             conversationProvider: { [weak container] in
                 container?.chatStore.conversation
@@ -367,6 +371,11 @@ final class AppContainer {
             spotlightEnabledProvider: {
                 settingsStore.settings.spotlightIndexingEnabled
             }
+        )
+        deviceTools += DeviceToolBelt.makeActionTools(
+            relay: toolRelay,
+            confirmations: container.toolConfirmationCenter,
+            alarmService: container.alarmService
         )
         localChatBackend.installTools(deviceTools, relay: toolRelay)
 

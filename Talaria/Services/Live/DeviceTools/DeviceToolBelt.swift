@@ -45,6 +45,22 @@ enum DeviceToolBelt {
             ),
         ]
     }
+
+    /// Assembles the ACTION belt (#29) — side-effecting tools, every one
+    /// behind the shared ToolConfirmationCenter gate. The model can never
+    /// silently mutate the phone.
+    @MainActor
+    static func makeActionTools(
+        relay: ToolEventRelay,
+        confirmations: ToolConfirmationCenter,
+        alarmService: AlarmService
+    ) -> [any Tool] {
+        [
+            ReminderCreateTool(relay: relay, confirmations: confirmations),
+            CalendarEventTool(relay: relay, confirmations: confirmations),
+            AlarmTool(relay: relay, confirmations: confirmations, alarmService: alarmService),
+        ]
+    }
 }
 
 // MARK: - Tool event relay
