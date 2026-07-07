@@ -87,6 +87,17 @@ final class LocalChatBackend: HermesClientProtocol {
         session = nil
     }
 
+    /// Honest explanation for the CURRENT unavailability, nil when the model
+    /// is available (#31). Drives the standalone chat's explanation state —
+    /// re-read live each render, so enabling Apple Intelligence in Settings
+    /// clears it on return without a relaunch.
+    var availabilityExplanation: String? {
+        if case .unavailable(let reason) = model.availability {
+            return Self.unavailabilityMessage(for: reason)
+        }
+        return nil
+    }
+
     // MARK: - HermesClientProtocol
 
     func connect() async {

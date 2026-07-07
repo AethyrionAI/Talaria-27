@@ -1897,3 +1897,32 @@ is the honest state, but a per-card timeout may be worth a follow-up.
 → card with parsed fields → Approve → reminder EXISTS in Reminders.app →
 model confirms; Decline → nothing created + graceful acknowledgment; edit
 on card → edited values created; kill mid-confirmation → nothing created.
+
+## 71. 🔧 Wave 4.5 — standalone onboarding: pairing wall removed (GitHub #31)
+
+The App Store reviewer path (strategy §6.1). `AppRootView` no longer gates
+launch on pairing — first launch lands in MainTabView/chat backed by the
+local brain (the #27 router already routes never-configured devices local).
+`PermissionsOnboardingScreen` still runs once right after a successful pair
+(it primes SENSOR grants, which stay Hermes-gated/opt-in as today) — it is
+no longer a first-launch wall. Pairing relocated: `.connectHost` now shows
+the full `ConnectHermesScreen` when unpaired (host status screen when
+paired); Settings → System gains a "Connect Hermes Desktop — UPGRADE" row
+(unpaired only); the pairing hero states chat already works on-device;
+successful pair pops the nav path so post-onboarding lands in chat.
+Unpairing (`disconnect`) returns cleanly to standalone (wall gone; stores
+reset via the existing handlePairingRemoved). Honest unavailable state:
+`LocalChatBackend.availabilityExplanation` (live-read) + a forge-tinted
+"ON-DEVICE INTELLIGENCE UNAVAILABLE" banner in ChatScreen with the
+reason-specific enable instructions and a Connect-Hermes escape hatch —
+shown only while the next message would route local. Contextual permission
+priming completed: notification auth moved OFF first-send onto the first
+LONG-RUN (attachment continued-send start + `.interrupted`); mic/speech
+ride first dictation/Talk (existing); Health/Location/Calendar/Contacts
+ride first tool use (#28); alarms use AlarmKit's own auth (#16). **Needs
+Mac:** fresh sim install (no Hermes anywhere) → full session: type,
+dictate, health question → in-context permission prompt → answer; reviewer
+walkthrough completes without leaving the app; pairing from its new
+Settings home works; unpair returns to standalone; Apple-Intelligence-off
+sim shows the explanation banner (Simulate Apple Foundation Models
+Availability → unavailable states).

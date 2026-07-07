@@ -18,6 +18,7 @@ struct SystemSettingsScreen: View {
     @Environment(HermesHostStore.self) private var hostStore
     @Environment(PairingStore.self) private var pairingStore
     @Environment(SettingsStore.self) private var settingsStore
+    @Environment(TabRouter.self) private var router
 
     @State private var sessionCount: Int?
 
@@ -101,6 +102,38 @@ struct SystemSettingsScreen: View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             groupLabel("// Connection")
             VStack(spacing: 0) {
+                // #31: the pairing flow's Settings-level home, framed as the
+                // upgrade. Only while no Hermes host exists — once paired,
+                // the Hermes Host / Relay rows own the connection story.
+                if !pairingStore.isPaired {
+                    Button {
+                        router.dismissSheet()
+                        router.navigate(to: .connectHost)
+                    } label: {
+                        HStack(spacing: Design.Spacing.sm) {
+                            iconTile("desktopcomputer")
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Connect Hermes Desktop")
+                                    .font(Design.Typography.body(15, weight: .medium))
+                                    .foregroundStyle(Design.Colors.foreground)
+                                Text("Adds server sessions, sensors & desktop models")
+                                    .font(Design.Typography.caption2)
+                                    .foregroundStyle(Design.Colors.secondaryForeground)
+                            }
+                            Spacer(minLength: Design.Spacing.xs)
+                            MonoLabel("UPGRADE", size: 10, weight: .medium,
+                                      tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(Design.Colors.accentTint(0.7))
+                        }
+                        .padding(.horizontal, Design.Spacing.md)
+                        .padding(.vertical, Design.Spacing.sm)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    rowDivider
+                }
                 navRow(icon: "dot.radiowaves.left.and.right", title: "Hermes Host", value: hostValue) {
                     UplinkSettingsScreen()
                 }

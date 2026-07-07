@@ -3,6 +3,7 @@ import SwiftUI
 struct ConnectHermesScreen: View {
     @Environment(PairingStore.self) private var pairingStore
     @Environment(SettingsStore.self) private var settingsStore
+    @Environment(TabRouter.self) private var router
 
     @State private var setupCode = ""
     @State private var isScannerPresented = false
@@ -63,6 +64,14 @@ struct ConnectHermesScreen: View {
                 .padding(.top, Design.Spacing.xs)
 
             MonoLabel("ESTABLISH UPLINK", tracking: Design.Tracking.monoWide)
+
+            // #31: pairing is the upgrade, not the entry fee — chat already
+            // works on-device before this screen is ever opened.
+            Text("Chat already works on-device. Connecting your Hermes desktop adds server sessions, sensor analytics, and desktop models.")
+                .font(Design.Typography.caption)
+                .foregroundStyle(Design.Colors.secondaryForeground)
+                .multilineTextAlignment(.center)
+                .padding(.top, Design.Spacing.xs)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, Design.Spacing.md)
@@ -329,6 +338,9 @@ struct ConnectHermesScreen: View {
         let didPair = await pairingStore.pair(using: rawCode)
         if didPair {
             localErrorMessage = nil
+            // #31: this screen now lives on the Settings→Connect nav path —
+            // clear it so the post-onboarding return lands in chat, not here.
+            router.popToRoot()
         } else if pairingStore.lastErrorMessage == nil {
             localErrorMessage = PhonePairingCodeError.invalidFormat.localizedDescription
         }

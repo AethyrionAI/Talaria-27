@@ -32,6 +32,9 @@ final class AppContainer {
     /// #27: the two-brain router in front of ChatStore's client seam. Nil in
     /// bare test containers that construct stores directly.
     private(set) var chatBackendRouter: ChatBackendRouter?
+    /// #26/#31: the on-device brain, kept for the standalone availability
+    /// state (and the #30 PCC tier). Nil in bare test containers.
+    private(set) var localChatBackend: LocalChatBackend?
     /// #17: Spotlight donation for sessions + agent files, strictly behind the
     /// Privacy toggle (default OFF); wired in makeDefault().
     let spotlightIndexing = SpotlightIndexingService()
@@ -378,6 +381,9 @@ final class AppContainer {
             alarmService: container.alarmService
         )
         localChatBackend.installTools(deviceTools, relay: toolRelay)
+        // #31: the chat screen reads the standalone availability state off
+        // the backend directly.
+        container.localChatBackend = localChatBackend
 
         // Restore any persisted Hermes Sessions-API key into the in-memory box
         // so the chat client can pick it up on first send without blocking startup.

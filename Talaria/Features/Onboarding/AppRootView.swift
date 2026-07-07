@@ -8,9 +8,12 @@ struct AppRootView: View {
     var body: some View {
         ZStack {
             Group {
-                if !container.pairingStore.isPaired {
-                    ConnectHermesScreen()
-                } else if container.pairingStore.needsPermissionsOnboarding {
+                // #31: no pairing wall. First launch lands in a working chat
+                // (local brain); Hermes is a Settings-level upgrade
+                // (Settings → Connect Hermes Desktop). The permissions
+                // onboarding still runs once right after a successful pair —
+                // it primes the SENSOR grants, which are Hermes-gated.
+                if container.pairingStore.needsPermissionsOnboarding {
                     PermissionsOnboardingScreen()
                 } else {
                     MainTabView()
