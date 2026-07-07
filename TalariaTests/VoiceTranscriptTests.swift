@@ -15,7 +15,8 @@ struct VoiceTranscriptTests {
             voiceSessionId: UUID(),
             duration: duration,
             turnCount: transcript.count,
-            transcript: transcript
+            transcript: transcript,
+            engine: .realtime
         )
     }
 

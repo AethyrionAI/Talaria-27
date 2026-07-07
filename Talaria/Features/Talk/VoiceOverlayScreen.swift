@@ -112,15 +112,28 @@ struct VoiceOverlayScreen: View {
                 .font(Design.Typography.display(20, weight: .semibold, relativeTo: .title2))
                 .tracking(Design.Tracking.display)
                 .foregroundStyle(Design.Colors.foregroundBright)
+
+            // #18: local voice is a distinct mode, never silently substituted
+            // for the Realtime experience — badge it whenever it's driving.
+            if talkStore.voiceEngine == .native {
+                MonoLabel(
+                    "LOCAL VOICE · ON-DEVICE PIPELINE",
+                    size: 9,
+                    weight: .medium,
+                    tracking: Design.Tracking.monoWide,
+                    color: Design.Brand.forge
+                )
+            }
         }
         .frame(maxWidth: .infinity)
     }
 
     private var sessionHeaderLabel: String {
+        let sessionTag = talkStore.voiceEngine == .native ? "LOCAL VOICE" : "VOICE SESSION"
         if talkStore.isSessionActive {
-            return "VOICE SESSION · \(formattedDuration)"
+            return "\(sessionTag) · \(formattedDuration)"
         }
-        return "VOICE LINK · CONNECTING"
+        return talkStore.voiceEngine == .native ? "LOCAL VOICE · STARTING" : "VOICE LINK · CONNECTING"
     }
 
     private var formattedDuration: String {

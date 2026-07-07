@@ -66,6 +66,31 @@ enum TalkConnectionState: String, Codable, Hashable, Sendable {
     }
 }
 
+/// Which speech-to-speech engine is (or would be) driving the Talk session.
+/// `.realtime` is the relay-bootstrapped OpenAI Realtime path over WebRTC;
+/// `.native` is the on-device pipeline (SpeechAnalyzer → active chat backend →
+/// AVSpeechSynthesizer, #18). The engines are presented distinctly — local
+/// voice is never silently substituted for the Realtime experience.
+enum VoiceEngine: String, Codable, Hashable, Sendable {
+    case realtime
+    case native
+
+    var displayLabel: String {
+        switch self {
+        case .realtime: "Realtime"
+        case .native: "Local voice"
+        }
+    }
+
+    /// HUD-style mono label for headers and settings rows.
+    var monoLabel: String {
+        switch self {
+        case .realtime: "REALTIME (OPENAI)"
+        case .native: "LOCAL (ON-DEVICE)"
+        }
+    }
+}
+
 enum TranscriptSpeaker: String, Codable, Hashable, Sendable {
     case user
     case hermes
@@ -150,6 +175,9 @@ struct TalkSessionSnapshot: Hashable, Sendable {
     var latencyMetrics: TalkLatencyMetrics
     var voiceSessionID: UUID?
     var readiness: TalkReadinessInfo = TalkReadinessInfo()
+    /// Defaults to `.realtime` — the historical engine — so existing snapshot
+    /// construction sites read unchanged (#18).
+    var engine: VoiceEngine = .realtime
 }
 
 enum TalkSessionEvent: Hashable, Sendable {

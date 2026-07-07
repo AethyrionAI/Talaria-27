@@ -2015,3 +2015,62 @@ device checklist: picker shows β only when live; long conversation triggers
 the offer; accepting continues with condensed handover; forced rate limit
 degrades on-device with notice, no crash, no fabrication; add the
 entitlement to project.yml (surgical commit) only once Apple grants it.
+
+## 73. 🔧 Wave 5 — native fallback voice mode: SpeechAnalyzer → active backend → AVSpeechSynthesizer (GitHub #18)
+
+**Update 2026-07-07 (cloud session, branch `claude/w5-18-native-voice`):** BUILT
+IN CLOUD, not compiled or device-verified. Two voice engines behind TalkStore's
+one seam — `VoiceEngineRouter` (the Talk-mode sibling of ChatBackendRouter)
+fronts the existing `LiveVoiceSessionService` (Realtime/WebRTC) and the new
+`NativeVoicePipelineService`. TalkStore, the overlay, transcript view, Live
+Activity, and CarPlay mirroring are unchanged consumers of
+`VoiceSessionServiceProtocol`.
+- **Pipeline:** mic → `AVAudioEngine` tap (echo cancellation via
+  `inputNode.setVoiceProcessingEnabled(true)`, enabled BEFORE reading the
+  input format) → `SpeechAnalyzer` with `SpeechDetector` VAD
+  (`.init(detectionOptions: .init(sensitivityLevel: .medium),
+  reportResults: false)`) + `SpeechTranscriber(locale:, preset:
+  .progressiveTranscription)`, falling back to `DictationTranscriber(locale:,
+  preset: .progressiveShortDictation)` when the full model isn't on-device →
+  the ACTIVE chat backend (`ChatBackendRouter` per the #18 amendment — local
+  brain = fully offline voice) → a dedicated sentence-buffered
+  `SpeechOutputService` instance with the new `managesAudioSession = false`
+  flag (the pipeline owns the `.playAndRecord`/`.voiceChat` session).
+- **Endpointing (tolerant, wire-mode-hedged):** primary = transcriber
+  finalized results (SpeechDetector gates analysis to speech, so finals land
+  at pauses); fallback = the 1.35s stale-volatile watchdog
+  (`shouldEndpoint`), with `isDuplicateFinalization` deduping a late final
+  that re-covers committed audio (the iOS 26.0 SpeechDetector conformance
+  bug, forums #797544). Analyzer start retries without the VAD module if the
+  module combination refuses to start.
+- **Routing:** never-paired → native unconditionally; paired → Realtime wins,
+  `talk/readiness` `configured:false` or probe-failed routes native; a
+  failed Realtime start falls back to native for that session unless the
+  failure is the microphone permission (blocks both engines identically —
+  no bouncing). No engine swap under an active session.
+- **Honesty:** `TalkSessionSnapshot.engine` (`VoiceEngine.realtime/.native`,
+  default `.realtime` so existing sites read unchanged) → LOCAL VOICE badge
+  in the overlay header, live engine line + ENGINE status row + footer in
+  Voice settings. `sendImage` returns false (no visual path — frames rode
+  the OpenAI data channel). Barge-in cuts TTS + abandons the stream;
+  reasoning deltas are never spoken. `CompletedVoiceSession.engine` skips
+  the post-to-Hermes context turn for native sessions (turns already rode
+  the chat backend — no duplicate context).
+- Tests: `NativeVoicePipelineTests` (endpointer, dedupe, routing decisions,
+  router seam switching via stub engines, snapshot default).
+
+**Needs Mac:** `xcodegen generate` (2 new source files:
+`Services/Live/NativeVoicePipelineService.swift`,
+`Services/Support/VoiceEngineRouter.swift`; 1 new test file), CLI build +
+tests. Compile-risk shortlist: `SpeechDetector` init/module usage (SDK-doc
+verified 2026-07-07 but never compiled here), `SpeechTranscriber.Result`
+`isFinal`/`text` field names on the 27 beta, `some SpeechModule` generic
+seam in `startAnalyzer`, `OSAllocatedUnfairLock` in the tap closure,
+block-based NotificationCenter observers under strict concurrency.
+**Device checklist:** full loop mic → transcription → chat brain → spoken
+reply with relay stopped AND (airplane mode + local brain) — zero
+OpenAI/relay dependency; echo cancellation (TTS not re-transcribed — watch
+for barge-in self-triggering); SpeechDetector behavior on the 27 beta
+(watchdog "fallback endpointer fired" logs = VAD not finalizing); engine
+badge + settings rows show LOCAL; Realtime path unchanged when configured;
+transcript hand-off renders once, no duplicate context turn.

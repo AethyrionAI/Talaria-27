@@ -30,6 +30,11 @@ final class SpeechOutputService: NSObject {
     /// True while a Talk session owns the audio session (wired by AppContainer).
     /// All entry points are no-ops while blocked.
     var isBlocked: (@MainActor () -> Bool)?
+    /// When false, this instance never touches AVAudioSession — for the
+    /// native voice pipeline (#18), which owns a `.playAndRecord` session
+    /// that a `.playback` re-categorization here would break. The shared
+    /// read-aloud instance keeps the default (true).
+    var managesAudioSession = true
     /// Persisted voice identifier from UserSettings; nil = best system voice.
     var voiceIdentifierProvider: (@MainActor () -> String?)?
     /// Persisted speech rate from UserSettings (AVSpeechUtterance 0…1 scale).
@@ -187,6 +192,7 @@ final class SpeechOutputService: NSObject {
     /// `.playback` + `.spokenAudio` so replies read out over the silent switch
     /// and duck other audio. Never reached while Talk is active (gate above).
     private func configurePlaybackAudioSession() {
+        guard managesAudioSession else { return }
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
@@ -197,6 +203,7 @@ final class SpeechOutputService: NSObject {
     }
 
     private func releaseAudioSessionIfIdle() {
+        guard managesAudioSession else { return }
         guard activeUtterances.isEmpty, streamMessageID == nil else { return }
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
