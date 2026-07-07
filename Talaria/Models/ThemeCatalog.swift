@@ -1,19 +1,16 @@
 import Foundation
 
-// MARK: - Theme catalog / framework foundation (issue #24)
+// MARK: - Theme catalog / framework foundation (issues #24 + #49)
 //
-// A data-driven description of the app's themes, layered ON TOP of the existing
-// `AppearanceTheme` render enum WITHOUT touching the pixel-identical palette core
-// (Shared/ThemePaletteCore.swift, guarded by DesignThemeTests). This foundation
-// delivers the framework behaviors the issue asks for — seasonal auto-rotation,
-// holiday date-windowed availability, a per-theme `locked` flag, and a catalog
-// model the picker reads — while the render-layer de-duplication (making a NEW
-// theme a pure catalog entry with no palette switch-arm edits) is the sequenced
-// follow-up specified in design/THEME_FRAMEWORK_PLAN.md.
+// A data-driven description of the app's themes: identity, availability
+// (seasonal auto-rotation, holiday date windows), and the `locked` gate. The
+// render layer is data too (#49): each definition's colors live in the shared
+// `ThemePaletteCatalog` (Shared/ThemePaletteCore.swift — compiled into the
+// widget target as well), reachable here via `paletteDefinition`.
 //
 // Today every definition renders through a flagship `AppearanceTheme`. A future
-// seasonal/holiday theme with a bespoke palette gets its own render identity once
-// the palette core is data-driven; nothing here needs to change to add it.
+// seasonal/holiday theme with a bespoke palette is one `ThemeID` +
+// `ThemePaletteCatalog` entry + one definition here — no switch-arm edits.
 
 /// Northern-Hemisphere meteorological season (hemisphere hardcoded per the
 /// issue's stated scope). Meteorological (month-based) boundaries are used over
@@ -87,6 +84,14 @@ struct ThemeDefinition: Identifiable, Hashable, Sendable {
         if case let .seasonal(season) = availability { return season }
         return nil
     }
+
+    /// The render-layer palette payload this definition renders with — the
+    /// data `ThemePalette(theme:accent:)` resolves from (#49). Owned by the
+    /// shared `ThemePaletteCatalog` (not stored here) so the widget target,
+    /// which never sees this app-level catalog, reads the same table.
+    var paletteDefinition: ThemePaletteDefinition {
+        ThemePaletteCatalog.definition(for: appearanceTheme.themeID)
+    }
 }
 
 enum ThemeCatalog {
@@ -110,12 +115,36 @@ enum ThemeCatalog {
                         availability: .always, locked: false),
     ]
 
-    /// Seasonal / holiday / special definitions. Empty today: shipping a new
-    /// visual identity needs a curated palette, which is a separate (out-of-scope)
-    /// issue. The availability machinery below and its tests are ready — a real
-    /// holiday theme becomes one entry here (e.g. `.holiday(DateWindow(...))`,
-    /// `locked: true`) with no picker/runtime changes.
-    static let special: [ThemeDefinition] = []
+    /// Seasonal / holiday / special definitions. The four meteorological-season
+    /// themes are listed here; holiday themes become additional entries with
+    /// `.holiday(DateWindow(...))` and `locked: true` as needed (#24).
+    static let special: [ThemeDefinition] = [
+        ThemeDefinition(id: AppearanceTheme.winterFrost.rawValue, displayName: "Winter Frost",
+                        subtitle: "Ice", appearanceTheme: .winterFrost,
+                        availability: .seasonal(.winter), locked: false),
+        ThemeDefinition(id: AppearanceTheme.springSprout.rawValue, displayName: "Spring Sprout",
+                        subtitle: "Blossom", appearanceTheme: .springSprout,
+                        availability: .seasonal(.spring), locked: false),
+        ThemeDefinition(id: AppearanceTheme.summerSolar.rawValue, displayName: "Summer Solar",
+                        subtitle: "Mango", appearanceTheme: .summerSolar,
+                        availability: .seasonal(.summer), locked: false),
+        ThemeDefinition(id: AppearanceTheme.autumnHarvest.rawValue, displayName: "Autumn Harvest",
+                        subtitle: "Pumpkin", appearanceTheme: .autumnHarvest,
+                        availability: .seasonal(.autumn), locked: false),
+        // Signature complex themes — always available, ungated (issue #54).
+        ThemeDefinition(id: AppearanceTheme.cerealBox.rawValue, displayName: "Cereal Box",
+                        subtitle: "Breakfast", appearanceTheme: .cerealBox,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.bubblegumMecha.rawValue, displayName: "Bubblegum Mecha",
+                        subtitle: "Sugar", appearanceTheme: .bubblegumMecha,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.retroSciFi.rawValue, displayName: "Retro Sci-Fi",
+                        subtitle: "Retro", appearanceTheme: .retroSciFi,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.eventHorizon.rawValue, displayName: "Event Horizon",
+                        subtitle: "Singularity", appearanceTheme: .eventHorizon,
+                        availability: .always, locked: false),
+    ]
 
     /// Every known definition (order: flagships, then special).
     static var all: [ThemeDefinition] { flagship + special }

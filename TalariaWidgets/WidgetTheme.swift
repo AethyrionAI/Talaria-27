@@ -15,6 +15,10 @@ enum WidgetTheme: String, AppEnum {
     case solarForge
     case terminal
     case paperTape
+    case winterFrost
+    case summerSolar
+    case springSprout
+    case autumnHarvest
 
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Theme")
 
@@ -24,6 +28,10 @@ enum WidgetTheme: String, AppEnum {
         .solarForge: DisplayRepresentation(title: "Solar Forge"),
         .terminal: DisplayRepresentation(title: "Terminal"),
         .paperTape: DisplayRepresentation(title: "Paper Tape"),
+        .winterFrost: DisplayRepresentation(title: "Winter Frost"),
+        .summerSolar: DisplayRepresentation(title: "Summer Solar"),
+        .springSprout: DisplayRepresentation(title: "Spring Sprout"),
+        .autumnHarvest: DisplayRepresentation(title: "Autumn Harvest"),
     ]
 
     /// Resolve to a concrete palette. `.matchApp` reads the appearance the app
@@ -35,14 +43,12 @@ enum WidgetTheme: String, AppEnum {
             let theme = data.appearanceTheme.flatMap(ThemeID.init(rawValue:)) ?? .deepField
             let accent = data.appearanceAccent.flatMap(AccentSlot.init(rawValue:)) ?? .cyan
             return ThemePalette(theme: theme, accent: accent)
-        case .deepField:
-            return ThemePalette(theme: .deepField, accent: .cyan)
-        case .solarForge:
-            return ThemePalette(theme: .solarForge, accent: .cyan)
-        case .terminal:
-            return ThemePalette(theme: .terminal, accent: .cyan)
-        case .paperTape:
-            return ThemePalette(theme: .paperTape, accent: .cyan)
+        case .deepField, .solarForge, .terminal, .paperTape,
+             .winterFrost, .summerSolar, .springSprout, .autumnHarvest:
+            // Explicit cases share their raw values with ThemeID, so they
+            // resolve by id (#49) — adding a theme is one new case + display
+            // title (AppEnum needs static metadata), no palette arms.
+            return ThemePalette(theme: ThemeID(rawValue: rawValue) ?? .deepField, accent: .cyan)
         }
     }
 }

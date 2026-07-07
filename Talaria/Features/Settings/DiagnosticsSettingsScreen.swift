@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import UIKit
 
 // MARK: - Diagnostics settings screen (Settings → DIAGNOSTICS)
 //
@@ -56,6 +57,8 @@ struct DiagnosticsSettingsScreen: View {
 
     // MARK: Status panel
 
+    @State private var tokenCopied = false
+
     private var statusPanel: some View {
         VStack(spacing: 0) {
             statusRow("Hermes API", hermesAPIStatus)
@@ -64,7 +67,11 @@ struct DiagnosticsSettingsScreen: View {
             rowDivider
             statusRow("Relay Identity", identityStatus)
             rowDivider
-            statusRow("Push Token", pushStatus)
+            statusRow("Push Token", tokenCopied
+                ? RowStatus(text: "COPIED", color: Design.Brand.accent, blinks: false)
+                : pushStatus)
+                .contentShape(Rectangle())
+                .onTapGesture { copyPushToken() }
             rowDivider
             statusRow("Location", locationStatus)
         }
@@ -74,6 +81,20 @@ struct DiagnosticsSettingsScreen: View {
             fill: Design.Colors.background.opacity(0.5),
             innerGlow: false
         )
+    }
+
+    /// Tap the Push Token row to copy the full APNs device token to the
+    /// clipboard (the row otherwise only shows the pipeline state, so there
+    /// was nothing to read for host-side push testing).
+    private func copyPushToken() {
+        guard let token = container.cachedAPNsDeviceToken else { return }
+        UIPasteboard.general.string = token
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        withAnimation { tokenCopied = true }
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            withAnimation { tokenCopied = false }
+        }
     }
 
     private func statusRow(_ label: String, _ status: RowStatus) -> some View {

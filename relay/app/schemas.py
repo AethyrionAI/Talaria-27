@@ -94,6 +94,20 @@ class PushRegisterRequest(BaseModel):
     bundleId: str
 
 
+class PushWatchRequest(BaseModel):
+    """Ask the relay to watch a gateway session for run completion (#38).
+
+    The watermark is positional (assistant reply after the transcript's
+    last user message), so no timestamp crosses the phone/host clock
+    boundary — the app just names the session it detached from.
+    """
+    sessionId: str = Field(min_length=1, max_length=256)
+
+
+class PushWatchCancelRequest(BaseModel):
+    sessionId: str = Field(min_length=1, max_length=256)
+
+
 class DeviceAppStateRequest(BaseModel):
     state: str = Field(pattern="^(foreground|background)$")
 

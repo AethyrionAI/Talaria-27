@@ -105,10 +105,13 @@ struct SessionsDrawer: View {
 
     var body: some View {
         ZStack(alignment: .leading) {
-            backdrop
-            panel
-                .frame(width: panelWidth)
-                .offset(x: isPresented ? 0 : -(panelWidth + 48))
+            if isPresented {
+                backdrop
+                    .transition(.opacity)
+                panel
+                    .frame(width: panelWidth)
+                    .transition(.move(edge: .leading))
+            }
         }
         .animation(Design.Motion.standard, value: isPresented)
         .ignoresSafeArea()
@@ -116,16 +119,12 @@ struct SessionsDrawer: View {
 
     // MARK: Backdrop
 
-    @ViewBuilder
     private var backdrop: some View {
-        if isPresented {
-            Design.Colors.scrim
-                .contentShape(Rectangle())
-                .onTapGesture { isPresented = false }
-                .transition(.opacity)
-                .accessibilityLabel("Close sessions")
-                .accessibilityAddTraits(.isButton)
-        }
+        Design.Colors.scrim
+            .contentShape(Rectangle())
+            .onTapGesture { isPresented = false }
+            .accessibilityLabel("Close sessions")
+            .accessibilityAddTraits(.isButton)
     }
 
     // MARK: Panel

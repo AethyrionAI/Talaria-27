@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -9,12 +10,44 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+# Directory above this file — the relay project root (the directory that
+# contains the ``app`` package, the ``.env``, and ``hermes_mobile.db``).
+# Used to resolve relative SQLite database URLs so the DB doesn't silently
+# move when the process working directory changes (GH #59).
+_RELAY_DIR = Path(__file__).resolve().parent.parent
+
+
+def _resolve_sqlite_path(database_url: str) -> str:
+    """Resolve a relative ``sqlite:///./...`` URL to an absolute path.
+
+    SQLite URLs use **three** slashes for a relative path
+    (``sqlite:///./relay.db``) and **four** for an absolute one
+    (``sqlite:////var/data/relay.db``).  When the path is relative it
+    resolves against ``os.getcwd()``, which means the DB silently moves
+    if the process is launched from a different directory — orphaning
+    all pairings and creating a fresh empty DB (GH #59).
+
+    This helper anchors any relative SQLite path to the relay package
+    directory so the DB location is stable regardless of how the relay
+    is launched.
+    """
+    prefix = "sqlite:///"
+    if not database_url.startswith(prefix):
+        return database_url
+    # Already absolute (4 slashes) or in-memory — leave as-is.
+    rest = database_url[len(prefix):]
+    if not rest or rest == ":memory:" or rest.startswith("/"):
+        return database_url
+    abs_path = (_RELAY_DIR / rest).resolve()
+    return f"sqlite:///{abs_path}"
+
+
 def normalize_database_url(database_url: str) -> str:
     if database_url.startswith("postgresql://"):
         return database_url.replace("postgresql://", "postgresql+psycopg://", 1)
     if database_url.startswith("postgres://"):
         return database_url.replace("postgres://", "postgresql+psycopg://", 1)
-    return database_url
+    return _resolve_sqlite_path(database_url)
 
 
 @dataclass(frozen=True)
@@ -60,6 +93,16 @@ class Settings:
     apns_team_id: str | None = None
     apns_bundle_id: str = "io.hermesmobile.HermesMobile"
     apns_environment: str = "development"
+    # Push watch (#38): the gateway the relay polls to detect run completion
+    # for detached runs. Chat never transits the relay, so this is its only
+    # window into the Sessions API. gateway_api_key is the Hermes
+    # API_SERVER_KEY; polling is disabled when it's unset.
+    gateway_base_url: str = "http://127.0.0.1:8642"
+    gateway_api_key: str | None = None
+    push_watch_poll_seconds: float = 3.0
+    push_watch_slow_poll_seconds: float = 10.0
+    push_watch_fast_window_seconds: float = 120.0
+    push_watch_ttl_seconds: float = 1800.0
     app_presence_stale_seconds: int = 120
     # #21 Tier 2: directory the relay is allowed to serve agent-written files from.
     # Files are returned only if they resolve to a real file *inside* this dir.
@@ -105,6 +148,12 @@ class Settings:
             apns_team_id=os.getenv("APNS_TEAM_ID") or None,
             apns_bundle_id=os.getenv("APNS_BUNDLE_ID", "io.hermesmobile.HermesMobile"),
             apns_environment=os.getenv("APNS_ENVIRONMENT", "development"),
+            gateway_base_url=os.getenv("GATEWAY_BASE_URL", "http://127.0.0.1:8642"),
+            gateway_api_key=os.getenv("GATEWAY_API_KEY") or None,
+            push_watch_poll_seconds=float(os.getenv("PUSH_WATCH_POLL_SECONDS", "3.0")),
+            push_watch_slow_poll_seconds=float(os.getenv("PUSH_WATCH_SLOW_POLL_SECONDS", "10.0")),
+            push_watch_fast_window_seconds=float(os.getenv("PUSH_WATCH_FAST_WINDOW_SECONDS", "120.0")),
+            push_watch_ttl_seconds=float(os.getenv("PUSH_WATCH_TTL_SECONDS", "1800.0")),
             app_presence_stale_seconds=int(os.getenv("APP_PRESENCE_STALE_SECONDS", "120")),
             agent_files_dir=os.getenv("AGENT_FILES_DIR") or None,
         )

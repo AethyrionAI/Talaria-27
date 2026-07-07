@@ -127,7 +127,15 @@ struct ChatScreen: View {
 
     private var framedContent: some View {
         mainStack
-            .overlay { sessionsOverlay }
+            .overlay {
+                if sessionsOpen {
+                    sessionsOverlay
+                }
+            }
+            // Animate the outer conditional so the drawer's move/opacity
+            // transitions play on close too — closes were previously
+            // torn down unanimated, so the panel popped instead of sliding (#42).
+            .animation(Design.Motion.standard, value: sessionsOpen)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
             .toolbarBackground(.hidden, for: .navigationBar)

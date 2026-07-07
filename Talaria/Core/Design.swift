@@ -393,6 +393,14 @@ extension AppearanceTheme {
         case .solarForge: .solarForge
         case .terminal: .terminal
         case .paperTape: .paperTape
+        case .winterFrost: .winterFrost
+        case .summerSolar: .summerSolar
+        case .springSprout: .springSprout
+        case .autumnHarvest: .autumnHarvest
+        case .cerealBox: .cerealBox
+        case .bubblegumMecha: .bubblegumMecha
+        case .retroSciFi: .retroSciFi
+        case .eventHorizon: .eventHorizon
         }
     }
 }
