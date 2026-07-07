@@ -61,6 +61,7 @@ struct PrivacySettingsScreen: View {
                     SettingsScreenHeader(title: "Privacy", subtitle: "Permissions") { dismiss() }
                     permissionsSection
                     locationSection
+                    spotlightSection
                     revokeSection
                     manageSection
                 }
@@ -224,6 +225,54 @@ struct PrivacySettingsScreen: View {
                 await permissionsStore.requestBackgroundLocationAccess()
             }
         }
+    }
+
+    // MARK: Spotlight (#17)
+
+    private var spotlightSection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            MonoLabel("// System Search", size: 10, tracking: Design.Tracking.monoXWide,
+                      color: Design.Colors.mutedForeground)
+
+            VStack(alignment: .leading, spacing: Design.Spacing.xs) {
+                HStack(spacing: Design.Spacing.sm) {
+                    Text("Spotlight Indexing")
+                        .font(Design.Typography.callout)
+                        .foregroundStyle(Design.Colors.foreground)
+                    Spacer()
+                    Toggle("", isOn: spotlightIndexingBinding)
+                        .labelsHidden()
+                        .tint(Design.Brand.accent)
+                }
+                Text("Makes Hermes sessions and agent files findable in system search. Chat titles and previews enter the Spotlight index — off by default; turning it off removes everything already donated.")
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+            }
+            .padding(Design.Spacing.md)
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
+        }
+    }
+
+    private var spotlightIndexingBinding: Binding<Bool> {
+        Binding(
+            get: { settingsStore.settings.spotlightIndexingEnabled },
+            set: { newValue in
+                settingsStore.settings.spotlightIndexingEnabled = newValue
+                if newValue {
+                    // Fill the index now rather than waiting for the next
+                    // organic session-list fetch.
+                    Task { await container.refreshSpotlightDonations() }
+                } else {
+                    // No orphaned entries: teardown is part of the toggle.
+                    container.spotlightIndexing.removeAllDonations()
+                }
+            }
+        )
     }
 
     // MARK: Revoke (#6)

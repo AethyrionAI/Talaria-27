@@ -130,6 +130,15 @@ struct TalariaApp: App {
             container.router.activeSheet = nil
             container.router.popToRoot()
             container.router.selectedTab = .chat
+        case "session":
+            // #17: hermes://session/{id} — Spotlight results route here via
+            // OpenSessionIntent. Lands on Chat, then adopts the session.
+            guard url.pathComponents.count > 1 else { break }
+            let sessionID = url.pathComponents[1]
+            container.router.activeSheet = nil
+            container.router.popToRoot()
+            container.router.selectedTab = .chat
+            Task { await container.chatStore.openSession(sessionID) }
         case "health":
             container.router.activeSheet = nil
             container.router.popToRoot()

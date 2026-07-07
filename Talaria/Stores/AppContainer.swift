@@ -27,6 +27,9 @@ final class AppContainer {
     /// titles + previews, reasoning condensation. Cheap to create (no model
     /// load until first use); wired to ChatStore in makeDefault().
     let localIntelligence = LocalIntelligenceService()
+    /// #17: Spotlight donation for sessions + agent files, strictly behind the
+    /// Privacy toggle (default OFF); wired in makeDefault().
+    let spotlightIndexing = SpotlightIndexingService()
     /// #16: AlarmKit executor behind the /alarm confirm gate. Stateless until
     /// first use (authorization requested on first schedule).
     let alarmService = AlarmService()
@@ -376,6 +379,18 @@ final class AppContainer {
         // Keep widget data fresh while app is foregrounded
         container.chatStore.onConversationChanged = { [weak container] in
             container?.updateWidgetData()
+            // #17: newly staged agent files ride the same change signal —
+            // donation itself is gated by the Privacy toggle inside the service.
+            container?.spotlightIndexing.donateAgentFiles(from: container?.chatStore.conversation)
+        }
+
+        // #17: Spotlight donation, strictly behind the Privacy toggle
+        // (default OFF). Sessions donate whenever the list is fetched.
+        container.spotlightIndexing.isEnabled = {
+            settingsStore.settings.spotlightIndexingEnabled
+        }
+        container.chatStore.onSessionsLoaded = { [weak container] sessions in
+            container?.spotlightIndexing.donateSessions(sessions)
         }
         container.talkStore.onSessionStateChanged = { [weak container] in
             container?.updateWidgetData()
@@ -523,6 +538,15 @@ final class AppContainer {
         await talkStore.refreshReadiness()
         reconcileLiveActivities()
         await reportAppStateIfNeeded("foreground")
+    }
+
+    /// #17: donate the currently-known content immediately — called when the
+    /// Privacy toggle flips on, so the index fills without waiting for the
+    /// next organic session-list fetch.
+    func refreshSpotlightDonations() async {
+        guard settingsStore.settings.spotlightIndexingEnabled else { return }
+        spotlightIndexing.donateAgentFiles(from: chatStore.conversation)
+        _ = await chatStore.loadSessions() // fires onSessionsLoaded → donation
     }
 
     /// #14: one BGAppRefreshTask pass — the native safety net complementing

@@ -379,6 +379,9 @@ struct UserSettings: Codable, Hashable, Sendable {
     var gridDensity: GridDensity
     var reduceMotion: Bool
     var verboseLogging: Bool
+    /// #17: donate sessions + agent files to Spotlight. Default OFF — chat
+    /// previews entering the system index is an explicit opt-in privacy trade.
+    var spotlightIndexingEnabled: Bool
 
     init(
         userName: String = "User",
@@ -404,7 +407,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         hudGlowIntensity: Double = 1.0,
         gridDensity: GridDensity = .faint,
         reduceMotion: Bool = false,
-        verboseLogging: Bool = false
+        verboseLogging: Bool = false,
+        spotlightIndexingEnabled: Bool = false
     ) {
         self.userName = userName
         self.avatarInitials = avatarInitials
@@ -430,6 +434,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.gridDensity = gridDensity
         self.reduceMotion = reduceMotion
         self.verboseLogging = verboseLogging
+        self.spotlightIndexingEnabled = spotlightIndexingEnabled
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -457,6 +462,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         case gridDensity
         case reduceMotion
         case verboseLogging
+        case spotlightIndexingEnabled
     }
 
     init(from decoder: Decoder) throws {
@@ -486,6 +492,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         gridDensity = try container.decodeIfPresent(GridDensity.self, forKey: .gridDensity) ?? .faint
         reduceMotion = try container.decodeIfPresent(Bool.self, forKey: .reduceMotion) ?? false
         verboseLogging = try container.decodeIfPresent(Bool.self, forKey: .verboseLogging) ?? false
+        spotlightIndexingEnabled = try container.decodeIfPresent(Bool.self, forKey: .spotlightIndexingEnabled) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -514,6 +521,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         try container.encode(gridDensity, forKey: .gridDensity)
         try container.encode(reduceMotion, forKey: .reduceMotion)
         try container.encode(verboseLogging, forKey: .verboseLogging)
+        try container.encode(spotlightIndexingEnabled, forKey: .spotlightIndexingEnabled)
     }
 
     func applyingEnvironmentPolicy(

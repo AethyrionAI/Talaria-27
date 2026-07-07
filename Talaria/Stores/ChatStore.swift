@@ -83,6 +83,10 @@ final class ChatStore {
     /// Used by AppContainer to push widget data updates.
     var onConversationChanged: (@MainActor () -> Void)?
 
+    /// #17: fired with the fresh session list whenever it's fetched — wired by
+    /// AppContainer to Spotlight donation (gated there). Stays nil in tests.
+    var onSessionsLoaded: (@MainActor ([HermesSessionInfo]) -> Void)?
+
     init(hermesClient: any HermesClientProtocol, persistence: any AppPersistenceStoreProtocol) {
         self.hermesClient = hermesClient
         self.persistence = persistence
@@ -670,6 +674,7 @@ final class ChatStore {
         do {
             let sessions = try await hermesClient.listSessions()
             chatLog.verbose("loadSessions: got \(sessions.count) sessions")
+            onSessionsLoaded?(sessions)
             return sessions
         } catch {
             chatLog.error("loadSessions: FAILED — \(error.localizedDescription, privacy: .public)")
