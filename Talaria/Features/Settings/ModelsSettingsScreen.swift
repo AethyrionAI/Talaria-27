@@ -229,6 +229,11 @@ struct ModelsSettingsScreen: View {
             ScrollView {
                 VStack(spacing: Design.Spacing.lg) {
                     header
+                    // #27: brain picker — only once any Hermes host exists
+                    // (a never-paired device has one brain, nothing to pick).
+                    if let brainRouter = container.chatBackendRouter, brainRouter.showsBrainPicker {
+                        brainSection(brainRouter)
+                    }
                     shimConfigSection
                     if let model {
                         content(model)
@@ -274,6 +279,82 @@ struct ModelsSettingsScreen: View {
             Color.clear.frame(width: Design.Size.glassCircleButton, height: Design.Size.glassCircleButton)
         }
         .padding(.top, Design.Spacing.xs)
+    }
+
+    // MARK: Chat brain (#27)
+
+    /// Per-conversation brain pin: Automatic (routing rules decide) / Hermes /
+    /// On-Device — Private Cloud β joins with #30. Applies to the CURRENT
+    /// conversation (or the next one to start when none exists yet).
+    private func brainSection(_ brainRouter: ChatBackendRouter) -> some View {
+        let conversationID = container.chatStore.conversation?.id
+        let current = brainRouter.preferredBrain(forConversation: conversationID)
+        return SettingsSectionView(title: "Chat Brain") {
+            VStack(spacing: 0) {
+                brainRow(
+                    label: "Automatic",
+                    glyph: "wand.and.stars",
+                    detail: "Hermes when reachable, on-device otherwise",
+                    isActive: current == nil
+                ) {
+                    brainRouter.setPreferredBrain(nil, forConversation: conversationID)
+                }
+                ForEach(brainRouter.selectableBrains, id: \.rawValue) { brain in
+                    brainRow(
+                        label: brain.displayLabel,
+                        glyph: brain.glyph,
+                        detail: nil,
+                        isActive: current == brain
+                    ) {
+                        brainRouter.setPreferredBrain(brain, forConversation: conversationID)
+                    }
+                }
+                MonoLabel(
+                    "ROUTING NEXT MESSAGE: \(brainRouter.activeBrain.monoLabel)",
+                    size: 8,
+                    tracking: Design.Tracking.mono,
+                    color: Design.Colors.dimForeground
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, Design.Spacing.xs)
+            }
+        }
+    }
+
+    private func brainRow(
+        label: String,
+        glyph: String,
+        detail: String?,
+        isActive: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: Design.Spacing.sm) {
+                Image(systemName: glyph)
+                    .font(.system(size: Design.Size.iconSmall))
+                    .foregroundStyle(isActive ? Design.Brand.accent : Design.Colors.mutedForeground)
+                    .frame(width: 20)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label)
+                        .font(Design.Typography.body(14, weight: isActive ? .bold : .regular))
+                        .foregroundStyle(isActive ? Design.Colors.foregroundBright : Design.Colors.foreground)
+                    if let detail {
+                        Text(detail)
+                            .font(Design.Typography.caption2)
+                            .foregroundStyle(Design.Colors.secondaryForeground)
+                    }
+                }
+                Spacer(minLength: Design.Spacing.sm)
+                if isActive {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Design.Brand.accent)
+                }
+            }
+            .padding(.vertical, Design.Spacing.xs)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: Shim config (URL + token)

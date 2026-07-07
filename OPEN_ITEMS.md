@@ -1793,3 +1793,37 @@ Device checklist (after #27 lands the router): airplane mode + Hermes never
 configured → streamed answer in MessageBubble + read-aloud; kill/relaunch →
 conversation continues with context; Apple Intelligence off → honest
 unavailable state; no SessionsHermesClient regression.
+
+## 68. 🔧 Wave 4.5 — ChatBackendRouter: two brains, one seam (GitHub #27)
+
+`Services/Support/ChatBackendRouter.swift` conforms to `HermesClientProtocol`
+and fronts BOTH clients — ChatStore is untouched structurally (its
+`hermesClient` is now the router). Rules (Owen 2026-07-06): never-configured
+device → local unconditionally (no pairing wall); Hermes configured → Hermes
+wins; `connectionStatus == .error` at send time → new turns route local; NO
+silent mid-thread swap (`runningBrain` locks the run; routing evaluated per
+new message; `lastRunBrain` keeps `currentConversation` pointed at the
+backend that produced the turn for ChatStore's post-turn merge). Routing
+signal = Sessions API key present (`hermesAPIKeyBox`); picker-visibility
+signal = paired OR keyed. Brain preference is per-conversation, persisted in
+UserDefaults (`talaria.chat.brainPreferences`); a pick made before any
+conversation exists lands in a "next" slot that migrates onto the first
+conversation that sends. Explicit Hermes pin fails honestly on a dead
+gateway (never rerouted). `Message.brain` (new optional Codable field)
+stamps every finished assistant message; `MessageBubble` shows an
+ON-DEVICE / PCC β mono tag (Hermes stays untagged); chat header gains the
+always-visible brain chip (menu picker once a host exists: Automatic /
+Hermes / On-Device); Settings → Models gains the same picker. Clearing a
+conversation clears BOTH sides so a stale Hermes session id can't
+resurrect. AppContainer builds local backend + router at the old
+hermesClient wiring site; key save/restore calls `refreshActiveBrain()`.
+`ChatBackendRouterTests` cover routing, migration, tagging, cache
+round-trip. **Questions for Owen:** the picker includes "Automatic" (not in
+the issue's three-entry list) — without it a pinned conversation could never
+return to auto routing; and Settings→System/Uplink "direct chat" status now
+reflects the ACTIVE brain (reads .connected while routing local) — rename
+that row, or pin it to the Hermes side? **Needs Mac:** compile + device:
+fresh sim install chats instantly with ON-DEVICE chip; pairing makes picker
+appear + Hermes default; gateway kill mid-run fails honestly then next
+message routes local with visible chip change; gateway restart returns
+routing within one ~10s health tick.

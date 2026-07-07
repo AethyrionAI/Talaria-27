@@ -63,6 +63,12 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
     /// Generated after the turn completes while the app is foregrounded; nil
     /// until then — the UI falls back to the last raw reasoning line.
     var reasoningSummary: String?
+    /// Which brain produced this assistant message (#27) —
+    /// `ChatBackendRouter.Brain` raw value ("hermes" / "on-device" /
+    /// "private-cloud-beta"). Stamped by the router at `.finished` so the
+    /// transcript stays honest across brain switches and reconnects; nil for
+    /// user/system messages and pre-#27 caches.
+    var brain: String?
     var isStreaming: Bool
     var voiceSessionDuration: TimeInterval?
     var attachments: [MessageAttachment]
@@ -85,6 +91,7 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         codeDiff: CodeDiff? = nil,
         reasoning: String? = nil,
         reasoningSummary: String? = nil,
+        brain: String? = nil,
         isStreaming: Bool = false,
         voiceSessionDuration: TimeInterval? = nil,
         attachments: [MessageAttachment] = []
@@ -101,6 +108,7 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         self.codeDiff = codeDiff
         self.reasoning = reasoning
         self.reasoningSummary = reasoningSummary
+        self.brain = brain
         self.isStreaming = isStreaming
         self.voiceSessionDuration = voiceSessionDuration
         self.attachments = attachments
@@ -110,6 +118,7 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         case id, clientMessageID, sender, content, timestamp, jobID, status, attachments, toolActivities
         case voiceSessionDuration
         case reasoning, reasoningSummary
+        case brain
     }
 
     init(from decoder: Decoder) throws {
@@ -131,6 +140,8 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         // survives relaunch; absent in pre-#4.15 caches.
         reasoning = try container.decodeIfPresent(String.self, forKey: .reasoning)
         reasoningSummary = try container.decodeIfPresent(String.self, forKey: .reasoningSummary)
+        // Producing brain (#27); absent in pre-#27 caches.
+        brain = try container.decodeIfPresent(String.self, forKey: .brain)
         isStreaming = false
         // Persisted with the message (#1) so the voice-session banner keeps its
         // duration across relaunch; absent in older caches.
@@ -155,6 +166,7 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         try container.encodeIfPresent(voiceSessionDuration, forKey: .voiceSessionDuration)
         try container.encodeIfPresent(reasoning, forKey: .reasoning)
         try container.encodeIfPresent(reasoningSummary, forKey: .reasoningSummary)
+        try container.encodeIfPresent(brain, forKey: .brain)
     }
 }
 
