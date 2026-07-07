@@ -48,14 +48,14 @@ targets:
         # file) because of the #44/#48 xcodegen strip trap.
         com.apple.developer.weatherkit: true
         # #19: CarPlay voice-based conversational category (iOS 26.4+).
-        # Key string cross-checked against the CarPlay Developer Guide
-        # (June 2026 revision) 2026-07-07. Apple's grant is DISCRETIONARY and
-        # not yet requested — the local declaration is what lets the CarPlay
-        # Simulator run the scene before the grant; on a physical device the
-        # profile won't carry it until Apple approves. A wrong key is
-        # harmless (the scene silently doesn't appear in the sim). Declared
-        # HERE because of the #44/#48 xcodegen strip trap.
-        com.apple.developer.carplay-voice-based-conversation: true
+        # DISABLED pending Apple's discretionary capability grant. Leaving the
+        # key ACTIVE breaks signed device builds — the dev provisioning profile
+        # cannot carry an ungranted restricted entitlement, so Xcode/device
+        # signing fails at "GatherProvisioningInputs". Re-enable the line below
+        # to run the CarPlay Simulator scene locally (#74), and permanently once
+        # Apple approves the capability for team DNL25ZFSD2 / org.aethyrion.talaria27.
+        # Kept HERE (not only in the .entitlements file) for the #44/#48 strip trap.
+        # com.apple.developer.carplay-voice-based-conversation: true
         com.apple.security.application-groups:
           - group.org.aethyrion.talaria
     sources:
