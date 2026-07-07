@@ -47,6 +47,15 @@ targets:
         # calls/mo free tier). Declared HERE (not just in the .entitlements
         # file) because of the #44/#48 xcodegen strip trap.
         com.apple.developer.weatherkit: true
+        # #19: CarPlay voice-based conversational category (iOS 26.4+).
+        # Key string cross-checked against the CarPlay Developer Guide
+        # (June 2026 revision) 2026-07-07. Apple's grant is DISCRETIONARY and
+        # not yet requested — the local declaration is what lets the CarPlay
+        # Simulator run the scene before the grant; on a physical device the
+        # profile won't carry it until Apple approves. A wrong key is
+        # harmless (the scene silently doesn't appear in the sim). Declared
+        # HERE because of the #44/#48 xcodegen strip trap.
+        com.apple.developer.carplay-voice-based-conversation: true
         com.apple.security.application-groups:
           - group.org.aethyrion.talaria
     sources:

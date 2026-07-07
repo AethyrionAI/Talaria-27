@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		011F2FB5270478C5A49F938C /* CarPlayVoiceStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DF70134F698ABE4575D7784 /* CarPlayVoiceStateTests.swift */; };
 		01E7964E5A2DA7BD52A79C60 /* HealthServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87E097ED8DDD1535E7288D6D /* HealthServiceProtocol.swift */; };
 		04B7BB6774E1A29A8EB78C7B /* SpaceGrotesk-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EB419DE4B29313B918FFB7D5 /* SpaceGrotesk-Regular.ttf */; };
 		051B582BC2F877D6AA89BD3E /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 725C55A9F8B41173BB4CC709 /* SettingsStore.swift */; };
@@ -432,6 +433,7 @@
 		7AA6B0D4D2F75AB7C4862721 /* Design.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Design.swift; sourceTree = "<group>"; };
 		7ADF4A299F8A4B743476C279 /* HUDEffects.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDEffects.swift; sourceTree = "<group>"; };
 		7D3DC3DD1F39850425CE2160 /* DeviceToolBelt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceToolBelt.swift; sourceTree = "<group>"; };
+		7DF70134F698ABE4575D7784 /* CarPlayVoiceStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlayVoiceStateTests.swift; sourceTree = "<group>"; };
 		7EC64740ACEB2CBFC10CB13C /* DeviceCalendarTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceCalendarTools.swift; sourceTree = "<group>"; };
 		80EDA325939230DE08CBF841 /* MockInboxService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockInboxService.swift; sourceTree = "<group>"; };
 		80EF15B79F03C0BF47DAB3C2 /* ChakraPetch-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ChakraPetch-SemiBold.ttf"; sourceTree = "<group>"; };
@@ -647,6 +649,7 @@
 				A3A103D6FF3E893A48AE64C3 /* AppTemplateTests.swift */,
 				52BA50723B237D05E12279BE /* AskHermesIntentTests.swift */,
 				036CD989156BAB4FE1A35157 /* AttachmentInliningTests.swift */,
+				7DF70134F698ABE4575D7784 /* CarPlayVoiceStateTests.swift */,
 				D38920943EB10B55009A10F9 /* ChatBackendRouterTests.swift */,
 				3E227A45DC083CF27D41960B /* ChatStorePersistenceTests.swift */,
 				1E6B35E1530814EA7DBC6EAE /* DesignThemeTests.swift */,
@@ -1507,6 +1510,7 @@
 				3A416A1C3DE88071A6765234 /* AppTemplateTests.swift in Sources */,
 				B918873555ADC2DBEDE9BB5E /* AskHermesIntentTests.swift in Sources */,
 				4C6B5D44AC6F0ECD63D2A229 /* AttachmentInliningTests.swift in Sources */,
+				011F2FB5270478C5A49F938C /* CarPlayVoiceStateTests.swift in Sources */,
 				5C49C4720FA8F43B7B25A932 /* ChatBackendRouterTests.swift in Sources */,
 				BE8D4CCC3959C23AD49BCEA3 /* ChatStorePersistenceTests.swift in Sources */,
 				F8066BF01CB86C37DB7753D0 /* DesignThemeTests.swift in Sources */,

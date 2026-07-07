@@ -508,11 +508,38 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
                 voiceState = .listening
             }
             statusMessage = "Audio route changed."
+            // #19: the car taking the route (CarPlay connect mid-session)
+            // needs the session category re-asserted — the WebRTC audio unit
+            // configures AVAudioSession itself and can leave it shaped for
+            // the previous route.
+            reassertAudioSessionForCarAudioIfNeeded()
             // Re-assert speaker output when a device is removed (e.g. headphones unplugged)
             // or the route is reconfigured by the system / WebRTC.
+            // (Skips itself when car audio / headphones are attached.)
             forceSpeakerIfNeeded()
         default:
             break
+        }
+    }
+
+    /// #19: with CarPlay in the route, re-apply the voice-chat category so
+    /// mic capture and playback follow the car after WebRTC's own session
+    /// meddling. No speaker override here — the car owns the route. Safe to
+    /// call when the session is already correctly configured.
+    private func reassertAudioSessionForCarAudioIfNeeded() {
+        let audioSession = AVAudioSession.sharedInstance()
+        let routeHasCarAudio = audioSession.currentRoute.outputs.contains { $0.portType == .carAudio }
+            || audioSession.currentRoute.inputs.contains { $0.portType == .carAudio }
+        guard routeHasCarAudio else { return }
+        do {
+            try audioSession.setCategory(
+                .playAndRecord,
+                mode: .voiceChat,
+                options: [.allowBluetoothHFP]
+            )
+            try audioSession.setActive(true)
+        } catch {
+            Self.logger.warning("CarPlay audio session re-assert failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
