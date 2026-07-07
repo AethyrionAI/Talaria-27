@@ -1367,6 +1367,11 @@ Fixed on the Fable batch (`c097a8d`), on origin/main, verified 07-02. `Talaria.e
 
 Working CarPlay voice scaffold exists in `Talaria/CarPlay/` (`CarPlaySceneDelegate` + `CarPlayVoiceManager` bridging `TalkStore` → `CPVoiceControlTemplate`); scene declared in `project.yml`, `audio` background mode present. Can't run on device without the CarPlay entitlement (managed capability; new **voice-based conversational apps** category, requestable from iOS 26.4). App Store distribution NOT required — a granted entitlement works on a development profile — but the grant is discretionary; only way to know is to file at `developer.apple.com/contact/carplay/`. Functional gap (sim-testable without grant): the manager only reflects `TalkStore`, never starts a session — needs auto-start on connect + WebRTC↔AVAudioSession routing. Depends on voice working on the phone first (→ #47). Full reference + weekend sim plan in `CARPLAY.md`.
 
+**Update 2026-07-07:** the functional gaps are worked as Wave 5 GitHub #19 → **#74**
+(auto-start on connect, observation tracking, routing re-assert, local entitlement
+key). #18 (→ #73) lifts the server half of the gate — local voice needs no OpenAI
+key. Remaining here: the actual Apple grant filing once sim validation passes.
+
 ---
 
 ## 46. ✅ Reinstall resurrects a stale Keychain identity (post-#41)
@@ -2074,3 +2079,47 @@ for barge-in self-triggering); SpeechDetector behavior on the 27 beta
 (watchdog "fallback endpointer fired" logs = VAD not finalizing); engine
 badge + settings rows show LOCAL; Realtime path unchanged when configured;
 transcript hand-off renders once, no duplicate context turn.
+
+## 74. 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19)
+
+**Update 2026-07-07 (cloud session, branch `claude/w5-19-carplay-voice`,
+stacked on #73's branch):** BUILT IN CLOUD, not compiled — and NOT sim-validated
+(the CarPlay Simulator step is the whole point of this issue's plan; it needs
+the Mac).
+- **Auto-start on connect:** `CarPlayVoiceManager.configure()` now runs
+  `refreshReadiness()` → `startSessionDirectly()` gated on
+  `talkStore.canStartSession` (`CPVoiceControlTemplate` has no tappable
+  button by SDK design — connect IS the trigger). Not-ready renders a new
+  `blocked` voice-control state carrying `blockedReason` (80-char car cap),
+  never a dead idle screen; "Tap Start" copy removed. With #73's
+  VoiceEngineRouter underneath, an unpaired/unconfigured phone auto-starts
+  LOCAL voice in the car.
+- **Observation:** the 500ms polling Timer is gone — one-shot
+  `withObservationTracking` over TalkStore
+  (voiceState/connectionState/isSessionActive/transcriptItems/
+  canStartSession/blockedReason), re-armed per change, gated by an
+  `isObserving` flag so tearDown kills the loop.
+- **Routing:** `LiveVoiceSessionService.handleAudioRouteChange` re-asserts
+  the `.playAndRecord`/`.voiceChat` category when `.carAudio` is in the
+  route (the stasel/WebRTC audio unit configures AVAudioSession itself and
+  can leave it shaped for the previous route); no speaker override with the
+  car attached (pre-existing skip). The native engine (#73) already rebuilds
+  its capture chain on every route change.
+- **Entitlement:** `com.apple.developer.carplay-voice-based-conversation`
+  added to project.yml properties + Talaria.entitlements (the #44/#48 strip
+  trap). Key cross-checked 2026-07-07 against the June 2026 CarPlay
+  Developer Guide reference — a wrong key is harmless (scene silently
+  absent in the sim). Apple's discretionary grant NOT yet filed.
+- Tests: `CarPlayVoiceStateTests` (state mapping incl. blocked, title caps).
+
+**Needs Mac:** `xcodegen generate` (1 new test file; re-verify
+aps-environment + weatherkit + the new CarPlay key all survive regen per
+#44/#48), CLI build + tests. **Sim validation (the gate for filing the
+grant):** iOS Simulator I/O → External Displays → CarPlay, or the standalone
+CarPlay Simulator.app with a real iPhone over USB — connect auto-starts a
+session; mic capture + agent audio + barge-in work; blocked state renders
+when talk is down; phone call / nav prompt interruption recovers; disconnect
+leaves the session running on the phone, reconnect re-syncs. Then file at
+developer.apple.com/contact/carplay/ (category: voice-based conversational).
+Real-car audio routing stays a post-grant milestone — no polish before the
+grant lands.

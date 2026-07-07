@@ -168,6 +168,27 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
 
 ## Current state (2026-07-07)
 
+- **Wave 5 (GitHub #18–#19, label standalone-wave-5) built as two STACKED
+  per-issue branches off main (b1a00a7), one PR each (merge order: #18's PR →
+  #19's PR):** `claude/w5-18-native-voice` = #18 native fallback voice
+  (`VoiceEngineRouter` + `NativeVoicePipelineService`: SpeechAnalyzer/
+  SpeechDetector → the ACTIVE `ChatBackendRouter` backend per the #18
+  amendment → dedicated sentence-buffered `SpeechOutputService` with
+  `managesAudioSession=false`; echo cancellation via
+  `setVoiceProcessingEnabled`; auto-selects when unpaired, talk unconfigured,
+  or relay unreachable; honest LOCAL VOICE badging via
+  `TalkSessionSnapshot.engine`; native sessions skip the post-to-Hermes
+  transcript context turn; OPEN_ITEMS #73). `claude/w5-19-carplay-voice` =
+  #19 CarPlay upgrade (auto-start on connect gated on `canStartSession` with
+  a blocked state, `withObservationTracking` replaces the 500ms Timer,
+  `.carAudio` category re-assert in the WebRTC engine, verified
+  `com.apple.developer.carplay-voice-based-conversation` key added locally;
+  Apple grant NOT filed — sim validation first; OPEN_ITEMS #74).
+  **Cloud-written, NOT compiled, NOT sim/device-verified.** Next Mac
+  session: merge in order, `xcodegen generate` (2 new source + 2 new test
+  files; re-verify aps-environment/weatherkit/CarPlay keys survive regen per
+  #44/#48), CLI build + tests, then the #73/#74 checklists (relay-down +
+  airplane-mode local-voice bar for #18; CarPlay Simulator pass for #19).
 - **Wave 4.5 (GitHub #26–#31, label standalone-wave-4.5) built as six STACKED
   per-issue branches off `claude/talaria-wave-4-5-sg7kdj` (6332869), one PR
   each, each based on the previous** (merge order: #32 → #33 → #34 → #35 →
