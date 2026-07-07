@@ -1827,3 +1827,41 @@ fresh sim install chats instantly with ON-DEVICE chip; pairing makes picker
 appear + Hermes default; gateway kill mid-run fails honestly then next
 message routes local with visible chip change; gateway restart returns
 routing within one ~10s health tick.
+
+## 69. 🔧 Wave 4.5 — device tool belt v1: read tools for the local brain (GitHub #28)
+
+`Services/Live/DeviceTools/` — Swift `Tool` conformances handed to the local
+brain's `LanguageModelSession` (device-side mirror of the Hermes MCP tools;
+READ set only, #29 adds the confirm-gated writes). `ToolEventRelay` bridges
+invocations onto `StreamingUpdate.toolActivity`, so the #10/#11 chip UI
+renders local tool calls with zero ChatStore changes (backend points
+`relay.emit` at the live continuation per turn). Belt: readHealth (rides
+`HealthQueryCore` — same windows/rounding as sensors + #15 widgets, explicit
+in-app auth request per the HealthKit rule; empty-vs-denied ambiguity called
+out in the result), currentLocation (shared `DeviceLocationProvider`
+one-shot; place names via CLGeocoder, never raw coords), readMotion
+(CMPedometer + activity), readCalendar/readReminders (EventKit
+requestFullAccess on first use), currentWeather (WeatherKit — current
+location or named place; entitlement added in its own surgical commit,
+aps-environment re-verify), searchPlaces (MKLocalSearch anchored to the fix
+when permitted, honest note when not), lookupContact (CNContactStore,
+detached fetch), deviceStatus (battery/storage/thermal/low-power),
+readImageText + readBarcode (Vision on the newest conversation image — the
+issue's "FM built-ins" DON'T exist in FoundationModels per the SDK docs
+2026-07-07, so these are ours), searchConversations (current thread + the
+#17 Spotlight session cache; honest "indexing is off" note). Every
+permission denial / empty read returns an honest tool RESULT (never a throw,
+never fabrication) so the model reacts conversationally. Instructions become
+tool-aware (`hasTools`). Usage strings added: Calendars/Reminders/Contacts.
+`DeviceToolBeltTests` pin formatting, snippets, search report, instructions.
+**Needs Mac:** compile-check @Generable arguments (incl. EMPTY Arguments
+structs), Tool conformance shape, `requestFullAccessToEvents/Reminders`,
+`WeatherService.shared`, VN* classic Vision API on iOS 27,
+`MKLocalSearch`/placemark deprecations; re-verify aps-environment +
+weatherkit survive regen; device checklist (airplane mode where applicable):
+steps question → HealthTool chip → real number; calendar tomorrow → real
+events; weather (WiFi on) → live conditions; "find the conversation about X"
+→ hits; every tool denied its permission answers "not granted", nothing
+invented. Flagged: transcript replay passes empty `toolDefinitions` (the
+session's `tools:` param is the wiring) — if tool calls misbehave after
+restore, populate `Transcript.ToolDefinition`s.

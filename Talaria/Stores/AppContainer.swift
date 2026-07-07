@@ -347,6 +347,29 @@ final class AppContainer {
             container?.chatStore.conversation?.id
         }
 
+        // #28: the device tool belt — read tools only (action tools + the
+        // confirm gate are #29). Providers read ChatStore / Spotlight state,
+        // so the belt installs after the container exists; installTools
+        // invalidates the local session so the next turn picks the tools up.
+        let toolRelay = ToolEventRelay()
+        let deviceTools = DeviceToolBelt.makeReadTools(
+            relay: toolRelay,
+            conversationProvider: { [weak container] in
+                container?.chatStore.conversation
+            },
+            sessionCacheProvider: { [weak container] in
+                (container?.spotlightIndexing.sessionEntities.values).map { entities in
+                    entities.map {
+                        ConversationSearchTool.CachedSession(id: $0.id, title: $0.title, preview: $0.preview)
+                    }
+                } ?? []
+            },
+            spotlightEnabledProvider: {
+                settingsStore.settings.spotlightIndexingEnabled
+            }
+        )
+        localChatBackend.installTools(deviceTools, relay: toolRelay)
+
         // Restore any persisted Hermes Sessions-API key into the in-memory box
         // so the chat client can pick it up on first send without blocking startup.
         Task { @MainActor [weak container, hermesAPIKeyBox] in
