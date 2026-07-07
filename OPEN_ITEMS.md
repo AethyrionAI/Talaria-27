@@ -1760,3 +1760,36 @@ tap-through → right session, and that toggling off removes results. Note:
 routing doesn't need it (same as the #7 controls); external openers would.
 Fast-follow (own issue): View Annotations on `MessageBubble`/`ChatScreen` +
 entity ids on the finished-notification.
+
+## 67. 🔧 Wave 4.5 — LocalChatBackend: on-device chat brain (GitHub #26)
+
+The standalone chat brain: `Services/Live/LocalChatBackend.swift` conforms to
+`HermesClientProtocol` backed by Apple FoundationModels, so ChatStore /
+read-aloud / persistence / sessions drawer work unmodified. One
+`LanguageModelSession` per conversation, lazily created; history replayed as a
+hand-built `Transcript` on restore (cache-restored via the ChatStore-owned
+UserDefaults conversation cache — standalone history is local-only by design).
+Context window read at RUNTIME (`model.contextSize`, never hardcoded); when a
+conversation approaches it, older turns condense through
+`LocalIntelligenceService.trimmed/measuredTokenCount` (made internal for
+reuse) into an instructions-appended memory block + recent verbatim turns, and
+`.exceededContextWindowSize` triggers exactly one condense-and-retry — overflow
+degrades to summarized memory, never errors. FM snapshots are cumulative →
+`streamDelta` diffs them into `StreamingUpdate.textDelta`; snapshot rewrites
+yield no delta and the finished message carries the authoritative final text.
+`GenerationError` → plain-language `.failed` strings; availability reasons →
+honest explanation states. Token usage only from `LanguageModelSession.usage`
+(iOS 27) — never estimated. `switchModel` responds "Context: N tokens" so the
+#4 CTX denominator parses it. Tool-less by design (#28 wires the belt);
+NOT wired into AppContainer yet (#27 router does that).
+`LocalChatBackendTests` pin the deterministic layer. **Needs Mac:**
+compile-check (verified against Apple's live SDK docs 2026-07-07, but not
+against the installed 27-beta SDK): `Transcript.Instructions/Prompt/Response/
+TextSegment` init labels, `ResponseStream` iteration element (`snapshot.content`),
+`session.usage.input/output.totalTokenCount` (27 beta), `Prompt(_:)` wrapping,
+and the changed `tokenCount(for: Instructions(...))` call in
+LocalIntelligenceService (docs say Instructions, Wave-3 code had Prompt).
+Device checklist (after #27 lands the router): airplane mode + Hermes never
+configured → streamed answer in MessageBubble + read-aloud; kill/relaunch →
+conversation continues with context; Apple Intelligence off → honest
+unavailable state; no SessionsHermesClient regression.
