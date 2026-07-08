@@ -2210,3 +2210,37 @@ verified as shipped: `tools/orphan-audit.sh --self-test` ran clean at
 
 **No app code touched, no xcodegen.** Nothing was deleted; the report is the
 deliverable.
+
+---
+
+## 77. 🔧 hermes:// URL scheme registered + ask?q= payload route (GitHub #48)
+
+**Update 2026-07-08 (cloud session, branch `claude/t27-48-url-scheme`):**
+BUILT IN CLOUD, not compiled or device-verified. The deep-link router
+(`AppEntry.handleDeeplink`, chat/voice/session/health) was fully built but
+externally unreachable — no `CFBundleURLTypes` was declared, and widgets/
+intents reach the router via `widgetURL`/open-intents, which bypass scheme
+registration.
+- **MVP:** `CFBundleURLTypes` (`hermes` scheme) declared in `project.yml`
+  (source of truth) AND hand-mirrored into the committed generated
+  `Talaria/Resources/Info.plist` (alphabetical key position matched) so the
+  scheme is live before the next Mac regen — the regen should be a no-op for
+  this key.
+- **Extension:** new `hermes://ask?q=…` route. **Seed-only, never auto-send**
+  (deliberate security posture: any app or web page can fire a custom-scheme
+  URL; auto-send would let external content inject agent turns).
+  `ChatStore.pendingComposerSeed` + `seedComposer`/`consumeComposerSeed`;
+  ChatScreen drains it on `.onAppear` (cold launch) and
+  `.onChange(of: pendingComposerSeed)` (warm), fills `messageText`, focuses
+  the composer. Tests appended to `ChatStorePersistenceTests` (existing file
+  — no regen needed for tests either).
+- **No new source files → next Mac session needs NO xcodegen for this branch
+  alone**, but any sibling-branch regen must re-verify `aps-environment` +
+  CarPlay/WeatherKit/widget-HealthKit keys (#44/#48 strip trap — now a hard
+  gate with the push channel live).
+
+**Device checklist:** type `hermes://session/{id}` in Safari → app opens that
+session; Shortcuts "Open URL" with `hermes://ask?q=hello` → composer seeded +
+focused, NOT sent; confirm no other installed app already claims `hermes`
+(first registrant wins). **Question for Owen:** want `ask` to auto-send behind
+a Developer-screen toggle later? Shipped stance is seed-only.

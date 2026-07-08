@@ -126,6 +126,33 @@ struct ChatStorePersistenceTests {
         #expect(repersisted.messages.first(where: { $0.content == "Killed mid-run" })?.status == .failed)
     }
 
+    // MARK: - Composer seed (#48 hermes://ask?q=)
+
+    // Lives here (not a new file) to spare an xcodegen regen: same store,
+    // same harness. Seed-only semantics are the security property — an
+    // externally fired URL must never auto-send.
+
+    @Test @MainActor
+    func composerSeedIsHeldUntilConsumedExactlyOnce() {
+        let chatStore = ChatStore(hermesClient: ImmediateReplyClient(), persistence: makePersistence())
+
+        chatStore.seedComposer("  summarize my day  ")
+        #expect(chatStore.pendingComposerSeed == "summarize my day")
+
+        #expect(chatStore.consumeComposerSeed() == "summarize my day")
+        #expect(chatStore.pendingComposerSeed == nil)
+        #expect(chatStore.consumeComposerSeed() == nil)
+    }
+
+    @Test @MainActor
+    func composerSeedIgnoresEmptyPayloads() {
+        let chatStore = ChatStore(hermesClient: ImmediateReplyClient(), persistence: makePersistence())
+        chatStore.seedComposer("   ")
+        #expect(chatStore.pendingComposerSeed == nil)
+        chatStore.seedComposer("")
+        #expect(chatStore.pendingComposerSeed == nil)
+    }
+
     @Test @MainActor
     func coldLoadLeavesHealthyCacheUntouched() async throws {
         let persistence = makePersistence()

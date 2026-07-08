@@ -12,6 +12,22 @@ final class ChatStore {
     var pendingMessageSentAt: Date?
     var lastTokenUsage: TokenUsage?
 
+    /// #48: payload from a `hermes://ask?q=…` deep link, held until ChatScreen
+    /// pulls it into the composer. Seed-only by design — a custom-scheme URL
+    /// can be fired by any app or web page, so it must never auto-send.
+    private(set) var pendingComposerSeed: String?
+
+    func seedComposer(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        pendingComposerSeed = trimmed
+    }
+
+    func consumeComposerSeed() -> String? {
+        defer { pendingComposerSeed = nil }
+        return pendingComposerSeed
+    }
+
     /// Reachability of the Hermes Sessions API itself — the direct connection
     /// (localhost:8642) that actually carries chat, independent of the relay.
     /// The relay is offline by design, so the Chat screen drives its connectivity
