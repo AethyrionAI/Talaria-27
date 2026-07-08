@@ -55,6 +55,32 @@ final class ChatStore {
         lastTokenUsage?.promptTokens
     }
 
+    /// #46: session running totals over every metered Hermes turn. Input
+    /// tokens sum across turns on purpose — each turn re-reads the context,
+    /// so the sum is the billed amount, not the context size. Nil until at
+    /// least one turn carries a receipt.
+    struct SessionUsageTotals: Hashable {
+        var promptTokens = 0
+        var completionTokens = 0
+        var totalTokens = 0
+        var meteredTurns = 0
+        var totalDuration: TimeInterval = 0
+    }
+
+    var sessionUsageTotals: SessionUsageTotals? {
+        guard let messages = conversation?.messages else { return nil }
+        var totals = SessionUsageTotals()
+        for message in messages where message.sender == .hermes {
+            guard let usage = message.usage else { continue }
+            totals.promptTokens += usage.promptTokens
+            totals.completionTokens += usage.completionTokens
+            totals.totalTokens += usage.totalTokens
+            totals.meteredTurns += 1
+            totals.totalDuration += message.turnDuration ?? 0
+        }
+        return totals.meteredTurns > 0 ? totals : nil
+    }
+
     private let hermesClient: any HermesClientProtocol
     private let chatLiveActivity = LiveActivityService()
     private let notifications = LocalNotificationService()
@@ -336,6 +362,26 @@ final class ChatStore {
                         // #4.15: keep the accumulated reasoning when the final
                         // message doesn't carry its own (relay/mock clients).
                         if resolved.reasoning == nil { resolved.reasoning = streamedReasoning }
+                        // #46: the turn receipt. Usage rode this run's
+                        // `run.completed` (or the local brain's session
+                        // stats); duration is wall-clock from the optimistic
+                        // send; the serving model keys cost estimates.
+                        // Previously each turn overwrote the last in
+                        // lastTokenUsage and rendered nowhere.
+                        if resolved.usage == nil { resolved.usage = usage }
+                        if resolved.turnDuration == nil {
+                            resolved.turnDuration = self.pendingMessageSentAt.map {
+                                Date.now.timeIntervalSince($0)
+                            }
+                        }
+                        // Hermes-brain turns only: `activeModelName` is the
+                        // gateway's model, and stamping it on an on-device /
+                        // PCC turn (#27 brain tags) would price a free local
+                        // turn at the Hermes model's rate.
+                        if resolved.servingModel == nil,
+                           resolved.brain == nil || resolved.brain == ChatBackendRouter.Brain.hermes.rawValue {
+                            resolved.servingModel = self.activeModelName
+                        }
                         self.conversation?.messages[idx] = resolved
                     }
                     // The direct stream completed, so this message definitively
@@ -964,6 +1010,25 @@ final class ChatStore {
             conv.messages[idx].reasoning = partial
             conversation = conv
         }
+        // #46: receipt for the reconciled turn. Duration comes from two real
+        // timestamps (send → reply landing). Usage is adopted only when the
+        // reply is the session's last Hermes message — the conversation-level
+        // `latestUsage` then belongs to this run; anything else would be a
+        // guess.
+        if var conv = conversation,
+           let idx = conv.messages.firstIndex(where: { $0.id == reply.id }) {
+            if conv.messages[idx].turnDuration == nil {
+                conv.messages[idx].turnDuration = reply.timestamp.timeIntervalSince(pending.sentAt)
+            }
+            if conv.messages[idx].usage == nil,
+               serverConvo.messages.last(where: { $0.sender == .hermes })?.id == reply.id {
+                conv.messages[idx].usage = serverConvo.latestUsage
+            }
+            if conv.messages[idx].servingModel == nil {
+                conv.messages[idx].servingModel = activeModelName
+            }
+            conversation = conv
+        }
         if let latestUsage = conversation?.latestUsage {
             lastTokenUsage = latestUsage
         }
@@ -1149,6 +1214,18 @@ final class ChatStore {
             }
             if refreshedConversation.messages[index].reasoningSummary == nil, let summary = local.reasoningSummary {
                 refreshedConversation.messages[index].reasoningSummary = summary
+            }
+
+            // Turn receipts are client-only too (#46) — the server transcript
+            // carries no per-message usage, duration, or serving model.
+            if refreshedConversation.messages[index].usage == nil, let usage = local.usage {
+                refreshedConversation.messages[index].usage = usage
+            }
+            if refreshedConversation.messages[index].turnDuration == nil, let duration = local.turnDuration {
+                refreshedConversation.messages[index].turnDuration = duration
+            }
+            if refreshedConversation.messages[index].servingModel == nil, let model = local.servingModel {
+                refreshedConversation.messages[index].servingModel = model
             }
 
             if !local.attachments.isEmpty {

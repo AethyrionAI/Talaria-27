@@ -2282,3 +2282,48 @@ device: long-press each bubble type; copy/share/select prose; regenerate a
 mid-history reply (verify truncate-from-that-turn); edit-and-resend with and
 without attachments; confirm no menu on a streaming bubble and no
 Regenerate/Edit while another run streams.
+
+---
+
+## 79. 🔧 Turn Receipts — per-turn tokens, cost, and time (GitHub #46)
+
+**Update 2026-07-08 (cloud session, branch `claude/t27-46-turn-receipts`):**
+BUILT IN CLOUD, not compiled or device-verified. Every turn's usage report
+was decoded, persisted, and rendered nowhere; duration was measured and
+discarded; pricing was downloaded and thrown away. All three now land:
+- **`Message.usage` / `.turnDuration` / `.servingModel`** (persisted,
+  `decodeIfPresent` — pre-#46 caches decode). Stamped at `.finished`: usage
+  from this run's `run.completed` (or the local brain's `session.usage` —
+  local turns get receipts too, iOS 27 only per #67's real-data rule);
+  duration from `pendingMessageSentAt` (previously nulled without stamping);
+  `servingModel` = `activeModelName` **only for hermes-brain turns** (an
+  on-device turn priced at the Hermes model's rate would be a lie).
+  `mergeConversationMetadata` preserves all three (client-only, like
+  reasoning). Reconciled (#38-detached) turns get duration from real
+  timestamps + usage only when the adopted reply is the session's last.
+- **Pricing kept:** `ShimProviderRow.pricing` now decoded
+  (`ShimModelPricing` display strings, per-1M implied); new
+  `ModelPricingCatalog` (**new file** `Services/Support/TurnReceipts.swift`)
+  parses + persists to UserDefaults, harvested at all three existing fetch
+  sites (picker load/refresh + `seedActiveModelFromShim`). Lookup tolerates
+  `provider/model`, `provider:model`, and bare ids; an ambiguous bare name
+  with differing prices refuses to guess. ⚠️ `convertFromSnakeCase` would
+  mangle a model id containing `_` (none exist today) — that model would
+  just show no cost.
+- **UI:** compact receipt footer on metered Hermes bubbles
+  ("IN 1.2K · OUT 356 · 8.4S · ~$0.0042"); **CTX gauge is now tappable** →
+  resurrects `StatusCardView` (`showStatusCard` was init-false, set-false
+  only — the audit's dead-but-wanted case) with LAST TURN
+  (input/output/total/duration/est. cost) + SESSION sections (metered turns,
+  Σ input/output — summing input IS the billed amount since every turn
+  re-reads context — model time, est. cost with honest x/y-turns-priced
+  coverage) + the no-cache-split disclaimer line.
+- **New files:** `TurnReceipts.swift` + `TurnReceiptsTests.swift` (13 tests:
+  parse/match/ambiguity/cost math/round-trip/formatting) → **xcodegen regen
+  owed** (re-verify aps-environment etc. per the regen checklist).
+
+**Needs Mac:** regen + CLI build + tests; device: send a turn → footer
+receipt appears with real numbers; open Models once (harvest pricing) →
+cost appears labeled "~"; tap CTX gauge → card with session totals; local
+brain (iOS 27) turn shows receipt with no cost; distinct from OPEN_ITEMS #25
+(CTX denominator accuracy — still open).

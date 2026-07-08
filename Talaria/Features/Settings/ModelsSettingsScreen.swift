@@ -58,6 +58,8 @@ final class ModelsSettingsModel {
         errorMessage = nil
         do {
             options = try await shim.fetchModels(refresh: false)
+            // #46: harvest the pricing this payload always carried.
+            if let options { ModelPricingCatalog.shared.ingest(options) }
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
@@ -74,6 +76,8 @@ final class ModelsSettingsModel {
         statusMessage = nil
         do {
             options = try await shim.fetchModels(refresh: true)
+            // #46: harvest the pricing this payload always carried.
+            if let options { ModelPricingCatalog.shared.ingest(options) }
             // Fresh payload is ground truth — drop any optimistic override.
             activeOverride = nil
             statusMessage = "Refreshed \(compiledAgoText ?? "just now")"

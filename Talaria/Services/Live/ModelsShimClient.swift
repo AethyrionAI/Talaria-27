@@ -36,6 +36,17 @@ struct ShimModelOptions: Decodable, Sendable {
     let refreshed: Bool?
 }
 
+/// Per-model pricing display strings from the shim (#46) — e.g.
+/// `{"input": "$5.00", "output": "$25.00", "cache": "$0.50", "free": false}`,
+/// per-1M-token units implied. Parsed (never shown raw) by
+/// `ModelPricingCatalog`.
+struct ShimModelPricing: Decodable, Hashable, Sendable {
+    let input: String?
+    let output: String?
+    let cache: String?
+    let free: Bool?
+}
+
 /// One provider row from the shim. `id` == `slug` for SwiftUI identity.
 struct ShimProviderRow: Decodable, Identifiable, Hashable, Sendable {
     let slug: String
@@ -46,6 +57,10 @@ struct ShimProviderRow: Decodable, Identifiable, Hashable, Sendable {
     let models: [String]?
     let totalModels: Int?
     let source: String?
+    /// Pricing keyed by model id (#46). Previously ignored ("Extra keys …
+    /// pricing … are ignored") — now harvested into `ModelPricingCatalog` at
+    /// every fetch site.
+    let pricing: [String: ShimModelPricing]?
 
     var id: String { slug }
 
