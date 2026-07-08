@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import os
 
 private let containerLog = Logger(subsystem: "org.aethyrion.talaria", category: "AppContainer")
