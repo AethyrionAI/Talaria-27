@@ -312,6 +312,10 @@ struct MessageBubble: View {
         )
         return MonoLabel(line, size: 8, tracking: Design.Tracking.mono,
                          color: Design.Colors.dimForeground)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .truncationMode(.middle)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityLabel(
                 "Turn receipt: \(usage.promptTokens) input tokens, "
                     + "\(usage.completionTokens) output tokens"
