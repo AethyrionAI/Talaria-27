@@ -567,9 +567,19 @@ struct ChatScreen: View {
                 LazyVStack(spacing: Design.Spacing.md) {
                     if let messages = chatStore.conversation?.messages {
                         ForEach(messages) { message in
-                            MessageBubble(message: message) { failedMessage in
-                                Task { await chatStore.retryMessage(failedMessage) }
-                            }
+                            MessageBubble(
+                                message: message,
+                                onRetry: { failedMessage in
+                                    Task { await chatStore.retryMessage(failedMessage) }
+                                },
+                                isTranscriptBusy: chatStore.isStreaming,
+                                onRegenerate: { reply in
+                                    Task { await performRegenerate(reply) }
+                                },
+                                onEditResend: { userMessage in
+                                    performEditResend(userMessage)
+                                }
+                            )
                             .id(message.id)
                         }
                     }
@@ -818,6 +828,22 @@ struct ChatScreen: View {
     private func consumeComposerSeed() {
         guard let seed = chatStore.consumeComposerSeed() else { return }
         messageText = seed
+        isComposerFocused = true
+    }
+
+    /// #44: context-menu Regenerate — re-roll any successful Hermes reply.
+    private func performRegenerate(_ reply: Message) async {
+        await chatStore.regenerateReply(reply)
+        scrollToBottom()
+    }
+
+    /// #44: context-menu Edit & Resend — truncate from the user turn (the
+    /// `/undo` semantics) and stage its text + restorable attachments back
+    /// into the composer for the user to edit and send.
+    private func performEditResend(_ userMessage: Message) {
+        guard let turn = chatStore.extractTurnForEditing(userMessage) else { return }
+        messageText = turn.text
+        pendingAttachments = turn.attachments
         isComposerFocused = true
     }
 

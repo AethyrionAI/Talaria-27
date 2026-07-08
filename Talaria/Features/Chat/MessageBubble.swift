@@ -3,12 +3,24 @@ import SwiftUI
 struct MessageBubble: View {
     let message: Message
     var onRetry: ((Message) -> Void)? = nil
+    /// #44: true while ANY message in the transcript is streaming — the
+    /// history-mutating menu items (Regenerate, Edit & Resend) are hidden so
+    /// they can't truncate under an in-flight run. Copy/Share/Select stay.
+    var isTranscriptBusy: Bool = false
+    /// #44: re-roll a successful Hermes reply (wired by ChatScreen).
+    var onRegenerate: ((Message) -> Void)? = nil
+    /// #44: truncate a user turn back into the composer (wired by ChatScreen).
+    var onEditResend: ((Message) -> Void)? = nil
 
     @Environment(SpeechOutputService.self) private var speechOutput
     @Environment(TalkStore.self) private var talkStore
 
     // #4.15: reasoning disclosure. Collapsed by default; per-bubble state.
     @State private var isReasoningExpanded = false
+    // #44: "Select Text" opens the raw content in a selectable sheet —
+    // long-press is owned by the context menu, so in-bubble `.textSelection`
+    // can't coexist with it.
+    @State private var isSelectTextPresented = false
 
     private var isUser: Bool { message.sender == .user || message.sender == .voiceUser }
     private var isHermes: Bool { message.sender == .hermes || message.sender == .voiceHermes }
@@ -25,16 +37,89 @@ struct MessageBubble: View {
         } else if isUser {
             HStack(alignment: .top, spacing: Design.Spacing.xs) {
                 Spacer(minLength: Design.Spacing.xxl)
-                userBubble
+                withBubbleContextMenu(userBubble)
             }
             .padding(.horizontal, Design.Spacing.md)
         } else {
             HStack(alignment: .top, spacing: Design.Spacing.xs) {
-                hermesMessage
+                withBubbleContextMenu(hermesMessage)
                 Spacer(minLength: Design.Spacing.xxl)
             }
             .padding(.horizontal, Design.Spacing.md)
         }
+    }
+
+    // MARK: - Context Menu (#44)
+
+    /// Long-press menu on settled user/Hermes bubbles. A streaming bubble gets
+    /// no menu at all — its content is still moving, so copy would race the
+    /// stream and regenerate has no settled turn to re-roll.
+    @ViewBuilder
+    private func withBubbleContextMenu<Content: View>(_ content: Content) -> some View {
+        if message.isStreaming {
+            content
+        } else {
+            content
+                .contextMenu { bubbleMenuItems }
+                .sheet(isPresented: $isSelectTextPresented) {
+                    SelectableTextSheet(text: copyableText)
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var bubbleMenuItems: some View {
+        if !copyableText.isEmpty {
+            Button {
+                UIPasteboard.general.string = copyableText
+            } label: {
+                Label("Copy", systemImage: "doc.on.doc")
+            }
+            ShareLink(item: copyableText) {
+                Label("Share", systemImage: "square.and.arrow.up")
+            }
+            Button {
+                isSelectTextPresented = true
+            } label: {
+                Label("Select Text", systemImage: "text.cursor")
+            }
+        }
+        // Re-roll: successful Hermes replies only (failed ones keep the inline
+        // Regenerate button), exact senders only — voice-transcript rows are
+        // not real turns. Hidden while any run streams (truncation hazard).
+        if message.sender == .hermes,
+           message.status == .delivered,
+           !isTranscriptBusy,
+           let onRegenerate {
+            Divider()
+            Button {
+                onRegenerate(message)
+            } label: {
+                Label("Regenerate", systemImage: "arrow.counterclockwise")
+            }
+        }
+        // Edit & Resend: real user turns that aren't mid-flight.
+        if message.sender == .user,
+           message.status != .sending,
+           !isTranscriptBusy,
+           let onEditResend {
+            Divider()
+            Button {
+                onEditResend(message)
+            } label: {
+                Label("Edit & Resend", systemImage: "pencil")
+            }
+        }
+    }
+
+    /// What Copy/Share/Select operate on: the raw content, except the
+    /// synthetic "[N attachment(s)]" placeholder, which isn't user prose.
+    private var copyableText: String {
+        if !message.attachments.isEmpty,
+           message.content.range(of: #"^\[\d+ attachment"#, options: .regularExpression) != nil {
+            return ""
+        }
+        return message.content
     }
 
     // MARK: - System Message
@@ -662,5 +747,41 @@ struct MessageBubble: View {
             with: "",
             options: .regularExpression
         ).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+// MARK: - Select Text Sheet (#44)
+
+/// Raw message text with system text selection. Plain text on purpose: the
+/// selection surface should hand over exactly what Copy would, not the
+/// markdown-rendered view.
+private struct SelectableTextSheet: View {
+    let text: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                HUDScreenBackground()
+                    .ignoresSafeArea()
+                ScrollView {
+                    Text(text)
+                        .font(Design.Typography.body)
+                        .foregroundStyle(Design.Colors.foreground)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(Design.Spacing.md)
+                }
+            }
+            .navigationTitle("Select Text")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .font(Design.Typography.mono(13, weight: .medium))
+                        .foregroundStyle(Design.Brand.accent)
+                }
+            }
+        }
     }
 }

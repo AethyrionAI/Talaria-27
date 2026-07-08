@@ -658,6 +658,58 @@ final class ChatStore {
         await sendMessage(content, attachments: attachments)
     }
 
+    // MARK: - Per-turn regenerate / edit (#44)
+
+    /// Re-rolls a successful Hermes reply from its context menu: truncates the
+    /// transcript from the user turn that produced the reply, then re-sends
+    /// that turn through the full pipeline (attachments restored). Like
+    /// `/retry` and `/undo`, the truncation is client-side only — the server
+    /// session keeps its history and the re-sent turn continues that session.
+    /// No-op while a run is streaming (the menu also hides the item).
+    func regenerateReply(_ message: Message) async {
+        guard !isStreaming,
+              let conv = conversation,
+              let replyIdx = conv.messages.firstIndex(where: { $0.id == message.id }),
+              let userIdx = conv.messages[..<replyIdx].lastIndex(where: { $0.sender == .user })
+        else { return }
+
+        let userMessage = conv.messages[userIdx]
+        let attachments = userMessage.attachments.compactMap(PendingAttachment.restore)
+        let content = normalizedRetryContent(for: userMessage)
+        guard !content.isEmpty || !attachments.isEmpty else { return }
+
+        conversation?.messages.removeSubrange(userIdx...)
+        await sendMessage(content, attachments: attachments)
+    }
+
+    /// The pieces a truncated user turn hands back to the composer.
+    struct EditableTurn {
+        let text: String
+        let attachments: [PendingAttachment]
+    }
+
+    /// The truncation half of edit-and-resend (#44) — same semantics as
+    /// `/undo`, but returning the removed turn's restorable content so the
+    /// caller can seed the composer. Nothing is sent here; the user edits and
+    /// taps send. Returns nil (and leaves the transcript untouched) while a
+    /// run is streaming or for non-user messages.
+    func extractTurnForEditing(_ message: Message) -> EditableTurn? {
+        guard !isStreaming,
+              message.sender == .user,
+              let conv = conversation,
+              let idx = conv.messages.firstIndex(where: { $0.id == message.id })
+        else { return nil }
+
+        let attachments = message.attachments.compactMap(PendingAttachment.restore)
+        let text = normalizedRetryContent(for: message)
+        conversation?.messages.removeSubrange(idx...)
+        if let conversation {
+            persistence.saveConversationCache(conversation)
+            onConversationChanged?()
+        }
+        return EditableTurn(text: text, attachments: attachments)
+    }
+
     func setPollingEnabled(_ isEnabled: Bool) {
         isPollingEnabled = isEnabled
         if isEnabled {
