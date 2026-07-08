@@ -41,6 +41,9 @@ final class AppContainer {
     /// #16: AlarmKit executor behind the /alarm confirm gate. Stateless until
     /// first use (authorization requested on first schedule).
     let alarmService = AlarmService()
+    /// #47: honest failure notices for lock-screen replies (the typed text
+    /// must never vanish silently on a headless send failure).
+    private let localNotifications = LocalNotificationService()
     /// #29: the shared confirm gate for side-effecting device tools — stages
     /// a card in the chat transcript and suspends the tool until the user
     /// decides. Defaults closed (app death = nothing created).
@@ -630,6 +633,81 @@ final class AppContainer {
         reconcileLiveActivities()
         await reportAppStateIfNeeded("foreground")
         updateWidgetData()
+    }
+
+    // MARK: - Lock-screen reply (#47)
+
+    /// A typed reply from a completion push's text-input action. Headless by
+    /// design — no scene mounts, so nothing here may touch UI state, and the
+    /// #38 scene-phase hook (`watchPendingRunIfNeeded`) never runs: the
+    /// completion watch for the reply's own run is re-armed explicitly, which
+    /// is what makes the loop close (the next completion push again carries
+    /// Reply).
+    func handleNotificationReply(_ text: String, sessionID: String?) async {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        // Keep iOS from suspending the scene-less process mid-send — the
+        // delegate callback's grace window alone is short.
+        let backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "hermes.lockscreen.reply")
+        defer {
+            if backgroundTask != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTask)
+            }
+        }
+
+        // Cold scene-less launch: the Keychain key restore is async — same
+        // bounded wait AskHermesIntent uses.
+        await waitForHermesAPIKeyRestore()
+
+        // One run at a time (AskHermesIntent's rule): stacking a second
+        // stream would tangle ChatStore's placeholder bookkeeping. The typed
+        // text must not vanish silently — say so.
+        guard !chatStore.isStreaming else {
+            localNotifications.notifyReplyFailed(
+                reason: "Hermes is still working on another run. Open Talaria to send it."
+            )
+            return
+        }
+
+        let sentAt = Date()
+        if let sessionID, !sessionID.isEmpty {
+            // Adopt the pushed session so the reply continues THAT thread
+            // (and the app opens into it later).
+            await chatStore.openSession(sessionID)
+        } else {
+            await chatStore.loadConversationIfNeeded()
+        }
+
+        await chatStore.sendMessage(trimmed)
+
+        // Re-arm the relay watch so THIS run's completion pushes (again with
+        // a Reply action). Only after a committed turn: the watcher's
+        // completion check is positional — assistant-after-last-user — so
+        // arming after a failed send would insta-push a stale reply. For a
+        // run that already finished in-process the insta-fire is the point:
+        // it's what announces the answer to the locked phone.
+        switch AskHermesIntent.resolveOutcome(
+            messages: chatStore.conversation?.messages ?? [],
+            sentAfter: sentAt
+        ) {
+        case .answered, .pending:
+            if let watchSession = sessionID ?? chatStore.pendingRunSessionId {
+                await postPushWatch(sessionId: watchSession)
+            }
+        case .failed(let errorText):
+            localNotifications.notifyReplyFailed(reason: errorText)
+        }
+    }
+
+    /// Bounded wait for the async Keychain key restore on cold scene-less
+    /// launches (mirrors AskHermesIntent.waitForAPIKeyRestore).
+    private func waitForHermesAPIKeyRestore() async {
+        let clock = ContinuousClock()
+        let deadline = clock.now + .seconds(2)
+        while hermesAPIKey.isEmpty, clock.now < deadline, !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
     }
 
     /// User tapped a completion notification — bring the app to chat and

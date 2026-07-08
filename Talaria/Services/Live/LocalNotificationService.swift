@@ -18,6 +18,24 @@ final class LocalNotificationService {
             .requestAuthorization(options: [.alert, .sound])
     }
 
+    /// #47: a lock-screen reply that could not be delivered — surfaced
+    /// honestly instead of the typed text vanishing.
+    func notifyReplyFailed(reason: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "Reply not sent"
+        let trimmed = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        content.body = trimmed.isEmpty
+            ? "Hermes couldn't accept the reply. Open Talaria to retry."
+            : trimmed
+        content.sound = .default
+        let request = UNNotificationRequest(
+            identifier: "hermes.reply.failed.\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
+
     /// Schedules an immediate local notification announcing a finished run.
     /// Caller only invokes this when the app is not active.
     func notifyRunCompleted(preview: String?) {
