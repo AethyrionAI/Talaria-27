@@ -216,4 +216,16 @@ struct ChatBackendRouterTests {
         let legacyDecoded = try JSONDecoder().decode(Message.self, from: legacyData)
         #expect(legacyDecoded.brain == nil)
     }
+
+    // MARK: Header pill width anchor (#42)
+
+    @Test func widestMonoLabelAnchorsThePillToTheLongestBrainLabel() {
+        // The chat header pill sizes itself to this label so it never wraps;
+        // a new brain with a longer label must widen the anchor with it.
+        let longest = ChatBackendRouter.Brain.allCases
+            .map(\.monoLabel)
+            .max { $0.count < $1.count }
+        #expect(ChatBackendRouter.Brain.widestMonoLabel == longest)
+        #expect(ChatBackendRouter.Brain.widestMonoLabel == "ON-DEVICE")
+    }
 }

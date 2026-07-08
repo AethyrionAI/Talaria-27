@@ -46,6 +46,15 @@ final class ChatBackendRouter: HermesClientProtocol {
             }
         }
 
+        /// The widest `monoLabel` across all brains ("ON-DEVICE" today). The
+        /// chat header pill reserves this width so it never wraps inside
+        /// itself and doesn't resize on brain switches (#42). Character count
+        /// is a valid width proxy only because the label renders in
+        /// JetBrains Mono.
+        static var widestMonoLabel: String {
+            allCases.map(\.monoLabel).max { $0.count < $1.count } ?? ""
+        }
+
         var glyph: String {
             switch self {
             case .hermes: "desktopcomputer"

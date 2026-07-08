@@ -2145,3 +2145,35 @@ leaves the session running on the phone, reconnect re-syncs. Then file at
 developer.apple.com/contact/carplay/ (category: voice-based conversational).
 Real-car audio routing stays a post-grant milestone — no polish before the
 grant lands.
+
+## 75. 🔧 HUD header labels wrap/truncate — single-line hardening (GitHub #42)
+
+**Update 2026-07-08 (cloud session, branch `claude/talaria-27-issue-42-042f8a`):**
+BUILT IN CLOUD, not compiled or device-verified. On-device captures (issue #42)
+showed the chat header character-wrapping under width pressure: wordmark
+`HE`/`RM`/`ES`, status `ONLIN`/`E · OJAMD`, brain pill `ON-`/`DEVICE`, model
+chip hard-truncating at full size.
+- **New `hudSingleLine(minScale:)`** (`Core/HUD/HUDComponents.swift`): one
+  line, tighten → scale (floor 0.6 default) → `…` last. Opt-in, NOT baked into
+  `MonoLabel` — the voice-overlay live transcript uses MonoLabel for
+  multi-line prose and must keep wrapping.
+- **Wordmark:** `.lineLimit(1)` + `.fixedSize(horizontal: true, vertical:
+  false)` + `.layoutPriority(1)` — never gives up width; the neighboring
+  status telemetry absorbs the pressure via `hudSingleLine()`.
+- **Status line, message count, CTX label:** `hudSingleLine()`.
+- **Brain pill:** hidden ZStack width anchor = `Brain.widestMonoLabel`
+  (computed over `allCases` by character count — valid only because the label
+  is JetBrains Mono; "ON-DEVICE" today) + `fixedSize` — the pill never wraps
+  inside itself and keeps one size across brain switches. Locked by a new
+  `ChatBackendRouterTests` test.
+- **Model chip (`ModelSelector`):** `.allowsTightening` +
+  `.minimumScaleFactor(11/13)` — ~2pt of shrink before the pre-existing
+  `lineLimit(1)` `…` truncation.
+
+**Needs Mac:** CLI build + tests (**no new files → no xcodegen regen needed**),
+then the issue's acceptance pass on the iOS 27 sim + whoGoesThere: narrowest
+supported width, both brains (HERMES / ON-DEVICE), a long model name
+(`DEEPSEEK-V4-…`), and a Dynamic Type sweep — wordmark + pill are fixedSize,
+so at accessibility sizes the status label should shrink/truncate rather than
+anything wrapping. Also confirm whether mainline's milder behavior was iOS 27
+SDK-related (issue asks; the fix is robust either way).
