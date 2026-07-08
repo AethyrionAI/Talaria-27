@@ -54,6 +54,8 @@ struct MainTabView: View {
             } else {
                 ConnectHermesScreen()
             }
+        case .inbox:
+            InboxScreen()
         }
     }
 

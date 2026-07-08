@@ -6,6 +6,9 @@ enum Route: Hashable {
     case permissions
     case capture
     case connectHost
+    /// #45: the agent→phone Inbox — first reachable entry point (the screen
+    /// shipped in every build with zero call sites).
+    case inbox
 }
 
 // MARK: - Sheet Destinations

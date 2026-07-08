@@ -10,13 +10,30 @@ struct InboxScreen: View {
                 .ignoresSafeArea()
 
             if inboxStore.items.isEmpty {
-                emptyState
+                // Scrollable so pull-to-refresh works from the empty and
+                // unreachable states too, not just the list.
+                ScrollView {
+                    Group {
+                        if inboxStore.lastErrorMessage != nil {
+                            unreachableState
+                        } else {
+                            emptyState
+                        }
+                    }
+                    .containerRelativeFrame([.horizontal, .vertical])
+                }
             } else {
                 itemList
             }
         }
         .navigationTitle("Inbox")
-        .toolbarVisibility(.hidden, for: .navigationBar)
+        .navigationBarTitleDisplayMode(.inline)
+        // #45: reachable by navigation push now — the nav bar must stay
+        // visible for the back affordance (the hidden-toolbar treatment
+        // predated any call site).
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .task { await inboxStore.loadInbox(force: true) }
+        .refreshable { await inboxStore.loadInbox(force: true) }
     }
 
     // MARK: - List
@@ -88,6 +105,31 @@ struct InboxScreen: View {
         let count = awaitingCount
         let padded = String(format: "%02d", count)
         return "\(padded) AWAITING AUTHORIZATION"
+    }
+
+    // MARK: - Unreachable State (#45)
+
+    /// The fetch failed — say so. Real data only: an unreachable relay must
+    /// never read as "All Caught Up" (and never show demo items).
+    private var unreachableState: some View {
+        ContentUnavailableView {
+            Label {
+                Text("Inbox Unreachable")
+                    .font(Design.Typography.sectionTitle)
+                    .foregroundStyle(Design.Colors.foregroundBright)
+            } icon: {
+                Image(systemName: "wifi.exclamationmark")
+                    .foregroundStyle(Design.Brand.forge)
+            }
+        } description: {
+            MonoLabel(
+                "COULD NOT REACH THE RELAY — PULL TO RETRY",
+                size: 10,
+                weight: .regular,
+                tracking: Design.Tracking.monoWide,
+                color: Design.Colors.mutedForeground
+            )
+        }
     }
 
     // MARK: - Empty State

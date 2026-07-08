@@ -10,7 +10,6 @@ final class InboxStore {
     private let inboxService: any InboxServiceProtocol
     private let persistence: any AppPersistenceStoreProtocol
     private let sessionStore: AppSessionStore
-    private let allowDemoFallback: Bool
     private var localState: InboxLocalState {
         didSet { persistence.saveInboxState(localState) }
     }
@@ -18,13 +17,11 @@ final class InboxStore {
     init(
         inboxService: any InboxServiceProtocol,
         persistence: any AppPersistenceStoreProtocol,
-        sessionStore: AppSessionStore,
-        allowDemoFallback: Bool = true
+        sessionStore: AppSessionStore
     ) {
         self.inboxService = inboxService
         self.persistence = persistence
         self.sessionStore = sessionStore
-        self.allowDemoFallback = allowDemoFallback
         self.localState = persistence.loadInboxState()
     }
 
@@ -44,8 +41,11 @@ final class InboxStore {
             let fetchedItems = try await inboxService.fetchInbox(accessToken: token)
             items = applyLocalState(to: fetchedItems)
         } catch {
+            // #45: real data only — a failed fetch shows the unreachable
+            // state, never demo items. (The DemoData fallback shipped fake
+            // directives whenever the relay was down.)
             lastErrorMessage = error.localizedDescription
-            items = allowDemoFallback ? applyLocalState(to: DemoData.sampleInboxItems) : []
+            items = []
         }
     }
 
