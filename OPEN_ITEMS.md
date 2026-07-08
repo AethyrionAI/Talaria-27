@@ -2177,3 +2177,36 @@ supported width, both brains (HERMES / ON-DEVICE), a long model name
 so at accessibility sizes the status label should shrink/truncate rather than
 anything wrapping. Also confirm whether mainline's milder behavior was iOS 27
 SDK-related (issue asks; the fix is robust either way).
+
+---
+
+## 76. 🔧 Orphan-surface audit — hygiene tooling (GitHub #49)
+
+**Update 2026-07-08 (cloud session, branch `claude/t27-49-orphan-audit`):**
+BUILT + RUN IN CLOUD — no Xcode dependency (pure bash + python3, both present
+on the Mac Mini and OJAMD), so unlike the Swift waves this one is fully
+verified as shipped: `tools/orphan-audit.sh --self-test` ran clean at
+`6e604e9` and re-flagged all five Field Notes §5 graveyard types.
+- **`tools/orphan-audit.sh`** — walks `Talaria/`, `TalariaWidgets/`, `Shared/`,
+  strips comments/strings (real state machine: nested block comments, string
+  interpolation, raw `#"…"#` strings), extracts top-level type declarations,
+  and classifies into four tiers: **ORPHAN** (zero refs anywhere — not even
+  same-file outside the declaration and `#Preview` blocks), **TEST-ONLY**,
+  **SINGLE-SITE** (one referencing file, ≤2 lines — the dead-gate tier that
+  catches `CaptureScreen` behind a never-pushed route and `MockInboxService`
+  behind a never-exercised fallback), **FILE-LOCAL** (candidates for
+  `private`). `private`/`fileprivate` types and `@main`-file types excluded.
+- **`tools/orphan-audit-report.md`** — the committed first run (12 ORPHAN /
+  8 TEST-ONLY / 118 SINGLE-SITE / 38 FILE-LOCAL at `6e604e9`). Genuinely new
+  finds beyond the known graveyard: `HermesAvatar`, `StatusIndicator`,
+  `MockHealthService`/`MockLocationService`; `CarPlaySceneDelegate` +
+  Spotlight/App Intents entries are the documented string-/system-referenced
+  false-positive classes — informs, never auto-removes.
+- **Checklist line** added to `BRANCHING.md` → Safety-net habits (run every
+  few sessions / before wave merges).
+- `--self-test` pins the §5 oracle **at this commit** — expect churn: #45
+  wires `InboxScreen` and guts `MockInboxService`; that branch must update
+  `SELF_TEST_ORACLE` in the script when it lands (it does, in this stack).
+
+**No app code touched, no xcodegen.** Nothing was deleted; the report is the
+deliverable.
