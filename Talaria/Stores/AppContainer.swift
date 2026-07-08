@@ -162,11 +162,12 @@ final class AppContainer {
             allowsFallback: { allowMockFallbacks && (activePairingStore?.isPaired != true || usesMockPairingService) }
         )
 
-        let inboxService = ResilientInboxService(
-            primary: LiveInboxService(apiClient: apiClient),
-            fallback: MockInboxService(),
-            allowsFallback: { allowMockFallbacks && (activePairingStore?.isPaired != true || usesMockPairingService) }
-        )
+        // #45: the Inbox is a live surface now — no mock fallback. Real items
+        // or an honest unreachable state; MockInboxService survives only for
+        // the UITest harness (and unit tests), never a production path.
+        let inboxService: any InboxServiceProtocol = usesMockPairingService
+            ? MockInboxService()
+            : LiveInboxService(apiClient: apiClient)
 
         let sessionStore = AppSessionStore(
             bootstrapService: sessionBootstrapService,
@@ -351,8 +352,7 @@ final class AppContainer {
             inboxStore: InboxStore(
                 inboxService: inboxService,
                 persistence: persistence,
-                sessionStore: sessionStore,
-                allowDemoFallback: allowMockFallbacks
+                sessionStore: sessionStore
             ),
             permissionsStore: PermissionsStore(
                 locationService: liveLocationService,
@@ -662,6 +662,11 @@ final class AppContainer {
         // reconcile so the reply is fetched and the completion notification
         // can fire.
         await chatStore.reconcilePendingRuns()
+
+        // #45: a silent push is also how an agent-posted inbox item announces
+        // itself — refresh so the item is waiting before the user ever opens
+        // the app.
+        await inboxStore.loadInbox(force: true)
 
         await permissionsStore.reloadCapabilities()
         await hostStore.refresh()

@@ -7,6 +7,7 @@ struct ChatScreen: View {
     @Environment(PairingStore.self) private var pairingStore
     @Environment(AppSessionStore.self) private var sessionStore
     @Environment(SettingsStore.self) private var settingsStore
+    @Environment(InboxStore.self) private var inboxStore
     @Environment(TabRouter.self) private var router
 
     @State private var messageText = ""
@@ -314,11 +315,31 @@ struct ChatScreen: View {
                 .allowsHitTesting(!sessionsOpen)
         }
         ToolbarItem(placement: .topBarTrailing) {
+            // #45: first reachable entry to the agent→phone Inbox. The pip is
+            // real data — it appears only when unread items actually exist.
+            GlassCircleButton(icon: "tray", accessibilityLabel: inboxAccessibilityLabel) {
+                router.navigate(to: .inbox)
+            }
+            .overlay(alignment: .topTrailing) {
+                if inboxStore.unreadCount > 0 {
+                    StatusPip(color: Design.Brand.forge, diameter: 7)
+                        .offset(x: -3, y: 3)
+                        .allowsHitTesting(false)
+                }
+            }
+            .allowsHitTesting(!sessionsOpen)
+        }
+        ToolbarItem(placement: .topBarTrailing) {
             GlassCircleButton(icon: "gearshape", accessibilityLabel: "Open settings") {
                 router.presentSheet(.settings)
             }
             .allowsHitTesting(!sessionsOpen)
         }
+    }
+
+    private var inboxAccessibilityLabel: String {
+        let unread = inboxStore.unreadCount
+        return unread > 0 ? "Open inbox. \(unread) unread." : "Open inbox"
     }
 
     /// Connection state for the chat UI. Chat talks **directly** to the Hermes
