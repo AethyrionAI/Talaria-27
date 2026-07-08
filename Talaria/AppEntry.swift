@@ -187,6 +187,19 @@ struct TalariaApp: App {
             // MainTabView presentations can't overlap (parity with the intent).
             container.router.activeSheet = nil
             container.router.isVoiceOverlayPresented = true
+        case "ask":
+            // #48: hermes://ask?q=… — the payload-carrying route. Lands on
+            // Chat and seeds the composer; the user still taps send. Never
+            // auto-sends: custom-scheme URLs are open to any app or web page,
+            // and an auto-send would let external content inject agent turns.
+            let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?
+                .first(where: { $0.name == "q" })?
+                .value ?? ""
+            container.router.activeSheet = nil
+            container.router.popToRoot()
+            container.router.selectedTab = .chat
+            container.chatStore.seedComposer(query)
         default:
             break
         }

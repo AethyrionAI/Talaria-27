@@ -93,6 +93,18 @@ targets:
         CFBundleDisplayName: Talaria27
         CFBundleShortVersionString: "1.0.0"
         CFBundleVersion: "1"
+        # #48: register the hermes:// custom scheme. The deep-link router
+        # (AppEntry.handleDeeplink) predates this key but was only reachable
+        # from widgetURL / App Intents, which bypass registration — this is
+        # what lets Safari, Shortcuts "Open URL", other apps, and tappable
+        # hermes:// links in Hermes replies open the app. First registrant
+        # wins for custom schemes — confirm no other app on the test device
+        # claims `hermes`.
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Viewer
+            CFBundleURLName: org.aethyrion.talaria27.hermes
+            CFBundleURLSchemes:
+              - hermes
         UILaunchScreen: {}
         NSLocationWhenInUseUsageDescription: "Hermes uses your location to provide contextual recommendations and nearby suggestions."
         NSHealthShareUsageDescription: "Hermes reads your health data to offer personalized wellness insights."

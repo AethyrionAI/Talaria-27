@@ -144,6 +144,13 @@ struct ChatScreen: View {
     private var lifecycleContent: some View {
         framedContent
             .onAppear { configureChatSeams() }
+            // #48: hermes://ask?q=… — the seed can land before this screen
+            // exists (cold launch → onAppear) or while it's on screen
+            // (warm launch → onChange). Both paths drain the same store slot.
+            .onAppear { consumeComposerSeed() }
+            .onChange(of: chatStore.pendingComposerSeed) { _, seed in
+                if seed != nil { consumeComposerSeed() }
+            }
             .task { await startChatSession() }
             .task { await monitorConnectionStatus() }
             .onDisappear { chatStore.setPollingEnabled(false) }
@@ -804,6 +811,15 @@ struct ChatScreen: View {
     }
 
     // MARK: - Actions
+
+    /// #48: pull a `hermes://ask?q=…` payload into the composer and focus it.
+    /// Seed-only — the user reviews and taps send; an externally fired URL
+    /// must never auto-send a turn.
+    private func consumeComposerSeed() {
+        guard let seed = chatStore.consumeComposerSeed() else { return }
+        messageText = seed
+        isComposerFocused = true
+    }
 
     private func sendMessage() {
         let content = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
