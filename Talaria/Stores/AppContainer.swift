@@ -1108,6 +1108,8 @@ final class AppContainer {
     private func seedActiveModelFromShim() async {
         do {
             let options = try await modelsShimClient.fetchModels(refresh: false)
+            // #46: harvest the pricing this payload always carried.
+            ModelPricingCatalog.shared.ingest(options)
             if let currentModel = options.model, !currentModel.isEmpty {
                 chatStore.replaceCommandCatalog(
                     chatStore.commandCatalog,

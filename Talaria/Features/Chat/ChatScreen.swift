@@ -27,6 +27,9 @@ struct ChatScreen: View {
     @State private var modelModel = ModelSelectorModel()
 
     private let thinkingIndicatorID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+    // #46: stable scroll anchor for the status card (it renders after the
+    // last message, so scrolling to the last message can leave it off-screen).
+    private let statusCardID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
 
     // `body` is split across several `some View` properties so each is a small,
     // independent expression. Applied as one chain, the ~15 modifiers overrun the
@@ -512,6 +515,42 @@ struct ChatScreen: View {
                     }
                 }
         }
+        // #46: the gauge opens the session status card — the display half of
+        // the usage that was always decoded (StatusCardView shipped dead;
+        // showStatusCard was only ever set false).
+        .contentShape(Rectangle())
+        .onTapGesture { toggleStatusCard() }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel("Context \(Int(contextProgress * 100)) percent. Shows session status and turn receipts.")
+    }
+
+    /// #46: toggle from the CTX gauge; opening scrolls the card into view
+    /// (it renders below the last message).
+    private func toggleStatusCard() {
+        withAnimation(Design.Motion.standard) {
+            showStatusCard.toggle()
+        }
+        guard showStatusCard else { return }
+        withAnimation(Design.Motion.standard) {
+            scrollProxy?.scrollTo(statusCardID, anchor: .bottom)
+        }
+    }
+
+    /// #46: the newest Hermes turn that carries a receipt — drives the
+    /// LAST TURN duration/cost rows on the status card.
+    private var lastMeteredTurn: Message? {
+        chatStore.conversation?.messages.last(where: { $0.sender == .hermes && $0.usage != nil })
+    }
+
+    private var lastMeteredTurnCost: Double? {
+        guard let turn = lastMeteredTurn, let usage = turn.usage else { return nil }
+        return ModelPricingCatalog.shared.estimatedCost(for: usage, model: turn.servingModel)
+    }
+
+    private var sessionCostEstimate: (cost: Double, costedTurns: Int)? {
+        guard let messages = chatStore.conversation?.messages else { return nil }
+        return ModelPricingCatalog.shared.estimatedSessionCost(for: messages)
     }
 
     private var connectionTelemetry: String {
@@ -609,8 +648,13 @@ struct ChatScreen: View {
                             messageCount: chatStore.conversation?.messages.count ?? 0,
                             conversationID: chatStore.conversation?.id,
                             tokenUsage: chatStore.lastTokenUsage,
-                            dismissAction: { showStatusCard = false }
+                            dismissAction: { showStatusCard = false },
+                            lastTurnDuration: lastMeteredTurn?.turnDuration,
+                            lastTurnCost: lastMeteredTurnCost,
+                            sessionTotals: chatStore.sessionUsageTotals,
+                            sessionCost: sessionCostEstimate
                         )
+                        .id(statusCardID)
                         .transition(.opacity)
                     }
                 }

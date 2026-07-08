@@ -6,6 +6,12 @@ struct StatusCardView: View {
     let conversationID: UUID?
     let tokenUsage: TokenUsage?
     let dismissAction: () -> Void
+    /// #46: last-turn receipt + session running totals. All optional and all
+    /// real-data-only — rows render only for values that actually exist.
+    var lastTurnDuration: TimeInterval? = nil
+    var lastTurnCost: Double? = nil
+    var sessionTotals: ChatStore.SessionUsageTotals? = nil
+    var sessionCost: (cost: Double, costedTurns: Int)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
@@ -59,9 +65,46 @@ struct StatusCardView: View {
                 Rectangle()
                     .fill(Design.Colors.accentTint(0.12))
                     .frame(height: 1)
-                statusRow("Current Context", value: "\(usage.promptTokens) tokens")
-                statusRow("Completion", value: "\(usage.completionTokens)")
-                statusRow("Total", value: "\(usage.totalTokens)")
+                sectionHeader("LAST TURN")
+                statusRow("Input", value: "\(TurnReceiptFormat.fullTokenLabel(usage.promptTokens)) tokens")
+                statusRow("Output", value: TurnReceiptFormat.fullTokenLabel(usage.completionTokens))
+                statusRow("Total", value: TurnReceiptFormat.fullTokenLabel(usage.totalTokens))
+                if let lastTurnDuration {
+                    statusRow("Duration", value: TurnReceiptFormat.durationLabel(lastTurnDuration))
+                }
+                if let lastTurnCost {
+                    statusRow("Est. cost", value: "~\(TurnReceiptFormat.costLabel(lastTurnCost))")
+                }
+            }
+
+            // #46: session running totals across every metered turn. Input
+            // sums on purpose (each turn re-reads context — the sum is what
+            // gets billed).
+            if let totals = sessionTotals {
+                Rectangle()
+                    .fill(Design.Colors.accentTint(0.12))
+                    .frame(height: 1)
+                sectionHeader("SESSION")
+                statusRow("Metered turns", value: "\(totals.meteredTurns)")
+                statusRow("Input", value: "\(TurnReceiptFormat.fullTokenLabel(totals.promptTokens)) tokens")
+                statusRow("Output", value: TurnReceiptFormat.fullTokenLabel(totals.completionTokens))
+                if totals.totalDuration > 0 {
+                    statusRow("Model time", value: TurnReceiptFormat.durationLabel(totals.totalDuration))
+                }
+                if let sessionCost {
+                    statusRow(
+                        sessionCost.costedTurns == totals.meteredTurns
+                            ? "Est. cost"
+                            : "Est. cost (\(sessionCost.costedTurns)/\(totals.meteredTurns) turns priced)",
+                        value: "~\(TurnReceiptFormat.costLabel(sessionCost.cost))"
+                    )
+                }
+                MonoLabel(
+                    "COSTS ARE ESTIMATES — USAGE CARRIES NO CACHE-READ SPLIT",
+                    size: 8,
+                    tracking: Design.Tracking.mono,
+                    color: Design.Colors.dimForeground
+                )
             }
         }
         .padding(Design.Spacing.md)
@@ -78,6 +121,15 @@ struct StatusCardView: View {
                 .strokeBorder(Design.Colors.accentTint(0.25), lineWidth: 1)
         }
         .padding(.horizontal, Design.Spacing.md)
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        MonoLabel(
+            title,
+            size: 9,
+            tracking: Design.Tracking.monoWide,
+            color: Design.Colors.dimForeground
+        )
     }
 
     private func statusRow(_ label: String, value: String) -> some View {

@@ -276,6 +276,15 @@ struct MessageBubble: View {
                             speakerToggle
                         }
                     }
+
+                    // #46: the turn receipt — real usage from this run's
+                    // `run.completed`, wall-clock duration, and a dollar
+                    // figure only when the serving model's pricing is known
+                    // (the "~" marks it as an estimate). Absent entirely for
+                    // unmetered turns — no placeholders in a receipt.
+                    if let usage = message.usage {
+                        turnReceipt(usage)
+                    }
                 }
 
                 if message.status == .failed {
@@ -290,6 +299,25 @@ struct MessageBubble: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Hermes: \(message.content)")
         .accessibilityAddTraits(message.isStreaming ? .updatesFrequently : [])
+    }
+
+    // MARK: - Turn Receipt (#46)
+
+    private func turnReceipt(_ usage: TokenUsage) -> some View {
+        let cost = ModelPricingCatalog.shared.estimatedCost(for: usage, model: message.servingModel)
+        let line = TurnReceiptFormat.receiptLine(
+            usage: usage,
+            duration: message.turnDuration,
+            cost: cost
+        )
+        return MonoLabel(line, size: 8, tracking: Design.Tracking.mono,
+                         color: Design.Colors.dimForeground)
+            .accessibilityLabel(
+                "Turn receipt: \(usage.promptTokens) input tokens, "
+                    + "\(usage.completionTokens) output tokens"
+                    + (message.turnDuration.map { ", \(Int($0.rounded())) seconds" } ?? "")
+                    + (cost.map { ", estimated cost \(TurnReceiptFormat.costLabel($0))" } ?? "")
+            )
     }
 
     // MARK: - Read-Aloud (#2)

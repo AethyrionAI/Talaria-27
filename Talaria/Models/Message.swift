@@ -69,6 +69,18 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
     /// transcript stays honest across brain switches and reconnects; nil for
     /// user/system messages and pre-#27 caches.
     var brain: String?
+    /// Per-turn token usage from this turn's `run.completed` (#46). Stamped at
+    /// `.finished` — previously each turn overwrote the last in
+    /// `ChatStore.lastTokenUsage` and the report was rendered nowhere. Nil for
+    /// user/system messages, pre-#46 caches, and iOS 26 local-brain turns
+    /// (real data only — never estimated).
+    var usage: TokenUsage?
+    /// Wall-clock seconds from optimistic send to `.finished` (#46) — the
+    /// duration `pendingMessageSentAt` used to measure and discard.
+    var turnDuration: TimeInterval?
+    /// Model that served this turn (#46) — what per-turn cost estimates key
+    /// their pricing on. Nil when the active model wasn't known at finish.
+    var servingModel: String?
     var isStreaming: Bool
     var voiceSessionDuration: TimeInterval?
     var attachments: [MessageAttachment]
@@ -92,6 +104,9 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         reasoning: String? = nil,
         reasoningSummary: String? = nil,
         brain: String? = nil,
+        usage: TokenUsage? = nil,
+        turnDuration: TimeInterval? = nil,
+        servingModel: String? = nil,
         isStreaming: Bool = false,
         voiceSessionDuration: TimeInterval? = nil,
         attachments: [MessageAttachment] = []
@@ -109,6 +124,9 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         self.reasoning = reasoning
         self.reasoningSummary = reasoningSummary
         self.brain = brain
+        self.usage = usage
+        self.turnDuration = turnDuration
+        self.servingModel = servingModel
         self.isStreaming = isStreaming
         self.voiceSessionDuration = voiceSessionDuration
         self.attachments = attachments
@@ -119,6 +137,7 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         case voiceSessionDuration
         case reasoning, reasoningSummary
         case brain
+        case usage, turnDuration, servingModel
     }
 
     init(from decoder: Decoder) throws {
@@ -142,6 +161,10 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         reasoningSummary = try container.decodeIfPresent(String.self, forKey: .reasoningSummary)
         // Producing brain (#27); absent in pre-#27 caches.
         brain = try container.decodeIfPresent(String.self, forKey: .brain)
+        // Turn receipt (#46); absent in pre-#46 caches.
+        usage = try container.decodeIfPresent(TokenUsage.self, forKey: .usage)
+        turnDuration = try container.decodeIfPresent(TimeInterval.self, forKey: .turnDuration)
+        servingModel = try container.decodeIfPresent(String.self, forKey: .servingModel)
         isStreaming = false
         // Persisted with the message (#1) so the voice-session banner keeps its
         // duration across relaunch; absent in older caches.
@@ -167,6 +190,9 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         try container.encodeIfPresent(reasoning, forKey: .reasoning)
         try container.encodeIfPresent(reasoningSummary, forKey: .reasoningSummary)
         try container.encodeIfPresent(brain, forKey: .brain)
+        try container.encodeIfPresent(usage, forKey: .usage)
+        try container.encodeIfPresent(turnDuration, forKey: .turnDuration)
+        try container.encodeIfPresent(servingModel, forKey: .servingModel)
     }
 }
 
