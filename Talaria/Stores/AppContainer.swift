@@ -166,13 +166,6 @@ final class AppContainer {
             allowsFallback: { allowMockFallbacks && (activePairingStore?.isPaired != true || usesMockPairingService) }
         )
 
-        // #45: the Inbox is a live surface now — no mock fallback. Real items
-        // or an honest unreachable state; MockInboxService survives only for
-        // the UITest harness (and unit tests), never a production path.
-        let inboxService: any InboxServiceProtocol = usesMockPairingService
-            ? MockInboxService()
-            : LiveInboxService(apiClient: apiClient)
-
         let sessionStore = AppSessionStore(
             bootstrapService: sessionBootstrapService,
             syncCoordinator: syncCoordinator,
@@ -225,6 +218,18 @@ final class AppContainer {
                 accessTokenRefresher: relayAccessTokenRefresher
             )
         }
+
+        // #45: the Inbox is a live surface now — no mock fallback. Real items
+        // or an honest unreachable state; MockInboxService survives only for
+        // the UITest harness (and unit tests), never a production path.
+        // Constructed after relayAccessTokenRefresher so the Inbox rides the
+        // same 401-recovery ladder as every other relay consumer.
+        let inboxService: any InboxServiceProtocol = usesMockPairingService
+            ? MockInboxService()
+            : LiveInboxService(
+                apiClient: apiClient,
+                accessTokenRefresher: relayAccessTokenRefresher
+            )
 
         let hostStore = HermesHostStore(
             hostService: hostService,
