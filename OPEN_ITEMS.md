@@ -2368,3 +2368,46 @@ iOS half BUILT IN CLOUD (not compiled/device-verified); connector half
 demo rows); agent `send_inbox_item` (silent) → item present on next open
 without manual refresh; approve → `get_inbox_verdict` reads it back;
 `notify="alert"` → visible push.
+
+---
+
+## 81. 🔧 Lock-screen reply to Hermes — UNTextInputNotificationAction (GitHub #47)
+
+**Update 2026-07-08 (cloud session, branch `claude/t27-47-lockscreen-reply`):**
+Relay half **tested green here** (72 passed); iOS half BUILT IN CLOUD, not
+compiled or device-verified. Completion pushes (#38) were tap-to-open only —
+now a push is a conversation: long-press → Reply → type → the reply posts
+into that session headless, and the resulting completion push again carries
+Reply (the loop closes).
+- **Relay:** `send_run_completion_push` now passes
+  `category="HERMES_RUN_COMPLETED"` into `send_alert_push`'s previously
+  unused `category:` param. Test updated (stub records category + lockstep
+  assertion).
+- **iOS:** `NotificationReplyAction` (AppEntry) — category id lockstep with
+  the relay, `UNTextInputNotificationAction` id `HERMES_REPLY`, registered
+  every launch incl. scene-less; `didReceive` routes
+  `UNTextInputNotificationResponse` → new
+  `AppContainer.handleNotificationReply(_:sessionID:)`:
+  `UIBackgroundTask` assertion + completionHandler deferred until the send
+  finishes; bounded 2s Keychain key-restore wait (AskHermesIntent pattern);
+  busy guard (one run at a time); `openSession(sessionID)` adopts the
+  pushed thread; `sendMessage` full pipeline; then the **explicit
+  `postPushWatch`** the issue called out (scene-less launches never trip
+  `watchPendingRunIfNeeded`). Watch armed only on
+  `.answered`/`.pending` outcomes (reusing `AskHermesIntent.resolveOutcome`)
+  — the relay watcher's completion check is positional
+  (assistant-after-last-user), so arming after a FAILED send would
+  insta-push a stale reply; on `.answered` the insta-fire is deliberate
+  (it's what announces the finished answer to the locked phone, with Reply).
+  `.failed` → new `LocalNotificationService.notifyReplyFailed` — the typed
+  text never vanishes silently.
+- No new iOS files (no regen owed by this branch; the stack still owes one
+  from #46/#45).
+
+**Device checklist:** run finishes while locked → push has Reply on
+long-press; typed reply lands in the right session (verify in-app
+transcript); the NEXT completion push also has Reply; reply while relay
+watch TTL expired; reply with wrong/expired API key → "Reply not sent"
+notice; reply while another run streams → busy notice. NOTE the
+"Approve/Deny slash commands" claim from discovery was refuted — nothing
+here pretends they exist.

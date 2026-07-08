@@ -5,6 +5,31 @@ import os
 
 private let appDelegateLog = Logger(subsystem: "org.aethyrion.talaria", category: "AppDelegate")
 
+/// #47: lock-screen reply. Relay completion pushes carry this category
+/// (`send_run_completion_push` in relay/app/main.py — identifiers must stay
+/// in lockstep), and the category attaches a text-input Reply action so a
+/// push becomes a conversation without unlocking into the app.
+enum NotificationReplyAction {
+    static let categoryIdentifier = "HERMES_RUN_COMPLETED"
+    static let actionIdentifier = "HERMES_REPLY"
+
+    static var category: UNNotificationCategory {
+        let reply = UNTextInputNotificationAction(
+            identifier: actionIdentifier,
+            title: "Reply",
+            options: [],
+            textInputButtonTitle: "Send",
+            textInputPlaceholder: "Message Hermes"
+        )
+        return UNNotificationCategory(
+            identifier: categoryIdentifier,
+            actions: [reply],
+            intentIdentifiers: [],
+            options: []
+        )
+    }
+}
+
 final class HermesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(
         _ application: UIApplication,
@@ -24,6 +49,10 @@ final class HermesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
         BackgroundRefreshScheduler.register()
         // Receive notification taps + foreground presentation
         UNUserNotificationCenter.current().delegate = self
+        // #47: register the Reply category at every launch — including
+        // scene-less background ones — so the long-press action exists
+        // before the first completion push arrives.
+        UNUserNotificationCenter.current().setNotificationCategories([NotificationReplyAction.category])
 
         Task { @MainActor in
             await AppContainer.sharedDefault().handleSystemLaunch()
@@ -46,16 +75,28 @@ final class HermesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
     // (set by the relay's run-completion watcher); local completion
     // notifications don't. Route to chat, open the pushed session when named,
     // and reconcile so the finished reply is fetched.
+    //
+    // Async delegate variant: the system awaits this method and keeps the
+    // (possibly scene-less) process alive for its whole duration — exactly the
+    // ordering the #47 reply path needs, with no completion handler to send
+    // across an isolation boundary (Swift 6 region-based data-race safety).
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse,
-        withCompletionHandler completionHandler: @escaping () -> Void
-    ) {
+        didReceive response: UNNotificationResponse
+    ) async {
         let sessionID = response.notification.request.content.userInfo["session_id"] as? String
-        Task { @MainActor in
-            await AppContainer.sharedDefault().handleNotificationTap(sessionID: sessionID)
+
+        // #47: a typed reply from the notification's text-input action.
+        // Headless — no scene mounts. Awaiting the send before returning is
+        // what keeps the process alive (the background-task assertion inside
+        // buys the rest of the window).
+        if response.actionIdentifier == NotificationReplyAction.actionIdentifier,
+           let textResponse = response as? UNTextInputNotificationResponse {
+            await AppContainer.sharedDefault().handleNotificationReply(textResponse.userText, sessionID: sessionID)
+            return
         }
-        completionHandler()
+
+        await AppContainer.sharedDefault().handleNotificationTap(sessionID: sessionID)
     }
 
     func application(
