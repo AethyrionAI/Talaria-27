@@ -2327,3 +2327,44 @@ receipt appears with real numbers; open Models once (harvest pricing) →
 cost appears labeled "~"; tap CTX gauge → card with session totals; local
 brain (iOS 27) turn shows receipt with no cost; distinct from OPEN_ITEMS #25
 (CTX denominator accuracy — still open).
+
+---
+
+## 80. 🔧 Inbox wired + agent-initiated producer tools (GitHub #45)
+
+**Update 2026-07-08 (cloud session, branch `claude/t27-45-inbox-wiring`):**
+iOS half BUILT IN CLOUD (not compiled/device-verified); connector half
+**tested green here** (`connector/tests` — 101 passed incl. 10 new).
+- **Entry point:** tray button in the Chat toolbar (forge unread pip — real
+  data, only when unread items exist) → `Route.inbox` → `InboxScreen`. The
+  screen's `toolbarVisibility(.hidden)` removed (predates any call site —
+  back button needed now); loads on appear, pull-to-refresh from the list
+  AND the empty/unreachable states.
+- **Mock gutted:** `InboxStore` fallback to `DemoData.sampleInboxItems`
+  removed → honest "INBOX UNREACHABLE — PULL TO RETRY" state.
+  `ResilientInboxService` **deleted** (only call site was the fallback);
+  `MockInboxService`/`DemoData` survive as test doubles + the UITest-mode
+  wiring only. Orphan-audit `--self-test` re-run: still green.
+  (`LiveHermesClient.allowDemoFallback` is a separate legacy-relay-path
+  fallback — untouched, out of #45 scope.)
+- **Silent push → item surfaces:** `handleRemoteNotificationWake` now calls
+  `inboxStore.loadInbox(force: true)`.
+- **Producer tools** (`connector … mcp_server.py`): `send_inbox_item(title,
+  body, kind, priority, notify)` → `POST /internal/inbox/create`, then
+  best-effort `POST /v1/push/send` (silent default / alert / none — the
+  push/send route's first programmatic caller); `get_inbox_verdict(item_id)`
+  → `GET /internal/inbox/{id}/actions` (empty = pending). Auth = the
+  relay's INTERNAL_API_KEY via new `ConnectorSecrets.internal_api_key`
+  (secrets.json, hand-editable) or `HERMES_MOBILE_INTERNAL_API_KEY` env.
+  Relay untouched — routes were already live on OJAMD.
+- **New files:** `connector/tests/test_inbox_producer.py` (no Xcode impact);
+  iOS deletes 1 file → **xcodegen regen owed** (with the entitlement
+  re-verify, stacking on #46's).
+
+**OPS (Owen, box-side):** confirm OJAMD's relay env doesn't still ship
+`INTERNAL_API_KEY="replace-me"` (`config.py:60`); put the real key in
+`~/.hermes-mobile/secrets.json` as `internal_api_key` so the tools can auth.
+**Device checklist:** tray opens Inbox; relay stopped → UNREACHABLE (never
+demo rows); agent `send_inbox_item` (silent) → item present on next open
+without manual refresh; approve → `get_inbox_verdict` reads it back;
+`notify="alert"` → visible push.

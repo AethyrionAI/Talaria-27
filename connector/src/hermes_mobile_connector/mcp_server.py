@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 
+import httpx
 from mcp.server.fastmcp import FastMCP
 
 from .sensor_store import (
@@ -23,7 +24,14 @@ from .sensor_store import (
 )
 from .state import ConnectorStateStore
 
-mcp = FastMCP("hermes-mobile", instructions="Provides real-time location and health data from the user's phone.")
+mcp = FastMCP(
+    "hermes-mobile",
+    instructions=(
+        "Provides real-time location and health data from the user's phone, "
+        "and an outbound inbox channel to send the user items (approvals, "
+        "notifications, reminders) they act on from the Talaria app."
+    ),
+)
 
 
 def _get_store() -> SensorStore:
@@ -270,6 +278,188 @@ def query_sensor_data(sql: str, limit: int = 100) -> str:
         return json.dumps({"error": str(e)})
     finally:
         store.close()
+
+
+# ---------------------------------------------------------------------------
+# Agent → phone: inbox producer (#45)
+#
+# The relay's inbox routes and the finished iOS Inbox UI shipped end-to-end
+# with no producer — these two tools are the missing writer half. They call
+# the relay's internal routes, which require the relay's INTERNAL_API_KEY
+# (NOT the connector credential): set `internal_api_key` in
+# ~/.hermes-mobile/secrets.json or export HERMES_MOBILE_INTERNAL_API_KEY.
+# ---------------------------------------------------------------------------
+
+INBOX_KINDS = {"approval", "notification", "reminder", "suggestion", "alert"}
+INBOX_PRIORITIES = {"low", "normal", "high", "urgent"}
+NOTIFY_MODES = {"silent", "alert", "none"}
+
+
+def relay_root_url(relay_url: str) -> str:
+    """The relay's server root. Connector state stores the /v1 API base
+    (e.g. "https://relay.example/v1"); the internal routes live at the root.
+    """
+    trimmed = relay_url.rstrip("/")
+    return trimmed[: -len("/v1")] if trimmed.endswith("/v1") else trimmed
+
+
+def _internal_api_key() -> str | None:
+    env_key = os.getenv("HERMES_MOBILE_INTERNAL_API_KEY") or os.getenv("INTERNAL_API_KEY")
+    if env_key:
+        return env_key
+    return ConnectorStateStore().load_secrets().internal_api_key
+
+
+@mcp.tool()
+def send_inbox_item(
+    title: str,
+    body: str,
+    kind: str = "notification",
+    priority: str = "normal",
+    notify: str = "silent",
+) -> str:
+    """Send an item to the user's phone Inbox (the agent → phone channel).
+
+    The item appears in the Talaria app's Inbox where the user can act on it
+    (approvals get Approve/Dismiss; other kinds get Open/Dismiss). Use this
+    for anything that should outlive the current conversation: asking the
+    user to authorize something, surfacing a reminder, or flagging something
+    that needs attention. Check the user's verdict later with
+    get_inbox_verdict.
+
+    Args:
+        title: Short headline shown in the inbox row.
+        body: The full item text.
+        kind: One of "approval", "notification", "reminder", "suggestion",
+            "alert" (default "notification"). Use "approval" when you need an
+            explicit Approve/Dismiss decision.
+        priority: One of "low", "normal", "high", "urgent" (default "normal").
+        notify: How to announce it — "silent" (default: background push wakes
+            the app so the item is waiting), "alert" (visible notification
+            with the title/body), or "none" (item appears on next app open).
+
+    Returns JSON with the created item's id (save it for get_inbox_verdict)
+    and whether a push was sent.
+    """
+    if kind not in INBOX_KINDS:
+        return json.dumps({"error": f"Invalid kind '{kind}'. Use one of: {sorted(INBOX_KINDS)}"})
+    if priority not in INBOX_PRIORITIES:
+        return json.dumps({"error": f"Invalid priority '{priority}'. Use one of: {sorted(INBOX_PRIORITIES)}"})
+    if notify not in NOTIFY_MODES:
+        return json.dumps({"error": f"Invalid notify mode '{notify}'. Use one of: {sorted(NOTIFY_MODES)}"})
+
+    internal_key = _internal_api_key()
+    if not internal_key:
+        return json.dumps(
+            {
+                "error": (
+                    "No relay internal key configured. Set internal_api_key in "
+                    "~/.hermes-mobile/secrets.json to the relay's INTERNAL_API_KEY, "
+                    "or export HERMES_MOBILE_INTERNAL_API_KEY."
+                )
+            }
+        )
+
+    try:
+        state = ConnectorStateStore().load()
+    except RuntimeError as exc:
+        return json.dumps({"error": str(exc)})
+
+    root = relay_root_url(state.relay_url)
+    headers = {"X-Relay-Internal-Key": internal_key}
+
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            response = client.post(
+                f"{root}/internal/inbox/create",
+                headers=headers,
+                json={"kind": kind, "title": title, "body": body, "priority": priority},
+            )
+            response.raise_for_status()
+            item = response.json()["data"]["item"]
+
+            push: dict[str, object] = {"requested": notify}
+            if notify != "none":
+                if state.user_id:
+                    push_body: dict[str, object] = {"user_id": state.user_id, "type": notify}
+                    if notify == "alert":
+                        push_body["title"] = title
+                        push_body["body"] = body
+                    push_response = client.post(
+                        f"{root}/v1/push/send", headers=headers, json=push_body
+                    )
+                    # Best-effort: 503 = APNs not configured on the relay; the
+                    # item still lands and surfaces on the next app open.
+                    if push_response.status_code == 200:
+                        push["sent"] = push_response.json().get("data", {}).get("sent", 0)
+                    else:
+                        push["error"] = f"HTTP {push_response.status_code}"
+                else:
+                    push["error"] = "connector state has no user_id — re-run setup to enable push"
+
+            return json.dumps(
+                {
+                    "itemId": str(item["id"]),
+                    "status": item.get("status"),
+                    "kind": kind,
+                    "push": push,
+                    "next": "Call get_inbox_verdict with this itemId to read the user's decision.",
+                }
+            )
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": f"Relay rejected the item: HTTP {exc.response.status_code} {exc.response.text[:200]}"})
+    except httpx.HTTPError as exc:
+        return json.dumps({"error": f"Could not reach the relay: {exc}"})
+
+
+@mcp.tool()
+def get_inbox_verdict(item_id: str) -> str:
+    """Read the user's verdict on an inbox item sent with send_inbox_item.
+
+    Returns the actions the user has taken on the item ("approve", "open",
+    "dismiss", ...), newest first. An empty list means the user hasn't acted
+    yet — the item is still pending in their Inbox.
+
+    Args:
+        item_id: The itemId returned by send_inbox_item.
+    """
+    internal_key = _internal_api_key()
+    if not internal_key:
+        return json.dumps(
+            {
+                "error": (
+                    "No relay internal key configured. Set internal_api_key in "
+                    "~/.hermes-mobile/secrets.json to the relay's INTERNAL_API_KEY, "
+                    "or export HERMES_MOBILE_INTERNAL_API_KEY."
+                )
+            }
+        )
+
+    try:
+        state = ConnectorStateStore().load()
+    except RuntimeError as exc:
+        return json.dumps({"error": str(exc)})
+
+    root = relay_root_url(state.relay_url)
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            response = client.get(
+                f"{root}/internal/inbox/{item_id}/actions",
+                headers={"X-Relay-Internal-Key": internal_key},
+            )
+            response.raise_for_status()
+            actions = response.json()["data"]["actions"]
+            return json.dumps(
+                {
+                    "itemId": item_id,
+                    "actions": actions,
+                    "pending": len(actions) == 0,
+                }
+            )
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": f"Relay rejected the lookup: HTTP {exc.response.status_code} {exc.response.text[:200]}"})
+    except httpx.HTTPError as exc:
+        return json.dumps({"error": f"Could not reach the relay: {exc}"})
 
 
 def main() -> None:

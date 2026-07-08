@@ -98,6 +98,11 @@ class ConnectorSecrets:
     # Tri-state: True/False = explicit choice stored in secrets.json,
     # None = not set there, fall back to realtime_talk.enabled in state.json.
     realtime_talk_enabled: bool | None = None
+    # #45: the relay's INTERNAL_API_KEY, required by the agent-initiated
+    # inbox producer tools (POST /internal/inbox/create, /v1/push/send).
+    # Hand-editable like the other secrets (issue #7 pattern); the
+    # HERMES_MOBILE_INTERNAL_API_KEY env var overrides it.
+    internal_api_key: str | None = None
 
 
 class ConnectorStateStore:
