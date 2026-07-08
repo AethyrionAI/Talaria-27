@@ -2244,3 +2244,41 @@ session; Shortcuts "Open URL" with `hermes://ask?q=hello` → composer seeded +
 focused, NOT sent; confirm no other installed app already claims `hermes`
 (first registrant wins). **Question for Owen:** want `ask` to auto-send behind
 a Developer-screen toggle later? Shipped stance is seed-only.
+
+---
+
+## 78. 🔧 Message context menu — copy/share/select/regenerate/edit (GitHub #44)
+
+**Update 2026-07-08 (cloud session, branch `claude/t27-44-message-context-menu`):**
+BUILT IN CLOUD, not compiled or device-verified. You previously couldn't get
+a Hermes answer out of the app — no `.contextMenu` on bubbles, no
+`.textSelection` on prose.
+- **Long-press menu on settled user/Hermes bubbles** (`MessageBubble`):
+  Copy (raw content via `UIPasteboard`), Share (`ShareLink`), Select Text
+  (new private `SelectableTextSheet` — plain text + `.textSelection`;
+  in-bubble selection can't coexist with the long-press menu), Regenerate,
+  Edit & Resend. System/compaction rows and the synthetic "[N attachment(s)]"
+  placeholder are excluded; voice-transcript rows get Copy/Share/Select only.
+- **Streaming guards (decided semantics):** a streaming bubble gets NO menu;
+  while ANY run streams (`isTranscriptBusy`), the history-mutating items
+  (Regenerate / Edit & Resend) are hidden — they truncate the transcript and
+  must not race an in-flight run. Copy/Share/Select stay available on
+  settled bubbles during a stream.
+- **`ChatStore.regenerateReply(_:)`** — per-turn re-roll for ANY successful
+  reply (not just the last): truncates from the producing user turn (nearest
+  user message above the reply), restores its attachments, re-sends through
+  the full pipeline. **`ChatStore.extractTurnForEditing(_:)`** — the `/undo`
+  truncation plus composer restore (`EditableTurn`); ChatScreen seeds
+  `messageText`/`pendingAttachments` + focuses. Nothing sends until the user
+  taps send. Failed Hermes replies keep the existing inline Regenerate.
+- **Honest limitation (same as `/retry`/`/undo`):** truncation is
+  client-side; the server session retains the old turns as context. A true
+  server-side fork would need a new session seeded with the truncated
+  history — out of scope here.
+- 5 tests appended to `ChatStorePersistenceTests` (existing file — no regen).
+
+**Needs Mac:** CLI build + tests (**no new files → no xcodegen**), then
+device: long-press each bubble type; copy/share/select prose; regenerate a
+mid-history reply (verify truncate-from-that-turn); edit-and-resend with and
+without attachments; confirm no menu on a streaming bubble and no
+Regenerate/Edit while another run streams.

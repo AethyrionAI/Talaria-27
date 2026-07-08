@@ -171,4 +171,84 @@ struct ChatStorePersistenceTests {
         #expect(messages.count == 2)
         #expect(messages.allSatisfy { $0.status == .delivered })
     }
+
+    // MARK: - Per-turn regenerate / edit (#44)
+
+    // Same harness as above (not a new file — spares an xcodegen regen).
+
+    @MainActor
+    private func makeStoreWithHistory(_ client: ImmediateReplyClient) -> (ChatStore, [Message]) {
+        let history = [
+            Message(sender: .user, content: "First question", status: .delivered),
+            Message(sender: .hermes, content: "First answer", status: .delivered),
+            Message(sender: .user, content: "Second question", status: .delivered),
+            Message(sender: .hermes, content: "Second answer", status: .delivered),
+        ]
+        let persistence = makePersistence()
+        persistence.saveConversationCache(Conversation(title: "Hermes", messages: history))
+        let chatStore = ChatStore(hermesClient: client, persistence: persistence)
+        return (chatStore, history)
+    }
+
+    @Test @MainActor
+    func regenerateMidHistoryReplyTruncatesFromItsUserTurnAndResends() async throws {
+        let client = ImmediateReplyClient()
+        let (chatStore, history) = makeStoreWithHistory(client)
+        await chatStore.loadConversationIfNeeded()
+
+        // Re-roll the FIRST answer: everything from "First question" onward
+        // goes, and that turn re-sends through the full pipeline.
+        await chatStore.regenerateReply(history[1])
+
+        let messages = try #require(chatStore.conversation?.messages)
+        #expect(messages.count == 2)
+        #expect(messages.first?.sender == .user)
+        #expect(messages.first?.content == "First question")
+        #expect(messages.last?.sender == .hermes)
+        #expect(messages.last?.content == "Done.")
+        #expect(!messages.contains(where: { $0.content == "Second question" }))
+    }
+
+    @Test @MainActor
+    func regenerateIgnoresMessagesWithoutAProducingUserTurn() async throws {
+        let client = ImmediateReplyClient()
+        let persistence = makePersistence()
+        let orphanReply = Message(sender: .hermes, content: "Greeting", status: .delivered)
+        persistence.saveConversationCache(Conversation(title: "Hermes", messages: [orphanReply]))
+        let chatStore = ChatStore(hermesClient: client, persistence: persistence)
+        await chatStore.loadConversationIfNeeded()
+
+        await chatStore.regenerateReply(orphanReply)
+
+        // No user turn before it — nothing truncated, nothing sent.
+        #expect(chatStore.conversation?.messages.count == 1)
+    }
+
+    @Test @MainActor
+    func extractTurnForEditingTruncatesAndReturnsComposerPieces() async throws {
+        let client = ImmediateReplyClient()
+        let (chatStore, history) = makeStoreWithHistory(client)
+        await chatStore.loadConversationIfNeeded()
+
+        let turn = try #require(chatStore.extractTurnForEditing(history[2]))
+
+        #expect(turn.text == "Second question")
+        let messages = try #require(chatStore.conversation?.messages)
+        #expect(messages.count == 2)
+        #expect(messages.last?.content == "First answer")
+
+        // The truncation persists — a relaunch must not resurrect the tail.
+        let cached = try #require(chatStore.persistence.loadConversationCache())
+        #expect(cached.messages.count == 2)
+    }
+
+    @Test @MainActor
+    func extractTurnForEditingRefusesNonUserMessages() async throws {
+        let client = ImmediateReplyClient()
+        let (chatStore, history) = makeStoreWithHistory(client)
+        await chatStore.loadConversationIfNeeded()
+
+        #expect(chatStore.extractTurnForEditing(history[1]) == nil)
+        #expect(chatStore.conversation?.messages.count == 4)
+    }
 }
