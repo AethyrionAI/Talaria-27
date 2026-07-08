@@ -166,8 +166,44 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
 - Issues tracked in `OPEN_ITEMS.md` (dated update notes); session continuity in
   the local `handoffs/` notes (gitignored) + `CLEAN_CHAT_PATH.md`.
 
-## Current state (2026-07-07)
+## Current state (2026-07-08)
 
+- **Enhancements wave (GitHub #44–#49) built as six STACKED per-issue
+  branches off main (6e604e9), one PR each (merge order: #49 → #48 → #44 →
+  #46 → #45 → #47; each PR based on the previous branch so diffs stay
+  per-issue):** `claude/t27-49-orphan-audit` = #49 orphan-surface audit
+  (`tools/orphan-audit.sh` + committed report + BRANCHING.md checklist line;
+  **fully verified here** — `--self-test` green, re-flags the Field Notes §5
+  graveyard; OPEN_ITEMS #76). `claude/t27-48-url-scheme` = #48
+  `CFBundleURLTypes` for `hermes://` (project.yml + hand-mirrored committed
+  Info.plist) + seed-only `hermes://ask?q=` route (never auto-sends —
+  security posture; #77). `claude/t27-44-message-context-menu` = #44
+  long-press Copy/Share/Select Text/Regenerate/Edit & Resend with streaming
+  guards; per-turn `regenerateReply`/`extractTurnForEditing` on ChatStore
+  (client-side truncation, same caveat as /retry; #78).
+  `claude/t27-46-turn-receipts` = #46 `Message.usage/turnDuration/
+  servingModel` stamped at `.finished`, shim pricing harvested into new
+  `ModelPricingCatalog` (`Services/Support/TurnReceipts.swift`), bubble
+  receipt footer + CTX-gauge tap resurrects StatusCardView with session
+  totals (estimate-labeled costs; #79). `claude/t27-45-inbox-wiring` = #45
+  Inbox nav entry (tray + unread pip), DemoData fallback gutted (honest
+  UNREACHABLE state; ResilientInboxService deleted), silent-push wake
+  refreshes inbox, connector producer tools `send_inbox_item`/
+  `get_inbox_verdict` (**connector suite green here**, 101 passed; #80).
+  `claude/t27-47-lockscreen-reply` = #47 relay completion pushes carry
+  category `HERMES_RUN_COMPLETED` (**relay suite green here**, 72 passed) +
+  `UNTextInputNotificationAction` Reply → headless send → explicit
+  `postPushWatch` re-arm, outcome-gated (the positional watcher would
+  insta-push a stale reply after a failed send); failures surface via
+  `notifyReplyFailed` (#81). **Swift halves cloud-written, NOT compiled or
+  device-verified.** Next Mac session: merge in order, `xcodegen generate`
+  (2 new files `TurnReceipts.swift`/`TurnReceiptsTests.swift`, 1 deleted
+  `ResilientInboxService.swift`; re-verify `aps-environment`/WeatherKit/
+  widget-HealthKit per #44/#48), CLI build + tests, then the per-item device
+  checklists in OPEN_ITEMS #76–#81. OPS for Owen: OJAMD relay env must not
+  ship `INTERNAL_API_KEY="replace-me"`; put the real key in
+  `~/.hermes-mobile/secrets.json` (`internal_api_key`) for the producer
+  tools.
 - **Wave 5 (GitHub #18–#19, label standalone-wave-5) built as two STACKED
   per-issue branches off main (b1a00a7), one PR each (merge order: #18's PR →
   #19's PR):** `claude/w5-18-native-voice` = #18 native fallback voice
