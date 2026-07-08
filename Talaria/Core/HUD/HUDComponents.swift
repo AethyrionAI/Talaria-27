@@ -275,6 +275,21 @@ struct MonoLabel: View {
     }
 }
 
+// MARK: Single-line HUD label behavior (#42)
+
+extension View {
+    /// Pins a HUD label to one line: tighten first, then scale down, then
+    /// truncate with `…` as the last resort. Header telemetry must never
+    /// character-wrap (`HE`/`RM`/`ES`) under horizontal pressure. Opt-in —
+    /// some MonoLabels (voice transcript lines) wrap by design.
+    func hudSingleLine(minScale: CGFloat = 0.6) -> some View {
+        self
+            .lineLimit(1)
+            .allowsTightening(true)
+            .minimumScaleFactor(minScale)
+    }
+}
+
 // MARK: Status pip
 
 /// A small glowing status dot. Cyan = online/secure; amber/red = warning.

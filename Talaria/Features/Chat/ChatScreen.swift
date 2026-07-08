@@ -372,16 +372,24 @@ struct ChatScreen: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: Design.Spacing.xs) {
+                    // #42: the wordmark can never give up width — squeezed, it
+                    // character-wraps (HE/RM/ES). The telemetry label next to
+                    // it absorbs the pressure instead (shrink, then truncate).
                     Text("HERMES")
                         .font(Design.Typography.display(16, weight: .semibold, relativeTo: .headline))
                         .tracking(Design.Tracking.button)
                         .foregroundStyle(Design.Colors.foregroundBright)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .layoutPriority(1)
                     StatusPip(color: connectionIndicatorColor, diameter: 6,
                               blinks: effectiveConnectionState != .online)
                     MonoLabel(connectionTelemetry, size: 9, tracking: Design.Tracking.mono)
+                        .hudSingleLine()
                 }
                 MonoLabel(messageTelemetry, size: 9, tracking: Design.Tracking.mono,
                           color: Design.Colors.dimForeground)
+                    .hudSingleLine()
             }
 
             Spacer(minLength: Design.Spacing.sm)
@@ -454,8 +462,18 @@ struct ChatScreen: View {
             Image(systemName: brain.glyph)
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(Design.Brand.accent)
-            MonoLabel(brain.monoLabel, size: 9, tracking: Design.Tracking.mono,
-                      color: Design.Colors.coolForeground)
+            // #42: the pill reserves its widest label's width (ON-DEVICE) so
+            // it can never wrap inside itself and keeps one size across brain
+            // switches.
+            ZStack {
+                MonoLabel(ChatBackendRouter.Brain.widestMonoLabel, size: 9,
+                          tracking: Design.Tracking.mono)
+                    .hidden()
+                MonoLabel(brain.monoLabel, size: 9, tracking: Design.Tracking.mono,
+                          color: Design.Colors.coolForeground)
+            }
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
             if showsChevron {
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 7, weight: .semibold))
@@ -474,6 +492,7 @@ struct ChatScreen: View {
     private var contextGauge: some View {
         VStack(alignment: .trailing, spacing: 4) {
             MonoLabel("CTX \(Int(contextProgress * 100))%", size: 10, tracking: Design.Tracking.mono)
+                .hudSingleLine()
             Capsule()
                 .fill(Design.Colors.accentTint(0.16))
                 .frame(width: 48, height: 5)

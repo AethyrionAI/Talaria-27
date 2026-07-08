@@ -43,6 +43,10 @@ struct ModelSelector: View {
                     .tracking(Design.Tracking.mono)
                     .foregroundStyle(Design.Colors.foregroundBright)
                     .lineLimit(1)
+                    .allowsTightening(true)
+                    // #42: long model names give up ~2pt (13 → 11) before the
+                    // `…` truncation kicks in.
+                    .minimumScaleFactor(11.0 / 13.0)
             }
             .padding(.horizontal, Design.Spacing.sm)
             .padding(.vertical, Design.Spacing.xs)
