@@ -126,6 +126,7 @@ class StubAPNsClient:
             "token": token,
             "title": title,
             "body": body,
+            "category": category,
             "bundle_id": bundle_id,
             "environment": environment,
             "payload_extra": payload_extra,
@@ -244,6 +245,9 @@ def test_watch_completion_sends_push_with_session_id(tmp_path):
         assert alert["title"] == "Hermes"
         assert "42" in alert["body"]
         assert alert["payload_extra"] == {"session_id": "sess-42"}
+        # #47: the Reply category rides every completion push (lockstep with
+        # NotificationReplyAction in Talaria/AppEntry.swift).
+        assert alert["category"] == "HERMES_RUN_COMPLETED"
         assert alert["bundle_id"] == "org.aethyrion.talaria"
         assert alert["environment"] == "sandbox"
 

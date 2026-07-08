@@ -384,6 +384,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 registration.apns_token,
                 title="Hermes",
                 body=preview,
+                # #47: lets the app attach its text-input Reply action —
+                # identifier is in lockstep with NotificationReplyAction in
+                # Talaria/AppEntry.swift.
+                category="HERMES_RUN_COMPLETED",
                 bundle_id=registration.bundle_id,
                 environment=registration.push_environment,
                 payload_extra={"session_id": session_id},
