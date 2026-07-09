@@ -2508,6 +2508,17 @@ linked against SDK `24A5380g`; linked-on-or-after behavior changes are in play t
 (`LiveVoiceSessionService` and the Wave 5 backend router) for the error that triggers
 `session/end`; prime is the healthy control.
 
+**Update 2026-07-08 (late) — timeline pinned from the record:** voice worked on device
+**July 5** ("Voice first test successful" session); **Wave 5 merged July 7 ~2 PM**
+(`5330eaa` PR#39, `895f549` PR#40) — i.e., the working build predates Wave 5's audio code.
+Owen did not test voice on the July 7 (Wave 5 + seed-1 SDK) build, so both suspects sit
+inside the failure window with the ordering above unchanged. The July 8 *morning* "setup
+no longer shows" report (the old #75 stub from the reconciliation session) is explained
+away: the relay was down all morning (port 8000 dead until 13:33) — dead readiness hides
+the setup UI; not this bug. **Single-variable experiment queued:** build pre-Wave-5
+commit `6820860` with the SAME beta-3 toolchain, install, test voice — works → Wave 5
+code convicted; broken → SDK relink convicted.
+
 ---
 
 ## 83. 📝 Display Zoom "Larger Text" letterboxes T27 on iPhone18,2 — beta interplay, NOT app layout + toolchain-provenance rule
