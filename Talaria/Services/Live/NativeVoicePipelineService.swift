@@ -44,6 +44,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     var canStartSession = true { didSet { publishSnapshot() } }
     var latencyMetrics = TalkLatencyMetrics() { didSet { publishSnapshot() } }
     var readinessInfo = TalkReadinessInfo() { didSet { publishSnapshot() } }
+    // #84: flatline tripwire + route visibility, mirroring the realtime
+    // engine — capture running is a plumbing claim, not proof of audio.
+    var micHealthHint: String? { didSet { publishSnapshot() } }
+    var audioRouteSummary: String? { didSet { publishSnapshot() } }
 
     var snapshot: TalkSessionSnapshot {
         TalkSessionSnapshot(
@@ -58,7 +62,9 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             latencyMetrics: latencyMetrics,
             voiceSessionID: localSessionID,
             readiness: readinessInfo,
-            engine: .native
+            engine: .native,
+            micHealthHint: micHealthHint,
+            audioRouteSummary: audioRouteSummary
         )
     }
 
@@ -95,6 +101,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     /// handle or settle its state.
     private var activeTurnID: UUID?
     private var isEndingSession = false
+    // #84 flatline tripwire — armed at `.connected`, disarmed by the first
+    // transcription evidence or by session teardown.
+    private var flatlineTask: Task<Void, Never>?
+    private var speechEvidenceObserved = false
 
     init(
         backendProvider: @escaping @MainActor () -> (any HermesClientProtocol)?,
@@ -146,7 +156,9 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         isEndingSession = false
 
         guard await ensureMicrophonePermission() else {
-            blockedReason = "Microphone access is required for talk mode."
+            // #84 preflight: actionable wording — the overlay pairs it with
+            // an OPEN SETTINGS deep link. Never proceeds toward "Connected".
+            blockedReason = TalkMicPreflight.microphoneDeniedMessage
             canStartSession = false
             connectionState = .blocked
             voiceState = .disconnected
@@ -154,7 +166,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             return
         }
         guard await ensureSpeechAuthorization() else {
-            blockedReason = "Speech recognition permission is required for local voice."
+            blockedReason = TalkMicPreflight.speechDeniedMessage
             canStartSession = false
             connectionState = .blocked
             voiceState = .disconnected
@@ -188,6 +200,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             canStartSession = true
             statusMessage = "Listening"
             startEndpointWatchdog()
+            // #84: capture running ≠ hearing you. Publish the live route and
+            // start the flatline window.
+            updateAudioRouteSummary()
+            armFlatlineTripwire()
         } catch {
             await teardownSessionResources()
             localSessionID = nil
@@ -218,6 +234,11 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     func toggleMute() async {
         isMuted.toggle()
         await capture.setMuted(isMuted)
+        // #84: unmuting restarts the flatline window — silence while muted
+        // was expected, silence from here on is evidence of a mic problem.
+        if !isMuted, connectionState == .connected, !speechEvidenceObserved {
+            armFlatlineTripwire()
+        }
     }
 
     /// Barge-in / stop button: cut TTS immediately, abandon the in-flight
@@ -279,6 +300,8 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
 
     private func teardownSessionResources() async {
         stopTimer()
+        disarmFlatlineTripwire()
+        audioRouteSummary = nil
         endpointTask?.cancel()
         endpointTask = nil
         turnTask?.cancel()
@@ -305,6 +328,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         switch event {
         case .volatile(let text):
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+            noteSpeechEvidence()
             // User speech while the assistant is replying = barge-in. Voice
             // processing (echo cancellation) keeps TTS playback from landing
             // here, so volatile text during a reply is genuinely the user.
@@ -317,6 +341,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         case .finalized(let text):
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { return }
+            noteSpeechEvidence()
             // A late final can re-cover audio the fallback endpointer already
             // committed — drop it instead of double-sending the turn.
             if Self.isDuplicateFinalization(committed: lastCommittedUtterance, candidate: trimmed) {
@@ -564,6 +589,56 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         return requested == .authorized
     }
 
+    // MARK: - Mic health (#84)
+
+    /// Arm the flatline tripwire: a connected, unmuted session with zero
+    /// transcription evidence for a full window gets a mic-health hint
+    /// instead of listening silently over a dead microphone.
+    private func armFlatlineTripwire() {
+        flatlineTask?.cancel()
+        speechEvidenceObserved = false
+        micHealthHint = nil
+        flatlineTask = Task { @MainActor [weak self] in
+            while true {
+                try? await Task.sleep(for: MicFlatlineRule.window)
+                if Task.isCancelled { return }
+                guard let self else { return }
+                switch MicFlatlineRule.verdict(
+                    speechEvidence: self.speechEvidenceObserved,
+                    isMuted: self.isMuted,
+                    connectionState: self.connectionState
+                ) {
+                case .flag:
+                    Self.logger.notice("mic flatline tripwire fired (route: \(self.audioRouteSummary ?? "unknown", privacy: .public))")
+                    self.micHealthHint = MicFlatlineRule.hintMessage
+                    return
+                case .rearm:
+                    continue
+                case .disarm:
+                    return
+                }
+            }
+        }
+    }
+
+    /// The transcriber heard the user — the mic is demonstrably alive.
+    private func noteSpeechEvidence() {
+        speechEvidenceObserved = true
+        flatlineTask?.cancel()
+        flatlineTask = nil
+        if micHealthHint != nil { micHealthHint = nil }
+    }
+
+    private func disarmFlatlineTripwire() {
+        flatlineTask?.cancel()
+        flatlineTask = nil
+        micHealthHint = nil
+    }
+
+    private func updateAudioRouteSummary() {
+        audioRouteSummary = TalkAudioRoute.currentSummary()
+    }
+
     // MARK: - Audio session interruptions / route changes
 
     private func registerAudioSessionObservers() {
@@ -623,6 +698,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     /// headset transitions — rebuild the capture chain on the new route.
     private func handleRouteChange(_ reason: AVAudioSession.RouteChangeReason) async {
         guard connectionState == .connected else { return }
+        updateAudioRouteSummary()
         switch reason {
         case .newDeviceAvailable, .oldDeviceUnavailable, .override, .routeConfigurationChange, .categoryChange:
             statusMessage = "Audio route changed."
