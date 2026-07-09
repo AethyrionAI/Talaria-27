@@ -2549,3 +2549,35 @@ check `DTXcodeBuild`/`DTSDKBuild` in the installed app's Info.plist against the 
 install *before* auditing app code.
 
 Logged 2026-07-08.
+
+---
+
+## 85. 🔧 hermes_delegate MCP path — advertising gated + URL normalized (built in cloud; OJAMD deploy owed)
+
+**Found 2026-07-08 (OJAMD logs), built 2026-07-09** (cloud session, branch
+`claude/t27-85-mcp-path`). Every voice session logged `mcp_list_tools.failed`: the relay
+handed OpenAI's Realtime API an MCP server URL built as `{PUBLIC_BASE_URL}/talk/mcp`, but
+(a) the endpoint mounts at the literal `/v1/talk/mcp`, so a base URL without the `/v1`
+suffix registered a 404ing URL, and (b) OpenAI fetches the tool list from *its* servers,
+so OJAMD's Tailscale-CGNAT base (`100.110.102.59`) can never serve it regardless of path —
+the round-trip was doomed every session.
+
+**Shipped (both halves in this repo, suites green in-container):**
+- Relay: `build_talk_mcp_url()` normalizes with/without-`/v1` and trailing-slash spellings
+  onto the mounted route; new `TALK_MCP_ADVERTISE` env (`auto`|`always`|`never`, default
+  `auto`) withholds `relayMcpURL` from `talk.session.create` when the base host isn't
+  publicly routable (IP literals via `is_global` — loopback/RFC1918/100.64-10 CGNAT
+  excluded; hostnames public unless `localhost`/`*.local`). Token auth unchanged; skip is
+  logged once per mint. Relay suite 83 passed.
+- Connector: `talk.session.create` no longer raises when `relayMcpURL` is absent — the
+  realtime session mints without the `hermes_delegate` tools block, so plain voice is
+  unaffected. Connector suite 102 passed, 1 skipped.
+
+**Remaining:** deploy relay + connector halves on OJAMD (no env change needed — `auto`
+does the right thing on the tailnet IP); the real delegation transport is the ⛔
+OJAMD-side Tailscale Funnel / Cloudflare Tunnel work (then either `TALK_MCP_ADVERTISE`
+stays `auto` with the public hostname or is forced `always`). Once public, set
+`PUBLIC_BASE_URL` to the tunnel hostname and hermes_delegate lights up with zero code
+change.
+
+Logged 2026-07-09.
