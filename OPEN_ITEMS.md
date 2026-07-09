@@ -1103,7 +1103,7 @@ Logged 2026-06-27.
 
 ---
 
-## 36. 📝 Reconcile OJAMD's Talaria checkout onto the ChronoRixun fork
+## 36. ✅ Reconcile OJAMD's Talaria checkout onto the ChronoRixun fork
 
 OJAMD's `O:\Hermes\Talaria` tracks **`dylan-buck/Hermes-iOS` `master`** (the upstream
 parent), not Owen's `ChronoRixun/Talaria`. As of 2026-06-27 it is **0 ahead / 65 behind**
@@ -1130,6 +1130,17 @@ Tier 2 merging to `main`. This is one of the two remaining OJAMD blockers; it ga
 canonical-`shim.py` redeploy (#14 caveat / 24g).
 
 Logged 2026-06-27.
+
+**✅ RESOLVED 2026-07-08.** OJAMD reconciled onto the canonical repo. Divergence turned out
+tiny: merge-base was OJAMD's own parent; OJAMD was +1 commit (`6d86907`, of which only
+`scripts/update-hermes.ps1` was genuinely unique — `cleanup-stale-users.py` was already
+upstream byte-identical modulo EOL), and t27/main was ahead by exactly the #44–#49 wave. All
+17 "dirty" files were untracked ops files (launchers/logs/DB journals) — no floating hotfixes.
+OJAMD now runs branch **`ojamd-deploy`** = `t27/main` + that cherry-pick, tracking remote
+`t27` (AethyrionAI/Talaria-27); future updates are a `git pull`. `.env`, DBs, and launcher
+scripts untouched. The unique commit was pushed as branch `ojamd/update-hermes-helper` on
+AethyrionAI/Talaria-27 — **PR still to be opened** (no `gh` on OJAMD). Remotes on the OJAMD
+checkout: `origin`=dylan-buck (legacy), `fork`=ChronoRixun, `t27`=canonical.
 
 ---
 
@@ -1510,6 +1521,24 @@ add capabilities back only on proven need. Keep the shim service; keep the relay
 dated `.bak` copies.
 
 Logged 2026-07-04.
+
+**Update 2026-07-08 — gateway operations recipe (learned the hard way):**
+- **The gateway is a detached `pythonw`** launched at login by
+  `Hermes_Gateway.vbs` (Startup shim → `%LOCALAPPDATA%\hermes\gateway-service\Hermes_Gateway.vbs`).
+  **Restarting the Hermes desktop app does NOT restart it** — config changes require killing
+  the process that owns `:8642` and relaunching via the vbs (`wscript.exe <real vbs path>`).
+- **New MCP tools need TWO things:** the tool must be in the server's `tools/list` AND in
+  the `tools.include` allowlist under the server's block in `HERMES_HOME\config.yaml`
+  (`C:\Users\Owen\AppData\Local\hermes\config.yaml`). The hermes_mobile allowlist predated
+  the #45 producer tools and silently filtered them; `send_inbox_item` + `get_inbox_verdict`
+  were added 2026-07-08. Config is validated at gateway start only.
+- **Boot window quirk:** right after a gateway start, MCP sessions can be listed-but-dead
+  for ~1–3 min until the keepalive reconnects (a tool call in that window fails in 0.01s
+  with `ClosedResourceError`); one retry after the keepalive cycle succeeds.
+- Also: a relay socket can die with `WinError 64` accept-loop crash while the process
+  lingers — kill the pid and relaunch `scripts\start-relay.bat` detached (quote-safe: launch
+  the `O:\` bat directly; the Startup wrapper path contains spaces and silently no-ops if
+  passed unquoted to `Start-Process`).
 
 ---
 
@@ -2328,6 +2357,14 @@ cost appears labeled "~"; tap CTX gauge → card with session totals; local
 brain (iOS 27) turn shows receipt with no cost; distinct from OPEN_ITEMS #25
 (CTX denominator accuracy — still open).
 
+**Update 2026-07-08 (merged to main via PR #53; device-verified with the wave):**
+Follow-up hardening `81b160c` (gh#57, closed): the receipt `MonoLabel` got
+`.frame(maxWidth:.infinity, .leading)` + `.lineLimit(1)` + `minimumScaleFactor(0.7)` +
+middle truncation — the messageList `LazyVStack` has no horizontal width cap on children,
+so any unconstrained row *could* widen the whole column. (Runtime measurement showed the
+receipt itself fit at ~319pt; the evening's portrait "clip" was actually the device-side
+Display Zoom/beta letterbox → item #83. The cap stays as cheap insurance.)
+
 ---
 
 ## 80. 🔧 Inbox wired + agent-initiated producer tools (GitHub #45)
@@ -2368,6 +2405,30 @@ iOS half BUILT IN CLOUD (not compiled/device-verified); connector half
 demo rows); agent `send_inbox_item` (silent) → item present on next open
 without manual refresh; approve → `get_inbox_verdict` reads it back;
 `notify="alert"` → visible push.
+
+**✅ VERIFIED END-TO-END 2026-07-08 (evening).** Full chain live: Hermes agent →
+gateway → hermes_mobile MCP → connector `send_inbox_item` → relay
+`/internal/inbox/create` + `/v1/push/send` (its first programmatic caller) → item
+in DB → rendered in the device tray (Owen: two items visible). Along the way:
+- **OPS done:** relay `.env` had a real `INTERNAL_API_KEY` (len 43) and `config.py`
+  `load_dotenv`s it; the key was injected into `~/.hermes-mobile/secrets.json` as
+  `internal_api_key` (backup taken). Gateway `tools.include` allowlist had to be
+  extended + gateway process cycled (→ #55 update for the recipe).
+- **Gap found & fixed:** `LiveInboxService` was the only relay consumer without
+  the #15 401-recovery refresher → a stale access token rendered as "Inbox
+  Unreachable" while every other surface silently refreshed. Fixed `17a7b0f`
+  (gh#56, closed): same `performAuthorizedRequest` ladder + refresher injection
+  as `LiveHermesHostService`, construction moved below the refresher in
+  `AppContainer`.
+- **Poison-row incident:** a smoke-test item posted straight to
+  `/internal/inbox/create` with `kind='note'` (outside the app enum
+  alert/approval/notification/reminder/suggestion — the raw route doesn't
+  validate; the connector tool does) made the strict iOS decoder fail the WHOLE
+  feed → hours of phantom "unreachable". Row re-kinded in DB. Hardening filed
+  **open** as gh#58: decode items individually, skip+log bad rows; optionally
+  validate `kind` at the relay route.
+**Still unchecked from the device checklist:** silent-push wake populating
+without manual refresh; approve → verdict readback; `notify="alert"` visible push.
 
 ---
 
@@ -2411,3 +2472,69 @@ watch TTL expired; reply with wrong/expired API key → "Reply not sent"
 notice; reply while another run streams → busy notice. NOTE the
 "Approve/Deny slash commands" claim from discovery was refuted — nothing
 here pretends they exist.
+
+**Update 2026-07-08:** merged to main via PR #55 (carrying two build fixes: `import UIKit`
+in AppContainer for the background-task API, and the completion-handler `didReceive`
+delegate converted to the **async** variant — Swift 6 wouldn't send the non-Sendable
+handler into the `@MainActor` send; the async form preserves the await-before-return
+ordering, with the minor side effect that the tap path now awaits `handleNotificationTap`).
+**Relay half is DEPLOYED on OJAMD** (`ojamd-deploy`; `HERMES_RUN_COMPLETED` live at
+`main.py:390`). The device checklist above has NOT been run — the evening went to the
+#83 letterbox chase and #82 voice regression instead.
+
+---
+
+## 82. 🐛 Voice regression — T27 only: realtime session mints, app self-tears-down in seconds
+
+**Found 2026-07-08 evening on whoGoesThere.** Talk in Talaria-27 no longer works; Diagnostics
+truthfully shows connected/ready. **Isolated to T27**: Talaria prime on the same phone has
+working voice AND working voice-to-transcript (Owen-verified) — clearing relay, OpenAI key,
+connector, network, and phone OS as causes.
+
+**Relay-side signature (from OJAMD logs + `voice_sessions` table, 00:55–01:04 UTC):**
+`talk/readiness` 200s → `POST /v1/talk/session` 200, **realtime session minted**
+(`sess_…`, `last_error: None`) → the app itself calls
+`POST /v1/talk/session/{id}/end` **2–37 seconds later**. Clean deliberate teardown, not a
+crash and not a server error — the app's voice flow is *deciding* to bail after setup
+(AVAudioSession activation, WebRTC connect, or routing logic).
+
+**Suspects, ordered:** (1) **Wave 5's audio work** — the native fallback voice pipeline
+(#73/PR#39) and CarPlay voice (#74/PR#40) both rework T27's audio-session/routing and never
+shipped to prime; (2) **the beta-3 SDK relink** (see #83 — tonight's build is the first
+linked against SDK `24A5380g`; linked-on-or-after behavior changes are in play this week).
+**Open discriminator for Owen:** did T27 voice work after Wave 5 landed on-device but
+*before* tonight's build? Yes → Wave 5 exonerated, SDK relink becomes prime suspect.
+**Next session:** instrument/inspect the T27 talk flow's post-mint path
+(`LiveVoiceSessionService` and the Wave 5 backend router) for the error that triggers
+`session/end`; prime is the healthy control.
+
+---
+
+## 83. 📝 Display Zoom "Larger Text" letterboxes T27 on iPhone18,2 — beta interplay, NOT app layout + toolchain-provenance rule
+
+**The 2026-07-08 evening "text clipped on the left" chase, resolved.** With Display Zoom =
+Larger Text, T27 renders in a **402×874pt window** (iPhone 17 Pro metrics) on the 440×956pt
+17 Pro Max panel, positioned ~27pt off-screen-left with a black band right/bottom — measured
+from native screenshots (window 1206px @ x≈−81 on the 1320px panel) and confirmed in-process
+(`UIScreen.main.bounds` = 402×874). Default zoom renders correctly. **Not caused by the
+#44–#49 wave** (receipt, tool chip, plist, scene manifest, launch screen all individually
+exonerated — runtime `sizeThatFits` measurements, plist diffs, and a full-width Pro Max
+*simulator* control on OS `380g`).
+
+**Trigger matrix:** phone updated to iOS 27 beta `24A5380h`; tonight was the **first device
+install built from Xcode-beta3** (SDK `24A5380g`, installed 7/2) — all prior installs were
+Xcode-beta seed 1 (SDK `24A5355p`) and rendered fine under Larger Text, as does Talaria
+prime (stable Xcode 26 SDK). Classic linked-on-or-after behavior flip meeting a beta bug
+(likely interacting with `UIApplicationSupportsMultipleScenes: true` from the CarPlay
+manifest). **Workarounds:** Display Zoom → Default (Owen's current state), or test
+`UIRequiresFullScreen: true` in project.yml (untried); likely self-resolves on a future
+beta seed — file Apple Feedback with the reproducer above.
+
+**HARD RULE going forward: record which Xcode seed built each device install.** SDK flips
+masquerade as app regressions — tonight's cost an entire evening. Multiple Xcode betas
+coexist on the Mac (`Xcode-beta.app` = seed 1, `Xcode-beta3.app` = seed 3, GUI vs
+`DEVELOPER_DIR` CLI can silently differ); when a device-only behavior "starts today,"
+check `DTXcodeBuild`/`DTSDKBuild` in the installed app's Info.plist against the previous
+install *before* auditing app code.
+
+Logged 2026-07-08.
