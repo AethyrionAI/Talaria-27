@@ -85,6 +85,15 @@ class Settings:
     connector_sensor_ack_timeout_seconds: float = 3.0
     connector_rpc_timeout_seconds: float = 30.0
     talk_delegate_timeout_seconds: float = 90.0
+    # #85: whether to advertise the relay's /v1/talk/mcp endpoint to OpenAI's
+    # Realtime API as an MCP tool server. OpenAI's servers call that URL from
+    # the public internet, so a loopback/LAN/Tailscale PUBLIC_BASE_URL can
+    # never serve it — every session just logs mcp_list_tools.failed.
+    #   auto   — advertise only when the base URL host looks publicly routable
+    #   always — advertise unconditionally (e.g. behind a Funnel/Tunnel the
+    #            relay can't detect)
+    #   never  — suppress the tools block entirely
+    talk_mcp_advertise: str = "auto"
     sse_keepalive_seconds: int = 30
     connector_setup_secret: str | None = None
     apns_key_path: str | None = None
@@ -141,6 +150,7 @@ class Settings:
             connector_sensor_ack_timeout_seconds=float(os.getenv("CONNECTOR_SENSOR_ACK_TIMEOUT_SECONDS", "3.0")),
             connector_rpc_timeout_seconds=float(os.getenv("CONNECTOR_RPC_TIMEOUT_SECONDS", "30.0")),
             talk_delegate_timeout_seconds=float(os.getenv("TALK_DELEGATE_TIMEOUT_SECONDS", "90.0")),
+            talk_mcp_advertise=os.getenv("TALK_MCP_ADVERTISE", "auto"),
             connector_setup_secret=os.getenv("CONNECTOR_SETUP_SECRET") or None,
             apns_key_path=os.getenv("APNS_KEY_PATH") or None,
             apns_key_contents=os.getenv("APNS_KEY_CONTENTS") or None,

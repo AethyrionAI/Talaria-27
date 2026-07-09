@@ -54,6 +54,7 @@ from .services import (
     archive_current_conversation,
     authenticate_hermes_host,
     build_connector_websocket_url,
+    build_talk_mcp_url,
     claim_next_message_job,
     complete_message_job,
     conversation_history_before_message,
@@ -98,6 +99,7 @@ from .services import (
     serialize_voice_session,
     serialize_voice_turn,
     setup_connector_account,
+    should_advertise_talk_mcp,
     touch_hermes_host_connection,
     update_device_app_state,
     upsert_device,
@@ -1126,16 +1128,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             user_id=auth.user.id,
             host_id=host.id,
         )
-        relay_mcp_url = f"{request_settings.public_base_url}/talk/mcp?token={relay_tool_token}"
+        session_create_params: dict = {"voiceSessionId": voice_session.id}
+        if should_advertise_talk_mcp(
+            request_settings.public_base_url, mode=request_settings.talk_mcp_advertise
+        ):
+            session_create_params["relayMcpURL"] = build_talk_mcp_url(
+                request_settings.public_base_url, token=relay_tool_token
+            )
+        else:
+            # OpenAI can't reach this base URL, so advertising the MCP server
+            # would only buy a doomed mcp_list_tools round-trip per session
+            # (#85). Voice runs without hermes_delegate until a publicly
+            # reachable endpoint (Tailscale Funnel / Cloudflare Tunnel) exists.
+            logger.info(
+                "talk.mcp.advertise skipped (mode=%s, base=%s): not reachable from OpenAI; "
+                "starting voice session without hermes_delegate",
+                request_settings.talk_mcp_advertise,
+                request_settings.public_base_url,
+            )
 
         try:
             bootstrap = await send_connector_rpc(
                 auth.user.id,
                 method="talk.session.create",
-                params={
-                    "voiceSessionId": voice_session.id,
-                    "relayMcpURL": relay_mcp_url,
-                },
+                params=session_create_params,
                 timeout_seconds=request_settings.connector_rpc_timeout_seconds,
             )
         except HTTPException:

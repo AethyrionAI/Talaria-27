@@ -556,6 +556,97 @@ def test_talk_session_create_and_end_roundtrip(tmp_path):
             assert end_response["payload"].json()["data"]["ended"] is True
 
 
+def _mint_talk_session(client, *, expect_mcp_url: bool) -> dict:
+    """Drive the connector websocket dance for one talk-session mint (#85)."""
+    connector_data = setup_connector(client)
+    pairing_code = create_phone_pairing_code(client, connector_data["connectorCredential"])
+    access_token = redeem_phone(
+        client,
+        pairing_code["displayCode"],
+        str(uuid.uuid4()),
+    )["auth"]["accessToken"]
+
+    with client.websocket_connect(
+        "/v1/hosts/ws",
+        headers={"Authorization": f"Bearer {connector_data['connectorCredential']}"},
+    ) as websocket:
+        websocket.send_json(
+            {
+                "type": "hello",
+                "connector": {
+                    "platform": "macos",
+                    "hostname": "test-host",
+                    "connectorVersion": "0.1.0",
+                    "hermesCommand": "/usr/local/bin/hermes",
+                    "hermesVersion": "hermes 1.2.3",
+                },
+            }
+        )
+        assert websocket.receive_json()["type"] == "ready"
+
+        create_response: dict = {}
+
+        def create_session() -> None:
+            create_response["payload"] = client.post(
+                "/v1/talk/session",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+
+        create_thread = Thread(target=create_session)
+        create_thread.start()
+        create_rpc = websocket.receive_json()
+        assert create_rpc["type"] == "rpc.request"
+        assert create_rpc["method"] == "talk.session.create"
+        assert ("relayMcpURL" in create_rpc["params"]) is expect_mcp_url
+
+        websocket.send_json(
+            {
+                "type": "rpc.response",
+                "requestId": create_rpc["requestId"],
+                "success": True,
+                "result": {
+                    "clientSecret": "ephemeral-secret",
+                    "expiresAt": "2026-04-01T16:00:00Z",
+                    "session": {"id": "sess_gate", "type": "realtime"},
+                    "model": "gpt-realtime-1.5",
+                    "voice": "verse",
+                    "voiceContextUpdatedAt": "2026-04-01T15:59:00Z",
+                },
+            }
+        )
+        create_thread.join(timeout=5)
+
+    assert create_response["payload"].status_code == 200
+    return create_rpc["params"]
+
+
+def test_talk_session_omits_mcp_url_for_unroutable_base(tmp_path):
+    # OJAMD's real deployment: a Tailscale CGNAT IP OpenAI can never reach.
+    # auto mode must withhold relayMcpURL so the session skips the doomed
+    # mcp_list_tools round-trip (#85); the mint itself still succeeds.
+    client = build_client_with_overrides(
+        tmp_path,
+        db_name="relay-mcp-gate.db",
+        public_base_url="http://100.110.102.59:8000/v1",
+    )
+    params = _mint_talk_session(client, expect_mcp_url=False)
+    assert "voiceSessionId" in params
+
+
+def test_talk_session_advertise_always_normalizes_bare_base_url(tmp_path):
+    # TALK_MCP_ADVERTISE=always (e.g. behind a Funnel the relay can't
+    # detect) with a bare PUBLIC_BASE_URL: the URL must still land on the
+    # mounted /v1/talk/mcp route rather than 404ing on /talk/mcp (#85).
+    client = build_client_with_overrides(
+        tmp_path,
+        db_name="relay-mcp-always.db",
+        public_base_url="http://100.110.102.59:8000",
+        talk_mcp_advertise="always",
+    )
+    params = _mint_talk_session(client, expect_mcp_url=True)
+    assert params["relayMcpURL"].startswith("http://100.110.102.59:8000/v1/talk/mcp?token=")
+
+
 def test_talk_turn_endpoint_persists_final_turns_and_is_idempotent(tmp_path):
     with build_client(tmp_path) as client:
         connector_data = setup_connector(client)

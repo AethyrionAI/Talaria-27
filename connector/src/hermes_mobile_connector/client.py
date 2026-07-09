@@ -1083,9 +1083,16 @@ class HermesMobileConnector:
         if validation_error:
             raise RuntimeError(validation_error)
 
-        relay_mcp_url = params.get("relayMcpURL")
+        # #85: the relay omits relayMcpURL when its public base URL isn't
+        # reachable from OpenAI's servers (loopback/LAN/Tailscale). Voice
+        # still works — the session just runs without the hermes_delegate
+        # MCP tool instead of paying a doomed mcp_list_tools round-trip.
+        relay_mcp_url = params.get("relayMcpURL") or None
         if not relay_mcp_url:
-            raise RuntimeError("Relay MCP URL is required.")
+            logger.info(
+                "talk.session.create without relayMcpURL — relay gated MCP "
+                "advertising off; starting session without hermes_delegate"
+            )
 
         snapshot = state.voice_context_snapshot
         if snapshot is None:

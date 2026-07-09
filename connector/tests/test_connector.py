@@ -778,6 +778,92 @@ def test_talk_session_create_uses_secrets_level_enabled_flag(monkeypatch, tmp_pa
     assert captured_keys == ["sk-hand-edited"]
 
 
+def test_talk_session_create_tolerates_missing_relay_mcp_url(monkeypatch, tmp_path):
+    # #85: the relay withholds relayMcpURL when its public base URL isn't
+    # reachable from OpenAI. The session must still mint — just without the
+    # hermes_delegate tools block — instead of hard-failing voice entirely.
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    store = ConnectorStateStore(state_dir=tmp_path / "connector-session-no-mcp-url")
+    state = make_enrolled_state()
+    state.voice_context_snapshot = VoiceContextSnapshot(
+        system_prompt="System prompt",
+        memory_summary="Memory",
+        user_summary="User",
+        sensor_summary="Sensors",
+        readiness_summary="Ready",
+        updated_at="2026-04-01T12:00:00+00:00",
+    )
+    store.save(state)
+    store.state_dir.mkdir(parents=True, exist_ok=True)
+    store.secrets_path.write_text(
+        json.dumps(
+            {
+                "openai_api_key": "sk-hand-edited",
+                "realtime_talk": {"enabled": True},
+            }
+        ),
+        encoding="utf-8",
+    )
+    connector = HermesMobileConnector(state_store=store, executor=make_executor())
+
+    monkeypatch.setattr(connector, "refresh_voice_context_if_stale", lambda *, state=None: state or store.load())
+    captured_mcp_urls: list = []
+
+    def fake_create(**kwargs):
+        captured_mcp_urls.append(kwargs["relay_mcp_url"])
+        return (
+            {
+                "value": "ephemeral-secret",
+                "expires_at": 1_775_001_600,
+                "session": {"id": "sess_no_mcp", "type": "realtime"},
+            },
+            "gpt-realtime-1.5",
+        )
+
+    monkeypatch.setattr(connector, "_create_openai_realtime_session", fake_create)
+
+    payload = connector._rpc_talk_session_create({})  # noqa: SLF001
+
+    assert payload["clientSecret"] == "ephemeral-secret"
+    assert captured_mcp_urls == [None]
+
+
+def test_realtime_session_creation_omits_tools_block_without_mcp_url(monkeypatch, tmp_path):
+    connector = HermesMobileConnector(state_store=ConnectorStateStore(state_dir=tmp_path / "connector-realtime-no-tools"), executor=make_executor())
+    captured_sessions: list[dict] = []
+
+    class FakeResponse:
+        def __init__(self, status_code: int, payload: dict) -> None:
+            self.status_code = status_code
+            self._payload = payload
+            self.text = json.dumps(payload)
+
+        def json(self) -> dict:
+            return self._payload
+
+    def fake_post(url, headers=None, json=None, timeout=None):  # noqa: ANN001
+        captured_sessions.append(json)
+        return FakeResponse(
+            200,
+            {
+                "value": "ephemeral-secret",
+                "expires_at": 1_775_001_600,
+                "session": {"id": "sess_789", "model": "gpt-realtime-1.5"},
+            },
+        )
+
+    monkeypatch.setattr("hermes_mobile_connector.client.httpx.post", fake_post)
+
+    connector._create_openai_realtime_session(  # noqa: SLF001
+        api_key="sk-test-realtime",
+        config=RealtimeTalkConfig(preferred_models=["gpt-realtime-1.5"]),
+        instructions="Say hello.",
+        relay_mcp_url=None,
+    )
+
+    assert "tools" not in captured_sessions[0]["session"]
+
+
 def test_realtime_session_creation_falls_back_to_secondary_model(monkeypatch, tmp_path):
     connector = HermesMobileConnector(state_store=ConnectorStateStore(state_dir=tmp_path / "connector-realtime-fallback"), executor=make_executor())
     attempted_models: list[str] = []

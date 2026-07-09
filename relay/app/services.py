@@ -3,7 +3,8 @@ from __future__ import annotations
 import time as _time
 import uuid
 from datetime import datetime, timedelta
-from urllib.parse import urlparse, urlunparse
+from ipaddress import ip_address
+from urllib.parse import urlencode, urlparse, urlunparse
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, update
@@ -1496,3 +1497,49 @@ def build_connector_websocket_url(public_base_url: str) -> str:
     parsed = urlparse(public_base_url)
     scheme = "wss" if parsed.scheme == "https" else "ws"
     return urlunparse((scheme, parsed.netloc, f"{parsed.path}/hosts/ws", "", "", ""))
+
+
+def build_talk_mcp_url(public_base_url: str, *, token: str) -> str:
+    """Build the MCP URL advertised to OpenAI for voice tool delegation (#85).
+
+    The MCP endpoint mounts at the literal path ``/v1/talk/mcp``
+    (``talk_mcp.register_talk_mcp_routes``). ``PUBLIC_BASE_URL`` is
+    conventionally the versioned API base (``…/v1``) but has been deployed
+    bare too — normalize so both spellings produce a URL that matches the
+    mounted route instead of 404ing.
+    """
+    parsed = urlparse(public_base_url)
+    path = parsed.path.rstrip("/")
+    if not path.endswith("/v1"):
+        path = f"{path}/v1"
+    return urlunparse(
+        (parsed.scheme, parsed.netloc, f"{path}/talk/mcp", "", urlencode({"token": token}), "")
+    )
+
+
+def should_advertise_talk_mcp(public_base_url: str, *, mode: str) -> bool:
+    """Decide whether to hand OpenAI the relay MCP URL at session mint (#85).
+
+    OpenAI's Realtime backend fetches the MCP tool list from *its* servers,
+    so the URL must be reachable from the public internet. Advertising a
+    loopback / RFC1918 / Tailscale-CGNAT address just costs every session a
+    doomed ``mcp_list_tools`` round-trip.
+    """
+    normalized = (mode or "auto").strip().lower()
+    if normalized == "always":
+        return True
+    if normalized == "never":
+        return False
+    host = urlparse(public_base_url).hostname or ""
+    if not host:
+        return False
+    try:
+        ip = ip_address(host)
+    except ValueError:
+        # Hostname: DNS-published names (including Funnel/Tunnel hostnames)
+        # are assumed reachable; loopback and mDNS names are not.
+        lowered = host.lower()
+        return lowered != "localhost" and not lowered.endswith(".local")
+    # is_global is False for loopback, RFC1918 private ranges, and the
+    # RFC 6598 100.64/10 shared space Tailscale uses.
+    return ip.is_global
