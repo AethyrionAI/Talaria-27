@@ -160,7 +160,8 @@ def _context_window_for(model_name: str, hermes_home: Path | None = None) -> int
                 f"from agent.model_metadata import get_model_context_length; print(get_model_context_length('{model_name}'))",
             ],
             cwd=str(agent_dir),
-            capture_output=True, text=True, check=True, timeout=10,
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            check=True, timeout=10,
         )
         return int(result.stdout.strip())
     except Exception:
@@ -1288,6 +1289,8 @@ class HermesMobileConnector:
                 env=env,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
             )
         except Exception:

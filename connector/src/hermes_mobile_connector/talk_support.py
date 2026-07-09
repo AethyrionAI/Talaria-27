@@ -111,6 +111,8 @@ def summarize_memory_provider(*, hermes_command: str | None, hermes_home: str | 
             [hermes_command, "memory", "status"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,  # reduced from 10s — if it takes longer, use stale cache
             check=False,
             env=env,

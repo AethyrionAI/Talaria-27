@@ -45,6 +45,8 @@ async def capture_snapshot(workdir: str) -> WorktreeSnapshot | None:
             cwd=workdir,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
         )
         if result.returncode != 0:
@@ -96,6 +98,8 @@ async def capture_diff(workdir: str, pre: WorktreeSnapshot | None) -> dict | Non
             cwd=workdir,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
         )
         if result.returncode != 0:
@@ -140,6 +144,8 @@ async def capture_diff(workdir: str, pre: WorktreeSnapshot | None) -> dict | Non
                     cwd=workdir,
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     timeout=5,
                 )
                 patch = diff_result.stdout
@@ -150,6 +156,8 @@ async def capture_diff(workdir: str, pre: WorktreeSnapshot | None) -> dict | Non
                     cwd=workdir,
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     timeout=5,
                 )
                 patch = diff_result.stdout
