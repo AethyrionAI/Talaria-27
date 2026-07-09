@@ -2607,3 +2607,31 @@ passed in-container.** Remaining: deploy on OJAMD; keep an eye on the relay log 
 `DB pool exhausted` marker (now impossible to miss) if it ever recurs.
 
 Logged 2026-07-09.
+
+## 87. 🔧 Connector — subprocess output decoded as cp1252 on Windows (UTF-8 pinned; OJAMD deploy owed)
+
+**Found 2026-07-09 (reproduced live on OJAMD), built same day** (cloud session, branch
+`claude/connector-utf8-subprocess-fypam0`). Root cause: every connector
+`subprocess.run(..., text=True)` omitted `encoding=`, so Windows decoded the child's
+stdout/stderr pipes with the locale codepage (cp1252 — `PYTHONUTF8` does not reach the
+connector process). `hermes` prints UTF-8 (box-drawing `─` = e2 94 80, em-dashes), so the
+reader thread threw `UnicodeDecodeError: 'charmap' codec can't decode byte 0x90` — a
+daemon-thread exception, non-fatal, but the child's output was **silently lost** (empty
+`hermes memory status` → `summarize_memory_provider` degraded, skills list `[]`, version
+detection failed, mcp registration output dropped) plus 1,192 tracebacks in connector.log.
+Pre-existing; unrelated to #85/#86. Core paths (host WS, sensor ingestion) and chat
+(iOS → `:8642` direct) were never affected.
+
+**Shipped:** `encoding="utf-8", errors="replace"` pinned on all 17 text-mode subprocess
+call sites (talk_support, client ×2, hermes_runner ×2, mcp_registration ×3, git_diff ×4,
+cli ×4, service_management); byte-mode calls and file reads untouched. Tests are
+platform-independent (CI is Linux/UTF-8 where the locale default masks the bug): an AST
+audit in `tests/test_subprocess_encoding.py` asserts every text-mode subprocess call in
+the package pins utf-8/replace — new call sites can't regress silently — and an
+end-to-end test forces the exact bad bytes (e2 94 80 + 0x90) through a real pipe via
+`summarize_memory_provider`. Both fail against the unfixed code. **Connector suite: 104
+passed / 1 skipped.** Remaining: reaches OJAMD prod on the next ojamd-deploy reconcile —
+after deploy, confirm connector.log stops accruing `_readerthread` UnicodeDecodeError
+tracebacks and `summarize_memory_provider` returns real provider lines.
+
+Logged 2026-07-09.
