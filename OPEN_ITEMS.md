@@ -2552,6 +2552,45 @@ Logged 2026-07-08.
 
 ---
 
+## 84. 🔧 Talk-mode preflight + mic flatline tripwire + route display — BUILT IN CLOUD, not compiled
+
+**The "never again" from the #82 evening (2026-07-08), built 2026-07-09** (cloud session,
+branch `claude/t27-84-talk-preflight`). Talk rendered a live LISTENING state over a dead
+microphone — transport connectivity was treated as proof of audio. Shipped, on BOTH engines
+(realtime/WebRTC + #73 native fallback):
+- **Preflight:** standardized actionable permission wording (`TalkPreflight.swift`:
+  `TalkMicPreflight`) — mic denial (both engines) + Speech Recognition denial (native)
+  block the start with "…is off — enable it for Talaria in Settings." and the overlay's
+  OPEN SETTINGS deep link; the link's gate is now a shared predicate
+  (`isPermissionActionable`) kept in lockstep with the engine wording (the old substring
+  check missed the speech-permission phrasing). A denied mic never reaches "Connected".
+- **Flatline tripwire:** `.connected` arms a 12s window (`MicFlatlineRule`, pure +
+  unit-tested in `TalkPreflightTests`). Zero speech evidence (no `speech_started`/
+  committed/transcription events realtime; no volatile/finalized transcription native)
+  while connected + unmuted → non-fatal mic-health hint under LISTENING + settings link,
+  instead of silent listening. Muted windows re-arm; unmute restarts; first evidence
+  disarms. Snapshot field `micHealthHint`.
+- **Route visibility:** snapshot field `audioRouteSummary` ("iPhone Microphone → Speaker"),
+  refreshed at connect + every route change → ROUTE line in the talk overlay + new
+  `// Voice / Talk` panel in Diagnostics (Microphone, Speech Recognition, live Audio
+  Route). The stale-BT-route-with-dead-mic was the other live #82 suspect.
+
+**Needs Mac:** `xcodegen generate` (2 new files: `Talaria/Services/Support/
+TalkPreflight.swift`, `TalariaTests/TalkPreflightTests.swift`; re-verify `aps-environment`
+survives per #48), CLI build + `TalkPreflightTests`, then device: (1) mic permission off →
+launch talk → actionable banner + OPEN SETTINGS, never "Connected"/LISTENING; (2) grant →
+speak → no hint; (3) stay silent 12s+ → hint appears, first words clear it; (4) mute
+through the window → no hint until unmuted-silence; (5) ROUTE line updates on
+BT-headset attach/detach; (6) Diagnostics Voice/Talk panel shows real states. Note: the
+handoff referenced `tools/diagnostics/README.md` for the diagnostic ladder — that file
+does not exist in the repo (the ladder likely lives in the gitignored `handoffs/`); the
+Diagnostics panel rows cover its first rungs (can record / can transcribe / where audio
+routes).
+
+Logged 2026-07-09.
+
+---
+
 ## 85. 🔧 hermes_delegate MCP path — advertising gated + URL normalized (built in cloud; OJAMD deploy owed)
 
 **Found 2026-07-08 (OJAMD logs), built 2026-07-09** (cloud session, branch
