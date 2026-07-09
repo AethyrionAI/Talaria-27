@@ -665,3 +665,82 @@ def test_retryable_job_failure_keeps_sse_open_until_requeued_job_completes(tmp_p
         assert len(done_events) == 1
         assert done_events[0][1]["status"] == "completed"
         assert done_events[0][1]["message"]["text"] == "Recovered after retry"
+
+# --------------------------------------------------------------------------
+# Test: open SSE stream must not pin a pooled DB connection (#86)
+# --------------------------------------------------------------------------
+
+def test_sse_live_stream_releases_db_connection(tmp_path):
+    """FastAPI closes the get_db dependency only after the stream finishes,
+    so job_events_stream must release its pooled connection before handing
+    back the StreamingResponse — otherwise every open SSE run pins one of
+    the pool's 15 connections for minutes (the 7/8 QueuePool exhaustion).
+
+    TestClient buffers the whole response in one call, so the stream is
+    held open from a thread (same shape as the live-streaming test above)
+    while the main thread watches the pool."""
+    with build_client(tmp_path) as client:
+        credential, access_token = setup_environment(
+            client, installation_id="aaaa1111-bbbb-cccc-dddd-eeeeeeee0086"
+        )
+        pool = client.app.state.database.engine.pool
+
+        with client.websocket_connect(
+            "/v1/hosts/ws",
+            headers={"Authorization": f"Bearer {credential}"},
+        ) as websocket:
+            websocket.send_json(HELLO_PAYLOAD)
+            assert websocket.receive_json()["type"] == "ready"
+
+            msg_holder: dict = {}
+
+            def send_msg():
+                msg_holder["r"] = client.post(
+                    "/v1/messages",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    json={"text": "Pool release probe"},
+                )
+
+            msg_thread = Thread(target=send_msg)
+            msg_thread.start()
+            job = websocket.receive_json()["job"]
+
+            sse_holder: dict = {}
+
+            def read_sse():
+                sse_holder["r"] = client.get(
+                    f"/v1/jobs/{job['id']}/events",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                )
+
+            sse_thread = Thread(target=read_sse)
+            sse_thread.start()
+            # Give the SSE subscriber a moment to connect
+            time.sleep(0.3)
+
+            # The stream is now open and idle. Pre-#86 its request session
+            # pinned a pooled connection for the stream's whole lifetime, so
+            # checkedout() never returned to 0; other requests (the message
+            # POST's sync-wait polls) only produce transient blips, so
+            # observing a single zero proves the stream released its slot.
+            released = False
+            for _ in range(100):
+                if pool.checkedout() == 0:
+                    released = True
+                    break
+                time.sleep(0.05)
+            assert released, "open SSE stream pinned a pooled DB connection"
+
+            # End the stream cleanly so the reader thread can finish.
+            websocket.send_json({
+                "type": "job.result",
+                "jobId": job["id"],
+                "text": "Pool probe reply",
+                "sessionId": "sess-pool",
+            })
+            msg_thread.join(timeout=5)
+            sse_thread.join(timeout=5)
+            assert not sse_thread.is_alive()
+
+        events = parse_sse_events(sse_holder["r"].text)
+        assert events[-1][0] == "done"

@@ -18,6 +18,7 @@ from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request, WebS
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from sqlalchemy import select
+from sqlalchemy.exc import TimeoutError as SAPoolTimeoutError
 from sqlalchemy.orm import Session
 
 from .apns import PushResult, create_apns_client
@@ -150,6 +151,18 @@ class ConnectorSession:
     busy: bool = False
 
 
+@dataclass(frozen=True)
+class PushTarget:
+    """A materialized APNs destination — plain values only, so push sends
+    can run without a DB session checked out across the awaits (#86)."""
+
+    device_id: str
+    registration_id: str
+    apns_token: str
+    bundle_id: str
+    push_environment: str
+
+
 def resolve_agent_file(requested: str, agent_files_dir: str | None) -> Path:
     """Resolve a client-requested path to a real file inside the whitelisted
     agent-files directory (#21 Tier 2).
@@ -254,6 +267,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # relay restarted in between.
     app.state.push_watchers: dict[tuple[str, str], asyncio.Task] = {}
 
+    @app.middleware("http")
+    async def log_unhandled_exceptions(request: Request, call_next):
+        # #86: full-traceback capture for ASGI-handler failures (a one-off
+        # RuntimeError surfaced with no usable context on 7/8), plus pool
+        # stats at the exact moment a connection checkout times out.
+        # HTTPExceptions are resolved inside the app and never reach here.
+        try:
+            return await call_next(request)
+        except SAPoolTimeoutError:
+            logger.error(
+                "DB pool exhausted while handling %s %s — pool: %s",
+                request.method,
+                request.url.path,
+                database.pool_status(),
+                exc_info=True,
+            )
+            raise
+        except Exception:
+            logger.error(
+                "Unhandled exception while handling %s %s",
+                request.method,
+                request.url.path,
+                exc_info=True,
+            )
+            raise
+
     def subscribe_job_events(job_id: str) -> asyncio.Queue:
         queue: asyncio.Queue = asyncio.Queue(maxsize=1024)
         app.state.job_event_queues.setdefault(job_id, []).append(queue)
@@ -328,9 +367,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return
         app.state.connector_sessions.pop(user_id, None)
 
+    def collect_push_targets(db: Session, *, user_id: str) -> list[PushTarget]:
+        """Materialize APNs targets as plain values so callers can release
+        the DB session before awaiting network sends (#86)."""
+        targets: list[PushTarget] = []
+        for device, registration in active_push_registrations_for_user(db, user_id=user_id):
+            if device_is_foreground(device, stale_seconds=settings.app_presence_stale_seconds):
+                continue
+            targets.append(
+                PushTarget(
+                    device_id=device.id,
+                    registration_id=registration.id,
+                    apns_token=registration.apns_token,
+                    bundle_id=registration.bundle_id,
+                    push_environment=registration.push_environment,
+                )
+            )
+        return targets
+
+    def deactivate_push_registration(target: PushTarget) -> None:
+        with database.session() as db:
+            registration = db.get(PushRegistration, target.registration_id)
+            if registration is not None:
+                registration.is_active = False
+                db.commit()
+        logger.info("Deactivated invalid APNs token for device %s", target.device_id)
+
     async def maybe_send_message_push(
         *,
-        db: Session,
         user_id: str,
         conversation_id: str,
         message_id: str,
@@ -345,27 +409,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return
         preview = preview[:160]
 
-        for device, registration in active_push_registrations_for_user(db, user_id=user_id):
-            if device_is_foreground(device, stale_seconds=settings.app_presence_stale_seconds):
-                continue
+        # #86: no session is held across the APNs awaits — targets are
+        # collected in a short-lived session, sends run pool-free.
+        with database.session() as db:
+            targets = collect_push_targets(db, user_id=user_id)
 
+        for target in targets:
             result = await apns_client.send_alert_push(
-                registration.apns_token,
+                target.apns_token,
                 title="Hermes",
                 body=preview,
-                bundle_id=registration.bundle_id,
-                environment=registration.push_environment,
+                bundle_id=target.bundle_id,
+                environment=target.push_environment,
             )
             if result == PushResult.TOKEN_INVALID:
-                registration.is_active = False
-                db.commit()
-                logger.info("Deactivated invalid APNs token for device %s", device.id)
+                deactivate_push_registration(target)
             elif result != PushResult.SENT:
-                logger.warning("APNs delivery %s for device %s", result.value, device.id)
+                logger.warning("APNs delivery %s for device %s", result.value, target.device_id)
 
     async def send_run_completion_push(
         *,
-        db: Session,
         user_id: str,
         session_id: str,
         reply_text: str,
@@ -378,28 +441,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         preview = " ".join(reply_text.split()).strip()[:160] or "Hermes finished a run."
 
-        for device, registration in active_push_registrations_for_user(db, user_id=user_id):
-            if device_is_foreground(device, stale_seconds=settings.app_presence_stale_seconds):
-                continue
+        with database.session() as db:
+            targets = collect_push_targets(db, user_id=user_id)
 
+        for target in targets:
             result = await apns_client.send_alert_push(
-                registration.apns_token,
+                target.apns_token,
                 title="Hermes",
                 body=preview,
                 # #47: lets the app attach its text-input Reply action —
                 # identifier is in lockstep with NotificationReplyAction in
                 # Talaria/AppEntry.swift.
                 category="HERMES_RUN_COMPLETED",
-                bundle_id=registration.bundle_id,
-                environment=registration.push_environment,
+                bundle_id=target.bundle_id,
+                environment=target.push_environment,
                 payload_extra={"session_id": session_id},
             )
             if result == PushResult.TOKEN_INVALID:
-                registration.is_active = False
-                db.commit()
-                logger.info("Deactivated invalid APNs token for device %s", device.id)
+                deactivate_push_registration(target)
             elif result != PushResult.SENT:
-                logger.warning("APNs run-completion delivery %s for device %s", result.value, device.id)
+                logger.warning("APNs run-completion delivery %s for device %s", result.value, target.device_id)
 
     async def watch_session_for_completion(*, user_id: str, session_id: str) -> None:
         """Poll the gateway until the watched session's detached run
@@ -426,13 +487,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         return
                     reply = None
                 if reply is not None:
-                    with database.session() as db:
-                        await send_run_completion_push(
-                            db=db,
-                            user_id=user_id,
-                            session_id=session_id,
-                            reply_text=reply,
-                        )
+                    await send_run_completion_push(
+                        user_id=user_id,
+                        session_id=session_id,
+                        reply_text=reply,
+                    )
                     logger.info("push watch: session %s completed, push dispatched", session_id)
                     return
                 elapsed = loop.time() - started
@@ -813,7 +872,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         payload: SensorLocationRequest,
         request_settings: Settings = Depends(get_settings),
         auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
     ) -> JSONResponse:
+        # #86: `db` is the same cached session get_auth_context used —
+        # release its pooled connection before awaiting the connector ack.
+        db.close()
         return await forward_sensor_payload(
             user_id=auth.user.id,
             ack_timeout_seconds=request_settings.connector_sensor_ack_timeout_seconds,
@@ -833,7 +896,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         payload: SensorHealthRequest,
         request_settings: Settings = Depends(get_settings),
         auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
     ) -> JSONResponse:
+        # #86: release the auth session's pooled connection before the ack wait.
+        db.close()
         return await forward_sensor_payload(
             user_id=auth.user.id,
             ack_timeout_seconds=request_settings.connector_sensor_ack_timeout_seconds,
@@ -1034,12 +1100,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/v1/commands")
     async def command_catalog(
         auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
     ) -> dict:
         """Return the full slash command catalog from the connected Hermes host.
 
         Includes built-in gateway commands and installed skill commands.
         The iOS app uses this to populate its slash command autocomplete menu.
         """
+        # #86: release the auth session's pooled connection before the RPC.
+        db.close()
         try:
             result = await send_connector_rpc(
                 auth.user.id,
@@ -1097,6 +1166,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 }
             )
 
+        # #86: the prewarm RPC can run to the full connector timeout (~30s)
+        # — don't hold a pooled connection across it. The session reopens
+        # transparently if anything touches it afterwards.
+        db.close()
         prewarm = await send_connector_rpc(auth.user.id, method="talk.prewarm")
         blocked_reason = prewarm.get("blockedReason") or prewarm.get("lastValidationError")
         return success(
@@ -1146,6 +1219,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 request_settings.talk_mcp_advertise,
                 request_settings.public_base_url,
             )
+
+        # #86: create_voice_session committed already; release the pooled
+        # connection instead of holding it across the session-create RPC
+        # (up to 30s on a hung connector — the 7/8 exhaustion pattern).
+        db.close()
 
         try:
             bootstrap = await send_connector_rpc(
@@ -1208,6 +1286,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Talk session not found.")
 
         if voice_session.status == "active":
+            # #86: release the pooled connection across the connector RPC;
+            # end_voice_session re-queries on the transparently reopened
+            # session afterwards.
+            db.close()
             try:
                 await send_connector_rpc(
                     auth.user.id,
@@ -1216,7 +1298,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 )
             except HTTPException:
                 pass
-            end_voice_session(db, voice_session_id=voice_session.id)
+            voice_session = end_voice_session(db, voice_session_id=voice_session_id) or voice_session
 
         record_audit(
             db,
@@ -1759,6 +1841,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ensure_job_event_buffer(job.id)
             host = current_hermes_host_for_user(db, user_id=auth.user.id)
             if host is not None and hermes_host_is_online(db, host=host, settings=request_settings):
+                # #86: the sync wait polls with its own scoped sessions —
+                # release this request's pooled connection first.
+                db.close()
                 await wait_for_job_completion(job.id, request_settings.connector_sync_wait_seconds)
         else:
             process_message_job_with_adapter(
@@ -1772,7 +1857,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 result_message = db.get(Message, completed_job.result_message_id)
                 if result_message is not None:
                     await maybe_send_message_push(
-                        db=db,
                         user_id=auth.user.id,
                         conversation_id=conversation.id,
                         message_id=result_message.id,
@@ -1865,6 +1949,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         yield ": keepalive\n\n"
             finally:
                 unsubscribe_job_events(job_id, queue)
+
+        # #86: FastAPI only closes the get_db dependency after the stream
+        # finishes, so without this an open SSE connection pins a pooled DB
+        # connection for the entire run — the primary QueuePool-exhaustion
+        # vector. Everything the generator needs is materialized above.
+        db.close()
 
         return StreamingResponse(
             event_stream(),
@@ -2108,16 +2198,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                                         if completed.result_message_id and db.get(Message, completed.result_message_id) is not None
                                         else None
                                     )
+                                    push_args: dict | None = None
                                     if completed.result_message_id:
                                         completed_message = db.get(Message, completed.result_message_id)
                                         if completed_message is not None:
-                                            await maybe_send_message_push(
-                                                db=db,
-                                                user_id=completed.user_id,
-                                                conversation_id=completed.conversation_id,
-                                                message_id=completed_message.id,
-                                                message_text=completed_message.text,
-                                            )
+                                            push_args = {
+                                                "user_id": completed.user_id,
+                                                "conversation_id": completed.conversation_id,
+                                                "message_id": completed_message.id,
+                                                "message_text": completed_message.text,
+                                            }
+                                # #86: the APNs awaits run after the scoped
+                                # session above is released, not inside it.
+                                if push_args is not None:
+                                    await maybe_send_message_push(**push_args)
                                 done_event_data: dict = {
                                     "jobId": claimed_job.id,
                                     "status": "completed",

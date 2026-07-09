@@ -14,7 +14,17 @@ class Base(DeclarativeBase):
 class Database:
     def __init__(self, database_url: str) -> None:
         connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
-        self.engine = create_engine(database_url, future=True, connect_args=connect_args)
+        self.engine = create_engine(
+            database_url,
+            future=True,
+            connect_args=connect_args,
+            # #86: QueuePool hygiene after the 7/8 exhaustion ("limit of size
+            # 5 overflow 10 reached"). pre_ping recovers silently-dropped
+            # connections instead of wedging a checkout; recycle caps
+            # connection age so nothing outlives a transient incident.
+            pool_pre_ping=True,
+            pool_recycle=1800,
+        )
         self.session_factory = sessionmaker(
             bind=self.engine,
             autoflush=False,
@@ -128,6 +138,13 @@ class Database:
                     "ON voice_turns (voice_session_id, client_turn_id)"
                 )
             )
+
+    def pool_status(self) -> str:
+        """Human-readable pool stats for exhaustion diagnostics (#86)."""
+        try:
+            return self.engine.pool.status()
+        except Exception:  # noqa: BLE001 — diagnostics must never raise
+            return "unavailable"
 
     @contextmanager
     def session(self) -> Iterator[Session]:
