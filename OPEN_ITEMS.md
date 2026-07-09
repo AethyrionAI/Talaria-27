@@ -2581,3 +2581,29 @@ stays `auto` with the public hostname or is forced `always`). Once public, set
 change.
 
 Logged 2026-07-09.
+
+---
+
+## 86. 🔧 Relay QueuePool exhaustion — session-across-await audit + pool hygiene (built in cloud; OJAMD deploy owed)
+
+**Found 2026-07-08 (OJAMD logs: `QueuePool limit of size 5 overflow 10 reached`, 2×), built
+2026-07-09** (cloud session, branch `claude/t27-86-relay-pool`). Root cause: FastAPI's
+`get_db` dependency closes the request session only when the *response* finishes, and
+several handlers awaited slow things with that session's pooled connection checked out:
+the **SSE job-events stream pinned a connection for its entire lifetime** (primary vector),
+the three talk endpoints pinned across connector RPCs (30s each on a hung connector — 7/8
+was a day of repeated talk mint/end cycles for #82), `send_message` across the sync wait,
+the sensor/commands endpoints across ack waits (via the auth dependency's session), and
+both APNs push helpers across network sends.
+
+**Shipped:** every audited site releases the connection (`db.close()`) before awaiting —
+the session transparently reopens on next use; push helpers now materialize `PushTarget`
+values in a short session and send pool-free; engine gains `pool_pre_ping` +
+`pool_recycle=1800`; a middleware logs `pool.status()` + full traceback on pool timeout and
+full route+traceback on any unhandled exception (the 7/8 one-off `'NoneType' object has no
+attribute 'splitlines'` RuntimeError had surfaced context-free — next occurrence won't).
+Regression test watches `pool.checkedout()` while an SSE stream is live. **Relay suite: 89
+passed in-container.** Remaining: deploy on OJAMD; keep an eye on the relay log for the
+`DB pool exhausted` marker (now impossible to miss) if it ever recurs.
+
+Logged 2026-07-09.
