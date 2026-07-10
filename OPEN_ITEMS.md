@@ -2766,8 +2766,8 @@ identity-stability regression.
 
 **Next Mac session:**
 1. Merge order per handoff: Lane C first (ChatScreen overlap), then this. `xcodegen generate` —
-   **5 new source files** (ConversationJournal, ConversationJournalStore, ComposeOutboxState,
-   ContextTransplanter + edits) **+ 2 new test files** (CondenserFidelityTests,
+   **4 new source files** (ConversationJournal, ConversationJournalStore, ComposeOutboxState,
+   ContextTransplanter) **+ 2 new test files** (CondenserFidelityTests,
    ContinuityFabricTests); re-verify `aps-environment`/WeatherKit survive regen (#44/#48 trap);
    regen commit SEPARATE.
 2. CLI build + full test run. **CondenserFidelityTests must RUN (not skip) — needs Apple
@@ -2781,5 +2781,22 @@ identity-stability regression.
    reconnect → auto-sends; (f) session totals show PRIMING row + cost including priming.
 4. Priming preamble wording: reconcile `ContextTransplanter.primingText` with the probe's
    validated phrasing (`talaria-probe/probe.py` on OJAMD) if they differ materially.
+
+**Update (same session) — adversarial review pass, six findings fixed:** (1) `switchModel` no
+longer routes through `ensureHopForTurn` — a stale hop at switch time would have paid for a
+transplant that `endHop()` immediately discarded (double priming per switch); command turns now
+reuse the current hop or a bare throwaway session. (2) The sync-send path (voice context POST)
+surfaced no priming receipt — `appendVoiceTranscript` now detects the hop change after the send
+and appends the transplant notice, so that spend hits the transcript + totals too. (3)
+`isUnreachableError` narrowed: `.timedOut`/`.networkConnectionLost` can fire AFTER the body
+reached the server (the run may have committed), and queued turns auto-resend — those stay
+`.failed` so a human decides about the retry. **Device-checklist consequence: a dead host behind
+Tailscale can surface as `.timedOut` → honest `.failed` + retry, NOT `.queued`; checklist item
+(e) uses airplane mode (`.notConnectedToInternet`), which queues.** (4) `sendMessage` now returns
+whether it dispatched and resets the drain flag before its guards — the drain could previously
+destroy a queued turn whose re-send tripped the duplicate guard (row + outbox entry both already
+removed, flag stale). (5) Drain FIFO restore matches the re-queued turn by id, not last-by-text.
+(6) A priming hop whose run reported no usage now still counts in
+`SessionUsageTotals.primingHops`. Regression tests added for (4) and (6).
 
 Logged 2026-07-10.

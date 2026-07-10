@@ -273,6 +273,28 @@ struct ContinuityFabricTests {
     }
 
     @Test @MainActor
+    func nilUsagePrimingStillCountsAsAHop() async throws {
+        let persistence = Self.makePersistence()
+        let client = ScriptedClient()
+        client.scripts = [[
+            .contextPrimed(nil),
+            .finished(Message(sender: .hermes, content: "ok", status: .delivered), nil, nil),
+        ]]
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+
+        await store.sendMessage("hop with no reported usage")
+
+        // A hop demonstrably happened — the count must not depend on the
+        // server reporting usage for the priming run.
+        let totals = try #require(store.sessionUsageTotals)
+        #expect(totals.primingHops == 1)
+        #expect(totals.primingTokens == 0)
+        let notice = try #require(store.conversation?.messages.first(where: { $0.isContextPriming }))
+        #expect(notice.content == "[Context transplanted into a fresh session]")
+        #expect(notice.usage == nil)
+    }
+
+    @Test @MainActor
     func primingNoticeSurvivesTheCacheRoundTrip() async throws {
         let persistence = Self.makePersistence()
         let client = ScriptedClient()
@@ -350,6 +372,29 @@ struct ContinuityFabricTests {
         #expect(persistence.loadComposeOutboxState().pendingTurns.map(\.text) == ["first"])
         let queuedRows = store.conversation?.messages.filter { $0.status == .queued } ?? []
         #expect(queuedRows.count == 1)
+    }
+
+    @Test @MainActor
+    func drainDropsTurnThatDuplicatesAPendingRow() async throws {
+        let persistence = Self.makePersistence()
+        let client = ScriptedClient()
+        client.scripts = [[.unreachable("down")]]
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+
+        await store.sendMessage("dup")
+        #expect(store.hasQueuedComposeTurns)
+
+        // Simulate polling-fallback residue: an identical row already pending
+        // in the transcript. The drained turn's re-send trips the duplicate
+        // guard — the outbox copy must be dropped (the pending row IS the
+        // message), never lost into the void with the flag left stale.
+        store.conversation?.messages.append(Message(sender: .user, content: "dup", status: .sending))
+        await store.drainComposeOutboxIfPossible()
+
+        #expect(!store.hasQueuedComposeTurns)
+        #expect(persistence.loadComposeOutboxState().isEmpty)
+        // The pending row still represents the message.
+        #expect(store.conversation?.messages.contains(where: { $0.content == "dup" && $0.status == .sending }) == true)
     }
 
     @Test @MainActor

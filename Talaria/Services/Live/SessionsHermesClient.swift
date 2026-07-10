@@ -391,12 +391,30 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// — so the hop ends here, making "next session" mean the user's very
     /// next message: it hops to a fresh session under the new model with the
     /// journal transplanted. A model switch IS a brain hop (P1/#90).
+    ///
+    /// A command turn needs a session but NOT context: it reuses the current
+    /// hop when one exists, and otherwise posts through a bare throwaway
+    /// session — never `ensureHopForTurn()`, which would pay for a transplant
+    /// that `endHop()` immediately discards (and the user's next message
+    /// would pay for again).
+    ///
     /// Returns the response text — it carries the authoritative
     /// "Context: N tokens" for the switched model, which the CTX meter's
     /// denominator reconciles against (#4).
     @discardableResult
     func switchModel(_ identifier: String) async throws -> String? {
-        let response = try await performSyncTurn(message: "/model \(identifier)", attachments: [])
+        let command = "/model \(identifier)"
+        var response: String?
+        if let hop = journal.activeHop, journal.activeHopIsCurrent {
+            do {
+                response = try await postSyncChat(sessionId: hop.apiSessionId, message: command, attachments: [])
+            } catch SessionsClientError.sessionNotFound {
+                journal.endHop()
+            }
+        }
+        if response == nil {
+            response = try await postSyncChat(sessionId: try await createBareSession(), message: command, attachments: [])
+        }
         journal.endHop()
         return response
     }
@@ -541,11 +559,7 @@ final class SessionsHermesClient: HermesClientProtocol {
             return PreparedHop(sessionId: hop.apiSessionId, wasReused: true, priming: nil)
         }
 
-        let response: CreateSessionResponse = try await postJSON(
-            path: Self.sessionsPath,
-            body: EmptyBody()
-        )
-        let sessionId = response.session.id
+        let sessionId = try await createBareSession()
         if currentConversation == nil {
             currentConversation = Conversation(title: Conversation.defaultTitle)
         }
@@ -560,6 +574,16 @@ final class SessionsHermesClient: HermesClientProtocol {
         journal.beginHop(apiSessionId: sessionId, primingUsage: usage)
         Self.logger.notice("hop: fresh session primed from \(composition.entryCount) journal entries (\(composition.condensedByModel ? "condensed" : "verbatim tail", privacy: .public), \(usage?.totalTokens ?? 0) tokens)")
         return PreparedHop(sessionId: sessionId, wasReused: false, priming: PrimingReceipt(usage: usage))
+    }
+
+    /// POST /api/sessions — a fresh, unprimed server session. Hop
+    /// registration and transplanting are the caller's business.
+    private func createBareSession() async throws -> String {
+        let response: CreateSessionResponse = try await postJSON(
+            path: Self.sessionsPath,
+            body: EmptyBody()
+        )
+        return response.session.id
     }
 
     /// Posts the transplant as the fresh session's first turn over SSE and
@@ -670,17 +694,20 @@ final class SessionsHermesClient: HermesClientProtocol {
         }
     }
 
-    /// Transport-level failures where the request never reached the Sessions
-    /// API — the offline compose outbox's queue signal (#90). Anything the
-    /// server actually answered (HTTP status errors, decode failures) and
-    /// configuration gaps are NOT unreachable: retrying identical bytes later
-    /// won't fix those.
+    /// Transport-level failures where the request DEMONSTRABLY never reached
+    /// the Sessions API — the offline compose outbox's queue signal (#90).
+    /// Deliberately narrow: queued turns AUTO-RESEND on reachability, so an
+    /// ambiguous failure must not qualify. `.timedOut` and
+    /// `.networkConnectionLost` can fire after the body reached the server
+    /// (the run may have committed) — those stay `.failed`, where a human
+    /// decides about the retry. Anything the server actually answered (HTTP
+    /// status errors, decode failures) and configuration gaps are also NOT
+    /// unreachable: retrying identical bytes later won't fix those.
     nonisolated static func isUnreachableError(_ error: Error) -> Bool {
         guard let urlError = error as? URLError else { return false }
         switch urlError.code {
         case .notConnectedToInternet, .cannotConnectToHost, .cannotFindHost,
-             .dnsLookupFailed, .networkConnectionLost, .timedOut,
-             .internationalRoamingOff, .dataNotAllowed:
+             .dnsLookupFailed, .internationalRoamingOff, .dataNotAllowed:
             return true
         default:
             return false

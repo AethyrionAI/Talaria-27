@@ -92,11 +92,14 @@ struct StatusCardView: View {
                     statusRow("Model time", value: TurnReceiptFormat.durationLabel(totals.totalDuration))
                 }
                 // P1 (#90): context-transplant priming, separate from metered
-                // chat turns — priming is not free and must be visible.
+                // chat turns — priming is not free and must be visible. "—"
+                // when the hops reported no usage (unknown, not zero).
                 if totals.primingHops > 0 {
                     statusRow(
                         "Priming (\(totals.primingHops) hop\(totals.primingHops == 1 ? "" : "s"))",
-                        value: "\(TurnReceiptFormat.fullTokenLabel(totals.primingTokens)) tokens"
+                        value: totals.primingTokens > 0
+                            ? "\(TurnReceiptFormat.fullTokenLabel(totals.primingTokens)) tokens"
+                            : "—"
                     )
                 }
                 if let sessionCost {

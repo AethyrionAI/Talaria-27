@@ -76,17 +76,19 @@ final class ChatStore {
         guard let messages = conversation?.messages else { return nil }
         var totals = SessionUsageTotals()
         for message in messages {
-            guard let usage = message.usage else { continue }
             if message.isContextPriming {
-                totals.primingTokens += usage.totalTokens
+                // A hop demonstrably happened even when its run reported no
+                // usage — the count stays honest independent of the tokens.
                 totals.primingHops += 1
-            } else if message.sender == .hermes {
-                totals.promptTokens += usage.promptTokens
-                totals.completionTokens += usage.completionTokens
-                totals.totalTokens += usage.totalTokens
-                totals.meteredTurns += 1
-                totals.totalDuration += message.turnDuration ?? 0
+                totals.primingTokens += message.usage?.totalTokens ?? 0
+                continue
             }
+            guard message.sender == .hermes, let usage = message.usage else { continue }
+            totals.promptTokens += usage.promptTokens
+            totals.completionTokens += usage.completionTokens
+            totals.totalTokens += usage.totalTokens
+            totals.meteredTurns += 1
+            totals.totalDuration += message.turnDuration ?? 0
         }
         return (totals.meteredTurns > 0 || totals.primingHops > 0) ? totals : nil
     }
@@ -110,6 +112,9 @@ final class ChatStore {
     /// Set when the in-flight send just re-queued its turn (still
     /// unreachable) — tells the drain loop to stop instead of spinning.
     private var didQueueComposeTurnDuringSend = false
+    /// The outbox id the in-flight send just queued under — lets the drain
+    /// restore a re-queued turn to the FRONT by identity, not by text match.
+    private var lastQueuedComposeTurnID: UUID?
 
     /// Read-aloud (#2), wired by AppContainer. When `autoReadAloudEnabled`
     /// returns true, streamed `assistant.delta` chunks are fed to the TTS
@@ -268,10 +273,19 @@ final class ChatStore {
         restartPendingPollingIfNeeded()
     }
 
-    func sendMessage(_ content: String, attachments: [PendingAttachment] = []) async {
+    /// Returns whether the turn actually dispatched — false when a guard
+    /// swallowed it (empty content, duplicate of a pending row). The compose
+    /// outbox drain needs the distinction: a swallowed turn produced no
+    /// stream, so neither success nor a re-queue happened (#90).
+    @discardableResult
+    func sendMessage(_ content: String, attachments: [PendingAttachment] = []) async -> Bool {
+        // Reset FIRST, before any guard: the drain reads this after every
+        // send, and a stale true from the previous send would corrupt its
+        // stop/continue decision.
+        didQueueComposeTurnDuringSend = false
         let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedContent.isEmpty || !attachments.isEmpty else { return }
-        guard hasPendingDuplicateMessage(trimmedContent, attachments: attachments) == false else { return }
+        guard !trimmedContent.isEmpty || !attachments.isEmpty else { return false }
+        guard hasPendingDuplicateMessage(trimmedContent, attachments: attachments) == false else { return false }
 
         let clientMessageID = UUID()
         let displayContent = trimmedContent.isEmpty && !attachments.isEmpty
@@ -338,7 +352,6 @@ final class ChatStore {
         // P1 (#90): whether the settled exchange rode the active Hermes hop —
         // drives the journal's hop-waterline bump after the stream ends.
         var finishedViaHermesHop = false
-        didQueueComposeTurnDuringSend = false
 
         streamingTask = Task { [weak self] in
             guard let self else { return }
@@ -419,17 +432,7 @@ final class ChatStore {
                     // Surface the hop honestly in the transcript; the notice
                     // carries the priming turn's real cost so the session
                     // totals add up (priming is not free).
-                    let label = usage.map {
-                        "[Context transplanted into a fresh session — \(TurnReceiptFormat.fullTokenLabel($0.totalTokens)) tokens]"
-                    } ?? "[Context transplanted into a fresh session]"
-                    let notice = Message(
-                        sender: .system,
-                        content: label,
-                        status: .delivered,
-                        usage: usage,
-                        servingModel: self.activeModelName,
-                        isContextPriming: true
-                    )
+                    let notice = self.makePrimingNotice(usage: usage)
                     if var conv = self.conversation,
                        let idx = conv.messages.firstIndex(where: { $0.id == placeholderID }) {
                         conv.messages.insert(notice, at: idx)
@@ -554,6 +557,7 @@ final class ChatStore {
                         self.composeOutbox.enqueue(id: clientMessageID, text: trimmedContent)
                         self.persistComposeOutbox()
                         self.didQueueComposeTurnDuringSend = true
+                        self.lastQueuedComposeTurnID = clientMessageID
                         chatLog.notice("compose outbox: turn queued while Sessions API unreachable (#90)")
                     } else {
                         if let idx = self.conversation?.messages.firstIndex(where: { $0.id == clientMessageID }) {
@@ -631,6 +635,7 @@ final class ChatStore {
         }
 
         finalizeOnDeviceIntelligence()
+        return true
     }
 
     func clearConversation() async throws {
@@ -727,6 +732,12 @@ final class ChatStore {
         guard !contextTurn.isEmpty else { return }
         Task { [weak self] in
             guard let self else { return }
+            // P1 (#90): the journal sync above just left the hop waterline
+            // behind, so this sync send will usually hop — a transplant paid
+            // for on a path that yields no stream. Capture the hop identity
+            // before/after so the priming still surfaces in the transcript
+            // and totals (priming is not free, even here).
+            let hopBefore = self.journal?.activeHop?.apiSessionId
             let reply = await self.hermesClient.send(
                 message: contextTurn,
                 attachments: [],
@@ -734,7 +745,42 @@ final class ChatStore {
             )
             if reply.status == .failed {
                 chatLog.notice("voice transcript context turn failed — transcript stays local-only this session")
+                return
             }
+            if let journal = self.journal,
+               let hop = journal.activeHop,
+               hop.apiSessionId != hopBefore,
+               journal.hasEntries {
+                self.appendPrimingNotice(usage: hop.primingUsage)
+            }
+        }
+    }
+
+    /// The context-transplant notice row (#90): honest label + the priming
+    /// turn's real usage, marked so the session totals separate priming from
+    /// metered chat turns.
+    private func makePrimingNotice(usage: TokenUsage?) -> Message {
+        let label = usage.map {
+            "[Context transplanted into a fresh session — \(TurnReceiptFormat.fullTokenLabel($0.totalTokens)) tokens]"
+        } ?? "[Context transplanted into a fresh session]"
+        return Message(
+            sender: .system,
+            content: label,
+            status: .delivered,
+            usage: usage,
+            servingModel: activeModelName,
+            isContextPriming: true
+        )
+    }
+
+    /// Appends the context-transplant notice for a priming that happened on a
+    /// non-streaming path (the voice context POST) — the streamed path gets
+    /// its notice from `.contextPrimed` instead (#90).
+    private func appendPrimingNotice(usage: TokenUsage?) {
+        conversation?.messages.append(makePrimingNotice(usage: usage))
+        if let conversation {
+            persistence.saveConversationCache(conversation)
+            onConversationChanged?()
         }
     }
 
@@ -958,12 +1004,23 @@ final class ChatStore {
                 conv.messages.removeAll { $0.id == turn.id || $0.clientMessageID == turn.id }
                 conversation = conv
             }
-            await sendMessage(turn.text)
+            let dispatched = await sendMessage(turn.text)
+            if !dispatched {
+                // Swallowed by a sendMessage guard — in practice the
+                // duplicate check, meaning an identical row is already
+                // pending in the transcript. Dropping the outbox copy IS the
+                // dedupe; the pending row still represents the message.
+                chatLog.notice("compose outbox: drained turn duplicated a pending row — dropped (#90)")
+                continue
+            }
             if didQueueComposeTurnDuringSend {
                 // The re-queue appended the turn behind any still-waiting
-                // ones — restore it to the front so the queue stays FIFO.
-                if let requeued = composeOutbox.pendingTurns.last, requeued.text == turn.text {
-                    composeOutbox.pendingTurns.removeLast()
+                // ones — restore it to the front (by identity) so the queue
+                // stays FIFO.
+                if let requeuedID = lastQueuedComposeTurnID,
+                   let idx = composeOutbox.pendingTurns.firstIndex(where: { $0.id == requeuedID }),
+                   idx > 0 {
+                    let requeued = composeOutbox.pendingTurns.remove(at: idx)
                     composeOutbox.pendingTurns.insert(requeued, at: 0)
                     persistComposeOutbox()
                 }
