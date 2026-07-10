@@ -56,7 +56,7 @@ struct InboxDecodingTests {
             goodRow(id: idC, kind: "reminder"),
         ]))
 
-        #expect(response.skippedRowCount == 0)
+        #expect(response.skippedRows.isEmpty)
         #expect(response.items.map { $0.id.uuidString.lowercased() } == [idA, idB, idC])
     }
 
@@ -68,7 +68,7 @@ struct InboxDecodingTests {
 
         let response = try decode(payload(rows: rows))
 
-        #expect(response.skippedRowCount == 0)
+        #expect(response.skippedRows.isEmpty)
         #expect(response.items.map(\.kind) == [.alert, .approval, .notification, .reminder, .suggestion])
     }
 
@@ -76,7 +76,7 @@ struct InboxDecodingTests {
         let response = try decode(payload(rows: []))
 
         #expect(response.items.isEmpty)
-        #expect(response.skippedRowCount == 0)
+        #expect(response.skippedRows.isEmpty)
     }
 
     // MARK: - Bad rows are skipped, good neighbors survive
@@ -88,8 +88,36 @@ struct InboxDecodingTests {
             goodRow(id: idC),
         ]))
 
-        #expect(response.skippedRowCount == 1)
+        #expect(response.skippedRows.count == 1)
         #expect(response.items.map { $0.id.uuidString.lowercased() } == [idA, idC])
+    }
+
+    @Test func skippedRowIsNamedForTheLog() throws {
+        // gh#58's ask: the log line must name the poison row (id + raw kind)
+        // so it can be found in the relay DB — the incident cost hours
+        // because the bad row was anonymous.
+        let response = try decode(payload(rows: [
+            goodRow(id: idA),
+            goodRow(id: idB, kind: "note"),
+        ]))
+
+        let skipped = try #require(response.skippedRows.first)
+        #expect(skipped.id == idB)
+        #expect(skipped.kind == "note")
+    }
+
+    @Test func bizarreSkippedRowStaysAnonymousWithoutDerailing() throws {
+        // A non-object row can't yield an id/kind — the probe must still
+        // advance and report an unidentified skip, never throw or loop.
+        let response = try decode(payload(rows: [
+            "\"just a string\"",
+            goodRow(id: idA),
+        ]))
+
+        let skipped = try #require(response.skippedRows.first)
+        #expect(skipped.id == nil)
+        #expect(skipped.kind == nil)
+        #expect(response.items.map { $0.id.uuidString.lowercased() } == [idA])
     }
 
     @Test func malformedUUIDRowIsSkipped() throws {
@@ -98,7 +126,7 @@ struct InboxDecodingTests {
             goodRow(id: idB),
         ]))
 
-        #expect(response.skippedRowCount == 1)
+        #expect(response.skippedRows.count == 1)
         #expect(response.items.map { $0.id.uuidString.lowercased() } == [idB])
     }
 
@@ -108,7 +136,7 @@ struct InboxDecodingTests {
             goodRow(id: idB),
         ]))
 
-        #expect(response.skippedRowCount == 1)
+        #expect(response.skippedRows.count == 1)
         #expect(response.items.map { $0.id.uuidString.lowercased() } == [idB])
     }
 
@@ -126,7 +154,7 @@ struct InboxDecodingTests {
 
         let response = try decode(payload(rows: [noTitle, goodRow(id: idB)]))
 
-        #expect(response.skippedRowCount == 1)
+        #expect(response.skippedRows.count == 1)
         #expect(response.items.map { $0.id.uuidString.lowercased() } == [idB])
     }
 
@@ -142,7 +170,7 @@ struct InboxDecodingTests {
             goodRow(id: idB),
         ]))
 
-        #expect(response.skippedRowCount == 3)
+        #expect(response.skippedRows.count == 3)
         #expect(response.items.map { $0.id.uuidString.lowercased() } == [idA, idB])
     }
 
@@ -155,7 +183,7 @@ struct InboxDecodingTests {
         ]))
 
         #expect(response.items.isEmpty)
-        #expect(response.skippedRowCount == 2)
+        #expect(response.skippedRows.count == 2)
     }
 
     // MARK: - Optional fields still round-trip
@@ -178,7 +206,7 @@ struct InboxDecodingTests {
 
         let response = try decode(payload(rows: [full]))
 
-        #expect(response.skippedRowCount == 0)
+        #expect(response.skippedRows.isEmpty)
         let item = try #require(response.items.first)
         #expect(item.payload == ["target": "ojamd"])
         #expect(item.primaryActionTitle == "Approve")
