@@ -13,6 +13,8 @@ struct ThemeArtDirectionTests {
         #expect(standard.emberTint == nil)
         #expect(standard.starfield == nil)
         #expect(standard.panelHalo == nil)
+        #expect(standard.atmosphereMotion == nil)
+        #expect(standard.titleGlow == nil)
     }
 
     @Test func onlyEventHorizonOverridesArtDirection() {
@@ -35,6 +37,16 @@ struct ThemeArtDirectionTests {
         // singularity magenta (theme-event-horizon.html `.page-bg`).
         #expect(art.starfield?.colors.count == 4)
         #expect(art.panelHalo != nil)
+    }
+
+    @Test func eventHorizonIntensitySitsAtHandoffLevels() {
+        // Task 3 pinned the override AT the handoff's values — a regression
+        // that quietly re-tames them should fail here, not on device.
+        let art = ThemeArtDirectionCatalog.artDirection(for: .eventHorizon)
+        #expect(art.glowPools.count == 5)
+        #expect(art.panelHalo?.glowRadius == 40)
+        #expect(art.titleGlow != nil)
+        #expect(art.starfield?.count == 104)
     }
 
     @Test func starfieldThemesCurateTheirSpeckColors() {

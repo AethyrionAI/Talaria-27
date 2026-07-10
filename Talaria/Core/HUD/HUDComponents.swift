@@ -241,6 +241,27 @@ extension View {
                 radius: halo?.glowRadius ?? 0
             )
     }
+
+    /// Art-direction neon title glow (`ThemeArtDirection.titleGlow`): the
+    /// handoffs' layered h1 text-shadow chain — tight + mid + wide primary
+    /// shadows, one outer secondary halo — riding the glow pref × the theme's
+    /// `glowScale` like every other `hudGlow`. Inert (clear, zero-radius
+    /// shadows) for every theme without a treatment, so default titles render
+    /// exactly as before.
+    @MainActor
+    func hudTitleGlow() -> some View {
+        let glow = ThemeRuntime.shared.artDirection.titleGlow
+        let k = min(1.0, Design.Glow.k * ThemeRuntime.shared.palette.glowScale)
+        return self
+            .shadow(color: glow.map { $0.primary.opacity(0.90 * k) } ?? .clear,
+                    radius: glow == nil ? 0 : 5)
+            .shadow(color: glow.map { $0.primary.opacity(0.55 * k) } ?? .clear,
+                    radius: glow == nil ? 0 : 15)
+            .shadow(color: glow.map { $0.primary.opacity(0.45 * k) } ?? .clear,
+                    radius: glow == nil ? 0 : 30)
+            .shadow(color: glow.map { $0.secondary.opacity(0.25 * k) } ?? .clear,
+                    radius: glow == nil ? 0 : 45)
+    }
 }
 
 // MARK: Mono label

@@ -23,6 +23,9 @@ struct SettingsScreenHeader: View {
                     .font(Design.Typography.screenTitle2)
                     .tracking(Design.Tracking.display)
                     .foregroundStyle(Design.Colors.foregroundBright)
+                    // Neon title treatment where the theme curates one
+                    // (ThemeArtDirection.titleGlow) — inert everywhere else.
+                    .hudTitleGlow()
 
                 MonoLabel(
                     subtitle,

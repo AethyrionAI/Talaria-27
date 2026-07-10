@@ -73,6 +73,17 @@ struct AtmosphereMotionSpec: Equatable, Sendable {
     let fieldOpacity: Double
 }
 
+/// Layered neon glow for screen titles — the handoffs' stacked h1
+/// `text-shadow` chains. Applied by `View.hudTitleGlow()` (HUDComponents):
+/// tight + mid + wide shadows in `primary`, one outer halo in `secondary`,
+/// all riding the glow pref × the theme's `glowScale`.
+struct ThemeTitleGlow: Equatable, Sendable {
+    /// The tight/mid/wide shadow hue (Event Horizon: triple violet).
+    let primary: Color
+    /// The widest outer halo hue (Event Horizon: cyan at 90px).
+    let secondary: Color
+}
+
 /// Halo treatment around HUD panels — an offset rim ring plus an outer glow
 /// (the handoffs' `box-shadow: 0 0 0 8px …, 0 0 50px …` framing).
 struct ThemePanelHalo: Equatable, Sendable {
@@ -102,6 +113,8 @@ struct ThemeArtDirection: Equatable, Sendable {
     /// static texture in `ThemeTextureView`; `nil` (every theme without a
     /// spec) keeps the pre-motion rendering byte-identical.
     var atmosphereMotion: AtmosphereMotionSpec? = nil
+    /// Neon screen-title glow (`nil` = plain titles, the default).
+    var titleGlow: ThemeTitleGlow? = nil
 
     /// The identity treatment: no pools, no tints, no halo, no motion.
     static let standard = ThemeArtDirection()
@@ -122,34 +135,57 @@ enum ThemeArtDirectionCatalog {
         overrides[theme] ?? .standard
     }
 
-    // MARK: Event Horizon — design/theme-event-horizon.html
+    // MARK: Event Horizon — design/themes/theme-event-horizon.html
     // Void-black interface lit by infalling matter: accretion-violet bloom
-    // pinned above the screen, Hawking-cyan and singularity-magenta pools,
-    // four-hue drifting lensed starlight, violet-rimmed panels.
+    // pinned above the screen, centered lensed washes, Hawking-cyan and
+    // singularity-magenta pools, four-hue drifting starlight, violet-rimmed
+    // haloed panels, neon violet+cyan title glow. Values sit AT the handoff's
+    // levels — the original quiet translation read flat on device (Lane E
+    // Task 3); don't re-tame them without a device pass.
 
     static let eventHorizon = ThemeArtDirection(
         glowPools: [
             // radial(1200px 800px at 50% -10%, rgba(138,92,255,.12) → 60%)
             ThemeGlowPool(color: Color(hex: 0x8A5CFF, opacity: 0.12),
                           centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
-            // Hawking-cyan pool, lower trailing (card/chat nebulas).
+            // Centered lensed washes — chat-screen::before, violet .10 → 30%
+            // over cyan .06 → 50%. The main surface glow the quiet
+            // translation dropped.
+            ThemeGlowPool(color: Color(hex: 0x8A5CFF, opacity: 0.10),
+                          centerX: 0.5, centerY: 0.5, radiusFraction: 0.35),
             ThemeGlowPool(color: Color(hex: 0x00F0FF, opacity: 0.06),
+                          centerX: 0.5, centerY: 0.5, radiusFraction: 0.55),
+            // Hawking-cyan pool, lower trailing (card::before, .08 → 35%).
+            ThemeGlowPool(color: Color(hex: 0x00F0FF, opacity: 0.08),
                           centerX: 0.72, centerY: 0.85, radiusFraction: 0.60),
-            // Faint singularity-magenta bloom, upper trailing.
-            ThemeGlowPool(color: Color(hex: 0xFF2AA8, opacity: 0.05),
+            // Singularity-magenta bloom, upper trailing — magenta reads at
+            // .10 everywhere in the handoff (starfield layer, user bubble).
+            ThemeGlowPool(color: Color(hex: 0xFF2AA8, opacity: 0.10),
                           centerX: 0.88, centerY: 0.16, radiusFraction: 0.50),
         ],
+        // Fail-soft speck field only — the atmosphere motion spec supersedes
+        // it in ThemeTextureView. Count matches the handoff's tile density on
+        // a phone canvas (~105 specks across the four layers).
         starfield: ThemeStarfield(colors: [
             Color(hex: 0x8A5CFF),   // Accretion Violet
             Color(hex: 0x00F0FF),   // Hawking Cyan
             Color(hex: 0xFFDC50),   // Supernova Gold
             Color(hex: 0xFF2AA8),   // Singularity Magenta
-        ]),
+        ], count: 104),
         panelHalo: ThemePanelHalo(
-            ringColor: Color(hex: 0x8A5CFF, opacity: 0.18),
-            glowColor: Color(hex: 0x8A5CFF)
+            // Handoff framing: an 8px ring at .06 stacked on a .32 border —
+            // a single 1pt rim needs more alpha to carry the same weight.
+            ringColor: Color(hex: 0x8A5CFF, opacity: 0.24),
+            glowColor: Color(hex: 0x8A5CFF),
+            // box-shadow: 0 0 50px rgba(138,92,255,.15) — was 22.
+            glowRadius: 40
         ),
-        atmosphereMotion: eventHorizonAtmosphere(preset: eventHorizonAtmospherePreset)
+        atmosphereMotion: eventHorizonAtmosphere(preset: eventHorizonAtmospherePreset),
+        // h1 text-shadow: 10/30px violet, 60px violet .45, 90px cyan .25.
+        titleGlow: ThemeTitleGlow(
+            primary: Color(hex: 0x8A5CFF),
+            secondary: Color(hex: 0x00F0FF)
+        )
     )
 
     // MARK: Event Horizon atmosphere presets (Lane E Task 1)
