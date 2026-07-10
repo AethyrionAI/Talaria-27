@@ -89,6 +89,9 @@ enum ThemeOrbStyle: Hashable, Sendable {
     case crtCrosshair
     /// Mechanical reel: sprocket holes + tick ring + inked hub (Paper Tape).
     case paperReel
+    /// Collapsed star: gold→magenta core, Hawking-cyan counter-pulse rim,
+    /// slow multi-hue accretion sweep (Event Horizon).
+    case singularity
 }
 
 /// One stop of the screen's radial background gradient.
@@ -1245,7 +1248,7 @@ enum ThemePaletteCatalog {
         gridLine: .accentTinted(0.08),
         gridCell: 26,
         isLight: false,
-        orbStyle: .arcReactor
+        orbStyle: .singularity
     )
 }
 

@@ -166,6 +166,8 @@ struct DesignThemeTests {
         #expect(ThemePalette(theme: .summerSolar, accent: .cyan).orbStyle == .arcReactor)
         #expect(ThemePalette(theme: .springSprout, accent: .cyan).orbStyle == .arcReactor)
         #expect(ThemePalette(theme: .autumnHarvest, accent: .cyan).orbStyle == .arcReactor)
+        // Event Horizon's bespoke composition (Lane E Task 2).
+        #expect(ThemePalette(theme: .eventHorizon, accent: .cyan).orbStyle == .singularity)
     }
 
     // MARK: Runtime mirroring
