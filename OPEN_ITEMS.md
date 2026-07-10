@@ -2543,8 +2543,10 @@ identically: Voice Memos pass → dictation fail → Voice Memos dead); TCC-reco
 (both phones fail; TCC doesn’t sync). Reboot restores capture; the next Talaria attempt
 re-wedges it. No newer beta seed available as of 2026-07-09.
 
-**Remaining unknown:** no NON-Talaria third-party capture app was ever tested (“Test A”) —
-so “seed broke third-party capture” vs “seed broke something Talaria-shaped” is unresolved.
+**Test A RESOLVED (2026-07-09, later that night):** Owen ran the sequence with Discord —
+reboot ×2 → Voice Memos pass → Discord composer mic FAIL → capture wedged, identical to
+Talaria. **The seed breaks ALL third-party capture; Talaria is fully exonerated.** The Apple
+Feedback repro is now Talaria-free: reboot → Voice Memos works → any third-party mic → dead.
 
 **On resume:** (1) Test A — any third-party recorder after a clean reboot; (2) retest on the
 next beta seed; (3) file Apple Feedback with the minimal repro (reboot → Voice Memos works →
