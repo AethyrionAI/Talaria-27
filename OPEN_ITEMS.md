@@ -2711,3 +2711,19 @@ more; that validation is app-side (Fable/Xcode). Bonus finding: long single sess
 architecture. Reusable harness: `C:\Users\Owen\talaria-probe\probe.py`.
 
 Logged 2026-07-09.
+
+## 90. 📝 DEVELOPMENT_TEAM placeholder — deferred to go-public cleanup
+
+`project.yml` (and the generated pbxproj) carry the hard-coded Apple `DEVELOPMENT_TEAM`
+(`DNL25ZFSD2`). Team IDs are not secrets — this one is embedded in every build's provisioning
+profile and already sits throughout public git history, so scrubbing HEAD now buys nothing
+(a history rewrite would break every open branch for zero security gain).
+
+**Decision 2026-07-10:** leave as-is for the personal-fork phase. **If the repo goes properly
+public / contributor-facing**, swap to a placeholder + developer-local override (e.g. gitignored
+local signing config) as part of a broader signing-config cleanup, alongside bundle-ID
+genericization. Until then, outside builders set their own team in Xcode per README §Setup
+step 5. Whatever mechanism is chosen must survive `xcodegen generate` (same class of concern
+as the `aps-environment` regen rule).
+
+Logged 2026-07-10.
