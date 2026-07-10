@@ -237,12 +237,25 @@ final class AppContainer {
         )
 
         let hermesAPIKeyBox = MutableHermesAPIKeyBox()
+
+        // #26/#27: shared on-device intelligence — also the P1 condenser.
+        let localIntelligence = LocalIntelligenceService()
+
+        // P1 (#90): the durable journal (conversation identity + hop handle)
+        // and the transplant composer — one journal instance shared between
+        // the Sessions client (reads the hop at send time) and ChatStore
+        // (re-syncs it as the settled transcript changes).
+        let journalStore = ConversationJournalStore(persistence: persistence)
+        let transplanter = ContextTransplanter(intelligence: localIntelligence)
+
         let sessionsClient = SessionsHermesClient(
             baseURLProvider: {
                 let raw = settingsStore.settings.hermesAPIBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
                 return raw.isEmpty ? nil : raw
             },
-            apiKeyProvider: { hermesAPIKeyBox.value }
+            apiKeyProvider: { hermesAPIKeyBox.value },
+            journal: journalStore,
+            transplanter: transplanter
         )
         let hermesClient = ResilientHermesClient(
             primary: sessionsClient,
@@ -254,7 +267,6 @@ final class AppContainer {
         // wrapper stays on the Hermes side only — retries are a network
         // concern the local brain doesn't have. ChatStore talks to the router
         // as its one `any HermesClientProtocol`.
-        let localIntelligence = LocalIntelligenceService()
         let localChatBackend = LocalChatBackend(
             persistence: persistence,
             intelligence: localIntelligence
@@ -357,7 +369,7 @@ final class AppContainer {
             sessionStore: sessionStore,
             pairingStore: runtimePairingStore,
             hostStore: hostStore,
-            chatStore: ChatStore(hermesClient: chatBackendRouter, persistence: persistence),
+            chatStore: ChatStore(hermesClient: chatBackendRouter, persistence: persistence, journal: journalStore),
             inboxStore: InboxStore(
                 inboxService: inboxService,
                 persistence: persistence,

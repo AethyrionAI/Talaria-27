@@ -59,32 +59,57 @@ final class ChatStore {
     /// tokens sum across turns on purpose — each turn re-reads the context,
     /// so the sum is the billed amount, not the context size. Nil until at
     /// least one turn carries a receipt.
+    /// P1 (#90): context-transplant priming accumulates SEPARATELY from
+    /// metered chat turns — priming is real spend the user should see, but it
+    /// isn't a conversation turn.
     struct SessionUsageTotals: Hashable {
         var promptTokens = 0
         var completionTokens = 0
         var totalTokens = 0
         var meteredTurns = 0
         var totalDuration: TimeInterval = 0
+        var primingTokens = 0
+        var primingHops = 0
     }
 
     var sessionUsageTotals: SessionUsageTotals? {
         guard let messages = conversation?.messages else { return nil }
         var totals = SessionUsageTotals()
-        for message in messages where message.sender == .hermes {
+        for message in messages {
             guard let usage = message.usage else { continue }
-            totals.promptTokens += usage.promptTokens
-            totals.completionTokens += usage.completionTokens
-            totals.totalTokens += usage.totalTokens
-            totals.meteredTurns += 1
-            totals.totalDuration += message.turnDuration ?? 0
+            if message.isContextPriming {
+                totals.primingTokens += usage.totalTokens
+                totals.primingHops += 1
+            } else if message.sender == .hermes {
+                totals.promptTokens += usage.promptTokens
+                totals.completionTokens += usage.completionTokens
+                totals.totalTokens += usage.totalTokens
+                totals.meteredTurns += 1
+                totals.totalDuration += message.turnDuration ?? 0
+            }
         }
-        return totals.meteredTurns > 0 ? totals : nil
+        return (totals.meteredTurns > 0 || totals.primingHops > 0) ? totals : nil
     }
 
     private let hermesClient: any HermesClientProtocol
     private let chatLiveActivity = LiveActivityService()
     private let notifications = LocalNotificationService()
     let persistence: any AppPersistenceStoreProtocol
+
+    /// P1 (#90): the durable journal — the conversation's primary on-device
+    /// record, shared with `SessionsHermesClient` (which reads the hop handle
+    /// at send time). ChatStore re-syncs it at every point the settled
+    /// transcript changes. Nil in tests that don't exercise continuity.
+    let journal: ConversationJournalStore?
+
+    /// P1 offline compose outbox (#90): turns composed while the Sessions API
+    /// is unreachable park here (the SensorUploadService pattern) and drain
+    /// oldest-first once it's reachable again.
+    private var composeOutbox: ComposeOutboxState
+    private var isDrainingComposeOutbox = false
+    /// Set when the in-flight send just re-queued its turn (still
+    /// unreachable) — tells the drain loop to stop instead of spinning.
+    private var didQueueComposeTurnDuringSend = false
 
     /// Read-aloud (#2), wired by AppContainer. When `autoReadAloudEnabled`
     /// returns true, streamed `assistant.delta` chunks are fed to the TTS
@@ -141,9 +166,15 @@ final class ChatStore {
     /// withdraws the relay watch so no stale push arrives.
     var onRunResolved: (@MainActor (String) -> Void)?
 
-    init(hermesClient: any HermesClientProtocol, persistence: any AppPersistenceStoreProtocol) {
+    init(
+        hermesClient: any HermesClientProtocol,
+        persistence: any AppPersistenceStoreProtocol,
+        journal: ConversationJournalStore? = nil
+    ) {
         self.hermesClient = hermesClient
         self.persistence = persistence
+        self.journal = journal
+        self.composeOutbox = persistence.loadComposeOutboxState()
     }
 
     func loadConversationIfNeeded() async {
@@ -154,7 +185,18 @@ final class ChatStore {
             }
             finalizeStaleSendsFromCache()
         }
-        guard conversation == nil else { return }
+        if conversation != nil {
+            // P1 (#90): align the journal with the restored thread. A cache
+            // that predates the journal (id mismatch) rebuilds it with no hop
+            // — the next Hermes turn hops fresh and transplants.
+            if let conversation {
+                journal?.sync(with: conversation)
+            }
+            // Queued offline turns drain as soon as there's a thread to
+            // drain into; still-unreachable sends just re-queue.
+            Task { [weak self] in await self?.drainComposeOutboxIfPossible() }
+            return
+        }
         await loadConversation()
     }
 
@@ -174,6 +216,20 @@ final class ChatStore {
 
         for i in conv.messages.indices
         where conv.messages[i].sender == .user && conv.messages[i].status == .sending {
+            conv.messages[i].status = .failed
+            didChange = true
+        }
+
+        // #90: a `.queued` row whose compose-outbox entry vanished (cleared
+        // state, decode failure) can never drain — flip it to .failed so it
+        // gets the retry affordance instead of pending forever. Rows WITH an
+        // entry stay queued by design: they survive relaunch and drain on
+        // reachability.
+        let queuedTurnIDs = Set(composeOutbox.pendingTurns.map(\.id))
+        for i in conv.messages.indices
+        where conv.messages[i].sender == .user
+            && conv.messages[i].status == .queued
+            && !queuedTurnIDs.contains(conv.messages[i].clientMessageID ?? conv.messages[i].id) {
             conv.messages[i].status = .failed
             didChange = true
         }
@@ -207,6 +263,7 @@ final class ChatStore {
         if let conversation {
             persistence.saveConversationCache(conversation)
             onConversationChanged?()
+            journal?.sync(with: conversation)
         }
         restartPendingPollingIfNeeded()
     }
@@ -278,6 +335,10 @@ final class ChatStore {
         let stream = hermesClient.sendStreaming(message: trimmedContent, attachments: attachments, clientMessageID: clientMessageID)
         var acceptedJobID: UUID?
         var needsPollingFallback = false
+        // P1 (#90): whether the settled exchange rode the active Hermes hop —
+        // drives the journal's hop-waterline bump after the stream ends.
+        var finishedViaHermesHop = false
+        didQueueComposeTurnDuringSend = false
 
         streamingTask = Task { [weak self] in
             guard let self else { return }
@@ -352,7 +413,35 @@ final class ChatStore {
                     }
                     continuedSend?.tick()
 
+                case .contextPrimed(let usage):
+                    // P1 (#90): a fresh server session was just primed with
+                    // condensed journal context, before this turn was posted.
+                    // Surface the hop honestly in the transcript; the notice
+                    // carries the priming turn's real cost so the session
+                    // totals add up (priming is not free).
+                    let label = usage.map {
+                        "[Context transplanted into a fresh session — \(TurnReceiptFormat.fullTokenLabel($0.totalTokens)) tokens]"
+                    } ?? "[Context transplanted into a fresh session]"
+                    let notice = Message(
+                        sender: .system,
+                        content: label,
+                        status: .delivered,
+                        usage: usage,
+                        servingModel: self.activeModelName,
+                        isContextPriming: true
+                    )
+                    if var conv = self.conversation,
+                       let idx = conv.messages.firstIndex(where: { $0.id == placeholderID }) {
+                        conv.messages.insert(notice, at: idx)
+                        self.conversation = conv
+                    } else {
+                        self.conversation?.messages.append(notice)
+                    }
+                    continuedSend?.tick()
+
                 case .finished(let finalMessage, let usage, let diff):
+                    finishedViaHermesHop = finalMessage.sender == .hermes
+                        && (finalMessage.brain == nil || finalMessage.brain == ChatBackendRouter.Brain.hermes.rawValue)
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
                         let activities = self.conversation?.messages[idx].toolActivities ?? []
                         let streamedReasoning = self.conversation?.messages[idx].reasoning
@@ -449,6 +538,37 @@ final class ChatStore {
                         self.onRunDetached?(sessionId)
                     }
 
+                case .unreachable(let errorMessage):
+                    // P1 offline compose outbox (#90): the turn never reached
+                    // the Sessions API at all. Text-only turns park durably
+                    // (`.queued`) and auto-send when the API is reachable
+                    // again; attachment turns keep the honest .failed
+                    // dead-end — they have no durable wire form to park.
+                    if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
+                        self.conversation?.messages.remove(at: idx)
+                    }
+                    if attachments.isEmpty, !trimmedContent.isEmpty {
+                        if let idx = self.conversation?.messages.firstIndex(where: { $0.id == clientMessageID }) {
+                            self.conversation?.messages[idx].status = .queued
+                        }
+                        self.composeOutbox.enqueue(id: clientMessageID, text: trimmedContent)
+                        self.persistComposeOutbox()
+                        self.didQueueComposeTurnDuringSend = true
+                        chatLog.notice("compose outbox: turn queued while Sessions API unreachable (#90)")
+                    } else {
+                        if let idx = self.conversation?.messages.firstIndex(where: { $0.id == clientMessageID }) {
+                            self.conversation?.messages[idx].status = .failed
+                        }
+                        self.conversation?.messages.append(
+                            Message(sender: .system, content: errorMessage, status: .failed)
+                        )
+                    }
+                    self.streamingMessageID = nil
+                    self.pendingMessageSentAt = nil
+                    self.chatLiveActivity.endActivity()
+                    self.speechOutput?.cancelStream(messageID: placeholderID)
+                    continuedSend?.finish(success: false)
+
                 case .failed(let errorMessage):
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
                         if acceptedJobID == nil {
@@ -502,6 +622,12 @@ final class ChatStore {
         if let conversation {
             persistence.saveConversationCache(conversation)
             onConversationChanged?()
+            // P1 (#90): re-sync the durable journal with the settled
+            // transcript. A Hermes-brain finish bumps the hop waterline over
+            // the new exchange; local-brain turns leave it behind on purpose
+            // — that's what marks the hop stale, so the next Hermes turn
+            // starts a fresh, re-transplanted session.
+            journal?.sync(with: conversation, lastExchangeViaActiveHop: finishedViaHermesHop)
         }
 
         finalizeOnDeviceIntelligence()
@@ -525,6 +651,12 @@ final class ChatStore {
         pendingMessageSentAt = nil
         persistence.saveConversationCache(fresh)
         onConversationChanged?()
+        // P1 (#90): the journal resets to the fresh thread's identity (the
+        // client already ended its hop). Queued offline turns belonged to the
+        // cleared thread — they die with it.
+        journal?.sync(with: fresh)
+        composeOutbox = ComposeOutboxState()
+        persistence.clearComposeOutboxState()
         pollingTask?.cancel()
         pollingTask = nil
     }
@@ -580,6 +712,14 @@ final class ChatStore {
         if let conversation {
             persistence.saveConversationCache(conversation)
             onConversationChanged?()
+            // P1 (#90): voice turns are conversation content — journaled so a
+            // transplant carries them. They didn't ride the Hermes hop, so
+            // the waterline stays behind and the next Hermes turn re-hops
+            // with the voice context transplanted. The explicit context POST
+            // below is then mostly redundant on the Sessions path, but it
+            // stays: non-hop backends (mock/legacy relay) have no transplant,
+            // and double context is harmless where hops exist.
+            journal?.sync(with: conversation)
         }
 
         guard postToHermes else { return }
@@ -685,6 +825,11 @@ final class ChatStore {
     }
 
     func retryMessage(_ message: Message) async {
+        // A retried turn must not ALSO drain from the compose outbox later —
+        // drop any queued copy before re-sending (#90).
+        composeOutbox.remove(id: message.clientMessageID ?? message.id)
+        persistComposeOutbox()
+
         // Remove the failed message
         conversation?.messages.removeAll { $0.id == message.id }
 
@@ -725,6 +870,9 @@ final class ChatStore {
         guard !content.isEmpty || !attachments.isEmpty else { return }
 
         conversation?.messages.removeSubrange(userIdx...)
+        // P1 (#90): the journal follows the truncation (waterline clamps; the
+        // server session keeps its history — the documented /retry caveat).
+        if let conversation { journal?.sync(with: conversation) }
         await sendMessage(content, attachments: attachments)
     }
 
@@ -752,6 +900,7 @@ final class ChatStore {
         if let conversation {
             persistence.saveConversationCache(conversation)
             onConversationChanged?()
+            journal?.sync(with: conversation)
         }
         return EditableTurn(text: text, attachments: attachments)
     }
@@ -780,6 +929,52 @@ final class ChatStore {
         }
         await hermesClient.connect()
         directConnectionStatus = hermesClient.connectionStatus
+        // P1 (#90): reachability is the compose outbox's drain trigger — the
+        // chat screen runs this probe on appear and every ~10s.
+        if directConnectionStatus == .connected {
+            await drainComposeOutboxIfPossible()
+        }
+    }
+
+    // MARK: - Offline compose outbox (P1 / #90)
+
+    /// Whether any composed turns are parked waiting for reachability.
+    var hasQueuedComposeTurns: Bool { !composeOutbox.isEmpty }
+
+    /// Drains queued turns oldest-first through the normal send pipeline
+    /// (each drained turn hops/transplants exactly like a live send). The
+    /// queued transcript row is replaced by the re-send's fresh optimistic
+    /// row. Stops as soon as a send re-queues — still unreachable; the next
+    /// reachability signal retries.
+    func drainComposeOutboxIfPossible() async {
+        guard !isDrainingComposeOutbox, !isStreaming, !composeOutbox.isEmpty else { return }
+        isDrainingComposeOutbox = true
+        defer { isDrainingComposeOutbox = false }
+
+        while let turn = composeOutbox.pendingTurns.first {
+            composeOutbox.remove(id: turn.id)
+            persistComposeOutbox()
+            if var conv = conversation {
+                conv.messages.removeAll { $0.id == turn.id || $0.clientMessageID == turn.id }
+                conversation = conv
+            }
+            await sendMessage(turn.text)
+            if didQueueComposeTurnDuringSend {
+                // The re-queue appended the turn behind any still-waiting
+                // ones — restore it to the front so the queue stays FIFO.
+                if let requeued = composeOutbox.pendingTurns.last, requeued.text == turn.text {
+                    composeOutbox.pendingTurns.removeLast()
+                    composeOutbox.pendingTurns.insert(requeued, at: 0)
+                    persistComposeOutbox()
+                }
+                chatLog.notice("compose outbox: still unreachable — \(self.composeOutbox.pendingTurns.count) turn(s) remain queued (#90)")
+                break
+            }
+        }
+    }
+
+    private func persistComposeOutbox() {
+        persistence.saveComposeOutboxState(composeOutbox)
     }
 
     // MARK: - Model controls
@@ -845,6 +1040,10 @@ final class ChatStore {
             pendingMessageSentAt = nil
             persistence.saveConversationCache(convo)
             onConversationChanged?()
+            // P1 (#90): the Sessions client already adopted the thread into
+            // the journal (identity + current hop); this sync is the no-op
+            // alignment for non-hop backends (local brain, mocks).
+            journal?.sync(with: convo)
             chatLog.verbose("openSession: loaded \(convo.messages.count) messages for '\(id)'")
         } catch {
             chatLog.error("openSession: FAILED for '\(id, privacy: .public)' — \(error.localizedDescription, privacy: .public)")
@@ -882,6 +1081,9 @@ final class ChatStore {
         pendingMessageSentAt = nil
         lastTokenUsage = nil
         persistence.clearConversationCache()
+        journal?.reset()
+        composeOutbox = ComposeOutboxState()
+        persistence.clearComposeOutboxState()
     }
 
     func resolvedContextWindow(fallbackModelName: String?) -> Int? {
@@ -895,7 +1097,7 @@ final class ChatStore {
     private func hasPendingDuplicateMessage(_ content: String, attachments: [PendingAttachment]) -> Bool {
         conversation?.messages.contains(where: {
             $0.sender == .user
-                && $0.status == .sending
+                && ($0.status == .sending || $0.status == .queued)
                 && normalizedRetryContent(for: $0) == content
                 && attachmentSignature(for: $0.attachments) == attachmentSignature(for: attachments.map { MessageAttachment(from: $0) })
         }) == true
@@ -1038,6 +1240,9 @@ final class ChatStore {
         if let conversation {
             persistence.saveConversationCache(conversation)
             onConversationChanged?()
+            // P1 (#90): the reconciled exchange ran on the active hop's
+            // server session — journal it and bump the waterline.
+            journal?.sync(with: conversation, lastExchangeViaActiveHop: true)
         }
         if UIApplication.shared.applicationState != .active {
             notifications.notifyRunCompleted(preview: reply.content)
@@ -1250,6 +1455,23 @@ final class ChatStore {
             return true
         }
         refreshedConversation.messages.append(contentsOf: unconfirmedLocals)
+
+        // P1 (#90): conversation identity is LOCAL and durable. Refresh
+        // sources mint a new Conversation UUID on every fetch; adopting it
+        // would churn the thread's identity on each reconcile/poll —
+        // resetting the journal (dropping the hop and forcing a spurious
+        // re-transplant) and orphaning per-conversation brain pins (#27).
+        // The merged thread keeps the local id.
+        if refreshedConversation.id != localConversation.id {
+            refreshedConversation = Conversation(
+                id: localConversation.id,
+                title: refreshedConversation.title,
+                messages: refreshedConversation.messages,
+                lastActivity: refreshedConversation.lastActivity,
+                latestUsage: refreshedConversation.latestUsage,
+                generatedPreview: refreshedConversation.generatedPreview
+            )
+        }
 
         return refreshedConversation
     }

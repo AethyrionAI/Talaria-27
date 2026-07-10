@@ -6,6 +6,14 @@ import os
 /// Replaces the relay → connector → Hermes-CLI pipe for chat. Responses are
 /// structured JSON / SSE, so they carry no ANSI codes and keep reasoning in a
 /// separate channel. Relay/connector are still used for sensors and pairing.
+///
+/// P1 continuity fabric (OPEN_ITEMS #90): the server session id is an
+/// EPHEMERAL, per-hop handle owned by the `ConversationJournalStore` — never
+/// the conversation's identity. When no current hop exists (first launch, a
+/// stale/expired server session, a model switch, local-brain turns in
+/// between), the next turn creates a FRESH server session and transplants
+/// condensed journal context into it as turn zero (mechanism validated by the
+/// #89 probe) instead of leaning on one long-lived server session.
 @MainActor
 final class SessionsHermesClient: HermesClientProtocol {
     private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "SessionsHermesClient")
@@ -22,17 +30,24 @@ final class SessionsHermesClient: HermesClientProtocol {
     private let baseURLProvider: @MainActor () -> String?
     private let apiKeyProvider: @MainActor () -> String?
 
-    /// The current Hermes Sessions API session id (e.g. "api_…"). Distinct from
-    /// `currentConversation.id`, which is the client-side UUID used by the chat UI.
-    private var apiSessionId: String?
+    /// The durable journal (shared with ChatStore via AppContainer). Owns the
+    /// conversation's identity and the active hop handle; this client only
+    /// ever reads the handle and begins/ends hops.
+    private let journal: ConversationJournalStore
+    /// Composes the priming turn a fresh hop is transplanted with.
+    private let transplanter: ContextTransplanter
 
     init(
         baseURLProvider: @escaping @MainActor () -> String?,
         apiKeyProvider: @escaping @MainActor () -> String?,
+        journal: ConversationJournalStore,
+        transplanter: ContextTransplanter,
         session: URLSession = .shared
     ) {
         self.baseURLProvider = baseURLProvider
         self.apiKeyProvider = apiKeyProvider
+        self.journal = journal
+        self.transplanter = transplanter
         self.session = session
         self.encoder = JSONEncoder()
         self.decoder = JSONDecoder()
@@ -52,7 +67,10 @@ final class SessionsHermesClient: HermesClientProtocol {
     }
 
     func disconnect() async {
-        apiSessionId = nil
+        // Deliberately does NOT end the hop: the handle is durable across
+        // connection state (and relaunches) so a still-live server session
+        // can be resumed without re-priming. Staleness is handled at send
+        // time (404 → fresh transplanted hop).
         connectionStatus = .disconnected
     }
 
@@ -62,14 +80,8 @@ final class SessionsHermesClient: HermesClientProtocol {
         clientMessageID: UUID
     ) async -> Message {
         do {
-            let sessionId = try await ensureSession()
-            let path = "\(Self.sessionsPath)/\(sessionId)/chat"
-            let response: SyncChatResponse = try await postJSON(
-                path: path,
-                body: ChatTurnBody.make(message: message, attachments: attachments)
-            )
+            let content = try await performSyncTurn(message: message, attachments: attachments)
             connectionStatus = .connected
-            let content = response.message?.content ?? response.content ?? ""
             return Message(
                 sender: .hermes,
                 content: content,
@@ -85,6 +97,31 @@ final class SessionsHermesClient: HermesClientProtocol {
         }
     }
 
+    /// One sync chat turn against the active hop, with the stale-hop retry: a
+    /// persisted hop whose server session expired 404s — swap the handle and
+    /// retry ONCE on a fresh, transplanted hop. Only a REUSED hop retries; a
+    /// just-created session 404ing is a real server problem.
+    private func performSyncTurn(message: String, attachments: [PendingAttachment]) async throws -> String {
+        let hop = try await ensureHopForTurn()
+        do {
+            return try await postSyncChat(sessionId: hop.sessionId, message: message, attachments: attachments)
+        } catch SessionsClientError.sessionNotFound where hop.wasReused {
+            Self.logger.notice("sync turn: persisted hop stale server-side (404) — re-hopping with transplant")
+            journal.endHop()
+            let fresh = try await ensureHopForTurn()
+            return try await postSyncChat(sessionId: fresh.sessionId, message: message, attachments: attachments)
+        }
+    }
+
+    private func postSyncChat(sessionId: String, message: String, attachments: [PendingAttachment]) async throws -> String {
+        let path = "\(Self.sessionsPath)/\(sessionId)/chat"
+        let response: SyncChatResponse = try await postJSON(
+            path: path,
+            body: ChatTurnBody.make(message: message, attachments: attachments)
+        )
+        return response.message?.content ?? response.content ?? ""
+    }
+
     func sendStreaming(
         message content: String,
         attachments: [PendingAttachment] = [],
@@ -97,168 +134,203 @@ final class SessionsHermesClient: HermesClientProtocol {
                     continuation.finish()
                     return
                 }
+                await self.streamTurn(
+                    message: content,
+                    attachments: attachments,
+                    into: continuation,
+                    allowStaleHopRetry: true
+                )
+                continuation.finish()
+            }
+        }
+    }
 
-                var capturedSessionId = ""
-                var runId: String?
-                var runStarted = false
-                do {
-                    let sessionId = try await self.ensureSession()
-                    capturedSessionId = sessionId
-                    let path = "\(Self.sessionsPath)/\(sessionId)/chat/stream"
-                    let body = try self.encoder.encode(ChatTurnBody.make(message: content, attachments: attachments))
-                    let request = try self.makeRequest(path: path, method: "POST", body: body, accept: "text/event-stream")
+    /// One streamed turn against the active hop. `allowStaleHopRetry` guards
+    /// the single 404 retry for a REUSED persisted hop whose server session
+    /// expired: the handle swaps (that's what makes it a handle, not
+    /// identity) and the turn re-runs once on a fresh, transplanted hop.
+    private func streamTurn(
+        message content: String,
+        attachments: [PendingAttachment],
+        into continuation: AsyncStream<StreamingUpdate>.Continuation,
+        allowStaleHopRetry: Bool
+    ) async {
+        var capturedSessionId = ""
+        var runId: String?
+        var runStarted = false
+        do {
+            let hop = try await ensureHopForTurn()
+            capturedSessionId = hop.sessionId
+            // P1: the transplant just happened, before this turn hits the
+            // wire — surface its cost so the receipts stay honest (#90).
+            if let priming = hop.priming {
+                continuation.yield(.contextPrimed(priming.usage))
+            }
+            let path = "\(Self.sessionsPath)/\(hop.sessionId)/chat/stream"
+            let body = try encoder.encode(ChatTurnBody.make(message: content, attachments: attachments))
+            let request = try makeRequest(path: path, method: "POST", body: body, accept: "text/event-stream")
 
-                    let (bytes, response) = try await self.session.bytes(for: request)
-                    guard let httpResponse = response as? HTTPURLResponse,
-                          (200 ..< 300).contains(httpResponse.statusCode) else {
-                        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-                        self.connectionStatus = .error
-                        continuation.yield(.failed("Hermes API returned status \(code)."))
-                        continuation.finish()
-                        return
-                    }
-
-                    self.connectionStatus = .connected
-
-                    var currentEvent = "message"
-                    var currentData = ""
-                    var assembledContent = ""
-                    // #4.15: reasoning deltas from the `_thinking` channel,
-                    // assembled so the final message carries the full text.
-                    var assembledReasoning = ""
-                    var finalMessageDelivered = false
-                    var pendingFinalMessage: Message?
-                    // #21 Tier 1: files the agent writes are streamed inline on
-                    // `tool.started`; reconstruct them and attach to the final message.
-                    var producedFiles: [MessageAttachment] = []
-
-                    func dispatchEvent() {
-                        defer {
-                            currentEvent = "message"
-                            currentData = ""
-                        }
-                        guard !currentData.isEmpty else { return }
-                        switch currentEvent {
-                        case "run.started":
-                            runStarted = true
-                            if let rid = self.decodeJSONString(currentData, key: "run_id") {
-                                runId = rid
-                            }
-                        case "assistant.delta":
-                            if let delta = self.decodeJSONString(currentData, key: "delta"),
-                               !delta.isEmpty {
-                                assembledContent += delta
-                                continuation.yield(.textDelta(delta))
-                            }
-                        case "tool.started", "tool.completed":
-                            // #11: `tool.started` carries name + args + preview;
-                            // `tool.completed` is usually empty (no result payload
-                            // today — verified against the live host), so it only
-                            // yields when the server names the finished tool.
-                            if let event = self.parseToolCallEvent(
-                                currentData,
-                                phase: currentEvent == "tool.started" ? .started : .completed
-                            ) {
-                                continuation.yield(.toolActivity(event))
-                            }
-                            // #21 Tier 1: a write surfaces only on `tool.started`,
-                            // carrying the bytes inline. `tool.completed` is empty.
-                            if currentEvent == "tool.started",
-                               let file = self.parseWrittenFile(currentData) {
-                                producedFiles.append(file)
-                            }
-                        case "tool.progress":
-                            // #4.15: reasoning rides `tool.progress` with
-                            // `tool_name:"_thinking"` — a separate channel from
-                            // the answer (SSE taxonomy, Phase 0). Forward the
-                            // deltas so the UI can show thinking live; progress
-                            // events for real tools stay dropped (no UI yet).
-                            if let chunk = Self.thinkingDelta(fromToolProgress: currentData),
-                               let delta = Self.incrementalReasoningDelta(from: chunk, assembled: assembledReasoning) {
-                                assembledReasoning += delta
-                                continuation.yield(.reasoningDelta(delta))
-                            }
-                        case "assistant.completed":
-                            // Streaming returns an empty final_response (text already
-                            // streamed via assistant.delta), so the server sends content:"".
-                            // Empty string is non-nil, so `?? assembledContent` won't fire;
-                            // fall back to the assembled deltas when content is blank.
-                            let declared = self.decodeJSONString(currentData, key: "content")
-                            let finalContent = (declared?.isEmpty == false) ? declared! : assembledContent
-                            pendingFinalMessage = Message(
-                                sender: .hermes,
-                                content: finalContent,
-                                status: .delivered
-                            )
-                            // Defer `.finished` until run.completed delivers token usage.
-                        case "run.completed":
-                            let usage = self.decodeRunUsage(currentData)
-                            var message = pendingFinalMessage
-                                ?? Message(sender: .hermes, content: assembledContent, status: .delivered)
-                            // Reasoning attaches HERE, at the yield, from the full
-                            // accumulator — never earlier: a `_thinking` chunk can
-                            // land between assistant.completed and run.completed,
-                            // and a value frozen at assistant.completed would lose it.
-                            if !assembledReasoning.isEmpty { message.reasoning = assembledReasoning }
-                            if !producedFiles.isEmpty { message.attachments = producedFiles }
-                            continuation.yield(.finished(message, usage, nil))
-                            finalMessageDelivered = true
-                        case "done":
-                            break
-                        default:
-                            break
-                        }
-                    }
-
-                    for try await line in bytes.lines {
-                        if Task.isCancelled { break }
-                        if line.hasPrefix(":") { continue }
-                        if line.isEmpty {
-                            dispatchEvent()
-                            continue
-                        }
-                        if line.hasPrefix("event:") {
-                            // URLSession's bytes.lines swallows the blank lines that
-                            // separate SSE events, so the `line.isEmpty` dispatch above
-                            // never fires. Flush the previous event when a new one begins.
-                            if !currentData.isEmpty { dispatchEvent() }
-                            currentEvent = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces)
-                        } else if line.hasPrefix("data:") {
-                            let value = String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces)
-                            if currentData.isEmpty {
-                                currentData = value
-                            } else {
-                                currentData += "\n" + value
-                            }
-                        }
-                    }
-
-                    // Flush any pending event the server didn't terminate with a blank line.
-                    if !currentData.isEmpty { dispatchEvent() }
-
-                    if !finalMessageDelivered {
-                        var fallbackMessage = pendingFinalMessage ?? Message(
-                            sender: .hermes,
-                            content: assembledContent,
-                            status: .delivered
-                        )
-                        if !assembledReasoning.isEmpty { fallbackMessage.reasoning = assembledReasoning }
-                        if !producedFiles.isEmpty { fallbackMessage.attachments = producedFiles }
-                        continuation.yield(.finished(fallbackMessage, nil, nil))
-                    }
-                    continuation.finish()
-                } catch {
-                    self.connectionStatus = .error
-                    Self.logger.warning("Sessions API stream failed: \(error.localizedDescription)")
-                    if runStarted {
-                        // Run committed server-side; a dropped stream (e.g. the app
-                        // suspended on lock) is recoverable, not a failure.
-                        continuation.yield(.interrupted(sessionId: capturedSessionId, runId: runId))
-                    } else {
-                        continuation.yield(.failed(self.failureMessage(for: error)))
-                    }
-                    continuation.finish()
+            let (bytes, response) = try await session.bytes(for: request)
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200 ..< 300).contains(httpResponse.statusCode) else {
+                let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+                if code == 404, hop.wasReused, allowStaleHopRetry {
+                    Self.logger.notice("stream turn: persisted hop stale server-side (404) — re-hopping with transplant")
+                    journal.endHop()
+                    await streamTurn(
+                        message: content,
+                        attachments: attachments,
+                        into: continuation,
+                        allowStaleHopRetry: false
+                    )
+                    return
                 }
+                connectionStatus = .error
+                continuation.yield(.failed("Hermes API returned status \(code)."))
+                return
+            }
+
+            connectionStatus = .connected
+
+            var currentEvent = "message"
+            var currentData = ""
+            var assembledContent = ""
+            // #4.15: reasoning deltas from the `_thinking` channel,
+            // assembled so the final message carries the full text.
+            var assembledReasoning = ""
+            var finalMessageDelivered = false
+            var pendingFinalMessage: Message?
+            // #21 Tier 1: files the agent writes are streamed inline on
+            // `tool.started`; reconstruct them and attach to the final message.
+            var producedFiles: [MessageAttachment] = []
+
+            func dispatchEvent() {
+                defer {
+                    currentEvent = "message"
+                    currentData = ""
+                }
+                guard !currentData.isEmpty else { return }
+                switch currentEvent {
+                case "run.started":
+                    runStarted = true
+                    if let rid = decodeJSONString(currentData, key: "run_id") {
+                        runId = rid
+                    }
+                case "assistant.delta":
+                    if let delta = decodeJSONString(currentData, key: "delta"),
+                       !delta.isEmpty {
+                        assembledContent += delta
+                        continuation.yield(.textDelta(delta))
+                    }
+                case "tool.started", "tool.completed":
+                    // #11: `tool.started` carries name + args + preview;
+                    // `tool.completed` is usually empty (no result payload
+                    // today — verified against the live host), so it only
+                    // yields when the server names the finished tool.
+                    if let event = parseToolCallEvent(
+                        currentData,
+                        phase: currentEvent == "tool.started" ? .started : .completed
+                    ) {
+                        continuation.yield(.toolActivity(event))
+                    }
+                    // #21 Tier 1: a write surfaces only on `tool.started`,
+                    // carrying the bytes inline. `tool.completed` is empty.
+                    if currentEvent == "tool.started",
+                       let file = parseWrittenFile(currentData) {
+                        producedFiles.append(file)
+                    }
+                case "tool.progress":
+                    // #4.15: reasoning rides `tool.progress` with
+                    // `tool_name:"_thinking"` — a separate channel from
+                    // the answer (SSE taxonomy, Phase 0). Forward the
+                    // deltas so the UI can show thinking live; progress
+                    // events for real tools stay dropped (no UI yet).
+                    if let chunk = Self.thinkingDelta(fromToolProgress: currentData),
+                       let delta = Self.incrementalReasoningDelta(from: chunk, assembled: assembledReasoning) {
+                        assembledReasoning += delta
+                        continuation.yield(.reasoningDelta(delta))
+                    }
+                case "assistant.completed":
+                    // Streaming returns an empty final_response (text already
+                    // streamed via assistant.delta), so the server sends content:"".
+                    // Empty string is non-nil, so `?? assembledContent` won't fire;
+                    // fall back to the assembled deltas when content is blank.
+                    let declared = decodeJSONString(currentData, key: "content")
+                    let finalContent = (declared?.isEmpty == false) ? declared! : assembledContent
+                    pendingFinalMessage = Message(
+                        sender: .hermes,
+                        content: finalContent,
+                        status: .delivered
+                    )
+                    // Defer `.finished` until run.completed delivers token usage.
+                case "run.completed":
+                    let usage = decodeRunUsage(currentData)
+                    var message = pendingFinalMessage
+                        ?? Message(sender: .hermes, content: assembledContent, status: .delivered)
+                    // Reasoning attaches HERE, at the yield, from the full
+                    // accumulator — never earlier: a `_thinking` chunk can
+                    // land between assistant.completed and run.completed,
+                    // and a value frozen at assistant.completed would lose it.
+                    if !assembledReasoning.isEmpty { message.reasoning = assembledReasoning }
+                    if !producedFiles.isEmpty { message.attachments = producedFiles }
+                    continuation.yield(.finished(message, usage, nil))
+                    finalMessageDelivered = true
+                case "done":
+                    break
+                default:
+                    break
+                }
+            }
+
+            for try await line in bytes.lines {
+                if Task.isCancelled { break }
+                if line.hasPrefix(":") { continue }
+                if line.isEmpty {
+                    dispatchEvent()
+                    continue
+                }
+                if line.hasPrefix("event:") {
+                    // URLSession's bytes.lines swallows the blank lines that
+                    // separate SSE events, so the `line.isEmpty` dispatch above
+                    // never fires. Flush the previous event when a new one begins.
+                    if !currentData.isEmpty { dispatchEvent() }
+                    currentEvent = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces)
+                } else if line.hasPrefix("data:") {
+                    let value = String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces)
+                    if currentData.isEmpty {
+                        currentData = value
+                    } else {
+                        currentData += "\n" + value
+                    }
+                }
+            }
+
+            // Flush any pending event the server didn't terminate with a blank line.
+            if !currentData.isEmpty { dispatchEvent() }
+
+            if !finalMessageDelivered {
+                var fallbackMessage = pendingFinalMessage ?? Message(
+                    sender: .hermes,
+                    content: assembledContent,
+                    status: .delivered
+                )
+                if !assembledReasoning.isEmpty { fallbackMessage.reasoning = assembledReasoning }
+                if !producedFiles.isEmpty { fallbackMessage.attachments = producedFiles }
+                continuation.yield(.finished(fallbackMessage, nil, nil))
+            }
+        } catch {
+            connectionStatus = .error
+            Self.logger.warning("Sessions API stream failed: \(error.localizedDescription)")
+            if runStarted {
+                // Run committed server-side; a dropped stream (e.g. the app
+                // suspended on lock) is recoverable, not a failure.
+                continuation.yield(.interrupted(sessionId: capturedSessionId, runId: runId))
+            } else if Self.isUnreachableError(error) {
+                // The turn never reached the Sessions API — queueable in the
+                // offline compose outbox (#90), not a dead-end failure.
+                continuation.yield(.unreachable(failureMessage(for: error)))
+            } else {
+                continuation.yield(.failed(failureMessage(for: error)))
             }
         }
     }
@@ -270,15 +342,23 @@ final class SessionsHermesClient: HermesClientProtocol {
         return fresh
     }
 
-    /// Re-fetches the active session's messages from the host so an interrupted
-    /// run can be reconciled. Reuses openSession's GET /messages + mapping.
+    /// Re-fetches the active hop's messages from the host so an interrupted
+    /// run can be reconciled. A pure fetch — unlike `openSession`, the journal
+    /// is NOT re-adopted here (this is the same thread, not a switch;
+    /// ChatStore's post-reconcile sync records the settled exchange).
     func reconcileFromServer() async -> Conversation? {
-        guard let id = apiSessionId else { return nil }
-        return try? await openSession(id)
+        guard let id = journal.activeHop?.apiSessionId else { return nil }
+        guard let (_, convo) = try? await fetchSessionConversation(id) else { return nil }
+        currentConversation = convo
+        connectionStatus = .connected
+        return convo
     }
 
     func clearConversation() async throws -> Conversation {
-        apiSessionId = nil
+        // The hop dies with the thread; the journal's identity reset happens
+        // in ChatStore, which knows which fresh conversation was adopted
+        // (this client's or the local brain's, per the router).
+        journal.endHop()
         let fresh = Conversation(title: Conversation.defaultTitle)
         currentConversation = fresh
         return fresh
@@ -306,20 +386,19 @@ final class SessionsHermesClient: HermesClientProtocol {
 
     // MARK: - Session lifecycle
 
-    /// Switches the active model for the NEXT session. The Hermes agent
-    /// dispatches `/model …` as a command turn; the chosen model applies once a
-    /// fresh session is created. Returns the response text — it carries the
-    /// authoritative "Context: N tokens" for the switched model, which the
-    /// CTX meter's denominator reconciles against (#4).
+    /// Switches the active model. The Hermes agent dispatches `/model …` as a
+    /// command turn; the chosen model applies once a fresh session is created
+    /// — so the hop ends here, making "next session" mean the user's very
+    /// next message: it hops to a fresh session under the new model with the
+    /// journal transplanted. A model switch IS a brain hop (P1/#90).
+    /// Returns the response text — it carries the authoritative
+    /// "Context: N tokens" for the switched model, which the CTX meter's
+    /// denominator reconciles against (#4).
     @discardableResult
     func switchModel(_ identifier: String) async throws -> String? {
-        let sessionId = try await ensureSession()
-        let path = "\(Self.sessionsPath)/\(sessionId)/chat"
-        let response: SyncChatResponse = try await postJSON(
-            path: path,
-            body: ChatTurnBody.make(message: "/model \(identifier)", attachments: [])
-        )
-        return response.message?.content ?? response.content
+        let response = try await performSyncTurn(message: "/model \(identifier)", attachments: [])
+        journal.endHop()
+        return response
     }
 
     // MARK: - Sessions list / open
@@ -352,13 +431,26 @@ final class SessionsHermesClient: HermesClientProtocol {
         }
     }
 
-    /// Adopts `id` as the active session and returns its full history. New
-    /// messages then continue that thread (see ensureSession()).
+    /// Adopts `id` as the active session and returns its full history. The
+    /// journal rebuilds under the new conversation's identity with the
+    /// session as an already-current hop (its history IS its context —
+    /// nothing to transplant). New messages then continue that thread (see
+    /// ensureHopForTurn()).
     func openSession(_ id: String) async throws -> Conversation {
+        let (sessionId, convo) = try await fetchSessionConversation(id)
+        currentConversation = convo
+        connectionStatus = .connected
+        journal.adoptServerSession(id: sessionId, conversation: convo)
+        return convo
+    }
+
+    /// GET + decode + map of one session's history — shared by `openSession`
+    /// (which adopts it) and `reconcileFromServer` (which must not).
+    private func fetchSessionConversation(_ id: String) async throws -> (sessionId: String, conversation: Conversation) {
         let path = "\(Self.sessionsPath)/\(id)/messages"
         let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json")
         let (data, httpResponse) = try await session.data(for: request)
-        try ensureSuccess(response: httpResponse, data: data)
+        try ensureSuccess(response: httpResponse, data: data, path: path)
         let response: SessionMessagesResponse
         do {
             response = try decoder.decode(SessionMessagesResponse.self, from: data)
@@ -368,16 +460,13 @@ final class SessionsHermesClient: HermesClientProtocol {
             throw error
         }
         Self.logger.verbose("openSession: decoded \(response.data.count) messages for '\(id)'")
-        apiSessionId = response.sessionId ?? id
         let messages = response.data.compactMap(Self.mapStoredMessage)
         let convo = Conversation(
             title: Conversation.defaultTitle,
             messages: messages,
             lastActivity: messages.last?.timestamp ?? .now
         )
-        currentConversation = convo
-        connectionStatus = .connected
-        return convo
+        return (response.sessionId ?? id, convo)
     }
 
     nonisolated private static func mapStoredMessage(_ m: SessionMessagesResponse.StoredMessage) -> Message? {
@@ -415,17 +504,109 @@ final class SessionsHermesClient: HermesClientProtocol {
         )
     }
 
-    private func ensureSession() async throws -> String {
-        if let apiSessionId { return apiSessionId }
+    // MARK: - Hop lifecycle (P1 / OPEN_ITEMS #90)
+
+    /// A server session ready to carry the next turn.
+    private struct PreparedHop {
+        let sessionId: String
+        /// True when this call reused a persisted hop — whose server session
+        /// may have expired; the 404 stale-hop retry applies only then.
+        let wasReused: Bool
+        /// Set when this call created a fresh hop AND transplanted journal
+        /// context into it. Nil for continued hops and for fresh hops on an
+        /// empty journal (nothing to transplant).
+        let priming: PrimingReceipt?
+    }
+
+    /// The transplant's cost, for the receipts (#46/#90). `usage` is the
+    /// priming turn's real `run.completed` usage — nil when the server
+    /// reported none (real data only, never estimated).
+    struct PrimingReceipt: Sendable {
+        let usage: TokenUsage?
+    }
+
+    /// The P1 replacement for the old single-session `ensureSession()`.
+    /// Reuses the active hop while it is current; otherwise creates a FRESH
+    /// server session and, when the journal carries history, transplants
+    /// condensed context into it as turn zero. A hop goes stale when journal
+    /// entries land that its server session never saw — local-brain turns,
+    /// voice transcripts — or when no hop exists at all (first launch, after
+    /// a model switch, after a 404 on an expired session).
+    ///
+    /// If the priming turn fails, no hop is recorded: the just-created server
+    /// session is abandoned and the next attempt re-creates and re-primes —
+    /// a little server-side litter, never a silently unprimed session.
+    private func ensureHopForTurn() async throws -> PreparedHop {
+        if let hop = journal.activeHop, journal.activeHopIsCurrent {
+            return PreparedHop(sessionId: hop.apiSessionId, wasReused: true, priming: nil)
+        }
+
         let response: CreateSessionResponse = try await postJSON(
             path: Self.sessionsPath,
             body: EmptyBody()
         )
-        apiSessionId = response.session.id
+        let sessionId = response.session.id
         if currentConversation == nil {
             currentConversation = Conversation(title: Conversation.defaultTitle)
         }
-        return response.session.id
+
+        guard journal.hasEntries else {
+            journal.beginHop(apiSessionId: sessionId, primingUsage: nil)
+            return PreparedHop(sessionId: sessionId, wasReused: false, priming: nil)
+        }
+
+        let composition = await transplanter.composePriming(from: journal.entries)
+        let usage = try await postPrimingTurn(sessionId: sessionId, text: composition.text)
+        journal.beginHop(apiSessionId: sessionId, primingUsage: usage)
+        Self.logger.notice("hop: fresh session primed from \(composition.entryCount) journal entries (\(composition.condensedByModel ? "condensed" : "verbatim tail", privacy: .public), \(usage?.totalTokens ?? 0) tokens)")
+        return PreparedHop(sessionId: sessionId, wasReused: false, priming: PrimingReceipt(usage: usage))
+    }
+
+    /// Posts the transplant as the fresh session's first turn over SSE and
+    /// returns the run's real token usage. Streamed rather than sync /chat
+    /// because usage rides ONLY `run.completed` — the receipts carry real
+    /// numbers or none (#46). Deltas are drained and discarded: the
+    /// acknowledgment is meta-traffic, not conversation content.
+    private func postPrimingTurn(sessionId: String, text: String) async throws -> TokenUsage? {
+        let path = "\(Self.sessionsPath)/\(sessionId)/chat/stream"
+        let body = try encoder.encode(ChatTurnBody.make(message: text, attachments: []))
+        let request = try makeRequest(path: path, method: "POST", body: body, accept: "text/event-stream")
+        let (bytes, response) = try await session.bytes(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200 ..< 300).contains(httpResponse.statusCode) else {
+            throw SessionsClientError.requestFailed(
+                "Hermes API returned status \((response as? HTTPURLResponse)?.statusCode ?? 0) for the priming turn."
+            )
+        }
+
+        var usage: TokenUsage?
+        var currentEvent = "message"
+        var currentData = ""
+        func dispatchEvent() {
+            defer {
+                currentEvent = "message"
+                currentData = ""
+            }
+            guard !currentData.isEmpty, currentEvent == "run.completed" else { return }
+            usage = decodeRunUsage(currentData)
+        }
+        for try await line in bytes.lines {
+            if Task.isCancelled { break }
+            if line.hasPrefix(":") { continue }
+            if line.isEmpty {
+                dispatchEvent()
+                continue
+            }
+            if line.hasPrefix("event:") {
+                if !currentData.isEmpty { dispatchEvent() }
+                currentEvent = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces)
+            } else if line.hasPrefix("data:") {
+                let value = String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces)
+                currentData = currentData.isEmpty ? value : currentData + "\n" + value
+            }
+        }
+        if !currentData.isEmpty { dispatchEvent() }
+        return usage
     }
 
     // MARK: - HTTP plumbing
@@ -433,7 +614,7 @@ final class SessionsHermesClient: HermesClientProtocol {
     private func getJSON<T: Decodable>(path: String) async throws -> T {
         let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json")
         let (data, response) = try await session.data(for: request)
-        try ensureSuccess(response: response, data: data)
+        try ensureSuccess(response: response, data: data, path: path)
         return try decoder.decode(T.self, from: data)
     }
 
@@ -441,7 +622,7 @@ final class SessionsHermesClient: HermesClientProtocol {
         let encodedBody = try encoder.encode(body)
         let request = try makeRequest(path: path, method: "POST", body: encodedBody, accept: "application/json")
         let (data, response) = try await session.data(for: request)
-        try ensureSuccess(response: response, data: data)
+        try ensureSuccess(response: response, data: data, path: path)
         return try decoder.decode(T.self, from: data)
     }
 
@@ -471,15 +652,38 @@ final class SessionsHermesClient: HermesClientProtocol {
         return trimmed
     }
 
-    private func ensureSuccess(response: URLResponse, data: Data) throws {
+    private func ensureSuccess(response: URLResponse, data: Data, path: String = "") throws {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw SessionsClientError.requestFailed("Hermes API returned an invalid response.")
+        }
+        // A 404 on a session-scoped path means the server session is gone
+        // (expired/pruned) — the typed error drives the stale-hop retry
+        // (#90). Non-session paths (e.g. /v1/models) keep the generic error.
+        if httpResponse.statusCode == 404, path.hasPrefix(Self.sessionsPath + "/") {
+            throw SessionsClientError.sessionNotFound
         }
         guard (200 ..< 300).contains(httpResponse.statusCode) else {
             let bodySnippet = String(data: data, encoding: .utf8)?.prefix(200) ?? ""
             throw SessionsClientError.requestFailed(
                 "Hermes API returned status \(httpResponse.statusCode). \(bodySnippet)"
             )
+        }
+    }
+
+    /// Transport-level failures where the request never reached the Sessions
+    /// API — the offline compose outbox's queue signal (#90). Anything the
+    /// server actually answered (HTTP status errors, decode failures) and
+    /// configuration gaps are NOT unreachable: retrying identical bytes later
+    /// won't fix those.
+    nonisolated static func isUnreachableError(_ error: Error) -> Bool {
+        guard let urlError = error as? URLError else { return false }
+        switch urlError.code {
+        case .notConnectedToInternet, .cannotConnectToHost, .cannotFindHost,
+             .dnsLookupFailed, .networkConnectionLost, .timedOut,
+             .internationalRoamingOff, .dataNotAllowed:
+            return true
+        default:
+            return false
         }
     }
 
@@ -941,11 +1145,16 @@ final class SessionsHermesClient: HermesClientProtocol {
     enum SessionsClientError: LocalizedError {
         case notConfigured(String)
         case requestFailed(String)
+        /// The server session behind the active hop no longer exists (#90) —
+        /// the send paths swap the handle and retry once on a fresh hop.
+        case sessionNotFound
 
         var errorDescription: String? {
             switch self {
             case .notConfigured(let message), .requestFailed(let message):
                 return message
+            case .sessionNotFound:
+                return "The Hermes session no longer exists on the host."
             }
         }
     }

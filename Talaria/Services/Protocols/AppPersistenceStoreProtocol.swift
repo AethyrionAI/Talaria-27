@@ -19,6 +19,12 @@ protocol AppPersistenceStoreProtocol {
     func loadConversationCache() -> Conversation?
     func saveConversationCache(_ conversation: Conversation)
     func clearConversationCache()
+    func loadConversationJournal() -> ConversationJournal?
+    func saveConversationJournal(_ journal: ConversationJournal)
+    func clearConversationJournal()
+    func loadComposeOutboxState() -> ComposeOutboxState
+    func saveComposeOutboxState(_ state: ComposeOutboxState)
+    func clearComposeOutboxState()
     func loadHealthQueryAnchorData(for identifier: String) -> Data?
     func saveHealthQueryAnchorData(_ data: Data?, for identifier: String)
     func clearHealthQueryAnchorData()
