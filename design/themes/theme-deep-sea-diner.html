@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deep Sea Diner — Talaria Theme</title>
+  <style>
+    :root {
+      --diner-bg-1: #0a1420;
+      --diner-bg-2: #050810;
+      --diner-bg-3: #020408;
+      --diner-fg: #f0f8ff;
+      --diner-fg-muted: #a8c0d8;
+      --diner-fg-dim: #6080a0;
+      --diner-surface-1: rgba(0, 245, 255, 0.08);
+      --diner-surface-2: rgba(255, 107, 107, 0.08);
+      --diner-surface-3: rgba(255, 209, 102, 0.06);
+      --diner-border: rgba(0, 245, 255, 0.28);
+      --diner-border-subtle: rgba(255, 255, 255, 0.08);
+      --diner-accent-lure: #00f5ff;
+      --diner-accent-coral: #ff6b6b;
+      --diner-accent-gold: #ffd166;
+      --diner-danger: #ff4d33;
+      --diner-warning: #ff9a00;
+      --glow-scale: 1.1;
+      --font-display: 'Georgia', 'Times New Roman', serif;
+      --font-body: 'SF Pro Text', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-mono: 'SF Mono', ui-monospace, Menlo, monospace;
+      --slot-hero: var(--diner-accent-lure);
+      --slot-amber: var(--diner-accent-coral);
+      --slot-violet: var(--diner-accent-gold);
+      --bg: var(--diner-bg-1);
+      --fg: var(--diner-fg);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--diner-bg-3);
+      color: var(--diner-fg);
+      font-family: var(--font-body);
+      line-height: 1.5;
+    }
+
+    body {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      padding: 2rem;
+      background:
+        radial-gradient(1200px 800px at 50% -10%, rgba(0, 245, 255, 0.10), transparent 60%),
+        radial-gradient(ellipse at 50% 0%, var(--diner-bg-2) 0%, var(--diner-bg-1) 40%, var(--diner-bg-3) 100%);
+    }
+
+    .page-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.3;
+      background-image:
+        radial-gradient(circle, rgba(255, 255, 255, 0.15) 1px, transparent 1px),
+        radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+      background-size: 60px 60px, 120px 120px;
+    }
+
+    main { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      margin: 0;
+      font-style: italic;
+      color: var(--diner-fg);
+      text-shadow: 0 0 18px var(--diner-accent-lure), 0 0 44px rgba(0, 245, 255, 0.5);
+    }
+
+    .subtitle {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--diner-accent-coral);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      text-shadow: 0 0 8px var(--diner-accent-coral);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--diner-border-subtle);
+      border-radius: 20px;
+      padding: 1.5rem;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    .card h2 {
+      margin: 0 0 1rem 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--diner-fg);
+      border-bottom: 1px solid var(--diner-border-subtle);
+      padding-bottom: 0.75rem;
+    }
+
+    .chat-screen {
+      height: 520px;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(180deg, var(--diner-bg-1) 0%, rgba(2, 4, 8, 0.95) 100%);
+      border: 1px solid var(--diner-border);
+      border-radius: 24px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 0 40px rgba(0, 245, 255, 0.15), inset 0 0 60px rgba(0, 245, 255, 0.04);
+    }
+
+    .chat-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image: radial-gradient(circle at 50% 100%, rgba(0, 245, 255, 0.06) 0%, transparent 50%);
+      opacity: 0.6;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--diner-border-subtle);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--diner-fg-muted);
+      letter-spacing: 0.08em;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 0.75rem 1rem;
+      border-radius: 16px;
+      font-size: 0.95rem;
+      line-height: 1.45;
+      position: relative;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--diner-surface-1);
+      border: 1px solid var(--diner-border);
+      color: var(--diner-fg);
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--diner-border-subtle);
+      color: var(--diner-fg);
+      border-bottom-left-radius: 4px;
+    }
+
+    .message.assistant::before {
+      content: '';
+      position: absolute;
+      left: -8px;
+      top: 14px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--diner-accent-lure);
+      box-shadow: 0 0 8px var(--diner-accent-lure);
+    }
+
+    .chat-input {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: rgba(255, 255, 255, 0.03);
+      border-top: 1px solid var(--diner-border-subtle);
+    }
+
+    .chat-input input {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--diner-border);
+      border-radius: 999px;
+      padding: 0.6rem 1rem;
+      color: var(--diner-fg);
+      font-family: var(--font-body);
+      outline: none;
+      box-shadow: 0 0 12px rgba(0, 245, 255, 0.1);
+    }
+
+    .chat-input input::placeholder { color: var(--diner-fg-dim); }
+
+    .chat-input button {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: none;
+      background: var(--diner-accent-lure);
+      color: var(--diner-bg-3);
+      cursor: pointer;
+      box-shadow: 0 0 16px rgba(0, 245, 255, 0.4);
+      display: grid;
+      place-items: center;
+      font-size: 1.1rem;
+    }
+
+    .orb {
+      width: 110px;
+      height: 110px;
+      margin: 1rem auto;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+
+    .orb-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid var(--diner-accent-lure);
+      box-shadow: 0 0 20px var(--diner-accent-lure), inset 0 0 20px rgba(0, 245, 255, 0.2);
+      animation: pulse 4s ease-in-out infinite;
+    }
+
+    .orb-ring:nth-child(1) { width: 100%; height: 100%; opacity: 0.4; }
+    .orb-ring:nth-child(2) { width: 74%; height: 74%; opacity: 0.6; border-color: var(--diner-accent-coral); animation-delay: 0.3s; }
+    .orb-ring:nth-child(3) { width: 48%; height: 48%; opacity: 0.8; border-color: var(--diner-accent-gold); animation-delay: 0.6s; }
+
+    .orb-core {
+      width: 32%;
+      height: 32%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, var(--diner-accent-gold), var(--diner-accent-lure));
+      box-shadow: 0 0 30px var(--diner-accent-lure), 0 0 60px rgba(0, 245, 255, 0.4);
+      animation: biolum 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(1.04); opacity: 0.7; }
+    }
+
+    @keyframes biolum {
+      0%, 100% { transform: scale(1); filter: brightness(1); }
+      50% { transform: scale(1.05); filter: brightness(1.15); }
+    }
+
+    .settings-preview { display: flex; flex-direction: column; gap: 1rem; }
+    .theme-row { display: flex; align-items: center; gap: 1rem; }
+
+    .mini-orb {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, var(--diner-accent-gold), var(--diner-accent-lure));
+      box-shadow: 0 0 20px var(--diner-accent-lure);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .mini-orb::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 1px solid var(--diner-accent-coral);
+      opacity: 0.5;
+    }
+
+    .theme-info h3 { margin: 0 0 0.25rem 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; color: var(--diner-fg); }
+    .theme-info p { margin: 0; font-size: 0.85rem; color: var(--diner-fg-muted); }
+
+    .grid-sample {
+      height: 80px;
+      border-radius: 12px;
+      border: 1px solid var(--diner-border);
+      background:
+        radial-gradient(circle at 50% 50%, rgba(0, 245, 255, 0.12) 0, transparent 40%),
+        linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+      background-size: 100% 100%, 24px 24px, 24px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .grid-sample::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255, 107, 107, 0.08), transparent 50%, rgba(255, 209, 102, 0.08));
+    }
+
+    .swatch-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .swatch { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-mono); font-size: 0.75rem; color: var(--diner-fg-muted); background: rgba(255, 255, 255, 0.03); padding: 0.4rem 0.6rem; border-radius: 999px; border: 1px solid var(--diner-border-subtle); }
+    .swatch-dot { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+    .status-pills { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    .pill {
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .pill-danger { background: rgba(255, 77, 51, 0.15); color: var(--diner-danger); border: 1px solid rgba(255, 77, 51, 0.4); }
+    .pill-warning { background: rgba(255, 154, 0, 0.15); color: var(--diner-warning); border: 1px solid rgba(255, 154, 0, 0.4); }
+    .pill-success { background: rgba(0, 245, 255, 0.15); color: var(--diner-accent-lure); border: 1px solid rgba(0, 245, 255, 0.4); }
+
+    .personality p { margin: 0 0 0.75rem 0; color: var(--diner-fg-muted); font-size: 0.95rem; line-height: 1.6; }
+    .slot-map { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-top: 1rem; }
+    .slot { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--diner-border-subtle); border-radius: 12px; padding: 0.75rem; text-align: center; }
+    .slot-label { font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase; color: var(--diner-fg-dim); letter-spacing: 0.08em; margin-bottom: 0.4rem; }
+    .slot-name { font-size: 0.85rem; font-weight: 700; color: var(--diner-fg); }
+    .slot-color { width: 100%; height: 6px; border-radius: 999px; margin-top: 0.5rem; }
+
+    .palette-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .palette-table th, .palette-table td { text-align: left; padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--diner-border-subtle); }
+    .palette-table th { font-family: var(--font-mono); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.08em; color: var(--diner-fg-dim); }
+    .palette-table td { color: var(--diner-fg-muted); font-family: var(--font-mono); }
+    .chip { display: inline-block; width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--diner-border-subtle); box-shadow: 0 0 8px rgba(0, 0, 0, 0.3); }
+    .role-name { color: var(--diner-fg); font-family: var(--font-body); font-weight: 600; }
+
+    footer { margin-top: 2rem; text-align: center; font-family: var(--font-mono); font-size: 0.75rem; color: var(--diner-fg-dim); text-transform: uppercase; letter-spacing: 0.1em; }
+  </style>
+</head>
+<body>
+  <div class="page-bg"></div>
+  <main>
+    <header>
+      <h1>Deep Sea Diner</h1>
+      <span class="subtitle">Talaria Theme Reference</span>
+    </header>
+
+    <div class="grid">
+      <section class="card" data-od-id="chat-screen">
+        <h2>Chat Screen</h2>
+        <div class="chat-screen">
+          <div class="chat-header">Open 24 hrs — Fathoms Below</div>
+          <div class="chat-messages">
+            <div class="message assistant">Welcome to the Deep Sea Diner. What can I get you?</div>
+            <div class="message user">I need a quick status check on the *arr stack.</div>
+            <div class="message assistant">One systems special, comin' right up. Everything's glowin' bioluminescent.</div>
+          </div>
+          <div class="chat-input">
+            <input type="text" placeholder="Place your order..." />
+            <button>↑</button>
+          </div>
+        </div>
+        <div class="orb" aria-label="Deep sea diner orb">
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <div class="orb-core"></div>
+        </div>
+      </section>
+
+      <section class="card" data-od-id="appearance-settings">
+        <h2>Appearance Settings</h2>
+        <div class="settings-preview">
+          <div class="theme-row">
+            <div class="mini-orb"></div>
+            <div class="theme-info">
+              <h3>Deep Sea Diner</h3>
+              <p>A retro diner at the bottom of the trench, lit by bioluminescent anglerfish lures, coral neon, and sunken gold.</p>
+            </div>
+          </div>
+          <div class="grid-sample"></div>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch-dot" style="background:#00f5ff;color:#00f5ff"></span>Lure Cyan</div>
+            <div class="swatch"><span class="swatch-dot" style="background:#ff6b6b;color:#ff6b6b"></span>Coral Diner</div>
+            <div class="swatch"><span class="swatch-dot" style="background:#ffd166;color:#ffd166"></span>Abyss Gold</div>
+          </div>
+          <div class="status-pills">
+            <span class="pill pill-danger">Leaking</span>
+            <span class="pill pill-warning">Pressurizing</span>
+            <span class="pill pill-success">Stable</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card personality" data-od-id="personality">
+        <h2>Personality</h2>
+        <p>Deep Sea Diner is a retro fish-and-chips counter perched on the abyssal plain. The background is ink-black ocean pressure with cyan, coral, and gold glows drifting through the dark. Surfaces are glossy and reflective like a submarine mess hall. The reactor orb is a little anglerfish lure — cyan, coral, and gold rings pulsing in the depths.</p>
+        <p><strong>Accent slot mapping:</strong> cyan (hero) → Lure Cyan, amber → Coral Diner, violet → Abyss Gold.</p>
+        <div class="slot-map">
+          <div class="slot">
+            <div class="slot-label">Slot cyan</div>
+            <div class="slot-name">Lure Cyan</div>
+            <div class="slot-color" style="background:#00f5ff"></div>
+          </div>
+          <div class="slot">
+            <div class="slot-label">Slot amber</div>
+            <div class="slot-name">Coral Diner</div>
+            <div class="slot-color" style="background:#ff6b6b"></div>
+          </div>
+          <div class="slot">
+            <div class="slot-label">Slot violet</div>
+            <div class="slot-name">Abyss Gold</div>
+            <div class="slot-color" style="background:#ffd166"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" data-od-id="palette-table">
+        <h2>Palette</h2>
+        <table class="palette-table">
+          <thead><tr><th>Token</th><th>Role</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip" style="background:#0a1420"></span></td><td class="role-name">Background 1</td><td>#0a1420</td></tr>
+            <tr><td><span class="chip" style="background:#050810"></span></td><td class="role-name">Background 2</td><td>#050810</td></tr>
+            <tr><td><span class="chip" style="background:#020408"></span></td><td class="role-name">Background 3</td><td>#020408</td></tr>
+            <tr><td><span class="chip" style="background:#f0f8ff"></span></td><td class="role-name">Foreground</td><td>#f0f8ff</td></tr>
+            <tr><td><span class="chip" style="background:#a8c0d8"></span></td><td class="role-name">Muted</td><td>#a8c0d8</td></tr>
+            <tr><td><span class="chip" style="background:#6080a0"></span></td><td class="role-name">Dim</td><td>#6080a0</td></tr>
+            <tr><td><span class="chip" style="background:rgba(0,245,255,0.08)"></span></td><td class="role-name">Surface 1</td><td>rgba(0,245,255,0.08)</td></tr>
+            <tr><td><span class="chip" style="background:rgba(255,107,107,0.08)"></span></td><td class="role-name">Surface 2</td><td>rgba(255,107,107,0.08)</td></tr>
+            <tr><td><span class="chip" style="background:rgba(255,209,102,0.06)"></span></td><td class="role-name">Surface 3</td><td>rgba(255,209,102,0.06)</td></tr>
+            <tr><td><span class="chip" style="background:#00f5ff"></span></td><td class="role-name">Accent (cyan → Lure Cyan)</td><td>#00f5ff</td></tr>
+            <tr><td><span class="chip" style="background:#ff6b6b"></span></td><td class="role-name">Accent (amber → Coral Diner)</td><td>#ff6b6b</td></tr>
+            <tr><td><span class="chip" style="background:#ffd166"></span></td><td class="role-name">Accent (violet → Abyss Gold)</td><td>#ffd166</td></tr>
+            <tr><td><span class="chip" style="background:#ff4d33"></span></td><td class="role-name">Danger</td><td>#ff4d33</td></tr>
+            <tr><td><span class="chip" style="background:#ff9a00"></span></td><td class="role-name">Warning</td><td>#ff9a00</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <footer>Theme: Deep Sea Diner — Talaria Companion</footer>
+  </main>
+</body>
+</html>

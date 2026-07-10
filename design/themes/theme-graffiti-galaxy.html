@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Graffiti Galaxy — Talaria Theme</title>
+  <style>
+    :root {
+      --graf-bg-1: #0c0a14;
+      --graf-bg-2: #161222;
+      --graf-bg-3: #080612;
+      --graf-fg: #f8f6ff;
+      --graf-fg-muted: #b8b0d8;
+      --graf-fg-dim: #786c98;
+      --graf-surface-1: rgba(255, 0, 110, 0.08);
+      --graf-surface-2: rgba(131, 56, 236, 0.08);
+      --graf-surface-3: rgba(251, 255, 38, 0.06);
+      --graf-border: rgba(255, 0, 110, 0.30);
+      --graf-border-subtle: rgba(255, 255, 255, 0.08);
+      --graf-accent-pink: #ff006e;
+      --graf-accent-violet: #8338ec;
+      --graf-accent-citron: #fbff26;
+      --graf-accent-spray: #00f5d4;
+      --graf-danger: #ff2a2a;
+      --graf-warning: #ff9e00;
+      --font-display: 'Montserrat', 'Arial Black', Impact, sans-serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-mono: 'Space Mono', ui-monospace, Menlo, Monaco, 'Courier New', monospace;
+      --slot-hero: var(--graf-accent-pink);
+      --slot-amber: var(--graf-accent-violet);
+      --slot-violet: var(--graf-accent-citron);
+      --bg: var(--graf-bg-1);
+      --fg: var(--graf-fg);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--graf-bg-3);
+      color: var(--graf-fg);
+      font-family: var(--font-body);
+      line-height: 1.5;
+    }
+
+    body {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      padding: 2rem;
+      background:
+        radial-gradient(1200px 800px at 50% -10%, rgba(131, 56, 236, 0.12), transparent 60%),
+        radial-gradient(ellipse at 50% 0%, var(--graf-bg-2) 0%, var(--graf-bg-1) 40%, var(--graf-bg-3) 100%);
+    }
+
+    .page-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.45;
+      background-image:
+        linear-gradient(135deg, rgba(255, 0, 110, 0.10) 0, transparent 12px),
+        linear-gradient(225deg, rgba(131, 56, 236, 0.10) 0, transparent 12px),
+        linear-gradient(45deg, rgba(0, 245, 212, 0.08) 0, transparent 12px),
+        linear-gradient(315deg, rgba(251, 255, 38, 0.08) 0, transparent 12px);
+      background-size: 40px 40px;
+    }
+
+    main { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: clamp(2.2rem, 5.5vw, 4rem);
+      font-weight: 900;
+      letter-spacing: -0.06em;
+      margin: 0;
+      text-transform: uppercase;
+      color: var(--graf-fg);
+      text-shadow:
+        3px 3px 0 var(--graf-accent-violet),
+        6px 6px 0 rgba(255, 0, 110, 0.45),
+        0 0 40px rgba(255, 0, 110, 0.35);
+      position: relative;
+      display: inline-block;
+    }
+
+    h1::after {
+      content: 'GALAXY';
+      position: absolute;
+      left: 4px;
+      top: 3px;
+      color: transparent;
+      -webkit-text-stroke: 1px rgba(251, 255, 38, 0.55);
+      z-index: -1;
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .subtitle {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--graf-accent-spray);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      text-shadow: 0 0 10px var(--graf-accent-spray);
+      background: rgba(0, 245, 212, 0.08);
+      padding: 0.25rem 0.6rem;
+      border: 1px solid rgba(0, 245, 212, 0.25);
+      border-radius: 4px;
+      transform: rotate(-3deg);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--graf-border-subtle);
+      border-radius: 8px;
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      height: 4px;
+      background: linear-gradient(90deg, var(--graf-accent-pink), var(--graf-accent-violet), var(--graf-accent-spray), var(--graf-accent-citron));
+      opacity: 0.7;
+    }
+
+    .card h2 {
+      margin: 0 0 1rem 0;
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      text-transform: uppercase;
+      color: var(--graf-fg);
+      border-bottom: 2px dashed var(--graf-border-subtle);
+      padding-bottom: 0.75rem;
+    }
+
+    .chat-screen {
+      height: 520px;
+      display: flex;
+      flex-direction: column;
+      background: var(--graf-bg-1);
+      border: 2px solid var(--graf-border);
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      box-shadow:
+        0 0 0 6px rgba(255, 0, 110, 0.08),
+        0 0 50px rgba(131, 56, 236, 0.18),
+        inset 0 0 60px rgba(255, 0, 110, 0.04);
+    }
+
+    .chat-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(135deg, transparent 46%, rgba(251, 255, 38, 0.06) 47%, rgba(251, 255, 38, 0.06) 53%, transparent 54%),
+        linear-gradient(45deg, transparent 46%, rgba(0, 245, 212, 0.05) 47%, rgba(0, 245, 212, 0.05) 53%, transparent 54%);
+      background-size: 30px 30px;
+      opacity: 0.6;
+    }
+
+    .chat-screen::after {
+      content: 'TAG';
+      position: absolute;
+      right: -26px;
+      top: 22px;
+      font-family: var(--font-display);
+      font-size: 0.65rem;
+      color: var(--graf-accent-citron);
+      background: var(--graf-accent-pink);
+      padding: 0.25rem 1.75rem;
+      transform: rotate(45deg);
+      letter-spacing: 0.08em;
+      box-shadow: 0 0 12px rgba(255, 0, 110, 0.5);
+      pointer-events: none;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: rgba(0, 0, 0, 0.25);
+      border-bottom: 2px dashed var(--graf-border-subtle);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--graf-fg-muted);
+      letter-spacing: 0.08em;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      line-height: 1.45;
+      position: relative;
+      border: 1px solid transparent;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--graf-surface-1);
+      border-color: var(--graf-border);
+      color: var(--graf-fg);
+      border-bottom-right-radius: 0;
+      clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.04);
+      border-color: var(--graf-border-subtle);
+      color: var(--graf-fg);
+      border-bottom-left-radius: 0;
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+    }
+
+    .message.assistant::before {
+      content: '';
+      position: absolute;
+      left: 10px;
+      top: 10px;
+      width: 8px;
+      height: 8px;
+      background: var(--graf-accent-citron);
+      box-shadow: 0 0 10px var(--graf-accent-citron);
+      transform: rotate(45deg);
+    }
+
+    .chat-input {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: rgba(0, 0, 0, 0.25);
+      border-top: 2px dashed var(--graf-border-subtle);
+    }
+
+    .chat-input input {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.35);
+      border: 2px solid var(--graf-border-subtle);
+      border-radius: 4px;
+      padding: 0.6rem 1rem;
+      color: var(--graf-fg);
+      font-family: var(--font-body);
+      outline: none;
+      box-shadow: inset 0 0 12px rgba(131, 56, 236, 0.1);
+    }
+
+    .chat-input input::placeholder { color: var(--graf-fg-dim); }
+
+    .chat-input input:focus {
+      border-color: var(--graf-accent-spray);
+      box-shadow: 0 0 12px rgba(0, 245, 212, 0.25), inset 0 0 12px rgba(131, 56, 236, 0.1);
+    }
+
+    .chat-input button {
+      width: 40px;
+      height: 40px;
+      border-radius: 4px;
+      border: none;
+      background: var(--graf-accent-pink);
+      color: var(--graf-fg);
+      font-family: var(--font-display);
+      font-weight: 900;
+      font-size: 1.1rem;
+      cursor: pointer;
+      box-shadow: 4px 4px 0 var(--graf-accent-violet), 0 0 18px rgba(255, 0, 110, 0.4);
+      transform: translate(-2px, -2px);
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+
+    .chat-input button:focus-visible {
+      outline: 2px solid var(--graf-accent-spray);
+      outline-offset: 3px;
+    }
+
+    .chat-input button:active {
+      transform: translate(0, 0);
+      box-shadow: 0 0 0 var(--graf-accent-violet), 0 0 18px rgba(255, 0, 110, 0.4);
+    }
+
+    .orb {
+      width: 120px;
+      height: 120px;
+      margin: 1.25rem auto 0;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+
+    .orb-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 3px solid var(--graf-accent-pink);
+      box-shadow: 0 0 22px var(--graf-accent-pink), inset 0 0 22px rgba(255, 0, 110, 0.2);
+      animation: pulse 3.5s ease-in-out infinite;
+    }
+
+    .orb-ring:nth-child(1) { width: 100%; height: 100%; opacity: 0.35; }
+    .orb-ring:nth-child(2) { width: 72%; height: 72%; opacity: 0.55; border-color: var(--graf-accent-violet); animation-delay: 0.3s; border-style: dashed; }
+    .orb-ring:nth-child(3) { width: 44%; height: 44%; opacity: 0.75; border-color: var(--graf-accent-spray); animation-delay: 0.6s; border-width: 2px; }
+
+    .orb-core {
+      width: 30%;
+      height: 30%;
+      border-radius: 4px;
+      background: var(--graf-accent-citron);
+      box-shadow: 0 0 30px var(--graf-accent-citron), 0 0 60px rgba(251, 255, 38, 0.4);
+      animation: spin 5s linear infinite;
+      position: relative;
+    }
+
+    .orb-core::after {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border: 2px solid var(--graf-accent-pink);
+      border-radius: 4px;
+      animation: spin 5s linear infinite reverse;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(1.05); opacity: 0.7; }
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .settings-preview { display: flex; flex-direction: column; gap: 1rem; }
+    .theme-row { display: flex; align-items: center; gap: 1rem; }
+
+    .mini-orb {
+      width: 64px;
+      height: 64px;
+      border-radius: 4px;
+      background: var(--graf-accent-citron);
+      box-shadow: 4px 4px 0 var(--graf-accent-violet), 0 0 24px var(--graf-accent-pink);
+      position: relative;
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    .mini-orb::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border: 2px dashed var(--graf-accent-pink);
+      border-radius: 4px;
+      opacity: 0.7;
+    }
+
+    .theme-info h3 { margin: 0 0 0.25rem 0; font-family: var(--font-display); font-size: 1.2rem; font-weight: 900; letter-spacing: -0.03em; text-transform: uppercase; color: var(--graf-fg); }
+    .theme-info p { margin: 0; font-size: 0.85rem; color: var(--graf-fg-muted); }
+
+    .grid-sample {
+      height: 80px;
+      border-radius: 4px;
+      border: 2px solid var(--graf-border);
+      background:
+        linear-gradient(135deg, rgba(255, 0, 110, 0.12) 0, transparent 40%),
+        linear-gradient(225deg, rgba(131, 56, 236, 0.12) 0, transparent 40%),
+        linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 20px 20px, 20px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .grid-sample::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(0, 245, 212, 0.08), transparent 50%, rgba(251, 255, 38, 0.08));
+    }
+
+    .swatch-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .swatch { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-mono); font-size: 0.75rem; color: var(--graf-fg-muted); background: rgba(255, 255, 255, 0.03); padding: 0.4rem 0.6rem; border-radius: 4px; border: 1px solid var(--graf-border-subtle); }
+    .swatch-dot { width: 14px; height: 14px; border-radius: 2px; box-shadow: 0 0 8px currentColor; }
+    .status-pills { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    .pill {
+      padding: 0.35rem 0.75rem;
+      border-radius: 2px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 700;
+    }
+
+    .pill-danger { background: rgba(255, 42, 42, 0.15); color: var(--graf-danger); border: 1px solid rgba(255, 42, 42, 0.4); }
+    .pill-warning { background: rgba(255, 158, 0, 0.15); color: var(--graf-warning); border: 1px solid rgba(255, 158, 0, 0.4); }
+    .pill-success { background: rgba(0, 245, 212, 0.12); color: var(--graf-accent-spray); border: 1px solid rgba(0, 245, 212, 0.4); }
+
+    .personality p { margin: 0 0 0.75rem 0; color: var(--graf-fg-muted); font-size: 0.95rem; line-height: 1.6; }
+    .personality strong { color: var(--graf-fg); }
+    .slot-map { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-top: 1rem; }
+    .slot { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--graf-border-subtle); border-radius: 4px; padding: 0.75rem; text-align: center; }
+    .slot-label { font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase; color: var(--graf-fg-dim); letter-spacing: 0.08em; margin-bottom: 0.4rem; }
+    .slot-name { font-size: 0.85rem; font-weight: 800; color: var(--graf-fg); text-transform: uppercase; }
+    .slot-color { width: 100%; height: 6px; border-radius: 2px; margin-top: 0.5rem; }
+
+    .palette-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .palette-table th, .palette-table td { text-align: left; padding: 0.6rem 0.5rem; border-bottom: 1px dashed var(--graf-border-subtle); }
+    .palette-table th { font-family: var(--font-mono); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.08em; color: var(--graf-fg-dim); }
+    .palette-table td { color: var(--graf-fg-muted); font-family: var(--font-mono); }
+    .chip { display: inline-block; width: 22px; height: 22px; border-radius: 2px; border: 1px solid var(--graf-border-subtle); box-shadow: 0 0 8px rgba(0, 0, 0, 0.3); }
+    .role-name { color: var(--graf-fg); font-family: var(--font-body); font-weight: 700; }
+
+    footer { margin-top: 2rem; text-align: center; font-family: var(--font-mono); font-size: 0.75rem; color: var(--graf-fg-dim); text-transform: uppercase; letter-spacing: 0.1em; }
+
+    @media (max-width: 640px) {
+      h1::after { display: none; }
+      .subtitle { transform: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .orb-ring, .orb-core, .orb-core::after { animation: none; }
+      .page-bg { animation: none; }
+      .chat-screen::before { animation: none; }
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="page-bg"></div>
+  <main>
+    <header>
+      <h1>Graffiti Galaxy</h1>
+      <span class="subtitle">Talaria Theme Reference</span>
+    </header>
+
+    <div class="grid">
+      <section class="card" data-od-id="chat-screen">
+        <h2>Chat Screen</h2>
+        <div class="chat-screen">
+          <div class="chat-header">Midnight crew — 11:47 PM</div>
+          <div class="chat-messages">
+            <div class="message assistant">Yo. What wall are we tagging tonight?</div>
+            <div class="message user">Help me sketch out the week.</div>
+            <div class="message assistant">Let's lay down the outline first. I'll hold the ladder.</div>
+          </div>
+          <div class="chat-input">
+            <input type="text" placeholder="Throw up an idea..." />
+            <button aria-label="Send">GO</button>
+          </div>
+        </div>
+        <div class="orb" aria-label="Graffiti Galaxy orb">
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <div class="orb-core"></div>
+        </div>
+      </section>
+
+      <section class="card" data-od-id="appearance-settings">
+        <h2>Appearance Settings</h2>
+        <div class="settings-preview">
+          <div class="theme-row">
+            <div class="mini-orb"></div>
+            <div class="theme-info">
+              <h3>Graffiti Galaxy</h3>
+              <p>Street art in deep space: hot-pink tags, violet nebulas, citron highlights, and spray-can chrome.</p>
+            </div>
+          </div>
+          <div class="grid-sample"></div>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch-dot" style="background:#ff006e;color:#ff006e"></span>Pink</div>
+            <div class="swatch"><span class="swatch-dot" style="background:#8338ec;color:#8338ec"></span>Violet</div>
+            <div class="swatch"><span class="swatch-dot" style="background:#fbff26;color:#fbff26"></span>Citron</div>
+            <div class="swatch"><span class="swatch-dot" style="background:#00f5d4;color:#00f5d4"></span>Spray</div>
+          </div>
+          <div class="status-pills">
+            <span class="pill pill-danger">Wet paint</span>
+            <span class="pill pill-warning">Drying</span>
+            <span class="pill pill-success">Fresh tag</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card personality" data-od-id="personality">
+        <h2>Personality</h2>
+        <p>Graffiti Galaxy is Talaria after dark in a city that orbits Jupiter. The background is a deep purple-black void crossed by angular streaks of neon paint. Surfaces are raw and slightly tagged — clipped corners, dashed borders, stencil-punched labels. The reactor orb is a glowing spray cap spitting citron, violet, and hot-pink rings.</p>
+        <p><strong>Accent slot mapping:</strong> cyan (hero) → Hot Pink, amber → Electric Violet, violet → Citron.</p>
+        <div class="slot-map">
+          <div class="slot">
+            <div class="slot-label">Slot cyan</div>
+            <div class="slot-name">Pink</div>
+            <div class="slot-color" style="background:#ff006e"></div>
+          </div>
+          <div class="slot">
+            <div class="slot-label">Slot amber</div>
+            <div class="slot-name">Violet</div>
+            <div class="slot-color" style="background:#8338ec"></div>
+          </div>
+          <div class="slot">
+            <div class="slot-label">Slot violet</div>
+            <div class="slot-name">Citron</div>
+            <div class="slot-color" style="background:#fbff26"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" data-od-id="palette-table">
+        <h2>Palette</h2>
+        <table class="palette-table">
+          <thead><tr><th>Token</th><th>Role</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip" style="background:#0c0a14"></span></td><td class="role-name">Background 1</td><td>#0c0a14</td></tr>
+            <tr><td><span class="chip" style="background:#161222"></span></td><td class="role-name">Background 2</td><td>#161222</td></tr>
+            <tr><td><span class="chip" style="background:#080612"></span></td><td class="role-name">Background 3</td><td>#080612</td></tr>
+            <tr><td><span class="chip" style="background:#f8f6ff"></span></td><td class="role-name">Foreground</td><td>#f8f6ff</td></tr>
+            <tr><td><span class="chip" style="background:#b8b0d8"></span></td><td class="role-name">Muted</td><td>#b8b0d8</td></tr>
+            <tr><td><span class="chip" style="background:#786c98"></span></td><td class="role-name">Dim</td><td>#786c98</td></tr>
+            <tr><td><span class="chip" style="background:rgba(255,0,110,0.08)"></span></td><td class="role-name">Surface 1</td><td>rgba(255,0,110,0.08)</td></tr>
+            <tr><td><span class="chip" style="background:rgba(131,56,236,0.08)"></span></td><td class="role-name">Surface 2</td><td>rgba(131,56,236,0.08)</td></tr>
+            <tr><td><span class="chip" style="background:rgba(251,255,38,0.06)"></span></td><td class="role-name">Surface 3</td><td>rgba(251,255,38,0.06)</td></tr>
+            <tr><td><span class="chip" style="background:#ff006e"></span></td><td class="role-name">Accent (cyan → Pink)</td><td>#ff006e</td></tr>
+            <tr><td><span class="chip" style="background:#8338ec"></span></td><td class="role-name">Accent (amber → Violet)</td><td>#8338ec</td></tr>
+            <tr><td><span class="chip" style="background:#fbff26"></span></td><td class="role-name">Accent (violet → Citron)</td><td>#fbff26</td></tr>
+            <tr><td><span class="chip" style="background:#00f5d4"></span></td><td class="role-name">Spray Chrome</td><td>#00f5d4</td></tr>
+            <tr><td><span class="chip" style="background:#ff2a2a"></span></td><td class="role-name">Danger</td><td>#ff2a2a</td></tr>
+            <tr><td><span class="chip" style="background:#ff9e00"></span></td><td class="role-name">Warning</td><td>#ff9e00</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <footer>Theme: Graffiti Galaxy — Talaria Companion</footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Disco Inferno — Talaria Theme</title>
+  <style>
+    :root {
+      /* Disco Inferno palette — Talaria ThemePalette reference */
+      --inferno-bg-1: #0a0505;
+      --inferno-bg-2: #1a0a0a;
+      --inferno-bg-3: #050202;
+      --inferno-fg: #fff8f0;
+      --inferno-fg-muted: #e8c8a8;
+      --inferno-fg-dim: #a08060;
+      --inferno-surface-1: rgba(255, 215, 0, 0.08);
+      --inferno-surface-2: rgba(232, 232, 232, 0.08);
+      --inferno-surface-3: rgba(255, 51, 51, 0.06);
+      --inferno-border: rgba(255, 215, 0, 0.28);
+      --inferno-border-subtle: rgba(255, 255, 255, 0.08);
+      --inferno-accent-gold: #ffd700;
+      --inferno-accent-silver: #e8e8e8;
+      --inferno-accent-crimson: #ff3333;
+      --inferno-danger: #ff2200;
+      --inferno-warning: #ff6600;
+      --glow-scale: 1.2;
+      --font-display: Georgia, 'Times New Roman', serif;
+      --font-body: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-mono: 'SF Mono', ui-monospace, Menlo, Monaco, 'Courier New', monospace;
+      --slot-hero: var(--inferno-accent-gold);
+      --slot-amber: var(--inferno-accent-silver);
+      --slot-violet: var(--inferno-accent-crimson);
+      --bg: var(--inferno-bg-1);
+      --fg: var(--inferno-fg);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--inferno-bg-3);
+      color: var(--inferno-fg);
+      font-family: var(--font-body);
+      line-height: 1.5;
+    }
+
+    body {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      padding: 2rem;
+      background:
+        radial-gradient(1200px 800px at 50% -10%, rgba(255, 215, 0, 0.12), transparent 60%),
+        radial-gradient(ellipse at 50% 0%, var(--inferno-bg-2) 0%, var(--inferno-bg-1) 40%, var(--inferno-bg-3) 100%);
+    }
+
+    /* Mirror-ball sparkle field behind the page */
+    .page-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.35;
+      background-image:
+        radial-gradient(circle, rgba(255, 215, 0, 0.45) 1px, transparent 1px),
+        radial-gradient(circle, rgba(232, 232, 232, 0.35) 1px, transparent 1px);
+      background-size: 24px 24px, 12px 12px;
+      background-position: 0 0, 6px 6px;
+    }
+
+    main { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 400;
+      font-style: italic;
+      letter-spacing: -0.02em;
+      margin: 0;
+      text-transform: uppercase;
+      color: var(--inferno-fg);
+      text-shadow: 0 0 18px var(--inferno-accent-gold), 0 0 44px rgba(255, 215, 0, 0.5);
+    }
+
+    .subtitle {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--inferno-accent-crimson);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      text-shadow: 0 0 8px var(--inferno-accent-crimson);
+    }
+
+    .section {
+      background: rgba(0, 0, 0, 0.42);
+      border: 1px solid var(--inferno-border-subtle);
+      border-radius: 18px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 400;
+      font-style: italic;
+      margin: 0 0 0.75rem 0;
+      color: var(--inferno-fg);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .section-title::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: var(--slot-hero);
+      box-shadow: 0 0 10px var(--slot-hero);
+      border-radius: 0;
+    }
+
+    /* iPhone frame */
+    .iphone-frame {
+      width: 390px;
+      max-width: 100%;
+      aspect-ratio: 9/19.5;
+      border-radius: 48px;
+      border: 2px solid var(--inferno-border-subtle);
+      background: var(--inferno-bg-3);
+      margin: 0 auto;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 0 12px rgba(0,0,0,0.35), 0 0 60px rgba(255, 215, 0, 0.22), 0 0 120px rgba(255, 51, 51, 0.1);
+    }
+
+    .dynamic-island {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 96px;
+      height: 28px;
+      background: #000;
+      border-radius: 20px;
+      z-index: 10;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .screen {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background:
+        radial-gradient(ellipse at 50% 20%, var(--inferno-bg-2) 0%, var(--inferno-bg-1) 55%, var(--inferno-bg-3) 100%);
+      position: relative;
+    }
+
+    .scanlines {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.18;
+      background-image: repeating-linear-gradient(
+        0deg,
+        transparent 0,
+        transparent 2px,
+        rgba(0, 0, 0, 0.35) 2px,
+        rgba(0, 0, 0, 0.35) 4px
+      );
+      mix-blend-mode: multiply;
+    }
+
+    .dot-grid {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.2;
+      background-image: radial-gradient(circle, var(--inferno-accent-gold) 1px, transparent 1px);
+      background-size: 10px 10px;
+    }
+
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      padding: 14px 26px 0;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--inferno-fg);
+      z-index: 5;
+      margin-top: 10px;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--inferno-border-subtle);
+      z-index: 5;
+      background: rgba(0,0,0,0.18);
+      backdrop-filter: blur(8px);
+    }
+
+    .chat-header-title {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 400;
+      font-style: italic;
+      color: var(--inferno-fg);
+    }
+
+    .chat-header-sub {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--inferno-fg-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      z-index: 5;
+    }
+
+    .message {
+      max-width: 78%;
+      padding: 0.75rem 1rem;
+      border-radius: 14px;
+      font-size: 0.9rem;
+      line-height: 1.45;
+      border: 1px solid var(--inferno-border-subtle);
+      position: relative;
+    }
+
+    .message.incoming {
+      align-self: flex-start;
+      background: var(--inferno-surface-2);
+      color: var(--inferno-fg);
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 0 18px rgba(232, 232, 232, 0.12);
+    }
+
+    .message.outgoing {
+      align-self: flex-end;
+      background: var(--inferno-surface-1);
+      color: var(--inferno-fg);
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 0 18px rgba(255, 215, 0, 0.18);
+    }
+
+    .message-time {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--inferno-fg-dim);
+      margin-top: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .orb-wrap {
+      position: absolute;
+      bottom: 78px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 6;
+      width: 84px;
+      height: 84px;
+    }
+
+    .orb {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .orb-ring {
+      position: absolute;
+      border-radius: 50%;
+      border-style: solid;
+    }
+
+    .orb-ring-outer {
+      inset: 0;
+      border-width: 4px;
+      border-color: var(--slot-hero);
+      opacity: 0.85;
+      filter: drop-shadow(0 0 12px var(--slot-hero));
+      animation: orbSpin 18s linear infinite;
+      border-style: dashed;
+      border-spacing: 8px;
+    }
+
+    .orb-ring-mid {
+      inset: 10px;
+      border-width: 2px;
+      border-color: var(--slot-amber);
+      opacity: 0.75;
+      filter: drop-shadow(0 0 8px var(--slot-amber));
+      animation: orbSpin 12s linear infinite reverse;
+      border-style: dotted;
+    }
+
+    .orb-ring-inner {
+      inset: 20px;
+      border-width: 6px;
+      border-color: var(--slot-violet);
+      opacity: 0.9;
+      filter: drop-shadow(0 0 10px var(--slot-violet));
+      animation: orbPulse 3s ease-in-out infinite;
+      border-style: double;
+    }
+
+    .orb-core {
+      width: 24px;
+      height: 24px;
+      background: var(--slot-hero);
+      box-shadow: 0 0 18px var(--slot-hero), inset 0 0 6px rgba(255,255,255,0.5);
+      image-rendering: pixelated;
+    }
+
+    .orb-core::after {
+      content: '';
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: transparent;
+      box-shadow:
+        0 0 0 4px rgba(255,255,255,0.12),
+        0 0 0 8px rgba(255,255,255,0.06);
+      clip-path: polygon(
+        0 0, 25% 0, 25% 25%, 75% 25%, 75% 0, 100% 0,
+        100% 25%, 75% 25%, 75% 75%, 100% 75%, 100% 100%, 75% 100%,
+        75% 75%, 25% 75%, 25% 100%, 0 100%, 0 75%, 25% 75%, 25% 25%, 0 25%
+      );
+    }
+
+    .orb-coin {
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      border: 2px solid var(--slot-amber);
+      opacity: 0.55;
+      filter: drop-shadow(0 0 10px var(--slot-amber));
+      animation: coinOrbit 7s linear infinite;
+      clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    }
+
+    @keyframes orbSpin { to { transform: rotate(360deg); } }
+    @keyframes orbPulse { 0%, 100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.08); opacity: 1; } }
+    @keyframes coinOrbit { to { transform: rotate(-360deg); } }
+
+    .input-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      margin: 0 0.75rem 0.75rem;
+      border: 1px solid var(--inferno-border);
+      border-radius: 18px;
+      background: rgba(0,0,0,0.55);
+      z-index: 5;
+      backdrop-filter: blur(8px);
+    }
+
+    .input-bar input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--inferno-fg);
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .input-bar input::placeholder { color: var(--inferno-fg-dim); }
+
+    .input-btn {
+      width: 34px;
+      height: 34px;
+      border: none;
+      border-radius: 10px;
+      background: var(--slot-hero);
+      color: var(--inferno-bg-3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 0 14px var(--slot-hero);
+    }
+
+    .home-bar {
+      width: 120px;
+      height: 5px;
+      background: rgba(255,255,255,0.18);
+      border-radius: 3px;
+      margin: 0 auto 10px;
+      z-index: 5;
+    }
+
+    /* Appearance settings card */
+    .settings-card {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      padding: 1rem;
+      border: 1px solid var(--inferno-border);
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--inferno-surface-1), transparent 60%);
+      max-width: 460px;
+    }
+
+    .mini-orb {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.4);
+      border: 2px solid var(--inferno-border);
+      box-shadow: 0 0 24px var(--slot-hero);
+    }
+
+    .mini-orb-core { width: 16px; height: 16px; background: var(--slot-hero); }
+    .mini-orb-ring-outer { position: absolute; inset: 4px; border-radius: 50%; border: 2px dashed var(--slot-hero); }
+    .mini-orb-ring-amber { position: absolute; inset: 12px; border-radius: 50%; border: 2px dotted var(--slot-amber); }
+
+    .settings-info { flex: 1; }
+    .settings-title {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 400;
+      font-style: italic;
+      margin: 0 0 0.2rem 0;
+      text-shadow: 0 0 10px var(--slot-hero);
+    }
+    .settings-sub { font-family: var(--font-mono); font-size: 0.75rem; color: var(--inferno-fg-muted); margin: 0 0 0.6rem 0; }
+    .grid-sample {
+      width: 100%;
+      height: 42px;
+      border-radius: 8px;
+      border: 1px solid var(--inferno-border-subtle);
+      background:
+        radial-gradient(circle, var(--slot-hero) 1px, transparent 1px),
+        linear-gradient(135deg, var(--inferno-surface-1), var(--inferno-surface-2));
+      background-size: 8px 8px, 100% 100%;
+      opacity: 0.8;
+    }
+
+    .slot-toggle {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .slot-chip {
+      border: 1px solid var(--inferno-border-subtle);
+      background: rgba(0,0,0,0.35);
+      color: var(--inferno-fg);
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+
+    .slot-chip.active {
+      border-color: var(--slot-active, var(--slot-hero));
+      box-shadow: 0 0 14px var(--slot-active, var(--slot-hero));
+      color: var(--slot-active, var(--slot-hero));
+    }
+
+    .slot-chip.gold.active { --slot-active: var(--inferno-accent-gold); }
+    .slot-chip.silver.active { --slot-active: var(--inferno-accent-silver); }
+    .slot-chip.crimson.active { --slot-active: var(--inferno-accent-crimson); }
+
+    /* Palette table */
+    .palette-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .palette-table th, .palette-table td {
+      text-align: left;
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid var(--inferno-border-subtle);
+      font-family: var(--font-body);
+    }
+    .palette-table th {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--inferno-fg-dim);
+      letter-spacing: 0.05em;
+    }
+    .palette-table td:first-child { font-family: var(--font-mono); color: var(--inferno-fg-muted); }
+    .swatch { display: inline-block; width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); vertical-align: middle; margin-right: 0.6rem; box-shadow: 0 0 8px currentColor; }
+    .color-name { font-weight: 600; }
+    .color-value { font-family: var(--font-mono); font-size: 0.75rem; color: var(--inferno-fg-dim); }
+
+    .personality {
+      font-size: 0.95rem;
+      color: var(--inferno-fg-muted);
+      max-width: 720px;
+    }
+    .personality strong { color: var(--inferno-fg); }
+    .personality em { color: var(--slot-amber); font-style: normal; }
+
+    .columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 900px) {
+      .columns { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-bg"></div>
+  <main>
+    <header>
+      <h1 data-od-id="theme-title">Disco Inferno</h1>
+      <span class="subtitle" data-od-id="theme-subtitle">Talaria Theme Reference</span>
+    </header>
+
+    <div class="columns">
+      <section class="section" data-od-id="chat-screen-section">
+        <h2 class="section-title" data-od-id="chat-screen-title">Chat Screen</h2>
+        <div class="iphone-frame" data-od-id="iphone-frame">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="scanlines"></div>
+            <div class="dot-grid"></div>
+            <div class="status-bar">
+              <span>9:41</span>
+              <span>●●●●● 5G</span>
+            </div>
+            <div class="chat-header">
+              <div>
+                <div class="chat-header-title">Hermes</div>
+                <div class="chat-header-sub">Online — relay :8000</div>
+              </div>
+              <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--slot-amber); text-shadow: 0 0 8px var(--slot-amber);">HOT</span>
+            </div>
+            <div class="messages" data-od-id="message-list">
+              <div class="message incoming" data-od-id="message-incoming">
+                Hey Owen. The dance floor is lava. What are we building today?
+                <div class="message-time">09:41:02</div>
+              </div>
+              <div class="message outgoing" data-od-id="message-outgoing">
+                Drop me a Disco Inferno theme preview for Talaria.
+                <div class="message-time">09:41:18</div>
+              </div>
+              <div class="message incoming" data-od-id="message-incoming-2">
+                Got it. Gold hero, silver amber slot, crimson violet slot. Mirror-ball sparkles and flame glow cranked to 1.2.
+                <div class="message-time">09:41:35</div>
+              </div>
+            </div>
+            <div class="orb-wrap" data-od-id="reactor-orb">
+              <div class="orb">
+                <div class="orb-ring orb-ring-outer"></div>
+                <div class="orb-ring orb-ring-mid"></div>
+                <div class="orb-ring orb-ring-inner"></div>
+                <div class="orb-coin"></div>
+                <div class="orb-core"></div>
+              </div>
+            </div>
+            <div class="input-bar" data-od-id="chat-input-bar">
+              <input type="text" placeholder="Message..." />
+              <button class="input-btn" aria-label="Send">▶</button>
+            </div>
+            <div class="home-bar"></div>
+          </div>
+        </div>
+      </section>
+
+      <div>
+        <section class="section" data-od-id="settings-card-section">
+          <h2 class="section-title" data-od-id="settings-title">Appearance Settings</h2>
+          <div class="settings-card" data-od-id="settings-card">
+            <div class="mini-orb" data-od-id="mini-orb">
+              <div class="mini-orb-ring-outer"></div>
+              <div class="mini-orb-ring-amber"></div>
+              <div class="mini-orb-core"></div>
+            </div>
+            <div class="settings-info">
+              <div class="settings-title" data-od-id="settings-card-name">Disco Inferno</div>
+              <div class="settings-sub">Mirror-ball hell, molten gold, disco silver, flames</div>
+              <div class="grid-sample" data-od-id="grid-sample"></div>
+              <div class="slot-toggle" data-od-id="slot-toggle">
+                <button class="slot-chip gold active" data-slot="gold">Gold (hero)</button>
+                <button class="slot-chip silver" data-slot="silver">Silver (amber slot)</button>
+                <button class="slot-chip crimson" data-slot="crimson">Crimson (violet slot)</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" data-od-id="palette-section">
+          <h2 class="section-title" data-od-id="palette-title">Palette</h2>
+          <table class="palette-table" data-od-id="palette-table">
+            <thead>
+              <tr><th>Token</th><th>Color</th><th>Role</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="swatch" style="background: var(--inferno-bg-1)"></span><span class="color-name">bg-1</span><br><span class="color-value">#0a0505</span></td><td>Background midpoint</td><td>Smoky dance floor</td></tr>
+              <tr><td><span class="swatch" style="background: var(--inferno-bg-2)"></span><span class="color-name">bg-2</span><br><span class="color-value">#1a0a0a</span></td><td>Gradient stop</td><td>Ember haze</td></tr>
+              <tr><td><span class="swatch" style="background: var(--inferno-bg-3)"></span><span class="color-name">bg-3</span><br><span class="color-value">#050202</span></td><td>Outer / shadow</td><td>Burnt velvet black</td></tr>
+              <tr><td><span class="swatch" style="background: var(--inferno-fg)"></span><span class="color-name">fg</span><br><span class="color-value">#fff8f0</span></td><td>Primary text</td><td>Champagne white</td></tr>
+              <tr><td><span class="swatch" style="background: var(--inferno-fg-muted)"></span><span class="color-name">fg-muted</span><br><span class="color-value">#e8c8a8</span></td><td>Secondary text</td><td>Warm gold beige</td></tr>
+              <tr><td><span class="swatch" style="background: var(--inferno-fg-dim)"></span><span class="color-name">fg-dim</span><br><span class="color-value">#a08060</span></td><td>Tertiary / meta</td><td>Brushed bronze</td></tr>
+              <tr><td><span class="swatch" style="background: var(--inferno-surface-1)"></span><span class="color-name">surface-1</span><br><span class="color-value">rgba(255,215,0,0.08)</span></td><td>Gold surface</td><td>Outgoing bubble</td></tr>
+              <tr><td><span class="swatch" style="background: var(--inferno-surface-2)"></span><span class="color-name">surface-2</span><br><span class="color-value">rgba(232,232,232,0.08)</span></td><td>Silver surface</td><td>Incoming bubble</td></tr>
+              <tr><td><span class="swatch" style="background: var(--inferno-surface-3)"></span><span class="color-name">surface-3</span><br><span class="color-value">rgba(255,51,51,0.06)</span></td><td>Crimson surface</td><td>Alt panels</td></tr>
+              <tr><td><span class="swatch" style="background: var(--inferno-border)"></span><span class="color-name">border</span><br><span class="color-value">rgba(255,215,0,0.28)</span></td><td>Glowing border</td><td>Input / cards</td></tr>
+              <tr><td><span class="swatch" style="background: var(--inferno-border-subtle)"></span><span class="color-name">border-subtle</span><br><span class="color-value">rgba(255,255,255,0.08)</span></td><td>Hairline</td><td>Dividers</td></tr>
+              <tr><td><span class="swatch" style="background: var(--inferno-accent-gold)"></span><span class="color-name">accent-gold</span><br><span class="color-value">#ffd700</span></td><td>Slot "cyan" → hero</td><td>Disco Gold</td></tr>
+              <tr><td><span class="swatch" style="background: var(--inferno-accent-silver)"></span><span class="color-name">accent-silver</span><br><span class="color-value">#e8e8e8</span></td><td>Slot "amber"</td><td>Mirror Silver</td></tr>
+              <tr><td><span class="swatch" style="background: var(--inferno-accent-crimson)"></span><span class="color-name">accent-crimson</span><br><span class="color-value">#ff3333</span></td><td>Slot "violet"</td><td>Hellfire Crimson</td></tr>
+              <tr><td><span class="swatch" style="background: var(--inferno-danger)"></span><span class="color-name">danger</span><br><span class="color-value">#ff2200</span></td><td>Warning / error</td><td>Open flame</td></tr>
+              <tr><td><span class="swatch" style="background: var(--inferno-warning)"></span><span class="color-name">warning</span><br><span class="color-value">#ff6600</span></td><td>Caution</td><td>Coal glow</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+    </div>
+
+    <section class="section" data-od-id="personality-section">
+      <h2 class="section-title" data-od-id="personality-title">Theme Personality</h2>
+      <p class="personality" data-od-id="personality-text">
+        <strong>Disco Inferno</strong> is Talaria at its most glamorous and dangerous: a mirror-ball dance floor that’s slowly catching fire. The background is a deep, smoky burgundy-black, lit by molten gold and flickering crimson. The accent slots are remapped — the canonical "cyan" slot becomes <em>Disco Gold</em> (the hero), "amber" becomes <em>Mirror Silver</em>, and "violet" becomes <em>Hellfire Crimson</em>. The display type is set in elegant Georgia italic, evoking a vintage nightclub marquee, while the body stays clean in SF Pro Text. Glow is cranked above 1.0, but the motion stays slow and photosafe to keep the chat readable. The reactor orb reads like a spinning disco ball: a bright gold core, concentric dashed rings, and a slow diamond "coin" halo catching the light. Danger is a searing red-orange that pops against the dark field without vanishing into the flames.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    const root = document.documentElement;
+    const chips = document.querySelectorAll('.slot-chip');
+    const slots = {
+      gold: { hero: '#ffd700', amber: '#e8e8e8', violet: '#ff3333', name: 'Gold hero' },
+      silver: { hero: '#e8e8e8', amber: '#ff3333', violet: '#ffd700', name: 'Silver hero' },
+      crimson: { hero: '#ff3333', amber: '#ffd700', violet: '#e8e8e8', name: 'Crimson hero' }
+    };
+    chips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        chips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        const s = slots[chip.dataset.slot];
+        root.style.setProperty('--slot-hero', s.hero);
+        root.style.setProperty('--slot-amber', s.amber);
+        root.style.setProperty('--slot-violet', s.violet);
+      });
+    });
+  </script>
+</body>
+</html>
