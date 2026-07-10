@@ -2711,3 +2711,56 @@ more; that validation is app-side (Fable/Xcode). Bonus finding: long single sess
 architecture. Reusable harness: `C:\Users\Owen\talaria-probe\probe.py`.
 
 Logged 2026-07-09.
+
+---
+
+## 90. 🔧 Lane B — markdown rendering depth (dispatch FABLE-LANES-BC)
+
+**Update 2026-07-10 (cloud session, branch `claude/lane-b-handoff-g8zxbl`):**
+BUILT IN CLOUD, not compiled or device-verified. `MarkdownSegment` grew from
+three cases (prose / codeBlock / image) to seven:
+
+- **Headings** — ATX `#`–`######`, space-after-hashes required (`#hashtag`
+  stays prose), closing-hash runs stripped, inline markdown preserved;
+  rendered at graduated Space Grotesk sizes, levels 1–3 in
+  `foregroundBright`.
+- **Block quotes** — 1-based `>` depth; consecutive same-depth lines merge,
+  a depth change starts a new segment (`>> ` and `> > ` both = depth 2);
+  rendered with an accent bar + `secondaryForeground`, indented per level.
+- **Lists** — `-`/`*`/`+` bullets and `1.`/`1)` ordinals (1–3 digits, so
+  `2026.` stays prose) in one segment with per-item depth via an
+  indent-stack (≥2 cols = deeper); one blank line tolerated between items,
+  two end the list; indented continuation lines append to the prior item;
+  bullets `•`/`◦`/`▪` by depth, ordinals rendered from the literal numbers.
+- **Tables** — GFM pipe tables gated on a real delimiter row with matching
+  cell count (pipe-containing prose stays prose); `:---:`-style alignments;
+  rows normalized to header width; `\|` escapes; rendered as a
+  horizontally-scrollable `Grid` in a hudPanel with header rule + faint
+  row striping. Streaming: header renders as prose until its delimiter row
+  arrives — self-heals on the next delta.
+- **Syntax highlighting** — new `Talaria/Core/CodeSyntaxHighlighter.swift`:
+  single-pass tokenizer (keywords / strings / comments / numbers) with
+  profiles for swift, python, js/ts, json, bash, yaml, c-family; unknown
+  languages get a conservative strings+numbers-only fallback. Colors ride
+  the live theme palette (keyword `accentBright`, string `forge`, comment
+  `dimForeground`, number `accent`); `CodeBlockView` now renders the
+  highlighted AttributedString.
+
+Parser + tokenizer logic verified in-session via a line-for-line Python
+port run against every test expectation (all green); Swift Testing suites:
+`MarkdownHeadingTests` / `MarkdownBlockQuoteTests` / `MarkdownListTests` /
+`MarkdownTableTests` / `CodeSyntaxHighlighterTests` /
+`MarkdownInterleavingTests` (+ `MarkdownTestSupport` accessors). Existing
+behaviors pinned: prose/image interleaving order, streaming unclosed-fence
+emission, non-streaming empty-fence prose fallback, block syntax inside
+fences staying code.
+
+**Needs Mac:** `xcodegen generate` (1 new source + 7 new test files —
+re-verify `aps-environment`/WeatherKit/widget-HealthKit per the #44/#48
+strip trap), CLI build + full test run (Swift Testing: grep "Test run with
+N tests passed"), then device: stream a reply mixing headings, nested
+lists, a table, a quote, and a swift code block; confirm Deep Field code
+blocks still read correctly and Paper Tape (light) keeps token colors
+legible; confirm table horizontal scroll inside bubbles.
+
+Logged 2026-07-10.
