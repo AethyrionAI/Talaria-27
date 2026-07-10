@@ -2484,7 +2484,7 @@ ordering, with the minor side effect that the tap path now awaits `handleNotific
 
 ---
 
-## 82. 🐛 Voice regression — T27 only: realtime session mints, app self-tears-down in seconds
+## 82. ⏸️ PARKED — Voice capture wedge: ANY Talaria capture kills system-wide audio input on the current iOS 27 beta seed (reboot to recover)
 
 **Found 2026-07-08 evening on whoGoesThere.** Talk in Talaria-27 no longer works; Diagnostics
 truthfully shows connected/ready. **Isolated to T27**: Talaria prime on the same phone has
@@ -2518,6 +2518,40 @@ away: the relay was down all morning (port 8000 dead until 13:33) — dead readi
 the setup UI; not this bug. **Single-variable experiment queued:** build pre-Wave-5
 commit `6820860` with the SAME beta-3 toolchain, install, test voice — works → Wave 5
 code convicted; broken → SDK relink convicted.
+
+**2026-07-08 (late):** the A/B ran and was contaminated — pre-Wave-5 probe failed identically,
+then Prime (healthy control) failed too. Server side exonerated end-to-end via three OJAMD
+probes (mint/WS-text, WS-audio+VAD, full WebRTC). Session concluded "iOS silently revoked
+mic + speech permissions; toggling restores" — **that conclusion is now superseded (below);
+the toggle likely worked by tearing down the app's audio clients, not by fixing permissions.**
+Note: the `diagnostics/voice-probes` branch carries the probe scripts (still valuable) plus an
+OPEN_ITEMS closure asserting the permission root cause — **do not merge its OPEN_ITEMS text
+as-written**; rework against this entry first.
+
+**2026-07-09 — PARKED by Owen (voice is optional; CarPlay voice inherits this when resumed).**
+With the #84 instrumentation on-device, the real failure surfaced: **any Talaria audio-capture
+path wedges the system-wide capture stack until reboot (sometimes two)** — after one Talaria
+capture attempt, even Apple's Voice Memos is deaf. Signature: route shows
+`iPhone Microphone → Speaker` for ~1.5 s at session start, then drops to `No input → Speaker`.
+
+Falsified tonight, each with device evidence (do not re-litigate):
+permissions wedge (Diagnostics panel reads both permissions enabled via the real APIs);
+VPIO/voice-processing (composer dictation uses `.record`/`.measurement` — no VPIO, no WebRTC,
+no BT options — and wedges identically; probe branch `probe/no-vpio` @ `3d5721e` was cut but
+NEVER TESTED — do not merge); app-code regression (Prime’s old pre-Wave-5 stable build fails
+identically: Voice Memos pass → dictation fail → Voice Memos dead); TCC-record corruption
+(both phones fail; TCC doesn’t sync). Reboot restores capture; the next Talaria attempt
+re-wedges it. No newer beta seed available as of 2026-07-09.
+
+**Remaining unknown:** no NON-Talaria third-party capture app was ever tested (“Test A”) —
+so “seed broke third-party capture” vs “seed broke something Talaria-shaped” is unresolved.
+
+**On resume:** (1) Test A — any third-party recorder after a clean reboot; (2) retest on the
+next beta seed; (3) file Apple Feedback with the minimal repro (reboot → Voice Memos works →
+one Talaria dictation → Voice Memos dead); (4) #84 branch (`claude/t27-84-talk-preflight`,
+`c9e909e`, compiles green under Xcode 27.0, 13/13 tests) stays UNMERGED — its device checklist
+is blocked on this wedge, and it owes one fix: the preflight misclassifies “no input came up”
+as “permission denied” (needs a third state: permissions OK but no mic input — try rebooting).
 
 ---
 
@@ -2633,5 +2667,19 @@ end-to-end test forces the exact bad bytes (e2 94 80 + 0x90) through a real pipe
 passed / 1 skipped.** Remaining: reaches OJAMD prod on the next ojamd-deploy reconcile —
 after deploy, confirm connector.log stops accruing `_readerthread` UnicodeDecodeError
 tracebacks and `summarize_memory_provider` returns real provider lines.
+
+Logged 2026-07-09.
+
+## 88. 📝 OJAMD `restart-relay.ps1` — relay half is stale (would spawn a competing uvicorn)
+
+`~/.hermes/scripts/restart-relay.ps1` still restarts the relay via
+`scripts/start-relay.bat` as a plain user process (“post-nssm world, #55” comment
+notwithstanding) — but the relay is NSSM-managed again (`HermesMobileRelay`, verified
+2026-07-09: nssm.exe → uvicorn `app.main:app --host 0.0.0.0 --port 8000`). Running the
+script as-is would start a second uvicorn that fights the service for `:8000`.
+
+**Fix:** relay half becomes `Restart-Service HermesMobileRelay` (needs elevation — keep
+Owen’s paste-into-elevated-PowerShell pattern); the connector half
+(`start-connector.bat`, single-instance enforcer) is still correct as-is.
 
 Logged 2026-07-09.
