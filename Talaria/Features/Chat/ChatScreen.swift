@@ -22,6 +22,11 @@ struct ChatScreen: View {
 
     @State private var showAttachmentPicker = false
 
+    // `/save` success: the written transcript file, offered onward via the
+    // share sheet (Save to Files / AirDrop / etc.).
+    @State private var exportShareURL: URL?
+    @State private var showExportShareSheet = false
+
     // HUD shells (presentation only — see SessionsDrawer / ModelSelector).
     @State private var sessionsOpen = false
     @State private var sessionsModel = SessionsDrawerModel()
@@ -74,6 +79,11 @@ struct ChatScreen: View {
                 }
                 .presentationDetents([.height(220)])
                 .presentationDragIndicator(.hidden)
+            }
+            .sheet(isPresented: $showExportShareSheet) {
+                if let exportShareURL {
+                    ShareSheet(activityItems: [exportShareURL])
+                }
             }
     }
 
@@ -973,8 +983,14 @@ struct ChatScreen: View {
             showConversationHistory()
 
         case "save":
-            chatStore.exportConversationToFile()
-            appendSystemMessage("Conversation saved to Documents folder.")
+            do {
+                let fileURL = try chatStore.exportConversationToFile()
+                appendSystemMessage("Conversation saved to Documents folder as \(fileURL.lastPathComponent).")
+                exportShareURL = fileURL
+                showExportShareSheet = true
+            } catch {
+                appendSystemMessage("Couldn't save the conversation: \(error.localizedDescription)")
+            }
 
         case "retry":
             Task { await performRetry() }
