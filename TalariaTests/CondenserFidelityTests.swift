@@ -44,9 +44,18 @@ struct CondenserFidelityTests {
         ]
     }
 
-    /// Availability probe for the `.enabled` condition below.
+    /// Availability probe for the `.enabled` condition below. `isModelAvailable`
+    /// is optimistic — it reports available even where the model catalog has no
+    /// provisioned assets (the simulator, or a device where Apple Intelligence /
+    /// PCC isn't provisioned yet), after which the real call falls back to
+    /// truncation. So probe the REAL path: enable this suite only when a trial
+    /// composition is genuinely model-condensed. Skips cleanly otherwise, and
+    /// auto-activates once the model is provisioned.
+    @MainActor
     static func onDeviceModelAvailable() async -> Bool {
-        await MainActor.run { LocalIntelligenceService().isModelAvailable }
+        let transplanter = ContextTransplanter(intelligence: LocalIntelligenceService())
+        let probe = await transplanter.composePriming(from: messyEntries())
+        return probe.condensedByModel
     }
 
     // MARK: - Acceptance: the condenser path (model-gated)
