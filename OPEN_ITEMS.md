@@ -2711,3 +2711,75 @@ more; that validation is app-side (Fable/Xcode). Bonus finding: long single sess
 architecture. Reusable harness: `C:\Users\Owen\talaria-probe\probe.py`.
 
 Logged 2026-07-09.
+
+## 90. 🔧 P1 continuity fabric — journal primary, hop transplant, compose outbox (Lane A)
+
+**Built 2026-07-10 in the cloud (Fable, Lane A — `dispatch/FABLE-LANE-A-continuity-fabric.md`),
+branch `claude/talaria-27-lane-a-to5zv3`. NOT compiled, NOT device-verified.** Greenlit by the #89
+probe; the condenser-fidelity acceptance suite below is the probe's residual-risk guardrail.
+
+**What landed:**
+- **Journal = durable primary** (`Models/ConversationJournal.swift` + `Stores/ConversationJournalStore.swift`):
+  conversation identity is a local UUID owned by the journal; entries re-derive from the settled
+  transcript at every ChatStore persistence point (streamed finish, reconcile, polling, #44
+  truncation, voice) via `LocalChatBackend.transcriptTurns` — one mapping, no drift. Persisted at
+  `hermes.conversationJournal`.
+- **`apiSessionId` decoupled:** `SessionsHermesClient`'s single session var is GONE. The server
+  session id is a per-hop handle (`ConversationJournal.ServerHop`) with a `seenEntryCount`
+  waterline; `ensureSession()` → `ensureHopForTurn()`. Hop persists across relaunch (a live server
+  session resumes without re-priming); a 404 on a REUSED hop swaps the handle and retries ONCE on a
+  fresh transplanted hop (`SessionsClientError.sessionNotFound`). `switchModel` ends the hop so the
+  user's next message hops under the new model WITH context — a model switch is a brain hop now.
+- **Transplant at every hop** (`Services/Support/ContextTransplanter.swift` + 
+  `LocalIntelligenceService.condensedContextBrief`): fresh session → priming turn 0 composed from
+  the journal (guided-generation facts brief, corrections-at-latest + prune-distractors
+  instructions, temp 0.2); deterministic verbatim-tail fallback (newest turns, per-entry cap,
+  honest omission marker) when the model is unavailable — never fabricated condensation. Budget
+  1,500 tokens enforced by measurement (binary-search tail fit; non-additive-token ratchet).
+  Priming posts over SSE so `run.completed` usage is captured (real numbers or none).
+- **Local turns mark the hop stale on purpose:** journal entries from on-device/PCC/voice turns
+  don't bump the waterline, so the next Hermes turn re-hops with the full (condensed) context —
+  the brain-hop continuity story.
+- **Offline compose outbox** (`Models/ComposeOutboxState.swift`, `hermes.composeOutboxState`):
+  transport-level failures now stream `.unreachable` (vs `.failed`); text-only turns park as
+  `.queued` transcript rows + persisted outbox (SensorUpload pattern), drain FIFO on reachability
+  (the chat screen's ~10s health probe + cold load), one live send at a time, re-queue stops the
+  drain. Attachment turns still fail honestly (no durable wire form, v1). Siri intent reports a
+  queued turn honestly (new `.queued` outcome).
+- **Priming cost in receipts:** `.contextPrimed(TokenUsage?)` → system notice row in the
+  transcript ("[Context transplanted into a fresh session — N tokens]", `Message.isContextPriming`
+  + usage + servingModel), PRIMING line in StatusCard session totals
+  (`SessionUsageTotals.primingTokens/primingHops`), and priming included in the session cost
+  estimate (`ModelPricingCatalog.estimatedSessionCost`).
+- **Identity-churn fix:** `ChatStore.mergeConversationMetadata` now preserves the LOCAL
+  conversation UUID — refresh/reconcile used to mint a new `Conversation.id` every fetch, which
+  would have reset the journal (dropping the hop) and already orphaned #27 brain pins.
+
+**Tests (Swift Testing):** `CondenserFidelityTests.swift` — the REQUIRED acceptance suite: messy
+transcript (2 corrections + 2 distractors) → asserts latest-corrected-values, distractor pruning,
+and token budget on the REAL on-device condenser. Model-gated via an async `.enabled` trait: runs
+on Apple Intelligence hardware, skips honestly elsewhere — **a skip is NOT a pass; the Mac run is
+the acceptance gate.** Fallback + wire-format halves run everywhere. `ContinuityFabricTests.swift`
+— deterministic: journal identity/waterline/adopt/truncate-clamp/persistence, outbox
+dedupe/persist/clear, ChatStore priming-notice + totals + queue/drain/orphan-hygiene + the
+identity-stability regression.
+
+**Next Mac session:**
+1. Merge order per handoff: Lane C first (ChatScreen overlap), then this. `xcodegen generate` —
+   **5 new source files** (ConversationJournal, ConversationJournalStore, ComposeOutboxState,
+   ContextTransplanter + edits) **+ 2 new test files** (CondenserFidelityTests,
+   ContinuityFabricTests); re-verify `aps-environment`/WeatherKit survive regen (#44/#48 trap);
+   regen commit SEPARATE.
+2. CLI build + full test run. **CondenserFidelityTests must RUN (not skip) — needs Apple
+   Intelligence on.** If the condenser fails fidelity/pruning, that's the #89 residual risk
+   firing: tune `condensedContextBrief` instructions before shipping, do not weaken the tests.
+3. Device checklist: (a) kill/relaunch mid-conversation → next turn resumes the SAME server
+   session (no priming notice); (b) stop the gateway, relaunch, restart gateway → next turn shows
+   the transplant notice + priming tokens in StatusCard; (c) model switch mid-conversation → next
+   turn hops with notice, new model answers WITH context; (d) local-brain turns then back to
+   Hermes → transplant carries the local exchange; (e) airplane mode → send parks `.queued`,
+   reconnect → auto-sends; (f) session totals show PRIMING row + cost including priming.
+4. Priming preamble wording: reconcile `ContextTransplanter.primingText` with the probe's
+   validated phrasing (`talaria-probe/probe.py` on OJAMD) if they differ materially.
+
+Logged 2026-07-10.
