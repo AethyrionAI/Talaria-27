@@ -171,12 +171,27 @@ struct AppearanceSettingsScreen: View {
             MonoLabel("// Theme", size: 10, tracking: Design.Tracking.monoXWide,
                       color: Design.Colors.mutedForeground)
             automaticPanel
+            // Titled sections mirroring the gallery taxonomy (Lane E Task 0).
+            // Availability still runs through the catalog per group: holiday
+            // themes appear only in their window, an emptied group vanishes.
+            ForEach(ThemeCatalog.sections) { section in
+                themeGroup(section.title, section.definitions)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func themeGroup(_ title: String, _ definitions: [ThemeDefinition]) -> some View {
+        let available = ThemeCatalog.availableDefinitions(on: Date(), in: definitions)
+        if !available.isEmpty {
+            MonoLabel(title, size: 9, weight: .medium,
+                      tracking: Design.Tracking.monoWide,
+                      color: Design.Colors.dimForeground)
+                .padding(.top, Design.Spacing.xxs)
             LazyVGrid(columns: [GridItem(.flexible(), spacing: Design.Spacing.sm),
                                 GridItem(.flexible())],
                       spacing: Design.Spacing.sm) {
-                // Data-driven from the catalog: holiday themes appear only in
-                // their window, flagship + seasonal themes always show (#24).
-                ForEach(ThemeCatalog.availableDefinitions(on: Date())) { themeCard($0) }
+                ForEach(available) { themeCard($0) }
             }
         }
     }
