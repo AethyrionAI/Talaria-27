@@ -2727,3 +2727,13 @@ step 5. Whatever mechanism is chosen must survive `xcodegen generate` (same clas
 as the `aps-environment` regen rule).
 
 Logged 2026-07-10.
+
+## 91. 🔧 Theme suite — Lane E dispatched: prove the drastic bar on Event Horizon, then port the gallery
+
+**Context (verified at HEAD 2026-07-10):** the `talaria-neon-arcade` gallery (17 themes; now in-repo at `design/themes/`) is the outrageous-theme suite. On device today: 4 flagships + 4 seasonals + 4 complex (Cereal Box / Bubblegum Mecha / Retro Sci-Fi / Event Horizon), all selectable. Why the complex ones "didn't hit right": (1) no atmosphere motion engine — the handoffs' 4-layer parallax drift was never ported; (2) no bespoke orbs — `ThemeOrbStyle` has only the 4 flagship cases, complex themes fall back to `.arcReactor`; (3) only Event Horizon has an art-direction override — the other three are pure recolors. 10 gallery themes unported entirely (incl. Neon Arcade #01 itself, Glitch Garden, Witch's Brew, Holo Sushi, Lunar Diner, Cyber Cactus, Deep Sea Diner, Disco Inferno, Graffiti Galaxy SE, Karaoke Supernova SE).
+
+**Phase 1 (Lane E, spec at `dispatch/FABLE-LANE-E-theme-drama.md`):** catalog taxonomy → gallery categories (Flagship / Neon Arcade Collection / Special Edition / Seasonal); data-driven atmosphere motion engine (TimelineView+Canvas, 3 on-device A/B presets, reduced-motion safe, widget layer untouched); `.singularity` orb composition; Event Horizon intensity pass. No `ChatScreen.swift` overlap — independent of Lanes A–D merge order.
+
+**Gate:** Owen device-verdicts Event Horizon post-Lane-E. If it hits: Phase 2 (art-direction schema extension — halftone/spray-grain/chrome-band textures, title + panel treatments), then Phase 3 (batch-port the 10 remaining themes + bespoke orbs + icon pairings from `design/themes/app-icons.html`).
+
+**Related:** orb enhancement issue filed on Talaria-27 (2026-07-10; the 7/6 draft was never actually filed).
