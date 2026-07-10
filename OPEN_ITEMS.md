@@ -762,10 +762,7 @@ window was closed, and the bare console "looked suspicious." Now it runs as Sche
 used — on Windows it only makes a login-only, possibly-flashing task; running it would fight
 `HermesGateway` for `:8642`.)
 
-**Discord is one token away:** the API Server is just one gateway adapter; the same
-`HermesGateway` process will also serve Discord once a `DISCORD_BOT_TOKEN` exists (none yet —
-needs a bot created in Discord's dev portal + invited to the server). No new service required:
-add the token, restart the task.
+**Discord — SET UP / CLOSED (2026-07-09, Owen):** `DISCORD_BOT_TOKEN` present in `.env` (verified this session), bot created + invited, gateway serving it. Same `HermesGateway` process, no new service.
 
 **OJAMD service inventory (all windowless + reboot-proof — all NSSM as of 2026-06-28):**
 - Relay `:8000` → `HermesMobileRelay` (NSSM service, uvicorn)
@@ -1175,7 +1172,9 @@ Logged 2026-06-27.
 
 ---
 
-## 38. 🔧 Remote push (APNs) for instant background-run completion notify — BUILT, needs OJAMD config + device verify
+## 38. ✅ Remote push (APNs) for instant background-run completion notify — RESOLVED (config in place + tests passing, Owen 2026-07-09)
+
+**RESOLVED 2026-07-09 (Owen):** APNs config in place — all `APNS_*` keys + `GATEWAY_API_KEY` present in relay `.env` (verified this session); Owen confirmed push tests working.
 
 **Update 2026-07-06 (cloud session, branch `claude/notifications-implementation-t7ame7`):**
 full pipeline implemented — nothing was deployed or device-verified (no Xcode/OJAMD from
@@ -1454,7 +1453,9 @@ Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully rep
 
 **Found 2026-07-04** (on-device, during connector-outage testing). `SensorUploadService.drainOutboxIfPossible()` drains location first and `break`s the entire loop on a location `.failed`, so it never reaches the health block. When location persistently returns `deliveryState=retry` (connector down / busy / forward stalled), the health outbox climbs unbounded even though health itself is fine — observed 475→481+ live. `LocationUploadOutcome` has no `.retry` case, so a transient `retry` is mis-mapped to a hard `.failed` that wedges the loop. **Fix (iOS, Fable):** a location failure must not `break` past health; give location its own transient retry/backoff (mirror health's `.retry` handling); drain the two outboxes on independent passes so neither can starve the other. Distinct from #24a (that was a poison *health* sample wedging health; this is the *location* path wedging health). GitHub issue snippet drafted.
 
-## 54. 🔧 Relay restart forces connector re-attach — host session not auto-recovered
+## 54. ✅ Relay restart forces connector re-attach — RESOLVED (nonce DB-persisted + race-safe eviction, verified 2026-07-09)
+
+**RESOLVED 2026-07-09:** Server-side verified. Host-connection nonce lifecycle in `relay/app/services.py` (`activate` / `touch` / `deactivate`) operates on the `HermesHost` DB row (`active_connection_nonce` column, `db.commit()`), so it persists across relay restarts; `deactivate` clears only when the presented nonce matches the active one, so a stale socket's teardown can't strand a fresh reconnect (race-safe). Behaviorally: zero 4401 in the recent relay log, and the connector reattached cleanly (`/v1/hosts/ws [accepted]`) after this session's connector restart — corroborating the earlier relay-restart test. Connector-side auto-reconnect (ccee0f6) merged.
 
 **Found 2026-07-04** (OJAMD, during the #15 relay hotfix). When `HermesMobileRelay` restarts (deploy/hotfix), it drops the connector's host WebSocket with close code 1012 (service restart). The connector does not reliably self-reconnect, and a subsequent reconnect can hit a transient **4401** — the relay still holds the stale host session from the unclean drop. Until the connector is restarted, sensor forwards return `deliveryState=retry` and no sensor data flows, which then wedges health app-side (→ #53). Root-caused this session: the 07-04 relay restart for #15 left the connector in exactly this state for hours. **Mitigations (in place):** operational — always restart the connector after a relay bounce (the new "Restart All" desktop shortcut does this in dependency order, and the connector NSSM service from GitHub #8 auto-restarts on crash). **Durable fix (server-side, #24f-adjacent):** persist the host-connection nonce so a relay restart doesn't force re-enroll/4401, and/or evict a stale host session promptly so a reconnect isn't rejected; connector-side, add auto-reconnect with backoff on 1012/4401. GitHub issue snippet drafted.
 **Update 2026-07-04 (evening):** the mitigations shifted under #55 -- the `HermesMobileConnector`
@@ -2644,7 +2645,9 @@ passed in-container.** Remaining: deploy on OJAMD; keep an eye on the relay log 
 
 Logged 2026-07-09.
 
-## 87. 🔧 Connector — subprocess output decoded as cp1252 on Windows (UTF-8 pinned; OJAMD deploy owed)
+## 87. ✅ Connector — subprocess output decoded as cp1252 on Windows — RESOLVED (deployed to OJAMD 2026-07-09)
+
+**RESOLVED 2026-07-09:** Deployed to OJAMD. `ojamd-deploy` rebased onto `t27/main` (helper commit replayed clean, no conflicts); fix confirmed live on the editable module (19 `errors=replace` sites); connector restarted and holding its WS to the relay; `hermes memory status` populates cleanly. The cp1252 tracebacks still in connector.log are pre-deploy residue (file static since 2026-07-02).
 
 **Found 2026-07-09 (reproduced live on OJAMD), built same day** (cloud session, branch
 `claude/connector-utf8-subprocess-fypam0`). Root cause: every connector
@@ -2672,7 +2675,9 @@ tracebacks and `summarize_memory_provider` returns real provider lines.
 
 Logged 2026-07-09.
 
-## 88. 📝 OJAMD `restart-relay.ps1` — relay half is stale (would spawn a competing uvicorn)
+## 88. ✅ OJAMD `restart-relay.ps1` — relay half stale — RESOLVED (fixed 2026-07-09)
+
+**RESOLVED 2026-07-09:** Relay half changed to `Restart-Service HermesMobileRelay`; header comment corrected to flag NSSM + elevation; connector half left as-is; script parses clean. Lives in `~/.hermes/scripts/` (outside the repo, untracked) — left there by design, not a repo-tracked ops script.
 
 `~/.hermes/scripts/restart-relay.ps1` still restarts the relay via
 `scripts/start-relay.bat` as a plain user process (“post-nssm world, #55” comment
@@ -2683,5 +2688,26 @@ script as-is would start a second uvicorn that fights the service for `:8000`.
 **Fix:** relay half becomes `Restart-Service HermesMobileRelay` (needs elevation — keep
 Owen’s paste-into-elevated-PowerShell pattern); the connector half
 (`start-connector.bat`, single-instance enforcer) is still correct as-is.
+
+Logged 2026-07-09.
+
+## 89. ✅ P1 "brain" transplant-fidelity probe — PASS → Lane A GO
+
+**Ran 2026-07-09 against the Sessions API (`http://ojamd:8642`, sync `POST /api/sessions/{id}/chat`).**
+Three-arm probe — A (original session: entangled facts + a mid-stream $4,200 to $4,700 correction),
+C (raw replay into a fresh session), B (condensed ~10:1 priming into a fresh session). B was
+indistinguishable from A and C on recall, cross-turn inference, and the correction: the condensed
+priming read as continuous *context*, not a quoted artifact, and B reconstructed inference the priming
+never spelled out. -> **transplant mechanism validated; Lane A = GO.**
+
+**Condenser-fidelity rung (same day):** had Hermes itself condense a messier 9-turn transcript (two
+corrections + two distractors), then transplanted the machine summary. Fidelity clean — both corrections
+preserved at their latest values, distractors never leaked into answers, cross-turn inference held.
+Residual is **pruning discipline / token cost** (the condenser kept the distractors as ballast despite
+being told to drop them), not fidelity. Caveat: used the full Hermes model as the condenser (optimistic
+proxy) — the on-device LocalIntelligenceService is the real test and likely needs the pruning discipline
+more; that validation is app-side (Fable/Xcode). Bonus finding: long single sessions degrade per-turn
+(70s to 126s by turn 9 vs 5–14s on fresh sessions) — an argument *for* the condense-and-transplant
+architecture. Reusable harness: `C:\Users\Owen\talaria-probe\probe.py`.
 
 Logged 2026-07-09.
