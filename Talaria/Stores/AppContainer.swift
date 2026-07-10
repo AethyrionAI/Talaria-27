@@ -715,6 +715,11 @@ final class AppContainer {
             }
         case .failed(let errorText):
             localNotifications.notifyReplyFailed(reason: errorText)
+        case .queued:
+            // Parked in the offline compose outbox (#90): nothing was accepted
+            // server-side, so there's no run to push-watch and it isn't a
+            // failure. The outbox drain arms its own watch when it later sends.
+            break
         }
     }
 
