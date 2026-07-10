@@ -14,19 +14,27 @@ import SwiftUI
 struct ThemeTextureView: View {
     var body: some View {
         let art = ThemeRuntime.shared.artDirection
-        switch ThemeRuntime.shared.palette.texture {
-        case .none:
-            EmptyView()
-        case .embers:
-            EmberTexture(color: art.emberTint ?? Design.Brand.forge)
-        case .scanlines:
-            ScanlineTexture(color: Design.Colors.accentTint(0.04))
-        case .paperGrain:
-            PaperGrainTexture(ink: Design.Colors.foreground)
-        case .starfield:
-            // A starfield theme curates its own speck hues; the accent
-            // fallback only exists so a missing entry fails soft, not blank.
-            StarfieldTexture(field: art.starfield ?? ThemeStarfield(colors: [Design.Brand.accent]))
+        if let motion = art.atmosphereMotion {
+            // An atmosphere motion spec supersedes the static texture — it IS
+            // the theme's atmosphere (Event Horizon's `.page-bg` drift). Every
+            // theme without a spec takes the switch below, byte-identical to
+            // the pre-motion rendering.
+            AtmosphereMotionField(spec: motion)
+        } else {
+            switch ThemeRuntime.shared.palette.texture {
+            case .none:
+                EmptyView()
+            case .embers:
+                EmberTexture(color: art.emberTint ?? Design.Brand.forge)
+            case .scanlines:
+                ScanlineTexture(color: Design.Colors.accentTint(0.04))
+            case .paperGrain:
+                PaperGrainTexture(ink: Design.Colors.foreground)
+            case .starfield:
+                // A starfield theme curates its own speck hues; the accent
+                // fallback only exists so a missing entry fails soft, not blank.
+                StarfieldTexture(field: art.starfield ?? ThemeStarfield(colors: [Design.Brand.accent]))
+            }
         }
     }
 }
@@ -144,6 +152,77 @@ struct ScanlineTexture: View {
             context.stroke(path, with: .color(color), lineWidth: 1)
         }
         .allowsHitTesting(false)
+    }
+}
+
+// MARK: Atmosphere motion (data-driven parallax drift)
+
+/// Renders an `AtmosphereMotionSpec`: each layer is a repeating speck tile
+/// translated by `driftPerLoop · (t / period)` and wrapped at tile bounds —
+/// the Swift port of the handoffs' multi-layer `background-position` pans
+/// (Event Horizon's `starfieldDrift`). One Canvas, one batched path fill per
+/// layer, no per-speck views. Frozen at t = 0 under Reduce Motion (system or
+/// app toggle), which matches the CSS animation's 0% keyframe.
+struct AtmosphereMotionField: View {
+    let spec: AtmosphereMotionSpec
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+
+    var body: some View {
+        Group {
+            if reduceMotion {
+                Canvas { context, size in
+                    Self.draw(context: context, size: size, time: 0, spec: spec)
+                }
+            } else {
+                TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
+                    Canvas { context, size in
+                        Self.draw(
+                            context: context,
+                            size: size,
+                            time: timeline.date.timeIntervalSinceReferenceDate,
+                            spec: spec
+                        )
+                    }
+                }
+            }
+        }
+        .opacity(spec.fieldOpacity)
+        .allowsHitTesting(false)
+    }
+
+    private static func draw(context: GraphicsContext, size: CGSize, time: Double, spec: AtmosphereMotionSpec) {
+        guard size.width > 0, size.height > 0, spec.period > 0 else { return }
+        let phase = time.truncatingRemainder(dividingBy: spec.period) / spec.period
+
+        for layer in spec.layers {
+            let tile = layer.tileSize
+            guard tile > 0 else { continue }
+
+            // This frame's pan, wrapped to one tile so the loop is seamless
+            // (drift components are whole tile multiples by construction).
+            let offsetX = ((layer.driftX * phase).truncatingRemainder(dividingBy: tile) + tile)
+                .truncatingRemainder(dividingBy: tile)
+            let offsetY = ((layer.driftY * phase).truncatingRemainder(dividingBy: tile) + tile)
+                .truncatingRemainder(dividingBy: tile)
+
+            // One speck per tile, batched into a single fill. Start one tile
+            // before the origin so wrapped specks cover the leading edges.
+            var specks = Path()
+            let radius = layer.speckRadius
+            let cols = Int((size.width / tile).rounded(.up))
+            let rows = Int((size.height / tile).rounded(.up))
+            for col in -1...cols {
+                for row in -1...rows {
+                    let x = (CGFloat(col) + layer.anchorX) * tile + offsetX
+                    let y = (CGFloat(row) + layer.anchorY) * tile + offsetY
+                    specks.addEllipse(in: CGRect(x: x - radius, y: y - radius,
+                                                 width: radius * 2, height: radius * 2))
+                }
+            }
+            context.fill(specks, with: .color(layer.hue.opacity(layer.speckAlpha)))
+        }
     }
 }
 

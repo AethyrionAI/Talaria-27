@@ -38,6 +38,41 @@ struct ThemeStarfield: Equatable, Sendable {
     var driftScale: Double = 1.0
 }
 
+/// Data-driven atmosphere motion — the Swift port of a handoff's multi-layer
+/// tiled `background-image` pan (Event Horizon's `.page-bg` + `starfieldDrift`).
+/// Each layer is one repeating speck tile; the whole layer translates by
+/// `driftPerLoop` over one `period` and wraps, so the loop is seamless when
+/// each drift component is a whole multiple of the tile size (the handoffs
+/// always pan by exactly one tile). Rendered by `AtmosphereMotionField`
+/// (Talaria/Core/HUD/ThemeTextures.swift) — app target only, never widgets.
+struct AtmosphereMotionSpec: Equatable, Sendable {
+    struct Layer: Equatable, Sendable {
+        /// Square tile edge (pt) — one speck per tile.
+        let tileSize: CGFloat
+        /// Displacement (pt) over one full period. Scalars, not CGVector,
+        /// for the same Equatable/Sendable conservatism as `ThemeGlowPool`.
+        let driftX: CGFloat
+        let driftY: CGFloat
+        /// Speck color (opacity carried separately in `speckAlpha`).
+        let hue: Color
+        /// Per-speck fill opacity.
+        let speckAlpha: Double
+        /// Speck center inside its tile, unit coords — the CSS
+        /// `radial-gradient(circle at 20% 30%, …)` anchor. Staggered anchors
+        /// keep the layers from aligning into a visible lattice.
+        var anchorX: Double = 0.5
+        var anchorY: Double = 0.5
+        /// Speck radius (pt) — the handoffs' `transparent 2px` stop.
+        var speckRadius: CGFloat = 2
+    }
+
+    let layers: [Layer]
+    /// Seconds per loop — linear, infinite.
+    let period: TimeInterval
+    /// Opacity of the whole field (the handoffs' `.page-bg { opacity }`).
+    let fieldOpacity: Double
+}
+
 /// Halo treatment around HUD panels — an offset rim ring plus an outer glow
 /// (the handoffs' `box-shadow: 0 0 0 8px …, 0 0 50px …` framing).
 struct ThemePanelHalo: Equatable, Sendable {
@@ -63,8 +98,12 @@ struct ThemeArtDirection: Equatable, Sendable {
     var starfield: ThemeStarfield? = nil
     /// Panel rim + outer glow treatment (`nil` = flat panels, the default).
     var panelHalo: ThemePanelHalo? = nil
+    /// Tiled parallax drift field. When set it supersedes the palette's
+    /// static texture in `ThemeTextureView`; `nil` (every theme without a
+    /// spec) keeps the pre-motion rendering byte-identical.
+    var atmosphereMotion: AtmosphereMotionSpec? = nil
 
-    /// The identity treatment: no pools, no tints, no halo.
+    /// The identity treatment: no pools, no tints, no halo, no motion.
     static let standard = ThemeArtDirection()
 }
 
@@ -109,8 +148,53 @@ enum ThemeArtDirectionCatalog {
         panelHalo: ThemePanelHalo(
             ringColor: Color(hex: 0x8A5CFF, opacity: 0.18),
             glowColor: Color(hex: 0x8A5CFF)
-        )
+        ),
+        atmosphereMotion: eventHorizonAtmosphere(preset: eventHorizonAtmospherePreset)
     )
+
+    // MARK: Event Horizon atmosphere presets (Lane E Task 1)
+
+    /// On-device A/B knob: flip, rebuild, judge — no server round trip.
+    /// `.faithful` is the handoff verbatim; `.punchy` pushes opacity/speed;
+    /// `.subtle` backs both off. Ships on `.faithful`.
+    enum AtmospherePreset {
+        case faithful, punchy, subtle
+    }
+
+    static let eventHorizonAtmospherePreset: AtmospherePreset = .faithful
+
+    /// The handoff's four `.page-bg` layers (`starfieldDrift`, 24s linear
+    /// infinite): tile sizes 90/120/150/110, each layer panning exactly one
+    /// tile per loop, speck anchors at the CSS gradient centers.
+    static func eventHorizonAtmosphere(preset: AtmospherePreset) -> AtmosphereMotionSpec {
+        let alphaScale: Double = (preset == .punchy) ? 1.5 : 1.0
+        let layers = [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 90, driftX: 90, driftY: 90,
+                hue: Color(hex: 0x8A5CFF), speckAlpha: 0.12 * alphaScale,   // Accretion Violet
+                anchorX: 0.20, anchorY: 0.30),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 120, driftX: -120, driftY: 120,
+                hue: Color(hex: 0x00F0FF), speckAlpha: 0.10 * alphaScale,   // Hawking Cyan
+                anchorX: 0.70, anchorY: 0.70),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 150, driftX: 150, driftY: -150,
+                hue: Color(hex: 0xFFDC50), speckAlpha: 0.08 * alphaScale,   // Supernova Gold
+                anchorX: 0.50, anchorY: 0.50),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 110, driftX: -110, driftY: 110,
+                hue: Color(hex: 0xFF2AA8), speckAlpha: 0.10 * alphaScale,   // Singularity Magenta
+                anchorX: 0.85, anchorY: 0.20),
+        ]
+        switch preset {
+        case .faithful:
+            return AtmosphereMotionSpec(layers: layers, period: 24, fieldOpacity: 0.45)
+        case .punchy:
+            return AtmosphereMotionSpec(layers: layers, period: 18, fieldOpacity: 0.65)
+        case .subtle:
+            return AtmosphereMotionSpec(layers: layers, period: 30, fieldOpacity: 0.35)
+        }
+    }
 }
 
 // MARK: - Runtime access
