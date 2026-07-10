@@ -7,7 +7,7 @@ Talaria is a native SwiftUI iPhone client for a self-hosted [Hermes AI agent](ht
 
 This repository (**Talaria-27**) is the active development line, targeting **iOS 27** and built with Swift 6.2 / strict concurrency. The original iOS 26 line lives at [ChronoRixun/Talaria](https://github.com/ChronoRixun/Talaria) and is stable but frozen.
 
-**→ [Documentation and screenshots](https://ChronoRixun.github.io/Talaria)**
+**→ [Documentation and screenshots](https://aethyrionai.github.io/Talaria-27)**
 
 ---
 
