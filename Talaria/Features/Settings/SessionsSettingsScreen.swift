@@ -1,18 +1,18 @@
 import SwiftUI
-import UIKit
 
 // MARK: - Sessions settings screen (Settings → SESSIONS)
 //
-// Recent Hermes sessions, an overview, metadata export, and a clear action.
+// Recent sessions, an overview, metadata export, and a clear action.
 // Mirrors design/Settings.dc.html screen 07, adapted to Talaria's reality:
-//   • Sessions live on the Hermes HOST (fetched via :8642 listSessions), not on
-//     device — so the mockup's "on-device / never synced" framing is replaced
-//     with the real host-storage note, and the third overview tile shows ACTIVE
-//     (a real count) instead of an unbacked on-device byte figure.
+//   • Sessions come from the ACTIVE brain (#27 — ChatBackendRouter routes
+//     listSessions): the Hermes HOST's Sessions API (:8642) when Hermes
+//     carries chat, or the single locally cached conversation when the
+//     on-device brain does (#26). The third overview tile shows ACTIVE (a
+//     real count) instead of the mockup's unbacked on-device byte figure.
 //   • There is no host bulk-delete endpoint; the only real op is
-//     clearConversation() (the current thread), so the destructive action is
-//     "Clear Conversation", not "Clear All Sessions". A true delete-all needs a
-//     new host route (tracked in OPEN_ITEMS).
+//     clearConversation() (the current thread — it clears BOTH brains), so
+//     the destructive action is "Clear Conversation", not "Clear All
+//     Sessions". A true delete-all would need a new host route.
 struct SessionsSettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var container
@@ -350,14 +350,4 @@ private struct SessionExportRecord: Codable {
         lastActive = s.lastActive
         isActive = s.isActive
     }
-}
-
-// MARK: - Share sheet
-
-private struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
-    }
-    func updateUIViewController(_ controller: UIActivityViewController, context: Context) { }
 }
