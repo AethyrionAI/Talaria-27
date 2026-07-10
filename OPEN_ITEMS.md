@@ -2431,6 +2431,18 @@ in DB → rendered in the device tray (Owen: two items visible). Along the way:
 **Still unchecked from the device checklist:** silent-push wake populating
 without manual refresh; approve → verdict readback; `notify="alert"` visible push.
 
+**Update 2026-07-10 (Lane C item 4, cloud session, branch
+`claude/lane-c-dispatch-5bbw9k`):** gh#58 app-side hardening BUILT, not compiled.
+`LiveInboxService.InboxResponse` now decodes row-by-row: a bad row is skipped via a
+never-throwing best-effort probe that salvages its raw `id`/`kind` for an always-on
+per-row os_log line (plus a kept/skipped summary) — the poison row is nameable in the
+relay DB instead of anonymous. Good rows survive in order; an all-bad payload decodes
+to an EMPTY inbox, not "unreachable". `InboxDecodingTests` (new file — xcodegen regen
+owed) covers mixed payloads, all five kinds, non-object rows, and id/kind capture.
+The optional relay-route `kind` validation half of gh#58 remains open (server-side).
+Device re-check once merged: re-insert a bad-kind row → tray shows the good rows +
+Console names the skipped one.
+
 ---
 
 ## 81. 🔧 Lock-screen reply to Hermes — UNTextInputNotificationAction (GitHub #47)
