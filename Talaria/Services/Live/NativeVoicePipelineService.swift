@@ -155,10 +155,26 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         latencyMetrics = TalkLatencyMetrics(sessionStartRequestedAt: .now)
         isEndingSession = false
 
-        guard await ensureMicrophonePermission() else {
+        let micCheck = TalkMicPreflight.classify(
+            permissionGranted: await ensureMicrophonePermission(),
+            inputAvailable: TalkMicPreflight.isMicInputAvailable()
+        )
+        switch micCheck {
+        case .ok:
+            break
+        case .permissionDenied:
             // #84 preflight: actionable wording — the overlay pairs it with
             // an OPEN SETTINGS deep link. Never proceeds toward "Connected".
             blockedReason = TalkMicPreflight.microphoneDeniedMessage
+            canStartSession = false
+            connectionState = .blocked
+            voiceState = .disconnected
+            statusMessage = blockedReason
+            return
+        case .noInputAvailable:
+            // #84 third state: permission is ON but no mic input is reachable
+            // (the #82 wedge shape) — reboot guidance, no Settings dead end.
+            blockedReason = TalkMicPreflight.noMicInputMessage
             canStartSession = false
             connectionState = .blocked
             voiceState = .disconnected

@@ -2587,6 +2587,24 @@ does not exist in the repo (the ladder likely lives in the gitignored `handoffs/
 Diagnostics panel rows cover its first rungs (can record / can transcribe / where audio
 routes).
 
+**Update 2026-07-10 (Lane C item 5, cloud session):** third preflight state added.
+The preflight was two-way — permission granted → proceed, else "Microphone access is
+off — enable it for Talaria in Settings." — so the #82 wedge shape (permissions ON,
+capture side dead) read as a permission problem and dead-ended the user in Settings.
+`TalkMicPreflight.classify(permissionGranted:inputAvailable:)` is now the shared
+three-way decision core (`ok` / `permissionDenied` / `noInputAvailable`); both engines
+switch on it at start. The no-input state blocks with `noMicInputMessage` ("Microphone
+permission is on, but no mic input is reachable — try rebooting this iPhone.") and is
+explicitly carved OUT of `isPermissionActionable` so the overlay never offers the OPEN
+SETTINGS dead end for it. Input probe = `AVAudioSession.isInputAvailable`
+(`isMicInputAvailable()`); whether the seed wedge actually trips that flag is a
+device-checklist question (post-seed). New `TalkPreflightTests` cover the classifier
+(all three states + denial-wins-over-missing-input), the reboot-wording contract, and
+the actionable-predicate carve-out. No files added/removed — no xcodegen regen owed for
+this update. Device checklist addition: (7) with permissions granted and capture wedged
+(pre-seed-fix state, or a simulated no-input route), talk start must show the reboot
+guidance with NO OPEN SETTINGS button, never "Connected"/LISTENING.
+
 Logged 2026-07-09.
 
 ---

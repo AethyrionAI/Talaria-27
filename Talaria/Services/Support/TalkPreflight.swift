@@ -9,6 +9,10 @@ import Foundation
 //   • `TalkMicPreflight` — standardized, actionable permission messaging
 //     shared by both voice engines, plus the predicate the overlay uses to
 //     decide when a blocked reason deserves an "OPEN SETTINGS" deep link.
+//     `classify(permissionGranted:inputAvailable:)` is the three-state
+//     decision core: permission denied, permissions OK but no reachable mic
+//     input (the #82 wedge shape — reboot guidance, NOT a Settings link),
+//     or clear to start.
 //   • `MicFlatlineRule` — the pure decision core of the runtime tripwire:
 //     N seconds into a connected, unmuted session with zero speech evidence
 //     is a mic-health problem worth a hint, not silent listening.
@@ -21,11 +25,51 @@ enum TalkMicPreflight {
         "Microphone access is off — enable it for Talaria in Settings."
     static let speechDeniedMessage =
         "Speech Recognition permission is off — enable it for Talaria in Settings."
+    /// The third preflight state: permission granted, but the capture side is
+    /// dead (no reachable mic input). Settings can't fix this — the known
+    /// recovery for a wedged capture stack (#82) is a reboot, so that's the
+    /// guidance. Wording deliberately avoids claiming WHY the mic is gone.
+    static let noMicInputMessage =
+        "Microphone permission is on, but no mic input is reachable — try rebooting this iPhone."
+
+    /// The preflight's three-way verdict on the microphone.
+    enum MicCheck: Equatable {
+        /// Permission granted and an input is reachable — clear to start.
+        case ok
+        /// The user (or a profile) turned the permission off — the overlay
+        /// pairs the message with an OPEN SETTINGS deep link.
+        case permissionDenied
+        /// Permissions are fine but no mic input exists right now. Distinct
+        /// from `permissionDenied` so the overlay never sends the user to
+        /// Settings for a switch that is already on.
+        case noInputAvailable
+    }
+
+    /// Pure decision core shared by both voice engines. `permissionGranted`
+    /// wins: with the permission off, input availability is unknowable and
+    /// the Settings link is the right action.
+    static func classify(permissionGranted: Bool, inputAvailable: Bool) -> MicCheck {
+        guard permissionGranted else { return .permissionDenied }
+        return inputAvailable ? .ok : .noInputAvailable
+    }
+
+    /// Live capture-side availability, for the `inputAvailable` argument.
+    /// `isInputAvailable` is the best app-visible signal for "a mic exists
+    /// and the system will let us at it"; whether the #82 seed wedge trips it
+    /// is exactly what the post-seed device checklist verifies.
+    @MainActor
+    static func isMicInputAvailable() -> Bool {
+        AVAudioSession.sharedInstance().isInputAvailable
+    }
 
     /// Should the talk overlay offer the system-Settings deep link for this
     /// blocked reason? Matches the standardized messages above plus the
     /// historical phrasings that shipped before #84.
     static func isPermissionActionable(_ reason: String) -> Bool {
+        // The no-input state names the permission (as already ON) and the
+        // microphone, so the keyword net below would catch it — but Settings
+        // is a dead end there; reboot guidance stands alone.
+        if reason == noMicInputMessage { return false }
         let lowered = reason.lowercased()
         return lowered.contains("microphone")
             || lowered.contains("permission")
