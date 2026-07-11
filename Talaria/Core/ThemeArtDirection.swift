@@ -62,8 +62,13 @@ struct AtmosphereMotionSpec: Equatable, Sendable {
         /// keep the layers from aligning into a visible lattice.
         var anchorX: Double = 0.5
         var anchorY: Double = 0.5
-        /// Speck radius (pt) — the handoffs' `transparent 2px` stop.
-        var speckRadius: CGFloat = 2
+        /// Speck radius (pt). The design's speck is
+        /// `radial-gradient(circle, hue 0, transparent 2px)` — a point that
+        /// FADES OUT by 2px, not a 2pt solid disc. A hard 2pt fill translated
+        /// to ~12 physical px of flat color ("confetti", the first device
+        /// verdict); the design look is a smaller center softened by the
+        /// renderer's blur (AtmosphereMotionField).
+        var speckRadius: CGFloat = 1.25
     }
 
     let layers: [Layer]

@@ -221,7 +221,14 @@ struct AtmosphereMotionField: View {
                                                  width: radius * 2, height: radius * 2))
                 }
             }
-            context.fill(specks, with: .color(layer.hue.opacity(layer.speckAlpha)))
+            // The design's speck is a radial-gradient point fading to
+            // transparent — soft, not a hard disc. A blur on the batched
+            // path (one filter per LAYER, not per speck) reproduces the
+            // falloff while keeping a single fill call, so the perf
+            // guardrail holds. Radius scales with speck size.
+            var layerContext = context
+            layerContext.addFilter(.blur(radius: radius * 0.8))
+            layerContext.fill(specks, with: .color(layer.hue.opacity(layer.speckAlpha)))
         }
     }
 }
