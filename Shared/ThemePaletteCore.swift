@@ -92,6 +92,40 @@ enum ThemeOrbStyle: Hashable, Sendable {
     /// Collapsed star: gold→magenta core, Hawking-cyan counter-pulse rim,
     /// slow multi-hue accretion sweep (Event Horizon).
     case singularity
+
+    // Gallery-port compositions (Lane E Phase 2, gh#64) — one per complex
+    // theme, hue-curated like `.singularity`. Each selects a hand-written
+    // `ReactorOrb` composition; the widget target never draws orbs, it only
+    // compiles this table.
+
+    /// Seed core in vine rings of green, cyan, and magenta (Glitch Garden).
+    case glitchSeed
+    /// Poison rings, gold→green core, rising violet bubbles (Witch's Brew).
+    case cauldronBrew
+    /// Dashed roe ring, wasabi + nori rings, shimmering core (Holo Sushi).
+    case holoNigiri
+    /// Prize wheel: berry/milk/honey rings, orbiting two-hue core (Cereal Box).
+    case prizeWheel
+    /// Candy/cyan/yellow rings, brightening cotton-candy core (Bubblegum Mecha).
+    case candyMecha
+    /// Jukebox light: soda/chrome/mustard rings, chrome-flash core (Lunar Diner).
+    case jukeboxGlow
+    /// Blooming cactus flower: sunset/succulent/sand rings + core (Cyber Cactus).
+    case cactusBloom
+    /// Anglerfish lure: cyan/coral/gold rings, bioluminescent core (Deep Sea Diner).
+    case anglerLure
+    /// Mirror ball: dashed gold + dotted silver counter-spin, double crimson
+    /// pulse ring, square pixel core, orbiting diamond (Disco Inferno).
+    case discoBall
+    /// Spray cap: pink/violet/spray rings, counter-spinning square citron
+    /// core (Graffiti Galaxy).
+    case sprayCap
+    /// Booth disco ball: magenta/cyan/gold rings, spinning gold→magenta core
+    /// with the ♪ glyph (Karaoke Supernova).
+    case mirrorBall
+    /// Comic rocket badge: pinwheel wedge ring, blue + yellow discs, inked
+    /// red core (Retro Sci-Fi).
+    case rocketBadge
 }
 
 /// One stop of the screen's radial background gradient.
