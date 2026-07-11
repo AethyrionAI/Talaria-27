@@ -2431,6 +2431,18 @@ in DB → rendered in the device tray (Owen: two items visible). Along the way:
 **Still unchecked from the device checklist:** silent-push wake populating
 without manual refresh; approve → verdict readback; `notify="alert"` visible push.
 
+**Update 2026-07-10 (Lane C item 4, cloud session, branch
+`claude/lane-c-dispatch-5bbw9k`):** gh#58 app-side hardening BUILT, not compiled.
+`LiveInboxService.InboxResponse` now decodes row-by-row: a bad row is skipped via a
+never-throwing best-effort probe that salvages its raw `id`/`kind` for an always-on
+per-row os_log line (plus a kept/skipped summary) — the poison row is nameable in the
+relay DB instead of anonymous. Good rows survive in order; an all-bad payload decodes
+to an EMPTY inbox, not "unreachable". `InboxDecodingTests` (new file — xcodegen regen
+owed) covers mixed payloads, all five kinds, non-object rows, and id/kind capture.
+The optional relay-route `kind` validation half of gh#58 remains open (server-side).
+Device re-check once merged: re-insert a bad-kind row → tray shows the good rows +
+Console names the skipped one.
+
 ---
 
 ## 81. 🔧 Lock-screen reply to Hermes — UNTextInputNotificationAction (GitHub #47)
@@ -2712,7 +2724,84 @@ architecture. Reusable harness: `C:\Users\Owen\talaria-probe\probe.py`.
 
 Logged 2026-07-09.
 
-## 90. 🔧 P1 continuity fabric — journal primary, hop transplant, compose outbox (Lane A)
+## 90. 📝 DEVELOPMENT_TEAM placeholder — deferred to go-public cleanup
+
+`project.yml` (and the generated pbxproj) carry the hard-coded Apple `DEVELOPMENT_TEAM`
+(`DNL25ZFSD2`). Team IDs are not secrets — this one is embedded in every build's provisioning
+profile and already sits throughout public git history, so scrubbing HEAD now buys nothing
+(a history rewrite would break every open branch for zero security gain).
+
+**Decision 2026-07-10:** leave as-is for the personal-fork phase. **If the repo goes properly
+public / contributor-facing**, swap to a placeholder + developer-local override (e.g. gitignored
+local signing config) as part of a broader signing-config cleanup, alongside bundle-ID
+genericization. Until then, outside builders set their own team in Xcode per README §Setup
+step 5. Whatever mechanism is chosen must survive `xcodegen generate` (same class of concern
+as the `aps-environment` regen rule).
+
+Logged 2026-07-10.
+
+## 91. 🔧 Theme suite — Lane E dispatched: prove the drastic bar on Event Horizon, then port the gallery
+
+**Context (verified at HEAD 2026-07-10):** the `talaria-neon-arcade` gallery (17 themes; now in-repo at `design/themes/`) is the outrageous-theme suite. On device today: 4 flagships + 4 seasonals + 4 complex (Cereal Box / Bubblegum Mecha / Retro Sci-Fi / Event Horizon), all selectable. Why the complex ones "didn't hit right": (1) no atmosphere motion engine — the handoffs' 4-layer parallax drift was never ported; (2) no bespoke orbs — `ThemeOrbStyle` has only the 4 flagship cases, complex themes fall back to `.arcReactor`; (3) only Event Horizon has an art-direction override — the other three are pure recolors. 10 gallery themes unported entirely (incl. Neon Arcade #01 itself, Glitch Garden, Witch's Brew, Holo Sushi, Lunar Diner, Cyber Cactus, Deep Sea Diner, Disco Inferno, Graffiti Galaxy SE, Karaoke Supernova SE).
+
+**Phase 1 (Lane E, spec at `dispatch/FABLE-LANE-E-theme-drama.md`):** catalog taxonomy → gallery categories (Flagship / Neon Arcade Collection / Special Edition / Seasonal); data-driven atmosphere motion engine (TimelineView+Canvas, 3 on-device A/B presets, reduced-motion safe, widget layer untouched); `.singularity` orb composition; Event Horizon intensity pass. No `ChatScreen.swift` overlap — independent of Lanes A–D merge order.
+
+**Gate:** Owen device-verdicts Event Horizon post-Lane-E. If it hits: Phase 2 (art-direction schema extension — halftone/spray-grain/chrome-band textures, title + panel treatments), then Phase 3 (batch-port the 10 remaining themes + bespoke orbs + icon pairings from `design/themes/app-icons.html`).
+
+**Related:** orb enhancement issue filed on Talaria-27 (2026-07-10; the 7/6 draft was never actually filed).
+
+---
+
+## 92. 🔧 Lane B — markdown rendering depth (dispatch FABLE-LANES-BC)
+
+**Update 2026-07-10 (cloud session, branch `claude/lane-b-handoff-g8zxbl`):**
+BUILT IN CLOUD, not compiled or device-verified. `MarkdownSegment` grew from
+three cases (prose / codeBlock / image) to seven:
+
+- **Headings** — ATX `#`–`######`, space-after-hashes required (`#hashtag`
+  stays prose), closing-hash runs stripped, inline markdown preserved;
+  rendered at graduated Space Grotesk sizes, levels 1–3 in
+  `foregroundBright`.
+- **Block quotes** — 1-based `>` depth; consecutive same-depth lines merge,
+  a depth change starts a new segment (`>> ` and `> > ` both = depth 2);
+  rendered with an accent bar + `secondaryForeground`, indented per level.
+- **Lists** — `-`/`*`/`+` bullets and `1.`/`1)` ordinals (1–3 digits, so
+  `2026.` stays prose) in one segment with per-item depth via an
+  indent-stack (≥2 cols = deeper); one blank line tolerated between items,
+  two end the list; indented continuation lines append to the prior item;
+  bullets `•`/`◦`/`▪` by depth, ordinals rendered from the literal numbers.
+- **Tables** — GFM pipe tables gated on a real delimiter row with matching
+  cell count (pipe-containing prose stays prose); `:---:`-style alignments;
+  rows normalized to header width; `\|` escapes; rendered as a
+  horizontally-scrollable `Grid` in a hudPanel with header rule + faint
+  row striping. Streaming: header renders as prose until its delimiter row
+  arrives — self-heals on the next delta.
+- **Syntax highlighting** — new `Talaria/Core/CodeSyntaxHighlighter.swift`:
+  single-pass tokenizer (keywords / strings / comments / numbers) with
+  profiles for swift, python, js/ts, json, bash, yaml, c-family; unknown
+  languages get a conservative strings+numbers-only fallback. Colors ride
+  the live theme palette (keyword `accentBright`, string `forge`, comment
+  `dimForeground`, number `accent`); `CodeBlockView` now renders the
+  highlighted AttributedString.
+
+Parser + tokenizer logic verified in-session via a line-for-line Python
+port run against every test expectation (all green); Swift Testing suites:
+`MarkdownHeadingTests` / `MarkdownBlockQuoteTests` / `MarkdownListTests` /
+`MarkdownTableTests` / `CodeSyntaxHighlighterTests` /
+`MarkdownInterleavingTests` (+ `MarkdownTestSupport` accessors). Existing
+behaviors pinned: prose/image interleaving order, streaming unclosed-fence
+emission, non-streaming empty-fence prose fallback, block syntax inside
+fences staying code.
+
+**Needs Mac:** `xcodegen generate` (1 new source + 7 new test files —
+re-verify `aps-environment`/WeatherKit/widget-HealthKit per the #44/#48
+strip trap), CLI build + full test run (Swift Testing: grep "Test run with
+N tests passed"), then device: stream a reply mixing headings, nested
+lists, a table, a quote, and a swift code block; confirm Deep Field code
+blocks still read correctly and Paper Tape (light) keeps token colors
+legible; confirm table horizontal scroll inside bubbles.
+
+## 93. 🔧 P1 continuity fabric — journal primary, hop transplant, compose outbox (Lane A)
 
 **Built 2026-07-10 in the cloud (Fable, Lane A — `dispatch/FABLE-LANE-A-continuity-fabric.md`),
 branch `claude/talaria-27-lane-a-to5zv3`. NOT compiled, NOT device-verified.** Greenlit by the #89

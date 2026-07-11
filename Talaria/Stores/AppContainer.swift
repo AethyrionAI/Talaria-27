@@ -521,6 +521,14 @@ final class AppContainer {
             ContinuedProcessing.beginLongSend(subtitle: subtitle)
         }
 
+        // Failed sends buzz. Same user gate as the sent/received haptics
+        // (ChatScreen fires those; the failure terminals live in ChatStore).
+        container.chatStore.onSendFailed = {
+            if settingsStore.settings.hapticFeedbackEnabled {
+                HapticEngine.error()
+            }
+        }
+
         // Keep widget data fresh while app is foregrounded
         container.chatStore.onConversationChanged = { [weak container] in
             container?.updateWidgetData()

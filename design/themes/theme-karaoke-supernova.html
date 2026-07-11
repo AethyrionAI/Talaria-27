@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Karaoke Supernova — Talaria Theme</title>
+  <style>
+    :root {
+      --kara-bg-1: #09071a;
+      --kara-bg-2: #120a2e;
+      --kara-bg-3: #050417;
+      --kara-fg: #fff9fb;
+      --kara-fg-muted: #d8c8e8;
+      --kara-fg-dim: #9888b8;
+      --kara-surface-1: rgba(255, 0, 170, 0.08);
+      --kara-surface-2: rgba(0, 240, 255, 0.08);
+      --kara-surface-3: rgba(255, 230, 0, 0.06);
+      --kara-border: rgba(255, 0, 170, 0.30);
+      --kara-border-subtle: rgba(255, 255, 255, 0.08);
+      --kara-accent-magenta: #ff00aa;
+      --kara-accent-cyan: #00f0ff;
+      --kara-accent-gold: #ffe600;
+      --kara-accent-laser: #ff2a6d;
+      --kara-danger: #ff3b3b;
+      --kara-warning: #ffaa00;
+      --glow-scale: 1.35;
+      --font-display: 'Noto Sans JP', 'Hiragino Sans', 'Arial Black', sans-serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-mono: 'Space Mono', ui-monospace, Menlo, Monaco, 'Courier New', monospace;
+      --slot-hero: var(--kara-accent-magenta);
+      --slot-amber: var(--kara-accent-cyan);
+      --slot-violet: var(--kara-accent-gold);
+      --bg: var(--kara-bg-1);
+      --fg: var(--kara-fg);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--kara-bg-3);
+      color: var(--kara-fg);
+      font-family: var(--font-body);
+      line-height: 1.5;
+    }
+
+    body {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      padding: 2rem;
+      background:
+        radial-gradient(1200px 800px at 50% -10%, rgba(255, 0, 170, 0.12), transparent 60%),
+        radial-gradient(ellipse at 50% 0%, var(--kara-bg-2) 0%, var(--kara-bg-1) 40%, var(--kara-bg-3) 100%);
+    }
+
+    .page-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.35;
+      background-image:
+        radial-gradient(2px 80px at 20% 10%, rgba(255, 0, 170, 0.35) 100%, transparent 100%),
+        radial-gradient(2px 80px at 50% 30%, rgba(0, 240, 255, 0.30) 100%, transparent 100%),
+        radial-gradient(2px 80px at 80% 60%, rgba(255, 230, 0, 0.25) 100%, transparent 100%),
+        radial-gradient(2px 80px at 35% 80%, rgba(255, 42, 109, 0.30) 100%, transparent 100%);
+      background-size:
+        120px 180px,
+        160px 220px,
+        200px 260px,
+        140px 200px;
+      animation: laserSweep 18s linear infinite;
+    }
+
+    @keyframes laserSweep {
+      0% { background-position: 0 0, 0 0, 0 0, 0 0; }
+      100% { background-position: 120px 180px, -160px 220px, 200px -260px, -140px 200px; }
+    }
+
+    main { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 5.5vw, 3.8rem);
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      margin: 0;
+      text-transform: uppercase;
+      color: var(--kara-fg);
+      position: relative;
+      text-shadow:
+        0 0 10px var(--kara-accent-magenta),
+        0 0 30px var(--kara-accent-magenta),
+        0 0 60px rgba(255, 0, 170, 0.45),
+        0 0 90px rgba(0, 240, 255, 0.25);
+    }
+
+    .subtitle {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--kara-accent-gold);
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      text-shadow: 0 0 10px var(--kara-accent-gold);
+      background: rgba(255, 230, 0, 0.08);
+      padding: 0.3rem 0.75rem;
+      border: 1px solid rgba(255, 230, 0, 0.3);
+      border-radius: 999px;
+      animation: pulseGlow 2.5s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 8px rgba(255, 230, 0, 0.2); }
+      50% { box-shadow: 0 0 20px rgba(255, 230, 0, 0.45); }
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--kara-border-subtle);
+      border-radius: 22px;
+      padding: 1.5rem;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% 0%, rgba(255, 0, 170, 0.08), transparent 50%);
+    }
+
+    .card h2 {
+      margin: 0 0 1rem 0;
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+      color: var(--kara-fg);
+      border-bottom: 1px solid var(--kara-border-subtle);
+      padding-bottom: 0.75rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .chat-screen {
+      height: 520px;
+      display: flex;
+      flex-direction: column;
+      background: var(--kara-bg-1);
+      border: 1px solid var(--kara-border);
+      border-radius: 24px;
+      overflow: hidden;
+      position: relative;
+      box-shadow:
+        0 0 0 8px rgba(255, 0, 170, 0.06),
+        0 0 50px rgba(255, 0, 170, 0.15),
+        inset 0 0 80px rgba(0, 240, 255, 0.04);
+    }
+
+    .chat-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(255, 0, 170, 0.12) 0, transparent 25%),
+        radial-gradient(circle at 80% 80%, rgba(0, 240, 255, 0.10) 0, transparent 25%),
+        linear-gradient(180deg, rgba(255, 230, 0, 0.03) 0%, transparent 40%);
+      animation: roomPulse 5s ease-in-out infinite;
+    }
+
+    @keyframes roomPulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: rgba(0, 0, 0, 0.25);
+      border-bottom: 1px solid var(--kara-border-subtle);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--kara-fg-muted);
+      letter-spacing: 0.08em;
+      position: relative;
+      z-index: 1;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 0.8rem 1.1rem;
+      border-radius: 18px;
+      font-size: 0.95rem;
+      line-height: 1.45;
+      position: relative;
+      border: 1px solid transparent;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, rgba(255, 0, 170, 0.18), rgba(255, 42, 109, 0.10));
+      border-color: var(--kara-border);
+      color: var(--kara-fg);
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 4px 20px rgba(255, 0, 170, 0.12);
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.04);
+      border-color: var(--kara-border-subtle);
+      color: var(--kara-fg);
+      border-bottom-left-radius: 4px;
+    }
+
+    .message.assistant::before {
+      content: '♪';
+      position: absolute;
+      left: -18px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.9rem;
+      color: var(--kara-accent-cyan);
+      text-shadow: 0 0 10px var(--kara-accent-cyan);
+      animation: noteBob 1.4s ease-in-out infinite;
+    }
+
+    @keyframes noteBob {
+      0%, 100% { transform: translateY(-50%) translateX(0); }
+      50% { transform: translateY(-50%) translateX(4px); }
+    }
+
+    .chat-input {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: rgba(0, 0, 0, 0.25);
+      border-top: 1px solid var(--kara-border-subtle);
+      position: relative;
+      z-index: 1;
+    }
+
+    .chat-input input {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--kara-border-subtle);
+      border-radius: 999px;
+      padding: 0.6rem 1rem;
+      color: var(--kara-fg);
+      font-family: var(--font-body);
+      outline: none;
+      box-shadow: inset 0 0 12px rgba(255, 0, 170, 0.08);
+    }
+
+    .chat-input input::placeholder { color: var(--kara-fg-dim); }
+
+    .chat-input input:focus {
+      border-color: var(--kara-accent-cyan);
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.2), inset 0 0 12px rgba(255, 0, 170, 0.08);
+    }
+
+    .chat-input button {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, var(--kara-accent-magenta), var(--kara-accent-laser));
+      color: var(--kara-fg);
+      font-size: 1.2rem;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(255, 0, 170, 0.45);
+      display: grid;
+      place-items: center;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .chat-input button:focus-visible {
+      outline: 2px solid var(--kara-accent-cyan);
+      outline-offset: 3px;
+    }
+
+    .chat-input button:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 30px rgba(255, 0, 170, 0.6);
+    }
+
+    .orb {
+      width: 120px;
+      height: 120px;
+      margin: 1.25rem auto 0;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+
+    .orb-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid var(--kara-accent-magenta);
+      box-shadow: 0 0 24px var(--kara-accent-magenta), inset 0 0 24px rgba(255, 0, 170, 0.2);
+      animation: pulse 3s ease-in-out infinite;
+    }
+
+    .orb-ring:nth-child(1) { width: 100%; height: 100%; opacity: 0.3; }
+    .orb-ring:nth-child(2) { width: 74%; height: 74%; opacity: 0.5; border-color: var(--kara-accent-cyan); animation-delay: 0.3s; }
+    .orb-ring:nth-child(3) { width: 48%; height: 48%; opacity: 0.7; border-color: var(--kara-accent-gold); animation-delay: 0.6s; }
+
+    .orb-core {
+      width: 34%;
+      height: 34%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, var(--kara-accent-gold), var(--kara-accent-magenta));
+      box-shadow: 0 0 30px var(--kara-accent-magenta), 0 0 60px rgba(255, 0, 170, 0.4);
+      animation: spin 4s linear infinite;
+      position: relative;
+    }
+
+    .orb-core::after {
+      content: '♪';
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: 1.2rem;
+      color: var(--kara-bg-3);
+      font-weight: 900;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(1.05); opacity: 0.7; }
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .settings-preview { display: flex; flex-direction: column; gap: 1rem; position: relative; z-index: 1; }
+    .theme-row { display: flex; align-items: center; gap: 1rem; }
+
+    .mini-orb {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, var(--kara-accent-gold), var(--kara-accent-magenta));
+      box-shadow: 0 0 24px var(--kara-accent-magenta);
+      position: relative;
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    .mini-orb::after {
+      content: '♪';
+      font-size: 1.1rem;
+      color: var(--kara-bg-3);
+      font-weight: 900;
+    }
+
+    .theme-info h3 { margin: 0 0 0.25rem 0; font-family: var(--font-display); font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; text-transform: uppercase; color: var(--kara-fg); }
+    .theme-info p { margin: 0; font-size: 0.85rem; color: var(--kara-fg-muted); }
+
+    .grid-sample {
+      height: 80px;
+      border-radius: 16px;
+      border: 1px solid var(--kara-border);
+      background:
+        radial-gradient(circle at 50% 50%, rgba(255, 0, 170, 0.12) 0, transparent 40%),
+        linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+      background-size: 100% 100%, 14px 14px, 14px 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .grid-sample::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.08), transparent 50%, rgba(255, 230, 0, 0.08));
+    }
+
+    .swatch-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .swatch { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-mono); font-size: 0.75rem; color: var(--kara-fg-muted); background: rgba(255, 255, 255, 0.03); padding: 0.4rem 0.6rem; border-radius: 999px; border: 1px solid var(--kara-border-subtle); }
+    .swatch-dot { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+    .status-pills { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    .pill {
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 700;
+    }
+
+    .pill-danger { background: rgba(255, 59, 59, 0.15); color: var(--kara-danger); border: 1px solid rgba(255, 59, 59, 0.4); }
+    .pill-warning { background: rgba(255, 170, 0, 0.15); color: var(--kara-warning); border: 1px solid rgba(255, 170, 0, 0.4); }
+    .pill-success { background: rgba(0, 240, 255, 0.12); color: var(--kara-accent-cyan); border: 1px solid rgba(0, 240, 255, 0.4); }
+
+    .personality p { margin: 0 0 0.75rem 0; color: var(--kara-fg-muted); font-size: 0.95rem; line-height: 1.6; }
+    .personality strong { color: var(--kara-fg); }
+    .slot-map { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-top: 1rem; }
+    .slot { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--kara-border-subtle); border-radius: 12px; padding: 0.75rem; text-align: center; }
+    .slot-label { font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase; color: var(--kara-fg-dim); letter-spacing: 0.08em; margin-bottom: 0.4rem; }
+    .slot-name { font-size: 0.85rem; font-weight: 800; color: var(--kara-fg); text-transform: uppercase; }
+    .slot-color { width: 100%; height: 6px; border-radius: 999px; margin-top: 0.5rem; }
+
+    .palette-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .palette-table th, .palette-table td { text-align: left; padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--kara-border-subtle); }
+    .palette-table th { font-family: var(--font-mono); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.08em; color: var(--kara-fg-dim); }
+    .palette-table td { color: var(--kara-fg-muted); font-family: var(--font-mono); }
+    .chip { display: inline-block; width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--kara-border-subtle); box-shadow: 0 0 8px rgba(0, 0, 0, 0.3); }
+    .role-name { color: var(--kara-fg); font-family: var(--font-body); font-weight: 700; }
+
+    footer { margin-top: 2rem; text-align: center; font-family: var(--font-mono); font-size: 0.75rem; color: var(--kara-fg-dim); text-transform: uppercase; letter-spacing: 0.1em; }
+
+    @media (max-width: 640px) {
+      h1 { font-size: 2.2rem; }
+      .page-bg { opacity: 0.22; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .page-bg { animation: none; }
+      .chat-screen::before { animation: none; }
+      .subtitle { animation: none; }
+      .message.assistant::before { animation: none; }
+      .orb-ring, .orb-core { animation: none; }
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="page-bg"></div>
+  <main>
+    <header>
+      <h1>Karaoke Supernova</h1>
+      <span class="subtitle">Talaria Theme Reference</span>
+    </header>
+
+    <div class="grid">
+      <section class="card" data-od-id="chat-screen">
+        <h2>Chat Screen</h2>
+        <div class="chat-screen">
+          <div class="chat-header">Private room #7 — mic is live</div>
+          <div class="chat-messages">
+            <div class="message assistant">Next up: what are we belting tonight?</div>
+            <div class="message user">Help me rehearse my project pitch.</div>
+            <div class="message assistant">Alright, I'll be your backup singer. Hit the high notes.</div>
+          </div>
+          <div class="chat-input">
+            <input type="text" placeholder="Drop a verse..." />
+            <button aria-label="Send">♪</button>
+          </div>
+        </div>
+        <div class="orb" aria-label="Karaoke Supernova orb">
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <div class="orb-core"></div>
+        </div>
+      </section>
+
+      <section class="card" data-od-id="appearance-settings">
+        <h2>Appearance Settings</h2>
+        <div class="settings-preview">
+          <div class="theme-row">
+            <div class="mini-orb"></div>
+            <div class="theme-info">
+              <h3>Karaoke Supernova</h3>
+              <p>Private-room karaoke under a disco ball: magenta spotlights, cyan laser scans, gold confetti bursts.</p>
+            </div>
+          </div>
+          <div class="grid-sample"></div>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch-dot" style="background:#ff00aa;color:#ff00aa"></span>Magenta</div>
+            <div class="swatch"><span class="swatch-dot" style="background:#00f0ff;color:#00f0ff"></span>Cyan</div>
+            <div class="swatch"><span class="swatch-dot" style="background:#ffe600;color:#ffe600"></span>Gold</div>
+            <div class="swatch"><span class="swatch-dot" style="background:#ff2a6d;color:#ff2a6d"></span>Laser</div>
+          </div>
+          <div class="status-pills">
+            <span class="pill pill-danger">Off-key</span>
+            <span class="pill pill-warning">Warming up</span>
+            <span class="pill pill-success">Encore</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card personality" data-od-id="personality">
+        <h2>Personality</h2>
+        <p>Karaoke Supernova is Talaria in a neon private booth at 1 AM. The background is a deep indigo stage crossed by slow laser-bar scans. Surfaces are softly rounded like lounge seating, lit from above by a magenta spotlight. The reactor orb is the disco ball itself — a spinning gold-magenta core throwing cyan and gold rings across the room.</p>
+        <p><strong>Accent slot mapping:</strong> cyan (hero) → Magenta, amber → Cyan, violet → Gold.</p>
+        <div class="slot-map">
+          <div class="slot">
+            <div class="slot-label">Slot cyan</div>
+            <div class="slot-name">Magenta</div>
+            <div class="slot-color" style="background:#ff00aa"></div>
+          </div>
+          <div class="slot">
+            <div class="slot-label">Slot amber</div>
+            <div class="slot-name">Cyan</div>
+            <div class="slot-color" style="background:#00f0ff"></div>
+          </div>
+          <div class="slot">
+            <div class="slot-label">Slot violet</div>
+            <div class="slot-name">Gold</div>
+            <div class="slot-color" style="background:#ffe600"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" data-od-id="palette-table">
+        <h2>Palette</h2>
+        <table class="palette-table">
+          <thead><tr><th>Token</th><th>Role</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip" style="background:#09071a"></span></td><td class="role-name">Background 1</td><td>#09071a</td></tr>
+            <tr><td><span class="chip" style="background:#120a2e"></span></td><td class="role-name">Background 2</td><td>#120a2e</td></tr>
+            <tr><td><span class="chip" style="background:#050417"></span></td><td class="role-name">Background 3</td><td>#050417</td></tr>
+            <tr><td><span class="chip" style="background:#fff9fb"></span></td><td class="role-name">Foreground</td><td>#fff9fb</td></tr>
+            <tr><td><span class="chip" style="background:#d8c8e8"></span></td><td class="role-name">Muted</td><td>#d8c8e8</td></tr>
+            <tr><td><span class="chip" style="background:#9888b8"></span></td><td class="role-name">Dim</td><td>#9888b8</td></tr>
+            <tr><td><span class="chip" style="background:rgba(255,0,170,0.08)"></span></td><td class="role-name">Surface 1</td><td>rgba(255,0,170,0.08)</td></tr>
+            <tr><td><span class="chip" style="background:rgba(0,240,255,0.08)"></span></td><td class="role-name">Surface 2</td><td>rgba(0,240,255,0.08)</td></tr>
+            <tr><td><span class="chip" style="background:rgba(255,230,0,0.06)"></span></td><td class="role-name">Surface 3</td><td>rgba(255,230,0,0.06)</td></tr>
+            <tr><td><span class="chip" style="background:#ff00aa"></span></td><td class="role-name">Accent (cyan → Magenta)</td><td>#ff00aa</td></tr>
+            <tr><td><span class="chip" style="background:#00f0ff"></span></td><td class="role-name">Accent (amber → Cyan)</td><td>#00f0ff</td></tr>
+            <tr><td><span class="chip" style="background:#ffe600"></span></td><td class="role-name">Accent (violet → Gold)</td><td>#ffe600</td></tr>
+            <tr><td><span class="chip" style="background:#ff2a6d"></span></td><td class="role-name">Laser</td><td>#ff2a6d</td></tr>
+            <tr><td><span class="chip" style="background:#ff3b3b"></span></td><td class="role-name">Danger</td><td>#ff3b3b</td></tr>
+            <tr><td><span class="chip" style="background:#ffaa00"></span></td><td class="role-name">Warning</td><td>#ffaa00</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <footer>Theme: Karaoke Supernova — Talaria Companion</footer>
+  </main>
+</body>
+</html>

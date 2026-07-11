@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Retro Sci-Fi Saturday Morning — Talaria Theme</title>
+  <style>
+    :root {
+      --retro-bg-1: #f5f0e8;
+      --retro-bg-2: #e8e2d8;
+      --retro-bg-3: #fffdf8;
+      --retro-fg: #1a1210;
+      --retro-fg-muted: #5c5048;
+      --retro-fg-dim: #8a7e74;
+      --retro-surface-1: rgba(255, 45, 45, 0.08);
+      --retro-surface-2: rgba(0, 123, 255, 0.08);
+      --retro-surface-3: rgba(255, 214, 0, 0.08);
+      --retro-border: rgba(26, 18, 16, 0.85);
+      --retro-border-subtle: rgba(26, 18, 16, 0.15);
+      --retro-accent-red: #ff2d2d;
+      --retro-accent-blue: #007bff;
+      --retro-accent-yellow: #ffd600;
+      --retro-danger: #d00000;
+      --retro-warning: #e67e00;
+      --font-display: 'Impact', 'Haettenschweiler', 'Arial Narrow Bold', sans-serif;
+      --font-body: 'SF Pro Text', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-mono: 'SF Mono', ui-monospace, Menlo, monospace;
+      --slot-hero: var(--retro-accent-red);
+      --slot-amber: var(--retro-accent-blue);
+      --slot-violet: var(--retro-accent-yellow);
+      --bg: var(--retro-bg-1);
+      --fg: var(--retro-fg);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--retro-bg-3);
+      color: var(--retro-fg);
+      font-family: var(--font-body);
+      line-height: 1.5;
+    }
+
+    body {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      padding: 2rem;
+      background:
+        radial-gradient(1200px 800px at 50% -10%, rgba(255, 214, 0, 0.18), transparent 60%),
+        radial-gradient(ellipse at 50% 0%, var(--retro-bg-2) 0%, var(--retro-bg-1) 40%, var(--retro-bg-3) 100%);
+    }
+
+    .page-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.18;
+      background-color: var(--retro-bg-3);
+      background-image:
+        radial-gradient(circle, var(--retro-accent-red) 1.5px, transparent 2px),
+        radial-gradient(circle, var(--retro-accent-blue) 1.5px, transparent 2px);
+      background-size: 12px 12px, 12px 12px;
+      background-position: 0 0, 6px 6px;
+    }
+
+    main { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: clamp(2.2rem, 5.5vw, 4rem);
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      margin: 0;
+      color: var(--retro-fg);
+      text-transform: uppercase;
+      -webkit-text-stroke: 1.5px var(--retro-border);
+      text-shadow:
+        4px 4px 0 var(--retro-accent-yellow),
+        8px 8px 0 rgba(0, 123, 255, 0.25);
+    }
+
+    .subtitle {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--retro-accent-blue);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--retro-bg-3);
+      border: 2px solid var(--retro-border);
+      border-radius: 4px;
+      padding: 1.5rem;
+      box-shadow: 8px 8px 0 rgba(26, 18, 16, 0.12);
+    }
+
+    .card h2 {
+      margin: 0 0 1rem 0;
+      font-size: 1.3rem;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      color: var(--retro-fg);
+      border-bottom: 3px solid var(--retro-border);
+      padding-bottom: 0.75rem;
+      font-family: var(--font-display);
+      text-transform: uppercase;
+    }
+
+    .chat-screen {
+      height: 520px;
+      display: flex;
+      flex-direction: column;
+      background: var(--retro-bg-3);
+      border: 3px solid var(--retro-border);
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 10px 10px 0 rgba(255, 45, 45, 0.15);
+    }
+
+    .chat-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 80% 10%, rgba(255, 214, 0, 0.15) 0%, transparent 35%);
+      opacity: 0.6;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: var(--retro-accent-yellow);
+      border-bottom: 3px solid var(--retro-border);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--retro-fg);
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(0, 0, 0, 0.03) 3px,
+        rgba(0, 0, 0, 0.03) 6px
+      );
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 0.75rem 1rem;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      line-height: 1.45;
+      position: relative;
+      border: 2px solid var(--retro-border);
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--retro-surface-1);
+      color: var(--retro-fg);
+      border-bottom-right-radius: 0;
+      box-shadow: 4px 4px 0 rgba(255, 45, 45, 0.2);
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: var(--retro-bg-1);
+      color: var(--retro-fg);
+      border-bottom-left-radius: 0;
+      box-shadow: 4px 4px 0 rgba(0, 123, 255, 0.2);
+    }
+
+    .message.assistant::before {
+      content: '';
+      position: absolute;
+      left: -8px;
+      top: 14px;
+      width: 8px;
+      height: 8px;
+      background: var(--retro-accent-red);
+      border: 2px solid var(--retro-border);
+    }
+
+    .chat-input {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: var(--retro-bg-2);
+      border-top: 3px solid var(--retro-border);
+    }
+
+    .chat-input input {
+      flex: 1;
+      background: var(--retro-bg-3);
+      border: 2px solid var(--retro-border);
+      border-radius: 4px;
+      padding: 0.6rem 1rem;
+      color: var(--retro-fg);
+      font-family: var(--font-body);
+      outline: none;
+      box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+
+    .chat-input input::placeholder { color: var(--retro-fg-dim); }
+
+    .chat-input button {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid var(--retro-border);
+      background: var(--retro-accent-red);
+      color: var(--retro-bg-3);
+      cursor: pointer;
+      box-shadow: 3px 3px 0 var(--retro-border);
+      display: grid;
+      place-items: center;
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .orb {
+      width: 110px;
+      height: 110px;
+      margin: 1rem auto;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+
+    .orb-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 3px solid var(--retro-border);
+      box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.15);
+      animation: pulse 4s ease-in-out infinite;
+    }
+
+    .orb-ring:nth-child(1) {
+      width: 100%;
+      height: 100%;
+      background: repeating-conic-gradient(
+        from 0deg,
+        var(--retro-accent-red) 0deg 20deg,
+        var(--retro-accent-yellow) 20deg 40deg,
+        var(--retro-accent-blue) 40deg 60deg,
+        var(--retro-bg-3) 60deg 80deg
+      );
+      opacity: 0.9;
+    }
+
+    .orb-ring:nth-child(2) {
+      width: 70%;
+      height: 70%;
+      background: var(--retro-accent-blue);
+      animation-delay: 0.3s;
+    }
+
+    .orb-ring:nth-child(3) {
+      width: 40%;
+      height: 40%;
+      background: var(--retro-accent-yellow);
+      animation-delay: 0.6s;
+    }
+
+    .orb-core {
+      width: 28%;
+      height: 28%;
+      border-radius: 50%;
+      background: var(--retro-accent-red);
+      border: 2px solid var(--retro-border);
+      box-shadow: 3px 3px 0 var(--retro-border);
+      animation: spin 6s linear infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .settings-preview { display: flex; flex-direction: column; gap: 1rem; }
+    .theme-row { display: flex; align-items: center; gap: 1rem; }
+
+    .mini-orb {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: repeating-conic-gradient(
+        from 0deg,
+        var(--retro-accent-red) 0deg 30deg,
+        var(--retro-accent-yellow) 30deg 60deg,
+        var(--retro-accent-blue) 60deg 90deg,
+        var(--retro-bg-3) 90deg 120deg
+      );
+      border: 2px solid var(--retro-border);
+      box-shadow: 3px 3px 0 var(--retro-border);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .mini-orb::after {
+      content: '';
+      position: absolute;
+      inset: 10px;
+      border-radius: 50%;
+      background: var(--retro-accent-red);
+      border: 2px solid var(--retro-border);
+    }
+
+    .theme-info h3 { margin: 0 0 0.25rem 0; font-size: 1.2rem; font-weight: 900; letter-spacing: 0.02em; color: var(--retro-fg); font-family: var(--font-display); text-transform: uppercase; }
+    .theme-info p { margin: 0; font-size: 0.85rem; color: var(--retro-fg-muted); }
+
+    .grid-sample {
+      height: 80px;
+      border-radius: 4px;
+      border: 2px solid var(--retro-border);
+      background:
+        radial-gradient(circle at 50% 50%, rgba(255, 45, 45, 0.15) 0, transparent 40%),
+        radial-gradient(circle, var(--retro-accent-blue) 1.5px, transparent 2px),
+        radial-gradient(circle, var(--retro-accent-red) 1.5px, transparent 2px);
+      background-size: 100% 100%, 12px 12px, 12px 12px;
+      background-position: 0 0, 0 0, 6px 6px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1);
+    }
+
+    .swatch-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .swatch { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-mono); font-size: 0.75rem; color: var(--retro-fg-muted); background: var(--retro-bg-1); padding: 0.4rem 0.6rem; border-radius: 4px; border: 2px solid var(--retro-border-subtle); }
+    .swatch-dot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--retro-border); }
+    .status-pills { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    .pill {
+      padding: 0.35rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 700;
+      border: 2px solid var(--retro-border);
+    }
+
+    .pill-danger { background: var(--retro-accent-red); color: var(--retro-bg-3); }
+    .pill-warning { background: var(--retro-accent-yellow); color: var(--retro-fg); }
+    .pill-success { background: var(--retro-accent-blue); color: var(--retro-bg-3); }
+
+    .personality p { margin: 0 0 0.75rem 0; color: var(--retro-fg-muted); font-size: 0.95rem; line-height: 1.6; }
+    .slot-map { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-top: 1rem; }
+    .slot { background: var(--retro-bg-1); border: 2px solid var(--retro-border-subtle); border-radius: 4px; padding: 0.75rem; text-align: center; }
+    .slot-label { font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase; color: var(--retro-fg-dim); letter-spacing: 0.08em; margin-bottom: 0.4rem; }
+    .slot-name { font-size: 0.85rem; font-weight: 800; color: var(--retro-fg); font-family: var(--font-display); text-transform: uppercase; }
+    .slot-color { width: 100%; height: 6px; border-radius: 999px; margin-top: 0.5rem; }
+
+    .palette-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .palette-table th, .palette-table td { text-align: left; padding: 0.6rem 0.5rem; border-bottom: 2px solid var(--retro-border-subtle); }
+    .palette-table th { font-family: var(--font-mono); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.08em; color: var(--retro-fg-dim); }
+    .palette-table td { color: var(--retro-fg-muted); font-family: var(--font-mono); }
+    .chip { display: inline-block; width: 22px; height: 22px; border-radius: 4px; border: 2px solid var(--retro-border); box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.1); }
+    .role-name { color: var(--retro-fg); font-family: var(--font-body); font-weight: 600; }
+
+    footer { margin-top: 2rem; text-align: center; font-family: var(--font-mono); font-size: 0.75rem; color: var(--retro-fg-dim); text-transform: uppercase; letter-spacing: 0.1em; }
+  </style>
+</head>
+<body>
+  <div class="page-bg"></div>
+  <main>
+    <header>
+      <h1>Retro Sci-Fi</h1>
+      <span class="subtitle">Talaria Theme Reference</span>
+    </header>
+
+    <div class="grid">
+      <section class="card" data-od-id="chat-screen">
+        <h2>Chat Screen</h2>
+        <div class="chat-screen">
+          <div class="chat-header">Saturday Morning — 7:00 AM</div>
+          <div class="chat-messages">
+            <div class="message assistant">Good morning, cadet! Today's mission: save the galaxy before breakfast.</div>
+            <div class="message user">What's on the schedule?</div>
+            <div class="message assistant">First, we plot a course. Then we punch it to lightspeed.</div>
+          </div>
+          <div class="chat-input">
+            <input type="text" placeholder="Transmit coordinates..." />
+            <button>↑</button>
+          </div>
+        </div>
+        <div class="orb" aria-label="Retro sci-fi orb">
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <div class="orb-core"></div>
+        </div>
+      </section>
+
+      <section class="card" data-od-id="appearance-settings">
+        <h2>Appearance Settings</h2>
+        <div class="settings-preview">
+          <div class="theme-row">
+            <div class="mini-orb"></div>
+            <div class="theme-info">
+              <h3>Retro Sci-Fi</h3>
+              <p>Bright primaries, comic-book halftone, thick black outlines, Saturday morning cartoon optimism.</p>
+            </div>
+          </div>
+          <div class="grid-sample"></div>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch-dot" style="background:#ff2d2d"></span>Red</div>
+            <div class="swatch"><span class="swatch-dot" style="background:#007bff"></span>Blue</div>
+            <div class="swatch"><span class="swatch-dot" style="background:#ffd600"></span>Yellow</div>
+          </div>
+          <div class="status-pills">
+            <span class="pill pill-danger">Alert</span>
+            <span class="pill pill-warning">Standby</span>
+            <span class="pill pill-success">Go</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card personality" data-od-id="personality">
+        <h2>Personality</h2>
+        <p>Retro Sci-Fi Saturday Morning is Talaria as a cereal-box space adventure. The background is warm newsprint with halftone dots. Surfaces are flat, blocky, and bordered in thick black. The reactor orb is a spinning target badge of red, blue, and yellow — like a rocket ship insignia.</p>
+        <p><strong>Accent slot mapping:</strong> cyan (hero) → Rocket Red, amber → Laser Blue, violet → Boost Yellow.</p>
+        <div class="slot-map">
+          <div class="slot">
+            <div class="slot-label">Slot cyan</div>
+            <div class="slot-name">Red</div>
+            <div class="slot-color" style="background:#ff2d2d"></div>
+          </div>
+          <div class="slot">
+            <div class="slot-label">Slot amber</div>
+            <div class="slot-name">Blue</div>
+            <div class="slot-color" style="background:#007bff"></div>
+          </div>
+          <div class="slot">
+            <div class="slot-label">Slot violet</div>
+            <div class="slot-name">Yellow</div>
+            <div class="slot-color" style="background:#ffd600"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" data-od-id="palette-table">
+        <h2>Palette</h2>
+        <table class="palette-table">
+          <thead><tr><th>Token</th><th>Role</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip" style="background:#f5f0e8"></span></td><td class="role-name">Background 1</td><td>#f5f0e8</td></tr>
+            <tr><td><span class="chip" style="background:#e8e2d8"></span></td><td class="role-name">Background 2</td><td>#e8e2d8</td></tr>
+            <tr><td><span class="chip" style="background:#fffdf8"></span></td><td class="role-name">Background 3</td><td>#fffdf8</td></tr>
+            <tr><td><span class="chip" style="background:#1a1210"></span></td><td class="role-name">Foreground</td><td>#1a1210</td></tr>
+            <tr><td><span class="chip" style="background:#5c5048"></span></td><td class="role-name">Muted</td><td>#5c5048</td></tr>
+            <tr><td><span class="chip" style="background:#8a7e74"></span></td><td class="role-name">Dim</td><td>#8a7e74</td></tr>
+            <tr><td><span class="chip" style="background:rgba(255,45,45,0.08)"></span></td><td class="role-name">Surface 1</td><td>rgba(255,45,45,0.08)</td></tr>
+            <tr><td><span class="chip" style="background:rgba(0,123,255,0.08)"></span></td><td class="role-name">Surface 2</td><td>rgba(0,123,255,0.08)</td></tr>
+            <tr><td><span class="chip" style="background:rgba(255,214,0,0.08)"></span></td><td class="role-name">Surface 3</td><td>rgba(255,214,0,0.08)</td></tr>
+            <tr><td><span class="chip" style="background:#ff2d2d"></span></td><td class="role-name">Accent (cyan → Red)</td><td>#ff2d2d</td></tr>
+            <tr><td><span class="chip" style="background:#007bff"></span></td><td class="role-name">Accent (amber → Blue)</td><td>#007bff</td></tr>
+            <tr><td><span class="chip" style="background:#ffd600"></span></td><td class="role-name">Accent (violet → Yellow)</td><td>#ffd600</td></tr>
+            <tr><td><span class="chip" style="background:#d00000"></span></td><td class="role-name">Danger</td><td>#d00000</td></tr>
+            <tr><td><span class="chip" style="background:#e67e00"></span></td><td class="role-name">Warning</td><td>#e67e00</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <footer>Theme: Retro Sci-Fi Saturday Morning — Talaria Companion</footer>
+  </main>
+</body>
+</html>

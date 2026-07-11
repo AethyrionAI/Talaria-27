@@ -171,6 +171,13 @@ final class ChatStore {
     /// withdraws the relay watch so no stale push arrives.
     var onRunResolved: (@MainActor (String) -> Void)?
 
+    /// A send reached a terminal failure the user will see (stream error
+    /// before job acceptance, or polling exhaustion). Wired by AppContainer
+    /// to the error haptic. Deliberately NOT fired by the cold-load cache
+    /// finalization (#56) — that's bookkeeping for an old failure, and a
+    /// buzz at launch would have no visible cause.
+    var onSendFailed: (@MainActor () -> Void)?
+
     init(
         hermesClient: any HermesClientProtocol,
         persistence: any AppPersistenceStoreProtocol,
@@ -595,6 +602,7 @@ final class ChatStore {
                         needsPollingFallback = true
                     } else {
                         self.pendingMessageSentAt = nil
+                        self.onSendFailed?()
                     }
                     continuedSend?.finish(success: false)
                 }
@@ -828,8 +836,27 @@ final class ChatStore {
         """
     }
 
-    func exportConversationToFile() {
-        guard let conversation else { return }
+    /// Why `/save` can refuse before it even tries to write.
+    enum ExportError: LocalizedError {
+        case nothingToSave
+        case documentsUnavailable
+
+        var errorDescription: String? {
+            switch self {
+            case .nothingToSave:
+                "There's no conversation to save yet."
+            case .documentsUnavailable:
+                "The Documents folder isn't available on this device."
+            }
+        }
+    }
+
+    /// Writes the current conversation to Documents as JSON and returns the
+    /// file URL, throwing on any failure so `/save` reports honestly instead
+    /// of claiming success unconditionally.
+    @discardableResult
+    func exportConversationToFile() throws -> URL {
+        guard let conversation else { throw ExportError.nothingToSave }
 
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd_HHmmss"
@@ -850,16 +877,14 @@ final class ChatStore {
             },
         ]
 
-        guard let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+        guard let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            throw ExportError.documentsUnavailable
+        }
         let fileURL = dir.appendingPathComponent(filename)
 
-        do {
-            let data = try JSONSerialization.data(withJSONObject: exportData, options: [.prettyPrinted, .sortedKeys])
-            try data.write(to: fileURL)
-            // Append a system message confirming the save (caller handles this)
-        } catch {
-            // Export failed silently — caller can check
-        }
+        let data = try JSONSerialization.data(withJSONObject: exportData, options: [.prettyPrinted, .sortedKeys])
+        try data.write(to: fileURL, options: .atomic)
+        return fileURL
     }
 
     func setConversationTitle(_ title: String) {
@@ -1207,6 +1232,7 @@ final class ChatStore {
                     self.persistence.saveConversationCache(conv)
                 }
                 self.pendingMessageSentAt = nil
+                self.onSendFailed?()
             }
 
             if self.pollingTask?.isCancelled == false {
