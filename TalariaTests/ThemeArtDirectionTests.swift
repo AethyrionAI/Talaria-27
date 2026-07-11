@@ -27,12 +27,17 @@ struct ThemeArtDirectionTests {
 
     @Test func lineFieldsAndTitleShadowsAreDeliberatePerTheme() {
         // The Phase 2 slots stay nil except where a port sets them — update
-        // these sets deliberately per batch.
-        let lineTextures: Set<ThemeID> = [.holoSushi, .cyberCactus, .graffitiGalaxy]
-        let scanlineOverlays: Set<ThemeID> = [
-            .glitchGarden, .bubblegumMecha, .retroSciFi, .discoInferno,
+        // these sets deliberately per batch (batch 4: Midnight Aquarium's
+        // caustics, Haunted VHS's CRT rows + chromatic title).
+        let lineTextures: Set<ThemeID> = [
+            .holoSushi, .cyberCactus, .graffitiGalaxy, .midnightAquarium,
         ]
-        let titleShadows: Set<ThemeID> = [.glitchGarden, .retroSciFi, .graffitiGalaxy]
+        let scanlineOverlays: Set<ThemeID> = [
+            .glitchGarden, .bubblegumMecha, .retroSciFi, .discoInferno, .hauntedVHS,
+        ]
+        let titleShadows: Set<ThemeID> = [
+            .glitchGarden, .retroSciFi, .graffitiGalaxy, .hauntedVHS,
+        ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
             #expect((art.lineTexture != nil) == lineTextures.contains(theme))
@@ -41,12 +46,14 @@ struct ThemeArtDirectionTests {
         }
     }
 
-    @Test func glowPoolsStayStaticExceptKaraoke() {
+    @Test func glowPoolPulseIsDeliberatePerTheme() {
         // The pulse fields default inert (no TimelineView on the static
-        // path); only Karaoke Supernova's roomPulse spotlights breathe.
+        // path); only Karaoke Supernova's roomPulse spotlights and Molten
+        // Forge's heatShimmer pool breathe — update deliberately per batch.
         let pool = ThemeGlowPool(color: .white, centerX: 0.5, centerY: 0.5, radiusFraction: 0.5)
         #expect(pool.pulsePeriod == nil)
-        for theme in ThemeID.allCases where theme != .karaokeSupernova {
+        let pulsing: Set<ThemeID> = [.karaokeSupernova, .moltenForge]
+        for theme in ThemeID.allCases where !pulsing.contains(theme) {
             for pool in ThemeArtDirectionCatalog.artDirection(for: theme).glowPools {
                 #expect(pool.pulsePeriod == nil)
             }
@@ -59,6 +66,14 @@ struct ThemeArtDirectionTests {
             #expect(pool.pulsePeriod == 5)
             #expect(pool.pulseMinOpacity == 0.6)
         }
+        // Molten Forge: lava bloom static, the heatShimmer pool at 4s
+        // breathing the CSS's exact .10–.17 range (.17 × .59 ≈ .10).
+        let molten = ThemeArtDirectionCatalog.artDirection(for: .moltenForge).glowPools
+        #expect(molten.count == 2)
+        #expect(molten.first?.pulsePeriod == nil)
+        #expect(molten.last?.pulsePeriod == 4)
+        #expect(molten.last?.pulseMinOpacity == 0.59)
+        #expect(molten.last?.centerY == 1.0)
     }
 
     @Test func eventHorizonAtmosphereKeepsPreLaserDefaults() {
@@ -125,16 +140,17 @@ struct ThemeArtDirectionTests {
     }
 
     @Test func galleryOrbStylesAreNeverShared() {
-        // Batch 3 completes the port: each gallery composition belongs to at
-        // most ONE theme (the per-theme mapping is pinned in
-        // DesignThemeTests.orbStyleIsThemeData). `.anglerLure` is an
-        // intentional orphan — its theme (Deep Sea Diner) was cut on device
-        // verdict 2026-07-11 (too close to Deep Field); the composition
-        // stays as reusable data.
+        // Each gallery composition belongs to at most ONE theme (the
+        // per-theme mapping is pinned in DesignThemeTests.orbStyleIsThemeData).
+        // Batch 4 adds the three Claude-Design compositions as owned.
+        // `.anglerLure` STAYS an intentional orphan (Owen decision, batch-4
+        // dispatch) — its theme (Deep Sea Diner) was cut on device verdict
+        // 2026-07-11 (too close to Deep Field); the composition stays as
+        // reusable data.
         let galleryStyles: [ThemeOrbStyle] = [
             .glitchSeed, .cauldronBrew, .holoNigiri, .prizeWheel, .candyMecha,
             .jukeboxGlow, .cactusBloom, .anglerLure, .discoBall, .sprayCap,
-            .mirrorBall, .rocketBadge,
+            .mirrorBall, .rocketBadge, .moonJelly, .crucible, .phosphor,
         ]
         let orphans: Set<ThemeOrbStyle> = [.anglerLure]
         let selected = ThemeID.allCases.map { ThemePalette(theme: $0, accent: .cyan).orbStyle }
@@ -187,6 +203,157 @@ struct ThemeArtDirectionTests {
         #expect(ThemePalette(theme: .karaokeSupernova, accent: .cyan).glowScale == 1.35)
     }
 
+    // MARK: Batch 4 primitives (Claude-Design SEs) — inert defaults
+
+    @Test func batchFourPrimitivesDefaultInert() {
+        // Every new knob must be off unless a spec sets it, so all prior
+        // themes render byte-identically through the new machinery.
+        let lineLayer = ThemeLineFieldSpec.Layer(
+            angleDegrees: 0, hue: Color(hex: 0xFFFFFF), alpha: 0.1, spacing: 10)
+        #expect(lineLayer.driftX == 0)
+        #expect(lineLayer.driftY == 0)
+        #expect(ThemeLineFieldSpec(layers: [lineLayer], fieldOpacity: 1).driftPeriod == nil)
+
+        let ribbon = ThemeCornerRibbonSpec(text: "X", textColor: .white, background: .black)
+        #expect(ribbon.blinkPeriod == nil)
+        #expect(ribbon.blinkMinOpacity == 0.15)
+
+        let motion = AtmosphereMotionSpec(layers: [], period: 1, fieldOpacity: 1)
+        #expect(motion.stepCount == nil)
+
+        #expect(ThemeArtDirection.standard.sweepBar == nil)
+        for theme in ThemeID.allCases where theme != .hauntedVHS {
+            #expect(ThemeArtDirectionCatalog.artDirection(for: theme).sweepBar == nil)
+        }
+        // Pre-batch-4 adopters of the extended specs stay static: Graffiti
+        // Galaxy's TAG never blinks, no earlier line field drifts, no
+        // earlier atmosphere quantizes its pan.
+        #expect(ThemeArtDirectionCatalog.artDirection(for: .graffitiGalaxy)
+            .cornerRibbon?.blinkPeriod == nil)
+        for theme in ThemeID.allCases where theme != .midnightAquarium {
+            #expect(ThemeArtDirectionCatalog.artDirection(for: theme)
+                .lineTexture?.driftPeriod == nil)
+        }
+        for theme in ThemeID.allCases where theme != .hauntedVHS {
+            #expect(ThemeArtDirectionCatalog.artDirection(for: theme)
+                .atmosphereMotion?.stepCount == nil)
+        }
+    }
+
+    // MARK: Batch 4 pinned handoff values (Claude-Design Special Editions)
+
+    @Test func midnightAquariumSitsAtHandoffLevels() {
+        let art = ThemeArtDirectionCatalog.artDirection(for: .midnightAquarium)
+        // bubbleRise: three non-square columns (130×520 / 170×640 / 210×760),
+        // one tile height UP per 14s loop, alphas .4/.35/.3 on a .4 field.
+        let bubbles = art.atmosphereMotion
+        #expect(bubbles?.period == 14)
+        #expect(bubbles?.fieldOpacity == 0.4)
+        #expect(bubbles?.layers.map(\.tileSize) == [130, 170, 210])
+        #expect(bubbles?.layers.map(\.tileHeight) == [520, 640, 760])
+        #expect(bubbles?.layers.map(\.speckAlpha) == [0.4, 0.35, 0.3])
+        for layer in bubbles?.layers ?? [] {
+            // The seamless axis: exactly one tile height up per loop. The
+            // lateral wander (20/−30/10) is verbatim CSS and snaps at the
+            // loop point in the reference too.
+            #expect(layer.driftY == -(layer.tileHeight ?? layer.tileSize))
+            #expect(layer.barHeight == nil)
+        }
+        // causticDrift: ±105° lattices, 4px lines on 38/50 pitch, drifting
+        // (240,120)/(−240,−80) per 16s loop on a .6 field.
+        let caustics = art.lineTexture
+        #expect(caustics?.driftPeriod == 16)
+        #expect(caustics?.fieldOpacity == 0.6)
+        #expect(caustics?.layers.map(\.angleDegrees) == [105, -105])
+        #expect(caustics?.layers.map(\.spacing) == [38, 50])
+        #expect(caustics?.layers.allSatisfy { $0.lineWidth == 4 && $0.segmentLength == nil } == true)
+        #expect(caustics?.layers.map(\.driftX) == [240, -240])
+        #expect(caustics?.layers.map(\.driftY) == [120, -80])
+        #expect(art.panelHalo?.glowRadius == 40)
+        #expect(art.titleGlow != nil)
+    }
+
+    @Test func moltenForgeSitsAtHandoffLevels() {
+        let art = ThemeArtDirectionCatalog.artDirection(for: .moltenForge)
+        // emberRise: three non-square columns (120×420 / 160×560 / 200×680),
+        // one tile height UP per 10s loop, alphas .5/.45/.4 on a .45 field —
+        // ember red #FF3B2D rides the third layer (the fourth hue).
+        let embers = art.atmosphereMotion
+        #expect(embers?.period == 10)
+        #expect(embers?.fieldOpacity == 0.45)
+        #expect(embers?.layers.map(\.tileSize) == [120, 160, 200])
+        #expect(embers?.layers.map(\.tileHeight) == [420, 560, 680])
+        #expect(embers?.layers.map(\.speckAlpha) == [0.5, 0.45, 0.4])
+        for layer in embers?.layers ?? [] {
+            #expect(layer.driftY == -(layer.tileHeight ?? layer.tileSize))
+        }
+        #expect(art.panelHalo?.glowRadius == 40)
+        #expect(art.titleGlow != nil)
+        // heatShimmer pool pins live in glowPoolPulseIsDeliberatePerTheme.
+        // The Solar Forge lineage stays untouched: no ember tint reuse.
+        #expect(art.emberTint == nil)
+    }
+
+    @Test func hauntedVHSSitsAtHandoffLevels() {
+        let art = ThemeArtDirectionCatalog.artDirection(for: .hauntedVHS)
+        // staticDrift: three square noise tiles (70/110/90), four discrete
+        // jumps per 0.9s loop (steps(4)), alphas .16/.14/.12 on a .35 field.
+        let statics = art.atmosphereMotion
+        #expect(statics?.period == 0.9)
+        #expect(statics?.stepCount == 4)
+        #expect(statics?.fieldOpacity == 0.35)
+        #expect(statics?.layers.map(\.tileSize) == [70, 110, 90])
+        #expect(statics?.layers.map(\.speckAlpha) == [0.16, 0.14, 0.12])
+        for layer in statics?.layers ?? [] {
+            // Whole-tile jumps keep the wrap seamless on both axes.
+            #expect(abs(layer.driftX) == layer.tileSize)
+            #expect(abs(layer.driftY) == layer.tileSize)
+        }
+        // CRT rows, verbatim: 1px black .28 on 3px pitch, .5 layer.
+        #expect(art.scanlineOverlay?.layers.count == 1)
+        #expect(art.scanlineOverlay?.layers.first?.spacing == 3)
+        #expect(art.scanlineOverlay?.layers.first?.lineWidth == 1)
+        #expect(art.scanlineOverlay?.layers.first?.alpha == 0.28)
+        #expect(art.scanlineOverlay?.fieldOpacity == 0.5)
+        // trackingBar: 46px band sweeping −18% → 118% every 6s.
+        #expect(art.sweepBar?.height == 46)
+        #expect(art.sweepBar?.period == 6)
+        #expect(art.sweepBar?.travelStart == -0.18)
+        #expect(art.sweepBar?.travelEnd == 1.18)
+        #expect(art.sweepBar?.shoulderAlpha == 0.07)
+        #expect(art.sweepBar?.centerAlpha == 0.12)
+        // vhsJitter: ±3px chromatic inks on the 5s glitch cadence.
+        #expect(art.titleShadow?.layers.count == 2)
+        #expect(art.titleShadow?.layers[0].offsetX == 3)
+        #expect(art.titleShadow?.layers[1].offsetX == -3)
+        #expect(art.titleShadow?.glitchPeriod == 5)
+        #expect(art.titleGlow != nil)
+        // recBlink: the REC ribbon blinks at 1.1s, dimming to .15.
+        #expect(art.cornerRibbon?.text == "● REC")
+        #expect(art.cornerRibbon?.blinkPeriod == 1.1)
+        #expect(art.cornerRibbon?.blinkMinOpacity == 0.15)
+        #expect(art.panelHalo?.glowRadius == 40)
+    }
+
+    @Test func moltenForgeVariantsShareNoHueWithSolarForge() {
+        // Owen's differentiation mandate (batch-4 dispatch): Molten Forge's
+        // accent variants must use hues Solar Forge's variants do NOT.
+        // Compare the full accent families across every slot — no color may
+        // repeat (hue angles: Molten 21°/46°/202° vs Solar 39°/184°/259°).
+        func family(_ theme: ThemeID) -> [Color] {
+            AccentSlot.allCases.flatMap { slot -> [Color] in
+                let p = ThemePalette(theme: theme, accent: slot)
+                return [p.base, p.bright, p.deep, p.coreHighlight, p.coreShadow]
+            }
+        }
+        let molten = family(.moltenForge)
+        let solar = Set(family(.solarForge))
+        #expect(Set(molten).count == molten.count)
+        for color in molten {
+            #expect(!solar.contains(color))
+        }
+    }
+
     @Test func onlyPortedThemesOverrideArtDirection() {
         // Every un-ported theme resolves to the identity treatment — update
         // this list deliberately when a new handoff is ported (batch 1 added
@@ -197,6 +364,7 @@ struct ThemeArtDirectionTests {
             .cerealBox, .bubblegumMecha, .retroSciFi,
             .lunarDiner, .cyberCactus, .discoInferno,
             .graffitiGalaxy, .karaokeSupernova,
+            .midnightAquarium, .moltenForge, .hauntedVHS,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -240,13 +408,15 @@ struct ThemeArtDirectionTests {
 
     @Test func cornerRibbonAndTopStripDefaultToNil() {
         // Both correction-round primitives must be inert for every theme
-        // that doesn't set them — Graffiti Galaxy is the only adopter.
+        // that doesn't set them — ribbons: Graffiti Galaxy + Haunted VHS
+        // (batch 4); top strip: Graffiti Galaxy only.
         #expect(ThemeArtDirection.standard.cornerRibbon == nil)
         #expect(ThemeArtDirection.standard.panelTopStrip == nil)
-        for theme in ThemeID.allCases where theme != .graffitiGalaxy {
+        let ribbons: Set<ThemeID> = [.graffitiGalaxy, .hauntedVHS]
+        for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
-            #expect(art.cornerRibbon == nil)
-            #expect(art.panelTopStrip == nil)
+            #expect((art.cornerRibbon != nil) == ribbons.contains(theme))
+            #expect((art.panelTopStrip != nil) == (theme == .graffitiGalaxy))
         }
     }
 
@@ -294,6 +464,7 @@ struct ThemeArtDirectionTests {
         let fields: Set<ThemeID> = [
             .eventHorizon, .witchsBrew, .cerealBox, .bubblegumMecha, .retroSciFi,
             .lunarDiner, .discoInferno, .karaokeSupernova,
+            .midnightAquarium, .moltenForge, .hauntedVHS,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)

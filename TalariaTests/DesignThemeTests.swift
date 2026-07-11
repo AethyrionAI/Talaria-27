@@ -134,6 +134,10 @@ struct DesignThemeTests {
         // Batch 3 — Special Editions.
         #expect(ThemePalette(theme: .graffitiGalaxy, accent: .cyan).base == Color(hex: 0xFF006E))
         #expect(ThemePalette(theme: .karaokeSupernova, accent: .cyan).base == Color(hex: 0xFF00AA))
+        // Batch 4 — Claude-Design Special Editions.
+        #expect(ThemePalette(theme: .midnightAquarium, accent: .cyan).base == Color(hex: 0xFF7AD9))
+        #expect(ThemePalette(theme: .moltenForge, accent: .cyan).base == Color(hex: 0xFF6A1A))
+        #expect(ThemePalette(theme: .hauntedVHS, accent: .cyan).base == Color(hex: 0x3BFF6F))
     }
 
     @Test func contextualAccentLabels() {
@@ -156,6 +160,16 @@ struct DesignThemeTests {
         #expect(AppearanceAccent.cyan.displayLabel(for: .graffitiGalaxy) == "Hot Pink")
         #expect(AppearanceAccent.amber.displayLabel(for: .graffitiGalaxy) == "Electric Violet")
         #expect(AppearanceAccent.cyan.displayLabel(for: .karaokeSupernova) == "Magenta")
+        // Batch 4 keeps the handoff-native slot names.
+        #expect(AppearanceAccent.cyan.displayLabel(for: .midnightAquarium) == "Jelly Pink")
+        #expect(AppearanceAccent.amber.displayLabel(for: .midnightAquarium) == "Biolume Cyan")
+        #expect(AppearanceAccent.violet.displayLabel(for: .midnightAquarium) == "Anemone Violet")
+        #expect(AppearanceAccent.cyan.displayLabel(for: .moltenForge) == "Lava Orange")
+        #expect(AppearanceAccent.amber.displayLabel(for: .moltenForge) == "Spark Gold")
+        #expect(AppearanceAccent.violet.displayLabel(for: .moltenForge) == "Hammered Steel")
+        #expect(AppearanceAccent.cyan.displayLabel(for: .hauntedVHS) == "Phosphor Green")
+        #expect(AppearanceAccent.amber.displayLabel(for: .hauntedVHS) == "Chroma Magenta")
+        #expect(AppearanceAccent.violet.displayLabel(for: .hauntedVHS) == "Static Cyan")
     }
 
     // MARK: Catalog resolution (#49)
@@ -211,6 +225,10 @@ struct DesignThemeTests {
         // Batch 3 — Special Editions.
         #expect(ThemePalette(theme: .graffitiGalaxy, accent: .cyan).orbStyle == .sprayCap)
         #expect(ThemePalette(theme: .karaokeSupernova, accent: .cyan).orbStyle == .mirrorBall)
+        // Batch 4 — Claude-Design Special Editions.
+        #expect(ThemePalette(theme: .midnightAquarium, accent: .cyan).orbStyle == .moonJelly)
+        #expect(ThemePalette(theme: .moltenForge, accent: .cyan).orbStyle == .crucible)
+        #expect(ThemePalette(theme: .hauntedVHS, accent: .cyan).orbStyle == .phosphor)
     }
 
     // MARK: Runtime mirroring
