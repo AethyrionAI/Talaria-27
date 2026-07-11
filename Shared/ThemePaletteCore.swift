@@ -34,7 +34,6 @@ enum ThemeID: String, CaseIterable, Codable, Hashable, Sendable {
     case holoSushi
     case lunarDiner
     case cyberCactus
-    case deepSeaDiner
     case discoInferno
 }
 
@@ -422,7 +421,6 @@ enum ThemePaletteCatalog {
         .holoSushi: holoSushi,
         .lunarDiner: lunarDiner,
         .cyberCactus: cyberCactus,
-        .deepSeaDiner: deepSeaDiner,
         .discoInferno: discoInferno,
     ]
 
@@ -1650,78 +1648,6 @@ enum ThemePaletteCatalog {
         isLight: false,
         orbStyle: .cactusBloom
     )
-
-    // MARK: Abyss — Deep Sea Diner (design/themes/theme-deep-sea-diner.html)
-    // Bioluminescent fish-and-chips counter on the abyssal plain. The
-    // handoff's gradient runs dark → mid → darkest (bg-2 tops the screen) —
-    // verbatim, unlike every other collection theme.
-
-    static let deepSeaDiner = ThemePaletteDefinition(
-        lockedAccentSlot: nil,
-        background: Color(hex: 0x0A1420),
-        screenGradientStops: [
-            ThemeGradientStop(color: Color(hex: 0x050810), location: 0.0),
-            ThemeGradientStop(color: Color(hex: 0x0A1420), location: 0.52),
-            ThemeGradientStop(color: Color(hex: 0x020408), location: 1.0),
-        ],
-        drawerColors: [Color(hex: 0x050810), Color(hex: 0x0A1420), Color(hex: 0x020408)],
-        texture: .none,
-        ramp: ThemeForegroundRamp(
-            foreground: Color(hex: 0xF0F8FF),
-            foregroundBright: Color(hex: 0xF0F8FF),
-            secondaryForeground: Color(hex: 0xA8C0D8),
-            mutedForeground: Color(hex: 0xA8C0D8),
-            dimForeground: Color(hex: 0x6080A0),
-            coolForeground: Color(hex: 0xA8C0D8)
-        ),
-        surface: Color(hex: 0x00F5FF, opacity: 0.08),
-        chips: .fixed(
-            surface: Color(hex: 0x00F5FF, opacity: 0.08),
-            divider: Color(hex: 0xFF6B6B, opacity: 0.08),
-            border: Color(hex: 0xFFD166, opacity: 0.06)
-        ),
-        borders: .accentTinted(hairline: 0.14, strong: 0.30),
-        scrim: Color(hex: 0x000000, opacity: 0.85),
-        danger: Color(hex: 0xFF4D33),
-        dangerBright: Color(hex: 0xFF6751),
-        accents: ThemeAccentVariants(
-            cyan: ThemeAccentVariant(
-                displayName: "Lure · Deep Sea",
-                base: Color(hex: 0x00F5FF),
-                bright: Color(hex: 0x3FF7FF),
-                deep: Color(hex: 0x00ABB2),
-                coreHighlight: Color(hex: 0x72F9FF),
-                coreShadow: Color(hex: 0x00868C),
-                forge: Color(hex: 0xFF9A00)
-            ),
-            amber: ThemeAccentVariant(
-                displayName: "Coral · Deep Sea",
-                base: Color(hex: 0xFF6B6B),
-                bright: Color(hex: 0xFF8F8F),
-                deep: Color(hex: 0xB24A4A),
-                coreHighlight: Color(hex: 0xFFADAD),
-                coreShadow: Color(hex: 0x8C3A3A),
-                forge: Color(hex: 0xFF9A00)
-            ),
-            violet: ThemeAccentVariant(
-                displayName: "Gold · Deep Sea",
-                base: Color(hex: 0xFFD166),
-                bright: Color(hex: 0xFFDC8B),
-                deep: Color(hex: 0xB29247),
-                coreHighlight: Color(hex: 0xFFE5AA),
-                coreShadow: Color(hex: 0x8C7238),
-                // Warning must stay separable from an abyss-gold accent.
-                forge: Color(hex: 0xFF9A00)
-            )
-        ),
-        glowScale: 1.1,
-        gridStyle: .lines,
-        gridLine: .accentTinted(0.08),
-        gridCell: 26,
-        isLight: false,
-        orbStyle: .anglerLure
-    )
-
     // MARK: Inferno — Disco Inferno (design/themes/theme-disco-inferno.html)
     // Mirror-ball hell: molten gold, disco silver, hellfire crimson. The
     // design's own screen grid is the 10px gold dot lattice (×.2) — palette

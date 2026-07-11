@@ -406,7 +406,6 @@ extension AppearanceTheme {
         case .holoSushi: .holoSushi
         case .lunarDiner: .lunarDiner
         case .cyberCactus: .cyberCactus
-        case .deepSeaDiner: .deepSeaDiner
         case .discoInferno: .discoInferno
         }
     }

@@ -100,7 +100,7 @@ struct ThemeCatalogTests {
         #expect(ThemeCatalog.neonArcadeCollection.map(\.appearanceTheme) ==
                 [.cerealBox, .bubblegumMecha, .retroSciFi,
                  .glitchGarden, .witchsBrew, .holoSushi,
-                 .lunarDiner, .cyberCactus, .deepSeaDiner, .discoInferno])
+                 .lunarDiner, .cyberCactus, .discoInferno])
         #expect(ThemeCatalog.specialEdition.map(\.appearanceTheme) == [.eventHorizon])
         #expect(ThemeCatalog.seasonal.map(\.appearanceTheme) ==
                 [.winterFrost, .springSprout, .summerSolar, .autumnHarvest])

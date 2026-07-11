@@ -130,7 +130,6 @@ struct DesignThemeTests {
         // Batch 2.
         #expect(ThemePalette(theme: .lunarDiner, accent: .cyan).base == Color(hex: 0xFF9AB4))
         #expect(ThemePalette(theme: .cyberCactus, accent: .cyan).base == Color(hex: 0xFF5078))
-        #expect(ThemePalette(theme: .deepSeaDiner, accent: .cyan).base == Color(hex: 0x00F5FF))
         #expect(ThemePalette(theme: .discoInferno, accent: .cyan).base == Color(hex: 0xFFD700))
     }
 
@@ -201,7 +200,6 @@ struct DesignThemeTests {
         // Batch 2.
         #expect(ThemePalette(theme: .lunarDiner, accent: .cyan).orbStyle == .jukeboxGlow)
         #expect(ThemePalette(theme: .cyberCactus, accent: .cyan).orbStyle == .cactusBloom)
-        #expect(ThemePalette(theme: .deepSeaDiner, accent: .cyan).orbStyle == .anglerLure)
         #expect(ThemePalette(theme: .discoInferno, accent: .cyan).orbStyle == .discoBall)
     }
 
