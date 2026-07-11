@@ -247,6 +247,12 @@ enum ThemeArtDirectionCatalog {
 
     static let overrides: [ThemeID: ThemeArtDirection] = [
         .eventHorizon: eventHorizon,
+        .glitchGarden: glitchGarden,
+        .witchsBrew: witchsBrew,
+        .holoSushi: holoSushi,
+        .cerealBox: cerealBox,
+        .bubblegumMecha: bubblegumMecha,
+        .retroSciFi: retroSciFi,
     ]
 
     static func artDirection(for theme: ThemeID) -> ThemeArtDirection {
@@ -309,6 +315,202 @@ enum ThemeArtDirectionCatalog {
             primary: Color(hex: 0x8A5CFF),
             secondary: Color(hex: 0x00F0FF)
         )
+    )
+
+    // MARK: Glitch Garden — design/themes/theme-glitch-garden.html
+    // Dead-black CRT greenhouse: green bloom pinned above the screen, a faint
+    // cyan under-light, dark scanline rows over the design's own 40px green
+    // grid (grid = palette data), and the chromatic-aberration title with the
+    // 3s glitch jitter. Recipe rule 2: the cyan wash is `chat-screen::before`
+    // (screen-scope by design); the card glass stays panel-scope.
+
+    static let glitchGarden = ThemeArtDirection(
+        glowPools: [
+            // radial(1200px 800px at 50% -10%, rgba(57,255,20,.10) → 60%)
+            ThemeGlowPool(color: Color(hex: 0x39FF14, opacity: 0.10),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+            // chat-screen::before: cyan .05 at 50% 100% → 50%, ×.6 layer.
+            ThemeGlowPool(color: Color(hex: 0x00F0FF, opacity: 0.03),
+                          centerX: 0.5, centerY: 1.0, radiusFraction: 0.50),
+        ],
+        // page-bg::after: repeating 0deg, black .35 rows 2px on 4px pitch,
+        // on the .25-opacity page layer.
+        scanlineOverlay: ThemeLineFieldSpec(layers: [
+            .init(angleDegrees: 0, hue: Color(hex: 0x000000), alpha: 0.35,
+                  spacing: 4, lineWidth: 2),
+        ], fieldOpacity: 0.25),
+        // h1: 2px 0 magenta, -2px 0 cyan (chromatic ink), 0 0 24px green
+        // (glow), scrambling every 3s (glitch-text 92/94/96% keyframes).
+        titleShadow: ThemeTitleShadowSpec(layers: [
+            .init(hue: Color(hex: 0xFF00AA), alpha: 1.0, offsetX: 2, offsetY: 0),
+            .init(hue: Color(hex: 0x00F0FF), alpha: 1.0, offsetX: -2, offsetY: 0),
+            .init(hue: Color(hex: 0x39FF14), alpha: 1.0, offsetX: 0, offsetY: 0, blur: 24),
+        ], glitchPeriod: 3)
+    )
+
+    // MARK: Witch's Brew — design/themes/theme-witchs-brew.html
+    // Midnight cauldron: poison bloom above, poison under-light, and the
+    // design's static three-hue speck field (mystic/poison/bubble tiles at
+    // 120/180/220 — zero drift, the CSS never pans it).
+
+    static let witchsBrew = ThemeArtDirection(
+        glowPools: [
+            ThemeGlowPool(color: Color(hex: 0x4ADE80, opacity: 0.10),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+            // chat-screen::before: poison .06 at 50% 100% → 50%, ×.6 layer.
+            ThemeGlowPool(color: Color(hex: 0x4ADE80, opacity: 0.036),
+                          centerX: 0.5, centerY: 1.0, radiusFraction: 0.50),
+        ],
+        // Static field: drift 0 keeps the seamless invariant trivially; the
+        // period is inert at zero drift.
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 120, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xA855F7), speckAlpha: 0.15,
+                anchorX: 0.30, anchorY: 0.40),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 180, driftX: 0, driftY: 0,
+                hue: Color(hex: 0x4ADE80), speckAlpha: 0.12,
+                anchorX: 0.70, anchorY: 0.60),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 220, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xFACC15), speckAlpha: 0.10,
+                anchorX: 0.50, anchorY: 0.80),
+        ], period: 1, fieldOpacity: 0.25),
+        // h1: 0 0 18px poison, 0 0 44px poison .5 — single-hue soft glow.
+        titleGlow: ThemeTitleGlow(
+            primary: Color(hex: 0x4ADE80),
+            secondary: Color(hex: 0x4ADE80)
+        )
+    )
+
+    // MARK: Holo Sushi — design/themes/theme-holo-sushi.html
+    // Glossy neon counter: roe bloom + under-light, and the signature
+    // dual-tone holo grid (wasabi verticals × roe horizontals, 24px, ×.35).
+
+    static let holoSushi = ThemeArtDirection(
+        glowPools: [
+            ThemeGlowPool(color: Color(hex: 0xFF69B4, opacity: 0.10),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+            ThemeGlowPool(color: Color(hex: 0xFF69B4, opacity: 0.036),
+                          centerX: 0.5, centerY: 1.0, radiusFraction: 0.50),
+        ],
+        lineTexture: ThemeLineFieldSpec(layers: [
+            .init(angleDegrees: 90, hue: Color(hex: 0x00F0FF), alpha: 0.04, spacing: 24),
+            .init(angleDegrees: 0, hue: Color(hex: 0xFF69B4), alpha: 0.04, spacing: 24),
+        ], fieldOpacity: 0.35),
+        titleGlow: ThemeTitleGlow(
+            primary: Color(hex: 0xFF69B4),
+            secondary: Color(hex: 0xFF69B4)
+        )
+    )
+
+    // MARK: Cereal Box — design/themes/theme-cereal-box.html (drama retrofit)
+    // The shipped recolor never got its handoff atmosphere: berry bloom,
+    // milk under-light, and the big soft berry/milk/honey sparkles (8px
+    // fade-outs → 5pt centers under the layer blur, recipe rule 1).
+
+    static let cerealBox = ThemeArtDirection(
+        glowPools: [
+            ThemeGlowPool(color: Color(hex: 0xFF5078, opacity: 0.10),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+            ThemeGlowPool(color: Color(hex: 0x00C8FF, opacity: 0.036),
+                          centerX: 0.5, centerY: 1.0, radiusFraction: 0.50),
+        ],
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 60, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xFF5078), speckAlpha: 0.12,
+                anchorX: 0.20, anchorY: 0.30, speckRadius: 5),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 80, driftX: 0, driftY: 0,
+                hue: Color(hex: 0x00C8FF), speckAlpha: 0.12,
+                anchorX: 0.70, anchorY: 0.70, speckRadius: 5),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 100, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xFFDC00), speckAlpha: 0.10,
+                anchorX: 0.50, anchorY: 0.50, speckRadius: 5),
+        ], period: 1, fieldOpacity: 0.3),
+        titleGlow: ThemeTitleGlow(
+            primary: Color(hex: 0xFF5078),
+            secondary: Color(hex: 0xFF5078)
+        )
+    )
+
+    // MARK: Bubblegum Mecha — design/themes/theme-bubblegum-mecha.html
+    // (drama retrofit) Candy bloom + under-light, candy/cyan/yellow sparkle
+    // field, and the cockpit's dark scanline rows (`chat-screen::after`,
+    // ×.18 multiply).
+
+    static let bubblegumMecha = ThemeArtDirection(
+        glowPools: [
+            ThemeGlowPool(color: Color(hex: 0xFF6EC7, opacity: 0.10),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+            ThemeGlowPool(color: Color(hex: 0xFF6EC7, opacity: 0.036),
+                          centerX: 0.5, centerY: 1.0, radiusFraction: 0.50),
+        ],
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 60, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xFF6EC7), speckAlpha: 0.12,
+                anchorX: 0.20, anchorY: 0.30, speckRadius: 5),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 80, driftX: 0, driftY: 0,
+                hue: Color(hex: 0x00F0FF), speckAlpha: 0.12,
+                anchorX: 0.70, anchorY: 0.70, speckRadius: 5),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 100, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xFFE600), speckAlpha: 0.10,
+                anchorX: 0.50, anchorY: 0.50, speckRadius: 5),
+        ], period: 1, fieldOpacity: 0.3),
+        scanlineOverlay: ThemeLineFieldSpec(layers: [
+            .init(angleDegrees: 0, hue: Color(hex: 0x000000), alpha: 0.35,
+                  spacing: 4, lineWidth: 2),
+        ], fieldOpacity: 0.18),
+        titleGlow: ThemeTitleGlow(
+            primary: Color(hex: 0xFF6EC7),
+            secondary: Color(hex: 0xFF6EC7)
+        )
+    )
+
+    // MARK: Retro Sci-Fi — design/themes/theme-retro-sci-fi.html
+    // (drama retrofit) Warm newsprint under comic halftone: yellow sunbeams
+    // (top bloom + the 80%/10% corner spot), the two offset red/blue dot
+    // lattices (crisp print dots — blurScale 0.25), and faint dark rows on
+    // the reading surface. Title = hard 4,4 yellow / 8,8 blue print offsets.
+
+    static let retroSciFi = ThemeArtDirection(
+        glowPools: [
+            // radial(1200px 800px at 50% -10%, rgba(255,214,0,.18) → 60%)
+            ThemeGlowPool(color: Color(hex: 0xFFD600, opacity: 0.18),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+            // chat-screen::before: yellow .15 at 80% 10% → 35%, ×.6 layer.
+            ThemeGlowPool(color: Color(hex: 0xFFD600, opacity: 0.09),
+                          centerX: 0.8, centerY: 0.10, radiusFraction: 0.35),
+        ],
+        // Halftone: two full-strength dot lattices on a .18 layer, offset by
+        // half a tile (anchors .5/.5 vs 0/0), dots ~1.5px fading at 2px —
+        // crisp comic print, so the softening blur is nearly off.
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 12, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xFF2D2D), speckAlpha: 1.0,
+                anchorX: 0.5, anchorY: 0.5, speckRadius: 1.9, blurScale: 0.25),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 12, driftX: 0, driftY: 0,
+                hue: Color(hex: 0x007BFF), speckAlpha: 1.0,
+                anchorX: 0.0, anchorY: 0.0, speckRadius: 1.9, blurScale: 0.25),
+        ], period: 1, fieldOpacity: 0.18),
+        // chat-messages: black .03 rows, 3px on 6px pitch (direct alpha).
+        scanlineOverlay: ThemeLineFieldSpec(layers: [
+            .init(angleDegrees: 0, hue: Color(hex: 0x000000), alpha: 0.03,
+                  spacing: 6, lineWidth: 3),
+        ], fieldOpacity: 1.0),
+        // h1: 4px 4px 0 yellow, 8px 8px 0 blue .25 — pure ink, no glow.
+        titleShadow: ThemeTitleShadowSpec(layers: [
+            .init(hue: Color(hex: 0xFFD600), alpha: 1.0, offsetX: 4, offsetY: 4),
+            .init(hue: Color(hex: 0x007BFF), alpha: 0.25, offsetX: 8, offsetY: 8),
+        ])
     )
 
     // MARK: Event Horizon atmosphere presets (Lane E Task 1)

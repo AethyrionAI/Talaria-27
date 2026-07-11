@@ -25,14 +25,17 @@ struct ThemeArtDirectionTests {
 
     // MARK: Phase 2 schema extension (Lane E)
 
-    @Test func lineFieldsAndTitleShadowsDefaultToNil() {
-        // Every shipped theme — Event Horizon included — carries none of the
-        // Phase 2 fields until a Phase 3 port sets them deliberately.
+    @Test func lineFieldsAndTitleShadowsAreDeliberatePerTheme() {
+        // The Phase 2 slots stay nil except where a port sets them — update
+        // these sets deliberately per batch.
+        let lineTextures: Set<ThemeID> = [.holoSushi]
+        let scanlineOverlays: Set<ThemeID> = [.glitchGarden, .bubblegumMecha, .retroSciFi]
+        let titleShadows: Set<ThemeID> = [.glitchGarden, .retroSciFi]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
-            #expect(art.lineTexture == nil)
-            #expect(art.scanlineOverlay == nil)
-            #expect(art.titleShadow == nil)
+            #expect((art.lineTexture != nil) == lineTextures.contains(theme))
+            #expect((art.scanlineOverlay != nil) == scanlineOverlays.contains(theme))
+            #expect((art.titleShadow != nil) == titleShadows.contains(theme))
         }
     }
 
@@ -111,29 +114,31 @@ struct ThemeArtDirectionTests {
         #expect((laser.barHeight ?? 0) > 0)
     }
 
-    @Test func galleryOrbStylesAreDataOnlyUntilPhase3() {
-        // Phase 2 lands the twelve compositions unwired: every shipped
-        // palette still selects a pre-existing orb style, so no theme's
-        // rendering changes. Phase 3 flips these deliberately.
-        let prePhase3: Set<ThemeOrbStyle> = [
-            .arcReactor, .forgeSun, .crtCrosshair, .paperReel, .singularity,
+    @Test func galleryOrbStylesShipOnlyWithTheirPorts() {
+        // Batch 1 wired six of the twelve gallery compositions; the batch 2/3
+        // styles stay unselected until their ports land. The full per-theme
+        // orb mapping is pinned in DesignThemeTests.orbStyleIsThemeData.
+        let unwired: Set<ThemeOrbStyle> = [
+            .jukeboxGlow, .cactusBloom, .anglerLure, .discoBall, .sprayCap, .mirrorBall,
         ]
         for theme in ThemeID.allCases {
             let palette = ThemePalette(theme: theme, accent: .cyan)
-            #expect(prePhase3.contains(palette.orbStyle))
+            #expect(!unwired.contains(palette.orbStyle))
         }
     }
 
-    @Test func onlyEventHorizonOverridesArtDirection() {
-        // Every other shipped theme resolves to the identity treatment —
-        // update this list deliberately when a new handoff is ported.
+    @Test func onlyPortedThemesOverrideArtDirection() {
+        // Every un-ported theme resolves to the identity treatment — update
+        // this list deliberately when a new handoff is ported (batch 1 added
+        // the three new NAC themes + the three recolor drama retrofits).
+        let ported: Set<ThemeID> = [
+            .eventHorizon,
+            .glitchGarden, .witchsBrew, .holoSushi,
+            .cerealBox, .bubblegumMecha, .retroSciFi,
+        ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
-            if theme == .eventHorizon {
-                #expect(art != .standard)
-            } else {
-                #expect(art == .standard)
-            }
+            #expect((art != .standard) == ported.contains(theme))
         }
     }
 
@@ -198,13 +203,89 @@ struct ThemeArtDirectionTests {
 
     // MARK: Atmosphere motion (Lane E Task 1)
 
-    @Test func atmosphereMotionDefaultsToNil() {
-        // The motion engine must be inert for every theme without a spec —
-        // `.standard` (and therefore all un-listed themes) carries none.
+    @Test func atmosphereMotionIsDeliberatePerTheme() {
+        // The engine stays inert for every theme without a spec. Batch 1
+        // added the static (zero-drift) speck/halftone fields.
         #expect(ThemeArtDirection.standard.atmosphereMotion == nil)
-        for theme in ThemeID.allCases where theme != .eventHorizon {
-            #expect(ThemeArtDirectionCatalog.artDirection(for: theme).atmosphereMotion == nil)
+        let fields: Set<ThemeID> = [
+            .eventHorizon, .witchsBrew, .cerealBox, .bubblegumMecha, .retroSciFi,
+        ]
+        for theme in ThemeID.allCases {
+            let art = ThemeArtDirectionCatalog.artDirection(for: theme)
+            #expect((art.atmosphereMotion != nil) == fields.contains(theme))
         }
+    }
+
+    @Test func staticAtmosphereFieldsNeverDrift() {
+        // Batch 1's speck fields are STATIC by design (the CSS never pans
+        // them) — zero drift on every layer, so Reduce Motion and the
+        // animated path render identically. Only Event Horizon drifts today.
+        for theme in [ThemeID.witchsBrew, .cerealBox, .bubblegumMecha, .retroSciFi] {
+            let spec = ThemeArtDirectionCatalog.artDirection(for: theme).atmosphereMotion
+            #expect(spec != nil)
+            for layer in spec?.layers ?? [] {
+                #expect(layer.driftX == 0)
+                #expect(layer.driftY == 0)
+                #expect(layer.speckAlpha > 0)
+                #expect(layer.speckRadius > 0)
+            }
+            #expect((spec?.period ?? 0) > 0)
+            #expect((0...1).contains(spec?.fieldOpacity ?? -1))
+        }
+    }
+
+    // MARK: Batch 1 pinned handoff values
+
+    @Test func glitchGardenSitsAtHandoffLevels() {
+        let art = ThemeArtDirectionCatalog.artDirection(for: .glitchGarden)
+        #expect(art.glowPools.count == 2)
+        // Scanlines: black .35 rows, 2px on 4px pitch, .25 page layer.
+        #expect(art.scanlineOverlay?.layers.count == 1)
+        #expect(art.scanlineOverlay?.layers.first?.spacing == 4)
+        #expect(art.scanlineOverlay?.layers.first?.lineWidth == 2)
+        #expect(art.scanlineOverlay?.fieldOpacity == 0.25)
+        // Chromatic title: ±2px ink pair + 24px glow, 3s jitter.
+        #expect(art.titleShadow?.layers.count == 3)
+        #expect(art.titleShadow?.layers[0].offsetX == 2)
+        #expect(art.titleShadow?.layers[1].offsetX == -2)
+        #expect(art.titleShadow?.layers[2].blur == 24)
+        #expect(art.titleShadow?.glitchPeriod == 3)
+        // The design's own grid is palette data: 40px green lines.
+        let palette = ThemePalette(theme: .glitchGarden, accent: .cyan)
+        #expect(palette.gridCell == 40)
+        #expect(palette.gridStyle == .lines)
+    }
+
+    @Test func witchsBrewSitsAtHandoffLevels() {
+        let art = ThemeArtDirectionCatalog.artDirection(for: .witchsBrew)
+        #expect(art.glowPools.count == 2)
+        // Three static speck tiles at the handoff's 120/180/220.
+        #expect(art.atmosphereMotion?.layers.map(\.tileSize) == [120, 180, 220])
+        #expect(art.atmosphereMotion?.fieldOpacity == 0.25)
+        #expect(art.titleGlow != nil)
+    }
+
+    @Test func holoSushiSitsAtHandoffLevels() {
+        let art = ThemeArtDirectionCatalog.artDirection(for: .holoSushi)
+        #expect(art.glowPools.count == 2)
+        // The dual-tone holo grid: verticals × horizontals, 24px, ×.35.
+        #expect(art.lineTexture?.layers.map(\.angleDegrees) == [90, 0])
+        #expect(art.lineTexture?.layers.allSatisfy { $0.spacing == 24 && $0.segmentLength == nil } == true)
+        #expect(art.lineTexture?.fieldOpacity == 0.35)
+        #expect(art.titleGlow != nil)
+    }
+
+    @Test func retroSciFiHalftoneIsCrispPrint() {
+        // Two full-strength offset dot lattices on a .18 layer; the blur is
+        // nearly off (comic dots, not starlight — deliberate rule-1 inverse).
+        let spec = ThemeArtDirectionCatalog.artDirection(for: .retroSciFi).atmosphereMotion
+        #expect(spec?.layers.count == 2)
+        #expect(spec?.layers.allSatisfy { $0.tileSize == 12 && $0.speckAlpha == 1.0 } == true)
+        #expect(spec?.layers.allSatisfy { $0.blurScale == 0.25 } == true)
+        #expect(spec?.fieldOpacity == 0.18)
+        // Half-tile lattice offset via anchors.
+        #expect(spec?.layers[0].anchorX == 0.5)
+        #expect(spec?.layers[1].anchorX == 0.0)
     }
 
     @Test func eventHorizonAtmosphereMatchesTheHandoffDrift() {

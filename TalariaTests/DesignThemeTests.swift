@@ -119,6 +119,10 @@ struct DesignThemeTests {
         #expect(ThemePalette(theme: .summerSolar, accent: .cyan).base == Color(hex: 0xFFA028))
         #expect(ThemePalette(theme: .springSprout, accent: .cyan).base == Color(hex: 0xFF6B8A))
         #expect(ThemePalette(theme: .autumnHarvest, accent: .cyan).base == Color(hex: 0xFF8C28))
+        // Batch 1 gallery ports.
+        #expect(ThemePalette(theme: .glitchGarden, accent: .cyan).base == Color(hex: 0x39FF14))
+        #expect(ThemePalette(theme: .witchsBrew, accent: .cyan).base == Color(hex: 0x4ADE80))
+        #expect(ThemePalette(theme: .holoSushi, accent: .cyan).base == Color(hex: 0xFF69B4))
     }
 
     @Test func contextualAccentLabels() {
@@ -130,6 +134,9 @@ struct DesignThemeTests {
         #expect(AppearanceAccent.cyan.displayLabel(for: .summerSolar) == "Mango · Summer")
         #expect(AppearanceAccent.cyan.displayLabel(for: .springSprout) == "Blossom · Spring")
         #expect(AppearanceAccent.cyan.displayLabel(for: .autumnHarvest) == "Pumpkin · Autumn")
+        #expect(AppearanceAccent.cyan.displayLabel(for: .glitchGarden) == "Vine · Garden")
+        #expect(AppearanceAccent.amber.displayLabel(for: .witchsBrew) == "Mystic · Brew")
+        #expect(AppearanceAccent.violet.displayLabel(for: .holoSushi) == "Nori · Sushi")
     }
 
     // MARK: Catalog resolution (#49)
@@ -170,6 +177,14 @@ struct DesignThemeTests {
         #expect(ThemePalette(theme: .autumnHarvest, accent: .cyan).orbStyle == .arcReactor)
         // Event Horizon's bespoke composition (Lane E Task 2).
         #expect(ThemePalette(theme: .eventHorizon, accent: .cyan).orbStyle == .singularity)
+        // Gallery-port compositions (Lane E Phase 3 batch 1): the three new
+        // NAC themes plus the recolor retrofits' handoff orbs.
+        #expect(ThemePalette(theme: .glitchGarden, accent: .cyan).orbStyle == .glitchSeed)
+        #expect(ThemePalette(theme: .witchsBrew, accent: .cyan).orbStyle == .cauldronBrew)
+        #expect(ThemePalette(theme: .holoSushi, accent: .cyan).orbStyle == .holoNigiri)
+        #expect(ThemePalette(theme: .cerealBox, accent: .cyan).orbStyle == .prizeWheel)
+        #expect(ThemePalette(theme: .bubblegumMecha, accent: .cyan).orbStyle == .candyMecha)
+        #expect(ThemePalette(theme: .retroSciFi, accent: .cyan).orbStyle == .rocketBadge)
     }
 
     // MARK: Runtime mirroring
