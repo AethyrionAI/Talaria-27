@@ -45,6 +45,21 @@ final class PairingStore {
         pairedRelayConfiguration != nil
     }
 
+    /// Pre-unlock staleness recovery: construction during a pre-first-unlock
+    /// background launch (post-reboot location relaunch) reads the persisted
+    /// pairing as absent — Keychain and protected defaults are sealed — and
+    /// caches nil for the process's whole lifetime, so foregrounding that
+    /// same process shows NOT PAIRED even though nothing was lost. Re-read
+    /// once protected data is available; assignment flips `isPaired`
+    /// reactively for every observer.
+    func reloadPersistedConfigurationIfNeeded() {
+        guard pairedRelayConfiguration == nil else { return }
+        if let restored = persistence.loadPairedRelayConfiguration() {
+            pairedRelayConfiguration = restored
+            pairingLog.notice("reload: persisted pairing recovered after protected data became available")
+        }
+    }
+
     func normalizePairingCode(_ rawCode: String) throws -> String {
         try pairingService.normalizePairingCode(rawCode)
     }

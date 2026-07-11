@@ -468,7 +468,55 @@ final class AppContainer {
             }
         }
 
+        // Pre-unlock staleness recovery: a post-reboot background launch
+        // (location relaunch) runs BEFORE first unlock, when Keychain and
+        // protected UserDefaults read as empty. Everything cached at
+        // construction — the pairing config, these key boxes — then reads as
+        // absent for the process's whole lifetime, and foregrounding that
+        // same process shows "not paired / no key" even though nothing was
+        // lost. Re-read whenever protected data becomes available (and on
+        // activation, covering the zombie-foreground case). Idempotent: only
+        // acts on values that are currently empty.
+        let refreshCredentialState: @MainActor () -> Void = { [weak container, hermesAPIKeyBox, shimTokenBox] in
+            guard UIApplication.shared.isProtectedDataAvailable else { return }
+            container?.pairingStore.reloadPersistedConfigurationIfNeeded()
+            if hermesAPIKeyBox.value.isEmpty {
+                Task { @MainActor in
+                    if let stored = await secureStore.retrieve(key: AppContainer.hermesAPIKeyKeychainKey), !stored.isEmpty {
+                        hermesAPIKeyBox.value = stored
+                        container?.hermesAPIKey = stored
+                        container?.chatBackendRouter?.refreshActiveBrain()
+                        containerLog.notice("credential refresh: Sessions API key re-read after protected data became available")
+                    }
+                }
+            }
+            if shimTokenBox.value.isEmpty {
+                Task { @MainActor in
+                    if let stored = await secureStore.retrieve(key: AppContainer.modelsShimTokenKeychainKey), !stored.isEmpty {
+                        shimTokenBox.value = stored
+                        container?.modelsShimToken = stored
+                    }
+                }
+            }
+        }
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.protectedDataDidBecomeAvailableNotification,
+            object: nil, queue: .main
+        ) { _ in
+            Task { @MainActor in refreshCredentialState() }
+        }
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil, queue: .main
+        ) { _ in
+            Task { @MainActor in refreshCredentialState() }
+        }
+
         let refreshUnpairedRelayContext: @MainActor () async -> Void = { [weak sessionStore, weak container] in
+            // Never act on a pre-unlock reading of "unpaired": clearing the
+            // session + force-registering off unreadable credentials would
+            // destroy a healthy identity.
+            guard UIApplication.shared.isProtectedDataAvailable else { return }
             guard container?.pairingStore.isPaired == false else { return }
             await sessionStore?.clearSession()
             guard let relayBaseURL = container?.settingsStore.settings.relayConfiguration.activeBaseURLString,
@@ -790,6 +838,14 @@ final class AppContainer {
 
     func handleSystemLaunch() async {
         containerLog.notice("handleSystemLaunch: entered")
+        // Pre-first-unlock launches (post-reboot location relaunch) cannot
+        // read credentials — every guard below would misfire on absence that
+        // isn't real. Defer everything; the protected-data observer picks up
+        // once the user unlocks.
+        guard UIApplication.shared.isProtectedDataAvailable else {
+            containerLog.warning("handleSystemLaunch: BLOCKED — protected data unavailable (pre-first-unlock launch); deferring")
+            return
+        }
         guard pairingStore.isPaired else {
             containerLog.warning("handleSystemLaunch: BLOCKED — not paired")
             return
