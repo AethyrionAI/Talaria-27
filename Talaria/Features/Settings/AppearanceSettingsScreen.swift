@@ -106,12 +106,14 @@ struct AppearanceSettingsScreen: View {
 
     @ViewBuilder
     private func previewReactor(_ p: ThemePalette) -> some View {
-        // Bespoke orb anatomies (Event Horizon's singularity) preview the real
-        // composition. Safe to read the live orb here: the preview panel's
-        // (theme, accent) always mirrors the runtime — selection applies
-        // immediately — so `ReactorOrb`'s runtime-resolved palette matches
-        // `p`. Every other style keeps the generic glyph below, unchanged.
-        if p.orbStyle == .singularity {
+        // Bespoke orb anatomies (Event Horizon's singularity and the gallery
+        // ports) preview the real composition. Safe to read the live orb
+        // here: the preview panel's (theme, accent) always mirrors the
+        // runtime — selection applies immediately — so `ReactorOrb`'s
+        // runtime-resolved palette matches `p`. The four flagship styles
+        // keep the generic glyph below, unchanged.
+        let flagshipStyles: [ThemeOrbStyle] = [.arcReactor, .forgeSun, .crtCrosshair, .paperReel]
+        if !flagshipStyles.contains(p.orbStyle) {
             ReactorOrb(size: 58, style: .standard, glowIntensity: glow)
         } else {
             ZStack {
