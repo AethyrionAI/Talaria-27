@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo+Black&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin: 0; min-height: 100%; }
+    body { padding: 2rem; color: #fff2e6; font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; line-height: 1.5; background: radial-gradient(1200px 800px at 50% -10%, rgba(255, 106, 26, 0.10), transparent 60%), radial-gradient(ellipse at 50% 0%, #200f07 0%, #150b06 40%, #0a0402 100%); background-color: #0a0402; }
+    a { color: #ff6a1a; } a:hover { color: #ffa06a; }
+    input::placeholder { color: inherit; opacity: 0.45; }
+    @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.05); opacity: 0.8; } }
+    @keyframes corePulse { 0%, 100% { transform: scale(1); filter: brightness(1); } 50% { transform: scale(1.12); filter: brightness(1.3); } }
+    @keyframes glowPulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.45); } }
+    @keyframes orbSpin { to { transform: rotate(360deg); } }
+    @keyframes emberRise { 0% { background-position: 0 0, 0 0, 0 0; } 100% { background-position: -30px -420px, 40px -560px, -20px -680px; } }
+    @keyframes heatShimmer { 0%, 100% { opacity: 0.5; transform: scaleY(1); } 50% { opacity: 0.85; transform: scaleY(1.05); } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+  </style>
+</helmet>
+<div data-screen-label="Molten Forge theme page">
+  <sc-if value="{{ showEmbers }}" hint-placeholder-val="{{ true }}">
+    <div aria-hidden="true" style="position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0.45;background-image:radial-gradient(circle at 30% 80%, rgba(255,106,26,0.5) 0, transparent 2.5px), radial-gradient(circle at 60% 90%, rgba(255,210,60,0.45) 0, transparent 2px), radial-gradient(circle at 80% 70%, rgba(255,59,45,0.4) 0, transparent 2px);background-size:120px 420px, 160px 560px, 200px 680px;animation:emberRise 10s linear infinite"></div>
+  </sc-if>
+  <sc-if value="{{ showHeatGlow }}" hint-placeholder-val="{{ true }}">
+    <div aria-hidden="true" style="position:fixed;left:0;right:0;bottom:0;height:40%;pointer-events:none;z-index:0;background:linear-gradient(to top, rgba(255,106,26,0.20), transparent);transform-origin:bottom;animation:heatShimmer 4s ease-in-out infinite"></div>
+  </sc-if>
+  <main style="position:relative;z-index:1;max-width:1200px;margin:0 auto;width:100%">
+    <header style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:24px">
+      <h1 style="font-family:'Archivo Black',sans-serif;font-size:clamp(32px, 5vw, 58px);font-weight:400;line-height:1;letter-spacing:0.02em;text-transform:uppercase;margin:0;color:#fff2e6;text-shadow:0 0 10px #ff6a1a, 0 0 30px #ff6a1a, 0 0 60px rgba(255,106,26,0.45), 0 0 90px rgba(255,210,60,0.25)">Molten Forge</h1>
+      <span style="font-family:'Space Mono',monospace;font-size:13px;color:#ffd23c;text-transform:uppercase;letter-spacing:0.18em;text-shadow:0 0 10px #ffd23c;background:rgba(255,210,60,0.08);padding:5px 12px;border:1px solid rgba(255,210,60,0.3);border-radius:999px;animation:glowPulse 2.5s ease-in-out infinite">Talaria Theme Reference</span>
+    </header>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:24px;align-items:start">
+      <section data-od-id="chat-screen" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:24px;padding:24px;position:relative;overflow:hidden">
+        <h2 style="margin:0 0 16px 0;font-size:18px;font-weight:800;letter-spacing:-0.02em;text-transform:uppercase;color:#fff2e6;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px">Chat Screen</h2>
+        <div style="height:520px;display:flex;flex-direction:column;background:#150b06;border:1px solid rgba(255,106,26,0.32);border-radius:24px;overflow:hidden;position:relative;box-shadow:0 0 0 8px rgba(255,106,26,0.06), 0 0 50px rgba(255,106,26,0.15), inset 0 0 80px rgba(255,210,60,0.04)">
+          <sc-if value="{{ showEmbers }}" hint-placeholder-val="{{ true }}">
+            <div aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;z-index:0;opacity:0.35;background-image:radial-gradient(circle at 25% 85%, rgba(255,106,26,0.55) 0, transparent 2px), radial-gradient(circle at 65% 95%, rgba(255,210,60,0.5) 0, transparent 1.6px);background-size:90px 340px, 130px 460px;animation:emberRise 8s linear infinite"></div>
+          </sc-if>
+          <sc-if value="{{ showHeatGlow }}" hint-placeholder-val="{{ true }}">
+            <div aria-hidden="true" style="position:absolute;left:0;right:0;bottom:0;height:45%;pointer-events:none;z-index:0;background:linear-gradient(to top, rgba(255,106,26,0.22), transparent);transform-origin:bottom;animation:heatShimmer 3.5s ease-in-out infinite"></div>
+          </sc-if>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(0,0,0,0.25);border-bottom:1px solid rgba(255,255,255,0.08);font-family:'Space Mono',monospace;font-size:12px;text-transform:uppercase;color:#d9b49b;letter-spacing:0.08em;position:relative;z-index:1">
+            <span>Forge floor — crucible 1,540°C</span>
+            <span style="color:#ffd23c;animation:glowPulse 1.8s ease-in-out infinite">Bellows: steady</span>
+          </div>
+          <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;position:relative;z-index:1">
+            <div style="align-self:flex-start;max-width:80%;padding:13px 18px;border-radius:18px;border-bottom-left-radius:4px;font-size:15px;line-height:1.45;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#fff2e6;position:relative" style-before="content:'';position:absolute;left:10px;top:10px;width:8px;height:8px;border-radius:50%;background:#ffd23c;box-shadow:0 0 10px #ffd23c">The coals are singing tonight. What are we hammering into shape?</div>
+            <div style="align-self:flex-end;max-width:80%;padding:13px 18px;border-radius:18px;border-bottom-right-radius:4px;font-size:15px;line-height:1.45;background:linear-gradient(135deg, rgba(255,106,26,0.18), rgba(255,59,45,0.10));border:1px solid rgba(255,106,26,0.32);color:#fff2e6;box-shadow:0 4px 20px rgba(255,106,26,0.12)">Beat my rough draft into something sharp.</div>
+            <div style="align-self:flex-start;max-width:80%;padding:13px 18px;border-radius:18px;border-bottom-left-radius:4px;font-size:15px;line-height:1.45;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#fff2e6;position:relative" style-before="content:'';position:absolute;left:10px;top:10px;width:8px;height:8px;border-radius:50%;background:#ffd23c;box-shadow:0 0 10px #ffd23c">On the anvil it goes. Mind the sparks — that's the good part.</div>
+          </div>
+          <div style="display:flex;gap:8px;padding:12px 16px;background:rgba(0,0,0,0.25);border-top:1px solid rgba(255,255,255,0.08);position:relative;z-index:1">
+            <input type="text" placeholder="Feed the furnace..." aria-label="Message" style="flex:1;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.08);border-radius:999px;padding:10px 16px;color:#fff2e6;font-family:'Inter',sans-serif;font-size:14px;outline:none;box-shadow:inset 0 0 12px rgba(255,106,26,0.1)"></input>
+            <button aria-label="Send" style="width:40px;height:40px;border-radius:50%;border:none;background:#ff6a1a;color:#1a0c04;font-family:'Archivo Black',sans-serif;font-size:15px;cursor:pointer;box-shadow:0 0 18px rgba(255,106,26,0.4);display:grid;place-items:center" style-hover="filter:brightness(1.2)">✦</button>
+          </div>
+        </div>
+        <div style="width:120px;height:120px;margin:20px auto 0;position:relative;display:grid;place-items:center" aria-label="Molten Forge crucible orb">
+          <div style="position:absolute;width:100%;height:100%;border-radius:50%;border:2px solid #ff6a1a;box-shadow:0 0 22px #ff6a1a, inset 0 0 22px rgba(255,106,26,0.2);opacity:0.35;animation:pulse 3.5s ease-in-out infinite"></div>
+          <div style="position:absolute;width:74%;height:74%;border-radius:50%;border:2px dashed #ffd23c;box-shadow:0 0 22px #ffd23c;opacity:0.55;animation:pulse 3.5s ease-in-out 0.3s infinite, orbSpin 14s linear infinite"></div>
+          <div style="position:absolute;width:48%;height:48%;border-radius:50%;border:2px solid #a9c2d1;box-shadow:0 0 22px #a9c2d1;opacity:0.75;animation:pulse 3.5s ease-in-out 0.6s infinite"></div>
+          <div style="width:30%;height:30%;border-radius:50%;background:radial-gradient(circle at 30% 30%, #ffd23c, #ff6a1a);box-shadow:0 0 30px #ff6a1a, 0 0 60px rgba(255,59,45,0.4);animation:corePulse 4s ease-in-out infinite"></div>
+        </div>
+      </section>
+      <section data-od-id="appearance-settings" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:24px;padding:24px;position:relative;overflow:hidden">
+        <h2 style="margin:0 0 16px 0;font-size:18px;font-weight:800;letter-spacing:-0.02em;text-transform:uppercase;color:#fff2e6;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px">Appearance Settings</h2>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;align-items:center;gap:16px">
+            <div style="width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #ffd23c, #ff6a1a);box-shadow:0 0 24px #ff6a1a;position:relative;flex-shrink:0" style-after="content:'';position:absolute;inset:-4px;border-radius:50%;border:1px dashed rgba(169,194,209,0.5)"></div>
+            <div>
+              <h3 style="margin:0 0 4px 0;font-family:'Archivo Black',sans-serif;font-size:19px;font-weight:400;text-transform:uppercase;color:#fff2e6;text-shadow:0 0 10px #ff6a1a">Molten Forge</h3>
+              <p style="margin:0;font-size:13.5px;color:#d9b49b">A volcanic smithy: lava orange pour-light, spark gold flashes, and hammered steel readouts on black iron.</p>
+            </div>
+          </div>
+          <div style="height:80px;border-radius:12px;border:1px solid rgba(255,106,26,0.32);position:relative;overflow:hidden;background:radial-gradient(circle at 50% 50%, rgba(255,106,26,0.12) 0, transparent 40%), linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);background-size:100% 100%, 24px 24px, 24px 24px" style-after="content:'';position:absolute;inset:0;background:linear-gradient(135deg, rgba(255,210,60,0.08), transparent 50%, rgba(169,194,209,0.08))"></div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:8px;font-family:'Space Mono',monospace;font-size:12px;color:#d9b49b;background:rgba(255,255,255,0.03);padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,0.08)"><span style="width:14px;height:14px;border-radius:50%;background:#ff6a1a;color:#ff6a1a;box-shadow:0 0 8px currentColor"></span>Lava Orange</div>
+            <div style="display:flex;align-items:center;gap:8px;font-family:'Space Mono',monospace;font-size:12px;color:#d9b49b;background:rgba(255,255,255,0.03);padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,0.08)"><span style="width:14px;height:14px;border-radius:50%;background:#ffd23c;color:#ffd23c;box-shadow:0 0 8px currentColor"></span>Spark Gold</div>
+            <div style="display:flex;align-items:center;gap:8px;font-family:'Space Mono',monospace;font-size:12px;color:#d9b49b;background:rgba(255,255,255,0.03);padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,0.08)"><span style="width:14px;height:14px;border-radius:50%;background:#a9c2d1;color:#a9c2d1;box-shadow:0 0 8px currentColor"></span>Hammered Steel</div>
+            <div style="display:flex;align-items:center;gap:8px;font-family:'Space Mono',monospace;font-size:12px;color:#d9b49b;background:rgba(255,255,255,0.03);padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,0.08)"><span style="width:14px;height:14px;border-radius:50%;background:#ff3b2d;color:#ff3b2d;box-shadow:0 0 8px currentColor"></span>Ember Red</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span style="padding:6px 12px;border-radius:999px;font-size:12px;font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;background:rgba(255,59,59,0.15);color:#ff3b3b;border:1px solid rgba(255,59,59,0.4)">Meltdown</span>
+            <span style="padding:6px 12px;border-radius:999px;font-size:12px;font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;background:rgba(255,158,0,0.15);color:#ff9e00;border:1px solid rgba(255,158,0,0.4)">Overheating</span>
+            <span style="padding:6px 12px;border-radius:999px;font-size:12px;font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;background:rgba(255,210,60,0.12);color:#ffd23c;border:1px solid rgba(255,210,60,0.4)">Tempered</span>
+          </div>
+        </div>
+      </section>
+      <section data-od-id="personality" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:24px;padding:24px;position:relative;overflow:hidden">
+        <h2 style="margin:0 0 16px 0;font-size:18px;font-weight:800;letter-spacing:-0.02em;text-transform:uppercase;color:#fff2e6;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px">Personality</h2>
+        <p style="margin:0 0 12px 0;color:#d9b49b;font-size:15px;line-height:1.6">Molten Forge is Talaria as a volcanic smithy: charcoal-black iron surfaces rimmed in lava light, embers climbing every panel, and a reactor orb that is simply a crucible at full pour. Spark gold flashes mark every action; hammered steel keeps the readouts honest.</p>
+        <p style="margin:0 0 12px 0;color:#d9b49b;font-size:15px;line-height:1.6"><strong style="color:#fff2e6">Accent slot mapping:</strong> cyan (hero) → Lava Orange, amber → Spark Gold, violet → Hammered Steel.</p>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px">
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;text-align:center">
+            <div style="font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;color:#8f6f59;letter-spacing:0.08em;margin-bottom:6px">Slot cyan</div>
+            <div style="font-size:13px;font-weight:800;color:#fff2e6">Lava Orange</div>
+            <div style="width:100%;height:6px;border-radius:999px;margin-top:8px;background:#ff6a1a"></div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;text-align:center">
+            <div style="font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;color:#8f6f59;letter-spacing:0.08em;margin-bottom:6px">Slot amber</div>
+            <div style="font-size:13px;font-weight:800;color:#fff2e6">Spark Gold</div>
+            <div style="width:100%;height:6px;border-radius:999px;margin-top:8px;background:#ffd23c"></div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;text-align:center">
+            <div style="font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;color:#8f6f59;letter-spacing:0.08em;margin-bottom:6px">Slot violet</div>
+            <div style="font-size:13px;font-weight:800;color:#fff2e6">Hammered Steel</div>
+            <div style="width:100%;height:6px;border-radius:999px;margin-top:8px;background:#a9c2d1"></div>
+          </div>
+        </div>
+      </section>
+      <section data-od-id="palette-table" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:24px;padding:24px;position:relative;overflow:hidden">
+        <h2 style="margin:0 0 16px 0;font-size:18px;font-weight:800;letter-spacing:-0.02em;text-transform:uppercase;color:#fff2e6;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px">Palette</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr><th style="text-align:left;padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);font-family:'Space Mono',monospace;text-transform:uppercase;font-size:11px;letter-spacing:0.08em;color:#8f6f59;font-weight:400">Token</th><th style="text-align:left;padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);font-family:'Space Mono',monospace;text-transform:uppercase;font-size:11px;letter-spacing:0.08em;color:#8f6f59;font-weight:400">Role</th><th style="text-align:left;padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);font-family:'Space Mono',monospace;text-transform:uppercase;font-size:11px;letter-spacing:0.08em;color:#8f6f59;font-weight:400">Value</th></tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="display:inline-block;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:#150b06"></span></td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff2e6;font-weight:700">Background 1</td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#d9b49b;font-family:'Space Mono',monospace;font-size:12px">#150b06</td></tr>
+            <tr><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="display:inline-block;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:#200f07"></span></td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff2e6;font-weight:700">Background 2</td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#d9b49b;font-family:'Space Mono',monospace;font-size:12px">#200f07</td></tr>
+            <tr><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="display:inline-block;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:#0a0402"></span></td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff2e6;font-weight:700">Background 3</td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#d9b49b;font-family:'Space Mono',monospace;font-size:12px">#0a0402</td></tr>
+            <tr><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="display:inline-block;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:#fff2e6"></span></td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff2e6;font-weight:700">Foreground</td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#d9b49b;font-family:'Space Mono',monospace;font-size:12px">#fff2e6</td></tr>
+            <tr><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="display:inline-block;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:#d9b49b"></span></td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff2e6;font-weight:700">Muted</td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#d9b49b;font-family:'Space Mono',monospace;font-size:12px">#d9b49b</td></tr>
+            <tr><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="display:inline-block;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:#8f6f59"></span></td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff2e6;font-weight:700">Dim</td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#d9b49b;font-family:'Space Mono',monospace;font-size:12px">#8f6f59</td></tr>
+            <tr><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="display:inline-block;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,106,26,0.08)"></span></td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff2e6;font-weight:700">Surface 1</td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#d9b49b;font-family:'Space Mono',monospace;font-size:12px">rgba(255,106,26,0.08)</td></tr>
+            <tr><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="display:inline-block;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,210,60,0.08)"></span></td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff2e6;font-weight:700">Surface 2</td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#d9b49b;font-family:'Space Mono',monospace;font-size:12px">rgba(255,210,60,0.08)</td></tr>
+            <tr><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="display:inline-block;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:rgba(169,194,209,0.06)"></span></td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff2e6;font-weight:700">Surface 3</td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#d9b49b;font-family:'Space Mono',monospace;font-size:12px">rgba(169,194,209,0.06)</td></tr>
+            <tr><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="display:inline-block;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:#ff6a1a"></span></td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff2e6;font-weight:700">Accent (cyan → Lava Orange)</td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#d9b49b;font-family:'Space Mono',monospace;font-size:12px">#ff6a1a</td></tr>
+            <tr><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="display:inline-block;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:#ffd23c"></span></td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff2e6;font-weight:700">Accent (amber → Spark Gold)</td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#d9b49b;font-family:'Space Mono',monospace;font-size:12px">#ffd23c</td></tr>
+            <tr><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="display:inline-block;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:#a9c2d1"></span></td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff2e6;font-weight:700">Accent (violet → Hammered Steel)</td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#d9b49b;font-family:'Space Mono',monospace;font-size:12px">#a9c2d1</td></tr>
+            <tr><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="display:inline-block;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:#ff3b2d"></span></td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff2e6;font-weight:700">Ember Red</td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#d9b49b;font-family:'Space Mono',monospace;font-size:12px">#ff3b2d</td></tr>
+            <tr><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="display:inline-block;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:#ff3b3b"></span></td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff2e6;font-weight:700">Danger</td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#d9b49b;font-family:'Space Mono',monospace;font-size:12px">#ff3b3b</td></tr>
+            <tr><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="display:inline-block;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background:#ff9e00"></span></td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff2e6;font-weight:700">Warning</td><td style="padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#d9b49b;font-family:'Space Mono',monospace;font-size:12px">#ff9e00</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+    <footer style="margin-top:32px;text-align:center;font-family:'Space Mono',monospace;font-size:12px;color:#8f6f59;text-transform:uppercase;letter-spacing:0.1em">Theme: Molten Forge — Talaria Companion</footer>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;embers&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Forge Effects&quot;},&quot;heatGlow&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Forge Effects&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      showEmbers: this.props.embers ?? true,
+      showHeatGlow: this.props.heatGlow ?? true,
+    };
+  }
+}
+</script>
+</body>
+</html>
