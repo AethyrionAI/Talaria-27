@@ -124,8 +124,10 @@ enum ThemeCatalog {
     ]
 
     /// Neon Arcade Collection — the gallery's signature themes (issue #54;
-    /// `design/themes/`). Neon Arcade #01 itself and the remaining seven
-    /// collection themes join in the theme-suite Phase 3 (#91).
+    /// `design/themes/`). Batch 1 (#91) adds Glitch Garden / Witch's Brew /
+    /// Holo Sushi; the remaining four collection themes join in batch 2.
+    /// Neon Arcade #01 is the gallery's own chrome, not a portable theme
+    /// (Lane E Phase 2 discovery).
     static let neonArcadeCollection: [ThemeDefinition] = [
         ThemeDefinition(id: AppearanceTheme.cerealBox.rawValue, displayName: "Cereal Box",
                         subtitle: "Breakfast", appearanceTheme: .cerealBox,
@@ -135,6 +137,15 @@ enum ThemeCatalog {
                         availability: .always, locked: false),
         ThemeDefinition(id: AppearanceTheme.retroSciFi.rawValue, displayName: "Retro Sci-Fi",
                         subtitle: "Retro", appearanceTheme: .retroSciFi,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.glitchGarden.rawValue, displayName: "Glitch Garden",
+                        subtitle: "Vine Green", appearanceTheme: .glitchGarden,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.witchsBrew.rawValue, displayName: "Witch's Brew",
+                        subtitle: "Poison Green", appearanceTheme: .witchsBrew,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.holoSushi.rawValue, displayName: "Holo Sushi",
+                        subtitle: "Roe Pink", appearanceTheme: .holoSushi,
                         availability: .always, locked: false),
     ]
 

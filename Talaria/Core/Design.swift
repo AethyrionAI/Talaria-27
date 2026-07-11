@@ -401,6 +401,9 @@ extension AppearanceTheme {
         case .bubblegumMecha: .bubblegumMecha
         case .retroSciFi: .retroSciFi
         case .eventHorizon: .eventHorizon
+        case .glitchGarden: .glitchGarden
+        case .witchsBrew: .witchsBrew
+        case .holoSushi: .holoSushi
         }
     }
 }
