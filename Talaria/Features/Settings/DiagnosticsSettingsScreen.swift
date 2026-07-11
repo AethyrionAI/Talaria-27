@@ -37,6 +37,7 @@ struct DiagnosticsSettingsScreen: View {
                 VStack(spacing: Design.Spacing.lg) {
                     SettingsScreenHeader(title: "Diagnostics", subtitle: "System Health") { dismiss() }
                     statusPanel
+                    voicePanel
                     sensorPanel
                     infoGrid
                     logsSection
@@ -181,6 +182,58 @@ struct DiagnosticsSettingsScreen: View {
             return RowStatus(text: level.displayLabel.uppercased(), color: Design.Colors.danger, blinks: false)
         case .notDetermined:
             return RowStatus(text: "NOT SET", color: Design.Colors.mutedForeground, blinks: false)
+        }
+    }
+
+    // MARK: Voice / talk pipeline (#84)
+    //
+    // The #82 evening: talk showed a live session over a dead microphone.
+    // This panel answers the diagnostic ladder's first three questions at a
+    // glance — can the app record, can it transcribe, and where is audio
+    // actually routed right now.
+
+    private var voicePanel: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            MonoLabel("// Voice / Talk", size: 10, tracking: Design.Tracking.monoXWide,
+                      color: Design.Colors.mutedForeground)
+
+            VStack(spacing: 0) {
+                sensorRow("Microphone", voicePermissionLabel(.microphone),
+                          voicePermissionColor(.microphone))
+                rowDivider
+                sensorRow("Speech Recognition", voicePermissionLabel(.speechRecognition),
+                          voicePermissionColor(.speechRecognition))
+                rowDivider
+                sensorRow("Audio Route", TalkAudioRoute.currentSummary() ?? "—",
+                          Design.Colors.secondaryForeground)
+            }
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
+        }
+    }
+
+    private func voiceCapabilityStatus(_ type: PermissionType) -> PermissionStatus? {
+        permissionsStore.capabilities.first(where: { $0.permissionType == type })?.status
+    }
+
+    private func voicePermissionLabel(_ type: PermissionType) -> String {
+        voiceCapabilityStatus(type)?.displayLabel.uppercased() ?? "—"
+    }
+
+    private func voicePermissionColor(_ type: PermissionType) -> Color {
+        switch voiceCapabilityStatus(type) {
+        case .authorized, .authorizedAlways, .authorizedWhenInUse:
+            Design.Brand.accent
+        case .denied, .restricted:
+            Design.Colors.danger
+        case .limited:
+            Design.Brand.forge
+        case .notDetermined, .unsupported, .none:
+            Design.Colors.mutedForeground
         }
     }
 

@@ -178,6 +178,13 @@ struct TalkSessionSnapshot: Hashable, Sendable {
     /// Defaults to `.realtime` — the historical engine — so existing snapshot
     /// construction sites read unchanged (#18).
     var engine: VoiceEngine = .realtime
+    /// #84: non-fatal mic-health warning from the flatline tripwire — the
+    /// session is connected but no speech evidence has arrived. nil = healthy
+    /// or not yet evaluated.
+    var micHealthHint: String? = nil
+    /// #84: human-readable current audio route ("iPhone Microphone →
+    /// Speaker"). nil when no session has populated it.
+    var audioRouteSummary: String? = nil
 }
 
 enum TalkSessionEvent: Hashable, Sendable {

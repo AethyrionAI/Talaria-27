@@ -59,6 +59,21 @@ struct VoiceOverlayScreen: View {
                     .padding(.horizontal, Design.Spacing.xxl)
                     .padding(.top, Design.Spacing.md)
 
+                // #84: where audio is actually routed right now — a stale
+                // Bluetooth route with a dead mic looks identical to a
+                // healthy session without this line.
+                if talkStore.isSessionActive, let route = talkStore.audioRouteSummary {
+                    MonoLabel(
+                        "ROUTE · \(route.uppercased())",
+                        size: 9,
+                        tracking: Design.Tracking.mono,
+                        color: Design.Colors.mutedForeground
+                    )
+                    .lineLimit(1)
+                    .padding(.horizontal, Design.Spacing.xl)
+                    .padding(.top, Design.Spacing.xs)
+                }
+
                 Spacer()
 
                 // Bottom controls
@@ -241,24 +256,12 @@ struct VoiceOverlayScreen: View {
                     .foregroundStyle(Design.Brand.forge)
                     .multilineTextAlignment(.center)
 
-                // Show "Open Settings" for permission-related blocks
+                // Show "Open Settings" for permission-related blocks (#84:
+                // shared predicate keeps the gate in lockstep with the
+                // engines' standardized preflight wording).
                 if let reason = talkStore.blockedReason,
-                   reason.localizedCaseInsensitiveContains("microphone") || reason.localizedCaseInsensitiveContains("permission") {
-                    Button {
-                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                            UIApplication.shared.open(url)
-                        }
-                    } label: {
-                        Text("OPEN SETTINGS")
-                            .font(Design.Typography.mono(11, weight: .medium))
-                            .tracking(Design.Tracking.monoWide)
-                            .foregroundStyle(Design.Brand.accentBright)
-                            .padding(.horizontal, Design.Spacing.lg)
-                            .padding(.vertical, Design.Spacing.xs)
-                            .background(Design.Colors.accentTint(0.1), in: Capsule())
-                            .overlay { Capsule().strokeBorder(Design.Colors.strongBorder, lineWidth: 1) }
-                    }
-                    .buttonStyle(.plain)
+                   TalkMicPreflight.isPermissionActionable(reason) {
+                    openSettingsButton
                 }
             }
 
@@ -271,7 +274,18 @@ struct VoiceOverlayScreen: View {
             }
 
         case (.connected, .listening):
-            statusPipLabel("LISTENING", color: Design.Brand.accent, blinks: true)
+            VStack(spacing: Design.Spacing.sm) {
+                statusPipLabel("LISTENING", color: Design.Brand.accent, blinks: true)
+                // #84 flatline tripwire: connected but no mic signal evidence
+                // — say so instead of listening silently over a dead mic.
+                if let hint = talkStore.micHealthHint {
+                    Text(hint)
+                        .font(Design.Typography.caption)
+                        .foregroundStyle(Design.Brand.forge)
+                        .multilineTextAlignment(.center)
+                    openSettingsButton
+                }
+            }
 
         case (.connected, .thinking):
             statusPipLabel(
@@ -296,6 +310,24 @@ struct VoiceOverlayScreen: View {
             StatusPip(color: color, diameter: 7, blinks: blinks)
             MonoLabel(text, size: 11, weight: .medium, tracking: Design.Tracking.monoWide, color: color)
         }
+    }
+
+    private var openSettingsButton: some View {
+        Button {
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(url)
+            }
+        } label: {
+            Text("OPEN SETTINGS")
+                .font(Design.Typography.mono(11, weight: .medium))
+                .tracking(Design.Tracking.monoWide)
+                .foregroundStyle(Design.Brand.accentBright)
+                .padding(.horizontal, Design.Spacing.lg)
+                .padding(.vertical, Design.Spacing.xs)
+                .background(Design.Colors.accentTint(0.1), in: Capsule())
+                .overlay { Capsule().strokeBorder(Design.Colors.strongBorder, lineWidth: 1) }
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Controls
