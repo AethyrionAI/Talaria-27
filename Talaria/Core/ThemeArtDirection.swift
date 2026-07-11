@@ -343,6 +343,7 @@ enum ThemeArtDirectionCatalog {
         .discoInferno: discoInferno,
         .graffitiGalaxy: graffitiGalaxy,
         .karaokeSupernova: karaokeSupernova,
+        .midnightAquarium: midnightAquarium,
     ]
 
     static func artDirection(for theme: ThemeID) -> ThemeArtDirection {
@@ -802,6 +803,69 @@ enum ThemeArtDirectionCatalog {
         titleGlow: ThemeTitleGlow(
             primary: Color(hex: 0xFF00AA),
             secondary: Color(hex: 0x00F0FF)
+        )
+    )
+
+    // MARK: Midnight Aquarium — design/themes/theme-midnight-aquarium.html (SE, batch 4)
+    // After-hours aquarium: pink bloom pinned above the tank, three-hue
+    // bubble columns climbing the glass (bubbleRise 14s — driftY is exactly
+    // one tile per loop; the small lateral driftX values are verbatim and
+    // reset mid-tile at the loop point exactly as the CSS's own
+    // background-position snap does), and the ±105° caustic lattices gliding
+    // on the new line-field drift (causticDrift 16s — both fields stack,
+    // bubbles below caustics, the handoff's DOM order). Pink-framed panels
+    // (EH halo compression), EH-shape pink/teal title glow. Deferred, per
+    // the inventory table: the chat-screen 11s bubble pair + 12s caustic
+    // (panel-scope layers on a second period — the screen field already
+    // paints behind chat, and the EH device verdict keeps panel-scope
+    // treatments panel-scope), the inset teal tank wash (panel inner wash),
+    // bubble pips / input / send chrome (bubble- and accent-system scope).
+    // Abyss Gold #FFD166 is gallery badge chrome — N/A.
+
+    static let midnightAquarium = ThemeArtDirection(
+        glowPools: [
+            // radial(1200px 800px at 50% -10%, rgba(255,122,217,.10) → 60%)
+            ThemeGlowPool(color: Color(hex: 0xFF7AD9, opacity: 0.10),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+        ],
+        panelHalo: ThemePanelHalo(
+            // 8px ring at .06 on the .32 border → 1pt rim at the EH compression.
+            ringColor: Color(hex: 0xFF7AD9, opacity: 0.24),
+            glowColor: Color(hex: 0xFF7AD9),
+            glowRadius: 40
+        ),
+        // bubbleRise: three non-square bubble columns, each rising exactly
+        // one tile height per 14s loop. Speck centers at the CSS fade radii
+        // (3/2.2/2.6px) × the rule-1 soft-port ratio 0.625.
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 130, driftX: 20, driftY: -520,
+                hue: Color(hex: 0x3EF2E0), speckAlpha: 0.4,
+                anchorX: 0.25, anchorY: 0.85, speckRadius: 1.875,
+                tileHeight: 520),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 170, driftX: -30, driftY: -640,
+                hue: Color(hex: 0xFF7AD9), speckAlpha: 0.35,
+                anchorX: 0.60, anchorY: 0.95, speckRadius: 1.375,
+                tileHeight: 640),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 210, driftX: 10, driftY: -760,
+                hue: Color(hex: 0x8A7CFF), speckAlpha: 0.3,
+                anchorX: 0.85, anchorY: 0.75, speckRadius: 1.625,
+                tileHeight: 760),
+        ], period: 14, fieldOpacity: 0.4),
+        // causticDrift: the two ±105° lattices — 4px lines on 38/50px pitch,
+        // panning (240,120) / (−240,−80) per 16s loop.
+        lineTexture: ThemeLineFieldSpec(layers: [
+            .init(angleDegrees: 105, hue: Color(hex: 0x3EF2E0), alpha: 0.05,
+                  spacing: 38, lineWidth: 4, driftX: 240, driftY: 120),
+            .init(angleDegrees: -105, hue: Color(hex: 0xFF7AD9), alpha: 0.04,
+                  spacing: 50, lineWidth: 4, driftX: -240, driftY: -80),
+        ], fieldOpacity: 0.6, driftPeriod: 16),
+        // h1: 10/30px pink, 60px pink .45, 90px teal .25 — the EH shape.
+        titleGlow: ThemeTitleGlow(
+            primary: Color(hex: 0xFF7AD9),
+            secondary: Color(hex: 0x3EF2E0)
         )
     )
 

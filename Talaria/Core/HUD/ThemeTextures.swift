@@ -14,17 +14,23 @@ import SwiftUI
 struct ThemeTextureView: View {
     var body: some View {
         let art = ThemeRuntime.shared.artDirection
-        if let motion = art.atmosphereMotion {
-            // An atmosphere motion spec supersedes the static texture — it IS
-            // the theme's atmosphere (Event Horizon's `.page-bg` drift). Every
-            // theme without a spec takes the switch below, byte-identical to
-            // the pre-motion rendering.
-            AtmosphereMotionField(spec: motion)
-        } else if let lines = art.lineTexture {
-            // A line-field spec is the theme's page texture the same way
-            // (Holo Sushi's dual-tone grid, Cyber Cactus's crosshatch,
-            // Graffiti Galaxy's spray streaks). Next in the supersede chain.
-            LineFieldTexture(spec: lines)
+        if art.atmosphereMotion != nil || art.lineTexture != nil {
+            // An art-direction spec supersedes the static texture — it IS
+            // the theme's atmosphere (Event Horizon's `.page-bg` drift, Holo
+            // Sushi's dual-tone grid, Cyber Cactus's crosshatch, Graffiti
+            // Galaxy's spray streaks). A theme carrying BOTH stacks them in
+            // the handoffs' DOM order — speck field below, line field above
+            // (Midnight Aquarium's caustics glide over its bubble columns).
+            // Every theme without a spec takes the switch below,
+            // byte-identical to the pre-motion rendering.
+            ZStack {
+                if let motion = art.atmosphereMotion {
+                    AtmosphereMotionField(spec: motion)
+                }
+                if let lines = art.lineTexture {
+                    LineFieldTexture(spec: lines)
+                }
+            }
         } else {
             switch ThemeRuntime.shared.palette.texture {
             case .none:
