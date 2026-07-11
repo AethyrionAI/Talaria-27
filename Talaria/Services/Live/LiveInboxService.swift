@@ -1,12 +1,71 @@
 import Foundation
+import os
 
 @MainActor
 final class LiveInboxService: InboxServiceProtocol {
-    private struct InboxResponse: Decodable {
+    private static let logger = Logger(subsystem: TalariaLog.subsystem, category: "LiveInboxService")
+
+    /// #58: decoded row-by-row. One malformed row (unknown `kind`, bad UUID /
+    /// date, missing field) used to fail the whole `[RelayInboxItem]` decode,
+    /// which surfaced app-side as "relay offline" with a healthy relay. Bad
+    /// rows are now skipped — identified best-effort so fetchInbox can log
+    /// WHICH row was quarantined — and every parseable row survives.
+    /// Internal (not private) for tests.
+    struct InboxResponse: Decodable {
         let items: [RelayInboxItem]
+        let skippedRows: [SkippedRow]
+
+        private enum CodingKeys: String, CodingKey {
+            case items
+        }
+
+        /// Best-effort identification of a dropped row — gh#58 wants the log
+        /// line to name the poison row's id + raw kind so it can be found in
+        /// the relay DB without hours of guessing. The init never throws, so
+        /// decoding one always succeeds and advances the unkeyed container
+        /// past the bad row, whatever its JSON shape (object, string, null…).
+        struct SkippedRow: Decodable {
+            var id: String?
+            var kind: String?
+
+            private enum CodingKeys: String, CodingKey {
+                case id, kind
+            }
+
+            init() {}
+
+            init(from decoder: any Decoder) {
+                guard let container = try? decoder.container(keyedBy: CodingKeys.self) else { return }
+                id = try? container.decode(String.self, forKey: .id)
+                kind = try? container.decode(String.self, forKey: .kind)
+            }
+        }
+
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            var rows = try container.nestedUnkeyedContainer(forKey: .items)
+            var decoded: [RelayInboxItem] = []
+            var skipped: [SkippedRow] = []
+            while !rows.isAtEnd {
+                let indexBeforeRow = rows.currentIndex
+                do {
+                    decoded.append(try rows.decode(RelayInboxItem.self))
+                } catch {
+                    // A failed decode leaves the container's index on the bad
+                    // row; the never-throwing probe decode is what steps past
+                    // it (and salvages id/kind for the log when it can).
+                    skipped.append((try? rows.decode(SkippedRow.self)) ?? SkippedRow())
+                    // If nothing could advance, abandon the remainder rather
+                    // than spin forever on the same row.
+                    if rows.currentIndex == indexBeforeRow { break }
+                }
+            }
+            items = decoded
+            skippedRows = skipped
+        }
     }
 
-    private struct RelayInboxItem: Decodable {
+    struct RelayInboxItem: Decodable {
         let id: UUID
         let kind: InboxItemType
         let title: String
@@ -44,6 +103,16 @@ final class LiveInboxService: InboxServiceProtocol {
                 path: "inbox",
                 accessToken: token
             )
+        }
+
+        if !response.skippedRows.isEmpty {
+            // Always-on: a producer is emitting rows this build can't parse
+            // (#58) — quarantined here, not a fetch failure. Named per-row so
+            // the poison row is findable in the relay DB.
+            for row in response.skippedRows {
+                Self.logger.error("fetchInbox: skipped unparseable inbox row id=\(row.id ?? "unknown", privacy: .public) kind=\(row.kind ?? "unknown", privacy: .public)")
+            }
+            Self.logger.error("fetchInbox: kept \(response.items.count, privacy: .public) row(s), skipped \(response.skippedRows.count, privacy: .public)")
         }
 
         return response.items.map { item in
