@@ -404,6 +404,9 @@ extension AppearanceTheme {
         case .glitchGarden: .glitchGarden
         case .witchsBrew: .witchsBrew
         case .holoSushi: .holoSushi
+        case .lunarDiner: .lunarDiner
+        case .cyberCactus: .cyberCactus
+        case .discoInferno: .discoInferno
         }
     }
 }

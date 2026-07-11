@@ -147,6 +147,15 @@ enum ThemeCatalog {
         ThemeDefinition(id: AppearanceTheme.holoSushi.rawValue, displayName: "Holo Sushi",
                         subtitle: "Roe Pink", appearanceTheme: .holoSushi,
                         availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.lunarDiner.rawValue, displayName: "Lunar Diner",
+                        subtitle: "Soda Pink", appearanceTheme: .lunarDiner,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.cyberCactus.rawValue, displayName: "Cyber Cactus",
+                        subtitle: "Sunset", appearanceTheme: .cyberCactus,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.discoInferno.rawValue, displayName: "Disco Inferno",
+                        subtitle: "Disco Gold", appearanceTheme: .discoInferno,
+                        availability: .always, locked: false),
     ]
 
     /// Special Edition — bespoke art-directed themes beyond a recolor (motion

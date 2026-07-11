@@ -32,6 +32,9 @@ enum ThemeID: String, CaseIterable, Codable, Hashable, Sendable {
     case glitchGarden
     case witchsBrew
     case holoSushi
+    case lunarDiner
+    case cyberCactus
+    case discoInferno
 }
 
 /// Accent slot identity, decoupled from the app's `AppearanceAccent`
@@ -416,6 +419,9 @@ enum ThemePaletteCatalog {
         .glitchGarden: glitchGarden,
         .witchsBrew: witchsBrew,
         .holoSushi: holoSushi,
+        .lunarDiner: lunarDiner,
+        .cyberCactus: cyberCactus,
+        .discoInferno: discoInferno,
     ]
 
     /// Total lookup over the shipped themes (coverage guarded by
@@ -1501,6 +1507,217 @@ enum ThemePaletteCatalog {
         gridCell: 26,
         isLight: false,
         orbStyle: .holoNigiri
+    )
+
+    // MARK: Lunar — Lunar Diner (design/themes/theme-lunar-diner.html)
+    // Chrome-and-neon drive-in on the dark side of the moon: soda pink,
+    // chrome cyan, mustard, white starlight tiles.
+
+    static let lunarDiner = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0x0C0812),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0x181024), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0x0C0812), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0x050308), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0x181024), Color(hex: 0x0C0812), Color(hex: 0x050308)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0xFFF8F5),
+            foregroundBright: Color(hex: 0xFFF8F5),
+            secondaryForeground: Color(hex: 0xC8B8B0),
+            mutedForeground: Color(hex: 0xC8B8B0),
+            dimForeground: Color(hex: 0x806E68),
+            coolForeground: Color(hex: 0xC8B8B0)
+        ),
+        surface: Color(hex: 0xFF9AB4, opacity: 0.08),
+        chips: .fixed(
+            surface: Color(hex: 0xFF9AB4, opacity: 0.08),
+            divider: Color(hex: 0x40E0D0, opacity: 0.08),
+            border: Color(hex: 0xFFD700, opacity: 0.06)
+        ),
+        borders: .accentTinted(hairline: 0.14, strong: 0.30),
+        scrim: Color(hex: 0x000000, opacity: 0.85),
+        danger: Color(hex: 0xFF4D33),
+        dangerBright: Color(hex: 0xFF6751),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Soda · Lunar",
+                base: Color(hex: 0xFF9AB4),
+                bright: Color(hex: 0xFFB2C6),
+                deep: Color(hex: 0xB26B7D),
+                coreHighlight: Color(hex: 0xFFC7D5),
+                coreShadow: Color(hex: 0x8C5463),
+                forge: Color(hex: 0xFF9A00)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Chrome · Lunar",
+                base: Color(hex: 0x40E0D0),
+                bright: Color(hex: 0x6FE7DB),
+                deep: Color(hex: 0x2C9C91),
+                coreHighlight: Color(hex: 0x95EDE5),
+                coreShadow: Color(hex: 0x237B72),
+                forge: Color(hex: 0xFF9A00)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Mustard · Lunar",
+                base: Color(hex: 0xFFD700),
+                bright: Color(hex: 0xFFE03F),
+                deep: Color(hex: 0xB29600),
+                coreHighlight: Color(hex: 0xFFE872),
+                coreShadow: Color(hex: 0x8C7600),
+                // Warning must stay separable from a mustard accent.
+                forge: Color(hex: 0xFF9A00)
+            )
+        ),
+        glowScale: 1.1,
+        gridStyle: .lines,
+        gridLine: .accentTinted(0.08),
+        gridCell: 26,
+        isLight: false,
+        orbStyle: .jukeboxGlow
+    )
+
+    // MARK: Cactus — Cyber Cactus (design/themes/theme-cyber-cactus.html)
+    // Desert synthwave: sunset magenta, succulent teal, sand gold, the
+    // two-tone ±45° crosshatch (art-direction line field).
+
+    static let cyberCactus = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0x0A080F),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0x1A0F1A), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0x0A080F), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0x050305), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0x1A0F1A), Color(hex: 0x0A080F), Color(hex: 0x050305)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0xFFF7F0),
+            foregroundBright: Color(hex: 0xFFF7F0),
+            secondaryForeground: Color(hex: 0xD8C0B8),
+            mutedForeground: Color(hex: 0xD8C0B8),
+            dimForeground: Color(hex: 0x907868),
+            coolForeground: Color(hex: 0xD8C0B8)
+        ),
+        surface: Color(hex: 0xFF5078, opacity: 0.08),
+        chips: .fixed(
+            surface: Color(hex: 0xFF5078, opacity: 0.08),
+            divider: Color(hex: 0x00DCC8, opacity: 0.08),
+            border: Color(hex: 0xFFC850, opacity: 0.06)
+        ),
+        borders: .accentTinted(hairline: 0.14, strong: 0.30),
+        scrim: Color(hex: 0x000000, opacity: 0.85),
+        danger: Color(hex: 0xFF4422),
+        dangerBright: Color(hex: 0xFF6043),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Sunset · Cactus",
+                base: Color(hex: 0xFF5078),
+                bright: Color(hex: 0xFF7B99),
+                deep: Color(hex: 0xB23854),
+                coreHighlight: Color(hex: 0xFF9EB4),
+                coreShadow: Color(hex: 0x8C2C42),
+                forge: Color(hex: 0xFF9500)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Succulent · Cactus",
+                base: Color(hex: 0x00DCC8),
+                bright: Color(hex: 0x3FE4D5),
+                deep: Color(hex: 0x009A8C),
+                coreHighlight: Color(hex: 0x72EBE0),
+                coreShadow: Color(hex: 0x00796E),
+                forge: Color(hex: 0xFF9500)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Sand · Cactus",
+                base: Color(hex: 0xFFC850),
+                bright: Color(hex: 0xFFD57B),
+                deep: Color(hex: 0xB28C38),
+                coreHighlight: Color(hex: 0xFFE09E),
+                coreShadow: Color(hex: 0x8C6E2C),
+                // Warning must stay separable from a sand-gold accent.
+                forge: Color(hex: 0xFF9500)
+            )
+        ),
+        glowScale: 1.1,
+        gridStyle: .lines,
+        gridLine: .accentTinted(0.08),
+        gridCell: 26,
+        isLight: false,
+        orbStyle: .cactusBloom
+    )
+    // MARK: Inferno — Disco Inferno (design/themes/theme-disco-inferno.html)
+    // Mirror-ball hell: molten gold, disco silver, hellfire crimson. The
+    // design's own screen grid is the 10px gold dot lattice (×.2) — palette
+    // data, like Terminal's phosphor pitch. Handoff-native slot names.
+
+    static let discoInferno = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0x0A0505),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0x1A0A0A), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0x0A0505), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0x050202), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0x1A0A0A), Color(hex: 0x0A0505), Color(hex: 0x050202)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0xFFF8F0),
+            foregroundBright: Color(hex: 0xFFF8F0),
+            secondaryForeground: Color(hex: 0xE8C8A8),
+            mutedForeground: Color(hex: 0xE8C8A8),
+            dimForeground: Color(hex: 0xA08060),
+            coolForeground: Color(hex: 0xE8C8A8)
+        ),
+        surface: Color(hex: 0xFFD700, opacity: 0.08),
+        chips: .fixed(
+            surface: Color(hex: 0xFFD700, opacity: 0.08),
+            divider: Color(hex: 0xE8E8E8, opacity: 0.08),
+            border: Color(hex: 0xFF3333, opacity: 0.06)
+        ),
+        borders: .accentTinted(hairline: 0.14, strong: 0.30),
+        scrim: Color(hex: 0x000000, opacity: 0.85),
+        danger: Color(hex: 0xFF2200),
+        dangerBright: Color(hex: 0xFF4326),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Disco Gold",
+                base: Color(hex: 0xFFD700),
+                bright: Color(hex: 0xFFE03F),
+                deep: Color(hex: 0xB29600),
+                coreHighlight: Color(hex: 0xFFE872),
+                coreShadow: Color(hex: 0x8C7600),
+                // Warning must stay separable from the gold hero.
+                forge: Color(hex: 0xFF6600)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Mirror Silver",
+                base: Color(hex: 0xE8E8E8),
+                bright: Color(hex: 0xEDEDED),
+                deep: Color(hex: 0xA2A2A2),
+                coreHighlight: Color(hex: 0xF2F2F2),
+                coreShadow: Color(hex: 0x7F7F7F),
+                forge: Color(hex: 0xFF6600)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Hellfire Crimson",
+                base: Color(hex: 0xFF3333),
+                bright: Color(hex: 0xFF6565),
+                deep: Color(hex: 0xB22323),
+                coreHighlight: Color(hex: 0xFF8E8E),
+                coreShadow: Color(hex: 0x8C1C1C),
+                forge: Color(hex: 0xFF6600)
+            )
+        ),
+        glowScale: 1.2,
+        gridStyle: .dots,
+        // Verbatim: gold 1px dots at 10px pitch on a .2 layer.
+        gridLine: .fixed(Color(hex: 0xFFD700, opacity: 0.2)),
+        gridCell: 10,
+        isLight: false,
+        orbStyle: .discoBall
     )
 }
 

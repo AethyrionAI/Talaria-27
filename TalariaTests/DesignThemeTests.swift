@@ -22,11 +22,15 @@ struct DesignThemeTests {
     }
 
     @Test func themesProduceDistinctEnvironments() {
+        // Distinct ENVIRONMENTS, not necessarily distinct hero hexes: the
+        // gallery ships Cereal Box and Cyber Cactus with the identical
+        // #FF5078 hero (verbatim in both handoffs), so the accent check
+        // allows a shared base when the environments differ.
         let palettes = ThemeID.allCases.map { ThemePalette(theme: $0, accent: .cyan) }
         for (i, a) in palettes.enumerated() {
             for b in palettes.dropFirst(i + 1) {
                 #expect(a.background != b.background || a.surface != b.surface)
-                #expect(a.base != b.base)
+                #expect(a.base != b.base || a.background != b.background)
             }
         }
     }
@@ -123,6 +127,10 @@ struct DesignThemeTests {
         #expect(ThemePalette(theme: .glitchGarden, accent: .cyan).base == Color(hex: 0x39FF14))
         #expect(ThemePalette(theme: .witchsBrew, accent: .cyan).base == Color(hex: 0x4ADE80))
         #expect(ThemePalette(theme: .holoSushi, accent: .cyan).base == Color(hex: 0xFF69B4))
+        // Batch 2.
+        #expect(ThemePalette(theme: .lunarDiner, accent: .cyan).base == Color(hex: 0xFF9AB4))
+        #expect(ThemePalette(theme: .cyberCactus, accent: .cyan).base == Color(hex: 0xFF5078))
+        #expect(ThemePalette(theme: .discoInferno, accent: .cyan).base == Color(hex: 0xFFD700))
     }
 
     @Test func contextualAccentLabels() {
@@ -137,6 +145,10 @@ struct DesignThemeTests {
         #expect(AppearanceAccent.cyan.displayLabel(for: .glitchGarden) == "Vine · Garden")
         #expect(AppearanceAccent.amber.displayLabel(for: .witchsBrew) == "Mystic · Brew")
         #expect(AppearanceAccent.violet.displayLabel(for: .holoSushi) == "Nori · Sushi")
+        // Disco keeps the handoff-native slot names (EH precedent).
+        #expect(AppearanceAccent.cyan.displayLabel(for: .discoInferno) == "Disco Gold")
+        #expect(AppearanceAccent.amber.displayLabel(for: .discoInferno) == "Mirror Silver")
+        #expect(AppearanceAccent.violet.displayLabel(for: .discoInferno) == "Hellfire Crimson")
     }
 
     // MARK: Catalog resolution (#49)
@@ -185,6 +197,10 @@ struct DesignThemeTests {
         #expect(ThemePalette(theme: .cerealBox, accent: .cyan).orbStyle == .prizeWheel)
         #expect(ThemePalette(theme: .bubblegumMecha, accent: .cyan).orbStyle == .candyMecha)
         #expect(ThemePalette(theme: .retroSciFi, accent: .cyan).orbStyle == .rocketBadge)
+        // Batch 2.
+        #expect(ThemePalette(theme: .lunarDiner, accent: .cyan).orbStyle == .jukeboxGlow)
+        #expect(ThemePalette(theme: .cyberCactus, accent: .cyan).orbStyle == .cactusBloom)
+        #expect(ThemePalette(theme: .discoInferno, accent: .cyan).orbStyle == .discoBall)
     }
 
     // MARK: Runtime mirroring

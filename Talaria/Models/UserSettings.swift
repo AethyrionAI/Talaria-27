@@ -246,6 +246,9 @@ enum AppearanceTheme: String, Codable, CaseIterable, Hashable, Sendable {
     case glitchGarden
     case witchsBrew
     case holoSushi
+    case lunarDiner
+    case cyberCactus
+    case discoInferno
 
     /// Display name — single source of truth is the catalog definition (#49).
     var displayLabel: String {
@@ -473,7 +476,10 @@ struct UserSettings: Codable, Hashable, Sendable {
         readAloudVoiceIdentifier = try container.decodeIfPresent(String.self, forKey: .readAloudVoiceIdentifier)
         readAloudRate = try container.decodeIfPresent(Double.self, forKey: .readAloudRate) ?? 0.5
         composerWritingToolsEnabled = try container.decodeIfPresent(Bool.self, forKey: .composerWritingToolsEnabled) ?? false
-        appearanceTheme = try container.decodeIfPresent(AppearanceTheme.self, forKey: .appearanceTheme) ?? .deepField
+        // try? — a persisted theme whose case was removed (e.g. Deep Sea
+        // Diner) must degrade to Deep Field, not fail the whole settings
+        // decode and reset every preference.
+        appearanceTheme = (try? container.decodeIfPresent(AppearanceTheme.self, forKey: .appearanceTheme)) ?? .deepField
         appearanceThemeMode = try container.decodeIfPresent(AppearanceThemeMode.self, forKey: .appearanceThemeMode) ?? .manual
         appearanceAccent = try container.decodeIfPresent(AppearanceAccent.self, forKey: .appearanceAccent) ?? .cyan
         hudGlowIntensity = try container.decodeIfPresent(Double.self, forKey: .hudGlowIntensity) ?? 1.0
