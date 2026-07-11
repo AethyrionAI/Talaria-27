@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spring Sprout — Talaria Theme</title>
+  <style>
+    :root {
+      --sprout-bg-1: #fff9f4;
+      --sprout-bg-2: #fff0e4;
+      --sprout-bg-3: #ffe8d8;
+      --sprout-fg: #2a1f1a;
+      --sprout-fg-muted: #7a6258;
+      --sprout-fg-dim: #a99088;
+      --sprout-surface-1: rgba(255, 150, 170, 0.18);
+      --sprout-surface-2: rgba(140, 230, 160, 0.18);
+      --sprout-surface-3: rgba(255, 220, 120, 0.14);
+      --sprout-border: rgba(255, 150, 170, 0.45);
+      --sprout-border-subtle: rgba(42, 31, 26, 0.10);
+      --sprout-accent-blossom: #ff6b8a;
+      --sprout-accent-mint: #5ed47a;
+      --sprout-accent-butter: #ffd04a;
+      --sprout-danger: #d94a4a;
+      --sprout-warning: #e89c30;
+      --glow-scale: 1.1;
+      --font-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-body: 'SF Pro Text', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-mono: 'SF Mono', ui-monospace, Menlo, monospace;
+      --slot-hero: var(--sprout-accent-blossom);
+      --slot-amber: var(--sprout-accent-mint);
+      --slot-violet: var(--sprout-accent-butter);
+      --bg: var(--sprout-bg-1);
+      --fg: var(--sprout-fg);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--sprout-bg-1);
+      color: var(--sprout-fg);
+      font-family: var(--font-body);
+      line-height: 1.5;
+    }
+
+    body {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      padding: 2rem;
+      background:
+        radial-gradient(1200px 800px at 50% -10%, rgba(255, 150, 170, 0.28), transparent 60%),
+        radial-gradient(ellipse at 50% 0%, var(--sprout-bg-2) 0%, var(--sprout-bg-1) 50%, var(--sprout-bg-3) 100%);
+    }
+
+    .page-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.35;
+      background-image:
+        radial-gradient(circle, rgba(255, 150, 170, 0.25) 1px, transparent 1px),
+        radial-gradient(circle, rgba(140, 230, 160, 0.20) 1px, transparent 1px);
+      background-size: 28px 28px, 14px 14px;
+      background-position: 0 0, 7px 7px;
+    }
+
+    main { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      margin: 0;
+      text-transform: uppercase;
+      color: var(--sprout-fg);
+      text-shadow: 0 0 18px rgba(255, 107, 138, 0.25), 0 0 44px rgba(255, 208, 74, 0.15);
+    }
+
+    .subtitle {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--sprout-accent-mint);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.60);
+      border: 1px solid var(--sprout-border-subtle);
+      border-radius: 20px;
+      padding: 1.5rem;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 8px 32px rgba(42, 31, 26, 0.05);
+    }
+
+    .card h2 {
+      margin: 0 0 1rem 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--sprout-fg);
+      border-bottom: 1px solid var(--sprout-border-subtle);
+      padding-bottom: 0.75rem;
+    }
+
+    .chat-screen {
+      height: 520px;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(180deg, var(--sprout-bg-1) 0%, rgba(255, 249, 244, 0.98) 100%);
+      border: 1px solid var(--sprout-border);
+      border-radius: 24px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 0 40px rgba(255, 150, 170, 0.18), inset 0 0 60px rgba(255, 150, 170, 0.05);
+    }
+
+    .chat-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        radial-gradient(circle at 80% 10%, rgba(255, 150, 170, 0.10) 0%, transparent 40%),
+        radial-gradient(circle at 20% 90%, rgba(140, 230, 160, 0.10) 0%, transparent 40%);
+      opacity: 0.7;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: rgba(255, 255, 255, 0.50);
+      border-bottom: 1px solid var(--sprout-border-subtle);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--sprout-fg-muted);
+      letter-spacing: 0.08em;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 0.75rem 1rem;
+      border-radius: 16px;
+      font-size: 0.95rem;
+      line-height: 1.45;
+      position: relative;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--sprout-surface-1);
+      border: 1px solid var(--sprout-border);
+      color: var(--sprout-fg);
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.70);
+      border: 1px solid var(--sprout-border-subtle);
+      color: var(--sprout-fg);
+      border-bottom-left-radius: 4px;
+    }
+
+    .message.assistant::before {
+      content: '';
+      position: absolute;
+      left: -8px;
+      top: 14px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--sprout-accent-blossom);
+      box-shadow: 0 0 8px var(--sprout-accent-blossom);
+    }
+
+    .chat-input {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: rgba(255, 255, 255, 0.50);
+      border-top: 1px solid var(--sprout-border-subtle);
+    }
+
+    .chat-input input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px solid var(--sprout-border);
+      border-radius: 999px;
+      padding: 0.6rem 1rem;
+      color: var(--sprout-fg);
+      font-family: var(--font-body);
+      outline: none;
+      box-shadow: 0 0 12px rgba(255, 150, 170, 0.12);
+    }
+
+    .chat-input input::placeholder { color: var(--sprout-fg-dim); }
+
+    .chat-input button {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: none;
+      background: var(--sprout-accent-blossom);
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 0 16px rgba(255, 107, 138, 0.30);
+      display: grid;
+      place-items: center;
+      font-size: 1.1rem;
+    }
+
+    .orb {
+      width: 110px;
+      height: 110px;
+      margin: 1rem auto;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+
+    .orb-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid var(--sprout-accent-blossom);
+      box-shadow: 0 0 20px var(--sprout-accent-blossom), inset 0 0 20px rgba(255, 107, 138, 0.15);
+      animation: pulse 4s ease-in-out infinite;
+    }
+
+    .orb-ring:nth-child(1) { width: 100%; height: 100%; opacity: 0.35; }
+    .orb-ring:nth-child(2) { width: 74%; height: 74%; opacity: 0.55; border-color: var(--sprout-accent-mint); animation-delay: 0.3s; }
+    .orb-ring:nth-child(3) { width: 48%; height: 48%; opacity: 0.75; border-color: var(--sprout-accent-butter); animation-delay: 0.6s; }
+
+    .orb-core {
+      width: 32%;
+      height: 32%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, var(--sprout-accent-butter), var(--sprout-accent-blossom));
+      box-shadow: 0 0 30px var(--sprout-accent-blossom), 0 0 60px rgba(255, 107, 138, 0.25);
+      animation: pulse 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.6; }
+      50% { transform: scale(1.04); opacity: 0.8; }
+    }
+
+    .settings-preview { display: flex; flex-direction: column; gap: 1rem; }
+    .theme-row { display: flex; align-items: center; gap: 1rem; }
+
+    .mini-orb {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, var(--sprout-accent-butter), var(--sprout-accent-blossom));
+      box-shadow: 0 0 20px var(--sprout-accent-blossom);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .mini-orb::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 1px solid var(--sprout-accent-mint);
+      opacity: 0.5;
+    }
+
+    .theme-info h3 { margin: 0 0 0.25rem 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; color: var(--sprout-fg); }
+    .theme-info p { margin: 0; font-size: 0.85rem; color: var(--sprout-fg-muted); }
+
+    .grid-sample {
+      height: 80px;
+      border-radius: 12px;
+      border: 1px solid var(--sprout-border);
+      background:
+        radial-gradient(circle at 50% 50%, rgba(255, 150, 170, 0.18) 0, transparent 40%),
+        linear-gradient(to right, rgba(140, 230, 160, 0.15) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(140, 230, 160, 0.15) 1px, transparent 1px);
+      background-size: 100% 100%, 16px 16px, 16px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .grid-sample::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(255, 220, 120, 0.10), transparent);
+    }
+
+    .swatch-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .swatch { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-mono); font-size: 0.75rem; color: var(--sprout-fg-muted); background: rgba(255, 255, 255, 0.55); padding: 0.4rem 0.6rem; border-radius: 999px; border: 1px solid var(--sprout-border-subtle); }
+    .swatch-dot { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+    .status-pills { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    .pill {
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .pill-danger { background: rgba(217, 74, 74, 0.12); color: var(--sprout-danger); border: 1px solid rgba(217, 74, 74, 0.35); }
+    .pill-warning { background: rgba(232, 156, 48, 0.12); color: var(--sprout-warning); border: 1px solid rgba(232, 156, 48, 0.35); }
+    .pill-success { background: rgba(255, 107, 138, 0.12); color: var(--sprout-accent-blossom); border: 1px solid rgba(255, 107, 138, 0.35); }
+
+    .personality p { margin: 0 0 0.75rem 0; color: var(--sprout-fg-muted); font-size: 0.95rem; line-height: 1.6; }
+    .slot-map { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-top: 1rem; }
+    .slot { background: rgba(255, 255, 255, 0.50); border: 1px solid var(--sprout-border-subtle); border-radius: 12px; padding: 0.75rem; text-align: center; }
+    .slot-label { font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase; color: var(--sprout-fg-dim); letter-spacing: 0.08em; margin-bottom: 0.4rem; }
+    .slot-name { font-size: 0.85rem; font-weight: 700; color: var(--sprout-fg); }
+    .slot-color { width: 100%; height: 6px; border-radius: 999px; margin-top: 0.5rem; }
+
+    .palette-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .palette-table th, .palette-table td { text-align: left; padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--sprout-border-subtle); }
+    .palette-table th { font-family: var(--font-mono); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.08em; color: var(--sprout-fg-dim); }
+    .palette-table td { color: var(--sprout-fg-muted); font-family: var(--font-mono); }
+    .chip { display: inline-block; width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--sprout-border-subtle); box-shadow: 0 0 8px rgba(0, 0, 0, 0.06); }
+    .role-name { color: var(--sprout-fg); font-family: var(--font-body); font-weight: 600; }
+
+    footer { margin-top: 2rem; text-align: center; font-family: var(--font-mono); font-size: 0.75rem; color: var(--sprout-fg-dim); text-transform: uppercase; letter-spacing: 0.1em; }
+  </style>
+</head>
+<body>
+  <div class="page-bg"></div>
+  <main>
+    <header>
+      <h1>Spring Sprout</h1>
+      <span class="subtitle">Talaria Theme Reference</span>
+    </header>
+
+    <div class="grid">
+      <section class="card" data-od-id="chat-screen">
+        <h2>Chat Screen</h2>
+        <div class="chat-screen">
+          <div class="chat-header">Blossom — 9:22 AM</div>
+          <div class="chat-messages">
+            <div class="message assistant">The cherry trees are blooming and the picnic blanket is out. What are we doing today?</div>
+            <div class="message user">Help me plan the garden layout.</div>
+            <div class="message assistant">I see two raised beds facing south. Let's start with tomatoes where they'll get morning sun.</div>
+          </div>
+          <div class="chat-input">
+            <input type="text" placeholder="Send something blooming..." />
+            <button>↑</button>
+          </div>
+        </div>
+        <div class="orb" aria-label="Spring sprout orb">
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <div class="orb-core"></div>
+        </div>
+      </section>
+
+      <section class="card" data-od-id="appearance-settings">
+        <h2>Appearance Settings</h2>
+        <div class="settings-preview">
+          <div class="theme-row">
+            <div class="mini-orb"></div>
+            <div class="theme-info">
+              <h3>Spring Sprout</h3>
+              <p>Cherry blossom picnic with petal pink, new mint leaf, and warm butter yellow.</p>
+            </div>
+          </div>
+          <div class="grid-sample"></div>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch-dot" style="background:#ff6b8a;color:#ff6b8a"></span>Blossom</div>
+            <div class="swatch"><span class="swatch-dot" style="background:#5ed47a;color:#5ed47a"></span>Mint</div>
+            <div class="swatch"><span class="swatch-dot" style="background:#ffd04a;color:#ffd04a"></span>Butter</div>
+          </div>
+          <div class="status-pills">
+            <span class="pill pill-danger">Late Frost</span>
+            <span class="pill pill-warning">Pollen</span>
+            <span class="pill pill-success">Germinate</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card personality" data-od-id="personality">
+        <h2>Personality</h2>
+        <p>Spring Sprout is Talaria spread out on a picnic blanket under cherry blossoms. The background is warm cream with soft petal-pink light. Surfaces are frosted glass. The reactor orb is a freshly opened bloom — blossom-pink petals, butter-yellow center, mint-green stem accent.</p>
+        <p><strong>Accent slot mapping:</strong> cyan (hero) → Blossom, amber → Mint, violet → Butter.</p>
+        <div class="slot-map">
+          <div class="slot">
+            <div class="slot-label">Slot cyan</div>
+            <div class="slot-name">Blossom</div>
+            <div class="slot-color" style="background:#ff6b8a"></div>
+          </div>
+          <div class="slot">
+            <div class="slot-label">Slot amber</div>
+            <div class="slot-name">Mint</div>
+            <div class="slot-color" style="background:#5ed47a"></div>
+          </div>
+          <div class="slot">
+            <div class="slot-label">Slot violet</div>
+            <div class="slot-name">Butter</div>
+            <div class="slot-color" style="background:#ffd04a"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" data-od-id="palette-table">
+        <h2>Palette</h2>
+        <table class="palette-table">
+          <thead><tr><th>Token</th><th>Role</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip" style="background:#fff9f4"></span></td><td class="role-name">Background 1</td><td>#fff9f4</td></tr>
+            <tr><td><span class="chip" style="background:#fff0e4"></span></td><td class="role-name">Background 2</td><td>#fff0e4</td></tr>
+            <tr><td><span class="chip" style="background:#ffe8d8"></span></td><td class="role-name">Background 3</td><td>#ffe8d8</td></tr>
+            <tr><td><span class="chip" style="background:#2a1f1a"></span></td><td class="role-name">Foreground</td><td>#2a1f1a</td></tr>
+            <tr><td><span class="chip" style="background:#7a6258"></span></td><td class="role-name">Muted</td><td>#7a6258</td></tr>
+            <tr><td><span class="chip" style="background:#a99088"></span></td><td class="role-name">Dim</td><td>#a99088</td></tr>
+            <tr><td><span class="chip" style="background:rgba(255,150,170,0.18)"></span></td><td class="role-name">Surface 1</td><td>rgba(255,150,170,0.18)</td></tr>
+            <tr><td><span class="chip" style="background:rgba(140,230,160,0.18)"></span></td><td class="role-name">Surface 2</td><td>rgba(140,230,160,0.18)</td></tr>
+            <tr><td><span class="chip" style="background:rgba(255,220,120,0.14)"></span></td><td class="role-name">Surface 3</td><td>rgba(255,220,120,0.14)</td></tr>
+            <tr><td><span class="chip" style="background:#ff6b8a"></span></td><td class="role-name">Accent (cyan → Blossom)</td><td>#ff6b8a</td></tr>
+            <tr><td><span class="chip" style="background:#5ed47a"></span></td><td class="role-name">Accent (amber → Mint)</td><td>#5ed47a</td></tr>
+            <tr><td><span class="chip" style="background:#ffd04a"></span></td><td class="role-name">Accent (violet → Butter)</td><td>#ffd04a</td></tr>
+            <tr><td><span class="chip" style="background:#d94a4a"></span></td><td class="role-name">Danger</td><td>#d94a4a</td></tr>
+            <tr><td><span class="chip" style="background:#e89c30"></span></td><td class="role-name">Warning</td><td>#e89c30</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <footer>Theme: Spring Sprout — Talaria Companion</footer>
+  </main>
+</body>
+</html>

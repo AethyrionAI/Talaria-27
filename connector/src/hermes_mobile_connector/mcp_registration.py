@@ -193,6 +193,8 @@ def validate_native_mcp_server(
         [*command_parts, "mcp", "test", server_name],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=timeout_seconds,
         env=env,
         check=False,
@@ -262,6 +264,8 @@ def _hermes_chat_running(hermes_command: str) -> bool:
                 ["tasklist", "/FO", "CSV", "/NH"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
             )
             if process.returncode != 0:
@@ -280,6 +284,8 @@ def _hermes_chat_running(hermes_command: str) -> bool:
             ["ps", "-axo", "pid=,command="],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
     except Exception:  # noqa: BLE001

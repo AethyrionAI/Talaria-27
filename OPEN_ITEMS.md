@@ -762,10 +762,7 @@ window was closed, and the bare console "looked suspicious." Now it runs as Sche
 used — on Windows it only makes a login-only, possibly-flashing task; running it would fight
 `HermesGateway` for `:8642`.)
 
-**Discord is one token away:** the API Server is just one gateway adapter; the same
-`HermesGateway` process will also serve Discord once a `DISCORD_BOT_TOKEN` exists (none yet —
-needs a bot created in Discord's dev portal + invited to the server). No new service required:
-add the token, restart the task.
+**Discord — SET UP / CLOSED (2026-07-09, Owen):** `DISCORD_BOT_TOKEN` present in `.env` (verified this session), bot created + invited, gateway serving it. Same `HermesGateway` process, no new service.
 
 **OJAMD service inventory (all windowless + reboot-proof — all NSSM as of 2026-06-28):**
 - Relay `:8000` → `HermesMobileRelay` (NSSM service, uvicorn)
@@ -1175,7 +1172,9 @@ Logged 2026-06-27.
 
 ---
 
-## 38. 🔧 Remote push (APNs) for instant background-run completion notify — BUILT, needs OJAMD config + device verify
+## 38. ✅ Remote push (APNs) for instant background-run completion notify — RESOLVED (config in place + tests passing, Owen 2026-07-09)
+
+**RESOLVED 2026-07-09 (Owen):** APNs config in place — all `APNS_*` keys + `GATEWAY_API_KEY` present in relay `.env` (verified this session); Owen confirmed push tests working.
 
 **Update 2026-07-06 (cloud session, branch `claude/notifications-implementation-t7ame7`):**
 full pipeline implemented — nothing was deployed or device-verified (no Xcode/OJAMD from
@@ -1454,7 +1453,9 @@ Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully rep
 
 **Found 2026-07-04** (on-device, during connector-outage testing). `SensorUploadService.drainOutboxIfPossible()` drains location first and `break`s the entire loop on a location `.failed`, so it never reaches the health block. When location persistently returns `deliveryState=retry` (connector down / busy / forward stalled), the health outbox climbs unbounded even though health itself is fine — observed 475→481+ live. `LocationUploadOutcome` has no `.retry` case, so a transient `retry` is mis-mapped to a hard `.failed` that wedges the loop. **Fix (iOS, Fable):** a location failure must not `break` past health; give location its own transient retry/backoff (mirror health's `.retry` handling); drain the two outboxes on independent passes so neither can starve the other. Distinct from #24a (that was a poison *health* sample wedging health; this is the *location* path wedging health). GitHub issue snippet drafted.
 
-## 54. 🔧 Relay restart forces connector re-attach — host session not auto-recovered
+## 54. ✅ Relay restart forces connector re-attach — RESOLVED (nonce DB-persisted + race-safe eviction, verified 2026-07-09)
+
+**RESOLVED 2026-07-09:** Server-side verified. Host-connection nonce lifecycle in `relay/app/services.py` (`activate` / `touch` / `deactivate`) operates on the `HermesHost` DB row (`active_connection_nonce` column, `db.commit()`), so it persists across relay restarts; `deactivate` clears only when the presented nonce matches the active one, so a stale socket's teardown can't strand a fresh reconnect (race-safe). Behaviorally: zero 4401 in the recent relay log, and the connector reattached cleanly (`/v1/hosts/ws [accepted]`) after this session's connector restart — corroborating the earlier relay-restart test. Connector-side auto-reconnect (ccee0f6) merged.
 
 **Found 2026-07-04** (OJAMD, during the #15 relay hotfix). When `HermesMobileRelay` restarts (deploy/hotfix), it drops the connector's host WebSocket with close code 1012 (service restart). The connector does not reliably self-reconnect, and a subsequent reconnect can hit a transient **4401** — the relay still holds the stale host session from the unclean drop. Until the connector is restarted, sensor forwards return `deliveryState=retry` and no sensor data flows, which then wedges health app-side (→ #53). Root-caused this session: the 07-04 relay restart for #15 left the connector in exactly this state for hours. **Mitigations (in place):** operational — always restart the connector after a relay bounce (the new "Restart All" desktop shortcut does this in dependency order, and the connector NSSM service from GitHub #8 auto-restarts on crash). **Durable fix (server-side, #24f-adjacent):** persist the host-connection nonce so a relay restart doesn't force re-enroll/4401, and/or evict a stale host session promptly so a reconnect isn't rejected; connector-side, add auto-reconnect with backoff on 1012/4401. GitHub issue snippet drafted.
 **Update 2026-07-04 (evening):** the mitigations shifted under #55 -- the `HermesMobileConnector`
@@ -2430,6 +2431,18 @@ in DB → rendered in the device tray (Owen: two items visible). Along the way:
 **Still unchecked from the device checklist:** silent-push wake populating
 without manual refresh; approve → verdict readback; `notify="alert"` visible push.
 
+**Update 2026-07-10 (Lane C item 4, cloud session, branch
+`claude/lane-c-dispatch-5bbw9k`):** gh#58 app-side hardening BUILT, not compiled.
+`LiveInboxService.InboxResponse` now decodes row-by-row: a bad row is skipped via a
+never-throwing best-effort probe that salvages its raw `id`/`kind` for an always-on
+per-row os_log line (plus a kept/skipped summary) — the poison row is nameable in the
+relay DB instead of anonymous. Good rows survive in order; an all-bad payload decodes
+to an EMPTY inbox, not "unreachable". `InboxDecodingTests` (new file — xcodegen regen
+owed) covers mixed payloads, all five kinds, non-object rows, and id/kind capture.
+The optional relay-route `kind` validation half of gh#58 remains open (server-side).
+Device re-check once merged: re-insert a bad-kind row → tray shows the good rows +
+Console names the skipped one.
+
 ---
 
 ## 81. 🔧 Lock-screen reply to Hermes — UNTextInputNotificationAction (GitHub #47)
@@ -2484,7 +2497,7 @@ ordering, with the minor side effect that the tap path now awaits `handleNotific
 
 ---
 
-## 82. 🐛 Voice regression — T27 only: realtime session mints, app self-tears-down in seconds
+## 82. ⏸️ PARKED — Voice capture wedge: ANY Talaria capture kills system-wide audio input on the current iOS 27 beta seed (reboot to recover)
 
 **Found 2026-07-08 evening on whoGoesThere.** Talk in Talaria-27 no longer works; Diagnostics
 truthfully shows connected/ready. **Isolated to T27**: Talaria prime on the same phone has
@@ -2518,6 +2531,42 @@ away: the relay was down all morning (port 8000 dead until 13:33) — dead readi
 the setup UI; not this bug. **Single-variable experiment queued:** build pre-Wave-5
 commit `6820860` with the SAME beta-3 toolchain, install, test voice — works → Wave 5
 code convicted; broken → SDK relink convicted.
+
+**2026-07-08 (late):** the A/B ran and was contaminated — pre-Wave-5 probe failed identically,
+then Prime (healthy control) failed too. Server side exonerated end-to-end via three OJAMD
+probes (mint/WS-text, WS-audio+VAD, full WebRTC). Session concluded "iOS silently revoked
+mic + speech permissions; toggling restores" — **that conclusion is now superseded (below);
+the toggle likely worked by tearing down the app's audio clients, not by fixing permissions.**
+Note: the `diagnostics/voice-probes` branch carries the probe scripts (still valuable) plus an
+OPEN_ITEMS closure asserting the permission root cause — **do not merge its OPEN_ITEMS text
+as-written**; rework against this entry first.
+
+**2026-07-09 — PARKED by Owen (voice is optional; CarPlay voice inherits this when resumed).**
+With the #84 instrumentation on-device, the real failure surfaced: **any Talaria audio-capture
+path wedges the system-wide capture stack until reboot (sometimes two)** — after one Talaria
+capture attempt, even Apple's Voice Memos is deaf. Signature: route shows
+`iPhone Microphone → Speaker` for ~1.5 s at session start, then drops to `No input → Speaker`.
+
+Falsified tonight, each with device evidence (do not re-litigate):
+permissions wedge (Diagnostics panel reads both permissions enabled via the real APIs);
+VPIO/voice-processing (composer dictation uses `.record`/`.measurement` — no VPIO, no WebRTC,
+no BT options — and wedges identically; probe branch `probe/no-vpio` @ `3d5721e` was cut but
+NEVER TESTED — do not merge); app-code regression (Prime’s old pre-Wave-5 stable build fails
+identically: Voice Memos pass → dictation fail → Voice Memos dead); TCC-record corruption
+(both phones fail; TCC doesn’t sync). Reboot restores capture; the next Talaria attempt
+re-wedges it. No newer beta seed available as of 2026-07-09.
+
+**Test A RESOLVED (2026-07-09, later that night):** Owen ran the sequence with Discord —
+reboot ×2 → Voice Memos pass → Discord composer mic FAIL → capture wedged, identical to
+Talaria. **The seed breaks ALL third-party capture; Talaria is fully exonerated.** The Apple
+Feedback repro is now Talaria-free: reboot → Voice Memos works → any third-party mic → dead.
+
+**On resume:** (1) Test A — any third-party recorder after a clean reboot; (2) retest on the
+next beta seed; (3) file Apple Feedback with the minimal repro (reboot → Voice Memos works →
+one Talaria dictation → Voice Memos dead); (4) #84 branch (`claude/t27-84-talk-preflight`,
+`c9e909e`, compiles green under Xcode 27.0, 13/13 tests) stays UNMERGED — its device checklist
+is blocked on this wedge, and it owes one fix: the preflight misclassifies “no input came up”
+as “permission denied” (needs a third state: permissions OK but no mic input — try rebooting).
 
 ---
 
@@ -2664,3 +2713,236 @@ passed in-container.** Remaining: deploy on OJAMD; keep an eye on the relay log 
 `DB pool exhausted` marker (now impossible to miss) if it ever recurs.
 
 Logged 2026-07-09.
+
+## 87. ✅ Connector — subprocess output decoded as cp1252 on Windows — RESOLVED (deployed to OJAMD 2026-07-09)
+
+**RESOLVED 2026-07-09:** Deployed to OJAMD. `ojamd-deploy` rebased onto `t27/main` (helper commit replayed clean, no conflicts); fix confirmed live on the editable module (19 `errors=replace` sites); connector restarted and holding its WS to the relay; `hermes memory status` populates cleanly. The cp1252 tracebacks still in connector.log are pre-deploy residue (file static since 2026-07-02).
+
+**Found 2026-07-09 (reproduced live on OJAMD), built same day** (cloud session, branch
+`claude/connector-utf8-subprocess-fypam0`). Root cause: every connector
+`subprocess.run(..., text=True)` omitted `encoding=`, so Windows decoded the child's
+stdout/stderr pipes with the locale codepage (cp1252 — `PYTHONUTF8` does not reach the
+connector process). `hermes` prints UTF-8 (box-drawing `─` = e2 94 80, em-dashes), so the
+reader thread threw `UnicodeDecodeError: 'charmap' codec can't decode byte 0x90` — a
+daemon-thread exception, non-fatal, but the child's output was **silently lost** (empty
+`hermes memory status` → `summarize_memory_provider` degraded, skills list `[]`, version
+detection failed, mcp registration output dropped) plus 1,192 tracebacks in connector.log.
+Pre-existing; unrelated to #85/#86. Core paths (host WS, sensor ingestion) and chat
+(iOS → `:8642` direct) were never affected.
+
+**Shipped:** `encoding="utf-8", errors="replace"` pinned on all 17 text-mode subprocess
+call sites (talk_support, client ×2, hermes_runner ×2, mcp_registration ×3, git_diff ×4,
+cli ×4, service_management); byte-mode calls and file reads untouched. Tests are
+platform-independent (CI is Linux/UTF-8 where the locale default masks the bug): an AST
+audit in `tests/test_subprocess_encoding.py` asserts every text-mode subprocess call in
+the package pins utf-8/replace — new call sites can't regress silently — and an
+end-to-end test forces the exact bad bytes (e2 94 80 + 0x90) through a real pipe via
+`summarize_memory_provider`. Both fail against the unfixed code. **Connector suite: 104
+passed / 1 skipped.** Remaining: reaches OJAMD prod on the next ojamd-deploy reconcile —
+after deploy, confirm connector.log stops accruing `_readerthread` UnicodeDecodeError
+tracebacks and `summarize_memory_provider` returns real provider lines.
+
+Logged 2026-07-09.
+
+## 88. ✅ OJAMD `restart-relay.ps1` — relay half stale — RESOLVED (fixed 2026-07-09)
+
+**RESOLVED 2026-07-09:** Relay half changed to `Restart-Service HermesMobileRelay`; header comment corrected to flag NSSM + elevation; connector half left as-is; script parses clean. Lives in `~/.hermes/scripts/` (outside the repo, untracked) — left there by design, not a repo-tracked ops script.
+
+`~/.hermes/scripts/restart-relay.ps1` still restarts the relay via
+`scripts/start-relay.bat` as a plain user process (“post-nssm world, #55” comment
+notwithstanding) — but the relay is NSSM-managed again (`HermesMobileRelay`, verified
+2026-07-09: nssm.exe → uvicorn `app.main:app --host 0.0.0.0 --port 8000`). Running the
+script as-is would start a second uvicorn that fights the service for `:8000`.
+
+**Fix:** relay half becomes `Restart-Service HermesMobileRelay` (needs elevation — keep
+Owen’s paste-into-elevated-PowerShell pattern); the connector half
+(`start-connector.bat`, single-instance enforcer) is still correct as-is.
+
+Logged 2026-07-09.
+
+## 89. ✅ P1 "brain" transplant-fidelity probe — PASS → Lane A GO
+
+**Ran 2026-07-09 against the Sessions API (`http://ojamd:8642`, sync `POST /api/sessions/{id}/chat`).**
+Three-arm probe — A (original session: entangled facts + a mid-stream $4,200 to $4,700 correction),
+C (raw replay into a fresh session), B (condensed ~10:1 priming into a fresh session). B was
+indistinguishable from A and C on recall, cross-turn inference, and the correction: the condensed
+priming read as continuous *context*, not a quoted artifact, and B reconstructed inference the priming
+never spelled out. -> **transplant mechanism validated; Lane A = GO.**
+
+**Condenser-fidelity rung (same day):** had Hermes itself condense a messier 9-turn transcript (two
+corrections + two distractors), then transplanted the machine summary. Fidelity clean — both corrections
+preserved at their latest values, distractors never leaked into answers, cross-turn inference held.
+Residual is **pruning discipline / token cost** (the condenser kept the distractors as ballast despite
+being told to drop them), not fidelity. Caveat: used the full Hermes model as the condenser (optimistic
+proxy) — the on-device LocalIntelligenceService is the real test and likely needs the pruning discipline
+more; that validation is app-side (Fable/Xcode). Bonus finding: long single sessions degrade per-turn
+(70s to 126s by turn 9 vs 5–14s on fresh sessions) — an argument *for* the condense-and-transplant
+architecture. Reusable harness: `C:\Users\Owen\talaria-probe\probe.py`.
+
+Logged 2026-07-09.
+
+## 90. 📝 DEVELOPMENT_TEAM placeholder — deferred to go-public cleanup
+
+`project.yml` (and the generated pbxproj) carry the hard-coded Apple `DEVELOPMENT_TEAM`
+(`DNL25ZFSD2`). Team IDs are not secrets — this one is embedded in every build's provisioning
+profile and already sits throughout public git history, so scrubbing HEAD now buys nothing
+(a history rewrite would break every open branch for zero security gain).
+
+**Decision 2026-07-10:** leave as-is for the personal-fork phase. **If the repo goes properly
+public / contributor-facing**, swap to a placeholder + developer-local override (e.g. gitignored
+local signing config) as part of a broader signing-config cleanup, alongside bundle-ID
+genericization. Until then, outside builders set their own team in Xcode per README §Setup
+step 5. Whatever mechanism is chosen must survive `xcodegen generate` (same class of concern
+as the `aps-environment` regen rule).
+
+Logged 2026-07-10.
+
+## 91. 🔧 Theme suite — Lane E dispatched: prove the drastic bar on Event Horizon, then port the gallery
+
+**Context (verified at HEAD 2026-07-10):** the `talaria-neon-arcade` gallery (17 themes; now in-repo at `design/themes/`) is the outrageous-theme suite. On device today: 4 flagships + 4 seasonals + 4 complex (Cereal Box / Bubblegum Mecha / Retro Sci-Fi / Event Horizon), all selectable. Why the complex ones "didn't hit right": (1) no atmosphere motion engine — the handoffs' 4-layer parallax drift was never ported; (2) no bespoke orbs — `ThemeOrbStyle` has only the 4 flagship cases, complex themes fall back to `.arcReactor`; (3) only Event Horizon has an art-direction override — the other three are pure recolors. 10 gallery themes unported entirely (incl. Neon Arcade #01 itself, Glitch Garden, Witch's Brew, Holo Sushi, Lunar Diner, Cyber Cactus, Deep Sea Diner, Disco Inferno, Graffiti Galaxy SE, Karaoke Supernova SE).
+
+**Phase 1 (Lane E, spec at `dispatch/FABLE-LANE-E-theme-drama.md`):** catalog taxonomy → gallery categories (Flagship / Neon Arcade Collection / Special Edition / Seasonal); data-driven atmosphere motion engine (TimelineView+Canvas, 3 on-device A/B presets, reduced-motion safe, widget layer untouched); `.singularity` orb composition; Event Horizon intensity pass. No `ChatScreen.swift` overlap — independent of Lanes A–D merge order.
+
+**Gate:** Owen device-verdicts Event Horizon post-Lane-E. If it hits: Phase 2 (art-direction schema extension — halftone/spray-grain/chrome-band textures, title + panel treatments), then Phase 3 (batch-port the 10 remaining themes + bespoke orbs + icon pairings from `design/themes/app-icons.html`).
+
+**Related:** orb enhancement issue filed on Talaria-27 (2026-07-10; the 7/6 draft was never actually filed).
+
+---
+
+## 92. 🔧 Lane B — markdown rendering depth (dispatch FABLE-LANES-BC)
+
+**Update 2026-07-10 (cloud session, branch `claude/lane-b-handoff-g8zxbl`):**
+BUILT IN CLOUD, not compiled or device-verified. `MarkdownSegment` grew from
+three cases (prose / codeBlock / image) to seven:
+
+- **Headings** — ATX `#`–`######`, space-after-hashes required (`#hashtag`
+  stays prose), closing-hash runs stripped, inline markdown preserved;
+  rendered at graduated Space Grotesk sizes, levels 1–3 in
+  `foregroundBright`.
+- **Block quotes** — 1-based `>` depth; consecutive same-depth lines merge,
+  a depth change starts a new segment (`>> ` and `> > ` both = depth 2);
+  rendered with an accent bar + `secondaryForeground`, indented per level.
+- **Lists** — `-`/`*`/`+` bullets and `1.`/`1)` ordinals (1–3 digits, so
+  `2026.` stays prose) in one segment with per-item depth via an
+  indent-stack (≥2 cols = deeper); one blank line tolerated between items,
+  two end the list; indented continuation lines append to the prior item;
+  bullets `•`/`◦`/`▪` by depth, ordinals rendered from the literal numbers.
+- **Tables** — GFM pipe tables gated on a real delimiter row with matching
+  cell count (pipe-containing prose stays prose); `:---:`-style alignments;
+  rows normalized to header width; `\|` escapes; rendered as a
+  horizontally-scrollable `Grid` in a hudPanel with header rule + faint
+  row striping. Streaming: header renders as prose until its delimiter row
+  arrives — self-heals on the next delta.
+- **Syntax highlighting** — new `Talaria/Core/CodeSyntaxHighlighter.swift`:
+  single-pass tokenizer (keywords / strings / comments / numbers) with
+  profiles for swift, python, js/ts, json, bash, yaml, c-family; unknown
+  languages get a conservative strings+numbers-only fallback. Colors ride
+  the live theme palette (keyword `accentBright`, string `forge`, comment
+  `dimForeground`, number `accent`); `CodeBlockView` now renders the
+  highlighted AttributedString.
+
+Parser + tokenizer logic verified in-session via a line-for-line Python
+port run against every test expectation (all green); Swift Testing suites:
+`MarkdownHeadingTests` / `MarkdownBlockQuoteTests` / `MarkdownListTests` /
+`MarkdownTableTests` / `CodeSyntaxHighlighterTests` /
+`MarkdownInterleavingTests` (+ `MarkdownTestSupport` accessors). Existing
+behaviors pinned: prose/image interleaving order, streaming unclosed-fence
+emission, non-streaming empty-fence prose fallback, block syntax inside
+fences staying code.
+
+**Needs Mac:** `xcodegen generate` (1 new source + 7 new test files —
+re-verify `aps-environment`/WeatherKit/widget-HealthKit per the #44/#48
+strip trap), CLI build + full test run (Swift Testing: grep "Test run with
+N tests passed"), then device: stream a reply mixing headings, nested
+lists, a table, a quote, and a swift code block; confirm Deep Field code
+blocks still read correctly and Paper Tape (light) keeps token colors
+legible; confirm table horizontal scroll inside bubbles.
+
+## 93. 🔧 P1 continuity fabric — journal primary, hop transplant, compose outbox (Lane A)
+
+**Built 2026-07-10 in the cloud (Fable, Lane A — `dispatch/FABLE-LANE-A-continuity-fabric.md`),
+branch `claude/talaria-27-lane-a-to5zv3`. NOT compiled, NOT device-verified.** Greenlit by the #89
+probe; the condenser-fidelity acceptance suite below is the probe's residual-risk guardrail.
+
+**What landed:**
+- **Journal = durable primary** (`Models/ConversationJournal.swift` + `Stores/ConversationJournalStore.swift`):
+  conversation identity is a local UUID owned by the journal; entries re-derive from the settled
+  transcript at every ChatStore persistence point (streamed finish, reconcile, polling, #44
+  truncation, voice) via `LocalChatBackend.transcriptTurns` — one mapping, no drift. Persisted at
+  `hermes.conversationJournal`.
+- **`apiSessionId` decoupled:** `SessionsHermesClient`'s single session var is GONE. The server
+  session id is a per-hop handle (`ConversationJournal.ServerHop`) with a `seenEntryCount`
+  waterline; `ensureSession()` → `ensureHopForTurn()`. Hop persists across relaunch (a live server
+  session resumes without re-priming); a 404 on a REUSED hop swaps the handle and retries ONCE on a
+  fresh transplanted hop (`SessionsClientError.sessionNotFound`). `switchModel` ends the hop so the
+  user's next message hops under the new model WITH context — a model switch is a brain hop now.
+- **Transplant at every hop** (`Services/Support/ContextTransplanter.swift` + 
+  `LocalIntelligenceService.condensedContextBrief`): fresh session → priming turn 0 composed from
+  the journal (guided-generation facts brief, corrections-at-latest + prune-distractors
+  instructions, temp 0.2); deterministic verbatim-tail fallback (newest turns, per-entry cap,
+  honest omission marker) when the model is unavailable — never fabricated condensation. Budget
+  1,500 tokens enforced by measurement (binary-search tail fit; non-additive-token ratchet).
+  Priming posts over SSE so `run.completed` usage is captured (real numbers or none).
+- **Local turns mark the hop stale on purpose:** journal entries from on-device/PCC/voice turns
+  don't bump the waterline, so the next Hermes turn re-hops with the full (condensed) context —
+  the brain-hop continuity story.
+- **Offline compose outbox** (`Models/ComposeOutboxState.swift`, `hermes.composeOutboxState`):
+  transport-level failures now stream `.unreachable` (vs `.failed`); text-only turns park as
+  `.queued` transcript rows + persisted outbox (SensorUpload pattern), drain FIFO on reachability
+  (the chat screen's ~10s health probe + cold load), one live send at a time, re-queue stops the
+  drain. Attachment turns still fail honestly (no durable wire form, v1). Siri intent reports a
+  queued turn honestly (new `.queued` outcome).
+- **Priming cost in receipts:** `.contextPrimed(TokenUsage?)` → system notice row in the
+  transcript ("[Context transplanted into a fresh session — N tokens]", `Message.isContextPriming`
+  + usage + servingModel), PRIMING line in StatusCard session totals
+  (`SessionUsageTotals.primingTokens/primingHops`), and priming included in the session cost
+  estimate (`ModelPricingCatalog.estimatedSessionCost`).
+- **Identity-churn fix:** `ChatStore.mergeConversationMetadata` now preserves the LOCAL
+  conversation UUID — refresh/reconcile used to mint a new `Conversation.id` every fetch, which
+  would have reset the journal (dropping the hop) and already orphaned #27 brain pins.
+
+**Tests (Swift Testing):** `CondenserFidelityTests.swift` — the REQUIRED acceptance suite: messy
+transcript (2 corrections + 2 distractors) → asserts latest-corrected-values, distractor pruning,
+and token budget on the REAL on-device condenser. Model-gated via an async `.enabled` trait: runs
+on Apple Intelligence hardware, skips honestly elsewhere — **a skip is NOT a pass; the Mac run is
+the acceptance gate.** Fallback + wire-format halves run everywhere. `ContinuityFabricTests.swift`
+— deterministic: journal identity/waterline/adopt/truncate-clamp/persistence, outbox
+dedupe/persist/clear, ChatStore priming-notice + totals + queue/drain/orphan-hygiene + the
+identity-stability regression.
+
+**Next Mac session:**
+1. Merge order per handoff: Lane C first (ChatScreen overlap), then this. `xcodegen generate` —
+   **4 new source files** (ConversationJournal, ConversationJournalStore, ComposeOutboxState,
+   ContextTransplanter) **+ 2 new test files** (CondenserFidelityTests,
+   ContinuityFabricTests); re-verify `aps-environment`/WeatherKit survive regen (#44/#48 trap);
+   regen commit SEPARATE.
+2. CLI build + full test run. **CondenserFidelityTests must RUN (not skip) — needs Apple
+   Intelligence on.** If the condenser fails fidelity/pruning, that's the #89 residual risk
+   firing: tune `condensedContextBrief` instructions before shipping, do not weaken the tests.
+3. Device checklist: (a) kill/relaunch mid-conversation → next turn resumes the SAME server
+   session (no priming notice); (b) stop the gateway, relaunch, restart gateway → next turn shows
+   the transplant notice + priming tokens in StatusCard; (c) model switch mid-conversation → next
+   turn hops with notice, new model answers WITH context; (d) local-brain turns then back to
+   Hermes → transplant carries the local exchange; (e) airplane mode → send parks `.queued`,
+   reconnect → auto-sends; (f) session totals show PRIMING row + cost including priming.
+4. Priming preamble wording: reconcile `ContextTransplanter.primingText` with the probe's
+   validated phrasing (`talaria-probe/probe.py` on OJAMD) if they differ materially.
+
+**Update (same session) — adversarial review pass, six findings fixed:** (1) `switchModel` no
+longer routes through `ensureHopForTurn` — a stale hop at switch time would have paid for a
+transplant that `endHop()` immediately discarded (double priming per switch); command turns now
+reuse the current hop or a bare throwaway session. (2) The sync-send path (voice context POST)
+surfaced no priming receipt — `appendVoiceTranscript` now detects the hop change after the send
+and appends the transplant notice, so that spend hits the transcript + totals too. (3)
+`isUnreachableError` narrowed: `.timedOut`/`.networkConnectionLost` can fire AFTER the body
+reached the server (the run may have committed), and queued turns auto-resend — those stay
+`.failed` so a human decides about the retry. **Device-checklist consequence: a dead host behind
+Tailscale can surface as `.timedOut` → honest `.failed` + retry, NOT `.queued`; checklist item
+(e) uses airplane mode (`.notConnectedToInternet`), which queues.** (4) `sendMessage` now returns
+whether it dispatched and resets the drain flag before its guards — the drain could previously
+destroy a queued turn whose re-send tripped the duplicate guard (row + outbox entry both already
+removed, flag stale). (5) Drain FIFO restore matches the re-queued turn by id, not last-by-text.
+(6) A priming hop whose run reported no usage now still counts in
+`SessionUsageTotals.primingHops`. Regression tests added for (4) and (6).
+
+Logged 2026-07-10.

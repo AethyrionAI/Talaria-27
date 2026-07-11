@@ -9,6 +9,8 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         static let pairedRelayConfiguration = "hermes.pairedRelayConfiguration"
         static let sensorOutboxState = "hermes.sensorOutboxState"
         static let conversationCache = "hermes.conversationCache"
+        static let conversationJournal = "hermes.conversationJournal"
+        static let composeOutboxState = "hermes.composeOutboxState"
         static let healthAnchorPrefix = "hermes.healthAnchor."
     }
 
@@ -135,6 +137,34 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
 
     func clearConversationCache() {
         defaults.removeObject(forKey: Keys.conversationCache)
+    }
+
+    func loadConversationJournal() -> ConversationJournal? {
+        load(ConversationJournal.self, key: Keys.conversationJournal)
+    }
+
+    func saveConversationJournal(_ journal: ConversationJournal) {
+        save(journal, key: Keys.conversationJournal)
+    }
+
+    func clearConversationJournal() {
+        defaults.removeObject(forKey: Keys.conversationJournal)
+    }
+
+    func loadComposeOutboxState() -> ComposeOutboxState {
+        load(ComposeOutboxState.self, key: Keys.composeOutboxState) ?? ComposeOutboxState()
+    }
+
+    func saveComposeOutboxState(_ state: ComposeOutboxState) {
+        if state.isEmpty {
+            defaults.removeObject(forKey: Keys.composeOutboxState)
+        } else {
+            save(state, key: Keys.composeOutboxState)
+        }
+    }
+
+    func clearComposeOutboxState() {
+        defaults.removeObject(forKey: Keys.composeOutboxState)
     }
 
     func loadHealthQueryAnchorData(for identifier: String) -> Data? {

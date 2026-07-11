@@ -92,6 +92,8 @@ class HermesCLIExecutor:
             cwd=self.settings.hermes_workdir or None,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
         if completed.returncode != 0:
@@ -167,6 +169,8 @@ class HermesCLIExecutor:
             cwd=self.settings.hermes_workdir or None,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
 

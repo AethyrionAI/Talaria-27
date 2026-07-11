@@ -92,14 +92,15 @@ final class ModelPricingCatalog {
             + Double(usage.completionTokens) / 1_000_000 * pricing.outputPerMTok
     }
 
-    /// Session-total estimate over every metered Hermes turn. Returns the
-    /// summed cost plus how many of the metered turns it actually covers —
-    /// partial coverage (a turn served by an unpriced model) must be shown
-    /// honestly, never passed off as the full total.
+    /// Session-total estimate over every metered Hermes turn — plus context
+    /// transplant priming turns (#90): priming is real spend and must land in
+    /// the total. Returns the summed cost plus how many of the metered items
+    /// it actually covers — partial coverage (a turn served by an unpriced
+    /// model) must be shown honestly, never passed off as the full total.
     func estimatedSessionCost(for messages: [Message]) -> (cost: Double, costedTurns: Int)? {
         var cost = 0.0
         var costed = 0
-        for message in messages where message.sender == .hermes {
+        for message in messages where message.sender == .hermes || message.isContextPriming {
             guard let usage = message.usage else { continue }
             if let turnCost = estimatedCost(for: usage, model: message.servingModel) {
                 cost += turnCost

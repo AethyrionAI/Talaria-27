@@ -81,6 +81,11 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
     /// Model that served this turn (#46) — what per-turn cost estimates key
     /// their pricing on. Nil when the active model wasn't known at finish.
     var servingModel: String?
+    /// P1 (#90): this system message announces a context transplant into a
+    /// fresh server session, and its `usage` is the priming turn's real cost.
+    /// Separates priming spend from metered chat turns in the session totals.
+    /// False for everything else (and absent in pre-#90 caches).
+    var isContextPriming: Bool
     var isStreaming: Bool
     var voiceSessionDuration: TimeInterval?
     var attachments: [MessageAttachment]
@@ -107,6 +112,7 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         usage: TokenUsage? = nil,
         turnDuration: TimeInterval? = nil,
         servingModel: String? = nil,
+        isContextPriming: Bool = false,
         isStreaming: Bool = false,
         voiceSessionDuration: TimeInterval? = nil,
         attachments: [MessageAttachment] = []
@@ -127,6 +133,7 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         self.usage = usage
         self.turnDuration = turnDuration
         self.servingModel = servingModel
+        self.isContextPriming = isContextPriming
         self.isStreaming = isStreaming
         self.voiceSessionDuration = voiceSessionDuration
         self.attachments = attachments
@@ -138,6 +145,7 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         case reasoning, reasoningSummary
         case brain
         case usage, turnDuration, servingModel
+        case isContextPriming
     }
 
     init(from decoder: Decoder) throws {
@@ -165,6 +173,8 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         usage = try container.decodeIfPresent(TokenUsage.self, forKey: .usage)
         turnDuration = try container.decodeIfPresent(TimeInterval.self, forKey: .turnDuration)
         servingModel = try container.decodeIfPresent(String.self, forKey: .servingModel)
+        // Context-transplant notice (#90); absent in pre-#90 caches.
+        isContextPriming = try container.decodeIfPresent(Bool.self, forKey: .isContextPriming) ?? false
         isStreaming = false
         // Persisted with the message (#1) so the voice-session banner keeps its
         // duration across relaunch; absent in older caches.
@@ -193,6 +203,9 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         try container.encodeIfPresent(usage, forKey: .usage)
         try container.encodeIfPresent(turnDuration, forKey: .turnDuration)
         try container.encodeIfPresent(servingModel, forKey: .servingModel)
+        if isContextPriming {
+            try container.encode(isContextPriming, forKey: .isContextPriming)
+        }
     }
 }
 

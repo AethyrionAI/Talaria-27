@@ -448,6 +448,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 // Reasoning is a separate channel — never spoken, never folded
                 // into the answer.
                 break
+            case .contextPrimed:
+                // P1 (#90): a hop transplant is chat-surface bookkeeping —
+                // never spoken; ChatStore renders the notice and cost.
+                break
             case .toolActivity(let event):
                 if event.phase == .started {
                     voiceState = .thinking
@@ -460,7 +464,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 if latencyMetrics.firstAssistantFinalizedAt == nil {
                     latencyMetrics.firstAssistantFinalizedAt = .now
                 }
-            case .failed(let reason):
+            case .failed(let reason), .unreachable(let reason):
                 speechOutput.cancelStream(messageID: ttsTurnID)
                 failTurn(reason)
             case .interrupted:

@@ -95,6 +95,8 @@ def _run_fly(
         [flyctl, *args],
         cwd=cwd,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=check,
     )
 
@@ -111,7 +113,8 @@ def _resolve_mpg_cluster_id(flyctl: str, cluster_name: str) -> str | None:
     try:
         result = subprocess.run(
             [flyctl, "mpg", "list", "--json"],
-            capture_output=True, text=True, check=True,
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            check=True,
         )
         clusters = _json.loads(result.stdout)
         if isinstance(clusters, list):
@@ -127,7 +130,8 @@ def _resolve_mpg_cluster_id(flyctl: str, cluster_name: str) -> str | None:
     try:
         result = subprocess.run(
             [flyctl, "mpg", "list"],
-            capture_output=True, text=True, check=True,
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            check=True,
         )
         for line in result.stdout.splitlines():
             if cluster_name in line:
@@ -154,7 +158,10 @@ def deploy_relay_to_fly() -> tuple[str, str]:
     print(f"Found flyctl: {flyctl}")
 
     # 2. Check auth
-    result = subprocess.run([flyctl, "auth", "whoami"], capture_output=True, text=True)
+    result = subprocess.run(
+        [flyctl, "auth", "whoami"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
     if result.returncode != 0:
         print("Not logged in to Fly.io. Launching login...")
         _run_fly(flyctl, ["auth", "login"])

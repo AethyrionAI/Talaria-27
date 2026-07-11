@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Renders a fenced code block with monospaced font, distinct background,
-/// optional language label, and a copy-to-clipboard button.
+/// Renders a fenced code block with monospaced font, syntax highlighting
+/// (via `CodeSyntaxHighlighter`, keyed off the fence's language tag), distinct
+/// background, optional language label, and a copy-to-clipboard button.
 struct CodeBlockView: View {
     let language: String?
     let code: String
@@ -17,9 +18,12 @@ struct CodeBlockView: View {
 
             // Code content
             ScrollView(.horizontal, showsIndicators: false) {
-                Text(code)
+                Text(CodeSyntaxHighlighter.highlighted(
+                    code,
+                    language: language,
+                    baseColor: Design.Colors.coolForeground
+                ))
                     .font(Design.Typography.mono(13, relativeTo: .footnote))
-                    .foregroundStyle(Design.Colors.coolForeground)
                     .textSelection(.enabled)
                     .padding(.horizontal, Design.Spacing.sm)
                     .padding(.vertical, Design.Spacing.xs)
