@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Talaria Theme Gallery</title>
+  <style>
+    :root {
+      --bg: #0a0610;
+      --surface: rgba(255, 255, 255, 0.04);
+      --fg: #f7f3ff;
+      --muted: #a89fb8;
+      --border: rgba(255, 255, 255, 0.10);
+      --accent: #ff2bd6;
+      --accent-cyan: #00f0ff;
+      --accent-lime: #ccff00;
+      --font-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-body: 'SF Pro Text', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-mono: 'SF Mono', ui-monospace, Menlo, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-body);
+      line-height: 1.5;
+    }
+
+    body {
+      padding: 2rem;
+      background:
+        radial-gradient(1200px 800px at 50% -10%, rgba(255, 43, 214, 0.10), transparent 60%),
+        radial-gradient(ellipse at 50% 0%, #140a24 0%, #0a0610 50%, #050308 100%);
+    }
+
+    main { max-width: 1200px; margin: 0 auto; }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: clamp(2.5rem, 6vw, 4rem);
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      margin: 0 0 0.5rem 0;
+      color: var(--fg);
+      text-shadow: 0 0 24px var(--accent), 0 0 60px rgba(255, 43, 214, 0.4);
+    }
+
+    .subtitle {
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .theme-card {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1.25rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .theme-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+      background: linear-gradient(135deg, var(--card-glow, rgba(255,43,214,0.08)), transparent 60%);
+    }
+
+    .theme-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--card-accent, rgba(255, 43, 214, 0.4));
+      box-shadow: 0 12px 40px var(--card-shadow, rgba(255, 43, 214, 0.15));
+    }
+
+    .theme-card:hover::before {
+      opacity: 1;
+    }
+
+    .theme-card:focus-visible {
+      outline: 2px solid var(--card-accent, var(--accent));
+      outline-offset: 3px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    .theme-name {
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+
+    .theme-number {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 0.25rem 0.5rem;
+      border-radius: 999px;
+    }
+
+    .theme-desc {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin: 0 0 1rem 0;
+      line-height: 1.5;
+    }
+
+    .swatches {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin: 2.5rem 0 1rem 0;
+      color: var(--fg);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+      letter-spacing: -0.01em;
+    }
+
+    footer {
+      margin-top: 3rem;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 1rem; }
+      h1 { font-size: 2.2rem; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Talaria Theme Gallery</h1>
+      <div class="subtitle">17 playful, over-the-top companion app themes</div>
+    </header>
+
+    <h2 class="section-title">Original Lineup</h2>
+    <div class="gallery">
+      <a href="index.html" class="theme-card" style="--card-accent:rgba(255,43,214,0.45);--card-shadow:rgba(255,43,214,0.18);--card-glow:rgba(255,43,214,0.10)" data-od-id="theme-neon-arcade">
+        <div class="card-header">
+          <h2 class="theme-name">Neon Arcade</h2>
+          <span class="theme-number">01</span>
+        </div>
+        <p class="theme-desc">80s/90s arcade cabinet meets cyberpunk HUD — magenta, cyan, lime.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#ff2bd6"></span>
+          <span class="swatch" style="background:#00f0ff"></span>
+          <span class="swatch" style="background:#ccff00"></span>
+        </div>
+      </a>
+    </div>
+
+    <h2 class="section-title">New Themes</h2>
+    <div class="gallery">
+      <a href="theme-glitch-garden.html" class="theme-card" style="--card-accent:rgba(57,255,20,0.45);--card-shadow:rgba(0,240,255,0.18);--card-glow:rgba(255,0,170,0.10)" data-od-id="theme-glitch-garden">
+        <div class="card-header">
+          <h2 class="theme-name">Glitch Garden</h2>
+          <span class="theme-number">14</span>
+        </div>
+        <p class="theme-desc">Nature + glitch: neon green vines on a dead-black CRT void with cyan and magenta corruption.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#39ff14"></span>
+          <span class="swatch" style="background:#00f0ff"></span>
+          <span class="swatch" style="background:#ff00aa"></span>
+        </div>
+      </a>
+
+      <a href="theme-retro-sci-fi.html" class="theme-card" style="--card-accent:rgba(255,45,45,0.45);--card-shadow:rgba(0,123,255,0.18);--card-glow:rgba(255,214,0,0.10)" data-od-id="theme-retro-sci-fi">
+        <div class="card-header">
+          <h2 class="theme-name">Retro Sci-Fi</h2>
+          <span class="theme-number">15</span>
+        </div>
+        <p class="theme-desc">Saturday morning cartoon space adventure: bright primaries, halftone dots, thick black outlines.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#ff2d2d"></span>
+          <span class="swatch" style="background:#007bff"></span>
+          <span class="swatch" style="background:#ffd600"></span>
+        </div>
+      </a>
+
+      <a href="theme-witchs-brew.html" class="theme-card" style="--card-accent:rgba(74,222,128,0.45);--card-shadow:rgba(168,85,247,0.18);--card-glow:rgba(74,222,128,0.10)" data-od-id="theme-witchs-brew">
+        <div class="card-header">
+          <h2 class="theme-name">Witch's Brew</h2>
+          <span class="theme-number">02</span>
+        </div>
+        <p class="theme-desc">Bubbling cauldron HUD with poison green, mystic violet, and golden bubbles.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#4ade80"></span>
+          <span class="swatch" style="background:#a855f7"></span>
+          <span class="swatch" style="background:#facc15"></span>
+        </div>
+      </a>
+
+      <a href="theme-holo-sushi.html" class="theme-card" style="--card-accent:rgba(255,105,180,0.45);--card-shadow:rgba(0,240,255,0.18);--card-glow:rgba(255,105,180,0.10)" data-od-id="theme-holo-sushi">
+        <div class="card-header">
+          <h2 class="theme-name">Holo Sushi</h2>
+          <span class="theme-number">03</span>
+        </div>
+        <p class="theme-desc">Iridescent sushi counter with roe pink, wasabi cyan, and nori lime.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#ff69b4"></span>
+          <span class="swatch" style="background:#00f0ff"></span>
+          <span class="swatch" style="background:#adff2f"></span>
+        </div>
+      </a>
+
+      <a href="theme-lunar-diner.html" class="theme-card" style="--card-accent:rgba(255,154,180,0.45);--card-shadow:rgba(64,224,208,0.18);--card-glow:rgba(255,215,0,0.10)" data-od-id="theme-lunar-diner">
+        <div class="card-header">
+          <h2 class="theme-name">Lunar Diner</h2>
+          <span class="theme-number">04</span>
+        </div>
+        <p class="theme-desc">1950s chrome moon diner with soda-fountain pink, polished chrome, mustard.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#ff9ab4"></span>
+          <span class="swatch" style="background:#40e0d0"></span>
+          <span class="swatch" style="background:#ffd700"></span>
+        </div>
+      </a>
+
+      <a href="theme-cyber-cactus.html" class="theme-card" style="--card-accent:rgba(255,80,120,0.45);--card-shadow:rgba(0,220,200,0.18);--card-glow:rgba(255,200,80,0.10)" data-od-id="theme-cyber-cactus">
+        <div class="card-header">
+          <h2 class="theme-name">Cyber Cactus</h2>
+          <span class="theme-number">05</span>
+        </div>
+        <p class="theme-desc">Desert synthwave with sunset magenta, succulent teal, and sand gold.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#ff5078"></span>
+          <span class="swatch" style="background:#00dcc8"></span>
+          <span class="swatch" style="background:#ffc850"></span>
+        </div>
+      </a>
+
+      <a href="theme-bubblegum-mecha.html" class="theme-card" style="--card-accent:rgba(255,110,199,0.45);--card-shadow:rgba(0,240,255,0.18);--card-glow:rgba(255,230,0,0.10)" data-od-id="theme-bubblegum-mecha">
+        <div class="card-header">
+          <h2 class="theme-name">Bubblegum Mecha</h2>
+          <span class="theme-number">06</span>
+        </div>
+        <p class="theme-desc">Cute pink mecha cockpit with cotton candy, cockpit cyan, and hydraulic yellow.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#ff6ec7"></span>
+          <span class="swatch" style="background:#00f0ff"></span>
+          <span class="swatch" style="background:#ffe600"></span>
+        </div>
+      </a>
+
+      <a href="theme-deep-sea-diner.html" class="theme-card" style="--card-accent:rgba(0,245,255,0.45);--card-shadow:rgba(255,107,107,0.18);--card-glow:rgba(255,209,102,0.10)" data-od-id="theme-deep-sea-diner">
+        <div class="card-header">
+          <h2 class="theme-name">Deep Sea Diner</h2>
+          <span class="theme-number">07</span>
+        </div>
+        <p class="theme-desc">Bioluminescent anglerfish + retro diner with lure cyan, coral, abyss gold.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#00f5ff"></span>
+          <span class="swatch" style="background:#ff6b6b"></span>
+          <span class="swatch" style="background:#ffd166"></span>
+        </div>
+      </a>
+
+      <a href="theme-disco-inferno.html" class="theme-card" style="--card-accent:rgba(255,215,0,0.45);--card-shadow:rgba(232,232,232,0.18);--card-glow:rgba(255,51,51,0.10)" data-od-id="theme-disco-inferno">
+        <div class="card-header">
+          <h2 class="theme-name">Disco Inferno</h2>
+          <span class="theme-number">08</span>
+        </div>
+        <p class="theme-desc">Mirror-ball hell with disco gold, mirror silver, and hellfire crimson.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#ffd700"></span>
+          <span class="swatch" style="background:#e8e8e8"></span>
+          <span class="swatch" style="background:#ff3333"></span>
+        </div>
+      </a>
+
+      <a href="theme-cereal-box.html" class="theme-card" style="--card-accent:rgba(255,80,120,0.45);--card-shadow:rgba(0,200,255,0.18);--card-glow:rgba(255,220,0,0.10)" data-od-id="theme-cereal-box">
+        <div class="card-header">
+          <h2 class="theme-name">Cereal Box</h2>
+          <span class="theme-number">09</span>
+        </div>
+        <p class="theme-desc">Saturday morning cartoon energy with berry pink, milk blue, and honey yellow.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#ff5078"></span>
+          <span class="swatch" style="background:#00c8ff"></span>
+          <span class="swatch" style="background:#ffdc00"></span>
+        </div>
+      </a>
+    </div>
+
+    <h2 class="section-title">Special Edition</h2>
+    <div class="gallery">
+      <a href="theme-graffiti-galaxy.html" class="theme-card" style="--card-accent:rgba(255,0,110,0.45);--card-shadow:rgba(131,56,236,0.18);--card-glow:rgba(251,255,38,0.10)" data-od-id="theme-graffiti-galaxy">
+        <div class="card-header">
+          <h2 class="theme-name">Graffiti Galaxy</h2>
+          <span class="theme-number">SE</span>
+        </div>
+        <p class="theme-desc">Street-art in deep space: hot-pink tags, electric violet, citron highlights, spray chrome.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#ff006e"></span>
+          <span class="swatch" style="background:#8338ec"></span>
+          <span class="swatch" style="background:#fbff26"></span>
+        </div>
+      </a>
+
+      <a href="theme-karaoke-supernova.html" class="theme-card" style="--card-accent:rgba(255,0,170,0.45);--card-shadow:rgba(0,240,255,0.18);--card-glow:rgba(255,230,0,0.10)" data-od-id="theme-karaoke-supernova">
+        <div class="card-header">
+          <h2 class="theme-name">Karaoke Supernova</h2>
+          <span class="theme-number">SE</span>
+        </div>
+        <p class="theme-desc">Private-room karaoke under a disco ball: magenta spotlights, cyan lasers, gold confetti.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#ff00aa"></span>
+          <span class="swatch" style="background:#00f0ff"></span>
+          <span class="swatch" style="background:#ffe600"></span>
+        </div>
+      </a>
+
+      <a href="theme-event-horizon.html" class="theme-card" style="--card-accent:rgba(138,92,255,0.45);--card-shadow:rgba(0,240,255,0.18);--card-glow:rgba(255,220,80,0.10)" data-od-id="theme-event-horizon">
+        <div class="card-header">
+          <h2 class="theme-name">Event Horizon</h2>
+          <span class="theme-number">SE</span>
+        </div>
+        <p class="theme-desc">Galaxy / black-hole / supernova HUD: accretion violet, Hawking cyan, supernova gold.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#8a5cff"></span>
+          <span class="swatch" style="background:#00f0ff"></span>
+          <span class="swatch" style="background:#ffdc50"></span>
+        </div>
+      </a>
+    </div>
+
+    <h2 class="section-title">Seasonal Collection</h2>
+    <div class="gallery">
+      <a href="theme-spring-sprout.html" class="theme-card" style="--card-accent:rgba(255,107,138,0.45);--card-shadow:rgba(94,212,122,0.18);--card-glow:rgba(255,208,74,0.10)" data-od-id="theme-spring-sprout">
+        <div class="card-header">
+          <h2 class="theme-name">Spring Sprout</h2>
+          <span class="theme-number">10</span>
+        </div>
+        <p class="theme-desc">Cherry blossom picnic with petal pink, new mint leaf, and warm butter yellow.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#ff6b8a"></span>
+          <span class="swatch" style="background:#5ed47a"></span>
+          <span class="swatch" style="background:#ffd04a"></span>
+        </div>
+      </a>
+
+      <a href="theme-summer-solar.html" class="theme-card" style="--card-accent:rgba(255,160,40,0.45);--card-shadow:rgba(255,80,60,0.18);--card-glow:rgba(120,220,255,0.10)" data-od-id="theme-summer-solar">
+        <div class="card-header">
+          <h2 class="theme-name">Summer Solar</h2>
+          <span class="theme-number">11</span>
+        </div>
+        <p class="theme-desc">Peak afternoon heat with mango orange, heatwave red, and a cold pool-blue chaser.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#ffa028"></span>
+          <span class="swatch" style="background:#ff503c"></span>
+          <span class="swatch" style="background:#78dcff"></span>
+        </div>
+      </a>
+
+      <a href="theme-autumn-harvest.html" class="theme-card" style="--card-accent:rgba(255,140,40,0.45);--card-shadow:rgba(200,80,50,0.18);--card-glow:rgba(180,160,80,0.10)" data-od-id="theme-autumn-harvest">
+        <div class="card-header">
+          <h2 class="theme-name">Autumn Harvest</h2>
+          <span class="theme-number">12</span>
+        </div>
+        <p class="theme-desc">Cozy orchard dusk with pumpkin orange, cranberry red, and dried gourd gold.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#ff8c28"></span>
+          <span class="swatch" style="background:#c85032"></span>
+          <span class="swatch" style="background:#b4a050"></span>
+        </div>
+      </a>
+
+      <a href="theme-winter-frost.html" class="theme-card" style="--card-accent:rgba(58,179,240,0.45);--card-shadow:rgba(143,212,244,0.18);--card-glow:rgba(201,79,109,0.10)" data-od-id="theme-winter-frost">
+        <div class="card-header">
+          <h2 class="theme-name">Winter Frost</h2>
+          <span class="theme-number">13</span>
+        </div>
+        <p class="theme-desc">Fresh powder morning with glacier blue, snow white, and a pop of winter berry.</p>
+        <div class="swatches">
+          <span class="swatch" style="background:#3ab3f0"></span>
+          <span class="swatch" style="background:#8fd4f4"></span>
+          <span class="swatch" style="background:#c94f6d"></span>
+        </div>
+      </a>
+    </div>
+
+    <footer>Talaria Companion — Theme Reference Collection</footer>
+  </main>
+</body>
+</html>

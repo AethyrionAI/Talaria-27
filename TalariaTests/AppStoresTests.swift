@@ -949,7 +949,9 @@ struct AppStoresTests {
                 let conversation = Conversation(
                     title: "Hermes",
                     messages: [
-                        Message(id: userID, sender: .user, content: "Fix it", status: .delivered),
+                        Message(id: userID,
+                                clientMessageID: currentConversation?.messages.first(where: { $0.sender == .user })?.clientMessageID,
+                                sender: .user, content: "Fix it", status: .delivered),
                         Message(id: assistantID, sender: .hermes, content: "Recovered after polling", jobID: jobID, status: .delivered),
                     ]
                 )

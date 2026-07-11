@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Summer Solar — Talaria Theme</title>
+  <style>
+    :root {
+      --solar-bg-1: #1a1005;
+      --solar-bg-2: #281a08;
+      --solar-bg-3: #0f0802;
+      --solar-fg: #fff8e8;
+      --solar-fg-muted: #f0d8a8;
+      --solar-fg-dim: #c0a070;
+      --solar-surface-1: rgba(255, 160, 40, 0.08);
+      --solar-surface-2: rgba(255, 80, 60, 0.08);
+      --solar-surface-3: rgba(120, 220, 255, 0.06);
+      --solar-border: rgba(255, 160, 40, 0.28);
+      --solar-border-subtle: rgba(255, 255, 255, 0.08);
+      --solar-accent-mango: #ffa028;
+      --solar-accent-heatwave: #ff503c;
+      --solar-accent-pool: #78dcff;
+      --solar-danger: #ff3c2a;
+      --solar-warning: #ffcc00;
+      --glow-scale: 1.2;
+      --font-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-body: 'SF Pro Text', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-mono: 'SF Mono', ui-monospace, Menlo, monospace;
+      --slot-hero: var(--solar-accent-mango);
+      --slot-amber: var(--solar-accent-heatwave);
+      --slot-violet: var(--solar-accent-pool);
+      --bg: var(--solar-bg-1);
+      --fg: var(--solar-fg);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--solar-bg-3);
+      color: var(--solar-fg);
+      font-family: var(--font-body);
+      line-height: 1.5;
+    }
+
+    body {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      padding: 2rem;
+      background:
+        radial-gradient(1200px 800px at 50% -10%, rgba(255, 160, 40, 0.16), transparent 60%),
+        radial-gradient(ellipse at 50% 0%, var(--solar-bg-2) 0%, var(--solar-bg-1) 40%, var(--solar-bg-3) 100%);
+    }
+
+    .page-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.18;
+      background-image:
+        repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255, 160, 40, 0.04) 3px, rgba(255, 160, 40, 0.04) 4px),
+        repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(255, 160, 40, 0.04) 3px, rgba(255, 160, 40, 0.04) 4px);
+      background-size: 24px 24px;
+    }
+
+    main { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      margin: 0;
+      text-transform: uppercase;
+      color: var(--solar-fg);
+      text-shadow: 0 0 18px var(--solar-accent-mango), 0 0 44px rgba(255, 160, 40, 0.5);
+    }
+
+    .subtitle {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--solar-accent-heatwave);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      text-shadow: 0 0 8px var(--solar-accent-heatwave);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--solar-border-subtle);
+      border-radius: 20px;
+      padding: 1.5rem;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    .card h2 {
+      margin: 0 0 1rem 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--solar-fg);
+      border-bottom: 1px solid var(--solar-border-subtle);
+      padding-bottom: 0.75rem;
+    }
+
+    .chat-screen {
+      height: 520px;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(180deg, var(--solar-bg-1) 0%, rgba(15, 8, 2, 0.95) 100%);
+      border: 1px solid var(--solar-border);
+      border-radius: 24px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 0 40px rgba(255, 160, 40, 0.15), inset 0 0 60px rgba(255, 160, 40, 0.04);
+    }
+
+    .chat-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        radial-gradient(circle at 50% 0%, rgba(255, 80, 60, 0.10) 0%, transparent 45%),
+        radial-gradient(circle at 80% 100%, rgba(120, 220, 255, 0.08) 0%, transparent 40%);
+      opacity: 0.7;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--solar-border-subtle);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--solar-fg-muted);
+      letter-spacing: 0.08em;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 0.75rem 1rem;
+      border-radius: 16px;
+      font-size: 0.95rem;
+      line-height: 1.45;
+      position: relative;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--solar-surface-1);
+      border: 1px solid var(--solar-border);
+      color: var(--solar-fg);
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--solar-border-subtle);
+      color: var(--solar-fg);
+      border-bottom-left-radius: 4px;
+    }
+
+    .message.assistant::before {
+      content: '';
+      position: absolute;
+      left: -8px;
+      top: 14px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--solar-accent-mango);
+      box-shadow: 0 0 8px var(--solar-accent-mango);
+    }
+
+    .chat-input {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: rgba(255, 255, 255, 0.03);
+      border-top: 1px solid var(--solar-border-subtle);
+    }
+
+    .chat-input input {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--solar-border);
+      border-radius: 999px;
+      padding: 0.6rem 1rem;
+      color: var(--solar-fg);
+      font-family: var(--font-body);
+      outline: none;
+      box-shadow: 0 0 12px rgba(255, 160, 40, 0.1);
+    }
+
+    .chat-input input::placeholder { color: var(--solar-fg-dim); }
+
+    .chat-input button {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: none;
+      background: var(--solar-accent-mango);
+      color: var(--solar-bg-3);
+      cursor: pointer;
+      box-shadow: 0 0 16px rgba(255, 160, 40, 0.4);
+      display: grid;
+      place-items: center;
+      font-size: 1.1rem;
+    }
+
+    .orb {
+      width: 110px;
+      height: 110px;
+      margin: 1rem auto;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+
+    .orb-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid var(--solar-accent-mango);
+      box-shadow: 0 0 20px var(--solar-accent-mango), inset 0 0 20px rgba(255, 160, 40, 0.2);
+      animation: pulse 4s ease-in-out infinite;
+    }
+
+    .orb-ring:nth-child(1) { width: 100%; height: 100%; opacity: 0.4; }
+    .orb-ring:nth-child(2) { width: 74%; height: 74%; opacity: 0.6; border-color: var(--solar-accent-heatwave); animation-delay: 0.3s; }
+    .orb-ring:nth-child(3) { width: 48%; height: 48%; opacity: 0.8; border-color: var(--solar-accent-pool); animation-delay: 0.6s; }
+
+    .orb-core {
+      width: 32%;
+      height: 32%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, var(--solar-accent-heatwave), var(--solar-accent-mango));
+      box-shadow: 0 0 30px var(--solar-accent-mango), 0 0 60px rgba(255, 160, 40, 0.4);
+      animation: pulse 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(1.04); opacity: 0.7; }
+    }
+
+    .settings-preview { display: flex; flex-direction: column; gap: 1rem; }
+    .theme-row { display: flex; align-items: center; gap: 1rem; }
+
+    .mini-orb {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, var(--solar-accent-heatwave), var(--solar-accent-mango));
+      box-shadow: 0 0 20px var(--solar-accent-mango);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .mini-orb::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 1px solid var(--solar-accent-pool);
+      opacity: 0.5;
+    }
+
+    .theme-info h3 { margin: 0 0 0.25rem 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; color: var(--solar-fg); }
+    .theme-info p { margin: 0; font-size: 0.85rem; color: var(--solar-fg-muted); }
+
+    .grid-sample {
+      height: 80px;
+      border-radius: 12px;
+      border: 1px solid var(--solar-border);
+      background:
+        radial-gradient(circle at 50% 50%, rgba(255, 160, 40, 0.12) 0, transparent 40%),
+        linear-gradient(to right, rgba(255, 80, 60, 0.10) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 80, 60, 0.10) 1px, transparent 1px);
+      background-size: 100% 100%, 16px 16px, 16px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .grid-sample::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(120, 220, 255, 0.08), transparent);
+    }
+
+    .swatch-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .swatch { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-mono); font-size: 0.75rem; color: var(--solar-fg-muted); background: rgba(255, 255, 255, 0.03); padding: 0.4rem 0.6rem; border-radius: 999px; border: 1px solid var(--solar-border-subtle); }
+    .swatch-dot { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+    .status-pills { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    .pill {
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .pill-danger { background: rgba(255, 60, 42, 0.15); color: var(--solar-danger); border: 1px solid rgba(255, 60, 42, 0.4); }
+    .pill-warning { background: rgba(255, 204, 0, 0.15); color: var(--solar-warning); border: 1px solid rgba(255, 204, 0, 0.4); }
+    .pill-success { background: rgba(255, 160, 40, 0.15); color: var(--solar-accent-mango); border: 1px solid rgba(255, 160, 40, 0.4); }
+
+    .personality p { margin: 0 0 0.75rem 0; color: var(--solar-fg-muted); font-size: 0.95rem; line-height: 1.6; }
+    .slot-map { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-top: 1rem; }
+    .slot { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--solar-border-subtle); border-radius: 12px; padding: 0.75rem; text-align: center; }
+    .slot-label { font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase; color: var(--solar-fg-dim); letter-spacing: 0.08em; margin-bottom: 0.4rem; }
+    .slot-name { font-size: 0.85rem; font-weight: 700; color: var(--solar-fg); }
+    .slot-color { width: 100%; height: 6px; border-radius: 999px; margin-top: 0.5rem; }
+
+    .palette-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .palette-table th, .palette-table td { text-align: left; padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--solar-border-subtle); }
+    .palette-table th { font-family: var(--font-mono); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.08em; color: var(--solar-fg-dim); }
+    .palette-table td { color: var(--solar-fg-muted); font-family: var(--font-mono); }
+    .chip { display: inline-block; width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--solar-border-subtle); box-shadow: 0 0 8px rgba(0, 0, 0, 0.3); }
+    .role-name { color: var(--solar-fg); font-family: var(--font-body); font-weight: 600; }
+
+    footer { margin-top: 2rem; text-align: center; font-family: var(--font-mono); font-size: 0.75rem; color: var(--solar-fg-dim); text-transform: uppercase; letter-spacing: 0.1em; }
+  </style>
+</head>
+<body>
+  <div class="page-bg"></div>
+  <main>
+    <header>
+      <h1>Summer Solar</h1>
+      <span class="subtitle">Talaria Theme Reference</span>
+    </header>
+
+    <div class="grid">
+      <section class="card" data-od-id="chat-screen">
+        <h2>Chat Screen</h2>
+        <div class="chat-screen">
+          <div class="chat-header">High noon — 2:47 PM</div>
+          <div class="chat-messages">
+            <div class="message assistant">Sun's at peak. Stay hydrated. What's the plan?</div>
+            <div class="message user">Find a co-op game that won't melt my GPU.</div>
+            <div class="message assistant">I found some lighter indie co-op gems in your library. Poolside puzzle games, mostly.</div>
+          </div>
+          <div class="chat-input">
+            <input type="text" placeholder="Soak up the sun..." />
+            <button>↑</button>
+          </div>
+        </div>
+        <div class="orb" aria-label="Summer solar orb">
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <div class="orb-ring"></div>
+          <div class="orb-core"></div>
+        </div>
+      </section>
+
+      <section class="card" data-od-id="appearance-settings">
+        <h2>Appearance Settings</h2>
+        <div class="settings-preview">
+          <div class="theme-row">
+            <div class="mini-orb"></div>
+            <div class="theme-info">
+              <h3>Summer Solar</h3>
+              <p>Peak afternoon heat with mango orange, heatwave red, and a cold pool-blue chaser.</p>
+            </div>
+          </div>
+          <div class="grid-sample"></div>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch-dot" style="background:#ffa028;color:#ffa028"></span>Mango</div>
+            <div class="swatch"><span class="swatch-dot" style="background:#ff503c;color:#ff503c"></span>Heatwave</div>
+            <div class="swatch"><span class="swatch-dot" style="background:#78dcff;color:#78dcff"></span>Pool</div>
+          </div>
+          <div class="status-pills">
+            <span class="pill pill-danger">UV Index 11</span>
+            <span class="pill pill-warning">Heat Advisory</span>
+            <span class="pill pill-success">Pool Open</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card personality" data-od-id="personality">
+        <h2>Personality</h2>
+        <p>Summer Solar is Talaria at high noon by the pool. The background is scorched earth black with heat shimmer rising off the top. Surfaces are sun-bleached and glassy. The reactor orb is the sun itself — mango corona, heatwave core, pool-blue atmospheric rim.</p>
+        <p><strong>Accent slot mapping:</strong> cyan (hero) → Mango, amber → Heatwave, violet → Pool.</p>
+        <div class="slot-map">
+          <div class="slot">
+            <div class="slot-label">Slot cyan</div>
+            <div class="slot-name">Mango</div>
+            <div class="slot-color" style="background:#ffa028"></div>
+          </div>
+          <div class="slot">
+            <div class="slot-label">Slot amber</div>
+            <div class="slot-name">Heatwave</div>
+            <div class="slot-color" style="background:#ff503c"></div>
+          </div>
+          <div class="slot">
+            <div class="slot-label">Slot violet</div>
+            <div class="slot-name">Pool</div>
+            <div class="slot-color" style="background:#78dcff"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" data-od-id="palette-table">
+        <h2>Palette</h2>
+        <table class="palette-table">
+          <thead><tr><th>Token</th><th>Role</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip" style="background:#1a1005"></span></td><td class="role-name">Background 1</td><td>#1a1005</td></tr>
+            <tr><td><span class="chip" style="background:#281a08"></span></td><td class="role-name">Background 2</td><td>#281a08</td></tr>
+            <tr><td><span class="chip" style="background:#0f0802"></span></td><td class="role-name">Background 3</td><td>#0f0802</td></tr>
+            <tr><td><span class="chip" style="background:#fff8e8"></span></td><td class="role-name">Foreground</td><td>#fff8e8</td></tr>
+            <tr><td><span class="chip" style="background:#f0d8a8"></span></td><td class="role-name">Muted</td><td>#f0d8a8</td></tr>
+            <tr><td><span class="chip" style="background:#c0a070"></span></td><td class="role-name">Dim</td><td>#c0a070</td></tr>
+            <tr><td><span class="chip" style="background:rgba(255,160,40,0.08)"></span></td><td class="role-name">Surface 1</td><td>rgba(255,160,40,0.08)</td></tr>
+            <tr><td><span class="chip" style="background:rgba(255,80,60,0.08)"></span></td><td class="role-name">Surface 2</td><td>rgba(255,80,60,0.08)</td></tr>
+            <tr><td><span class="chip" style="background:rgba(120,220,255,0.06)"></span></td><td class="role-name">Surface 3</td><td>rgba(120,220,255,0.06)</td></tr>
+            <tr><td><span class="chip" style="background:#ffa028"></span></td><td class="role-name">Accent (cyan → Mango)</td><td>#ffa028</td></tr>
+            <tr><td><span class="chip" style="background:#ff503c"></span></td><td class="role-name">Accent (amber → Heatwave)</td><td>#ff503c</td></tr>
+            <tr><td><span class="chip" style="background:#78dcff"></span></td><td class="role-name">Accent (violet → Pool)</td><td>#78dcff</td></tr>
+            <tr><td><span class="chip" style="background:#ff3c2a"></span></td><td class="role-name">Danger</td><td>#ff3c2a</td></tr>
+            <tr><td><span class="chip" style="background:#ffcc00"></span></td><td class="role-name">Warning</td><td>#ffcc00</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <footer>Theme: Summer Solar — Talaria Companion</footer>
+  </main>
+</body>
+</html>

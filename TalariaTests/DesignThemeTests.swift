@@ -101,7 +101,9 @@ struct DesignThemeTests {
     // MARK: Theme behaviors
 
     @Test func lightThemesMatchExpectedSet() {
-        let lightThemes: Set<AppearanceTheme> = [.paperTape, .winterFrost, .springSprout]
+        // Canary for computed `isLight` (derived from each theme's palette). retroSciFi
+        // reads light off its palette; seasonal summerSolar/autumnHarvest read dark.
+        let lightThemes: Set<AppearanceTheme> = [.paperTape, .retroSciFi, .springSprout, .winterFrost]
         for theme in AppearanceTheme.allCases {
             #expect(theme.isLight == lightThemes.contains(theme))
             #expect(ThemePalette(theme: theme.themeID, accent: .cyan).isLight == theme.isLight)
