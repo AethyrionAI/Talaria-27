@@ -253,6 +253,10 @@ enum ThemeArtDirectionCatalog {
         .cerealBox: cerealBox,
         .bubblegumMecha: bubblegumMecha,
         .retroSciFi: retroSciFi,
+        .lunarDiner: lunarDiner,
+        .cyberCactus: cyberCactus,
+        .deepSeaDiner: deepSeaDiner,
+        .discoInferno: discoInferno,
     ]
 
     static func artDirection(for theme: ThemeID) -> ThemeArtDirection {
@@ -511,6 +515,107 @@ enum ThemeArtDirectionCatalog {
             .init(hue: Color(hex: 0xFFD600), alpha: 1.0, offsetX: 4, offsetY: 4),
             .init(hue: Color(hex: 0x007BFF), alpha: 0.25, offsetX: 8, offsetY: 8),
         ])
+    )
+
+    // MARK: Lunar Diner — design/themes/theme-lunar-diner.html
+    // Drive-in on the dark side of the moon: soda bloom + under-light and
+    // the static two-layer white starlight lattice (60/120 tiles).
+
+    static let lunarDiner = ThemeArtDirection(
+        glowPools: [
+            ThemeGlowPool(color: Color(hex: 0xFF9AB4, opacity: 0.10),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+            ThemeGlowPool(color: Color(hex: 0xFF9AB4, opacity: 0.036),
+                          centerX: 0.5, centerY: 1.0, radiusFraction: 0.50),
+        ],
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 60, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xFFFFFF), speckAlpha: 0.15),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 120, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xFFFFFF), speckAlpha: 0.08),
+        ], period: 1, fieldOpacity: 0.3),
+        titleGlow: ThemeTitleGlow(
+            primary: Color(hex: 0xFF9AB4),
+            secondary: Color(hex: 0xFF9AB4)
+        )
+    )
+
+    // MARK: Cyber Cactus — design/themes/theme-cyber-cactus.html
+    // Synthwave desert: sunset bloom, succulent under-light, and the
+    // signature ±45° two-tone crosshatch (1px lines, 11px pitch, ×.25).
+
+    static let cyberCactus = ThemeArtDirection(
+        glowPools: [
+            ThemeGlowPool(color: Color(hex: 0xFF5078, opacity: 0.10),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+            ThemeGlowPool(color: Color(hex: 0x00DCC8, opacity: 0.036),
+                          centerX: 0.5, centerY: 1.0, radiusFraction: 0.50),
+        ],
+        lineTexture: ThemeLineFieldSpec(layers: [
+            .init(angleDegrees: 45, hue: Color(hex: 0x00DCC8), alpha: 0.03, spacing: 11),
+            .init(angleDegrees: -45, hue: Color(hex: 0xFF5078), alpha: 0.03, spacing: 11),
+        ], fieldOpacity: 0.25),
+        titleGlow: ThemeTitleGlow(
+            primary: Color(hex: 0xFF5078),
+            secondary: Color(hex: 0xFF5078)
+        )
+    )
+
+    // MARK: Deep Sea Diner — design/themes/theme-deep-sea-diner.html
+    // Abyssal counter: lure bloom + under-light over the same white
+    // starlight lattice as Lunar (marine snow, per the handoff).
+
+    static let deepSeaDiner = ThemeArtDirection(
+        glowPools: [
+            ThemeGlowPool(color: Color(hex: 0x00F5FF, opacity: 0.10),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+            ThemeGlowPool(color: Color(hex: 0x00F5FF, opacity: 0.036),
+                          centerX: 0.5, centerY: 1.0, radiusFraction: 0.50),
+        ],
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 60, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xFFFFFF), speckAlpha: 0.15),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 120, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xFFFFFF), speckAlpha: 0.08),
+        ], period: 1, fieldOpacity: 0.3),
+        titleGlow: ThemeTitleGlow(
+            primary: Color(hex: 0x00F5FF),
+            secondary: Color(hex: 0x00F5FF)
+        )
+    )
+
+    // MARK: Disco Inferno — design/themes/theme-disco-inferno.html
+    // Mirror-ball hell: gold bloom, the BRIGHT gold/silver sparkle lattice
+    // (.45/.35 — the loudest speck field in the gallery, on a .35 layer),
+    // dark scanline rows; the gold dot grid is palette data.
+
+    static let discoInferno = ThemeArtDirection(
+        glowPools: [
+            // radial(1200px 800px at 50% -10%, rgba(255,215,0,.12) → 60%)
+            ThemeGlowPool(color: Color(hex: 0xFFD700, opacity: 0.12),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+        ],
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 24, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xFFD700), speckAlpha: 0.45),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 12, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xE8E8E8), speckAlpha: 0.35,
+                anchorX: 0.0, anchorY: 0.0),
+        ], period: 1, fieldOpacity: 0.35),
+        scanlineOverlay: ThemeLineFieldSpec(layers: [
+            .init(angleDegrees: 0, hue: Color(hex: 0x000000), alpha: 0.35,
+                  spacing: 4, lineWidth: 2),
+        ], fieldOpacity: 0.18),
+        titleGlow: ThemeTitleGlow(
+            primary: Color(hex: 0xFFD700),
+            secondary: Color(hex: 0xFFD700)
+        )
     )
 
     // MARK: Event Horizon atmosphere presets (Lane E Task 1)
