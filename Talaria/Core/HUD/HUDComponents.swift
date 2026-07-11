@@ -28,6 +28,12 @@ struct HUDScreenBackground: View {
             ThemeTextureView()
             GridOverlay()
                 .opacity(gridIntensity ?? ThemeRuntime.shared.gridDensity.gridIntensity)
+            // Dark CRT scanline rows — the handoffs stack these ABOVE the
+            // whole screen (`::after` with multiply), so they get their own
+            // slot over the grid. Nil for every theme without a spec.
+            if let scanlines = ThemeRuntime.shared.artDirection.scanlineOverlay {
+                LineFieldTexture(spec: scanlines)
+            }
         }
     }
 }
@@ -256,9 +262,13 @@ extension View {
     /// exactly as before.
     @MainActor
     func hudTitleGlow() -> some View {
-        let glow = ThemeRuntime.shared.artDirection.titleGlow
+        let art = ThemeRuntime.shared.artDirection
+        let glow = art.titleGlow
         let k = min(1.0, Design.Glow.k * ThemeRuntime.shared.palette.glowScale)
         return self
+            // Offset/chromatic shadow layers (comic + graffiti + glitch
+            // titles) — inert modifier when the theme has no spec.
+            .modifier(TitleShadowModifier(spec: art.titleShadow, glowK: k))
             .shadow(color: glow.map { $0.primary.opacity(0.90 * k) } ?? .clear,
                     radius: glow == nil ? 0 : 5)
             .shadow(color: glow.map { $0.primary.opacity(0.55 * k) } ?? .clear,
@@ -267,6 +277,79 @@ extension View {
                     radius: glow == nil ? 0 : 30)
             .shadow(color: glow.map { $0.secondary.opacity(0.25 * k) } ?? .clear,
                     radius: glow == nil ? 0 : 45)
+    }
+}
+
+/// Renders `ThemeArtDirection.titleShadow`: up to four stacked offset shadows
+/// (the inventory maxes at three). Layers with `blur == 0` are ink — comic
+/// print offsets that must not fade with the glow pref; blurred layers are
+/// light and ride it like every other glow. A spec with `glitchPeriod` runs
+/// the Glitch Garden jitter: quiet for ~92% of the cycle, then two brief
+/// scrambles of the offset layers — static under Reduce Motion (system or
+/// app toggle), matching the CSS animation's 0% keyframe.
+private struct TitleShadowModifier: ViewModifier {
+    let spec: ThemeTitleShadowSpec?
+    let glowK: Double
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+
+    func body(content: Content) -> some View {
+        if let spec {
+            if let period = spec.glitchPeriod, period > 0, !reduceMotion {
+                TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { timeline in
+                    let phase = timeline.date.timeIntervalSinceReferenceDate
+                        .truncatingRemainder(dividingBy: period) / period
+                    shadowed(content, layers: Self.jittered(spec.layers, phase: phase))
+                }
+            } else {
+                shadowed(content, layers: spec.layers)
+            }
+        } else {
+            content
+        }
+    }
+
+    private func shadowed(_ content: Content, layers: [ThemeTitleShadowSpec.Layer]) -> some View {
+        func layer(_ index: Int) -> ThemeTitleShadowSpec.Layer? {
+            index < layers.count ? layers[index] : nil
+        }
+        func color(_ layer: ThemeTitleShadowSpec.Layer?) -> Color {
+            guard let layer else { return .clear }
+            return layer.hue.opacity(layer.alpha * (layer.blur > 0 ? glowK : 1))
+        }
+        return content
+            .shadow(color: color(layer(0)), radius: layer(0)?.blur ?? 0,
+                    x: layer(0)?.offsetX ?? 0, y: layer(0)?.offsetY ?? 0)
+            .shadow(color: color(layer(1)), radius: layer(1)?.blur ?? 0,
+                    x: layer(1)?.offsetX ?? 0, y: layer(1)?.offsetY ?? 0)
+            .shadow(color: color(layer(2)), radius: layer(2)?.blur ?? 0,
+                    x: layer(2)?.offsetX ?? 0, y: layer(2)?.offsetY ?? 0)
+            .shadow(color: color(layer(3)), radius: layer(3)?.blur ?? 0,
+                    x: layer(3)?.offsetX ?? 0, y: layer(3)?.offsetY ?? 0)
+    }
+
+    /// The design's 92/94/96% keyframes scramble only the OFFSET (ink)
+    /// layers; glow layers hold steady. Two states: mirror every offset,
+    /// then swap-skew (first offset stretched, second compressed, both
+    /// mirrored) — a perception-level port of the CSS offset shuffle.
+    private static func jittered(
+        _ layers: [ThemeTitleShadowSpec.Layer],
+        phase: Double
+    ) -> [ThemeTitleShadowSpec.Layer] {
+        guard phase >= 0.92, phase < 0.98 else { return layers }
+        let swapSkew = phase >= 0.95
+        var offsetIndex = 0
+        return layers.map { layer in
+            guard layer.blur == 0 else { return layer }
+            let scale: CGFloat = swapSkew ? (offsetIndex == 0 ? 1.5 : 0.5) : 1
+            offsetIndex += 1
+            return ThemeTitleShadowSpec.Layer(
+                hue: layer.hue, alpha: layer.alpha,
+                offsetX: -layer.offsetX * scale, offsetY: -layer.offsetY * scale,
+                blur: 0
+            )
+        }
     }
 }
 
