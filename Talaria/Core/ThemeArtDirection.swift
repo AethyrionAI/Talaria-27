@@ -197,6 +197,30 @@ struct RadialSpokeSpec: Equatable, Sendable {
     let period: TimeInterval
 }
 
+/// A rotated banner pinned to the screen's top-trailing corner — the design's
+/// `chat-screen::after` 'TAG' ribbon (Graffiti Galaxy). Rendered by
+/// `CornerRibbonView`, clipped by the screen edge like the CSS overflow.
+struct ThemeCornerRibbonSpec: Equatable, Sendable {
+    /// Banner text, verbatim from the handoff (`content: 'TAG'`).
+    let text: String
+    /// Text color (`--graf-accent-citron`).
+    let textColor: Color
+    /// Banner fill (`--graf-accent-pink`).
+    let background: Color
+}
+
+/// Thin gradient bar hugging a panel's top edge — the design's
+/// `card::before` (4px, 90° multi-hue, opacity .7). Follows the panel's
+/// rounded top corners; rendered by the `panelHalo` modifier.
+struct ThemePanelTopStripSpec: Equatable, Sendable {
+    /// Left-to-right gradient stops (the CSS `linear-gradient(90deg, …)`).
+    let colors: [Color]
+    /// Bar height in points (`height: 4px`).
+    var height: CGFloat = 4
+    /// Bar opacity (`opacity: 0.7`).
+    var opacity: Double = 0.7
+}
+
 /// The art-direction payload for one theme. All fields default to "off";
 /// `.standard` is the identity treatment every un-listed theme resolves to.
 struct ThemeArtDirection: Equatable, Sendable {
@@ -233,6 +257,12 @@ struct ThemeArtDirection: Equatable, Sendable {
     /// Offset/chromatic title shadows (`nil` = none, the default). Composes
     /// with `titleGlow`; comic themes typically set only this.
     var titleShadow: ThemeTitleShadowSpec? = nil
+    /// Rotated corner banner (`chat-screen::after`) — Graffiti Galaxy's
+    /// 'TAG'. `nil` = no ribbon (the default, byte-identical).
+    var cornerRibbon: ThemeCornerRibbonSpec? = nil
+    /// Thin gradient bar hugging every panel's top edge (`card::before`).
+    /// `nil` = no strip (the default, byte-identical).
+    var panelTopStrip: ThemePanelTopStripSpec? = nil
 
     /// The identity treatment: no pools, no tints, no halo, no motion.
     static let standard = ThemeArtDirection()
@@ -665,6 +695,20 @@ enum ThemeArtDirectionCatalog {
             .init(hue: Color(hex: 0x8338EC), alpha: 1.0, offsetX: 3, offsetY: 3),
             .init(hue: Color(hex: 0xFF006E), alpha: 0.45, offsetX: 6, offsetY: 6),
             .init(hue: Color(hex: 0xFF006E), alpha: 0.35, offsetX: 0, offsetY: 0, blur: 40),
+        ]),
+        // chat-screen::after — the 'TAG' throwie: citron on pink, rotated
+        // into the top-trailing corner (Owen-approved correction round).
+        cornerRibbon: ThemeCornerRibbonSpec(
+            text: "TAG",
+            textColor: Color(hex: 0xFBFF26),
+            background: Color(hex: 0xFF006E)
+        ),
+        // card::before — 4px 90° pink→violet→spray→citron strip at .7.
+        panelTopStrip: ThemePanelTopStripSpec(colors: [
+            Color(hex: 0xFF006E),
+            Color(hex: 0x8338EC),
+            Color(hex: 0x00F5D4),
+            Color(hex: 0xFBFF26),
         ])
     )
 

@@ -233,6 +233,28 @@ struct ThemeArtDirectionTests {
         }
     }
 
+    @Test func cornerRibbonAndTopStripDefaultToNil() {
+        // Both correction-round primitives must be inert for every theme
+        // that doesn't set them — Graffiti Galaxy is the only adopter.
+        #expect(ThemeArtDirection.standard.cornerRibbon == nil)
+        #expect(ThemeArtDirection.standard.panelTopStrip == nil)
+        for theme in ThemeID.allCases where theme != .graffitiGalaxy {
+            let art = ThemeArtDirectionCatalog.artDirection(for: theme)
+            #expect(art.cornerRibbon == nil)
+            #expect(art.panelTopStrip == nil)
+        }
+    }
+
+    @Test func graffitiGalaxyCarriesRibbonAndTopStrip() {
+        // chat-screen::after — 'TAG', citron on pink; card::before — 4px
+        // 90° four-hue strip at .7. Verbatim pins.
+        let art = ThemeArtDirectionCatalog.artDirection(for: .graffitiGalaxy)
+        #expect(art.cornerRibbon?.text == "TAG")
+        #expect(art.panelTopStrip?.colors.count == 4)
+        #expect(art.panelTopStrip?.height == 4)
+        #expect(art.panelTopStrip?.opacity == 0.7)
+    }
+
     @Test func starfieldThemesCurateTheirSpeckColors() {
         // `.starfield` has no theme-neutral look — any palette selecting it
         // must ship art-direction speck hues (the accent fallback in
