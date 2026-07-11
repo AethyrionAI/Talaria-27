@@ -279,9 +279,9 @@ struct ReactorOrb: View {
         }
     }
 
-    private func triRing(_ spec: TriRingOrbSpec, index: Int, diameter: CGFloat) -> some View {
+    @ViewBuilder private func triRing(_ spec: TriRingOrbSpec, index: Int, diameter: CGFloat) -> some View {
         let ring = spec.rings[index]
-        return TriPulseRing(
+        let pulse = TriPulseRing(
             diameter: diameter,
             color: ring.color,
             baseOpacity: ring.baseOpacity,
@@ -290,6 +290,11 @@ struct ReactorOrb: View {
             period: spec.pulsePeriod,
             delay: ring.delay
         )
+        if let spin = ring.spinPeriod {
+            pulse.continuousRotation(spin)
+        } else {
+            pulse
+        }
     }
 
     private func triCore(_ spec: TriRingOrbSpec, diameter: CGFloat) -> some View {
@@ -301,7 +306,8 @@ struct ReactorOrb: View {
             glow: glowIntensity,
             motion: spec.coreMotion,
             glyph: spec.coreGlyph,
-            glyphColor: spec.coreGlyphColor
+            glyphColor: spec.coreGlyphColor,
+            outerGlowColor: spec.coreOuterGlow
         )
     }
 
@@ -806,6 +812,10 @@ private struct TriRingOrbSpec {
         var dash: [CGFloat] = []
         var delay: Double = 0
         var lineWidthFraction: CGFloat = 0.02
+        /// Seconds per full rotation (`orbSpin` on a dashed ring — the batch-4
+        /// Claude-Design orbs spin their middle ring). `nil` = static ring,
+        /// byte-identical for every existing spec.
+        var spinPeriod: Double? = nil
     }
 
     let rings: [Ring]
@@ -817,6 +827,10 @@ private struct TriRingOrbSpec {
     var coreFraction: CGFloat = 0.32
     var coreGlyph: String? = nil
     var coreGlyphColor: Color = .black
+    /// Hue of the core's WIDE outer halo when it differs from `coreGlow` —
+    /// the batch-4 handoffs' `box-shadow: 0 0 30px hero, 0 0 60px rgba(third
+    /// hue, .4)` stack. `nil` = both halos in `coreGlow` (byte-identical).
+    var coreOuterGlow: Color? = nil
 }
 
 /// Per-theme core motions — each theme's `.orb-core` keyframe family.
@@ -868,6 +882,8 @@ private struct TriPulseRing: View {
 
 /// The gallery two-hue core: `radial-gradient(circle at 30% 30%, highlight,
 /// base)` with the handoffs' 30px + 60px glow stack and a per-theme motion.
+/// `outerGlowColor` re-hues just the wide 60px halo (the batch-4 orbs halo
+/// in their third accent); nil keeps both halos in `glowColor`, byte-identical.
 private struct TwoHueOrbCore: View {
     let diameter: CGFloat
     let highlight: Color
@@ -877,6 +893,7 @@ private struct TwoHueOrbCore: View {
     var motion: OrbCoreMotion = .steady
     var glyph: String? = nil
     var glyphColor: Color = .black
+    var outerGlowColor: Color? = nil
 
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
@@ -903,7 +920,7 @@ private struct TwoHueOrbCore: View {
         .brightness(pulse ? motionBrightness : 0)
         .hueRotation(.degrees(pulse ? motionHueDegrees : 0))
         .hudGlow(glowColor, radius: diameter * 0.85, strength: 0.85, intensity: glow)
-        .hudGlow(glowColor, radius: diameter * 1.7, strength: 0.4, intensity: glow)
+        .hudGlow(outerGlowColor ?? glowColor, radius: diameter * 1.7, strength: 0.4, intensity: glow)
         .onAppear {
             guard !reduceMotion, let period = motionPeriod else { return }
             withAnimation(.easeInOut(duration: period / 2).repeatForever(autoreverses: true)) {

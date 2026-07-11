@@ -28,6 +28,11 @@ struct HUDScreenBackground: View {
             ThemeTextureView()
             GridOverlay()
                 .opacity(gridIntensity ?? ThemeRuntime.shared.gridDensity.gridIntensity)
+            // Sweeping tracking band (Haunted VHS) — below the scanline rows,
+            // matching the handoff's z-order. Nil for every theme without one.
+            if let sweep = ThemeRuntime.shared.artDirection.sweepBar {
+                SweepBarField(spec: sweep)
+            }
             // Dark CRT scanline rows — the handoffs stack these ABOVE the
             // whole screen (`::after` with multiply), so they get their own
             // slot over the grid. Nil for every theme without a spec.
@@ -51,11 +56,32 @@ struct HUDScreenBackground: View {
 /// The rotated corner banner (`ThemeArtDirection.cornerRibbon`): text on a
 /// solid band, turned 45° so it reads along the corner diagonal, offset so
 /// its ends bleed past the screen edge (the design's `right: -26px`). The
-/// hosting `HUDScreenBackground` clips the bleed.
+/// hosting `HUDScreenBackground` clips the bleed. A spec with a `blinkPeriod`
+/// hard-blinks between full and `blinkMinOpacity` (Haunted VHS's `recBlink
+/// 1.1s steps(2)`); static ribbons (Graffiti Galaxy) never pay for the
+/// timeline. Held at full opacity under Reduce Motion (system or app toggle)
+/// — the CSS animation's 0% keyframe.
 struct CornerRibbonView: View {
     let spec: ThemeCornerRibbonSpec
 
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+
     var body: some View {
+        if let period = spec.blinkPeriod, period > 0, !reduceMotion {
+            // A steps(2) blink only changes state twice per cycle — 10 fps
+            // resolves the 1.1s cadence with no visible aliasing.
+            TimelineView(.animation(minimumInterval: 1.0 / 10.0)) { timeline in
+                let phase = timeline.date.timeIntervalSinceReferenceDate
+                    .truncatingRemainder(dividingBy: period) / period
+                banner.opacity(phase < 0.5 ? 1 : spec.blinkMinOpacity)
+            }
+        } else {
+            banner
+        }
+    }
+
+    private var banner: some View {
         Text(spec.text)
             .font(Design.Typography.display(10, weight: .bold, relativeTo: .caption2))
             .kerning(0.8)

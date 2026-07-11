@@ -228,7 +228,13 @@ struct AtmosphereMotionField: View {
 
     private static func draw(context: GraphicsContext, size: CGSize, time: Double, spec: AtmosphereMotionSpec) {
         guard size.width > 0, size.height > 0, spec.period > 0 else { return }
-        let phase = time.truncatingRemainder(dividingBy: spec.period) / spec.period
+        var phase = time.truncatingRemainder(dividingBy: spec.period) / spec.period
+        if let steps = spec.stepCount, steps > 0 {
+            // Quantize the pan into discrete jumps (Haunted VHS's
+            // `steps(4)` static scramble) — the field holds still between
+            // jumps instead of gliding.
+            phase = (Double(steps) * phase).rounded(.down) / Double(steps)
+        }
 
         for layer in spec.layers {
             let tileW = layer.tileSize
@@ -288,25 +294,55 @@ struct AtmosphereMotionField: View {
 /// Renders a `ThemeLineFieldSpec`: per layer either a continuous parallel-line
 /// lattice at an arbitrary angle (Holo Sushi's dual grid, Cyber Cactus's
 /// crosshatch, the dark CRT scanline overlays) or one soft streak per tile
-/// (Graffiti Galaxy's spray grain). Entirely static — none of the inventoried
-/// designs animate these — so it's a single Canvas with one batched stroke
-/// per layer and no TimelineView cost.
+/// (Graffiti Galaxy's spray grain). Static specs (`driftPeriod == nil` —
+/// every pre-batch-4 adopter) stay a single Canvas with one batched stroke
+/// per layer and no TimelineView cost; a spec with a `driftPeriod` pans its
+/// layers by `driftX/driftY` per loop (Midnight Aquarium's `causticDrift`),
+/// frozen at t = 0 under Reduce Motion.
 struct LineFieldTexture: View {
     let spec: ThemeLineFieldSpec
 
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+
     var body: some View {
-        Canvas { context, size in
-            Self.draw(context: context, size: size, spec: spec)
+        Group {
+            if let period = spec.driftPeriod, period > 0, !reduceMotion {
+                // The caustic pan is slow (a tile-scale glide over 16s) —
+                // 10 fps is visually continuous at lattice alphas.
+                TimelineView(.animation(minimumInterval: 1.0 / 10.0)) { timeline in
+                    Canvas { context, size in
+                        Self.draw(
+                            context: context,
+                            size: size,
+                            time: timeline.date.timeIntervalSinceReferenceDate,
+                            spec: spec
+                        )
+                    }
+                }
+            } else {
+                Canvas { context, size in
+                    Self.draw(context: context, size: size, time: 0, spec: spec)
+                }
+            }
         }
         .opacity(spec.fieldOpacity)
         .allowsHitTesting(false)
     }
 
-    private static func draw(context: GraphicsContext, size: CGSize, spec: ThemeLineFieldSpec) {
+    private static func draw(context: GraphicsContext, size: CGSize, time: Double, spec: ThemeLineFieldSpec) {
         guard size.width > 0, size.height > 0 else { return }
+        let phase: Double
+        if let period = spec.driftPeriod, period > 0 {
+            phase = time.truncatingRemainder(dividingBy: period) / period
+        } else {
+            phase = 0
+        }
 
         for layer in spec.layers {
             guard layer.spacing > 0 else { continue }
+            let offsetX = layer.driftX * phase
+            let offsetY = layer.driftY * phase
 
             if let segment = layer.segmentLength {
                 // Streak mode: one dash per axis-aligned tile, angled along
@@ -318,13 +354,19 @@ struct LineFieldTexture: View {
                 let angle = Angle(degrees: layer.angleDegrees).radians
                 let dx = cos(angle) * segment
                 let dy = sin(angle) * segment
+                // This frame's pan, wrapped to one tile (drift is inert at
+                // phase 0, so static specs draw exactly as before).
+                let tileOffsetX = ((offsetX).truncatingRemainder(dividingBy: tile) + tile)
+                    .truncatingRemainder(dividingBy: tile)
+                let tileOffsetY = ((offsetY).truncatingRemainder(dividingBy: tile) + tile)
+                    .truncatingRemainder(dividingBy: tile)
                 var streaks = Path()
                 let cols = Int((size.width / tile).rounded(.up))
                 let rows = Int((size.height / tile).rounded(.up))
                 for col in -1...cols {
                     for row in -1...rows {
-                        let x = CGFloat(col) * tile
-                        let y = CGFloat(row) * tile
+                        let x = CGFloat(col) * tile + tileOffsetX
+                        let y = CGFloat(row) * tile + tileOffsetY
                         streaks.move(to: CGPoint(x: x, y: y))
                         streaks.addLine(to: CGPoint(x: x + dx, y: y + dy))
                     }
@@ -340,8 +382,11 @@ struct LineFieldTexture: View {
                 // Continuous lattice: parallel lines along `angleDegrees`,
                 // `spacing` apart. Drawn in a rotated copy of the context so
                 // one horizontal-line loop covers every angle; the span is
-                // padded to the diagonal so rotation never exposes corners.
+                // padded to the diagonal — plus the layer's full drift, so a
+                // panning lattice never exposes corners mid-loop — so
+                // rotation never exposes corners.
                 let halfSpan = hypot(size.width, size.height) / 2 + layer.spacing
+                    + hypot(layer.driftX, layer.driftY)
                 var lines = Path()
                 var y = -halfSpan
                 while y <= halfSpan {
@@ -350,7 +395,8 @@ struct LineFieldTexture: View {
                     y += layer.spacing
                 }
                 var layerContext = context
-                layerContext.translateBy(x: size.width / 2, y: size.height / 2)
+                layerContext.translateBy(x: size.width / 2 + offsetX,
+                                         y: size.height / 2 + offsetY)
                 layerContext.rotate(by: .degrees(layer.angleDegrees))
                 layerContext.stroke(
                     lines,
@@ -358,6 +404,57 @@ struct LineFieldTexture: View {
                     lineWidth: layer.lineWidth
                 )
             }
+        }
+    }
+}
+
+// MARK: Sweep bar (Haunted VHS tracking bar)
+
+/// Renders a `ThemeSweepBarSpec`: one full-width horizontal band with the
+/// handoff's symmetric profile (transparent → shoulder → center → shoulder →
+/// transparent) whose top edge travels `travelStart → travelEnd` (screen-height
+/// fractions) once per `period`, linear infinite. A single gradient view on a
+/// 20 fps timeline — no Canvas needed for one rect. Under Reduce Motion the
+/// band parks at `travelStart` (the CSS 0% keyframe, off-screen above), which
+/// is exactly the handoff's `prefers-reduced-motion: animation none` result.
+struct SweepBarField: View {
+    let spec: ThemeSweepBarSpec
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+
+    var body: some View {
+        Group {
+            if reduceMotion {
+                band(travel: spec.travelStart)
+            } else {
+                TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
+                    let phase = spec.period > 0
+                        ? timeline.date.timeIntervalSinceReferenceDate
+                            .truncatingRemainder(dividingBy: spec.period) / spec.period
+                        : 0
+                    band(travel: spec.travelStart + (spec.travelEnd - spec.travelStart) * phase)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func band(travel: Double) -> some View {
+        GeometryReader { proxy in
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: spec.shoulderColor.opacity(spec.shoulderAlpha), location: 0.35),
+                    .init(color: spec.centerColor.opacity(spec.centerAlpha), location: 0.50),
+                    .init(color: spec.shoulderColor.opacity(spec.shoulderAlpha), location: 0.65),
+                    .init(color: .clear, location: 1),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: spec.height)
+            .offset(y: proxy.size.height * travel)
         }
     }
 }

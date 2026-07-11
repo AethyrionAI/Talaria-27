@@ -95,6 +95,11 @@ struct AtmosphereMotionSpec: Equatable, Sendable {
     let period: TimeInterval
     /// Opacity of the whole field (the handoffs' `.page-bg { opacity }`).
     let fieldOpacity: Double
+    /// When set, the drift phase is quantized into this many discrete jumps
+    /// per loop — Haunted VHS's `staticDrift 0.9s steps(4)` TV-noise scramble
+    /// (a smooth 0.9s pan reads as vibration, not static). `nil` = smooth
+    /// linear pan, byte-identical for every existing spec.
+    var stepCount: Int? = nil
 }
 
 /// Data-driven angled line/streak lattice — the Swift port of the handoffs'
@@ -126,11 +131,21 @@ struct ThemeLineFieldSpec: Equatable, Sendable {
         /// length per `spacing × spacing` tile (the handoffs'
         /// `linear-gradient(135deg, hue 0, transparent 12px)` spray marks).
         var segmentLength: CGFloat? = nil
+        /// Displacement (pt) over one `driftPeriod` loop — Midnight
+        /// Aquarium's `causticDrift` background-position pan. Inert (0)
+        /// unless the spec sets a `driftPeriod`.
+        var driftX: CGFloat = 0
+        var driftY: CGFloat = 0
     }
 
     let layers: [Layer]
     /// Opacity of the whole field (the handoffs' `.page-bg { opacity }`).
     let fieldOpacity: Double
+    /// Seconds per drift loop — linear, infinite (`causticDrift 16s`). `nil`
+    /// = static field: the pre-drift rendering path, byte-identical, with no
+    /// TimelineView cost. Frozen at t = 0 under Reduce Motion (the CSS
+    /// animation's 0% keyframe).
+    var driftPeriod: TimeInterval? = nil
 }
 
 /// Layered offset title shadows — the comic/graffiti h1 treatments that
@@ -207,6 +222,41 @@ struct ThemeCornerRibbonSpec: Equatable, Sendable {
     let textColor: Color
     /// Banner fill (`--graf-accent-pink`).
     let background: Color
+    /// Hard on/off blink cycle — Haunted VHS's `recBlink 1.1s steps(2)`:
+    /// full opacity for the first half, `blinkMinOpacity` for the second.
+    /// `nil` = static ribbon (Graffiti Galaxy's 'TAG'), byte-identical, no
+    /// TimelineView. Held at full opacity under Reduce Motion (the CSS
+    /// animation's 0% keyframe).
+    var blinkPeriod: TimeInterval? = nil
+    /// The dimmed half's opacity (`recBlink`'s `opacity: 0.15`).
+    var blinkMinOpacity: Double = 0.15
+}
+
+/// A full-width horizontal glow band sweeping vertically down the screen —
+/// Haunted VHS's `trackingBar` (a 46px band with a symmetric two-hue profile:
+/// transparent → shoulder 35% → center 50% → shoulder 65% → transparent,
+/// traveling top −18% → 118% over 6s, linear infinite). The atmosphere
+/// engine's laser bars are vertical capsules and can't express a horizontal
+/// band's gradient profile, so this is its own minimal spec (the dispatch's
+/// pre-authorized third primitive). Rendered by `SweepBarField`
+/// (ThemeTextures.swift); under Reduce Motion the band parks at the CSS 0%
+/// keyframe (`top: -18%` — off-screen, i.e. absent), exactly the handoff's
+/// `prefers-reduced-motion` behavior.
+struct ThemeSweepBarSpec: Equatable, Sendable {
+    /// Band thickness (pt) — `height: 46px`.
+    let height: CGFloat
+    /// The 35%/65% stops (`rgba(232,255,232,0.07)`).
+    let shoulderColor: Color
+    let shoulderAlpha: Double
+    /// The 50% stop (`rgba(53,224,255,0.12)`).
+    let centerColor: Color
+    let centerAlpha: Double
+    /// Seconds per sweep — linear, infinite.
+    let period: TimeInterval
+    /// Travel endpoints for the band's top edge, as fractions of the screen
+    /// height (`top: -18%` → `top: 118%`).
+    var travelStart: Double = -0.18
+    var travelEnd: Double = 1.18
 }
 
 /// Thin gradient bar hugging a panel's top edge — the design's
@@ -252,6 +302,11 @@ struct ThemeArtDirection: Equatable, Sendable {
     /// so this field gets its own slot instead of the texture slot. `nil` =
     /// no overlay (the default, byte-identical).
     var scanlineOverlay: ThemeLineFieldSpec? = nil
+    /// Vertically sweeping glow band (Haunted VHS's `trackingBar`), drawn
+    /// between the grid and the scanline overlay (the handoff's z-order:
+    /// the tracking bar rides UNDER the CRT rows). `nil` = no band (the
+    /// default, byte-identical).
+    var sweepBar: ThemeSweepBarSpec? = nil
     /// Neon screen-title glow (`nil` = plain titles, the default).
     var titleGlow: ThemeTitleGlow? = nil
     /// Offset/chromatic title shadows (`nil` = none, the default). Composes
