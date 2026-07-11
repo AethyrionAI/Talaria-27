@@ -246,6 +246,10 @@ enum AppearanceTheme: String, Codable, CaseIterable, Hashable, Sendable {
     case glitchGarden
     case witchsBrew
     case holoSushi
+    case lunarDiner
+    case cyberCactus
+    case deepSeaDiner
+    case discoInferno
 
     /// Display name — single source of truth is the catalog definition (#49).
     var displayLabel: String {
