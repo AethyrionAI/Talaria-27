@@ -11,6 +11,9 @@ import SwiftUI
 ///  • forgeSun     — heavier concentric rings around an ember core.
 ///  • crtCrosshair — thin ring + crosshair ticks, CRT-bloomed core.
 ///  • paperReel    — mechanical reel: sprocket holes + tick ring + inked hub.
+///  • singularity  — collapsed star: gold→magenta core, Hawking-cyan
+///                   counter-pulse rim, multi-hue accretion sweep
+///                   (Event Horizon — design/themes/theme-event-horizon.html).
 ///
 /// All motion is reduce-motion-aware (each animated piece checks
 /// `accessibilityReduceMotion`). The orb is decorative — marked accessibilityHidden.
@@ -39,6 +42,7 @@ struct ReactorOrb: View {
             case .forgeSun: forgeSunLayers
             case .crtCrosshair: crtCrosshairLayers
             case .paperReel: paperReelLayers
+            case .singularity: singularityLayers
             }
         }
         .frame(width: size, height: size)
@@ -185,6 +189,46 @@ struct ReactorOrb: View {
         }
     }
 
+    // MARK: - Singularity (Event Horizon — collapsed star)
+
+    @ViewBuilder private var singularityLayers: some View {
+        switch style {
+        case .minimal:
+            HorizonRing(diameter: size, color: SingularityHue.violet,
+                        baseOpacity: 0.35, lineWidth: lw(0.033))
+            SingularityCore(diameter: size * 0.44, glow: glowIntensity)
+
+        case .standard:
+            HorizonRing(diameter: size, color: SingularityHue.violet,
+                        baseOpacity: 0.35, lineWidth: lw(0.033))
+            AccretionRing(diameter: size * 0.62, lineWidth: lw(0.05))
+            SingularityCore(diameter: size * 0.34, glow: glowIntensity)
+
+        case .onboarding:
+            // The handoff's three horizon rings at 100/74/48%, staggered
+            // pulses, with the accretion sweep orbiting between them.
+            HorizonRing(diameter: size, color: SingularityHue.violet,
+                        baseOpacity: 0.35, lineWidth: lw(0.027))
+            HorizonRing(diameter: size * 0.74, color: SingularityHue.cyan,
+                        baseOpacity: 0.55, lineWidth: lw(0.027), dash: [4, 5], pulseDelay: 0.3)
+            AccretionRing(diameter: size * 0.60, lineWidth: lw(0.027))
+            HorizonRing(diameter: size * 0.48, color: SingularityHue.gold,
+                        baseOpacity: 0.75, lineWidth: lw(0.027), pulseDelay: 0.6)
+            SingularityCore(diameter: size * 0.30, glow: glowIntensity)
+
+        case .voice:
+            PingHalo(diameter: size)
+            HorizonRing(diameter: size, color: SingularityHue.violet,
+                        baseOpacity: 0.35, lineWidth: 2)
+            HorizonRing(diameter: size * 0.74, color: SingularityHue.cyan,
+                        baseOpacity: 0.55, lineWidth: 2, dash: [4, 5], pulseDelay: 0.3)
+            AccretionRing(diameter: size * 0.58, lineWidth: 3)
+            HorizonRing(diameter: size * 0.48, color: SingularityHue.gold,
+                        baseOpacity: 0.75, lineWidth: 2, pulseDelay: 0.6)
+            SingularityCore(diameter: size * 0.30, glow: glowIntensity)
+        }
+    }
+
     // MARK: - Shared pieces
 
     private func lw(_ fraction: CGFloat) -> CGFloat { max(1, size * fraction) }
@@ -328,6 +372,126 @@ private struct PaperHub: View {
                 .frame(width: diameter * 0.3, height: diameter * 0.3)
         }
         .frame(width: diameter, height: diameter)
+    }
+}
+
+// MARK: - Singularity pieces (Event Horizon)
+
+/// Handoff hues (design/themes/theme-event-horizon.html). The singularity is
+/// inherently multi-hue — the four accents together ARE its identity — so the
+/// composition curates its own colors instead of the resolved accent slot.
+private enum SingularityHue {
+    static let violet = Color(hex: 0x8A5CFF)   // Accretion Violet
+    static let cyan = Color(hex: 0x00F0FF)     // Hawking Cyan
+    static let gold = Color(hex: 0xFFDC50)     // Supernova Gold
+    static let magenta = Color(hex: 0xFF2AA8)  // Singularity Magenta
+}
+
+/// One pulsing horizon ring (the handoff's `.orb-ring`): 3.5s ease-in-out
+/// scale 1→1.05 with a slight opacity lift, staggered per ring via
+/// `pulseDelay` like the CSS animation-delay chain. Static under Reduce Motion.
+private struct HorizonRing: View {
+    let diameter: CGFloat
+    let color: Color
+    let baseOpacity: Double
+    var lineWidth: CGFloat = 2
+    var dash: [CGFloat] = []
+    var pulseDelay: Double = 0
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+    @State private var pulse = false
+
+    var body: some View {
+        Circle()
+            .strokeBorder(color, style: StrokeStyle(lineWidth: lineWidth, dash: dash))
+            .frame(width: diameter, height: diameter)
+            .opacity(pulse ? min(1, baseOpacity + 0.15) : baseOpacity)
+            .scaleEffect(pulse ? 1.05 : 1.0)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 3.5).repeatForever(autoreverses: true)
+                    .delay(pulseDelay)) {
+                    pulse = true
+                }
+            }
+    }
+}
+
+/// The slow accretion sweep (`horizonSpin`, 30s linear): a violet → cyan →
+/// gold → magenta angular gradient ring orbiting the core. Rotation is
+/// reduce-motion-aware via `continuousRotation`.
+private struct AccretionRing: View {
+    let diameter: CGFloat
+    var lineWidth: CGFloat = 2
+    var opacity: Double = 0.7
+
+    var body: some View {
+        Circle()
+            .strokeBorder(
+                AngularGradient(
+                    colors: [SingularityHue.violet, SingularityHue.cyan, SingularityHue.gold,
+                             SingularityHue.magenta, SingularityHue.violet],
+                    center: .center
+                ),
+                lineWidth: lineWidth
+            )
+            .opacity(opacity)
+            .frame(width: diameter, height: diameter)
+            .continuousRotation(30)
+    }
+}
+
+/// The collapsed star (`.orb-core` + its `::after` rim): a gold→magenta
+/// radial core — `singularityPulse`, 4s ease-in-out, scale 1→1.1, brightness
+/// 1→1.25 — inside a Hawking-cyan rim counter-pulsing at 3.5s (scale 1→1.05,
+/// opacity 0.5→0.7; the differing periods keep the two out of phase, the
+/// handoff's `reverse`). Glow is the layered magenta 30px + violet 60px
+/// box-shadow, scaled to the core diameter and riding the glow pref.
+private struct SingularityCore: View {
+    let diameter: CGFloat
+    let glow: Double
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+    @State private var corePulse = false
+    @State private var rimPulse = false
+
+    /// The handoff's `inset: -8px` rim on the 36px reference core.
+    private var rimDiameter: CGFloat { diameter * 1.44 }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .strokeBorder(SingularityHue.cyan, lineWidth: max(1, diameter * 0.055))
+                .frame(width: rimDiameter, height: rimDiameter)
+                .opacity(rimPulse ? 0.7 : 0.5)
+                .scaleEffect(rimPulse ? 1.05 : 1.0)
+
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [SingularityHue.gold, SingularityHue.magenta],
+                        center: UnitPoint(x: 0.3, y: 0.3),
+                        startRadius: 0,
+                        endRadius: diameter * 0.62
+                    )
+                )
+                .frame(width: diameter, height: diameter)
+                .scaleEffect(corePulse ? 1.1 : 1.0)
+                .brightness(corePulse ? 0.25 : 0)
+                .hudGlow(SingularityHue.magenta, radius: diameter * 0.85, strength: 0.85, intensity: glow)
+                .hudGlow(SingularityHue.violet, radius: diameter * 1.7, strength: 0.4, intensity: glow)
+        }
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) {
+                corePulse = true
+            }
+            withAnimation(.easeInOut(duration: 3.5).repeatForever(autoreverses: true)) {
+                rimPulse = true
+            }
+        }
     }
 }
 

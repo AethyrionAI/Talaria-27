@@ -94,6 +94,14 @@ struct ThemeDefinition: Identifiable, Hashable, Sendable {
     }
 }
 
+/// One titled group of the theme picker — the gallery taxonomy's sections
+/// (Flagship / Neon Arcade Collection / Special Edition / Seasonal).
+struct ThemeSection: Identifiable, Sendable {
+    let title: String
+    let definitions: [ThemeDefinition]
+    var id: String { title }
+}
+
 enum ThemeCatalog {
 
     // MARK: Definitions
@@ -115,10 +123,33 @@ enum ThemeCatalog {
                         availability: .always, locked: false),
     ]
 
-    /// Seasonal / holiday / special definitions. The four meteorological-season
-    /// themes are listed here; holiday themes become additional entries with
-    /// `.holiday(DateWindow(...))` and `locked: true` as needed (#24).
-    static let special: [ThemeDefinition] = [
+    /// Neon Arcade Collection — the gallery's signature themes (issue #54;
+    /// `design/themes/`). Neon Arcade #01 itself and the remaining seven
+    /// collection themes join in the theme-suite Phase 3 (#91).
+    static let neonArcadeCollection: [ThemeDefinition] = [
+        ThemeDefinition(id: AppearanceTheme.cerealBox.rawValue, displayName: "Cereal Box",
+                        subtitle: "Breakfast", appearanceTheme: .cerealBox,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.bubblegumMecha.rawValue, displayName: "Bubblegum Mecha",
+                        subtitle: "Sugar", appearanceTheme: .bubblegumMecha,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.retroSciFi.rawValue, displayName: "Retro Sci-Fi",
+                        subtitle: "Retro", appearanceTheme: .retroSciFi,
+                        availability: .always, locked: false),
+    ]
+
+    /// Special Edition — bespoke art-directed themes beyond a recolor (motion
+    /// field, custom orb). Graffiti Galaxy and Karaoke Supernova join in
+    /// Phase 3 (#91).
+    static let specialEdition: [ThemeDefinition] = [
+        ThemeDefinition(id: AppearanceTheme.eventHorizon.rawValue, displayName: "Event Horizon",
+                        subtitle: "Singularity", appearanceTheme: .eventHorizon,
+                        availability: .always, locked: false),
+    ]
+
+    /// The four meteorological-season themes; holiday themes become additional
+    /// entries with `.holiday(DateWindow(...))` and `locked: true` as needed (#24).
+    static let seasonal: [ThemeDefinition] = [
         ThemeDefinition(id: AppearanceTheme.winterFrost.rawValue, displayName: "Winter Frost",
                         subtitle: "Ice", appearanceTheme: .winterFrost,
                         availability: .seasonal(.winter), locked: false),
@@ -131,23 +162,23 @@ enum ThemeCatalog {
         ThemeDefinition(id: AppearanceTheme.autumnHarvest.rawValue, displayName: "Autumn Harvest",
                         subtitle: "Pumpkin", appearanceTheme: .autumnHarvest,
                         availability: .seasonal(.autumn), locked: false),
-        // Signature complex themes — always available, ungated (issue #54).
-        ThemeDefinition(id: AppearanceTheme.cerealBox.rawValue, displayName: "Cereal Box",
-                        subtitle: "Breakfast", appearanceTheme: .cerealBox,
-                        availability: .always, locked: false),
-        ThemeDefinition(id: AppearanceTheme.bubblegumMecha.rawValue, displayName: "Bubblegum Mecha",
-                        subtitle: "Sugar", appearanceTheme: .bubblegumMecha,
-                        availability: .always, locked: false),
-        ThemeDefinition(id: AppearanceTheme.retroSciFi.rawValue, displayName: "Retro Sci-Fi",
-                        subtitle: "Retro", appearanceTheme: .retroSciFi,
-                        availability: .always, locked: false),
-        ThemeDefinition(id: AppearanceTheme.eventHorizon.rawValue, displayName: "Event Horizon",
-                        subtitle: "Singularity", appearanceTheme: .eventHorizon,
-                        availability: .always, locked: false),
     ]
 
-    /// Every known definition (order: flagships, then special).
-    static var all: [ThemeDefinition] { flagship + special }
+    /// The picker's titled sections, in display order — mirrors the gallery
+    /// taxonomy (`design/themes/index.html`). Section availability still runs
+    /// through `availableDefinitions(on:in:)` per group.
+    static let sections: [ThemeSection] = [
+        ThemeSection(title: "Flagship", definitions: flagship),
+        ThemeSection(title: "Neon Arcade Collection", definitions: neonArcadeCollection),
+        ThemeSection(title: "Special Edition", definitions: specialEdition),
+        ThemeSection(title: "Seasonal", definitions: seasonal),
+    ]
+
+    /// Every known definition (order: the gallery taxonomy — flagship, Neon
+    /// Arcade Collection, Special Edition, seasonal).
+    static var all: [ThemeDefinition] {
+        flagship + neonArcadeCollection + specialEdition + seasonal
+    }
 
     /// Definitions to show in the picker for `date`: flagship + seasonal always
     /// appear; holiday definitions only inside their window. Locked definitions

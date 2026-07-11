@@ -38,6 +38,57 @@ struct ThemeStarfield: Equatable, Sendable {
     var driftScale: Double = 1.0
 }
 
+/// Data-driven atmosphere motion — the Swift port of a handoff's multi-layer
+/// tiled `background-image` pan (Event Horizon's `.page-bg` + `starfieldDrift`).
+/// Each layer is one repeating speck tile; the whole layer translates by
+/// `driftPerLoop` over one `period` and wraps, so the loop is seamless when
+/// each drift component is a whole multiple of the tile size (the handoffs
+/// always pan by exactly one tile). Rendered by `AtmosphereMotionField`
+/// (Talaria/Core/HUD/ThemeTextures.swift) — app target only, never widgets.
+struct AtmosphereMotionSpec: Equatable, Sendable {
+    struct Layer: Equatable, Sendable {
+        /// Square tile edge (pt) — one speck per tile.
+        let tileSize: CGFloat
+        /// Displacement (pt) over one full period. Scalars, not CGVector,
+        /// for the same Equatable/Sendable conservatism as `ThemeGlowPool`.
+        let driftX: CGFloat
+        let driftY: CGFloat
+        /// Speck color (opacity carried separately in `speckAlpha`).
+        let hue: Color
+        /// Per-speck fill opacity.
+        let speckAlpha: Double
+        /// Speck center inside its tile, unit coords — the CSS
+        /// `radial-gradient(circle at 20% 30%, …)` anchor. Staggered anchors
+        /// keep the layers from aligning into a visible lattice.
+        var anchorX: Double = 0.5
+        var anchorY: Double = 0.5
+        /// Speck radius (pt). The design's speck is
+        /// `radial-gradient(circle, hue 0, transparent 2px)` — a point that
+        /// FADES OUT by 2px, not a 2pt solid disc. A hard 2pt fill translated
+        /// to ~12 physical px of flat color ("confetti", the first device
+        /// verdict); the design look is a smaller center softened by the
+        /// renderer's blur (AtmosphereMotionField).
+        var speckRadius: CGFloat = 1.25
+    }
+
+    let layers: [Layer]
+    /// Seconds per loop — linear, infinite.
+    let period: TimeInterval
+    /// Opacity of the whole field (the handoffs' `.page-bg { opacity }`).
+    let fieldOpacity: Double
+}
+
+/// Layered neon glow for screen titles — the handoffs' stacked h1
+/// `text-shadow` chains. Applied by `View.hudTitleGlow()` (HUDComponents):
+/// tight + mid + wide shadows in `primary`, one outer halo in `secondary`,
+/// all riding the glow pref × the theme's `glowScale`.
+struct ThemeTitleGlow: Equatable, Sendable {
+    /// The tight/mid/wide shadow hue (Event Horizon: triple violet).
+    let primary: Color
+    /// The widest outer halo hue (Event Horizon: cyan at 90px).
+    let secondary: Color
+}
+
 /// Halo treatment around HUD panels — an offset rim ring plus an outer glow
 /// (the handoffs' `box-shadow: 0 0 0 8px …, 0 0 50px …` framing).
 struct ThemePanelHalo: Equatable, Sendable {
@@ -48,6 +99,23 @@ struct ThemePanelHalo: Equatable, Sendable {
     /// behave exactly like every other `hudGlow`.
     let glowColor: Color
     var glowRadius: CGFloat = 22
+}
+
+/// The design's `.spin-ring`: a full-surface starburst of thin spokes —
+/// `repeating-conic-gradient(from 0deg, transparent 0deg 2deg, hue 2deg 4deg)`
+/// — rotating one full turn per `period` (`horizonSpin`, 30s linear infinite
+/// for Event Horizon). Rendered by `RadialSpokeField`.
+struct RadialSpokeSpec: Equatable, Sendable {
+    /// Spoke color (opacity carried separately in `spokeAlpha`).
+    let hue: Color
+    /// Per-spoke fill opacity — the design uses 0.03; keep it whisper-quiet.
+    let spokeAlpha: Double
+    /// Angular width of one lit spoke AND of the gap between spokes, in
+    /// degrees (the design's 2°/2° cadence → 90 spokes per turn).
+    var segmentDegrees: Double = 2
+    /// Seconds per full rotation — linear, infinite. Frozen under Reduce
+    /// Motion (rendered at t = 0).
+    let period: TimeInterval
 }
 
 /// The art-direction payload for one theme. All fields default to "off";
@@ -63,8 +131,18 @@ struct ThemeArtDirection: Equatable, Sendable {
     var starfield: ThemeStarfield? = nil
     /// Panel rim + outer glow treatment (`nil` = flat panels, the default).
     var panelHalo: ThemePanelHalo? = nil
+    /// Tiled parallax drift field. When set it supersedes the palette's
+    /// static texture in `ThemeTextureView`; `nil` (every theme without a
+    /// spec) keeps the pre-motion rendering byte-identical.
+    var atmosphereMotion: AtmosphereMotionSpec? = nil
+    /// Slow-rotating radial spoke field (`.spin-ring`): the design's
+    /// `repeating-conic-gradient(transparent 0-2deg, hue 2-4deg)` starburst
+    /// turning over `period`. `nil` = no spokes (the default, byte-identical).
+    var radialSpokes: RadialSpokeSpec? = nil
+    /// Neon screen-title glow (`nil` = plain titles, the default).
+    var titleGlow: ThemeTitleGlow? = nil
 
-    /// The identity treatment: no pools, no tints, no halo.
+    /// The identity treatment: no pools, no tints, no halo, no motion.
     static let standard = ThemeArtDirection()
 }
 
@@ -83,34 +161,107 @@ enum ThemeArtDirectionCatalog {
         overrides[theme] ?? .standard
     }
 
-    // MARK: Event Horizon — design/theme-event-horizon.html
+    // MARK: Event Horizon — design/themes/theme-event-horizon.html
     // Void-black interface lit by infalling matter: accretion-violet bloom
-    // pinned above the screen, Hawking-cyan and singularity-magenta pools,
-    // four-hue drifting lensed starlight, violet-rimmed panels.
+    // pinned above the screen, centered lensed washes, Hawking-cyan and
+    // singularity-magenta pools, four-hue drifting starlight, violet-rimmed
+    // haloed panels, neon violet+cyan title glow. Values sit AT the handoff's
+    // levels — the original quiet translation read flat on device (Lane E
+    // Task 3); don't re-tame them without a device pass.
 
     static let eventHorizon = ThemeArtDirection(
         glowPools: [
             // radial(1200px 800px at 50% -10%, rgba(138,92,255,.12) → 60%)
             ThemeGlowPool(color: Color(hex: 0x8A5CFF, opacity: 0.12),
                           centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
-            // Hawking-cyan pool, lower trailing (card/chat nebulas).
+            // Centered lensed washes — chat-screen::before, design-exact:
+            // violet .10 → 30% over cyan .06 → 50%.
+            ThemeGlowPool(color: Color(hex: 0x8A5CFF, opacity: 0.10),
+                          centerX: 0.5, centerY: 0.5, radiusFraction: 0.30),
             ThemeGlowPool(color: Color(hex: 0x00F0FF, opacity: 0.06),
-                          centerX: 0.72, centerY: 0.85, radiusFraction: 0.60),
-            // Faint singularity-magenta bloom, upper trailing.
-            ThemeGlowPool(color: Color(hex: 0xFF2AA8, opacity: 0.05),
-                          centerX: 0.88, centerY: 0.16, radiusFraction: 0.50),
+                          centerX: 0.5, centerY: 0.5, radiusFraction: 0.50),
+            // Device-verdict correction: the previous cyan (card::before) and
+            // magenta (user-bubble) pools promoted PANEL-local washes to
+            // 50-60%-of-screen blooms — on device they swamped the void-black
+            // base into a bright blue-teal wash the design never had. Those
+            // treatments belong to panels/bubbles, not the screen.
         ],
+        // Fail-soft speck field only — the atmosphere motion spec supersedes
+        // it in ThemeTextureView. Count matches the handoff's tile density on
+        // a phone canvas (~105 specks across the four layers).
         starfield: ThemeStarfield(colors: [
             Color(hex: 0x8A5CFF),   // Accretion Violet
             Color(hex: 0x00F0FF),   // Hawking Cyan
             Color(hex: 0xFFDC50),   // Supernova Gold
             Color(hex: 0xFF2AA8),   // Singularity Magenta
-        ]),
+        ], count: 104),
         panelHalo: ThemePanelHalo(
-            ringColor: Color(hex: 0x8A5CFF, opacity: 0.18),
-            glowColor: Color(hex: 0x8A5CFF)
+            // Handoff framing: an 8px ring at .06 stacked on a .32 border —
+            // a single 1pt rim needs more alpha to carry the same weight.
+            ringColor: Color(hex: 0x8A5CFF, opacity: 0.24),
+            glowColor: Color(hex: 0x8A5CFF),
+            // box-shadow: 0 0 50px rgba(138,92,255,.15) — was 22.
+            glowRadius: 40
+        ),
+        atmosphereMotion: eventHorizonAtmosphere(preset: eventHorizonAtmospherePreset),
+        // .spin-ring — the gravitational-lensing starburst, the design's
+        // biggest chat-surface drama: gold 2°/2° spokes at .03, one turn
+        // per 30s (horizonSpin).
+        radialSpokes: RadialSpokeSpec(
+            hue: Color(hex: 0xFFDC50),
+            spokeAlpha: 0.03,
+            period: 30
+        ),
+        // h1 text-shadow: 10/30px violet, 60px violet .45, 90px cyan .25.
+        titleGlow: ThemeTitleGlow(
+            primary: Color(hex: 0x8A5CFF),
+            secondary: Color(hex: 0x00F0FF)
         )
     )
+
+    // MARK: Event Horizon atmosphere presets (Lane E Task 1)
+
+    /// On-device A/B knob: flip, rebuild, judge — no server round trip.
+    /// `.faithful` is the handoff verbatim; `.punchy` pushes opacity/speed;
+    /// `.subtle` backs both off. Ships on `.faithful`.
+    enum AtmospherePreset {
+        case faithful, punchy, subtle
+    }
+
+    static let eventHorizonAtmospherePreset: AtmospherePreset = .faithful
+
+    /// The handoff's four `.page-bg` layers (`starfieldDrift`, 24s linear
+    /// infinite): tile sizes 90/120/150/110, each layer panning exactly one
+    /// tile per loop, speck anchors at the CSS gradient centers.
+    static func eventHorizonAtmosphere(preset: AtmospherePreset) -> AtmosphereMotionSpec {
+        let alphaScale: Double = (preset == .punchy) ? 1.5 : 1.0
+        let layers = [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 90, driftX: 90, driftY: 90,
+                hue: Color(hex: 0x8A5CFF), speckAlpha: 0.12 * alphaScale,   // Accretion Violet
+                anchorX: 0.20, anchorY: 0.30),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 120, driftX: -120, driftY: 120,
+                hue: Color(hex: 0x00F0FF), speckAlpha: 0.10 * alphaScale,   // Hawking Cyan
+                anchorX: 0.70, anchorY: 0.70),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 150, driftX: 150, driftY: -150,
+                hue: Color(hex: 0xFFDC50), speckAlpha: 0.08 * alphaScale,   // Supernova Gold
+                anchorX: 0.50, anchorY: 0.50),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 110, driftX: -110, driftY: 110,
+                hue: Color(hex: 0xFF2AA8), speckAlpha: 0.10 * alphaScale,   // Singularity Magenta
+                anchorX: 0.85, anchorY: 0.20),
+        ]
+        switch preset {
+        case .faithful:
+            return AtmosphereMotionSpec(layers: layers, period: 24, fieldOpacity: 0.45)
+        case .punchy:
+            return AtmosphereMotionSpec(layers: layers, period: 18, fieldOpacity: 0.65)
+        case .subtle:
+            return AtmosphereMotionSpec(layers: layers, period: 30, fieldOpacity: 0.35)
+        }
+    }
 }
 
 // MARK: - Runtime access
