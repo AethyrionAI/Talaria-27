@@ -19,6 +19,12 @@ struct HUDScreenBackground: View {
             Design.Colors.background
             Design.Colors.screenGradient
             GlowPoolField()
+            // Art-direction lensing spokes (Event Horizon's .spin-ring) —
+            // above the washes, below the star texture, matching the
+            // design's layer order. Nil for every theme without a spec.
+            if let spokes = ThemeRuntime.shared.artDirection.radialSpokes {
+                RadialSpokeField(spec: spokes)
+            }
             ThemeTextureView()
             GridOverlay()
                 .opacity(gridIntensity ?? ThemeRuntime.shared.gridDensity.gridIntensity)

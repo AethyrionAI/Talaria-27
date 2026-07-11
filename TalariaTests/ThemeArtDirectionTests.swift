@@ -42,11 +42,26 @@ struct ThemeArtDirectionTests {
     @Test func eventHorizonIntensitySitsAtHandoffLevels() {
         // Task 3 pinned the override AT the handoff's values — a regression
         // that quietly re-tames them should fail here, not on device.
+        // Device-verdict correction: 3 pools, not 5 — the card/bubble washes
+        // were wrongly promoted to screen-scale blooms (bright teal swamp).
         let art = ThemeArtDirectionCatalog.artDirection(for: .eventHorizon)
-        #expect(art.glowPools.count == 5)
+        #expect(art.glowPools.count == 3)
         #expect(art.panelHalo?.glowRadius == 40)
         #expect(art.titleGlow != nil)
         #expect(art.starfield?.count == 104)
+        // .spin-ring — the lensing starburst: gold 2°/2° at .03, 30s turn.
+        #expect(art.radialSpokes != nil)
+        #expect(art.radialSpokes?.spokeAlpha == 0.03)
+        #expect(art.radialSpokes?.segmentDegrees == 2)
+        #expect(art.radialSpokes?.period == 30)
+    }
+
+    @Test func radialSpokesDefaultToNil() {
+        // The spoke field must be inert for every theme without a spec.
+        #expect(ThemeArtDirection.standard.radialSpokes == nil)
+        for theme in ThemeID.allCases where theme != .eventHorizon {
+            #expect(ThemeArtDirectionCatalog.artDirection(for: theme).radialSpokes == nil)
+        }
     }
 
     @Test func starfieldThemesCurateTheirSpeckColors() {

@@ -101,6 +101,23 @@ struct ThemePanelHalo: Equatable, Sendable {
     var glowRadius: CGFloat = 22
 }
 
+/// The design's `.spin-ring`: a full-surface starburst of thin spokes —
+/// `repeating-conic-gradient(from 0deg, transparent 0deg 2deg, hue 2deg 4deg)`
+/// — rotating one full turn per `period` (`horizonSpin`, 30s linear infinite
+/// for Event Horizon). Rendered by `RadialSpokeField`.
+struct RadialSpokeSpec: Equatable, Sendable {
+    /// Spoke color (opacity carried separately in `spokeAlpha`).
+    let hue: Color
+    /// Per-spoke fill opacity — the design uses 0.03; keep it whisper-quiet.
+    let spokeAlpha: Double
+    /// Angular width of one lit spoke AND of the gap between spokes, in
+    /// degrees (the design's 2°/2° cadence → 90 spokes per turn).
+    var segmentDegrees: Double = 2
+    /// Seconds per full rotation — linear, infinite. Frozen under Reduce
+    /// Motion (rendered at t = 0).
+    let period: TimeInterval
+}
+
 /// The art-direction payload for one theme. All fields default to "off";
 /// `.standard` is the identity treatment every un-listed theme resolves to.
 struct ThemeArtDirection: Equatable, Sendable {
@@ -118,6 +135,10 @@ struct ThemeArtDirection: Equatable, Sendable {
     /// static texture in `ThemeTextureView`; `nil` (every theme without a
     /// spec) keeps the pre-motion rendering byte-identical.
     var atmosphereMotion: AtmosphereMotionSpec? = nil
+    /// Slow-rotating radial spoke field (`.spin-ring`): the design's
+    /// `repeating-conic-gradient(transparent 0-2deg, hue 2-4deg)` starburst
+    /// turning over `period`. `nil` = no spokes (the default, byte-identical).
+    var radialSpokes: RadialSpokeSpec? = nil
     /// Neon screen-title glow (`nil` = plain titles, the default).
     var titleGlow: ThemeTitleGlow? = nil
 
@@ -153,20 +174,17 @@ enum ThemeArtDirectionCatalog {
             // radial(1200px 800px at 50% -10%, rgba(138,92,255,.12) → 60%)
             ThemeGlowPool(color: Color(hex: 0x8A5CFF, opacity: 0.12),
                           centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
-            // Centered lensed washes — chat-screen::before, violet .10 → 30%
-            // over cyan .06 → 50%. The main surface glow the quiet
-            // translation dropped.
+            // Centered lensed washes — chat-screen::before, design-exact:
+            // violet .10 → 30% over cyan .06 → 50%.
             ThemeGlowPool(color: Color(hex: 0x8A5CFF, opacity: 0.10),
-                          centerX: 0.5, centerY: 0.5, radiusFraction: 0.35),
+                          centerX: 0.5, centerY: 0.5, radiusFraction: 0.30),
             ThemeGlowPool(color: Color(hex: 0x00F0FF, opacity: 0.06),
-                          centerX: 0.5, centerY: 0.5, radiusFraction: 0.55),
-            // Hawking-cyan pool, lower trailing (card::before, .08 → 35%).
-            ThemeGlowPool(color: Color(hex: 0x00F0FF, opacity: 0.08),
-                          centerX: 0.72, centerY: 0.85, radiusFraction: 0.60),
-            // Singularity-magenta bloom, upper trailing — magenta reads at
-            // .10 everywhere in the handoff (starfield layer, user bubble).
-            ThemeGlowPool(color: Color(hex: 0xFF2AA8, opacity: 0.10),
-                          centerX: 0.88, centerY: 0.16, radiusFraction: 0.50),
+                          centerX: 0.5, centerY: 0.5, radiusFraction: 0.50),
+            // Device-verdict correction: the previous cyan (card::before) and
+            // magenta (user-bubble) pools promoted PANEL-local washes to
+            // 50-60%-of-screen blooms — on device they swamped the void-black
+            // base into a bright blue-teal wash the design never had. Those
+            // treatments belong to panels/bubbles, not the screen.
         ],
         // Fail-soft speck field only — the atmosphere motion spec supersedes
         // it in ThemeTextureView. Count matches the handoff's tile density on
@@ -186,6 +204,14 @@ enum ThemeArtDirectionCatalog {
             glowRadius: 40
         ),
         atmosphereMotion: eventHorizonAtmosphere(preset: eventHorizonAtmospherePreset),
+        // .spin-ring — the gravitational-lensing starburst, the design's
+        // biggest chat-surface drama: gold 2°/2° spokes at .03, one turn
+        // per 30s (horizonSpin).
+        radialSpokes: RadialSpokeSpec(
+            hue: Color(hex: 0xFFDC50),
+            spokeAlpha: 0.03,
+            period: 30
+        ),
         // h1 text-shadow: 10/30px violet, 60px violet .45, 90px cyan .25.
         titleGlow: ThemeTitleGlow(
             primary: Color(hex: 0x8A5CFF),

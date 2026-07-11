@@ -233,6 +233,70 @@ struct AtmosphereMotionField: View {
     }
 }
 
+// MARK: Radial spokes (art-direction lensing starburst)
+
+/// The design's `.spin-ring`: thin conic spokes fanning from screen center,
+/// rotating one full turn per `spec.period` — Event Horizon's gravitational
+/// lensing. One batched wedge path per frame (90 wedges at the 2°/2°
+/// cadence), no per-spoke views. Static at t = 0 under Reduce Motion.
+struct RadialSpokeField: View {
+    let spec: RadialSpokeSpec
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+
+    var body: some View {
+        Group {
+            if reduceMotion {
+                Canvas { context, size in
+                    Self.draw(context: context, size: size, time: 0, spec: spec)
+                }
+            } else {
+                // Slowest motion in the theme (12°/s at period 30) — 10 fps
+                // is visually continuous and half the atmosphere's budget.
+                TimelineView(.animation(minimumInterval: 1.0 / 10.0)) { timeline in
+                    Canvas { context, size in
+                        Self.draw(
+                            context: context,
+                            size: size,
+                            time: timeline.date.timeIntervalSinceReferenceDate,
+                            spec: spec
+                        )
+                    }
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private static func draw(context: GraphicsContext, size: CGSize, time: Double, spec: RadialSpokeSpec) {
+        guard size.width > 0, size.height > 0, spec.period > 0, spec.segmentDegrees > 0 else { return }
+        let phase = time.truncatingRemainder(dividingBy: spec.period) / spec.period
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        // Past every corner, so wedges cover the full surface at any angle.
+        let reach = hypot(size.width, size.height) / 2 + 2
+
+        let segment = Angle(degrees: spec.segmentDegrees).radians
+        let baseRotation = phase * 2 * .pi
+        var spokes = Path()
+        var angle = 0.0
+        while angle < 2 * .pi {
+            let start = angle + baseRotation
+            spokes.move(to: center)
+            spokes.addArc(
+                center: center,
+                radius: reach,
+                startAngle: .radians(start),
+                endAngle: .radians(start + segment),
+                clockwise: false
+            )
+            spokes.closeSubpath()
+            angle += segment * 2   // lit spoke + equal gap
+        }
+        context.fill(spokes, with: .color(spec.hue.opacity(spec.spokeAlpha)))
+    }
+}
+
 // MARK: Starfield (Event Horizon)
 
 /// Multi-hue star specks drifting in slow diagonals — the handoff's four
