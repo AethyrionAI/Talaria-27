@@ -124,18 +124,23 @@ struct ThemeArtDirectionTests {
         #expect((laser.barHeight ?? 0) > 0)
     }
 
-    @Test func everyGalleryOrbStyleHasExactlyOneTheme() {
-        // Batch 3 completes the port: each of the twelve gallery
-        // compositions is the orb of exactly one theme (the per-theme
-        // mapping is pinned in DesignThemeTests.orbStyleIsThemeData).
+    @Test func galleryOrbStylesAreNeverShared() {
+        // Batch 3 completes the port: each gallery composition belongs to at
+        // most ONE theme (the per-theme mapping is pinned in
+        // DesignThemeTests.orbStyleIsThemeData). `.anglerLure` is an
+        // intentional orphan — its theme (Deep Sea Diner) was cut on device
+        // verdict 2026-07-11 (too close to Deep Field); the composition
+        // stays as reusable data.
         let galleryStyles: [ThemeOrbStyle] = [
             .glitchSeed, .cauldronBrew, .holoNigiri, .prizeWheel, .candyMecha,
             .jukeboxGlow, .cactusBloom, .anglerLure, .discoBall, .sprayCap,
             .mirrorBall, .rocketBadge,
         ]
+        let orphans: Set<ThemeOrbStyle> = [.anglerLure]
         let selected = ThemeID.allCases.map { ThemePalette(theme: $0, accent: .cyan).orbStyle }
         for style in galleryStyles {
-            #expect(selected.filter { $0 == style }.count == 1)
+            let count = selected.filter { $0 == style }.count
+            #expect(count == (orphans.contains(style) ? 0 : 1))
         }
     }
 
