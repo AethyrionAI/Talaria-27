@@ -131,6 +131,9 @@ struct DesignThemeTests {
         #expect(ThemePalette(theme: .lunarDiner, accent: .cyan).base == Color(hex: 0xFF9AB4))
         #expect(ThemePalette(theme: .cyberCactus, accent: .cyan).base == Color(hex: 0xFF5078))
         #expect(ThemePalette(theme: .discoInferno, accent: .cyan).base == Color(hex: 0xFFD700))
+        // Batch 3 — Special Editions.
+        #expect(ThemePalette(theme: .graffitiGalaxy, accent: .cyan).base == Color(hex: 0xFF006E))
+        #expect(ThemePalette(theme: .karaokeSupernova, accent: .cyan).base == Color(hex: 0xFF00AA))
     }
 
     @Test func contextualAccentLabels() {
@@ -149,6 +152,10 @@ struct DesignThemeTests {
         #expect(AppearanceAccent.cyan.displayLabel(for: .discoInferno) == "Disco Gold")
         #expect(AppearanceAccent.amber.displayLabel(for: .discoInferno) == "Mirror Silver")
         #expect(AppearanceAccent.violet.displayLabel(for: .discoInferno) == "Hellfire Crimson")
+        // The Special Editions likewise.
+        #expect(AppearanceAccent.cyan.displayLabel(for: .graffitiGalaxy) == "Hot Pink")
+        #expect(AppearanceAccent.amber.displayLabel(for: .graffitiGalaxy) == "Electric Violet")
+        #expect(AppearanceAccent.cyan.displayLabel(for: .karaokeSupernova) == "Magenta")
     }
 
     // MARK: Catalog resolution (#49)
@@ -201,6 +208,9 @@ struct DesignThemeTests {
         #expect(ThemePalette(theme: .lunarDiner, accent: .cyan).orbStyle == .jukeboxGlow)
         #expect(ThemePalette(theme: .cyberCactus, accent: .cyan).orbStyle == .cactusBloom)
         #expect(ThemePalette(theme: .discoInferno, accent: .cyan).orbStyle == .discoBall)
+        // Batch 3 — Special Editions.
+        #expect(ThemePalette(theme: .graffitiGalaxy, accent: .cyan).orbStyle == .sprayCap)
+        #expect(ThemePalette(theme: .karaokeSupernova, accent: .cyan).orbStyle == .mirrorBall)
     }
 
     // MARK: Runtime mirroring

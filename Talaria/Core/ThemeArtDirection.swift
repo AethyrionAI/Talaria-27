@@ -197,6 +197,30 @@ struct RadialSpokeSpec: Equatable, Sendable {
     let period: TimeInterval
 }
 
+/// A rotated banner pinned to the screen's top-trailing corner — the design's
+/// `chat-screen::after` 'TAG' ribbon (Graffiti Galaxy). Rendered by
+/// `CornerRibbonView`, clipped by the screen edge like the CSS overflow.
+struct ThemeCornerRibbonSpec: Equatable, Sendable {
+    /// Banner text, verbatim from the handoff (`content: 'TAG'`).
+    let text: String
+    /// Text color (`--graf-accent-citron`).
+    let textColor: Color
+    /// Banner fill (`--graf-accent-pink`).
+    let background: Color
+}
+
+/// Thin gradient bar hugging a panel's top edge — the design's
+/// `card::before` (4px, 90° multi-hue, opacity .7). Follows the panel's
+/// rounded top corners; rendered by the `panelHalo` modifier.
+struct ThemePanelTopStripSpec: Equatable, Sendable {
+    /// Left-to-right gradient stops (the CSS `linear-gradient(90deg, …)`).
+    let colors: [Color]
+    /// Bar height in points (`height: 4px`).
+    var height: CGFloat = 4
+    /// Bar opacity (`opacity: 0.7`).
+    var opacity: Double = 0.7
+}
+
 /// The art-direction payload for one theme. All fields default to "off";
 /// `.standard` is the identity treatment every un-listed theme resolves to.
 struct ThemeArtDirection: Equatable, Sendable {
@@ -233,6 +257,12 @@ struct ThemeArtDirection: Equatable, Sendable {
     /// Offset/chromatic title shadows (`nil` = none, the default). Composes
     /// with `titleGlow`; comic themes typically set only this.
     var titleShadow: ThemeTitleShadowSpec? = nil
+    /// Rotated corner banner (`chat-screen::after`) — Graffiti Galaxy's
+    /// 'TAG'. `nil` = no ribbon (the default, byte-identical).
+    var cornerRibbon: ThemeCornerRibbonSpec? = nil
+    /// Thin gradient bar hugging every panel's top edge (`card::before`).
+    /// `nil` = no strip (the default, byte-identical).
+    var panelTopStrip: ThemePanelTopStripSpec? = nil
 
     /// The identity treatment: no pools, no tints, no halo, no motion.
     static let standard = ThemeArtDirection()
@@ -256,6 +286,8 @@ enum ThemeArtDirectionCatalog {
         .lunarDiner: lunarDiner,
         .cyberCactus: cyberCactus,
         .discoInferno: discoInferno,
+        .graffitiGalaxy: graffitiGalaxy,
+        .karaokeSupernova: karaokeSupernova,
     ]
 
     static func artDirection(for theme: ThemeID) -> ThemeArtDirection {
@@ -588,6 +620,133 @@ enum ThemeArtDirectionCatalog {
         titleGlow: ThemeTitleGlow(
             primary: Color(hex: 0xFFD700),
             secondary: Color(hex: 0xFFD700)
+        )
+    )
+
+    // MARK: Graffiti Galaxy — design/themes/theme-graffiti-galaxy.html (SE)
+    // Street art in orbit: violet nebula bloom, the four-angle spray-streak
+    // grain (40px tiles, 12px fades) merged with the chat surface's citron/
+    // spray diagonal bands into one line field (page + screen paint the same
+    // z-plane behind content), pink-ringed violet-glow panels (the design's
+    // `0 0 0 6px pink` + `0 0 50px violet` chat frame → panel halo, EH
+    // precedent), and the stacked tag-shadow title. Deferred, per the
+    // inventory table: the "TAG" corner ribbon (text overlay on live UI),
+    // the citron outline echo (no text-stroke primitive), clipped bubble
+    // corners + citron pip (bubble-scope), card gradient top-strip (no
+    // panel-strip primitive — Owen call).
+
+    static let graffitiGalaxy = ThemeArtDirection(
+        glowPools: [
+            // radial(1200px 800px at 50% -10%, rgba(131,56,236,.12) → 60%)
+            ThemeGlowPool(color: Color(hex: 0x8338EC, opacity: 0.12),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+        ],
+        panelHalo: ThemePanelHalo(
+            // 6px ring at .08 → single-pt rim at the EH compression (.24).
+            ringColor: Color(hex: 0xFF006E, opacity: 0.24),
+            glowColor: Color(hex: 0x8338EC),
+            glowRadius: 40
+        ),
+        // Layer alphas carry their CSS layer opacities pre-multiplied
+        // (page streaks ×.45, screen bands ×.6) so one field renders both.
+        lineTexture: ThemeLineFieldSpec(layers: [
+            .init(angleDegrees: 135, hue: Color(hex: 0xFF006E), alpha: 0.045,
+                  spacing: 40, lineWidth: 2.5, segmentLength: 12),
+            .init(angleDegrees: 225, hue: Color(hex: 0x8338EC), alpha: 0.045,
+                  spacing: 40, lineWidth: 2.5, segmentLength: 12),
+            .init(angleDegrees: 45, hue: Color(hex: 0x00F5D4), alpha: 0.036,
+                  spacing: 40, lineWidth: 2.5, segmentLength: 12),
+            .init(angleDegrees: 315, hue: Color(hex: 0xFBFF26), alpha: 0.036,
+                  spacing: 40, lineWidth: 2.5, segmentLength: 12),
+            .init(angleDegrees: 135, hue: Color(hex: 0xFBFF26), alpha: 0.036,
+                  spacing: 30, lineWidth: 2.1),
+            .init(angleDegrees: 45, hue: Color(hex: 0x00F5D4), alpha: 0.03,
+                  spacing: 30, lineWidth: 2.1),
+        ], fieldOpacity: 1.0),
+        // h1: 3px 3px 0 violet, 6px 6px 0 pink .45 (ink), 0 0 40px pink .35.
+        titleShadow: ThemeTitleShadowSpec(layers: [
+            .init(hue: Color(hex: 0x8338EC), alpha: 1.0, offsetX: 3, offsetY: 3),
+            .init(hue: Color(hex: 0xFF006E), alpha: 0.45, offsetX: 6, offsetY: 6),
+            .init(hue: Color(hex: 0xFF006E), alpha: 0.35, offsetX: 0, offsetY: 0, blur: 40),
+        ]),
+        // chat-screen::after — the 'TAG' throwie: citron on pink, rotated
+        // into the top-trailing corner (Owen-approved correction round).
+        cornerRibbon: ThemeCornerRibbonSpec(
+            text: "TAG",
+            textColor: Color(hex: 0xFBFF26),
+            background: Color(hex: 0xFF006E)
+        ),
+        // card::before — 4px 90° pink→violet→spray→citron strip at .7.
+        panelTopStrip: ThemePanelTopStripSpec(colors: [
+            Color(hex: 0xFF006E),
+            Color(hex: 0x8338EC),
+            Color(hex: 0x00F5D4),
+            Color(hex: 0xFBFF26),
+        ])
+    )
+
+    // MARK: Karaoke Supernova — design/themes/theme-karaoke-supernova.html (SE)
+    // Private booth at 1 AM: magenta stage bloom, the roomPulse corner
+    // spotlights (magenta/cyan .12/.10 breathing .6↔1 over 5s — the gold top
+    // band ported as a whisper radial at the screen top, linear→radial
+    // approximation noted in the PR), four drifting laser bars (2×80pt on
+    // non-square tiles, one tile per 18s — the handoff's laserSweep),
+    // magenta-framed panels, and the exact EH-shape title glow
+    // (magenta 10/30/60 + cyan 90). Deferred: bobbing ♪ bubble pip
+    // (bubble-scope), card::after top wash (EH precedent drops card washes),
+    // subtitle pulse chip (gallery chrome).
+
+    static let karaokeSupernova = ThemeArtDirection(
+        glowPools: [
+            ThemeGlowPool(color: Color(hex: 0xFF00AA, opacity: 0.12),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+            // chat-screen::before, breathing together (roomPulse 5s, .6↔1).
+            ThemeGlowPool(color: Color(hex: 0xFF00AA, opacity: 0.12),
+                          centerX: 0.2, centerY: 0.2, radiusFraction: 0.25,
+                          pulsePeriod: 5),
+            ThemeGlowPool(color: Color(hex: 0x00F0FF, opacity: 0.10),
+                          centerX: 0.8, centerY: 0.8, radiusFraction: 0.25,
+                          pulsePeriod: 5),
+            ThemeGlowPool(color: Color(hex: 0xFFE600, opacity: 0.03),
+                          centerX: 0.5, centerY: 0.0, radiusFraction: 0.40,
+                          pulsePeriod: 5),
+        ],
+        panelHalo: ThemePanelHalo(
+            // 8px ring at .06 → .24 rim (the EH compression, same values).
+            ringColor: Color(hex: 0xFF00AA, opacity: 0.24),
+            glowColor: Color(hex: 0xFF00AA),
+            glowRadius: 40
+        ),
+        // laserSweep: each bar layer pans exactly one (non-square) tile per
+        // 18s loop — magenta/cyan/gold/laser 2×80 bars, anchors from the
+        // CSS gradient positions.
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 120, driftX: 120, driftY: 180,
+                hue: Color(hex: 0xFF00AA), speckAlpha: 0.35,
+                anchorX: 0.20, anchorY: 0.10, speckRadius: 1,
+                tileHeight: 180, barHeight: 80),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 160, driftX: -160, driftY: 220,
+                hue: Color(hex: 0x00F0FF), speckAlpha: 0.30,
+                anchorX: 0.50, anchorY: 0.30, speckRadius: 1,
+                tileHeight: 220, barHeight: 80),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 200, driftX: 200, driftY: -260,
+                hue: Color(hex: 0xFFE600), speckAlpha: 0.25,
+                anchorX: 0.80, anchorY: 0.60, speckRadius: 1,
+                tileHeight: 260, barHeight: 80),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 140, driftX: -140, driftY: 200,
+                hue: Color(hex: 0xFF2A6D), speckAlpha: 0.30,
+                anchorX: 0.35, anchorY: 0.80, speckRadius: 1,
+                tileHeight: 200, barHeight: 80),
+        ], period: 18, fieldOpacity: 0.35),
+        // h1: 10/30px magenta, 60px magenta .45, 90px cyan .25 — the exact
+        // Event Horizon text-shadow shape.
+        titleGlow: ThemeTitleGlow(
+            primary: Color(hex: 0xFF00AA),
+            secondary: Color(hex: 0x00F0FF)
         )
     )
 

@@ -407,6 +407,8 @@ extension AppearanceTheme {
         case .lunarDiner: .lunarDiner
         case .cyberCactus: .cyberCactus
         case .discoInferno: .discoInferno
+        case .graffitiGalaxy: .graffitiGalaxy
+        case .karaokeSupernova: .karaokeSupernova
         }
     }
 }

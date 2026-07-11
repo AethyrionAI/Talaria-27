@@ -34,7 +34,39 @@ struct HUDScreenBackground: View {
             if let scanlines = ThemeRuntime.shared.artDirection.scanlineOverlay {
                 LineFieldTexture(spec: scanlines)
             }
+            // Art-direction corner ribbon (chat-screen::after) — Graffiti
+            // Galaxy's rotated 'TAG' throwie, pinned to the top-trailing
+            // corner; `.clipped()` below trims the bleed exactly like the
+            // CSS overflow. Nil for every theme without a ribbon.
+            if let ribbon = ThemeRuntime.shared.artDirection.cornerRibbon {
+                CornerRibbonView(spec: ribbon)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity,
+                           alignment: .topTrailing)
+            }
         }
+        .clipped()
+    }
+}
+
+/// The rotated corner banner (`ThemeArtDirection.cornerRibbon`): text on a
+/// solid band, turned 45° so it reads along the corner diagonal, offset so
+/// its ends bleed past the screen edge (the design's `right: -26px`). The
+/// hosting `HUDScreenBackground` clips the bleed.
+struct CornerRibbonView: View {
+    let spec: ThemeCornerRibbonSpec
+
+    var body: some View {
+        Text(spec.text)
+            .font(Design.Typography.display(10, weight: .bold, relativeTo: .caption2))
+            .kerning(0.8)
+            .foregroundStyle(spec.textColor)
+            .padding(.vertical, 4)
+            .padding(.horizontal, 28)
+            .background(spec.background)
+            .rotationEffect(.degrees(45))
+            .offset(x: 26, y: 22)
+            .accessibilityHidden(true)
+            .allowsHitTesting(false)
     }
 }
 
@@ -238,6 +270,7 @@ extension View {
     @MainActor
     func panelHalo(cornerRadius: CGFloat) -> some View {
         let halo = ThemeRuntime.shared.artDirection.panelHalo
+        let strip = ThemeRuntime.shared.artDirection.panelTopStrip
         let glowOpacity = 0.16 * Design.Glow.k * ThemeRuntime.shared.palette.glowScale
         return self
             .overlay {
@@ -245,6 +278,27 @@ extension View {
                     RoundedRectangle(cornerRadius: cornerRadius + 3)
                         .strokeBorder(halo.ringColor, lineWidth: 1)
                         .padding(-3)
+                        .allowsHitTesting(false)
+                }
+            }
+            .overlay {
+                // Art-direction top strip (card::before): a thin 90° gradient
+                // hugging the panel's top edge. Filling the panel's rounded
+                // shape and masking to the top `height` keeps the strip
+                // following the rounded corners instead of poking past them.
+                // Inert (no overlay) for every theme without a strip.
+                if let strip {
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(LinearGradient(colors: strip.colors,
+                                             startPoint: .leading,
+                                             endPoint: .trailing))
+                        .opacity(strip.opacity)
+                        .mask(
+                            VStack(spacing: 0) {
+                                Rectangle().frame(height: strip.height)
+                                Spacer(minLength: 0)
+                            }
+                        )
                         .allowsHitTesting(false)
                 }
             }

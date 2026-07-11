@@ -28,11 +28,11 @@ struct ThemeArtDirectionTests {
     @Test func lineFieldsAndTitleShadowsAreDeliberatePerTheme() {
         // The Phase 2 slots stay nil except where a port sets them — update
         // these sets deliberately per batch.
-        let lineTextures: Set<ThemeID> = [.holoSushi, .cyberCactus]
+        let lineTextures: Set<ThemeID> = [.holoSushi, .cyberCactus, .graffitiGalaxy]
         let scanlineOverlays: Set<ThemeID> = [
             .glitchGarden, .bubblegumMecha, .retroSciFi, .discoInferno,
         ]
-        let titleShadows: Set<ThemeID> = [.glitchGarden, .retroSciFi]
+        let titleShadows: Set<ThemeID> = [.glitchGarden, .retroSciFi, .graffitiGalaxy]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
             #expect((art.lineTexture != nil) == lineTextures.contains(theme))
@@ -41,15 +41,23 @@ struct ThemeArtDirectionTests {
         }
     }
 
-    @Test func glowPoolsStayStaticByDefault() {
-        // The pulse fields must default inert so existing pools render
-        // byte-identically (no TimelineView on the static path).
+    @Test func glowPoolsStayStaticExceptKaraoke() {
+        // The pulse fields default inert (no TimelineView on the static
+        // path); only Karaoke Supernova's roomPulse spotlights breathe.
         let pool = ThemeGlowPool(color: .white, centerX: 0.5, centerY: 0.5, radiusFraction: 0.5)
         #expect(pool.pulsePeriod == nil)
-        for art in ThemeArtDirectionCatalog.overrides.values {
-            for pool in art.glowPools {
+        for theme in ThemeID.allCases where theme != .karaokeSupernova {
+            for pool in ThemeArtDirectionCatalog.artDirection(for: theme).glowPools {
                 #expect(pool.pulsePeriod == nil)
             }
+        }
+        // Karaoke: stage bloom static, the three room spotlights at 5s/.6.
+        let karaoke = ThemeArtDirectionCatalog.artDirection(for: .karaokeSupernova).glowPools
+        #expect(karaoke.count == 4)
+        #expect(karaoke.first?.pulsePeriod == nil)
+        for pool in karaoke.dropFirst() {
+            #expect(pool.pulsePeriod == 5)
+            #expect(pool.pulseMinOpacity == 0.6)
         }
     }
 
@@ -116,17 +124,67 @@ struct ThemeArtDirectionTests {
         #expect((laser.barHeight ?? 0) > 0)
     }
 
-    @Test func galleryOrbStylesShipOnlyWithTheirPorts() {
-        // Batch 1 wired six of the twelve gallery compositions; the batch 2/3
-        // styles stay unselected until their ports land. The full per-theme
-        // orb mapping is pinned in DesignThemeTests.orbStyleIsThemeData.
-        let unwired: Set<ThemeOrbStyle> = [
-            .sprayCap, .mirrorBall,
+    @Test func galleryOrbStylesAreNeverShared() {
+        // Batch 3 completes the port: each gallery composition belongs to at
+        // most ONE theme (the per-theme mapping is pinned in
+        // DesignThemeTests.orbStyleIsThemeData). `.anglerLure` is an
+        // intentional orphan — its theme (Deep Sea Diner) was cut on device
+        // verdict 2026-07-11 (too close to Deep Field); the composition
+        // stays as reusable data.
+        let galleryStyles: [ThemeOrbStyle] = [
+            .glitchSeed, .cauldronBrew, .holoNigiri, .prizeWheel, .candyMecha,
+            .jukeboxGlow, .cactusBloom, .anglerLure, .discoBall, .sprayCap,
+            .mirrorBall, .rocketBadge,
         ]
-        for theme in ThemeID.allCases {
-            let palette = ThemePalette(theme: theme, accent: .cyan)
-            #expect(!unwired.contains(palette.orbStyle))
+        let orphans: Set<ThemeOrbStyle> = [.anglerLure]
+        let selected = ThemeID.allCases.map { ThemePalette(theme: $0, accent: .cyan).orbStyle }
+        for style in galleryStyles {
+            let count = selected.filter { $0 == style }.count
+            #expect(count == (orphans.contains(style) ? 0 : 1))
         }
+    }
+
+    // MARK: Batch 3 pinned handoff values (Special Editions)
+
+    @Test func graffitiGalaxySitsAtHandoffLevels() {
+        let art = ThemeArtDirectionCatalog.artDirection(for: .graffitiGalaxy)
+        // Four spray-streak layers (40px tiles, 12px fades) + two chat-band
+        // layers (30px, continuous), alphas pre-multiplied by their CSS
+        // layer opacities.
+        #expect(art.lineTexture?.layers.count == 6)
+        let streaks = art.lineTexture?.layers.filter { $0.segmentLength != nil } ?? []
+        #expect(streaks.count == 4)
+        #expect(streaks.allSatisfy { $0.spacing == 40 && $0.segmentLength == 12 })
+        #expect(Set(streaks.map(\.angleDegrees)) == [135, 225, 45, 315])
+        // Panel halo carries the design's chat frame (EH compression).
+        #expect(art.panelHalo != nil)
+        #expect(art.panelHalo?.glowRadius == 40)
+        // Tag title: two ink offsets + one pink glow, no jitter.
+        #expect(art.titleShadow?.layers.count == 3)
+        #expect(art.titleShadow?.glitchPeriod == nil)
+        #expect(art.titleShadow?.layers[0].offsetX == 3)
+        #expect(art.titleShadow?.layers[1].offsetX == 6)
+        #expect(art.titleShadow?.layers[2].blur == 40)
+    }
+
+    @Test func karaokeLaserSweepMatchesTheHandoff() {
+        let spec = ThemeArtDirectionCatalog.artDirection(for: .karaokeSupernova).atmosphereMotion
+        #expect(spec?.period == 18)
+        #expect(spec?.fieldOpacity == 0.35)
+        #expect(spec?.layers.count == 4)
+        #expect(spec?.layers.map(\.tileSize) == [120, 160, 200, 140])
+        #expect(spec?.layers.map(\.tileHeight) == [180, 220, 260, 200])
+        #expect(spec?.layers.map(\.speckAlpha) == [0.35, 0.30, 0.25, 0.30])
+        // Every layer is a laser bar panning exactly one tile per loop on
+        // BOTH axes — the seamless invariant on non-square tiles.
+        for layer in spec?.layers ?? [] {
+            #expect(layer.barHeight == 80)
+            let tileH = layer.tileHeight ?? layer.tileSize
+            #expect(abs(layer.driftX) == layer.tileSize)
+            #expect(abs(layer.driftY) == tileH)
+        }
+        // The gallery's hottest declared glow rides the palette.
+        #expect(ThemePalette(theme: .karaokeSupernova, accent: .cyan).glowScale == 1.35)
     }
 
     @Test func onlyPortedThemesOverrideArtDirection() {
@@ -138,6 +196,7 @@ struct ThemeArtDirectionTests {
             .glitchGarden, .witchsBrew, .holoSushi,
             .cerealBox, .bubblegumMecha, .retroSciFi,
             .lunarDiner, .cyberCactus, .discoInferno,
+            .graffitiGalaxy, .karaokeSupernova,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -179,6 +238,28 @@ struct ThemeArtDirectionTests {
         }
     }
 
+    @Test func cornerRibbonAndTopStripDefaultToNil() {
+        // Both correction-round primitives must be inert for every theme
+        // that doesn't set them — Graffiti Galaxy is the only adopter.
+        #expect(ThemeArtDirection.standard.cornerRibbon == nil)
+        #expect(ThemeArtDirection.standard.panelTopStrip == nil)
+        for theme in ThemeID.allCases where theme != .graffitiGalaxy {
+            let art = ThemeArtDirectionCatalog.artDirection(for: theme)
+            #expect(art.cornerRibbon == nil)
+            #expect(art.panelTopStrip == nil)
+        }
+    }
+
+    @Test func graffitiGalaxyCarriesRibbonAndTopStrip() {
+        // chat-screen::after — 'TAG', citron on pink; card::before — 4px
+        // 90° four-hue strip at .7. Verbatim pins.
+        let art = ThemeArtDirectionCatalog.artDirection(for: .graffitiGalaxy)
+        #expect(art.cornerRibbon?.text == "TAG")
+        #expect(art.panelTopStrip?.colors.count == 4)
+        #expect(art.panelTopStrip?.height == 4)
+        #expect(art.panelTopStrip?.opacity == 0.7)
+    }
+
     @Test func starfieldThemesCurateTheirSpeckColors() {
         // `.starfield` has no theme-neutral look — any palette selecting it
         // must ship art-direction speck hues (the accent fallback in
@@ -212,7 +293,7 @@ struct ThemeArtDirectionTests {
         #expect(ThemeArtDirection.standard.atmosphereMotion == nil)
         let fields: Set<ThemeID> = [
             .eventHorizon, .witchsBrew, .cerealBox, .bubblegumMecha, .retroSciFi,
-            .lunarDiner, .discoInferno,
+            .lunarDiner, .discoInferno, .karaokeSupernova,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)

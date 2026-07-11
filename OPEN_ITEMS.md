@@ -2807,6 +2807,31 @@ Logged 2026-07-10.
 
 **Related:** orb enhancement issue filed on Talaria-27 (2026-07-10; the 7/6 draft was never actually filed).
 
+**Update 2026-07-11 (cloud session — Phases 2+3 BUILT, NOT compiled, gated on device verdict):**
+four stacked PRs open, merge order **#70 → #71 → #72 → #73**, ZERO new files across the lane
+(no `xcodegen generate` needed). **#70 Phase 2 schema:** full 12-theme element inventory
+(table in the PR) drove ONLY these extensions — `ThemeLineFieldSpec` (angled lattices /
+dark scanline rows / spray streaks; two slots: `lineTexture` below the grid,
+`scanlineOverlay` above), `ThemeTitleShadowSpec` (comic/chromatic offset titles + Glitch's
+3s jitter), `ThemeGlowPool.pulsePeriod` (Karaoke roomPulse), `AtmosphereMotionSpec.Layer`
+`tileHeight`/`barHeight`/`blurScale` (non-square laser tiles, bar specks, crisp halftone) —
+every default inert, EH pinned byte-identical by test; PLUS all twelve gallery orb
+compositions (tri-ring family parameterized; bespoke disco ball / spray cap / rocket badge /
+cauldron bubbles / ♪ mirror ball), landed unwired, Appearance preview generalized to render
+any bespoke orb. **#71 batch 1:** Glitch Garden / Witch's Brew / Holo Sushi (full identities)
++ drama retrofits for Cereal Box / Bubblegum Mecha / Retro Sci-Fi (art direction + handoff
+orbs; palettes untouched). **#72 batch 2:** Lunar Diner / Cyber Cactus / Deep Sea Diner
+(inverted abyss gradient, verbatim) / Disco Inferno (bright sparkle field + gold dot grid as
+palette data, glow 1.2). **#73 batch 3:** Graffiti Galaxy + Karaoke Supernova SEs (pulsing
+spotlights, drifting laser bars, panel halos, tag-shadow title; NA#01 confirmed = gallery
+chrome, NOT ported). Recipe rules 1–3 enforced throughout; deferred elements dispositioned
+in the PR tables (TAG ribbon, card top-strip/wash, bubble-scope pips, title outline echo).
+Noted for the Mac session: Cereal Box × Cyber Cactus share the #FF5078 hero verbatim
+(distinct-environments test relaxed accordingly, commit in #72); icon SVGs missing for
+graffiti-galaxy / karaoke-supernova / event-horizon in `app-icons.html` (Mac-side assets).
+Device-verdict knobs called out per PR (laser `barHeight`/`speckRadius`, graffiti streak
+`lineWidth`, atmosphere presets precedent).
+
 ---
 
 ## 92. 🔧 Lane B — markdown rendering depth (dispatch FABLE-LANES-BC)

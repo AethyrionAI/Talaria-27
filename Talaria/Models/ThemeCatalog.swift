@@ -159,11 +159,18 @@ enum ThemeCatalog {
     ]
 
     /// Special Edition — bespoke art-directed themes beyond a recolor (motion
-    /// field, custom orb). Graffiti Galaxy and Karaoke Supernova join in
-    /// Phase 3 (#91).
+    /// field, custom orb). Complete as of Phase 3 batch 3 (#91) — the
+    /// gallery's "Neon Arcade #01" card is the gallery chrome itself, not a
+    /// fourth SE (Lane E Phase 2 discovery).
     static let specialEdition: [ThemeDefinition] = [
         ThemeDefinition(id: AppearanceTheme.eventHorizon.rawValue, displayName: "Event Horizon",
                         subtitle: "Singularity", appearanceTheme: .eventHorizon,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.graffitiGalaxy.rawValue, displayName: "Graffiti Galaxy",
+                        subtitle: "Spray Cap", appearanceTheme: .graffitiGalaxy,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.karaokeSupernova.rawValue, displayName: "Karaoke Supernova",
+                        subtitle: "Mirror Ball", appearanceTheme: .karaokeSupernova,
                         availability: .always, locked: false),
     ]
 

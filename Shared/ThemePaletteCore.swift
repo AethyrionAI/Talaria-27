@@ -35,6 +35,8 @@ enum ThemeID: String, CaseIterable, Codable, Hashable, Sendable {
     case lunarDiner
     case cyberCactus
     case discoInferno
+    case graffitiGalaxy
+    case karaokeSupernova
 }
 
 /// Accent slot identity, decoupled from the app's `AppearanceAccent`
@@ -422,6 +424,8 @@ enum ThemePaletteCatalog {
         .lunarDiner: lunarDiner,
         .cyberCactus: cyberCactus,
         .discoInferno: discoInferno,
+        .graffitiGalaxy: graffitiGalaxy,
+        .karaokeSupernova: karaokeSupernova,
     ]
 
     /// Total lookup over the shipped themes (coverage guarded by
@@ -1718,6 +1722,148 @@ enum ThemePaletteCatalog {
         gridCell: 10,
         isLight: false,
         orbStyle: .discoBall
+    )
+
+    // MARK: Graffiti — Graffiti Galaxy (design/themes/theme-graffiti-galaxy.html)
+    // Special Edition: street art in deep space — hot-pink tags, electric
+    // violet, citron highlights (+ the spray-chrome fourth hue, curated in
+    // the art direction and orb). Handoff-native slot names, EH precedent.
+
+    static let graffitiGalaxy = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0x0C0A14),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0x161222), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0x0C0A14), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0x080612), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0x161222), Color(hex: 0x0C0A14), Color(hex: 0x080612)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0xF8F6FF),
+            foregroundBright: Color(hex: 0xF8F6FF),
+            secondaryForeground: Color(hex: 0xB8B0D8),
+            mutedForeground: Color(hex: 0xB8B0D8),
+            dimForeground: Color(hex: 0x786C98),
+            coolForeground: Color(hex: 0xB8B0D8)
+        ),
+        surface: Color(hex: 0xFF006E, opacity: 0.08),
+        chips: .fixed(
+            surface: Color(hex: 0xFF006E, opacity: 0.08),
+            divider: Color(hex: 0x8338EC, opacity: 0.08),
+            border: Color(hex: 0xFBFF26, opacity: 0.06)
+        ),
+        borders: .accentTinted(hairline: 0.14, strong: 0.30),
+        scrim: Color(hex: 0x000000, opacity: 0.85),
+        danger: Color(hex: 0xFF2A2A),
+        dangerBright: Color(hex: 0xFF4949),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Hot Pink",
+                base: Color(hex: 0xFF006E),
+                bright: Color(hex: 0xFF3F91),
+                deep: Color(hex: 0xB2004D),
+                coreHighlight: Color(hex: 0xFF72AE),
+                coreShadow: Color(hex: 0x8C003C),
+                forge: Color(hex: 0xFF9E00)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Electric Violet",
+                base: Color(hex: 0x8338EC),
+                bright: Color(hex: 0xA169F0),
+                deep: Color(hex: 0x5B27A5),
+                coreHighlight: Color(hex: 0xBA91F4),
+                coreShadow: Color(hex: 0x481E81),
+                forge: Color(hex: 0xFF9E00)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Citron",
+                base: Color(hex: 0xFBFF26),
+                bright: Color(hex: 0xFBFF5B),
+                deep: Color(hex: 0xAFB21A),
+                coreHighlight: Color(hex: 0xFCFF87),
+                coreShadow: Color(hex: 0x8A8C14),
+                // Warning must stay separable from a citron accent.
+                forge: Color(hex: 0xFF9E00)
+            )
+        ),
+        glowScale: 1.1,
+        gridStyle: .lines,
+        gridLine: .accentTinted(0.08),
+        gridCell: 26,
+        isLight: false,
+        orbStyle: .sprayCap
+    )
+
+    // MARK: Karaoke — Karaoke Supernova (design/themes/theme-karaoke-supernova.html)
+    // Special Edition: private-room karaoke under a disco ball — magenta
+    // spotlights, cyan lasers, gold confetti (+ the laser-red fourth hue in
+    // the art direction). The gallery's hottest glow (declared 1.35).
+
+    static let karaokeSupernova = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0x09071A),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0x120A2E), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0x09071A), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0x050417), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0x120A2E), Color(hex: 0x09071A), Color(hex: 0x050417)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0xFFF9FB),
+            foregroundBright: Color(hex: 0xFFF9FB),
+            secondaryForeground: Color(hex: 0xD8C8E8),
+            mutedForeground: Color(hex: 0xD8C8E8),
+            dimForeground: Color(hex: 0x9888B8),
+            coolForeground: Color(hex: 0xD8C8E8)
+        ),
+        surface: Color(hex: 0xFF00AA, opacity: 0.08),
+        chips: .fixed(
+            surface: Color(hex: 0xFF00AA, opacity: 0.08),
+            divider: Color(hex: 0x00F0FF, opacity: 0.08),
+            border: Color(hex: 0xFFE600, opacity: 0.06)
+        ),
+        borders: .accentTinted(hairline: 0.14, strong: 0.30),
+        scrim: Color(hex: 0x000000, opacity: 0.85),
+        danger: Color(hex: 0xFF3B3B),
+        dangerBright: Color(hex: 0xFF5858),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Magenta",
+                base: Color(hex: 0xFF00AA),
+                bright: Color(hex: 0xFF3FBF),
+                deep: Color(hex: 0xB20076),
+                coreHighlight: Color(hex: 0xFF72D0),
+                coreShadow: Color(hex: 0x8C005D),
+                forge: Color(hex: 0xFFAA00)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Cyan",
+                base: Color(hex: 0x00F0FF),
+                bright: Color(hex: 0x3FF3FF),
+                deep: Color(hex: 0x00A8B2),
+                coreHighlight: Color(hex: 0x72F6FF),
+                coreShadow: Color(hex: 0x00848C),
+                forge: Color(hex: 0xFFAA00)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Gold",
+                base: Color(hex: 0xFFE600),
+                bright: Color(hex: 0xFFEC3F),
+                deep: Color(hex: 0xB2A100),
+                coreHighlight: Color(hex: 0xFFF172),
+                coreShadow: Color(hex: 0x8C7E00),
+                // Warning must stay separable from the gold slot.
+                forge: Color(hex: 0xFFAA00)
+            )
+        ),
+        glowScale: 1.35,
+        gridStyle: .lines,
+        gridLine: .accentTinted(0.08),
+        gridCell: 26,
+        isLight: false,
+        orbStyle: .mirrorBall
     )
 }
 
