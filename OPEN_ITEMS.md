@@ -2803,7 +2803,7 @@ Logged 2026-07-10.
 
 **Phase 1 (Lane E, spec at `dispatch/FABLE-LANE-E-theme-drama.md`):** catalog taxonomy → gallery categories (Flagship / Neon Arcade Collection / Special Edition / Seasonal); data-driven atmosphere motion engine (TimelineView+Canvas, 3 on-device A/B presets, reduced-motion safe, widget layer untouched); `.singularity` orb composition; Event Horizon intensity pass. No `ChatScreen.swift` overlap — independent of Lanes A–D merge order.
 
-**Gate:** Owen device-verdicts Event Horizon post-Lane-E. If it hits: Phase 2 (art-direction schema extension — halftone/spray-grain/chrome-band textures, title + panel treatments), then Phase 3 (batch-port the 10 remaining themes + bespoke orbs + icon pairings from `design/themes/app-icons.html`).
+**Gate: CLEARED 2026-07-11 — "Now THAT is an outrageous theme" (device verdict, PR #66 merged).** Phase 1 shipped: taxonomy sections, atmosphere motion engine (3 presets, ships `.faithful`), `.singularity` orb, intensity pass, PLUS two device-verdict corrections that ARE the Phase 3 recipe: (a) specks render as soft blurred points (1.25pt + per-layer blur), never hard discs — CSS `radial-gradient(… transparent 2px)` is a fade, not a radius; (b) panel/card/bubble washes must NOT be promoted to screen-scale glow pools (the teal-swamp bug); (c) port the full element inventory — the `.spin-ring` lensing starburst (now `RadialSpokeSpec`/`RadialSpokeField`) was the design's biggest chat-surface drama and the original port skipped it. Next: Phase 2 (schema extension — halftone/spray-grain/chrome-band textures, title + panel treatments), then Phase 3 (batch-port the 10 remaining themes + bespoke orbs + icon pairings from `design/themes/app-icons.html`).
 
 **Related:** orb enhancement issue filed on Talaria-27 (2026-07-10; the 7/6 draft was never actually filed).
 
@@ -2946,3 +2946,15 @@ removed, flag stale). (5) Drain FIFO restore matches the re-queued turn by id, n
 `SessionUsageTotals.primingHops`. Regression tests added for (4) and (6).
 
 Logged 2026-07-10.
+
+## 94. 🔧 Pairing hardening — pair() clears the old record before redeem succeeds
+
+`PairingStore.pair()` calls `clearPairedRelayConfiguration()` BEFORE redeeming the new code (deliberate, for #3 stale-identity protection) — so a pair attempt that fails midway destroys the existing pairing and saves nothing. This is the likely mechanism behind the 2026-07-10 "total wipe" (a failed PAIR DEVICE tap during the frozen/wedged chaos): defaults copy + keychain mirror both gone, nothing for #41 rehydration to restore. Fix shape: redeem FIRST, then clear+save atomically (preserving the stale-identity wipe semantics on SUCCESS only). Small, low-urgency — recoverable by one re-pair — but it converts a transient network/relay failure into credential loss.
+
+Logged 2026-07-11.
+
+## 95. 👀 WATCH — credential-staleness fix set, verify across future reboots
+
+The 2026-07-10/11 "random unpair" saga resolved into three fixed defects + one edge (#94): BGTask handler isolation trap (PR #67), keychain `WhenUnlocked` accessibility (PR #68), voice restart race/lockup (PR #68), pre-first-unlock zombie-process staleness (PR #69 — reload on `protectedDataDidBecomeAvailable` + `didBecomeActive`, gates on `isProtectedDataAvailable`). Verified 2026-07-11: reboot → unlock → open app WITHOUT force-quit → pairing + API key + relay URL all present. Watch the next several organic reboots (and the next Apple seed) for any recurrence; if credentials ever vanish again, pull the launch story via the protected-data log lines before touching anything.
+
+Logged 2026-07-11.
