@@ -101,7 +101,8 @@ struct ThemeCatalogTests {
                 [.cerealBox, .bubblegumMecha, .retroSciFi,
                  .glitchGarden, .witchsBrew, .holoSushi,
                  .lunarDiner, .cyberCactus, .deepSeaDiner, .discoInferno])
-        #expect(ThemeCatalog.specialEdition.map(\.appearanceTheme) == [.eventHorizon])
+        #expect(ThemeCatalog.specialEdition.map(\.appearanceTheme) ==
+                [.eventHorizon, .graffitiGalaxy, .karaokeSupernova])
         #expect(ThemeCatalog.seasonal.map(\.appearanceTheme) ==
                 [.winterFrost, .springSprout, .summerSolar, .autumnHarvest])
     }
