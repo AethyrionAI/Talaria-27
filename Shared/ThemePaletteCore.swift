@@ -29,6 +29,9 @@ enum ThemeID: String, CaseIterable, Codable, Hashable, Sendable {
     case bubblegumMecha
     case retroSciFi
     case eventHorizon
+    case glitchGarden
+    case witchsBrew
+    case holoSushi
 }
 
 /// Accent slot identity, decoupled from the app's `AppearanceAccent`
@@ -410,6 +413,9 @@ enum ThemePaletteCatalog {
         .bubblegumMecha: bubblegumMecha,
         .retroSciFi: retroSciFi,
         .eventHorizon: eventHorizon,
+        .glitchGarden: glitchGarden,
+        .witchsBrew: witchsBrew,
+        .holoSushi: holoSushi,
     ]
 
     /// Total lookup over the shipped themes (coverage guarded by
@@ -1077,7 +1083,8 @@ enum ThemePaletteCatalog {
         gridLine: .accentTinted(0.08),
         gridCell: 26,
         isLight: false,
-        orbStyle: .arcReactor
+        // Drama retrofit (Lane E Phase 3): the handoff's prize-wheel orb.
+        orbStyle: .prizeWheel
     )
 
     // MARK: Bubblegum — Bubblegum Mecha
@@ -1144,7 +1151,8 @@ enum ThemePaletteCatalog {
         gridLine: .accentTinted(0.08),
         gridCell: 26,
         isLight: false,
-        orbStyle: .arcReactor
+        // Drama retrofit (Lane E Phase 3): the handoff's mecha core orb.
+        orbStyle: .candyMecha
     )
 
     // MARK: Retro — Retro Sci-Fi
@@ -1214,7 +1222,8 @@ enum ThemePaletteCatalog {
         gridLine: .fixed(Color(hex: 0x1A1210, opacity: 0.1)),
         gridCell: 26,
         isLight: true,
-        orbStyle: .arcReactor
+        // Drama retrofit (Lane E Phase 3): the handoff's rocket-badge orb.
+        orbStyle: .rocketBadge
     )
 
     // MARK: Event — Event Horizon
@@ -1283,6 +1292,215 @@ enum ThemePaletteCatalog {
         gridCell: 26,
         isLight: false,
         orbStyle: .singularity
+    )
+
+    // MARK: Glitch — Glitch Garden (design/themes/theme-glitch-garden.html)
+    // Neon green vines on a dead-black CRT void with cyan/magenta corruption.
+    // The design paints its own 40px green grid (verbatim: line alpha .06 ×
+    // page opacity .25) — the one collection theme with design-exact grid data.
+
+    static let glitchGarden = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0x050505),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0x081408), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0x050505), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0x020202), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0x081408), Color(hex: 0x050505), Color(hex: 0x020202)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0xE8FFE8),
+            foregroundBright: Color(hex: 0xE8FFE8),
+            secondaryForeground: Color(hex: 0x9CB89C),
+            mutedForeground: Color(hex: 0x9CB89C),
+            dimForeground: Color(hex: 0x5A7A5A),
+            coolForeground: Color(hex: 0x9CB89C)
+        ),
+        surface: Color(hex: 0x39FF14, opacity: 0.08),
+        chips: .fixed(
+            surface: Color(hex: 0x39FF14, opacity: 0.08),
+            divider: Color(hex: 0x00F0FF, opacity: 0.08),
+            border: Color(hex: 0xFF00AA, opacity: 0.06)
+        ),
+        borders: .accentTinted(hairline: 0.14, strong: 0.30),
+        scrim: Color(hex: 0x000000, opacity: 0.85),
+        danger: Color(hex: 0xFF3333),
+        dangerBright: Color(hex: 0xFF5151),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Vine · Garden",
+                base: Color(hex: 0x39FF14),
+                bright: Color(hex: 0x6AFF4E),
+                deep: Color(hex: 0x27B20E),
+                coreHighlight: Color(hex: 0x91FF7D),
+                coreShadow: Color(hex: 0x1F8C0B),
+                forge: Color(hex: 0xFFCC00)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Corruption · Garden",
+                base: Color(hex: 0x00F0FF),
+                bright: Color(hex: 0x3FF3FF),
+                deep: Color(hex: 0x00A8B2),
+                coreHighlight: Color(hex: 0x72F6FF),
+                coreShadow: Color(hex: 0x00848C),
+                forge: Color(hex: 0xFFCC00)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Glitch · Garden",
+                base: Color(hex: 0xFF00AA),
+                bright: Color(hex: 0xFF3FBF),
+                deep: Color(hex: 0xB20076),
+                coreHighlight: Color(hex: 0xFF72D0),
+                coreShadow: Color(hex: 0x8C005D),
+                forge: Color(hex: 0xFFCC00)
+            )
+        ),
+        glowScale: 1.1,
+        gridStyle: .lines,
+        // Verbatim: rgba(57,255,20,.06) lines on a .25-opacity layer.
+        gridLine: .fixed(Color(hex: 0x39FF14, opacity: 0.015)),
+        gridCell: 40,
+        isLight: false,
+        orbStyle: .glitchSeed
+    )
+
+    // MARK: Brew — Witch's Brew (design/themes/theme-witchs-brew.html)
+    // Midnight cauldron: poison green, mystic violet, golden bubbles.
+
+    static let witchsBrew = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0x0A0F0A),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0x0F1A0F), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0x0A0F0A), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0x050805), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0x0F1A0F), Color(hex: 0x0A0F0A), Color(hex: 0x050805)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0xF0FFF0),
+            foregroundBright: Color(hex: 0xF0FFF0),
+            secondaryForeground: Color(hex: 0x9CB89C),
+            mutedForeground: Color(hex: 0x9CB89C),
+            dimForeground: Color(hex: 0x5A6E5A),
+            coolForeground: Color(hex: 0x9CB89C)
+        ),
+        surface: Color(hex: 0x4ADE80, opacity: 0.08),
+        chips: .fixed(
+            surface: Color(hex: 0x4ADE80, opacity: 0.08),
+            divider: Color(hex: 0xA855F7, opacity: 0.08),
+            border: Color(hex: 0xFACC15, opacity: 0.06)
+        ),
+        borders: .accentTinted(hairline: 0.14, strong: 0.30),
+        scrim: Color(hex: 0x000000, opacity: 0.85),
+        danger: Color(hex: 0xEF4444),
+        dangerBright: Color(hex: 0xF16060),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Poison · Brew",
+                base: Color(hex: 0x4ADE80),
+                bright: Color(hex: 0x76E69F),
+                deep: Color(hex: 0x339B59),
+                coreHighlight: Color(hex: 0x9AECB8),
+                coreShadow: Color(hex: 0x287A46),
+                forge: Color(hex: 0xFB923C)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Mystic · Brew",
+                base: Color(hex: 0xA855F7),
+                bright: Color(hex: 0xBD7FF8),
+                deep: Color(hex: 0x753BAC),
+                coreHighlight: Color(hex: 0xCEA1FA),
+                coreShadow: Color(hex: 0x5C2E87),
+                forge: Color(hex: 0xFB923C)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Bubble · Brew",
+                base: Color(hex: 0xFACC15),
+                bright: Color(hex: 0xFBD84E),
+                deep: Color(hex: 0xAF8E0E),
+                coreHighlight: Color(hex: 0xFCE27D),
+                coreShadow: Color(hex: 0x89700B),
+                // Warning must stay separable from a golden accent.
+                forge: Color(hex: 0xFB923C)
+            )
+        ),
+        glowScale: 1.1,
+        gridStyle: .lines,
+        gridLine: .accentTinted(0.08),
+        gridCell: 26,
+        isLight: false,
+        orbStyle: .cauldronBrew
+    )
+
+    // MARK: Sushi — Holo Sushi (design/themes/theme-holo-sushi.html)
+    // Iridescent late-night counter: roe pink, wasabi cyan, nori lime.
+    // Its page texture is the dual-tone holo grid (art-direction line field).
+
+    static let holoSushi = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0x0A0A12),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0x12121F), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0x0A0A12), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0x05050A), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0x12121F), Color(hex: 0x0A0A12), Color(hex: 0x05050A)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0xFFF5F7),
+            foregroundBright: Color(hex: 0xFFF5F7),
+            secondaryForeground: Color(hex: 0xB8B0C8),
+            mutedForeground: Color(hex: 0xB8B0C8),
+            dimForeground: Color(hex: 0x6E6680),
+            coolForeground: Color(hex: 0xB8B0C8)
+        ),
+        surface: Color(hex: 0xFF69B4, opacity: 0.08),
+        chips: .fixed(
+            surface: Color(hex: 0xFF69B4, opacity: 0.08),
+            divider: Color(hex: 0x00F0FF, opacity: 0.08),
+            border: Color(hex: 0xADFF2F, opacity: 0.06)
+        ),
+        borders: .accentTinted(hairline: 0.14, strong: 0.30),
+        scrim: Color(hex: 0x000000, opacity: 0.85),
+        danger: Color(hex: 0xFF3366),
+        dangerBright: Color(hex: 0xFF517C),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Roe · Sushi",
+                base: Color(hex: 0xFF69B4),
+                bright: Color(hex: 0xFF8EC6),
+                deep: Color(hex: 0xB2497D),
+                coreHighlight: Color(hex: 0xFFACD5),
+                coreShadow: Color(hex: 0x8C3963),
+                forge: Color(hex: 0xFFAA00)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Wasabi · Sushi",
+                base: Color(hex: 0x00F0FF),
+                bright: Color(hex: 0x3FF3FF),
+                deep: Color(hex: 0x00A8B2),
+                coreHighlight: Color(hex: 0x72F6FF),
+                coreShadow: Color(hex: 0x00848C),
+                forge: Color(hex: 0xFFAA00)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Nori · Sushi",
+                base: Color(hex: 0xADFF2F),
+                bright: Color(hex: 0xC1FF62),
+                deep: Color(hex: 0x79B220),
+                coreHighlight: Color(hex: 0xD1FF8C),
+                coreShadow: Color(hex: 0x5F8C19),
+                forge: Color(hex: 0xFFAA00)
+            )
+        ),
+        glowScale: 1.15,
+        gridStyle: .lines,
+        gridLine: .accentTinted(0.08),
+        gridCell: 26,
+        isLight: false,
+        orbStyle: .holoNigiri
     )
 }
 
