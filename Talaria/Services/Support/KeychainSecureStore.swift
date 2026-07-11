@@ -31,11 +31,22 @@ final class KeychainSecureStore: SecureStoreProtocol {
         let data = Data(value.utf8)
         let query = baseQuery(for: key)
 
-        let attributes: [String: Any] = [kSecValueData as String: data]
+        // kSecAttrAccessibleAfterFirstUnlock: this app is background-launched
+        // (location relaunch, BGTask, APNs). The old default (WhenUnlocked)
+        // made every credential read fail while the device was locked — a
+        // post-reboot pre-unlock launch then looked like a dead credential
+        // set and fed the #15 re-register self-heal, orphaning the pairing.
+        // Included in the update attributes too, so existing items migrate
+        // on their next write (token rotation touches them constantly).
+        let attributes: [String: Any] = [
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+        ]
         let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
         if status == errSecItemNotFound {
             var insertQuery = query
             insertQuery[kSecValueData as String] = data
+            insertQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
             SecItemAdd(insertQuery as CFDictionary, nil)
         }
     }
