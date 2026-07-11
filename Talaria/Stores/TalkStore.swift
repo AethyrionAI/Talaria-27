@@ -33,6 +33,10 @@ final class TalkStore {
     /// The engine driving (or last driving) the voice session (#18) — feeds
     /// the overlay's LOCAL VOICE badge and the Voice settings engine row.
     var voiceEngine: VoiceEngine = .realtime
+    /// #84: flatline-tripwire hint — connected but no mic signal evidence.
+    var micHealthHint: String?
+    /// #84: current audio route summary while a session is (or was) live.
+    var audioRouteSummary: String?
 
     /// Set after a voice session ends; consumed by MainTabView to trigger transcript injection.
     var lastCompletedSession: CompletedVoiceSession?
@@ -149,6 +153,8 @@ final class TalkStore {
         voiceSessionID = nil
         readiness = TalkReadinessInfo()
         voiceEngine = .realtime
+        micHealthHint = nil
+        audioRouteSummary = nil
         lastCompletedSession = nil
     }
 
@@ -179,6 +185,8 @@ final class TalkStore {
         voiceSessionID = snapshot.voiceSessionID
         readiness = snapshot.readiness
         voiceEngine = snapshot.engine
+        micHealthHint = snapshot.micHealthHint
+        audioRouteSummary = snapshot.audioRouteSummary
         isSessionActive = connectionState == .connecting || connectionState == .connected
 
         // Update Live Activity on voice state changes

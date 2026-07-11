@@ -44,6 +44,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     var canStartSession = true { didSet { publishSnapshot() } }
     var latencyMetrics = TalkLatencyMetrics() { didSet { publishSnapshot() } }
     var readinessInfo = TalkReadinessInfo() { didSet { publishSnapshot() } }
+    // #84: flatline tripwire + route visibility, mirroring the realtime
+    // engine — capture running is a plumbing claim, not proof of audio.
+    var micHealthHint: String? { didSet { publishSnapshot() } }
+    var audioRouteSummary: String? { didSet { publishSnapshot() } }
 
     var snapshot: TalkSessionSnapshot {
         TalkSessionSnapshot(
@@ -58,7 +62,9 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             latencyMetrics: latencyMetrics,
             voiceSessionID: localSessionID,
             readiness: readinessInfo,
-            engine: .native
+            engine: .native,
+            micHealthHint: micHealthHint,
+            audioRouteSummary: audioRouteSummary
         )
     }
 
@@ -78,6 +84,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     private var startedAt: Date?
     private var timerTask: Task<Void, Never>?
     private var captureTask: Task<Void, Never>?
+    /// Serializes route/interruption capture restarts (see restartCapture).
+    private var restartTask: Task<Void, Never>?
+    /// Sliding window of restart timestamps feeding the thrash breaker.
+    private var recentCaptureRestarts: [Date] = []
     private var endpointTask: Task<Void, Never>?
     private var turnTask: Task<Void, Never>?
 
@@ -95,6 +105,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     /// handle or settle its state.
     private var activeTurnID: UUID?
     private var isEndingSession = false
+    // #84 flatline tripwire — armed at `.connected`, disarmed by the first
+    // transcription evidence or by session teardown.
+    private var flatlineTask: Task<Void, Never>?
+    private var speechEvidenceObserved = false
 
     init(
         backendProvider: @escaping @MainActor () -> (any HermesClientProtocol)?,
@@ -145,8 +159,26 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         latencyMetrics = TalkLatencyMetrics(sessionStartRequestedAt: .now)
         isEndingSession = false
 
-        guard await ensureMicrophonePermission() else {
-            blockedReason = "Microphone access is required for talk mode."
+        let micCheck = TalkMicPreflight.classify(
+            permissionGranted: await ensureMicrophonePermission(),
+            inputAvailable: TalkMicPreflight.isMicInputAvailable()
+        )
+        switch micCheck {
+        case .ok:
+            break
+        case .permissionDenied:
+            // #84 preflight: actionable wording — the overlay pairs it with
+            // an OPEN SETTINGS deep link. Never proceeds toward "Connected".
+            blockedReason = TalkMicPreflight.microphoneDeniedMessage
+            canStartSession = false
+            connectionState = .blocked
+            voiceState = .disconnected
+            statusMessage = blockedReason
+            return
+        case .noInputAvailable:
+            // #84 third state: permission is ON but no mic input is reachable
+            // (the #82 wedge shape) — reboot guidance, no Settings dead end.
+            blockedReason = TalkMicPreflight.noMicInputMessage
             canStartSession = false
             connectionState = .blocked
             voiceState = .disconnected
@@ -154,7 +186,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             return
         }
         guard await ensureSpeechAuthorization() else {
-            blockedReason = "Speech recognition permission is required for local voice."
+            blockedReason = TalkMicPreflight.speechDeniedMessage
             canStartSession = false
             connectionState = .blocked
             voiceState = .disconnected
@@ -188,6 +220,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             canStartSession = true
             statusMessage = "Listening"
             startEndpointWatchdog()
+            // #84: capture running ≠ hearing you. Publish the live route and
+            // start the flatline window.
+            updateAudioRouteSummary()
+            armFlatlineTripwire()
         } catch {
             await teardownSessionResources()
             localSessionID = nil
@@ -218,6 +254,11 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     func toggleMute() async {
         isMuted.toggle()
         await capture.setMuted(isMuted)
+        // #84: unmuting restarts the flatline window — silence while muted
+        // was expected, silence from here on is evidence of a mic problem.
+        if !isMuted, connectionState == .connected, !speechEvidenceObserved {
+            armFlatlineTripwire()
+        }
     }
 
     /// Barge-in / stop button: cut TTS immediately, abandon the in-flight
@@ -258,27 +299,65 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     /// Route/interruption recovery: tear down and rebuild the tap + analyzer.
     /// The mic hardware (and its format) changes across CarPlay/Bluetooth
     /// attach and detach, so a fresh engine start is the reliable path.
+    ///
+    /// Serialized + circuit-broken (post-#82 device findings): a wedged
+    /// capture stack thrashes route-change notifications, and overlapping
+    /// restarts raced stop/start into a double tap-install — an uncatchable
+    /// `nullptr == Tap()` NSException — while each pass re-entered audio
+    /// session activation on the main thread (the observed UI lockup). One
+    /// restart runs at a time; a thrash storm trips the breaker into the
+    /// honest #84 blocked state instead of looping.
     private func restartCapture() async {
         guard connectionState == .connected, !isEndingSession else { return }
-        captureTask?.cancel()
-        captureTask = nil
-        await capture.stop()
-        do {
-            try await beginCapture()
-            if voiceState == .interrupted {
-                voiceState = .listening
-                statusMessage = "Listening"
-            }
-        } catch {
-            Self.logger.warning("capture restart failed: \(error.localizedDescription, privacy: .public)")
-            connectionState = .failed
-            voiceState = .disconnected
-            statusMessage = "Audio capture could not resume."
+        // Coalesce: a restart already in flight covers this trigger too.
+        if let inFlight = restartTask {
+            await inFlight.value
+            return
         }
+        // Breaker: >3 restarts inside 30s is not route churn — it's the #82
+        // wedge thrashing. Stop retrying; block with the reboot guidance.
+        let now = Date.now
+        recentCaptureRestarts = recentCaptureRestarts.filter { now.timeIntervalSince($0) < 30 }
+        recentCaptureRestarts.append(now)
+        if recentCaptureRestarts.count > 3 {
+            Self.logger.error("capture restart storm (\(self.recentCaptureRestarts.count, privacy: .public) in 30s) — #82 wedge shape; blocking instead of looping")
+            captureTask?.cancel()
+            captureTask = nil
+            await capture.stop()
+            blockedReason = TalkMicPreflight.noMicInputMessage
+            canStartSession = false
+            connectionState = .blocked
+            voiceState = .disconnected
+            statusMessage = blockedReason
+            return
+        }
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.captureTask?.cancel()
+            self.captureTask = nil
+            await self.capture.stop()
+            do {
+                try await self.beginCapture()
+                if self.voiceState == .interrupted {
+                    self.voiceState = .listening
+                    self.statusMessage = "Listening"
+                }
+            } catch {
+                Self.logger.warning("capture restart failed: \(error.localizedDescription, privacy: .public)")
+                self.connectionState = .failed
+                self.voiceState = .disconnected
+                self.statusMessage = "Audio capture could not resume."
+            }
+        }
+        restartTask = task
+        await task.value
+        restartTask = nil
     }
 
     private func teardownSessionResources() async {
         stopTimer()
+        disarmFlatlineTripwire()
+        audioRouteSummary = nil
         endpointTask?.cancel()
         endpointTask = nil
         turnTask?.cancel()
@@ -305,6 +384,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         switch event {
         case .volatile(let text):
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+            noteSpeechEvidence()
             // User speech while the assistant is replying = barge-in. Voice
             // processing (echo cancellation) keeps TTS playback from landing
             // here, so volatile text during a reply is genuinely the user.
@@ -317,6 +397,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         case .finalized(let text):
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { return }
+            noteSpeechEvidence()
             // A late final can re-cover audio the fallback endpointer already
             // committed — drop it instead of double-sending the turn.
             if Self.isDuplicateFinalization(committed: lastCommittedUtterance, candidate: trimmed) {
@@ -407,6 +488,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 // Reasoning is a separate channel — never spoken, never folded
                 // into the answer.
                 break
+            case .contextPrimed:
+                // P1 (#90): a hop transplant is chat-surface bookkeeping —
+                // never spoken; ChatStore renders the notice and cost.
+                break
             case .toolActivity(let event):
                 if event.phase == .started {
                     voiceState = .thinking
@@ -419,7 +504,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 if latencyMetrics.firstAssistantFinalizedAt == nil {
                     latencyMetrics.firstAssistantFinalizedAt = .now
                 }
-            case .failed(let reason):
+            case .failed(let reason), .unreachable(let reason):
                 speechOutput.cancelStream(messageID: ttsTurnID)
                 failTurn(reason)
             case .interrupted:
@@ -564,6 +649,56 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         return requested == .authorized
     }
 
+    // MARK: - Mic health (#84)
+
+    /// Arm the flatline tripwire: a connected, unmuted session with zero
+    /// transcription evidence for a full window gets a mic-health hint
+    /// instead of listening silently over a dead microphone.
+    private func armFlatlineTripwire() {
+        flatlineTask?.cancel()
+        speechEvidenceObserved = false
+        micHealthHint = nil
+        flatlineTask = Task { @MainActor [weak self] in
+            while true {
+                try? await Task.sleep(for: MicFlatlineRule.window)
+                if Task.isCancelled { return }
+                guard let self else { return }
+                switch MicFlatlineRule.verdict(
+                    speechEvidence: self.speechEvidenceObserved,
+                    isMuted: self.isMuted,
+                    connectionState: self.connectionState
+                ) {
+                case .flag:
+                    Self.logger.notice("mic flatline tripwire fired (route: \(self.audioRouteSummary ?? "unknown", privacy: .public))")
+                    self.micHealthHint = MicFlatlineRule.hintMessage
+                    return
+                case .rearm:
+                    continue
+                case .disarm:
+                    return
+                }
+            }
+        }
+    }
+
+    /// The transcriber heard the user — the mic is demonstrably alive.
+    private func noteSpeechEvidence() {
+        speechEvidenceObserved = true
+        flatlineTask?.cancel()
+        flatlineTask = nil
+        if micHealthHint != nil { micHealthHint = nil }
+    }
+
+    private func disarmFlatlineTripwire() {
+        flatlineTask?.cancel()
+        flatlineTask = nil
+        micHealthHint = nil
+    }
+
+    private func updateAudioRouteSummary() {
+        audioRouteSummary = TalkAudioRoute.currentSummary()
+    }
+
     // MARK: - Audio session interruptions / route changes
 
     private func registerAudioSessionObservers() {
@@ -623,6 +758,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     /// headset transitions — rebuild the capture chain on the new route.
     private func handleRouteChange(_ reason: AVAudioSession.RouteChangeReason) async {
         guard connectionState == .connected else { return }
+        updateAudioRouteSummary()
         switch reason {
         case .newDeviceAvailable, .oldDeviceUnavailable, .override, .routeConfigurationChange, .categoryChange:
             statusMessage = "Audio route changed."
@@ -691,11 +827,17 @@ private actor NativeVoiceCaptureController {
 
     enum CaptureError: LocalizedError {
         case transcriptionUnavailable
+        /// #82 wedge caught at the engine: the input node reported a
+        /// degenerate format (0 Hz / 0 ch) — installing a tap would raise an
+        /// uncatchable NSException. Carries the #84 third-state wording.
+        case noAudioInput
 
         var errorDescription: String? {
             switch self {
             case .transcriptionUnavailable:
                 "On-device speech transcription isn't available on this device."
+            case .noAudioInput:
+                TalkMicPreflight.noMicInputMessage
             }
         }
     }
@@ -800,6 +942,16 @@ private actor NativeVoiceCaptureController {
         }
         inputNode.removeTap(onBus: 0)
         let inputFormat = inputNode.outputFormat(forBus: 0)
+        // #82 wedge backstop: installTap with a degenerate hardware format
+        // raises an uncatchable NSException. Fail honestly with the #84
+        // reboot guidance before any tap touches the engine.
+        guard TalkMicPreflight.isViableCaptureFormat(
+            sampleRate: inputFormat.sampleRate,
+            channelCount: inputFormat.channelCount
+        ) else {
+            Self.logger.error("capture format degenerate (rate=\(inputFormat.sampleRate, privacy: .public) ch=\(inputFormat.channelCount, privacy: .public)) — #82 wedge shape; refusing tap install")
+            throw CaptureError.noAudioInput
+        }
 
         // SpeechDetector gates analysis to detected speech; retry without it
         // if the analyzer/module combination refuses to start.

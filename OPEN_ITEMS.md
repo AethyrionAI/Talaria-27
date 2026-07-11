@@ -2431,6 +2431,18 @@ in DB → rendered in the device tray (Owen: two items visible). Along the way:
 **Still unchecked from the device checklist:** silent-push wake populating
 without manual refresh; approve → verdict readback; `notify="alert"` visible push.
 
+**Update 2026-07-10 (Lane C item 4, cloud session, branch
+`claude/lane-c-dispatch-5bbw9k`):** gh#58 app-side hardening BUILT, not compiled.
+`LiveInboxService.InboxResponse` now decodes row-by-row: a bad row is skipped via a
+never-throwing best-effort probe that salvages its raw `id`/`kind` for an always-on
+per-row os_log line (plus a kept/skipped summary) — the poison row is nameable in the
+relay DB instead of anonymous. Good rows survive in order; an all-bad payload decodes
+to an EMPTY inbox, not "unreachable". `InboxDecodingTests` (new file — xcodegen regen
+owed) covers mixed payloads, all five kinds, non-object rows, and id/kind capture.
+The optional relay-route `kind` validation half of gh#58 remains open (server-side).
+Device re-check once merged: re-insert a bad-kind row → tray shows the good rows +
+Console names the skipped one.
+
 ---
 
 ## 81. 🔧 Lock-screen reply to Hermes — UNTextInputNotificationAction (GitHub #47)
@@ -2589,6 +2601,63 @@ Logged 2026-07-08.
 
 ---
 
+## 84. 🔧 Talk-mode preflight + mic flatline tripwire + route display — BUILT IN CLOUD, not compiled
+
+**The "never again" from the #82 evening (2026-07-08), built 2026-07-09** (cloud session,
+branch `claude/t27-84-talk-preflight`). Talk rendered a live LISTENING state over a dead
+microphone — transport connectivity was treated as proof of audio. Shipped, on BOTH engines
+(realtime/WebRTC + #73 native fallback):
+- **Preflight:** standardized actionable permission wording (`TalkPreflight.swift`:
+  `TalkMicPreflight`) — mic denial (both engines) + Speech Recognition denial (native)
+  block the start with "…is off — enable it for Talaria in Settings." and the overlay's
+  OPEN SETTINGS deep link; the link's gate is now a shared predicate
+  (`isPermissionActionable`) kept in lockstep with the engine wording (the old substring
+  check missed the speech-permission phrasing). A denied mic never reaches "Connected".
+- **Flatline tripwire:** `.connected` arms a 12s window (`MicFlatlineRule`, pure +
+  unit-tested in `TalkPreflightTests`). Zero speech evidence (no `speech_started`/
+  committed/transcription events realtime; no volatile/finalized transcription native)
+  while connected + unmuted → non-fatal mic-health hint under LISTENING + settings link,
+  instead of silent listening. Muted windows re-arm; unmute restarts; first evidence
+  disarms. Snapshot field `micHealthHint`.
+- **Route visibility:** snapshot field `audioRouteSummary` ("iPhone Microphone → Speaker"),
+  refreshed at connect + every route change → ROUTE line in the talk overlay + new
+  `// Voice / Talk` panel in Diagnostics (Microphone, Speech Recognition, live Audio
+  Route). The stale-BT-route-with-dead-mic was the other live #82 suspect.
+
+**Needs Mac:** `xcodegen generate` (2 new files: `Talaria/Services/Support/
+TalkPreflight.swift`, `TalariaTests/TalkPreflightTests.swift`; re-verify `aps-environment`
+survives per #48), CLI build + `TalkPreflightTests`, then device: (1) mic permission off →
+launch talk → actionable banner + OPEN SETTINGS, never "Connected"/LISTENING; (2) grant →
+speak → no hint; (3) stay silent 12s+ → hint appears, first words clear it; (4) mute
+through the window → no hint until unmuted-silence; (5) ROUTE line updates on
+BT-headset attach/detach; (6) Diagnostics Voice/Talk panel shows real states. Note: the
+handoff referenced `tools/diagnostics/README.md` for the diagnostic ladder — that file
+does not exist in the repo (the ladder likely lives in the gitignored `handoffs/`); the
+Diagnostics panel rows cover its first rungs (can record / can transcribe / where audio
+routes).
+
+**Update 2026-07-10 (Lane C item 5, cloud session):** third preflight state added.
+The preflight was two-way — permission granted → proceed, else "Microphone access is
+off — enable it for Talaria in Settings." — so the #82 wedge shape (permissions ON,
+capture side dead) read as a permission problem and dead-ended the user in Settings.
+`TalkMicPreflight.classify(permissionGranted:inputAvailable:)` is now the shared
+three-way decision core (`ok` / `permissionDenied` / `noInputAvailable`); both engines
+switch on it at start. The no-input state blocks with `noMicInputMessage` ("Microphone
+permission is on, but no mic input is reachable — try rebooting this iPhone.") and is
+explicitly carved OUT of `isPermissionActionable` so the overlay never offers the OPEN
+SETTINGS dead end for it. Input probe = `AVAudioSession.isInputAvailable`
+(`isMicInputAvailable()`); whether the seed wedge actually trips that flag is a
+device-checklist question (post-seed). New `TalkPreflightTests` cover the classifier
+(all three states + denial-wins-over-missing-input), the reboot-wording contract, and
+the actionable-predicate carve-out. No files added/removed — no xcodegen regen owed for
+this update. Device checklist addition: (7) with permissions granted and capture wedged
+(pre-seed-fix state, or a simulated no-input route), talk start must show the reboot
+guidance with NO OPEN SETTINGS button, never "Connected"/LISTENING.
+
+Logged 2026-07-09.
+
+---
+
 ## 85. 🔧 hermes_delegate MCP path — advertising gated + URL normalized (built in cloud; OJAMD deploy owed)
 
 **Found 2026-07-08 (OJAMD logs), built 2026-07-09** (cloud session, branch
@@ -2737,3 +2806,143 @@ Logged 2026-07-10.
 **Gate:** Owen device-verdicts Event Horizon post-Lane-E. If it hits: Phase 2 (art-direction schema extension — halftone/spray-grain/chrome-band textures, title + panel treatments), then Phase 3 (batch-port the 10 remaining themes + bespoke orbs + icon pairings from `design/themes/app-icons.html`).
 
 **Related:** orb enhancement issue filed on Talaria-27 (2026-07-10; the 7/6 draft was never actually filed).
+
+---
+
+## 92. 🔧 Lane B — markdown rendering depth (dispatch FABLE-LANES-BC)
+
+**Update 2026-07-10 (cloud session, branch `claude/lane-b-handoff-g8zxbl`):**
+BUILT IN CLOUD, not compiled or device-verified. `MarkdownSegment` grew from
+three cases (prose / codeBlock / image) to seven:
+
+- **Headings** — ATX `#`–`######`, space-after-hashes required (`#hashtag`
+  stays prose), closing-hash runs stripped, inline markdown preserved;
+  rendered at graduated Space Grotesk sizes, levels 1–3 in
+  `foregroundBright`.
+- **Block quotes** — 1-based `>` depth; consecutive same-depth lines merge,
+  a depth change starts a new segment (`>> ` and `> > ` both = depth 2);
+  rendered with an accent bar + `secondaryForeground`, indented per level.
+- **Lists** — `-`/`*`/`+` bullets and `1.`/`1)` ordinals (1–3 digits, so
+  `2026.` stays prose) in one segment with per-item depth via an
+  indent-stack (≥2 cols = deeper); one blank line tolerated between items,
+  two end the list; indented continuation lines append to the prior item;
+  bullets `•`/`◦`/`▪` by depth, ordinals rendered from the literal numbers.
+- **Tables** — GFM pipe tables gated on a real delimiter row with matching
+  cell count (pipe-containing prose stays prose); `:---:`-style alignments;
+  rows normalized to header width; `\|` escapes; rendered as a
+  horizontally-scrollable `Grid` in a hudPanel with header rule + faint
+  row striping. Streaming: header renders as prose until its delimiter row
+  arrives — self-heals on the next delta.
+- **Syntax highlighting** — new `Talaria/Core/CodeSyntaxHighlighter.swift`:
+  single-pass tokenizer (keywords / strings / comments / numbers) with
+  profiles for swift, python, js/ts, json, bash, yaml, c-family; unknown
+  languages get a conservative strings+numbers-only fallback. Colors ride
+  the live theme palette (keyword `accentBright`, string `forge`, comment
+  `dimForeground`, number `accent`); `CodeBlockView` now renders the
+  highlighted AttributedString.
+
+Parser + tokenizer logic verified in-session via a line-for-line Python
+port run against every test expectation (all green); Swift Testing suites:
+`MarkdownHeadingTests` / `MarkdownBlockQuoteTests` / `MarkdownListTests` /
+`MarkdownTableTests` / `CodeSyntaxHighlighterTests` /
+`MarkdownInterleavingTests` (+ `MarkdownTestSupport` accessors). Existing
+behaviors pinned: prose/image interleaving order, streaming unclosed-fence
+emission, non-streaming empty-fence prose fallback, block syntax inside
+fences staying code.
+
+**Needs Mac:** `xcodegen generate` (1 new source + 7 new test files —
+re-verify `aps-environment`/WeatherKit/widget-HealthKit per the #44/#48
+strip trap), CLI build + full test run (Swift Testing: grep "Test run with
+N tests passed"), then device: stream a reply mixing headings, nested
+lists, a table, a quote, and a swift code block; confirm Deep Field code
+blocks still read correctly and Paper Tape (light) keeps token colors
+legible; confirm table horizontal scroll inside bubbles.
+
+## 93. 🔧 P1 continuity fabric — journal primary, hop transplant, compose outbox (Lane A)
+
+**Built 2026-07-10 in the cloud (Fable, Lane A — `dispatch/FABLE-LANE-A-continuity-fabric.md`),
+branch `claude/talaria-27-lane-a-to5zv3`. NOT compiled, NOT device-verified.** Greenlit by the #89
+probe; the condenser-fidelity acceptance suite below is the probe's residual-risk guardrail.
+
+**What landed:**
+- **Journal = durable primary** (`Models/ConversationJournal.swift` + `Stores/ConversationJournalStore.swift`):
+  conversation identity is a local UUID owned by the journal; entries re-derive from the settled
+  transcript at every ChatStore persistence point (streamed finish, reconcile, polling, #44
+  truncation, voice) via `LocalChatBackend.transcriptTurns` — one mapping, no drift. Persisted at
+  `hermes.conversationJournal`.
+- **`apiSessionId` decoupled:** `SessionsHermesClient`'s single session var is GONE. The server
+  session id is a per-hop handle (`ConversationJournal.ServerHop`) with a `seenEntryCount`
+  waterline; `ensureSession()` → `ensureHopForTurn()`. Hop persists across relaunch (a live server
+  session resumes without re-priming); a 404 on a REUSED hop swaps the handle and retries ONCE on a
+  fresh transplanted hop (`SessionsClientError.sessionNotFound`). `switchModel` ends the hop so the
+  user's next message hops under the new model WITH context — a model switch is a brain hop now.
+- **Transplant at every hop** (`Services/Support/ContextTransplanter.swift` + 
+  `LocalIntelligenceService.condensedContextBrief`): fresh session → priming turn 0 composed from
+  the journal (guided-generation facts brief, corrections-at-latest + prune-distractors
+  instructions, temp 0.2); deterministic verbatim-tail fallback (newest turns, per-entry cap,
+  honest omission marker) when the model is unavailable — never fabricated condensation. Budget
+  1,500 tokens enforced by measurement (binary-search tail fit; non-additive-token ratchet).
+  Priming posts over SSE so `run.completed` usage is captured (real numbers or none).
+- **Local turns mark the hop stale on purpose:** journal entries from on-device/PCC/voice turns
+  don't bump the waterline, so the next Hermes turn re-hops with the full (condensed) context —
+  the brain-hop continuity story.
+- **Offline compose outbox** (`Models/ComposeOutboxState.swift`, `hermes.composeOutboxState`):
+  transport-level failures now stream `.unreachable` (vs `.failed`); text-only turns park as
+  `.queued` transcript rows + persisted outbox (SensorUpload pattern), drain FIFO on reachability
+  (the chat screen's ~10s health probe + cold load), one live send at a time, re-queue stops the
+  drain. Attachment turns still fail honestly (no durable wire form, v1). Siri intent reports a
+  queued turn honestly (new `.queued` outcome).
+- **Priming cost in receipts:** `.contextPrimed(TokenUsage?)` → system notice row in the
+  transcript ("[Context transplanted into a fresh session — N tokens]", `Message.isContextPriming`
+  + usage + servingModel), PRIMING line in StatusCard session totals
+  (`SessionUsageTotals.primingTokens/primingHops`), and priming included in the session cost
+  estimate (`ModelPricingCatalog.estimatedSessionCost`).
+- **Identity-churn fix:** `ChatStore.mergeConversationMetadata` now preserves the LOCAL
+  conversation UUID — refresh/reconcile used to mint a new `Conversation.id` every fetch, which
+  would have reset the journal (dropping the hop) and already orphaned #27 brain pins.
+
+**Tests (Swift Testing):** `CondenserFidelityTests.swift` — the REQUIRED acceptance suite: messy
+transcript (2 corrections + 2 distractors) → asserts latest-corrected-values, distractor pruning,
+and token budget on the REAL on-device condenser. Model-gated via an async `.enabled` trait: runs
+on Apple Intelligence hardware, skips honestly elsewhere — **a skip is NOT a pass; the Mac run is
+the acceptance gate.** Fallback + wire-format halves run everywhere. `ContinuityFabricTests.swift`
+— deterministic: journal identity/waterline/adopt/truncate-clamp/persistence, outbox
+dedupe/persist/clear, ChatStore priming-notice + totals + queue/drain/orphan-hygiene + the
+identity-stability regression.
+
+**Next Mac session:**
+1. Merge order per handoff: Lane C first (ChatScreen overlap), then this. `xcodegen generate` —
+   **4 new source files** (ConversationJournal, ConversationJournalStore, ComposeOutboxState,
+   ContextTransplanter) **+ 2 new test files** (CondenserFidelityTests,
+   ContinuityFabricTests); re-verify `aps-environment`/WeatherKit survive regen (#44/#48 trap);
+   regen commit SEPARATE.
+2. CLI build + full test run. **CondenserFidelityTests must RUN (not skip) — needs Apple
+   Intelligence on.** If the condenser fails fidelity/pruning, that's the #89 residual risk
+   firing: tune `condensedContextBrief` instructions before shipping, do not weaken the tests.
+3. Device checklist: (a) kill/relaunch mid-conversation → next turn resumes the SAME server
+   session (no priming notice); (b) stop the gateway, relaunch, restart gateway → next turn shows
+   the transplant notice + priming tokens in StatusCard; (c) model switch mid-conversation → next
+   turn hops with notice, new model answers WITH context; (d) local-brain turns then back to
+   Hermes → transplant carries the local exchange; (e) airplane mode → send parks `.queued`,
+   reconnect → auto-sends; (f) session totals show PRIMING row + cost including priming.
+4. Priming preamble wording: reconcile `ContextTransplanter.primingText` with the probe's
+   validated phrasing (`talaria-probe/probe.py` on OJAMD) if they differ materially.
+
+**Update (same session) — adversarial review pass, six findings fixed:** (1) `switchModel` no
+longer routes through `ensureHopForTurn` — a stale hop at switch time would have paid for a
+transplant that `endHop()` immediately discarded (double priming per switch); command turns now
+reuse the current hop or a bare throwaway session. (2) The sync-send path (voice context POST)
+surfaced no priming receipt — `appendVoiceTranscript` now detects the hop change after the send
+and appends the transplant notice, so that spend hits the transcript + totals too. (3)
+`isUnreachableError` narrowed: `.timedOut`/`.networkConnectionLost` can fire AFTER the body
+reached the server (the run may have committed), and queued turns auto-resend — those stay
+`.failed` so a human decides about the retry. **Device-checklist consequence: a dead host behind
+Tailscale can surface as `.timedOut` → honest `.failed` + retry, NOT `.queued`; checklist item
+(e) uses airplane mode (`.notConnectedToInternet`), which queues.** (4) `sendMessage` now returns
+whether it dispatched and resets the drain flag before its guards — the drain could previously
+destroy a queued turn whose re-send tripped the duplicate guard (row + outbox entry both already
+removed, flag stale). (5) Drain FIFO restore matches the re-queued turn by id, not last-by-text.
+(6) A priming hop whose run reported no usage now still counts in
+`SessionUsageTotals.primingHops`. Regression tests added for (4) and (6).
+
+Logged 2026-07-10.

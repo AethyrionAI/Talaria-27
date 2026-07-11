@@ -166,7 +166,24 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
 - Issues tracked in `OPEN_ITEMS.md` (dated update notes); session continuity in
   the local `handoffs/` notes (gitignored) + `CLEAN_CHAT_PATH.md`.
 
-## Current state (2026-07-08)
+## Current state (2026-07-10)
+
+- **Lane A — P1 continuity fabric (OPEN_ITEMS #90) built on
+  `claude/talaria-27-lane-a-to5zv3`:** on-device `ConversationJournal` is the
+  durable primary (identity = local UUID); `SessionsHermesClient`'s single
+  `apiSessionId` replaced by journal-owned per-hop handles; fresh hops get a
+  condensed priming turn (`ContextTransplanter` +
+  `LocalIntelligenceService.condensedContextBrief`, verbatim-tail fallback,
+  budget-enforced); model switch = a hop (context survives); offline compose
+  outbox (`.unreachable` → `.queued` → drain on reachability); priming cost
+  surfaced in the transplant notice + StatusCard totals. Condenser-fidelity
+  acceptance suite (`CondenserFidelityTests`) is model-gated — **must RUN,
+  not skip, on the Mac**. Cloud-written, NOT compiled; merge AFTER Lane C
+  (`ChatScreen.swift` overlap — though this lane ended up not touching
+  ChatScreen), `xcodegen generate` (4 new source + 2 new test files), then
+  the OPEN_ITEMS #90 checklist.
+
+## Prior state (2026-07-08)
 
 - **Enhancements wave (GitHub #44–#49) built as six STACKED per-issue
   branches off main (6e604e9), one PR each (merge order: #49 → #48 → #44 →

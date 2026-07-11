@@ -76,6 +76,10 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     var canStartSession = false { didSet { publishSnapshot() } }
     var latencyMetrics = TalkLatencyMetrics() { didSet { publishSnapshot() } }
     var readinessInfo = TalkReadinessInfo() { didSet { publishSnapshot() } }
+    // #84: flatline tripwire + route visibility — "connected" is a transport
+    // claim, not proof the microphone is delivering audio.
+    var micHealthHint: String? { didSet { publishSnapshot() } }
+    var audioRouteSummary: String? { didSet { publishSnapshot() } }
 
     var snapshot: TalkSessionSnapshot {
         TalkSessionSnapshot(
@@ -89,7 +93,9 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             canStartSession: canStartSession,
             latencyMetrics: latencyMetrics,
             voiceSessionID: voiceSessionID,
-            readiness: readinessInfo
+            readiness: readinessInfo,
+            micHealthHint: micHealthHint,
+            audioRouteSummary: audioRouteSummary
         )
     }
 
@@ -114,6 +120,10 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     private var ignoreCurrentAssistantFinalization = false
     private var lastImageItemID: String?
     fileprivate var isEndingSession = false
+    // #84 flatline tripwire — armed at `.connected`, disarmed by the first
+    // speech evidence off the data channel or by session teardown.
+    private var flatlineTask: Task<Void, Never>?
+    private var speechEvidenceObserved = false
 
     #if canImport(WebRTC)
     private static let peerFactory = RTCPeerConnectionFactory()
@@ -194,11 +204,30 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         // calling startSession. Removing it saves one HTTP round trip + RPC.
         guard canStartSession else { return }
 
-        guard await ensureMicrophonePermission() else {
-            blockedReason = "Microphone access is required for talk mode."
+        let micCheck = TalkMicPreflight.classify(
+            permissionGranted: await ensureMicrophonePermission(),
+            inputAvailable: TalkMicPreflight.isMicInputAvailable()
+        )
+        switch micCheck {
+        case .ok:
+            break
+        case .permissionDenied:
+            // #84 preflight: actionable wording — the overlay pairs it with
+            // an OPEN SETTINGS deep link. Never proceeds toward "Connected".
+            blockedReason = TalkMicPreflight.microphoneDeniedMessage
             canStartSession = false
             connectionState = .blocked
             voiceState = .disconnected
+            statusMessage = blockedReason
+            return
+        case .noInputAvailable:
+            // #84 third state: permission is ON but no mic input is reachable
+            // (the #82 wedge shape) — reboot guidance, no Settings dead end.
+            blockedReason = TalkMicPreflight.noMicInputMessage
+            canStartSession = false
+            connectionState = .blocked
+            voiceState = .disconnected
+            statusMessage = blockedReason
             return
         }
 
@@ -269,6 +298,8 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         resetAssistantAudioPlaybackTracking()
         ignoreCurrentAssistantFinalization = false
         lastImageItemID = nil
+        disarmFlatlineTripwire()
+        audioRouteSummary = nil
         #if canImport(WebRTC)
         dataChannel?.close()
         dataChannel = nil
@@ -291,6 +322,11 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         #if canImport(WebRTC)
         audioTrack?.isEnabled = !isMuted
         #endif
+        // #84: unmuting restarts the flatline window — silence while muted
+        // was expected, silence from here on is evidence of a mic problem.
+        if !isMuted, connectionState == .connected, !speechEvidenceObserved {
+            armFlatlineTripwire()
+        }
     }
 
     @discardableResult
@@ -432,6 +468,56 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         voiceSessionID != nil || connectionState == .connected || connectionState == .connecting
     }
 
+    // MARK: - Mic health (#84)
+
+    /// Arm the flatline tripwire: if a connected, unmuted session produces
+    /// zero speech evidence for a full window, surface a mic-health hint
+    /// instead of listening silently over a dead microphone.
+    private func armFlatlineTripwire() {
+        flatlineTask?.cancel()
+        speechEvidenceObserved = false
+        micHealthHint = nil
+        flatlineTask = Task { @MainActor [weak self] in
+            while true {
+                try? await Task.sleep(for: MicFlatlineRule.window)
+                if Task.isCancelled { return }
+                guard let self else { return }
+                switch MicFlatlineRule.verdict(
+                    speechEvidence: self.speechEvidenceObserved,
+                    isMuted: self.isMuted,
+                    connectionState: self.connectionState
+                ) {
+                case .flag:
+                    Self.logger.notice("mic flatline tripwire fired (route: \(self.audioRouteSummary ?? "unknown", privacy: .public))")
+                    self.micHealthHint = MicFlatlineRule.hintMessage
+                    return
+                case .rearm:
+                    continue
+                case .disarm:
+                    return
+                }
+            }
+        }
+    }
+
+    /// The server heard the user — the mic is demonstrably alive.
+    private func noteSpeechEvidence() {
+        speechEvidenceObserved = true
+        flatlineTask?.cancel()
+        flatlineTask = nil
+        if micHealthHint != nil { micHealthHint = nil }
+    }
+
+    private func disarmFlatlineTripwire() {
+        flatlineTask?.cancel()
+        flatlineTask = nil
+        micHealthHint = nil
+    }
+
+    private func updateAudioRouteSummary() {
+        audioRouteSummary = TalkAudioRoute.currentSummary()
+    }
+
     @objc
     private nonisolated func handleAudioSessionInterruptionNotification(_ notification: Notification) {
         let rawType = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
@@ -502,6 +588,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
 
     func handleAudioRouteChange(_ reason: AVAudioSession.RouteChangeReason) {
         guard hasActiveRealtimeSession else { return }
+        updateAudioRouteSummary()
         switch reason {
         case .newDeviceAvailable, .oldDeviceUnavailable, .override, .routeConfigurationChange, .categoryChange:
             if voiceState == .interrupted {
@@ -624,10 +711,12 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         let type = payload["type"] as? String ?? ""
         switch type {
         case "input_audio_buffer.speech_started":
+            noteSpeechEvidence()
             handleServerVADInterruption()
             voiceState = .listening
             statusMessage = "Listening"
         case "input_audio_buffer.committed":
+            noteSpeechEvidence()
             createPendingUserTranscriptItem(from: payload)
         case "conversation.item.created",  // beta
              "conversation.item.added":      // GA
@@ -720,6 +809,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
                 finalizeAssistantText(payload["transcript"] as? String ?? payload["text"] as? String)
             }
         case "conversation.item.input_audio_transcription.delta":
+            noteSpeechEvidence()
             updateUserTranscriptDelta(
                 for: payload["item_id"] as? String,
                 delta: payload["delta"] as? String ?? ""
@@ -799,6 +889,11 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         blockedReason = nil
         canStartSession = true
         statusMessage = "Listening"
+
+        // #84: connected ≠ hearing you. Publish the live route and start the
+        // flatline window so a dead mic surfaces as a hint, not silence.
+        updateAudioRouteSummary()
+        armFlatlineTripwire()
 
         // Re-assert speaker override AFTER WebRTC finishes its audio setup.
         // WebRTC's RTCPeerConnectionFactory reconfigures the audio session

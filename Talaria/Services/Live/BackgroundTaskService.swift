@@ -130,7 +130,9 @@ final class ContinuedProcessingHandle {
         self.box = box
         box.task.progress.totalUnitCount = 100
         box.task.progress.completedUnitCount = completedUnits
-        box.task.expirationHandler = { [weak self] in
+        // @Sendable for the same reason as the launch handler: the system
+        // fires expiration off-main; an isolation-inheriting closure traps.
+        box.task.expirationHandler = { @Sendable [weak self] in
             Task { @MainActor in
                 guard let self, !self.finished else { return }
                 self.finished = true
@@ -182,10 +184,16 @@ enum ContinuedProcessing {
 
         // Continued-processing tasks are exempt from the register-before-
         // launch rule: register the concrete identifier just before submitting.
+        // @Sendable: breaks @MainActor isolation inheritance from this
+        // MainActor-isolated function — BGTaskScheduler invokes the launch
+        // handler on its own queue, and an inherited-isolation closure traps
+        // (dispatch_assert_queue_fail) the moment the system starts the task.
+        // Everything inside is queue-safe: BGTask is documented thread-safe,
+        // and handle work hops to the main actor explicitly.
         let registered = BGTaskScheduler.shared.register(
             forTaskWithIdentifier: identifier,
             using: nil
-        ) { task in
+        ) { @Sendable task in
             guard let continued = task as? BGContinuedProcessingTask else {
                 task.setTaskCompleted(success: false)
                 return

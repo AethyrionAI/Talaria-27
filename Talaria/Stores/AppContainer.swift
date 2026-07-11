@@ -237,12 +237,25 @@ final class AppContainer {
         )
 
         let hermesAPIKeyBox = MutableHermesAPIKeyBox()
+
+        // #26/#27: shared on-device intelligence — also the P1 condenser.
+        let localIntelligence = LocalIntelligenceService()
+
+        // P1 (#90): the durable journal (conversation identity + hop handle)
+        // and the transplant composer — one journal instance shared between
+        // the Sessions client (reads the hop at send time) and ChatStore
+        // (re-syncs it as the settled transcript changes).
+        let journalStore = ConversationJournalStore(persistence: persistence)
+        let transplanter = ContextTransplanter(intelligence: localIntelligence)
+
         let sessionsClient = SessionsHermesClient(
             baseURLProvider: {
                 let raw = settingsStore.settings.hermesAPIBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
                 return raw.isEmpty ? nil : raw
             },
-            apiKeyProvider: { hermesAPIKeyBox.value }
+            apiKeyProvider: { hermesAPIKeyBox.value },
+            journal: journalStore,
+            transplanter: transplanter
         )
         let hermesClient = ResilientHermesClient(
             primary: sessionsClient,
@@ -254,7 +267,6 @@ final class AppContainer {
         // wrapper stays on the Hermes side only — retries are a network
         // concern the local brain doesn't have. ChatStore talks to the router
         // as its one `any HermesClientProtocol`.
-        let localIntelligence = LocalIntelligenceService()
         let localChatBackend = LocalChatBackend(
             persistence: persistence,
             intelligence: localIntelligence
@@ -357,7 +369,7 @@ final class AppContainer {
             sessionStore: sessionStore,
             pairingStore: runtimePairingStore,
             hostStore: hostStore,
-            chatStore: ChatStore(hermesClient: chatBackendRouter, persistence: persistence),
+            chatStore: ChatStore(hermesClient: chatBackendRouter, persistence: persistence, journal: journalStore),
             inboxStore: InboxStore(
                 inboxService: inboxService,
                 persistence: persistence,
@@ -456,7 +468,55 @@ final class AppContainer {
             }
         }
 
+        // Pre-unlock staleness recovery: a post-reboot background launch
+        // (location relaunch) runs BEFORE first unlock, when Keychain and
+        // protected UserDefaults read as empty. Everything cached at
+        // construction — the pairing config, these key boxes — then reads as
+        // absent for the process's whole lifetime, and foregrounding that
+        // same process shows "not paired / no key" even though nothing was
+        // lost. Re-read whenever protected data becomes available (and on
+        // activation, covering the zombie-foreground case). Idempotent: only
+        // acts on values that are currently empty.
+        let refreshCredentialState: @MainActor () -> Void = { [weak container, hermesAPIKeyBox, shimTokenBox] in
+            guard UIApplication.shared.isProtectedDataAvailable else { return }
+            container?.pairingStore.reloadPersistedConfigurationIfNeeded()
+            if hermesAPIKeyBox.value.isEmpty {
+                Task { @MainActor in
+                    if let stored = await secureStore.retrieve(key: AppContainer.hermesAPIKeyKeychainKey), !stored.isEmpty {
+                        hermesAPIKeyBox.value = stored
+                        container?.hermesAPIKey = stored
+                        container?.chatBackendRouter?.refreshActiveBrain()
+                        containerLog.notice("credential refresh: Sessions API key re-read after protected data became available")
+                    }
+                }
+            }
+            if shimTokenBox.value.isEmpty {
+                Task { @MainActor in
+                    if let stored = await secureStore.retrieve(key: AppContainer.modelsShimTokenKeychainKey), !stored.isEmpty {
+                        shimTokenBox.value = stored
+                        container?.modelsShimToken = stored
+                    }
+                }
+            }
+        }
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.protectedDataDidBecomeAvailableNotification,
+            object: nil, queue: .main
+        ) { _ in
+            Task { @MainActor in refreshCredentialState() }
+        }
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil, queue: .main
+        ) { _ in
+            Task { @MainActor in refreshCredentialState() }
+        }
+
         let refreshUnpairedRelayContext: @MainActor () async -> Void = { [weak sessionStore, weak container] in
+            // Never act on a pre-unlock reading of "unpaired": clearing the
+            // session + force-registering off unreadable credentials would
+            // destroy a healthy identity.
+            guard UIApplication.shared.isProtectedDataAvailable else { return }
             guard container?.pairingStore.isPaired == false else { return }
             await sessionStore?.clearSession()
             guard let relayBaseURL = container?.settingsStore.settings.relayConfiguration.activeBaseURLString,
@@ -507,6 +567,14 @@ final class AppContainer {
         // run survives the user leaving the app.
         container.chatStore.beginContinuedSend = { subtitle in
             ContinuedProcessing.beginLongSend(subtitle: subtitle)
+        }
+
+        // Failed sends buzz. Same user gate as the sent/received haptics
+        // (ChatScreen fires those; the failure terminals live in ChatStore).
+        container.chatStore.onSendFailed = {
+            if settingsStore.settings.hapticFeedbackEnabled {
+                HapticEngine.error()
+            }
         }
 
         // Keep widget data fresh while app is foregrounded
@@ -703,6 +771,11 @@ final class AppContainer {
             }
         case .failed(let errorText):
             localNotifications.notifyReplyFailed(reason: errorText)
+        case .queued:
+            // Parked in the offline compose outbox (#90): nothing was accepted
+            // server-side, so there's no run to push-watch and it isn't a
+            // failure. The outbox drain arms its own watch when it later sends.
+            break
         }
     }
 
@@ -765,6 +838,14 @@ final class AppContainer {
 
     func handleSystemLaunch() async {
         containerLog.notice("handleSystemLaunch: entered")
+        // Pre-first-unlock launches (post-reboot location relaunch) cannot
+        // read credentials — every guard below would misfire on absence that
+        // isn't real. Defer everything; the protected-data observer picks up
+        // once the user unlocks.
+        guard UIApplication.shared.isProtectedDataAvailable else {
+            containerLog.warning("handleSystemLaunch: BLOCKED — protected data unavailable (pre-first-unlock launch); deferring")
+            return
+        }
         guard pairingStore.isPaired else {
             containerLog.warning("handleSystemLaunch: BLOCKED — not paired")
             return
