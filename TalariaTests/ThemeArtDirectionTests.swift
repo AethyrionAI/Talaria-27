@@ -15,6 +15,113 @@ struct ThemeArtDirectionTests {
         #expect(standard.panelHalo == nil)
         #expect(standard.atmosphereMotion == nil)
         #expect(standard.titleGlow == nil)
+        // Phase 2 spec types must default off — a theme without an entry
+        // renders byte-identically through every new slot.
+        #expect(standard.radialSpokes == nil)
+        #expect(standard.lineTexture == nil)
+        #expect(standard.scanlineOverlay == nil)
+        #expect(standard.titleShadow == nil)
+    }
+
+    // MARK: Phase 2 schema extension (Lane E)
+
+    @Test func lineFieldsAndTitleShadowsDefaultToNil() {
+        // Every shipped theme — Event Horizon included — carries none of the
+        // Phase 2 fields until a Phase 3 port sets them deliberately.
+        for theme in ThemeID.allCases {
+            let art = ThemeArtDirectionCatalog.artDirection(for: theme)
+            #expect(art.lineTexture == nil)
+            #expect(art.scanlineOverlay == nil)
+            #expect(art.titleShadow == nil)
+        }
+    }
+
+    @Test func glowPoolsStayStaticByDefault() {
+        // The pulse fields must default inert so existing pools render
+        // byte-identically (no TimelineView on the static path).
+        let pool = ThemeGlowPool(color: .white, centerX: 0.5, centerY: 0.5, radiusFraction: 0.5)
+        #expect(pool.pulsePeriod == nil)
+        for art in ThemeArtDirectionCatalog.overrides.values {
+            for pool in art.glowPools {
+                #expect(pool.pulsePeriod == nil)
+            }
+        }
+    }
+
+    @Test func eventHorizonAtmosphereKeepsPreLaserDefaults() {
+        // The Layer extensions (non-square tiles, laser bars, halftone
+        // hardness) must not touch the device-verdict-approved Event Horizon
+        // rendering: every layer stays a square-tiled soft round speck.
+        let spec = ThemeArtDirectionCatalog.artDirection(for: .eventHorizon).atmosphereMotion
+        for layer in spec?.layers ?? [] {
+            #expect(layer.tileHeight == nil)
+            #expect(layer.barHeight == nil)
+            #expect(layer.blurScale == 1.0)
+        }
+    }
+
+    @Test func lineFieldSpecCarriesRenderableGeometry() {
+        // Representative Phase 3 payloads — the renderer requires positive
+        // spacing and draws nothing otherwise, so pin the shapes here.
+        let dualGrid = ThemeLineFieldSpec(layers: [
+            .init(angleDegrees: 90, hue: Color(hex: 0x00F0FF), alpha: 0.04, spacing: 24),
+            .init(angleDegrees: 0, hue: Color(hex: 0xFF69B4), alpha: 0.04, spacing: 24),
+        ], fieldOpacity: 0.35)
+        let sprayStreaks = ThemeLineFieldSpec(layers: [
+            .init(angleDegrees: 135, hue: Color(hex: 0xFF006E), alpha: 0.10,
+                  spacing: 40, lineWidth: 2.5, segmentLength: 12),
+        ], fieldOpacity: 0.45)
+
+        for spec in [dualGrid, sprayStreaks] {
+            #expect((0...1).contains(spec.fieldOpacity))
+            for layer in spec.layers {
+                #expect(layer.spacing > 0)
+                #expect(layer.lineWidth > 0)
+                #expect((0...1).contains(layer.alpha))
+                if let segment = layer.segmentLength {
+                    #expect(segment > 0)
+                }
+            }
+        }
+        // Continuous vs streak mode is the segmentLength distinction.
+        #expect(dualGrid.layers.allSatisfy { $0.segmentLength == nil })
+        #expect(sprayStreaks.layers.allSatisfy { $0.segmentLength != nil })
+    }
+
+    @Test func titleShadowSpecDefaultsAreInkAndStatic() {
+        // blur defaults to 0 (ink layer — ignores the glow pref) and
+        // glitchPeriod to nil (no jitter timeline).
+        let layer = ThemeTitleShadowSpec.Layer(
+            hue: Color(hex: 0xFFD600), alpha: 1.0, offsetX: 4, offsetY: 4)
+        let spec = ThemeTitleShadowSpec(layers: [layer])
+        #expect(layer.blur == 0)
+        #expect(spec.glitchPeriod == nil)
+    }
+
+    @Test func atmosphereBarLayersStaySeamless() {
+        // Laser-bar layers (Karaoke Supernova) keep the whole-tile drift
+        // invariant on BOTH axes of a non-square tile.
+        let laser = AtmosphereMotionSpec.Layer(
+            tileSize: 120, driftX: -120, driftY: 180,
+            hue: Color(hex: 0xFF00AA), speckAlpha: 0.35,
+            speckRadius: 1, tileHeight: 180, barHeight: 80)
+        let tileH = laser.tileHeight ?? laser.tileSize
+        #expect(abs(laser.driftX).truncatingRemainder(dividingBy: laser.tileSize) == 0)
+        #expect(abs(laser.driftY).truncatingRemainder(dividingBy: tileH) == 0)
+        #expect((laser.barHeight ?? 0) > 0)
+    }
+
+    @Test func galleryOrbStylesAreDataOnlyUntilPhase3() {
+        // Phase 2 lands the twelve compositions unwired: every shipped
+        // palette still selects a pre-existing orb style, so no theme's
+        // rendering changes. Phase 3 flips these deliberately.
+        let prePhase3: Set<ThemeOrbStyle> = [
+            .arcReactor, .forgeSun, .crtCrosshair, .paperReel, .singularity,
+        ]
+        for theme in ThemeID.allCases {
+            let palette = ThemePalette(theme: theme, accent: .cyan)
+            #expect(prePhase3.contains(palette.orbStyle))
+        }
     }
 
     @Test func onlyEventHorizonOverridesArtDirection() {
