@@ -22,11 +22,15 @@ struct DesignThemeTests {
     }
 
     @Test func themesProduceDistinctEnvironments() {
+        // Distinct ENVIRONMENTS, not necessarily distinct hero hexes: the
+        // gallery ships Cereal Box and Cyber Cactus with the identical
+        // #FF5078 hero (verbatim in both handoffs), so the accent check
+        // allows a shared base when the environments differ.
         let palettes = ThemeID.allCases.map { ThemePalette(theme: $0, accent: .cyan) }
         for (i, a) in palettes.enumerated() {
             for b in palettes.dropFirst(i + 1) {
                 #expect(a.background != b.background || a.surface != b.surface)
-                #expect(a.base != b.base)
+                #expect(a.base != b.base || a.background != b.background)
             }
         }
     }
