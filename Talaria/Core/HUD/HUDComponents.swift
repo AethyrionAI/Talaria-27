@@ -294,6 +294,7 @@ private struct TitleShadowModifier: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
 
+    @ViewBuilder
     func body(content: Content) -> some View {
         if let spec {
             if let period = spec.glitchPeriod, period > 0, !reduceMotion {
