@@ -190,7 +190,7 @@ struct ThemeArtDirectionTests {
             .eventHorizon,
             .glitchGarden, .witchsBrew, .holoSushi,
             .cerealBox, .bubblegumMecha, .retroSciFi,
-            .lunarDiner, .cyberCactus, .deepSeaDiner, .discoInferno,
+            .lunarDiner, .cyberCactus, .discoInferno,
             .graffitiGalaxy, .karaokeSupernova,
         ]
         for theme in ThemeID.allCases {
@@ -288,7 +288,7 @@ struct ThemeArtDirectionTests {
         #expect(ThemeArtDirection.standard.atmosphereMotion == nil)
         let fields: Set<ThemeID> = [
             .eventHorizon, .witchsBrew, .cerealBox, .bubblegumMecha, .retroSciFi,
-            .lunarDiner, .deepSeaDiner, .discoInferno, .karaokeSupernova,
+            .lunarDiner, .discoInferno, .karaokeSupernova,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -301,7 +301,7 @@ struct ThemeArtDirectionTests {
         // them) — zero drift on every layer, so Reduce Motion and the
         // animated path render identically. Only Event Horizon drifts today.
         for theme in [ThemeID.witchsBrew, .cerealBox, .bubblegumMecha, .retroSciFi,
-                      .lunarDiner, .deepSeaDiner, .discoInferno] {
+                      .lunarDiner, .discoInferno] {
             let spec = ThemeArtDirectionCatalog.artDirection(for: theme).atmosphereMotion
             #expect(spec != nil)
             for layer in spec?.layers ?? [] {
@@ -378,8 +378,9 @@ struct ThemeArtDirectionTests {
     }
 
     @Test func dinerStarlightLatticesMatchTheHandoff() {
-        // Lunar and Deep Sea share the white 60/120 marine-snow lattice.
-        for theme in [ThemeID.lunarDiner, .deepSeaDiner] {
+        // Lunar Diner's white 60/120 marine-snow lattice (Deep Sea Diner
+        // shared it before being cut — too close to Deep Field, 2026-07-11).
+        for theme in [ThemeID.lunarDiner] {
             let spec = ThemeArtDirectionCatalog.artDirection(for: theme).atmosphereMotion
             #expect(spec?.layers.map(\.tileSize) == [60, 120])
             #expect(spec?.layers.map(\.speckAlpha) == [0.15, 0.08])

@@ -285,7 +285,6 @@ enum ThemeArtDirectionCatalog {
         .retroSciFi: retroSciFi,
         .lunarDiner: lunarDiner,
         .cyberCactus: cyberCactus,
-        .deepSeaDiner: deepSeaDiner,
         .discoInferno: discoInferno,
         .graffitiGalaxy: graffitiGalaxy,
         .karaokeSupernova: karaokeSupernova,
@@ -594,32 +593,6 @@ enum ThemeArtDirectionCatalog {
             secondary: Color(hex: 0xFF5078)
         )
     )
-
-    // MARK: Deep Sea Diner — design/themes/theme-deep-sea-diner.html
-    // Abyssal counter: lure bloom + under-light over the same white
-    // starlight lattice as Lunar (marine snow, per the handoff).
-
-    static let deepSeaDiner = ThemeArtDirection(
-        glowPools: [
-            ThemeGlowPool(color: Color(hex: 0x00F5FF, opacity: 0.10),
-                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
-            ThemeGlowPool(color: Color(hex: 0x00F5FF, opacity: 0.036),
-                          centerX: 0.5, centerY: 1.0, radiusFraction: 0.50),
-        ],
-        atmosphereMotion: AtmosphereMotionSpec(layers: [
-            AtmosphereMotionSpec.Layer(
-                tileSize: 60, driftX: 0, driftY: 0,
-                hue: Color(hex: 0xFFFFFF), speckAlpha: 0.15),
-            AtmosphereMotionSpec.Layer(
-                tileSize: 120, driftX: 0, driftY: 0,
-                hue: Color(hex: 0xFFFFFF), speckAlpha: 0.08),
-        ], period: 1, fieldOpacity: 0.3),
-        titleGlow: ThemeTitleGlow(
-            primary: Color(hex: 0x00F5FF),
-            secondary: Color(hex: 0x00F5FF)
-        )
-    )
-
     // MARK: Disco Inferno — design/themes/theme-disco-inferno.html
     // Mirror-ball hell: gold bloom, the BRIGHT gold/silver sparkle lattice
     // (.45/.35 — the loudest speck field in the gallery, on a .35 layer),
