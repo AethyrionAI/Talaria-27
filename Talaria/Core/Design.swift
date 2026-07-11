@@ -408,6 +408,8 @@ extension AppearanceTheme {
         case .cyberCactus: .cyberCactus
         case .deepSeaDiner: .deepSeaDiner
         case .discoInferno: .discoInferno
+        case .graffitiGalaxy: .graffitiGalaxy
+        case .karaokeSupernova: .karaokeSupernova
         }
     }
 }
