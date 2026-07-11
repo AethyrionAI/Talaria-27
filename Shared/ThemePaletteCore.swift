@@ -444,6 +444,7 @@ enum ThemePaletteCatalog {
         .karaokeSupernova: karaokeSupernova,
         .midnightAquarium: midnightAquarium,
         .moltenForge: moltenForge,
+        .hauntedVHS: hauntedVHS,
     ]
 
     /// Total lookup over the shipped themes (coverage guarded by
@@ -2032,6 +2033,78 @@ enum ThemePaletteCatalog {
         gridCell: 26,
         isLight: false,
         orbStyle: .crucible
+    )
+
+    // MARK: VHS — Haunted VHS (design/themes/theme-haunted-vhs.html)
+    // Special Edition (batch 4, Claude-Design export): a haunted late-night
+    // tape — phosphor telemetry through drifting static, magenta/cyan chroma
+    // ghosts, CRT rows. Tape Amber #FFC247 is the fourth hue (gallery badge
+    // + user-bubble gradient — both out of the port's scope, inventoried).
+    // Handoff-native slot names, EH precedent.
+
+    static let hauntedVHS = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0x0A0D0A),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0x111A11), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0x0A0D0A), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0x040604), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0x111A11), Color(hex: 0x0A0D0A), Color(hex: 0x040604)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0xE8FFE8),
+            foregroundBright: Color(hex: 0xE8FFE8),
+            secondaryForeground: Color(hex: 0x9FC4A2),
+            mutedForeground: Color(hex: 0x9FC4A2),
+            dimForeground: Color(hex: 0x5F8264),
+            coolForeground: Color(hex: 0x9FC4A2)
+        ),
+        surface: Color(hex: 0x3BFF6F, opacity: 0.08),
+        chips: .fixed(
+            surface: Color(hex: 0x3BFF6F, opacity: 0.08),
+            divider: Color(hex: 0xFF3BD4, opacity: 0.08),
+            border: Color(hex: 0x35E0FF, opacity: 0.06)
+        ),
+        borders: .accentTinted(hairline: 0.14, strong: 0.30),
+        scrim: Color(hex: 0x000000, opacity: 0.85),
+        danger: Color(hex: 0xFF3B3B),
+        dangerBright: Color(hex: 0xFF5858),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Phosphor Green",
+                base: Color(hex: 0x3BFF6F),
+                bright: Color(hex: 0x6BFF92),
+                deep: Color(hex: 0x29B24D),
+                coreHighlight: Color(hex: 0x92FFAF),
+                coreShadow: Color(hex: 0x208C3D),
+                forge: Color(hex: 0xFF9E00)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Chroma Magenta",
+                base: Color(hex: 0xFF3BD4),
+                bright: Color(hex: 0xFF6BDE),
+                deep: Color(hex: 0xB22994),
+                coreHighlight: Color(hex: 0xFF92E7),
+                coreShadow: Color(hex: 0x8C2074),
+                forge: Color(hex: 0xFF9E00)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Static Cyan",
+                base: Color(hex: 0x35E0FF),
+                bright: Color(hex: 0x66E7FF),
+                deep: Color(hex: 0x259CB2),
+                coreHighlight: Color(hex: 0x8FEDFF),
+                coreShadow: Color(hex: 0x1D7B8C),
+                forge: Color(hex: 0xFF9E00)
+            )
+        ),
+        glowScale: 1.1,
+        gridStyle: .lines,
+        gridLine: .accentTinted(0.08),
+        gridCell: 26,
+        isLight: false,
+        orbStyle: .phosphor
     )
 }
 
