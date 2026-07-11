@@ -176,4 +176,15 @@ struct TalkPreflightTests {
         #expect(snapshot.micHealthHint == nil)
         #expect(snapshot.audioRouteSummary == nil)
     }
+
+    // #82 wedge backstop: the engine-level format gate both voice engines
+    // consult before installing a tap (an NSException-crash otherwise).
+    @Test func degenerateCaptureFormatsAreNotViable() {
+        #expect(TalkMicPreflight.isViableCaptureFormat(sampleRate: 48000, channelCount: 1))
+        #expect(TalkMicPreflight.isViableCaptureFormat(sampleRate: 44100, channelCount: 2))
+        #expect(!TalkMicPreflight.isViableCaptureFormat(sampleRate: 0, channelCount: 1))
+        #expect(!TalkMicPreflight.isViableCaptureFormat(sampleRate: 48000, channelCount: 0))
+        #expect(!TalkMicPreflight.isViableCaptureFormat(sampleRate: 0, channelCount: 0))
+        #expect(!TalkMicPreflight.isViableCaptureFormat(sampleRate: -1, channelCount: 1))
+    }
 }

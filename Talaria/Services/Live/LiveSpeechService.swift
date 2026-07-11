@@ -164,6 +164,9 @@ final class LiveSpeechService {
         case unavailable
         case microphoneDenied
         case startupTimedOut
+        /// #82 wedge caught at the engine (degenerate input format) — a tap
+        /// install would raise an uncatchable NSException. #84 wording.
+        case noAudioInput
 
         var errorDescription: String? {
             switch self {
@@ -173,6 +176,8 @@ final class LiveSpeechService {
                 "Microphone access is required for dictation."
             case .startupTimedOut:
                 "Dictation took too long to start."
+            case .noAudioInput:
+                TalkMicPreflight.noMicInputMessage
             }
         }
     }
@@ -228,6 +233,15 @@ private actor DictationController {
         let inputNode = audioEngine.inputNode
         inputNode.removeTap(onBus: 0)
         let inputFormat = inputNode.outputFormat(forBus: 0)
+        // #82 wedge backstop: refuse the tap install on a degenerate format
+        // (uncatchable NSException otherwise); surface #84 reboot guidance.
+        guard TalkMicPreflight.isViableCaptureFormat(
+            sampleRate: inputFormat.sampleRate,
+            channelCount: inputFormat.channelCount
+        ) else {
+            Self.logger.error("capture format degenerate (rate=\(inputFormat.sampleRate) ch=\(inputFormat.channelCount)) — #82 wedge shape; refusing tap install")
+            throw LiveSpeechService.SpeechError.noAudioInput
+        }
         let analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(
             compatibleWith: [transcriber],
             considering: inputFormat
