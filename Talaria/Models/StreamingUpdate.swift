@@ -30,8 +30,19 @@ enum StreamingUpdate: Sendable {
     /// from the answer — never folded into `textDelta`.
     case reasoningDelta(String)
     case toolActivity(ToolCallEvent)
+    /// P1 (#90): this turn started a fresh server session and transplanted
+    /// condensed journal context into it as turn zero, BEFORE the user's turn
+    /// was posted. Carries the priming turn's real token usage from its
+    /// `run.completed` (nil when the server reported none) so the cost
+    /// surfaces in the receipts — priming is not free.
+    case contextPrimed(TokenUsage?)
     case finished(Message, TokenUsage?, CodeDiff?)
     case failed(String)
+    /// P1 (#90): the turn never reached the Sessions API at all (transport
+    /// failure — host down, no route, offline). Distinct from `failed` so the
+    /// offline compose outbox can queue the turn durably and drain it when
+    /// the API is reachable again, instead of dead-ending it.
+    case unreachable(String)
     /// The stream dropped (e.g. the app was backgrounded on lock) AFTER the run
     /// was committed server-side. Not a failure: the run keeps running on the
     /// host and is reconciled via the Sessions messages endpoint.

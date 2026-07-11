@@ -121,12 +121,79 @@ final class LocalIntelligenceService {
         }
     }
 
+    // MARK: - Context transplant condensation (P1 / OPEN_ITEMS #90)
+
+    /// Guided-generation shape for the context brief. An array of short
+    /// declarative facts keeps the output structured enough to format and
+    /// budget deterministically.
+    // fileprivate, not private: the @Generable macro expansion emits code
+    // that cannot see a private nested type.
+    @Generable
+    fileprivate struct GeneratedContextBrief {
+        @Guide(description: "The conversation's essential facts, goals, decisions, and outcomes, each as one short declarative sentence. State every fact at its FINAL value after any corrections — never include a superseded value. Exclude small talk, tangents, and one-off trivia the conversation never built on.")
+        var facts: [String]
+    }
+
+    /// Condenses a rendered conversation transcript into the declarative
+    /// context brief a fresh Hermes session is primed with at a brain hop
+    /// (P1). This is the condenser whose fidelity the #89 probe flagged as
+    /// the residual risk — CondenserFidelityTests is its guardrail:
+    /// corrections must survive at their LATEST value, distractors must be
+    /// pruned, and the result must fit the priming budget.
+    ///
+    /// Nil when the on-device model is unavailable or generation fails;
+    /// `ContextTransplanter` then falls back to a verbatim recent tail —
+    /// honest degradation, never fabricated condensation.
+    func condensedContextBrief(transcript: String) async -> String? {
+        let trimmedInput = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedInput.isEmpty, isModelAvailable else { return nil }
+
+        // Safety net only — the transplanter pre-fits the transcript keeping
+        // the NEWEST turns (this prefix-side trim would cut the wrong end).
+        let input = await trimmed(trimmedInput, toTokenBudget: promptInputBudget)
+
+        let session = LanguageModelSession(instructions: """
+            You condense a conversation between a user and an AI assistant named \
+            Hermes into a compact context brief, so a fresh assistant instance \
+            can continue the conversation seamlessly. Extract only what matters \
+            to continuing: facts, goals, decisions, preferences, and outcomes. \
+            Two hard rules. One: when a value was corrected or changed during \
+            the conversation, keep ONLY the final corrected value — repeating a \
+            superseded value is worse than omitting the fact. Two: omit small \
+            talk, tangents, and one-off trivia the conversation never built on \
+            — every carried fact costs the user tokens.
+            """)
+        do {
+            let response = try await session.respond(
+                to: """
+                CONVERSATION TRANSCRIPT:
+                \(input)
+                """,
+                generating: GeneratedContextBrief.self,
+                options: GenerationOptions(temperature: 0.2)
+            )
+            let facts = response.content.facts
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            guard !facts.isEmpty else { return nil }
+            return facts.map { "- \($0)" }.joined(separator: "\n")
+        } catch {
+            Self.logger.notice("condensedContextBrief: generation failed — \(error.localizedDescription, privacy: .public); caller falls back to verbatim tail")
+            return nil
+        }
+    }
+
     // MARK: - Context budgeting (#4.8)
 
     /// Prompt-input token budget: the on-device context window (8192 tokens
     /// on iOS 27 hardware — read live, never hardcoded) minus headroom for
     /// instructions + output.
-    private var promptInputBudget: Int { max(512, model.contextSize - 1024) }
+    ///
+    /// Internal (not private) since P1: `ContextTransplanter` pre-fits the
+    /// condenser's transcript input against this budget, keeping the newest
+    /// turns — `trimmed(_:toTokenBudget:)` cuts from the tail, which is the
+    /// wrong end for a conversation.
+    var promptInputBudget: Int { max(512, model.contextSize - 1024) }
 
     /// Trims `text` to roughly `budget` tokens, measured with the model's own
     /// tokenizer where available (`tokenCount(for:)`, iOS 26.4+) and a

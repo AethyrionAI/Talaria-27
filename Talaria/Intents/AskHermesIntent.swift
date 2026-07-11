@@ -126,6 +126,15 @@ struct AskHermesIntent: AppIntent {
             // HTTP status) — surfaced verbatim in Siri's error UI, never a
             // fabricated answer ("real data only").
             throw AskHermesIntentError.hermesFailed(errorText)
+        case .queued:
+            // Sessions API unreachable — the turn is parked in the compose
+            // outbox (#90) and auto-sends when the host is reachable. Honest
+            // dialog: nothing was accepted yet, nothing is running.
+            return .result(
+                value: "",
+                dialog: IntentDialog("Hermes is unreachable right now. Your question is queued and will send automatically."),
+                view: AskHermesSnippetView(question: trimmedQuestion, state: .working)
+            )
         case .pending:
             // Stream dropped but the run is committed server-side (ChatStore's
             // .interrupted path) — reconcile delivers the reply on next open.
@@ -146,6 +155,9 @@ struct AskHermesIntent: AppIntent {
         case answered(String)
         /// The send failed outright — content is the REAL error text.
         case failed(String)
+        /// The Sessions API was unreachable — the turn parked in the offline
+        /// compose outbox (#90) and auto-sends when the host is reachable.
+        case queued
         /// No reply and no failure yet (run interrupted but committed
         /// server-side, or the post-accept refresh hasn't delivered).
         case pending
@@ -168,6 +180,9 @@ struct AskHermesIntent: AppIntent {
         }
         if let failure = exchange.last(where: { $0.sender == .system && $0.status == .failed }) {
             return .failed(failure.content)
+        }
+        if exchange.contains(where: { $0.sender == .user && $0.status == .queued }) {
+            return .queued
         }
         return .pending
     }
