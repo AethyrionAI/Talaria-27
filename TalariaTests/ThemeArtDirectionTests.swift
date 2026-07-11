@@ -28,8 +28,10 @@ struct ThemeArtDirectionTests {
     @Test func lineFieldsAndTitleShadowsAreDeliberatePerTheme() {
         // The Phase 2 slots stay nil except where a port sets them — update
         // these sets deliberately per batch.
-        let lineTextures: Set<ThemeID> = [.holoSushi]
-        let scanlineOverlays: Set<ThemeID> = [.glitchGarden, .bubblegumMecha, .retroSciFi]
+        let lineTextures: Set<ThemeID> = [.holoSushi, .cyberCactus]
+        let scanlineOverlays: Set<ThemeID> = [
+            .glitchGarden, .bubblegumMecha, .retroSciFi, .discoInferno,
+        ]
         let titleShadows: Set<ThemeID> = [.glitchGarden, .retroSciFi]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -119,7 +121,7 @@ struct ThemeArtDirectionTests {
         // styles stay unselected until their ports land. The full per-theme
         // orb mapping is pinned in DesignThemeTests.orbStyleIsThemeData.
         let unwired: Set<ThemeOrbStyle> = [
-            .jukeboxGlow, .cactusBloom, .anglerLure, .discoBall, .sprayCap, .mirrorBall,
+            .sprayCap, .mirrorBall,
         ]
         for theme in ThemeID.allCases {
             let palette = ThemePalette(theme: theme, accent: .cyan)
@@ -135,6 +137,7 @@ struct ThemeArtDirectionTests {
             .eventHorizon,
             .glitchGarden, .witchsBrew, .holoSushi,
             .cerealBox, .bubblegumMecha, .retroSciFi,
+            .lunarDiner, .cyberCactus, .deepSeaDiner, .discoInferno,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -209,6 +212,7 @@ struct ThemeArtDirectionTests {
         #expect(ThemeArtDirection.standard.atmosphereMotion == nil)
         let fields: Set<ThemeID> = [
             .eventHorizon, .witchsBrew, .cerealBox, .bubblegumMecha, .retroSciFi,
+            .lunarDiner, .deepSeaDiner, .discoInferno,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -220,7 +224,8 @@ struct ThemeArtDirectionTests {
         // Batch 1's speck fields are STATIC by design (the CSS never pans
         // them) — zero drift on every layer, so Reduce Motion and the
         // animated path render identically. Only Event Horizon drifts today.
-        for theme in [ThemeID.witchsBrew, .cerealBox, .bubblegumMecha, .retroSciFi] {
+        for theme in [ThemeID.witchsBrew, .cerealBox, .bubblegumMecha, .retroSciFi,
+                      .lunarDiner, .deepSeaDiner, .discoInferno] {
             let spec = ThemeArtDirectionCatalog.artDirection(for: theme).atmosphereMotion
             #expect(spec != nil)
             for layer in spec?.layers ?? [] {
@@ -273,6 +278,37 @@ struct ThemeArtDirectionTests {
         #expect(art.lineTexture?.layers.allSatisfy { $0.spacing == 24 && $0.segmentLength == nil } == true)
         #expect(art.lineTexture?.fieldOpacity == 0.35)
         #expect(art.titleGlow != nil)
+    }
+
+    @Test func cyberCactusCrosshatchSitsAtHandoffLevels() {
+        let art = ThemeArtDirectionCatalog.artDirection(for: .cyberCactus)
+        #expect(art.lineTexture?.layers.map(\.angleDegrees) == [45, -45])
+        #expect(art.lineTexture?.layers.allSatisfy { $0.spacing == 11 && $0.alpha == 0.03 } == true)
+        #expect(art.lineTexture?.fieldOpacity == 0.25)
+    }
+
+    @Test func discoInfernoSitsAtHandoffLevels() {
+        let art = ThemeArtDirectionCatalog.artDirection(for: .discoInferno)
+        // The loudest sparkle field in the gallery: gold .45 / silver .35.
+        #expect(art.atmosphereMotion?.layers.map(\.speckAlpha) == [0.45, 0.35])
+        #expect(art.atmosphereMotion?.layers.map(\.tileSize) == [24, 12])
+        #expect(art.atmosphereMotion?.fieldOpacity == 0.35)
+        #expect(art.scanlineOverlay != nil)
+        // The gold dot grid is palette data at the handoff's pitch.
+        let palette = ThemePalette(theme: .discoInferno, accent: .cyan)
+        #expect(palette.gridStyle == .dots)
+        #expect(palette.gridCell == 10)
+        #expect(palette.glowScale == 1.2)
+    }
+
+    @Test func dinerStarlightLatticesMatchTheHandoff() {
+        // Lunar and Deep Sea share the white 60/120 marine-snow lattice.
+        for theme in [ThemeID.lunarDiner, .deepSeaDiner] {
+            let spec = ThemeArtDirectionCatalog.artDirection(for: theme).atmosphereMotion
+            #expect(spec?.layers.map(\.tileSize) == [60, 120])
+            #expect(spec?.layers.map(\.speckAlpha) == [0.15, 0.08])
+            #expect(spec?.fieldOpacity == 0.3)
+        }
     }
 
     @Test func retroSciFiHalftoneIsCrispPrint() {
