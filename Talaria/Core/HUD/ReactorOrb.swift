@@ -43,6 +43,21 @@ struct ReactorOrb: View {
             case .crtCrosshair: crtCrosshairLayers
             case .paperReel: paperReelLayers
             case .singularity: singularityLayers
+            // Gallery-port compositions (Lane E Phase 2, gh#64). Most share
+            // the handoffs' tri-ring anatomy — data below, drawing in
+            // `triRingLayers` — with bespoke extras per theme.
+            case .glitchSeed: triRingLayers(Self.glitchSeed)
+            case .cauldronBrew: cauldronBrewLayers
+            case .holoNigiri: triRingLayers(Self.holoNigiri)
+            case .prizeWheel: triRingLayers(Self.prizeWheel)
+            case .candyMecha: triRingLayers(Self.candyMecha)
+            case .jukeboxGlow: triRingLayers(Self.jukeboxGlow)
+            case .cactusBloom: triRingLayers(Self.cactusBloom)
+            case .anglerLure: triRingLayers(Self.anglerLure)
+            case .discoBall: discoBallLayers
+            case .sprayCap: sprayCapLayers
+            case .mirrorBall: triRingLayers(Self.mirrorBall)
+            case .rocketBadge: rocketBadgeLayers
             }
         }
         .frame(width: size, height: size)
@@ -228,6 +243,288 @@ struct ReactorOrb: View {
             SingularityCore(diameter: size * 0.30, glow: glowIntensity)
         }
     }
+
+    // MARK: - Tri-ring gallery family (Lane E Phase 2)
+    // The collection handoffs share one orb anatomy: three staggered pulse
+    // rings at 100/74/48% with per-theme hues, around a two-hue radial core
+    // with a per-theme motion (design/themes/*.html `.orb`). The drawing is
+    // shared; each theme is a `TriRingOrbSpec` of verbatim handoff values.
+
+    @ViewBuilder private func triRingLayers(_ spec: TriRingOrbSpec) -> some View {
+        switch style {
+        case .minimal:
+            triRing(spec, index: 0, diameter: size)
+            triCore(spec, diameter: size * 0.50)
+
+        case .standard:
+            triRing(spec, index: 0, diameter: size)
+            triRing(spec, index: 2, diameter: size * spec.rings[2].diameterFraction)
+            triCore(spec, diameter: size * 0.36)
+
+        case .onboarding:
+            // The handoff's exact three-ring stack + core.
+            ForEach(spec.rings.indices, id: \.self) { index in
+                triRing(spec, index: index,
+                        diameter: size * spec.rings[index].diameterFraction)
+            }
+            triCore(spec, diameter: size * spec.coreFraction)
+
+        case .voice:
+            PingHalo(diameter: size)
+            ForEach(spec.rings.indices, id: \.self) { index in
+                triRing(spec, index: index,
+                        diameter: size * spec.rings[index].diameterFraction)
+            }
+            triCore(spec, diameter: size * max(spec.coreFraction, 0.34))
+        }
+    }
+
+    private func triRing(_ spec: TriRingOrbSpec, index: Int, diameter: CGFloat) -> some View {
+        let ring = spec.rings[index]
+        return TriPulseRing(
+            diameter: diameter,
+            color: ring.color,
+            baseOpacity: ring.baseOpacity,
+            lineWidth: lw(ring.lineWidthFraction),
+            dash: ring.dash,
+            period: spec.pulsePeriod,
+            delay: ring.delay
+        )
+    }
+
+    private func triCore(_ spec: TriRingOrbSpec, diameter: CGFloat) -> some View {
+        TwoHueOrbCore(
+            diameter: diameter,
+            highlight: spec.coreHighlight,
+            base: spec.coreBase,
+            glowColor: spec.coreGlow,
+            glow: glowIntensity,
+            motion: spec.coreMotion,
+            glyph: spec.coreGlyph,
+            glyphColor: spec.coreGlyphColor
+        )
+    }
+
+    /// Witch's Brew: the tri-ring stack plus rising mystic bubbles — skipped
+    /// at `.minimal` where a 30pt orb has no room for them.
+    @ViewBuilder private var cauldronBrewLayers: some View {
+        triRingLayers(Self.cauldronBrew)
+        if style != .minimal {
+            CauldronBubbles(diameter: size, glow: glowIntensity)
+        }
+    }
+
+    // MARK: Disco Inferno — mirror ball (dashed/dotted counter-spin, pixel core)
+
+    @ViewBuilder private var discoBallLayers: some View {
+        switch style {
+        case .minimal:
+            discoOuterRing(diameter: size)
+            DiscoPixelCore(edge: size * 0.42, glow: glowIntensity)
+        case .standard:
+            discoOuterRing(diameter: size)
+            discoInnerDouble(diameter: size * 0.52)
+            DiscoPixelCore(edge: size * 0.29, glow: glowIntensity)
+        case .onboarding, .voice:
+            if style == .voice { PingHalo(diameter: size) }
+            discoOuterRing(diameter: size)
+            discoMidRing(diameter: size * 0.76)
+            discoInnerDouble(diameter: size * 0.52)
+            DiamondCoinRing(diameter: size * 1.12, color: DiscoHue.silver)
+            DiscoPixelCore(edge: size * 0.29, glow: glowIntensity)
+        }
+    }
+
+    /// Dashed gold ring, one turn per 18s (`orbSpin`).
+    private func discoOuterRing(diameter: CGFloat) -> some View {
+        Circle()
+            .strokeBorder(DiscoHue.gold.opacity(0.85),
+                          style: StrokeStyle(lineWidth: lw(0.048), dash: [lw(0.09), lw(0.09)]))
+            .frame(width: diameter, height: diameter)
+            .hudGlow(DiscoHue.gold, radius: diameter * 0.14, strength: 0.6, intensity: glowIntensity)
+            .continuousRotation(18)
+    }
+
+    /// Dotted silver ring counter-spinning at 12s.
+    private func discoMidRing(diameter: CGFloat) -> some View {
+        Circle()
+            .strokeBorder(DiscoHue.silver.opacity(0.75),
+                          style: StrokeStyle(lineWidth: lw(0.024), lineCap: .round,
+                                             dash: [0.1, lw(0.055)]))
+            .frame(width: diameter, height: diameter)
+            .continuousRotation(12, reverse: true)
+    }
+
+    /// The `border-style: double` crimson ring — two thin concentric strokes
+    /// pulsing together at 3s.
+    private func discoInnerDouble(diameter: CGFloat) -> some View {
+        TriPulseRing(diameter: diameter, color: DiscoHue.crimson, baseOpacity: 0.9,
+                     lineWidth: lw(0.024), period: 3, scaleAmp: 1.08)
+            .overlay {
+                TriPulseRing(diameter: diameter - lw(0.024) * 3, color: DiscoHue.crimson,
+                             baseOpacity: 0.9, lineWidth: lw(0.024), period: 3, scaleAmp: 1.08)
+            }
+    }
+
+    // MARK: Graffiti Galaxy — spray cap (square citron core, counter-spun outline)
+
+    @ViewBuilder private var sprayCapLayers: some View {
+        switch style {
+        case .minimal:
+            triRing(Self.sprayCapRings, index: 0, diameter: size)
+            SprayCapCore(edge: size * 0.44, glow: glowIntensity)
+        case .standard:
+            triRing(Self.sprayCapRings, index: 0, diameter: size)
+            triRing(Self.sprayCapRings, index: 2,
+                    diameter: size * Self.sprayCapRings.rings[2].diameterFraction)
+            SprayCapCore(edge: size * 0.30, glow: glowIntensity)
+        case .onboarding, .voice:
+            if style == .voice { PingHalo(diameter: size) }
+            ForEach(Self.sprayCapRings.rings.indices, id: \.self) { index in
+                triRing(Self.sprayCapRings, index: index,
+                        diameter: size * Self.sprayCapRings.rings[index].diameterFraction)
+            }
+            SprayCapCore(edge: size * 0.30, glow: glowIntensity)
+        }
+    }
+
+    // MARK: Retro Sci-Fi — rocket badge (pinwheel disc, inked primaries)
+
+    @ViewBuilder private var rocketBadgeLayers: some View {
+        switch style {
+        case .minimal:
+            PinwheelDisc(diameter: size, lineWidth: lw(0.027))
+            badgeDisc(diameter: size * 0.52, fill: RetroHue.red, delay: 0.6)
+        case .standard:
+            PinwheelDisc(diameter: size, lineWidth: lw(0.027))
+            badgeDisc(diameter: size * 0.58, fill: RetroHue.yellow, delay: 0.3)
+            badgeDisc(diameter: size * 0.30, fill: RetroHue.red, delay: 0.6)
+        case .onboarding, .voice:
+            if style == .voice { PingHalo(diameter: size) }
+            PinwheelDisc(diameter: size, lineWidth: lw(0.027))
+            badgeDisc(diameter: size * 0.70, fill: RetroHue.blue, delay: 0.3)
+            badgeDisc(diameter: size * 0.40, fill: RetroHue.yellow, delay: 0.6)
+            badgeDisc(diameter: size * 0.28, fill: RetroHue.red, delay: 0.6)
+        }
+    }
+
+    /// A flat inked disc — solid fill, dark comic border, hard offset shadow
+    /// (`box-shadow: 4px 4px 0`), scale-only pulse.
+    private func badgeDisc(diameter: CGFloat, fill: Color, delay: Double) -> some View {
+        BadgePulseDisc(diameter: diameter, fill: fill,
+                       border: RetroHue.ink, borderWidth: max(1, lw(0.018)),
+                       delay: delay)
+    }
+
+    // MARK: Tri-ring specs (verbatim handoff hues; design/themes/*.html)
+
+    private static let glitchSeed = TriRingOrbSpec(
+        rings: [
+            .init(color: GlitchHue.green, baseOpacity: 0.4, diameterFraction: 1.0),
+            .init(color: GlitchHue.cyan, baseOpacity: 0.6, diameterFraction: 0.74, delay: 0.3),
+            .init(color: GlitchHue.magenta, baseOpacity: 0.8, diameterFraction: 0.48, delay: 0.6),
+        ],
+        coreHighlight: GlitchHue.cyan, coreBase: GlitchHue.green, coreGlow: GlitchHue.green,
+        coreMotion: .spinGradient(period: 6)
+    )
+
+    private static let cauldronBrew = TriRingOrbSpec(
+        rings: [
+            .init(color: BrewHue.poison, baseOpacity: 0.4, diameterFraction: 1.0),
+            .init(color: BrewHue.poison, baseOpacity: 0.6, diameterFraction: 0.74, delay: 0.3),
+            .init(color: BrewHue.poison, baseOpacity: 0.8, diameterFraction: 0.48, delay: 0.6),
+        ],
+        coreHighlight: BrewHue.bubble, coreBase: BrewHue.poison, coreGlow: BrewHue.poison,
+        coreMotion: .breathe(period: 3, scale: 1.08)
+    )
+
+    private static let holoNigiri = TriRingOrbSpec(
+        rings: [
+            .init(color: SushiHue.roe, baseOpacity: 0.4, diameterFraction: 1.0, dash: [5, 4]),
+            .init(color: SushiHue.wasabi, baseOpacity: 0.6, diameterFraction: 0.74, delay: 0.3),
+            .init(color: SushiHue.nori, baseOpacity: 0.8, diameterFraction: 0.48, delay: 0.6),
+        ],
+        coreHighlight: SushiHue.wasabi, coreBase: SushiHue.roe, coreGlow: SushiHue.roe,
+        coreMotion: .shimmer(period: 3, degrees: 15)
+    )
+
+    private static let prizeWheel = TriRingOrbSpec(
+        rings: [
+            .init(color: CerealHue.berry, baseOpacity: 0.4, diameterFraction: 1.0),
+            .init(color: CerealHue.milk, baseOpacity: 0.6, diameterFraction: 0.74, delay: 0.3),
+            .init(color: CerealHue.honey, baseOpacity: 0.8, diameterFraction: 0.48, delay: 0.6),
+        ],
+        coreHighlight: CerealHue.honey, coreBase: CerealHue.berry, coreGlow: CerealHue.berry,
+        coreMotion: .spinGradient(period: 6)
+    )
+
+    private static let candyMecha = TriRingOrbSpec(
+        rings: [
+            .init(color: MechaHue.candy, baseOpacity: 0.4, diameterFraction: 1.0),
+            .init(color: MechaHue.cyan, baseOpacity: 0.6, diameterFraction: 0.74, delay: 0.5),
+            .init(color: MechaHue.yellow, baseOpacity: 0.8, diameterFraction: 0.48, delay: 1.0),
+        ],
+        pulsePeriod: 5,
+        coreHighlight: MechaHue.yellow, coreBase: MechaHue.candy, coreGlow: MechaHue.candy,
+        coreMotion: .brighten(period: 4, scale: 1.08, amount: 0.2)
+    )
+
+    private static let jukeboxGlow = TriRingOrbSpec(
+        rings: [
+            .init(color: LunarHue.soda, baseOpacity: 0.4, diameterFraction: 1.0),
+            .init(color: LunarHue.chrome, baseOpacity: 0.6, diameterFraction: 0.74, delay: 0.3),
+            .init(color: LunarHue.mustard, baseOpacity: 0.8, diameterFraction: 0.48, delay: 0.6),
+        ],
+        coreHighlight: LunarHue.mustard, coreBase: LunarHue.soda, coreGlow: LunarHue.soda,
+        coreMotion: .brighten(period: 3, scale: 1.05, amount: 0.15)
+    )
+
+    private static let cactusBloom = TriRingOrbSpec(
+        rings: [
+            .init(color: CactusHue.sunset, baseOpacity: 0.4, diameterFraction: 1.0),
+            .init(color: CactusHue.succulent, baseOpacity: 0.6, diameterFraction: 0.74, delay: 0.3),
+            .init(color: CactusHue.sand, baseOpacity: 0.8, diameterFraction: 0.48, delay: 0.6),
+        ],
+        coreHighlight: CactusHue.sand, coreBase: CactusHue.sunset, coreGlow: CactusHue.sunset,
+        coreMotion: .breathe(period: 3, scale: 1.04)
+    )
+
+    private static let anglerLure = TriRingOrbSpec(
+        rings: [
+            .init(color: AbyssHue.lure, baseOpacity: 0.4, diameterFraction: 1.0),
+            .init(color: AbyssHue.coral, baseOpacity: 0.6, diameterFraction: 0.74, delay: 0.3),
+            .init(color: AbyssHue.gold, baseOpacity: 0.8, diameterFraction: 0.48, delay: 0.6),
+        ],
+        coreHighlight: AbyssHue.gold, coreBase: AbyssHue.lure, coreGlow: AbyssHue.lure,
+        coreMotion: .brighten(period: 3, scale: 1.05, amount: 0.15)
+    )
+
+    private static let mirrorBall = TriRingOrbSpec(
+        rings: [
+            .init(color: KaraokeHue.magenta, baseOpacity: 0.3, diameterFraction: 1.0),
+            .init(color: KaraokeHue.cyan, baseOpacity: 0.5, diameterFraction: 0.74, delay: 0.3),
+            .init(color: KaraokeHue.gold, baseOpacity: 0.7, diameterFraction: 0.48, delay: 0.6),
+        ],
+        pulsePeriod: 3,
+        coreHighlight: KaraokeHue.gold, coreBase: KaraokeHue.magenta, coreGlow: KaraokeHue.magenta,
+        coreMotion: .spinGradient(period: 4),
+        coreFraction: 0.34,
+        coreGlyph: "♪", coreGlyphColor: KaraokeHue.ink
+    )
+
+    private static let sprayCapRings = TriRingOrbSpec(
+        rings: [
+            .init(color: GraffitiHue.pink, baseOpacity: 0.35, diameterFraction: 1.0,
+                  lineWidthFraction: 0.025),
+            .init(color: GraffitiHue.violet, baseOpacity: 0.55, diameterFraction: 0.72,
+                  dash: [5, 4], delay: 0.3, lineWidthFraction: 0.025),
+            .init(color: GraffitiHue.spray, baseOpacity: 0.75, diameterFraction: 0.44,
+                  delay: 0.6, lineWidthFraction: 0.017),
+        ],
+        pulsePeriod: 3.5,
+        coreHighlight: GraffitiHue.citron, coreBase: GraffitiHue.citron,
+        coreGlow: GraffitiHue.citron
+    )
 
     // MARK: - Shared pieces
 
@@ -493,6 +790,458 @@ private struct SingularityCore: View {
             }
         }
     }
+}
+
+// MARK: - Gallery orb machinery (Lane E Phase 2)
+
+/// One tri-ring gallery orb as pure data: three staggered pulse rings plus a
+/// two-hue core. Values come verbatim from the theme handoffs; the drawing
+/// lives in `ReactorOrb.triRingLayers`.
+private struct TriRingOrbSpec {
+    struct Ring {
+        let color: Color
+        let baseOpacity: Double
+        /// Ring diameter as a fraction of the orb (handoffs: 1.0/0.74/0.48).
+        let diameterFraction: CGFloat
+        var dash: [CGFloat] = []
+        var delay: Double = 0
+        var lineWidthFraction: CGFloat = 0.02
+    }
+
+    let rings: [Ring]
+    var pulsePeriod: Double = 4
+    let coreHighlight: Color
+    let coreBase: Color
+    let coreGlow: Color
+    var coreMotion: OrbCoreMotion = .steady
+    var coreFraction: CGFloat = 0.32
+    var coreGlyph: String? = nil
+    var coreGlyphColor: Color = .black
+}
+
+/// Per-theme core motions — each theme's `.orb-core` keyframe family.
+private enum OrbCoreMotion {
+    case steady
+    /// Scale breathe (`bubble`: 1 → scale → 1).
+    case breathe(period: Double, scale: CGFloat)
+    /// Scale + brightness flash (`mecha-pulse` / `chrome` / `biolum`).
+    case brighten(period: Double, scale: CGFloat, amount: Double)
+    /// Rotate the off-center radial gradient — the CSS `spin` on a
+    /// `circle at 30% 30%` core makes the highlight orbit.
+    case spinGradient(period: Double)
+    /// Iridescent hue drift (`shimmer`: hue-rotate 0 → degrees → 0).
+    case shimmer(period: Double, degrees: Double)
+}
+
+/// One staggered pulse ring (the gallery `.orb-ring`): ease-in-out scale
+/// 1 → `scaleAmp` with a +0.2 opacity lift, half-period each way so a CSS
+/// `pulse Ns` keyframe matches exactly. Static under Reduce Motion.
+private struct TriPulseRing: View {
+    let diameter: CGFloat
+    let color: Color
+    let baseOpacity: Double
+    var lineWidth: CGFloat = 2
+    var dash: [CGFloat] = []
+    var period: Double = 4
+    var delay: Double = 0
+    var scaleAmp: CGFloat = 1.04
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+    @State private var pulse = false
+
+    var body: some View {
+        Circle()
+            .strokeBorder(color, style: StrokeStyle(lineWidth: lineWidth, dash: dash))
+            .frame(width: diameter, height: diameter)
+            .opacity(pulse ? min(1, baseOpacity + 0.2) : baseOpacity)
+            .scaleEffect(pulse ? scaleAmp : 1.0)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: period / 2).repeatForever(autoreverses: true)
+                    .delay(delay)) {
+                    pulse = true
+                }
+            }
+    }
+}
+
+/// The gallery two-hue core: `radial-gradient(circle at 30% 30%, highlight,
+/// base)` with the handoffs' 30px + 60px glow stack and a per-theme motion.
+private struct TwoHueOrbCore: View {
+    let diameter: CGFloat
+    let highlight: Color
+    let base: Color
+    let glowColor: Color
+    let glow: Double
+    var motion: OrbCoreMotion = .steady
+    var glyph: String? = nil
+    var glyphColor: Color = .black
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+    @State private var pulse = false
+
+    var body: some View {
+        ZStack {
+            switch motion {
+            case let .spinGradient(period):
+                gradientDisc.continuousRotation(period)
+            default:
+                gradientDisc
+            }
+            if let glyph {
+                // The Karaoke core prints ♪ in the room's ink — the glyph
+                // stays upright while the gradient spins beneath it.
+                Text(glyph)
+                    .font(.system(size: diameter * 0.55, weight: .black))
+                    .foregroundStyle(glyphColor)
+            }
+        }
+        .frame(width: diameter, height: diameter)
+        .scaleEffect(pulse ? motionScale : 1.0)
+        .brightness(pulse ? motionBrightness : 0)
+        .hueRotation(.degrees(pulse ? motionHueDegrees : 0))
+        .hudGlow(glowColor, radius: diameter * 0.85, strength: 0.85, intensity: glow)
+        .hudGlow(glowColor, radius: diameter * 1.7, strength: 0.4, intensity: glow)
+        .onAppear {
+            guard !reduceMotion, let period = motionPeriod else { return }
+            withAnimation(.easeInOut(duration: period / 2).repeatForever(autoreverses: true)) {
+                pulse = true
+            }
+        }
+    }
+
+    private var gradientDisc: some View {
+        Circle()
+            .fill(
+                RadialGradient(
+                    colors: [highlight, base],
+                    center: UnitPoint(x: 0.3, y: 0.3),
+                    startRadius: 0,
+                    endRadius: diameter * 0.62
+                )
+            )
+            .frame(width: diameter, height: diameter)
+    }
+
+    private var motionPeriod: Double? {
+        switch motion {
+        case .steady, .spinGradient: nil
+        case let .breathe(period, _): period
+        case let .brighten(period, _, _): period
+        case let .shimmer(period, _): period
+        }
+    }
+
+    private var motionScale: CGFloat {
+        switch motion {
+        case let .breathe(_, scale): scale
+        case let .brighten(_, scale, _): scale
+        default: 1.0
+        }
+    }
+
+    private var motionBrightness: Double {
+        if case let .brighten(_, _, amount) = motion { amount } else { 0 }
+    }
+
+    private var motionHueDegrees: Double {
+        if case let .shimmer(_, degrees) = motion { degrees } else { 0 }
+    }
+}
+
+/// Witch's Brew `.orb-bubbles`: two mystic-violet bubbles rising through the
+/// orb every 2.5s (staggered 1.2s), shrinking and fading as they go — drawn
+/// in a circle-clipped Canvas at the handoff's 0.5 layer opacity. Static at
+/// t = 0 under Reduce Motion.
+private struct CauldronBubbles: View {
+    let diameter: CGFloat
+    let glow: Double
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+
+    /// (x fraction, radius fraction of orb, start height fraction, delay)
+    private static let bubbles: [(x: Double, radius: Double, startY: Double, delay: Double)] = [
+        (0.30, 0.036, 0.90, 0.0),
+        (0.60, 0.027, 0.95, 1.2),
+    ]
+    private static let risePeriod = 2.5
+    /// The handoff's translateY(-80px) on a 110px orb.
+    private static let riseFraction = 0.73
+
+    var body: some View {
+        Group {
+            if reduceMotion {
+                Canvas { context, size in
+                    Self.draw(context: context, size: size, time: 0)
+                }
+            } else {
+                TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
+                    Canvas { context, size in
+                        Self.draw(
+                            context: context,
+                            size: size,
+                            time: timeline.date.timeIntervalSinceReferenceDate
+                        )
+                    }
+                }
+            }
+        }
+        .frame(width: diameter, height: diameter)
+        .clipShape(Circle())
+        .opacity(0.5)
+        .allowsHitTesting(false)
+    }
+
+    private static func draw(context: GraphicsContext, size: CGSize, time: Double) {
+        var soft = context
+        soft.addFilter(.blur(radius: 1))
+        for bubble in bubbles {
+            let cycle = ((time - bubble.delay).truncatingRemainder(dividingBy: risePeriod)
+                + risePeriod).truncatingRemainder(dividingBy: risePeriod) / risePeriod
+            let scale = 1 - 0.6 * cycle
+            let opacity = 0.6 * (1 - cycle)
+            let radius = size.width * bubble.radius * scale
+            guard radius > 0.1, opacity > 0.01 else { continue }
+            let x = size.width * bubble.x
+            let y = size.height * bubble.startY - cycle * size.height * riseFraction
+            soft.fill(
+                Path(ellipseIn: CGRect(x: x - radius, y: y - radius,
+                                       width: radius * 2, height: radius * 2)),
+                with: .color(BrewHue.mystic.opacity(opacity))
+            )
+        }
+    }
+}
+
+/// Disco Inferno's pixel core: a flat gold square with the handoff's inner
+/// white sheen and two faint square halos (the `::after` pixel frame — its
+/// cross clip reads as square outlines at core size; noted in the port).
+private struct DiscoPixelCore: View {
+    let edge: CGFloat
+    let glow: Double
+
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .strokeBorder(Color.white.opacity(0.06), lineWidth: max(1, edge * 0.167))
+                .frame(width: edge * 1.67, height: edge * 1.67)
+            Rectangle()
+                .strokeBorder(Color.white.opacity(0.12), lineWidth: max(1, edge * 0.167))
+                .frame(width: edge * 1.33, height: edge * 1.33)
+            Rectangle()
+                .fill(DiscoHue.gold)
+                .overlay {
+                    Rectangle()
+                        .stroke(Color.white.opacity(0.5), lineWidth: max(1, edge * 0.08))
+                        .blur(radius: edge * 0.1)
+                }
+                .frame(width: edge, height: edge)
+                .hudGlow(DiscoHue.gold, radius: edge * 0.75, strength: 0.85, intensity: glow)
+        }
+    }
+}
+
+/// Disco Inferno's `.orb-coin`: a silver ring clipped to a diamond, orbiting
+/// the core counter-clockwise every 7s — four arc glints sweeping the rim.
+private struct DiamondCoinRing: View {
+    let diameter: CGFloat
+    let color: Color
+
+    var body: some View {
+        Circle()
+            .strokeBorder(color, lineWidth: 2)
+            .frame(width: diameter, height: diameter)
+            .clipShape(DiamondShape())
+            .opacity(0.55)
+            .continuousRotation(7, reverse: true)
+    }
+}
+
+/// The CSS `clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%)` diamond.
+private struct DiamondShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// Graffiti Galaxy's spray cap: a rounded-square citron core spinning at 5s
+/// with a pink square outline counter-spinning around it.
+private struct SprayCapCore: View {
+    let edge: CGFloat
+    let glow: Double
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: edge * 0.13)
+                .strokeBorder(GraffitiHue.pink, lineWidth: max(1, edge * 0.055))
+                .frame(width: edge * 1.33, height: edge * 1.33)
+                .continuousRotation(5, reverse: true)
+            RoundedRectangle(cornerRadius: edge * 0.13)
+                .fill(GraffitiHue.citron)
+                .frame(width: edge, height: edge)
+                .hudGlow(GraffitiHue.citron, radius: edge * 0.85, strength: 0.85, intensity: glow)
+                .hudGlow(GraffitiHue.citron, radius: edge * 1.7, strength: 0.4, intensity: glow)
+                .continuousRotation(5)
+        }
+    }
+}
+
+/// Retro Sci-Fi's pinwheel: the handoff's `repeating-conic-gradient` of 20°
+/// red/yellow/blue/cream wedges as a static inked disc (the CSS spins only
+/// the flat core, which reads as no motion). Comic offset shadow, dark rim.
+private struct PinwheelDisc: View {
+    let diameter: CGFloat
+    let lineWidth: CGFloat
+
+    private static let wedgeColors = [RetroHue.red, RetroHue.yellow, RetroHue.blue, RetroHue.cream]
+
+    var body: some View {
+        Canvas { context, size in
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            let radius = min(size.width, size.height) / 2
+            let wedge = Angle(degrees: 20).radians
+            for index in 0..<18 {
+                var path = Path()
+                let start = Double(index) * wedge - .pi / 2
+                path.move(to: center)
+                path.addArc(center: center, radius: radius,
+                            startAngle: .radians(start), endAngle: .radians(start + wedge),
+                            clockwise: false)
+                path.closeSubpath()
+                context.fill(path, with: .color(Self.wedgeColors[index % 4]))
+            }
+        }
+        .frame(width: diameter, height: diameter)
+        .clipShape(Circle())
+        .overlay {
+            Circle().strokeBorder(RetroHue.ink, lineWidth: lineWidth)
+        }
+        .opacity(0.9)
+        .shadow(color: .black.opacity(0.15), radius: 0,
+                x: diameter * 0.036, y: diameter * 0.036)
+    }
+}
+
+/// One flat comic disc of the rocket badge — solid fill, inked border, hard
+/// offset shadow, scale-only pulse (the handoff's opacity-free `pulse`).
+private struct BadgePulseDisc: View {
+    let diameter: CGFloat
+    let fill: Color
+    let border: Color
+    let borderWidth: CGFloat
+    var delay: Double = 0
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+    @State private var pulse = false
+
+    var body: some View {
+        Circle()
+            .fill(fill)
+            .overlay {
+                Circle().strokeBorder(border, lineWidth: borderWidth)
+            }
+            .frame(width: diameter, height: diameter)
+            .shadow(color: .black.opacity(0.15), radius: 0,
+                    x: diameter * 0.05, y: diameter * 0.05)
+            .scaleEffect(pulse ? 1.05 : 1.0)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)
+                    .delay(delay)) {
+                    pulse = true
+                }
+            }
+    }
+}
+
+// MARK: - Gallery hue tables (verbatim from design/themes/*.html)
+// Like `SingularityHue`, each complex orb curates its own hues — the
+// multi-hue identity must not follow the user's resolved accent slot.
+
+private enum GlitchHue {
+    static let green = Color(hex: 0x39FF14)
+    static let cyan = Color(hex: 0x00F0FF)
+    static let magenta = Color(hex: 0xFF00AA)
+}
+
+private enum BrewHue {
+    static let poison = Color(hex: 0x4ADE80)
+    static let mystic = Color(hex: 0xA855F7)
+    static let bubble = Color(hex: 0xFACC15)
+}
+
+private enum SushiHue {
+    static let roe = Color(hex: 0xFF69B4)
+    static let wasabi = Color(hex: 0x00F0FF)
+    static let nori = Color(hex: 0xADFF2F)
+}
+
+private enum CerealHue {
+    static let berry = Color(hex: 0xFF5078)
+    static let milk = Color(hex: 0x00C8FF)
+    static let honey = Color(hex: 0xFFDC00)
+}
+
+private enum MechaHue {
+    static let candy = Color(hex: 0xFF6EC7)
+    static let cyan = Color(hex: 0x00F0FF)
+    static let yellow = Color(hex: 0xFFE600)
+}
+
+private enum LunarHue {
+    static let soda = Color(hex: 0xFF9AB4)
+    static let chrome = Color(hex: 0x40E0D0)
+    static let mustard = Color(hex: 0xFFD700)
+}
+
+private enum CactusHue {
+    static let sunset = Color(hex: 0xFF5078)
+    static let succulent = Color(hex: 0x00DCC8)
+    static let sand = Color(hex: 0xFFC850)
+}
+
+private enum AbyssHue {
+    static let lure = Color(hex: 0x00F5FF)
+    static let coral = Color(hex: 0xFF6B6B)
+    static let gold = Color(hex: 0xFFD166)
+}
+
+private enum DiscoHue {
+    static let gold = Color(hex: 0xFFD700)
+    static let silver = Color(hex: 0xE8E8E8)
+    static let crimson = Color(hex: 0xFF3333)
+}
+
+private enum GraffitiHue {
+    static let pink = Color(hex: 0xFF006E)
+    static let violet = Color(hex: 0x8338EC)
+    static let citron = Color(hex: 0xFBFF26)
+    static let spray = Color(hex: 0x00F5D4)
+}
+
+private enum KaraokeHue {
+    static let magenta = Color(hex: 0xFF00AA)
+    static let cyan = Color(hex: 0x00F0FF)
+    static let gold = Color(hex: 0xFFE600)
+    static let ink = Color(hex: 0x050417)   // kara-bg-3, the ♪ glyph ink
+}
+
+private enum RetroHue {
+    static let red = Color(hex: 0xFF2D2D)
+    static let blue = Color(hex: 0x007BFF)
+    static let yellow = Color(hex: 0xFFD600)
+    static let cream = Color(hex: 0xFFFDF8)
+    static let ink = Color(hex: 0x1A1210)
 }
 
 private struct PingHalo: View {

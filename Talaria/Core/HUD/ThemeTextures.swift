@@ -20,6 +20,11 @@ struct ThemeTextureView: View {
             // theme without a spec takes the switch below, byte-identical to
             // the pre-motion rendering.
             AtmosphereMotionField(spec: motion)
+        } else if let lines = art.lineTexture {
+            // A line-field spec is the theme's page texture the same way
+            // (Holo Sushi's dual-tone grid, Cyber Cactus's crosshatch,
+            // Graffiti Galaxy's spray streaks). Next in the supersede chain.
+            LineFieldTexture(spec: lines)
         } else {
             switch ThemeRuntime.shared.palette.texture {
             case .none:
@@ -43,27 +48,56 @@ struct ThemeTextureView: View {
 
 /// Radial glow pools painted between the screen gradient and the texture —
 /// `ThemeArtDirection.glowPools`. Empty for every theme without an art-
-/// direction entry, so the default screen stack is unchanged.
+/// direction entry, so the default screen stack is unchanged. Pools with a
+/// `pulsePeriod` breathe their opacity through a TimelineView (Karaoke
+/// Supernova's `roomPulse`); static pools never pay for the timeline.
 struct GlowPoolField: View {
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+
     var body: some View {
         let pools = ThemeRuntime.shared.artDirection.glowPools
         if !pools.isEmpty {
-            GeometryReader { proxy in
-                let radiusBase = max(proxy.size.width, proxy.size.height)
-                ZStack {
-                    ForEach(pools.indices, id: \.self) { index in
-                        let pool = pools[index]
-                        RadialGradient(
-                            colors: [pool.color, .clear],
-                            center: pool.center,
-                            startRadius: 0,
-                            endRadius: max(1, radiusBase * pool.radiusFraction)
-                        )
-                    }
+            if pools.contains(where: { $0.pulsePeriod != nil }) && !reduceMotion {
+                // 10 fps is plenty for a 5s opacity breathe.
+                TimelineView(.animation(minimumInterval: 1.0 / 10.0)) { timeline in
+                    poolStack(pools, time: timeline.date.timeIntervalSinceReferenceDate)
+                }
+            } else {
+                // Static pools — and the Reduce Motion frame, which pins
+                // pulsing pools at `pulseMinOpacity` (the CSS 0% keyframe).
+                poolStack(pools, time: nil)
+            }
+        }
+    }
+
+    private func poolStack(_ pools: [ThemeGlowPool], time: TimeInterval?) -> some View {
+        GeometryReader { proxy in
+            let radiusBase = max(proxy.size.width, proxy.size.height)
+            ZStack {
+                ForEach(pools.indices, id: \.self) { index in
+                    let pool = pools[index]
+                    RadialGradient(
+                        colors: [pool.color, .clear],
+                        center: pool.center,
+                        startRadius: 0,
+                        endRadius: max(1, radiusBase * pool.radiusFraction)
+                    )
+                    .opacity(pulseOpacity(pool, time: time))
                 }
             }
-            .allowsHitTesting(false)
         }
+        .allowsHitTesting(false)
+    }
+
+    /// Ease-in-out breathe between `pulseMinOpacity` and 1, min at phase 0 —
+    /// the handoff's `0%,100% { opacity: .6 } 50% { opacity: 1 }`.
+    private func pulseOpacity(_ pool: ThemeGlowPool, time: TimeInterval?) -> Double {
+        guard let period = pool.pulsePeriod, period > 0 else { return 1 }
+        guard let time else { return pool.pulseMinOpacity }
+        let phase = time.truncatingRemainder(dividingBy: period) / period
+        let wave = 0.5 - 0.5 * cos(phase * 2 * .pi)   // 0 → 1 → 0, smooth
+        return pool.pulseMinOpacity + (1 - pool.pulseMinOpacity) * wave
     }
 }
 
@@ -197,38 +231,133 @@ struct AtmosphereMotionField: View {
         let phase = time.truncatingRemainder(dividingBy: spec.period) / spec.period
 
         for layer in spec.layers {
-            let tile = layer.tileSize
-            guard tile > 0 else { continue }
+            let tileW = layer.tileSize
+            let tileH = layer.tileHeight ?? layer.tileSize
+            guard tileW > 0, tileH > 0 else { continue }
 
             // This frame's pan, wrapped to one tile so the loop is seamless
             // (drift components are whole tile multiples by construction).
-            let offsetX = ((layer.driftX * phase).truncatingRemainder(dividingBy: tile) + tile)
-                .truncatingRemainder(dividingBy: tile)
-            let offsetY = ((layer.driftY * phase).truncatingRemainder(dividingBy: tile) + tile)
-                .truncatingRemainder(dividingBy: tile)
+            let offsetX = ((layer.driftX * phase).truncatingRemainder(dividingBy: tileW) + tileW)
+                .truncatingRemainder(dividingBy: tileW)
+            let offsetY = ((layer.driftY * phase).truncatingRemainder(dividingBy: tileH) + tileH)
+                .truncatingRemainder(dividingBy: tileH)
 
             // One speck per tile, batched into a single fill. Start one tile
             // before the origin so wrapped specks cover the leading edges.
             var specks = Path()
             let radius = layer.speckRadius
-            let cols = Int((size.width / tile).rounded(.up))
-            let rows = Int((size.height / tile).rounded(.up))
+            let cols = Int((size.width / tileW).rounded(.up))
+            let rows = Int((size.height / tileH).rounded(.up))
             for col in -1...cols {
                 for row in -1...rows {
-                    let x = (CGFloat(col) + layer.anchorX) * tile + offsetX
-                    let y = (CGFloat(row) + layer.anchorY) * tile + offsetY
-                    specks.addEllipse(in: CGRect(x: x - radius, y: y - radius,
-                                                 width: radius * 2, height: radius * 2))
+                    let x = (CGFloat(col) + layer.anchorX) * tileW + offsetX
+                    let y = (CGFloat(row) + layer.anchorY) * tileH + offsetY
+                    if let barHeight = layer.barHeight {
+                        // Vertical laser bar (Karaoke Supernova's
+                        // `radial-gradient(2px 80px …)`) — a capsule centered
+                        // on the anchor, speck-width wide.
+                        specks.addPath(Path(roundedRect: CGRect(
+                            x: x - radius, y: y - barHeight / 2,
+                            width: radius * 2, height: barHeight
+                        ), cornerRadius: radius))
+                    } else {
+                        specks.addEllipse(in: CGRect(x: x - radius, y: y - radius,
+                                                     width: radius * 2, height: radius * 2))
+                    }
                 }
             }
             // The design's speck is a radial-gradient point fading to
             // transparent — soft, not a hard disc. A blur on the batched
             // path (one filter per LAYER, not per speck) reproduces the
             // falloff while keeping a single fill call, so the perf
-            // guardrail holds. Radius scales with speck size.
+            // guardrail holds. Radius scales with speck size; `blurScale`
+            // hardens deliberate print dots (halftone) without giving up
+            // the soft default.
             var layerContext = context
-            layerContext.addFilter(.blur(radius: radius * 0.8))
+            let blur = radius * 0.8 * layer.blurScale
+            if blur > 0.01 {
+                layerContext.addFilter(.blur(radius: blur))
+            }
             layerContext.fill(specks, with: .color(layer.hue.opacity(layer.speckAlpha)))
+        }
+    }
+}
+
+// MARK: Line field (art-direction lattices, scanlines, spray streaks)
+
+/// Renders a `ThemeLineFieldSpec`: per layer either a continuous parallel-line
+/// lattice at an arbitrary angle (Holo Sushi's dual grid, Cyber Cactus's
+/// crosshatch, the dark CRT scanline overlays) or one soft streak per tile
+/// (Graffiti Galaxy's spray grain). Entirely static — none of the inventoried
+/// designs animate these — so it's a single Canvas with one batched stroke
+/// per layer and no TimelineView cost.
+struct LineFieldTexture: View {
+    let spec: ThemeLineFieldSpec
+
+    var body: some View {
+        Canvas { context, size in
+            Self.draw(context: context, size: size, spec: spec)
+        }
+        .opacity(spec.fieldOpacity)
+        .allowsHitTesting(false)
+    }
+
+    private static func draw(context: GraphicsContext, size: CGSize, spec: ThemeLineFieldSpec) {
+        guard size.width > 0, size.height > 0 else { return }
+
+        for layer in spec.layers {
+            guard layer.spacing > 0 else { continue }
+
+            if let segment = layer.segmentLength {
+                // Streak mode: one dash per axis-aligned tile, angled along
+                // the layer direction from the tile origin (the CSS
+                // `linear-gradient(135deg, hue 0, transparent 12px)` corner
+                // marks). A light blur reproduces the paint fade without
+                // per-streak gradients.
+                let tile = layer.spacing
+                let angle = Angle(degrees: layer.angleDegrees).radians
+                let dx = cos(angle) * segment
+                let dy = sin(angle) * segment
+                var streaks = Path()
+                let cols = Int((size.width / tile).rounded(.up))
+                let rows = Int((size.height / tile).rounded(.up))
+                for col in -1...cols {
+                    for row in -1...rows {
+                        let x = CGFloat(col) * tile
+                        let y = CGFloat(row) * tile
+                        streaks.move(to: CGPoint(x: x, y: y))
+                        streaks.addLine(to: CGPoint(x: x + dx, y: y + dy))
+                    }
+                }
+                var layerContext = context
+                layerContext.addFilter(.blur(radius: layer.lineWidth * 0.6))
+                layerContext.stroke(
+                    streaks,
+                    with: .color(layer.hue.opacity(layer.alpha)),
+                    style: StrokeStyle(lineWidth: layer.lineWidth, lineCap: .round)
+                )
+            } else {
+                // Continuous lattice: parallel lines along `angleDegrees`,
+                // `spacing` apart. Drawn in a rotated copy of the context so
+                // one horizontal-line loop covers every angle; the span is
+                // padded to the diagonal so rotation never exposes corners.
+                let halfSpan = hypot(size.width, size.height) / 2 + layer.spacing
+                var lines = Path()
+                var y = -halfSpan
+                while y <= halfSpan {
+                    lines.move(to: CGPoint(x: -halfSpan, y: y))
+                    lines.addLine(to: CGPoint(x: halfSpan, y: y))
+                    y += layer.spacing
+                }
+                var layerContext = context
+                layerContext.translateBy(x: size.width / 2, y: size.height / 2)
+                layerContext.rotate(by: .degrees(layer.angleDegrees))
+                layerContext.stroke(
+                    lines,
+                    with: .color(layer.hue.opacity(layer.alpha)),
+                    lineWidth: layer.lineWidth
+                )
+            }
         }
     }
 }

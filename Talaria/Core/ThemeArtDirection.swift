@@ -23,6 +23,13 @@ struct ThemeGlowPool: Equatable, Sendable {
     let centerY: Double
     /// End radius as a fraction of the screen's larger dimension.
     let radiusFraction: Double
+    /// Slow whole-pool opacity breathing (Karaoke Supernova's `roomPulse`,
+    /// 5s ease-in-out between `pulseMinOpacity` and 1). `nil` = static pool —
+    /// the default, so every existing pool renders byte-identically. Under
+    /// Reduce Motion a pulsing pool freezes at `pulseMinOpacity` (the CSS
+    /// animation's 0% keyframe).
+    var pulsePeriod: TimeInterval? = nil
+    var pulseMinOpacity: Double = 0.6
 
     var center: UnitPoint { UnitPoint(x: centerX, y: centerY) }
 }
@@ -69,6 +76,18 @@ struct AtmosphereMotionSpec: Equatable, Sendable {
         /// verdict); the design look is a smaller center softened by the
         /// renderer's blur (AtmosphereMotionField).
         var speckRadius: CGFloat = 1.25
+        /// Tile height (pt) when the lattice is non-square — Karaoke
+        /// Supernova's 120×180 laser tiles. `nil` = square (`tileSize`).
+        var tileHeight: CGFloat? = nil
+        /// When set, the speck renders as a vertical capsule `speckRadius × 2`
+        /// wide and this tall — the design's `radial-gradient(2px 80px …)`
+        /// laser bars — instead of a round point. `nil` = round speck.
+        var barHeight: CGFloat? = nil
+        /// Multiplier on the renderer's per-layer softening blur. 1.0 = the
+        /// starlight falloff (Event Horizon, unchanged); halftone dot fields
+        /// (Retro Sci-Fi's comic print — `red 1.5px, transparent 2px`, a
+        /// crisp dot with a hair of anti-aliasing) sit near 0.25.
+        var blurScale: Double = 1.0
     }
 
     let layers: [Layer]
@@ -76,6 +95,66 @@ struct AtmosphereMotionSpec: Equatable, Sendable {
     let period: TimeInterval
     /// Opacity of the whole field (the handoffs' `.page-bg { opacity }`).
     let fieldOpacity: Double
+}
+
+/// Data-driven angled line/streak lattice — the Swift port of the handoffs'
+/// repeating-linear-gradient page textures. One spec type covers three
+/// gallery families (Phase 2 inventory):
+///  • continuous lattices — Holo Sushi's dual-tone 0°/90° grid, Cyber
+///    Cactus's ±45° crosshatch, Graffiti Galaxy's chat-surface bands;
+///  • dark scanline rows (0° lines in black — Glitch Garden / Bubblegum
+///    Mecha / Disco Inferno `repeating-linear-gradient(0deg, … rgba(0,0,0,.35))`);
+///  • per-tile spray streaks (Graffiti Galaxy's four-angle paint grain) via
+///    `segmentLength`.
+/// Rendered by `LineFieldTexture` (ThemeTextures.swift) — static, one Canvas,
+/// batched stroke per layer. App target only, never widgets.
+struct ThemeLineFieldSpec: Equatable, Sendable {
+    struct Layer: Equatable, Sendable {
+        /// Line direction in degrees: 0 = horizontal rows, 90 = vertical
+        /// columns, ±45 = diagonals (measured like the CSS gradients' stripe
+        /// direction, not their gradient axis).
+        let angleDegrees: Double
+        /// Line color (opacity carried separately in `alpha`, matching the
+        /// other spec types' hue/alpha split).
+        let hue: Color
+        let alpha: Double
+        /// Perpendicular pitch between lines — or the square tile edge in
+        /// streak mode.
+        let spacing: CGFloat
+        var lineWidth: CGFloat = 1
+        /// `nil` = continuous lines. Set = streak mode: one soft dash of this
+        /// length per `spacing × spacing` tile (the handoffs'
+        /// `linear-gradient(135deg, hue 0, transparent 12px)` spray marks).
+        var segmentLength: CGFloat? = nil
+    }
+
+    let layers: [Layer]
+    /// Opacity of the whole field (the handoffs' `.page-bg { opacity }`).
+    let fieldOpacity: Double
+}
+
+/// Layered offset title shadows — the comic/graffiti h1 treatments that
+/// `ThemeTitleGlow`'s soft radial chain can't express: Retro Sci-Fi's hard
+/// `4px 4px 0` print offsets, Graffiti Galaxy's stacked tag shadows, Glitch
+/// Garden's ±2px chromatic aberration. Layers with `blur == 0` are ink and
+/// ignore the glow pref; layers with `blur > 0` are light and ride it like
+/// every other glow. Applied by `View.hudTitleGlow()` alongside (not
+/// replacing) `titleGlow` — both default inert.
+struct ThemeTitleShadowSpec: Equatable, Sendable {
+    struct Layer: Equatable, Sendable {
+        let hue: Color
+        let alpha: Double
+        let offsetX: CGFloat
+        let offsetY: CGFloat
+        var blur: CGFloat = 0
+    }
+
+    let layers: [Layer]
+    /// Chromatic-jitter cycle (Glitch Garden's `glitch-text`, 3s — quiet for
+    /// ~90% of the cycle, two brief offset scrambles at the end). `nil` =
+    /// static shadows. Frozen at the base layout under Reduce Motion (the
+    /// CSS animation's 0% keyframe).
+    var glitchPeriod: TimeInterval? = nil
 }
 
 /// Layered neon glow for screen titles — the handoffs' stacked h1
@@ -139,8 +218,21 @@ struct ThemeArtDirection: Equatable, Sendable {
     /// `repeating-conic-gradient(transparent 0-2deg, hue 2-4deg)` starburst
     /// turning over `period`. `nil` = no spokes (the default, byte-identical).
     var radialSpokes: RadialSpokeSpec? = nil
+    /// Angled line/streak lattice drawn in the texture slot (below the grid).
+    /// When set it supersedes the palette's static texture in
+    /// `ThemeTextureView`, after `atmosphereMotion` in the chain. `nil` =
+    /// byte-identical to the pre-line-field rendering.
+    var lineTexture: ThemeLineFieldSpec? = nil
+    /// Dark scanline rows drawn ABOVE the grid — the handoffs stack their
+    /// `rgba(0,0,0,.35)` CRT rows on top of the whole screen (`multiply`),
+    /// so this field gets its own slot instead of the texture slot. `nil` =
+    /// no overlay (the default, byte-identical).
+    var scanlineOverlay: ThemeLineFieldSpec? = nil
     /// Neon screen-title glow (`nil` = plain titles, the default).
     var titleGlow: ThemeTitleGlow? = nil
+    /// Offset/chromatic title shadows (`nil` = none, the default). Composes
+    /// with `titleGlow`; comic themes typically set only this.
+    var titleShadow: ThemeTitleShadowSpec? = nil
 
     /// The identity treatment: no pools, no tints, no halo, no motion.
     static let standard = ThemeArtDirection()
