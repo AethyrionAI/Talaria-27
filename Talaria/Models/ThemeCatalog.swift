@@ -175,6 +175,9 @@ enum ThemeCatalog {
         ThemeDefinition(id: AppearanceTheme.midnightAquarium.rawValue, displayName: "Midnight Aquarium",
                         subtitle: "Moon Jelly", appearanceTheme: .midnightAquarium,
                         availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.moltenForge.rawValue, displayName: "Molten Forge",
+                        subtitle: "Crucible", appearanceTheme: .moltenForge,
+                        availability: .always, locked: false),
     ]
 
     /// The four meteorological-season themes; holiday themes become additional

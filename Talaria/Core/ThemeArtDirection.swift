@@ -344,6 +344,7 @@ enum ThemeArtDirectionCatalog {
         .graffitiGalaxy: graffitiGalaxy,
         .karaokeSupernova: karaokeSupernova,
         .midnightAquarium: midnightAquarium,
+        .moltenForge: moltenForge,
     ]
 
     static func artDirection(for theme: ThemeID) -> ThemeArtDirection {
@@ -866,6 +867,67 @@ enum ThemeArtDirectionCatalog {
         titleGlow: ThemeTitleGlow(
             primary: Color(hex: 0xFF7AD9),
             secondary: Color(hex: 0x3EF2E0)
+        )
+    )
+
+    // MARK: Molten Forge — design/themes/theme-molten-forge.html (SE, batch 4)
+    // Volcanic smithy: lava bloom above, three-hue emberRise columns
+    // (orange / spark gold / ember red — the fourth hue lives here and on
+    // the orb halo, the Karaoke laser-red precedent), and the heatShimmer
+    // bottom glow ported as a PULSING POOL anchored at the bottom edge —
+    // approximation-first per the Karaoke gold-band precedent, because the
+    // CSS layer is a page-scope linear band breathing opacity .5↔.85 with a
+    // scaleY 1→1.05 that is sub-perceptual on a soft gradient (choice noted
+    // in the PR; pool color .17 = the band's .20 × its .85 peak, min .59 =
+    // .50/.85, so the rendered opacity range is exactly the CSS's .10–.17).
+    // emberTint is inert here: the atmosphere spec supersedes the `.embers`
+    // texture, so no Solar Forge values are reused anywhere (Owen mandate —
+    // the variant-set diff lives in the palette entry + PR). Deferred, per
+    // the inventory table: the chat-screen 8s ember pair and 3.5s/45%
+    // shimmer variant (panel-scope layers on second periods).
+
+    static let moltenForge = ThemeArtDirection(
+        glowPools: [
+            // radial(1200px 800px at 50% -10%, rgba(255,106,26,.10) → 60%)
+            ThemeGlowPool(color: Color(hex: 0xFF6A1A, opacity: 0.10),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+            // heatShimmer: fixed bottom 40% band, rgba(255,106,26,.20) → up,
+            // 4s ease-in-out breathe (see the approximation note above).
+            ThemeGlowPool(color: Color(hex: 0xFF6A1A, opacity: 0.17),
+                          centerX: 0.5, centerY: 1.0, radiusFraction: 0.40,
+                          pulsePeriod: 4, pulseMinOpacity: 0.59),
+        ],
+        panelHalo: ThemePanelHalo(
+            // 8px ring at .06 on the .32 border → 1pt rim at the EH compression.
+            ringColor: Color(hex: 0xFF6A1A, opacity: 0.24),
+            glowColor: Color(hex: 0xFF6A1A),
+            glowRadius: 40
+        ),
+        // emberRise: three non-square ember columns, one tile height up per
+        // 10s loop; lateral driftX verbatim (the CSS's own mid-tile loop
+        // snap, same as Midnight Aquarium). Speck centers at the CSS fade
+        // radii (2.5/2/2px) × the rule-1 soft-port ratio 0.625.
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 120, driftX: -30, driftY: -420,
+                hue: Color(hex: 0xFF6A1A), speckAlpha: 0.5,
+                anchorX: 0.30, anchorY: 0.80, speckRadius: 1.5625,
+                tileHeight: 420),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 160, driftX: 40, driftY: -560,
+                hue: Color(hex: 0xFFD23C), speckAlpha: 0.45,
+                anchorX: 0.60, anchorY: 0.90, speckRadius: 1.25,
+                tileHeight: 560),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 200, driftX: -20, driftY: -680,
+                hue: Color(hex: 0xFF3B2D), speckAlpha: 0.4,
+                anchorX: 0.80, anchorY: 0.70, speckRadius: 1.25,
+                tileHeight: 680),
+        ], period: 10, fieldOpacity: 0.45),
+        // h1: 10/30px lava, 60px lava .45, 90px spark gold .25 — the EH shape.
+        titleGlow: ThemeTitleGlow(
+            primary: Color(hex: 0xFF6A1A),
+            secondary: Color(hex: 0xFFD23C)
         )
     )
 
