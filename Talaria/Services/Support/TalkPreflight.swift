@@ -62,6 +62,17 @@ enum TalkMicPreflight {
         AVAudioSession.sharedInstance().isInputAvailable
     }
 
+    /// Engine-level backstop for the #82 wedge: a wedged capture stack can
+    /// pass `isInputAvailable` (a route exists) while the engine's input node
+    /// reports a degenerate hardware format (0 Hz / 0 channels). Installing a
+    /// tap with that format raises an Objective-C NSException that Swift
+    /// cannot catch — a hard crash. Both voice engines gate their tap install
+    /// on this check and surface `noMicInputMessage` (reboot guidance)
+    /// instead. Pure so it's unit-testable.
+    static func isViableCaptureFormat(sampleRate: Double, channelCount: UInt32) -> Bool {
+        sampleRate > 0 && channelCount > 0
+    }
+
     /// Should the talk overlay offer the system-Settings deep link for this
     /// blocked reason? Matches the standardized messages above plus the
     /// historical phrasings that shipped before #84.

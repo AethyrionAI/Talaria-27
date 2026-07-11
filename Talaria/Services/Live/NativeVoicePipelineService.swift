@@ -787,11 +787,17 @@ private actor NativeVoiceCaptureController {
 
     enum CaptureError: LocalizedError {
         case transcriptionUnavailable
+        /// #82 wedge caught at the engine: the input node reported a
+        /// degenerate format (0 Hz / 0 ch) — installing a tap would raise an
+        /// uncatchable NSException. Carries the #84 third-state wording.
+        case noAudioInput
 
         var errorDescription: String? {
             switch self {
             case .transcriptionUnavailable:
                 "On-device speech transcription isn't available on this device."
+            case .noAudioInput:
+                TalkMicPreflight.noMicInputMessage
             }
         }
     }
@@ -896,6 +902,16 @@ private actor NativeVoiceCaptureController {
         }
         inputNode.removeTap(onBus: 0)
         let inputFormat = inputNode.outputFormat(forBus: 0)
+        // #82 wedge backstop: installTap with a degenerate hardware format
+        // raises an uncatchable NSException. Fail honestly with the #84
+        // reboot guidance before any tap touches the engine.
+        guard TalkMicPreflight.isViableCaptureFormat(
+            sampleRate: inputFormat.sampleRate,
+            channelCount: inputFormat.channelCount
+        ) else {
+            Self.logger.error("capture format degenerate (rate=\(inputFormat.sampleRate, privacy: .public) ch=\(inputFormat.channelCount, privacy: .public)) — #82 wedge shape; refusing tap install")
+            throw CaptureError.noAudioInput
+        }
 
         // SpeechDetector gates analysis to detected speech; retry without it
         // if the analyzer/module combination refuses to start.
