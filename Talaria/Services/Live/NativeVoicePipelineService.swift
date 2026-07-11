@@ -84,6 +84,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     private var startedAt: Date?
     private var timerTask: Task<Void, Never>?
     private var captureTask: Task<Void, Never>?
+    /// Serializes route/interruption capture restarts (see restartCapture).
+    private var restartTask: Task<Void, Never>?
+    /// Sliding window of restart timestamps feeding the thrash breaker.
+    private var recentCaptureRestarts: [Date] = []
     private var endpointTask: Task<Void, Never>?
     private var turnTask: Task<Void, Never>?
 
@@ -295,23 +299,59 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     /// Route/interruption recovery: tear down and rebuild the tap + analyzer.
     /// The mic hardware (and its format) changes across CarPlay/Bluetooth
     /// attach and detach, so a fresh engine start is the reliable path.
+    ///
+    /// Serialized + circuit-broken (post-#82 device findings): a wedged
+    /// capture stack thrashes route-change notifications, and overlapping
+    /// restarts raced stop/start into a double tap-install — an uncatchable
+    /// `nullptr == Tap()` NSException — while each pass re-entered audio
+    /// session activation on the main thread (the observed UI lockup). One
+    /// restart runs at a time; a thrash storm trips the breaker into the
+    /// honest #84 blocked state instead of looping.
     private func restartCapture() async {
         guard connectionState == .connected, !isEndingSession else { return }
-        captureTask?.cancel()
-        captureTask = nil
-        await capture.stop()
-        do {
-            try await beginCapture()
-            if voiceState == .interrupted {
-                voiceState = .listening
-                statusMessage = "Listening"
-            }
-        } catch {
-            Self.logger.warning("capture restart failed: \(error.localizedDescription, privacy: .public)")
-            connectionState = .failed
-            voiceState = .disconnected
-            statusMessage = "Audio capture could not resume."
+        // Coalesce: a restart already in flight covers this trigger too.
+        if let inFlight = restartTask {
+            await inFlight.value
+            return
         }
+        // Breaker: >3 restarts inside 30s is not route churn — it's the #82
+        // wedge thrashing. Stop retrying; block with the reboot guidance.
+        let now = Date.now
+        recentCaptureRestarts = recentCaptureRestarts.filter { now.timeIntervalSince($0) < 30 }
+        recentCaptureRestarts.append(now)
+        if recentCaptureRestarts.count > 3 {
+            Self.logger.error("capture restart storm (\(self.recentCaptureRestarts.count, privacy: .public) in 30s) — #82 wedge shape; blocking instead of looping")
+            captureTask?.cancel()
+            captureTask = nil
+            await capture.stop()
+            blockedReason = TalkMicPreflight.noMicInputMessage
+            canStartSession = false
+            connectionState = .blocked
+            voiceState = .disconnected
+            statusMessage = blockedReason
+            return
+        }
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.captureTask?.cancel()
+            self.captureTask = nil
+            await self.capture.stop()
+            do {
+                try await self.beginCapture()
+                if self.voiceState == .interrupted {
+                    self.voiceState = .listening
+                    self.statusMessage = "Listening"
+                }
+            } catch {
+                Self.logger.warning("capture restart failed: \(error.localizedDescription, privacy: .public)")
+                self.connectionState = .failed
+                self.voiceState = .disconnected
+                self.statusMessage = "Audio capture could not resume."
+            }
+        }
+        restartTask = task
+        await task.value
+        restartTask = nil
     }
 
     private func teardownSessionResources() async {
