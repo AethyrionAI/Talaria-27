@@ -98,7 +98,8 @@ struct ThemeCatalogTests {
         #expect(ThemeCatalog.flagship.map(\.appearanceTheme) ==
                 [.deepField, .solarForge, .terminal, .paperTape])
         #expect(ThemeCatalog.neonArcadeCollection.map(\.appearanceTheme) ==
-                [.cerealBox, .bubblegumMecha, .retroSciFi])
+                [.cerealBox, .bubblegumMecha, .retroSciFi,
+                 .glitchGarden, .witchsBrew, .holoSushi])
         #expect(ThemeCatalog.specialEdition.map(\.appearanceTheme) == [.eventHorizon])
         #expect(ThemeCatalog.seasonal.map(\.appearanceTheme) ==
                 [.winterFrost, .springSprout, .summerSolar, .autumnHarvest])
