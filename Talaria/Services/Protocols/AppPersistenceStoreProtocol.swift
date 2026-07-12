@@ -22,6 +22,9 @@ protocol AppPersistenceStoreProtocol {
     func loadConversationJournal() -> ConversationJournal?
     func saveConversationJournal(_ journal: ConversationJournal)
     func clearConversationJournal()
+    func loadConversationListState() -> ConversationListState
+    func saveConversationListState(_ state: ConversationListState)
+    func clearConversationListState()
     func loadComposeOutboxState() -> ComposeOutboxState
     func saveComposeOutboxState(_ state: ComposeOutboxState)
     func clearComposeOutboxState()
