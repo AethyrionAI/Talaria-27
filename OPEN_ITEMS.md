@@ -634,7 +634,7 @@ Logged 2026-06-25.
 
 ---
 
-## 24. 🔧 OJAMD server-side work — 422 → Mac-side; Private Relay doc + relay-JWT persistence remain (bind/firewall/persistence/update-stability ✅)
+## 24. 🔧 OJAMD server-side work — 422 → Mac-side; Private Relay doc (#24e) remains; relay-JWT persistence CLOSED 2026-07-12 (#24f) (bind/firewall/persistence/update-stability ✅)
 
 > **2026-07-04 (evening):** the NSSM service architecture described in 24c/24h/24i has been
 > **reverted** -- see **#55**. Startup-folder scripts are the production launch path again and
@@ -711,7 +711,7 @@ This needs to be:
 
 Logged 2026-06-25.
 
-### 24f. Relay JWT signing secret + device registry not persisted across restarts
+### 24f. ✅ Relay JWT signing secret + device registry not persisted across restarts — RESOLVED 2026-07-12
 
 **Root cause of the launch-splash lockout (2026-06-26).** When Hermes/the relay restarts it
 regenerates its JWT signing secret and loses the in-memory device registry, so every
@@ -732,6 +732,8 @@ absolute path in the live `.env` (see `relay/docs/APNS_OJAMD.md`, which folds th
 #38 deploy — use the CURRENT live relay.db location; repointing it orphans pairings). After
 one restart-survives-pairing test on OJAMD, close this. (#38's push watches are
 intentionally in-memory — the app re-posts them — and don't reopen this item.)
+
+**Closed 2026-07-12.** The one remaining config check is done. Pinned `DATABASE_URL=sqlite:///O:/Hermes/Talaria/relay/hermes_mobile.db` (absolute) in the live OJAMD relay `.env`, and verified through `app.config.Settings.from_env()` that it resolves to the **same** live `hermes_mobile.db` (no orphaned pairings). Restart-survives-pairing confirmed by the #98 deploy restart: the connector re-authed against the freshly-restarted DB-backed relay with no re-pair and no 4401 (auth is opaque tokens hashed into `auth_sessions`; nothing regenerated on restart). DB-backed persistence across restart is now empirically confirmed on OJAMD. Nothing left server-side.
 
 ### 24g. ✅ Shim API-key fallback on Windows — RESOLVED (2026-06-26)
 
@@ -1030,9 +1032,11 @@ Logged 2026-06-27.
 
 ---
 
-## 34. 💤 T6 — Mac-hosted Talaria backend (unlocks additive Apple connectors) — LATER
+## 34. 🔧 T6 — Mac-hosted Talaria backend (unlocks additive Apple connectors) — ACTIVE (un-deferred 2026-07-12)
 
-**Deferred rationale (Owen, 2026-06-28):** hold until the app is closer to feature-complete —
+**Un-deferred 2026-07-12 (Owen).** Restarted as the next work track. Phase-1 spec drafted (`SPEC-hermes-relay-macos.md` — re-home relay + connector to the Mac Mini under launchd, link to local Hermes via `HERMES_COMMAND` + the `hermes_mobile` MCP registration + the #38 push-watch on the local gateway; #33 server-side Apple connectors as Phase 2) and dispatched to Claude Code. Correction to the old note below: #24f is NOT a Phase-1 work item — the live relay is DB-backed and persistence is verified (#24f closed 2026-07-12). OJAMD stays the phone's production host; the Mac relay is additive for the dev loop + Mac-only connectors.
+
+**Original deferred rationale (Owen, 2026-06-28):** hold until the app is closer to feature-complete —
 don't ship an incomplete Mac-hosted version. Revisit once the active open items resolve.
 
 Milestone (Owen, 2026-06-27), explicitly deferred until the rest of the open-items list
@@ -1463,6 +1467,8 @@ NSSM service no longer exists (so "service auto-restarts on crash" no longer app
 "Restart All" desktop shortcut references deleted services and needs rework for the
 Startup-script world (queued in #55). The durable server-side fix (persist/evict the
 host-connection nonce; connector auto-reconnect with backoff) remains open.
+
+**Update 2026-07-12 — third clean reattach.** The #98 deploy restart of `HermesMobileRelay` was another live test of this path: after the relay came up on a fresh PID the connector reattached on its own (`/v1/hosts/ws [accepted]`, established WS to :8000), zero 4401. The nonce-persistence + race-safe-eviction fix continues to hold; nothing to reopen.
 
 ---
 
@@ -3020,7 +3026,9 @@ Baseline list hygiene present in both competitor apps (ChatGPT's pin confirmed w
 
 Logged 2026-07-11.
 
-## 98. 👀 Scheduled / recurring agent runs — relay-side v0 (Lane G) — MERGED, OJAMD deploy pending
+## 98. ✅ Scheduled / recurring agent runs — relay-side v0 (Lane G) — DEPLOYED to OJAMD 2026-07-12
+
+**Update 2026-07-12 — DEPLOYED to OJAMD (verified live).** Second deploy pass done from the Windows side: `git fetch t27` + rebased `ojamd-deploy` onto `t27/main` (clean, ahead 1 local helper commit / behind 0), `tzdata` satisfied in the relay `.venv` (uv-managed; `ZoneInfo('America/Chicago')` resolves on the box — the Windows no-system-IANA-db gap is closed), relay restarted (elevated `Restart-Service HermesMobileRelay`, fresh PID) then the connector re-launched in dependency order. Live confirmation: `/v1/schedules` now answers **401** (was **404** pre-deploy) → the Lane G routes are registered and correctly device-bearer-gated; `/v1/health` 200; connector WS `/v1/hosts/ws [accepted]`. Left `SCHEDULER_ENABLED` at its default (on). Honest caveat: the trigger loop starts with the app lifespan and logs nothing at idle, so the *loop's execution* is presumed-live until the first real schedule fires — the route surface and auth are proven, a fired run is the last rubber stamp.
 
 **Update 2026-07-12: PR #76 merged** (117/117 relay tests on the conflict-resolved merge with main). Remaining: the second, smaller OJAMD deploy — `git fetch t27` + rebase `ojamd-deploy`, **`pip install -e .` in the relay venv (new `tzdata` dep)**, then `Restart-Service HermesMobileRelay`. Nothing fires until then; `SCHEDULER_ENABLED=false` is the kill switch for a cautious first restart.
 
@@ -3105,3 +3113,29 @@ Logged 2026-07-11.
 Found 2026-07-11 while investigating #103's thermal contribution: `SensorUploadService.persistOutboxState()` (backed by `UserDefaultsAppPersistenceStore.saveSensorOutboxState`) encodes and rewrites the WHOLE outbox on every location update, motion activity change, and health snapshot — in `@MainActor` tasks. Cost scales linearly with backlog size and there is no backlog cap, so any connector outage (like #103) turns routine sensor ticks into a sustained CPU/IO loop (heat + potential UI jank). Hardening shape: (a) debounce/coalesce persistence (e.g. persist at most every few seconds or on chunk boundaries — crash-loss window of a few seconds of sensor samples is acceptable), (b) cap `pendingHealthSamples` with oldest-drop + an honest diagnostics note when capped, (c) move the encode off the main actor. Small, file-scoped to `SensorUploadService.swift` + the persistence store; no collision with Lanes D/F/G/H. UN-GATED 2026-07-11: #103's deploy drained 2k→0 cleanly and the device cooled as the backlog fell — current semantics proven, mechanism empirically supported. Dispatchable as its own small lane whenever desired.
 
 Logged 2026-07-11.
+
+---
+
+## 105. ✅ OJAMD startup-layer hygiene — stale relay launcher retired (NSSM-only at boot)
+
+**Fixed 2026-07-12.** During the pre-Mac OJAMD health pass, found a live conflict armed for the
+next login: `Hermes_Relay.cmd` still sat in the Startup folder
+(`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup`), and its single-instance
+enforcer kills any process matching `*uvicorn*app.main*8000*` before launching its own uvicorn.
+But the relay is NSSM-owned now (`HermesMobileRelay`, LocalSystem) — so at next login this script
+would either die on the bind (benign) or win the port race and leave the relay running in the
+login session (dies at logoff), NSSM crash-looping behind it. This is #55's competing-launch-layers
+problem in mirror image. **Action taken:** moved `Hermes_Relay.cmd` out of Startup to
+`C:\Users\Owen\.hermes\scripts\retired\Hermes_Relay.cmd.retired-20260712` (reversible). The
+`Hermes_Connector.cmd` and `Hermes_Gateway.vbs` Startup entries are **legitimately retained** —
+the connector is a plain bat-launched process and the gateway runs as Owen's user `pythonw` (per
+the corrected topology), neither is a service, so both still need login-launch.
+
+**Unattended-reboot gap (accepted, not fixed).** AutoAdminLogon is off and the gateway + connector
+only start at login, so a reboot while unattended leaves chat dead + reproduces the #103/#104 shape
+(relay up, connector down, phone in 202-retry with outbox-persistence amplification). **Owen's
+policy (2026-07-12):** Windows + Hermes updates are paused and reboots are done attended (in front
+of the screen), which sidesteps the gap without auto-login's security trade-off or resurrecting the
+boot-trigger scar tissue. No boot-survival change needed for gateway/connector while this holds.
+
+Logged 2026-07-12.
