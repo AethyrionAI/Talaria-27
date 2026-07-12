@@ -1,6 +1,9 @@
 # Local development
 
-This is the fastest way to run the relay during development.
+This is the fastest way to run the relay during development. For the *persistent*
+Mac Mini deployment (launchd services, production env, T6 Phase 1), use
+`relay/docs/DEPLOY_MAC.md` instead — this page is for a hand-run relay that dies
+with the terminal.
 
 ## Start the relay
 

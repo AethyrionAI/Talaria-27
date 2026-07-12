@@ -48,18 +48,16 @@ enum NotificationReplyAction {
 /// CarPlay config resolution.
 @MainActor
 enum SingleWindowPolicy {
-    private static var observer: (any NSObjectProtocol)?
-
-    static func activate() {
-        guard observer == nil else { return }
-        observer = NotificationCenter.default.addObserver(
-            forName: UIScene.willConnectNotification,
-            object: nil,
-            queue: .main
-        ) { note in
+    /// Selector-based (not block-based) observer: the block API hands the
+    /// Notification to a @Sendable closure, which makes it task-isolated and
+    /// un-sendable into a MainActor hop under Swift 6 region isolation. A
+    /// plain @objc method parameter has no such isolation; UIKit posts scene
+    /// notifications on the main thread, so the assumeIsolated hop is sound.
+    private final class Watcher: NSObject {
+        @objc func sceneWillConnect(_ note: Notification) {
+            guard let scene = note.object as? UIWindowScene else { return }
             MainActor.assumeIsolated {
-                guard let scene = note.object as? UIWindowScene,
-                      scene.session.role == .windowApplication else { return }
+                guard scene.session.role == .windowApplication else { return }
                 let hasOtherAppWindow = UIApplication.shared.connectedScenes.contains {
                     $0 !== scene && $0 is UIWindowScene && $0.session.role == .windowApplication
                 }
@@ -68,6 +66,20 @@ enum SingleWindowPolicy {
                 UIApplication.shared.requestSceneSessionDestruction(scene.session, options: nil, errorHandler: nil)
             }
         }
+    }
+
+    private static let watcher = Watcher()
+    private static var active = false
+
+    static func activate() {
+        guard !active else { return }
+        active = true
+        NotificationCenter.default.addObserver(
+            watcher,
+            selector: #selector(Watcher.sceneWillConnect(_:)),
+            name: UIScene.willConnectNotification,
+            object: nil
+        )
     }
 }
 
