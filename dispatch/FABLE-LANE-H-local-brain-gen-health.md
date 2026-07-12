@@ -7,10 +7,18 @@ only. No ChatScreen/composer/drawer contact. Independent of Lanes D/F/G.
 
 ## Findings (source-read 2026-07-11 — treat as hypotheses to verify)
 
-1. `LocalChatBackend.swift:597` — `respond`/stream uses bare
-   `GenerationOptions()`: default sampling, NO `maximumResponseTokens`. A
-   repetition loop generates until the context fills → sustained ANE burn →
-   observed thermal state "serious" with only Talaria running (#102).
+1. **CORRECTED 2026-07-11 (second read):** the live generation call is
+   `liveSession.streamResponse(to: Prompt(prompt))` (~line 325) — it passes NO
+   options argument at all, so SDK defaults govern sampling and response
+   length. Line 597's bare `GenerationOptions()` is a RED HERRING — it's
+   attached to rehydrated `Transcript.Prompt` entries, cosmetic; do not chase
+   it. Whether the SDK default imposes any response-token cap is an OPEN
+   question — answer it in the probe step below before choosing the cap.
+   Verified SAFE (rule these out): `streamDelta` is prefix-guarded, and the
+   `while true` retry loop permits exactly one condense-retry
+   (`didCondenseRetry`) — no runaway regeneration. Model-level repetition
+   under default sampling, running long because nothing bounds it, remains
+   the best-fit mechanism for the phrase-loop + thermal "serious" (#102).
 2. `LocalIntelligenceService.swift:74/114/173` — guided generation at
    temperature 0.2–0.3. Near-greedy sampling on the small on-device model is
    repetition-prone; #61's device symptom (title and preview showing the same
@@ -20,6 +28,7 @@ only. No ChatScreen/composer/drawer contact. Independent of Lanes D/F/G.
 
 ## Probe-first (before coding)
 
+- Determine what `streamResponse(to:)` defaults to when no options are passed (sampling mode, any implicit response-token limit) — this decides how aggressive the explicit cap must be.
 - Verify the exact `GenerationOptions` API surface against the iOS 27 beta SDK
   (Apple docs JSON, same method as #61's 2026-07-06 verification): property
   names for max tokens (`maximumResponseTokens`?) and sampling mode. Do not
@@ -29,7 +38,7 @@ only. No ChatScreen/composer/drawer contact. Independent of Lanes D/F/G.
 ## Deliverables
 
 ### 1. Bound + retune chat generation (#102)
-- `LocalChatBackend`: replace bare `GenerationOptions()` with an explicit
+- `LocalChatBackend`: pass explicit options to the `streamResponse` call — an explicit
   config — a sane `maximumResponseTokens` cap for chat replies (proposal:
   1024; justify in the PR if you pick differently) and a moderate temperature
   (~0.7) or the SDK's recommended sampling mode for conversational output.
