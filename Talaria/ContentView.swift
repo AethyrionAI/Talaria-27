@@ -1,25 +1,62 @@
 import SwiftUI
 
+// MARK: - Root layout decision (Lane J, J-8)
+
+/// The root chat surface's layout, decided by horizontal size class ONLY
+/// (never device idiom — an iPad window can be iPhone-narrow in Slide Over
+/// and must get the compact layout). Pure so the compact-parity property is
+/// testable: every non-regular input renders today's iPhone tree.
+enum RootLayoutPlan: Equatable {
+    case compactStack
+    case regularSplit
+
+    static func plan(for sizeClass: UserInterfaceSizeClass?) -> RootLayoutPlan {
+        sizeClass == .regular ? .regularSplit : .compactStack
+    }
+}
+
+/// Lane J (J-9): sidebar visibility persists across launches as a Bool —
+/// the pure mapping is extracted so the round trip is testable.
+enum SidebarVisibilityPersistence {
+    static func visibility(fromPersisted visible: Bool) -> NavigationSplitViewVisibility {
+        visible ? .all : .detailOnly
+    }
+
+    static func persisted(from visibility: NavigationSplitViewVisibility) -> Bool {
+        visibility != .detailOnly
+    }
+}
+
 struct MainTabView: View {
     @Environment(TabRouter.self) private var router
     @Environment(TalkStore.self) private var talkStore
     @Environment(ChatStore.self) private var chatStore
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(PairingStore.self) private var pairingStore
+    @Environment(HermesHostStore.self) private var hostStore
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    // Lane J (J-9): chat state that must survive the compact↔regular
+    // boundary. The two root branches are different view trees, so a
+    // size-class change (Stage Manager drag) recreates ChatScreen — anything
+    // that must not reset lives HERE (MainTabView keeps its identity across
+    // the transition) and is passed down.
+    @State private var composerText = ""
+    @State private var composerAttachments: [PendingAttachment] = []
+    @State private var sessionsModel = SessionsDrawerModel()
+
+    // Lane J (J-9): sidebar visibility, persisted across launches.
+    @AppStorage("chatSidebarVisible") private var sidebarVisiblePersisted = true
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        @Bindable var router = router
-        NavigationStack(path: router.pathBinding()) {
-            ChatScreen()
-                .navigationDestination(for: Route.self) { route in
-                    routeDestination(route)
-                }
-        }
-        .sheet(item: $router.activeSheet) { destination in
-            sheetDestination(destination)
-        }
-        .fullScreenCover(isPresented: $router.isVoiceOverlayPresented) {
-            VoiceOverlayScreen()
+        Group {
+            switch RootLayoutPlan.plan(for: horizontalSizeClass) {
+            case .compactStack:
+                compactStack
+            case .regularSplit:
+                regularSplit
+            }
         }
         .onChange(of: talkStore.lastCompletedSession != nil) { _, hasSession in
             if hasSession, let session = talkStore.lastCompletedSession {
@@ -36,6 +73,97 @@ struct MainTabView: View {
                 talkStore.clearLastCompletedSession()
             }
         }
+    }
+
+    // MARK: Compact (today's iPhone tree, untouched — J-8 parity bar)
+
+    private var compactStack: some View {
+        @Bindable var router = router
+        return NavigationStack(path: router.pathBinding()) {
+            ChatScreen(
+                messageText: $composerText,
+                pendingAttachments: $composerAttachments,
+                sessionsModel: sessionsModel
+            )
+            .navigationDestination(for: Route.self) { route in
+                routeDestination(route)
+            }
+        }
+        .sheet(item: $router.activeSheet) { destination in
+            sheetDestination(destination)
+        }
+        .fullScreenCover(isPresented: $router.isVoiceOverlayPresented) {
+            VoiceOverlayScreen()
+        }
+    }
+
+    // MARK: Regular (Lane J split view — J-8/J-9)
+
+    private var regularSplit: some View {
+        @Bindable var router = router
+        return ZStack {
+            // J-9: ONE theme atmosphere spanning the whole window, behind
+            // both columns — ChatScreen suppresses its per-screen copy here.
+            HUDScreenBackground()
+                .ignoresSafeArea()
+            ScanLine(intensity: 0.32)
+                .ignoresSafeArea()
+
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                ConversationListPane(
+                    model: sessionsModel,
+                    hostName: hostStore.currentHost?.resolvedDisplayName ?? "HERMES HOST",
+                    hostDetail: ChatConnectionPresentation.sessionsHostDetail(chatConnectionState),
+                    hostOnline: chatConnectionState == .online
+                )
+                .navigationSplitViewColumnWidth(min: 300, ideal: 340, max: 420)
+                .toolbarBackground(.hidden, for: .navigationBar)
+                // J-9: the column must not paint a system background over
+                // the window-spanning atmosphere. Compile-risk flagged in
+                // the PR — if this placement doesn't exist on this SDK,
+                // delete and revisit column transparency on the Mac.
+                .containerBackground(.clear, for: .navigation)
+            } detail: {
+                NavigationStack(path: router.pathBinding()) {
+                    ChatScreen(
+                        messageText: $composerText,
+                        pendingAttachments: $composerAttachments,
+                        sessionsModel: sessionsModel,
+                        showsAtmosphere: false,
+                        onConversationSearchShortcut: {
+                            // ⌘K in regular: reveal the sidebar if hidden and
+                            // focus its inline filter field directly (J-9).
+                            columnVisibility = .all
+                            sessionsModel.requestSearchFieldFocus()
+                        }
+                    )
+                    .navigationDestination(for: Route.self) { route in
+                        routeDestination(route)
+                    }
+                    // J-9: same transparency requirement as the sidebar column.
+                    .containerBackground(.clear, for: .navigation)
+                }
+            }
+            .navigationSplitViewStyle(.balanced)
+        }
+        .sheet(item: $router.activeSheet) { destination in
+            sheetDestination(destination)
+        }
+        .fullScreenCover(isPresented: $router.isVoiceOverlayPresented) {
+            VoiceOverlayScreen()
+        }
+        .onAppear {
+            columnVisibility = SidebarVisibilityPersistence.visibility(fromPersisted: sidebarVisiblePersisted)
+        }
+        .onChange(of: columnVisibility) { _, visibility in
+            sidebarVisiblePersisted = SidebarVisibilityPersistence.persisted(from: visibility)
+        }
+    }
+
+    /// Chat-path connection state for the sidebar footer — the same direct
+    /// Sessions-API mapping ChatScreen uses (never the relay-sourced state).
+    private var chatConnectionState: HermesHostConnectionState {
+        ChatConnectionPresentation.effectiveState(chatStore.directConnectionStatus)
     }
 
     @ViewBuilder
