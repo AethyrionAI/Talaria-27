@@ -96,7 +96,7 @@ struct AtmosphereMotionSpec: Equatable, Sendable {
     /// Opacity of the whole field (the handoffs' `.page-bg { opacity }`).
     let fieldOpacity: Double
     /// When set, the drift phase is quantized into this many discrete jumps
-    /// per loop — Haunted VHS's `staticDrift 0.9s steps(4)` TV-noise scramble
+    /// per loop — a `steps(N)` TV-noise scramble (authored for the cut Haunted VHS; reusable)
     /// (a smooth 0.9s pan reads as vibration, not static). `nil` = smooth
     /// linear pan, byte-identical for every existing spec.
     var stepCount: Int? = nil
@@ -222,7 +222,7 @@ struct ThemeCornerRibbonSpec: Equatable, Sendable {
     let textColor: Color
     /// Banner fill (`--graf-accent-pink`).
     let background: Color
-    /// Hard on/off blink cycle — Haunted VHS's `recBlink 1.1s steps(2)`:
+    /// Hard on/off blink cycle — a `steps(2)` hard blink (authored for the cut Haunted VHS; reusable):
     /// full opacity for the first half, `blinkMinOpacity` for the second.
     /// `nil` = static ribbon (Graffiti Galaxy's 'TAG'), byte-identical, no
     /// TimelineView. Held at full opacity under Reduce Motion (the CSS
@@ -233,7 +233,7 @@ struct ThemeCornerRibbonSpec: Equatable, Sendable {
 }
 
 /// A full-width horizontal glow band sweeping vertically down the screen —
-/// Haunted VHS's `trackingBar` (a 46px band with a symmetric two-hue profile:
+/// a CRT tracking band (46px, symmetric two-hue profile — authored for the cut Haunted VHS; reusable:
 /// transparent → shoulder 35% → center 50% → shoulder 65% → transparent,
 /// traveling top −18% → 118% over 6s, linear infinite). The atmosphere
 /// engine's laser bars are vertical capsules and can't express a horizontal
@@ -302,7 +302,7 @@ struct ThemeArtDirection: Equatable, Sendable {
     /// so this field gets its own slot instead of the texture slot. `nil` =
     /// no overlay (the default, byte-identical).
     var scanlineOverlay: ThemeLineFieldSpec? = nil
-    /// Vertically sweeping glow band (Haunted VHS's `trackingBar`), drawn
+    /// Vertically sweeping glow band (`trackingBar`-class; no shipped adopter), drawn
     /// between the grid and the scanline overlay (the handoff's z-order:
     /// the tracking bar rides UNDER the CRT rows). `nil` = no band (the
     /// default, byte-identical).
@@ -345,7 +345,6 @@ enum ThemeArtDirectionCatalog {
         .karaokeSupernova: karaokeSupernova,
         .midnightAquarium: midnightAquarium,
         .moltenForge: moltenForge,
-        .hauntedVHS: hauntedVHS,
     ]
 
     static func artDirection(for theme: ThemeID) -> ThemeArtDirection {
@@ -931,93 +930,6 @@ enum ThemeArtDirectionCatalog {
             secondary: Color(hex: 0xFFD23C)
         )
     )
-
-    // MARK: Haunted VHS — design/themes/theme-haunted-vhs.html (SE, batch 4)
-    // Late-night tape: green bloom above, three-hue phosphor static
-    // (staticDrift 0.9s steps(4) — ported on the new step quantizer; the
-    // CSS scrambles through four AUTHORED positions per layer, the port
-    // jumps four quarter-tile positions per layer at the same cadence with
-    // per-layer directions, a perception-level match noted in the PR), the
-    // CRT rows VERBATIM (1px black .28 on 3px pitch, .5 layer), and the
-    // tracking bar on the new sweep-bar primitive (46px two-hue band,
-    // top −18% → 118% per 6s — the handoff draws it inside the chat screen;
-    // the dispatch maps it to screen scope with the atmosphere machinery,
-    // under the scanline rows per the DOM z-order). Title = EH-shape green
-    // glow + the ±3px magenta/cyan chromatic inks scrambling on the Glitch
-    // Garden jitter machinery at the verbatim 5s period (the CSS jitters
-    // the whole h1 with translate/skew at 92–98%; the port scrambles the
-    // chromatic inks over the same window — perception-level, noted).
-    // recBlink REC chip → blinking corner ribbon per the dispatch mapping
-    // (header-bar chip → the ribbon affordance; 1.1s steps(2), dim 0.15).
-    // Deferred/N-A per the inventory table: the chat-screen scanline
-    // duplicate (the screen overlay already spans the chat surface), the
-    // tape-amber user-bubble gradient (bubble-scope), Tape Amber #FFC247
-    // elsewhere (gallery badge chrome).
-
-    static let hauntedVHS = ThemeArtDirection(
-        glowPools: [
-            // radial(1200px 800px at 50% -10%, rgba(59,255,111,.10) → 60%)
-            ThemeGlowPool(color: Color(hex: 0x3BFF6F, opacity: 0.10),
-                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
-        ],
-        panelHalo: ThemePanelHalo(
-            // 8px ring at .06 on the .32 border → 1pt rim at the EH compression.
-            ringColor: Color(hex: 0x3BFF6F, opacity: 0.24),
-            glowColor: Color(hex: 0x3BFF6F),
-            glowRadius: 40
-        ),
-        // staticDrift: three square phosphor-noise tiles (70/110/90), four
-        // discrete jumps per 0.9s loop; whole-tile drift keeps the wrap
-        // seamless, alternating directions keep the layers scrambling
-        // against each other. Speck centers at the CSS 2px fades × 0.625.
-        atmosphereMotion: AtmosphereMotionSpec(layers: [
-            AtmosphereMotionSpec.Layer(
-                tileSize: 70, driftX: 70, driftY: 70,
-                hue: Color(hex: 0x3BFF6F), speckAlpha: 0.16,
-                anchorX: 0.20, anchorY: 0.30, speckRadius: 1.25),
-            AtmosphereMotionSpec.Layer(
-                tileSize: 110, driftX: -110, driftY: 110,
-                hue: Color(hex: 0xFF3BD4), speckAlpha: 0.14,
-                anchorX: 0.70, anchorY: 0.70, speckRadius: 1.25),
-            AtmosphereMotionSpec.Layer(
-                tileSize: 90, driftX: 90, driftY: -90,
-                hue: Color(hex: 0x35E0FF), speckAlpha: 0.12,
-                anchorX: 0.50, anchorY: 0.50, speckRadius: 1.25),
-        ], period: 0.9, fieldOpacity: 0.35, stepCount: 4),
-        // page scanlines, verbatim: black .28 rows, 1px on 3px pitch, .5 layer.
-        scanlineOverlay: ThemeLineFieldSpec(layers: [
-            .init(angleDegrees: 0, hue: Color(hex: 0x000000), alpha: 0.28,
-                  spacing: 3, lineWidth: 1),
-        ], fieldOpacity: 0.5),
-        // trackingBar: 46px band — e8ffe8 .07 shoulders, 35e0ff .12 center —
-        // sweeping top −18% → 118% every 6s, under the CRT rows.
-        sweepBar: ThemeSweepBarSpec(
-            height: 46,
-            shoulderColor: Color(hex: 0xE8FFE8), shoulderAlpha: 0.07,
-            centerColor: Color(hex: 0x35E0FF), centerAlpha: 0.12,
-            period: 6
-        ),
-        // h1 glow: 10/30px green, 60px green .45 — EH translation, green out.
-        titleGlow: ThemeTitleGlow(
-            primary: Color(hex: 0x3BFF6F),
-            secondary: Color(hex: 0x3BFF6F)
-        ),
-        // h1 chromatic inks: 3px magenta .55 / −3px cyan .55, scrambling on
-        // the vhsJitter cadence (5s, quiet ~92% of the cycle).
-        titleShadow: ThemeTitleShadowSpec(layers: [
-            .init(hue: Color(hex: 0xFF3BD4), alpha: 0.55, offsetX: 3, offsetY: 0),
-            .init(hue: Color(hex: 0x35E0FF), alpha: 0.55, offsetX: -3, offsetY: 0),
-        ], glitchPeriod: 5),
-        // recBlink: the ● REC chip as a blinking corner ribbon — danger red
-        // on tape black, 1.1s steps(2), dimming to .15.
-        cornerRibbon: ThemeCornerRibbonSpec(
-            text: "● REC",
-            textColor: Color(hex: 0xFF3B3B),
-            background: Color(hex: 0x0A0D0A),
-            blinkPeriod: 1.1
-        )
-    )
-
     // MARK: Event Horizon atmosphere presets (Lane E Task 1)
 
     /// On-device A/B knob: flip, rebuild, judge — no server round trip.

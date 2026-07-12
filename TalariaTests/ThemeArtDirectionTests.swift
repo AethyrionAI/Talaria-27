@@ -28,15 +28,15 @@ struct ThemeArtDirectionTests {
     @Test func lineFieldsAndTitleShadowsAreDeliberatePerTheme() {
         // The Phase 2 slots stay nil except where a port sets them — update
         // these sets deliberately per batch (batch 4: Midnight Aquarium's
-        // caustics, Haunted VHS's CRT rows + chromatic title).
+        // caustics; Haunted VHS was cut on device verdict 2026-07-11).
         let lineTextures: Set<ThemeID> = [
             .holoSushi, .cyberCactus, .graffitiGalaxy, .midnightAquarium,
         ]
         let scanlineOverlays: Set<ThemeID> = [
-            .glitchGarden, .bubblegumMecha, .retroSciFi, .discoInferno, .hauntedVHS,
+            .glitchGarden, .bubblegumMecha, .retroSciFi, .discoInferno,
         ]
         let titleShadows: Set<ThemeID> = [
-            .glitchGarden, .retroSciFi, .graffitiGalaxy, .hauntedVHS,
+            .glitchGarden, .retroSciFi, .graffitiGalaxy,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -152,7 +152,7 @@ struct ThemeArtDirectionTests {
             .jukeboxGlow, .cactusBloom, .anglerLure, .discoBall, .sprayCap,
             .mirrorBall, .rocketBadge, .moonJelly, .crucible, .phosphor,
         ]
-        let orphans: Set<ThemeOrbStyle> = [.anglerLure]
+        let orphans: Set<ThemeOrbStyle> = [.anglerLure, .phosphor]
         let selected = ThemeID.allCases.map { ThemePalette(theme: $0, accent: .cyan).orbStyle }
         for style in galleryStyles {
             let count = selected.filter { $0 == style }.count
@@ -222,7 +222,8 @@ struct ThemeArtDirectionTests {
         #expect(motion.stepCount == nil)
 
         #expect(ThemeArtDirection.standard.sweepBar == nil)
-        for theme in ThemeID.allCases where theme != .hauntedVHS {
+        // No shipped adopter since the Haunted VHS cut — universal.
+        for theme in ThemeID.allCases {
             #expect(ThemeArtDirectionCatalog.artDirection(for: theme).sweepBar == nil)
         }
         // Pre-batch-4 adopters of the extended specs stay static: Graffiti
@@ -234,7 +235,7 @@ struct ThemeArtDirectionTests {
             #expect(ThemeArtDirectionCatalog.artDirection(for: theme)
                 .lineTexture?.driftPeriod == nil)
         }
-        for theme in ThemeID.allCases where theme != .hauntedVHS {
+        for theme in ThemeID.allCases {
             #expect(ThemeArtDirectionCatalog.artDirection(for: theme)
                 .atmosphereMotion?.stepCount == nil)
         }
@@ -293,48 +294,6 @@ struct ThemeArtDirectionTests {
         // The Solar Forge lineage stays untouched: no ember tint reuse.
         #expect(art.emberTint == nil)
     }
-
-    @Test func hauntedVHSSitsAtHandoffLevels() {
-        let art = ThemeArtDirectionCatalog.artDirection(for: .hauntedVHS)
-        // staticDrift: three square noise tiles (70/110/90), four discrete
-        // jumps per 0.9s loop (steps(4)), alphas .16/.14/.12 on a .35 field.
-        let statics = art.atmosphereMotion
-        #expect(statics?.period == 0.9)
-        #expect(statics?.stepCount == 4)
-        #expect(statics?.fieldOpacity == 0.35)
-        #expect(statics?.layers.map(\.tileSize) == [70, 110, 90])
-        #expect(statics?.layers.map(\.speckAlpha) == [0.16, 0.14, 0.12])
-        for layer in statics?.layers ?? [] {
-            // Whole-tile jumps keep the wrap seamless on both axes.
-            #expect(abs(layer.driftX) == layer.tileSize)
-            #expect(abs(layer.driftY) == layer.tileSize)
-        }
-        // CRT rows, verbatim: 1px black .28 on 3px pitch, .5 layer.
-        #expect(art.scanlineOverlay?.layers.count == 1)
-        #expect(art.scanlineOverlay?.layers.first?.spacing == 3)
-        #expect(art.scanlineOverlay?.layers.first?.lineWidth == 1)
-        #expect(art.scanlineOverlay?.layers.first?.alpha == 0.28)
-        #expect(art.scanlineOverlay?.fieldOpacity == 0.5)
-        // trackingBar: 46px band sweeping −18% → 118% every 6s.
-        #expect(art.sweepBar?.height == 46)
-        #expect(art.sweepBar?.period == 6)
-        #expect(art.sweepBar?.travelStart == -0.18)
-        #expect(art.sweepBar?.travelEnd == 1.18)
-        #expect(art.sweepBar?.shoulderAlpha == 0.07)
-        #expect(art.sweepBar?.centerAlpha == 0.12)
-        // vhsJitter: ±3px chromatic inks on the 5s glitch cadence.
-        #expect(art.titleShadow?.layers.count == 2)
-        #expect(art.titleShadow?.layers[0].offsetX == 3)
-        #expect(art.titleShadow?.layers[1].offsetX == -3)
-        #expect(art.titleShadow?.glitchPeriod == 5)
-        #expect(art.titleGlow != nil)
-        // recBlink: the REC ribbon blinks at 1.1s, dimming to .15.
-        #expect(art.cornerRibbon?.text == "● REC")
-        #expect(art.cornerRibbon?.blinkPeriod == 1.1)
-        #expect(art.cornerRibbon?.blinkMinOpacity == 0.15)
-        #expect(art.panelHalo?.glowRadius == 40)
-    }
-
     @Test func moltenForgeVariantsShareNoHueWithSolarForge() {
         // Owen's differentiation mandate (batch-4 dispatch): Molten Forge's
         // accent variants must use hues Solar Forge's variants do NOT.
@@ -364,7 +323,7 @@ struct ThemeArtDirectionTests {
             .cerealBox, .bubblegumMecha, .retroSciFi,
             .lunarDiner, .cyberCactus, .discoInferno,
             .graffitiGalaxy, .karaokeSupernova,
-            .midnightAquarium, .moltenForge, .hauntedVHS,
+            .midnightAquarium, .moltenForge,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -408,11 +367,11 @@ struct ThemeArtDirectionTests {
 
     @Test func cornerRibbonAndTopStripDefaultToNil() {
         // Both correction-round primitives must be inert for every theme
-        // that doesn't set them — ribbons: Graffiti Galaxy + Haunted VHS
+        // that doesn't set them — ribbons: Graffiti Galaxy only
         // (batch 4); top strip: Graffiti Galaxy only.
         #expect(ThemeArtDirection.standard.cornerRibbon == nil)
         #expect(ThemeArtDirection.standard.panelTopStrip == nil)
-        let ribbons: Set<ThemeID> = [.graffitiGalaxy, .hauntedVHS]
+        let ribbons: Set<ThemeID> = [.graffitiGalaxy]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
             #expect((art.cornerRibbon != nil) == ribbons.contains(theme))
@@ -464,7 +423,7 @@ struct ThemeArtDirectionTests {
         let fields: Set<ThemeID> = [
             .eventHorizon, .witchsBrew, .cerealBox, .bubblegumMecha, .retroSciFi,
             .lunarDiner, .discoInferno, .karaokeSupernova,
-            .midnightAquarium, .moltenForge, .hauntedVHS,
+            .midnightAquarium, .moltenForge,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)

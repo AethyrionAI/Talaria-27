@@ -137,7 +137,6 @@ struct DesignThemeTests {
         // Batch 4 — Claude-Design Special Editions.
         #expect(ThemePalette(theme: .midnightAquarium, accent: .cyan).base == Color(hex: 0xFF7AD9))
         #expect(ThemePalette(theme: .moltenForge, accent: .cyan).base == Color(hex: 0xFF6A1A))
-        #expect(ThemePalette(theme: .hauntedVHS, accent: .cyan).base == Color(hex: 0x3BFF6F))
     }
 
     @Test func contextualAccentLabels() {
@@ -167,9 +166,6 @@ struct DesignThemeTests {
         #expect(AppearanceAccent.cyan.displayLabel(for: .moltenForge) == "Lava Orange")
         #expect(AppearanceAccent.amber.displayLabel(for: .moltenForge) == "Spark Gold")
         #expect(AppearanceAccent.violet.displayLabel(for: .moltenForge) == "Hammered Steel")
-        #expect(AppearanceAccent.cyan.displayLabel(for: .hauntedVHS) == "Phosphor Green")
-        #expect(AppearanceAccent.amber.displayLabel(for: .hauntedVHS) == "Chroma Magenta")
-        #expect(AppearanceAccent.violet.displayLabel(for: .hauntedVHS) == "Static Cyan")
     }
 
     // MARK: Catalog resolution (#49)
@@ -228,7 +224,6 @@ struct DesignThemeTests {
         // Batch 4 — Claude-Design Special Editions.
         #expect(ThemePalette(theme: .midnightAquarium, accent: .cyan).orbStyle == .moonJelly)
         #expect(ThemePalette(theme: .moltenForge, accent: .cyan).orbStyle == .crucible)
-        #expect(ThemePalette(theme: .hauntedVHS, accent: .cyan).orbStyle == .phosphor)
     }
 
     // MARK: Runtime mirroring

@@ -28,7 +28,7 @@ struct HUDScreenBackground: View {
             ThemeTextureView()
             GridOverlay()
                 .opacity(gridIntensity ?? ThemeRuntime.shared.gridDensity.gridIntensity)
-            // Sweeping tracking band (Haunted VHS) — below the scanline rows,
+            // Sweeping tracking band — below the scanline rows,
             // matching the handoff's z-order. Nil for every theme without one.
             if let sweep = ThemeRuntime.shared.artDirection.sweepBar {
                 SweepBarField(spec: sweep)
@@ -57,7 +57,7 @@ struct HUDScreenBackground: View {
 /// solid band, turned 45° so it reads along the corner diagonal, offset so
 /// its ends bleed past the screen edge (the design's `right: -26px`). The
 /// hosting `HUDScreenBackground` clips the bleed. A spec with a `blinkPeriod`
-/// hard-blinks between full and `blinkMinOpacity` (Haunted VHS's `recBlink
+/// hard-blinks between full and `blinkMinOpacity` (a `recBlink
 /// 1.1s steps(2)`); static ribbons (Graffiti Galaxy) never pay for the
 /// timeline. Held at full opacity under Reduce Motion (system or app toggle)
 /// — the CSS animation's 0% keyframe.

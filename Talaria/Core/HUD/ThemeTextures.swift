@@ -236,7 +236,7 @@ struct AtmosphereMotionField: View {
         guard size.width > 0, size.height > 0, spec.period > 0 else { return }
         var phase = time.truncatingRemainder(dividingBy: spec.period) / spec.period
         if let steps = spec.stepCount, steps > 0 {
-            // Quantize the pan into discrete jumps (Haunted VHS's
+            // Quantize the pan into discrete jumps (steps(N)-class;
             // `steps(4)` static scramble) — the field holds still between
             // jumps instead of gliding.
             phase = (Double(steps) * phase).rounded(.down) / Double(steps)
@@ -414,7 +414,7 @@ struct LineFieldTexture: View {
     }
 }
 
-// MARK: Sweep bar (Haunted VHS tracking bar)
+// MARK: Sweep bar (CRT tracking band — no shipped adopter; kept reusable)
 
 /// Renders a `ThemeSweepBarSpec`: one full-width horizontal band with the
 /// handoff's symmetric profile (transparent → shoulder → center → shoulder →

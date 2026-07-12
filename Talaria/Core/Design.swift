@@ -411,7 +411,6 @@ extension AppearanceTheme {
         case .karaokeSupernova: .karaokeSupernova
         case .midnightAquarium: .midnightAquarium
         case .moltenForge: .moltenForge
-        case .hauntedVHS: .hauntedVHS
         }
     }
 }

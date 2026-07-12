@@ -178,9 +178,6 @@ enum ThemeCatalog {
         ThemeDefinition(id: AppearanceTheme.moltenForge.rawValue, displayName: "Molten Forge",
                         subtitle: "Crucible", appearanceTheme: .moltenForge,
                         availability: .always, locked: false),
-        ThemeDefinition(id: AppearanceTheme.hauntedVHS.rawValue, displayName: "Haunted VHS",
-                        subtitle: "Tracking", appearanceTheme: .hauntedVHS,
-                        availability: .always, locked: false),
     ]
 
     /// The four meteorological-season themes; holiday themes become additional

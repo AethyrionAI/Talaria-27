@@ -103,7 +103,7 @@ struct ThemeCatalogTests {
                  .lunarDiner, .cyberCactus, .discoInferno])
         #expect(ThemeCatalog.specialEdition.map(\.appearanceTheme) ==
                 [.eventHorizon, .graffitiGalaxy, .karaokeSupernova,
-                 .midnightAquarium, .moltenForge, .hauntedVHS])
+                 .midnightAquarium, .moltenForge])
         #expect(ThemeCatalog.seasonal.map(\.appearanceTheme) ==
                 [.winterFrost, .springSprout, .summerSolar, .autumnHarvest])
     }
