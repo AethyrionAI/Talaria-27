@@ -29,6 +29,8 @@ final class ConversationJournalStore {
     var hasEntries: Bool { !journal.entries.isEmpty }
     var activeHop: ConversationJournal.ServerHop? { journal.activeHop }
     var activeHopIsCurrent: Bool { journal.activeHopIsCurrent }
+    var isPinned: Bool { journal.isPinned }
+    var isArchived: Bool { journal.isArchived }
 
     /// Re-derives the journal from the settled transcript. Call at the points
     /// where ChatStore persists the conversation cache.
@@ -107,6 +109,23 @@ final class ConversationJournalStore {
         )
         save()
         Self.logger.notice("journal adopted server session (\(derived.count) entries)")
+    }
+
+    /// List hygiene (#97): pin/unpin the local conversation. Persists with
+    /// the journal, so the flag survives relaunches AND hop swaps (server
+    /// session ids are ephemeral per #93 — this is the durable copy).
+    func setPinned(_ pinned: Bool) {
+        guard journal.isPinned != pinned else { return }
+        journal.isPinned = pinned
+        save()
+    }
+
+    /// List hygiene (#97): archive/unarchive the local conversation. Same
+    /// durability contract as `setPinned`.
+    func setArchived(_ archived: Bool) {
+        guard journal.isArchived != archived else { return }
+        journal.isArchived = archived
+        save()
     }
 
     /// Full reset (sign-out / ChatStore.reset()).

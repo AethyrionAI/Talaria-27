@@ -50,15 +50,48 @@ struct ConversationJournal: Codable, Hashable, Sendable {
     let conversationID: UUID
     var entries: [Entry]
     var activeHop: ServerHop?
+    /// List hygiene (#97): pinned/archived state for THIS conversation. Rides
+    /// the journal because the journal owns the conversation's durable
+    /// identity — a flag keyed to the ephemeral per-hop server-session id
+    /// would silently die on the next hop. Server-session ROWS carry their
+    /// own overlay (`ConversationListState`); these flags are the
+    /// conversation-identity copy.
+    var isPinned: Bool
+    var isArchived: Bool
 
     init(
         conversationID: UUID = UUID(),
         entries: [Entry] = [],
-        activeHop: ServerHop? = nil
+        activeHop: ServerHop? = nil,
+        isPinned: Bool = false,
+        isArchived: Bool = false
     ) {
         self.conversationID = conversationID
         self.entries = entries
         self.activeHop = activeHop
+        self.isPinned = isPinned
+        self.isArchived = isArchived
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case conversationID
+        case entries
+        case activeHop
+        case isPinned
+        case isArchived
+    }
+
+    /// Hand-written so pre-#97 persisted journals (no pin/archive keys)
+    /// migrate to `false`/`false` instead of failing to decode — a decode
+    /// failure here reads as a missing journal at launch and would silently
+    /// drop the conversation's durable record.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        conversationID = try container.decode(UUID.self, forKey: .conversationID)
+        entries = try container.decodeIfPresent([Entry].self, forKey: .entries) ?? []
+        activeHop = try container.decodeIfPresent(ServerHop.self, forKey: .activeHop)
+        isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
+        isArchived = try container.decodeIfPresent(Bool.self, forKey: .isArchived) ?? false
     }
 
     /// Whether the active hop's server session already has context for every
