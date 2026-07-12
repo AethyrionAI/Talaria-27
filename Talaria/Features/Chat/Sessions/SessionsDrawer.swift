@@ -316,11 +316,15 @@ struct SessionsDrawer: View {
                 headerChipIcon("text.magnifyingglass")
             }
             .buttonStyle(.plain)
+            .hoverEffect(.highlight)
             .accessibilityLabel("Search all conversations")
             Button { isPresented = false } label: {
                 headerChipIcon("xmark")
             }
             .buttonStyle(.plain)
+            // J-4: Esc closes the drawer overlay (hardware keyboards only).
+            .keyboardShortcut(.cancelAction)
+            .hoverEffect(.highlight)
             .accessibilityLabel("Close sessions")
         }
         .padding(.horizontal, Design.Spacing.lg)
@@ -468,6 +472,7 @@ struct SessionsDrawer: View {
             .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
         }
         .buttonStyle(.plain)
+        .hoverEffect(.highlight)
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.xs)
         .accessibilityLabel(model.showingArchived
@@ -490,6 +495,7 @@ struct SessionsDrawer: View {
                     .foregroundStyle(Design.Brand.accent)
                     .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
             }
+            .hoverEffect(.highlight)
             .accessibilityLabel("Host settings")
         }
         .padding(.horizontal, Design.Spacing.sm)
@@ -541,6 +547,8 @@ private struct SessionRow: View {
             )
         }
         .buttonStyle(.plain)
+        // Lane J (J-5): pointer affordance on iPad — inert without a pointer.
+        .hoverEffect(.highlight)
         .accessibilityLabel("\(summary.title), \(summary.subtitle)\(summary.isActive ? ", current session" : "")")
     }
 

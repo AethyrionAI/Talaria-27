@@ -27,6 +27,8 @@ struct GlassCircleButton: View {
         .buttonStyle(.plain)
         .frame(minWidth: Design.Size.minTapTarget, minHeight: Design.Size.minTapTarget)
         .contentShape(Circle())
+        // Lane J (J-5): pointer affordance on iPad — inert without a pointer.
+        .hoverEffect(.highlight)
         .accessibilityLabel(accessibilityLabel ?? icon)
     }
 }

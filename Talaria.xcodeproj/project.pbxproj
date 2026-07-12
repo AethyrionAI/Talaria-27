@@ -278,12 +278,14 @@
 		E91BA6F1F84BEBD94CE8DA22 /* HermesStatusWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B9370067BF51189E67CA57 /* HermesStatusWidget.swift */; };
 		E9B07CADC065C3C2336EFB93 /* DeviceRegistrationRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B97713AF7CC8487DD32F1F15 /* DeviceRegistrationRequest.swift */; };
 		EA7F1D6A8956993BB29AFFC8 /* MarkdownContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8549D5DC5D745742DEFC60A2 /* MarkdownContentView.swift */; };
+		EA8E22CFA720246984B1547A /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A7045D5D1C524A4F69946E /* KeyboardShortcuts.swift */; };
 		ECECF61949B7CB09685EADFB /* VoiceOverlayScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CF7DE3CA7DE3F9908C24E5F /* VoiceOverlayScreen.swift */; };
 		ED33B71C2B3ABA8004FE43B1 /* LocalChatBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00699F0006940A80E8EA5B /* LocalChatBackend.swift */; };
 		EDEA7E210870D2EB23C505D1 /* AppIconSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40B3EFC9CE0AF10120A00B8 /* AppIconSettingsScreen.swift */; };
 		EEEE53322B468B0C200EE113 /* PermissionsOnboardingScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A92A9507C027CCF86579740 /* PermissionsOnboardingScreen.swift */; };
 		F0D7B45CD46C5059C16EAD54 /* SettingsScreenHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25935CD9A0AD28B30B6FFBE1 /* SettingsScreenHeader.swift */; };
 		F27E5034CD34A735DE65FB9A /* TalariaAlarmMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89B6DC0F730603BCA9C94F52 /* TalariaAlarmMetadata.swift */; };
+		F2C9BA7640227E2C6F785B37 /* IPadAdaptationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2D99D44859390A04BE71DF5 /* IPadAdaptationTests.swift */; };
 		F3FD47CEF18E418FE942DC8B /* IconPreview-DeepField.png in Resources */ = {isa = PBXBuildFile; fileRef = B6A3FBA7A6250BBC0DA91EEB /* IconPreview-DeepField.png */; };
 		F54C1CD1154996479260813C /* GenUISchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CB3976CD4EE70D0721D03B0 /* GenUISchema.swift */; };
 		F74187AC47A3F89ED9939E02 /* Icon-DeepField@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = FB4B4E5BA743254D0C695B48 /* Icon-DeepField@2x.png */; };
@@ -617,6 +619,7 @@
 		F1EBD8B7F747F26B4C97C7A1 /* SetupCodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupCodeScannerView.swift; sourceTree = "<group>"; };
 		F26836C847785834B084F24B /* UserSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSettings.swift; sourceTree = "<group>"; };
 		F28B17A5FE187186C25F58D4 /* SpaceGrotesk-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SpaceGrotesk-Bold.ttf"; sourceTree = "<group>"; };
+		F2D99D44859390A04BE71DF5 /* IPadAdaptationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadAdaptationTests.swift; sourceTree = "<group>"; };
 		F2FA13DEE0B0D8B6137FFF18 /* ThemeCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeCatalog.swift; sourceTree = "<group>"; };
 		F3023E1DA6E802BB58BCA27C /* HostEnrollmentCode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostEnrollmentCode.swift; sourceTree = "<group>"; };
 		F30E8B116D689642D0151112 /* DemoData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoData.swift; sourceTree = "<group>"; };
@@ -626,6 +629,7 @@
 		F51C80FDDAEBBFCAA3904612 /* ThemeArtDirectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeArtDirectionTests.swift; sourceTree = "<group>"; };
 		F6BE1EBB06745A2F54F48D12 /* IconPreview-SolarForge.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-SolarForge.png"; sourceTree = "<group>"; };
 		F6DDD296EB3D124F59DAD98D /* GenUISurfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenUISurfaceView.swift; sourceTree = "<group>"; };
+		F7A7045D5D1C524A4F69946E /* KeyboardShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcuts.swift; sourceTree = "<group>"; };
 		F7EF7C1C1B42AD37C29AA1BB /* HermesTimelineProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesTimelineProvider.swift; sourceTree = "<group>"; };
 		F827381E8387C71D8135EFB3 /* LocalChatBackendTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalChatBackendTests.swift; sourceTree = "<group>"; };
 		FB4B4E5BA743254D0C695B48 /* Icon-DeepField@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-DeepField@2x.png"; sourceTree = "<group>"; };
@@ -731,6 +735,7 @@
 				F11D4C7D5673FB21C2B22C40 /* GenUISchemaTests.swift */,
 				D45CA30DC1D43A51A7A75093 /* HealthQueryCoreTests.swift */,
 				99D01CD4530887103707EAA6 /* InboxDecodingTests.swift */,
+				F2D99D44859390A04BE71DF5 /* IPadAdaptationTests.swift */,
 				F827381E8387C71D8135EFB3 /* LocalChatBackendTests.swift */,
 				5225896A0381DF9CEFD84EF9 /* LocalIntelligenceTests.swift */,
 				69438F0D38B60455035902BC /* MarkdownBlockQuoteTests.swift */,
@@ -810,6 +815,7 @@
 				25817220E61CE362BE6D4D9F /* CodeSyntaxHighlighter.swift */,
 				7AA6B0D4D2F75AB7C4862721 /* Design.swift */,
 				0A2B8983CE86355818012300 /* HapticEngine.swift */,
+				F7A7045D5D1C524A4F69946E /* KeyboardShortcuts.swift */,
 				64DA062D1DCE08D81973794F /* MarkdownParser.swift */,
 				1F5622374E497EE8642E4DEE /* Router.swift */,
 				6968AE7D731EB530E8784AAB /* TalariaLog.swift */,
@@ -1495,6 +1501,7 @@
 				6656EF52FE3364A696ABE89C /* InboxServiceProtocol.swift in Sources */,
 				B7241767A775B74570EAF616 /* InboxStore.swift in Sources */,
 				A656EFFD3142D1197B516AC0 /* InlineDiffView.swift in Sources */,
+				EA8E22CFA720246984B1547A /* KeyboardShortcuts.swift in Sources */,
 				376B41B92E12CA8ED8B82D57 /* KeychainSecureStore.swift in Sources */,
 				D798482710BEB3828D28FE4B /* LiveActivityPreviews.swift in Sources */,
 				41B9C9136AFF98393B883660 /* LiveActivityService.swift in Sources */,
@@ -1656,6 +1663,7 @@
 				1AC5431689C6E653C516C975 /* FilePreviewTests.swift in Sources */,
 				062B015021677D136F335948 /* GenUISchemaTests.swift in Sources */,
 				CD4124B10E098FB583AE1B6E /* HealthQueryCoreTests.swift in Sources */,
+				F2C9BA7640227E2C6F785B37 /* IPadAdaptationTests.swift in Sources */,
 				B738AE47F336CE75CB0F08C8 /* InboxDecodingTests.swift in Sources */,
 				33F0CFB46E7013D2212311C0 /* LocalChatBackendTests.swift in Sources */,
 				CE06D7642092F56AD5B43D20 /* LocalIntelligenceTests.swift in Sources */,
@@ -1809,8 +1817,6 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -1977,8 +1983,6 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;

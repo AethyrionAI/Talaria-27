@@ -300,6 +300,8 @@ struct AppearanceSettingsScreen: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // Lane J (J-5): pointer affordance on iPad — inert without a pointer.
+        .hoverEffect(.highlight)
         .accessibilityLabel(definition.displayName)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
@@ -354,6 +356,7 @@ struct AppearanceSettingsScreen: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .hoverEffect(.highlight)
         .accessibilityLabel(a.displayLabel(for: theme))
     }
 
@@ -409,6 +412,7 @@ struct AppearanceSettingsScreen: View {
                             in: RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
         }
         .buttonStyle(.plain)
+        .hoverEffect(.highlight)
     }
 
     // MARK: Reduce motion + theme summary

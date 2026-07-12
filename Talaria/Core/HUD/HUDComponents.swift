@@ -545,6 +545,8 @@ struct GlowButton: View {
             .hudGlow(Design.Brand.accent, radius: 24, strength: 0.35, intensity: glowIntensity)
         }
         .buttonStyle(.plain)
+        // Lane J (J-5): pointer affordance on iPad — inert without a pointer.
+        .hoverEffect(.highlight)
     }
 }
 
@@ -577,5 +579,7 @@ struct GhostButton: View {
             }
         }
         .buttonStyle(.plain)
+        // Lane J (J-5): pointer affordance on iPad — inert without a pointer.
+        .hoverEffect(.highlight)
     }
 }

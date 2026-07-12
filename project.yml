@@ -18,8 +18,11 @@ settings:
     IPHONEOS_DEPLOYMENT_TARGET: "26.0"
     TARGETED_DEVICE_FAMILY: "1,2"
     INFOPLIST_KEY_UILaunchScreen_Generation: true
-    INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
-    INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+    # Orientation posture lives in the app target's info.properties (the
+    # committed Info.plist is xcodegen-generated from there). INFOPLIST_KEY_
+    # orientation settings are IGNORED when a custom Info.plist is used —
+    # they sat here silently doing nothing until Lane J's built-plist tests
+    # caught the gap (#108).
     ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
     ENABLE_PREVIEWS: true
@@ -106,6 +109,17 @@ targets:
             CFBundleURLSchemes:
               - hermes
         UILaunchScreen: {}
+        # Lane J (J-1/#108): iPhone stays portrait-only; iPad gets all four
+        # (freely resizable windows make orientation locks meaningless on
+        # iPadOS 26+ anyway). These MUST live here, not as INFOPLIST_KEY_
+        # settings — those are ignored with a custom Info.plist.
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        "UISupportedInterfaceOrientations~ipad":
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         NSLocationWhenInUseUsageDescription: "Hermes uses your location to provide contextual recommendations and nearby suggestions."
         NSHealthShareUsageDescription: "Hermes reads your health data to offer personalized wellness insights."
         NSHealthUpdateUsageDescription: "Hermes does not write health data, but this permission is required by the system."

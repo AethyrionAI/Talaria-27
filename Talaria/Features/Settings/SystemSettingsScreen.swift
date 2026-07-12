@@ -65,6 +65,8 @@ struct SystemSettingsScreen: View {
             }
             Spacer()
             GlassCircleButton(icon: "xmark", accessibilityLabel: "Close settings") { dismiss() }
+                // J-4: Esc closes the Settings sheet (hardware keyboards only).
+                .keyboardShortcut(.cancelAction)
         }
         .padding(.top, Design.Spacing.xs)
     }

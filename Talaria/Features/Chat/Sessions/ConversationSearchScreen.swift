@@ -138,6 +138,8 @@ struct ConversationSearchScreen: View {
                     }
             }
             .buttonStyle(.plain)
+            // J-4: Esc closes the search sheet (hardware keyboards only).
+            .keyboardShortcut(.cancelAction)
             .accessibilityLabel("Close search")
         }
         .padding(.horizontal, Design.Spacing.lg)
