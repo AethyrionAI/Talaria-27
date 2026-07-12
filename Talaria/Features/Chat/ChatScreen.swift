@@ -79,6 +79,11 @@ struct ChatScreen: View {
                 }
                 .presentationDetents([.height(220)])
                 .presentationDragIndicator(.hidden)
+                // Lane J (J-3): detents only apply in compact — in a regular
+                // (iPad) window this sheet becomes a form-sheet card, and
+                // without a fitted height its 220pt of content floats in a
+                // mostly empty full-height card. Compact behavior unchanged.
+                .presentationSizing(.form.fitted(horizontal: false, vertical: true))
             }
             .sheet(isPresented: $showExportShareSheet) {
                 if let exportShareURL {
@@ -125,6 +130,10 @@ struct ChatScreen: View {
                     onSlashCommand: handleSlashCommand,
                     onPasteImage: { handleAttachmentResult(.image($0)) }
                 )
+                // Lane J (J-3): same readable measure as the transcript —
+                // the composer card (attachment strip included) must not
+                // stretch full-bleed at 13".
+                .frame(maxWidth: Design.Layout.chatMeasureMaxWidth)
             }
         }
     }
@@ -690,6 +699,10 @@ struct ChatScreen: View {
                     }
                 }
                 .padding(.vertical, Design.Spacing.md)
+                // Lane J (J-3): readable measure on wide windows. The scroll
+                // view stays full-bleed; only the content column is capped
+                // (ScrollView centers narrower content on the cross axis).
+                .frame(maxWidth: Design.Layout.chatMeasureMaxWidth)
             }
             .scrollDismissesKeyboard(.interactively)
             .redacted(reason: chatStore.isLoading ? .placeholder : [])
@@ -739,6 +752,7 @@ struct ChatScreen: View {
         .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Brand.forge.opacity(0.35))
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.md)
+        .frame(maxWidth: Design.Layout.chatMeasureMaxWidth)
         .accessibilityElement(children: .combine)
     }
 
@@ -762,6 +776,7 @@ struct ChatScreen: View {
         .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Brand.forge.opacity(0.35))
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.md)
+        .frame(maxWidth: Design.Layout.chatMeasureMaxWidth)
         .accessibilityElement(children: .combine)
     }
 
@@ -806,6 +821,7 @@ struct ChatScreen: View {
         .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Colors.accentTint(0.35))
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.md)
+        .frame(maxWidth: Design.Layout.chatMeasureMaxWidth)
         .accessibilityElement(children: .combine)
     }
 
@@ -836,6 +852,7 @@ struct ChatScreen: View {
         .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Brand.forge.opacity(0.35))
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.md)
+        .frame(maxWidth: Design.Layout.chatMeasureMaxWidth)
     }
 
     private var connectionBannerIcon: String {
