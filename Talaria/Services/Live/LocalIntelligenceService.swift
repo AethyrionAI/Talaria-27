@@ -33,6 +33,21 @@ final class LocalIntelligenceService {
 
     private var model: SystemLanguageModel { SystemLanguageModel.default }
 
+    /// Bounded generation for every call site in this service (#102's
+    /// thermal guardrail applied to the three sites the #61/#102 source read
+    /// flagged): with `maximumResponseTokens` unset, a degenerate generation
+    /// may run until the context window fills (verified against the iOS 27
+    /// docs 2026-07-12). The caps are ~5× a healthy output; hitting one
+    /// terminates early with NO error, and each caller already degrades
+    /// honestly — the card guard / `condensedLine` for the single-line
+    /// generators, and a decode failure → nil → verbatim-tail fallback for
+    /// the context brief. Sampling and temperature are intentionally
+    /// unchanged — the #61 guard logs will say whether a retune is
+    /// warranted.
+    nonisolated static let cardGenerationOptions = GenerationOptions(temperature: 0.3, maximumResponseTokens: 256)
+    nonisolated static let reasoningGenerationOptions = GenerationOptions(temperature: 0.3, maximumResponseTokens: 128)
+    nonisolated static let contextBriefGenerationOptions = GenerationOptions(temperature: 0.2, maximumResponseTokens: 1024)
+
     var isModelAvailable: Bool {
         if case .available = model.availability { return true }
         return false
@@ -46,7 +61,7 @@ final class LocalIntelligenceService {
     /// inputs, so the caller always gets a real card.
     func conversationCard(userText: String, assistantText: String) async -> ConversationCard {
         guard isModelAvailable else {
-            return Self.fallbackCard(userText: userText, assistantText: assistantText)
+            return fallbackCardLoggingDegeneracy(userText: userText, assistantText: assistantText)
         }
 
         // Budget the inputs against the shared context headroom, split
@@ -71,22 +86,54 @@ final class LocalIntelligenceService {
                 \(assistant)
                 """,
                 generating: GeneratedCard.self,
-                options: GenerationOptions(temperature: 0.3)
+                options: Self.cardGenerationOptions
             )
             let title = Self.condensedLine(response.content.title, limit: 48)
             let preview = Self.condensedLine(response.content.preview, limit: 90)
+            // #61: a degenerate generated card (repetition, or title ≈
+            // preview) is discarded for the known-good truncation shape. The
+            // log names the PATH (guided) and the guard that tripped — the
+            // device symptom never said which path misbehaved.
+            if let reason = Self.degenerateCardReason(title: title, preview: preview) {
+                Self.logger.notice("conversationCard: guided card degenerate — \(reason, privacy: .public); using truncation fallback (#61)")
+                return fallbackCardLoggingDegeneracy(userText: userText, assistantText: assistantText)
+            }
             // Fallback is computed only on the branches that need it — the
             // happy path shouldn't pay for line scans it throws away.
             if !title.isEmpty, !preview.isEmpty {
                 return ConversationCard(title: title, preview: preview)
             }
-            let fallback = Self.fallbackCard(userText: userText, assistantText: assistantText)
+            let fallback = fallbackCardLoggingDegeneracy(userText: userText, assistantText: assistantText)
             guard !title.isEmpty else { return fallback }
+            // The mixed card pairs a generated title with the fallback
+            // preview — a generated title that merely echoes the reply's
+            // first line would slip an identical pair past the guard above
+            // (the generated preview was empty, so there was nothing to
+            // compare yet).
+            if let reason = Self.degenerateCardReason(title: title, preview: fallback.preview) {
+                Self.logger.notice("conversationCard: mixed card degenerate — \(reason, privacy: .public); using truncation fallback (#61)")
+                return fallback
+            }
             return ConversationCard(title: title, preview: fallback.preview)
         } catch {
             Self.logger.notice("conversationCard: generation failed — \(error.localizedDescription, privacy: .public); using truncation fallback")
-            return Self.fallbackCard(userText: userText, assistantText: assistantText)
+            return fallbackCardLoggingDegeneracy(userText: userText, assistantText: assistantText)
         }
+    }
+
+    /// #61: the fallback card is always returned — it is the last resort and
+    /// its SHAPE is known-good — but when even its content shows repetition,
+    /// the exchange text itself is degenerate (e.g. a #102 phrase-looped
+    /// reply became the preview). Logging that closes the guided-vs-fallback
+    /// question the device symptom left open. Containment is deliberately
+    /// not checked here: fallback title and preview legitimately derive from
+    /// the same line on attachment-only turns.
+    private func fallbackCardLoggingDegeneracy(userText: String, assistantText: String) -> ConversationCard {
+        let card = Self.fallbackCard(userText: userText, assistantText: assistantText)
+        if let unit = Self.repeatedRunUnit(in: card.title) ?? Self.repeatedRunUnit(in: card.preview) {
+            Self.logger.notice("conversationCard: FALLBACK card carries repetition (\"\(unit, privacy: .public)\") — the exchange text itself is degenerate (#61/#102)")
+        }
+        return card
     }
 
     // MARK: - Reasoning condensation (#4.15)
@@ -111,7 +158,7 @@ final class LocalIntelligenceService {
                 REASONING TRANSCRIPT:
                 \(input)
                 """,
-                options: GenerationOptions(temperature: 0.3)
+                options: Self.reasoningGenerationOptions
             )
             let line = Self.condensedLine(response.content, limit: 72)
             return line.isEmpty ? nil : line
@@ -170,7 +217,7 @@ final class LocalIntelligenceService {
                 \(input)
                 """,
                 generating: GeneratedContextBrief.self,
-                options: GenerationOptions(temperature: 0.2)
+                options: Self.contextBriefGenerationOptions
             )
             let facts = response.content.facts
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -232,6 +279,147 @@ final class LocalIntelligenceService {
         // ~3 chars per token deliberately underestimates the budget room —
         // it can waste input, never overflow the context.
         return max(1, text.count / 3)
+    }
+
+    // MARK: - Degenerate-card guard (#61)
+
+    /// The shortest run treated as card repetition. Below it, doubled words
+    /// and hyphenated refrains ("cha-cha-cha") are ordinary language.
+    private nonisolated static let cardRepetitionMinimumUnitLength = 4
+    /// Full copies of the unit a SHORT run must contain. A run at least
+    /// `cardTwoCopyRunLength` long is degenerate with just two full copies
+    /// plus a matching partial — no healthy 40-character line says the same
+    /// thing twice verbatim, and the 90-character preview can only hold two
+    /// copies of the longer looped phrases #61 produces.
+    private nonisolated static let cardRepetitionMinimumRepeats = 3
+    private nonisolated static let cardTwoCopyRunLength = 40
+    /// Texts shorter than this are never judged repetitive.
+    private nonisolated static let cardRepetitionMinimumLength = 12
+    /// Containment only counts as near-identical when the shorter side is at
+    /// least this long — a 2-word title echoed inside a longer preview is
+    /// normal phrasing, not degeneracy.
+    private nonisolated static let cardContainmentMinimumLength = 12
+    /// A verbatim ≥24-character title echoed as the preview's PREFIX is
+    /// either lazy generation or two truncations of the same degenerate run
+    /// (the shape units longer than ~45 characters take, which the
+    /// repetition scan structurally cannot see in a 90-character field).
+    private nonisolated static let cardPrefixEchoMinimumLength = 24
+
+    /// Why a generated card must be discarded — nil when the card is healthy.
+    /// The returned reason is a short log-stable tag: repetition in either
+    /// field, or title ≈ preview (fold-identical, one contained in the other
+    /// while covering at least half of it, or a long verbatim prefix echo —
+    /// the shapes two truncations of the same degenerate run take).
+    nonisolated static func degenerateCardReason(title: String, preview: String) -> String? {
+        if let unit = repeatedRunUnit(in: title) {
+            return "title repeats \"\(unit)\""
+        }
+        if let unit = repeatedRunUnit(in: preview) {
+            return "preview repeats \"\(unit)\""
+        }
+        let foldedTitle = cardComparisonFold(title)
+        let foldedPreview = cardComparisonFold(preview)
+        guard !foldedTitle.isEmpty, !foldedPreview.isEmpty else { return nil }
+        if foldedTitle == foldedPreview { return "title and preview identical" }
+        let (shorter, longer) = foldedTitle.count <= foldedPreview.count
+            ? (foldedTitle, foldedPreview)
+            : (foldedPreview, foldedTitle)
+        if shorter.count >= cardContainmentMinimumLength,
+           shorter.count * 2 >= longer.count,
+           longer.contains(shorter) {
+            return "title and preview near-identical (containment)"
+        }
+        if shorter.count >= cardPrefixEchoMinimumLength, longer.hasPrefix(shorter) {
+            return "title and preview near-identical (prefix echo)"
+        }
+        return nil
+    }
+
+    /// The repeating unit when the (folded) text ends in one short run
+    /// repeated to the cut — the shape a degenerate generation takes after
+    /// `condensedLine` truncation ("phrase phrase phrase phr…", with or
+    /// without a healthy preamble). End-reaching and truncation-tolerant (a
+    /// partial final copy still matches); the run must dominate at least
+    /// half the field so a trailing flourish never condemns a healthy line.
+    /// Nil for healthy text.
+    nonisolated static func repeatedRunUnit(in text: String) -> String? {
+        let chars = Array(cardComparisonFold(text))
+        let count = chars.count
+        guard count >= cardRepetitionMinimumLength else { return nil }
+        var start = 0
+        while (count - start) * 2 >= count {
+            if let unit = repeatedRun(startingAt: start, in: chars) {
+                return unit
+            }
+            start += 1
+        }
+        return nil
+    }
+
+    /// The repeating unit covering `chars[start...]` entirely (with a
+    /// partial final copy allowed), nil when that suffix is not one run.
+    private nonisolated static func repeatedRun(startingAt start: Int, in chars: [Character]) -> String? {
+        let length = chars.count - start
+        guard length >= cardRepetitionMinimumLength else { return nil }
+        var unitLength = cardRepetitionMinimumUnitLength
+        while unitLength * 2 <= length {
+            var covered = true
+            var index = start + unitLength
+            while index < chars.count {
+                if chars[index] != chars[start + (index - start) % unitLength] {
+                    covered = false
+                    break
+                }
+                index += 1
+            }
+            if covered {
+                let fullCopies = length / unitLength
+                if fullCopies >= 2,
+                   fullCopies >= cardRepetitionMinimumRepeats || length >= cardTwoCopyRunLength,
+                   cardUnitQualifies(chars, unitStart: start, unitLength: unitLength) {
+                    return String(chars[start ..< start + unitLength])
+                }
+            }
+            unitLength += 1
+        }
+        return nil
+    }
+
+    /// Same qualification rules as the chat breaker's: the unit must carry
+    /// words, and must not itself be a shorter loop (so "ha ha ha ha" is
+    /// judged at its below-minimum 3-character fundamental period, never at
+    /// a 6-character multiple).
+    private nonisolated static func cardUnitQualifies(_ chars: [Character], unitStart: Int, unitLength: Int) -> Bool {
+        var hasWordCharacter = false
+        for index in unitStart ..< (unitStart + unitLength) where chars[index].isLetter || chars[index].isNumber {
+            hasWordCharacter = true
+            break
+        }
+        guard hasWordCharacter else { return false }
+        for period in 1 ..< unitLength where unitLength % period == 0 {
+            var matchesPeriod = true
+            for index in (unitStart + period) ..< (unitStart + unitLength) {
+                if chars[index] != chars[index - period] {
+                    matchesPeriod = false
+                    break
+                }
+            }
+            if matchesPeriod { return false }
+        }
+        return true
+    }
+
+    /// Comparison fold shared by the guard's checks: case- and
+    /// whitespace-insensitive, with the truncation ellipsis and trailing
+    /// separators stripped so two truncations of the same text compare equal.
+    private nonisolated static func cardComparisonFold(_ text: String) -> String {
+        var line = text.lowercased()
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        while let last = line.last, last == "…" || ".,:;!?".contains(last) {
+            line.removeLast()
+        }
+        return line.trimmingCharacters(in: .whitespaces)
     }
 
     // MARK: - Deterministic fallbacks (model unavailable / generation failed)

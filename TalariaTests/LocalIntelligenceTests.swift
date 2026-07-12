@@ -1,4 +1,5 @@
 import Foundation
+import FoundationModels
 import Testing
 @testable import Talaria
 
@@ -90,5 +91,118 @@ struct LocalIntelligenceTests {
     @Test func condensedLineShortInputPassesThrough() {
         #expect(LocalIntelligenceService.condensedLine("Sensor sync", limit: 48) == "Sensor sync")
         #expect(LocalIntelligenceService.condensedLine("", limit: 48) == "")
+    }
+
+    // MARK: Degenerate-card guard (#61)
+
+    @Test func degenerateCardTripsOnIdenticalTitleAndPreview() {
+        // Case, whitespace, and trailing separators fold away first.
+        let reason = LocalIntelligenceService.degenerateCardReason(
+            title: "Reverse proxy setup",
+            preview: "Reverse  PROXY setup."
+        )
+        #expect(reason?.contains("identical") == true)
+    }
+
+    @Test func degenerateCardTripsOnContainment() {
+        // A preview that mostly IS the title — the shape two truncations of
+        // the same degenerate run take.
+        let reason = LocalIntelligenceService.degenerateCardReason(
+            title: "Set up a reverse proxy on the home lab",
+            preview: "Set up a reverse proxy on the home lab, then test it"
+        )
+        #expect(reason?.contains("containment") == true)
+    }
+
+    @Test func degenerateCardTripsOnRepetition() {
+        // The observed #61 device symptom: the same repeated raw text
+        // truncated into both fields. The 47-char folded title carries two
+        // full copies plus a partial — enough under the long-run rule.
+        let reason = LocalIntelligenceService.degenerateCardReason(
+            title: "Checking the weather Checking the weather Check…",
+            preview: "Checking the weather Checking the weather Checking the weather Checking the…"
+        )
+        #expect(reason?.contains("repeats") == true)
+    }
+
+    @Test func degenerateCardTripsOnRepetitionBehindAPreamble() {
+        // A healthy lead-in must not hide the loop — the run reaches the
+        // truncation cut and dominates the field.
+        let reason = LocalIntelligenceService.degenerateCardReason(
+            title: "Weather check",
+            preview: "Sunny outlook, but sunny and warm sunny and warm sunny and warm sunny and warm"
+        )
+        #expect(reason?.contains("preview repeats") == true)
+    }
+
+    @Test func degenerateCardCatchesTruncatedLoopShapesEndToEnd() {
+        // The exact #61 production pipeline: the same looped raw text pushed
+        // through condensedLine at both field limits. Medium unit (33 chars,
+        // caught by the two-copy run rule)…
+        let mediumUnit = String(repeating: "I can absolutely help with that. ", count: 4)
+        #expect(LocalIntelligenceService.degenerateCardReason(
+            title: LocalIntelligenceService.condensedLine(mediumUnit, limit: 48),
+            preview: LocalIntelligenceService.condensedLine(mediumUnit, limit: 90)
+        ) != nil)
+        // …and a long unit (51 chars — invisible to the repetition scan in a
+        // 90-char field, caught by the prefix-echo rule).
+        let longUnit = String(repeating: "The model keeps repeating this whole long sentence ", count: 2)
+        #expect(LocalIntelligenceService.degenerateCardReason(
+            title: LocalIntelligenceService.condensedLine(longUnit, limit: 48),
+            preview: LocalIntelligenceService.condensedLine(longUnit, limit: 90)
+        ) != nil)
+    }
+
+    @Test func degenerateCardTripsWhenOnlyOneFieldRepeats() {
+        let reason = LocalIntelligenceService.degenerateCardReason(
+            title: "Weather check",
+            preview: "sunny and warm sunny and warm sunny and warm sunny and warm"
+        )
+        #expect(reason?.contains("preview repeats") == true)
+    }
+
+    @Test func degenerateCardPassesHealthyCards() {
+        // Distinct title and preview.
+        #expect(LocalIntelligenceService.degenerateCardReason(
+            title: "Reverse proxy setup",
+            preview: "Choosing Caddy to expose a home lab service safely"
+        ) == nil)
+        // A short title echoed inside a much longer preview is normal
+        // phrasing, not degeneracy.
+        #expect(LocalIntelligenceService.degenerateCardReason(
+            title: "Tokyo trip",
+            preview: "Planning a Tokyo trip with a two-day Kyoto side visit in April"
+        ) == nil)
+        // Naturally doubled names stay under the repeat threshold.
+        #expect(LocalIntelligenceService.degenerateCardReason(
+            title: "New York, New York",
+            preview: "Best sights to see on a first visit to Manhattan"
+        ) == nil)
+    }
+
+    @Test func repeatedRunUnitToleratesTruncation() {
+        // condensedLine cuts mid-unit and appends an ellipsis — the partial
+        // final copy must still count as the same run.
+        #expect(LocalIntelligenceService.repeatedRunUnit(in: "error loop error loop error loop error lo…") == "error loop ")
+        #expect(LocalIntelligenceService.repeatedRunUnit(in: "A healthy preview about one clear topic") == nil)
+    }
+
+    @Test func repeatedRunUnitIgnoresShortRefrainsAndShortText() {
+        // Fundamental period 3 ("ha ") sits below the minimum unit; its
+        // 6-character multiple must not qualify in its place.
+        #expect(LocalIntelligenceService.repeatedRunUnit(in: "ha ha ha ha ha ha ha ha") == nil)
+        #expect(LocalIntelligenceService.repeatedRunUnit(in: "cha-cha-cha") == nil)
+        #expect(LocalIntelligenceService.repeatedRunUnit(in: "") == nil)
+    }
+
+    // MARK: Bounded generation options (#102 guardrail on this service's call sites)
+
+    @Test func generationOptionsCarryDefensiveTokenCaps() {
+        #expect(LocalIntelligenceService.cardGenerationOptions.maximumResponseTokens == 256)
+        #expect(LocalIntelligenceService.cardGenerationOptions.temperature == 0.3)
+        #expect(LocalIntelligenceService.reasoningGenerationOptions.maximumResponseTokens == 128)
+        #expect(LocalIntelligenceService.reasoningGenerationOptions.temperature == 0.3)
+        #expect(LocalIntelligenceService.contextBriefGenerationOptions.maximumResponseTokens == 1024)
+        #expect(LocalIntelligenceService.contextBriefGenerationOptions.temperature == 0.2)
     }
 }
