@@ -3139,3 +3139,9 @@ of the screen), which sidesteps the gap without auto-login's security trade-off 
 boot-trigger scar tissue. No boot-survival change needed for gateway/connector while this holds.
 
 Logged 2026-07-12.
+
+## 106. ✅ P8 IR v0 — constrained generative UI rung MERGED + device-verified (Lane D, PR #65)
+
+Landed 2026-07-12 (merge 2545eff). The model-never-emits-UI-code rung: `@Generable` IR schema (depth-bounded by construction, not recursion), tolerant `GenUIDecoder` (JSONSerialization walk, unknown/malformed nodes skip-and-log, siblings survive), `sanitized()` ingestion funnel, hardcoded renderer mapping IR onto shipped HUD components, DEBUG-only Developer-screen harness. No model wiring, no ChatScreen contact — buttons stage prompts, v0 sends nothing. Mac review-loop caught 2 cloud-code failures (both fixed in 4a5582a): the NSNumber Int→Bool bridging trap in the decoder's bool reader (`1 as? Bool` succeeds — strict CFBoolean check now enforced; add to the wrong-Xcode-smell tier of gotchas: JSONSerialization + `as? Bool` is never wrong-type-safe), and an under-framed ImageRenderer test fixture (zero-height view → nil image by design). Device-verified on whoGoesThere 2026-07-12: all three harness sections healthy (Swift-built tree, on-device JSON decode, mangled-JSON survivors), staged-only readout confirmed. NOTE: this install replaced whoGoesThere's c9e909e wedge-instrumented build — rebuild #84 branch before the next-seed voice retest. Numbering note: the branch's docs commit claimed #92 (parallel-collision with Lane B markdown); resolved to main's file, entry re-registered here as #106. NEXT RUNGS un-gated: #99 in-app preview surface (spec being revised on the landed IR), then P8 model wiring as its own future lane.
+
+Logged 2026-07-12.
