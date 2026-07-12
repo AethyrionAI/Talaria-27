@@ -812,6 +812,8 @@ private struct SelectableTextSheet: View {
                     Button("Done") { dismiss() }
                         .font(Design.Typography.mono(13, weight: .medium))
                         .foregroundStyle(Design.Brand.accent)
+                        // J-4: Esc closes the sheet (hardware keyboards only).
+                        .keyboardShortcut(.cancelAction)
                 }
             }
         }

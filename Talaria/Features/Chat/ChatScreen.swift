@@ -32,6 +32,11 @@ struct ChatScreen: View {
     @State private var sessionsModel = SessionsDrawerModel()
     @State private var modelModel = ModelSelectorModel()
 
+    // Lane J (J-4): ⌘K presents the Lane F search screen directly from the
+    // chat surface — no need to open the drawer first. Same screen, same
+    // model, same selection seam as the drawer's magnifying-glass button.
+    @State private var showConversationSearch = false
+
     private let thinkingIndicatorID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
     // #46: stable scroll anchor for the status card (it renders after the
     // last message, so scrolling to the last message can leave it off-screen).
@@ -89,6 +94,12 @@ struct ChatScreen: View {
                 if let exportShareURL {
                     ShareSheet(activityItems: [exportShareURL])
                 }
+            }
+            .sheet(isPresented: $showConversationSearch) {
+                // J-4 (⌘K): the search screen dismisses itself on selection;
+                // opening a hit routes through the drawer model's existing
+                // selection seam (wired in configureChatSeams).
+                ConversationSearchScreen(drawerModel: sessionsModel)
             }
     }
 
@@ -162,6 +173,64 @@ struct ChatScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
             .toolbarBackground(.hidden, for: .navigationBar)
+            .background { shortcutBridge }
+    }
+
+    // MARK: - Hardware keyboard shortcuts (Lane J, J-4)
+
+    /// Zero-size, invisible buttons that exist only to register hardware
+    /// keyboard shortcuts while the chat surface is on screen (their labels
+    /// feed the iPadOS ⌘-hold discoverability HUD). Presented sheets take
+    /// shortcut precedence, so these go quiet behind Settings/search/etc.
+    /// Key assignments live in `ChatKeyboardShortcuts` (testable table).
+    private var shortcutBridge: some View {
+        Group {
+            Button("New Conversation") { showClearConfirmation = true }
+                .keyboardShortcut(ChatKeyboardShortcuts.newConversation.key,
+                                  modifiers: ChatKeyboardShortcuts.newConversation.modifiers)
+            Button("Search Conversations") { openConversationSearch() }
+                .keyboardShortcut(ChatKeyboardShortcuts.conversationSearch.key,
+                                  modifiers: ChatKeyboardShortcuts.conversationSearch.modifiers)
+            Button("Settings") { router.presentSheet(.settings) }
+                .keyboardShortcut(ChatKeyboardShortcuts.openSettings.key,
+                                  modifiers: ChatKeyboardShortcuts.openSettings.modifiers)
+            ForEach(1..<(ChatKeyboardShortcuts.sessionJumpCount + 1), id: \.self) { ordinal in
+                Button("Open Conversation \(ordinal)") { openSessionJump(ordinal) }
+                    .keyboardShortcut(ChatKeyboardShortcuts.sessionJump(ordinal).key,
+                                      modifiers: ChatKeyboardShortcuts.sessionJump(ordinal).modifiers)
+            }
+        }
+        .frame(width: 0, height: 0)
+        .opacity(0)
+        .accessibilityHidden(true)
+        .allowsHitTesting(false)
+    }
+
+    /// ⌘K — present the Lane F full-corpus search. Wires the same store
+    /// seams the drawer wires on open, so badges and selection behave
+    /// identically whichever entry point raised the screen; closes the
+    /// drawer rather than stacking a second presentation host.
+    private func openConversationSearch() {
+        sessionsModel.listState = container.conversationListState
+        sessionsModel.journal = chatStore.journal
+        sessionsOpen = false
+        showConversationSearch = true
+    }
+
+    /// ⌘1…⌘9 — open the nth conversation in drawer order (pinned first,
+    /// then recency; archived unreachable). No-op until the session list
+    /// has been fetched (configureChatSeams / drawer open) or when fewer
+    /// than n sessions exist — honest nothing, no fabricated target.
+    private func openSessionJump(_ ordinal: Int) {
+        let targets = ChatKeyboardShortcuts.sessionJumpTargets(
+            sessions: sessionsModel.sessions,
+            pinnedIDs: container.conversationListState?.state.pinnedSessionIDs ?? [],
+            archivedIDs: container.conversationListState?.state.archivedSessionIDs ?? []
+        )
+        guard ordinal - 1 < targets.count else { return }
+        sessionsOpen = false
+        let target = targets[ordinal - 1]
+        Task { await chatStore.openSession(target.id) }
     }
 
     private var lifecycleContent: some View {

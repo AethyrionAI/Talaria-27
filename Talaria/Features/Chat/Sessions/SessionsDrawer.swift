@@ -321,6 +321,8 @@ struct SessionsDrawer: View {
                 headerChipIcon("xmark")
             }
             .buttonStyle(.plain)
+            // J-4: Esc closes the drawer overlay (hardware keyboards only).
+            .keyboardShortcut(.cancelAction)
             .accessibilityLabel("Close sessions")
         }
         .padding(.horizontal, Design.Spacing.lg)

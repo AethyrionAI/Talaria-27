@@ -118,6 +118,19 @@ struct ChatInputBar: View {
                         .foregroundStyle(Design.Colors.foreground)
                         .tint(Design.Brand.accent)
                         .focused(isFocused)
+                        // Lane J (J-4): hardware-keyboard Return sends;
+                        // ⇧Return (or any modified Return) falls through and
+                        // inserts a newline. Software keyboards never emit
+                        // key presses, so on-screen Return behavior — and
+                        // all of iPhone-without-a-keyboard — is untouched.
+                        .onKeyPress(keys: [.return], phases: .down) { press in
+                            guard press.modifiers.isDisjoint(with: [.shift, .option, .control, .command]) else {
+                                return .ignored
+                            }
+                            guard !isStreaming, canSend else { return .ignored }
+                            handlePrimaryAction()
+                            return .handled
+                        }
                         .scrollContentBackground(.hidden)
                         .background(.clear)
                         .frame(minHeight: 22, maxHeight: 120)

@@ -66,6 +66,9 @@ struct AttachmentPickerSheet: View {
             .padding(.bottom, Design.Spacing.md)
         }
         .background(Design.Colors.background)
+        // J-4: no close button in this sheet's chrome — give hardware Esc a
+        // dismissal path of its own.
+        .onEscapeDismiss { dismiss() }
         .fullScreenCover(isPresented: $showCamera) {
             CameraPickerView { image in
                 if let image {
