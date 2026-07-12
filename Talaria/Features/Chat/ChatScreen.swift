@@ -395,6 +395,8 @@ struct ChatScreen: View {
                     .foregroundStyle(Design.Colors.secondaryForeground)
                     .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
             }
+            // Lane J (J-5): pointer affordance on iPad — inert without a pointer.
+            .hoverEffect(.highlight)
             .accessibilityLabel("Sessions")
             .allowsHitTesting(!sessionsOpen)
         }
@@ -543,6 +545,9 @@ struct ChatScreen: View {
             } label: {
                 brainChip(brainRouter.activeBrain, showsChevron: true)
             }
+            // Lane J (J-5): the picker chip is tappable chrome; the static
+            // chip below is not interactive and gets no hover.
+            .hoverEffect(.highlight)
             .accessibilityLabel("Chat brain: \(brainRouter.activeBrain.displayLabel). Tap to change.")
         } else {
             brainChip(brainRouter.activeBrain, showsChevron: false)
@@ -629,6 +634,8 @@ struct ChatScreen: View {
         // showStatusCard was only ever set false).
         .contentShape(Rectangle())
         .onTapGesture { toggleStatusCard() }
+        // Lane J (J-5): pointer affordance on iPad — inert without a pointer.
+        .hoverEffect(.highlight)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel("Context \(Int(contextProgress * 100)) percent. Shows session status and turn receipts.")
