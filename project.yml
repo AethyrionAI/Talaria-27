@@ -160,6 +160,65 @@ targets:
               CFBundleIconFiles:
                 - Icon-PaperTape
               UIPrerenderedIcon: false
+            # Neon Arcade Collection (Lane K — gallery SVGs via
+            # tools/appicons/render_gallery_icons.py).
+            NeonArcade:
+              CFBundleIconFiles:
+                - Icon-NeonArcade
+              UIPrerenderedIcon: false
+            GlitchGarden:
+              CFBundleIconFiles:
+                - Icon-GlitchGarden
+              UIPrerenderedIcon: false
+            WitchsBrew:
+              CFBundleIconFiles:
+                - Icon-WitchsBrew
+              UIPrerenderedIcon: false
+            HoloSushi:
+              CFBundleIconFiles:
+                - Icon-HoloSushi
+              UIPrerenderedIcon: false
+            LunarDiner:
+              CFBundleIconFiles:
+                - Icon-LunarDiner
+              UIPrerenderedIcon: false
+            CyberCactus:
+              CFBundleIconFiles:
+                - Icon-CyberCactus
+              UIPrerenderedIcon: false
+            DiscoInferno:
+              CFBundleIconFiles:
+                - Icon-DiscoInferno
+              UIPrerenderedIcon: false
+            CerealBox:
+              CFBundleIconFiles:
+                - Icon-CerealBox
+              UIPrerenderedIcon: false
+            BubblegumMecha:
+              CFBundleIconFiles:
+                - Icon-BubblegumMecha
+              UIPrerenderedIcon: false
+            RetroSciFi:
+              CFBundleIconFiles:
+                - Icon-RetroSciFi
+              UIPrerenderedIcon: false
+            # Seasonal (Lane K).
+            AutumnHarvest:
+              CFBundleIconFiles:
+                - Icon-AutumnHarvest
+              UIPrerenderedIcon: false
+            SpringSprout:
+              CFBundleIconFiles:
+                - Icon-SpringSprout
+              UIPrerenderedIcon: false
+            SummerSolar:
+              CFBundleIconFiles:
+                - Icon-SummerSolar
+              UIPrerenderedIcon: false
+            WinterFrost:
+              CFBundleIconFiles:
+                - Icon-WinterFrost
+              UIPrerenderedIcon: false
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
         UIBackgroundModes:

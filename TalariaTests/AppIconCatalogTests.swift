@@ -52,4 +52,36 @@ struct AppIconCatalogTests {
         }
         #expect(AppIconCatalog.option(id: "nope") == nil)
     }
+
+    // MARK: Sections (Lane K)
+
+    @Test func sectionsMirrorTheGalleryTaxonomy() {
+        #expect(AppIconCatalog.sections.map(\.title) ==
+                ["Flagship", "Neon Arcade Collection", "Seasonal"])
+    }
+
+    @Test func sectionsFlattenToAllInDisplayOrder() {
+        #expect(AppIconCatalog.sections.flatMap(\.options) == AppIconCatalog.all)
+    }
+
+    @Test func laneKBatchIsFullyWired() {
+        // Default + 4 flagship + 10 Neon Arcade Collection + 4 Seasonal.
+        #expect(AppIconCatalog.flagship.count == 5)
+        #expect(AppIconCatalog.neonArcadeCollection.count == 10)
+        #expect(AppIconCatalog.seasonal.count == 4)
+        #expect(AppIconCatalog.all.count == 19)
+        // Deep Sea Diner stays cut (icon<->theme parity).
+        #expect(AppIconCatalog.option(id: "deepSeaDiner") == nil)
+        #expect(AppIconCatalog.option(forAlternateIconName: "DeepSeaDiner").isPrimary)
+    }
+
+    /// Every alternate's picker thumbnail follows the shared asset convention
+    /// (`IconPreview-<Name>` for OS name `<Name>`), so an OS-name/preview typo
+    /// can't ship a working icon with a broken or mismatched thumbnail.
+    @Test func previewNamesFollowTheAssetConvention() {
+        for option in AppIconCatalog.all where !option.isPrimary {
+            let name = option.alternateIconName ?? ""
+            #expect(option.previewImageName == "IconPreview-\(name)")
+        }
+    }
 }
