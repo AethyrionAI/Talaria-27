@@ -1707,6 +1707,8 @@ not yet compiled — needs `xcodegen generate` + CLI build + device verify.
 
 **Device pass 2026-07-11: FAIL** — title and preview show the same repeated raw text. Localize which path ran (guided generation vs deterministic fallback) via logs before touching code. Possibly same on-device-model degeneracy family as #102 (local brain phrase-looping in the same session).
 
+**Localized 2026-07-11 (source read):** guided generation runs at temperature 0.2–0.3 (`LocalIntelligenceService.swift:74/114/173`) — near-greedy, repetition-prone on the small on-device model. Not yet log-confirmed vs the guardrail-fallback path; Lane H adds a degenerate-card guard that protects both and logs which tripped. Spec: `dispatch/FABLE-LANE-H-local-brain-gen-health.md`.
+
 New `Services/Live/LocalIntelligenceService.swift` (FoundationModels): after the
 first completed exchange, `ChatStore` generates `{title, preview}` on-device and
 writes through `setConversationTitle`; the preview lands on
@@ -3039,5 +3041,7 @@ Logged 2026-07-11.
 ## 102. 🔍 Local brain generation health — phrase-loop + thermal "serious" during use
 
 Device pass 2026-07-11, observed during the #67 session (which otherwise mostly passed): (a) the on-device brain repeats a certain phrase while in use; (b) `deviceStatus` reported thermal state "serious," attributed to running apps, with only Talaria running. Investigate TOGETHER — a repetition/generation loop that keeps the ANE/GPU spinning would explain both. Check: generation stop conditions / max-token bounds in `LocalChatBackend`, whether the loop persists across sessions, and thermal recovery after force-quit. If repetition is plain small-model sampling degeneracy, thermal may still warrant a mitigation (throttle sustained inference or surface a thermal notice). Possibly related: #61's repeated title/preview text (same model, same session).
+
+**Localized 2026-07-11 (source read):** `LocalChatBackend.swift:597` uses bare `GenerationOptions()` — default sampling, NO `maximumResponseTokens` bound. A repetition loop generates until the context fills → sustained ANE burn → thermal "serious." Fix dispatched as Lane H: explicit token cap + sampling retune + tail-repetition breaker. Spec: `dispatch/FABLE-LANE-H-local-brain-gen-health.md`.
 
 Logged 2026-07-11.
