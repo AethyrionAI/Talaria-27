@@ -166,7 +166,25 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
 - Issues tracked in `OPEN_ITEMS.md` (dated update notes); session continuity in
   the local `handoffs/` notes (gitignored) + `CLEAN_CHAT_PATH.md`.
 
-## Current state (2026-07-10)
+## Current state (2026-07-12)
+
+- **T6 Phase 1 — Mac-hosted backend (OPEN_ITEMS #34 un-deferred → #107) scaffolded
+  on `claude/talaria-mac-backend-phase1-m0jkm0`:** spec committed
+  (`design/T6_MAC_BACKEND_SPEC.md`, Q1–Q5 defaults recorded), ops runbook
+  (`relay/docs/DEPLOY_MAC.md`), Mac relay env template (`relay/.env.mac.example` —
+  fresh keys, `RELAY_ENVIRONMENT=production`, absolute DB/APNs paths, bundle
+  `org.aethyrion.talaria27`), launchd installers + acceptance smoke
+  (`scripts/mac/install-{relay,gateway,shim}-launchd.sh`, `verify-phase1.sh`
+  incl. `--restart-check` for the #54 reconnect seam). No app/relay/connector
+  CODE changes — scripts/docs/env only, so no `xcodegen`; suites re-run as a
+  baseline (relay 117 passed, connector 104 passed + 1 macOS-only skip, Linux).
+  **Execution on the Mini owed** — work the #107 checklist (services, macOS test
+  run, dev-device pairing, Phase 2 imsg-vs-Photon + the launchd-TCC trap).
+  Gotcha found while scaffolding: the committed shim plist still points at the
+  pre-fork `…/Documents/Claude/Talaria` path — `install-shim-launchd.sh`
+  re-renders it against the live checkout.
+
+## Prior state (2026-07-10)
 
 - **Lane A — P1 continuity fabric (OPEN_ITEMS #90) built on
   `claude/talaria-27-lane-a-to5zv3`:** on-device `ConversationJournal` is the
