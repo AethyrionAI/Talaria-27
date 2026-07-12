@@ -92,7 +92,7 @@ Intelligence enabled + on-device model present.)
 - Flip #61.
 
 ### #56 — "Ask Hermes" App Intent (Siri / Shortcuts)
-"Hey Siri, Ask Hermes …" and also add the action in the Shortcuts app.
+"Hey Siri, Ask Talaria …" (the REGISTERED phrase — "Ask Hermes" is not registered and routes Siri to contacts) and also add the action in the Shortcuts app.
 - ✅ if: the App Shortcut phrase fires the intent, Shortcuts exposes the action,
   and a long-running answer survives the ~25s intent handoff (returns/continues
   in-app rather than timing out silently).
