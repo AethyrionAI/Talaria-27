@@ -3004,19 +3004,25 @@ The 2026-07-10/11 "random unpair" saga resolved into three fixed defects + one e
 
 Logged 2026-07-11.
 
-## 96. 🔧 In-app conversation search (Lane F)
+## 96. ✅ In-app conversation search (Lane F)
 
 Both ChatGPT iOS and Claude iOS ship a first-class in-app search over prior chats; Talaria has only opt-in Spotlight indexing (#66) and the local-brain search tool. Add a search screen over the local `ConversationJournal` (now primary per #93) plus fetched Hermes sessions. Spec: `dispatch/FABLE-LANE-F-conversation-management.md`. Sourced from the 2026-07-11 feature gap analysis (table-stakes gap, both competitors confirmed).
 
+**RESOLVED 2026-07-12: PR #77 merged.** Sim 483/483 (39 suites), device-verified on whoGoesThere — local body-text hit, server title hit, "—" for missing fields all pass. Regen commit carried aps-environment/WeatherKit/app-group entitlements intact.
+
 Logged 2026-07-11.
 
-## 97. 🔧 Pin / archive conversations (Lane F)
+## 97. ✅ Pin / archive conversations (Lane F)
 
 Baseline list hygiene present in both competitor apps (ChatGPT's pin confirmed with a 3-pin cap on all tiers — ours deliberately uncapped; archive confirmed in ChatGPT, Claude iOS parity unconfirmed). Journal metadata + local overlay for server sessions, pinned section + archived filter in the drawer. Same lane/spec as #96.
 
+**RESOLVED 2026-07-12: PR #77 merged (same PR as #96).** Device-verified: pin float + no cap, archive hide + ARCHIVED filter, relaunch persistence, swipe + long-press, drawer-reopen resets the archived filter (the onAppear concern didn't bite), ScrollView→List row-spacing parity confirmed by eyeball.
+
 Logged 2026-07-11.
 
-## 98. 🔧 Scheduled / recurring agent runs — relay-side v0 (Lane G)
+## 98. 👀 Scheduled / recurring agent runs — relay-side v0 (Lane G) — MERGED, OJAMD deploy pending
+
+**Update 2026-07-12: PR #76 merged** (117/117 relay tests on the conflict-resolved merge with main). Remaining: the second, smaller OJAMD deploy — `git fetch t27` + rebase `ojamd-deploy`, **`pip install -e .` in the relay venv (new `tzdata` dep)**, then `Restart-Service HermesMobileRelay`. Nothing fires until then; `SCHEDULER_ENABLED=false` is the kill switch for a cautious first restart.
 
 Both competitors run scheduled/monitoring agent tasks with push delivery (ChatGPT Scheduled Tasks replaced Pulse 2026-06-17, confirmed on the mobile app; Claude Cowork scheduled tasks). The relay already watches runs and pushes on completion (#38) — Lane G adds a `schedules` table, authed CRUD, and an asyncio trigger loop that starts Hermes runs through the existing gateway path. Python only, zero Swift contact, hourly floor, additive migration (prod DB is live). iOS management UI deferred to a later lane. Spec: `dispatch/FABLE-LANE-G-scheduled-runs.md`.
 
