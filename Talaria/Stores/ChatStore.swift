@@ -105,10 +105,13 @@ final class ChatStore {
     let journal: ConversationJournalStore?
 
     /// Lane J (J-8): the store-level conversation selection — the API session
-    /// handle of the journal's active hop. The split-view sidebar and the
-    /// chat detail both derive from ChatStore (rows write selection via
-    /// `openSession(_:)`, the detail renders `conversation`), so selection
-    /// never lives view-local and the two columns cannot desync.
+    /// handle of the journal's active hop. Rows write selection via
+    /// `openSession(_:)` and the detail renders `conversation`, so no
+    /// view-local selection exists to desync the split-view columns. NOTE:
+    /// the sidebar's row highlight deliberately stays server-sourced
+    /// (`HermesSessionInfo.isActive`, refreshed after each switch) for Lane F
+    /// parity — this observable surface is the local truth for anything that
+    /// needs selection without a fetch.
     var activeSessionID: String? { journal?.activeHop?.apiSessionId }
 
     /// P1 offline compose outbox (#90): turns composed while the Sessions API

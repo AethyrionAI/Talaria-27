@@ -303,7 +303,11 @@ struct ChatScreen: View {
         guard ordinal - 1 < targets.count else { return }
         sessionsOpen = false
         let target = targets[ordinal - 1]
-        Task { await chatStore.openSession(target.id) }
+        Task {
+            await chatStore.openSession(target.id)
+            // J-8: keep the persistent sidebar's list + highlight current.
+            await refreshSessions()
+        }
     }
 
     private var lifecycleContent: some View {
@@ -366,7 +370,14 @@ struct ChatScreen: View {
         // Sessions drawer → Hermes Sessions API. Tapping a session loads its
         // full history and continues that thread.
         sessionsModel.onSelectSession = { summary in
-            Task { await chatStore.openSession(summary.id) }
+            Task {
+                await chatStore.openSession(summary.id)
+                // J-8: the persistent sidebar has no drawer-open refresh to
+                // move the CURRENT highlight — re-fetch after the switch.
+                // Neutral in compact: the drawer is closed by now and would
+                // refetch on its next open anyway.
+                await refreshSessions()
+            }
         }
         // J-8: the persistent sidebar re-fetches on mount through this seam
         // (the drawer path refreshes via onChange(sessionsOpen) as before).
@@ -1247,6 +1258,9 @@ struct ChatScreen: View {
         do {
             try await chatStore.clearConversation()
             showStatusCard = false
+            // J-8: surface the fresh session in the persistent sidebar
+            // (compact's drawer refetches on its next open regardless).
+            await refreshSessions()
         } catch {
             // Conversation unchanged on failure — user can retry
         }
