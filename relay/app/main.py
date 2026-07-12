@@ -26,9 +26,16 @@ from .config import Settings
 from .database import Database
 from .gateway import GatewayError, create_gateway_client
 from .hermes_adapter import build_hermes_adapter
-from .models import Conversation, HermesHost, Message, PushRegistration
+from .models import Conversation, HermesHost, Message, PushRegistration, Schedule
 from .pairing import HostSetupCodePayload, format_phone_pairing_code, build_host_setup_code
 from .rate_limit import PhonePairingRateLimiter
+from .scheduler import (
+    ScheduleRunner,
+    get_schedule_for_user,
+    list_schedules,
+    next_run_at_for_schedule,
+    serialize_schedule,
+)
 from .schemas import (
     ConnectorSetupRequest,
     DeviceRegisterRequest,
@@ -46,9 +53,18 @@ from .schemas import (
     PushWatchCancelRequest,
     PushWatchRequest,
     RefreshRequest,
+    ScheduleCreateRequest,
+    ScheduleUpdateRequest,
     VoiceTurnCreateRequest,
 )
-from .security import AuthContext, get_auth_context, get_db, get_settings, require_internal_key
+from .security import (
+    AuthContext,
+    get_auth_context,
+    get_db,
+    get_settings,
+    normalize_datetime,
+    require_internal_key,
+)
 from .services import (
     activate_hermes_host_connection,
     append_message,
@@ -232,10 +248,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     logger.warning("Error in job queue cleanup", exc_info=True)
 
         cleanup_task = asyncio.create_task(_cleanup_stale_job_queues())
+
+        # #98 (Lane G): the schedule trigger loop. The runner reads the
+        # gateway client at fire time (late-bound, like the watch endpoint)
+        # and rides the existing watch → completion-push machinery via the
+        # closures below. The runner is always constructed — CRUD and tests
+        # drive ticks directly — but the loop task honors the kill switch.
+        app.state.schedule_runner = ScheduleRunner(
+            database=database,
+            settings=settings,
+            get_gateway=lambda: app.state.gateway_client,
+            register_watch=register_scheduler_watch,
+            is_watch_active=scheduler_watch_is_active,
+        )
+        scheduler_task: asyncio.Task | None = None
+        if settings.scheduler_enabled:
+            scheduler_task = asyncio.create_task(app.state.schedule_runner.run_forever())
+        else:
+            logger.info("scheduler: trigger loop disabled via SCHEDULER_ENABLED")
+
         try:
             yield
         finally:
             cleanup_task.cancel()
+            if scheduler_task is not None:
+                scheduler_task.cancel()
             for watcher in list(app.state.push_watchers.values()):
                 watcher.cancel()
             app.state.push_watchers.clear()
@@ -508,6 +545,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             logger.warning("push watch: unexpected error for session %s", session_id, exc_info=True)
         finally:
             app.state.push_watchers.pop((user_id, session_id), None)
+
+    def register_scheduler_watch(*, user_id: str, session_id: str) -> None:
+        """Exactly the registration POST /v1/push/watch performs (#38) —
+        scheduled runs (#98) reuse the same watch → completion-push
+        machinery rather than growing a parallel delivery path."""
+        key = (user_id, session_id)
+        existing = app.state.push_watchers.get(key)
+        if existing is not None and not existing.done():
+            return
+        app.state.push_watchers[key] = asyncio.create_task(
+            watch_session_for_completion(user_id=user_id, session_id=session_id)
+        )
+
+    def scheduler_watch_is_active(*, user_id: str, session_id: str) -> bool:
+        """The scheduler's in-flight guard: a live watcher means the
+        schedule's previous run hasn't completed (or hit the watch TTL)."""
+        task = app.state.push_watchers.get((user_id, session_id))
+        return task is not None and not task.done()
 
     def resolve_sensor_delivery(delivery_id: str | None, *, delivered: bool) -> None:
         if delivery_id is None:
@@ -1633,6 +1688,214 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             watcher.cancel()
             cancelled = True
         return success({"cancelled": cancelled})
+
+    # ------------------------------------------------------------------
+    # Scheduled runs (#98, Lane G) — CRUD for the trigger loop's rows.
+    # v0 is API-managed; the iOS management UI is a later lane and codes
+    # against relay/docs/SCHEDULED_RUNS.md.
+    # ------------------------------------------------------------------
+
+    def scheduler_clock_now(request: Request) -> datetime:
+        """The runner's clock, so API-computed nextRunAt and the trigger
+        loop agree on 'now' (tests inject a fake clock in one place)."""
+        return normalize_datetime(request.app.state.schedule_runner.clock())
+
+    @app.post("/v1/schedules")
+    def create_schedule(
+        payload: ScheduleCreateRequest,
+        request: Request,
+        auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
+    ) -> dict:
+        """Create a scheduled run. The schedule can never fire without a
+        configured gateway, so a missing GATEWAY_API_KEY is surfaced here
+        instead of as silent no-op ticks."""
+        if request.app.state.gateway_client is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Gateway not configured. Set GATEWAY_API_KEY.",
+            )
+
+        now = scheduler_clock_now(request)
+        run_at = normalize_datetime(payload.runAt) if payload.runAt is not None else None
+        if payload.kind == "once" and run_at is not None and run_at <= now:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="runAt must be in the future.",
+            )
+
+        schedule = Schedule(
+            user_id=auth.user.id,
+            prompt=payload.prompt,
+            session_strategy=payload.sessionStrategy,
+            kind=payload.kind,
+            run_at=run_at,
+            interval_minutes=payload.intervalMinutes,
+            time_of_day=payload.timeOfDay,
+            weekday=payload.weekday,
+            timezone_name=payload.timezone,
+            enabled=True,
+            created_at=now,
+            updated_at=now,
+        )
+        schedule.next_run_at = next_run_at_for_schedule(schedule, after=now)
+        db.add(schedule)
+        db.flush()
+        record_audit(
+            db,
+            actor_type="app",
+            actor_id=auth.device.id,
+            action="schedule.create",
+            entity_type="schedule",
+            entity_id=schedule.id,
+            payload={"kind": schedule.kind},
+        )
+        db.commit()
+        db.refresh(schedule)
+        return success({"schedule": serialize_schedule(schedule)})
+
+    @app.get("/v1/schedules")
+    def get_schedules(
+        auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
+    ) -> dict:
+        return success(
+            {"schedules": [serialize_schedule(s) for s in list_schedules(db, user_id=auth.user.id)]}
+        )
+
+    @app.get("/v1/schedules/{schedule_id}")
+    def get_schedule(
+        schedule_id: str,
+        auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
+    ) -> dict:
+        schedule = get_schedule_for_user(db, schedule_id=schedule_id, user_id=auth.user.id)
+        return success({"schedule": serialize_schedule(schedule)})
+
+    @app.patch("/v1/schedules/{schedule_id}")
+    def update_schedule(
+        schedule_id: str,
+        payload: ScheduleUpdateRequest,
+        request: Request,
+        auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
+    ) -> dict:
+        """Partial update. A recurrence change (payload carries `kind` +
+        its full field set) re-anchors nextRunAt from now; a paused
+        schedule stays paused with nextRunAt unset until resumed."""
+        schedule = get_schedule_for_user(db, schedule_id=schedule_id, user_id=auth.user.id)
+        now = scheduler_clock_now(request)
+
+        if payload.prompt is not None:
+            schedule.prompt = payload.prompt
+        if payload.sessionStrategy is not None:
+            schedule.session_strategy = payload.sessionStrategy
+
+        if payload.kind is not None:
+            run_at = normalize_datetime(payload.runAt) if payload.runAt is not None else None
+            if payload.kind == "once" and run_at is not None and run_at <= now:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="runAt must be in the future.",
+                )
+            schedule.kind = payload.kind
+            schedule.run_at = run_at
+            schedule.interval_minutes = payload.intervalMinutes
+            schedule.time_of_day = payload.timeOfDay
+            schedule.weekday = payload.weekday
+            schedule.timezone_name = payload.timezone
+            if schedule.enabled:
+                schedule.next_run_at = next_run_at_for_schedule(schedule, after=now)
+
+        schedule.updated_at = now
+        record_audit(
+            db,
+            actor_type="app",
+            actor_id=auth.device.id,
+            action="schedule.update",
+            entity_type="schedule",
+            entity_id=schedule.id,
+        )
+        db.commit()
+        db.refresh(schedule)
+        return success({"schedule": serialize_schedule(schedule)})
+
+    @app.post("/v1/schedules/{schedule_id}/pause")
+    def pause_schedule(
+        schedule_id: str,
+        request: Request,
+        auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
+    ) -> dict:
+        schedule = get_schedule_for_user(db, schedule_id=schedule_id, user_id=auth.user.id)
+        now = scheduler_clock_now(request)
+        schedule.enabled = False
+        schedule.next_run_at = None
+        schedule.updated_at = now
+        record_audit(
+            db,
+            actor_type="app",
+            actor_id=auth.device.id,
+            action="schedule.pause",
+            entity_type="schedule",
+            entity_id=schedule.id,
+        )
+        db.commit()
+        db.refresh(schedule)
+        return success({"schedule": serialize_schedule(schedule)})
+
+    @app.post("/v1/schedules/{schedule_id}/resume")
+    def resume_schedule(
+        schedule_id: str,
+        request: Request,
+        auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
+    ) -> dict:
+        """Resume re-anchors from now — a schedule paused for days must
+        not fire a stale catch-up the moment it's re-enabled."""
+        schedule = get_schedule_for_user(db, schedule_id=schedule_id, user_id=auth.user.id)
+        now = scheduler_clock_now(request)
+        next_run_at = next_run_at_for_schedule(schedule, after=now)
+        if next_run_at is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="One-shot time has passed; update runAt before resuming.",
+            )
+        schedule.enabled = True
+        schedule.next_run_at = next_run_at
+        schedule.updated_at = now
+        record_audit(
+            db,
+            actor_type="app",
+            actor_id=auth.device.id,
+            action="schedule.resume",
+            entity_type="schedule",
+            entity_id=schedule.id,
+        )
+        db.commit()
+        db.refresh(schedule)
+        return success({"schedule": serialize_schedule(schedule)})
+
+    @app.delete("/v1/schedules/{schedule_id}")
+    def delete_schedule(
+        schedule_id: str,
+        auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
+    ) -> dict:
+        """Delete the schedule row. A run already in flight is unaffected —
+        its watch is keyed on the gateway session, not the schedule."""
+        schedule = get_schedule_for_user(db, schedule_id=schedule_id, user_id=auth.user.id)
+        record_audit(
+            db,
+            actor_type="app",
+            actor_id=auth.device.id,
+            action="schedule.delete",
+            entity_type="schedule",
+            entity_id=schedule.id,
+        )
+        db.delete(schedule)
+        db.commit()
+        return success({"deleted": True})
 
     @app.post("/v1/device/app-state")
     def device_app_state(

@@ -229,6 +229,40 @@ class VoiceTurn(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
 
+class Schedule(Base):
+    """A recurring or one-shot agent run the relay starts on the gateway (#98).
+
+    Recurrence is one of four kinds:
+      once     — fire at `run_at` (aware UTC), then disable.
+      interval — fire every `interval_minutes` (hard floor: 60).
+      daily    — fire at `time_of_day` ("HH:MM") in `timezone_name` every day.
+      weekly   — fire at `time_of_day` on `weekday` (0=Monday … 6=Sunday).
+
+    `next_run_at` is always precomputed (UTC) so the trigger loop is a single
+    indexed range scan; `last_run_session_id` names the gateway session of the
+    most recent fire so the in-flight guard can consult the push-watch registry.
+    """
+
+    __tablename__ = "schedules"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
+    prompt: Mapped[str] = mapped_column(Text, nullable=False)
+    session_strategy: Mapped[str] = mapped_column(Text, nullable=False, default="fresh")
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    interval_minutes: Mapped[int | None] = mapped_column(Integer)
+    time_of_day: Mapped[str | None] = mapped_column(Text)
+    weekday: Mapped[int | None] = mapped_column(Integer)
+    timezone_name: Mapped[str | None] = mapped_column(Text)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_run_session_id: Mapped[str | None] = mapped_column(Text)
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+
+
 class InboxItem(Base):
     __tablename__ = "inbox_items"
 

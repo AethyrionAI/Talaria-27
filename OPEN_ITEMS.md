@@ -3020,6 +3020,42 @@ Logged 2026-07-11.
 
 Both competitors run scheduled/monitoring agent tasks with push delivery (ChatGPT Scheduled Tasks replaced Pulse 2026-06-17, confirmed on the mobile app; Claude Cowork scheduled tasks). The relay already watches runs and pushes on completion (#38) — Lane G adds a `schedules` table, authed CRUD, and an asyncio trigger loop that starts Hermes runs through the existing gateway path. Python only, zero Swift contact, hourly floor, additive migration (prod DB is live). iOS management UI deferred to a later lane. Spec: `dispatch/FABLE-LANE-G-scheduled-runs.md`.
 
+**Update 2026-07-12 (cloud session, branch `claude/t27-lane-g-kc07qu`): built, tested, PR'd.**
+Everything lives in `relay/` — zero Swift contact as speced. What shipped:
+- **Schema:** `schedules` table (prompt, `session_strategy` "fresh", kind
+  once/interval/daily/weekly + per-kind fields, tz-aware daily/weekly via zoneinfo,
+  enabled, last_run_at, last_run_session_id, next_run_at) + index — created additively/
+  idempotently on boot (create_all + `CREATE INDEX IF NOT EXISTS`); migration test boots
+  the new code over a pre-Lane-G DB file and existing rows survive. Prod DB needs zero
+  manual steps.
+- **CRUD:** `/v1/schedules` create/list/get/patch/pause/resume/delete, device-bearer auth
+  (same as `/v1/push/watch`). Validation: sub-hourly → 422 (floor 60 min), past one-shot →
+  400, unknown IANA tz → 422, cross-kind fields → 422; create 503s when GATEWAY_API_KEY
+  is unset (a schedule that can never fire is a config error). Resume re-anchors from now
+  (no stale catch-up); resuming an expired one-shot → 409.
+- **Trigger loop:** asyncio task in the app lifespan (60s tick, `SCHEDULER_ENABLED` kill
+  switch, `SCHEDULER_TICK_SECONDS`). Fire = fresh gateway session (`POST /api/sessions`) →
+  `/chat/stream` with the prompt, disconnect on first SSE event (the #38-verified detach:
+  runs complete server-side post-disconnect) → register the session with the EXISTING
+  watch → completion-push machinery (no new delivery code; e2e test asserts the APNs alert
+  with `session_id` + `HERMES_RUN_COMPLETED` category rides through). Missed-run policy:
+  ≤ one catch-up if miss < one period, else skip forward (once = 60-min window, then marked
+  missed/disabled); in-flight guard skips the tick while the previous run's watch is live;
+  transient gateway failure leaves the row due for next-tick retry. Fires/skips audited
+  (`schedule.fire`/`schedule.skip_forward`, actor `relay`).
+- **Tests:** 28 new in `relay/tests/test_scheduler.py` — fake clock throughout, fake sleep
+  for the loop (no real sleeps pace anything); full relay suite **117 passed**. Gateway
+  additions (`create_session`, `start_detached_run`) are surgical on `gateway.py` and
+  MockTransport-covered.
+- **Contract doc:** `relay/docs/SCHEDULED_RUNS.md` — endpoints, recurrence grammar, and
+  loop semantics for the future iOS management-UI lane.
+- **OPS for the combined deploy (below):** `pyproject.toml` gained `tzdata` (Windows has no
+  system IANA db — daily/weekly tz math needs it), so the OJAMD deploy pass must re-run
+  the relay's `pip install` (`pip install -e .` in the relay venv) before
+  `Restart-Service HermesMobileRelay`. v0 schedule management is device-bearer curl
+  (grammar + examples in the doc); nothing fires until `GATEWAY_API_KEY` is set (already
+  live on OJAMD per #38).
+
 **Deploy plan (REVISED 2026-07-11, see #103):** pulled FORWARD — do the OJAMD rebase + connector restart NOW (sensor delivery is down in prod, #103), don't wait for Lane G. When G later merges it rides a second, smaller deploy. Original combined plan: one OJAMD deploy event — `git fetch t27` + rebase `ojamd-deploy` onto `t27/main` (picks up #87 connector UTF-8 fix and Lane G together), fix #88 (`restart-relay.ps1` → `Restart-Service HermesMobileRelay`) in the same pass, restart connector via `start-connector.bat` + `Restart-Service HermesMobileRelay`, then verify #54 closure (connector reattach, no 4401) post-restart.
 
 Logged 2026-07-11.

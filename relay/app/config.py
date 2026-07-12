@@ -117,6 +117,11 @@ class Settings:
     # Files are returned only if they resolve to a real file *inside* this dir.
     # On OJAMD this is the dedicated mobile-download dir (e.g. O:\Hermes\MobileDL).
     agent_files_dir: str | None = None
+    # #98 (Lane G): scheduled runs. The trigger loop wakes on this coarse tick
+    # and fires due schedules through the gateway run path; SCHEDULER_ENABLED
+    # is the ops kill switch (schedule rows persist while it's off).
+    scheduler_enabled: bool = True
+    scheduler_tick_seconds: float = 60.0
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -166,4 +171,7 @@ class Settings:
             push_watch_ttl_seconds=float(os.getenv("PUSH_WATCH_TTL_SECONDS", "1800.0")),
             app_presence_stale_seconds=int(os.getenv("APP_PRESENCE_STALE_SECONDS", "120")),
             agent_files_dir=os.getenv("AGENT_FILES_DIR") or None,
+            scheduler_enabled=os.getenv("SCHEDULER_ENABLED", "true").strip().lower()
+            not in ("0", "false", "no", "off"),
+            scheduler_tick_seconds=float(os.getenv("SCHEDULER_TICK_SECONDS", "60.0")),
         )

@@ -94,6 +94,74 @@ class GatewayClient:
             )
         return self._client
 
+    async def create_session(self) -> str:
+        """Create a fresh gateway session and return its id (#98).
+
+        `POST /api/sessions` body `{}` → id at `.session.id` (the verified
+        contract in CLEAN_CHAT_PATH.md — same nesting the app reads).
+        """
+        url = f"{self.base_url}/api/sessions"
+        try:
+            response = await self._get_client().post(
+                url,
+                headers={"Authorization": f"Bearer {self._api_key}"},
+                json={},
+            )
+        except (httpx.TimeoutException, httpx.TransportError, OSError) as e:
+            raise GatewayError(f"gateway unreachable: {e}") from e
+
+        if response.status_code != 200:
+            raise GatewayError(f"gateway returned {response.status_code} creating a session")
+
+        try:
+            body = response.json()
+        except ValueError as e:
+            raise GatewayError(f"gateway returned non-JSON body: {e}") from e
+
+        session = body.get("session") if isinstance(body, dict) else None
+        session_id = session.get("id") if isinstance(session, dict) else None
+        if not isinstance(session_id, str) or not session_id:
+            raise GatewayError("gateway session response missing '.session.id'")
+        return session_id
+
+    async def start_detached_run(self, session_id: str, prompt: str) -> None:
+        """Kick off a run and detach as soon as the gateway confirms it (#98).
+
+        Opens `POST /api/sessions/{id}/chat/stream` and disconnects after the
+        first SSE line arrives. Runs complete server-side after the stream
+        client goes away — verified by the #38 probe (client cut right after
+        `run.started`; the final assistant message still landed in the
+        session) — so the caller pairs this with a completion watch instead
+        of holding a connection for the whole run.
+        """
+        url = f"{self.base_url}/api/sessions/{session_id}/chat/stream"
+        try:
+            async with self._get_client().stream(
+                "POST",
+                url,
+                headers={
+                    "Authorization": f"Bearer {self._api_key}",
+                    "Accept": "text/event-stream",
+                },
+                json={"input": prompt},
+            ) as response:
+                if response.status_code != 200:
+                    raise GatewayError(
+                        f"gateway returned {response.status_code} starting a run for session {session_id}"
+                    )
+                async for line in response.aiter_lines():
+                    # Any `event:`/`data:` line means the gateway accepted the
+                    # turn and the run object exists server-side; exiting the
+                    # context closes the stream and the run continues detached.
+                    if line.startswith("event:") or line.startswith("data:"):
+                        return
+        except GatewayError:
+            raise
+        except (httpx.TimeoutException, httpx.TransportError, OSError) as e:
+            raise GatewayError(f"gateway unreachable starting a run: {e}") from e
+
+        raise GatewayError(f"gateway stream ended before the run started for session {session_id}")
+
     async def fetch_completed_reply(self, session_id: str) -> str | None:
         """One poll: the session's completed assistant reply, or None.
 
