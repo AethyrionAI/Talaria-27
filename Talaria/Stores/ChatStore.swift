@@ -1093,11 +1093,19 @@ final class ChatStore {
 
     // MARK: - Sessions
 
+    /// The most recent successfully fetched session list (#96): the server
+    /// half of the in-app conversation search corpus. Search never fetches
+    /// per keystroke — it reads this snapshot, which refreshes whenever the
+    /// drawer (or any other caller) loads sessions. Kept across a failed
+    /// refresh: a stale-but-real list beats an empty one.
+    private(set) var lastLoadedSessions: [HermesSessionInfo] = []
+
     /// Recent sessions from the host. Returns [] when unreachable.
     func loadSessions() async -> [HermesSessionInfo] {
         do {
             let sessions = try await hermesClient.listSessions()
             chatLog.verbose("loadSessions: got \(sessions.count) sessions")
+            lastLoadedSessions = sessions
             onSessionsLoaded?(sessions)
             return sessions
         } catch {
@@ -1162,6 +1170,7 @@ final class ChatStore {
         isLoading = false
         pendingMessageSentAt = nil
         lastTokenUsage = nil
+        lastLoadedSessions = []
         persistence.clearConversationCache()
         journal?.reset()
         composeOutbox = ComposeOutboxState()
