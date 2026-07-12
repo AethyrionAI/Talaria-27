@@ -109,7 +109,13 @@ enum GenUIDecoder {
     }
 
     private static func bool(_ dict: [String: Any], _ key: String) -> Bool {
-        dict[key] as? Bool ?? false
+        // NSNumber bridging trap: JSONSerialization yields NSNumber for JSON
+        // numbers, and `1 as? Bool` SUCCEEDS via bridging — so a wrong-typed
+        // `"blinks": 1` would read as true instead of falling back. Accept
+        // only genuine JSON booleans (CFBoolean), per the tolerance contract.
+        guard let number = dict[key] as? NSNumber,
+              CFGetTypeID(number) == CFBooleanGetTypeID() else { return false }
+        return number.boolValue
     }
 
     private static func tone(_ dict: [String: Any]) -> GenUITone {

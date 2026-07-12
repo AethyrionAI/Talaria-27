@@ -311,7 +311,11 @@ struct GenUISchemaTests {
                           size: .medium, blinks: false, prompt: ""),
             ]),
         ])
-        let renderer = ImageRenderer(content: GenUISurfaceView(surface: surface).frame(width: 390))
+        // Frame BOTH dimensions (like the empty-surface sibling test): the
+        // off-contract content is defensively dropped by design, so the view
+        // collapses to zero height and ImageRenderer of a zero-size view is
+        // nil — that's a fixture artifact, not a survival failure.
+        let renderer = ImageRenderer(content: GenUISurfaceView(surface: surface).frame(width: 390, height: 10))
         #expect(renderer.uiImage != nil)
     }
 
