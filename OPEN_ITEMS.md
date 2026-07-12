@@ -2983,3 +2983,39 @@ Logged 2026-07-11.
 The 2026-07-10/11 "random unpair" saga resolved into three fixed defects + one edge (#94): BGTask handler isolation trap (PR #67), keychain `WhenUnlocked` accessibility (PR #68), voice restart race/lockup (PR #68), pre-first-unlock zombie-process staleness (PR #69 — reload on `protectedDataDidBecomeAvailable` + `didBecomeActive`, gates on `isProtectedDataAvailable`). Verified 2026-07-11: reboot → unlock → open app WITHOUT force-quit → pairing + API key + relay URL all present. Watch the next several organic reboots (and the next Apple seed) for any recurrence; if credentials ever vanish again, pull the launch story via the protected-data log lines before touching anything.
 
 Logged 2026-07-11.
+
+## 96. 🔧 In-app conversation search (Lane F)
+
+Both ChatGPT iOS and Claude iOS ship a first-class in-app search over prior chats; Talaria has only opt-in Spotlight indexing (#66) and the local-brain search tool. Add a search screen over the local `ConversationJournal` (now primary per #93) plus fetched Hermes sessions. Spec: `dispatch/FABLE-LANE-F-conversation-management.md`. Sourced from the 2026-07-11 feature gap analysis (table-stakes gap, both competitors confirmed).
+
+Logged 2026-07-11.
+
+## 97. 🔧 Pin / archive conversations (Lane F)
+
+Baseline list hygiene present in both competitor apps (ChatGPT's pin confirmed with a 3-pin cap on all tiers — ours deliberately uncapped; archive confirmed in ChatGPT, Claude iOS parity unconfirmed). Journal metadata + local overlay for server sessions, pinned section + archived filter in the drawer. Same lane/spec as #96.
+
+Logged 2026-07-11.
+
+## 98. 🔧 Scheduled / recurring agent runs — relay-side v0 (Lane G)
+
+Both competitors run scheduled/monitoring agent tasks with push delivery (ChatGPT Scheduled Tasks replaced Pulse 2026-06-17, confirmed on the mobile app; Claude Cowork scheduled tasks). The relay already watches runs and pushes on completion (#38) — Lane G adds a `schedules` table, authed CRUD, and an asyncio trigger loop that starts Hermes runs through the existing gateway path. Python only, zero Swift contact, hourly floor, additive migration (prod DB is live). iOS management UI deferred to a later lane. Spec: `dispatch/FABLE-LANE-G-scheduled-runs.md`.
+
+Logged 2026-07-11.
+
+## 99. 📝 Interactive artifact / HTML preview — Lane D v2 (queued behind PR #65)
+
+Both competitors render generated HTML/interactive content in-app; Talaria reconstructs agent files into a ShareLink bubble only. Natural successor to the P8 IR v0 rung: render agent-written single-file HTML (and later the IR) in an in-app preview surface (WKWebView, new-files-heavy). Do not dispatch until Lane D's PR #65 lands — same surface family.
+
+Logged 2026-07-11.
+
+## 100. 📝 Inline charts / data viz (queued behind #92 device verify)
+
+Both competitors render charts inline; pairs naturally with Talaria's health/sensor and cost telemetry. Detect chart/table specs in Hermes output and render native Swift Charts. Depends on the markdown/code rendering pipeline (#92, Lane B — merged, awaiting device verify) as the detection/rendering substrate; queue until #92 flips ✅.
+
+Logged 2026-07-11.
+
+## 101. 📝 Cross-chat memory / durable-facts layer (post-#93 successor)
+
+Both competitors personalize across conversations; the continuity fabric (#93, merged) preserves context within a conversation but doesn't carry durable user facts into new chats. Shape: a lightweight durable-facts store extending the condenser/journal, priming fresh sessions. Direct extension of Lane A's merged work — dispatchable as its own lane once #93's device checklist verifies, to avoid reworking unverified foundations.
+
+Logged 2026-07-11.
