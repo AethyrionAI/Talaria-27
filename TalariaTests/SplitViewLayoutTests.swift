@@ -37,10 +37,17 @@ struct SidebarVisibilityPersistenceTests {
         #expect(SidebarVisibilityPersistence.persisted(from: .detailOnly) == false)
     }
 
-    /// `.automatic` (the pre-toggle system state) must persist as visible —
-    /// hiding the sidebar is the only state worth remembering as "off".
-    @Test func automaticCountsAsVisible() {
-        #expect(SidebarVisibilityPersistence.persisted(from: .automatic) == true)
+    /// SDK reality canary: on the iOS 27 SDK, `.automatic` compares EQUAL
+    /// to `.detailOnly` (the struct aliases its unresolved default — macOS
+    /// aliases it to `.doubleColumn` instead), so "automatic counts as
+    /// visible" is unimplementable via equality. The app never lets
+    /// `.automatic` reach persistence in steady state: `onAppear` imposes
+    /// the persisted value immediately. If the first expectation ever
+    /// fails, the alias changed on a new SDK — revisit `persisted(from:)`
+    /// and the original automatic-as-visible intent.
+    @Test func automaticAliasesDetailOnlyOnThisSDK() {
+        #expect(NavigationSplitViewVisibility.automatic == .detailOnly)
+        #expect(SidebarVisibilityPersistence.persisted(from: .automatic) == false)
     }
 
     @Test func persistedStatesSurviveTheRoundTrip() {
