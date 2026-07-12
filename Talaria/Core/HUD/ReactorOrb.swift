@@ -58,6 +58,13 @@ struct ReactorOrb: View {
             case .sprayCap: sprayCapLayers
             case .mirrorBall: triRingLayers(Self.mirrorBall)
             case .rocketBadge: rocketBadgeLayers
+            // Batch-4 Claude-Design compositions — the three handoffs share
+            // one anatomy (solid / spinning-dashed / solid pulse rings +
+            // brightening two-hue core with a third-hue outer halo), so all
+            // three are tri-ring data; the moon jelly adds the whole-orb bob.
+            case .moonJelly: moonJellyLayers
+            case .crucible: triRingLayers(Self.crucible)
+            case .phosphor: triRingLayers(Self.phosphor)
             }
         }
         .frame(width: size, height: size)
@@ -279,9 +286,9 @@ struct ReactorOrb: View {
         }
     }
 
-    private func triRing(_ spec: TriRingOrbSpec, index: Int, diameter: CGFloat) -> some View {
+    @ViewBuilder private func triRing(_ spec: TriRingOrbSpec, index: Int, diameter: CGFloat) -> some View {
         let ring = spec.rings[index]
-        return TriPulseRing(
+        let pulse = TriPulseRing(
             diameter: diameter,
             color: ring.color,
             baseOpacity: ring.baseOpacity,
@@ -290,6 +297,11 @@ struct ReactorOrb: View {
             period: spec.pulsePeriod,
             delay: ring.delay
         )
+        if let spin = ring.spinPeriod {
+            pulse.continuousRotation(spin)
+        } else {
+            pulse
+        }
     }
 
     private func triCore(_ spec: TriRingOrbSpec, diameter: CGFloat) -> some View {
@@ -301,7 +313,8 @@ struct ReactorOrb: View {
             glow: glowIntensity,
             motion: spec.coreMotion,
             glyph: spec.coreGlyph,
-            glyphColor: spec.coreGlyphColor
+            glyphColor: spec.coreGlyphColor,
+            outerGlowColor: spec.coreOuterGlow
         )
     }
 
@@ -312,6 +325,14 @@ struct ReactorOrb: View {
         if style != .minimal {
             CauldronBubbles(diameter: size, glow: glowIntensity)
         }
+    }
+
+    /// Midnight Aquarium: the tri-ring moon jelly with the whole orb bobbing
+    /// (`jellyFloat`, 5s ease-in-out, −8px on the 120px reference orb →
+    /// size-relative so every orb size breathes at the same proportion).
+    private var moonJellyLayers: some View {
+        triRingLayers(Self.moonJelly)
+            .modifier(JellyFloatModifier(travel: size * (8.0 / 120.0), period: 5))
     }
 
     // MARK: Disco Inferno — mirror ball (dashed/dotted counter-spin, pixel core)
@@ -524,6 +545,59 @@ struct ReactorOrb: View {
         pulsePeriod: 3.5,
         coreHighlight: GraffitiHue.citron, coreBase: GraffitiHue.citron,
         coreGlow: GraffitiHue.citron
+    )
+
+    // MARK: Batch-4 Claude-Design specs (shared anatomy: rings 1.0/0.74/0.48
+    // at .35/.55/.75, pulse 3.5s staggered 0/0.3/0.6, dashed middle ring
+    // spinning (orbSpin), 30% two-hue core — corePulse 4s, scale 1.12,
+    // brightness 1.3 — glowing 30px in the hero and 60px in the third hue).
+
+    private static let moonJelly = TriRingOrbSpec(
+        rings: [
+            .init(color: AquariumHue.jelly, baseOpacity: 0.35, diameterFraction: 1.0),
+            .init(color: AquariumHue.biolume, baseOpacity: 0.55, diameterFraction: 0.74,
+                  dash: [5, 4], delay: 0.3, spinPeriod: 20),
+            .init(color: AquariumHue.anemone, baseOpacity: 0.75, diameterFraction: 0.48,
+                  delay: 0.6),
+        ],
+        pulsePeriod: 3.5,
+        coreHighlight: AquariumHue.biolume, coreBase: AquariumHue.jelly,
+        coreGlow: AquariumHue.jelly,
+        coreMotion: .brighten(period: 4, scale: 1.12, amount: 0.3),
+        coreFraction: 0.30,
+        coreOuterGlow: AquariumHue.anemone
+    )
+
+    private static let crucible = TriRingOrbSpec(
+        rings: [
+            .init(color: MoltenHue.lava, baseOpacity: 0.35, diameterFraction: 1.0),
+            .init(color: MoltenHue.spark, baseOpacity: 0.55, diameterFraction: 0.74,
+                  dash: [5, 4], delay: 0.3, spinPeriod: 14),
+            .init(color: MoltenHue.steel, baseOpacity: 0.75, diameterFraction: 0.48,
+                  delay: 0.6),
+        ],
+        pulsePeriod: 3.5,
+        coreHighlight: MoltenHue.spark, coreBase: MoltenHue.lava,
+        coreGlow: MoltenHue.lava,
+        coreMotion: .brighten(period: 4, scale: 1.12, amount: 0.3),
+        coreFraction: 0.30,
+        coreOuterGlow: MoltenHue.ember
+    )
+
+    private static let phosphor = TriRingOrbSpec(
+        rings: [
+            .init(color: VHSHue.phosphor, baseOpacity: 0.35, diameterFraction: 1.0),
+            .init(color: VHSHue.chroma, baseOpacity: 0.55, diameterFraction: 0.74,
+                  dash: [5, 4], delay: 0.3, spinPeriod: 14),
+            .init(color: VHSHue.staticCyan, baseOpacity: 0.75, diameterFraction: 0.48,
+                  delay: 0.6),
+        ],
+        pulsePeriod: 3.5,
+        coreHighlight: VHSHue.staticCyan, coreBase: VHSHue.phosphor,
+        coreGlow: VHSHue.phosphor,
+        coreMotion: .brighten(period: 4, scale: 1.12, amount: 0.3),
+        coreFraction: 0.30,
+        coreOuterGlow: VHSHue.chroma
     )
 
     // MARK: - Shared pieces
@@ -806,6 +880,10 @@ private struct TriRingOrbSpec {
         var dash: [CGFloat] = []
         var delay: Double = 0
         var lineWidthFraction: CGFloat = 0.02
+        /// Seconds per full rotation (`orbSpin` on a dashed ring — the batch-4
+        /// Claude-Design orbs spin their middle ring). `nil` = static ring,
+        /// byte-identical for every existing spec.
+        var spinPeriod: Double? = nil
     }
 
     let rings: [Ring]
@@ -817,6 +895,10 @@ private struct TriRingOrbSpec {
     var coreFraction: CGFloat = 0.32
     var coreGlyph: String? = nil
     var coreGlyphColor: Color = .black
+    /// Hue of the core's WIDE outer halo when it differs from `coreGlow` —
+    /// the batch-4 handoffs' `box-shadow: 0 0 30px hero, 0 0 60px rgba(third
+    /// hue, .4)` stack. `nil` = both halos in `coreGlow` (byte-identical).
+    var coreOuterGlow: Color? = nil
 }
 
 /// Per-theme core motions — each theme's `.orb-core` keyframe family.
@@ -868,6 +950,8 @@ private struct TriPulseRing: View {
 
 /// The gallery two-hue core: `radial-gradient(circle at 30% 30%, highlight,
 /// base)` with the handoffs' 30px + 60px glow stack and a per-theme motion.
+/// `outerGlowColor` re-hues just the wide 60px halo (the batch-4 orbs halo
+/// in their third accent); nil keeps both halos in `glowColor`, byte-identical.
 private struct TwoHueOrbCore: View {
     let diameter: CGFloat
     let highlight: Color
@@ -877,6 +961,7 @@ private struct TwoHueOrbCore: View {
     var motion: OrbCoreMotion = .steady
     var glyph: String? = nil
     var glyphColor: Color = .black
+    var outerGlowColor: Color? = nil
 
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
@@ -903,7 +988,7 @@ private struct TwoHueOrbCore: View {
         .brightness(pulse ? motionBrightness : 0)
         .hueRotation(.degrees(pulse ? motionHueDegrees : 0))
         .hudGlow(glowColor, radius: diameter * 0.85, strength: 0.85, intensity: glow)
-        .hudGlow(glowColor, radius: diameter * 1.7, strength: 0.4, intensity: glow)
+        .hudGlow(outerGlowColor ?? glowColor, radius: diameter * 1.7, strength: 0.4, intensity: glow)
         .onAppear {
             guard !reduceMotion, let period = motionPeriod else { return }
             withAnimation(.easeInOut(duration: period / 2).repeatForever(autoreverses: true)) {
@@ -1242,6 +1327,48 @@ private enum RetroHue {
     static let yellow = Color(hex: 0xFFD600)
     static let cream = Color(hex: 0xFFFDF8)
     static let ink = Color(hex: 0x1A1210)
+}
+
+private enum AquariumHue {
+    static let jelly = Color(hex: 0xFF7AD9)     // Jelly Pink
+    static let biolume = Color(hex: 0x3EF2E0)   // Biolume Cyan
+    static let anemone = Color(hex: 0x8A7CFF)   // Anemone Violet
+}
+
+private enum MoltenHue {
+    static let lava = Color(hex: 0xFF6A1A)      // Lava Orange
+    static let spark = Color(hex: 0xFFD23C)     // Spark Gold
+    static let steel = Color(hex: 0xA9C2D1)     // Hammered Steel
+    static let ember = Color(hex: 0xFF3B2D)     // Ember Red — core outer halo
+}
+
+private enum VHSHue {
+    static let phosphor = Color(hex: 0x3BFF6F)  // Phosphor Green
+    static let chroma = Color(hex: 0xFF3BD4)    // Chroma Magenta
+    static let staticCyan = Color(hex: 0x35E0FF) // Static Cyan
+}
+
+/// Midnight Aquarium's `jellyFloat`: the whole orb rising `travel` points and
+/// settling back over `period` seconds, ease-in-out — the CSS 0%/50%/100%
+/// translateY keyframes. Static (translateY 0) under Reduce Motion.
+private struct JellyFloatModifier: ViewModifier {
+    let travel: CGFloat
+    let period: Double
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+    @State private var bob = false
+
+    func body(content: Content) -> some View {
+        content
+            .offset(y: bob ? -travel : 0)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: period / 2).repeatForever(autoreverses: true)) {
+                    bob = true
+                }
+            }
+    }
 }
 
 private struct PingHalo: View {

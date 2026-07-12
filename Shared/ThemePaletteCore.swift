@@ -37,6 +37,8 @@ enum ThemeID: String, CaseIterable, Codable, Hashable, Sendable {
     case discoInferno
     case graffitiGalaxy
     case karaokeSupernova
+    case midnightAquarium
+    case moltenForge
 }
 
 /// Accent slot identity, decoupled from the app's `AppearanceAccent`
@@ -134,6 +136,19 @@ enum ThemeOrbStyle: Hashable, Sendable {
     /// Comic rocket badge: pinwheel wedge ring, blue + yellow discs, inked
     /// red core (Retro Sci-Fi).
     case rocketBadge
+
+    // Batch-4 Claude-Design compositions (#91). Same table-only widget
+    // contract as the gallery ports above.
+
+    /// Moon jelly: pink / spinning dashed teal / violet tri-ring, teal→pink
+    /// core with a violet outer halo, whole orb bobbing (Midnight Aquarium).
+    case moonJelly
+    /// Crucible at full pour: orange / spinning dashed gold / steel tri-ring,
+    /// gold→orange core with an ember-red outer halo (Molten Forge).
+    case crucible
+    /// Phosphor dot: green / spinning dashed magenta / cyan tri-ring,
+    /// cyan→green core with a magenta outer halo (orphan — Haunted VHS cut on device verdict 2026-07-11; composition kept as reusable data).
+    case phosphor
 }
 
 /// One stop of the screen's radial background gradient.
@@ -426,6 +441,8 @@ enum ThemePaletteCatalog {
         .discoInferno: discoInferno,
         .graffitiGalaxy: graffitiGalaxy,
         .karaokeSupernova: karaokeSupernova,
+        .midnightAquarium: midnightAquarium,
+        .moltenForge: moltenForge,
     ]
 
     /// Total lookup over the shipped themes (coverage guarded by
@@ -1864,6 +1881,156 @@ enum ThemePaletteCatalog {
         gridCell: 26,
         isLight: false,
         orbStyle: .mirrorBall
+    )
+
+    // MARK: Aquarium — Midnight Aquarium (design/themes/theme-midnight-aquarium.html)
+    // Special Edition (batch 4, Claude-Design export): the aquarium after
+    // closing — navy-black tank water lit by the residents. Jellyfish pink,
+    // bioluminescent cyan, anemone violet; the abyss-gold fourth hue is
+    // gallery badge chrome only (inventoried N/A). Handoff-native slot
+    // names, EH precedent; derived family steps use the house formula.
+
+    static let midnightAquarium = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0x030A14),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0x061529), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0x030A14), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0x02050A), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0x061529), Color(hex: 0x030A14), Color(hex: 0x02050A)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0xEAF7FF),
+            foregroundBright: Color(hex: 0xEAF7FF),
+            secondaryForeground: Color(hex: 0xA5C9DD),
+            mutedForeground: Color(hex: 0xA5C9DD),
+            dimForeground: Color(hex: 0x5F7F95),
+            coolForeground: Color(hex: 0xA5C9DD)
+        ),
+        surface: Color(hex: 0xFF7AD9, opacity: 0.08),
+        chips: .fixed(
+            surface: Color(hex: 0xFF7AD9, opacity: 0.08),
+            divider: Color(hex: 0x3EF2E0, opacity: 0.08),
+            border: Color(hex: 0x8A7CFF, opacity: 0.06)
+        ),
+        borders: .accentTinted(hairline: 0.14, strong: 0.30),
+        scrim: Color(hex: 0x000000, opacity: 0.85),
+        danger: Color(hex: 0xFF3B3B),
+        dangerBright: Color(hex: 0xFF5858),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Jelly Pink",
+                base: Color(hex: 0xFF7AD9),
+                bright: Color(hex: 0xFF9AE2),
+                deep: Color(hex: 0xB25597),
+                coreHighlight: Color(hex: 0xFFB5EA),
+                coreShadow: Color(hex: 0x8C4377),
+                forge: Color(hex: 0xFF9E00)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Biolume Cyan",
+                base: Color(hex: 0x3EF2E0),
+                bright: Color(hex: 0x6DF5E7),
+                deep: Color(hex: 0x2BA99C),
+                coreHighlight: Color(hex: 0x94F7ED),
+                coreShadow: Color(hex: 0x22857B),
+                forge: Color(hex: 0xFF9E00)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Anemone Violet",
+                base: Color(hex: 0x8A7CFF),
+                bright: Color(hex: 0xA69CFF),
+                deep: Color(hex: 0x6056B2),
+                coreHighlight: Color(hex: 0xBEB6FF),
+                coreShadow: Color(hex: 0x4B448C),
+                forge: Color(hex: 0xFF9E00)
+            )
+        ),
+        glowScale: 1.1,
+        gridStyle: .lines,
+        gridLine: .accentTinted(0.08),
+        gridCell: 26,
+        isLight: false,
+        orbStyle: .moonJelly
+    )
+
+    // MARK: Molten — Molten Forge (design/themes/theme-molten-forge.html)
+    // Special Edition (batch 4, Claude-Design export): a volcanic smithy —
+    // near-black iron under lava pour-light. Owen's differentiation mandate
+    // vs the Solar Forge identity lane: the variant hue set is disjoint from
+    // Solar Forge's (orange 21° / gold 46° / steel-blue 202° vs Solar's
+    // amber 39° / cyan 184° / violet 259° — no shared hex anywhere in the
+    // families; the full diff table is in the batch-4 PR). Ember Red
+    // #FF3B2D is the fourth hue (ember speck layer + orb outer halo).
+
+    static let moltenForge = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0x150B06),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0x200F07), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0x150B06), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0x0A0402), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0x200F07), Color(hex: 0x150B06), Color(hex: 0x0A0402)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0xFFF2E6),
+            foregroundBright: Color(hex: 0xFFF2E6),
+            secondaryForeground: Color(hex: 0xD9B49B),
+            mutedForeground: Color(hex: 0xD9B49B),
+            dimForeground: Color(hex: 0x8F6F59),
+            coolForeground: Color(hex: 0xD9B49B)
+        ),
+        surface: Color(hex: 0xFF6A1A, opacity: 0.08),
+        chips: .fixed(
+            surface: Color(hex: 0xFF6A1A, opacity: 0.08),
+            divider: Color(hex: 0xFFD23C, opacity: 0.08),
+            border: Color(hex: 0xA9C2D1, opacity: 0.06)
+        ),
+        borders: .accentTinted(hairline: 0.14, strong: 0.30),
+        scrim: Color(hex: 0x000000, opacity: 0.85),
+        danger: Color(hex: 0xFF3B3B),
+        dangerBright: Color(hex: 0xFF5858),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Lava Orange",
+                base: Color(hex: 0xFF6A1A),
+                bright: Color(hex: 0xFF8E52),
+                deep: Color(hex: 0xB24A12),
+                coreHighlight: Color(hex: 0xFFAC80),
+                coreShadow: Color(hex: 0x8C3A0E),
+                // Warning must stay separable from the lava hero — #FF9E00
+                // sits a hue family up (amber vs orange), the Solar-hero
+                // relationship inverted.
+                forge: Color(hex: 0xFF9E00)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Spark Gold",
+                base: Color(hex: 0xFFD23C),
+                bright: Color(hex: 0xFFDD6C),
+                deep: Color(hex: 0xB2932A),
+                coreHighlight: Color(hex: 0xFFE693),
+                coreShadow: Color(hex: 0x8C7321),
+                // Warning must stay separable from a gold accent.
+                forge: Color(hex: 0xFF9E00)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Hammered Steel",
+                base: Color(hex: 0xA9C2D1),
+                bright: Color(hex: 0xBED1DC),
+                deep: Color(hex: 0x768792),
+                coreHighlight: Color(hex: 0xCFDDE5),
+                coreShadow: Color(hex: 0x5C6A72),
+                forge: Color(hex: 0xFF9E00)
+            )
+        ),
+        glowScale: 1.1,
+        gridStyle: .lines,
+        gridLine: .accentTinted(0.08),
+        gridCell: 26,
+        isLight: false,
+        orbStyle: .crucible
     )
 }
 

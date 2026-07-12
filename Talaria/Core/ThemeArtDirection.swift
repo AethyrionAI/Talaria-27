@@ -95,6 +95,11 @@ struct AtmosphereMotionSpec: Equatable, Sendable {
     let period: TimeInterval
     /// Opacity of the whole field (the handoffs' `.page-bg { opacity }`).
     let fieldOpacity: Double
+    /// When set, the drift phase is quantized into this many discrete jumps
+    /// per loop — a `steps(N)` TV-noise scramble (authored for the cut Haunted VHS; reusable)
+    /// (a smooth 0.9s pan reads as vibration, not static). `nil` = smooth
+    /// linear pan, byte-identical for every existing spec.
+    var stepCount: Int? = nil
 }
 
 /// Data-driven angled line/streak lattice — the Swift port of the handoffs'
@@ -126,11 +131,21 @@ struct ThemeLineFieldSpec: Equatable, Sendable {
         /// length per `spacing × spacing` tile (the handoffs'
         /// `linear-gradient(135deg, hue 0, transparent 12px)` spray marks).
         var segmentLength: CGFloat? = nil
+        /// Displacement (pt) over one `driftPeriod` loop — Midnight
+        /// Aquarium's `causticDrift` background-position pan. Inert (0)
+        /// unless the spec sets a `driftPeriod`.
+        var driftX: CGFloat = 0
+        var driftY: CGFloat = 0
     }
 
     let layers: [Layer]
     /// Opacity of the whole field (the handoffs' `.page-bg { opacity }`).
     let fieldOpacity: Double
+    /// Seconds per drift loop — linear, infinite (`causticDrift 16s`). `nil`
+    /// = static field: the pre-drift rendering path, byte-identical, with no
+    /// TimelineView cost. Frozen at t = 0 under Reduce Motion (the CSS
+    /// animation's 0% keyframe).
+    var driftPeriod: TimeInterval? = nil
 }
 
 /// Layered offset title shadows — the comic/graffiti h1 treatments that
@@ -207,6 +222,41 @@ struct ThemeCornerRibbonSpec: Equatable, Sendable {
     let textColor: Color
     /// Banner fill (`--graf-accent-pink`).
     let background: Color
+    /// Hard on/off blink cycle — a `steps(2)` hard blink (authored for the cut Haunted VHS; reusable):
+    /// full opacity for the first half, `blinkMinOpacity` for the second.
+    /// `nil` = static ribbon (Graffiti Galaxy's 'TAG'), byte-identical, no
+    /// TimelineView. Held at full opacity under Reduce Motion (the CSS
+    /// animation's 0% keyframe).
+    var blinkPeriod: TimeInterval? = nil
+    /// The dimmed half's opacity (`recBlink`'s `opacity: 0.15`).
+    var blinkMinOpacity: Double = 0.15
+}
+
+/// A full-width horizontal glow band sweeping vertically down the screen —
+/// a CRT tracking band (46px, symmetric two-hue profile — authored for the cut Haunted VHS; reusable:
+/// transparent → shoulder 35% → center 50% → shoulder 65% → transparent,
+/// traveling top −18% → 118% over 6s, linear infinite). The atmosphere
+/// engine's laser bars are vertical capsules and can't express a horizontal
+/// band's gradient profile, so this is its own minimal spec (the dispatch's
+/// pre-authorized third primitive). Rendered by `SweepBarField`
+/// (ThemeTextures.swift); under Reduce Motion the band parks at the CSS 0%
+/// keyframe (`top: -18%` — off-screen, i.e. absent), exactly the handoff's
+/// `prefers-reduced-motion` behavior.
+struct ThemeSweepBarSpec: Equatable, Sendable {
+    /// Band thickness (pt) — `height: 46px`.
+    let height: CGFloat
+    /// The 35%/65% stops (`rgba(232,255,232,0.07)`).
+    let shoulderColor: Color
+    let shoulderAlpha: Double
+    /// The 50% stop (`rgba(53,224,255,0.12)`).
+    let centerColor: Color
+    let centerAlpha: Double
+    /// Seconds per sweep — linear, infinite.
+    let period: TimeInterval
+    /// Travel endpoints for the band's top edge, as fractions of the screen
+    /// height (`top: -18%` → `top: 118%`).
+    var travelStart: Double = -0.18
+    var travelEnd: Double = 1.18
 }
 
 /// Thin gradient bar hugging a panel's top edge — the design's
@@ -252,6 +302,11 @@ struct ThemeArtDirection: Equatable, Sendable {
     /// so this field gets its own slot instead of the texture slot. `nil` =
     /// no overlay (the default, byte-identical).
     var scanlineOverlay: ThemeLineFieldSpec? = nil
+    /// Vertically sweeping glow band (`trackingBar`-class; no shipped adopter), drawn
+    /// between the grid and the scanline overlay (the handoff's z-order:
+    /// the tracking bar rides UNDER the CRT rows). `nil` = no band (the
+    /// default, byte-identical).
+    var sweepBar: ThemeSweepBarSpec? = nil
     /// Neon screen-title glow (`nil` = plain titles, the default).
     var titleGlow: ThemeTitleGlow? = nil
     /// Offset/chromatic title shadows (`nil` = none, the default). Composes
@@ -288,6 +343,8 @@ enum ThemeArtDirectionCatalog {
         .discoInferno: discoInferno,
         .graffitiGalaxy: graffitiGalaxy,
         .karaokeSupernova: karaokeSupernova,
+        .midnightAquarium: midnightAquarium,
+        .moltenForge: moltenForge,
     ]
 
     static func artDirection(for theme: ThemeID) -> ThemeArtDirection {
@@ -750,6 +807,129 @@ enum ThemeArtDirectionCatalog {
         )
     )
 
+    // MARK: Midnight Aquarium — design/themes/theme-midnight-aquarium.html (SE, batch 4)
+    // After-hours aquarium: pink bloom pinned above the tank, three-hue
+    // bubble columns climbing the glass (bubbleRise 14s — driftY is exactly
+    // one tile per loop; the small lateral driftX values are verbatim and
+    // reset mid-tile at the loop point exactly as the CSS's own
+    // background-position snap does), and the ±105° caustic lattices gliding
+    // on the new line-field drift (causticDrift 16s — both fields stack,
+    // bubbles below caustics, the handoff's DOM order). Pink-framed panels
+    // (EH halo compression), EH-shape pink/teal title glow. Deferred, per
+    // the inventory table: the chat-screen 11s bubble pair + 12s caustic
+    // (panel-scope layers on a second period — the screen field already
+    // paints behind chat, and the EH device verdict keeps panel-scope
+    // treatments panel-scope), the inset teal tank wash (panel inner wash),
+    // bubble pips / input / send chrome (bubble- and accent-system scope).
+    // Abyss Gold #FFD166 is gallery badge chrome — N/A.
+
+    static let midnightAquarium = ThemeArtDirection(
+        glowPools: [
+            // radial(1200px 800px at 50% -10%, rgba(255,122,217,.10) → 60%)
+            ThemeGlowPool(color: Color(hex: 0xFF7AD9, opacity: 0.10),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+        ],
+        panelHalo: ThemePanelHalo(
+            // 8px ring at .06 on the .32 border → 1pt rim at the EH compression.
+            ringColor: Color(hex: 0xFF7AD9, opacity: 0.24),
+            glowColor: Color(hex: 0xFF7AD9),
+            glowRadius: 40
+        ),
+        // bubbleRise: three non-square bubble columns, each rising exactly
+        // one tile height per 14s loop. Speck centers at the CSS fade radii
+        // (3/2.2/2.6px) × the rule-1 soft-port ratio 0.625.
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 130, driftX: 20, driftY: -520,
+                hue: Color(hex: 0x3EF2E0), speckAlpha: 0.4,
+                anchorX: 0.25, anchorY: 0.85, speckRadius: 1.875,
+                tileHeight: 520),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 170, driftX: -30, driftY: -640,
+                hue: Color(hex: 0xFF7AD9), speckAlpha: 0.35,
+                anchorX: 0.60, anchorY: 0.95, speckRadius: 1.375,
+                tileHeight: 640),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 210, driftX: 10, driftY: -760,
+                hue: Color(hex: 0x8A7CFF), speckAlpha: 0.3,
+                anchorX: 0.85, anchorY: 0.75, speckRadius: 1.625,
+                tileHeight: 760),
+        ], period: 14, fieldOpacity: 0.4),
+        // causticDrift: the two ±105° lattices — 4px lines on 38/50px pitch,
+        // panning (240,120) / (−240,−80) per 16s loop.
+        lineTexture: ThemeLineFieldSpec(layers: [
+            .init(angleDegrees: 105, hue: Color(hex: 0x3EF2E0), alpha: 0.05,
+                  spacing: 38, lineWidth: 4, driftX: 240, driftY: 120),
+            .init(angleDegrees: -105, hue: Color(hex: 0xFF7AD9), alpha: 0.04,
+                  spacing: 50, lineWidth: 4, driftX: -240, driftY: -80),
+        ], fieldOpacity: 0.6, driftPeriod: 16),
+        // h1: 10/30px pink, 60px pink .45, 90px teal .25 — the EH shape.
+        titleGlow: ThemeTitleGlow(
+            primary: Color(hex: 0xFF7AD9),
+            secondary: Color(hex: 0x3EF2E0)
+        )
+    )
+
+    // MARK: Molten Forge — design/themes/theme-molten-forge.html (SE, batch 4)
+    // Volcanic smithy: lava bloom above, three-hue emberRise columns
+    // (orange / spark gold / ember red — the fourth hue lives here and on
+    // the orb halo, the Karaoke laser-red precedent), and the heatShimmer
+    // bottom glow ported as a PULSING POOL anchored at the bottom edge —
+    // approximation-first per the Karaoke gold-band precedent, because the
+    // CSS layer is a page-scope linear band breathing opacity .5↔.85 with a
+    // scaleY 1→1.05 that is sub-perceptual on a soft gradient (choice noted
+    // in the PR; pool color .17 = the band's .20 × its .85 peak, min .59 =
+    // .50/.85, so the rendered opacity range is exactly the CSS's .10–.17).
+    // emberTint is inert here: the atmosphere spec supersedes the `.embers`
+    // texture, so no Solar Forge values are reused anywhere (Owen mandate —
+    // the variant-set diff lives in the palette entry + PR). Deferred, per
+    // the inventory table: the chat-screen 8s ember pair and 3.5s/45%
+    // shimmer variant (panel-scope layers on second periods).
+
+    static let moltenForge = ThemeArtDirection(
+        glowPools: [
+            // radial(1200px 800px at 50% -10%, rgba(255,106,26,.10) → 60%)
+            ThemeGlowPool(color: Color(hex: 0xFF6A1A, opacity: 0.10),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+            // heatShimmer: fixed bottom 40% band, rgba(255,106,26,.20) → up,
+            // 4s ease-in-out breathe (see the approximation note above).
+            ThemeGlowPool(color: Color(hex: 0xFF6A1A, opacity: 0.17),
+                          centerX: 0.5, centerY: 1.0, radiusFraction: 0.40,
+                          pulsePeriod: 4, pulseMinOpacity: 0.59),
+        ],
+        panelHalo: ThemePanelHalo(
+            // 8px ring at .06 on the .32 border → 1pt rim at the EH compression.
+            ringColor: Color(hex: 0xFF6A1A, opacity: 0.24),
+            glowColor: Color(hex: 0xFF6A1A),
+            glowRadius: 40
+        ),
+        // emberRise: three non-square ember columns, one tile height up per
+        // 10s loop; lateral driftX verbatim (the CSS's own mid-tile loop
+        // snap, same as Midnight Aquarium). Speck centers at the CSS fade
+        // radii (2.5/2/2px) × the rule-1 soft-port ratio 0.625.
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 120, driftX: -30, driftY: -420,
+                hue: Color(hex: 0xFF6A1A), speckAlpha: 0.5,
+                anchorX: 0.30, anchorY: 0.80, speckRadius: 1.5625,
+                tileHeight: 420),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 160, driftX: 40, driftY: -560,
+                hue: Color(hex: 0xFFD23C), speckAlpha: 0.45,
+                anchorX: 0.60, anchorY: 0.90, speckRadius: 1.25,
+                tileHeight: 560),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 200, driftX: -20, driftY: -680,
+                hue: Color(hex: 0xFF3B2D), speckAlpha: 0.4,
+                anchorX: 0.80, anchorY: 0.70, speckRadius: 1.25,
+                tileHeight: 680),
+        ], period: 10, fieldOpacity: 0.45),
+        // h1: 10/30px lava, 60px lava .45, 90px spark gold .25 — the EH shape.
+        titleGlow: ThemeTitleGlow(
+            primary: Color(hex: 0xFF6A1A),
+            secondary: Color(hex: 0xFFD23C)
+        )
+    )
     // MARK: Event Horizon atmosphere presets (Lane E Task 1)
 
     /// On-device A/B knob: flip, rebuild, judge — no server round trip.

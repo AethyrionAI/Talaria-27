@@ -409,6 +409,8 @@ extension AppearanceTheme {
         case .discoInferno: .discoInferno
         case .graffitiGalaxy: .graffitiGalaxy
         case .karaokeSupernova: .karaokeSupernova
+        case .midnightAquarium: .midnightAquarium
+        case .moltenForge: .moltenForge
         }
     }
 }

@@ -159,9 +159,9 @@ enum ThemeCatalog {
     ]
 
     /// Special Edition — bespoke art-directed themes beyond a recolor (motion
-    /// field, custom orb). Complete as of Phase 3 batch 3 (#91) — the
-    /// gallery's "Neon Arcade #01" card is the gallery chrome itself, not a
-    /// fourth SE (Lane E Phase 2 discovery).
+    /// field, custom orb). Batches 1–3 shipped the gallery trio; batch 4 (#91)
+    /// adds the three Claude-Design exports. The gallery's "Neon Arcade #01"
+    /// card is the gallery chrome itself, not an SE (Lane E Phase 2 discovery).
     static let specialEdition: [ThemeDefinition] = [
         ThemeDefinition(id: AppearanceTheme.eventHorizon.rawValue, displayName: "Event Horizon",
                         subtitle: "Singularity", appearanceTheme: .eventHorizon,
@@ -171,6 +171,12 @@ enum ThemeCatalog {
                         availability: .always, locked: false),
         ThemeDefinition(id: AppearanceTheme.karaokeSupernova.rawValue, displayName: "Karaoke Supernova",
                         subtitle: "Mirror Ball", appearanceTheme: .karaokeSupernova,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.midnightAquarium.rawValue, displayName: "Midnight Aquarium",
+                        subtitle: "Moon Jelly", appearanceTheme: .midnightAquarium,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.moltenForge.rawValue, displayName: "Molten Forge",
+                        subtitle: "Crucible", appearanceTheme: .moltenForge,
                         availability: .always, locked: false),
     ]
 
