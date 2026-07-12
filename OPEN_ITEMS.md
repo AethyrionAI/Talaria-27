@@ -1545,6 +1545,8 @@ Logged 2026-07-04.
 
 ## 56. 🔧 Wave 2 Issue E (GitHub #6) — "Ask Hermes" App Intent — BUILT IN CLOUD, not compiled
 
+**Device pass 2026-07-11: RETEST NEEDED, not a defect (yet)** — test used the phrase "Ask Hermes" (checklist error, now corrected) but the registered App Shortcut phrase is **"Ask Talaria"**; Siri fell back to contact lookup. Retest with "Hey Siri, Ask Talaria" + the Shortcuts-app action before triaging further.
+
 **Shipped (`3ef4695`, branch `claude/issues-5-8-batches-cue3vb`, 2026-07-06).**
 `Intents/AskHermesIntent.swift`: background Siri/Shortcuts query (`openAppWhenRun = false`)
 through `ChatStore.sendMessage` — the exchange lands in the cached conversation and widgets
@@ -1608,6 +1610,8 @@ Logged 2026-07-06.
 
 ## 58. 🔧 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — BUILT IN CLOUD, not compiled
 
+**Device pass 2026-07-11: PARTIAL FAIL** — Talk control inert (EXPECTED under the #82 audio wedge, don't chase). Ask Hermes control also inert — NOT expected; suspect the deep-link path (#77, registered-unverified) rather than the control itself. Triage: fire the `hermes://` URL directly (Safari/Shortcuts) to split control-vs-deeplink before touching code.
+
 **Shipped (`db9a03a`, 2026-07-06).** `TalariaWidgets/Controls/HermesControls.swift`: "Ask
 Hermes" + "Talk to Hermes" `ControlWidget` buttons (iOS 18 GA) in `HermesWidgetBundle` —
 Control Center gallery, Lock Screen, Action-button picker. Deliberate architecture: the app's
@@ -1659,6 +1663,8 @@ attachments today) — worth a sweep task later?
 Logged 2026-07-06.
 ## 60. 🔧 Wave 3 / 4.15 — `_thinking` reasoning channel surfaced; delta key needs device probe
 
+**Device pass 2026-07-11: FAIL** — reasoning pane mirrors the final answer verbatim (markdown differences only). Consistent with the fallback key chain grabbing a response-bearing field (`message`/`preview`?) — or the gateway synthesizing `_thinking` from output. Next step is exactly this entry's prescribed OJAMD probe: `curl -N` a reasoning-model streaming turn, pin the real delta key. Do NOT edit app code before the probe.
+
 Reasoning deltas are no longer dropped at the `tool.progress` handler:
 `SessionsHermesClient` forwards `tool_name:"_thinking"` payloads as
 `StreamingUpdate.reasoningDelta`, `ChatStore` accumulates them on the streaming
@@ -1698,6 +1704,8 @@ not yet compiled — needs `xcodegen generate` + CLI build + device verify.
   pending replies per pass instead of only the newest.
 
 ## 61. 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels
+
+**Device pass 2026-07-11: FAIL** — title and preview show the same repeated raw text. Localize which path ran (guided generation vs deterministic fallback) via logs before touching code. Possibly same on-device-model degeneracy family as #102 (local brain phrase-looping in the same session).
 
 New `Services/Live/LocalIntelligenceService.swift` (FoundationModels): after the
 first completed exchange, `ChatStore` generates `{title, preview}` on-device and
@@ -1903,7 +1911,9 @@ appear + Hermes default; gateway kill mid-run fails honestly then next
 message routes local with visible chip change; gateway restart returns
 routing within one ~10s health tick.
 
-## 69. 🔧 Wave 4.5 — device tool belt v1: read tools for the local brain (GitHub #28)
+## 69. ✅ Wave 4.5 — device tool belt v1: read tools for the local brain (GitHub #28)
+
+**Device pass 2026-07-11: PASS (initially misread as fail)** — local brain called its native belt (e.g. deviceStatus), which IS the design: these Swift Tools are the device-side mirror; `hermes_mobile` MCP is the server-side path for the cloud agent. Tool calls fired and rendered.
 
 `Services/Live/DeviceTools/` — Swift `Tool` conformances handed to the local
 brain's `LanguageModelSession` (device-side mirror of the Hermes MCP tools;
@@ -1941,7 +1951,9 @@ invented. Flagged: transcript replay passes empty `toolDefinitions` (the
 session's `tools:` param is the wiring) — if tool calls misbehave after
 restore, populate `Transcript.ToolDefinition`s.
 
-## 70. 🔧 Wave 4.5 — action tools + ToolConfirmationCenter (GitHub #29)
+## 70. ✅ Wave 4.5 — action tools + ToolConfirmationCenter (GitHub #29)
+
+**Device pass 2026-07-11: PASS** — confirm gate appeared before the write; approve performed it.
 
 Side-effecting device tools behind ONE shared confirm gate (the #16
 authority rule generalized: the model can never silently mutate the phone).
@@ -2834,7 +2846,9 @@ Device-verdict knobs called out per PR (laser `barHeight`/`speckRadius`, graffit
 
 ---
 
-## 92. 🔧 Lane B — markdown rendering depth (dispatch FABLE-LANES-BC)
+## 92. ✅ Lane B — markdown rendering depth (dispatch FABLE-LANES-BC)
+
+**Device pass 2026-07-11: PASS** — table/headings/quote/lists/code block all rendered on device. Unblocks #100.
 
 **Update 2026-07-10 (cloud session, branch `claude/lane-b-handoff-g8zxbl`):**
 BUILT IN CLOUD, not compiled or device-verified. `MarkdownSegment` grew from
@@ -3010,7 +3024,7 @@ Both competitors render generated HTML/interactive content in-app; Talaria recon
 
 Logged 2026-07-11.
 
-## 100. 📝 Inline charts / data viz (queued behind #92 device verify)
+## 100. 📝 Inline charts / data viz — UNBLOCKED (#92 verified 2026-07-11)
 
 Both competitors render charts inline; pairs naturally with Talaria's health/sensor and cost telemetry. Detect chart/table specs in Hermes output and render native Swift Charts. Depends on the markdown/code rendering pipeline (#92, Lane B — merged, awaiting device verify) as the detection/rendering substrate; queue until #92 flips ✅.
 
@@ -3019,5 +3033,11 @@ Logged 2026-07-11.
 ## 101. 📝 Cross-chat memory / durable-facts layer (post-#93 successor)
 
 Both competitors personalize across conversations; the continuity fabric (#93, merged) preserves context within a conversation but doesn't carry durable user facts into new chats. Shape: a lightweight durable-facts store extending the condenser/journal, priming fresh sessions. Direct extension of Lane A's merged work — dispatchable as its own lane once #93's device checklist verifies, to avoid reworking unverified foundations.
+
+Logged 2026-07-11.
+
+## 102. 🔍 Local brain generation health — phrase-loop + thermal "serious" during use
+
+Device pass 2026-07-11, observed during the #67 session (which otherwise mostly passed): (a) the on-device brain repeats a certain phrase while in use; (b) `deviceStatus` reported thermal state "serious," attributed to running apps, with only Talaria running. Investigate TOGETHER — a repetition/generation loop that keeps the ANE/GPU spinning would explain both. Check: generation stop conditions / max-token bounds in `LocalChatBackend`, whether the loop persists across sessions, and thermal recovery after force-quit. If repetition is plain small-model sampling degeneracy, thermal may still warrant a mitigation (throttle sustained inference or surface a thermal notice). Possibly related: #61's repeated title/preview text (same model, same session).
 
 Logged 2026-07-11.
