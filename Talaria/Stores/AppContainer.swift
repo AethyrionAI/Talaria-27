@@ -36,6 +36,10 @@ final class AppContainer {
     /// #26/#31: the on-device brain, kept for the standalone availability
     /// state (and the #30 PCC tier). Nil in bare test containers.
     private(set) var localChatBackend: LocalChatBackend?
+    /// #97: the pin/archive overlay for server-session rows, consumed by the
+    /// sessions drawer + conversation search. Nil in bare test containers
+    /// that construct stores directly.
+    private(set) var conversationListState: ConversationListStateStore?
     /// #17: Spotlight donation for sessions + agent files, strictly behind the
     /// Privacy toggle (default OFF); wired in makeDefault().
     let spotlightIndexing = SpotlightIndexingService()
@@ -395,6 +399,10 @@ final class AppContainer {
 
         container.chatAPIKeyBox = hermesAPIKeyBox
         container.shimTokenBox = shimTokenBox
+
+        // #97: pin/archive overlay for server-session rows — same persistence
+        // seam as every other store, read by the drawer + search surfaces.
+        container.conversationListState = ConversationListStateStore(persistence: persistence)
 
         // #27: per-conversation brain preferences key off the live
         // conversation, which ChatStore owns — wire the lookup now that both

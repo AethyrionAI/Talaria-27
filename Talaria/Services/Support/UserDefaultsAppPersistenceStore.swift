@@ -10,6 +10,7 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         static let sensorOutboxState = "hermes.sensorOutboxState"
         static let conversationCache = "hermes.conversationCache"
         static let conversationJournal = "hermes.conversationJournal"
+        static let conversationListState = "hermes.conversationListState"
         static let composeOutboxState = "hermes.composeOutboxState"
         static let healthAnchorPrefix = "hermes.healthAnchor."
     }
@@ -149,6 +150,18 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
 
     func clearConversationJournal() {
         defaults.removeObject(forKey: Keys.conversationJournal)
+    }
+
+    func loadConversationListState() -> ConversationListState {
+        load(ConversationListState.self, key: Keys.conversationListState) ?? ConversationListState()
+    }
+
+    func saveConversationListState(_ state: ConversationListState) {
+        save(state, key: Keys.conversationListState)
+    }
+
+    func clearConversationListState() {
+        defaults.removeObject(forKey: Keys.conversationListState)
     }
 
     func loadComposeOutboxState() -> ComposeOutboxState {
