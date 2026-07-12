@@ -17,6 +17,16 @@ plist key" job no matter how many icons pile up.
   python3 tools/appicons/generate_app_icons.py
   ```
 
+- `render_gallery_icons.py` — rasterizes the **curated gallery icons** (Lane K
+  batch: the Neon Arcade Collection + Seasonal sets) straight from the SVGs in
+  `design/themes/app-icons.html` into the same three flat PNGs per icon.
+  Requires cairosvg + Pillow (`pip install cairosvg Pillow`); run from the
+  repo root:
+
+  ```sh
+  python3 tools/appicons/render_gallery_icons.py
+  ```
+
 ## Files each icon needs
 
 All are **loose, flat (no-alpha) PNGs** in `Talaria/Resources/AppIcons/` (iOS

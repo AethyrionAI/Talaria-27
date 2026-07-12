@@ -3,8 +3,9 @@ import UIKit
 
 // MARK: - App Icon picker (Settings → Appearance → App Icon, issue #25)
 //
-// A data-driven grid: it renders whatever `AppIconCatalog.all` lists and scales
-// to an arbitrary number of icons (adaptive columns + scroll), so adding an icon
+// A data-driven grid: it renders whatever `AppIconCatalog.sections` lists —
+// titled groups mirroring the theme gallery taxonomy — and scales to an
+// arbitrary number of icons (adaptive columns + scroll), so adding an icon
 // never touches this view. Tapping a card drives `AppIconStore`, which calls
 // `UIApplication.setAlternateIconName`; the choice is persisted by iOS.
 struct AppIconSettingsScreen: View {
@@ -48,8 +49,19 @@ struct AppIconSettingsScreen: View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             MonoLabel("// Choose Icon", size: 10, tracking: Design.Tracking.monoXWide,
                       color: Design.Colors.mutedForeground)
-            LazyVGrid(columns: columns, spacing: Design.Spacing.md) {
-                ForEach(AppIconCatalog.all) { iconCard($0) }
+            // Titled groups mirroring the theme gallery taxonomy (Lane K),
+            // header style as the theme picker's. Grouping is presentational
+            // only — icon choice stays independent of theme choice.
+            VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+                ForEach(AppIconCatalog.sections) { section in
+                    MonoLabel(section.title, size: 9, weight: .medium,
+                              tracking: Design.Tracking.monoWide,
+                              color: Design.Colors.dimForeground)
+                        .padding(.top, Design.Spacing.xxs)
+                    LazyVGrid(columns: columns, spacing: Design.Spacing.md) {
+                        ForEach(section.options) { iconCard($0) }
+                    }
+                }
             }
             // Scoped to the grid so Back still works when icons are unsupported.
             .disabled(store.isApplying || !store.supportsAlternateIcons)
