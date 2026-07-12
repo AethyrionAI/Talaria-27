@@ -29,6 +29,9 @@ struct DeveloperSettingsScreen: View {
                     warningBanner
                     environmentSection
                     flagsSection
+                    #if DEBUG
+                    generativeUISection
+                    #endif
                     buildSection
                 }
                 .padding(.horizontal, Design.Spacing.md)
@@ -186,6 +189,45 @@ struct DeveloperSettingsScreen: View {
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)
     }
+
+    // MARK: Generative UI (IR v0 harness — DEBUG builds only, like this screen's
+    // own SYSTEM-index link; GenUIDebugScreen is compiled out of Release)
+
+    #if DEBUG
+    private var generativeUISection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            MonoLabel("// Generative UI", size: 10, tracking: Design.Tracking.monoXWide,
+                      color: Design.Colors.mutedForeground)
+
+            NavigationLink {
+                GenUIDebugScreen()
+            } label: {
+                HStack(spacing: Design.Spacing.sm) {
+                    Text("IR v0 Harness")
+                        .font(Design.Typography.callout)
+                        .foregroundStyle(Design.Colors.foreground)
+                    Spacer(minLength: Design.Spacing.xs)
+                    MonoLabel("3 SAMPLE TREES", size: 9, weight: .medium,
+                              tracking: Design.Tracking.mono,
+                              color: Design.Colors.mutedForeground)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Design.Colors.mutedForeground)
+                }
+                .padding(.horizontal, Design.Spacing.md)
+                .padding(.vertical, Design.Spacing.sm)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
+        }
+    }
+    #endif
 
     // MARK: Build
 
