@@ -1545,6 +1545,8 @@ Logged 2026-07-04.
 
 ## 56. 🔧 Wave 2 Issue E (GitHub #6) — "Ask Hermes" App Intent — BUILT IN CLOUD, not compiled
 
+**Device pass 2026-07-11: CORE VERIFIED — phrase mystery solved, no code defect.** The intent works: both actions present and functional in Shortcuts, and "Hey Siri, ask Talaria twenty-seven" produced the "What should I ask Hermes?" prompt. Root cause of every voice miss: `.applicationName` resolves to `CFBundleDisplayName: Talaria27` (project.yml), so the registered phrase is "Ask Talaria27" — NOT "Ask Hermes" (→ Siri contacts) or "Ask Talaria" (→ Siri mythology facts). Apple requires the applicationName token in every phrase, so the utterance is permanently bound to the display name; making plain "Ask Talaria" work means renaming the app — a deliberate product decision, not a patch. Remaining sub-checks before full flip: >25s long-run hand-off, Siri Stop, tailnet-unreachable error surface.
+
 **Shipped (`3ef4695`, branch `claude/issues-5-8-batches-cue3vb`, 2026-07-06).**
 `Intents/AskHermesIntent.swift`: background Siri/Shortcuts query (`openAppWhenRun = false`)
 through `ChatStore.sendMessage` — the exchange lands in the cached conversation and widgets
@@ -1608,6 +1610,10 @@ Logged 2026-07-06.
 
 ## 58. 🔧 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — BUILT IN CLOUD, not compiled
 
+**Device pass 2026-07-11: PARTIAL FAIL** — Talk control inert (EXPECTED under the #82 audio wedge, don't chase). Ask Hermes control also inert — NOT expected; suspect the deep-link path (#77, registered-unverified) rather than the control itself. Triage: fire the `hermes://` URL directly (Safari/Shortcuts) to split control-vs-deeplink before touching code.
+
+**Localized 2026-07-11:** `hermes://` AND `hermes://chat` both open the app from Safari — scheme and route proven good (#77 base verified in passing). The dead Ask control is therefore the Control Center widget's own action wiring in `HermesControls`. Small, well-bounded fix; Fable-sized. Talk control stays wedge-excused (#82) until the next beta seed.
+
 **Shipped (`db9a03a`, 2026-07-06).** `TalariaWidgets/Controls/HermesControls.swift`: "Ask
 Hermes" + "Talk to Hermes" `ControlWidget` buttons (iOS 18 GA) in `HermesWidgetBundle` —
 Control Center gallery, Lock Screen, Action-button picker. Deliberate architecture: the app's
@@ -1659,6 +1665,8 @@ attachments today) — worth a sweep task later?
 Logged 2026-07-06.
 ## 60. 🔧 Wave 3 / 4.15 — `_thinking` reasoning channel surfaced; delta key needs device probe
 
+**Device pass 2026-07-11: FAIL** — reasoning pane mirrors the final answer verbatim (markdown differences only). Consistent with the fallback key chain grabbing a response-bearing field (`message`/`preview`?) — or the gateway synthesizing `_thinking` from output. Next step is exactly this entry's prescribed OJAMD probe: `curl -N` a reasoning-model streaming turn, pin the real delta key. Do NOT edit app code before the probe.
+
 Reasoning deltas are no longer dropped at the `tool.progress` handler:
 `SessionsHermesClient` forwards `tool_name:"_thinking"` payloads as
 `StreamingUpdate.reasoningDelta`, `ChatStore` accumulates them on the streaming
@@ -1698,6 +1706,10 @@ not yet compiled — needs `xcodegen generate` + CLI build + device verify.
   pending replies per pass instead of only the newest.
 
 ## 61. 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels
+
+**Device pass 2026-07-11: FAIL** — title and preview show the same repeated raw text. Localize which path ran (guided generation vs deterministic fallback) via logs before touching code. Possibly same on-device-model degeneracy family as #102 (local brain phrase-looping in the same session).
+
+**Localized 2026-07-11 (source read):** guided generation runs at temperature 0.2–0.3 (`LocalIntelligenceService.swift:74/114/173`) — near-greedy, repetition-prone on the small on-device model. Not yet log-confirmed vs the guardrail-fallback path; Lane H adds a degenerate-card guard that protects both and logs which tripped. Spec: `dispatch/FABLE-LANE-H-local-brain-gen-health.md`.
 
 New `Services/Live/LocalIntelligenceService.swift` (FoundationModels): after the
 first completed exchange, `ChatStore` generates `{title, preview}` on-device and
@@ -1903,7 +1915,9 @@ appear + Hermes default; gateway kill mid-run fails honestly then next
 message routes local with visible chip change; gateway restart returns
 routing within one ~10s health tick.
 
-## 69. 🔧 Wave 4.5 — device tool belt v1: read tools for the local brain (GitHub #28)
+## 69. ✅ Wave 4.5 — device tool belt v1: read tools for the local brain (GitHub #28)
+
+**Device pass 2026-07-11: PASS (initially misread as fail)** — local brain called its native belt (e.g. deviceStatus), which IS the design: these Swift Tools are the device-side mirror; `hermes_mobile` MCP is the server-side path for the cloud agent. Tool calls fired and rendered.
 
 `Services/Live/DeviceTools/` — Swift `Tool` conformances handed to the local
 brain's `LanguageModelSession` (device-side mirror of the Hermes MCP tools;
@@ -1941,7 +1955,9 @@ invented. Flagged: transcript replay passes empty `toolDefinitions` (the
 session's `tools:` param is the wiring) — if tool calls misbehave after
 restore, populate `Transcript.ToolDefinition`s.
 
-## 70. 🔧 Wave 4.5 — action tools + ToolConfirmationCenter (GitHub #29)
+## 70. ✅ Wave 4.5 — action tools + ToolConfirmationCenter (GitHub #29)
+
+**Device pass 2026-07-11: PASS** — confirm gate appeared before the write; approve performed it.
 
 Side-effecting device tools behind ONE shared confirm gate (the #16
 authority rule generalized: the model can never silently mutate the phone).
@@ -2714,7 +2730,9 @@ passed in-container.** Remaining: deploy on OJAMD; keep an eye on the relay log 
 
 Logged 2026-07-09.
 
-## 87. ✅ Connector — subprocess output decoded as cp1252 on Windows — RESOLVED (deployed to OJAMD 2026-07-09)
+## 87. ✅ Connector — subprocess output decoded as cp1252 on Windows — RESOLVED (ACTUALLY deployed 2026-07-11; the 07-09 claim below did not hold)
+
+**Correction 2026-07-11:** the 07-09 "deployed" status was wrong in effect — on 07-11 the OJAMD deploy repo was 107 commits behind `t27/main` and the connector had been dead since 07-02 (killed by this very defect; see #103 post-mortem). Whatever happened on 07-09, the fixed code was not running. Real deploy: 2026-07-11 rebase + connector restart; attach and backlog drain confirmed.
 
 **RESOLVED 2026-07-09:** Deployed to OJAMD. `ojamd-deploy` rebased onto `t27/main` (helper commit replayed clean, no conflicts); fix confirmed live on the editable module (19 `errors=replace` sites); connector restarted and holding its WS to the relay; `hermes memory status` populates cleanly. The cp1252 tracebacks still in connector.log are pre-deploy residue (file static since 2026-07-02).
 
@@ -2834,7 +2852,9 @@ Device-verdict knobs called out per PR (laser `barHeight`/`speckRadius`, graffit
 
 ---
 
-## 92. 🔧 Lane B — markdown rendering depth (dispatch FABLE-LANES-BC)
+## 92. ✅ Lane B — markdown rendering depth (dispatch FABLE-LANES-BC)
+
+**Device pass 2026-07-11: PASS** — table/headings/quote/lists/code block all rendered on device. Unblocks #100.
 
 **Update 2026-07-10 (cloud session, branch `claude/lane-b-handoff-g8zxbl`):**
 BUILT IN CLOUD, not compiled or device-verified. `MarkdownSegment` grew from
@@ -3036,7 +3056,7 @@ Everything lives in `relay/` — zero Swift contact as speced. What shipped:
   (grammar + examples in the doc); nothing fires until `GATEWAY_API_KEY` is set (already
   live on OJAMD per #38).
 
-**Deploy plan (agreed 2026-07-11):** when Lane G merges, one combined OJAMD deploy event — `git fetch t27` + rebase `ojamd-deploy` onto `t27/main` (picks up #87 connector UTF-8 fix and Lane G together), fix #88 (`restart-relay.ps1` → `Restart-Service HermesMobileRelay`) in the same pass, restart connector via `start-connector.bat` + `Restart-Service HermesMobileRelay`, then verify #54 closure (connector reattach, no 4401) post-restart.
+**Deploy plan (REVISED 2026-07-11, see #103):** pulled FORWARD — do the OJAMD rebase + connector restart NOW (sensor delivery is down in prod, #103), don't wait for Lane G. When G later merges it rides a second, smaller deploy. Original combined plan: one OJAMD deploy event — `git fetch t27` + rebase `ojamd-deploy` onto `t27/main` (picks up #87 connector UTF-8 fix and Lane G together), fix #88 (`restart-relay.ps1` → `Restart-Service HermesMobileRelay`) in the same pass, restart connector via `start-connector.bat` + `Restart-Service HermesMobileRelay`, then verify #54 closure (connector reattach, no 4401) post-restart.
 
 Logged 2026-07-11.
 
@@ -3046,7 +3066,7 @@ Both competitors render generated HTML/interactive content in-app; Talaria recon
 
 Logged 2026-07-11.
 
-## 100. 📝 Inline charts / data viz (queued behind #92 device verify)
+## 100. 📝 Inline charts / data viz — UNBLOCKED (#92 verified 2026-07-11)
 
 Both competitors render charts inline; pairs naturally with Talaria's health/sensor and cost telemetry. Detect chart/table specs in Hermes output and render native Swift Charts. Depends on the markdown/code rendering pipeline (#92, Lane B — merged, awaiting device verify) as the detection/rendering substrate; queue until #92 flips ✅.
 
@@ -3055,5 +3075,27 @@ Logged 2026-07-11.
 ## 101. 📝 Cross-chat memory / durable-facts layer (post-#93 successor)
 
 Both competitors personalize across conversations; the continuity fabric (#93, merged) preserves context within a conversation but doesn't carry durable user facts into new chats. Shape: a lightweight durable-facts store extending the condenser/journal, priming fresh sessions. Direct extension of Lane A's merged work — dispatchable as its own lane once #93's device checklist verifies, to avoid reworking unverified foundations.
+
+Logged 2026-07-11.
+
+## 102. 🔍 Local brain generation health — phrase-loop + thermal "serious" during use
+
+Device pass 2026-07-11, observed during the #67 session (which otherwise mostly passed): (a) the on-device brain repeats a certain phrase while in use; (b) `deviceStatus` reported thermal state "serious," attributed to running apps, with only Talaria running. Investigate TOGETHER — a repetition/generation loop that keeps the ANE/GPU spinning would explain both. Check: generation stop conditions / max-token bounds in `LocalChatBackend`, whether the loop persists across sessions, and thermal recovery after force-quit. If repetition is plain small-model sampling degeneracy, thermal may still warrant a mitigation (throttle sustained inference or surface a thermal notice). Possibly related: #61's repeated title/preview text (same model, same session).
+
+**Localized 2026-07-11, CORRECTED on second read (Owen challenged, rightly):** the live call `liveSession.streamResponse(to:)` passes NO options — SDK defaults govern; line 597's `GenerationOptions()` is cosmetic (transcript rehydration), not the mechanism. `streamDelta` prefix-guard and the single-shot condense-retry loop both verified safe — runaway regeneration RULED OUT. Best fit remains model-level repetition under default sampling with nothing bounding response length. Fix unchanged (explicit options + cap + tail-repetition breaker); Lane H spec corrected so Fable doesn't chase the red herring. Spec: `dispatch/FABLE-LANE-H-local-brain-gen-health.md`.
+
+Logged 2026-07-11.
+
+## 103. ✅ Health sensor delivery DOWN in prod — RESOLVED 2026-07-11 (connector dead 9 days, #87 defect)
+
+**Post-mortem (OJAMD session 2026-07-11):** connector.log shows the connector died 2026-07-02 18:45 in a `UnicodeDecodeError: charmap codec` loop — #87's exact defect — and never came back; the deploy repo was 107 commits behind, so the #87 fix never reached the box (see correction in #87). Remedy applied: rebased `ojamd-deploy` onto `t27/main` (c073baa+1), started ONE connector via `start-connector.bat` (single-instance enforcer verified in the script), WS attach to relay confirmed via `Get-NetTCPConnection`. Device confirmed: 2,000 pending → 0, actively draining, phone cooled significantly (empirical support for #104's persistence-amplification mechanism). Diagnostic notes for posterity: `hermes-mobile-mcp.exe` processes are MCP children of Hermes hosts, NOT connector instances; nssm-wrapper PIDs won't match port owners (LocalSystem children own the ports, cmdlines hidden from unelevated shells); HermesGateway now runs as a user pythonw process (`hermes gateway run`), not an NSSM service.
+
+Observed on device 2026-07-11: health uploads constantly failing, ~2,000 pending samples. Localized 2026-07-11 (source + live probe from Mac): relay `:8000` is UP (`/v1/health` ok) and the app-side outbox machinery is correct (#24a chunking/poison-isolation intact) — but `forward_sensor_payload` maps EVERY connector-side failure (no session, busy, send exception, ack timeout) to 202 "retry," so a dead or wedged connector reads as an endless retry loop on device. Chat unaffected (gateway `:8642` is a separate service). Prime suspect: connector process down or wedged — possibly the #87 UTF-8 crash (fix merged, NEVER deployed to OJAMD). Remedy = the #98 deploy plan pulled forward: rebase `ojamd-deploy` onto `t27/main`, restart connector (`start-connector.bat`), watch the backlog drain on the device diagnostics panel. Thermal note (CORRECTED 2026-07-11 after actual investigation, prompted by Owen): the retry POSTs are modest, BUT `persistOutboxState()` rewrites the ENTIRE outbox to UserDefaults on EVERY sensor tick (location/motion/health), on the main actor — at 2k samples that's a sustained encode/write loop whose cost scales with backlog size. Compounding feedback: connector down → backlog grows → every event costs more. A genuine thermal contributor alongside #102's generation issue, and it makes this deploy doubly urgent — draining the backlog collapses the cost immediately. App-side hardening tracked as #104.
+
+Logged 2026-07-11.
+
+## 104. 🔧 Sensor outbox persistence churn — full rewrite on every tick, main actor, unbounded backlog
+
+Found 2026-07-11 while investigating #103's thermal contribution: `SensorUploadService.persistOutboxState()` (backed by `UserDefaultsAppPersistenceStore.saveSensorOutboxState`) encodes and rewrites the WHOLE outbox on every location update, motion activity change, and health snapshot — in `@MainActor` tasks. Cost scales linearly with backlog size and there is no backlog cap, so any connector outage (like #103) turns routine sensor ticks into a sustained CPU/IO loop (heat + potential UI jank). Hardening shape: (a) debounce/coalesce persistence (e.g. persist at most every few seconds or on chunk boundaries — crash-loss window of a few seconds of sensor samples is acceptable), (b) cap `pendingHealthSamples` with oldest-drop + an honest diagnostics note when capped, (c) move the encode off the main actor. Small, file-scoped to `SensorUploadService.swift` + the persistence store; no collision with Lanes D/F/G/H. UN-GATED 2026-07-11: #103's deploy drained 2k→0 cleanly and the device cooled as the backlog fell — current semantics proven, mechanism empirically supported. Dispatchable as its own small lane whenever desired.
 
 Logged 2026-07-11.
