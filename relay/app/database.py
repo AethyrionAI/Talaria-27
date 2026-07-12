@@ -129,6 +129,16 @@ class Database:
                 )
             )
 
+            # #98 (Lane G): the trigger loop's due-schedule scan. The table
+            # itself is created additively by create_all (checkfirst) — a
+            # pre-Lane-G production DB just gains the table on first boot.
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_schedules_enabled_next_run "
+                    "ON schedules (enabled, next_run_at)"
+                )
+            )
+
             voice_turn_columns = {column["name"] for column in inspector.get_columns("voice_turns")}
             if "client_turn_id" not in voice_turn_columns:
                 connection.execute(text("ALTER TABLE voice_turns ADD COLUMN client_turn_id TEXT"))

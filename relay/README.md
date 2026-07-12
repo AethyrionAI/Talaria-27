@@ -166,3 +166,4 @@ APNs and CarPlay are optional platform features. They are documented in [../docs
 - [../docs/CONFIGURATION.md](../docs/CONFIGURATION.md)
 - [docs/fly-io.md](docs/fly-io.md)
 - [docs/local-dev.md](docs/local-dev.md)
+- [docs/SCHEDULED_RUNS.md](docs/SCHEDULED_RUNS.md) — scheduled/recurring agent runs (#98): endpoints + recurrence grammar
