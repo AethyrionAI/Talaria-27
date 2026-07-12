@@ -76,8 +76,8 @@ struct StoreSelectionTests {
         func sendStreaming(message: String, attachments: [PendingAttachment], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
             AsyncStream { $0.finish() }
         }
-        func loadConversation() async -> Conversation { Conversation() }
-        func clearConversation() async throws -> Conversation { Conversation() }
+        func loadConversation() async -> Conversation { Conversation(title: Conversation.defaultTitle) }
+        func clearConversation() async throws -> Conversation { Conversation(title: Conversation.defaultTitle) }
     }
 
     /// The selection the sidebar and detail share is the journal's active
