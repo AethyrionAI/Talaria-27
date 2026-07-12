@@ -3074,9 +3074,9 @@ Everything lives in `relay/` — zero Swift contact as speced. What shipped:
 
 Logged 2026-07-11.
 
-## 99. 📝 Interactive artifact / HTML preview — Lane D v2 (queued behind PR #65)
+## 99. 🔧 Interactive artifact / HTML preview — Lane I, UN-GATED (Lane D merged as #106)
 
-Both competitors render generated HTML/interactive content in-app; Talaria reconstructs agent files into a ShareLink bubble only. Natural successor to the P8 IR v0 rung: render agent-written single-file HTML (and later the IR) in an in-app preview surface (WKWebView, new-files-heavy). Do not dispatch until Lane D's PR #65 lands — same surface family.
+Both competitors render generated HTML/interactive content in-app; Talaria reconstructs agent files into a ShareLink bubble only. Natural successor to the P8 IR v0 rung: render agent-written single-file HTML (and later the IR) in an in-app preview surface (WKWebView, new-files-heavy). GATE CLEARED 2026-07-12: Lane D merged (#106); spec revised on top of the landed IR at `dispatch/FABLE-LANE-I-preview-surface.md` — preview sheet takes a generic content view so the future P8 rung slots into the same chrome. Sandboxed WKWebView (no bridges, navigation locked to initial content), text/code preview reuses the #92 stack, ShareLink relocates into the sheet toolbar.
 
 Logged 2026-07-11.
 
