@@ -54,6 +54,8 @@ struct ModelSelector: View {
                       fill: Design.Colors.accentTint(0.08), innerGlow: true)
         }
         .buttonStyle(.plain)
+        // Lane J (J-5): pointer affordance on iPad — inert without a pointer.
+        .hoverEffect(.highlight)
         .accessibilityLabel("Model: \(model.activeDisplayName). Open model picker")
     }
 }

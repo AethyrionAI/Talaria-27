@@ -324,6 +324,28 @@ enum Design {
         static let gridCell: CGFloat = 26
     }
 
+    // MARK: - Layout
+
+    /// Adaptive-width metrics (Lane J). Chat reading surfaces cap their
+    /// content to a readable measure on wide (iPad) windows. The cap is
+    /// applied unconditionally — every compact width (all iPhones, Slide
+    /// Over, 1/3 Split View) sits far below it, so the frame is a no-op
+    /// there and iPhone layout is untouched by construction, with no
+    /// size-class branch to get wrong.
+    enum Layout {
+        /// Max content width for the chat transcript, composer, and chat
+        /// banners, in points. ~700pt keeps body-size message lines in a
+        /// comfortable reading range on a 13" canvas instead of stretching
+        /// toward 1180pt, and leaves bubbles visibly bubble-shaped.
+        static let chatMeasureMaxWidth: CGFloat = 700
+
+        /// The pure decision behind the `.frame(maxWidth:)` cap — extracted
+        /// so the "no-op below the cap" iPhone-parity property is testable.
+        static func chatContentWidth(forAvailable width: CGFloat) -> CGFloat {
+            min(width, chatMeasureMaxWidth)
+        }
+    }
+
     // MARK: - Glow
 
     enum Glow {

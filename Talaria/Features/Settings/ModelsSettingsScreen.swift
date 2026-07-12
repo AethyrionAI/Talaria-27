@@ -273,6 +273,8 @@ struct ModelsSettingsScreen: View {
     private var header: some View {
         HStack {
             GlassCircleButton(icon: "chevron.left", accessibilityLabel: "Back") { dismiss() }
+                // J-4: Esc closes the Models sheet (hardware keyboards only).
+                .keyboardShortcut(.cancelAction)
             Spacer()
             Text("MODELS")
                 .font(Design.Typography.screenTitle2)

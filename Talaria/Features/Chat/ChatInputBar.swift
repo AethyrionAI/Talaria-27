@@ -118,6 +118,19 @@ struct ChatInputBar: View {
                         .foregroundStyle(Design.Colors.foreground)
                         .tint(Design.Brand.accent)
                         .focused(isFocused)
+                        // Lane J (J-4): hardware-keyboard Return sends;
+                        // ⇧Return (or any modified Return) falls through and
+                        // inserts a newline. Software keyboards never emit
+                        // key presses, so on-screen Return behavior — and
+                        // all of iPhone-without-a-keyboard — is untouched.
+                        .onKeyPress(keys: [.return], phases: .down) { press in
+                            guard press.modifiers.isDisjoint(with: [.shift, .option, .control, .command]) else {
+                                return .ignored
+                            }
+                            guard !isStreaming, canSend else { return .ignored }
+                            handlePrimaryAction()
+                            return .handled
+                        }
                         .scrollContentBackground(.hidden)
                         .background(.clear)
                         .frame(minHeight: 22, maxHeight: 120)
@@ -154,6 +167,8 @@ struct ChatInputBar: View {
                             .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
                             .contentShape(Rectangle())
                     }
+                    // Lane J (J-5): pointer affordance — inert without a pointer.
+                    .hoverEffect(.highlight)
                     .accessibilityLabel("Add attachment")
 
                     // Paste image from clipboard (#31)
@@ -167,6 +182,7 @@ struct ChatInputBar: View {
                                 .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
                                 .contentShape(Rectangle())
                         }
+                        .hoverEffect(.highlight)
                         .accessibilityLabel("Paste image")
                         .transition(.scale.combined(with: .opacity))
                     }
@@ -192,6 +208,7 @@ struct ChatInputBar: View {
                                 }
                                 .contentShape(Rectangle())
                         }
+                        .hoverEffect(.highlight)
                         .accessibilityLabel(speechService.isListening ? "Stop dictation" : "Start dictation")
                     }
 
@@ -214,6 +231,7 @@ struct ChatInputBar: View {
                                 }
                                 .contentShape(Rectangle())
                         }
+                        .hoverEffect(.highlight)
                         .accessibilityLabel("Start voice mode")
                         .transition(.scale.combined(with: .opacity))
                     }
@@ -444,6 +462,7 @@ struct ChatInputBar: View {
                     .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
                     .contentShape(Rectangle())
             }
+            .hoverEffect(.highlight)
             .accessibilityLabel("Stop generating")
         } else if canSend {
             Button(action: handlePrimaryAction) {
@@ -467,6 +486,7 @@ struct ChatInputBar: View {
                     .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
                     .contentShape(Rectangle())
             }
+            .hoverEffect(.highlight)
             .accessibilityLabel("Send message")
             .transition(.scale.combined(with: .opacity))
         } else if sendBlockedByAttachments {

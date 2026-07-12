@@ -1,5 +1,33 @@
 import SwiftUI
 
+/// Lane J (J-8): connection presentation shared by ChatScreen and the
+/// split-view sidebar footer (MainTabView) — one mapping, two surfaces.
+enum ChatConnectionPresentation {
+    /// Chat talks directly to the Sessions API — the relay-sourced host
+    /// state must not paint chat status (see ChatScreen's original note).
+    static func effectiveState(_ direct: ConnectionStatus) -> HermesHostConnectionState {
+        switch direct {
+        case .connected:
+            return .online
+        case .error:
+            return .offline
+        case .connecting, .disconnected:
+            // Not yet probed (or a probe is in flight). Stay optimistic so we
+            // never flash a false offline state before the first probe resolves.
+            return .online
+        }
+    }
+
+    static func sessionsHostDetail(_ state: HermesHostConnectionState) -> String {
+        switch state {
+        case .online: return "LINKED · ONLINE"
+        case .offline: return "OFFLINE"
+        case .unreachable: return "UNREACHABLE"
+        case .notConnected: return "NOT CONNECTED"
+        }
+    }
+}
+
 struct ChatScreen: View {
     @Environment(AppContainer.self) private var container
     @Environment(ChatStore.self) private var chatStore
@@ -9,9 +37,37 @@ struct ChatScreen: View {
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(InboxStore.self) private var inboxStore
     @Environment(TabRouter.self) private var router
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    @State private var messageText = ""
-    @State private var pendingAttachments: [PendingAttachment] = []
+    // Lane J (J-9): composer draft + staged attachments and the sessions
+    // model are OWNED BY MainTabView and passed in. The compact and regular
+    // root layouts are different view trees, so a size-class boundary
+    // crossing (Stage Manager drag) recreates this screen — anything that
+    // must survive it cannot be @State here.
+    @Binding var messageText: String
+    @Binding var pendingAttachments: [PendingAttachment]
+    let sessionsModel: SessionsDrawerModel
+    /// False in the regular split layout, where MainTabView draws ONE
+    /// atmosphere spanning the whole window behind both columns (J-9).
+    var showsAtmosphere: Bool = true
+    /// Regular width overrides ⌘K (focus the sidebar's inline filter field)
+    /// instead of this screen's default (present the search sheet).
+    var onConversationSearchShortcut: (() -> Void)? = nil
+
+    init(
+        messageText: Binding<String>,
+        pendingAttachments: Binding<[PendingAttachment]>,
+        sessionsModel: SessionsDrawerModel,
+        showsAtmosphere: Bool = true,
+        onConversationSearchShortcut: (() -> Void)? = nil
+    ) {
+        self._messageText = messageText
+        self._pendingAttachments = pendingAttachments
+        self.sessionsModel = sessionsModel
+        self.showsAtmosphere = showsAtmosphere
+        self.onConversationSearchShortcut = onConversationSearchShortcut
+    }
+
     @State private var showClearConfirmation = false
     /// #16: a parsed /alarm staged behind the in-app confirm gate — nothing
     /// schedules until the user confirms (decided policy for alarm writes).
@@ -29,8 +85,12 @@ struct ChatScreen: View {
 
     // HUD shells (presentation only — see SessionsDrawer / ModelSelector).
     @State private var sessionsOpen = false
-    @State private var sessionsModel = SessionsDrawerModel()
     @State private var modelModel = ModelSelectorModel()
+
+    // Lane J (J-4): ⌘K presents the Lane F search screen directly from the
+    // chat surface — no need to open the drawer first. Same screen, same
+    // model, same selection seam as the drawer's magnifying-glass button.
+    @State private var showConversationSearch = false
 
     private let thinkingIndicatorID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
     // #46: stable scroll anchor for the status card (it renders after the
@@ -79,21 +139,36 @@ struct ChatScreen: View {
                 }
                 .presentationDetents([.height(220)])
                 .presentationDragIndicator(.hidden)
+                // Lane J (J-3): detents only apply in compact — in a regular
+                // (iPad) window this sheet becomes a form-sheet card, and
+                // without a fitted height its 220pt of content floats in a
+                // mostly empty full-height card. Compact behavior unchanged.
+                .presentationSizing(.form.fitted(horizontal: false, vertical: true))
             }
             .sheet(isPresented: $showExportShareSheet) {
                 if let exportShareURL {
                     ShareSheet(activityItems: [exportShareURL])
                 }
             }
+            .sheet(isPresented: $showConversationSearch) {
+                // J-4 (⌘K): the search screen dismisses itself on selection;
+                // opening a hit routes through the drawer model's existing
+                // selection seam (wired in configureChatSeams).
+                ConversationSearchScreen(drawerModel: sessionsModel)
+            }
     }
 
     private var mainStack: some View {
         ZStack {
-            HUDScreenBackground()
-                .ignoresSafeArea()
+            // J-9: suppressed in the regular split layout — MainTabView draws
+            // one atmosphere behind both columns instead of per-column copies.
+            if showsAtmosphere {
+                HUDScreenBackground()
+                    .ignoresSafeArea()
 
-            ScanLine(intensity: 0.32)
-                .ignoresSafeArea()
+                ScanLine(intensity: 0.32)
+                    .ignoresSafeArea()
+            }
 
             VStack(spacing: 0) {
                 agentIdentityStrip
@@ -125,6 +200,10 @@ struct ChatScreen: View {
                     onSlashCommand: handleSlashCommand,
                     onPasteImage: { handleAttachmentResult(.image($0)) }
                 )
+                // Lane J (J-3): same readable measure as the transcript —
+                // the composer card (attachment strip included) must not
+                // stretch full-bleed at 13".
+                .frame(maxWidth: Design.Layout.chatMeasureMaxWidth)
             }
         }
     }
@@ -142,9 +221,17 @@ struct ChatScreen: View {
     private var framedContent: some View {
         mainStack
             .overlay {
-                if sessionsOpen {
+                // J-8: the drawer is the COMPACT list surface; regular width
+                // has the persistent sidebar instead.
+                if sessionsOpen && horizontalSizeClass != .regular {
                     sessionsOverlay
                 }
+            }
+            .onChange(of: horizontalSizeClass) { _, newClass in
+                // Crossing into regular (Stage Manager drag) with the drawer
+                // open: the sidebar takes over — don't leave a stale overlay
+                // flag that would pop the drawer back on the return trip.
+                if newClass == .regular { sessionsOpen = false }
             }
             // Animate the outer conditional so the drawer's move/opacity
             // transitions play on close too — closes were previously
@@ -153,6 +240,74 @@ struct ChatScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
             .toolbarBackground(.hidden, for: .navigationBar)
+            .background { shortcutBridge }
+    }
+
+    // MARK: - Hardware keyboard shortcuts (Lane J, J-4)
+
+    /// Zero-size, invisible buttons that exist only to register hardware
+    /// keyboard shortcuts while the chat surface is on screen (their labels
+    /// feed the iPadOS ⌘-hold discoverability HUD). Presented sheets take
+    /// shortcut precedence, so these go quiet behind Settings/search/etc.
+    /// Key assignments live in `ChatKeyboardShortcuts` (testable table).
+    private var shortcutBridge: some View {
+        Group {
+            Button("New Conversation") { showClearConfirmation = true }
+                .keyboardShortcut(ChatKeyboardShortcuts.newConversation.key,
+                                  modifiers: ChatKeyboardShortcuts.newConversation.modifiers)
+            Button("Search Conversations") { openConversationSearch() }
+                .keyboardShortcut(ChatKeyboardShortcuts.conversationSearch.key,
+                                  modifiers: ChatKeyboardShortcuts.conversationSearch.modifiers)
+            Button("Settings") { router.presentSheet(.settings) }
+                .keyboardShortcut(ChatKeyboardShortcuts.openSettings.key,
+                                  modifiers: ChatKeyboardShortcuts.openSettings.modifiers)
+            ForEach(1..<(ChatKeyboardShortcuts.sessionJumpCount + 1), id: \.self) { ordinal in
+                Button("Open Conversation \(ordinal)") { openSessionJump(ordinal) }
+                    .keyboardShortcut(ChatKeyboardShortcuts.sessionJump(ordinal).key,
+                                      modifiers: ChatKeyboardShortcuts.sessionJump(ordinal).modifiers)
+            }
+        }
+        .frame(width: 0, height: 0)
+        .opacity(0)
+        .accessibilityHidden(true)
+        .allowsHitTesting(false)
+    }
+
+    /// ⌘K — present the Lane F full-corpus search. Wires the same store
+    /// seams the drawer wires on open, so badges and selection behave
+    /// identically whichever entry point raised the screen; closes the
+    /// drawer rather than stacking a second presentation host. In regular
+    /// width MainTabView overrides this to focus the sidebar's inline
+    /// filter field directly (J-9).
+    private func openConversationSearch() {
+        if let onConversationSearchShortcut {
+            onConversationSearchShortcut()
+            return
+        }
+        sessionsModel.listState = container.conversationListState
+        sessionsModel.journal = chatStore.journal
+        sessionsOpen = false
+        showConversationSearch = true
+    }
+
+    /// ⌘1…⌘9 — open the nth conversation in drawer order (pinned first,
+    /// then recency; archived unreachable). No-op until the session list
+    /// has been fetched (configureChatSeams / drawer open) or when fewer
+    /// than n sessions exist — honest nothing, no fabricated target.
+    private func openSessionJump(_ ordinal: Int) {
+        let targets = ChatKeyboardShortcuts.sessionJumpTargets(
+            sessions: sessionsModel.sessions,
+            pinnedIDs: container.conversationListState?.state.pinnedSessionIDs ?? [],
+            archivedIDs: container.conversationListState?.state.archivedSessionIDs ?? []
+        )
+        guard ordinal - 1 < targets.count else { return }
+        sessionsOpen = false
+        let target = targets[ordinal - 1]
+        Task {
+            await chatStore.openSession(target.id)
+            // J-8: keep the persistent sidebar's list + highlight current.
+            await refreshSessions()
+        }
     }
 
     private var lifecycleContent: some View {
@@ -215,8 +370,18 @@ struct ChatScreen: View {
         // Sessions drawer → Hermes Sessions API. Tapping a session loads its
         // full history and continues that thread.
         sessionsModel.onSelectSession = { summary in
-            Task { await chatStore.openSession(summary.id) }
+            Task {
+                await chatStore.openSession(summary.id)
+                // J-8: the persistent sidebar has no drawer-open refresh to
+                // move the CURRENT highlight — re-fetch after the switch.
+                // Neutral in compact: the drawer is closed by now and would
+                // refetch on its next open anyway.
+                await refreshSessions()
+            }
         }
+        // J-8: the persistent sidebar re-fetches on mount through this seam
+        // (the drawer path refreshes via onChange(sessionsOpen) as before).
+        sessionsModel.onRefreshRequest = { Task { await refreshSessions() } }
 
         // Model chip → Settings → Models (the shim-backed real picker).
         // No local dropdown — the chip is a shortcut to the full picker.
@@ -296,29 +461,30 @@ struct ChatScreen: View {
     }()
 
     private var sessionsHostDetail: String {
-        switch effectiveConnectionState {
-        case .online: return "LINKED · ONLINE"
-        case .offline: return "OFFLINE"
-        case .unreachable: return "UNREACHABLE"
-        case .notConnected: return "NOT CONNECTED"
-        }
+        ChatConnectionPresentation.sessionsHostDetail(effectiveConnectionState)
     }
 
     // MARK: - Toolbar
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            Button {
-                withAnimation(Design.Motion.standard) { sessionsOpen = true }
-            } label: {
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(Design.Colors.secondaryForeground)
-                    .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+        // J-8: the hamburger opens the compact drawer; in regular width the
+        // NavigationSplitView sidebar toggle owns that slot instead.
+        if horizontalSizeClass != .regular {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    withAnimation(Design.Motion.standard) { sessionsOpen = true }
+                } label: {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Design.Colors.secondaryForeground)
+                        .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+                }
+                // Lane J (J-5): pointer affordance on iPad — inert without a pointer.
+                .hoverEffect(.highlight)
+                .accessibilityLabel("Sessions")
+                .allowsHitTesting(!sessionsOpen)
             }
-            .accessibilityLabel("Sessions")
-            .allowsHitTesting(!sessionsOpen)
         }
         ToolbarItem(placement: .principal) {
             ModelSelector(model: modelModel, isOnline: isChatHostOnline)
@@ -358,16 +524,7 @@ struct ChatScreen: View {
     /// is relay-sourced and the relay is offline by design, which would otherwise
     /// paint a false "Hermes host offline" banner and a stale/offline model chip.
     private var effectiveConnectionState: HermesHostConnectionState {
-        switch chatStore.directConnectionStatus {
-        case .connected:
-            return .online
-        case .error:
-            return .offline
-        case .connecting, .disconnected:
-            // Not yet probed (or a probe is in flight). Stay optimistic so we
-            // never flash a false offline state before the first probe resolves.
-            return .online
-        }
+        ChatConnectionPresentation.effectiveState(chatStore.directConnectionStatus)
     }
 
     // Explicitly-typed projections of `effectiveConnectionState`. Keeping these
@@ -465,6 +622,9 @@ struct ChatScreen: View {
             } label: {
                 brainChip(brainRouter.activeBrain, showsChevron: true)
             }
+            // Lane J (J-5): the picker chip is tappable chrome; the static
+            // chip below is not interactive and gets no hover.
+            .hoverEffect(.highlight)
             .accessibilityLabel("Chat brain: \(brainRouter.activeBrain.displayLabel). Tap to change.")
         } else {
             brainChip(brainRouter.activeBrain, showsChevron: false)
@@ -551,6 +711,8 @@ struct ChatScreen: View {
         // showStatusCard was only ever set false).
         .contentShape(Rectangle())
         .onTapGesture { toggleStatusCard() }
+        // Lane J (J-5): pointer affordance on iPad — inert without a pointer.
+        .hoverEffect(.highlight)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel("Context \(Int(contextProgress * 100)) percent. Shows session status and turn receipts.")
@@ -690,13 +852,33 @@ struct ChatScreen: View {
                     }
                 }
                 .padding(.vertical, Design.Spacing.md)
+                // Lane J (J-3): readable measure on wide windows. The scroll
+                // view stays full-bleed; only the content column is capped
+                // (ScrollView centers narrower content on the cross axis).
+                .frame(maxWidth: Design.Layout.chatMeasureMaxWidth)
             }
             .scrollDismissesKeyboard(.interactively)
             .redacted(reason: chatStore.isLoading ? .placeholder : [])
             .onTapGesture {
                 isComposerFocused = false
             }
-            .onAppear { scrollProxy = proxy }
+            .onAppear {
+                let isFreshScrollSurface = (scrollProxy == nil)
+                scrollProxy = proxy
+                // J-9: a size-class boundary crossing recreates this screen
+                // with the conversation already loaded — land back at the
+                // transcript tail instead of the top. Unreachable in today's
+                // iPhone flow (first appear always precedes the async load,
+                // and pop-returns keep this view alive), so compact behavior
+                // is untouched.
+                if isFreshScrollSurface, let lastID = chatStore.conversation?.messages.last?.id {
+                    var transaction = Transaction(animation: nil)
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
+                        proxy.scrollTo(lastID, anchor: .bottom)
+                    }
+                }
+            }
         }
     }
 
@@ -739,6 +921,7 @@ struct ChatScreen: View {
         .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Brand.forge.opacity(0.35))
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.md)
+        .frame(maxWidth: Design.Layout.chatMeasureMaxWidth)
         .accessibilityElement(children: .combine)
     }
 
@@ -762,6 +945,7 @@ struct ChatScreen: View {
         .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Brand.forge.opacity(0.35))
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.md)
+        .frame(maxWidth: Design.Layout.chatMeasureMaxWidth)
         .accessibilityElement(children: .combine)
     }
 
@@ -806,6 +990,7 @@ struct ChatScreen: View {
         .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Colors.accentTint(0.35))
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.md)
+        .frame(maxWidth: Design.Layout.chatMeasureMaxWidth)
         .accessibilityElement(children: .combine)
     }
 
@@ -836,6 +1021,7 @@ struct ChatScreen: View {
         .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Brand.forge.opacity(0.35))
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.md)
+        .frame(maxWidth: Design.Layout.chatMeasureMaxWidth)
     }
 
     private var connectionBannerIcon: String {
@@ -1072,6 +1258,9 @@ struct ChatScreen: View {
         do {
             try await chatStore.clearConversation()
             showStatusCard = false
+            // J-8: surface the fresh session in the persistent sidebar
+            // (compact's drawer refetches on its next open regardless).
+            await refreshSessions()
         } catch {
             // Conversation unchanged on failure — user can retry
         }

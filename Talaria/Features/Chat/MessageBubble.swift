@@ -21,6 +21,8 @@ struct MessageBubble: View {
     // long-press is owned by the context menu, so in-bubble `.textSelection`
     // can't coexist with it.
     @State private var isSelectTextPresented = false
+    // #99: which reconstructed agent file is open in the preview sheet.
+    @State private var previewedAttachment: MessageAttachment?
 
     private var isUser: Bool { message.sender == .user || message.sender == .voiceUser }
     private var isHermes: Bool { message.sender == .hermes || message.sender == .voiceHermes }
@@ -690,15 +692,21 @@ struct MessageBubble: View {
             }
         }
         .padding(.top, Design.Spacing.xxs)
+        // #99: tap → full-screen in-app preview.
+        .sheet(item: $previewedAttachment) { attachment in
+            AgentFilePreviewSheet(attachment: attachment)
+        }
     }
 
-    /// A tappable file chip that hands the staged file to the system share sheet
-    /// (`ShareLink` covers Save to Files, AirDrop, Quick Look, etc.).
+    /// A tappable file chip that opens the in-app preview sheet (#99); the
+    /// share affordance lives in the sheet's toolbar (preview AND share).
     @ViewBuilder
     private func agentFileBubble(_ attachment: MessageAttachment) -> some View {
         if let path = attachment.localStoragePath {
             let url = URL(fileURLWithPath: path)
-            ShareLink(item: url) {
+            Button {
+                previewedAttachment = attachment
+            } label: {
                 HStack(spacing: Design.Spacing.sm) {
                     Image(systemName: "doc.text")
                         .font(.system(size: Design.Size.iconSmall))
@@ -719,7 +727,7 @@ struct MessageBubble: View {
 
                     Spacer(minLength: Design.Spacing.sm)
 
-                    Image(systemName: "square.and.arrow.up")
+                    Image(systemName: "eye")
                         .font(.system(size: Design.Size.iconTiny))
                         .foregroundStyle(Design.Colors.mutedForeground)
                 }
@@ -733,7 +741,7 @@ struct MessageBubble: View {
             }
             .buttonStyle(.plain)
             .frame(maxWidth: 280, alignment: .leading)
-            .accessibilityLabel("Share file \(attachment.fileName)")
+            .accessibilityLabel("Preview file \(attachment.fileName)")
         }
     }
 
@@ -812,6 +820,8 @@ private struct SelectableTextSheet: View {
                     Button("Done") { dismiss() }
                         .font(Design.Typography.mono(13, weight: .medium))
                         .foregroundStyle(Design.Brand.accent)
+                        // J-4: Esc closes the sheet (hardware keyboards only).
+                        .keyboardShortcut(.cancelAction)
                 }
             }
         }

@@ -64,6 +64,10 @@ final class SessionsDrawerModel {
     var onNewChat: (() -> Void)? = nil
     var onSelectSession: ((SessionSummary) -> Void)? = nil
     var onOpenHostSettings: (() -> Void)? = nil
+    /// Lane J (J-8): asks the host screen to re-fetch the session list. The
+    /// drawer refreshes on every open (ChatScreen's onChange); the persistent
+    /// split-view sidebar uses this seam on mount instead.
+    var onRefreshRequest: (() -> Void)? = nil
 
     /// Sessions filtered by `searchText` and the pin/archive overlay (#97),
     /// grouped and ordered for display.
@@ -187,6 +191,21 @@ final class SessionsDrawerModel {
         onNewChat?()
     }
 
+    /// Lane J (J-9): ⌘K in regular width focuses the visible pane's inline
+    /// filter field. Request/consume semantics (not a toggle) so a request
+    /// made while the sidebar is hidden is honored once on mount and a stale
+    /// flag can never steal focus later.
+    private(set) var searchFieldFocusRequested = false
+
+    func requestSearchFieldFocus() {
+        searchFieldFocusRequested = true
+    }
+
+    func consumeSearchFieldFocusRequest() -> Bool {
+        defer { searchFieldFocusRequested = false }
+        return searchFieldFocusRequested
+    }
+
     static let placeholders: [SessionSummary] = [
         SessionSummary(id: "pin-briefing", title: "Morning Briefing",
                        subtitle: "Daily digest · weather, calendar, inbox",
@@ -216,14 +235,6 @@ struct SessionsDrawer: View {
     var hostDetail: String = "LINKED"
     var hostOnline: Bool = true
 
-    // #96/#97: the drawer wires its own store seams (ChatScreen stays
-    // untouched — Lane F constraint). Both are optional-tolerant: absent
-    // environment objects would crash, but these are injected at the app
-    // root; previews/tests drive the model directly instead.
-    @Environment(AppContainer.self) private var container
-    @Environment(ChatStore.self) private var chatStore
-    @State private var showSearch = false
-
     private let panelWidth: CGFloat = 320
 
     var body: some View {
@@ -239,17 +250,10 @@ struct SessionsDrawer: View {
         .animation(Design.Motion.standard, value: isPresented)
         .ignoresSafeArea()
         .onAppear {
-            model.listState = container.conversationListState
-            model.journal = chatStore.journal
             // The Archived filter is a transient view — every drawer open
-            // starts on the main list.
+            // starts on the main list. (Drawer-only semantics: the split-view
+            // sidebar is persistent and keeps its filter state.)
             model.showingArchived = false
-        }
-        .sheet(isPresented: $showSearch) {
-            ConversationSearchScreen(
-                drawerModel: model,
-                onDidSelect: { isPresented = false }
-            )
         }
     }
 
@@ -266,20 +270,17 @@ struct SessionsDrawer: View {
     // MARK: Panel
 
     private var panel: some View {
-        VStack(spacing: 0) {
-            header
-            searchField
-                .padding(.horizontal, Design.Spacing.lg)
-            newChatButton
-                .padding(.horizontal, Design.Spacing.lg)
-                .padding(.top, Design.Spacing.sm)
-            sessionList
-            if model.archivedCount > 0 || model.showingArchived {
-                archivedFilterRow
-            }
-            footer
-        }
-        .frame(maxHeight: .infinity, alignment: .top)
+        // Lane J (J-8): the list surface is the shared ConversationListPane —
+        // the SAME component the split-view sidebar embeds (extracted, not
+        // forked). Only the slide-in chrome (width, gradient, edge highlight,
+        // backdrop, dismissal) is drawer-specific.
+        ConversationListPane(
+            model: model,
+            hostName: hostName,
+            hostDetail: hostDetail,
+            hostOnline: hostOnline,
+            dismissHost: { isPresented = false }
+        )
         .background(drawerBackground)
         .overlay(alignment: .leading) {
             // Bright cyan edge highlight.
@@ -299,6 +300,78 @@ struct SessionsDrawer: View {
     private var drawerBackground: some View {
         Design.Colors.drawerGradient
     }
+}
+
+// MARK: - Conversation list pane (Lane J, J-8)
+
+/// The conversation-list surface itself: header, inline filter, New Chat,
+/// grouped session list with pin/archive, archived filter row, host footer,
+/// and the full-corpus search sheet. Lane F built this as the drawer's
+/// panel; Lane J extracted it verbatim so the split-view sidebar and the
+/// drawer render ONE component — F's surfaces exist exactly once.
+struct ConversationListPane: View {
+    var model: SessionsDrawerModel
+    /// Footer host status line (driven by the host screen).
+    var hostName: String = "HERMES HOST"
+    var hostDetail: String = "LINKED"
+    var hostOnline: Bool = true
+    /// Drawer chrome seam: non-nil when the pane lives in the slide-in
+    /// drawer — list actions dismiss the drawer and the header shows a
+    /// close X (with Esc bound). Nil in the split-view sidebar, where the
+    /// pane is a persistent column and nothing dismisses.
+    var dismissHost: (() -> Void)? = nil
+
+    // #96/#97: the pane wires its own store seams (ChatScreen stays
+    // untouched — Lane F constraint). Both are optional-tolerant: absent
+    // environment objects would crash, but these are injected at the app
+    // root; previews/tests drive the model directly instead.
+    @Environment(AppContainer.self) private var container
+    @Environment(ChatStore.self) private var chatStore
+    @State private var showSearch = false
+
+    // Lane J (J-9): ⌘K in regular width focuses the inline filter field.
+    @FocusState private var filterFieldFocused: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+            searchField
+                .padding(.horizontal, Design.Spacing.lg)
+            newChatButton
+                .padding(.horizontal, Design.Spacing.lg)
+                .padding(.top, Design.Spacing.sm)
+            sessionList
+            if model.archivedCount > 0 || model.showingArchived {
+                archivedFilterRow
+            }
+            footer
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .onAppear {
+            model.listState = container.conversationListState
+            model.journal = chatStore.journal
+            // Sidebar context only: the drawer already refreshes on every
+            // open via ChatScreen's onChange — no double fetch there.
+            if dismissHost == nil {
+                model.onRefreshRequest?()
+            }
+            // A ⌘K focus request can land while the pane is unmounted
+            // (sidebar hidden) — honor it once on mount.
+            if model.consumeSearchFieldFocusRequest() {
+                filterFieldFocused = true
+            }
+        }
+        .onChange(of: model.searchFieldFocusRequested) { _, requested in
+            guard requested, model.consumeSearchFieldFocusRequest() else { return }
+            filterFieldFocused = true
+        }
+        .sheet(isPresented: $showSearch) {
+            ConversationSearchScreen(
+                drawerModel: model,
+                onDidSelect: { dismissHost?() }
+            )
+        }
+    }
 
     private var header: some View {
         HStack(alignment: .top) {
@@ -316,12 +389,18 @@ struct SessionsDrawer: View {
                 headerChipIcon("text.magnifyingglass")
             }
             .buttonStyle(.plain)
+            .hoverEffect(.highlight)
             .accessibilityLabel("Search all conversations")
-            Button { isPresented = false } label: {
-                headerChipIcon("xmark")
+            if let dismissHost {
+                Button { dismissHost() } label: {
+                    headerChipIcon("xmark")
+                }
+                .buttonStyle(.plain)
+                // J-4: Esc closes the drawer overlay (hardware keyboards only).
+                .keyboardShortcut(.cancelAction)
+                .hoverEffect(.highlight)
+                .accessibilityLabel("Close sessions")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Close sessions")
         }
         .padding(.horizontal, Design.Spacing.lg)
         .padding(.top, Design.Spacing.xxl)
@@ -351,6 +430,8 @@ struct SessionsDrawer: View {
                 .foregroundStyle(Design.Colors.foreground)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                // J-9: ⌘K's focus target in regular width.
+                .focused($filterFieldFocused)
             MonoLabel("⌘K", size: 9, color: Design.Brand.accent)
                 .padding(.horizontal, 6).padding(.vertical, 3)
                 .background(Design.Colors.accentTint(0.08), in: RoundedRectangle(cornerRadius: Design.CornerRadius.xs))
@@ -363,7 +444,7 @@ struct SessionsDrawer: View {
     private var newChatButton: some View {
         GlowButton(title: "New Chat", systemImage: "plus", height: 46) {
             model.newChat()
-            isPresented = false
+            dismissHost?()
         }
     }
 
@@ -397,7 +478,7 @@ struct SessionsDrawer: View {
                         trailing: Design.Spacing.md
                     ))
                 ForEach(entry.items) { item in
-                    SessionRow(summary: item) { model.selectSession(item); isPresented = false }
+                    SessionRow(summary: item) { model.selectSession(item); dismissHost?() }
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets(
@@ -468,6 +549,7 @@ struct SessionsDrawer: View {
             .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
         }
         .buttonStyle(.plain)
+        .hoverEffect(.highlight)
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.xs)
         .accessibilityLabel(model.showingArchived
@@ -484,12 +566,13 @@ struct SessionsDrawer: View {
                 MonoLabel(hostDetail, size: 9, tracking: Design.Tracking.mono)
             }
             Spacer()
-            Button { model.onOpenHostSettings?(); isPresented = false } label: {
+            Button { model.onOpenHostSettings?(); dismissHost?() } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 13))
                     .foregroundStyle(Design.Brand.accent)
                     .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
             }
+            .hoverEffect(.highlight)
             .accessibilityLabel("Host settings")
         }
         .padding(.horizontal, Design.Spacing.sm)
@@ -541,6 +624,8 @@ private struct SessionRow: View {
             )
         }
         .buttonStyle(.plain)
+        // Lane J (J-5): pointer affordance on iPad — inert without a pointer.
+        .hoverEffect(.highlight)
         .accessibilityLabel("\(summary.title), \(summary.subtitle)\(summary.isActive ? ", current session" : "")")
     }
 
