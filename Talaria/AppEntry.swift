@@ -30,6 +30,47 @@ enum NotificationReplyAction {
     }
 }
 
+/// Lane J (J-2): Talaria is a single-window app, by decision — the store
+/// layer (`ChatStore`/`AppContainer`) has never been audited for concurrent
+/// scene observation, so a second chat window must not exist yet.
+///
+/// `UIApplicationSupportsMultipleScenes` must stay `true` in the scene
+/// manifest: CarPlay's template scene connects alongside the device window
+/// and needs it. But that same key is what makes iPadOS offer "New Window" /
+/// Stage Manager "+" for the app. The narrowest refusal that keeps CarPlay
+/// intact: watch `UIScene.willConnectNotification`, and when an app window
+/// scene connects while another app window scene is already connected, ask
+/// the system to destroy the new session immediately. CarPlay scenes are
+/// `CPTemplateApplicationScene` (not `UIWindowScene`) and pass untouched;
+/// deliberately NOT implemented via
+/// `application(_:configurationForConnecting:options:)`, which would sit in
+/// the middle of SwiftUI's WindowGroup scene attachment and the manifest's
+/// CarPlay config resolution.
+@MainActor
+enum SingleWindowPolicy {
+    private static var observer: (any NSObjectProtocol)?
+
+    static func activate() {
+        guard observer == nil else { return }
+        observer = NotificationCenter.default.addObserver(
+            forName: UIScene.willConnectNotification,
+            object: nil,
+            queue: .main
+        ) { note in
+            MainActor.assumeIsolated {
+                guard let scene = note.object as? UIWindowScene,
+                      scene.session.role == .windowApplication else { return }
+                let hasOtherAppWindow = UIApplication.shared.connectedScenes.contains {
+                    $0 !== scene && $0 is UIWindowScene && $0.session.role == .windowApplication
+                }
+                guard hasOtherAppWindow else { return }
+                appDelegateLog.notice("SingleWindowPolicy: refusing second app window scene")
+                UIApplication.shared.requestSceneSessionDestruction(scene.session, options: nil, errorHandler: nil)
+            }
+        }
+    }
+}
+
 final class HermesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(
         _ application: UIApplication,
@@ -40,6 +81,9 @@ final class HermesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
         // activities immediately on launch; real active sessions will recreate
         // or adopt an activity once state is restored.
         LiveActivityService.endAllActivities()
+
+        // Lane J (J-2): refuse second app windows on iPad; see SingleWindowPolicy.
+        SingleWindowPolicy.activate()
 
         // Register for remote (silent push) notifications
         application.registerForRemoteNotifications()
