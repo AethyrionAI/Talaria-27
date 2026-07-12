@@ -48,8 +48,38 @@ final class LocalChatBackend: HermesClientProtocol {
     private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "LocalChatBackend")
 
     /// Tokens reserved out of the context window for the model's reply (the
-    /// window is shared between input and output).
-    static let responseHeadroomTokens = 1024
+    /// window is shared between input and output) — and, since #102, also
+    /// the enforced `maximumResponseTokens` cap, so the reply can never
+    /// overflow its reservation. Tier-aware: PCC's 32K window exists for
+    /// long-form output, so capping it at the on-device 1024 would gut the
+    /// tier's whole point.
+    nonisolated static func responseHeadroomTokens(for tier: LocalModelTier) -> Int {
+        tier == .privateCloud ? 4096 : 1024
+    }
+
+    /// Explicit generation options for every chat turn (#102). Passing no
+    /// options leaves sampling to an UNDOCUMENTED system default and imposes
+    /// no response-token bound at all — Apple's docs (verified 2026-07-12):
+    /// with `maximumResponseTokens` unset "the model is allowed to produce
+    /// the longest answer its context size supports", the best-fit mechanism
+    /// for the observed phrase-loop + thermal "serious". Three explicit
+    /// choices:
+    /// - Nucleus sampling: guarantees non-greedy decoding (under greedy, a
+    ///   temperature is a no-op — and whether the system default is greedy
+    ///   is undocumented). 0.9 is the standard conversational threshold.
+    /// - Temperature 0.7: moderate on Apple's documented 0–1 scale
+    ///   (1 = no adjustment, lower sharpens toward determinism).
+    /// - Token cap = the tier's reply headroom, the same reservation the
+    ///   context budget carves out, now enforced. Hitting it terminates the
+    ///   response early with NO error (documented), so a runaway reply
+    ///   degrades to truncation instead of a thermal event.
+    nonisolated static func chatGenerationOptions(for tier: LocalModelTier) -> GenerationOptions {
+        GenerationOptions(
+            samplingMode: .random(probabilityThreshold: 0.9),
+            temperature: 0.7,
+            maximumResponseTokens: responseHeadroomTokens(for: tier)
+        )
+    }
     /// Per-turn cap when older turns are condensed into memory: enough for the
     /// gist of a turn, small enough that memory never crowds out live context.
     static let condensedPerTurnTokens = 120
@@ -247,10 +277,23 @@ final class LocalChatBackend: HermesClientProtocol {
         var didCondenseRetry = false
         while true {
             do {
-                let response = try await liveSession.respond(to: Prompt(prompt))
+                let response = try await liveSession.respond(to: Prompt(prompt), options: Self.chatGenerationOptions(for: activeTier))
                 connectionStatus = .connected
-                let reply = Message(sender: .hermes, content: response.content, status: .delivered)
-                appendAssistantMessage(reply, usage: currentTokenUsage())
+                let usage = currentTokenUsage()
+                // #102: the sync path has no stream to break, but a capped
+                // looped reply still returns as a normal success — collapse
+                // it before it becomes replayable history, mirroring the
+                // streaming trip.
+                let content = Self.collapsingDegenerateTail(response.content)
+                if content != response.content {
+                    // The live session's internal transcript holds the full
+                    // loop — rebuild the next turn from our (collapsed)
+                    // history instead of trusting it.
+                    session = nil
+                    Self.logger.notice("send: degenerate tail collapsed in sync reply — session invalidated (#102)")
+                }
+                let reply = Message(sender: .hermes, content: content, status: .delivered)
+                appendAssistantMessage(reply, usage: usage)
                 return reply
             } catch {
                 if !didCondenseRetry, Self.isContextOverflow(error) {
@@ -322,7 +365,9 @@ final class LocalChatBackend: HermesClientProtocol {
                 // reasoning transcript entries diff onto reasoningDelta,
                 // never folded into the answer text.
                 var emittedReasoning = ""
-                let stream = liveSession.streamResponse(to: Prompt(prompt))
+                var didTripRepetitionBreaker = false
+                var repetitionBreaker = RepetitionBreaker()
+                let stream = liveSession.streamResponse(to: Prompt(prompt), options: Self.chatGenerationOptions(for: activeTier))
                 for try await snapshot in stream {
                     if Task.isCancelled { break }
                     latestFull = snapshot.content
@@ -337,6 +382,21 @@ final class LocalChatBackend: HermesClientProtocol {
                             continuation.yield(.reasoningDelta(delta))
                         }
                     }
+                    // #102: a model stuck in a phrase loop would otherwise
+                    // burn until the token cap. The breaker arms on the
+                    // first qualifying repetition and abandons the stream
+                    // only when the run keeps GROWING — bounded legitimate
+                    // repetition (identical code rows, a requested refrain)
+                    // ends, disarms, and streams through untouched.
+                    if repetitionBreaker.shouldAbandon(afterObserving: Self.degenerateTailRepetitionRun(in: latestFull)) {
+                        didTripRepetitionBreaker = true
+                        Self.logger.notice("streamTurn: degenerate tail repetition escalated after \(latestFull.count, privacy: .public) chars — abandoning the stream, collapsing the looped tail (#102)")
+                        // Keep the reply up to ONE copy of the loop: the
+                        // full run is noise by definition, and replaying it
+                        // into rebuilt sessions re-primes the loop.
+                        latestFull = Self.collapsingDegenerateTail(latestFull)
+                        break
+                    }
                 }
                 connectionStatus = .connected
                 // `latestFull` is authoritative: if a snapshot ever rewrote
@@ -346,6 +406,12 @@ final class LocalChatBackend: HermesClientProtocol {
                 if !emittedReasoning.isEmpty { reply.reasoning = emittedReasoning }
                 let usage = currentTokenUsage()
                 appendAssistantMessage(reply, usage: usage)
+                if didTripRepetitionBreaker {
+                    // The abandoned session's internal transcript state is
+                    // unknowable — rebuild the next turn from OUR message
+                    // history (the durable source) instead of trusting it.
+                    session = nil
+                }
                 continuation.yield(.finished(reply, usage, nil))
                 return
             } catch {
@@ -505,7 +571,7 @@ final class LocalChatBackend: HermesClientProtocol {
     private func sessionBlueprint(for turns: [TranscriptTurn], forceCondense: Bool) async -> SessionBlueprint {
         let baseInstructions = Self.instructionsText(deviceContext: Self.deviceContextLine(), hasTools: !tools.isEmpty)
         // Budget from the model at RUNTIME — never hardcoded (#26 ground rule).
-        let contextBudget = max(1024, await activeContextSize() - Self.responseHeadroomTokens)
+        let contextBudget = max(1024, await activeContextSize() - Self.responseHeadroomTokens(for: activeTier))
 
         // Cheap upper bound first: every token is at least one UTF-8 byte, so
         // a byte total inside the budget can never overflow it — skip the
@@ -564,7 +630,7 @@ final class LocalChatBackend: HermesClientProtocol {
     /// the tokenizer only runs once histories actually get long.
     private func fitsContext(turns: [TranscriptTurn], nextPrompt: String) async -> Bool {
         let baseInstructions = Self.instructionsText(deviceContext: Self.deviceContextLine(), hasTools: !tools.isEmpty)
-        let contextBudget = max(1024, await activeContextSize() - Self.responseHeadroomTokens)
+        let contextBudget = max(1024, await activeContextSize() - Self.responseHeadroomTokens(for: activeTier))
         let byteTotal = baseInstructions.utf8.count
             + nextPrompt.utf8.count
             + turns.reduce(0) { $0 + $1.text.utf8.count }
@@ -729,6 +795,198 @@ final class LocalChatBackend: HermesClientProtocol {
         guard snapshot.hasPrefix(emitted) else { return nil }
         let delta = String(snapshot.dropFirst(emitted.count))
         return delta.isEmpty ? nil : delta
+    }
+
+    // MARK: Tail-repetition breaker (#102)
+
+    /// Detection thresholds — deliberately conservative: judging legitimate
+    /// repetition (lists, code, separator art, refrains) as a loop would
+    /// truncate a good reply, so everything below errs toward letting the
+    /// token cap (`chatGenerationOptions`) be the backstop instead.
+    /// The shortest phrase treated as a loop unit. Anything shorter (repeated
+    /// Latin syllables, `}` lines, `---|` table art) never qualifies — except
+    /// CJK phrases, which pack a whole phrase into a few characters (see
+    /// `repetitionUnitQualifies`).
+    private nonisolated static let repetitionMinimumUnitLength = 8
+    /// The longest phrase checked as a loop unit. 128 covers full-sentence
+    /// loops, a common small-model degeneration shape.
+    private nonisolated static let repetitionMaximumUnitLength = 128
+    /// Consecutive exact copies of the unit required at the tail before a
+    /// run is even DETECTED (arming, not yet abandoning — see
+    /// `RepetitionBreaker`).
+    private nonisolated static let repetitionMinimumRepeats = 6
+    /// Total characters a detected run must cover (short units need
+    /// proportionally more copies).
+    private nonisolated static let repetitionMinimumSpan = 192
+    /// Escalation floor: the breaker never abandons below this many copies,
+    /// however early the run was detected.
+    nonisolated static let repetitionEscalationRepeats = 12
+    /// The scan is bounded to this tail window so it stays cheap on every
+    /// stream snapshot. Sized so escalation stays observable for the largest
+    /// unit: `repetitionEscalationRepeats × repetitionMaximumUnitLength`
+    /// (1536) fits with headroom.
+    private nonisolated static let repetitionScanWindow = 2048
+
+    /// A detected degenerate run at the tail of a stream snapshot.
+    /// `nonisolated`: nested types infer the class's @MainActor otherwise,
+    /// and the nonisolated unit tests construct these directly.
+    nonisolated struct TailRepetitionRun: Equatable, Sendable {
+        let unitLength: Int
+        let repeats: Int
+    }
+
+    /// Streaming breaker state (#102): cumulative snapshots judge PREFIXES of
+    /// the reply, and a prefix of legitimate output can be tail-repetitive
+    /// even when the completed text is not (twelve identical data rows, a
+    /// requested refrain). So detection alone never abandons: the breaker
+    /// ARMS on the first qualifying run, DISARMS when the tail stops
+    /// qualifying (the bounded run ended — the closing bracket arrived), and
+    /// abandons only when the same run keeps growing to twice its armed size
+    /// (with an absolute floor) — a signature only a genuinely stuck loop
+    /// produces.
+    nonisolated struct RepetitionBreaker {
+        private(set) var armedRepeats: Int?
+
+        // Explicit: private(set) would otherwise restrict the synthesized
+        // memberwise initializer below internal, and the tests construct one.
+        init() {}
+
+        mutating func shouldAbandon(afterObserving run: TailRepetitionRun?) -> Bool {
+            guard let run else {
+                armedRepeats = nil
+                return false
+            }
+            guard let armed = armedRepeats else {
+                armedRepeats = run.repeats
+                return false
+            }
+            if run.repeats < armed {
+                // A different (or re-started) run — re-arm at the lower count
+                // rather than measuring the new run against the old baseline.
+                armedRepeats = run.repeats
+                return false
+            }
+            // The scan window bounds what a single observation can report
+            // (`repetitionScanWindow / unitLength` copies), so the escalation
+            // threshold is clamped to that ceiling — otherwise a run that
+            // armed high off one coarse snapshot could never be seen to
+            // double, and the breaker would silently never fire.
+            let maxObservable = LocalChatBackend.repetitionScanWindow / run.unitLength
+            let threshold = min(max(LocalChatBackend.repetitionEscalationRepeats, armed * 2), maxObservable)
+            return run.repeats >= threshold
+        }
+    }
+
+    /// The qualifying degenerate run `text` currently ends in, nil when the
+    /// tail is healthy. Tail-anchored: a snapshot stream only ever grows at
+    /// the end, so a loop the model is currently stuck in always reaches the
+    /// tail — while a recovered loop earlier in the text never qualifies.
+    /// Alignment doesn't matter: a periodic tail matches at its period even
+    /// when the snapshot cuts mid-unit.
+    nonisolated static func degenerateTailRepetitionRun(in text: String) -> TailRepetitionRun? {
+        let window = Array(text.suffix(repetitionScanWindow))
+        let count = window.count
+        guard count >= repetitionMinimumSpan else { return nil }
+        var unitLength = repetitionMinimumUnitLength
+        while unitLength <= repetitionMaximumUnitLength, unitLength * 2 <= count {
+            // Count consecutive copies of the last `unitLength` characters,
+            // walking backward from the anchor at the very end.
+            var repeats = 1
+            var blockStart = count - unitLength * 2
+            scan: while blockStart >= 0 {
+                for offset in 0 ..< unitLength {
+                    if window[blockStart + offset] != window[count - unitLength + offset] { break scan }
+                }
+                repeats += 1
+                blockStart -= unitLength
+            }
+            if repeats >= repetitionMinimumRepeats,
+               repeats * unitLength >= repetitionMinimumSpan,
+               repetitionUnitQualifies(window, unitStart: count - unitLength, unitLength: unitLength) {
+                return TailRepetitionRun(unitLength: unitLength, repeats: repeats)
+            }
+            unitLength += 1
+        }
+        return nil
+    }
+
+    /// Convenience over `degenerateTailRepetitionRun` for the unit tests and
+    /// any caller that only needs the verdict.
+    nonisolated static func hasDegenerateTailRepetition(_ text: String) -> Bool {
+        degenerateTailRepetitionRun(in: text) != nil
+    }
+
+    /// `text` with a detected degenerate tail run collapsed to a single copy
+    /// of the looped unit. The full run is noise by definition, and a reply
+    /// stored verbatim would replay it into every rebuilt session's
+    /// transcript — re-priming the very loop the breaker just cut. Text with
+    /// a healthy tail passes through unchanged.
+    nonisolated static func collapsingDegenerateTail(_ text: String) -> String {
+        guard let run = degenerateTailRepetitionRun(in: text) else { return text }
+        // The scan window bounds what the detector can SEE; the actual run
+        // may extend further back. Walk the full text (only on a trip, cost
+        // proportional to the run) so every copy is removed, not just the
+        // in-window ones.
+        let chars = Array(text)
+        let count = chars.count
+        let unitStart = count - run.unitLength
+        var totalRepeats = 1
+        var blockStart = count - run.unitLength * 2
+        scan: while blockStart >= 0 {
+            for offset in 0 ..< run.unitLength {
+                if chars[blockStart + offset] != chars[unitStart + offset] { break scan }
+            }
+            totalRepeats += 1
+            blockStart -= run.unitLength
+        }
+        return String(text.dropLast((totalRepeats - 1) * run.unitLength))
+    }
+
+    /// A unit only counts as a loop when it carries words (pure punctuation
+    /// runs are separator art) and is not itself a shorter loop — "la la la "
+    /// is judged at its fundamental 3-character period (below the minimum,
+    /// so Latin syllable refrains never qualify), not at a 9-character
+    /// multiple. Exception: a CJK phrase packs a whole phrase into a few
+    /// characters, so a CJK-bearing fundamental period of 4+ still counts.
+    private nonisolated static func repetitionUnitQualifies(_ window: [Character], unitStart: Int, unitLength: Int) -> Bool {
+        var hasWordCharacter = false
+        for index in unitStart ..< (unitStart + unitLength) where window[index].isLetter || window[index].isNumber {
+            hasWordCharacter = true
+            break
+        }
+        guard hasWordCharacter else { return false }
+        // Only divisor periods can reproduce the same tail, so only they are
+        // checked; ascending order finds the fundamental period first.
+        for period in 1 ..< unitLength where unitLength % period == 0 {
+            var matchesPeriod = true
+            for index in (unitStart + period) ..< (unitStart + unitLength) {
+                if window[index] != window[index - period] {
+                    matchesPeriod = false
+                    break
+                }
+            }
+            if matchesPeriod {
+                return period >= 4 && containsCJKCharacter(window, start: unitStart, length: period)
+            }
+        }
+        return true
+    }
+
+    /// Whether the range contains a CJK scalar (Han, Hiragana, Katakana,
+    /// Hangul) — the scripts whose phrases are short enough to loop below
+    /// the Latin minimum unit length.
+    private nonisolated static func containsCJKCharacter(_ window: [Character], start: Int, length: Int) -> Bool {
+        for index in start ..< (start + length) {
+            for scalar in window[index].unicodeScalars {
+                switch scalar.value {
+                case 0x4E00...0x9FFF, 0x3040...0x309F, 0x30A0...0x30FF, 0xAC00...0xD7AF:
+                    return true
+                default:
+                    continue
+                }
+            }
+        }
+        return false
     }
 
     /// The single prompt string for one turn: the user's message plus text
