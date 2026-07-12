@@ -174,14 +174,21 @@ struct LocalChatBackendTests {
     }
 
     @Test func breakerDisarmsWhenTheTailRecovers() {
+        // Mutating calls hoisted out of #expect — the macro captures the
+        // receiver immutably ('$0' is immutable).
         var breaker = LocalChatBackend.RepetitionBreaker()
         let run = LocalChatBackend.TailRepetitionRun(unitLength: 33, repeats: 6)
-        #expect(!breaker.shouldAbandon(afterObserving: run))                       // arms
-        #expect(!breaker.shouldAbandon(afterObserving: nil))                       // disarms
+        let armed = breaker.shouldAbandon(afterObserving: run)                       // arms
+        #expect(!armed)
+        let disarmed = breaker.shouldAbandon(afterObserving: nil)                    // disarms
+        #expect(!disarmed)
         // Re-armed fresh: the old baseline must not carry over.
-        #expect(!breaker.shouldAbandon(afterObserving: run))
-        #expect(!breaker.shouldAbandon(afterObserving: LocalChatBackend.TailRepetitionRun(unitLength: 33, repeats: 11)))
-        #expect(breaker.shouldAbandon(afterObserving: LocalChatBackend.TailRepetitionRun(unitLength: 33, repeats: 12)))
+        let rearmed = breaker.shouldAbandon(afterObserving: run)
+        #expect(!rearmed)
+        let belowFloor = breaker.shouldAbandon(afterObserving: LocalChatBackend.TailRepetitionRun(unitLength: 33, repeats: 11))
+        #expect(!belowFloor)
+        let atFloor = breaker.shouldAbandon(afterObserving: LocalChatBackend.TailRepetitionRun(unitLength: 33, repeats: 12))
+        #expect(atFloor)
     }
 
     @Test func breakerTripsAtTheWindowCeilingWhenArmedHigh() {
@@ -189,9 +196,12 @@ struct LocalChatBackendTests {
         // observation ceiling (2048 / 128 = 16 copies max). Escalation must
         // clamp to that ceiling or a stuck loop would never be seen to
         // double and the breaker would never fire.
+        // Mutating calls hoisted out of #expect (see above).
         var breaker = LocalChatBackend.RepetitionBreaker()
-        #expect(!breaker.shouldAbandon(afterObserving: LocalChatBackend.TailRepetitionRun(unitLength: 128, repeats: 9)))
-        #expect(breaker.shouldAbandon(afterObserving: LocalChatBackend.TailRepetitionRun(unitLength: 128, repeats: 16)))
+        let armedHigh = breaker.shouldAbandon(afterObserving: LocalChatBackend.TailRepetitionRun(unitLength: 128, repeats: 9))
+        #expect(!armedHigh)
+        let atCeiling = breaker.shouldAbandon(afterObserving: LocalChatBackend.TailRepetitionRun(unitLength: 128, repeats: 16))
+        #expect(atCeiling)
     }
 
     // MARK: Degenerate-tail collapse (#102)
