@@ -1004,6 +1004,17 @@ and `AskHermesIntent` (#56 / Wave 2 Issue E), both registered in the single
 
 ## 33. 📝 Apple app integrations — device-side (universal) + Hermes connectors (Mac-host only)
 
+**Update 2026-07-12 (server-side layer):** T6 is un-deferred and in motion — Phase 1
+(Mac relay + connector, #107) unblocks this item's Mac-only connectors, worked as #107's
+Phase-2 checklist lines. Two additions to the plan below: (1) upstream Hermes now ships
+**Photon iMessage** alongside the classic `imsg` connector — evaluate on the Mini and prefer
+whichever the macOS toolset treats as first-class today (Q2 in the spec); BlueBubbles keeps
+running but a single-automated-sender rule applies (two writers can race Messages). (2) The
+TCC grants must target the **launchd context** (LaunchAgent-spawned processes have their own
+TCC identity) — runbook `relay/docs/DEPLOY_MAC.md` Phase 2 has the trap writeup. The
+"Windows brain, Mac hands" bridge can deliver iMessage tools to the phone's production
+(OJAMD) brain without re-homing — also in the runbook.
+
 Idea (Owen, 2026-06-27): let the agent work with Apple apps. iOS reality splits these
 into two layers, and the layer decides where the capability lives:
 
@@ -1032,11 +1043,20 @@ Logged 2026-06-27.
 
 ---
 
-## 34. 🔧 T6 — Mac-hosted Talaria backend (unlocks additive Apple connectors) — ACTIVE (un-deferred 2026-07-12)
+## 34. 🔧 T6 — Mac-hosted Talaria backend (unlocks additive Apple connectors) — ACTIVE (un-deferred 2026-07-12); Phase 1 → #106
 
-**Un-deferred 2026-07-12 (Owen).** Restarted as the next work track. Phase-1 spec drafted (`SPEC-hermes-relay-macos.md` — re-home relay + connector to the Mac Mini under launchd, link to local Hermes via `HERMES_COMMAND` + the `hermes_mobile` MCP registration + the #38 push-watch on the local gateway; #33 server-side Apple connectors as Phase 2) and dispatched to Claude Code. Correction to the old note below: #24f is NOT a Phase-1 work item — the live relay is DB-backed and persistence is verified (#24f closed 2026-07-12). OJAMD stays the phone's production host; the Mac relay is additive for the dev loop + Mac-only connectors.
+**Update 2026-07-12:** un-deferred by Owen. Spec v0.2 committed at
+`design/T6_MAC_BACKEND_SPEC.md` (architecture verified against the OJAMD deployment; Q1–Q5
+decision defaults in §7); Phase 1 (re-home relay + connector, reboot-proof launchd
+hardening for all four services) is tracked with a full execution + device checklist in
+**#107**, ops runbook at `relay/docs/DEPLOY_MAC.md`. Phase 2 = #33's server-side connectors.
+The "Windows brain, Mac hands" accelerator below is now a documented runbook section
+(DEPLOY_MAC.md), still optional and independent. Non-goal reaffirmed: Phase 1 does NOT make
+the Mac the phone's primary host — that reversal of the #1 consolidation stays deliberate.
+Correction to the old note: #24f is NOT a Phase-1 work item — the live relay is DB-backed
+and persistence is verified (#24f closed 2026-07-12).
 
-**Original deferred rationale (Owen, 2026-06-28):** hold until the app is closer to feature-complete —
+**Deferred rationale (Owen, 2026-06-28, superseded 2026-07-12):** hold until the app is closer to feature-complete —
 don't ship an incomplete Mac-hosted version. Revisit once the active open items resolve.
 
 Milestone (Owen, 2026-06-27), explicitly deferred until the rest of the open-items list
@@ -1458,6 +1478,13 @@ Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully rep
 **Found 2026-07-04** (on-device, during connector-outage testing). `SensorUploadService.drainOutboxIfPossible()` drains location first and `break`s the entire loop on a location `.failed`, so it never reaches the health block. When location persistently returns `deliveryState=retry` (connector down / busy / forward stalled), the health outbox climbs unbounded even though health itself is fine — observed 475→481+ live. `LocationUploadOutcome` has no `.retry` case, so a transient `retry` is mis-mapped to a hard `.failed` that wedges the loop. **Fix (iOS, Fable):** a location failure must not `break` past health; give location its own transient retry/backoff (mirror health's `.retry` handling); drain the two outboxes on independent passes so neither can starve the other. Distinct from #24a (that was a poison *health* sample wedging health; this is the *location* path wedging health). GitHub issue snippet drafted.
 
 ## 54. ✅ Relay restart forces connector re-attach — RESOLVED (nonce DB-persisted + race-safe eviction, verified 2026-07-09)
+
+**Update 2026-07-12 (Mac deployment, verification owed):** the T6 Phase 1 re-home (#107)
+adds a second deployment of this exact seam — launchd-managed connector vs launchd-managed
+relay on the Mini. The 2026-07-11 OJAMD restart showed clean reattach, so this is expected
+to hold; `scripts/mac/verify-phase1.sh --restart-check` bounces the Mac relay and watches
+the connector's `state.json` `last_connected_at` advance. Record the Mac finding here when
+#107 executes (stays ✅ unless the Mac shows a regression).
 
 **RESOLVED 2026-07-09:** Server-side verified. Host-connection nonce lifecycle in `relay/app/services.py` (`activate` / `touch` / `deactivate`) operates on the `HermesHost` DB row (`active_connection_nonce` column, `db.commit()`), so it persists across relay restarts; `deactivate` clears only when the presented nonce matches the active one, so a stale socket's teardown can't strand a fresh reconnect (race-safe). Behaviorally: zero 4401 in the recent relay log, and the connector reattached cleanly (`/v1/hosts/ws [accepted]`) after this session's connector restart — corroborating the earlier relay-restart test. Connector-side auto-reconnect (ccee0f6) merged.
 
@@ -3143,5 +3170,65 @@ Logged 2026-07-12.
 ## 106. ✅ P8 IR v0 — constrained generative UI rung MERGED + device-verified (Lane D, PR #65)
 
 Landed 2026-07-12 (merge 2545eff). The model-never-emits-UI-code rung: `@Generable` IR schema (depth-bounded by construction, not recursion), tolerant `GenUIDecoder` (JSONSerialization walk, unknown/malformed nodes skip-and-log, siblings survive), `sanitized()` ingestion funnel, hardcoded renderer mapping IR onto shipped HUD components, DEBUG-only Developer-screen harness. No model wiring, no ChatScreen contact — buttons stage prompts, v0 sends nothing. Mac review-loop caught 2 cloud-code failures (both fixed in 4a5582a): the NSNumber Int→Bool bridging trap in the decoder's bool reader (`1 as? Bool` succeeds — strict CFBoolean check now enforced; add to the wrong-Xcode-smell tier of gotchas: JSONSerialization + `as? Bool` is never wrong-type-safe), and an under-framed ImageRenderer test fixture (zero-height view → nil image by design). Device-verified on whoGoesThere 2026-07-12: all three harness sections healthy (Swift-built tree, on-device JSON decode, mangled-JSON survivors), staged-only readout confirmed. NOTE: this install replaced whoGoesThere's c9e909e wedge-instrumented build — rebuild #84 branch before the next-seed voice retest. Numbering note: the branch's docs commit claimed #92 (parallel-collision with Lane B markdown); resolved to main's file, entry re-registered here as #106. NEXT RUNGS un-gated: #99 in-app preview surface (spec being revised on the landed IR), then P8 model wiring as its own future lane.
+
+Logged 2026-07-12.
+
+---
+
+## 107. 🔧 T6 Phase 1 — relay + connector re-homed onto the Mac Mini (spec + scaffolding landed; Mini execution owed)
+
+**Executes #34 (un-deferred by Owen 2026-07-12); enables #33's server-side connectors.**
+Spec committed at `design/T6_MAC_BACKEND_SPEC.md` (v0.2, Q1–Q5 defaults recorded in §7);
+runbook at `relay/docs/DEPLOY_MAC.md`. Definition of done: a dev build pointed at
+`http://100.79.222.100:8000/v1` can pair, deliver sensors, bootstrap talk, receive a
+run-completion push, and fetch a Tier-2 agent file — OJAMD untouched, phone's production
+pairing unaffected.
+
+**2026-07-12 (cloud, branch `claude/talaria-mac-backend-phase1-m0jkm0` → PR #79):** repo-side
+scaffolding written — NOT yet executed on the Mini (no Mac access from the cloud session).
+Numbering note: this entry was #105 in the original commit and became **#107** when the PR
+branch rebased onto main (main had grown its own #105/#106 in parallel); all artifact
+cross-references (spec, runbook, env template, scripts, CLAUDE.md) were renumbered with it:
+- `relay/.env.mac.example` — Mac-shaped env template (mint fresh keys; `RELAY_ENVIRONMENT=production`
+  so the `replace-me` startup guard enforces; absolute `DATABASE_URL`; absolute `APNS_KEY_PATH`
+  — config does NOT expand `~`; `APNS_BUNDLE_ID=org.aethyrion.talaria27` verified against
+  `project.yml`, NOT OJAMD's `org.aethyrion.talaria`; `GATEWAY_API_KEY` = the Mac's own
+  `API_SERVER_KEY`).
+- `scripts/mac/install-relay-launchd.sh` — `org.aethyrion.talaria-relay` LaunchAgent
+  (RunAtLoad/KeepAlive, logs `~/Library/Logs/talaria-relay/`), preflights env, polls `/v1/health`.
+- `scripts/mac/install-shim-launchd.sh` — re-renders `com.aethyrion.talaria.modelsshim`
+  against THIS checkout (the committed plist still points at the pre-fork
+  `…/Documents/Claude/Talaria` path — stale-path trap found during scaffolding).
+- `scripts/mac/install-gateway-launchd.sh` — fallback persistence for `hermes gateway run`
+  (check native macOS persistence first; the `hermes gateway install` prohibition is
+  Windows-specific; refuses to double-manage a gateway-shaped agent).
+- `scripts/mac/verify-phase1.sh` — acceptance smoke: launchd state, health endpoints, Tier-2
+  401-gate probe, .env hygiene; `--restart-check` bounces the relay and proves the connector
+  reattaches via `state.json` `last_connected_at` (→ #54 annotation either way).
+- Test baseline (cloud Linux, Python 3.11.15): relay **117 passed**; connector **104 passed,
+  1 skipped** — the skip IS the macOS LaunchAgent test (`test_service_management.py`), so the
+  Mac run should show 105/105. macOS counts to be recorded here.
+
+**Mini execution checklist (next Mac session — runbook has the commands):**
+- [ ] `main` pulled on the Mini; pinned commit recorded here; `hermes --version` OK
+- [ ] Dirs + secrets: `~/Hermes/agent-work/MobileDL`, APNs `.p8` at `~/.secrets/apns/` (600)
+- [ ] Relay venv + `.env` (fresh keys) + `install-relay-launchd.sh` → `/v1/health` OK; startup
+      log shows APNs client (bundle `org.aethyrion.talaria27`) + gateway client initialized
+- [ ] Connector: setup vs `http://127.0.0.1:8000/v1` (secret matching) → `validate-mcp` →
+      `hermes-ios` skill copied (real copy) + `/reload-mcp` → `service install/start` →
+      `status` running; sensor DB appears at `~/.hermes-mobile/sensors.db`
+- [ ] Shim plist re-rendered against Talaria-27; gateway persistence confirmed (native or ours)
+- [ ] Relay + connector suites green ON MACOS (record counts; expect connector 105/105)
+- [ ] `verify-phase1.sh` all-pass; `--restart-check` pass → note on #54
+- [ ] Mini reboot → all four services return unattended
+- [ ] Device half: dev device/simulator paired to the Mac relay (physical phone STAYS on
+      OJAMD — #91 one-pairing rule; Private Relay OFF per #24e); sensors
+      `deliveryState=delivered` w/ #24a chunking; talk readiness OK; run-completion APNs
+      (or documented dev-APNs limitation); authed Tier-2 `/v1/device/files` fetch 200
+- [ ] Phase 2 (#33): imsg-vs-Photon evaluated + single-automated-sender rule decided (Q2);
+      TCC granted against the launchd context (the LaunchAgent-TCC-identity trap — runbook
+      Phase 2 step 2); ≥1 connector end-to-end from Talaria chat with confirm gate
+- [ ] Optional accelerator: "Windows brain, Mac hands" (`hermes mcp serve` Mini → `hermes mcp
+      add` OJAMD) if iMessage is wanted on the phone's production brain first
 
 Logged 2026-07-12.
