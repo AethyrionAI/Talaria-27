@@ -3184,8 +3184,11 @@ runbook at `relay/docs/DEPLOY_MAC.md`. Definition of done: a dev build pointed a
 run-completion push, and fetch a Tier-2 agent file — OJAMD untouched, phone's production
 pairing unaffected.
 
-**2026-07-12 (cloud, branch `claude/talaria-mac-backend-phase1-m0jkm0`):** repo-side
-scaffolding written — NOT yet executed on the Mini (no Mac access from the cloud session):
+**2026-07-12 (cloud, branch `claude/talaria-mac-backend-phase1-m0jkm0` → PR #79):** repo-side
+scaffolding written — NOT yet executed on the Mini (no Mac access from the cloud session).
+Numbering note: this entry was #105 in the original commit and became **#107** when the PR
+branch rebased onto main (main had grown its own #105/#106 in parallel); all artifact
+cross-references (spec, runbook, env template, scripts, CLAUDE.md) were renumbered with it:
 - `relay/.env.mac.example` — Mac-shaped env template (mint fresh keys; `RELAY_ENVIRONMENT=production`
   so the `replace-me` startup guard enforces; absolute `DATABASE_URL`; absolute `APNS_KEY_PATH`
   — config does NOT expand `~`; `APNS_BUNDLE_ID=org.aethyrion.talaria27` verified against

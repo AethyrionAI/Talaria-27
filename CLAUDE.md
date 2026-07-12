@@ -169,7 +169,7 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
 ## Current state (2026-07-12)
 
 - **T6 Phase 1 — Mac-hosted backend (OPEN_ITEMS #34 un-deferred → #107) scaffolded
-  on `claude/talaria-mac-backend-phase1-m0jkm0`:** spec committed
+  on `claude/talaria-mac-backend-phase1-m0jkm0` (PR #79):** spec committed
   (`design/T6_MAC_BACKEND_SPEC.md`, Q1–Q5 defaults recorded), ops runbook
   (`relay/docs/DEPLOY_MAC.md`), Mac relay env template (`relay/.env.mac.example` —
   fresh keys, `RELAY_ENVIRONMENT=production`, absolute DB/APNs paths, bundle
