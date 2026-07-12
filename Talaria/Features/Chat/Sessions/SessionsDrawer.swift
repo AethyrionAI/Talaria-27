@@ -18,6 +18,7 @@ final class SessionsDrawerModel {
         case today = "TODAY"
         case yesterday = "YESTERDAY"
         case earlier = "EARLIER"
+        case archived = "ARCHIVED"
         var id: String { rawValue }
     }
 
@@ -39,6 +40,20 @@ final class SessionsDrawerModel {
 
     var searchText: String = ""
 
+    /// #97: the Archived filter — on, the list shows ONLY archived rows.
+    var showingArchived = false
+
+    /// #97: pin/archive overlay for server-session rows, wired by the drawer
+    /// view from AppContainer (this shell owns no stores of its own). Nil
+    /// until first drawer open — the list renders un-overlaid, exactly the
+    /// pre-#97 drawer.
+    var listState: ConversationListStateStore? = nil
+
+    /// #97: the conversation journal, wired from ChatStore — lets pin/archive
+    /// on the row carrying the current conversation's hop mirror onto the
+    /// journal's durable flags.
+    var journal: ConversationJournalStore? = nil
+
     /// Header telemetry, e.g. "14 THREADS · 2 ACTIVE".
     var headerStat: String {
         let active = sessions.filter(\.isActive).count
@@ -50,18 +65,118 @@ final class SessionsDrawerModel {
     var onSelectSession: ((SessionSummary) -> Void)? = nil
     var onOpenHostSettings: (() -> Void)? = nil
 
-    /// Sessions filtered by `searchText`, grouped and ordered for display.
+    /// Sessions filtered by `searchText` and the pin/archive overlay (#97),
+    /// grouped and ordered for display.
     func grouped() -> [(group: Group, items: [SessionSummary])] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let filtered = query.isEmpty
+        Self.grouped(
+            sessions: sessions,
+            query: searchText,
+            pinnedIDs: listState?.state.pinnedSessionIDs ?? [],
+            archivedIDs: listState?.state.archivedSessionIDs ?? [],
+            showingArchived: showingArchived
+        )
+    }
+
+    /// The drawer's data-source rule, pure so tests can drive it directly:
+    /// query filter (case/diacritic-insensitive, title + subtitle), then the
+    /// overlay — pinned rows float to the PINNED section regardless of their
+    /// recency group, with NO pin cap (ChatGPT caps at 3; we deliberately
+    /// don't); archived rows are hidden from the main list and shown alone
+    /// when `showingArchived` is on. Order within a section is the fetch
+    /// order (recency), untouched.
+    static func grouped(
+        sessions: [SessionSummary],
+        query: String,
+        pinnedIDs: Set<String>,
+        archivedIDs: Set<String>,
+        showingArchived: Bool
+    ) -> [(group: Group, items: [SessionSummary])] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let filtered = trimmed.isEmpty
             ? sessions
             : sessions.filter {
-                $0.title.lowercased().contains(query) || $0.subtitle.lowercased().contains(query)
+                $0.title.localizedStandardContains(trimmed)
+                    || $0.subtitle.localizedStandardContains(trimmed)
             }
-        return Group.allCases.compactMap { group in
-            let items = filtered.filter { $0.group == group }
-            return items.isEmpty ? nil : (group, items)
+
+        if showingArchived {
+            let archived = filtered
+                .filter { archivedIDs.contains($0.id) }
+                .map { row in
+                    var adjusted = row
+                    adjusted.group = .archived
+                    adjusted.isPinned = adjusted.isPinned || pinnedIDs.contains(row.id)
+                    return adjusted
+                }
+            return archived.isEmpty ? [] : [(.archived, archived)]
         }
+
+        var pinned: [SessionSummary] = []
+        var unpinned: [SessionSummary] = []
+        for row in filtered where !archivedIDs.contains(row.id) {
+            if row.isPinned || pinnedIDs.contains(row.id) {
+                var adjusted = row
+                adjusted.isPinned = true
+                adjusted.group = .pinned
+                pinned.append(adjusted)
+            } else {
+                unpinned.append(row)
+            }
+        }
+
+        var result: [(group: Group, items: [SessionSummary])] = []
+        if !pinned.isEmpty { result.append((.pinned, pinned)) }
+        for group in [Group.today, .yesterday, .earlier] {
+            let items = unpinned.filter { $0.group == group }
+            if !items.isEmpty { result.append((group, items)) }
+        }
+        return result
+    }
+
+    /// Overlay-aware pin state (placeholder rows may carry their own flag).
+    func isPinned(_ summary: SessionSummary) -> Bool {
+        summary.isPinned || (listState?.isPinned(summary.id) ?? false)
+    }
+
+    func isArchived(_ summary: SessionSummary) -> Bool {
+        listState?.isArchived(summary.id) ?? false
+    }
+
+    /// Archived rows among the CURRENTLY FETCHED sessions — stale overlay ids
+    /// (sessions the host no longer returns) don't count.
+    var archivedCount: Int {
+        guard let listState else { return 0 }
+        return sessions.filter { listState.isArchived($0.id) }.count
+    }
+
+    func togglePin(_ summary: SessionSummary) {
+        guard let listState else { return }
+        // Toggle off the DISPLAYED state (row flag OR overlay), so the action
+        // always inverts what the user sees.
+        listState.setPinned(!isPinned(summary), sessionID: summary.id)
+        mirrorFlagsToJournalIfCurrent(summary.id)
+    }
+
+    func toggleArchive(_ summary: SessionSummary) {
+        guard let listState else { return }
+        listState.toggleArchived(sessionID: summary.id)
+        mirrorFlagsToJournalIfCurrent(summary.id)
+        // Un-archiving the last row leaves an empty filter view — fall back
+        // to the main list rather than stranding the user on nothing.
+        if showingArchived && archivedCount == 0 {
+            showingArchived = false
+        }
+    }
+
+    /// #97: the row carrying the current conversation's active hop IS the
+    /// local conversation — mirror its overlay flags onto the journal, whose
+    /// copy rides the durable conversation identity (session ids are
+    /// ephemeral per-hop handles, #93).
+    private func mirrorFlagsToJournalIfCurrent(_ sessionID: String) {
+        guard let listState, let journal,
+              journal.activeHop?.apiSessionId == sessionID else { return }
+        journal.setPinned(listState.isPinned(sessionID))
+        journal.setArchived(listState.isArchived(sessionID))
     }
 
     func selectSession(_ summary: SessionSummary) {
@@ -101,6 +216,14 @@ struct SessionsDrawer: View {
     var hostDetail: String = "LINKED"
     var hostOnline: Bool = true
 
+    // #96/#97: the drawer wires its own store seams (ChatScreen stays
+    // untouched — Lane F constraint). Both are optional-tolerant: absent
+    // environment objects would crash, but these are injected at the app
+    // root; previews/tests drive the model directly instead.
+    @Environment(AppContainer.self) private var container
+    @Environment(ChatStore.self) private var chatStore
+    @State private var showSearch = false
+
     private let panelWidth: CGFloat = 320
 
     var body: some View {
@@ -115,6 +238,19 @@ struct SessionsDrawer: View {
         }
         .animation(Design.Motion.standard, value: isPresented)
         .ignoresSafeArea()
+        .onAppear {
+            model.listState = container.conversationListState
+            model.journal = chatStore.journal
+            // The Archived filter is a transient view — every drawer open
+            // starts on the main list.
+            model.showingArchived = false
+        }
+        .sheet(isPresented: $showSearch) {
+            ConversationSearchScreen(
+                drawerModel: model,
+                onDidSelect: { isPresented = false }
+            )
+        }
     }
 
     // MARK: Backdrop
@@ -138,6 +274,9 @@ struct SessionsDrawer: View {
                 .padding(.horizontal, Design.Spacing.lg)
                 .padding(.top, Design.Spacing.sm)
             sessionList
+            if model.archivedCount > 0 || model.showingArchived {
+                archivedFilterRow
+            }
             footer
         }
         .frame(maxHeight: .infinity, alignment: .top)
@@ -171,16 +310,15 @@ struct SessionsDrawer: View {
                 MonoLabel(model.headerStat, size: 10, tracking: Design.Tracking.monoWide)
             }
             Spacer()
+            // #96: full conversation search (local journal + fetched server
+            // sessions) — the inline field below only filters this list.
+            Button { showSearch = true } label: {
+                headerChipIcon("text.magnifyingglass")
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Search all conversations")
             Button { isPresented = false } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Design.Colors.secondaryForeground)
-                    .frame(width: 34, height: 34)
-                    .background(Design.Colors.chipSurface, in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                            .strokeBorder(Design.Colors.chipBorder, lineWidth: 1)
-                    }
+                headerChipIcon("xmark")
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Close sessions")
@@ -188,6 +326,18 @@ struct SessionsDrawer: View {
         .padding(.horizontal, Design.Spacing.lg)
         .padding(.top, Design.Spacing.xxl)
         .padding(.bottom, Design.Spacing.md)
+    }
+
+    private func headerChipIcon(_ systemName: String) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(Design.Colors.secondaryForeground)
+            .frame(width: 34, height: 34)
+            .background(Design.Colors.chipSurface, in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+            .overlay {
+                RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                    .strokeBorder(Design.Colors.chipBorder, lineWidth: 1)
+            }
     }
 
     private var searchField: some View {
@@ -217,22 +367,112 @@ struct SessionsDrawer: View {
         }
     }
 
+    // A List (not the previous ScrollView) so rows get native swipe actions
+    // (#97). All chrome is stripped — clear backgrounds, hidden separators,
+    // row insets reproducing the old stack spacing — so the HUD panel rows
+    // render as before.
     private var sessionList: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Design.Spacing.xs) {
-                ForEach(model.grouped(), id: \.group.id) { entry in
-                    MonoLabel(entry.group.rawValue, size: 9, tracking: Design.Tracking.monoXWide,
-                              color: Design.Colors.dimForeground)
-                        .padding(.top, Design.Spacing.xs)
-                        .padding(.horizontal, Design.Spacing.xxs)
-                    ForEach(entry.items) { item in
-                        SessionRow(summary: item) { model.selectSession(item); isPresented = false }
-                    }
+        List {
+            if model.showingArchived && model.grouped().isEmpty {
+                MonoLabel("NO ARCHIVED SESSIONS MATCH", size: 9,
+                          tracking: Design.Tracking.monoWide,
+                          color: Design.Colors.dimForeground)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(
+                        top: Design.Spacing.lg, leading: Design.Spacing.md,
+                        bottom: Design.Spacing.xs, trailing: Design.Spacing.md
+                    ))
+            }
+            ForEach(model.grouped(), id: \.group.id) { entry in
+                MonoLabel(entry.group.rawValue, size: 9, tracking: Design.Tracking.monoXWide,
+                          color: Design.Colors.dimForeground)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(
+                        top: Design.Spacing.sm,
+                        leading: Design.Spacing.md + Design.Spacing.xxs,
+                        bottom: Design.Spacing.xxs,
+                        trailing: Design.Spacing.md
+                    ))
+                ForEach(entry.items) { item in
+                    SessionRow(summary: item) { model.selectSession(item); isPresented = false }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(
+                            top: Design.Spacing.xxs, leading: Design.Spacing.md,
+                            bottom: Design.Spacing.xxs, trailing: Design.Spacing.md
+                        ))
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                            pinAction(for: item)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            archiveAction(for: item)
+                        }
+                        .contextMenu {
+                            pinAction(for: item)
+                            archiveAction(for: item)
+                        }
                 }
             }
-            .padding(.horizontal, Design.Spacing.md)
-            .padding(.top, Design.Spacing.sm)
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .environment(\.defaultMinListRowHeight, 12)
+    }
+
+    private func pinAction(for item: SessionsDrawerModel.SessionSummary) -> some View {
+        Button {
+            withAnimation(Design.Motion.standard) { model.togglePin(item) }
+        } label: {
+            Label(model.isPinned(item) ? "Unpin" : "Pin",
+                  systemImage: model.isPinned(item) ? "pin.slash" : "pin")
+        }
+        .tint(Design.Brand.accent)
+    }
+
+    private func archiveAction(for item: SessionsDrawerModel.SessionSummary) -> some View {
+        Button {
+            withAnimation(Design.Motion.standard) { model.toggleArchive(item) }
+        } label: {
+            Label(model.isArchived(item) ? "Unarchive" : "Archive",
+                  systemImage: model.isArchived(item) ? "tray.and.arrow.up" : "archivebox")
+        }
+        .tint(Design.Brand.forge)
+    }
+
+    /// #97: the Archived filter row at the drawer bottom — enters the
+    /// archived-only view, and exits it. Hidden while nothing is archived.
+    private var archivedFilterRow: some View {
+        Button {
+            withAnimation(Design.Motion.standard) { model.showingArchived.toggle() }
+        } label: {
+            HStack(spacing: Design.Spacing.xs) {
+                Image(systemName: model.showingArchived ? "chevron.left" : "archivebox")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+                MonoLabel(model.showingArchived ? "BACK TO SESSIONS" : "ARCHIVED",
+                          size: 10, weight: .medium, tracking: Design.Tracking.mono,
+                          color: Design.Colors.secondaryForeground)
+                Spacer()
+                if !model.showingArchived {
+                    MonoLabel("\(model.archivedCount)", size: 10,
+                              tracking: Design.Tracking.mono,
+                              color: Design.Colors.dimForeground)
+                }
+            }
+            .padding(.horizontal, Design.Spacing.sm)
+            .frame(height: 40)
+            .contentShape(Rectangle())
+            .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.top, Design.Spacing.xs)
+        .accessibilityLabel(model.showingArchived
+            ? "Back to sessions"
+            : "Archived, \(model.archivedCount) session\(model.archivedCount == 1 ? "" : "s")")
     }
 
     private var footer: some View {
