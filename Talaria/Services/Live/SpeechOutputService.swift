@@ -47,6 +47,10 @@ final class SpeechOutputService: NSObject {
     private var activeUtterances: Set<ObjectIdentifier> = []
     private var streamMessageID: UUID?
     private var streamBuffer = ""
+    /// Everything streamed for the current message, raw deltas — what
+    /// `finishStream` compares a shortened finish against to detect that
+    /// content was retracted after enqueueing (#110).
+    private var streamedText = ""
 
     override init() {
         personalVoiceAuthorization = AVSpeechSynthesizer.personalVoiceAuthorizationStatus
@@ -69,6 +73,7 @@ final class SpeechOutputService: NSObject {
     func stop() {
         streamBuffer = ""
         streamMessageID = nil
+        streamedText = ""
         activeUtterances.removeAll()
         _ = synthesizer.stopSpeaking(at: .immediate)
         speakingMessageID = nil
@@ -88,6 +93,7 @@ final class SpeechOutputService: NSObject {
             speakingMessageID = messageID
         }
         streamBuffer += delta
+        streamedText += delta
         let (sentences, remainder) = Self.splitFlushableSentences(from: streamBuffer)
         streamBuffer = remainder
         for sentence in sentences {
@@ -97,12 +103,23 @@ final class SpeechOutputService: NSObject {
         }
     }
 
-    /// Flushes whatever remains in the buffer and closes the stream.
-    func finishStream(messageID: UUID) {
+    /// Flushes whatever remains in the buffer and closes the stream. When
+    /// `finishedContent` is passed and is SHORTER than what streamed
+    /// (whitespace-folded), content was retracted after enqueueing — the #102
+    /// loop breaker collapsing a degenerate run to one copy — so the pending
+    /// queue is dropped instead of flushed: the ears must not finish a loop
+    /// the transcript no longer shows (#110).
+    func finishStream(messageID: UUID, finishedContent: String? = nil) {
         guard streamMessageID == messageID else { return }
+        if let finishedContent,
+           Self.shouldRetractSpeech(finishedContent: finishedContent, streamedText: streamedText) {
+            stop()
+            return
+        }
         let tail = Self.speechText(from: streamBuffer)
         streamBuffer = ""
         streamMessageID = nil
+        streamedText = ""
         if !tail.isEmpty {
             enqueue(tail)
         } else if activeUtterances.isEmpty {
@@ -117,6 +134,7 @@ final class SpeechOutputService: NSObject {
         guard streamMessageID == messageID else { return }
         streamBuffer = ""
         streamMessageID = nil
+        streamedText = ""
         if activeUtterances.isEmpty {
             speakingMessageID = nil
             releaseAudioSessionIfIdle()
@@ -209,6 +227,23 @@ final class SpeechOutputService: NSObject {
     }
 
     // MARK: - Text preparation (pure — unit-tested)
+
+    /// The #110 retract decision: true when the finished reply is shorter than
+    /// the text that actually streamed — a shorter finish means content was
+    /// retracted after the fact (the #102 degenerate-loop breaker rewriting
+    /// "phrase phrase phrase" to one "phrase"), so pending speech must stop
+    /// rather than flush. Whitespace-folded so chunk-join artifacts can never
+    /// fake a length difference; a finish equal to or LONGER than the streamed
+    /// text is a normal completion.
+    nonisolated static func shouldRetractSpeech(finishedContent: String, streamedText: String) -> Bool {
+        whitespaceFolded(finishedContent).count < whitespaceFolded(streamedText).count
+    }
+
+    /// Collapses every whitespace run (spaces, tabs, newlines) to a single
+    /// space and trims the ends.
+    private nonisolated static func whitespaceFolded(_ text: String) -> String {
+        text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
 
     /// Splits a streaming buffer into fully terminated sentences plus the
     /// still-accumulating remainder. A sentence flushes on a newline, or on a
