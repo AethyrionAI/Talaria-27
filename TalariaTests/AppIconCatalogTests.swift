@@ -53,11 +53,12 @@ struct AppIconCatalogTests {
         #expect(AppIconCatalog.option(id: "nope") == nil)
     }
 
-    // MARK: Sections (Lane K)
+    // MARK: Sections (Lane K + Lane L)
 
     @Test func sectionsMirrorTheGalleryTaxonomy() {
         #expect(AppIconCatalog.sections.map(\.title) ==
-                ["Flagship", "Neon Arcade Collection", "Seasonal"])
+                ["Flagship", "Neon Arcade Collection", "Special Edition",
+                 "Midnight Marquee", "Seasonal"])
     }
 
     @Test func sectionsFlattenToAllInDisplayOrder() {
@@ -69,10 +70,23 @@ struct AppIconCatalogTests {
         #expect(AppIconCatalog.flagship.count == 5)
         #expect(AppIconCatalog.neonArcadeCollection.count == 10)
         #expect(AppIconCatalog.seasonal.count == 4)
-        #expect(AppIconCatalog.all.count == 19)
         // Deep Sea Diner stays cut (icon<->theme parity).
         #expect(AppIconCatalog.option(id: "deepSeaDiner") == nil)
         #expect(AppIconCatalog.option(forAlternateIconName: "DeepSeaDiner").isPrimary)
+    }
+
+    @Test func laneLBatchIsFullyWired() {
+        // The five reserved SE icons + the eight Midnight Marquee icons —
+        // 31 alternates + the Default primary, 32 picker entries total.
+        #expect(AppIconCatalog.specialEdition.count == 5)
+        #expect(AppIconCatalog.midnightMarquee.count == 8)
+        #expect(AppIconCatalog.all.count == 32)
+        #expect(AppIconCatalog.all.compactMap(\.alternateIconName).count == 31)
+        // Comic Book ships BOTH variants as separately selectable icons —
+        // fully independent of the adaptive theme selection (Lane K
+        // coupling rule).
+        #expect(AppIconCatalog.option(id: "comicVillain")?.alternateIconName == "ComicVillain")
+        #expect(AppIconCatalog.option(id: "comicFunnies")?.alternateIconName == "ComicFunnies")
     }
 
     /// Every alternate's picker thumbnail follows the shared asset convention
