@@ -3314,3 +3314,7 @@ Claude-Design drop landed 2026-07-12: the **Midnight Marquee** collection become
 **Not in scope:** Haunted VHS stays cut (device verdict 2026-07-11; `.phosphor` orb remains orphaned reusable data). SE themes Aquarium/Forge already shipped (batch 4) — the zip's SE files were byte-identical to repo.
 
 Logged 2026-07-12 (dispatch-prep session).
+
+**MERGED 2026-07-13** — PR #84 (`7f295f8`), 16 commits (12 Fable phase-scoped + Mac review loop's pbxproj regen and 3 build fixes: missing SwiftUI import in the widget timeline provider, and two `displayLabel` overload ambiguities in app + tests — the "compile-clean tracer" verdict missed all three, the loop earning its keep). Suite: **582/582 green across 49 suites** (+12 over baseline). All 39 icon PNGs pure additions; 14 existing icons re-rendered byte-identical.
+
+**Owed on device (whoGoesThere):** Comic Book live-switch (Settings → toggle system appearance foregrounded → villain↔funnies re-skin without relaunch), the two documented seams for Owen's verdict — (a) picker card previews the presented-surface variant while a fixed theme forces the scheme, (b) cold light-mode launch flashes the villain half for one frame before the mirror lands — plus new-icon spot check and light-chrome pass on Pulp Noir / Sticker-Bomb.
