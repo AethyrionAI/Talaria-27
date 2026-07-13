@@ -32,7 +32,9 @@ GALLERY = os.path.join("design", "themes", "app-icons.html")
 OUT_DIR = os.path.join("Talaria", "Resources", "AppIcons")
 MASTER = 1024  # native SVG canvas; downsampled per output
 
-# The Lane K batch (dispatch/FABLE-LANE-K-app-icons.md). Deliberately absent:
+# The Lane K batch (dispatch/FABLE-LANE-K-app-icons.md) + the Lane L batch
+# (Special Edition five + Midnight Marquee eight —
+# dispatch/FABLE-LANE-L-midnight-marquee.md). Deliberately absent:
 #   deep-field / solar-forge / terminal / paper-tape — flagship set, keeps its
 #     generate_app_icons.py placeholder art until the curated swap;
 #   deep-sea-diner — theme cut, icon cut with it (icon<->theme parity).
@@ -51,6 +53,23 @@ ICON_IDS = [
     "spring-sprout",
     "summer-solar",
     "winter-frost",
+    # Special Edition (Lane L).
+    "event-horizon",
+    "graffiti-galaxy",
+    "karaoke-supernova",
+    "midnight-aquarium",
+    "molten-forge",
+    # Midnight Marquee (Lane L) — Comic Book ships BOTH variants as
+    # separately selectable icons (icons stay independent of theme
+    # selection, the Lane K coupling rule).
+    "lucha-libre",
+    "kaiju-attack",
+    "pulp-noir",
+    "casino-lucky-7s",
+    "cosmic-bowling",
+    "sticker-bomb-toybox",
+    "comic-villain",
+    "comic-funnies",
 ]
 
 
