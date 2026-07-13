@@ -36,11 +36,19 @@ enum WidgetTheme: String, AppEnum {
 
     /// Resolve to a concrete palette. `.matchApp` reads the appearance the app
     /// last wrote into the shared snapshot (absent → Deep Field × cyan, the
-    /// app default); explicit themes use their hero accent slot.
-    func resolvedPalette(data: HermesWidgetData) -> ThemePalette {
+    /// app default); explicit themes use their hero accent slot. The scheme
+    /// feeds the adaptive Comic Book (raw `"comicBook"` is not a `ThemeID` —
+    /// it resolves villain/funnies through `AdaptiveThemeIdentity`, Lane L
+    /// Phase 2): pass the consuming view's own environment scheme — widgets
+    /// sit outside the app's forced presentation, so it IS the system
+    /// appearance.
+    func resolvedPalette(data: HermesWidgetData, colorScheme: ColorScheme) -> ThemePalette {
         switch self {
         case .matchApp:
-            let theme = data.appearanceTheme.flatMap(ThemeID.init(rawValue:)) ?? .deepField
+            let theme = data.appearanceTheme.flatMap {
+                AdaptiveThemeIdentity.resolve(persistedRawValue: $0,
+                                              prefersDark: colorScheme != .light)
+            } ?? .deepField
             let accent = data.appearanceAccent.flatMap(AccentSlot.init(rawValue:)) ?? .cyan
             return ThemePalette(theme: theme, accent: accent)
         case .deepField, .solarForge, .terminal, .paperTape,
@@ -76,6 +84,19 @@ struct WidgetThemeBackground: View {
             startPoint: .top,
             endPoint: .bottom
         )
+    }
+}
+
+/// Entry-resolving container background: reads the environment scheme inside
+/// the `containerBackground` closure (which is a plain view builder with no
+/// environment of its own) so the adaptive Comic Book matchApp path renders
+/// the right variant (Lane L Phase 2).
+struct WidgetEntryThemeBackground: View {
+    let entry: HermesWidgetEntry
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        WidgetThemeBackground(palette: entry.palette(for: colorScheme))
     }
 }
 

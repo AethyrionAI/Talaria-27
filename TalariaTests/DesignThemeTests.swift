@@ -107,7 +107,9 @@ struct DesignThemeTests {
     @Test func lightThemesMatchExpectedSet() {
         // Canary for computed `isLight` (derived from each theme's palette). retroSciFi
         // reads light off its palette; seasonal summerSolar/autumnHarvest read dark.
-        let lightThemes: Set<AppearanceTheme> = [.paperTape, .retroSciFi, .springSprout, .winterFrost]
+        // Midnight Marquee ships two light palettes (Lane L).
+        let lightThemes: Set<AppearanceTheme> = [.paperTape, .retroSciFi, .springSprout, .winterFrost,
+                                                 .pulpNoir, .stickerBombToybox]
         for theme in AppearanceTheme.allCases {
             #expect(theme.isLight == lightThemes.contains(theme))
             #expect(ThemePalette(theme: theme.themeID, accent: .cyan).isLight == theme.isLight)
@@ -137,35 +139,62 @@ struct DesignThemeTests {
         // Batch 4 — Claude-Design Special Editions.
         #expect(ThemePalette(theme: .midnightAquarium, accent: .cyan).base == Color(hex: 0xFF7AD9))
         #expect(ThemePalette(theme: .moltenForge, accent: .cyan).base == Color(hex: 0xFF6A1A))
+        // Midnight Marquee (Lane L — Final Lineup hero hexes).
+        #expect(ThemePalette(theme: .luchaLibre, accent: .cyan).base == Color(hex: 0x3D6BFF))
+        #expect(ThemePalette(theme: .kaijuAttack, accent: .cyan).base == Color(hex: 0x6AFF57))
+        #expect(ThemePalette(theme: .pulpNoir, accent: .cyan).base == Color(hex: 0x276F6D))
+        #expect(ThemePalette(theme: .casinoLucky7s, accent: .cyan).base == Color(hex: 0x4F9DFF))
+        #expect(ThemePalette(theme: .cosmicBowling, accent: .cyan).base == Color(hex: 0x00B3A4))
+        #expect(ThemePalette(theme: .stickerBombToybox, accent: .cyan).base == Color(hex: 0x4BBF22))
+        // The adaptive pair (Lane L Phase 2).
+        #expect(ThemePalette(theme: .comicVillain, accent: .cyan).base == Color(hex: 0xFFD828))
+        #expect(ThemePalette(theme: .comicFunnies, accent: .cyan).base == Color(hex: 0x00A8E8))
     }
 
     @Test func contextualAccentLabels() {
-        #expect(AppearanceAccent.cyan.displayLabel(for: .deepField) == "Cyan · Arc")
-        #expect(AppearanceAccent.cyan.displayLabel(for: .terminal) == "Green · Phosphor")
-        #expect(AppearanceAccent.cyan.displayLabel(for: .paperTape) == "Red · Tracker")
-        #expect(AppearanceAccent.amber.displayLabel(for: .solarForge) == "Cyan · Plasma")
-        #expect(AppearanceAccent.cyan.displayLabel(for: .winterFrost) == "Ice · Winter")
-        #expect(AppearanceAccent.cyan.displayLabel(for: .summerSolar) == "Mango · Summer")
-        #expect(AppearanceAccent.cyan.displayLabel(for: .springSprout) == "Blossom · Spring")
-        #expect(AppearanceAccent.cyan.displayLabel(for: .autumnHarvest) == "Pumpkin · Autumn")
-        #expect(AppearanceAccent.cyan.displayLabel(for: .glitchGarden) == "Vine · Garden")
-        #expect(AppearanceAccent.amber.displayLabel(for: .witchsBrew) == "Mystic · Brew")
-        #expect(AppearanceAccent.violet.displayLabel(for: .holoSushi) == "Nori · Sushi")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.deepField) == "Cyan · Arc")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.terminal) == "Green · Phosphor")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.paperTape) == "Red · Tracker")
+        #expect(AppearanceAccent.amber.displayLabel(for: AppearanceTheme.solarForge) == "Cyan · Plasma")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.winterFrost) == "Ice · Winter")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.summerSolar) == "Mango · Summer")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.springSprout) == "Blossom · Spring")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.autumnHarvest) == "Pumpkin · Autumn")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.glitchGarden) == "Vine · Garden")
+        #expect(AppearanceAccent.amber.displayLabel(for: AppearanceTheme.witchsBrew) == "Mystic · Brew")
+        #expect(AppearanceAccent.violet.displayLabel(for: AppearanceTheme.holoSushi) == "Nori · Sushi")
         // Disco keeps the handoff-native slot names (EH precedent).
-        #expect(AppearanceAccent.cyan.displayLabel(for: .discoInferno) == "Disco Gold")
-        #expect(AppearanceAccent.amber.displayLabel(for: .discoInferno) == "Mirror Silver")
-        #expect(AppearanceAccent.violet.displayLabel(for: .discoInferno) == "Hellfire Crimson")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.discoInferno) == "Disco Gold")
+        #expect(AppearanceAccent.amber.displayLabel(for: AppearanceTheme.discoInferno) == "Mirror Silver")
+        #expect(AppearanceAccent.violet.displayLabel(for: AppearanceTheme.discoInferno) == "Hellfire Crimson")
         // The Special Editions likewise.
-        #expect(AppearanceAccent.cyan.displayLabel(for: .graffitiGalaxy) == "Hot Pink")
-        #expect(AppearanceAccent.amber.displayLabel(for: .graffitiGalaxy) == "Electric Violet")
-        #expect(AppearanceAccent.cyan.displayLabel(for: .karaokeSupernova) == "Magenta")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.graffitiGalaxy) == "Hot Pink")
+        #expect(AppearanceAccent.amber.displayLabel(for: AppearanceTheme.graffitiGalaxy) == "Electric Violet")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.karaokeSupernova) == "Magenta")
         // Batch 4 keeps the handoff-native slot names.
-        #expect(AppearanceAccent.cyan.displayLabel(for: .midnightAquarium) == "Jelly Pink")
-        #expect(AppearanceAccent.amber.displayLabel(for: .midnightAquarium) == "Biolume Cyan")
-        #expect(AppearanceAccent.violet.displayLabel(for: .midnightAquarium) == "Anemone Violet")
-        #expect(AppearanceAccent.cyan.displayLabel(for: .moltenForge) == "Lava Orange")
-        #expect(AppearanceAccent.amber.displayLabel(for: .moltenForge) == "Spark Gold")
-        #expect(AppearanceAccent.violet.displayLabel(for: .moltenForge) == "Hammered Steel")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.midnightAquarium) == "Jelly Pink")
+        #expect(AppearanceAccent.amber.displayLabel(for: AppearanceTheme.midnightAquarium) == "Biolume Cyan")
+        #expect(AppearanceAccent.violet.displayLabel(for: AppearanceTheme.midnightAquarium) == "Anemone Violet")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.moltenForge) == "Lava Orange")
+        #expect(AppearanceAccent.amber.displayLabel(for: AppearanceTheme.moltenForge) == "Spark Gold")
+        #expect(AppearanceAccent.violet.displayLabel(for: AppearanceTheme.moltenForge) == "Hammered Steel")
+        // The adaptive theme's schemeless label reads its canonical (dark)
+        // half; the settings screen resolves variant labels scheme-aware
+        // through the ThemeID overload.
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.comicBook) == "Kapow Yellow")
+        #expect(AppearanceAccent.cyan.displayLabel(for: ThemeID.comicVillain) == "Kapow Yellow")
+        #expect(AppearanceAccent.cyan.displayLabel(for: ThemeID.comicFunnies) == "Ben-Day Cyan")
+        #expect(AppearanceAccent.amber.displayLabel(for: ThemeID.comicFunnies) == "Banana Yellow")
+        // Midnight Marquee keeps the handoff-native slot names (Lane L).
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.luchaLibre) == "Royal Blue")
+        #expect(AppearanceAccent.amber.displayLabel(for: AppearanceTheme.luchaLibre) == "Pyro Orange")
+        #expect(AppearanceAccent.violet.displayLabel(for: AppearanceTheme.luchaLibre) == "Chrome Silver")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.kaijuAttack) == "Radioactive Green")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.pulpNoir) == "Library Teal")
+        #expect(AppearanceAccent.amber.displayLabel(for: AppearanceTheme.pulpNoir) == "Mustard Gold")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.casinoLucky7s) == "Chip Blue")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.cosmicBowling) == "Alley Teal")
+        #expect(AppearanceAccent.violet.displayLabel(for: AppearanceTheme.stickerBombToybox) == "Grape Pop")
     }
 
     // MARK: Catalog resolution (#49)
@@ -224,6 +253,16 @@ struct DesignThemeTests {
         // Batch 4 — Claude-Design Special Editions.
         #expect(ThemePalette(theme: .midnightAquarium, accent: .cyan).orbStyle == .moonJelly)
         #expect(ThemePalette(theme: .moltenForge, accent: .cyan).orbStyle == .crucible)
+        // Midnight Marquee (Lane L).
+        #expect(ThemePalette(theme: .luchaLibre, accent: .cyan).orbStyle == .rudoMask)
+        #expect(ThemePalette(theme: .kaijuAttack, accent: .cyan).orbStyle == .kaijuSiren)
+        #expect(ThemePalette(theme: .pulpNoir, accent: .cyan).orbStyle == .dimeStamp)
+        #expect(ThemePalette(theme: .casinoLucky7s, accent: .cyan).orbStyle == .luckySevens)
+        #expect(ThemePalette(theme: .cosmicBowling, accent: .cyan).orbStyle == .houseBall)
+        #expect(ThemePalette(theme: .stickerBombToybox, accent: .cyan).orbStyle == .stickerStar)
+        // The adaptive pair: distinct compositions per variant (Lane L Phase 2).
+        #expect(ThemePalette(theme: .comicVillain, accent: .cyan).orbStyle == .powBurst)
+        #expect(ThemePalette(theme: .comicFunnies, accent: .cyan).orbStyle == .zapBurst)
     }
 
     // MARK: Runtime mirroring
@@ -273,5 +312,83 @@ struct DesignThemeTests {
         let decoded = try JSONDecoder().decode(UserSettings.self, from: data)
         #expect(decoded.appearanceTheme == .paperTape)
         #expect(decoded.appearanceAccent == .amber)
+    }
+
+    // MARK: Adaptive theme — Comic Book (Lane L Phase 2)
+
+    @Test func comicBookFollowsTheSystemScheme() {
+        #expect(AppearanceTheme.comicBook.themeID(for: .dark) == .comicVillain)
+        #expect(AppearanceTheme.comicBook.themeID(for: .light) == .comicFunnies)
+        // The canonical (scheme-free) identity is the dark half.
+        #expect(AppearanceTheme.comicBook.themeID == .comicVillain)
+        // The two halves are a real dark/light pair.
+        #expect(!ThemePalette(theme: .comicVillain, accent: .cyan).isLight)
+        #expect(ThemePalette(theme: .comicFunnies, accent: .cyan).isLight)
+    }
+
+    @Test func nonAdaptiveThemesIgnoreTheScheme() {
+        // Snapshot of the pre-adaptive mapping: every fixed theme resolves
+        // identically under both schemes, and identically to its canonical id.
+        for theme in AppearanceTheme.allCases where theme != .comicBook {
+            #expect(theme.themeID(for: .light) == theme.themeID)
+            #expect(theme.themeID(for: .dark) == theme.themeID)
+        }
+    }
+
+    @Test func onlyComicBookLeavesTheSchemeToTheSystem() {
+        for theme in AppearanceTheme.allCases {
+            if theme == .comicBook {
+                #expect(theme.preferredColorScheme == nil)
+            } else {
+                #expect(theme.preferredColorScheme == (theme.isLight ? .light : .dark))
+            }
+        }
+    }
+
+    @Test func comicBookPersistsAsItsOwnRawValue() throws {
+        var settings = UserSettings()
+        settings.appearanceTheme = .comicBook
+        let decoded = try JSONDecoder().decode(
+            UserSettings.self, from: JSONEncoder().encode(settings))
+        #expect(decoded.appearanceTheme == .comicBook)
+        // The app raw value and the Shared widget resolver cannot drift.
+        #expect(AppearanceTheme.comicBook.rawValue == AdaptiveThemeIdentity.comicBookRawValue)
+    }
+
+    @Test func adaptiveIdentityResolvesForBothTargets() {
+        // The Shared resolver the widget matchApp path uses (raw "comicBook"
+        // is not a ThemeID — unwired it would fall back to Deep Field).
+        #expect(AdaptiveThemeIdentity.resolve(persistedRawValue: "comicBook", prefersDark: true) == .comicVillain)
+        #expect(AdaptiveThemeIdentity.resolve(persistedRawValue: "comicBook", prefersDark: false) == .comicFunnies)
+        #expect(AdaptiveThemeIdentity.resolve(persistedRawValue: "deepField", prefersDark: false) == .deepField)
+        #expect(AdaptiveThemeIdentity.resolve(persistedRawValue: "notATheme", prefersDark: true) == nil)
+    }
+
+    @MainActor
+    @Test func runtimeResolvesComicBookWithTheMirroredScheme() {
+        let runtime = ThemeRuntime.shared
+        let originalTheme = runtime.theme
+        let originalScheme = runtime.systemColorScheme
+        defer {
+            runtime.theme = originalTheme
+            runtime.systemColorScheme = originalScheme
+        }
+
+        runtime.theme = .comicBook
+        runtime.systemColorScheme = .dark
+        let darkPalette = runtime.palette
+        runtime.systemColorScheme = .light
+        let lightPalette = runtime.palette
+
+        #expect(darkPalette == ThemePalette(theme: .comicVillain, accent: runtime.accent.slot))
+        #expect(lightPalette == ThemePalette(theme: .comicFunnies, accent: runtime.accent.slot))
+        // Art direction rides the same seam — distinct treatments per variant.
+        runtime.systemColorScheme = .dark
+        let darkArt = runtime.artDirection
+        runtime.systemColorScheme = .light
+        let lightArt = runtime.artDirection
+        #expect(darkArt == ThemeArtDirectionCatalog.artDirection(for: .comicVillain))
+        #expect(lightArt == ThemeArtDirectionCatalog.artDirection(for: .comicFunnies))
+        #expect(darkArt != lightArt)
     }
 }

@@ -65,6 +65,20 @@ struct ReactorOrb: View {
             case .moonJelly: moonJellyLayers
             case .crucible: triRingLayers(Self.crucible)
             case .phosphor: triRingLayers(Self.phosphor)
+            // Midnight Marquee (Lane L) — the lineup's orbs share the
+            // batch-4 tri-ring anatomy; the two light themes print instead
+            // of glow (ink-stamp / sticker cores, Paper Tape's unlit-hub
+            // precedent) so they compose by hand.
+            case .rudoMask: triRingLayers(Self.rudoMask)
+            case .kaijuSiren: triRingLayers(Self.kaijuSiren)
+            case .dimeStamp: dimeStampLayers
+            case .luckySevens: triRingLayers(Self.luckySevens)
+            case .houseBall: triRingLayers(Self.houseBall)
+            case .stickerStar: stickerStarLayers
+            // The adaptive Comic Book pair (Lane L Phase 2): the villain
+            // glows, the Sunday edition prints (sticker-ring core).
+            case .powBurst: triRingLayers(Self.powBurst)
+            case .zapBurst: zapBurstLayers
             }
         }
         .frame(width: size, height: size)
@@ -599,6 +613,235 @@ struct ReactorOrb: View {
         coreFraction: 0.30,
         coreOuterGlow: VHSHue.chroma
     )
+
+    // MARK: Midnight Marquee specs (Lane L — verbatim lineup orb values;
+    // design/themes/midnight-marquee-final-lineup.html §1b/1c/1g/1j; same
+    // batch-4 anatomy: rings pulse 3.5s staggered 0/0.3/0.6, dashed middle
+    // ring spinning, 30% two-hue core corePulse 4s scale 1.12 brightness 1.3,
+    // wide halo in a third hue).
+
+    private static let rudoMask = TriRingOrbSpec(
+        rings: [
+            .init(color: LuchaHue.chrome, baseOpacity: 0.35, diameterFraction: 1.0),
+            .init(color: LuchaHue.royal, baseOpacity: 0.55, diameterFraction: 0.74,
+                  dash: [5, 4], delay: 0.3, spinPeriod: 14),
+            .init(color: LuchaHue.pyro, baseOpacity: 0.75, diameterFraction: 0.48,
+                  delay: 0.6),
+        ],
+        pulsePeriod: 3.5,
+        coreHighlight: LuchaHue.chrome, coreBase: LuchaHue.royal,
+        coreGlow: LuchaHue.royal,
+        coreMotion: .brighten(period: 4, scale: 1.12, amount: 0.3),
+        coreFraction: 0.30,
+        coreOuterGlow: LuchaHue.pyro
+    )
+
+    private static let kaijuSiren = TriRingOrbSpec(
+        rings: [
+            .init(color: KaijuHue.siren, baseOpacity: 0.35, diameterFraction: 1.0),
+            .init(color: KaijuHue.radioactive, baseOpacity: 0.55, diameterFraction: 0.74,
+                  dash: [5, 4], delay: 0.3, spinPeriod: 14),
+            .init(color: KaijuHue.searchlight, baseOpacity: 0.75, diameterFraction: 0.48,
+                  delay: 0.6),
+        ],
+        pulsePeriod: 3.5,
+        coreHighlight: KaijuHue.searchlight, coreBase: KaijuHue.siren,
+        coreGlow: KaijuHue.siren,
+        coreMotion: .brighten(period: 4, scale: 1.12, amount: 0.3),
+        coreFraction: 0.30,
+        coreOuterGlow: KaijuHue.radioactive
+    )
+
+    private static let luckySevens = TriRingOrbSpec(
+        rings: [
+            .init(color: CasinoHue.gold, baseOpacity: 0.35, diameterFraction: 1.0),
+            .init(color: CasinoHue.cherry, baseOpacity: 0.55, diameterFraction: 0.74,
+                  dash: [5, 4], delay: 0.3, spinPeriod: 14),
+            // Verbatim: the chip-blue inner ring sits at 0.7, not 0.75.
+            .init(color: CasinoHue.chip, baseOpacity: 0.7, diameterFraction: 0.48,
+                  delay: 0.6),
+        ],
+        pulsePeriod: 3.5,
+        coreHighlight: CasinoHue.gold, coreBase: CasinoHue.cherry,
+        coreGlow: CasinoHue.gold,
+        coreMotion: .brighten(period: 4, scale: 1.12, amount: 0.3),
+        coreFraction: 0.30,
+        coreOuterGlow: CasinoHue.cherry
+    )
+
+    private static let houseBall = TriRingOrbSpec(
+        rings: [
+            .init(color: BowlingHue.teal, baseOpacity: 0.35, diameterFraction: 1.0),
+            .init(color: BowlingHue.coral, baseOpacity: 0.55, diameterFraction: 0.74,
+                  dash: [5, 4], delay: 0.3, spinPeriod: 14),
+            .init(color: BowlingHue.grape, baseOpacity: 0.75, diameterFraction: 0.48,
+                  delay: 0.6),
+        ],
+        pulsePeriod: 3.5,
+        coreHighlight: BowlingHue.teal, coreBase: BowlingHue.grape,
+        coreGlow: BowlingHue.teal,
+        coreMotion: .brighten(period: 4, scale: 1.12, amount: 0.3),
+        coreFraction: 0.30,
+        coreOuterGlow: BowlingHue.coral
+    )
+
+    /// Pulp Noir's ring stack (§1f): ink 0.3 / dashed crimson 0.6 spinning a
+    /// slower 16s / teal 0.7 — the core prints (InkStampCore), so the spec's
+    /// core fields are inert (sprayCapRings precedent).
+    private static let dimeStampRings = TriRingOrbSpec(
+        rings: [
+            .init(color: PulpHue.ink, baseOpacity: 0.3, diameterFraction: 1.0),
+            .init(color: PulpHue.crimson, baseOpacity: 0.6, diameterFraction: 0.74,
+                  dash: [5, 4], delay: 0.3, spinPeriod: 16),
+            .init(color: PulpHue.teal, baseOpacity: 0.7, diameterFraction: 0.48,
+                  delay: 0.6),
+        ],
+        pulsePeriod: 3.5,
+        coreHighlight: PulpHue.mustard, coreBase: PulpHue.crimson,
+        coreGlow: PulpHue.crimson
+    )
+
+    /// Sticker-Bomb Toybox's inner rings (§1k): dashed tangerine 0.7 /
+    /// slime 0.8. The white die-cut edge ring and the sticker core are
+    /// bespoke views (StickerEdgeRing / StickerRingCore) that share this
+    /// spec's pulse cadence; the core fields are inert (sprayCapRings
+    /// precedent).
+    private static let stickerStarRings = TriRingOrbSpec(
+        rings: [
+            .init(color: ToyboxHue.tangerine, baseOpacity: 0.7, diameterFraction: 0.74,
+                  dash: [5, 4], delay: 0.3, spinPeriod: 14),
+            .init(color: ToyboxHue.slime, baseOpacity: 0.8, diameterFraction: 0.48,
+                  delay: 0.6),
+        ],
+        pulsePeriod: 3.5,
+        coreHighlight: ToyboxHue.tangerine, coreBase: ToyboxHue.grape,
+        coreGlow: ToyboxHue.tangerine
+    )
+
+    /// Comic Book — Villain Variant (§2a): ink-white / spinning dashed
+    /// kapow-yellow / panic-red, yellow→red core glowing 30px yellow with
+    /// the red wide halo. Pure batch-4 anatomy.
+    private static let powBurst = TriRingOrbSpec(
+        rings: [
+            .init(color: ComicHue.inkWhite, baseOpacity: 0.4, diameterFraction: 1.0),
+            .init(color: ComicHue.kapow, baseOpacity: 0.6, diameterFraction: 0.74,
+                  dash: [5, 4], delay: 0.3, spinPeriod: 14),
+            .init(color: ComicHue.panic, baseOpacity: 0.7, diameterFraction: 0.48,
+                  delay: 0.6),
+        ],
+        pulsePeriod: 3.5,
+        coreHighlight: ComicHue.kapow, coreBase: ComicHue.panic,
+        coreGlow: ComicHue.kapow,
+        coreMotion: .brighten(period: 4, scale: 1.12, amount: 0.3),
+        coreFraction: 0.30,
+        coreOuterGlow: ComicHue.panic
+    )
+
+    /// Comic Book — Sunday Funnies (§2b) ring stack: panel-ink 0.3 / dashed
+    /// Ben-Day cyan 0.65 spinning / pop-magenta 0.7. The core prints in a
+    /// white + ink sticker border (StickerRingCore), so the spec's core
+    /// fields are inert (sprayCapRings precedent).
+    private static let zapBurstRings = TriRingOrbSpec(
+        rings: [
+            .init(color: ComicHue.panelInk, baseOpacity: 0.3, diameterFraction: 1.0),
+            .init(color: ComicHue.benday, baseOpacity: 0.65, diameterFraction: 0.74,
+                  dash: [5, 4], delay: 0.3, spinPeriod: 14),
+            .init(color: ComicHue.magenta, baseOpacity: 0.7, diameterFraction: 0.48,
+                  delay: 0.6),
+        ],
+        pulsePeriod: 3.5,
+        coreHighlight: ComicHue.banana, coreBase: ComicHue.magenta,
+        coreGlow: ComicHue.magenta
+    )
+
+    // MARK: Comic Book (light) — ZAP burst (printed core, no glow)
+
+    @ViewBuilder private var zapBurstLayers: some View {
+        switch style {
+        case .minimal:
+            triRing(Self.zapBurstRings, index: 0, diameter: size)
+            StickerRingCore(diameter: size * 0.44, highlight: ComicHue.banana,
+                            base: ComicHue.magenta, white: ComicHue.paperWhite,
+                            ink: ComicHue.panelInk)
+        case .standard:
+            triRing(Self.zapBurstRings, index: 0, diameter: size)
+            triRing(Self.zapBurstRings, index: 2,
+                    diameter: size * Self.zapBurstRings.rings[2].diameterFraction)
+            StickerRingCore(diameter: size * 0.32, highlight: ComicHue.banana,
+                            base: ComicHue.magenta, white: ComicHue.paperWhite,
+                            ink: ComicHue.panelInk)
+        case .onboarding, .voice:
+            if style == .voice { PingHalo(diameter: size) }
+            ForEach(Self.zapBurstRings.rings.indices, id: \.self) { index in
+                triRing(Self.zapBurstRings, index: index,
+                        diameter: size * Self.zapBurstRings.rings[index].diameterFraction)
+            }
+            // Voice matches triRingLayers' floor (max(coreFraction, 0.34)).
+            StickerRingCore(diameter: size * (style == .voice ? 0.34 : 0.30),
+                            highlight: ComicHue.banana,
+                            base: ComicHue.magenta, white: ComicHue.paperWhite,
+                            ink: ComicHue.panelInk)
+        }
+    }
+
+    // MARK: Pulp Noir — dime stamp (printed core, no glow)
+
+    @ViewBuilder private var dimeStampLayers: some View {
+        switch style {
+        case .minimal:
+            triRing(Self.dimeStampRings, index: 0, diameter: size)
+            InkStampCore(diameter: size * 0.50, highlight: PulpHue.mustard,
+                         base: PulpHue.crimson, ink: PulpHue.ink)
+        case .standard:
+            triRing(Self.dimeStampRings, index: 0, diameter: size)
+            triRing(Self.dimeStampRings, index: 2,
+                    diameter: size * Self.dimeStampRings.rings[2].diameterFraction)
+            InkStampCore(diameter: size * 0.36, highlight: PulpHue.mustard,
+                         base: PulpHue.crimson, ink: PulpHue.ink)
+        case .onboarding, .voice:
+            if style == .voice { PingHalo(diameter: size) }
+            ForEach(Self.dimeStampRings.rings.indices, id: \.self) { index in
+                triRing(Self.dimeStampRings, index: index,
+                        diameter: size * Self.dimeStampRings.rings[index].diameterFraction)
+            }
+            // Voice matches triRingLayers' floor (max(coreFraction, 0.34)).
+            InkStampCore(diameter: size * (style == .voice ? 0.34 : 0.30),
+                         highlight: PulpHue.mustard,
+                         base: PulpHue.crimson, ink: PulpHue.ink)
+        }
+    }
+
+    // MARK: Sticker-Bomb Toybox — die-cut sticker star (printed, no glow)
+
+    @ViewBuilder private var stickerStarLayers: some View {
+        let edgePeriod = Self.stickerStarRings.pulsePeriod
+        switch style {
+        case .minimal:
+            StickerEdgeRing(diameter: size, period: edgePeriod)
+            StickerRingCore(diameter: size * 0.44, highlight: ToyboxHue.tangerine,
+                            base: ToyboxHue.grape, white: ToyboxHue.white,
+                            ink: ToyboxHue.ink)
+        case .standard:
+            StickerEdgeRing(diameter: size, period: edgePeriod)
+            triRing(Self.stickerStarRings, index: 1,
+                    diameter: size * Self.stickerStarRings.rings[1].diameterFraction)
+            StickerRingCore(diameter: size * 0.32, highlight: ToyboxHue.tangerine,
+                            base: ToyboxHue.grape, white: ToyboxHue.white,
+                            ink: ToyboxHue.ink)
+        case .onboarding, .voice:
+            if style == .voice { PingHalo(diameter: size) }
+            StickerEdgeRing(diameter: size, period: edgePeriod)
+            ForEach(Self.stickerStarRings.rings.indices, id: \.self) { index in
+                triRing(Self.stickerStarRings, index: index,
+                        diameter: size * Self.stickerStarRings.rings[index].diameterFraction)
+            }
+            // Voice matches triRingLayers' floor (max(coreFraction, 0.34)).
+            StickerRingCore(diameter: size * (style == .voice ? 0.34 : 0.30),
+                            highlight: ToyboxHue.tangerine,
+                            base: ToyboxHue.grape, white: ToyboxHue.white,
+                            ink: ToyboxHue.ink)
+        }
+    }
 
     // MARK: - Shared pieces
 
@@ -1346,6 +1589,187 @@ private enum VHSHue {
     static let phosphor = Color(hex: 0x3BFF6F)  // Phosphor Green
     static let chroma = Color(hex: 0xFF3BD4)    // Chroma Magenta
     static let staticCyan = Color(hex: 0x35E0FF) // Static Cyan
+}
+
+// Midnight Marquee hue tables (Lane L — verbatim from
+// design/themes/midnight-marquee-final-lineup.html).
+
+private enum LuchaHue {
+    static let royal = Color(hex: 0x3D6BFF)     // Royal Blue
+    static let pyro = Color(hex: 0xFF7A29)      // Pyro Orange
+    static let chrome = Color(hex: 0xCCD6E8)    // Chrome Silver
+}
+
+private enum KaijuHue {
+    static let radioactive = Color(hex: 0x6AFF57)  // Radioactive Green
+    static let searchlight = Color(hex: 0xFFD259)  // Searchlight Amber
+    static let siren = Color(hex: 0xFF4438)        // Siren Red
+}
+
+private enum PulpHue {
+    static let teal = Color(hex: 0x276F6D)      // Library Teal
+    static let mustard = Color(hex: 0xC8912B)   // Mustard Gold
+    static let crimson = Color(hex: 0xB3382E)   // Faded Crimson
+    static let ink = Color(hex: 0x262019)       // typewriter ink
+}
+
+private enum CasinoHue {
+    static let chip = Color(hex: 0x4F9DFF)      // Chip Blue
+    static let gold = Color(hex: 0xFFD24A)      // Jackpot Gold
+    static let cherry = Color(hex: 0xFF4757)    // Cherry Red
+}
+
+private enum BowlingHue {
+    static let teal = Color(hex: 0x00B3A4)      // Alley Teal
+    static let coral = Color(hex: 0xFF6257)     // Coral Confetti
+    static let grape = Color(hex: 0x8455E0)     // Grape Purple
+}
+
+private enum ToyboxHue {
+    static let slime = Color(hex: 0x4BBF22)     // Slime Green
+    static let tangerine = Color(hex: 0xFF8A2B) // Tangerine
+    static let grape = Color(hex: 0x8C52FF)     // Grape Pop
+    static let ink = Color(hex: 0x26212E)       // toy-plastic ink
+    static let white = Color(hex: 0xFFFFFF)     // Blister White border
+}
+
+private enum ComicHue {
+    // Villain Variant (§2a).
+    static let kapow = Color(hex: 0xFFD828)     // Kapow Yellow
+    static let panic = Color(hex: 0xFF2B2B)     // Panic Red
+    static let inkWhite = Color(hex: 0xF5F2FF)  // Ink White
+    // Sunday Funnies (§2b).
+    static let benday = Color(hex: 0x00A8E8)    // Ben-Day Cyan
+    static let magenta = Color(hex: 0xFF3D7F)   // Pop Magenta
+    static let banana = Color(hex: 0xFFD23F)    // Banana Yellow
+    static let panelInk = Color(hex: 0x1F1A24)  // Panel Ink
+    static let paperWhite = Color(hex: 0xFFFFFF) // speech-bubble white
+}
+
+/// Pulp Noir's printed core: the two-hue disc pulsing like every gallery core
+/// (`corePulse` scale 1.12 / brightness 1.3) but carrying a hard ink offset
+/// (`4px 4px 0` on the 36px reference core) instead of a glow — Paper Tape's
+/// unlit-hub precedent for light themes.
+private struct InkStampCore: View {
+    let diameter: CGFloat
+    let highlight: Color
+    let base: Color
+    let ink: Color
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+    @State private var pulse = false
+
+    var body: some View {
+        Circle()
+            .fill(
+                RadialGradient(
+                    colors: [highlight, base],
+                    center: UnitPoint(x: 0.3, y: 0.3),
+                    startRadius: 0,
+                    endRadius: diameter * 0.62
+                )
+            )
+            .frame(width: diameter, height: diameter)
+            .shadow(color: ink.opacity(0.2), radius: 0,
+                    x: diameter * 0.11, y: diameter * 0.11)
+            .scaleEffect(pulse ? 1.12 : 1.0)
+            .brightness(pulse ? 0.3 : 0)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
+                    pulse = true
+                }
+            }
+    }
+}
+
+/// Sticker-Bomb Toybox's die-cut core: the two-hue disc inside the design's
+/// `0 0 0 3px white, 0 0 0 5px ink` sticker-border stack (annuli scaled from
+/// the 36px reference core). Printed — no glow.
+private struct StickerRingCore: View {
+    let diameter: CGFloat
+    let highlight: Color
+    let base: Color
+    let white: Color
+    let ink: Color
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+    @State private var pulse = false
+
+    /// `0 0 0 3px` / `0 0 0 5px` spreads relative to the 36px reference.
+    private var whiteWidth: CGFloat { max(1, diameter * (3.0 / 36.0)) }
+    private var inkWidth: CGFloat { max(1, diameter * (2.0 / 36.0)) }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(ink, lineWidth: inkWidth)
+                .frame(width: diameter + whiteWidth * 2 + inkWidth,
+                       height: diameter + whiteWidth * 2 + inkWidth)
+            Circle()
+                .stroke(white, lineWidth: whiteWidth)
+                .frame(width: diameter + whiteWidth,
+                       height: diameter + whiteWidth)
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [highlight, base],
+                        center: UnitPoint(x: 0.3, y: 0.3),
+                        startRadius: 0,
+                        endRadius: diameter * 0.62
+                    )
+                )
+                .frame(width: diameter, height: diameter)
+        }
+        .scaleEffect(pulse ? 1.12 : 1.0)
+        .brightness(pulse ? 0.3 : 0)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
+                pulse = true
+            }
+        }
+    }
+}
+
+/// Sticker-Bomb Toybox's outer die-cut edge: the white sticker ring with its
+/// ink outline and hard toy-plastic offset shadow (`3px solid #fff` +
+/// `0 0 0 2px ink, 4px 4px 0 ink@.2` on the 120px reference orb), pulsing on
+/// the cadence its spec passes in so a pulsePeriod retune reaches the edge.
+private struct StickerEdgeRing: View {
+    let diameter: CGFloat
+    let period: Double
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
+    @State private var pulse = false
+
+    private var whiteWidth: CGFloat { max(1, diameter * (3.0 / 120.0)) }
+    private var inkWidth: CGFloat { max(1, diameter * (2.0 / 120.0)) }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .strokeBorder(ToyboxHue.ink, lineWidth: inkWidth)
+                .frame(width: diameter, height: diameter)
+            Circle()
+                .strokeBorder(ToyboxHue.white, lineWidth: whiteWidth)
+                .frame(width: diameter - inkWidth * 2,
+                       height: diameter - inkWidth * 2)
+        }
+        .shadow(color: ToyboxHue.ink.opacity(0.2), radius: 0,
+                x: diameter * (4.0 / 120.0), y: diameter * (4.0 / 120.0))
+        .opacity(pulse ? 1.0 : 0.9)
+        .scaleEffect(pulse ? 1.04 : 1.0)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: period / 2).repeatForever(autoreverses: true)) {
+                pulse = true
+            }
+        }
+    }
 }
 
 /// Midnight Aquarium's `jellyFloat`: the whole orb rising `travel` points and

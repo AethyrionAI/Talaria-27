@@ -32,7 +32,9 @@ GALLERY = os.path.join("design", "themes", "app-icons.html")
 OUT_DIR = os.path.join("Talaria", "Resources", "AppIcons")
 MASTER = 1024  # native SVG canvas; downsampled per output
 
-# The Lane K batch (dispatch/FABLE-LANE-K-app-icons.md). Deliberately absent:
+# The Lane K batch (dispatch/FABLE-LANE-K-app-icons.md) + the Lane L batch
+# (Special Edition five + Midnight Marquee eight —
+# dispatch/FABLE-LANE-L-midnight-marquee.md). Deliberately absent:
 #   deep-field / solar-forge / terminal / paper-tape — flagship set, keeps its
 #     generate_app_icons.py placeholder art until the curated swap;
 #   deep-sea-diner — theme cut, icon cut with it (icon<->theme parity).
@@ -51,6 +53,23 @@ ICON_IDS = [
     "spring-sprout",
     "summer-solar",
     "winter-frost",
+    # Special Edition (Lane L).
+    "event-horizon",
+    "graffiti-galaxy",
+    "karaoke-supernova",
+    "midnight-aquarium",
+    "molten-forge",
+    # Midnight Marquee (Lane L) — Comic Book ships BOTH variants as
+    # separately selectable icons (icons stay independent of theme
+    # selection, the Lane K coupling rule).
+    "lucha-libre",
+    "kaiju-attack",
+    "pulp-noir",
+    "casino-lucky-7s",
+    "cosmic-bowling",
+    "sticker-bomb-toybox",
+    "comic-villain",
+    "comic-funnies",
 ]
 
 
@@ -93,16 +112,23 @@ def save_variants(master: Image.Image, name: str):
 def main():
     if not os.path.isdir(os.path.join("Talaria", "Resources")):
         raise SystemExit("Run from the repo root (Talaria/Resources not found).")
+    # Optional gallery-id args render a subset (a full re-render stays the
+    # no-arg default); unknown args fail like unknown ICON_IDS would.
+    import sys
+    requested = sys.argv[1:] or ICON_IDS
+    unknown = [i for i in requested if i not in ICON_IDS]
+    if unknown:
+        raise SystemExit(f"not in ICON_IDS: {unknown}")
     gallery = load_gallery_svgs(GALLERY)
-    missing = [i for i in ICON_IDS if i not in gallery]
+    missing = [i for i in requested if i not in gallery]
     if missing:
         raise SystemExit(f"gallery is missing icon ids: {missing}")
     os.makedirs(OUT_DIR, exist_ok=True)
-    for icon_id in ICON_IDS:
+    for icon_id in requested:
         name = pascal_case(icon_id)
         save_variants(render_master(gallery[icon_id]), name)
         print(f"  Icon-{name} @2x/@3x + IconPreview-{name}.png")
-    print(f"Done ({len(ICON_IDS)} icons) -> {OUT_DIR}")
+    print(f"Done ({len(requested)} icons) -> {OUT_DIR}")
 
 
 if __name__ == "__main__":

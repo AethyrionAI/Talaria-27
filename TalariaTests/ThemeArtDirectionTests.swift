@@ -31,12 +31,17 @@ struct ThemeArtDirectionTests {
         // caustics; Haunted VHS was cut on device verdict 2026-07-11).
         let lineTextures: Set<ThemeID> = [
             .holoSushi, .cyberCactus, .graffitiGalaxy, .midnightAquarium,
+            .cosmicBowling, .comicVillain, .comicFunnies,
         ]
         let scanlineOverlays: Set<ThemeID> = [
             .glitchGarden, .bubblegumMecha, .retroSciFi, .discoInferno,
         ]
         let titleShadows: Set<ThemeID> = [
             .glitchGarden, .retroSciFi, .graffitiGalaxy,
+            // Midnight Marquee (Lane L): every marquee composes its
+            // handoff's print offsets (+ glow layers) as one shadow stack.
+            .luchaLibre, .kaijuAttack, .pulpNoir, .casinoLucky7s,
+            .cosmicBowling, .stickerBombToybox, .comicVillain, .comicFunnies,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -52,7 +57,7 @@ struct ThemeArtDirectionTests {
         // Forge's heatShimmer pool breathe — update deliberately per batch.
         let pool = ThemeGlowPool(color: .white, centerX: 0.5, centerY: 0.5, radiusFraction: 0.5)
         #expect(pool.pulsePeriod == nil)
-        let pulsing: Set<ThemeID> = [.karaokeSupernova, .moltenForge]
+        let pulsing: Set<ThemeID> = [.karaokeSupernova, .moltenForge, .luchaLibre]
         for theme in ThemeID.allCases where !pulsing.contains(theme) {
             for pool in ThemeArtDirectionCatalog.artDirection(for: theme).glowPools {
                 #expect(pool.pulsePeriod == nil)
@@ -74,6 +79,15 @@ struct ThemeArtDirectionTests {
         #expect(molten.last?.pulsePeriod == 4)
         #expect(molten.last?.pulseMinOpacity == 0.59)
         #expect(molten.last?.centerY == 1.0)
+        // Lucha Libre: royal bloom static, the two spotlight-shaft pools
+        // breathing on the design's 4s glowPulse (Lane L).
+        let lucha = ThemeArtDirectionCatalog.artDirection(for: .luchaLibre).glowPools
+        #expect(lucha.count == 3)
+        #expect(lucha.first?.pulsePeriod == nil)
+        for shaft in lucha.dropFirst() {
+            #expect(shaft.pulsePeriod == 4)
+            #expect(shaft.pulseMinOpacity == 0.6)
+        }
     }
 
     @Test func eventHorizonAtmosphereKeepsPreLaserDefaults() {
@@ -151,6 +165,9 @@ struct ThemeArtDirectionTests {
             .glitchSeed, .cauldronBrew, .holoNigiri, .prizeWheel, .candyMecha,
             .jukeboxGlow, .cactusBloom, .anglerLure, .discoBall, .sprayCap,
             .mirrorBall, .rocketBadge, .moonJelly, .crucible, .phosphor,
+            // Midnight Marquee (Lane L) — the adaptive pair owns one each.
+            .rudoMask, .kaijuSiren, .dimeStamp, .luckySevens, .houseBall,
+            .stickerStar, .powBurst, .zapBurst,
         ]
         let orphans: Set<ThemeOrbStyle> = [.anglerLure, .phosphor]
         let selected = ThemeID.allCases.map { ThemePalette(theme: $0, accent: .cyan).orbStyle }
@@ -228,10 +245,13 @@ struct ThemeArtDirectionTests {
         }
         // Pre-batch-4 adopters of the extended specs stay static: Graffiti
         // Galaxy's TAG never blinks, no earlier line field drifts, no
-        // earlier atmosphere quantizes its pan.
+        // earlier atmosphere quantizes its pan. Deliberate drift adopters:
+        // Midnight Aquarium's caustics + the Comic Book pair's speed lines
+        // (Lane L Phase 2).
         #expect(ThemeArtDirectionCatalog.artDirection(for: .graffitiGalaxy)
             .cornerRibbon?.blinkPeriod == nil)
-        for theme in ThemeID.allCases where theme != .midnightAquarium {
+        let driftingLineFields: Set<ThemeID> = [.midnightAquarium, .comicVillain, .comicFunnies]
+        for theme in ThemeID.allCases where !driftingLineFields.contains(theme) {
             #expect(ThemeArtDirectionCatalog.artDirection(for: theme)
                 .lineTexture?.driftPeriod == nil)
         }
@@ -324,6 +344,9 @@ struct ThemeArtDirectionTests {
             .lunarDiner, .cyberCactus, .discoInferno,
             .graffitiGalaxy, .karaokeSupernova,
             .midnightAquarium, .moltenForge,
+            // Midnight Marquee (Lane L).
+            .luchaLibre, .kaijuAttack, .pulpNoir, .casinoLucky7s,
+            .cosmicBowling, .stickerBombToybox, .comicVillain, .comicFunnies,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -358,9 +381,12 @@ struct ThemeArtDirectionTests {
     }
 
     @Test func radialSpokesDefaultToNil() {
-        // The spoke field must be inert for every theme without a spec.
+        // The spoke field must be inert for every theme without a spec —
+        // Event Horizon's lensing starburst and Kaiju Attack's searchlight
+        // sweep (Lane L) are the deliberate adopters.
         #expect(ThemeArtDirection.standard.radialSpokes == nil)
-        for theme in ThemeID.allCases where theme != .eventHorizon {
+        let spoked: Set<ThemeID> = [.eventHorizon, .kaijuAttack]
+        for theme in ThemeID.allCases where !spoked.contains(theme) {
             #expect(ThemeArtDirectionCatalog.artDirection(for: theme).radialSpokes == nil)
         }
     }
@@ -424,6 +450,10 @@ struct ThemeArtDirectionTests {
             .eventHorizon, .witchsBrew, .cerealBox, .bubblegumMecha, .retroSciFi,
             .lunarDiner, .discoInferno, .karaokeSupernova,
             .midnightAquarium, .moltenForge,
+            // Midnight Marquee (Lane L): the static crowd/city/carpet/sticker
+            // speck fields, plus the adaptive pair's DRIFTING halftones.
+            .luchaLibre, .kaijuAttack, .cosmicBowling, .stickerBombToybox,
+            .comicVillain, .comicFunnies,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -434,9 +464,11 @@ struct ThemeArtDirectionTests {
     @Test func staticAtmosphereFieldsNeverDrift() {
         // Batch 1's speck fields are STATIC by design (the CSS never pans
         // them) — zero drift on every layer, so Reduce Motion and the
-        // animated path render identically. Only Event Horizon drifts today.
+        // animated path render identically. Lane L's four marquee fields
+        // are static in their designs too.
         for theme in [ThemeID.witchsBrew, .cerealBox, .bubblegumMecha, .retroSciFi,
-                      .lunarDiner, .discoInferno] {
+                      .lunarDiner, .discoInferno,
+                      .luchaLibre, .kaijuAttack, .cosmicBowling, .stickerBombToybox] {
             let spec = ThemeArtDirectionCatalog.artDirection(for: theme).atmosphereMotion
             #expect(spec != nil)
             for layer in spec?.layers ?? [] {
@@ -575,12 +607,103 @@ struct ThemeArtDirectionTests {
     }
 
     @Test func eventHorizonUsesHandoffSlotNames() {
-        #expect(AppearanceAccent.cyan.displayLabel(for: .eventHorizon) == "Accretion Violet")
-        #expect(AppearanceAccent.amber.displayLabel(for: .eventHorizon) == "Hawking Cyan")
-        #expect(AppearanceAccent.violet.displayLabel(for: .eventHorizon) == "Supernova Gold")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.eventHorizon) == "Accretion Violet")
+        #expect(AppearanceAccent.amber.displayLabel(for: AppearanceTheme.eventHorizon) == "Hawking Cyan")
+        #expect(AppearanceAccent.violet.displayLabel(for: AppearanceTheme.eventHorizon) == "Supernova Gold")
     }
 
     @Test func eventHorizonSelectsTheStarfieldTexture() {
         #expect(ThemePalette(theme: .eventHorizon, accent: .cyan).texture == .starfield)
+    }
+
+    // MARK: Midnight Marquee pinned lineup values (Lane L)
+
+    @Test func kaijuSearchlightSitsAtLineupLevels() {
+        // The design's two 8° amber beams orbSpin 24s, ported at the spoke
+        // primitive's lit/gap cadence (approximation noted in the PR). The
+        // cadence must divide 360 or the tiling fuses a double-width beam
+        // at the wrap seam — 7.5° is the nearest clean divisor.
+        let spokes = ThemeArtDirectionCatalog.artDirection(for: .kaijuAttack).radialSpokes
+        #expect(spokes?.spokeAlpha == 0.05)
+        #expect(spokes?.segmentDegrees == 7.5)
+        #expect(spokes?.period == 24)
+        if let degrees = spokes?.segmentDegrees {
+            #expect(360.0.truncatingRemainder(dividingBy: degrees * 2) == 0)
+        }
+    }
+
+    @Test func cosmicBowlingCarpetSitsAtLineupLevels() {
+        let art = ThemeArtDirectionCatalog.artDirection(for: .cosmicBowling)
+        // Carpet confetti: the design's non-square background-sizes.
+        #expect(art.atmosphereMotion?.layers.map(\.tileSize) == [130, 110, 160])
+        #expect(art.atmosphereMotion?.layers.map(\.tileHeight) == [110, 95, 130])
+        #expect(art.atmosphereMotion?.fieldOpacity == 0.28)
+        // The grape squiggle diagonal (CSS-angle verbatim, static).
+        #expect(art.lineTexture?.layers.map(\.angleDegrees) == [35])
+        #expect(art.lineTexture?.driftPeriod == nil)
+    }
+
+    @Test func marqueeGridsArePaletteData() {
+        // Casino felt dots + Pulp paper tooth follow the Disco precedent:
+        // the design's own dot lattice rides GridOverlay as palette data.
+        let casino = ThemePalette(theme: .casinoLucky7s, accent: .cyan)
+        #expect(casino.gridStyle == .dots)
+        #expect(casino.gridCell == 26)
+        let pulp = ThemePalette(theme: .pulpNoir, accent: .cyan)
+        #expect(pulp.gridStyle == .dots)
+        #expect(pulp.gridCell == 9)
+        #expect(pulp.texture == .paperGrain)
+    }
+
+    @Test func lightMarqueesPrintInsteadOfGlow() {
+        // Pulp Noir, Sticker-Bomb Toybox, and the Sunday Funnies half of
+        // Comic Book are print environments: paper glow scale, and
+        // deliberately NO panel halo (their designs use hard offset ink
+        // shadows, not glows).
+        for theme in [ThemeID.pulpNoir, .stickerBombToybox, .comicFunnies] {
+            #expect(ThemePalette(theme: theme, accent: .cyan).glowScale == 0.15)
+            #expect(ThemeArtDirectionCatalog.artDirection(for: theme).panelHalo == nil)
+        }
+        // Sticker dots: the design's three big soft tiles on the .5 layer.
+        let toybox = ThemeArtDirectionCatalog.artDirection(for: .stickerBombToybox)
+        #expect(toybox.atmosphereMotion?.layers.map(\.tileSize) == [140, 170, 190])
+        #expect(toybox.atmosphereMotion?.fieldOpacity == 0.5)
+    }
+
+    @Test func comicBookPairSitsAtLineupLevels() {
+        // The collection's most animated theme: both halves drift their
+        // halftone AND their speed lines, and both shake their titles —
+        // with distinct per-variant treatments (Lane L Phase 2).
+        let villain = ThemeArtDirectionCatalog.artDirection(for: .comicVillain)
+        #expect(villain.atmosphereMotion?.period == 8)
+        #expect(villain.atmosphereMotion?.layers.count == 1)
+        #expect(villain.lineTexture?.driftPeriod == 3)
+        #expect(villain.lineTexture?.layers.allSatisfy { $0.angleDegrees == 105 } == true)
+        #expect(villain.titleShadow?.glitchPeriod == 6)
+        #expect(villain.panelHalo != nil)
+
+        let funnies = ThemeArtDirectionCatalog.artDirection(for: .comicFunnies)
+        #expect(funnies.atmosphereMotion?.period == 10)
+        #expect(funnies.atmosphereMotion?.layers.map(\.tileSize) == [22, 30])
+        #expect(funnies.lineTexture?.driftPeriod == 4)
+        #expect(funnies.lineTexture?.layers.allSatisfy { $0.angleDegrees == 75 } == true)
+        #expect(funnies.titleShadow?.glitchPeriod == 7)
+
+        // Drifting fields keep the seamless whole-tile invariant.
+        for art in [villain, funnies] {
+            for layer in art.atmosphereMotion?.layers ?? [] {
+                #expect(abs(layer.driftX) == layer.tileSize)
+                #expect(abs(layer.driftY) == (layer.tileHeight ?? layer.tileSize))
+            }
+        }
+
+        // The halftone's static half is palette grid data on both variants
+        // (white 26px by night, Ben-Day cyan 18px by day).
+        let villainPalette = ThemePalette(theme: .comicVillain, accent: .cyan)
+        #expect(villainPalette.gridStyle == .dots)
+        #expect(villainPalette.gridCell == 26)
+        let funniesPalette = ThemePalette(theme: .comicFunnies, accent: .cyan)
+        #expect(funniesPalette.gridStyle == .dots)
+        #expect(funniesPalette.gridCell == 18)
     }
 }

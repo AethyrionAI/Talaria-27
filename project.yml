@@ -233,6 +233,63 @@ targets:
               CFBundleIconFiles:
                 - Icon-WinterFrost
               UIPrerenderedIcon: false
+            # Special Edition (Lane L — SVGs shipped in app-icons.html's SE
+            # section, rendered by tools/appicons/render_gallery_icons.py).
+            EventHorizon:
+              CFBundleIconFiles:
+                - Icon-EventHorizon
+              UIPrerenderedIcon: false
+            GraffitiGalaxy:
+              CFBundleIconFiles:
+                - Icon-GraffitiGalaxy
+              UIPrerenderedIcon: false
+            KaraokeSupernova:
+              CFBundleIconFiles:
+                - Icon-KaraokeSupernova
+              UIPrerenderedIcon: false
+            MidnightAquarium:
+              CFBundleIconFiles:
+                - Icon-MidnightAquarium
+              UIPrerenderedIcon: false
+            MoltenForge:
+              CFBundleIconFiles:
+                - Icon-MoltenForge
+              UIPrerenderedIcon: false
+            # Midnight Marquee (Lane L). Comic Book ships BOTH variants as
+            # separately selectable icons — icon choice stays independent of
+            # theme choice (the Lane K coupling rule).
+            LuchaLibre:
+              CFBundleIconFiles:
+                - Icon-LuchaLibre
+              UIPrerenderedIcon: false
+            KaijuAttack:
+              CFBundleIconFiles:
+                - Icon-KaijuAttack
+              UIPrerenderedIcon: false
+            PulpNoir:
+              CFBundleIconFiles:
+                - Icon-PulpNoir
+              UIPrerenderedIcon: false
+            CasinoLucky7s:
+              CFBundleIconFiles:
+                - Icon-CasinoLucky7s
+              UIPrerenderedIcon: false
+            CosmicBowling:
+              CFBundleIconFiles:
+                - Icon-CosmicBowling
+              UIPrerenderedIcon: false
+            StickerBombToybox:
+              CFBundleIconFiles:
+                - Icon-StickerBombToybox
+              UIPrerenderedIcon: false
+            ComicVillain:
+              CFBundleIconFiles:
+                - Icon-ComicVillain
+              UIPrerenderedIcon: false
+            ComicFunnies:
+              CFBundleIconFiles:
+                - Icon-ComicFunnies
+              UIPrerenderedIcon: false
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
         UIBackgroundModes:

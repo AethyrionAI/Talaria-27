@@ -99,6 +99,44 @@ enum AppIconCatalog {
                       alternateIconName: "RetroSciFi", previewImageName: "IconPreview-RetroSciFi"),
     ]
 
+    /// Special Edition — the five SE theme icons (Lane L; SVGs in
+    /// app-icons.html's Special Edition section, same render pipeline).
+    static let specialEdition: [AppIconOption] = [
+        AppIconOption(id: "eventHorizon", displayName: "Event Horizon", subtitle: "Singularity",
+                      alternateIconName: "EventHorizon", previewImageName: "IconPreview-EventHorizon"),
+        AppIconOption(id: "graffitiGalaxy", displayName: "Graffiti Galaxy", subtitle: "Spray Cap",
+                      alternateIconName: "GraffitiGalaxy", previewImageName: "IconPreview-GraffitiGalaxy"),
+        AppIconOption(id: "karaokeSupernova", displayName: "Karaoke Supernova", subtitle: "Mirror Ball",
+                      alternateIconName: "KaraokeSupernova", previewImageName: "IconPreview-KaraokeSupernova"),
+        AppIconOption(id: "midnightAquarium", displayName: "Midnight Aquarium", subtitle: "Moon Jelly",
+                      alternateIconName: "MidnightAquarium", previewImageName: "IconPreview-MidnightAquarium"),
+        AppIconOption(id: "moltenForge", displayName: "Molten Forge", subtitle: "Crucible",
+                      alternateIconName: "MoltenForge", previewImageName: "IconPreview-MoltenForge"),
+    ]
+
+    /// Midnight Marquee — the Lane L collection. Comic Book ships BOTH
+    /// variants (POW + ZAP) as separately selectable icons: icon choice is
+    /// fully independent of theme choice (the Lane K coupling rule), so the
+    /// adaptive theme's two halves are just two icons here.
+    static let midnightMarquee: [AppIconOption] = [
+        AppIconOption(id: "luchaLibre", displayName: "Lucha Libre", subtitle: "Rudo Nocturno",
+                      alternateIconName: "LuchaLibre", previewImageName: "IconPreview-LuchaLibre"),
+        AppIconOption(id: "kaijuAttack", displayName: "Kaiju Attack", subtitle: "Code Red Tokyo",
+                      alternateIconName: "KaijuAttack", previewImageName: "IconPreview-KaijuAttack"),
+        AppIconOption(id: "pulpNoir", displayName: "Pulp Noir", subtitle: "Dime Novel",
+                      alternateIconName: "PulpNoir", previewImageName: "IconPreview-PulpNoir"),
+        AppIconOption(id: "casinoLucky7s", displayName: "Casino Lucky 7s", subtitle: "House Felt",
+                      alternateIconName: "CasinoLucky7s", previewImageName: "IconPreview-CasinoLucky7s"),
+        AppIconOption(id: "cosmicBowling", displayName: "Cosmic Bowling", subtitle: "Carpet Classic",
+                      alternateIconName: "CosmicBowling", previewImageName: "IconPreview-CosmicBowling"),
+        AppIconOption(id: "stickerBombToybox", displayName: "Sticker-Bomb Toybox", subtitle: "Kidcore Shelf",
+                      alternateIconName: "StickerBombToybox", previewImageName: "IconPreview-StickerBombToybox"),
+        AppIconOption(id: "comicVillain", displayName: "Comic Book", subtitle: "Villain Variant",
+                      alternateIconName: "ComicVillain", previewImageName: "IconPreview-ComicVillain"),
+        AppIconOption(id: "comicFunnies", displayName: "Comic Book", subtitle: "Sunday Funnies",
+                      alternateIconName: "ComicFunnies", previewImageName: "IconPreview-ComicFunnies"),
+    ]
+
     /// Seasonal — same gallery pipeline as the Neon Arcade Collection. Unlike
     /// seasonal THEMES, seasonal icons are always selectable (no date window):
     /// the OS keeps whatever icon is set, so gating them would strand a choice.
@@ -114,12 +152,12 @@ enum AppIconCatalog {
     ]
 
     /// The picker's titled sections, in display order — mirrors the theme
-    /// gallery taxonomy (`ThemeCatalog.sections`). Special Edition joins once
-    /// its icon art lands (event-horizon / graffiti-galaxy / karaoke-supernova
-    /// are with Claude Design).
+    /// gallery taxonomy (`ThemeCatalog.sections`).
     static let sections: [AppIconSection] = [
         AppIconSection(title: "Flagship", options: flagship),
         AppIconSection(title: "Neon Arcade Collection", options: neonArcadeCollection),
+        AppIconSection(title: "Special Edition", options: specialEdition),
+        AppIconSection(title: "Midnight Marquee", options: midnightMarquee),
         AppIconSection(title: "Seasonal", options: seasonal),
     ]
 

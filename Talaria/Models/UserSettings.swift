@@ -253,15 +253,30 @@ enum AppearanceTheme: String, Codable, CaseIterable, Hashable, Sendable {
     case karaokeSupernova
     case midnightAquarium
     case moltenForge
+    case luchaLibre
+    case kaijuAttack
+    case pulpNoir
+    case casinoLucky7s
+    case cosmicBowling
+    case stickerBombToybox
+    /// The first ADAPTIVE theme (Lane L Phase 2): one persisted identity
+    /// that renders as `comicVillain` under the dark system appearance and
+    /// `comicFunnies` under light. Raw value pinned to
+    /// `AdaptiveThemeIdentity.comicBookRawValue`.
+    case comicBook
 
     /// Display name — single source of truth is the catalog definition (#49).
     var displayLabel: String {
         ThemeCatalog.definition(id: rawValue)?.displayName ?? rawValue
     }
 
-    /// Whether this is a light environment — drives the root
-    /// `preferredColorScheme` so system chrome (keyboard, sheets, toggles)
-    /// follows the theme. Resolved from the palette data (#49).
+    /// Whether this is a light environment — feeds the root
+    /// `preferredColorScheme` (via `AppearanceTheme.preferredColorScheme`,
+    /// Design.swift) so system chrome (keyboard, sheets, toggles) follows
+    /// the theme. Resolved from the palette data (#49) through the
+    /// scheme-free canonical identity — the adaptive Comic Book reads its
+    /// dark (villain) half here, but the root never consults `isLight` for
+    /// it (adaptive themes leave the scheme to the system).
     var isLight: Bool {
         ThemePaletteCatalog.definition(for: themeID).isLight
     }
@@ -293,13 +308,21 @@ enum AppearanceAccent: String, Codable, CaseIterable, Hashable, Sendable {
     case violet
 
     /// The slot's canonical (Deep Field) label.
-    var displayLabel: String { displayLabel(for: .deepField) }
+    var displayLabel: String { displayLabel(for: ThemeID.deepField) }
 
     /// Contextual label for the slot as resolved inside a theme — read from
     /// the theme's accent-variant data (#49), so a new theme names its slots
-    /// in its catalog entry instead of a switch arm here.
+    /// in its catalog entry instead of a switch arm here. Resolves through
+    /// the canonical (scheme-free) identity; surfaces that present the
+    /// adaptive theme's live variant use the `ThemeID` overload instead.
     func displayLabel(for theme: AppearanceTheme) -> String {
-        ThemePaletteCatalog.definition(for: theme.themeID).accents[slot].displayName
+        displayLabel(for: theme.themeID)
+    }
+
+    /// Render-identity overload — the single label path for callers that
+    /// already hold a scheme-resolved `ThemeID` (Lane L Phase 2).
+    func displayLabel(for themeID: ThemeID) -> String {
+        ThemePaletteCatalog.definition(for: themeID).accents[slot].displayName
     }
 }
 

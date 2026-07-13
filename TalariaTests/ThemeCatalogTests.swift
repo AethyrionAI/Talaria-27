@@ -104,29 +104,36 @@ struct ThemeCatalogTests {
         #expect(ThemeCatalog.specialEdition.map(\.appearanceTheme) ==
                 [.eventHorizon, .graffitiGalaxy, .karaokeSupernova,
                  .midnightAquarium, .moltenForge])
+        #expect(ThemeCatalog.midnightMarquee.map(\.appearanceTheme) ==
+                [.luchaLibre, .kaijuAttack, .pulpNoir,
+                 .casinoLucky7s, .cosmicBowling, .stickerBombToybox,
+                 .comicBook])
         #expect(ThemeCatalog.seasonal.map(\.appearanceTheme) ==
                 [.winterFrost, .springSprout, .summerSolar, .autumnHarvest])
     }
 
     @Test func taxonomyGroupsPartitionTheCatalog() {
         let grouped = ThemeCatalog.flagship + ThemeCatalog.neonArcadeCollection
-            + ThemeCatalog.specialEdition + ThemeCatalog.seasonal
+            + ThemeCatalog.specialEdition + ThemeCatalog.midnightMarquee
+            + ThemeCatalog.seasonal
         #expect(ThemeCatalog.all.map(\.id) == grouped.map(\.id))
         #expect(Set(grouped.map(\.id)).count == grouped.count)
     }
 
     @Test func taxonomyKeepsAvailabilitySemantics() {
         // The regrouping must not change WHEN a theme is offered: seasonals
-        // keep their season, the two always-on groups stay ungated.
+        // keep their season, the always-on groups stay ungated.
         #expect(ThemeCatalog.seasonal.allSatisfy { $0.season != nil })
-        for definition in ThemeCatalog.neonArcadeCollection + ThemeCatalog.specialEdition {
+        for definition in ThemeCatalog.neonArcadeCollection + ThemeCatalog.specialEdition
+            + ThemeCatalog.midnightMarquee {
             #expect(definition.availability == .always)
         }
     }
 
     @Test func pickerSectionsCoverEveryDefinitionInOrder() {
         #expect(ThemeCatalog.sections.map(\.title) ==
-                ["Flagship", "Neon Arcade Collection", "Special Edition", "Seasonal"])
+                ["Flagship", "Neon Arcade Collection", "Special Edition",
+                 "Midnight Marquee", "Seasonal"])
         #expect(ThemeCatalog.sections.flatMap(\.definitions).map(\.id) ==
                 ThemeCatalog.all.map(\.id))
     }

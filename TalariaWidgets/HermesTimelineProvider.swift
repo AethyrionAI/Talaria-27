@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+import SwiftUI
 import WidgetKit
 
 /// Timeline entry backed by the App Group shared data snapshot, plus the
@@ -9,8 +10,12 @@ struct HermesWidgetEntry: TimelineEntry {
     let data: HermesWidgetData
     var widgetTheme: WidgetTheme = .matchApp
 
-    /// Palette resolved for this entry (widget theme → shared tables).
-    var palette: ThemePalette { widgetTheme.resolvedPalette(data: data) }
+    /// Palette resolved for this entry (widget theme → shared tables). The
+    /// scheme drives the adaptive Comic Book matchApp resolution (Lane L
+    /// Phase 2) — pass the view's own `@Environment(\.colorScheme)`.
+    func palette(for colorScheme: ColorScheme) -> ThemePalette {
+        widgetTheme.resolvedPalette(data: data, colorScheme: colorScheme)
+    }
 
     static let placeholder = HermesWidgetEntry(
         date: .now,

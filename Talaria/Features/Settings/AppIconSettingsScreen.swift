@@ -90,7 +90,10 @@ struct AppIconSettingsScreen: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(option.displayName)
+        // Subtitle included so same-named icons stay distinguishable to
+        // VoiceOver (Lane L ships two "Comic Book" variants).
+        .accessibilityLabel(option.subtitle.map { "\(option.displayName) — \($0)" }
+                            ?? option.displayName)
         .accessibilityAddTraits(selected ? [.isSelected] : [])
     }
 

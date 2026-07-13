@@ -38,6 +38,9 @@
     .se-flag { position: absolute; top: 10px; right: 10px; font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.08em; color: #ffdc50; border: 1px solid rgba(255, 220, 80, 0.45); border-radius: 6px; padding: 2px 6px; background: rgba(255, 220, 80, 0.08); pointer-events: none; }
     .section-title.se { display: flex; align-items: baseline; gap: 0.6rem; border-bottom-color: rgba(255, 220, 80, 0.3); }
     .section-title.se .se-sub { font-family: var(--font-mono); font-size: 0.65rem; font-weight: 400; color: #ffdc50; text-transform: uppercase; letter-spacing: 0.12em; }
+    .mm-flag { position: absolute; top: 10px; right: 10px; font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.08em; color: #ffd24a; border: 1px solid rgba(255, 210, 74, 0.45); border-radius: 6px; padding: 2px 6px; background: rgba(255, 210, 74, 0.08); pointer-events: none; }
+    .section-title.mm { display: flex; align-items: baseline; gap: 0.6rem; border-bottom-color: rgba(255, 210, 74, 0.3); }
+    .section-title.mm .mm-sub { font-family: var(--font-mono); font-size: 0.65rem; font-weight: 400; color: #ffd24a; text-transform: uppercase; letter-spacing: 0.12em; }
     .selected-preview { position: sticky; bottom: 1rem; background: rgba(10, 6, 16, 0.92); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; backdrop-filter: blur(12px); display: flex; gap: 1rem; align-items: center; max-width: 520px; margin: 2rem auto 0; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
     .selected-preview .icon-canvas { width: 72px; height: 72px; flex-shrink: 0; margin: 0; }
     .selected-info h3 { margin: 0 0 0.25rem; font-family: var(--font-display); font-size: 1rem; }
@@ -63,7 +66,7 @@
   <main>
     <header>
       <h1>Talaria App Icons</h1>
-      <div class="subtitle">19 standard + 5 special edition iOS app icon designs</div>
+      <div class="subtitle">19 standard + 5 special edition + 8 midnight marquee iOS app icon designs</div>
     </header>
 
     <section class="section-title">Choose an App Icon</section>
@@ -71,6 +74,9 @@
 
     <section class="section-title se">Special Edition <span class="se-sub">Limited series</span></section>
     <div class="icon-grid" id="seIconGrid" role="radiogroup" aria-label="Special edition app icon choices"></div>
+
+    <section class="section-title mm">Midnight Marquee <span class="mm-sub">Late-night double feature</span></section>
+    <div class="icon-grid" id="mmIconGrid" role="radiogroup" aria-label="Midnight Marquee app icon choices"></div>
 
     <div class="selected-preview" id="selectedPreview" style="display:none" role="status" aria-live="polite" aria-atomic="true">
       <div class="icon-canvas" id="previewCanvas" aria-hidden="true"></div>
@@ -258,11 +264,80 @@
         bg: '#0d0603',
         se: true,
         svg: `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="mfBg" cx="50%" cy="55%" r="70%"><stop offset="0" stop-color="#1c0e06"/><stop offset="100%" stop-color="#0d0603"/></radialGradient><linearGradient id="mfIron" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffd23c"/><stop offset="100%" stop-color="#ff6a1a"/></linearGradient></defs><rect width="1024" height="1024" fill="url(#mfBg)"/><g transform="translate(512,540)"><ellipse cy="180" rx="330" ry="70" fill="#ff6a1a" opacity="0.15"/><g stroke="#ffd23c" stroke-width="12" stroke-linecap="round"><line x1="-250" y1="-300" x2="-310" y2="-380"/><line x1="-150" y1="-320" x2="-170" y2="-420"/><line x1="-40" y1="-310" x2="-16" y2="-400"/></g><circle cx="-330" cy="-260" r="10" fill="#ff6a1a"/><circle cx="60" cy="-350" r="8" fill="#ffd23c"/><path d="M120 -400 L132 -364 L168 -352 L132 -340 L120 -304 L108 -340 L72 -352 L108 -364 Z" fill="#ffd23c"/><ellipse cx="-110" cy="-194" rx="210" ry="24" fill="#ff6a1a" opacity="0.35"/><rect x="-260" y="-248" width="300" height="54" rx="27" fill="url(#mfIron)"/><path d="M220 -194 Q340 -194 392 -148 Q318 -106 220 -94 Z" fill="#2e3a44" stroke="#a9c2d1" stroke-width="8"/><rect x="-300" y="-194" width="520" height="100" rx="18" fill="#2e3a44" stroke="#a9c2d1" stroke-width="8"/><path d="M-120 -94 L120 -94 L82 44 L-82 44 Z" fill="#212a32" stroke="#a9c2d1" stroke-width="6"/><rect x="-212" y="44" width="424" height="78" rx="14" fill="#2e3a44" stroke="#a9c2d1" stroke-width="8"/></g></svg>`
-      }
+      },
+      // Midnight Marquee (Lane L — design/themes/midnight-marquee-app-icons.html,
+      // SVGs merged verbatim; the POW!/ZAP!/10¢ type is outlined to paths with
+      // Bowlby One SC / Liberation Mono Bold so rendering is font-independent,
+      // matching the gallery's path-only convention).
+      {
+        id: 'lucha-libre',
+        name: 'Lucha Libre',
+        desc: 'Rudo mask in royal blue with a pyro-orange crest and chrome trim.',
+        bg: '#060814',
+        mm: true,
+        svg: `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="llBg" cx="50%" cy="35%" r="80%"><stop offset="0" stop-color="#141a38"/><stop offset="100%" stop-color="#060814"/></radialGradient></defs><rect width="1024" height="1024" fill="url(#llBg)"/><g transform="translate(512,512)"><circle r="430" fill="none" stroke="#ccd6e8" stroke-width="10" stroke-dasharray="30 40" opacity="0.3"/><path d="M0 -290 Q230 -290 230 -50 Q230 200 0 270 Q-230 200 -230 -50 Q-230 -290 0 -290 Z" fill="#3d6bff" stroke="#ccd6e8" stroke-width="20"/><path d="M0 -290 L70 -160 L0 -105 L-70 -160 Z" fill="#ff7a29"/><path d="M-160 -50 Q-95 -125 -30 -50 Q-95 0 -160 -50 Z" fill="#060814" stroke="#ff7a29" stroke-width="12"/><path d="M160 -50 Q95 -125 30 -50 Q95 0 160 -50 Z" fill="#060814" stroke="#ff7a29" stroke-width="12"/><ellipse cx="0" cy="150" rx="58" ry="44" fill="#060814" stroke="#ccd6e8" stroke-width="10"/><path d="M-150 60 Q0 30 150 60" fill="none" stroke="#ccd6e8" stroke-width="10" opacity="0.6"/></g></svg>`
+      },
+      {
+        id: 'kaiju-attack',
+        name: 'Kaiju Attack',
+        desc: 'Radioactive dorsal fins under searchlights, ringed by a siren-red alert.',
+        bg: '#0a0f1e',
+        mm: true,
+        svg: `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><rect width="1024" height="1024" fill="#0a0f1e"/><g transform="translate(512,512)"><polygon points="-460,512 -260,-160 -60,512" fill="#ffd259" opacity="0.14"/><polygon points="60,512 260,-160 460,512" fill="#ffd259" opacity="0.14"/><circle r="400" fill="none" stroke="#ff4438" stroke-width="28" stroke-dasharray="70 45" opacity="0.85"/><circle cx="0" cy="-270" r="55" fill="#ff4438"/><circle cx="0" cy="-270" r="95" fill="none" stroke="#ff4438" stroke-width="10" opacity="0.4"/><polygon points="-250,190 -165,-40 -80,190" fill="#6aff57"/><polygon points="-90,190 5,-170 100,190" fill="#6aff57"/><polygon points="110,190 195,-10 280,190" fill="#6aff57"/><rect x="-290" y="190" width="580" height="34" rx="17" fill="#6aff57" opacity="0.5"/></g></svg>`
+      },
+      {
+        id: 'pulp-noir',
+        name: 'Pulp Noir',
+        desc: 'Ink fedora on halftone pulp paper, sliced by blinds — teal dime stamp included.',
+        bg: '#f9f2dd',
+        mm: true,
+        svg: `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><rect width="1024" height="1024" fill="#f9f2dd"/><defs><pattern id="pnHalf" width="18" height="18" patternUnits="userSpaceOnUse"><circle cx="9" cy="9" r="2" fill="#262019" opacity="0.08"/></pattern></defs><rect width="1024" height="1024" fill="url(#pnHalf)"/><g transform="rotate(-18 512 512)" opacity="0.10"><rect x="-200" y="80" width="1400" height="56" fill="#262019"/><rect x="-200" y="220" width="1400" height="56" fill="#262019"/><rect x="-200" y="360" width="1400" height="56" fill="#262019"/><rect x="-200" y="500" width="1400" height="56" fill="#262019"/><rect x="-200" y="640" width="1400" height="56" fill="#262019"/><rect x="-200" y="780" width="1400" height="56" fill="#262019"/></g><g transform="translate(512,540)"><ellipse cx="0" cy="120" rx="310" ry="72" fill="#262019"/><path d="M-175 120 Q-175 -170 0 -170 Q175 -170 175 120 Z" fill="#262019"/><path d="M-175 40 L175 40 L175 110 L-175 110 Z" fill="#b3382e"/></g><g transform="translate(760,240) rotate(14)"><circle r="105" fill="none" stroke="#276f6d" stroke-width="12"/><circle r="78" fill="none" stroke="#276f6d" stroke-width="6" stroke-dasharray="14 10"/><path transform="translate(0,22)" d="M-53 0V-6.5H-40.8V-34.4Q-42 -31.8 -45.7 -30.1Q-49.3 -28.3 -53.3 -28.3V-35Q-49 -35 -45.5 -36.9Q-42.1 -38.8 -40.3 -42.2H-32V-6.5H-21.9V0ZM15.5 -21.1Q15.5 -10.5 11.5 -4.9Q7.5 0.6 -0.1 0.6Q-7.8 0.6 -11.7 -4.9Q-15.5 -10.5 -15.5 -21.1Q-15.5 -32.1 -11.8 -37.5Q-8 -42.8 0.1 -42.8Q8 -42.8 11.7 -37.4Q15.5 -31.9 15.5 -21.1ZM6.7 -21.1Q6.7 -26.6 6 -29.8Q5.4 -33 4 -34.5Q2.6 -35.9 0.1 -35.9Q-2.6 -35.9 -4 -34.5Q-5.5 -33 -6.1 -29.8Q-6.8 -26.6 -6.8 -21.1Q-6.8 -15.7 -6.1 -12.4Q-5.4 -9.2 -4 -7.8Q-2.6 -6.3 -0 -6.3Q3.6 -6.3 5.1 -9.7Q6.7 -13.1 6.7 -21.1ZM-3.4 -17.3V-25.1H3.3V-17.3ZM41.5 1.8V1.9H36.5V1.8H36.4V-4Q29.7 -4.7 26 -8.9Q22.3 -13.2 22.3 -20.5Q22.3 -27.8 26 -32.2Q29.6 -36.6 36.4 -37.4V-43.1H36.5H41.5H41.6V-37.4Q46.8 -36.8 50.2 -33.9Q53.6 -30.9 54.5 -26.2L45.7 -25.8Q45.2 -28.6 43.5 -30.2Q42.6 -30.9 41.6 -31.3V-10.2Q42.7 -10.6 43.6 -11.4Q45.5 -13.1 46 -16.2L54.8 -15.9Q54.1 -11.1 50.6 -7.9Q47.1 -4.8 41.6 -4.1V1.8ZM36.4 -31.3Q34.4 -30.7 33.1 -28.8Q31.1 -26 31.1 -20.8Q31.1 -15.4 33.2 -12.6Q34.5 -10.8 36.4 -10.1Z" fill="#276f6d"/></g></svg>`
+      },
+      {
+        id: 'casino-lucky-7s',
+        name: 'Casino Lucky 7s',
+        desc: 'Cherry-red seven inside a gold marquee-bulb ring on deep felt.',
+        bg: '#07271a',
+        mm: true,
+        svg: `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="csBg" cx="50%" cy="40%" r="80%"><stop offset="0" stop-color="#115034"/><stop offset="100%" stop-color="#07271a"/></radialGradient></defs><rect width="1024" height="1024" fill="url(#csBg)"/><g transform="translate(512,512)"><circle r="390" fill="none" stroke="#ffd24a" stroke-width="34" stroke-dasharray="1 96" stroke-linecap="round"/><circle r="320" fill="none" stroke="#ffd24a" stroke-width="8" opacity="0.4"/><polygon points="-165,-230 175,-230 175,-150 -5,240 -135,240 40,-150 -165,-150" fill="#ff4757" stroke="#ffd24a" stroke-width="16" stroke-linejoin="round"/><circle cx="-230" cy="220" r="42" fill="#4f9dff" stroke="#f3f0e4" stroke-width="10" stroke-dasharray="16 14"/><circle cx="245" cy="205" r="30" fill="#ff4757" stroke="#f3f0e4" stroke-width="8" stroke-dasharray="12 10"/></g></svg>`
+      },
+      {
+        id: 'cosmic-bowling',
+        name: 'Cosmic Bowling',
+        desc: 'Grape house ball on the immortal squiggle-and-confetti carpet.',
+        bg: '#121016',
+        mm: true,
+        svg: `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><rect width="1024" height="1024" fill="#121016"/><g fill="none" stroke-linecap="round"><path d="M120 160 q40 -60 80 0 q40 60 80 0" stroke="#00b3a4" stroke-width="20"/><path d="M700 130 q40 -60 80 0 q40 60 80 0" stroke="#ff6257" stroke-width="20"/><path d="M160 860 q40 -60 80 0 q40 60 80 0" stroke="#8455e0" stroke-width="20"/><path d="M690 880 q40 -60 80 0 q40 60 80 0" stroke="#00b3a4" stroke-width="20"/></g><circle cx="180" cy="500" r="18" fill="#ff6257"/><circle cx="860" cy="420" r="18" fill="#8455e0"/><circle cx="830" cy="700" r="14" fill="#00b3a4"/><circle cx="200" cy="290" r="14" fill="#8455e0"/><g transform="translate(512,512)"><circle r="290" fill="#8455e0"/><path d="M-180 -180 Q-40 -290 150 -230" fill="none" stroke="#f0ede4" stroke-width="26" stroke-linecap="round" opacity="0.55"/><circle cx="-70" cy="-90" r="42" fill="#121016"/><circle cx="45" cy="-120" r="42" fill="#121016"/><circle cx="15" cy="-15" r="42" fill="#121016"/><circle r="290" fill="none" stroke="#00b3a4" stroke-width="18"/><circle r="360" fill="none" stroke="#ff6257" stroke-width="12" stroke-dasharray="50 60" opacity="0.7"/></g></svg>`
+      },
+      {
+        id: 'sticker-bomb-toybox',
+        name: 'Sticker-Bomb Toybox',
+        desc: 'Die-cut tangerine star with a white sticker border and toy-plastic shadow.',
+        bg: '#fdfcf8',
+        mm: true,
+        svg: `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><rect width="1024" height="1024" fill="#fdfcf8"/><circle cx="160" cy="180" r="26" fill="#8c52ff" opacity="0.6"/><circle cx="850" cy="240" r="20" fill="#4bbf22" opacity="0.6"/><circle cx="200" cy="840" r="20" fill="#ff8a2b" opacity="0.6"/><circle cx="840" cy="810" r="26" fill="#8c52ff" opacity="0.5"/><circle cx="512" cy="512" r="330" fill="#8c52ff" opacity="0.14"/><g transform="translate(530,536) scale(1.14)"><polygon points="0,-300 67,-93 285,-93 108,36 176,244 0,116 -176,244 -108,36 -285,-93 -67,-93" fill="#26212e" opacity="0.16"/></g><g transform="translate(512,512)"><g transform="scale(1.16)"><polygon points="0,-300 67,-93 285,-93 108,36 176,244 0,116 -176,244 -108,36 -285,-93 -67,-93" fill="#ffffff" stroke="#26212e" stroke-width="10"/></g><polygon points="0,-300 67,-93 285,-93 108,36 176,244 0,116 -176,244 -108,36 -285,-93 -67,-93" fill="#ff8a2b" stroke="#26212e" stroke-width="14" stroke-linejoin="round"/><circle cx="-60" cy="-30" r="30" fill="#4bbf22"/><circle cx="70" cy="-10" r="22" fill="#8c52ff"/></g></svg>`
+      },
+      {
+        id: 'comic-villain',
+        name: 'Comic Book — Villain',
+        desc: 'Kapow-yellow burst with a red misprint offset on halftone ink black.',
+        bg: '#100e16',
+        mm: true,
+        svg: `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><rect width="1024" height="1024" fill="#100e16"/><defs><pattern id="cbHalf" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="13" cy="13" r="2.5" fill="#f5f2ff" opacity="0.14"/></pattern></defs><rect width="1024" height="1024" fill="url(#cbHalf)"/><g stroke="#f5f2ff" stroke-width="8" opacity="0.35" stroke-linecap="round"><line x1="40" y1="140" x2="300" y2="60"/><line x1="20" y1="260" x2="240" y2="190"/><line x1="740" y1="950" x2="990" y2="870"/><line x1="800" y1="1010" x2="1000" y2="950"/></g><g transform="translate(536,538)"><polygon points="0,-420 92,-286 244,-353 252,-193 403,-168 311,-42 420,59 269,109 319,269 160,235 101,386 0,269 -101,386 -160,235 -319,269 -269,109 -420,59 -311,-42 -403,-168 -252,-193 -244,-353 -92,-286" fill="#ff2b2b" opacity="0.85"/></g><g transform="translate(512,512)"><polygon points="0,-420 92,-286 244,-353 252,-193 403,-168 311,-42 420,59 269,109 319,269 160,235 101,386 0,269 -101,386 -160,235 -319,269 -269,109 -420,59 -311,-42 -403,-168 -252,-193 -244,-353 -92,-286" fill="#ffd828" stroke="#f5f2ff" stroke-width="14" stroke-linejoin="round"/><path transform="rotate(-8) translate(0,52)" d="M-244.7 -11.3V-121.9Q-244.7 -122.4 -244.2 -122.9Q-243.7 -123.3 -242.5 -123.4Q-241.3 -123.6 -240.5 -123.7Q-239.6 -123.8 -238 -123.8Q-236.4 -123.8 -235.8 -123.8H-168.4Q-160.1 -123.8 -152.7 -121.2Q-145.3 -118.6 -139.6 -113.6Q-133.9 -108.7 -130.5 -100.8Q-127.2 -92.9 -127.2 -83Q-127.2 -75.7 -128.9 -69.6Q-130.6 -63.6 -133.4 -59.3Q-136.2 -55 -140.2 -51.6Q-144.2 -48.2 -148.4 -46.2Q-152.6 -44.1 -157.7 -42.6Q-162.7 -41.2 -167 -40.5Q-171.3 -39.8 -176 -39.5H-192Q-192.6 -26.5 -192.6 -10.3V-1Q-192.9 2 -195.4 2H-242.6Q-244.7 -3.7 -244.7 -11.3ZM-197.9 -69.4 -195.3 -65.7Q-191.9 -65.7 -188.8 -66.2Q-185.6 -66.7 -182.7 -68Q-179.7 -69.2 -177.5 -71.2Q-175.4 -73.1 -174 -76.2Q-172.7 -79.2 -172.7 -83Q-172.7 -85.9 -173.5 -88.2Q-174.3 -90.5 -175.4 -91.9Q-176.5 -93.4 -178.5 -94.5Q-180.4 -95.5 -182.1 -96.1Q-183.8 -96.6 -186.4 -96.9Q-189.1 -97.2 -190.8 -97.2Q-192.5 -97.3 -195.1 -97.3Q-197.9 -96 -197.9 -69.4ZM-124.7 -62.4V-71.6Q-123.9 -83.2 -119.7 -92.8Q-115.4 -102.3 -108.9 -108.9Q-102.4 -115.5 -93.8 -120Q-85.3 -124.5 -76 -126.6Q-66.6 -128.7 -56.7 -128.7Q-51.2 -128.7 -45.2 -127.7Q-39.3 -126.8 -32.7 -124.8Q-26 -122.9 -19.9 -119Q-13.8 -115.1 -9.8 -109.9Q-1.6 -99.9 2.1 -88.9Q5.8 -77.9 5.8 -64.4Q6 -36.4 -6.5 -19.3L-10.2 -14.3Q-15 -7.6 -23.9 -3.2Q-32.9 1.2 -41.9 2.9Q-50.8 4.6 -60 4.6Q-70.7 4.6 -79.7 2.5Q-88.8 0.3 -95.3 -3.3Q-101.9 -7 -107 -12.2Q-112.2 -17.4 -115.5 -23.2Q-118.7 -29.1 -120.9 -35.9Q-123 -42.7 -123.8 -49.1Q-124.7 -55.6 -124.7 -62.4ZM-58.6 -95.3Q-62 -95.3 -64.7 -93.7Q-67.4 -92.1 -69.1 -89.9Q-70.8 -87.7 -72.1 -83.9Q-73.3 -80.1 -73.9 -77.1Q-74.5 -74 -74.8 -69.4Q-75.2 -64.8 -75.2 -62.3Q-75.2 -59.8 -75.2 -55.8Q-75.2 -52 -75 -48.5Q-74.7 -45.1 -73.7 -41.2Q-72.8 -37.4 -71.2 -34.5Q-69.7 -31.6 -67 -29.7Q-64.3 -27.7 -60.8 -27.6Q-57.2 -27.6 -54.3 -28.8Q-51.5 -30 -49.6 -31.8Q-47.7 -33.7 -46.4 -36.9Q-45 -40 -44.3 -42.9Q-43.6 -45.8 -43.2 -50.1Q-42.9 -54.5 -42.8 -57.6Q-42.7 -60.7 -42.7 -65.4Q-42.7 -68.9 -42.9 -71.9Q-43.1 -74.9 -43.6 -78.5Q-44.1 -82.2 -45.3 -85Q-46.4 -87.7 -48.1 -90.2Q-49.8 -92.6 -52.5 -94Q-55.2 -95.3 -58.6 -95.3ZM99.6 -64.7Q99.2 -62.5 98.3 -54.2Q97.3 -45.9 96.2 -36.8Q95 -27.6 93.6 -18.5Q92.2 -9.3 90.4 -3.3Q88.5 2.7 86.7 2.7Q83.1 2.7 76.2 2.5Q69.2 2.3 65.6 2.3Q49.6 2.3 36.1 3Q34.9 2.4 34 1.2Q33.2 -0.1 32.6 -1.8Q32.1 -3.6 31.8 -4.9Q31.5 -6.3 31.2 -8.4Q30.9 -10.5 30.8 -11.3Q16.4 -79.8 13 -94.6L7.2 -122.5Q7.2 -124.8 9.5 -125.7Q11.5 -125.5 15.8 -125.5H22.5Q24.4 -125.5 28.2 -125.7Q31.9 -125.8 33.6 -125.8Q35.2 -125.9 38.2 -125.8Q41.3 -125.7 42.2 -125.7H47Q47.9 -125.5 49.5 -125.5H52Q53.5 -125.1 55 -119.8Q56.5 -114.5 57.8 -105.2Q59.1 -95.9 60 -88.9Q60.8 -82 61.8 -72.2Q62.9 -62.3 62.9 -62.2L73.4 -125.3Q77.4 -125 79.7 -125H84.9Q91.6 -125 104.3 -125.1Q117.1 -125.2 123.4 -125.2Q125.1 -125.2 125.5 -123.8L135.9 -55.2Q137.5 -74.1 139.8 -89.8L144.8 -123.5Q145.4 -125.5 150.6 -125.5H154.6Q155.6 -125.6 157.7 -125.5Q159.8 -125.3 160.7 -125.3H168Q171.1 -125.3 175 -125.3Q178.8 -125.2 179 -125.2H188.8Q189.5 -125.2 189.8 -124.1Q190 -122.9 190.2 -120.4L163.5 1.8Q161.8 2 159.5 2Q157.2 2 155.3 2Q153.4 1.9 150.9 1.9Q148.4 1.8 146.8 1.8Q143.4 1.8 136.5 1.7Q129.5 1.7 126 1.7Q125.6 1.7 109.9 2.2ZM195.1 -121.4Q195.1 -124.2 209.2 -124.2H219.2Q231.5 -125.2 238.8 -125.2Q246.2 -125.2 246.2 -121.9L240.3 -46.2Q240.2 -45.4 239.4 -44.8Q238.5 -44.2 237.1 -43.9Q235.6 -43.6 234 -43.5Q232.5 -43.3 230.5 -43.3Q229.4 -43.3 227.2 -43.4Q225.1 -43.5 224 -43.5Q221.8 -43.5 217.4 -43.3Q213.1 -43.2 210.9 -43.2H203.7Q202.8 -43.5 202.1 -44.2Q201.4 -44.8 201 -45.9Q200.6 -46.9 200.3 -47.9Q200.1 -48.8 200 -50.3Q199.9 -51.8 199.9 -52.8Q199.8 -53.7 199.8 -55.3ZM197.7 0 196.9 -12.6Q196.9 -19.2 197.8 -24.4Q198.6 -29.6 199.9 -29.6H216.2Q224.8 -29.6 230 -29.4Q235.1 -29.2 237.8 -28.8Q240.5 -28.5 241.3 -28Q242.1 -27.5 242.1 -26.6V-0.3Q241.9 0.5 239.8 1.1Q237.7 1.7 234.2 2Q230.6 2.3 226.7 2.5Q222.8 2.7 218.2 2.7Q213.6 2.7 210.3 2.7Q207 2.7 203.6 2.7Q200.3 2.7 199.8 2.7V1.3Q199.5 1.1 198.6 0.7Q197.8 0.2 197.7 0Z" fill="#100e16"/></g></svg>`
+      },
+      {
+        id: 'comic-funnies',
+        name: 'Comic Book — Funnies',
+        desc: 'White speech bubble with a hard cyan shadow on Ben-Day newsprint, banana star included.',
+        bg: '#fbf7ec',
+        mm: true,
+        svg: `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><rect width="1024" height="1024" fill="#fbf7ec"/><defs><pattern id="cbBenday" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="17" cy="17" r="6" fill="#00a8e8" opacity="0.28"/></pattern><pattern id="cbBenday2" width="46" height="46" patternUnits="userSpaceOnUse"><circle cx="12" cy="12" r="4.5" fill="#ff3d7f" opacity="0.16"/></pattern></defs><rect width="1024" height="1024" fill="url(#cbBenday)"/><rect width="1024" height="1024" fill="url(#cbBenday2)"/><g transform="translate(540,496)"><rect x="-292" y="-186" width="584" height="360" rx="90" fill="#00a8e8" opacity="0.75"/><polygon points="-114,146 -34,174 -144,292" fill="#00a8e8" opacity="0.75"/></g><g transform="translate(512,468)"><rect x="-292" y="-186" width="584" height="360" rx="90" fill="#ffffff" stroke="#1f1a24" stroke-width="18"/><polygon points="-120,160 -30,168 -150,306" fill="#ffffff" stroke="#1f1a24" stroke-width="18" stroke-linejoin="round"/><rect x="-135" y="152" width="120" height="30" fill="#ffffff"/><path transform="rotate(-4) translate(0,58)" d="M-233.9 -1.4V-4.2Q-233.9 -11.8 -233.6 -22.1Q-233.3 -32.3 -233 -32.3Q-232.9 -32.3 -230.4 -35.4Q-228 -38.6 -221.3 -46.9Q-214.5 -55.3 -207.3 -64.2L-181.7 -95.4Q-189.7 -95.4 -205.2 -95.2Q-220.8 -94.9 -228.8 -94.9Q-230.1 -95.3 -230.5 -96.3Q-230.9 -97.3 -230.9 -99.1V-109.7Q-230.9 -110.6 -231.2 -116Q-231.6 -121.5 -231.6 -124.5Q-231.6 -131.5 -229.8 -131.5Q-200 -131.5 -142.6 -132.2H-124Q-118.9 -132.2 -117.8 -131.3Q-116.6 -130.4 -116.6 -125.5Q-116.6 -124.3 -116.8 -122.4Q-117 -120.5 -117 -120.2V-119.7Q-117 -112.1 -117.9 -106Q-118.8 -100 -120 -96.1Q-121.2 -92.2 -124 -88Q-126.7 -83.8 -128.8 -81.3Q-131 -78.9 -135.4 -74Q-139.9 -69.2 -142.8 -65.7L-168.3 -35.5H-117.7Q-116.7 -35.5 -116.1 -34.1Q-115.5 -32.8 -115.2 -29.9Q-115 -27 -114.9 -24.9Q-114.9 -22.9 -114.9 -19V-10.9Q-114.9 -10.1 -114.7 -7.8Q-114.5 -5.4 -114.5 -4.2Q-114.5 -0.2 -115.9 1Q-117.3 2.1 -121.2 2.1H-123.3Q-140.5 2.1 -174.7 2.6Q-208.8 3.2 -226 3.2Q-229 3.2 -230.3 2.4Q-231.6 1.6 -233.9 -1.4ZM-116.8 0Q-111.4 -20.1 -104.8 -40.9Q-98.2 -61.6 -88.4 -90.5Q-78.6 -119.4 -75 -130.4Q-73.9 -132.2 -73.6 -132.5H-58.8Q-53.6 -132.5 -43.5 -132.7Q-33.4 -132.9 -28.2 -132.9H-13.4Q-12.1 -132.9 -11.2 -132.8Q-10.4 -132.8 -9.1 -132.6Q-7.9 -132.5 -7.2 -132.1Q-6.4 -131.7 -5.9 -131Q-5.4 -130.3 -5.4 -129.4L35.2 -1Q35.2 0.8 33.9 1.5Q32.6 2.1 29.1 2.1H21Q17.5 2.1 10.5 2.2Q3.6 2.3 0.1 2.3Q-1 2.3 -4.2 2.4Q-7.4 2.5 -9.6 2.5Q-11.8 2.5 -14.5 2.2Q-17.1 2 -18.8 1.3Q-20.4 0.5 -20.8 -0.7V-6.5Q-21.7 -10.9 -23.9 -14.6Q-26.1 -18.3 -28.6 -18.3H-58.8L-63.4 0.4Q-64.3 2.5 -73.2 2.5H-80.2Q-84 2.5 -91.5 2.7Q-99 3 -102.7 3H-105.2Q-106.6 3 -109.6 3.1Q-112.7 3.2 -114.3 3.2Q-115 2.5 -116.8 0ZM-55.8 -53.3 -53.3 -49.2H-47.5Q-40.5 -49.2 -34.7 -50.1Q-28.8 -50.9 -28.8 -52.7L-40.2 -103.4Q-41.7 -103.4 -44.4 -97.4Q-47.1 -91.4 -48.8 -83.8ZM40.5 -12V-129Q40.5 -129.6 41.1 -130.1Q41.7 -130.5 42.9 -130.7Q44.1 -130.9 45 -131Q46 -131 47.7 -131.1Q49.4 -131.1 50 -131.1H121.4Q130.2 -131.1 138 -128.4Q145.8 -125.6 151.9 -120.3Q157.9 -115 161.5 -106.7Q165 -98.3 165 -87.9Q165 -80.2 163.2 -73.7Q161.4 -67.3 158.4 -62.8Q155.5 -58.3 151.2 -54.7Q147 -51.1 142.5 -48.9Q138.1 -46.7 132.7 -45.1Q127.4 -43.6 122.8 -42.9Q118.3 -42.2 113.3 -41.8H96.4Q95.7 -28 95.7 -10.9V-1.1Q95.4 2.1 92.7 2.1H42.8Q40.5 -4 40.5 -12ZM90.1 -73.5 92.9 -69.6Q96.5 -69.6 99.8 -70.1Q103.1 -70.7 106.3 -72Q109.4 -73.3 111.7 -75.4Q114 -77.4 115.4 -80.6Q116.8 -83.8 116.8 -87.9Q116.8 -91 116 -93.4Q115.1 -95.8 114 -97.3Q112.8 -98.9 110.7 -100Q108.6 -101.2 106.8 -101.7Q105 -102.3 102.3 -102.6Q99.5 -102.9 97.7 -103Q95.9 -103 93.1 -103Q90.1 -101.6 90.1 -73.5ZM173.4 -128.5Q173.4 -131.5 188.3 -131.5H198.9Q211.9 -132.5 219.6 -132.5Q227.5 -132.5 227.5 -129L221.2 -49Q221.1 -48.1 220.3 -47.4Q219.4 -46.8 217.8 -46.5Q216.3 -46.1 214.6 -46Q213 -45.9 210.8 -45.9Q209.7 -45.9 207.4 -46Q205.1 -46.1 204 -46.1Q201.6 -46.1 197.1 -45.9Q192.5 -45.7 190.1 -45.7H182.5Q181.6 -46.1 180.8 -46.8Q180.1 -47.5 179.6 -48.6Q179.2 -49.7 178.9 -50.7Q178.7 -51.7 178.6 -53.3Q178.5 -54.8 178.5 -55.9Q178.4 -56.9 178.4 -58.5ZM176.1 0 175.3 -13.4Q175.3 -20.3 176.2 -25.8Q177.1 -31.3 178.5 -31.3H195.7Q204.9 -31.3 210.3 -31.1Q215.8 -30.9 218.6 -30.5Q221.5 -30.1 222.3 -29.6Q223.2 -29.1 223.2 -28.1V-0.4Q223 0.5 220.7 1.1Q218.5 1.8 214.8 2.1Q211 2.5 206.9 2.7Q202.8 2.9 197.9 2.9Q193 2.9 189.5 2.9Q186 2.9 182.4 2.9Q178.9 2.8 178.3 2.8V1.4Q178.1 1.1 177.1 0.7Q176.2 0.3 176.1 0Z" fill="#ff3d7f"/></g><polygon points="812,180 838,238 900,244 854,286 866,348 812,316 758,348 770,286 724,244 786,238" fill="#ffd23f" stroke="#1f1a24" stroke-width="12" stroke-linejoin="round"/></svg>`
+      },
     ];
 
     const grid = document.getElementById('iconGrid');
     const seGrid = document.getElementById('seIconGrid');
+    const mmGrid = document.getElementById('mmIconGrid');
     const preview = document.getElementById('selectedPreview');
     const previewCanvas = document.getElementById('previewCanvas');
     const previewName = document.getElementById('previewName');
@@ -285,13 +360,15 @@
       const cardHTML = (icon) => `
         <div class="icon-card" role="radio" aria-checked="false" tabindex="0" aria-label="${icon.name} — ${icon.desc}" data-id="${icon.id}" onclick="selectIcon('${icon.id}')" onkeydown="handleKey(event, '${icon.id}')">
           ${icon.se ? '<div class="se-flag">SE</div>' : ''}
+          ${icon.mm ? '<div class="mm-flag">MM</div>' : ''}
           <div class="icon-canvas" style="background:${icon.bg}">${icon.svg}</div>
           <div class="icon-name">${icon.name}</div>
           <div class="icon-meta">${icon.id}</div>
         </div>
       `;
-      grid.innerHTML = icons.filter(i => !i.se).map(cardHTML).join('');
+      grid.innerHTML = icons.filter(i => !i.se && !i.mm).map(cardHTML).join('');
       seGrid.innerHTML = icons.filter(i => i.se).map(cardHTML).join('');
+      mmGrid.innerHTML = icons.filter(i => i.mm).map(cardHTML).join('');
     }
 
     function handleKey(e, id) {

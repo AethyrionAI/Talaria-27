@@ -2,6 +2,11 @@ import SwiftUI
 
 struct AppRootView: View {
     @Environment(AppContainer.self) private var container
+    // The presentation's color scheme. While the adaptive theme (Comic Book)
+    // is active the root forces nothing, so this IS the system appearance;
+    // mirrored into ThemeRuntime so palette/art-direction resolution can
+    // pick the villain/funnies variant live (Lane L Phase 2).
+    @Environment(\.colorScheme) private var colorScheme
     @State private var hasSatisfiedMinimumSplashTime = false
     private static let minimumSplashDuration: Duration = .milliseconds(250)
 
@@ -28,9 +33,22 @@ struct AppRootView: View {
         .animation(Design.Motion.standard, value: container.pairingStore.isPaired)
         .animation(Design.Motion.standard, value: container.pairingStore.needsPermissionsOnboarding)
         .animation(Design.Motion.gentle, value: shouldShowSplash)
-        // System chrome (keyboard, sheets, toggles, context menus) follows the
-        // theme: light only for Paper Tape, dark for the HUD themes.
-        .preferredColorScheme(ThemeRuntime.shared.theme.isLight ? .light : .dark)
+        // System chrome (keyboard, sheets, toggles, context menus) follows
+        // the theme: light for the light environments, dark for the HUD
+        // themes — and nil for the adaptive Comic Book, where the SYSTEM
+        // appearance drives (Lane L Phase 2).
+        .preferredColorScheme(ThemeRuntime.shared.theme.preferredColorScheme)
+        // Guarded like ThemeRuntime.apply()'s per-field mirrors — an
+        // unconditional write would invalidate every palette reader on
+        // same-value ticks. `initial: true` still leaves the mirror at its
+        // .dark default for the very first frame; with the adaptive theme
+        // persisted on a light-mode device that frame resolves the villain
+        // half before snapping to funnies (known seam, noted in the PR).
+        .onChange(of: colorScheme, initial: true) { _, scheme in
+            if ThemeRuntime.shared.systemColorScheme != scheme {
+                ThemeRuntime.shared.systemColorScheme = scheme
+            }
+        }
         .task {
             try? await Task.sleep(for: Self.minimumSplashDuration)
             hasSatisfiedMinimumSplashTime = true

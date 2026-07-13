@@ -10,6 +10,7 @@
 		00DF6F4865775B56E55DD5DC /* Icon-GlitchGarden@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 75E8507FBB67016B53C79546 /* Icon-GlitchGarden@3x.png */; };
 		011F2FB5270478C5A49F938C /* CarPlayVoiceStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DF70134F698ABE4575D7784 /* CarPlayVoiceStateTests.swift */; };
 		01E7964E5A2DA7BD52A79C60 /* HealthServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87E097ED8DDD1535E7288D6D /* HealthServiceProtocol.swift */; };
+		0299004A9676386CC623F755 /* Icon-ComicVillain@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = D824B41AB02CAA3B16E7D48C /* Icon-ComicVillain@3x.png */; };
 		04B7BB6774E1A29A8EB78C7B /* SpaceGrotesk-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EB419DE4B29313B918FFB7D5 /* SpaceGrotesk-Regular.ttf */; };
 		051B582BC2F877D6AA89BD3E /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 725C55A9F8B41173BB4CC709 /* SettingsStore.swift */; };
 		051C9EB05167E4AC529522C9 /* AppIconCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32F815FB445E74F44232A383 /* AppIconCatalog.swift */; };
@@ -46,25 +47,31 @@
 		153F69F4A7E8E496812E8AD2 /* StreamingUpdate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3727619CB1A41ED47CADC62 /* StreamingUpdate.swift */; };
 		16299D086926FB595B9334A1 /* CarPlaySceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11BCD7A66ACF8F173A741574 /* CarPlaySceneDelegate.swift */; };
 		16C44715C3D3171758252C7B /* GenUIDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99286B618A5D9C43C4ECBE6A /* GenUIDecoder.swift */; };
+		184CBD8A2483750653941ED3 /* IconPreview-LuchaLibre.png in Resources */ = {isa = PBXBuildFile; fileRef = B5FF2ADC2E27467CB66FDA43 /* IconPreview-LuchaLibre.png */; };
 		18956DD849AD6F86627C2C53 /* LiveVoiceSessionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05D62FD47740DE0B77814B5E /* LiveVoiceSessionService.swift */; };
+		1938C7FFA5DE436EF82E4B50 /* Icon-CasinoLucky7s@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 30EF1B0C497FA891F651E8BF /* Icon-CasinoLucky7s@3x.png */; };
 		193A30B109D5C3157457DB7E /* MarkdownInterleavingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88BFEAFBB2627EB4811BF076 /* MarkdownInterleavingTests.swift */; };
 		1A35C21F5B8D36B6AF411E1F /* LiveLocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C033B79367C600767758EB0 /* LiveLocationService.swift */; };
 		1AC5431689C6E653C516C975 /* FilePreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6874BCC08D52FEC22B4949DF /* FilePreviewTests.swift */; };
 		1ACF900EA56F6A1AABD3CED0 /* LiveNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9317395F2FB6F1E6C58527E /* LiveNotificationService.swift */; };
 		1B6374CD593C44F6329C4F32 /* CodeBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A750F66E6CC7CE70AFEE190 /* CodeBlockView.swift */; };
+		1C07AEBA1620620D11964D9A /* Icon-LuchaLibre@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 18D266B207E1D16C45A7C236 /* Icon-LuchaLibre@2x.png */; };
 		1CEA05061F2084E118FC79C4 /* UserDefaultsAppPersistenceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AD2308C9C97CEA542271B0C /* UserDefaultsAppPersistenceStore.swift */; };
 		1D65E5AB7B2A5160256979EE /* TalariaLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6968AE7D731EB530E8784AAB /* TalariaLog.swift */; };
 		1D7CCB0E442AE322296D4680 /* PermissionType.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A60186C884A91C050A0E77 /* PermissionType.swift */; };
 		20C96A75186B18743C7F200A /* ChakraPetch-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 80EF15B79F03C0BF47DAB3C2 /* ChakraPetch-SemiBold.ttf */; };
 		21ABBB6BEBC4263724B61735 /* HermesHostStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDA88A494348CA2669EA79C /* HermesHostStore.swift */; };
+		21E9A22A97CE3C9866ACFCE2 /* Icon-MoltenForge@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 0F52C49687672CA223A85A7A /* Icon-MoltenForge@2x.png */; };
 		23BDB5F7E650A9858DBDCCBC /* IconPreview-AutumnHarvest.png in Resources */ = {isa = PBXBuildFile; fileRef = 058B8D699AF44F536D6AD863 /* IconPreview-AutumnHarvest.png */; };
 		247776F4580B529B30F75D06 /* Icon-SolarForge@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 14534B1F938AC24C273D0F31 /* Icon-SolarForge@2x.png */; };
 		24B16B107A6D7001E50E5E23 /* NativeVoicePipelineService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64C042CCDAA333F54214D067 /* NativeVoicePipelineService.swift */; };
 		255A768A4F87122ED684C977 /* Icon-RetroSciFi@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 2D05226618AAF6BA5457D37C /* Icon-RetroSciFi@2x.png */; };
 		25CEC84BE34E0B850E88DC3E /* VoiceMemoRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 301C5906499EE7579DB26285 /* VoiceMemoRecorder.swift */; };
+		25D9CAD82CD433E329191ADA /* Icon-StickerBombToybox@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = EC29CB41A2376E24068A0D64 /* Icon-StickerBombToybox@2x.png */; };
 		2651750F6B29A6D7A22EC940 /* ConversationSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB0056665D4A47D62681F26B /* ConversationSearch.swift */; };
 		265A4787A9870DA7441BC100 /* PrivateCloudRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 239665852938D1C25488A8E2 /* PrivateCloudRoutingTests.swift */; };
 		26C073BAAC8A14B7A72900EE /* ModelsShimClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C3685099731A3903F45B2E1 /* ModelsShimClient.swift */; };
+		272E78CECEB89C93332E5E1C /* Icon-EventHorizon@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 89B8FD72600750DA213172D8 /* Icon-EventHorizon@2x.png */; };
 		27DA43C16EBED01B3E5881CB /* Icon-SummerSolar@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = ECE44E35B41DB47D36E44566 /* Icon-SummerSolar@3x.png */; };
 		29007185E19958052BEEC368 /* AuthTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22896D31C41A825232C1E43B /* AuthTokens.swift */; };
 		29AB3C83EDABB8EBC1BE6519 /* ThemeCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2FA13DEE0B0D8B6137FFF18 /* ThemeCatalog.swift */; };
@@ -75,6 +82,7 @@
 		2C0ADBCBDA8B4192FB8B83EA /* MarkdownTableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F5E3E734B6B0B778FE98DD /* MarkdownTableTests.swift */; };
 		2C8C6859E028DD486FB10295 /* ConnectionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64E80A052C17C28F4574933C /* ConnectionStatus.swift */; };
 		2D36579D44B18761359A19C2 /* LiveInboxService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02F910375F044DFEBD365716 /* LiveInboxService.swift */; };
+		2DB6B36BD3CA82BF6C01EC44 /* IconPreview-KaraokeSupernova.png in Resources */ = {isa = PBXBuildFile; fileRef = 40908EA81D14E50EFB18430C /* IconPreview-KaraokeSupernova.png */; };
 		2DC866BFB555CC01C8430B03 /* HermesControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D7400AD50E67CCB189E8028 /* HermesControls.swift */; };
 		2E22E42495A7225E401E220A /* Icon-WitchsBrew@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 8703770797F16E0192FB5EE2 /* Icon-WitchsBrew@3x.png */; };
 		2F6057CE3E050CA5FE899316 /* SessionsSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92672F43E2FCAF98C5F13FDD /* SessionsSettingsScreen.swift */; };
@@ -87,6 +95,7 @@
 		32D4551809223831EF676462 /* Icon-HoloSushi@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6A4FCA0EA769EB1D4168F405 /* Icon-HoloSushi@2x.png */; };
 		32D98E155C0F29EE37794A3C /* LiveMediaService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E14FEA341D9CF0849A0D856D /* LiveMediaService.swift */; };
 		3354A8BE0C1FB2F894FF4B22 /* VoiceMemoTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49FFDC553B63DC1D09E83DF6 /* VoiceMemoTranscriber.swift */; };
+		3387FF31D3998EE66F9E638D /* Icon-CosmicBowling@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 2036F929007F5D073276076B /* Icon-CosmicBowling@2x.png */; };
 		33D976EB4E985BFFD885A1DF /* IconPreview-SpringSprout.png in Resources */ = {isa = PBXBuildFile; fileRef = F9EE177723360E9DC4562574 /* IconPreview-SpringSprout.png */; };
 		33F0CFB46E7013D2212311C0 /* LocalChatBackendTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F827381E8387C71D8135EFB3 /* LocalChatBackendTests.swift */; };
 		35679D630CF36E84038F3A91 /* MediaServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 162F451F83C4AC21B06C1920 /* MediaServiceProtocol.swift */; };
@@ -100,9 +109,11 @@
 		3BB573A82110374D3EC5F24D /* DeviceMediaTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DA769E9A5190E37983334B8 /* DeviceMediaTools.swift */; };
 		3CE466CA7744735C858CF942 /* Icon-PaperTape@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 40C7EB0FCE8B0F81AAAA1E30 /* Icon-PaperTape@3x.png */; };
 		3D6E621D59AAE975F418C345 /* ChatStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2D5D9BB35C5C3D189C711E /* ChatStore.swift */; };
+		3EF7F706BB5DC611E42EB4BC /* Icon-StickerBombToybox@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = B16ADAB41ACEF34717525A7B /* Icon-StickerBombToybox@3x.png */; };
 		3FC3D32BA5FCC6C051BE137C /* HermesActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D5B4700A4C8D2978B2CA512 /* HermesActivityAttributes.swift */; };
 		41B9C9136AFF98393B883660 /* LiveActivityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22C0A3ECA6B5F3701064D4B3 /* LiveActivityService.swift */; };
 		41E65B4A7740FECC00A61A3E /* ThemePaletteCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1504E7B49606D4BA2B051A77 /* ThemePaletteCore.swift */; };
+		4289EF1142551FFFFAC5223E /* Icon-GraffitiGalaxy@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6CA4892C88295D384A10AF06 /* Icon-GraffitiGalaxy@3x.png */; };
 		43C147AA3E020DA892F8F36D /* CodeDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41698E3D9D5F2F4FE3C0F131 /* CodeDiff.swift */; };
 		43EFEA9D894F146EDBB37980 /* IconPreview-DiscoInferno.png in Resources */ = {isa = PBXBuildFile; fileRef = 3194941F65631630D4A808A7 /* IconPreview-DiscoInferno.png */; };
 		43FE22BBDB759478A2CC34D3 /* BackgroundTaskService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65889D487C0CEBA19EED6C4C /* BackgroundTaskService.swift */; };
@@ -117,6 +128,7 @@
 		4C1348D013A2D8DCE11A064B /* WidgetTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3396670D4A59E5D8808A7AB3 /* WidgetTheme.swift */; };
 		4C6B5D44AC6F0ECD63D2A229 /* AttachmentInliningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 036CD989156BAB4FE1A35157 /* AttachmentInliningTests.swift */; };
 		4CBE69826995E93F912B4F68 /* SessionsHermesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58B4BF576EF1055C45F7E0B3 /* SessionsHermesClient.swift */; };
+		4DF08CBE0F2A192FBABF00ED /* Icon-CosmicBowling@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = D1C8260B4538A6EB2CB6BC2D /* Icon-CosmicBowling@3x.png */; };
 		4E5AA772DBB57B51D9598C7E /* SystemSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B6960308556A1B2ADA625CC /* SystemSettingsScreen.swift */; };
 		50868BE2CD8995BCB39A72B4 /* JetBrainsMono-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = BA496D40EFBD6D1622DE20A0 /* JetBrainsMono-Regular.ttf */; };
 		50B980315F65B561C2ED69E8 /* LocalIntelligenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C6A4A5B1356C64A3A6476FA /* LocalIntelligenceService.swift */; };
@@ -126,6 +138,7 @@
 		542E125ADE6CFAD3AADC94AF /* ReasoningChannelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BB71CCECAE06823EA97EEDA /* ReasoningChannelTests.swift */; };
 		5449864B8E79D201F17A43DF /* DocumentTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CFEF9D3A27BC3070CA020E2 /* DocumentTextExtractor.swift */; };
 		54A49EED5E0407FA6064C144 /* LocalNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6D18F2C1C92F15DCC12AFE0 /* LocalNotificationService.swift */; };
+		54AD9095163BB2DDE3B5BE48 /* IconPreview-PulpNoir.png in Resources */ = {isa = PBXBuildFile; fileRef = 941F21E47AC63AEA1640DD2E /* IconPreview-PulpNoir.png */; };
 		57E2B573942BCA2EC78C8550 /* TurnReceiptsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8064CC89E452AB4576D02AAB /* TurnReceiptsTests.swift */; };
 		58A79513D2968FE0A9D5690E /* ThemeTextures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 639E35724ACC2C48AB542489 /* ThemeTextures.swift */; };
 		58EAE21B148EFB6CD6612474 /* Icon-SpringSprout@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C2CA32208388B8F40E1EF71 /* Icon-SpringSprout@3x.png */; };
@@ -136,10 +149,12 @@
 		5CDB93AA3B13C56A42382C74 /* Conversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53502E05F0B1B3E8DFCBB4A2 /* Conversation.swift */; };
 		5DCD15D3AE240E043780EB84 /* IconPreview-WitchsBrew.png in Resources */ = {isa = PBXBuildFile; fileRef = 07421A623E331F4C5116F434 /* IconPreview-WitchsBrew.png */; };
 		5E0758B2A415EB50FAF15068 /* TurnReceipts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 976BAC43D166A0D9AD794CF2 /* TurnReceipts.swift */; };
+		5E778F56888B871092C97E7F /* Icon-KaraokeSupernova@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = ED93B7714DBE57DAE0FB5F2B /* Icon-KaraokeSupernova@2x.png */; };
 		5F3B60009D9E03118985EF9E /* HermesHostStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D97832B5B31B91A3CF95D31 /* HermesHostStatus.swift */; };
 		602E8B613EC5D0DC26659EFF /* PrivacySettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76E7696B16B5568AE4666F1 /* PrivacySettingsScreen.swift */; };
 		606EC3F0849F85094C905D2C /* IconPreview-RetroSciFi.png in Resources */ = {isa = PBXBuildFile; fileRef = F823A3D71CE9B62362059CE9 /* IconPreview-RetroSciFi.png */; };
 		60E9DA3F07F16F99DB09E971 /* Icon-WinterFrost@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = BC3A6DB863992287B1727373 /* Icon-WinterFrost@3x.png */; };
+		6126DBB0E0148673E6593ABB /* Icon-KaijuAttack@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = C32A11AF1CE6C397C5269445 /* Icon-KaijuAttack@2x.png */; };
 		61CD36CF268AE147886F378A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6CE4EEAC02A092183861BD65 /* Assets.xcassets */; };
 		636A9AFA0AAB014D3E7046A7 /* TalariaWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 843DA9094BCC14595B48C63B /* TalariaWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		63C8E014562B939096A67A03 /* Icon-SummerSolar@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 98F42904CB5A6D7C2A094D14 /* Icon-SummerSolar@2x.png */; };
@@ -152,14 +167,17 @@
 		6927801799467FCE311D0FBB /* RelaySettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AF98C43A705DB3DAC4A3CD /* RelaySettingsScreen.swift */; };
 		6BC4CD52173F321EE5501ADE /* Icon-SolarForge@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = D3037072326C8733C97EFF85 /* Icon-SolarForge@3x.png */; };
 		6BF5085DD14E241FA41C1EA9 /* ResilientSessionBootstrapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C0A879EC41CB30E663F615 /* ResilientSessionBootstrapService.swift */; };
+		6C4C529164A8B67A321634B5 /* Icon-LuchaLibre@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 885791BF5D014DFF87001553 /* Icon-LuchaLibre@3x.png */; };
 		6CE9246ED97177E3B5530050 /* ModelsSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4397D4FA2DBFEF4C5B15923 /* ModelsSettingsScreen.swift */; };
 		6E15D6DFBEF885DCAB056FC9 /* InboxItemType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B460D7581A6DCBA4B2770E8 /* InboxItemType.swift */; };
 		700F3C77CB181111F0096464 /* DeviceCapability.swift in Sources */ = {isa = PBXBuildFile; fileRef = C70E0AC5FF9CE2176CFE8FBB /* DeviceCapability.swift */; };
 		70242AA1A72EECC455F29E14 /* NotificationsSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 430101FE07A1FC46A2952B6E /* NotificationsSettingsScreen.swift */; };
 		7105A431C0522A95D5577C02 /* PermissionsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5947892A74BA10823951BC62 /* PermissionsStore.swift */; };
 		718B97699DC8A48CD18472B1 /* TranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DB35CE33537DD35FFADDB5 /* TranscriptView.swift */; };
+		719904EA81DB624316AD387A /* IconPreview-ComicFunnies.png in Resources */ = {isa = PBXBuildFile; fileRef = A933916A6EFB3A25618640A2 /* IconPreview-ComicFunnies.png */; };
 		73A5A047A97266FE5EC4C05F /* AttachmentPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5044B1A58F14C67ED49975C /* AttachmentPickerSheet.swift */; };
 		73ACCC8676DE3A07C90196AE /* StatusCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC388517E5C6F45D742F0E43 /* StatusCardView.swift */; };
+		740147F7D74E13D29250A970 /* IconPreview-EventHorizon.png in Resources */ = {isa = PBXBuildFile; fileRef = 869D148C883D52BB5E962609 /* IconPreview-EventHorizon.png */; };
 		740863439D4DEB219CC3601D /* LivePairingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2AEA3CBF82B7CB832FC0EB1 /* LivePairingService.swift */; };
 		7409FEAB390EF888D69B1C55 /* AppTemplateUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE8DB0F148FFC7BC813EE622 /* AppTemplateUITestsLaunchTests.swift */; };
 		741C62A51A77689484076795 /* Icon-CerealBox@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 80E35FC09C7F861A2551FC4C /* Icon-CerealBox@2x.png */; };
@@ -171,11 +189,14 @@
 		7D1E913B92F72BB1BD6CB6C6 /* ResilientHermesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872B0ADD4223BACB94F26C79 /* ResilientHermesClient.swift */; };
 		7D594381366A01A69E246F06 /* Icon-AutumnHarvest@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 45A00D780AC82DFD56C2E7B6 /* Icon-AutumnHarvest@2x.png */; };
 		7D814964FE1AEA78D1EF2B5A /* DiagnosticsSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B5AE9C0BA3949E810C4FCE /* DiagnosticsSettingsScreen.swift */; };
+		7F8401F607B2A269FDAB040B /* IconPreview-GraffitiGalaxy.png in Resources */ = {isa = PBXBuildFile; fileRef = 2ACB4CFB03940283DB799C62 /* IconPreview-GraffitiGalaxy.png */; };
 		815EE6171D00F62DD34EB321 /* HostEnrollmentCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3023E1DA6E802BB58BCA27C /* HostEnrollmentCode.swift */; };
 		82179A392FF95F1903837D38 /* ConversationManagementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6B3E4FEADB3B2E8041A8A6D /* ConversationManagementTests.swift */; };
+		8263A39DC2A0194711CDAB40 /* Icon-PulpNoir@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 3C88FFD7A8182163808414B5 /* Icon-PulpNoir@2x.png */; };
 		82996206D5432D0F8A7A0F68 /* TalkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8E28CB0E81CDA7297E66811 /* TalkStore.swift */; };
 		829EEABD606FCC1440D52798 /* ModelTransitionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F2351D78A8E43CA90F5A982 /* ModelTransitionOverlay.swift */; };
 		82B28216EB87D324A7051F29 /* ConversationSearchScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9053E72DD0D11D3A48B6D2C8 /* ConversationSearchScreen.swift */; };
+		82F228AAC1E00F0F85AB4707 /* Icon-KaraokeSupernova@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 3FDA18B4B440179EED51B685 /* Icon-KaraokeSupernova@3x.png */; };
 		833F59688DD58FD56BEF8802 /* HermesLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37C4631361E43482328C012F /* HermesLiveActivity.swift */; };
 		835FE1F3B6871E5A4015A5CC /* CarPlayVoiceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D347133A2D2AA45285B7CD /* CarPlayVoiceManager.swift */; };
 		844C28B6544240045C725683 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1EAB9C98E5FE27B257BF2EA /* ShareSheet.swift */; };
@@ -185,19 +206,24 @@
 		8625EC9294170E6583D6F9C5 /* InboxItemDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F2D69A41EA157792FE8855C /* InboxItemDetailSheet.swift */; };
 		866CD438F08EEE05A004FC99 /* SpotlightIndexingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEAF3310FF6B138C469841C2 /* SpotlightIndexingService.swift */; };
 		8698DF20693C5FD368744A01 /* JetBrainsMono-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 88CB6E843D925525F80A38CE /* JetBrainsMono-Medium.ttf */; };
+		869D180BEF807EDB643A8AF0 /* IconPreview-StickerBombToybox.png in Resources */ = {isa = PBXBuildFile; fileRef = 250C4DEF3526E776A9F179BB /* IconPreview-StickerBombToybox.png */; };
 		86A12C4E8CD5E62DE24FD55D /* Icon-CyberCactus@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 7AC3BD0D80BBC2C07791C4A5 /* Icon-CyberCactus@3x.png */; };
 		88227A5FEA66A1E25F1021DB /* DeviceReadTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4291BDE2D219A82B54817BB /* DeviceReadTools.swift */; };
+		88A4F69712260611652584BB /* Icon-PulpNoir@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 193B0D14BC2A55D65BAB1254 /* Icon-PulpNoir@3x.png */; };
 		88C9BB304D028456F8157B88 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D016765CED5AAD80FF5411F5 /* AppContainer.swift */; };
 		893E3D0A9F65586C2824B63E /* AppStoresTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F0818490CD153ED5EBCD1CC /* AppStoresTests.swift */; };
 		8948D8F45C1422C15C6D5DD4 /* AppIconCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1EBB25EF20155CC80C56FC4 /* AppIconCatalogTests.swift */; };
+		8A10B164116AB64CF443C0D3 /* IconPreview-MoltenForge.png in Resources */ = {isa = PBXBuildFile; fileRef = A6EED40F681E2DA9D3C5E857 /* IconPreview-MoltenForge.png */; };
 		8A8B4EB8A9485B58922630EC /* HUDComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 435E06A56ADB375CF5846D31 /* HUDComponents.swift */; };
 		8B1520C8D32C30853CC2B0BF /* SpotlightEntities.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE01F06F2E1E1EF5A76FA7C5 /* SpotlightEntities.swift */; };
 		8BBA368CFD24A594700ED99A /* SlashCommandMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77A5740AD793BC1A65482BD0 /* SlashCommandMenu.swift */; };
 		8BCF79F4CA1B51BD1DEED39F /* ThemeArtDirectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51C80FDDAEBBFCAA3904612 /* ThemeArtDirectionTests.swift */; };
 		8C8D94059457F50E70610674 /* LiveHermesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD3E4BCD2A1FA88D1087F9E3 /* LiveHermesClient.swift */; };
 		8CABE7AB3DC344FB246093BF /* IconPreview-HoloSushi.png in Resources */ = {isa = PBXBuildFile; fileRef = E06543331C4A1E0CE4075576 /* IconPreview-HoloSushi.png */; };
+		8D7597AF4487AFEFC668381D /* Icon-ComicFunnies@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = FEF08683A65A3385BA613B20 /* Icon-ComicFunnies@3x.png */; };
 		8E3C23F0AE7EB199F4A2A77A /* Icon-DiscoInferno@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = AA92264F808D488BC762F6CF /* Icon-DiscoInferno@3x.png */; };
 		8E7015E5FE925C55122EBE84 /* HermesHealthWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EF25B1E060C654A07894F05 /* HermesHealthWidget.swift */; };
+		8FDACD8A2EA739520F567320 /* IconPreview-ComicVillain.png in Resources */ = {isa = PBXBuildFile; fileRef = 56548D8DE1131EC66EBC3B77 /* IconPreview-ComicVillain.png */; };
 		9021F00D13C37E647DAD5C07 /* IconPreview-LunarDiner.png in Resources */ = {isa = PBXBuildFile; fileRef = A6454C18539C7CF76928BBA5 /* IconPreview-LunarDiner.png */; };
 		9076208FEA3298B79AD93FDA /* HUDEffects.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ADF4A299F8A4B743476C279 /* HUDEffects.swift */; };
 		90858A93D62640CD1DCE932B /* TalkPreflight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3435E81CD684734099521C82 /* TalkPreflight.swift */; };
@@ -218,6 +244,7 @@
 		9B6730A87263CACA6CBE568F /* MarkdownBlockQuoteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69438F0D38B60455035902BC /* MarkdownBlockQuoteTests.swift */; };
 		9BDFFB2E6E93DE420340BB76 /* PairingServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 345A155F17C2C449664C1CA4 /* PairingServiceProtocol.swift */; };
 		9C03B5E614537ED7EFEE6641 /* PairingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9E8AA633234249B0EC6C58B /* PairingStore.swift */; };
+		9DAA09D1D03F7D8E9E08FF15 /* Icon-MoltenForge@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = C9BCFFFC84E6F8EA156EEC32 /* Icon-MoltenForge@3x.png */; };
 		9DB29A1A1BB0A310FACE98F3 /* Icon-LunarDiner@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = C27161E1855811891F45425E /* Icon-LunarDiner@2x.png */; };
 		9E1BD5629F85453AA3AA5C42 /* IconPreview-PaperTape.png in Resources */ = {isa = PBXBuildFile; fileRef = 2E21939E7A3C1BBFE3C156B1 /* IconPreview-PaperTape.png */; };
 		9E7BD9196926A1DC9732B4AC /* SettingsSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61E8C06E456A6825E0B020C3 /* SettingsSectionView.swift */; };
@@ -229,11 +256,14 @@
 		A32A517B2F8FA405A87CAE2E /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57CF6F188E6A3E52F6D1204B /* MessageBubble.swift */; };
 		A43764F0194218B7E022440D /* HTMLPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3A2F2CE4651CA705DE47FAF /* HTMLPreviewView.swift */; };
 		A471D69AE8AE388DD00569CA /* UserSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F26836C847785834B084F24B /* UserSettings.swift */; };
+		A483D91DA0EC687153FCAE9C /* IconPreview-CasinoLucky7s.png in Resources */ = {isa = PBXBuildFile; fileRef = 5329E8269F91B4E2790CD373 /* IconPreview-CasinoLucky7s.png */; };
 		A542DB6869A645AC9569C534 /* LiveSessionBootstrapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D7F1F57C2248CD2244E3562 /* LiveSessionBootstrapService.swift */; };
 		A5473302FFD199F168489EC2 /* DeviceHealthTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF1134E862B553380F2CA913 /* DeviceHealthTool.swift */; };
 		A54B2FF8CD4F0BD483A0FC1B /* MockMediaService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B55CE6DA29BBF3D6B02E0C7 /* MockMediaService.swift */; };
 		A656EFFD3142D1197B516AC0 /* InlineDiffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A693F3DFF7524CECB31F9C5 /* InlineDiffView.swift */; };
 		A893D48CE13216C5DDC6DCDA /* PendingAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 748DD049912B74AF82FFBE76 /* PendingAttachment.swift */; };
+		A8FCB407D4CB552248AA41B0 /* Icon-EventHorizon@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 27F7EDC88AD84F9AB51AFD1A /* Icon-EventHorizon@3x.png */; };
+		A91CE30181A7FED54130D48E /* IconPreview-MidnightAquarium.png in Resources */ = {isa = PBXBuildFile; fileRef = B7B2AB9947B4855D05C531FF /* IconPreview-MidnightAquarium.png */; };
 		A971C915FE7F12A522B32237 /* TypingDotsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EB471468F064EE7016C31FE /* TypingDotsView.swift */; };
 		AA053A60C1F3D3A1F7C2302C /* HermesWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A3D34B1ECAAC5E9F2972E23 /* HermesWidgetBundle.swift */; };
 		ABB8CA49BE895A22CCC3AA3F /* PairingRedeemResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 620742C177DDD76042D01179 /* PairingRedeemResult.swift */; };
@@ -251,6 +281,7 @@
 		B738AE47F336CE75CB0F08C8 /* InboxDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99D01CD4530887103707EAA6 /* InboxDecodingTests.swift */; };
 		B918873555ADC2DBEDE9BB5E /* AskHermesIntentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52BA50723B237D05E12279BE /* AskHermesIntentTests.swift */; };
 		B97C9142B20817F358B05800 /* VoiceOrb.swift in Sources */ = {isa = PBXBuildFile; fileRef = C95A6807F807FEA8E13C921C /* VoiceOrb.swift */; };
+		BB22971B8710C9DD531CCACB /* Icon-CasinoLucky7s@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = AE66ED7A7F3BD4888CCACAF2 /* Icon-CasinoLucky7s@2x.png */; };
 		BB58FB8A85D23FC930756416 /* ToolConfirmationCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 702A19893A5899378A79E179 /* ToolConfirmationCard.swift */; };
 		BCC8170254358890FAE2B7F4 /* MockVoiceSessionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EA2C8619D3D07F4F39E95AD /* MockVoiceSessionService.swift */; };
 		BD34B74F8B0451721CDE70BC /* ConversationExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90BCDF65B00448418228EF55 /* ConversationExportTests.swift */; };
@@ -258,10 +289,12 @@
 		BDD0810DC0E44AAC0B5C889C /* Icon-DiscoInferno@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 3B74F1CB8FCF67C1AEBA04BE /* Icon-DiscoInferno@2x.png */; };
 		BE8D4CCC3959C23AD49BCEA3 /* ChatStorePersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E227A45DC083CF27D41960B /* ChatStorePersistenceTests.swift */; };
 		BEA5577E28E7530CB6A72190 /* Icon-NeonArcade@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 12A52680EF08D0A9B6EE456B /* Icon-NeonArcade@2x.png */; };
+		BEB5B918C0E10686866BB138 /* IconPreview-CosmicBowling.png in Resources */ = {isa = PBXBuildFile; fileRef = 8423FB3F18FCB7BE1F2A738F /* IconPreview-CosmicBowling.png */; };
 		BFD8F7CBAA18CF64CB5CEA50 /* VoiceSessionServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AA7F690CBD161B83F8AFB05 /* VoiceSessionServiceProtocol.swift */; };
 		BFD9CCD49D0213230C0F9E76 /* ConversationJournalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C636630DCFDBC1D6F9985D2 /* ConversationJournalStore.swift */; };
 		C0074D1D766391EF424E4EEE /* IconPreview-SolarForge.png in Resources */ = {isa = PBXBuildFile; fileRef = F6BE1EBB06745A2F54F48D12 /* IconPreview-SolarForge.png */; };
 		C031D275A1C61DC2F100B389 /* SSEEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B91842CE9C8F9B0938C747E5 /* SSEEvent.swift */; };
+		C037C1F85943D624651BCB20 /* Icon-KaijuAttack@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 325BBB9012E78FDEBEC9F667 /* Icon-KaijuAttack@3x.png */; };
 		C071A887FB7D775DE0017757 /* IconPreview-SummerSolar.png in Resources */ = {isa = PBXBuildFile; fileRef = 85291A40EB53DE9F648C706C /* IconPreview-SummerSolar.png */; };
 		C20AE3B12E90CF743FAD2077 /* Icon-LunarDiner@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 9F6DE4A282467FF9B4ECD50F /* Icon-LunarDiner@3x.png */; };
 		C2DDCB8500B27F368AE44CC0 /* Icon-SpringSprout@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 9E4DFA5389F9FC0BC51F405B /* Icon-SpringSprout@2x.png */; };
@@ -274,7 +307,9 @@
 		C780D040BC50E46F1619F0B8 /* SessionBootstrapServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D541DE8865DD6EAF2E07BB /* SessionBootstrapServiceProtocol.swift */; };
 		C7915B7BBFFD0F8C7D7B7D2F /* Icon-RetroSciFi@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 23E22458D216C22DEF8C0750 /* Icon-RetroSciFi@3x.png */; };
 		C7B4505CC064FFCCA1072751 /* ThinkingIndicatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4FDA4808AB56DE98DA248FB /* ThinkingIndicatorView.swift */; };
+		C9A6957F9F495C1C52B53128 /* IconPreview-KaijuAttack.png in Resources */ = {isa = PBXBuildFile; fileRef = EFC335534070FF9A84A3D3C2 /* IconPreview-KaijuAttack.png */; };
 		CA65B8819B1619503577C599 /* HermesAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECE60067CC3898F2148D9C58 /* HermesAvatar.swift */; };
+		CADD4DE01A62A50ECED18E2D /* Icon-GraffitiGalaxy@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 51D3DE21F5F10FD325E99423 /* Icon-GraffitiGalaxy@2x.png */; };
 		CB158CADFFC7E9FC5382D1F2 /* DeviceToolBelt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D3DC3DD1F39850425CE2160 /* DeviceToolBelt.swift */; };
 		CBB474CCF46110D18D5BA324 /* TalariaAlarmLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D3C8A5DD8B31346F8649D7 /* TalariaAlarmLiveActivity.swift */; };
 		CC1EAA9C352C18A50DCA10A0 /* HermesTimelineProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7EF7C1C1B42AD37C29AA1BB /* HermesTimelineProvider.swift */; };
@@ -293,6 +328,7 @@
 		D534C18BF7446EE2215B44D4 /* SpeechOutputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41D16ECA82E1B93428AB787F /* SpeechOutputTests.swift */; };
 		D5AC8A9B5F5062CFF20FAE3D /* StartVoiceSessionIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B9B3CCAEE9B1CF7C2BB4AF5 /* StartVoiceSessionIntent.swift */; };
 		D5CBFEA3E5A5095C12A8034B /* ConversationListState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4D59C9D8D1A4E48B49CA305 /* ConversationListState.swift */; };
+		D74B859C12D67EAC3FC9A8E1 /* Icon-ComicVillain@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 1FD6C2114903167B61743BB1 /* Icon-ComicVillain@2x.png */; };
 		D798482710BEB3828D28FE4B /* LiveActivityPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654E84A391098DEAD47A8D51 /* LiveActivityPreviews.swift */; };
 		D7ABD0ED8AA188A3627514FB /* LiveMotionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9971D47F897C6706C20D07DD /* LiveMotionService.swift */; };
 		D7F95D4B5AC3C7A2F1F8DA9E /* HermesWidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F3D7D8D49DB06179C998F7B /* HermesWidgetData.swift */; };
@@ -311,6 +347,7 @@
 		E2F678F47EA23186FFF960F9 /* RelaySetupCodePayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70B13DA0CB2A5F95326C66C3 /* RelaySetupCodePayload.swift */; };
 		E41A27EF2277F8FF8AE441EC /* MockSessionBootstrapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB23EEE4091D1A2F309E9B3C /* MockSessionBootstrapService.swift */; };
 		E41A33A79D56C233A0AE4229 /* DeveloperSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4BC51686A9E81353B562BC7 /* DeveloperSettingsScreen.swift */; };
+		E4EE52A039E47EBA8881069D /* Icon-MidnightAquarium@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 8BD8C35FF4AC86391DCCFEC4 /* Icon-MidnightAquarium@2x.png */; };
 		E66E1DCD6DDC6DFDF214ED71 /* SpaceGrotesk-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 57107F3D3770FAA8F93F1E70 /* SpaceGrotesk-Medium.ttf */; };
 		E91BA6F1F84BEBD94CE8DA22 /* HermesStatusWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B9370067BF51189E67CA57 /* HermesStatusWidget.swift */; };
 		E9B07CADC065C3C2336EFB93 /* DeviceRegistrationRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B97713AF7CC8487DD32F1F15 /* DeviceRegistrationRequest.swift */; };
@@ -328,6 +365,8 @@
 		F27E5034CD34A735DE65FB9A /* TalariaAlarmMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89B6DC0F730603BCA9C94F52 /* TalariaAlarmMetadata.swift */; };
 		F2C9BA7640227E2C6F785B37 /* IPadAdaptationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2D99D44859390A04BE71DF5 /* IPadAdaptationTests.swift */; };
 		F3FD47CEF18E418FE942DC8B /* IconPreview-DeepField.png in Resources */ = {isa = PBXBuildFile; fileRef = B6A3FBA7A6250BBC0DA91EEB /* IconPreview-DeepField.png */; };
+		F4CD2B4FCB1433333B7B5623 /* Icon-MidnightAquarium@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = A59F115068928742EE2EB119 /* Icon-MidnightAquarium@3x.png */; };
+		F4D43B34BB7FA7B25E451D87 /* Icon-ComicFunnies@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = E1C72B32FFD539B62DEFBE7E /* Icon-ComicFunnies@2x.png */; };
 		F54C1CD1154996479260813C /* GenUISchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CB3976CD4EE70D0721D03B0 /* GenUISchema.swift */; };
 		F74187AC47A3F89ED9939E02 /* Icon-DeepField@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = FB4B4E5BA743254D0C695B48 /* Icon-DeepField@2x.png */; };
 		F788AB25DDD88BCA177DCBA2 /* MockHermesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD54E9A9E2AA0D4604C4467 /* MockHermesClient.swift */; };
@@ -401,6 +440,7 @@
 		0D05FEFC0C88B9061B363B56 /* ToolActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolActivity.swift; sourceTree = "<group>"; };
 		0D5BE08A71CB56A6DD58C1BB /* InboxScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxScreen.swift; sourceTree = "<group>"; };
 		0D7400AD50E67CCB189E8028 /* HermesControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesControls.swift; sourceTree = "<group>"; };
+		0F52C49687672CA223A85A7A /* Icon-MoltenForge@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-MoltenForge@2x.png"; sourceTree = "<group>"; };
 		11BCD7A66ACF8F173A741574 /* CarPlaySceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlaySceneDelegate.swift; sourceTree = "<group>"; };
 		12A52680EF08D0A9B6EE456B /* Icon-NeonArcade@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-NeonArcade@2x.png"; sourceTree = "<group>"; };
 		14534B1F938AC24C273D0F31 /* Icon-SolarForge@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-SolarForge@2x.png"; sourceTree = "<group>"; };
@@ -412,35 +452,44 @@
 		158695134A208F419A6A9E49 /* HermesClientProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesClientProtocol.swift; sourceTree = "<group>"; };
 		162F451F83C4AC21B06C1920 /* MediaServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaServiceProtocol.swift; sourceTree = "<group>"; };
 		17A9783DF0DB78DE9E409FD1 /* StatusIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusIndicator.swift; sourceTree = "<group>"; };
+		18D266B207E1D16C45A7C236 /* Icon-LuchaLibre@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-LuchaLibre@2x.png"; sourceTree = "<group>"; };
+		193B0D14BC2A55D65BAB1254 /* Icon-PulpNoir@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-PulpNoir@3x.png"; sourceTree = "<group>"; };
 		1971FA9A237E9A8F4081017B /* SlashCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlashCommand.swift; sourceTree = "<group>"; };
 		1C4B0DE180CF1E349DE0C137 /* ThemeCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeCatalogTests.swift; sourceTree = "<group>"; };
 		1D30DA3722A23BA781E30256 /* ToolConfirmationCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolConfirmationCenter.swift; sourceTree = "<group>"; };
 		1E6B35E1530814EA7DBC6EAE /* DesignThemeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignThemeTests.swift; sourceTree = "<group>"; };
 		1F2D69A41EA157792FE8855C /* InboxItemDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxItemDetailSheet.swift; sourceTree = "<group>"; };
 		1F5622374E497EE8642E4DEE /* Router.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Router.swift; sourceTree = "<group>"; };
+		1FD6C2114903167B61743BB1 /* Icon-ComicVillain@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-ComicVillain@2x.png"; sourceTree = "<group>"; };
 		2006EA74599EF8F60E42BC8A /* GenUIDebugScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenUIDebugScreen.swift; sourceTree = "<group>"; };
+		2036F929007F5D073276076B /* Icon-CosmicBowling@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-CosmicBowling@2x.png"; sourceTree = "<group>"; };
 		213FC95107A5372F98363C1B /* LocationServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationServiceProtocol.swift; sourceTree = "<group>"; };
 		22896D31C41A825232C1E43B /* AuthTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthTokens.swift; sourceTree = "<group>"; };
 		22C0A3ECA6B5F3701064D4B3 /* LiveActivityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityService.swift; sourceTree = "<group>"; };
 		239665852938D1C25488A8E2 /* PrivateCloudRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivateCloudRoutingTests.swift; sourceTree = "<group>"; };
 		23AE5D825BE2C07683DC0829 /* ChatBackendRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatBackendRouter.swift; sourceTree = "<group>"; };
 		23E22458D216C22DEF8C0750 /* Icon-RetroSciFi@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-RetroSciFi@3x.png"; sourceTree = "<group>"; };
+		250C4DEF3526E776A9F179BB /* IconPreview-StickerBombToybox.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-StickerBombToybox.png"; sourceTree = "<group>"; };
 		25721D36BEBAF77913B109D2 /* SecureStoreProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureStoreProtocol.swift; sourceTree = "<group>"; };
 		2573EFA3B69C8859EC660995 /* KeychainSecureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainSecureStore.swift; sourceTree = "<group>"; };
 		25817220E61CE362BE6D4D9F /* CodeSyntaxHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeSyntaxHighlighter.swift; sourceTree = "<group>"; };
 		25935CD9A0AD28B30B6FFBE1 /* SettingsScreenHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreenHeader.swift; sourceTree = "<group>"; };
 		261578F7A8CEF07EF851192F /* SpeechOutputService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechOutputService.swift; sourceTree = "<group>"; };
+		27F7EDC88AD84F9AB51AFD1A /* Icon-EventHorizon@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-EventHorizon@3x.png"; sourceTree = "<group>"; };
 		29B36AC98223CC3A98046CEB /* TalariaWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TalariaWidgets.entitlements; sourceTree = "<group>"; };
 		2A39298EC9C51771E5493011 /* HermesHostServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesHostServiceProtocol.swift; sourceTree = "<group>"; };
 		2A693F3DFF7524CECB31F9C5 /* InlineDiffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineDiffView.swift; sourceTree = "<group>"; };
 		2A750F66E6CC7CE70AFEE190 /* CodeBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeBlockView.swift; sourceTree = "<group>"; };
+		2ACB4CFB03940283DB799C62 /* IconPreview-GraffitiGalaxy.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-GraffitiGalaxy.png"; sourceTree = "<group>"; };
 		2CC5ECD744442BBF8982F5C6 /* IconPreview-NeonArcade.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-NeonArcade.png"; sourceTree = "<group>"; };
 		2D05226618AAF6BA5457D37C /* Icon-RetroSciFi@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-RetroSciFi@2x.png"; sourceTree = "<group>"; };
 		2E21939E7A3C1BBFE3C156B1 /* IconPreview-PaperTape.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-PaperTape.png"; sourceTree = "<group>"; };
 		2F3AE56BB2027F533FD8B44F /* MarkdownHeadingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownHeadingTests.swift; sourceTree = "<group>"; };
 		301C5906499EE7579DB26285 /* VoiceMemoRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMemoRecorder.swift; sourceTree = "<group>"; };
+		30EF1B0C497FA891F651E8BF /* Icon-CasinoLucky7s@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-CasinoLucky7s@3x.png"; sourceTree = "<group>"; };
 		3194941F65631630D4A808A7 /* IconPreview-DiscoInferno.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-DiscoInferno.png"; sourceTree = "<group>"; };
 		31AF84E49DFBC89FAE4AD725 /* Icon-DeepField@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-DeepField@3x.png"; sourceTree = "<group>"; };
+		325BBB9012E78FDEBEC9F667 /* Icon-KaijuAttack@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-KaijuAttack@3x.png"; sourceTree = "<group>"; };
 		32F815FB445E74F44232A383 /* AppIconCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconCatalog.swift; sourceTree = "<group>"; };
 		3396670D4A59E5D8808A7AB3 /* WidgetTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetTheme.swift; sourceTree = "<group>"; };
 		3435E81CD684734099521C82 /* TalkPreflight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkPreflight.swift; sourceTree = "<group>"; };
@@ -450,6 +499,7 @@
 		3B74F1CB8FCF67C1AEBA04BE /* Icon-DiscoInferno@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-DiscoInferno@2x.png"; sourceTree = "<group>"; };
 		3BECA22F23DD60CCE3D17F84 /* ConnectHermesScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectHermesScreen.swift; sourceTree = "<group>"; };
 		3C32704D09D8549CF9B13C88 /* PermissionsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsScreen.swift; sourceTree = "<group>"; };
+		3C88FFD7A8182163808414B5 /* Icon-PulpNoir@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-PulpNoir@2x.png"; sourceTree = "<group>"; };
 		3CC4169ED78CE4C1D595AEB4 /* AppEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEntry.swift; sourceTree = "<group>"; };
 		3D7F1F57C2248CD2244E3562 /* LiveSessionBootstrapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSessionBootstrapService.swift; sourceTree = "<group>"; };
 		3E227A45DC083CF27D41960B /* ChatStorePersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStorePersistenceTests.swift; sourceTree = "<group>"; };
@@ -457,6 +507,8 @@
 		3EF25B1E060C654A07894F05 /* HermesHealthWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesHealthWidget.swift; sourceTree = "<group>"; };
 		3F0818490CD153ED5EBCD1CC /* AppStoresTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoresTests.swift; sourceTree = "<group>"; };
 		3F3EAD544A476678B4CAA8A8 /* TokenUsage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenUsage.swift; sourceTree = "<group>"; };
+		3FDA18B4B440179EED51B685 /* Icon-KaraokeSupernova@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-KaraokeSupernova@3x.png"; sourceTree = "<group>"; };
+		40908EA81D14E50EFB18430C /* IconPreview-KaraokeSupernova.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-KaraokeSupernova.png"; sourceTree = "<group>"; };
 		40C7430E8F5950871E3B3B8E /* TalariaUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TalariaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		40C7EB0FCE8B0F81AAAA1E30 /* Icon-PaperTape@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-PaperTape@3x.png"; sourceTree = "<group>"; };
 		411831BBA08C116B1D08DA7E /* NotificationServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationServiceProtocol.swift; sourceTree = "<group>"; };
@@ -484,12 +536,15 @@
 		50A76862D8411AF3BD87C3C8 /* Icon-PaperTape@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-PaperTape@2x.png"; sourceTree = "<group>"; };
 		51B5AE9C0BA3949E810C4FCE /* DiagnosticsSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsSettingsScreen.swift; sourceTree = "<group>"; };
 		51D3C8A5DD8B31346F8649D7 /* TalariaAlarmLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalariaAlarmLiveActivity.swift; sourceTree = "<group>"; };
+		51D3DE21F5F10FD325E99423 /* Icon-GraffitiGalaxy@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-GraffitiGalaxy@2x.png"; sourceTree = "<group>"; };
 		5225896A0381DF9CEFD84EF9 /* LocalIntelligenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalIntelligenceTests.swift; sourceTree = "<group>"; };
 		52BA50723B237D05E12279BE /* AskHermesIntentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskHermesIntentTests.swift; sourceTree = "<group>"; };
+		5329E8269F91B4E2790CD373 /* IconPreview-CasinoLucky7s.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-CasinoLucky7s.png"; sourceTree = "<group>"; };
 		53502E05F0B1B3E8DFCBB4A2 /* Conversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conversation.swift; sourceTree = "<group>"; };
 		5431984AC04837DD9C79F3E6 /* ContinuityFabricTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinuityFabricTests.swift; sourceTree = "<group>"; };
 		557346D0DB64E949DE47F8E2 /* TalkPreflightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkPreflightTests.swift; sourceTree = "<group>"; };
 		5644BBB6D14C8B003D6BB139 /* PairedRelayConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairedRelayConfiguration.swift; sourceTree = "<group>"; };
+		56548D8DE1131EC66EBC3B77 /* IconPreview-ComicVillain.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-ComicVillain.png"; sourceTree = "<group>"; };
 		57107F3D3770FAA8F93F1E70 /* SpaceGrotesk-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SpaceGrotesk-Medium.ttf"; sourceTree = "<group>"; };
 		57CF6F188E6A3E52F6D1204B /* MessageBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
 		58A8D3AC5A4CD172DB9B3B98 /* InboxItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxItemRow.swift; sourceTree = "<group>"; };
@@ -526,6 +581,7 @@
 		6BB71CCECAE06823EA97EEDA /* ReasoningChannelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReasoningChannelTests.swift; sourceTree = "<group>"; };
 		6BDCDEFD0DC35483E4EB11AC /* IconPreview-GlitchGarden.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-GlitchGarden.png"; sourceTree = "<group>"; };
 		6C5FDB59E099F96641AB625B /* Icon-BubblegumMecha@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-BubblegumMecha@2x.png"; sourceTree = "<group>"; };
+		6CA4892C88295D384A10AF06 /* Icon-GraffitiGalaxy@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-GraffitiGalaxy@3x.png"; sourceTree = "<group>"; };
 		6CE4EEAC02A092183861BD65 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6E47F426E5F7560C5850EAF8 /* MockSecureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockSecureStore.swift; sourceTree = "<group>"; };
 		702A19893A5899378A79E179 /* ToolConfirmationCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolConfirmationCard.swift; sourceTree = "<group>"; };
@@ -555,18 +611,23 @@
 		80EDA325939230DE08CBF841 /* MockInboxService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockInboxService.swift; sourceTree = "<group>"; };
 		80EF15B79F03C0BF47DAB3C2 /* ChakraPetch-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ChakraPetch-SemiBold.ttf"; sourceTree = "<group>"; };
 		82A9EFD28E7758CB1A9CBBD0 /* ToolActivityRail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolActivityRail.swift; sourceTree = "<group>"; };
+		8423FB3F18FCB7BE1F2A738F /* IconPreview-CosmicBowling.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-CosmicBowling.png"; sourceTree = "<group>"; };
 		843DA9094BCC14595B48C63B /* TalariaWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TalariaWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		85291A40EB53DE9F648C706C /* IconPreview-SummerSolar.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-SummerSolar.png"; sourceTree = "<group>"; };
 		8549D5DC5D745742DEFC60A2 /* MarkdownContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownContentView.swift; sourceTree = "<group>"; };
+		869D148C883D52BB5E962609 /* IconPreview-EventHorizon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-EventHorizon.png"; sourceTree = "<group>"; };
 		8703770797F16E0192FB5EE2 /* Icon-WitchsBrew@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-WitchsBrew@3x.png"; sourceTree = "<group>"; };
 		872B0ADD4223BACB94F26C79 /* ResilientHermesClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilientHermesClient.swift; sourceTree = "<group>"; };
 		87E097ED8DDD1535E7288D6D /* HealthServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthServiceProtocol.swift; sourceTree = "<group>"; };
+		885791BF5D014DFF87001553 /* Icon-LuchaLibre@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-LuchaLibre@3x.png"; sourceTree = "<group>"; };
 		88975BD7EEDA7212610A9EFC /* IconPreview-Terminal.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-Terminal.png"; sourceTree = "<group>"; };
 		88BFEAFBB2627EB4811BF076 /* MarkdownInterleavingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownInterleavingTests.swift; sourceTree = "<group>"; };
 		88CAC7066A927294099D41BE /* InboxItemStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxItemStatus.swift; sourceTree = "<group>"; };
 		88CB6E843D925525F80A38CE /* JetBrainsMono-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "JetBrainsMono-Medium.ttf"; sourceTree = "<group>"; };
 		89B6DC0F730603BCA9C94F52 /* TalariaAlarmMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalariaAlarmMetadata.swift; sourceTree = "<group>"; };
+		89B8FD72600750DA213172D8 /* Icon-EventHorizon@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-EventHorizon@2x.png"; sourceTree = "<group>"; };
 		8A3D34B1ECAAC5E9F2972E23 /* HermesWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesWidgetBundle.swift; sourceTree = "<group>"; };
+		8BD8C35FF4AC86391DCCFEC4 /* Icon-MidnightAquarium@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-MidnightAquarium@2x.png"; sourceTree = "<group>"; };
 		8C85FA7AD7546950A9A3BEBD /* AppRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRootView.swift; sourceTree = "<group>"; };
 		8CEBE11A12DBCD1349D97C3B /* AlarmCommandParsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmCommandParsingTests.swift; sourceTree = "<group>"; };
 		8CF7DE3CA7DE3F9908C24E5F /* VoiceOverlayScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceOverlayScreen.swift; sourceTree = "<group>"; };
@@ -578,6 +639,7 @@
 		91B2286934F3D240A4222C84 /* CaptureScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureScreen.swift; sourceTree = "<group>"; };
 		92672F43E2FCAF98C5F13FDD /* SessionsSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsSettingsScreen.swift; sourceTree = "<group>"; };
 		92D54EA83CEDB4EBFEA38099 /* LiveHermesHostService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveHermesHostService.swift; sourceTree = "<group>"; };
+		941F21E47AC63AEA1640DD2E /* IconPreview-PulpNoir.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-PulpNoir.png"; sourceTree = "<group>"; };
 		964DBCC8D7F3F57C65040223 /* ChakraPetch-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ChakraPetch-Bold.ttf"; sourceTree = "<group>"; };
 		96D3920640ABF46FAC184C3D /* AttachmentInlining.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentInlining.swift; sourceTree = "<group>"; };
 		976BAC43D166A0D9AD794CF2 /* TurnReceipts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnReceipts.swift; sourceTree = "<group>"; };
@@ -603,11 +665,14 @@
 		A42B2B8FA97D4011C00D59F8 /* VoiceMemoAttachmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMemoAttachmentTests.swift; sourceTree = "<group>"; };
 		A4D59C9D8D1A4E48B49CA305 /* ConversationListState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationListState.swift; sourceTree = "<group>"; };
 		A5044B1A58F14C67ED49975C /* AttachmentPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentPickerSheet.swift; sourceTree = "<group>"; };
+		A59F115068928742EE2EB119 /* Icon-MidnightAquarium@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-MidnightAquarium@3x.png"; sourceTree = "<group>"; };
 		A60B419A4FBED58CCA577635 /* AskHermesIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskHermesIntent.swift; sourceTree = "<group>"; };
 		A6454C18539C7CF76928BBA5 /* IconPreview-LunarDiner.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-LunarDiner.png"; sourceTree = "<group>"; };
+		A6EED40F681E2DA9D3C5E857 /* IconPreview-MoltenForge.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-MoltenForge.png"; sourceTree = "<group>"; };
 		A7966AEDE93C3C43683A5F83 /* MockHermesHostService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockHermesHostService.swift; sourceTree = "<group>"; };
 		A88AB9163181C0B8A64A98F2 /* Icon-Terminal@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-Terminal@3x.png"; sourceTree = "<group>"; };
 		A9317395F2FB6F1E6C58527E /* LiveNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveNotificationService.swift; sourceTree = "<group>"; };
+		A933916A6EFB3A25618640A2 /* IconPreview-ComicFunnies.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-ComicFunnies.png"; sourceTree = "<group>"; };
 		A98E68D1390AD8BF008416C4 /* LiveCameraOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveCameraOverlay.swift; sourceTree = "<group>"; };
 		A9DBDFE28E0878C10BBAFF97 /* AppSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSessionStore.swift; sourceTree = "<group>"; };
 		AA92264F808D488BC762F6CF /* Icon-DiscoInferno@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-DiscoInferno@3x.png"; sourceTree = "<group>"; };
@@ -615,16 +680,20 @@
 		AB2D09CCD9B4464AAADCD11A /* SessionBootstrapResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionBootstrapResponse.swift; sourceTree = "<group>"; };
 		ABEA0742AA139362CA26B832 /* SensorUploadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SensorUploadService.swift; sourceTree = "<group>"; };
 		AC5589A3109A1F1544E674F6 /* MockSyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockSyncCoordinator.swift; sourceTree = "<group>"; };
+		AE66ED7A7F3BD4888CCACAF2 /* Icon-CasinoLucky7s@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-CasinoLucky7s@2x.png"; sourceTree = "<group>"; };
 		B00AB5FA1BE69387B3F2AB6D /* AppPersistenceStoreProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPersistenceStoreProtocol.swift; sourceTree = "<group>"; };
+		B16ADAB41ACEF34717525A7B /* Icon-StickerBombToybox@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-StickerBombToybox@3x.png"; sourceTree = "<group>"; };
 		B2A60186C884A91C050A0E77 /* PermissionType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionType.swift; sourceTree = "<group>"; };
 		B2CCE55977727DE21D3DB5C5 /* VoiceMemoPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMemoPlayer.swift; sourceTree = "<group>"; };
 		B3A2F2CE4651CA705DE47FAF /* HTMLPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLPreviewView.swift; sourceTree = "<group>"; };
 		B42BE7E738FC5E156E3130DE /* ConversationListStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationListStateStore.swift; sourceTree = "<group>"; };
 		B47A5F74DB08719B659A47C6 /* HermesWidgetData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesWidgetData.swift; sourceTree = "<group>"; };
 		B51D21BD13D5D766B95E61CC /* ChatScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatScreen.swift; sourceTree = "<group>"; };
+		B5FF2ADC2E27467CB66FDA43 /* IconPreview-LuchaLibre.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-LuchaLibre.png"; sourceTree = "<group>"; };
 		B6A3FBA7A6250BBC0DA91EEB /* IconPreview-DeepField.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-DeepField.png"; sourceTree = "<group>"; };
 		B6D18F2C1C92F15DCC12AFE0 /* LocalNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNotificationService.swift; sourceTree = "<group>"; };
 		B76E7696B16B5568AE4666F1 /* PrivacySettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacySettingsScreen.swift; sourceTree = "<group>"; };
+		B7B2AB9947B4855D05C531FF /* IconPreview-MidnightAquarium.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-MidnightAquarium.png"; sourceTree = "<group>"; };
 		B91842CE9C8F9B0938C747E5 /* SSEEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSEEvent.swift; sourceTree = "<group>"; };
 		B97713AF7CC8487DD32F1F15 /* DeviceRegistrationRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceRegistrationRequest.swift; sourceTree = "<group>"; };
 		B9960B9FE16ABC4CAB81D357 /* MarkdownTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTestSupport.swift; sourceTree = "<group>"; };
@@ -642,6 +711,7 @@
 		C226310D52EB40A7356747B7 /* AppearanceSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsScreen.swift; sourceTree = "<group>"; };
 		C23CAFFD07B5327C803CD89A /* InboxActionDescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxActionDescriptor.swift; sourceTree = "<group>"; };
 		C27161E1855811891F45425E /* Icon-LunarDiner@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-LunarDiner@2x.png"; sourceTree = "<group>"; };
+		C32A11AF1CE6C397C5269445 /* Icon-KaijuAttack@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-KaijuAttack@2x.png"; sourceTree = "<group>"; };
 		C345675B83359EEE54F700A8 /* SessionsDrawer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsDrawer.swift; sourceTree = "<group>"; };
 		C4A1E3347B449836932869DE /* MockNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockNotificationService.swift; sourceTree = "<group>"; };
 		C4D347133A2D2AA45285B7CD /* CarPlayVoiceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlayVoiceManager.swift; sourceTree = "<group>"; };
@@ -651,6 +721,7 @@
 		C7C0A879EC41CB30E663F615 /* ResilientSessionBootstrapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilientSessionBootstrapService.swift; sourceTree = "<group>"; };
 		C7F5E3E734B6B0B778FE98DD /* MarkdownTableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTableTests.swift; sourceTree = "<group>"; };
 		C95A6807F807FEA8E13C921C /* VoiceOrb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceOrb.swift; sourceTree = "<group>"; };
+		C9BCFFFC84E6F8EA156EEC32 /* Icon-MoltenForge@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-MoltenForge@3x.png"; sourceTree = "<group>"; };
 		C9DB35CE33537DD35FFADDB5 /* TranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptView.swift; sourceTree = "<group>"; };
 		CA2D5D9BB35C5C3D189C711E /* ChatStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStore.swift; sourceTree = "<group>"; };
 		CB23EEE4091D1A2F309E9B3C /* MockSessionBootstrapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockSessionBootstrapService.swift; sourceTree = "<group>"; };
@@ -660,6 +731,7 @@
 		CF4DD77146A6664BBB6ABC3F /* Talaria.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Talaria.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D016765CED5AAD80FF5411F5 /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
 		D0966B525D0A784483C8DFA2 /* Icon-GlitchGarden@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-GlitchGarden@2x.png"; sourceTree = "<group>"; };
+		D1C8260B4538A6EB2CB6BC2D /* Icon-CosmicBowling@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-CosmicBowling@3x.png"; sourceTree = "<group>"; };
 		D2AEA3CBF82B7CB832FC0EB1 /* LivePairingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivePairingService.swift; sourceTree = "<group>"; };
 		D3037072326C8733C97EFF85 /* Icon-SolarForge@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-SolarForge@3x.png"; sourceTree = "<group>"; };
 		D38920943EB10B55009A10F9 /* ChatBackendRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatBackendRouterTests.swift; sourceTree = "<group>"; };
@@ -667,6 +739,7 @@
 		D45CA30DC1D43A51A7A75093 /* HealthQueryCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthQueryCoreTests.swift; sourceTree = "<group>"; };
 		D46EF8A834CA61E308FE41EA /* JetBrainsMono-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "JetBrainsMono-Bold.ttf"; sourceTree = "<group>"; };
 		D4BC51686A9E81353B562BC7 /* DeveloperSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperSettingsScreen.swift; sourceTree = "<group>"; };
+		D824B41AB02CAA3B16E7D48C /* Icon-ComicVillain@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-ComicVillain@3x.png"; sourceTree = "<group>"; };
 		D84D166D8E272CB6E7DF3DC6 /* VoiceSessionBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSessionBanner.swift; sourceTree = "<group>"; };
 		D8F094AAF1D10D4CEB5D7431 /* DeviceActionToolsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceActionToolsTests.swift; sourceTree = "<group>"; };
 		D9E8AA633234249B0EC6C58B /* PairingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingStore.swift; sourceTree = "<group>"; };
@@ -682,6 +755,7 @@
 		E035F35D56C80D753692C02F /* SyncCoordinatorProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinatorProtocol.swift; sourceTree = "<group>"; };
 		E06543331C4A1E0CE4075576 /* IconPreview-HoloSushi.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-HoloSushi.png"; sourceTree = "<group>"; };
 		E14FEA341D9CF0849A0D856D /* LiveMediaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveMediaService.swift; sourceTree = "<group>"; };
+		E1C72B32FFD539B62DEFBE7E /* Icon-ComicFunnies@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-ComicFunnies@2x.png"; sourceTree = "<group>"; };
 		E3727619CB1A41ED47CADC62 /* StreamingUpdate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingUpdate.swift; sourceTree = "<group>"; };
 		E4397D4FA2DBFEF4C5B15923 /* ModelsSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsSettingsScreen.swift; sourceTree = "<group>"; };
 		E5AD6E957D927DE3495F4B72 /* AppTemplateUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTemplateUITests.swift; sourceTree = "<group>"; };
@@ -691,11 +765,14 @@
 		EAD54E9A9E2AA0D4604C4467 /* MockHermesClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockHermesClient.swift; sourceTree = "<group>"; };
 		EB0056665D4A47D62681F26B /* ConversationSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationSearch.swift; sourceTree = "<group>"; };
 		EB419DE4B29313B918FFB7D5 /* SpaceGrotesk-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SpaceGrotesk-Regular.ttf"; sourceTree = "<group>"; };
+		EC29CB41A2376E24068A0D64 /* Icon-StickerBombToybox@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-StickerBombToybox@2x.png"; sourceTree = "<group>"; };
 		ECE44E35B41DB47D36E44566 /* Icon-SummerSolar@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-SummerSolar@3x.png"; sourceTree = "<group>"; };
 		ECE60067CC3898F2148D9C58 /* HermesAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesAvatar.swift; sourceTree = "<group>"; };
 		ED340DA95F6297DE6AF4F24F /* MockPairingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockPairingService.swift; sourceTree = "<group>"; };
+		ED93B7714DBE57DAE0FB5F2B /* Icon-KaraokeSupernova@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-KaraokeSupernova@2x.png"; sourceTree = "<group>"; };
 		EE1A9E3E373FE488B6548295 /* ModelSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelSelector.swift; sourceTree = "<group>"; };
 		EF1134E862B553380F2CA913 /* DeviceHealthTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceHealthTool.swift; sourceTree = "<group>"; };
+		EFC335534070FF9A84A3D3C2 /* IconPreview-KaijuAttack.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-KaijuAttack.png"; sourceTree = "<group>"; };
 		F04C12A5058B9C64D4E33D9F /* LiveHealthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveHealthService.swift; sourceTree = "<group>"; };
 		F0DD777FA8C7A1E450D9343F /* IconPreview-Default.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-Default.png"; sourceTree = "<group>"; };
 		F11D4C7D5673FB21C2B22C40 /* GenUISchemaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenUISchemaTests.swift; sourceTree = "<group>"; };
@@ -723,6 +800,7 @@
 		FCC2A42D9789054064DE93C6 /* Icon-Terminal@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-Terminal@2x.png"; sourceTree = "<group>"; };
 		FCDA88A494348CA2669EA79C /* HermesHostStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesHostStore.swift; sourceTree = "<group>"; };
 		FE8DB0F148FFC7BC813EE622 /* AppTemplateUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTemplateUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		FEF08683A65A3385BA613B20 /* Icon-ComicFunnies@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-ComicFunnies@3x.png"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1019,30 +1097,56 @@
 				6086194E5DA00269632F6A09 /* Icon-AutumnHarvest@3x.png */,
 				6C5FDB59E099F96641AB625B /* Icon-BubblegumMecha@2x.png */,
 				77F7D81CF6E2F364F63642E3 /* Icon-BubblegumMecha@3x.png */,
+				AE66ED7A7F3BD4888CCACAF2 /* Icon-CasinoLucky7s@2x.png */,
+				30EF1B0C497FA891F651E8BF /* Icon-CasinoLucky7s@3x.png */,
 				80E35FC09C7F861A2551FC4C /* Icon-CerealBox@2x.png */,
 				7384C6AD13192056C32579A4 /* Icon-CerealBox@3x.png */,
+				E1C72B32FFD539B62DEFBE7E /* Icon-ComicFunnies@2x.png */,
+				FEF08683A65A3385BA613B20 /* Icon-ComicFunnies@3x.png */,
+				1FD6C2114903167B61743BB1 /* Icon-ComicVillain@2x.png */,
+				D824B41AB02CAA3B16E7D48C /* Icon-ComicVillain@3x.png */,
+				2036F929007F5D073276076B /* Icon-CosmicBowling@2x.png */,
+				D1C8260B4538A6EB2CB6BC2D /* Icon-CosmicBowling@3x.png */,
 				DC4D288F004D52E614E5A280 /* Icon-CyberCactus@2x.png */,
 				7AC3BD0D80BBC2C07791C4A5 /* Icon-CyberCactus@3x.png */,
 				FB4B4E5BA743254D0C695B48 /* Icon-DeepField@2x.png */,
 				31AF84E49DFBC89FAE4AD725 /* Icon-DeepField@3x.png */,
 				3B74F1CB8FCF67C1AEBA04BE /* Icon-DiscoInferno@2x.png */,
 				AA92264F808D488BC762F6CF /* Icon-DiscoInferno@3x.png */,
+				89B8FD72600750DA213172D8 /* Icon-EventHorizon@2x.png */,
+				27F7EDC88AD84F9AB51AFD1A /* Icon-EventHorizon@3x.png */,
 				D0966B525D0A784483C8DFA2 /* Icon-GlitchGarden@2x.png */,
 				75E8507FBB67016B53C79546 /* Icon-GlitchGarden@3x.png */,
+				51D3DE21F5F10FD325E99423 /* Icon-GraffitiGalaxy@2x.png */,
+				6CA4892C88295D384A10AF06 /* Icon-GraffitiGalaxy@3x.png */,
 				6A4FCA0EA769EB1D4168F405 /* Icon-HoloSushi@2x.png */,
 				4FEF4DC986BD45CCA162C8FD /* Icon-HoloSushi@3x.png */,
+				C32A11AF1CE6C397C5269445 /* Icon-KaijuAttack@2x.png */,
+				325BBB9012E78FDEBEC9F667 /* Icon-KaijuAttack@3x.png */,
+				ED93B7714DBE57DAE0FB5F2B /* Icon-KaraokeSupernova@2x.png */,
+				3FDA18B4B440179EED51B685 /* Icon-KaraokeSupernova@3x.png */,
+				18D266B207E1D16C45A7C236 /* Icon-LuchaLibre@2x.png */,
+				885791BF5D014DFF87001553 /* Icon-LuchaLibre@3x.png */,
 				C27161E1855811891F45425E /* Icon-LunarDiner@2x.png */,
 				9F6DE4A282467FF9B4ECD50F /* Icon-LunarDiner@3x.png */,
+				8BD8C35FF4AC86391DCCFEC4 /* Icon-MidnightAquarium@2x.png */,
+				A59F115068928742EE2EB119 /* Icon-MidnightAquarium@3x.png */,
+				0F52C49687672CA223A85A7A /* Icon-MoltenForge@2x.png */,
+				C9BCFFFC84E6F8EA156EEC32 /* Icon-MoltenForge@3x.png */,
 				12A52680EF08D0A9B6EE456B /* Icon-NeonArcade@2x.png */,
 				04601E35A47260A48E58E587 /* Icon-NeonArcade@3x.png */,
 				50A76862D8411AF3BD87C3C8 /* Icon-PaperTape@2x.png */,
 				40C7EB0FCE8B0F81AAAA1E30 /* Icon-PaperTape@3x.png */,
+				3C88FFD7A8182163808414B5 /* Icon-PulpNoir@2x.png */,
+				193B0D14BC2A55D65BAB1254 /* Icon-PulpNoir@3x.png */,
 				2D05226618AAF6BA5457D37C /* Icon-RetroSciFi@2x.png */,
 				23E22458D216C22DEF8C0750 /* Icon-RetroSciFi@3x.png */,
 				14534B1F938AC24C273D0F31 /* Icon-SolarForge@2x.png */,
 				D3037072326C8733C97EFF85 /* Icon-SolarForge@3x.png */,
 				9E4DFA5389F9FC0BC51F405B /* Icon-SpringSprout@2x.png */,
 				5C2CA32208388B8F40E1EF71 /* Icon-SpringSprout@3x.png */,
+				EC29CB41A2376E24068A0D64 /* Icon-StickerBombToybox@2x.png */,
+				B16ADAB41ACEF34717525A7B /* Icon-StickerBombToybox@3x.png */,
 				98F42904CB5A6D7C2A094D14 /* Icon-SummerSolar@2x.png */,
 				ECE44E35B41DB47D36E44566 /* Icon-SummerSolar@3x.png */,
 				FCC2A42D9789054064DE93C6 /* Icon-Terminal@2x.png */,
@@ -1053,19 +1157,32 @@
 				8703770797F16E0192FB5EE2 /* Icon-WitchsBrew@3x.png */,
 				058B8D699AF44F536D6AD863 /* IconPreview-AutumnHarvest.png */,
 				DC5601B3CB25FED88BF723E7 /* IconPreview-BubblegumMecha.png */,
+				5329E8269F91B4E2790CD373 /* IconPreview-CasinoLucky7s.png */,
 				5CC442FAC645EDA27FDC1937 /* IconPreview-CerealBox.png */,
+				A933916A6EFB3A25618640A2 /* IconPreview-ComicFunnies.png */,
+				56548D8DE1131EC66EBC3B77 /* IconPreview-ComicVillain.png */,
+				8423FB3F18FCB7BE1F2A738F /* IconPreview-CosmicBowling.png */,
 				7E6312F5D7D7A4DEABE995FB /* IconPreview-CyberCactus.png */,
 				B6A3FBA7A6250BBC0DA91EEB /* IconPreview-DeepField.png */,
 				F0DD777FA8C7A1E450D9343F /* IconPreview-Default.png */,
 				3194941F65631630D4A808A7 /* IconPreview-DiscoInferno.png */,
+				869D148C883D52BB5E962609 /* IconPreview-EventHorizon.png */,
 				6BDCDEFD0DC35483E4EB11AC /* IconPreview-GlitchGarden.png */,
+				2ACB4CFB03940283DB799C62 /* IconPreview-GraffitiGalaxy.png */,
 				E06543331C4A1E0CE4075576 /* IconPreview-HoloSushi.png */,
+				EFC335534070FF9A84A3D3C2 /* IconPreview-KaijuAttack.png */,
+				40908EA81D14E50EFB18430C /* IconPreview-KaraokeSupernova.png */,
+				B5FF2ADC2E27467CB66FDA43 /* IconPreview-LuchaLibre.png */,
 				A6454C18539C7CF76928BBA5 /* IconPreview-LunarDiner.png */,
+				B7B2AB9947B4855D05C531FF /* IconPreview-MidnightAquarium.png */,
+				A6EED40F681E2DA9D3C5E857 /* IconPreview-MoltenForge.png */,
 				2CC5ECD744442BBF8982F5C6 /* IconPreview-NeonArcade.png */,
 				2E21939E7A3C1BBFE3C156B1 /* IconPreview-PaperTape.png */,
+				941F21E47AC63AEA1640DD2E /* IconPreview-PulpNoir.png */,
 				F823A3D71CE9B62362059CE9 /* IconPreview-RetroSciFi.png */,
 				F6BE1EBB06745A2F54F48D12 /* IconPreview-SolarForge.png */,
 				F9EE177723360E9DC4562574 /* IconPreview-SpringSprout.png */,
+				250C4DEF3526E776A9F179BB /* IconPreview-StickerBombToybox.png */,
 				85291A40EB53DE9F648C706C /* IconPreview-SummerSolar.png */,
 				88975BD7EEDA7212610A9EFC /* IconPreview-Terminal.png */,
 				A371A08A4C7ED3E39033A3DB /* IconPreview-WinterFrost.png */,
@@ -1519,30 +1636,56 @@
 				5A9C5EBDAC749A48E05CB003 /* Icon-AutumnHarvest@3x.png in Resources */,
 				EA1059F552C01182EDE5A27B /* Icon-BubblegumMecha@2x.png in Resources */,
 				9EEC930B7713468A6003C33F /* Icon-BubblegumMecha@3x.png in Resources */,
+				BB22971B8710C9DD531CCACB /* Icon-CasinoLucky7s@2x.png in Resources */,
+				1938C7FFA5DE436EF82E4B50 /* Icon-CasinoLucky7s@3x.png in Resources */,
 				741C62A51A77689484076795 /* Icon-CerealBox@2x.png in Resources */,
 				EB8B9E16F3696A54FAC5B7B2 /* Icon-CerealBox@3x.png in Resources */,
+				F4D43B34BB7FA7B25E451D87 /* Icon-ComicFunnies@2x.png in Resources */,
+				8D7597AF4487AFEFC668381D /* Icon-ComicFunnies@3x.png in Resources */,
+				D74B859C12D67EAC3FC9A8E1 /* Icon-ComicVillain@2x.png in Resources */,
+				0299004A9676386CC623F755 /* Icon-ComicVillain@3x.png in Resources */,
+				3387FF31D3998EE66F9E638D /* Icon-CosmicBowling@2x.png in Resources */,
+				4DF08CBE0F2A192FBABF00ED /* Icon-CosmicBowling@3x.png in Resources */,
 				FF79AB1743C7AAAEC6FB281D /* Icon-CyberCactus@2x.png in Resources */,
 				86A12C4E8CD5E62DE24FD55D /* Icon-CyberCactus@3x.png in Resources */,
 				F74187AC47A3F89ED9939E02 /* Icon-DeepField@2x.png in Resources */,
 				E06742071CFCB7AFF63C1F08 /* Icon-DeepField@3x.png in Resources */,
 				BDD0810DC0E44AAC0B5C889C /* Icon-DiscoInferno@2x.png in Resources */,
 				8E3C23F0AE7EB199F4A2A77A /* Icon-DiscoInferno@3x.png in Resources */,
+				272E78CECEB89C93332E5E1C /* Icon-EventHorizon@2x.png in Resources */,
+				A8FCB407D4CB552248AA41B0 /* Icon-EventHorizon@3x.png in Resources */,
 				EB212F8BD2739B0D58B1670A /* Icon-GlitchGarden@2x.png in Resources */,
 				00DF6F4865775B56E55DD5DC /* Icon-GlitchGarden@3x.png in Resources */,
+				CADD4DE01A62A50ECED18E2D /* Icon-GraffitiGalaxy@2x.png in Resources */,
+				4289EF1142551FFFFAC5223E /* Icon-GraffitiGalaxy@3x.png in Resources */,
 				32D4551809223831EF676462 /* Icon-HoloSushi@2x.png in Resources */,
 				47AC470D1D4B4BFBA0F71624 /* Icon-HoloSushi@3x.png in Resources */,
+				6126DBB0E0148673E6593ABB /* Icon-KaijuAttack@2x.png in Resources */,
+				C037C1F85943D624651BCB20 /* Icon-KaijuAttack@3x.png in Resources */,
+				5E778F56888B871092C97E7F /* Icon-KaraokeSupernova@2x.png in Resources */,
+				82F228AAC1E00F0F85AB4707 /* Icon-KaraokeSupernova@3x.png in Resources */,
+				1C07AEBA1620620D11964D9A /* Icon-LuchaLibre@2x.png in Resources */,
+				6C4C529164A8B67A321634B5 /* Icon-LuchaLibre@3x.png in Resources */,
 				9DB29A1A1BB0A310FACE98F3 /* Icon-LunarDiner@2x.png in Resources */,
 				C20AE3B12E90CF743FAD2077 /* Icon-LunarDiner@3x.png in Resources */,
+				E4EE52A039E47EBA8881069D /* Icon-MidnightAquarium@2x.png in Resources */,
+				F4CD2B4FCB1433333B7B5623 /* Icon-MidnightAquarium@3x.png in Resources */,
+				21E9A22A97CE3C9866ACFCE2 /* Icon-MoltenForge@2x.png in Resources */,
+				9DAA09D1D03F7D8E9E08FF15 /* Icon-MoltenForge@3x.png in Resources */,
 				BEA5577E28E7530CB6A72190 /* Icon-NeonArcade@2x.png in Resources */,
 				10AC60C0BC2BB33146552566 /* Icon-NeonArcade@3x.png in Resources */,
 				2A86C5787FDFD2BC8499C6E6 /* Icon-PaperTape@2x.png in Resources */,
 				3CE466CA7744735C858CF942 /* Icon-PaperTape@3x.png in Resources */,
+				8263A39DC2A0194711CDAB40 /* Icon-PulpNoir@2x.png in Resources */,
+				88A4F69712260611652584BB /* Icon-PulpNoir@3x.png in Resources */,
 				255A768A4F87122ED684C977 /* Icon-RetroSciFi@2x.png in Resources */,
 				C7915B7BBFFD0F8C7D7B7D2F /* Icon-RetroSciFi@3x.png in Resources */,
 				247776F4580B529B30F75D06 /* Icon-SolarForge@2x.png in Resources */,
 				6BC4CD52173F321EE5501ADE /* Icon-SolarForge@3x.png in Resources */,
 				C2DDCB8500B27F368AE44CC0 /* Icon-SpringSprout@2x.png in Resources */,
 				58EAE21B148EFB6CD6612474 /* Icon-SpringSprout@3x.png in Resources */,
+				25D9CAD82CD433E329191ADA /* Icon-StickerBombToybox@2x.png in Resources */,
+				3EF7F706BB5DC611E42EB4BC /* Icon-StickerBombToybox@3x.png in Resources */,
 				63C8E014562B939096A67A03 /* Icon-SummerSolar@2x.png in Resources */,
 				27DA43C16EBED01B3E5881CB /* Icon-SummerSolar@3x.png in Resources */,
 				957AC9EA20F97B95B1136AF3 /* Icon-Terminal@2x.png in Resources */,
@@ -1553,19 +1696,32 @@
 				2E22E42495A7225E401E220A /* Icon-WitchsBrew@3x.png in Resources */,
 				23BDB5F7E650A9858DBDCCBC /* IconPreview-AutumnHarvest.png in Resources */,
 				E0A2060FDDE72120642D0D29 /* IconPreview-BubblegumMecha.png in Resources */,
+				A483D91DA0EC687153FCAE9C /* IconPreview-CasinoLucky7s.png in Resources */,
 				EFF5038AD4AC165AAC808DC9 /* IconPreview-CerealBox.png in Resources */,
+				719904EA81DB624316AD387A /* IconPreview-ComicFunnies.png in Resources */,
+				8FDACD8A2EA739520F567320 /* IconPreview-ComicVillain.png in Resources */,
+				BEB5B918C0E10686866BB138 /* IconPreview-CosmicBowling.png in Resources */,
 				444980139212D5F8E1441814 /* IconPreview-CyberCactus.png in Resources */,
 				F3FD47CEF18E418FE942DC8B /* IconPreview-DeepField.png in Resources */,
 				A0E8E2227CF55B1CC7DCD785 /* IconPreview-Default.png in Resources */,
 				43EFEA9D894F146EDBB37980 /* IconPreview-DiscoInferno.png in Resources */,
+				740147F7D74E13D29250A970 /* IconPreview-EventHorizon.png in Resources */,
 				50BD8DD052BECEF8727FA7CA /* IconPreview-GlitchGarden.png in Resources */,
+				7F8401F607B2A269FDAB040B /* IconPreview-GraffitiGalaxy.png in Resources */,
 				8CABE7AB3DC344FB246093BF /* IconPreview-HoloSushi.png in Resources */,
+				C9A6957F9F495C1C52B53128 /* IconPreview-KaijuAttack.png in Resources */,
+				2DB6B36BD3CA82BF6C01EC44 /* IconPreview-KaraokeSupernova.png in Resources */,
+				184CBD8A2483750653941ED3 /* IconPreview-LuchaLibre.png in Resources */,
 				9021F00D13C37E647DAD5C07 /* IconPreview-LunarDiner.png in Resources */,
+				A91CE30181A7FED54130D48E /* IconPreview-MidnightAquarium.png in Resources */,
+				8A10B164116AB64CF443C0D3 /* IconPreview-MoltenForge.png in Resources */,
 				F80700C6730267A8FF7BFB97 /* IconPreview-NeonArcade.png in Resources */,
 				9E1BD5629F85453AA3AA5C42 /* IconPreview-PaperTape.png in Resources */,
+				54AD9095163BB2DDE3B5BE48 /* IconPreview-PulpNoir.png in Resources */,
 				606EC3F0849F85094C905D2C /* IconPreview-RetroSciFi.png in Resources */,
 				C0074D1D766391EF424E4EEE /* IconPreview-SolarForge.png in Resources */,
 				33D976EB4E985BFFD885A1DF /* IconPreview-SpringSprout.png in Resources */,
+				869D180BEF807EDB643A8AF0 /* IconPreview-StickerBombToybox.png in Resources */,
 				C071A887FB7D775DE0017757 /* IconPreview-SummerSolar.png in Resources */,
 				0B36CC7964363BE5011CCB73 /* IconPreview-Terminal.png in Resources */,
 				30541BC94B93FF41085CDFF9 /* IconPreview-WinterFrost.png in Resources */,

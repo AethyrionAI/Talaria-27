@@ -382,9 +382,29 @@ final class ThemeRuntime {
     /// motion modifiers — the app toggle can only *add* restriction.
     var appReduceMotion: Bool = false
 
+    /// The system color scheme as last mirrored from the app root's
+    /// environment (Lane L Phase 2). Only CONSULTED when the active theme is
+    /// adaptive (Comic Book): the root's `preferredColorScheme` is nil
+    /// there, so the mirrored environment value IS the true system
+    /// appearance. Under a fixed theme the mirror reads that theme's forced
+    /// scheme (preferredColorScheme loops back into the window environment)
+    /// — harmless, since non-adaptive themes ignore it in `themeID(for:)`,
+    /// and it keeps picker previews coherent with the presented surface.
+    var systemColorScheme: ColorScheme = .dark
+
     /// Fully resolved palette for the active (theme, accent). Values live in
-    /// Shared/ThemePaletteCore.swift.
-    var palette: ThemePalette { ThemePalette(theme: theme.themeID, accent: accent.slot) }
+    /// Shared/ThemePaletteCore.swift. Scheme-aware for the adaptive theme —
+    /// and ONLY then does resolution read `systemColorScheme`, so sessions
+    /// on a fixed theme never subscribe to (or re-render on) mirror writes.
+    var palette: ThemePalette {
+        ThemePalette(theme: resolvedThemeID, accent: accent.slot)
+    }
+
+    /// The active render identity, reading the mirrored scheme only when the
+    /// theme is adaptive (Observation tracks only fields actually read).
+    var resolvedThemeID: ThemeID {
+        theme.isAdaptive ? theme.themeID(for: systemColorScheme) : theme.themeID
+    }
 
     private init() {}
 
@@ -409,6 +429,11 @@ final class ThemeRuntime {
 // identities (same raw cases, explicit switch — no force-unwrapped rawValue).
 
 extension AppearanceTheme {
+    /// Canonical (scheme-free) render identity — used wherever a single
+    /// identity is required regardless of appearance: locked-slot lookup,
+    /// catalog payloads, `isLight`. The adaptive Comic Book canonicalizes
+    /// to its dark half (villain); live rendering resolves through
+    /// `themeID(for:)` instead (Lane L Phase 2).
     var themeID: ThemeID {
         switch self {
         case .deepField: .deepField
@@ -433,7 +458,40 @@ extension AppearanceTheme {
         case .karaokeSupernova: .karaokeSupernova
         case .midnightAquarium: .midnightAquarium
         case .moltenForge: .moltenForge
+        case .luchaLibre: .luchaLibre
+        case .kaijuAttack: .kaijuAttack
+        case .pulpNoir: .pulpNoir
+        case .casinoLucky7s: .casinoLucky7s
+        case .cosmicBowling: .cosmicBowling
+        case .stickerBombToybox: .stickerBombToybox
+        case .comicBook: .comicVillain
         }
+    }
+
+    /// Whether this theme's render identity follows the system color scheme
+    /// (Lane L Phase 2). The single adaptivity predicate — `themeID(for:)`,
+    /// `preferredColorScheme`, and the runtime's scheme subscription all key
+    /// off it, so a future adaptive theme is wired in one place here plus
+    /// the Shared `AdaptiveThemeIdentity` mapping the widget reads.
+    var isAdaptive: Bool { self == .comicBook }
+
+    /// Scheme-resolved render identity: every theme ignores the scheme
+    /// except the adaptive Comic Book, which follows it — villain by night,
+    /// funnies by day. Delegates to the Shared `AdaptiveThemeIdentity`
+    /// mapping so the app and the widget matchApp path can never drift.
+    func themeID(for scheme: ColorScheme) -> ThemeID {
+        guard isAdaptive else { return themeID }
+        return AdaptiveThemeIdentity.resolve(persistedRawValue: rawValue,
+                                             prefersDark: scheme != .light) ?? themeID
+    }
+
+    /// What the app root forces on the presentation: light/dark per
+    /// `isLight` for every fixed theme (Paper Tape unchanged), `nil` for
+    /// the adaptive theme so the SYSTEM appearance drives and both Comic
+    /// Book variants stay reachable.
+    var preferredColorScheme: ColorScheme? {
+        guard !isAdaptive else { return nil }
+        return isLight ? .light : .dark
     }
 }
 

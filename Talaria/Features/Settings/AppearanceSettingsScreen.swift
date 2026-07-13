@@ -26,9 +26,24 @@ struct AppearanceSettingsScreen: View {
     private var grid: GridDensity { settingsStore.settings.gridDensity }
     private var reduceMotion: Bool { settingsStore.settings.reduceMotion }
 
+    /// Render identity for a theme as this screen previews it: the adaptive
+    /// Comic Book resolves with the runtime's mirrored scheme, so its card
+    /// and swatches show the variant matching the PRESENTED surface —
+    /// identical to live resolution whenever Comic Book is active. Known
+    /// limit (Lane L Phase 2, noted in the PR): while a FIXED theme is
+    /// active the mirror reads that theme's forced scheme, so on a device
+    /// whose system appearance differs, the Comic Book card previews the
+    /// other half than selecting it will produce. SwiftUI offers no
+    /// un-forced system-scheme read inside the overridden window; a
+    /// screen-traits reader is the candidate follow-up if the Mac pass
+    /// wants the stricter behavior.
+    private func resolvedThemeID(_ theme: AppearanceTheme) -> ThemeID {
+        theme.themeID(for: ThemeRuntime.shared.systemColorScheme)
+    }
+
     /// Palette for the *selected* (theme, accent) — matches the live runtime
     /// once the app root mirrors the settings change.
-    private var palette: ThemePalette { ThemePalette(theme: theme.themeID, accent: accent.slot) }
+    private var palette: ThemePalette { ThemePalette(theme: resolvedThemeID(theme), accent: accent.slot) }
 
     /// The accent palette resolution actually uses. Locked themes (Terminal)
     /// pin to their hero slot (#12), so labels must not echo a stale stored
@@ -254,7 +269,7 @@ struct AppearanceSettingsScreen: View {
         // Each card renders its own environment, resolved with the user's
         // current accent slot so it previews what they'd actually get.
         let t = definition.appearanceTheme
-        let p = ThemePalette(theme: t.themeID, accent: accent.slot)
+        let p = ThemePalette(theme: resolvedThemeID(t), accent: accent.slot)
         // In automatic mode the active season's theme reads as selected.
         let selected = (t == theme)
         return Button {
@@ -326,7 +341,11 @@ struct AppearanceSettingsScreen: View {
             HStack(spacing: Design.Spacing.md) {
                 ForEach(AppearanceAccent.allCases, id: \.self) { accentSwatch($0) }
                 Spacer()
-                MonoLabel(accent.displayLabel(for: theme).uppercased(), size: 9, weight: .medium,
+                // Slot names come from the RESOLVED variant so the adaptive
+                // theme labels its slots per the presented appearance
+                // (Kapow Yellow by night, Ben-Day Cyan by day).
+                MonoLabel(accent.displayLabel(for: resolvedThemeID(theme)).uppercased(),
+                          size: 9, weight: .medium,
                           tracking: Design.Tracking.mono, color: palette.base)
             }
             .padding(.horizontal, Design.Spacing.xs)
@@ -335,7 +354,7 @@ struct AppearanceSettingsScreen: View {
 
     private func accentSwatch(_ a: AppearanceAccent) -> some View {
         // The slot swatch shows the color the CURRENT theme resolves it to.
-        let c = ThemePalette(theme: theme.themeID, accent: a.slot)
+        let c = ThemePalette(theme: resolvedThemeID(theme), accent: a.slot)
         let selected = (a == accent)
         return Button {
             settingsStore.settings.appearanceAccent = a
@@ -357,7 +376,9 @@ struct AppearanceSettingsScreen: View {
         }
         .buttonStyle(.plain)
         .hoverEffect(.highlight)
-        .accessibilityLabel(a.displayLabel(for: theme))
+        // Scheme-resolved so VoiceOver names the swatch by the variant it
+        // visibly renders (the adaptive theme's halves differ).
+        .accessibilityLabel(a.displayLabel(for: resolvedThemeID(theme)))
     }
 
     // MARK: Glow
@@ -441,7 +462,7 @@ struct AppearanceSettingsScreen: View {
                     .font(Design.Typography.callout)
                     .foregroundStyle(Design.Colors.foreground)
                 Spacer()
-                MonoLabel("\(theme.displayLabel) · \(effectiveAccent.displayLabel(for: theme))",
+                MonoLabel("\(theme.displayLabel) · \(effectiveAccent.displayLabel(for: resolvedThemeID(theme)))",
                           size: 10, weight: .medium,
                           tracking: Design.Tracking.mono, color: palette.base)
             }

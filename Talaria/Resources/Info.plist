@@ -35,11 +35,47 @@
 				<key>UIPrerenderedIcon</key>
 				<false/>
 			</dict>
+			<key>CasinoLucky7s</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>Icon-CasinoLucky7s</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
 			<key>CerealBox</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
 					<string>Icon-CerealBox</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>ComicFunnies</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>Icon-ComicFunnies</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>ComicVillain</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>Icon-ComicVillain</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>CosmicBowling</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>Icon-CosmicBowling</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<false/>
@@ -71,11 +107,29 @@
 				<key>UIPrerenderedIcon</key>
 				<false/>
 			</dict>
+			<key>EventHorizon</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>Icon-EventHorizon</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
 			<key>GlitchGarden</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
 					<string>Icon-GlitchGarden</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>GraffitiGalaxy</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>Icon-GraffitiGalaxy</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<false/>
@@ -89,11 +143,56 @@
 				<key>UIPrerenderedIcon</key>
 				<false/>
 			</dict>
+			<key>KaijuAttack</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>Icon-KaijuAttack</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>KaraokeSupernova</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>Icon-KaraokeSupernova</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>LuchaLibre</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>Icon-LuchaLibre</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
 			<key>LunarDiner</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
 					<string>Icon-LunarDiner</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>MidnightAquarium</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>Icon-MidnightAquarium</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>MoltenForge</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>Icon-MoltenForge</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<false/>
@@ -112,6 +211,15 @@
 				<key>CFBundleIconFiles</key>
 				<array>
 					<string>Icon-PaperTape</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>PulpNoir</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>Icon-PulpNoir</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<false/>
@@ -139,6 +247,15 @@
 				<key>CFBundleIconFiles</key>
 				<array>
 					<string>Icon-SpringSprout</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>StickerBombToybox</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>Icon-StickerBombToybox</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<false/>
