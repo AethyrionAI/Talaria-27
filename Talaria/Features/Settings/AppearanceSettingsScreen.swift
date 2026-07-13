@@ -26,9 +26,18 @@ struct AppearanceSettingsScreen: View {
     private var grid: GridDensity { settingsStore.settings.gridDensity }
     private var reduceMotion: Bool { settingsStore.settings.reduceMotion }
 
+    /// Render identity for a theme as this screen previews it: the adaptive
+    /// Comic Book resolves with the runtime's mirrored scheme, so its card
+    /// and swatches show the variant actually presented (villain on dark
+    /// surfaces, funnies on light) — identical to the live resolution
+    /// whenever Comic Book is the active theme (Lane L Phase 2).
+    private func resolvedThemeID(_ theme: AppearanceTheme) -> ThemeID {
+        theme.themeID(for: ThemeRuntime.shared.systemColorScheme)
+    }
+
     /// Palette for the *selected* (theme, accent) — matches the live runtime
     /// once the app root mirrors the settings change.
-    private var palette: ThemePalette { ThemePalette(theme: theme.themeID, accent: accent.slot) }
+    private var palette: ThemePalette { ThemePalette(theme: resolvedThemeID(theme), accent: accent.slot) }
 
     /// The accent palette resolution actually uses. Locked themes (Terminal)
     /// pin to their hero slot (#12), so labels must not echo a stale stored
@@ -254,7 +263,7 @@ struct AppearanceSettingsScreen: View {
         // Each card renders its own environment, resolved with the user's
         // current accent slot so it previews what they'd actually get.
         let t = definition.appearanceTheme
-        let p = ThemePalette(theme: t.themeID, accent: accent.slot)
+        let p = ThemePalette(theme: resolvedThemeID(t), accent: accent.slot)
         // In automatic mode the active season's theme reads as selected.
         let selected = (t == theme)
         return Button {
@@ -326,7 +335,12 @@ struct AppearanceSettingsScreen: View {
             HStack(spacing: Design.Spacing.md) {
                 ForEach(AppearanceAccent.allCases, id: \.self) { accentSwatch($0) }
                 Spacer()
-                MonoLabel(accent.displayLabel(for: theme).uppercased(), size: 9, weight: .medium,
+                // Slot names come from the RESOLVED variant so the adaptive
+                // theme labels its slots per the presented appearance
+                // (Kapow Yellow by night, Ben-Day Cyan by day).
+                MonoLabel(ThemePaletteCatalog.definition(for: resolvedThemeID(theme))
+                            .accents[accent.slot].displayName.uppercased(),
+                          size: 9, weight: .medium,
                           tracking: Design.Tracking.mono, color: palette.base)
             }
             .padding(.horizontal, Design.Spacing.xs)
@@ -335,7 +349,7 @@ struct AppearanceSettingsScreen: View {
 
     private func accentSwatch(_ a: AppearanceAccent) -> some View {
         // The slot swatch shows the color the CURRENT theme resolves it to.
-        let c = ThemePalette(theme: theme.themeID, accent: a.slot)
+        let c = ThemePalette(theme: resolvedThemeID(theme), accent: a.slot)
         let selected = (a == accent)
         return Button {
             settingsStore.settings.appearanceAccent = a

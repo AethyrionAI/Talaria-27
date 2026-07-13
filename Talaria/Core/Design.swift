@@ -382,9 +382,21 @@ final class ThemeRuntime {
     /// motion modifiers — the app toggle can only *add* restriction.
     var appReduceMotion: Bool = false
 
+    /// The system color scheme as last mirrored from the app root's
+    /// environment (Lane L Phase 2). Only CONSULTED when the active theme is
+    /// adaptive (Comic Book): the root's `preferredColorScheme` is nil
+    /// there, so the mirrored environment value IS the true system
+    /// appearance. Under a fixed theme the mirror reads that theme's forced
+    /// scheme (preferredColorScheme loops back into the window environment)
+    /// — harmless, since non-adaptive themes ignore it in `themeID(for:)`,
+    /// and it keeps picker previews coherent with the presented surface.
+    var systemColorScheme: ColorScheme = .dark
+
     /// Fully resolved palette for the active (theme, accent). Values live in
-    /// Shared/ThemePaletteCore.swift.
-    var palette: ThemePalette { ThemePalette(theme: theme.themeID, accent: accent.slot) }
+    /// Shared/ThemePaletteCore.swift. Scheme-aware for the adaptive theme.
+    var palette: ThemePalette {
+        ThemePalette(theme: theme.themeID(for: systemColorScheme), accent: accent.slot)
+    }
 
     private init() {}
 
@@ -409,6 +421,11 @@ final class ThemeRuntime {
 // identities (same raw cases, explicit switch — no force-unwrapped rawValue).
 
 extension AppearanceTheme {
+    /// Canonical (scheme-free) render identity — used wherever a single
+    /// identity is required regardless of appearance: locked-slot lookup,
+    /// catalog payloads, `isLight`. The adaptive Comic Book canonicalizes
+    /// to its dark half (villain); live rendering resolves through
+    /// `themeID(for:)` instead (Lane L Phase 2).
     var themeID: ThemeID {
         switch self {
         case .deepField: .deepField
@@ -439,7 +456,26 @@ extension AppearanceTheme {
         case .casinoLucky7s: .casinoLucky7s
         case .cosmicBowling: .cosmicBowling
         case .stickerBombToybox: .stickerBombToybox
+        case .comicBook: .comicVillain
         }
+    }
+
+    /// Scheme-resolved render identity: every theme ignores the scheme
+    /// except the adaptive Comic Book, which follows it — villain by night,
+    /// funnies by day (Lane L Phase 2). Same mapping as the widget's
+    /// `AdaptiveThemeIdentity.resolve`.
+    func themeID(for scheme: ColorScheme) -> ThemeID {
+        guard self == .comicBook else { return themeID }
+        return scheme == .light ? .comicFunnies : .comicVillain
+    }
+
+    /// What the app root forces on the presentation: light/dark per
+    /// `isLight` for every fixed theme (Paper Tape unchanged), `nil` for
+    /// the adaptive theme so the SYSTEM appearance drives and both Comic
+    /// Book variants stay reachable.
+    var preferredColorScheme: ColorScheme? {
+        guard self != .comicBook else { return nil }
+        return isLight ? .light : .dark
     }
 }
 

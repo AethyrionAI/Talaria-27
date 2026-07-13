@@ -15,7 +15,7 @@ struct HermesHealthWidget: Widget {
         ) { entry in
             HermesHealthView(entry: entry)
                 .containerBackground(for: .widget) {
-                    WidgetThemeBackground(palette: entry.palette)
+                    WidgetEntryThemeBackground(entry: entry)
                 }
         }
         .configurationDisplayName("Hermes Health")
@@ -28,9 +28,10 @@ struct HermesHealthWidget: Widget {
 
 private struct HermesHealthView: View {
     let entry: HermesWidgetEntry
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        let palette = entry.palette
+        let palette = entry.palette(for: colorScheme)
         return VStack(spacing: 8) {
             HStack {
                 WidgetOrbGlyph(palette: palette, size: 16)

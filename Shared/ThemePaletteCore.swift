@@ -2695,6 +2695,30 @@ enum ThemePaletteCatalog {
     )
 }
 
+// MARK: - Adaptive theme identity (Lane L Phase 2)
+
+/// The one appearance whose render identity follows the SYSTEM color scheme:
+/// Comic Book — Villain Variant by night, Sunday Funnies by day. Lives in
+/// Shared so the widget target, which never compiles the app's
+/// `AppearanceTheme`, resolves the persisted raw value against its own
+/// environment scheme through the exact same mapping the app uses.
+enum AdaptiveThemeIdentity {
+    /// The adaptive theme's persisted `AppearanceTheme` raw value (pinned by
+    /// `DesignThemeTests` so the two targets cannot drift).
+    static let comicBookRawValue = "comicBook"
+
+    /// Resolve a persisted appearance raw value into a render identity:
+    /// non-adaptive values map by raw id, the adaptive value picks its
+    /// variant from `prefersDark`. Unknown values return nil so callers
+    /// keep their existing Deep Field fallback.
+    static func resolve(persistedRawValue raw: String, prefersDark: Bool) -> ThemeID? {
+        if raw == comicBookRawValue {
+            return prefersDark ? .comicVillain : .comicFunnies
+        }
+        return ThemeID(rawValue: raw)
+    }
+}
+
 // MARK: - Color hex helper
 // Lives here (not Design.swift) so the widget target gets it too.
 

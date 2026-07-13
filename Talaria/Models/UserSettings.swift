@@ -259,15 +259,24 @@ enum AppearanceTheme: String, Codable, CaseIterable, Hashable, Sendable {
     case casinoLucky7s
     case cosmicBowling
     case stickerBombToybox
+    /// The first ADAPTIVE theme (Lane L Phase 2): one persisted identity
+    /// that renders as `comicVillain` under the dark system appearance and
+    /// `comicFunnies` under light. Raw value pinned to
+    /// `AdaptiveThemeIdentity.comicBookRawValue`.
+    case comicBook
 
     /// Display name — single source of truth is the catalog definition (#49).
     var displayLabel: String {
         ThemeCatalog.definition(id: rawValue)?.displayName ?? rawValue
     }
 
-    /// Whether this is a light environment — drives the root
-    /// `preferredColorScheme` so system chrome (keyboard, sheets, toggles)
-    /// follows the theme. Resolved from the palette data (#49).
+    /// Whether this is a light environment — feeds the root
+    /// `preferredColorScheme` (via `AppearanceTheme.preferredColorScheme`,
+    /// Design.swift) so system chrome (keyboard, sheets, toggles) follows
+    /// the theme. Resolved from the palette data (#49) through the
+    /// scheme-free canonical identity — the adaptive Comic Book reads its
+    /// dark (villain) half here, but the root never consults `isLight` for
+    /// it (adaptive themes leave the scheme to the system).
     var isLight: Bool {
         ThemePaletteCatalog.definition(for: themeID).isLight
     }

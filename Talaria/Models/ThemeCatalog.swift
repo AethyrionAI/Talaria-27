@@ -203,6 +203,12 @@ enum ThemeCatalog {
         ThemeDefinition(id: AppearanceTheme.stickerBombToybox.rawValue, displayName: "Sticker-Bomb Toybox",
                         subtitle: "Kidcore Shelf", appearanceTheme: .stickerBombToybox,
                         availability: .always, locked: false),
+        // The collection's adaptive centerpiece: ONE picker card that
+        // follows the system appearance (Villain Variant by night, Sunday
+        // Funnies by day — Owen decision 2026-07-12, Lane L Phase 2).
+        ThemeDefinition(id: AppearanceTheme.comicBook.rawValue, displayName: "Comic Book",
+                        subtitle: "POW · ZAP", appearanceTheme: .comicBook,
+                        availability: .always, locked: false),
     ]
 
     /// The four meteorological-season themes; holiday themes become additional

@@ -16,7 +16,7 @@ struct HermesStatusWidget: Widget {
         ) { entry in
             HermesStatusView(entry: entry)
                 .containerBackground(for: .widget) {
-                    WidgetThemeBackground(palette: entry.palette)
+                    WidgetEntryThemeBackground(entry: entry)
                 }
         }
         .configurationDisplayName("Hermes Status")
@@ -44,6 +44,7 @@ struct HermesStatusWidget: Widget {
 private struct HermesStatusView: View {
     let entry: HermesWidgetEntry
     @Environment(\.widgetFamily) var family
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         switch family {
@@ -64,7 +65,7 @@ private struct HermesStatusView: View {
     // MARK: - System Small (Home Screen — themed)
 
     private var systemSmallView: some View {
-        let palette = entry.palette
+        let palette = entry.palette(for: colorScheme)
         return VStack(alignment: .leading, spacing: 6) {
             HStack {
                 WidgetOrbGlyph(palette: palette, size: 22)

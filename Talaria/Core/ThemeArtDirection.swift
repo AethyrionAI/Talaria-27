@@ -1223,9 +1223,10 @@ enum ThemeArtDirectionCatalog {
 // MARK: - Runtime access
 
 extension ThemeRuntime {
-    /// Art direction for the active theme. Observation tracks `theme`, so any
-    /// view reading this re-renders on a theme switch like palette readers do.
+    /// Art direction for the active theme. Observation tracks `theme` (and
+    /// `systemColorScheme` for the adaptive Comic Book), so any view reading
+    /// this re-renders on a theme or appearance switch like palette readers.
     var artDirection: ThemeArtDirection {
-        ThemeArtDirectionCatalog.artDirection(for: theme.themeID)
+        ThemeArtDirectionCatalog.artDirection(for: theme.themeID(for: systemColorScheme))
     }
 }
