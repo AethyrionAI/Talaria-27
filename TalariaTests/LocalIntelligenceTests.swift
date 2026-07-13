@@ -34,15 +34,42 @@ struct LocalIntelligenceTests {
 
     @Test func fallbackCardHandlesAttachmentOnlyTurn() {
         // Attachment-only sends have placeholder-ish user text; the reply is
-        // the only meaningful source for both fields.
+        // the only meaningful source. #61: the title borrows the reply's first
+        // line, so the preview must NOT repeat it — with no distinct second
+        // line the card is title-only.
         let card = LocalIntelligenceService.fallbackCard(
             userText: "",
             assistantText: "That photo shows the Golden Gate Bridge at sunset."
         )
         // The reply is 50 chars — over the 48-char title cap, so the title
-        // word-boundary-truncates; the 90-char preview keeps it whole.
+        // word-boundary-truncates; the preview stays empty (no distinct line).
         #expect(card.title == "That photo shows the Golden Gate Bridge at…")
-        #expect(card.preview == "That photo shows the Golden Gate Bridge at sunset")
+        #expect(card.preview.isEmpty)
+    }
+
+    // #61: the empty-user regression (device pass 2026-07-11 FAIL — "repeats
+    // the first line on both lines"). When the user turn has no meaningful
+    // line the title has to borrow the reply's first line; the preview must
+    // NOT echo that same line.
+    @Test func fallbackCardEmptyUserTurnDoesNotDuplicateReplyLine() {
+        // Single-line reply → title carries the line, preview stays empty
+        // rather than repeating it.
+        let single = LocalIntelligenceService.fallbackCard(
+            userText: "",
+            assistantText: "That photo shows the Golden Gate Bridge at sunset."
+        )
+        #expect(!single.title.isEmpty)
+        #expect(single.preview.isEmpty)
+        #expect(LocalIntelligenceService.degenerateCardReason(title: single.title, preview: single.preview) == nil)
+
+        // Multi-line reply → title from line 1, preview from a DISTINCT line 2.
+        let multi = LocalIntelligenceService.fallbackCard(
+            userText: "   ",
+            assistantText: "That photo shows the Golden Gate Bridge.\nIt was taken at sunset from Marin."
+        )
+        #expect(multi.title == "That photo shows the Golden Gate Bridge")
+        #expect(multi.preview == "It was taken at sunset from Marin")
+        #expect(multi.title != multi.preview)
     }
 
     @Test func fallbackCardIsEmptyWhenNothingMeaningful() {

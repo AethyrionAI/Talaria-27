@@ -426,20 +426,33 @@ final class LocalIntelligenceService {
 
     /// Truncation-based card: title from the first meaningful user line (or
     /// the reply's, when the turn was attachment-only), preview from the
-    /// reply's first meaningful line.
+    /// reply. When the title had to borrow the reply's first line, the
+    /// preview steps to the reply's NEXT line so the two never echo (#61).
     nonisolated static func fallbackCard(userText: String, assistantText: String) -> ConversationCard {
-        let titleSource = firstMeaningfulLine(of: userText) ?? firstMeaningfulLine(of: assistantText) ?? ""
-        let previewSource = firstMeaningfulLine(of: assistantText) ?? ""
+        let userLine = firstMeaningfulLine(of: userText)
+        let assistantLines = meaningfulLines(of: assistantText)
+        let titleSource = userLine ?? assistantLines.first ?? ""
+        // #61: when the user turn carried no meaningful line (attachment-only,
+        // slash command, empty), the title has to borrow the reply's first
+        // line — the very line the preview would otherwise use. Showing it in
+        // both fields reads as a duplicate card (device pass 2026-07-11 FAIL:
+        // "repeats the first line on both lines"). Give the preview a DISTINCT
+        // source: the reply's next meaningful line, or nothing — a title-only
+        // card is honest; two copies of one line is not.
+        let previewSource = userLine == nil
+            ? (assistantLines.dropFirst().first ?? "")
+            : (assistantLines.first ?? "")
         return ConversationCard(
             title: condensedLine(titleSource, limit: 48),
             preview: condensedLine(previewSource, limit: 90)
         )
     }
 
-    /// First line that carries words — skips blanks and fenced code blocks
-    /// (markers AND their contents, so a code line never becomes a title),
-    /// and strips markdown heading markers.
-    nonisolated static func firstMeaningfulLine(of text: String) -> String? {
+    /// Every line that carries words, in order — skips blanks and fenced code
+    /// blocks (markers AND their contents, so a code line never becomes a
+    /// title), and strips markdown heading markers.
+    nonisolated static func meaningfulLines(of text: String) -> [String] {
+        var lines: [String] = []
         var inFence = false
         for line in text.split(separator: "\n") {
             var trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -450,9 +463,14 @@ final class LocalIntelligenceService {
             guard !inFence, !trimmed.isEmpty else { continue }
             while trimmed.hasPrefix("#") { trimmed.removeFirst() }
             trimmed = trimmed.trimmingCharacters(in: .whitespaces)
-            if !trimmed.isEmpty { return trimmed }
+            if !trimmed.isEmpty { lines.append(trimmed) }
         }
-        return nil
+        return lines
+    }
+
+    /// First line that carries words. See `meaningfulLines`.
+    nonisolated static func firstMeaningfulLine(of text: String) -> String? {
+        meaningfulLines(of: text).first
     }
 
     /// Collapses whitespace to single spaces, strips wrapping quotes/backticks
