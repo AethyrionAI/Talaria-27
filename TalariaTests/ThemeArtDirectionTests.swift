@@ -31,12 +31,17 @@ struct ThemeArtDirectionTests {
         // caustics; Haunted VHS was cut on device verdict 2026-07-11).
         let lineTextures: Set<ThemeID> = [
             .holoSushi, .cyberCactus, .graffitiGalaxy, .midnightAquarium,
+            .cosmicBowling,
         ]
         let scanlineOverlays: Set<ThemeID> = [
             .glitchGarden, .bubblegumMecha, .retroSciFi, .discoInferno,
         ]
         let titleShadows: Set<ThemeID> = [
             .glitchGarden, .retroSciFi, .graffitiGalaxy,
+            // Midnight Marquee (Lane L): every marquee composes its
+            // handoff's print offsets (+ glow layers) as one shadow stack.
+            .luchaLibre, .kaijuAttack, .pulpNoir, .casinoLucky7s,
+            .cosmicBowling, .stickerBombToybox,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -52,7 +57,7 @@ struct ThemeArtDirectionTests {
         // Forge's heatShimmer pool breathe — update deliberately per batch.
         let pool = ThemeGlowPool(color: .white, centerX: 0.5, centerY: 0.5, radiusFraction: 0.5)
         #expect(pool.pulsePeriod == nil)
-        let pulsing: Set<ThemeID> = [.karaokeSupernova, .moltenForge]
+        let pulsing: Set<ThemeID> = [.karaokeSupernova, .moltenForge, .luchaLibre]
         for theme in ThemeID.allCases where !pulsing.contains(theme) {
             for pool in ThemeArtDirectionCatalog.artDirection(for: theme).glowPools {
                 #expect(pool.pulsePeriod == nil)
@@ -74,6 +79,15 @@ struct ThemeArtDirectionTests {
         #expect(molten.last?.pulsePeriod == 4)
         #expect(molten.last?.pulseMinOpacity == 0.59)
         #expect(molten.last?.centerY == 1.0)
+        // Lucha Libre: royal bloom static, the two spotlight-shaft pools
+        // breathing on the design's 4s glowPulse (Lane L).
+        let lucha = ThemeArtDirectionCatalog.artDirection(for: .luchaLibre).glowPools
+        #expect(lucha.count == 3)
+        #expect(lucha.first?.pulsePeriod == nil)
+        for shaft in lucha.dropFirst() {
+            #expect(shaft.pulsePeriod == 4)
+            #expect(shaft.pulseMinOpacity == 0.6)
+        }
     }
 
     @Test func eventHorizonAtmosphereKeepsPreLaserDefaults() {
@@ -151,6 +165,9 @@ struct ThemeArtDirectionTests {
             .glitchSeed, .cauldronBrew, .holoNigiri, .prizeWheel, .candyMecha,
             .jukeboxGlow, .cactusBloom, .anglerLure, .discoBall, .sprayCap,
             .mirrorBall, .rocketBadge, .moonJelly, .crucible, .phosphor,
+            // Midnight Marquee (Lane L).
+            .rudoMask, .kaijuSiren, .dimeStamp, .luckySevens, .houseBall,
+            .stickerStar,
         ]
         let orphans: Set<ThemeOrbStyle> = [.anglerLure, .phosphor]
         let selected = ThemeID.allCases.map { ThemePalette(theme: $0, accent: .cyan).orbStyle }
@@ -324,6 +341,9 @@ struct ThemeArtDirectionTests {
             .lunarDiner, .cyberCactus, .discoInferno,
             .graffitiGalaxy, .karaokeSupernova,
             .midnightAquarium, .moltenForge,
+            // Midnight Marquee (Lane L).
+            .luchaLibre, .kaijuAttack, .pulpNoir, .casinoLucky7s,
+            .cosmicBowling, .stickerBombToybox,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -358,9 +378,12 @@ struct ThemeArtDirectionTests {
     }
 
     @Test func radialSpokesDefaultToNil() {
-        // The spoke field must be inert for every theme without a spec.
+        // The spoke field must be inert for every theme without a spec —
+        // Event Horizon's lensing starburst and Kaiju Attack's searchlight
+        // sweep (Lane L) are the deliberate adopters.
         #expect(ThemeArtDirection.standard.radialSpokes == nil)
-        for theme in ThemeID.allCases where theme != .eventHorizon {
+        let spoked: Set<ThemeID> = [.eventHorizon, .kaijuAttack]
+        for theme in ThemeID.allCases where !spoked.contains(theme) {
             #expect(ThemeArtDirectionCatalog.artDirection(for: theme).radialSpokes == nil)
         }
     }
@@ -424,6 +447,9 @@ struct ThemeArtDirectionTests {
             .eventHorizon, .witchsBrew, .cerealBox, .bubblegumMecha, .retroSciFi,
             .lunarDiner, .discoInferno, .karaokeSupernova,
             .midnightAquarium, .moltenForge,
+            // Midnight Marquee (Lane L): the static crowd/city/carpet/sticker
+            // speck fields.
+            .luchaLibre, .kaijuAttack, .cosmicBowling, .stickerBombToybox,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -434,9 +460,11 @@ struct ThemeArtDirectionTests {
     @Test func staticAtmosphereFieldsNeverDrift() {
         // Batch 1's speck fields are STATIC by design (the CSS never pans
         // them) — zero drift on every layer, so Reduce Motion and the
-        // animated path render identically. Only Event Horizon drifts today.
+        // animated path render identically. Lane L's four marquee fields
+        // are static in their designs too.
         for theme in [ThemeID.witchsBrew, .cerealBox, .bubblegumMecha, .retroSciFi,
-                      .lunarDiner, .discoInferno] {
+                      .lunarDiner, .discoInferno,
+                      .luchaLibre, .kaijuAttack, .cosmicBowling, .stickerBombToybox] {
             let spec = ThemeArtDirectionCatalog.artDirection(for: theme).atmosphereMotion
             #expect(spec != nil)
             for layer in spec?.layers ?? [] {
@@ -582,5 +610,53 @@ struct ThemeArtDirectionTests {
 
     @Test func eventHorizonSelectsTheStarfieldTexture() {
         #expect(ThemePalette(theme: .eventHorizon, accent: .cyan).texture == .starfield)
+    }
+
+    // MARK: Midnight Marquee pinned lineup values (Lane L)
+
+    @Test func kaijuSearchlightSitsAtLineupLevels() {
+        // The two 8° amber beams orbSpin 24s, ported at the spoke
+        // primitive's 8°/8° cadence (approximation noted in the PR).
+        let spokes = ThemeArtDirectionCatalog.artDirection(for: .kaijuAttack).radialSpokes
+        #expect(spokes?.spokeAlpha == 0.05)
+        #expect(spokes?.segmentDegrees == 8)
+        #expect(spokes?.period == 24)
+    }
+
+    @Test func cosmicBowlingCarpetSitsAtLineupLevels() {
+        let art = ThemeArtDirectionCatalog.artDirection(for: .cosmicBowling)
+        // Carpet confetti: the design's non-square background-sizes.
+        #expect(art.atmosphereMotion?.layers.map(\.tileSize) == [130, 110, 160])
+        #expect(art.atmosphereMotion?.layers.map(\.tileHeight) == [110, 95, 130])
+        #expect(art.atmosphereMotion?.fieldOpacity == 0.28)
+        // The grape squiggle diagonal (CSS-angle verbatim, static).
+        #expect(art.lineTexture?.layers.map(\.angleDegrees) == [35])
+        #expect(art.lineTexture?.driftPeriod == nil)
+    }
+
+    @Test func marqueeGridsArePaletteData() {
+        // Casino felt dots + Pulp paper tooth follow the Disco precedent:
+        // the design's own dot lattice rides GridOverlay as palette data.
+        let casino = ThemePalette(theme: .casinoLucky7s, accent: .cyan)
+        #expect(casino.gridStyle == .dots)
+        #expect(casino.gridCell == 26)
+        let pulp = ThemePalette(theme: .pulpNoir, accent: .cyan)
+        #expect(pulp.gridStyle == .dots)
+        #expect(pulp.gridCell == 9)
+        #expect(pulp.texture == .paperGrain)
+    }
+
+    @Test func lightMarqueesPrintInsteadOfGlow() {
+        // Pulp Noir + Sticker-Bomb Toybox are print environments: paper
+        // glow scale, and deliberately NO panel halo (their designs use
+        // hard offset ink shadows, not glows).
+        for theme in [ThemeID.pulpNoir, .stickerBombToybox] {
+            #expect(ThemePalette(theme: theme, accent: .cyan).glowScale == 0.15)
+            #expect(ThemeArtDirectionCatalog.artDirection(for: theme).panelHalo == nil)
+        }
+        // Sticker dots: the design's three big soft tiles on the .5 layer.
+        let toybox = ThemeArtDirectionCatalog.artDirection(for: .stickerBombToybox)
+        #expect(toybox.atmosphereMotion?.layers.map(\.tileSize) == [140, 170, 190])
+        #expect(toybox.atmosphereMotion?.fieldOpacity == 0.5)
     }
 }

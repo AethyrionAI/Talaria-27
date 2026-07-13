@@ -107,7 +107,9 @@ struct DesignThemeTests {
     @Test func lightThemesMatchExpectedSet() {
         // Canary for computed `isLight` (derived from each theme's palette). retroSciFi
         // reads light off its palette; seasonal summerSolar/autumnHarvest read dark.
-        let lightThemes: Set<AppearanceTheme> = [.paperTape, .retroSciFi, .springSprout, .winterFrost]
+        // Midnight Marquee ships two light palettes (Lane L).
+        let lightThemes: Set<AppearanceTheme> = [.paperTape, .retroSciFi, .springSprout, .winterFrost,
+                                                 .pulpNoir, .stickerBombToybox]
         for theme in AppearanceTheme.allCases {
             #expect(theme.isLight == lightThemes.contains(theme))
             #expect(ThemePalette(theme: theme.themeID, accent: .cyan).isLight == theme.isLight)
@@ -137,6 +139,13 @@ struct DesignThemeTests {
         // Batch 4 — Claude-Design Special Editions.
         #expect(ThemePalette(theme: .midnightAquarium, accent: .cyan).base == Color(hex: 0xFF7AD9))
         #expect(ThemePalette(theme: .moltenForge, accent: .cyan).base == Color(hex: 0xFF6A1A))
+        // Midnight Marquee (Lane L — Final Lineup hero hexes).
+        #expect(ThemePalette(theme: .luchaLibre, accent: .cyan).base == Color(hex: 0x3D6BFF))
+        #expect(ThemePalette(theme: .kaijuAttack, accent: .cyan).base == Color(hex: 0x6AFF57))
+        #expect(ThemePalette(theme: .pulpNoir, accent: .cyan).base == Color(hex: 0x276F6D))
+        #expect(ThemePalette(theme: .casinoLucky7s, accent: .cyan).base == Color(hex: 0x4F9DFF))
+        #expect(ThemePalette(theme: .cosmicBowling, accent: .cyan).base == Color(hex: 0x00B3A4))
+        #expect(ThemePalette(theme: .stickerBombToybox, accent: .cyan).base == Color(hex: 0x4BBF22))
     }
 
     @Test func contextualAccentLabels() {
@@ -166,6 +175,16 @@ struct DesignThemeTests {
         #expect(AppearanceAccent.cyan.displayLabel(for: .moltenForge) == "Lava Orange")
         #expect(AppearanceAccent.amber.displayLabel(for: .moltenForge) == "Spark Gold")
         #expect(AppearanceAccent.violet.displayLabel(for: .moltenForge) == "Hammered Steel")
+        // Midnight Marquee keeps the handoff-native slot names (Lane L).
+        #expect(AppearanceAccent.cyan.displayLabel(for: .luchaLibre) == "Royal Blue")
+        #expect(AppearanceAccent.amber.displayLabel(for: .luchaLibre) == "Pyro Orange")
+        #expect(AppearanceAccent.violet.displayLabel(for: .luchaLibre) == "Chrome Silver")
+        #expect(AppearanceAccent.cyan.displayLabel(for: .kaijuAttack) == "Radioactive Green")
+        #expect(AppearanceAccent.cyan.displayLabel(for: .pulpNoir) == "Library Teal")
+        #expect(AppearanceAccent.amber.displayLabel(for: .pulpNoir) == "Mustard Gold")
+        #expect(AppearanceAccent.cyan.displayLabel(for: .casinoLucky7s) == "Chip Blue")
+        #expect(AppearanceAccent.cyan.displayLabel(for: .cosmicBowling) == "Alley Teal")
+        #expect(AppearanceAccent.violet.displayLabel(for: .stickerBombToybox) == "Grape Pop")
     }
 
     // MARK: Catalog resolution (#49)
@@ -224,6 +243,13 @@ struct DesignThemeTests {
         // Batch 4 — Claude-Design Special Editions.
         #expect(ThemePalette(theme: .midnightAquarium, accent: .cyan).orbStyle == .moonJelly)
         #expect(ThemePalette(theme: .moltenForge, accent: .cyan).orbStyle == .crucible)
+        // Midnight Marquee (Lane L).
+        #expect(ThemePalette(theme: .luchaLibre, accent: .cyan).orbStyle == .rudoMask)
+        #expect(ThemePalette(theme: .kaijuAttack, accent: .cyan).orbStyle == .kaijuSiren)
+        #expect(ThemePalette(theme: .pulpNoir, accent: .cyan).orbStyle == .dimeStamp)
+        #expect(ThemePalette(theme: .casinoLucky7s, accent: .cyan).orbStyle == .luckySevens)
+        #expect(ThemePalette(theme: .cosmicBowling, accent: .cyan).orbStyle == .houseBall)
+        #expect(ThemePalette(theme: .stickerBombToybox, accent: .cyan).orbStyle == .stickerStar)
     }
 
     // MARK: Runtime mirroring
