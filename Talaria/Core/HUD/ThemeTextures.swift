@@ -209,9 +209,17 @@ struct AtmosphereMotionField: View {
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
 
+    /// A field whose every layer has zero drift renders the same frame at
+    /// every t (offset = drift × phase = 0), so it takes the static Canvas —
+    /// the batch-1 speck fields and the Lane L marquee fields stop paying a
+    /// 20fps timeline for a pixel-identical image (review finding, Lane L).
+    private var isStatic: Bool {
+        spec.layers.allSatisfy { $0.driftX == 0 && $0.driftY == 0 }
+    }
+
     var body: some View {
         Group {
-            if reduceMotion {
+            if reduceMotion || isStatic {
                 Canvas { context, size in
                     Self.draw(context: context, size: size, time: 0, spec: spec)
                 }

@@ -702,12 +702,12 @@ struct ReactorOrb: View {
     )
 
     /// Sticker-Bomb Toybox's inner rings (§1k): dashed tangerine 0.7 /
-    /// slime 0.8 — the white die-cut edge ring and sticker core are bespoke
-    /// (StickerEdgeRing / StickerRingCore), so ring 0 and the core fields
-    /// here are inert placeholders for the shared triRing indexing.
+    /// slime 0.8. The white die-cut edge ring and the sticker core are
+    /// bespoke views (StickerEdgeRing / StickerRingCore) that share this
+    /// spec's pulse cadence; the core fields are inert (sprayCapRings
+    /// precedent).
     private static let stickerStarRings = TriRingOrbSpec(
         rings: [
-            .init(color: ToyboxHue.white, baseOpacity: 0.9, diameterFraction: 1.0),
             .init(color: ToyboxHue.tangerine, baseOpacity: 0.7, diameterFraction: 0.74,
                   dash: [5, 4], delay: 0.3, spinPeriod: 14),
             .init(color: ToyboxHue.slime, baseOpacity: 0.8, diameterFraction: 0.48,
@@ -776,7 +776,9 @@ struct ReactorOrb: View {
                 triRing(Self.zapBurstRings, index: index,
                         diameter: size * Self.zapBurstRings.rings[index].diameterFraction)
             }
-            StickerRingCore(diameter: size * 0.30, highlight: ComicHue.banana,
+            // Voice matches triRingLayers' floor (max(coreFraction, 0.34)).
+            StickerRingCore(diameter: size * (style == .voice ? 0.34 : 0.30),
+                            highlight: ComicHue.banana,
                             base: ComicHue.magenta, white: ComicHue.paperWhite,
                             ink: ComicHue.panelInk)
         }
@@ -802,7 +804,9 @@ struct ReactorOrb: View {
                 triRing(Self.dimeStampRings, index: index,
                         diameter: size * Self.dimeStampRings.rings[index].diameterFraction)
             }
-            InkStampCore(diameter: size * 0.30, highlight: PulpHue.mustard,
+            // Voice matches triRingLayers' floor (max(coreFraction, 0.34)).
+            InkStampCore(diameter: size * (style == .voice ? 0.34 : 0.30),
+                         highlight: PulpHue.mustard,
                          base: PulpHue.crimson, ink: PulpHue.ink)
         }
     }
@@ -810,27 +814,30 @@ struct ReactorOrb: View {
     // MARK: Sticker-Bomb Toybox — die-cut sticker star (printed, no glow)
 
     @ViewBuilder private var stickerStarLayers: some View {
+        let edgePeriod = Self.stickerStarRings.pulsePeriod
         switch style {
         case .minimal:
-            StickerEdgeRing(diameter: size)
+            StickerEdgeRing(diameter: size, period: edgePeriod)
             StickerRingCore(diameter: size * 0.44, highlight: ToyboxHue.tangerine,
                             base: ToyboxHue.grape, white: ToyboxHue.white,
                             ink: ToyboxHue.ink)
         case .standard:
-            StickerEdgeRing(diameter: size)
-            triRing(Self.stickerStarRings, index: 2,
-                    diameter: size * Self.stickerStarRings.rings[2].diameterFraction)
+            StickerEdgeRing(diameter: size, period: edgePeriod)
+            triRing(Self.stickerStarRings, index: 1,
+                    diameter: size * Self.stickerStarRings.rings[1].diameterFraction)
             StickerRingCore(diameter: size * 0.32, highlight: ToyboxHue.tangerine,
                             base: ToyboxHue.grape, white: ToyboxHue.white,
                             ink: ToyboxHue.ink)
         case .onboarding, .voice:
             if style == .voice { PingHalo(diameter: size) }
-            StickerEdgeRing(diameter: size)
-            triRing(Self.stickerStarRings, index: 1,
-                    diameter: size * Self.stickerStarRings.rings[1].diameterFraction)
-            triRing(Self.stickerStarRings, index: 2,
-                    diameter: size * Self.stickerStarRings.rings[2].diameterFraction)
-            StickerRingCore(diameter: size * 0.30, highlight: ToyboxHue.tangerine,
+            StickerEdgeRing(diameter: size, period: edgePeriod)
+            ForEach(Self.stickerStarRings.rings.indices, id: \.self) { index in
+                triRing(Self.stickerStarRings, index: index,
+                        diameter: size * Self.stickerStarRings.rings[index].diameterFraction)
+            }
+            // Voice matches triRingLayers' floor (max(coreFraction, 0.34)).
+            StickerRingCore(diameter: size * (style == .voice ? 0.34 : 0.30),
+                            highlight: ToyboxHue.tangerine,
                             base: ToyboxHue.grape, white: ToyboxHue.white,
                             ink: ToyboxHue.ink)
         }
@@ -1729,10 +1736,11 @@ private struct StickerRingCore: View {
 
 /// Sticker-Bomb Toybox's outer die-cut edge: the white sticker ring with its
 /// ink outline and hard toy-plastic offset shadow (`3px solid #fff` +
-/// `0 0 0 2px ink, 4px 4px 0 ink@.2` on the 120px reference orb), pulsing at
-/// the shared 3.5s cadence.
+/// `0 0 0 2px ink, 4px 4px 0 ink@.2` on the 120px reference orb), pulsing on
+/// the cadence its spec passes in so a pulsePeriod retune reaches the edge.
 private struct StickerEdgeRing: View {
     let diameter: CGFloat
+    let period: Double
 
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }
@@ -1757,7 +1765,7 @@ private struct StickerEdgeRing: View {
         .scaleEffect(pulse ? 1.04 : 1.0)
         .onAppear {
             guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 3.5 / 2).repeatForever(autoreverses: true)) {
+            withAnimation(.easeInOut(duration: period / 2).repeatForever(autoreverses: true)) {
                 pulse = true
             }
         }

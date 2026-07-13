@@ -112,16 +112,23 @@ def save_variants(master: Image.Image, name: str):
 def main():
     if not os.path.isdir(os.path.join("Talaria", "Resources")):
         raise SystemExit("Run from the repo root (Talaria/Resources not found).")
+    # Optional gallery-id args render a subset (a full re-render stays the
+    # no-arg default); unknown args fail like unknown ICON_IDS would.
+    import sys
+    requested = sys.argv[1:] or ICON_IDS
+    unknown = [i for i in requested if i not in ICON_IDS]
+    if unknown:
+        raise SystemExit(f"not in ICON_IDS: {unknown}")
     gallery = load_gallery_svgs(GALLERY)
-    missing = [i for i in ICON_IDS if i not in gallery]
+    missing = [i for i in requested if i not in gallery]
     if missing:
         raise SystemExit(f"gallery is missing icon ids: {missing}")
     os.makedirs(OUT_DIR, exist_ok=True)
-    for icon_id in ICON_IDS:
+    for icon_id in requested:
         name = pascal_case(icon_id)
         save_variants(render_master(gallery[icon_id]), name)
         print(f"  Icon-{name} @2x/@3x + IconPreview-{name}.png")
-    print(f"Done ({len(ICON_IDS)} icons) -> {OUT_DIR}")
+    print(f"Done ({len(requested)} icons) -> {OUT_DIR}")
 
 
 if __name__ == "__main__":

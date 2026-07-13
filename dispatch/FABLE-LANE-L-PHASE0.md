@@ -15,7 +15,7 @@ Every render-identity resolution funnels through **three seams**, all keyed on
 | `ThemeRuntime.artDirection` | `Talaria/Core/ThemeArtDirection.swift:984` | **YES** — all HUD art-direction consumers (`ThemeTextures.swift:16,65`, `HUDComponents.swift:25–46,298–345`) read this |
 | Root `preferredColorScheme` | `Talaria/Features/Onboarding/AppRootView.swift:33` | **YES** — must return `nil` for the adaptive theme |
 | `AppearanceTheme.isLight` | `Talaria/Models/UserSettings.swift:265` | Consulted ONLY by AppRootView:33 + `DesignThemeTests` — keeps schemeless (canonical-variant) semantics once AppRootView special-cases the adaptive theme |
-| `AppearanceAccent.displayLabel(for:)` | `UserSettings.swift:302` | Sole caller is `AppearanceSettingsScreen.swift:329` — screen threads a scheme-resolved id instead |
+| `AppearanceAccent.displayLabel(for:)` | `UserSettings.swift:302` | Three callers, all in `AppearanceSettingsScreen` (accent label, swatch accessibility label, THEME summary row) — the probe originally under-counted them as one; all three now resolve through a scheme-resolved `ThemeID` overload (review correction) |
 | Picker previews (direct `ThemePalette(theme:accent:)`) | `AppearanceSettingsScreen.swift:31,257,338` | Cards/swatches resolve with the runtime's mirrored scheme |
 | `ThemeDefinition.paletteDefinition` | `ThemeCatalog.swift:93` | Schemeless (canonical) — only tests consume it today |
 | `ThemeID.lockedAccentSlot` | `Shared/ThemePaletteCore.swift:60` | Both Comic Book variants ship `nil` — no divergence possible |

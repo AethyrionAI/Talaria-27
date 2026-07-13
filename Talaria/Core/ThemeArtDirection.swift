@@ -1018,11 +1018,14 @@ enum ThemeArtDirectionCatalog {
                 anchorX: 0.70, anchorY: 0.60, speckRadius: 1.5625),
         ], period: 1, fieldOpacity: 0.25),
         // Searchlight sweep: amber wedges rgba(255,210,89,.10) on the .5
-        // conic layer, one turn per 24s.
+        // conic layer, one turn per 24s. The design's beams are 8°;
+        // RadialSpokeField tiles lit/gap pairs around the full circle, so
+        // the cadence must divide 360 or the seam fuses two beams into one
+        // double-width wedge — 7.5° is the nearest clean divisor (24 pairs).
         radialSpokes: RadialSpokeSpec(
             hue: Color(hex: 0xFFD259),
             spokeAlpha: 0.05,
-            segmentDegrees: 8,
+            segmentDegrees: 7.5,
             period: 24
         ),
         // h1: 0 0 16px siren .6, 4px 4px 0 siren, -3px -3px 0 green .5.
@@ -1315,9 +1318,10 @@ enum ThemeArtDirectionCatalog {
 
 extension ThemeRuntime {
     /// Art direction for the active theme. Observation tracks `theme` (and
-    /// `systemColorScheme` for the adaptive Comic Book), so any view reading
-    /// this re-renders on a theme or appearance switch like palette readers.
+    /// `systemColorScheme` only while the adaptive Comic Book is active —
+    /// `resolvedThemeID` reads it conditionally), so any view reading this
+    /// re-renders on a theme or appearance switch like palette readers.
     var artDirection: ThemeArtDirection {
-        ThemeArtDirectionCatalog.artDirection(for: theme.themeID(for: systemColorScheme))
+        ThemeArtDirectionCatalog.artDirection(for: resolvedThemeID)
     }
 }

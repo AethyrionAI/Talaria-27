@@ -182,8 +182,7 @@ enum ThemeCatalog {
 
     /// Midnight Marquee — the fifth gallery section (Lane L,
     /// design/themes/midnight-marquee-final-lineup.html): seven late-night
-    /// genre marquees, each with a bespoke orb and art direction. Comic Book
-    /// (the collection's adaptive centerpiece) joins in its own change.
+    /// genre marquees, each with a bespoke orb and art direction.
     static let midnightMarquee: [ThemeDefinition] = [
         ThemeDefinition(id: AppearanceTheme.luchaLibre.rawValue, displayName: "Lucha Libre",
                         subtitle: "Rudo Nocturno", appearanceTheme: .luchaLibre,

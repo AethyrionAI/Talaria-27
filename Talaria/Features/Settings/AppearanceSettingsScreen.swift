@@ -28,9 +28,15 @@ struct AppearanceSettingsScreen: View {
 
     /// Render identity for a theme as this screen previews it: the adaptive
     /// Comic Book resolves with the runtime's mirrored scheme, so its card
-    /// and swatches show the variant actually presented (villain on dark
-    /// surfaces, funnies on light) — identical to the live resolution
-    /// whenever Comic Book is the active theme (Lane L Phase 2).
+    /// and swatches show the variant matching the PRESENTED surface —
+    /// identical to live resolution whenever Comic Book is active. Known
+    /// limit (Lane L Phase 2, noted in the PR): while a FIXED theme is
+    /// active the mirror reads that theme's forced scheme, so on a device
+    /// whose system appearance differs, the Comic Book card previews the
+    /// other half than selecting it will produce. SwiftUI offers no
+    /// un-forced system-scheme read inside the overridden window; a
+    /// screen-traits reader is the candidate follow-up if the Mac pass
+    /// wants the stricter behavior.
     private func resolvedThemeID(_ theme: AppearanceTheme) -> ThemeID {
         theme.themeID(for: ThemeRuntime.shared.systemColorScheme)
     }
@@ -338,8 +344,7 @@ struct AppearanceSettingsScreen: View {
                 // Slot names come from the RESOLVED variant so the adaptive
                 // theme labels its slots per the presented appearance
                 // (Kapow Yellow by night, Ben-Day Cyan by day).
-                MonoLabel(ThemePaletteCatalog.definition(for: resolvedThemeID(theme))
-                            .accents[accent.slot].displayName.uppercased(),
+                MonoLabel(accent.displayLabel(for: resolvedThemeID(theme)).uppercased(),
                           size: 9, weight: .medium,
                           tracking: Design.Tracking.mono, color: palette.base)
             }
@@ -371,7 +376,9 @@ struct AppearanceSettingsScreen: View {
         }
         .buttonStyle(.plain)
         .hoverEffect(.highlight)
-        .accessibilityLabel(a.displayLabel(for: theme))
+        // Scheme-resolved so VoiceOver names the swatch by the variant it
+        // visibly renders (the adaptive theme's halves differ).
+        .accessibilityLabel(a.displayLabel(for: resolvedThemeID(theme)))
     }
 
     // MARK: Glow
@@ -455,7 +462,7 @@ struct AppearanceSettingsScreen: View {
                     .font(Design.Typography.callout)
                     .foregroundStyle(Design.Colors.foreground)
                 Spacer()
-                MonoLabel("\(theme.displayLabel) · \(effectiveAccent.displayLabel(for: theme))",
+                MonoLabel("\(theme.displayLabel) · \(effectiveAccent.displayLabel(for: resolvedThemeID(theme)))",
                           size: 10, weight: .medium,
                           tracking: Design.Tracking.mono, color: palette.base)
             }

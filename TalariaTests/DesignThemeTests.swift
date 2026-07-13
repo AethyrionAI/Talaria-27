@@ -179,8 +179,12 @@ struct DesignThemeTests {
         #expect(AppearanceAccent.amber.displayLabel(for: .moltenForge) == "Spark Gold")
         #expect(AppearanceAccent.violet.displayLabel(for: .moltenForge) == "Hammered Steel")
         // The adaptive theme's schemeless label reads its canonical (dark)
-        // half; the settings screen resolves variant labels scheme-aware.
+        // half; the settings screen resolves variant labels scheme-aware
+        // through the ThemeID overload.
         #expect(AppearanceAccent.cyan.displayLabel(for: .comicBook) == "Kapow Yellow")
+        #expect(AppearanceAccent.cyan.displayLabel(for: ThemeID.comicVillain) == "Kapow Yellow")
+        #expect(AppearanceAccent.cyan.displayLabel(for: ThemeID.comicFunnies) == "Ben-Day Cyan")
+        #expect(AppearanceAccent.amber.displayLabel(for: ThemeID.comicFunnies) == "Banana Yellow")
         // Midnight Marquee keeps the handoff-native slot names (Lane L).
         #expect(AppearanceAccent.cyan.displayLabel(for: .luchaLibre) == "Royal Blue")
         #expect(AppearanceAccent.amber.displayLabel(for: .luchaLibre) == "Pyro Orange")

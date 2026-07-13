@@ -619,12 +619,17 @@ struct ThemeArtDirectionTests {
     // MARK: Midnight Marquee pinned lineup values (Lane L)
 
     @Test func kaijuSearchlightSitsAtLineupLevels() {
-        // The two 8° amber beams orbSpin 24s, ported at the spoke
-        // primitive's 8°/8° cadence (approximation noted in the PR).
+        // The design's two 8° amber beams orbSpin 24s, ported at the spoke
+        // primitive's lit/gap cadence (approximation noted in the PR). The
+        // cadence must divide 360 or the tiling fuses a double-width beam
+        // at the wrap seam — 7.5° is the nearest clean divisor.
         let spokes = ThemeArtDirectionCatalog.artDirection(for: .kaijuAttack).radialSpokes
         #expect(spokes?.spokeAlpha == 0.05)
-        #expect(spokes?.segmentDegrees == 8)
+        #expect(spokes?.segmentDegrees == 7.5)
         #expect(spokes?.period == 24)
+        if let degrees = spokes?.segmentDegrees {
+            #expect(360.0.truncatingRemainder(dividingBy: degrees * 2) == 0)
+        }
     }
 
     @Test func cosmicBowlingCarpetSitsAtLineupLevels() {

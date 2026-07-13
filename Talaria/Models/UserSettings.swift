@@ -312,9 +312,17 @@ enum AppearanceAccent: String, Codable, CaseIterable, Hashable, Sendable {
 
     /// Contextual label for the slot as resolved inside a theme — read from
     /// the theme's accent-variant data (#49), so a new theme names its slots
-    /// in its catalog entry instead of a switch arm here.
+    /// in its catalog entry instead of a switch arm here. Resolves through
+    /// the canonical (scheme-free) identity; surfaces that present the
+    /// adaptive theme's live variant use the `ThemeID` overload instead.
     func displayLabel(for theme: AppearanceTheme) -> String {
-        ThemePaletteCatalog.definition(for: theme.themeID).accents[slot].displayName
+        displayLabel(for: theme.themeID)
+    }
+
+    /// Render-identity overload — the single label path for callers that
+    /// already hold a scheme-resolved `ThemeID` (Lane L Phase 2).
+    func displayLabel(for themeID: ThemeID) -> String {
+        ThemePaletteCatalog.definition(for: themeID).accents[slot].displayName
     }
 }
 

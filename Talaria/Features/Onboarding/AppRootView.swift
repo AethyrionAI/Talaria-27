@@ -38,8 +38,16 @@ struct AppRootView: View {
         // themes — and nil for the adaptive Comic Book, where the SYSTEM
         // appearance drives (Lane L Phase 2).
         .preferredColorScheme(ThemeRuntime.shared.theme.preferredColorScheme)
+        // Guarded like ThemeRuntime.apply()'s per-field mirrors — an
+        // unconditional write would invalidate every palette reader on
+        // same-value ticks. `initial: true` still leaves the mirror at its
+        // .dark default for the very first frame; with the adaptive theme
+        // persisted on a light-mode device that frame resolves the villain
+        // half before snapping to funnies (known seam, noted in the PR).
         .onChange(of: colorScheme, initial: true) { _, scheme in
-            ThemeRuntime.shared.systemColorScheme = scheme
+            if ThemeRuntime.shared.systemColorScheme != scheme {
+                ThemeRuntime.shared.systemColorScheme = scheme
+            }
         }
         .task {
             try? await Task.sleep(for: Self.minimumSplashDuration)

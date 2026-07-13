@@ -2543,7 +2543,7 @@ enum ThemePaletteCatalog {
     // MARK: Comic (dark) — Villain Variant (§2a, ink + spot color)
     // Half of the adaptive Comic Book pair (Lane L Phase 2): black-and-white
     // inks with exactly two spot colors — kapow yellow and panic red. The
-    // design's static white halftone lattice is the grid (white 0.4 dots on
+    // design's static white halftone lattice is the grid (white 0.35 dots on
     // the .25 page layer → 0.0875, 26px pitch); the drifting yellow lattice,
     // speed lines, and off-register title shake live in the art direction.
 
@@ -2607,7 +2607,7 @@ enum ThemePaletteCatalog {
         ),
         glowScale: 1.1,
         gridStyle: .dots,
-        // Verbatim: ink-white 0.4 dots on the .25 page layer, 26px pitch.
+        // Verbatim: ink-white 0.35 dots on the .25 page layer, 26px pitch.
         gridLine: .fixed(Color(hex: 0xF5F2FF, opacity: 0.0875)),
         gridCell: 26,
         isLight: false,

@@ -393,9 +393,17 @@ final class ThemeRuntime {
     var systemColorScheme: ColorScheme = .dark
 
     /// Fully resolved palette for the active (theme, accent). Values live in
-    /// Shared/ThemePaletteCore.swift. Scheme-aware for the adaptive theme.
+    /// Shared/ThemePaletteCore.swift. Scheme-aware for the adaptive theme —
+    /// and ONLY then does resolution read `systemColorScheme`, so sessions
+    /// on a fixed theme never subscribe to (or re-render on) mirror writes.
     var palette: ThemePalette {
-        ThemePalette(theme: theme.themeID(for: systemColorScheme), accent: accent.slot)
+        ThemePalette(theme: resolvedThemeID, accent: accent.slot)
+    }
+
+    /// The active render identity, reading the mirrored scheme only when the
+    /// theme is adaptive (Observation tracks only fields actually read).
+    var resolvedThemeID: ThemeID {
+        theme.isAdaptive ? theme.themeID(for: systemColorScheme) : theme.themeID
     }
 
     private init() {}
@@ -460,13 +468,21 @@ extension AppearanceTheme {
         }
     }
 
+    /// Whether this theme's render identity follows the system color scheme
+    /// (Lane L Phase 2). The single adaptivity predicate — `themeID(for:)`,
+    /// `preferredColorScheme`, and the runtime's scheme subscription all key
+    /// off it, so a future adaptive theme is wired in one place here plus
+    /// the Shared `AdaptiveThemeIdentity` mapping the widget reads.
+    var isAdaptive: Bool { self == .comicBook }
+
     /// Scheme-resolved render identity: every theme ignores the scheme
     /// except the adaptive Comic Book, which follows it — villain by night,
-    /// funnies by day (Lane L Phase 2). Same mapping as the widget's
-    /// `AdaptiveThemeIdentity.resolve`.
+    /// funnies by day. Delegates to the Shared `AdaptiveThemeIdentity`
+    /// mapping so the app and the widget matchApp path can never drift.
     func themeID(for scheme: ColorScheme) -> ThemeID {
-        guard self == .comicBook else { return themeID }
-        return scheme == .light ? .comicFunnies : .comicVillain
+        guard isAdaptive else { return themeID }
+        return AdaptiveThemeIdentity.resolve(persistedRawValue: rawValue,
+                                             prefersDark: scheme != .light) ?? themeID
     }
 
     /// What the app root forces on the presentation: light/dark per
@@ -474,7 +490,7 @@ extension AppearanceTheme {
     /// the adaptive theme so the SYSTEM appearance drives and both Comic
     /// Book variants stay reachable.
     var preferredColorScheme: ColorScheme? {
-        guard self != .comicBook else { return nil }
+        guard !isAdaptive else { return nil }
         return isLight ? .light : .dark
     }
 }
