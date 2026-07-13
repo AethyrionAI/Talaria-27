@@ -345,6 +345,12 @@ enum ThemeArtDirectionCatalog {
         .karaokeSupernova: karaokeSupernova,
         .midnightAquarium: midnightAquarium,
         .moltenForge: moltenForge,
+        .luchaLibre: luchaLibre,
+        .kaijuAttack: kaijuAttack,
+        .pulpNoir: pulpNoir,
+        .casinoLucky7s: casinoLucky7s,
+        .cosmicBowling: cosmicBowling,
+        .stickerBombToybox: stickerBombToybox,
     ]
 
     static func artDirection(for theme: ThemeID) -> ThemeArtDirection {
@@ -930,6 +936,245 @@ enum ThemeArtDirectionCatalog {
             secondary: Color(hex: 0xFFD23C)
         )
     )
+    // MARK: Lucha Libre — midnight-marquee-final-lineup.html §1b (Lane L)
+    // The arena after the families go home: royal-blue bloom above the ring,
+    // two skewed pyro/chrome spotlight shafts (glowPulse 4s — ported as
+    // pulsing corner pools; the skewed linear shaft geometry has no
+    // primitive, approximation noted in the PR), the static two-hue crowd
+    // dot field, blue-framed panels, and the layered pyro/chrome print
+    // offsets under a royal-blue title glow.
+
+    static let luchaLibre = ThemeArtDirection(
+        glowPools: [
+            // radial(1100px 700px at 50% -10%, rgba(61,107,255,.14) → 60%)
+            ThemeGlowPool(color: Color(hex: 0x3D6BFF, opacity: 0.14),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+            // Spotlight shafts: chrome left (12%), pyro right (86%), each
+            // breathing on the design's 4s glowPulse.
+            ThemeGlowPool(color: Color(hex: 0xCCD6E8, opacity: 0.10),
+                          centerX: 0.16, centerY: 0.10, radiusFraction: 0.50,
+                          pulsePeriod: 4, pulseMinOpacity: 0.6),
+            ThemeGlowPool(color: Color(hex: 0xFF7A29, opacity: 0.10),
+                          centerX: 0.86, centerY: 0.10, radiusFraction: 0.50,
+                          pulsePeriod: 4, pulseMinOpacity: 0.6),
+        ],
+        panelHalo: ThemePanelHalo(
+            // 0 0 0 8px rgba(61,107,255,.07), 0 0 50px .16 → EH compression.
+            ringColor: Color(hex: 0x3D6BFF, opacity: 0.24),
+            glowColor: Color(hex: 0x3D6BFF),
+            glowRadius: 40
+        ),
+        // Crowd dots: royal 26px / pyro 34px lattices on the .30 page layer
+        // (specks fade at 2.5px → rule-1 soft-port centers 1.5625).
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 26, driftX: 0, driftY: 0,
+                hue: Color(hex: 0x3D6BFF), speckAlpha: 0.35,
+                anchorX: 0.30, anchorY: 0.30, speckRadius: 1.5625),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 34, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xFF7A29), speckAlpha: 0.28,
+                anchorX: 0.70, anchorY: 0.60, speckRadius: 1.5625),
+        ], period: 1, fieldOpacity: 0.30),
+        // h1: 0 0 14px royal .6 (glow layer), 4px 4px 0 pyro, 8px 8px 0
+        // chrome .35 (ink offsets) — one composed shadow stack.
+        titleShadow: ThemeTitleShadowSpec(layers: [
+            .init(hue: Color(hex: 0xFF7A29), alpha: 1.0, offsetX: 4, offsetY: 4),
+            .init(hue: Color(hex: 0xCCD6E8), alpha: 0.35, offsetX: 8, offsetY: 8),
+            .init(hue: Color(hex: 0x3D6BFF), alpha: 0.6, offsetX: 0, offsetY: 0, blur: 14),
+        ])
+    )
+
+    // MARK: Kaiju Attack — midnight-marquee-final-lineup.html §1c (Lane L)
+    // Night siege: siren bloom, the rotating searchlight fan (the design's
+    // two 8° amber beams orbSpin 24s — RadialSpokeSpec draws an 8°/8°
+    // cadence, the closest the spoke primitive expresses; noted in the PR),
+    // static green/red city dots, siren-framed panels, and the red/green
+    // chromatic print title. The top hazard-stripe banner is deferred
+    // (top-masked screen layer — no mask primitive).
+
+    static let kaijuAttack = ThemeArtDirection(
+        glowPools: [
+            // radial(1100px 700px at 50% -10%, rgba(255,68,56,.12) → 60%)
+            ThemeGlowPool(color: Color(hex: 0xFF4438, opacity: 0.12),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+        ],
+        panelHalo: ThemePanelHalo(
+            ringColor: Color(hex: 0xFF4438, opacity: 0.24),
+            glowColor: Color(hex: 0xFF4438),
+            glowRadius: 40
+        ),
+        // City dots: green 30px / red 38px lattices on the .25 page layer.
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 30, driftX: 0, driftY: 0,
+                hue: Color(hex: 0x6AFF57), speckAlpha: 0.3,
+                anchorX: 0.30, anchorY: 0.30, speckRadius: 1.5625),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 38, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xFF4438), speckAlpha: 0.3,
+                anchorX: 0.70, anchorY: 0.60, speckRadius: 1.5625),
+        ], period: 1, fieldOpacity: 0.25),
+        // Searchlight sweep: amber wedges rgba(255,210,89,.10) on the .5
+        // conic layer, one turn per 24s.
+        radialSpokes: RadialSpokeSpec(
+            hue: Color(hex: 0xFFD259),
+            spokeAlpha: 0.05,
+            segmentDegrees: 8,
+            period: 24
+        ),
+        // h1: 0 0 16px siren .6, 4px 4px 0 siren, -3px -3px 0 green .5.
+        titleShadow: ThemeTitleShadowSpec(layers: [
+            .init(hue: Color(hex: 0xFF4438), alpha: 1.0, offsetX: 4, offsetY: 4),
+            .init(hue: Color(hex: 0x6AFF57), alpha: 0.5, offsetX: -3, offsetY: -3),
+            .init(hue: Color(hex: 0xFF4438), alpha: 0.6, offsetX: 0, offsetY: 0, blur: 16),
+        ])
+    )
+
+    // MARK: Pulp Noir — midnight-marquee-final-lineup.html §1f (Lane L, light)
+    // The dime-store paperback: crimson masthead bloom, sun-fade corner
+    // washes (mustard top-left, crimson bottom-right — the page's two
+    // aging ellipses ported as pools on their .25 layer), and the crimson
+    // print offset under the typewriter title. Paper tooth is palette data
+    // (9px ink dot grid + .paperGrain); panels print hard offset ink
+    // shadows in the design, so there is deliberately no panelHalo (glow
+    // is not this theme's language).
+
+    static let pulpNoir = ThemeArtDirection(
+        glowPools: [
+            // radial(1100px 700px at 50% -10%, rgba(179,56,46,.08) → 60%)
+            ThemeGlowPool(color: Color(hex: 0xB3382E, opacity: 0.08),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+            // Sun-fade washes: mustard .25 at 15% 8%, crimson .12 at 90% 95%,
+            // both on the .25 page layer.
+            ThemeGlowPool(color: Color(hex: 0xC8912B, opacity: 0.0625),
+                          centerX: 0.15, centerY: 0.08, radiusFraction: 0.35),
+            ThemeGlowPool(color: Color(hex: 0xB3382E, opacity: 0.03),
+                          centerX: 0.90, centerY: 0.95, radiusFraction: 0.30),
+        ],
+        // h1: 2px 2px 0 crimson .35 — pure ink, no glow.
+        titleShadow: ThemeTitleShadowSpec(layers: [
+            .init(hue: Color(hex: 0xB3382E), alpha: 0.35, offsetX: 2, offsetY: 2),
+        ])
+    )
+
+    // MARK: Casino Lucky 7s — midnight-marquee-final-lineup.html §1g (Lane L)
+    // The high-limit table: jackpot-gold bloom over deep felt, gold-framed
+    // panels, and the cherry print offset under the gold title glow. The
+    // felt dot lattice is palette grid data (Disco precedent); the blinking
+    // marquee-bulb edge rows are deferred (no screen-edge strip primitive —
+    // noted in the PR).
+
+    static let casinoLucky7s = ThemeArtDirection(
+        glowPools: [
+            // radial(1100px 700px at 50% -10%, rgba(255,210,74,.12) → 60%)
+            ThemeGlowPool(color: Color(hex: 0xFFD24A, opacity: 0.12),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+        ],
+        panelHalo: ThemePanelHalo(
+            // 0 0 0 8px rgba(255,210,74,.05), 0 0 50px .12 → EH compression.
+            ringColor: Color(hex: 0xFFD24A, opacity: 0.24),
+            glowColor: Color(hex: 0xFFD24A),
+            glowRadius: 40
+        ),
+        // h1: 0 0 16px gold .55, 3px 3px 0 cherry.
+        titleShadow: ThemeTitleShadowSpec(layers: [
+            .init(hue: Color(hex: 0xFF4757), alpha: 1.0, offsetX: 3, offsetY: 3),
+            .init(hue: Color(hex: 0xFFD24A), alpha: 0.55, offsetX: 0, offsetY: 0, blur: 16),
+        ])
+    )
+
+    // MARK: Cosmic Bowling — midnight-marquee-final-lineup.html §1j (Lane L)
+    // Carpet Classic: teal bloom, the immortal alley-carpet speck field
+    // (teal/coral/grape confetti on non-square tiles) with the grape
+    // squiggle diagonal as a sparse line lattice (the design's one streak
+    // per 220×180 tile ≈ a 200pt continuous pitch — approximation noted),
+    // teal-framed panels, and the coral/grape print offsets under a teal
+    // glow. The lane sheen is deferred (a horizontally-traveling vertical
+    // band — sweepBar only travels vertically).
+
+    static let cosmicBowling = ThemeArtDirection(
+        glowPools: [
+            // radial(1100px 700px at 50% -10%, rgba(0,179,164,.12) → 60%)
+            ThemeGlowPool(color: Color(hex: 0x00B3A4, opacity: 0.12),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+        ],
+        panelHalo: ThemePanelHalo(
+            ringColor: Color(hex: 0x00B3A4, opacity: 0.24),
+            glowColor: Color(hex: 0x00B3A4),
+            glowRadius: 40
+        ),
+        // Carpet confetti: teal 130×110 / coral 110×95 / grape 160×130
+        // tiles on the .28 page layer (fades 4 / 3.5 / 4.5px → rule-1
+        // centers 2.5 / 2.1875 / 2.8125).
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 130, driftX: 0, driftY: 0,
+                hue: Color(hex: 0x00B3A4), speckAlpha: 0.5,
+                anchorX: 0.20, anchorY: 0.30, speckRadius: 2.5,
+                tileHeight: 110),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 110, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xFF6257), speckAlpha: 0.45,
+                anchorX: 0.60, anchorY: 0.65, speckRadius: 2.1875,
+                tileHeight: 95),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 160, driftX: 0, driftY: 0,
+                hue: Color(hex: 0x8455E0), speckAlpha: 0.5,
+                anchorX: 0.85, anchorY: 0.25, speckRadius: 2.8125,
+                tileHeight: 130),
+        ], period: 1, fieldOpacity: 0.28),
+        // The grape squiggle: 35° lines (CSS-angle verbatim, the aquarium
+        // 105° precedent) at the carpet tile pitch.
+        lineTexture: ThemeLineFieldSpec(layers: [
+            .init(angleDegrees: 35, hue: Color(hex: 0x8455E0), alpha: 0.25,
+                  spacing: 200, lineWidth: 2),
+        ], fieldOpacity: 0.28),
+        // h1: 0 0 12px teal .6, 3px 3px 0 coral .55, 6px 6px 0 grape .4.
+        titleShadow: ThemeTitleShadowSpec(layers: [
+            .init(hue: Color(hex: 0xFF6257), alpha: 0.55, offsetX: 3, offsetY: 3),
+            .init(hue: Color(hex: 0x8455E0), alpha: 0.4, offsetX: 6, offsetY: 6),
+            .init(hue: Color(hex: 0x00B3A4), alpha: 0.6, offsetX: 0, offsetY: 0, blur: 12),
+        ])
+    )
+
+    // MARK: Sticker-Bomb Toybox — midnight-marquee-final-lineup.html §1k (Lane L, light)
+    // Kidcore Shelf in daylight: a whisper of grape bloom and the big soft
+    // sticker dots (grape/tangerine/slime on 140/170/190 tiles, the page's
+    // .5 layer — fades at 4px → rule-1 centers 2.5). Grape/tangerine print
+    // offsets under the marker title; hard toy-plastic panel shadows are
+    // the design's panel language, so no panelHalo (print, not glow).
+
+    static let stickerBombToybox = ThemeArtDirection(
+        glowPools: [
+            // radial(1100px 700px at 50% -10%, rgba(140,82,255,.08) → 60%)
+            ThemeGlowPool(color: Color(hex: 0x8C52FF, opacity: 0.08),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+        ],
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 140, driftX: 0, driftY: 0,
+                hue: Color(hex: 0x8C52FF), speckAlpha: 0.18,
+                anchorX: 0.25, anchorY: 0.25, speckRadius: 2.5,
+                tileHeight: 120),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 170, driftX: 0, driftY: 0,
+                hue: Color(hex: 0xFF8A2B), speckAlpha: 0.18,
+                anchorX: 0.70, anchorY: 0.60, speckRadius: 2.5,
+                tileHeight: 150),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 190, driftX: 0, driftY: 0,
+                hue: Color(hex: 0x4BBF22), speckAlpha: 0.18,
+                anchorX: 0.45, anchorY: 0.80, speckRadius: 2.5,
+                tileHeight: 160),
+        ], period: 1, fieldOpacity: 0.5),
+        // h1: 3px 3px 0 grape .4, -2px -2px 0 tangerine .35 — pure ink.
+        titleShadow: ThemeTitleShadowSpec(layers: [
+            .init(hue: Color(hex: 0x8C52FF), alpha: 0.4, offsetX: 3, offsetY: 3),
+            .init(hue: Color(hex: 0xFF8A2B), alpha: 0.35, offsetX: -2, offsetY: -2),
+        ])
+    )
+
     // MARK: Event Horizon atmosphere presets (Lane E Task 1)
 
     /// On-device A/B knob: flip, rebuild, judge — no server round trip.
