@@ -2,6 +2,7 @@ import CoreLocation
 import Foundation
 @preconcurrency import MapKit
 import os
+import UIKit
 
 private let sensorLog = Logger(subsystem: "org.aethyrion.talaria", category: "SensorUpload")
 
@@ -46,6 +47,18 @@ struct SensorOutboxState: Codable, Hashable, Sendable {
 
     var pendingLocation: PendingLocation?
     var pendingHealthSamples: [PendingHealthSample] = []
+    /// Health samples dropped to the backlog cap (#104), cumulative until
+    /// `resetOutbox()`. Persisted so the loss stays visible across launches
+    /// while a capped backlog is still pending. (A fully drained outbox is
+    /// cleared from disk, so the tally survives in-memory only after that —
+    /// acceptable: the drop matters most while the backlog it bounded exists.)
+    var droppedHealthSampleCount: Int = 0
+
+    enum CodingKeys: String, CodingKey {
+        case pendingLocation
+        case pendingHealthSamples
+        case droppedHealthSampleCount
+    }
 
     var isEmpty: Bool {
         pendingLocation == nil && pendingHealthSamples.isEmpty
@@ -76,6 +89,38 @@ struct SensorOutboxState: Codable, Hashable, Sendable {
                 pendingHealthSamples.append(pending)
             }
         }
+    }
+
+    /// Bounds the health backlog to `cap` by dropping the OLDEST samples
+    /// (#104). The drain sends front-first, so the front of the array is the
+    /// stalest data — the least valuable to a live agent once a connector
+    /// outage has let the backlog grow. `protectingPrefix` shields the first
+    /// N samples from the trim: while a drain has the front chunk in flight,
+    /// eating into it would make the post-delivery removal delete samples
+    /// that were never uploaded. Returns how many were dropped; the tally
+    /// also lands in `droppedHealthSampleCount` for the diagnostics surface.
+    @discardableResult
+    mutating func enforceHealthBacklogCap(_ cap: Int, protectingPrefix protected: Int = 0) -> Int {
+        let overflow = pendingHealthSamples.count - cap
+        guard overflow > 0 else { return 0 }
+        let start = min(protected, pendingHealthSamples.count - overflow)
+        pendingHealthSamples.removeSubrange(start..<(start + overflow))
+        droppedHealthSampleCount += overflow
+        return overflow
+    }
+}
+
+// Pre-#104 caches lack `droppedHealthSampleCount` — decode additively so an
+// existing persisted outbox never reads as missing state (the #42 lesson;
+// same shape as the ConversationJournal fields and the #59 voice-memo
+// precedent). Encoding stays synthesized. This init lives in an extension so
+// the struct keeps its memberwise and default initializers.
+extension SensorOutboxState {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        pendingLocation = try container.decodeIfPresent(PendingLocation.self, forKey: .pendingLocation)
+        pendingHealthSamples = try container.decodeIfPresent([PendingHealthSample].self, forKey: .pendingHealthSamples) ?? []
+        droppedHealthSampleCount = try container.decodeIfPresent(Int.self, forKey: .droppedHealthSampleCount) ?? 0
     }
 }
 
@@ -160,6 +205,19 @@ final class SensorUploadService {
     /// for location uploads before falling through to health.
     private static let maxLocationBusyRetries = 2
 
+    /// #104: how long enqueue-driven outbox writes may coalesce before one
+    /// trailing write lands. A crash inside this window loses at most this
+    /// many seconds of sensor samples (plus the store's brief off-main write
+    /// handoff) — explicitly accepted in the item.
+    static let persistDebounceInterval: TimeInterval = 5
+    /// #104: hard bound on `pendingHealthSamples`. 500 = five full relay
+    /// chunks (`healthUploadChunkSize`), an order of magnitude above routine
+    /// backlogs but 4× below the ~2k the #103 outage accumulated — bounding
+    /// the whole-outbox encode cost that outage turned into a thermal loop.
+    /// Windowed metrics dedupe to ~one entry per window, so real loss only
+    /// starts under a sustained multi-day outage of instantaneous samples.
+    static let maxPendingHealthSamples = 500
+
     private let apiClient: RelayAPIClient
     private let accessTokenProvider: @MainActor () async -> String?
     private let accessTokenRefresher: @MainActor () async -> String?
@@ -174,9 +232,30 @@ final class SensorUploadService {
     private let healthService: LiveHealthService
     private let motionService: LiveMotionService?
 
+    private let notificationCenter: NotificationCenter
+    /// Awaits one debounce window. Injected so tests can gate the interval
+    /// deterministically instead of sleeping (#104).
+    private let persistDebounceWait: @MainActor () async -> Void
+
     private var isActive = false
     private var isDraining = false
     private var outboxState: SensorOutboxState
+    /// The single trailing debounced write, if one is armed. Its presence IS
+    /// the dirty flag: every outbox mutation either arms it or persists
+    /// immediately. Internal read-only so tests can await the trailing edge;
+    /// @ObservationIgnored keeps per-tick mutations out of the observation
+    /// registrar (no view reads it).
+    @ObservationIgnored private(set) var pendingOutboxPersistTask: Task<Void, Never>?
+    /// Set when the CURRENT drain removed delivered/consumed work from the
+    /// outbox — those removals must flush at drain end (a re-send after a
+    /// crash is worse than a re-tick). Enqueue dirt from concurrent sensor
+    /// ticks rides the normal debounce instead: an unconditional drain-end
+    /// flush would re-create the per-tick write cadence in the
+    /// paired-but-failing case #104 exists to kill.
+    @ObservationIgnored private var drainMutatedOutbox = false
+    /// Size of the health chunk currently awaiting an upload response; the
+    /// backlog cap must never trim inside this prefix.
+    @ObservationIgnored private var inFlightHealthChunkCount = 0
 
     /// Most recent drain attempt outcome (for the #15 sensor diagnostics panel).
     private(set) var lastDrainSummary: String?
@@ -198,7 +277,9 @@ final class SensorUploadService {
         isLocationCollectionEnabled: @escaping @MainActor () -> Bool = { true },
         locationService: LiveLocationService,
         healthService: LiveHealthService,
-        motionService: LiveMotionService? = nil
+        motionService: LiveMotionService? = nil,
+        notificationCenter: NotificationCenter = .default,
+        persistDebounceWait: (@MainActor () async -> Void)? = nil
     ) {
         self.apiClient = apiClient
         self.accessTokenProvider = accessTokenProvider
@@ -210,7 +291,12 @@ final class SensorUploadService {
         self.locationService = locationService
         self.healthService = healthService
         self.motionService = motionService
+        self.notificationCenter = notificationCenter
+        self.persistDebounceWait = persistDebounceWait ?? {
+            try? await Task.sleep(for: .seconds(SensorUploadService.persistDebounceInterval))
+        }
         self.outboxState = persistence.loadSensorOutboxState()
+        registerLifecycleFlushObservers()
     }
 
     // MARK: - Diagnostics surface (#15)
@@ -223,6 +309,10 @@ final class SensorUploadService {
         let isPaired: Bool
         let pendingLocation: PendingLocationInfo?
         let pendingHealthCount: Int
+        /// #104: health samples dropped to the backlog cap since the outbox
+        /// was last reset — non-zero means a connector outage outlasted the
+        /// cap and the oldest samples were sacrificed.
+        let droppedHealthCount: Int
         let lastDrainSummary: String?
         let lastDrainAt: Date?
         let locationAuthorization: LocationAuthorizationLevel
@@ -245,6 +335,7 @@ final class SensorUploadService {
                 .init(latitude: $0.latitude, longitude: $0.longitude, recordedAt: $0.recordedAt)
             },
             pendingHealthCount: outboxState.pendingHealthSamples.count,
+            droppedHealthCount: outboxState.droppedHealthSampleCount,
             lastDrainSummary: lastDrainSummary,
             lastDrainAt: lastDrainAt,
             locationAuthorization: locationService.authorizationLevel,
@@ -272,6 +363,15 @@ final class SensorUploadService {
         }
         isActive = true
         outboxState = persistence.loadSensorOutboxState()
+        // #104: a pre-cap cache can carry an oversized backlog (the #103
+        // outage hit ~2k samples) — bound it up front so every subsequent
+        // encode is capped, not just post-enqueue ones. The dropped samples
+        // are the stalest end of an already multi-day-old backlog.
+        let dropped = outboxState.enforceHealthBacklogCap(Self.maxPendingHealthSamples)
+        if dropped > 0 {
+            scheduleOutboxPersist()
+            sensorLog.warning("start() — loaded backlog exceeded cap: dropped \(dropped) oldest health sample(s)")
+        }
         sensorLog.notice("start() — activating sensor pipeline. Outbox: loc=\(self.outboxState.pendingLocation != nil), health=\(self.outboxState.pendingHealthSamples.count)")
 
         if isLocationCollectionEnabled() {
@@ -279,8 +379,7 @@ final class SensorUploadService {
                 guard let self else { return }
                 Task { @MainActor in
                     sensorLog.notice("📍 location update: (\(update.latitude), \(update.longitude)) accuracy=\(update.accuracy)")
-                    self.outboxState.enqueue(location: update)
-                    self.persistOutboxState()
+                    self.recordLocationUpdate(update)
                     await self.drainOutboxIfPossible()
                 }
             }
@@ -312,8 +411,7 @@ final class SensorUploadService {
                     startAt: now,
                     endAt: nil
                 )
-                self.outboxState.enqueue(healthSamples: [sample])
-                self.persistOutboxState()
+                self.recordHealthSamples([sample])
                 await self.drainOutboxIfPossible()
             }
         }
@@ -354,11 +452,48 @@ final class SensorUploadService {
         locationService.stopMonitoring()
         healthService.stopMonitoring()
         motionService?.stopMonitoring()
+        // #104: teardown must not strand a debounced write — the callbacks
+        // are gone, so nothing else will ever flush it.
+        flushOutboxPersistence()
     }
 
     func resetOutbox() {
+        // A trailing debounced write would resurrect the state being reset.
+        pendingOutboxPersistTask?.cancel()
+        pendingOutboxPersistTask = nil
         outboxState = SensorOutboxState()
         persistence.clearSensorOutboxState()
+    }
+
+    // MARK: - Outbox intake (#104)
+
+    /// Enqueue + debounced persist for a location fix. The write cadence is
+    /// the only change from the pre-#104 inline path — collection and drain
+    /// semantics are untouched.
+    func recordLocationUpdate(_ update: LocationUpdate) {
+        outboxState.enqueue(location: update)
+        scheduleOutboxPersist()
+    }
+
+    /// Enqueue + cap + debounced persist for health samples. Health
+    /// snapshots and motion-activity ticks share this path, so the cap
+    /// bounds both streams. An in-flight drain chunk is shielded from the
+    /// trim — see `enforceHealthBacklogCap`.
+    func recordHealthSamples(_ samples: [HealthSnapshot.Sample]) {
+        outboxState.enqueue(healthSamples: samples)
+        let dropped = outboxState.enforceHealthBacklogCap(
+            Self.maxPendingHealthSamples,
+            protectingPrefix: inFlightHealthChunkCount
+        )
+        if dropped > 0 {
+            let total = outboxState.droppedHealthSampleCount
+            // At-cap steady state drops on every tick for the whole outage —
+            // log the first drop and each 100-sample milestone, not each tick.
+            if total == dropped || total / 100 != (total - dropped) / 100 {
+                sensorLog.warning("health backlog at cap (\(Self.maxPendingHealthSamples)) — dropped \(dropped) oldest sample(s); \(total) dropped since last reset")
+            }
+        }
+        scheduleOutboxPersist()
     }
 
     // MARK: - In-app revoke (#6 / OPEN_ITEMS #23)
@@ -371,7 +506,7 @@ final class SensorUploadService {
         healthService.stopMonitoring()
         await healthService.disableBackgroundDelivery()
         outboxState.pendingHealthSamples.removeAll()
-        persistOutboxState()
+        persistOutboxImmediately()
         sensorLog.notice("health collection revoked in-app — observers stopped, background delivery off, outbox cleared")
     }
 
@@ -381,7 +516,7 @@ final class SensorUploadService {
         locationService.onLocationUpdate = nil
         locationService.stopMonitoring()
         outboxState.pendingLocation = nil
-        persistOutboxState()
+        persistOutboxImmediately()
         sensorLog.notice("location collection revoked in-app — monitoring stopped, pending fix dropped")
     }
 
@@ -429,9 +564,8 @@ final class SensorUploadService {
             return
         }
         sensorLog.notice("captureHealth: got \(snapshot.samples.count) samples — \(snapshot.samples.map(\.metric).joined(separator: ", "))")
-        outboxState.enqueue(healthSamples: snapshot.samples)
+        recordHealthSamples(snapshot.samples)
         SharedWidgetDataStore.updateHealthMetrics(from: snapshot.samples)
-        persistOutboxState()
         await drainOutboxIfPossible()
     }
 
@@ -461,6 +595,7 @@ final class SensorUploadService {
         sensorLog.notice("drain: starting. Outbox: loc=\(self.outboxState.pendingLocation != nil), health=\(self.outboxState.pendingHealthSamples.count)")
 
         isDraining = true
+        drainMutatedOutbox = false
         defer { isDraining = false }
 
         var healthBusyRetries = 0
@@ -509,13 +644,13 @@ final class SensorUploadService {
             // Chunk to the relay's 100-sample cap and send sequentially —
             // the connector handles one payload at a time (#24a).
             let chunk = Array(outboxState.pendingHealthSamples.prefix(Self.healthUploadChunkSize))
-            let outcome = await uploadHealth(chunk)
+            let outcome = await uploadHealthTracked(chunk)
             sensorLog.notice("drain: health chunk (\(chunk.count) of \(self.outboxState.pendingHealthSamples.count) pending) → \(String(describing: outcome), privacy: .public)")
             switch outcome {
             case .delivered:
                 healthBusyRetries = 0
-                outboxState.pendingHealthSamples.removeFirst(chunk.count)
-                persistOutboxState()
+                removeDeliveredHealthPrefix(chunk)
+                scheduleOutboxPersist()
                 continue
             case .retry:
                 // Connector busy — back off, then re-send the same chunk.
@@ -538,15 +673,127 @@ final class SensorUploadService {
                 break
             }
         }
+        // #104: chunk-progress writes above are debounced — when this drain
+        // consumed work (delivered chunks, cleared fix), force the final
+        // state to disk now so it can't be re-sent if the app dies inside
+        // the window. A drain that consumed nothing (the outage case: every
+        // upload failed) must NOT flush, or the per-tick write cadence #104
+        // kills would come straight back via record → failed drain → flush.
+        if drainMutatedOutbox {
+            drainMutatedOutbox = false
+            flushOutboxPersistence()
+        }
         sensorLog.notice("drain: finished. Outbox remaining: loc=\(self.outboxState.pendingLocation != nil), health=\(self.outboxState.pendingHealthSamples.count)")
-        recordDrain(outboxState.isEmpty ? "Delivered · outbox clear" : "Partial · loc=\(outboxState.pendingLocation != nil ? 1 : 0), health=\(outboxState.pendingHealthSamples.count)")
+        var drainOutcome = outboxState.isEmpty ? "Delivered · outbox clear" : "Partial · loc=\(outboxState.pendingLocation != nil ? 1 : 0), health=\(outboxState.pendingHealthSamples.count)"
+        if outboxState.droppedHealthSampleCount > 0 {
+            // Honest loss surfacing (#104): the drain summary is the outbox
+            // status line the diagnostics panel already renders.
+            drainOutcome += " · \(outboxState.droppedHealthSampleCount) dropped (cap)"
+        }
+        recordDrain(drainOutcome)
     }
 
-    private func persistOutboxState() {
+    /// One health upload with its chunk size tracked, so the backlog cap can
+    /// shield the in-flight prefix from trimming while the response is
+    /// awaited (#104).
+    private func uploadHealthTracked(_ samples: [SensorOutboxState.PendingHealthSample]) async -> HealthUploadOutcome {
+        inFlightHealthChunkCount = samples.count
+        defer { inFlightHealthChunkCount = 0 }
+        return await uploadHealth(samples)
+    }
+
+    /// Removes a delivered chunk from the front of the health backlog by
+    /// dedupe identity, not by count: during the upload's await a revoke
+    /// (`disableHealthCollection`) or reset can shrink or replace the array,
+    /// and a blind `removeFirst(chunk.count)` would then trap or delete
+    /// never-uploaded samples. Positional key comparison is exact — dedupe
+    /// keeps keys unique, and the chunk was the array's prefix at send time.
+    private func removeDeliveredHealthPrefix(_ chunk: [SensorOutboxState.PendingHealthSample]) {
+        var delivered = 0
+        while delivered < chunk.count,
+              delivered < outboxState.pendingHealthSamples.count,
+              outboxState.pendingHealthSamples[delivered].dedupeKey == chunk[delivered].dedupeKey {
+            delivered += 1
+        }
+        outboxState.pendingHealthSamples.removeFirst(delivered)
+        drainMutatedOutbox = true
+    }
+
+    // MARK: - Outbox persistence (#104)
+
+    /// Debounced persistence: sensor ticks arrive far faster than durability
+    /// requires, and each write encodes the WHOLE outbox — pre-#104 that ran
+    /// inline on every tick, which #103 measured as a sustained main-actor
+    /// encode loop once a connector outage let the backlog grow. Now a tick
+    /// marks the outbox dirty and at most one trailing write lands per
+    /// debounce window.
+    private func scheduleOutboxPersist() {
+        guard pendingOutboxPersistTask == nil else { return }
+        pendingOutboxPersistTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.persistDebounceWait()
+            guard !Task.isCancelled else { return }
+            self.pendingOutboxPersistTask = nil
+            self.persistOutboxStateNow()
+        }
+    }
+
+    /// Writes any pending outbox changes NOW. Teardown seams call this so
+    /// the debounce window never widens the loss window: `stop()`,
+    /// resign-active / background / terminate (via the lifecycle observers),
+    /// and drain end. A no-op when no trailing write is armed — an armed
+    /// task IS the dirty flag.
+    func flushOutboxPersistence() {
+        guard let pending = pendingOutboxPersistTask else { return }
+        pending.cancel()
+        pendingOutboxPersistTask = nil
+        persistOutboxStateNow()
+    }
+
+    /// Unconditional persist for rare mutations (in-app sensor revokes,
+    /// poison-sample resolution) where deferring the write would be
+    /// dishonest. Cancels any armed trailing write — this write covers it.
+    private func persistOutboxImmediately() {
+        pendingOutboxPersistTask?.cancel()
+        pendingOutboxPersistTask = nil
+        persistOutboxStateNow()
+    }
+
+    private func persistOutboxStateNow() {
         if outboxState.isEmpty {
             persistence.clearSensorOutboxState()
         } else {
             persistence.saveSensorOutboxState(outboxState)
+        }
+    }
+
+    /// #104: the debounce must not survive the app leaving the foreground —
+    /// iOS may suspend or kill the process soon after. The flush hands the
+    /// state to the store synchronously; the store's actual write lands
+    /// off-main moments later, inside the seconds of runway iOS grants after
+    /// these notifications. A hard kill with NO notification still loses at
+    /// most the debounce window — the loss budget the item accepts.
+    /// Observer tokens are intentionally not collected: the service lives
+    /// for the process, and tests inject a private center so instances never
+    /// cross-talk.
+    private func registerLifecycleFlushObservers() {
+        let teardownSignals: [Notification.Name] = [
+            UIApplication.willResignActiveNotification,
+            UIApplication.didEnterBackgroundNotification,
+            UIApplication.willTerminateNotification,
+        ]
+        for name in teardownSignals {
+            _ = notificationCenter.addObserver(forName: name, object: nil, queue: nil) { [weak self] _ in
+                // UIKit posts these on the main thread and `queue: nil`
+                // delivers synchronously there. The Task fallback covers a
+                // programmatic off-main post — flush slightly later instead
+                // of trapping in assumeIsolated.
+                if Thread.isMainThread {
+                    MainActor.assumeIsolated { self?.flushOutboxPersistence() }
+                } else {
+                    Task { @MainActor in self?.flushOutboxPersistence() }
+                }
+            }
         }
     }
 
@@ -558,8 +805,9 @@ final class SensorUploadService {
     private func clearPendingLocationIfUnchanged(_ uploaded: SensorOutboxState.PendingLocation) {
         if outboxState.pendingLocation == uploaded {
             outboxState.pendingLocation = nil
+            drainMutatedOutbox = true
         }
-        persistOutboxState()
+        scheduleOutboxPersist()
     }
 
     /// Resolves a permanently rejected chunk from the FRONT of the health
@@ -575,7 +823,10 @@ final class SensorUploadService {
         if size == 1 {
             let poison = outboxState.pendingHealthSamples.removeFirst()
             sensorLog.error("drain: dropping poison health sample — metric=\(poison.metric, privacy: .public) value=\(poison.value, privacy: .public) unit=\(poison.unit, privacy: .public) startAt=\(poison.startAt.description, privacy: .public) endAt=\(poison.endAt?.description ?? "nil", privacy: .public)")
-            persistOutboxState()
+            // Rare recovery path: persist each step NOW (not debounced) so
+            // the documented never-loses-resolved-work contract holds — a
+            // crash mid-resolution must not re-run the whole 422 split.
+            persistOutboxImmediately()
             return true
         }
 
@@ -583,10 +834,10 @@ final class SensorUploadService {
         for partSize in [firstHalf, size - firstHalf] {
             let part = Array(outboxState.pendingHealthSamples.prefix(partSize))
             guard !part.isEmpty else { continue }
-            switch await uploadHealth(part) {
+            switch await uploadHealthTracked(part) {
             case .delivered:
-                outboxState.pendingHealthSamples.removeFirst(part.count)
-                persistOutboxState()
+                removeDeliveredHealthPrefix(part)
+                persistOutboxImmediately()
             case .rejected:
                 guard await resolveRejectedChunk(size: part.count) else { return false }
             case .retry, .failed:
