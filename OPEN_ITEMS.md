@@ -3301,3 +3301,16 @@ When the PCC entitlement is eventually granted (SBP → capability request pipel
 **Same-capture triage — system noise, NOT ours, no action:** (a) `TUIPredictionViewCell` / `TUICandidateGradientContentLabel` unsatisfiable-constraint dumps (×15) and `variant selector cell index` (×18) are the iOS 27 beta SYSTEM KEYBOARD's own layout bugs — TextUI/UIKB classes only, zero Talaria views in any constraint list; same family as the `UIKBDynamicRenderFactory` warnings. (b) One transient `-1005 connection lost` on the `:8000` health upload self-healed on immediate retry within the same drain (outbox → 0) — the retry path working exactly as designed, and mild positive evidence for #104's outbox behavior under real network flap.
 
 Logged 2026-07-13 (device pass finding).
+
+## 112. ✨ Midnight Marquee collection — 7 themes / 8 palettes, first adaptive theme, +13 app icons (Lane L)
+
+Claude-Design drop landed 2026-07-12: the **Midnight Marquee** collection becomes the gallery's fifth section. Handoffs committed to `design/themes/` (`midnight-marquee-final-lineup.html` is authoritative; both `*-options.html` files are provenance/rejected alternatives). Lane spec: `dispatch/FABLE-LANE-L-midnight-marquee.md`.
+
+**Scope:**
+- **6 standard themes** (SE batch-4 pattern: palette entry + catalog definition + art direction + bespoke orb each): Lucha Libre (Rudo Nocturno), Kaiju Attack (Code Red Tokyo), Pulp Noir (Dime Novel — **light**), Casino Lucky 7s (House Felt), Cosmic Bowling (Carpet Classic), Sticker-Bomb Toybox (Kidcore Shelf — **light**).
+- **Comic Book — the app's FIRST ADAPTIVE THEME** (product decision, Owen 2026-07-12): ONE gallery entry that follows the system light/dark appearance. Villain Variant (dark, ink + kapow yellow/panic red) ↔ Sunday Funnies (light, Ben-Day CMY on newsprint). Architectural first: scheme-aware palette resolution (two ThemeIDs, one AppearanceTheme), `preferredColorScheme` = nil for adaptive only, widget-side fork, live re-skin on system toggle. Also the collection's most animated theme — Event Horizon-tier art direction budget.
+- **13 icons → 31 total**: the 5 Special Edition icons `AppIconCatalog` reserved a section for (updated `app-icons.html` rev now carries their SVGs) + 8 Midnight Marquee icons (`midnight-marquee-app-icons.html`), incl. both Comic Book variants as separate selectable icons.
+
+**Not in scope:** Haunted VHS stays cut (device verdict 2026-07-11; `.phosphor` orb remains orphaned reusable data). SE themes Aquarium/Forge already shipped (batch 4) — the zip's SE files were byte-identical to repo.
+
+Logged 2026-07-12 (dispatch-prep session).
