@@ -4,6 +4,8 @@ import Testing
 
 /// #2 — read-aloud text preparation: streaming chunks buffer to sentence
 /// boundaries, and markdown noise is stripped before synthesis.
+/// #110 — the retract decision: a finish shorter than what streamed means
+/// content was retracted (the #102 loop breaker), so pending speech stops.
 struct SpeechOutputTests {
 
     // MARK: Sentence buffering
@@ -85,5 +87,85 @@ struct SpeechOutputTests {
     @Test func whitespaceOnlyInputSpeaksNothing() {
         #expect(SpeechOutputService.speechText(from: "  \n\t ").isEmpty)
         #expect(SpeechOutputService.speechText(from: "```\n```").isEmpty)
+    }
+
+    // MARK: Retract decision (#110)
+
+    @Test func shorterFinishRetracts() {
+        #expect(SpeechOutputService.shouldRetractSpeech(
+            finishedContent: "Short answer.",
+            streamedText: "Short answer. Plus a tail the breaker cut."
+        ))
+    }
+
+    @Test func equalFinishDoesNotRetract() {
+        #expect(!SpeechOutputService.shouldRetractSpeech(
+            finishedContent: "Same reply, start to finish.",
+            streamedText: "Same reply, start to finish."
+        ))
+    }
+
+    @Test func longerFinishDoesNotRetract() {
+        // A final message carrying MORE than what streamed is not a
+        // retraction — flush the queue as usual.
+        #expect(!SpeechOutputService.shouldRetractSpeech(
+            finishedContent: "The reply plus server-side additions.",
+            streamedText: "The reply"
+        ))
+    }
+
+    @Test func emptyFinishWithStreamedTextRetracts() {
+        #expect(SpeechOutputService.shouldRetractSpeech(
+            finishedContent: "",
+            streamedText: "Anything at all streamed."
+        ))
+    }
+
+    @Test func degenerateLoopCollapseRetracts() {
+        // The #102 shape: the breaker rewrites N copies of the looped phrase
+        // down to one.
+        #expect(SpeechOutputService.shouldRetractSpeech(
+            finishedContent: "phrase",
+            streamedText: "phrase phrase phrase"
+        ))
+    }
+
+    @Test func whitespaceJoinArtifactsDoNotFakeARetract() {
+        // Chunk joins can differ from the final content in whitespace only —
+        // folding must see these as equal, never as a retraction.
+        #expect(!SpeechOutputService.shouldRetractSpeech(
+            finishedContent: "One line.\nAnother line.",
+            streamedText: "One line. \n Another  line.\n"
+        ))
+        #expect(!SpeechOutputService.shouldRetractSpeech(
+            finishedContent: "",
+            streamedText: "  \n\t "
+        ))
+    }
+
+    // MARK: Stream finish behavior (#110)
+
+    @MainActor @Test func shortenedFinishDropsThePendingQueue() {
+        let service = SpeechOutputService()
+        service.managesAudioSession = false
+        let id = UUID()
+        // No sentence terminator → the whole run stays buffered as pending speech.
+        service.enqueueStreamChunk("phrase phrase phrase", messageID: id)
+        #expect(service.speakingMessageID == id)
+        service.finishStream(messageID: id, finishedContent: "phrase")
+        // Retract: the queue is dropped, not flushed — nothing left speaking.
+        #expect(service.speakingMessageID == nil)
+    }
+
+    @MainActor @Test func matchingFinishFlushesTheTail() {
+        let service = SpeechOutputService()
+        service.managesAudioSession = false
+        let id = UUID()
+        service.enqueueStreamChunk("All good", messageID: id)
+        service.finishStream(messageID: id, finishedContent: "All good")
+        // Normal completion: the buffered tail was flushed as an utterance,
+        // so playback is still attributed to this message.
+        #expect(service.speakingMessageID == id)
+        service.stop()
     }
 }

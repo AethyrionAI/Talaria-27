@@ -514,7 +514,13 @@ final class ChatStore {
                     self.streamingMessageID = nil
                     self.pendingMessageSentAt = nil
                     self.chatLiveActivity.endActivity()
-                    self.speechOutput?.finishStream(messageID: placeholderID)
+                    // #110: the finished content lets the service retract the
+                    // pending queue when a #102 breaker trip shortened the
+                    // reply below what already streamed to the synthesizer.
+                    self.speechOutput?.finishStream(
+                        messageID: placeholderID,
+                        finishedContent: finalMessage.content
+                    )
                     continuedSend?.finish(success: true)
 
                 case .interrupted(let sessionId, let runId):
