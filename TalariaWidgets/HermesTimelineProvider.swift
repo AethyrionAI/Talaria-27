@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+import SwiftUI
 import WidgetKit
 
 /// Timeline entry backed by the App Group shared data snapshot, plus the
