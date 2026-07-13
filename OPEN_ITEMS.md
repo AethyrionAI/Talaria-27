@@ -1742,6 +1742,8 @@ not yet compiled — needs `xcodegen generate` + CLI build + device verify.
 
 **Device pass 2026-07-11: FAIL** — title and preview show the same repeated raw text. Localize which path ran (guided generation vs deterministic fallback) via logs before touching code. Possibly same on-device-model degeneracy family as #102 (local brain phrase-looping in the same session).
 
+**MERGED 2026-07-13 (Lane H, PR #83).** Degenerate-card guard live: repetition / identical / containment / prefix-echo checks discard bad guided cards for the known-good fallback, and EVERY path now logs which guard tripped and which path produced it (`guided card degenerate` / `mixed card degenerate` / `FALLBACK card carries repetition` — the last one means the chat text itself was degenerate, #102 feeding #61). All three generation sites got token caps; temperatures untouched per spec. DEVICE RE-VERIFY OWED: fresh chat, first exchange → `/title`; if a card still degenerates, the log line names the path — that answer is the point.
+
 **Localized 2026-07-11 (source read):** guided generation runs at temperature 0.2–0.3 (`LocalIntelligenceService.swift:74/114/173`) — near-greedy, repetition-prone on the small on-device model. Not yet log-confirmed vs the guardrail-fallback path; Lane H adds a degenerate-card guard that protects both and logs which tripped. Spec: `dispatch/FABLE-LANE-H-local-brain-gen-health.md`.
 
 New `Services/Live/LocalIntelligenceService.swift` (FoundationModels): after the
@@ -3123,6 +3125,8 @@ Logged 2026-07-11.
 
 Device pass 2026-07-11, observed during the #67 session (which otherwise mostly passed): (a) the on-device brain repeats a certain phrase while in use; (b) `deviceStatus` reported thermal state "serious," attributed to running apps, with only Talaria running. Investigate TOGETHER — a repetition/generation loop that keeps the ANE/GPU spinning would explain both. Check: generation stop conditions / max-token bounds in `LocalChatBackend`, whether the loop persists across sessions, and thermal recovery after force-quit. If repetition is plain small-model sampling degeneracy, thermal may still warrant a mitigation (throttle sustained inference or surface a thermal notice). Possibly related: #61's repeated title/preview text (same model, same session).
 
+**MERGED 2026-07-13 (Lane H, PR #83) — 570/570 green (49 suites).** Explicit `GenerationOptions` on both send paths (nucleus 0.9 / temp 0.7 / cap = tier headroom: 1024 on-device, 4096 PCC — the probe confirmed no implicit cap exists when unset), plus a tail-repetition breaker with arm/disarm/escalate hysteresis; on a trip the looped tail collapses to ONE copy and the session is invalidated so rebuilt transcripts can't re-prime the loop (deliberate deviation from the spec's "keep what's emitted", documented in the PR). Mac loop caught one compile issue (mutating `shouldAbandon` inside `#expect` — receiver captured immutably; calls hoisted). DEVICE RE-VERIFY OWED: #67-style session — loop should self-terminate (~12 copies), thermal recover, log shows the breaker line; then SEND ANOTHER MESSAGE after a trip — if it fails "still working", stream abandonment doesn't cancel SDK-side generation → follow-up needed. Speech-queue interaction spun off as #110.
+
 **Localized 2026-07-11, CORRECTED on second read (Owen challenged, rightly):** the live call `liveSession.streamResponse(to:)` passes NO options — SDK defaults govern; line 597's `GenerationOptions()` is cosmetic (transcript rehydration), not the mechanism. `streamDelta` prefix-guard and the single-shot condense-retry loop both verified safe — runaway regeneration RULED OUT. Best fit remains model-level repetition under default sampling with nothing bounding response length. Fix unchanged (explicit options + cap + tail-repetition breaker); Lane H spec corrected so Fable doesn't chase the red herring. Spec: `dispatch/FABLE-LANE-H-local-brain-gen-health.md`.
 
 Logged 2026-07-11.
@@ -3267,3 +3271,13 @@ Logged 2026-07-12.
 Lane J PR 1 ships single-window-by-policy (`SingleWindowPolicy`, #108): `UIApplicationSupportsMultipleScenes` must stay true for CarPlay, so "New Window" / Stage Manager "+" affordances exist but a second app window scene is destroyed on connect. Lifting this properly requires auditing `ChatStore`/`AppContainer` (and every `@State`-held presentation shell: sessions drawer, model selector, composer text) for concurrent scene observation — two windows sharing one `@Observable` store graph means shared composer drafts, shared drawer state, racing scroll proxies, and double-driven streaming UI. Also decide per-window vs shared conversation identity (probably: second window = same conversation read-only, or independent conversation via scene-scoped selection). Until then the refusal stands. Cheap first rung if ever wanted: allow a second window only for the DEBUG GenUI harness (#106) or a future preview surface (#99), which don't touch ChatStore.
 
 Logged 2026-07-12.
+
+## 110. 🔧 Read-aloud speaks the collapsed loop — breaker trip vs speech queue (Lane H follow-up)
+
+Fell out of Lane H's adversarial review (PR #83), outside its file scope (touches `ChatStore`/`SpeechOutputService`, which Lane H deliberately never contacted): with auto read-aloud ON, a #102 breaker trip rewrites the bubble to one copy of the looped phrase — but the utterances already enqueued during streaming still SPEAK the full run of copies. The user sees the fixed transcript while hearing the loop the breaker just cut.
+
+**Exact fix (documented in PR #83):** at `ChatStore.swift:517`, call `stop()` instead of `finishStream` when the finished content is shorter than the streamed text — a finished reply shorter than what streamed means content was retracted, so flushing the remaining queue is wrong by construction. Small, self-contained, no collision surface with anything in flight.
+
+Only reachable when a breaker trip and auto read-aloud coincide, so low urgency — but when it fires it's maximally weird (eyes and ears disagree). Good candidate to ride along with the next `ChatStore`-touching lane, or as a standalone micro-PR.
+
+Logged 2026-07-13 (Mac session, Lane H merge train).
