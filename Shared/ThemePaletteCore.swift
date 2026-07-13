@@ -45,6 +45,11 @@ enum ThemeID: String, CaseIterable, Codable, Hashable, Sendable {
     case casinoLucky7s
     case cosmicBowling
     case stickerBombToybox
+    // Comic Book — the app's first ADAPTIVE theme (Lane L Phase 2): one
+    // picker entry (`AppearanceTheme.comicBook`) resolving to these two
+    // ordinary render identities by the system color scheme.
+    case comicVillain
+    case comicFunnies
 }
 
 /// Accent slot identity, decoupled from the app's `AppearanceAccent`
@@ -179,6 +184,14 @@ enum ThemeOrbStyle: Hashable, Sendable {
     /// shadow, dashed tangerine / slime rings, tangerine→grape core in a
     /// white + ink sticker border — no glow (Sticker-Bomb Toybox).
     case stickerStar
+    /// POW burst: ink-white / spinning dashed kapow-yellow / panic-red
+    /// tri-ring, yellow→red core with a red outer halo (Comic Book —
+    /// Villain Variant, the dark half of the adaptive pair).
+    case powBurst
+    /// ZAP burst: panel-ink / spinning dashed Ben-Day-cyan / pop-magenta
+    /// tri-ring, banana→magenta core in a white + ink sticker border — no
+    /// glow (Comic Book — Sunday Funnies, the light half).
+    case zapBurst
 }
 
 /// One stop of the screen's radial background gradient.
@@ -479,6 +492,8 @@ enum ThemePaletteCatalog {
         .casinoLucky7s: casinoLucky7s,
         .cosmicBowling: cosmicBowling,
         .stickerBombToybox: stickerBombToybox,
+        .comicVillain: comicVillain,
+        .comicFunnies: comicFunnies,
     ]
 
     /// Total lookup over the shipped themes (coverage guarded by
@@ -2523,6 +2538,160 @@ enum ThemePaletteCatalog {
         gridCell: 26,
         isLight: true,
         orbStyle: .stickerStar
+    )
+
+    // MARK: Comic (dark) — Villain Variant (§2a, ink + spot color)
+    // Half of the adaptive Comic Book pair (Lane L Phase 2): black-and-white
+    // inks with exactly two spot colors — kapow yellow and panic red. The
+    // design's static white halftone lattice is the grid (white 0.4 dots on
+    // the .25 page layer → 0.0875, 26px pitch); the drifting yellow lattice,
+    // speed lines, and off-register title shake live in the art direction.
+
+    static let comicVillain = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0x100E16),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0x191622), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0x100E16), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0x08070C), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0x191622), Color(hex: 0x100E16), Color(hex: 0x08070C)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0xF5F2FF),
+            foregroundBright: Color(hex: 0xF5F2FF),
+            secondaryForeground: Color(hex: 0xA8A3B8),
+            mutedForeground: Color(hex: 0xA8A3B8),
+            dimForeground: Color(hex: 0x6B6580),
+            coolForeground: Color(hex: 0xA8A3B8)
+        ),
+        surface: Color(hex: 0xFFD828, opacity: 0.08),
+        chips: .fixed(
+            surface: Color(hex: 0xFFD828, opacity: 0.08),
+            divider: Color(hex: 0xFF2B2B, opacity: 0.08),
+            border: Color(hex: 0xF5F2FF, opacity: 0.06)
+        ),
+        borders: .accentTinted(hairline: 0.14, strong: 0.30),
+        scrim: Color(hex: 0x000000, opacity: 0.85),
+        danger: Color(hex: 0xFF2B2B),
+        dangerBright: Color(hex: 0xFF4A4A),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Kapow Yellow",
+                base: Color(hex: 0xFFD828),
+                bright: Color(hex: 0xFFE15D),
+                deep: Color(hex: 0xB2971C),
+                coreHighlight: Color(hex: 0xFFE988),
+                coreShadow: Color(hex: 0x8C7616),
+                // Warning must stay separable from the kapow-yellow hero.
+                forge: Color(hex: 0xFF9E00)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Panic Red",
+                base: Color(hex: 0xFF2B2B),
+                bright: Color(hex: 0xFF5F5F),
+                deep: Color(hex: 0xB21E1E),
+                coreHighlight: Color(hex: 0xFF8989),
+                coreShadow: Color(hex: 0x8C1717),
+                forge: Color(hex: 0xFF9E00)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Ink White",
+                base: Color(hex: 0xF5F2FF),
+                bright: Color(hex: 0xF7F5FF),
+                deep: Color(hex: 0xABA9B2),
+                coreHighlight: Color(hex: 0xF9F7FF),
+                coreShadow: Color(hex: 0x86858C),
+                forge: Color(hex: 0xFF9E00)
+            )
+        ),
+        glowScale: 1.1,
+        gridStyle: .dots,
+        // Verbatim: ink-white 0.4 dots on the .25 page layer, 26px pitch.
+        gridLine: .fixed(Color(hex: 0xF5F2FF, opacity: 0.0875)),
+        gridCell: 26,
+        isLight: false,
+        orbStyle: .powBurst
+    )
+
+    // MARK: Comic (light) — Sunday Funnies (§2b, Ben-Day CMY)
+    // The other half of the adaptive pair: bright process CMY screen-printed
+    // on warm newsprint white. Paper Tape environment precedent (ink chips/
+    // borders/scrim, inverted accent families); the design's chat-surface
+    // Ben-Day lattice is the grid (cyan 0.2 dots on the .35 layer → 0.07,
+    // 18px pitch); the drifting page dots, speed lines, and press-shake
+    // title live in the art direction.
+
+    static let comicFunnies = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0xFBF7EC),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0xFFFFFF), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0xFBF7EC), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0xEFE7D6), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0xFFFFFF), Color(hex: 0xFBF7EC), Color(hex: 0xEFE7D6)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0x1F1A24),
+            foregroundBright: Color(hex: 0x1F1A24),
+            secondaryForeground: Color(hex: 0x6F6678),
+            mutedForeground: Color(hex: 0x6F6678),
+            dimForeground: Color(hex: 0xA29AAE),
+            coolForeground: Color(hex: 0x6F6678)
+        ),
+        surface: Color(hex: 0xFFFDF6, opacity: 0.8),
+        chips: .fixed(
+            surface: Color(hex: 0x1F1A24, opacity: 0.06),
+            divider: Color(hex: 0x1F1A24, opacity: 0.12),
+            border: Color(hex: 0x1F1A24, opacity: 0.18)
+        ),
+        // Panel ink hairlines, not accent-tinted (Paper Tape precedent).
+        borders: .fixed(
+            hairline: Color(hex: 0x1F1A24, opacity: 0.14),
+            strong: Color(hex: 0x1F1A24, opacity: 0.32)
+        ),
+        scrim: Color(hex: 0x1F1A24, opacity: 0.35),
+        danger: Color(hex: 0xC22333),
+        dangerBright: Color(hex: 0x971B27),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Ben-Day Cyan",
+                base: Color(hex: 0x00A8E8),
+                bright: Color(hex: 0x0075A2),
+                deep: Color(hex: 0x72CEF2),
+                coreHighlight: Color(hex: 0xE6F6FC),
+                coreShadow: Color(hex: 0x005C7F),
+                forge: Color(hex: 0xA87D00)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Banana Yellow",
+                base: Color(hex: 0xFFD23F),
+                bright: Color(hex: 0xB2932C),
+                deep: Color(hex: 0xFFE694),
+                coreHighlight: Color(hex: 0xFFFAEC),
+                coreShadow: Color(hex: 0x8C7322),
+                // Warning must stay separable from the banana accent — the
+                // lineup's dark-gold "Cliffhanger" chip ink.
+                forge: Color(hex: 0xA87D00)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Pop Magenta",
+                base: Color(hex: 0xFF3D7F),
+                bright: Color(hex: 0xB22A58),
+                deep: Color(hex: 0xFF93B8),
+                coreHighlight: Color(hex: 0xFFEBF2),
+                coreShadow: Color(hex: 0x8C2145),
+                forge: Color(hex: 0xA87D00)
+            )
+        ),
+        glowScale: 0.15,
+        gridStyle: .dots,
+        // Verbatim: Ben-Day cyan 0.2 dots on the .35 chat layer, 18px pitch.
+        gridLine: .fixed(Color(hex: 0x00A8E8, opacity: 0.07)),
+        gridCell: 18,
+        isLight: true,
+        orbStyle: .zapBurst
     )
 }
 
