@@ -22,18 +22,33 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
     /// UserDefaults container — survives clean reinstalls and signing
     /// transitions (#41). Optional so tests can run UserDefaults-only.
     private let keychainMirror: KeychainSecureStore?
+    /// Write-through cache for the sensor outbox (#104): loads read here
+    /// first so the async write path below can never serve a stale outbox
+    /// to an in-process reader.
+    private var sensorOutboxCache: SensorOutboxState?
+    /// Tail of the FIFO sensor-outbox write chain. Internal read-only so
+    /// tests can await durability deterministically.
+    private(set) var sensorOutboxWriteTask: Task<Void, Never>?
 
     init(defaults: UserDefaults = .standard, keychainMirror: KeychainSecureStore? = nil) {
         self.defaults = defaults
         self.keychainMirror = keychainMirror
-
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        self.encoder = encoder
+        self.encoder = Self.makeEncoder()
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         self.decoder = decoder
+    }
+
+    /// Single source of the store's encode config. The off-main sensor-outbox
+    /// write path builds its own encoder from this same factory (JSONEncoder
+    /// is not Sendable), so the bytes it writes always stay decodable by the
+    /// instance `decoder` — a divergence would present as the #42
+    /// silent-wipe decode failure.
+    private nonisolated static func makeEncoder() -> JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return encoder
     }
 
     func loadUserSettings() -> UserSettings? {
@@ -116,16 +131,61 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         keychainMirror.storeSync(key: Keys.pairedRelayConfiguration, value: json)
     }
 
+    // The sensor outbox is this store's one hot write path — it rewrites on
+    // sensor ticks (debounced service-side, #104), and the encode cost scales
+    // with the backlog. So its encode + defaults write run OFF the main
+    // actor: ops chain FIFO on the previous write task, which keeps an older
+    // in-flight save from overtaking a newer save or clear (that would
+    // resurrect stale outbox bytes on disk). Reads stay synchronous through
+    // a main-actor write-through cache, so in-process load-after-save is
+    // exact even while a write is still in flight — start()'s reload cannot
+    // observe a pre-flush snapshot. The chain runs at .userInitiated: it
+    // carries at most one debounced write per window, and the lifecycle
+    // flush needs the write to land inside the post-background runway.
+
     func loadSensorOutboxState() -> SensorOutboxState {
-        load(SensorOutboxState.self, key: Keys.sensorOutboxState) ?? SensorOutboxState()
+        if let sensorOutboxCache { return sensorOutboxCache }
+        let loaded = load(SensorOutboxState.self, key: Keys.sensorOutboxState) ?? SensorOutboxState()
+        sensorOutboxCache = loaded
+        return loaded
     }
 
     func saveSensorOutboxState(_ state: SensorOutboxState) {
-        save(state, key: Keys.sensorOutboxState)
+        // Steady-state dedupe: a drained-then-idle pipeline flushes the same
+        // state repeatedly — skip the encode + write when nothing changed.
+        guard state != sensorOutboxCache else { return }
+        sensorOutboxCache = state
+        enqueueSensorOutboxWrite(state)
     }
 
     func clearSensorOutboxState() {
+        guard sensorOutboxCache != SensorOutboxState() else { return }
+        sensorOutboxCache = SensorOutboxState()
+        // Clears are destructive privacy actions (unpair/reset): remove
+        // synchronously so a process death right after can't preserve the
+        // old bytes — AND through the chain, so an in-flight older save
+        // can't land later and resurrect them.
         defaults.removeObject(forKey: Keys.sensorOutboxState)
+        enqueueSensorOutboxWrite(nil)
+    }
+
+    /// nil = remove the key. FIFO: each op awaits its predecessor, so writes
+    /// land in call order.
+    private func enqueueSensorOutboxWrite(_ state: SensorOutboxState?) {
+        let previous = sensorOutboxWriteTask
+        // UserDefaults is documented thread-safe; the annotation carries it
+        // into the detached task without a lock we don't need.
+        nonisolated(unsafe) let defaults = self.defaults
+        let key = Keys.sensorOutboxState
+        sensorOutboxWriteTask = Task.detached(priority: .userInitiated) {
+            await previous?.value
+            if let state {
+                guard let data = try? Self.makeEncoder().encode(state) else { return }
+                defaults.set(data, forKey: key)
+            } else {
+                defaults.removeObject(forKey: key)
+            }
+        }
     }
 
     func loadConversationCache() -> Conversation? {
