@@ -433,6 +433,12 @@ extension AppearanceTheme {
         case .karaokeSupernova: .karaokeSupernova
         case .midnightAquarium: .midnightAquarium
         case .moltenForge: .moltenForge
+        case .luchaLibre: .luchaLibre
+        case .kaijuAttack: .kaijuAttack
+        case .pulpNoir: .pulpNoir
+        case .casinoLucky7s: .casinoLucky7s
+        case .cosmicBowling: .cosmicBowling
+        case .stickerBombToybox: .stickerBombToybox
         }
     }
 }

@@ -39,6 +39,12 @@ enum ThemeID: String, CaseIterable, Codable, Hashable, Sendable {
     case karaokeSupernova
     case midnightAquarium
     case moltenForge
+    case luchaLibre
+    case kaijuAttack
+    case pulpNoir
+    case casinoLucky7s
+    case cosmicBowling
+    case stickerBombToybox
 }
 
 /// Accent slot identity, decoupled from the app's `AppearanceAccent`
@@ -149,6 +155,30 @@ enum ThemeOrbStyle: Hashable, Sendable {
     /// Phosphor dot: green / spinning dashed magenta / cyan tri-ring,
     /// cyan→green core with a magenta outer halo (orphan — Haunted VHS cut on device verdict 2026-07-11; composition kept as reusable data).
     case phosphor
+
+    // Midnight Marquee compositions (Lane L, design/themes/
+    // midnight-marquee-final-lineup.html). Same table-only widget contract.
+
+    /// Rudo mask: chrome / spinning dashed royal-blue / pyro tri-ring,
+    /// chrome→blue core with a pyro outer halo (Lucha Libre).
+    case rudoMask
+    /// Siren ring: red / spinning dashed radioactive-green / amber tri-ring,
+    /// amber→red core with a green outer halo (Kaiju Attack).
+    case kaijuSiren
+    /// Dime stamp: ink / spinning dashed crimson / teal tri-ring around a
+    /// mustard→crimson core printed with a hard ink offset — no glow
+    /// (Pulp Noir; Paper Tape's unlit-hub precedent).
+    case dimeStamp
+    /// Jackpot marquee: gold / spinning dashed cherry / chip-blue tri-ring,
+    /// gold→cherry core with a cherry outer halo (Casino Lucky 7s).
+    case luckySevens
+    /// Grape house ball: teal / spinning dashed coral / grape tri-ring,
+    /// teal→grape core with a coral outer halo (Cosmic Bowling).
+    case houseBall
+    /// Die-cut sticker: white-bordered outer ring with a hard toy-plastic
+    /// shadow, dashed tangerine / slime rings, tangerine→grape core in a
+    /// white + ink sticker border — no glow (Sticker-Bomb Toybox).
+    case stickerStar
 }
 
 /// One stop of the screen's radial background gradient.
@@ -443,6 +473,12 @@ enum ThemePaletteCatalog {
         .karaokeSupernova: karaokeSupernova,
         .midnightAquarium: midnightAquarium,
         .moltenForge: moltenForge,
+        .luchaLibre: luchaLibre,
+        .kaijuAttack: kaijuAttack,
+        .pulpNoir: pulpNoir,
+        .casinoLucky7s: casinoLucky7s,
+        .cosmicBowling: cosmicBowling,
+        .stickerBombToybox: stickerBombToybox,
     ]
 
     /// Total lookup over the shipped themes (coverage guarded by
@@ -2031,6 +2067,462 @@ enum ThemePaletteCatalog {
         gridCell: 26,
         isLight: false,
         orbStyle: .crucible
+    )
+
+    // MARK: - Midnight Marquee (Lane L — design/themes/midnight-marquee-final-lineup.html)
+    // Every hex below comes from the Final Lineup (palette tables + in-mock
+    // values); derived family steps use the house formula (per channel, int
+    // truncation): bright = base + (255−base)·63⁄255, deep = base·0.70,
+    // coreHighlight = base + (255−base)·114⁄255, coreShadow = base·0.55,
+    // dangerBright = danger + (255−danger)·0.15. The two light themes invert
+    // per the Paper Tape semantic (emphasis = more ink): bright = base·0.70,
+    // deep = the 114⁄255 pale tint, coreHighlight = mix 230⁄255 toward white,
+    // dangerBright = danger·0.78 (Paper Tape's exact observed step).
+    // Handoff-native slot display names (EH precedent).
+
+    // MARK: Lucha — Lucha Libre (§1b, Rudo Nocturno: midnight heel)
+    // Royal blue floods the ring, chrome glints off the cage, one pyro burst
+    // per reply. Spotlight shafts + two-hue crowd dots live in the art
+    // direction; the palette is the arena itself.
+
+    static let luchaLibre = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0x0C1024),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0x141A38), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0x0C1024), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0x060814), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0x141A38), Color(hex: 0x0C1024), Color(hex: 0x060814)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0xEEF1FF),
+            foregroundBright: Color(hex: 0xEEF1FF),
+            secondaryForeground: Color(hex: 0x9AA4C8),
+            mutedForeground: Color(hex: 0x9AA4C8),
+            dimForeground: Color(hex: 0x5C688C),
+            coolForeground: Color(hex: 0x9AA4C8)
+        ),
+        surface: Color(hex: 0x3D6BFF, opacity: 0.08),
+        chips: .fixed(
+            surface: Color(hex: 0x3D6BFF, opacity: 0.08),
+            divider: Color(hex: 0xFF7A29, opacity: 0.08),
+            border: Color(hex: 0xCCD6E8, opacity: 0.06)
+        ),
+        borders: .accentTinted(hairline: 0.14, strong: 0.30),
+        scrim: Color(hex: 0x000000, opacity: 0.85),
+        danger: Color(hex: 0xFF4040),
+        dangerBright: Color(hex: 0xFF5C5C),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Royal Blue",
+                base: Color(hex: 0x3D6BFF),
+                bright: Color(hex: 0x6C8FFF),
+                deep: Color(hex: 0x2A4AB2),
+                coreHighlight: Color(hex: 0x93ADFF),
+                coreShadow: Color(hex: 0x213A8C),
+                forge: Color(hex: 0xFF9E00)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Pyro Orange",
+                base: Color(hex: 0xFF7A29),
+                bright: Color(hex: 0xFF9A5D),
+                deep: Color(hex: 0xB2551C),
+                coreHighlight: Color(hex: 0xFFB588),
+                coreShadow: Color(hex: 0x8C4316),
+                // Warning stays a hue family up from the pyro accent (the
+                // Molten Forge lava/amber relationship).
+                forge: Color(hex: 0xFF9E00)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Chrome Silver",
+                base: Color(hex: 0xCCD6E8),
+                bright: Color(hex: 0xD8E0ED),
+                deep: Color(hex: 0x8E95A2),
+                coreHighlight: Color(hex: 0xE2E8F2),
+                coreShadow: Color(hex: 0x70757F),
+                forge: Color(hex: 0xFF9E00)
+            )
+        ),
+        glowScale: 1.1,
+        gridStyle: .lines,
+        gridLine: .accentTinted(0.08),
+        gridCell: 26,
+        isLight: false,
+        orbStyle: .rudoMask
+    )
+
+    // MARK: Kaiju — Kaiju Attack (§1c, Code Red Tokyo: night siege)
+    // Siren red, radioactive green, and searchlight amber over an ink-blue
+    // skyline. The searchlight sweep + city dots live in the art direction.
+
+    static let kaijuAttack = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0x0A0F1E),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0x101A30), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0x0A0F1E), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0x050810), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0x101A30), Color(hex: 0x0A0F1E), Color(hex: 0x050810)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0xEEF3FF),
+            foregroundBright: Color(hex: 0xEEF3FF),
+            secondaryForeground: Color(hex: 0x93A3C4),
+            mutedForeground: Color(hex: 0x93A3C4),
+            dimForeground: Color(hex: 0x5A6A8C),
+            coolForeground: Color(hex: 0x93A3C4)
+        ),
+        surface: Color(hex: 0x6AFF57, opacity: 0.08),
+        chips: .fixed(
+            surface: Color(hex: 0x6AFF57, opacity: 0.08),
+            divider: Color(hex: 0xFFD259, opacity: 0.08),
+            border: Color(hex: 0xFF4438, opacity: 0.06)
+        ),
+        borders: .accentTinted(hairline: 0.14, strong: 0.30),
+        scrim: Color(hex: 0x000000, opacity: 0.85),
+        danger: Color(hex: 0xFF5252),
+        dangerBright: Color(hex: 0xFF6B6B),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Radioactive Green",
+                base: Color(hex: 0x6AFF57),
+                bright: Color(hex: 0x8EFF80),
+                deep: Color(hex: 0x4AB23C),
+                coreHighlight: Color(hex: 0xACFFA2),
+                coreShadow: Color(hex: 0x3A8C2F),
+                forge: Color(hex: 0xFF9E00)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Searchlight Amber",
+                base: Color(hex: 0xFFD259),
+                bright: Color(hex: 0xFFDD82),
+                deep: Color(hex: 0xB2933E),
+                coreHighlight: Color(hex: 0xFFE6A3),
+                coreShadow: Color(hex: 0x8C7330),
+                // Warning must stay separable from an amber-family accent.
+                forge: Color(hex: 0xFF9E00)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Siren Red",
+                base: Color(hex: 0xFF4438),
+                bright: Color(hex: 0xFF7269),
+                deep: Color(hex: 0xB22F27),
+                coreHighlight: Color(hex: 0xFF9790),
+                coreShadow: Color(hex: 0x8C251E),
+                forge: Color(hex: 0xFF9E00)
+            )
+        ),
+        glowScale: 1.1,
+        gridStyle: .lines,
+        gridLine: .accentTinted(0.08),
+        gridCell: 26,
+        isLight: false,
+        orbStyle: .kaijuSiren
+    )
+
+    // MARK: Pulp — Pulp Noir (§1f, Dime Novel: aged pulp paper — LIGHT)
+    // The paperback edition: typewriter ink on sun-faded pulp, a crimson
+    // masthead, a teal library stamp. Paper Tape is the light-environment
+    // precedent: ink chips/borders/scrim, glows collapse to ink shadows,
+    // the accent families invert (emphasis = more ink). The design's own
+    // 9px paper-tooth dot lattice is the grid (ink 0.10 dots on a 0.4
+    // layer → 0.04, the Disco verbatim-math precedent); the amber slot's
+    // warning is the lineup's darker "Suspect" chip ink (#8F6A1E) so it
+    // stays separable from the Mustard Gold accent.
+
+    static let pulpNoir = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0xEFE3C6),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0xF6EED8), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0xEFE3C6), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0xE2D2AC), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0xF6EED8), Color(hex: 0xEFE3C6), Color(hex: 0xE2D2AC)],
+        texture: .paperGrain,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0x262019),
+            foregroundBright: Color(hex: 0x262019),
+            secondaryForeground: Color(hex: 0x7D6F58),
+            mutedForeground: Color(hex: 0x7D6F58),
+            dimForeground: Color(hex: 0xA2937A),
+            coolForeground: Color(hex: 0x7D6F58)
+        ),
+        surface: Color(hex: 0xF9F2DD, opacity: 0.8),
+        chips: .fixed(
+            surface: Color(hex: 0x262019, opacity: 0.06),
+            divider: Color(hex: 0x262019, opacity: 0.12),
+            border: Color(hex: 0x262019, opacity: 0.18)
+        ),
+        // Ink hairlines, not accent-tinted (Paper Tape precedent).
+        borders: .fixed(
+            hairline: Color(hex: 0x262019, opacity: 0.14),
+            strong: Color(hex: 0x262019, opacity: 0.32)
+        ),
+        scrim: Color(hex: 0x262019, opacity: 0.35),
+        danger: Color(hex: 0x93291F),
+        dangerBright: Color(hex: 0x721F18),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Library Teal",
+                base: Color(hex: 0x276F6D),
+                bright: Color(hex: 0x1B4D4C),
+                deep: Color(hex: 0x87AFAE),
+                coreHighlight: Color(hex: 0xE9F0F0),
+                coreShadow: Color(hex: 0x153D3B),
+                forge: Color(hex: 0xC8912B)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Mustard Gold",
+                base: Color(hex: 0xC8912B),
+                bright: Color(hex: 0x8C651E),
+                deep: Color(hex: 0xE0C289),
+                coreHighlight: Color(hex: 0xF9F4EA),
+                coreShadow: Color(hex: 0x6E4F17),
+                // Warning must stay separable from the mustard accent —
+                // the lineup's darker Suspect chip ink.
+                forge: Color(hex: 0x8F6A1E)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Faded Crimson",
+                base: Color(hex: 0xB3382E),
+                bright: Color(hex: 0x7D2720),
+                deep: Color(hex: 0xD4908B),
+                coreHighlight: Color(hex: 0xF7EBEA),
+                coreShadow: Color(hex: 0x621E19),
+                forge: Color(hex: 0xC8912B)
+            )
+        ),
+        glowScale: 0.15,
+        gridStyle: .dots,
+        gridLine: .fixed(Color(hex: 0x262019, opacity: 0.04)),
+        gridCell: 9,
+        isLight: true,
+        orbStyle: .dimeStamp
+    )
+
+    // MARK: Casino — Casino Lucky 7s (§1g, House Felt: table green)
+    // Midnight at the high-limit table: deep felt, cherry red, jackpot gold.
+    // The design's own felt dot lattice is the grid (cream 0.6 dots on a
+    // 0.14 layer → 0.084, 26px pitch — the Disco verbatim-math precedent);
+    // the marquee-bulb edge rows are deferred (no edge-strip primitive).
+
+    static let casinoLucky7s = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0x0D3B28),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0x115034), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0x0D3B28), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0x07271A), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0x115034), Color(hex: 0x0D3B28), Color(hex: 0x07271A)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0xF3F0E4),
+            foregroundBright: Color(hex: 0xF3F0E4),
+            secondaryForeground: Color(hex: 0x9DC4AD),
+            mutedForeground: Color(hex: 0x9DC4AD),
+            dimForeground: Color(hex: 0x5F8264),
+            coolForeground: Color(hex: 0x9DC4AD)
+        ),
+        surface: Color(hex: 0x4F9DFF, opacity: 0.08),
+        chips: .fixed(
+            surface: Color(hex: 0x4F9DFF, opacity: 0.08),
+            divider: Color(hex: 0xFFD24A, opacity: 0.08),
+            border: Color(hex: 0xFF4757, opacity: 0.06)
+        ),
+        borders: .accentTinted(hairline: 0.14, strong: 0.30),
+        scrim: Color(hex: 0x000000, opacity: 0.85),
+        danger: Color(hex: 0xFF5252),
+        dangerBright: Color(hex: 0xFF6B6B),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Chip Blue",
+                base: Color(hex: 0x4F9DFF),
+                bright: Color(hex: 0x7AB5FF),
+                deep: Color(hex: 0x376DB2),
+                coreHighlight: Color(hex: 0x9DC8FF),
+                coreShadow: Color(hex: 0x2B568C),
+                forge: Color(hex: 0xFF9E00)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Jackpot Gold",
+                base: Color(hex: 0xFFD24A),
+                bright: Color(hex: 0xFFDD76),
+                deep: Color(hex: 0xB29333),
+                coreHighlight: Color(hex: 0xFFE69A),
+                coreShadow: Color(hex: 0x8C7328),
+                // Warning must stay separable from a gold accent.
+                forge: Color(hex: 0xFF9E00)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Cherry Red",
+                base: Color(hex: 0xFF4757),
+                bright: Color(hex: 0xFF7480),
+                deep: Color(hex: 0xB2313C),
+                coreHighlight: Color(hex: 0xFF99A2),
+                coreShadow: Color(hex: 0x8C272F),
+                forge: Color(hex: 0xFF9E00)
+            )
+        ),
+        glowScale: 1.1,
+        gridStyle: .dots,
+        // Verbatim: cream 0.6 dots on the 0.14 page layer, 26px pitch.
+        gridLine: .fixed(Color(hex: 0xF3F0E4, opacity: 0.084)),
+        gridCell: 26,
+        isLight: false,
+        orbStyle: .luckySevens
+    )
+
+    // MARK: Bowling — Cosmic Bowling (§1j, Carpet Classic: '90s alley carpet)
+    // Teal, grape, and coral confetti bouncing across worn charcoal — the
+    // immortal alley carpet promoted to interface. The carpet speck field +
+    // grape squiggle live in the art direction.
+
+    static let cosmicBowling = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0x121016),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0x1A1720), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0x121016), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0x0A090D), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0x1A1720), Color(hex: 0x121016), Color(hex: 0x0A090D)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0xF0EDE4),
+            foregroundBright: Color(hex: 0xF0EDE4),
+            secondaryForeground: Color(hex: 0xA49AA8),
+            mutedForeground: Color(hex: 0xA49AA8),
+            dimForeground: Color(hex: 0x6B6272),
+            coolForeground: Color(hex: 0xA49AA8)
+        ),
+        surface: Color(hex: 0x00B3A4, opacity: 0.08),
+        chips: .fixed(
+            surface: Color(hex: 0x00B3A4, opacity: 0.08),
+            divider: Color(hex: 0xFF6257, opacity: 0.08),
+            border: Color(hex: 0x8455E0, opacity: 0.06)
+        ),
+        borders: .accentTinted(hairline: 0.14, strong: 0.30),
+        scrim: Color(hex: 0x000000, opacity: 0.85),
+        danger: Color(hex: 0xFF5252),
+        dangerBright: Color(hex: 0xFF6B6B),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Alley Teal",
+                base: Color(hex: 0x00B3A4),
+                bright: Color(hex: 0x3FC5BA),
+                deep: Color(hex: 0x007D72),
+                coreHighlight: Color(hex: 0x72D4CC),
+                coreShadow: Color(hex: 0x00625A),
+                forge: Color(hex: 0xFF9E00)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Coral Confetti",
+                base: Color(hex: 0xFF6257),
+                bright: Color(hex: 0xFF8880),
+                deep: Color(hex: 0xB2443C),
+                coreHighlight: Color(hex: 0xFFA8A2),
+                coreShadow: Color(hex: 0x8C352F),
+                forge: Color(hex: 0xFF9E00)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Grape Purple",
+                base: Color(hex: 0x8455E0),
+                bright: Color(hex: 0xA27FE7),
+                deep: Color(hex: 0x5C3B9C),
+                coreHighlight: Color(hex: 0xBAA1ED),
+                coreShadow: Color(hex: 0x482E7B),
+                forge: Color(hex: 0xFF9E00)
+            )
+        ),
+        glowScale: 1.1,
+        gridStyle: .lines,
+        gridLine: .accentTinted(0.08),
+        gridCell: 26,
+        isLight: false,
+        orbStyle: .houseBall
+    )
+
+    // MARK: Toybox — Sticker-Bomb Toybox (§1k, Kidcore Shelf: daylight — LIGHT)
+    // A toy-store shelf in full daylight: white die-cut stickers, grape,
+    // slime, and tangerine on clean plastic. Paper Tape environment
+    // precedent (ink chips/borders/scrim, inverted accent families); the
+    // big soft sticker dots live in the art direction; the quiet ink line
+    // grid mirrors the shipped light seasonals.
+
+    static let stickerBombToybox = ThemePaletteDefinition(
+        lockedAccentSlot: nil,
+        background: Color(hex: 0xF4F1EA),
+        screenGradientStops: [
+            ThemeGradientStop(color: Color(hex: 0xFFFFFF), location: 0.0),
+            ThemeGradientStop(color: Color(hex: 0xF4F1EA), location: 0.52),
+            ThemeGradientStop(color: Color(hex: 0xE6E1D4), location: 1.0),
+        ],
+        drawerColors: [Color(hex: 0xFFFFFF), Color(hex: 0xF4F1EA), Color(hex: 0xE6E1D4)],
+        texture: .none,
+        ramp: ThemeForegroundRamp(
+            foreground: Color(hex: 0x26212E),
+            foregroundBright: Color(hex: 0x26212E),
+            secondaryForeground: Color(hex: 0x7A7268),
+            mutedForeground: Color(hex: 0x7A7268),
+            dimForeground: Color(hex: 0xA39A8D),
+            coolForeground: Color(hex: 0x7A7268)
+        ),
+        surface: Color(hex: 0xFDFCF8, opacity: 0.8),
+        chips: .fixed(
+            surface: Color(hex: 0x26212E, opacity: 0.06),
+            divider: Color(hex: 0x26212E, opacity: 0.12),
+            border: Color(hex: 0x26212E, opacity: 0.18)
+        ),
+        // Ink hairlines (Paper Tape precedent) — the design draws hard toy
+        // ink lines; the system compromise strengths stay .14/.32.
+        borders: .fixed(
+            hairline: Color(hex: 0x26212E, opacity: 0.14),
+            strong: Color(hex: 0x26212E, opacity: 0.32)
+        ),
+        scrim: Color(hex: 0x26212E, opacity: 0.35),
+        danger: Color(hex: 0xC02A22),
+        dangerBright: Color(hex: 0x95201A),
+        accents: ThemeAccentVariants(
+            cyan: ThemeAccentVariant(
+                displayName: "Slime Green",
+                base: Color(hex: 0x4BBF22),
+                bright: Color(hex: 0x348517),
+                deep: Color(hex: 0x9BDB84),
+                coreHighlight: Color(hex: 0xEDF8E9),
+                coreShadow: Color(hex: 0x296912),
+                forge: Color(hex: 0xC96410)
+            ),
+            amber: ThemeAccentVariant(
+                displayName: "Tangerine",
+                base: Color(hex: 0xFF8A2B),
+                bright: Color(hex: 0xB2601E),
+                deep: Color(hex: 0xFFBE89),
+                coreHighlight: Color(hex: 0xFFF3EA),
+                coreShadow: Color(hex: 0x8C4B17),
+                // Warning must stay separable from the tangerine accent —
+                // the lineup's burnt-orange "Rare" chip ink.
+                forge: Color(hex: 0xC96410)
+            ),
+            violet: ThemeAccentVariant(
+                displayName: "Grape Pop",
+                base: Color(hex: 0x8C52FF),
+                bright: Color(hex: 0x6239B2),
+                deep: Color(hex: 0xBF9FFF),
+                coreHighlight: Color(hex: 0xF3EEFF),
+                coreShadow: Color(hex: 0x4D2D8C),
+                forge: Color(hex: 0xC96410)
+            )
+        ),
+        glowScale: 0.15,
+        gridStyle: .lines,
+        gridLine: .fixed(Color(hex: 0x26212E, opacity: 0.1)),
+        gridCell: 26,
+        isLight: true,
+        orbStyle: .stickerStar
     )
 }
 

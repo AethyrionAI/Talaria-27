@@ -180,6 +180,31 @@ enum ThemeCatalog {
                         availability: .always, locked: false),
     ]
 
+    /// Midnight Marquee — the fifth gallery section (Lane L,
+    /// design/themes/midnight-marquee-final-lineup.html): seven late-night
+    /// genre marquees, each with a bespoke orb and art direction. Comic Book
+    /// (the collection's adaptive centerpiece) joins in its own change.
+    static let midnightMarquee: [ThemeDefinition] = [
+        ThemeDefinition(id: AppearanceTheme.luchaLibre.rawValue, displayName: "Lucha Libre",
+                        subtitle: "Rudo Nocturno", appearanceTheme: .luchaLibre,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.kaijuAttack.rawValue, displayName: "Kaiju Attack",
+                        subtitle: "Code Red Tokyo", appearanceTheme: .kaijuAttack,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.pulpNoir.rawValue, displayName: "Pulp Noir",
+                        subtitle: "Dime Novel", appearanceTheme: .pulpNoir,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.casinoLucky7s.rawValue, displayName: "Casino Lucky 7s",
+                        subtitle: "House Felt", appearanceTheme: .casinoLucky7s,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.cosmicBowling.rawValue, displayName: "Cosmic Bowling",
+                        subtitle: "Carpet Classic", appearanceTheme: .cosmicBowling,
+                        availability: .always, locked: false),
+        ThemeDefinition(id: AppearanceTheme.stickerBombToybox.rawValue, displayName: "Sticker-Bomb Toybox",
+                        subtitle: "Kidcore Shelf", appearanceTheme: .stickerBombToybox,
+                        availability: .always, locked: false),
+    ]
+
     /// The four meteorological-season themes; holiday themes become additional
     /// entries with `.holiday(DateWindow(...))` and `locked: true` as needed (#24).
     static let seasonal: [ThemeDefinition] = [
@@ -204,13 +229,14 @@ enum ThemeCatalog {
         ThemeSection(title: "Flagship", definitions: flagship),
         ThemeSection(title: "Neon Arcade Collection", definitions: neonArcadeCollection),
         ThemeSection(title: "Special Edition", definitions: specialEdition),
+        ThemeSection(title: "Midnight Marquee", definitions: midnightMarquee),
         ThemeSection(title: "Seasonal", definitions: seasonal),
     ]
 
     /// Every known definition (order: the gallery taxonomy — flagship, Neon
-    /// Arcade Collection, Special Edition, seasonal).
+    /// Arcade Collection, Special Edition, Midnight Marquee, seasonal).
     static var all: [ThemeDefinition] {
-        flagship + neonArcadeCollection + specialEdition + seasonal
+        flagship + neonArcadeCollection + specialEdition + midnightMarquee + seasonal
     }
 
     /// Definitions to show in the picker for `date`: flagship + seasonal always
