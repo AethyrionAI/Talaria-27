@@ -1742,6 +1742,8 @@ not yet compiled — needs `xcodegen generate` + CLI build + device verify.
 
 **Device pass 2026-07-11: FAIL** — title and preview show the same repeated raw text. Localize which path ran (guided generation vs deterministic fallback) via logs before touching code. Possibly same on-device-model degeneracy family as #102 (local brain phrase-looping in the same session).
 
+**Device evidence 2026-07-12 evening:** `on-device conversation card generated (#4.8)` observed in the whoGoesThere log — the GUIDED path succeeds at least sometimes. Earlier same-day chats showed pure truncation-fallback cards (raw first lines as title/preview) with nothing in the log to explain why; note the model-UNAVAILABLE path is the one card path that logs NOTHING (guard trips and generation failures both log) — worth a one-line logger fix, natural rider on the #110/#111 micro-PR.
+
 **MERGED 2026-07-13 (Lane H, PR #83).** Degenerate-card guard live: repetition / identical / containment / prefix-echo checks discard bad guided cards for the known-good fallback, and EVERY path now logs which guard tripped and which path produced it (`guided card degenerate` / `mixed card degenerate` / `FALLBACK card carries repetition` — the last one means the chat text itself was degenerate, #102 feeding #61). All three generation sites got token caps; temperatures untouched per spec. DEVICE RE-VERIFY OWED: fresh chat, first exchange → `/title`; if a card still degenerates, the log line names the path — that answer is the point.
 
 **Localized 2026-07-11 (source read):** guided generation runs at temperature 0.2–0.3 (`LocalIntelligenceService.swift:74/114/173`) — near-greedy, repetition-prone on the small on-device model. Not yet log-confirmed vs the guardrail-fallback path; Lane H adds a degenerate-card guard that protects both and logs which tripped. Spec: `dispatch/FABLE-LANE-H-local-brain-gen-health.md`.
@@ -3293,5 +3295,9 @@ Observed on whoGoesThere 2026-07-12 (Lane H device pass log): a near-continuous 
 **Fix shape:** memoize. A missing entitlement is static for the process lifetime — resolve availability ONCE (lazily, or at launch + foreground), cache the result, and have `isPrivateCloudUsable` only re-query quota when availability was true. Optionally hold one `PrivateCloudComputeLanguageModel` instance instead of constructing per call. Small, `LocalChatBackend`-scoped; could ride the next lane touching that file, or a standalone micro-PR (pairs naturally with #110's micro-PR sizing).
 
 When the PCC entitlement is eventually granted (SBP → capability request pipeline), re-verify the cached path flips to available on next launch.
+
+**Corroborated 2026-07-12 late (longer idle capture):** the burst pattern repeats with EVERY sensor activity tick with the app otherwise idle — no chat activity at all — confirming the render-driven mechanism and the all-day background cost.
+
+**Same-capture triage — system noise, NOT ours, no action:** (a) `TUIPredictionViewCell` / `TUICandidateGradientContentLabel` unsatisfiable-constraint dumps (×15) and `variant selector cell index` (×18) are the iOS 27 beta SYSTEM KEYBOARD's own layout bugs — TextUI/UIKB classes only, zero Talaria views in any constraint list; same family as the `UIKBDynamicRenderFactory` warnings. (b) One transient `-1005 connection lost` on the `:8000` health upload self-healed on immediate retry within the same drain (outbox → 0) — the retry path working exactly as designed, and mild positive evidence for #104's outbox behavior under real network flap.
 
 Logged 2026-07-13 (device pass finding).
