@@ -75,6 +75,10 @@ struct ReactorOrb: View {
             case .luckySevens: triRingLayers(Self.luckySevens)
             case .houseBall: triRingLayers(Self.houseBall)
             case .stickerStar: stickerStarLayers
+            // The adaptive Comic Book pair (Lane L Phase 2): the villain
+            // glows, the Sunday edition prints (sticker-ring core).
+            case .powBurst: triRingLayers(Self.powBurst)
+            case .zapBurst: zapBurstLayers
             }
         }
         .frame(width: size, height: size)
@@ -713,6 +717,70 @@ struct ReactorOrb: View {
         coreHighlight: ToyboxHue.tangerine, coreBase: ToyboxHue.grape,
         coreGlow: ToyboxHue.tangerine
     )
+
+    /// Comic Book — Villain Variant (§2a): ink-white / spinning dashed
+    /// kapow-yellow / panic-red, yellow→red core glowing 30px yellow with
+    /// the red wide halo. Pure batch-4 anatomy.
+    private static let powBurst = TriRingOrbSpec(
+        rings: [
+            .init(color: ComicHue.inkWhite, baseOpacity: 0.4, diameterFraction: 1.0),
+            .init(color: ComicHue.kapow, baseOpacity: 0.6, diameterFraction: 0.74,
+                  dash: [5, 4], delay: 0.3, spinPeriod: 14),
+            .init(color: ComicHue.panic, baseOpacity: 0.7, diameterFraction: 0.48,
+                  delay: 0.6),
+        ],
+        pulsePeriod: 3.5,
+        coreHighlight: ComicHue.kapow, coreBase: ComicHue.panic,
+        coreGlow: ComicHue.kapow,
+        coreMotion: .brighten(period: 4, scale: 1.12, amount: 0.3),
+        coreFraction: 0.30,
+        coreOuterGlow: ComicHue.panic
+    )
+
+    /// Comic Book — Sunday Funnies (§2b) ring stack: panel-ink 0.3 / dashed
+    /// Ben-Day cyan 0.65 spinning / pop-magenta 0.7. The core prints in a
+    /// white + ink sticker border (StickerRingCore), so the spec's core
+    /// fields are inert (sprayCapRings precedent).
+    private static let zapBurstRings = TriRingOrbSpec(
+        rings: [
+            .init(color: ComicHue.panelInk, baseOpacity: 0.3, diameterFraction: 1.0),
+            .init(color: ComicHue.benday, baseOpacity: 0.65, diameterFraction: 0.74,
+                  dash: [5, 4], delay: 0.3, spinPeriod: 14),
+            .init(color: ComicHue.magenta, baseOpacity: 0.7, diameterFraction: 0.48,
+                  delay: 0.6),
+        ],
+        pulsePeriod: 3.5,
+        coreHighlight: ComicHue.banana, coreBase: ComicHue.magenta,
+        coreGlow: ComicHue.magenta
+    )
+
+    // MARK: Comic Book (light) — ZAP burst (printed core, no glow)
+
+    @ViewBuilder private var zapBurstLayers: some View {
+        switch style {
+        case .minimal:
+            triRing(Self.zapBurstRings, index: 0, diameter: size)
+            StickerRingCore(diameter: size * 0.44, highlight: ComicHue.banana,
+                            base: ComicHue.magenta, white: ComicHue.paperWhite,
+                            ink: ComicHue.panelInk)
+        case .standard:
+            triRing(Self.zapBurstRings, index: 0, diameter: size)
+            triRing(Self.zapBurstRings, index: 2,
+                    diameter: size * Self.zapBurstRings.rings[2].diameterFraction)
+            StickerRingCore(diameter: size * 0.32, highlight: ComicHue.banana,
+                            base: ComicHue.magenta, white: ComicHue.paperWhite,
+                            ink: ComicHue.panelInk)
+        case .onboarding, .voice:
+            if style == .voice { PingHalo(diameter: size) }
+            ForEach(Self.zapBurstRings.rings.indices, id: \.self) { index in
+                triRing(Self.zapBurstRings, index: index,
+                        diameter: size * Self.zapBurstRings.rings[index].diameterFraction)
+            }
+            StickerRingCore(diameter: size * 0.30, highlight: ComicHue.banana,
+                            base: ComicHue.magenta, white: ComicHue.paperWhite,
+                            ink: ComicHue.panelInk)
+        }
+    }
 
     // MARK: Pulp Noir — dime stamp (printed core, no glow)
 
@@ -1556,6 +1624,19 @@ private enum ToyboxHue {
     static let grape = Color(hex: 0x8C52FF)     // Grape Pop
     static let ink = Color(hex: 0x26212E)       // toy-plastic ink
     static let white = Color(hex: 0xFFFFFF)     // Blister White border
+}
+
+private enum ComicHue {
+    // Villain Variant (§2a).
+    static let kapow = Color(hex: 0xFFD828)     // Kapow Yellow
+    static let panic = Color(hex: 0xFF2B2B)     // Panic Red
+    static let inkWhite = Color(hex: 0xF5F2FF)  // Ink White
+    // Sunday Funnies (§2b).
+    static let benday = Color(hex: 0x00A8E8)    // Ben-Day Cyan
+    static let magenta = Color(hex: 0xFF3D7F)   // Pop Magenta
+    static let banana = Color(hex: 0xFFD23F)    // Banana Yellow
+    static let panelInk = Color(hex: 0x1F1A24)  // Panel Ink
+    static let paperWhite = Color(hex: 0xFFFFFF) // speech-bubble white
 }
 
 /// Pulp Noir's printed core: the two-hue disc pulsing like every gallery core

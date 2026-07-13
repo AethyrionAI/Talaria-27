@@ -351,6 +351,8 @@ enum ThemeArtDirectionCatalog {
         .casinoLucky7s: casinoLucky7s,
         .cosmicBowling: cosmicBowling,
         .stickerBombToybox: stickerBombToybox,
+        .comicVillain: comicVillain,
+        .comicFunnies: comicFunnies,
     ]
 
     static func artDirection(for theme: ThemeID) -> ThemeArtDirection {
@@ -1173,6 +1175,95 @@ enum ThemeArtDirectionCatalog {
             .init(hue: Color(hex: 0x8C52FF), alpha: 0.4, offsetX: 3, offsetY: 3),
             .init(hue: Color(hex: 0xFF8A2B), alpha: 0.35, offsetX: -2, offsetY: -2),
         ])
+    )
+
+    // MARK: Comic Book (dark) — Villain Variant, midnight-marquee-final-lineup.html §2a
+    // (Lane L Phase 2 — the collection's most animated theme.) Kapow bloom,
+    // the DRIFTING half of the halftone (yellow 34px lattice — the static
+    // white lattice is palette grid data; the CSS pans both +36px/8s, ported
+    // as one whole tile (34,34) per loop for the seamless invariant,
+    // sub-perceptual delta noted in the PR), raking 105° speed lines panning
+    // on the design's speedShift (−260px x / 3s), yellow-framed red-glow
+    // panels, and the off-register title: red/yellow print offsets + yellow
+    // glow scrambling on the inkShake 6s beat (titleShadow's glitch
+    // mechanic). Deferred: the localized Kirby-krackle twinkle cluster
+    // (a corner-pinned opacity-pulsing dot cluster — no primitive) and the
+    // POW-burst badge (title-side gallery chrome; the orb carries the burst).
+
+    static let comicVillain = ThemeArtDirection(
+        glowPools: [
+            // radial(1100px 700px at 50% -10%, rgba(255,216,40,.10) → 60%)
+            ThemeGlowPool(color: Color(hex: 0xFFD828, opacity: 0.10),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+        ],
+        panelHalo: ThemePanelHalo(
+            // 0 0 0 8px rgba(255,216,40,.06), 0 0 50px rgba(255,43,43,.12).
+            ringColor: Color(hex: 0xFFD828, opacity: 0.24),
+            glowColor: Color(hex: 0xFF2B2B),
+            glowRadius: 40
+        ),
+        // The drifting yellow half of the halftone (dotDrift 8s).
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 34, driftX: 34, driftY: 34,
+                hue: Color(hex: 0xFFD828), speckAlpha: 0.25,
+                anchorX: 0.70, anchorY: 0.60, speckRadius: 1.5625),
+        ], period: 8, fieldOpacity: 0.25),
+        // Speed lines: 105° ink-white raking pair (2px at .5 + 1px at .3 on
+        // a 160px cycle), panning the design's speedShift −260px per 3s.
+        lineTexture: ThemeLineFieldSpec(layers: [
+            .init(angleDegrees: 105, hue: Color(hex: 0xF5F2FF), alpha: 0.5,
+                  spacing: 160, lineWidth: 2, driftX: -260, driftY: 0),
+            .init(angleDegrees: 105, hue: Color(hex: 0xF5F2FF), alpha: 0.3,
+                  spacing: 160, lineWidth: 1, driftX: -260, driftY: 0),
+        ], fieldOpacity: 0.14, driftPeriod: 3),
+        // h1: 4px 4px 0 red, 8px 8px 0 yellow .35 (ink), 0 0 16px yellow .45
+        // (glow), shaking off-register every 6s (inkShake).
+        titleShadow: ThemeTitleShadowSpec(layers: [
+            .init(hue: Color(hex: 0xFF2B2B), alpha: 1.0, offsetX: 4, offsetY: 4),
+            .init(hue: Color(hex: 0xFFD828), alpha: 0.35, offsetX: 8, offsetY: 8),
+            .init(hue: Color(hex: 0xFFD828), alpha: 0.45, offsetX: 0, offsetY: 0, blur: 16),
+        ], glitchPeriod: 6)
+    )
+
+    // MARK: Comic Book (light) — Sunday Funnies, midnight-marquee-final-lineup.html §2b
+    // (Lane L Phase 2.) Warm newsprint under drifting Ben-Day process dots
+    // (cyan 22px + magenta 30px, dotDrift 10s — whole-tile drift per loop),
+    // 75° panel-ink speed lines on the 4s speedShift, and the press-shake
+    // title (cyan/magenta print offsets, inkShake 7s). Print language:
+    // deliberately no panelHalo — the design's panels carry hard cyan offset
+    // shadows (bubble-scope, deferred like every panel-scope treatment).
+
+    static let comicFunnies = ThemeArtDirection(
+        glowPools: [
+            // radial(1100px 700px at 50% -10%, rgba(0,168,232,.08) → 60%)
+            ThemeGlowPool(color: Color(hex: 0x00A8E8, opacity: 0.08),
+                          centerX: 0.5, centerY: -0.10, radiusFraction: 0.95),
+        ],
+        // Ben-Day drift: cyan 22px .22 / magenta 30px .16 on the .5 page
+        // layer (fades 3.5 / 3px → rule-1 centers 2.1875 / 1.875).
+        atmosphereMotion: AtmosphereMotionSpec(layers: [
+            AtmosphereMotionSpec.Layer(
+                tileSize: 22, driftX: 22, driftY: 22,
+                hue: Color(hex: 0x00A8E8), speckAlpha: 0.22,
+                anchorX: 0.25, anchorY: 0.25, speckRadius: 2.1875),
+            AtmosphereMotionSpec.Layer(
+                tileSize: 30, driftX: 30, driftY: 30,
+                hue: Color(hex: 0xFF3D7F), speckAlpha: 0.16,
+                anchorX: 0.60, anchorY: 0.60, speckRadius: 1.875),
+        ], period: 10, fieldOpacity: 0.5),
+        // Speed lines: 75° panel ink, 2px on a 110px cycle at .6, panning
+        // the 4s speedShift.
+        lineTexture: ThemeLineFieldSpec(layers: [
+            .init(angleDegrees: 75, hue: Color(hex: 0x1F1A24), alpha: 0.6,
+                  spacing: 110, lineWidth: 2, driftX: -260, driftY: 0),
+        ], fieldOpacity: 0.10, driftPeriod: 4),
+        // h1: 4px 4px 0 cyan .5, 8px 8px 0 magenta .35 — pure ink,
+        // press-shaking every 7s.
+        titleShadow: ThemeTitleShadowSpec(layers: [
+            .init(hue: Color(hex: 0x00A8E8), alpha: 0.5, offsetX: 4, offsetY: 4),
+            .init(hue: Color(hex: 0xFF3D7F), alpha: 0.35, offsetX: 8, offsetY: 8),
+        ], glitchPeriod: 7)
     )
 
     // MARK: Event Horizon atmosphere presets (Lane E Task 1)
