@@ -6,6 +6,8 @@ picker), T2 (regex + copy fixes), shim cache-bust. See the merge commit for deta
 
 Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · 📝 note / decision · ✅ done.
 
+> **Accuracy audit — 2026-07-13.** All 112 items were re-checked against `origin/main` (tip `cca1345`), merged-PR/closed-issue state, and on-disk code. Corrections are flagged inline as `> **Audit 2026-07-13:**` blockquotes. Summary: 65 items accurate as-was; 13 status-flips (3 shown ✅ but actually open — #17/#18/#31; 7 shown open but actually done — #37/#47/#48/#49/#55/#76/#94; 3 header-vs-body contradictions — #25/#79/#102); 34 'merged-unverified' items whose 'built in cloud / not compiled / needs merge' wording was stale (PRs since merged — device-verify is the only work left). Full write-up: `design/OPEN_ITEMS_AUDIT_2026-07-13.md`.
+
 ---
 
 ## 1. ✅ T4 — Host reconciliation (chat gateway ↔ shim) — RESOLVED
@@ -170,6 +172,8 @@ The shim's set-default writes the canonical slug, so `config.yaml`'s `provider` 
 ---
 
 ## 7. 📝 DEBUG shim-token launch-env seam (informational)
+
+> **Audit 2026-07-13:** Stale wording — 'Production reads the Keychain... only' is no longer accurate. `AppContainer.swift:292-314` shows a 3-tier token provider: (1) Keychain shim token, (2) `#if DEBUG` `TALARIA_SHIM_TOKEN`, (3) fallback to the Hermes API key — the zero-token dual-auth fallback OPEN_ITEMS item #14 shipped (line 749, 'Resolved 2026-06-26') and CLAUDE.md's Auth section now documents as current. Body text should describe the 3-tier fallback, not 'Keychain… only'.
 
 `ModelsShimClient`'s token provider falls back to a `TALARIA_SHIM_TOKEN` launch-env var in
 **DEBUG only** (for simulator verification without idb keyboard injection). Production reads
@@ -392,7 +396,9 @@ samples — distance_walking, steps`.
 
 ---
 
-## 17. ✅ Relay sensor delivery — RESOLVED end-to-end (crash + identity + RPC pump), confirmed on device
+## 17. ✅ Relay sensor delivery — 07-02 fix did NOT hold: connector was dead 2026-07-02→07-11 (9-day prod outage; see #87/#103 post-mortem). Durably fixed + deployed 2026-07-11
+
+> **Audit 2026-07-13:** The 07-02 "RESOLVED end-to-end ... confirmed on device" claim did not survive the day. Per #103's post-mortem (OPEN_ITEMS.md:3136, logged 2026-07-11): "connector.log shows the connector died 2026-07-02 18:45 in a `UnicodeDecodeError: charmap codec` loop — #87's exact defect — and never came back," a 9-day production sensor-delivery outage beginning the same evening as this item's claimed fix. #87 (OPEN_ITEMS.md:2770) independently rediscovered the identical cp1252/UnicodeDecodeError defect on 2026-07-09, labeled it "Pre-existing," patched 17 subprocess call sites (this item patched only 12), and states outright "`PYTHONUTF8` does not reach the connector process" — directly contradicting this item's stated fix mechanism ("...+ PYTHONUTF8=1"). #87's own 07-09 "deployed" claim was itself later corrected on 07-11 ("the connector had been dead since 07-02... the fixed code was not running") because OJAMD was 107 commits behind. Even this item's sibling #37 (OPEN_ITEMS.md:1168), dated two days later (07-04), shows the encoding mitigation was still non-durable and in flux (moved to an NSSM service env var, then that service was removed the same evening in the "#55 reversion," with "the source-level commit + upstream remains pending regardless") — confirming no durable fix existed as of 07-04, let alone 07-02. This item's own hedge ("All connector changes are UNCOMMITTED on the OJAMD checkout") foreshadowed exactly this failure mode. The other two legs of the "crash + identity + RPC pump" bundle held up independently and are not in question: identity re-pairing was separately verified on device 2026-07-05 (#46), and #47's note ("After the #17 fixes, `talk/readiness` truthfully reports `hostOnline:true`...") corroborates the RPC-pump/heartbeat leg. Only the crash/encoding leg failed, but since it killed the connector process outright, it invalidated the "end-to-end" and "confirmed on device" framing for the whole item. Reclassified: over-reported (marked ✅, actually the underlying defect stayed live in prod for 9 days) → superseded by #87/#103's actual 2026-07-11 fix, which is the current authoritative record.
 
 
 **Reconciled 2026-07-02 (session results, verified):** Three stacked failures, all fixed on OJAMD 07-02: (1) connector crash-looped on `UnicodeDecodeError` (cp1252) reading Hermes CLI output — patched 12 `subprocess` sites with `encoding='utf-8', errors='replace'` + `PYTHONUTF8=1` (→ #37); (2) phone re-paired onto a stale/revoked relay user after reinstall — re-paired to the live user (→ #46); (3) `talk.prewarm` RPC ran synchronously in the websocket recv loop, blocking heartbeats past the 30s timeout so the relay killed the session — detached RPCs to `asyncio.create_task`/`to_thread`. Confirmed two ways: live Hermes MCP query returned fresh location (39s) + steps/HR, and on-device drain log showed `deliveryState=delivered wasDelivered=true` with #24a chunking. All connector changes are UNCOMMITTED on the OJAMD checkout (→ #24, #36).
@@ -445,7 +451,9 @@ and checked in the diagnostics panel (#15).
 
 ---
 
-## 18. ✅ Session shelf — scrim opacity increased, toolbar hit-testing blocked
+## 18. 🔧 Session shelf — scrim opacity increased, toolbar hit-testing blocked (merged 2026-06-25; device verification not recorded)
+
+> **Audit 2026-07-13:** Code re-confirmed present on main — `.allowsHitTesting(!sessionsOpen)` on all 4 toolbar items in `ChatScreen.swift` (486/491/506/512; the 4th is the later #45 Inbox button, which inherited the same guard, showing the pattern survived and was extended, not reverted), and `Design.Colors.scrim` resolves via `ThemeRuntime` (Design.swift:100) with 0.85-opacity scrim values intact in `ThemePaletteCore.swift` post-#49 theming refactor. However, unlike sibling items #16/#17/#19/#20 from the same 2026-06-25 batch (each carries an explicit "Verified on-device"/"confirmed on device" line with device log evidence), this item's body contains only "**Fixed 2026-06-25:**" with no verification statement. No later item confirms or contradicts the on-device hit-testing behavior (searched "session shelf", "scrim", "sessionsOpen", "hit-test", "toolbar", "drawer" — all hits reviewed; the only other scrim hit is the unrelated #9 model-transition overlay). This also matches the document's own established convention elsewhere (#49, line 813, line 1204, line 2946, etc.) of reserving ✅ for explicitly device-confirmed work and using 🔧 + "verification owed" wording for merged-but-unverified fixes. Downgrading header to 🔧 merged-unverified; discrepancy = over-reported.
 
 The session shelf (sessions drawer) overlay was too transparent (62% opacity) and let
 taps fall through to the toolbar (model chip, settings gear) because SwiftUI's navigation
@@ -504,7 +512,9 @@ dropdown, no popover, no "Start New Session" — straight to the shim-backed lis
 
 ---
 
-## 21. 🔧 Present/download agent-generated files — Tier 1 (app) ✅ done, Tier 2 (relay) follow-up
+## 21. 🔧 Present/download agent-generated files — Tier 1 (app) ✅ done; Tier 2 relay route ✅ done + deployed to OJAMD; Tier 2 app-side fetch still pending
+
+> **Audit 2026-07-13:** Header's 'Tier 2 (relay) follow-up' is stale wording — the relay route (GET /v1/device/files, relay/app/main.py:976) has been built, deployed, and smoke-tested live on OJAMD since 2026-06-27 per this item's own note. The real outstanding piece is Tier 2 APP-SIDE fetch (a RelayAPIClient download call + content-absent branch in parseWrittenFile) — confirmed absent from the working tree; no movement on it since the 2026-06-27 note.
 
 Ask the agent to produce a file — a markdown report, a text file — and the app has **no
 surface to present it for viewing or download**, the way claude.ai and Hermes Desktop do.
@@ -634,7 +644,9 @@ Logged 2026-06-25.
 
 ---
 
-## 24. 🔧 OJAMD server-side work — 422 → Mac-side; Private Relay doc (#24e) remains; relay-JWT persistence CLOSED 2026-07-12 (#24f) (bind/firewall/persistence/update-stability ✅)
+## 24. 🔧 OJAMD server-side work — 422 → Mac-side; Private Relay onboarding doc shipped (README.md + docs/index.html, 2026-07-10) — diagnostics-panel check (#24e) still open; relay-JWT persistence CLOSED 2026-07-12 (#24f) (bind/firewall/persistence/update-stability ✅)
+
+> **Audit 2026-07-13:** 24e's 'documented in onboarding/setup instructions' ask is done, not open as the rollup header implies — README.md's '6 — Pair on first launch' + 'Network notes' sections (README.md:131,168, added 2026-07-10 in commit 9964f02) and docs/index.html:451 both carry the iCloud Private Relay warning, on top of the pre-existing CLAUDE.md gotcha. Only the 'checked in the diagnostics panel' half of 24e remains open: `grep -rn "Private Relay" Talaria/` is empty and DiagnosticsSettingsScreen.swift's relay rows check pairing/session state only — so 🔧 stays correct, but 'doc … remains' is stale wording. 24f's 2026-07-12 closure is independently corroborated by commit 6630908 ('#98 DEPLOYED, #24f CLOSED … #24 rollup header updated to reflect #24f closure'), and that same commit is what left the doc wording stale. 24a/b/c/d/g/h/j check out as claimed; 24i's ✅ is already self-flagged SUPERSEDED 2026-07-04 by #55 inline.
 
 > **2026-07-04 (evening):** the NSSM service architecture described in 24c/24h/24i has been
 > **reverted** -- see **#55**. Startup-folder scripts are the production launch path again and
@@ -808,7 +820,9 @@ backed up; confirmed no bookstack error in the post-fix startup.
 
 ---
 
-## 25. 🔧 CTX meter — 0% fixed (usage parsed); denominator reads ~1.4x high
+## 25. 🐛 CTX meter — device verify FAILED 2026-07-05: shows 0 on some sessions, absent on older ones, flashes wrong; root cause unpinned
+
+> **Audit 2026-07-13:** Confirmed independently — auditor's status-flip upheld. The item's own latest dated note (2026-07-05, positioned first in the block) reads "Device verification 2026-07-05: FAILED" with a broader symptom set (CTX shows 0 on some sessions, absent entirely on older sessions, occasionally flashes in before reading wrong) and lists next steps (ground-truth against Hermes's built-in context check; capture a Verbose-Logging + `run.completed` session) that no later note reports as started or done — nothing in OPEN_ITEMS.md after 2026-07-05 mentions CTX/context-window/denominator except item #46's 2026-07-08 note, which independently reaffirms "distinct from OPEN_ITEMS #25 (CTX denominator accuracy — still open)". The header ("0% fixed; denominator ~1.4x high") only describes the superseded 2026-06-27 intermediate state. Source-code at current HEAD (cca1345) mechanically confirms the FAILED note's symptoms are still live: `SessionsHermesClient.fetchSessionConversation` (Talaria/Services/Live/SessionsHermesClient.swift:467-488, used by `openSession`) builds `Conversation` from `SessionMessagesResponse` — which decodes only `role`/`content`/`timestamp`/`toolCalls` (no usage field, lines 1098-1113) — so `latestUsage` is always nil for any resumed/older session; `ChatScreen.contextProgress` (Talaria/Features/Chat/ChatScreen.swift:557-563, comment "Shows 0 when no usage data yet") then guards to 0. This is exactly "absent/0 on older sessions." The note's citations don't hold up as fix evidence either: ISSUE_INDEX.md GitHub #4 = closed "Composer: multi-line TextEditor with Writing Tools" (unrelated) and PR_INDEX.md PR #21 = merged "Health widget tiles query HealthKit directly (#15)" (unrelated) — "#4" is reused in this codebase purely as an internal shorthand tag for CTX-denominator work (also appears in ChatStore.swift, HermesClientProtocol.swift, LocalChatBackend.swift), not a real GitHub link to a fix. MAIN_LOG.txt (174 commits, origin/main tip cca1345) has zero commits touching CTX/meter/denominator/numerator/contextWindow/run.completed. Header/title corrected to reflect the FAILED verification as the current, unresolved status.
 
 **Device verification 2026-07-05: FAILED** (GitHub #4, PR #21 insufficient). New symptom set:
 CTX shows **0 on some sessions**, **absent entirely on older sessions**, and occasionally
@@ -938,7 +952,9 @@ Logged 2026-06-26.
 
 ---
 
-## 31. ✅ Paste image into the chat composer — unblocked by #43, reconciled onto main
+## 31. 🔧 Paste image into the chat composer — #43 send-side fix merged to main; full paste-then-send flow not yet re-verified on device
+
+> **Audit 2026-07-13:** Header said ✅ done; downgraded to 🔧 merged-unverified. Code confirms the merge is real: `Talaria/Features/Chat/ChatInputBar.swift:174` (`// Paste image from clipboard (#31)`, uncommented) wires a button to `pasteImageFromClipboard()` (516-518: reads `UIPasteboard.general.image`, calls `onPasteImage`); `ChatScreen.swift:201` routes it to `handleAttachmentResult(.image($0))` (same path as the photo picker, confirmed at line 1135-1136); `Talaria/Services/Support/AttachmentInlining.swift:87` builds a `data:<mime>;base64,...` URL for the `.image` case; `Talaria/Services/Live/SessionsHermesClient.swift`'s `ChatTurnBody.make()` (line 975, comment 956-962 citing "#43 ... they used to be silently dropped here") consumes it and is called from three live send paths (lines 120, 170, 596) — verified by direct grep/read, not by trusting the prior auditor. But no dated note anywhere in this item, in item #43, or in item #48's 2026-07-02 reconcile note ("Build verified on device") ever confirms an on-device re-test of the *full* paste-then-send flow after the merge. This item's own latest dated note (2026-06-28) is pre-merge and negative: image-only send returned HTTP 400, and the paste UI was explicitly "held uncommitted until #43 lands." Contrast item #15 (reconciled the same day, 07-02), which carries an explicit post-reconcile line — "on-device log confirmed drain/delivery" — that #31 conspicuously lacks. A later BGTask crash fix for "attachment sends via beginLongSend" (commit 71468ca, PR #67, ~2026-07-10/11) shows attachment sending was still being debugged on-device well after the merge, with no subsequent success note logged. Per AUDIT_GUIDE.md, "merged to main" alone does not earn ✅ absent an explicit device-verified note — none exists here.
 
 **Update 2026-06-28 (on-device, whoGoesThere):** the paste UI works — the button shows in the
 composer and pasting attaches the image correctly. Switched from a `hasImages`-gated button to
@@ -1002,7 +1018,9 @@ and `AskHermesIntent` (#56 / Wave 2 Issue E), both registered in the single
 
 ---
 
-## 33. 📝 Apple app integrations — device-side (universal) + Hermes connectors (Mac-host only)
+## 33. 📝 Apple app integrations — device-side EventKit shipped & device-verified (#69/#70); Hermes connectors (Mac-host only) still gated on T6 (#34/#107)
+
+> **Audit 2026-07-13:** The device-side EventKit half this item frames as forward-looking scope ('near-term scope if pursued') is already merged and device-verified under OPEN_ITEMS #69/#70 (GitHub #28/#29, PRs #34/#35, both Merged=YES) — `DeviceCalendarTools.swift` explicitly notes it 'pulls main-repo #33 forward device-side.' Recommend cross-referencing #69/#70 here so the item doesn't read as unstarted. The Mac-connector (server-side) half remains genuinely open, correctly gated on T6/#34/#107.
 
 **Update 2026-07-12 (server-side layer):** T6 is un-deferred and in motion — Phase 1
 (Mac relay + connector, #107) unblocks this item's Mac-only connectors, worked as #107's
@@ -1043,7 +1061,9 @@ Logged 2026-06-27.
 
 ---
 
-## 34. 🔧 T6 — Mac-hosted Talaria backend (unlocks additive Apple connectors) — ACTIVE (un-deferred 2026-07-12); Phase 1 → #106
+## 34. 🔧 T6 — Mac-hosted Talaria backend (unlocks additive Apple connectors) — ACTIVE (un-deferred 2026-07-12); Phase 1 → #107
+
+> **Audit 2026-07-13:** Header's cross-reference is off by one item — 'Phase 1 → #106' should read '#107'; #106 is a different item entirely (P8 IR v0 / Lane D / PR #65). #107 (the correct Phase-1 tracker, matching the body text's own citations) confirms scaffolding merged via PR #79 but the Mini-execution checklist is still fully unchecked, so 🔧/merged-unverified remains the right status — only the number needs fixing.
 
 **Update 2026-07-12:** un-deferred by Owen. Spec v0.2 committed at
 `design/T6_MAC_BACKEND_SPEC.md` (architecture verified against the OJAMD deployment; Q1–Q5
@@ -1165,7 +1185,9 @@ checkout: `origin`=dylan-buck (legacy), `fork`=ChronoRixun, `t27`=canonical.
 
 ---
 
-## 37. 🔧 Connector win32/encoding fix — APPLIED on OJAMD 2026-07-02 (12 sites, uncommitted on that checkout); upstreaming to the fork still pending
+## 37. ✅ Connector win32/encoding fix — RESOLVED (win32 `tasklist` branch landed on main via PR #38, merged 2026-07-06; encoding fix — 17 sites incl. mcp_registration ×3 + AST-audit test — shipped 2026-07-09 and deployed to OJAMD 2026-07-11 per #87)
+
+> **Audit 2026-07-13:** Header and last note (2026-07-04 evening) are stale by over a week. Re-verified independently: (1) `connector/src/hermes_mobile_connector/mcp_registration.py` in the current working tree (== main tip) contains the exact `sys.platform == "win32"` / `tasklist /FO CSV /NH` branch this item describes as OJAMD-only/uncommitted; GitHub's actual diff for PR #38 ("Sync upstream ChronoRixun/Talaria," merged 2026-07-06 per PR_INDEX.md) shows this precise code being added to `mcp_registration.py` — the fork-port happened, via an upstream-sync PR rather than the manual apply/commit/push this item planned. (2) The encoding half's `PYTHONUTF8` env-var mitigation, which this item's last note says was reverted (#55) and "queued" for a future pass, was superseded by a proper source-level fix: `encoding="utf-8", errors="replace"` pinned on all 17 text-mode subprocess sites (confirmed present across `mcp_registration.py`, `cli.py`, `client.py`, `hermes_runner.py`, `git_diff.py`, `service_management.py`, `talk_support.py`) plus a new AST-audit test `connector/tests/test_subprocess_encoding.py` — tracked at OPEN_ITEMS #87, whose 2026-07-11 correction note confirms an actual OJAMD deploy (rebase onto `t27/main` + connector restart, backlog drain confirmed), which necessarily also carries PR #38's win32 fix since that landed on main first. Item #55's still-open checklist line ("Add `PYTHONUTF8=1` to both bats — see #37") is itself now moot. Recommend closing #37 as resolved, cross-referencing #38 and #87.
 
 `connector/src/hermes_mobile_connector/mcp_registration.py` is modified **only on OJAMD**
 (not in the fork). The change makes `_hermes_chat_running()` Windows-compatible: the upstream
@@ -1419,7 +1441,9 @@ Discovered 07-02, bit us immediately. After delete+reinstall the app came back a
 
 ---
 
-## 47. 🎯 Configure OpenAI Realtime talk on the Hermes host (voice enablement)
+## 47. ⏸️ Configure OpenAI Realtime talk on the Hermes host — key/config deployed + confirmed minting on OJAMD 2026-07-08, then PARKED behind the unrelated #82 audio-capture wedge
+
+> **Audit 2026-07-13:** Re-verified independently. The connector fix code described in the 2026-07-05 note (tolerant state/secrets deserialization, `realtime_talk.enabled` flat/nested/dotted resolution, API-key fallback secrets→env→`.env`, stale-error auto-clear) is confirmed present in `connector/src/hermes_mobile_connector/state.py` (~L150-167) and `client.py` (~L517-593) on current main. Item #82's OJAMD relay-log evidence (2026-07-08, 00:55-01:04 UTC) shows `talk/readiness` 200 → `POST /v1/talk/session` 200 → a minted realtime session (`sess_…`, `last_error: None`) — per `client.py:_rpc_talk_session_create`, a mint is only reachable when both `realtime_talk_enabled` and a resolved API key are true, so this is direct proof the configure-ask was deployed and working on OJAMD. Item #85 (also OJAMD-log-sourced, 2026-07-08: "every voice session logged mcp_list_tools.failed") independently corroborates that Realtime sessions were minting in volume around that date. Voice then failed end-to-end for the unrelated device-level audio-capture-stack wedge (item #82), and Owen explicitly **PARKED voice 2026-07-09** ("voice is optional; CarPlay voice inherits this when resumed"), which also shelves this item's two remaining sub-tasks (billing cap: moot while parked; CarPlay E2E: independently gated on Apple's discretionary entitlement per item #45). Correction to the record: this item's own citation of connector fixes on branch `claude/issue-7-hermes-config-08bsbm` traces to commit `8ca7741` ("PR #71" in the old pre-fork `ChronoRixun/Talaria` tracker, not this repo's current PR numbering) — that exact SHA is **not** an ancestor of current `origin/main` (main was re-rooted at orphan commit `9964f02` on 2026-07-10, which already carries the fix forward as part of a full-repo snapshot). The fix's presence on main is established by working-tree file content, not commit ancestry.
 
 Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully reports `hostOnline:true, configured:false` — 'OpenAI Realtime is not configured on this Hermes host.' Per `client.py:_rpc_talk_session_create`, talk needs `realtime_talk.enabled` + an `openai_api_key` in the connector secrets (`~/.hermes-mobile` on OJAMD). Voice already reports BALLAD + live context, so everything downstream is warm. **Owen-gated** (needs an OpenAI key with Realtime access; billed per audio minute — worth a cap). Also unblocks CarPlay voice (#45).
 
@@ -1427,7 +1451,9 @@ Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully rep
 
 ---
 
-## 48. 🔧 Repo hygiene — lineage divergence cleanup + xcodegen entitlements trap + logging polish
+## 48. ✅ Repo hygiene — lineage divergence cleanup + xcodegen entitlements trap — RESOLVED (`BRANCHING.md` shipped; log-noise line kept as accepted non-blocking polish)
+
+> **Audit 2026-07-13:** Independently re-verified all four sub-threads; auditor's status-flip upheld but their header overclaimed "logging polish" as done. (1) Lineage divergence: item's own 07-02 note already says "Resolved... Build verified on device" — no later regression found anywhere in the file (the unrelated OJAMD repo-tracking item near line 1155 is a different divergence). (2) Prevention TODO: `BRANCHING.md` exists at repo root and its content matches the ask almost verbatim (canonical-main rule, mandatory `git fetch`+divergence-check script, one-lineage-at-a-time, "Parallel Claude sessions... must never assume its local main reflects reality"); it is a genuine living doc, not a coincidental file — merged GitHub PR #50 (`986bc62`, referenced at OPEN_ITEMS.md:2288) later added a session-checklist line to it, proving real adoption. The item's own "Prevention (TODO, → item for next session)" bullet is now stale and should be struck. (3) xcodegen trap: confirmed live at `project.yml:45` (`aps-environment: development`) on the current origin/main tip (cca1345). The item's own text adds "the TestFlight/production switch (#8) still applies" — the auditor's evidence omitted this — but it does not block closure: item #44 (already ✅ VERIFIED, OPEN_ITEMS.md:1394-1396) carries the identical "→ #8" forward-reference caveat without it blocking #44's own resolved status, establishing this as the project's own convention for this exact caveat. Item #8 itself stays a separately-tracked 📝 future gate. (4) Logging polish: `collectSnapshot returned nil` is still logged verbatim at `Talaria/Services/Live/SensorUploadService.swift:424` — genuinely untouched — but the item's own text already characterizes it as self-correcting, harmless "log noise only" and phrases the ask as "Consider debouncing," never a hard requirement, so treating it as accepted non-blocking polish is consistent with the item's own framing rather than a real open thread. Net: 3 of 4 threads cleanly resolved with explicit RESOLVED/device-verified or docs-exist evidence; the 4th was optional by its own original design. The 🔧 header is stale and should flip to ✅, but the corrected title should not claim "logging polish" was performed — only that it was triaged and deliberately left as-is.
 
 **Lineage divergence (root cause of days of 'didn't we already do this?'):** local `main` and `origin/main` forked at `cf50688` (06-28 16:43) and evolved in parallel — Fable's branch was merged to origin via PR #1, while a separate local session committed 12 different commits implementing the SAME items (#35/#41/#24a) differently, never pushed. The Mac's local checkout also hadn't fetched in days, hiding it. **Resolved 07-02:** chose origin as canonical, reset local main to `origin/main` + cherry-picked the genuinely-unique local work (#31 paste, #43 image serializer, #15 sensor panel), dropped local's redundant #41 approach. Full local lineage preserved at tag `prereconcile/local-main-20260702`. Build verified on device.
 - **Prevention (TODO, → item for next session):** write `BRANCHING.md` — canonical-main rule, mandatory `git fetch` + divergence check at session start, one-lineage-at-a-time. Parallel Claude sessions must not both commit to main-equivalents.
@@ -1437,7 +1463,9 @@ Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully rep
 
 ---
 
-## 49. 🔧 Theme system — four drastic themes built on `claude/theming-options-plan-c4356l`; needs Mac build + device verify
+## 49. ✅ Theme system — four themes + palette-core de-dup SHIPPED, compiled, and device-verified (4 flagships live on-device 2026-07-10 per #91; Lane E built directly on this catalog, device-verdicted through 07-12)
+
+> **Audit 2026-07-13:** Auditor's status-flip upheld and strengthened with independent, earlier evidence. `Shared/ThemePaletteCore.swift` (85KB) and `TalariaTests/DesignThemeTests.swift` are present on `main` (tip cca1345, clean working tree) and implement exactly the 2026-07-05 de-dup design this item describes: `ThemePaletteCatalog` data-driven resolution, `lockedAccentSlot` field (`DesignThemeTests.swift:48` `#expect(ThemeID.terminal.lockedAccentSlot == .cyan)` — confirmed verbatim). `DesignThemeTests.swift` is wired into the TalariaTests target's Sources build phase in `project.pbxproj` (not an orphan file) and its own content has been extended through Lane E batch 4 (Molten Forge/Midnight Aquarium assertions), so it is live in the routine build/test loop, not dead code. Three independent dated on-device confirmations, earliest first: (1) item #50's own finding note — "Found 2026-07-03 (Owen, reviewing `claude/theming-options-plan-c4356l` **on device**)" — i.e. the four-theme branch was already built and running on Owen's physical device the same day item 49 was authored, undercutting the "needs Mac build + device verify" framing almost immediately. (2) Item #91's context paragraph, explicitly dated "verified at HEAD 2026-07-10": "On device today: 4 flagships + 4 seasonals + 4 complex ... all selectable" — "4 flagships" is `ThemeCatalog.flagship` = exactly Deep Field/Solar Forge/Terminal/Paper Tape (confirmed in `Talaria/Models/ThemeCatalog.swift:112-122`), i.e. item 49's deliverable, compiled and running on the physical device a day before Lane E's gate-clear. (3) Lane E (PR #66, merged=YES per PR_INDEX.md, base=main) then built 16 more themes directly on the same catalog/lockedAccentSlot mechanism with its own repeated device verdicts through 07-11/12 ("Now THAT is an outrageous theme"; Haunted VHS and Deep Sea Diner both explicitly "CUT on device verdict"), and a 2026-07-12 full-suite run ("542/542 tests green, 49 suites," OPEN_ITEMS line 3256) post-dates Lane E and necessarily exercises the TalariaTests target containing DesignThemeTests. Item 49's own 07-05 note ("Owed to the Mac: Xcode build + DesignThemeTests... + device theme-cycle pass") and CLAUDE.md's Design-system paragraph ("Xcode build + DesignThemeTests run still owed on the Mac") are both stale carryovers nobody updated once the work was folded into and superseded by Lane E. Minor aside (not load-bearing): item 49's own text mislabels the de-dup as "(GitHub #49)" — GitHub issue #49 is actually the unrelated orphan-surface audit (OPEN_ITEMS #76; ISSUE_INDEX.md confirms it CLOSED under that different feature) — a pre-existing numbering slip in the doc, distinct from this status question.
 
 **Built 2026-07-03** (cloud session, plan reviewed + revised in `design/THEME_SYSTEM_PLAN.md`). A THEME (Deep Field / Solar Forge / Terminal / Paper Tape) now owns the whole color environment; the accent picker's three persisted slots (`cyan`/`amber`/`violet` raw values, unchanged — zero migration) are re-interpreted per theme with slot `.cyan` always the theme's hero hue (Cyan Arc / Forge Amber / Phosphor Green / Tracker Red). Shipped on the branch:
 - `Shared/ThemePaletteCore.swift` — single source of truth for all 4×3 palettes, compiled into app + widgets (project.yml `Shared` sources); `Color(hex:)` moved here.
@@ -1450,7 +1478,9 @@ Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully rep
 
 **Update 2026-07-05 — palette-core de-dup (GitHub #49) executed** (cloud session, branch `claude/theme-palette-dedup-4cdc35`, 5 commits, one theme per commit per the handoff sequencing). `ThemePalette(theme:accent:)` now resolves from `ThemePaletteCatalog` data (Shared) — zero per-theme switch arms in resolution; Terminal's #12 pin is `lockedAccentSlot` data; `AppearanceTheme` collapsed to a thin id (displayLabel ← catalog `displayName`, isLight ← palette data); accent labels are per-slot variant data; `ReactorOrb` dispatches on new `palette.orbStyle` (drawing stays in the view); `WidgetTheme` arms collapsed. Byte-identity verified by *execution* on Linux (mock `SwiftUI.Color` preserving construction paths; old vs new file, 4×3 slots, 364 properties — zero diffs), plus label/flag parity checks. No files added/removed → **no xcodegen needed**. Owed to the Mac: Xcode build + `DesignThemeTests`/`ThemeCatalogTests` + device theme-cycle pass — see `design/THEME_PALETTE_DEDUP_HANDOFF.md` status block.
 
-## 50. 🐛 Terminal theme must not offer accent options — lock to Phosphor Green
+## 50. 🔧 Terminal theme accent lock — code merged to main (`lockedAccentSlot`), Mac build + device verify owed
+
+> **Audit 2026-07-13:** Re-verified independently — the auditor's file/line citations are all accurate (checked `Shared/ThemePaletteCore.swift:257,351,607`, `Talaria/Features/Settings/AppearanceSettingsScreen.swift:33-39,53-55`, `TalariaTests/DesignThemeTests.swift:45-59`, plus `TalariaWidgets/WidgetTheme.swift:45,51` confirming the widget path also routes through the single `ThemePalette(theme:accent:)` resolution point — all three required surfaces from the item's "Fix (two parts)" + widget bullet are covered). Traced to commit `869b850` (2026-07-04, "fix(theme): lock Terminal to Phosphor Green") and folded into the #49 palette-core de-dup on 2026-07-05. So the CODE claim is correct — but "done" is not supported: no Xcode-build/DesignThemeTests-run/device-verified note exists anywhere in current main's copy of this item, and sibling item #49's own latest surviving note (2026-07-05, still current) explicitly says "Xcode build + `DesignThemeTests`/`ThemeCatalogTests` + device theme-cycle pass" remain **owed to the Mac** — per the house merged≠device-verified rule that governs every other item in this file, that blocks ✅. Interesting wrinkle the auditor missed: a correct RESOLVED write-up for this *exact* item already exists — commit `b6913eb` (2026-07-09, "dedup pass"), which set the header to `## 50. ✅ … — RESOLVED on main` with a verification note — but that commit only lives on unmerged remote branch `claude/fable-handoff-task-batch-etoz56` (confirmed via `git branch -a --contains b6913eb`) and is NOT an ancestor of current `origin/main` (`git merge-base --is-ancestor` = false), so it never reached this file. Even that orphaned note only claims "verified in code," not a build/device pass, so it wouldn't fully clear the bar either. Recommend 🔧 merged-unverified (matching #49's own convention) rather than ✅, until an explicit Mac build/test/device-pass note is recorded — and separately, someone should reconcile/merge `claude/fable-handoff-task-batch-etoz56`'s doc fixes (it also correctly resolves #48 and #53, the latter of which is still shown 🐛 open in current main too).
 
 **Found 2026-07-03** (Owen, reviewing `claude/theming-options-plan-c4356l` on device). The Terminal theme's identity *is* the phosphor green — reassigning its accent (Amber · Phosphor / Cyan · IBM) just recolors it into a generic themed screen and throws away what makes it Terminal. Terminal should expose NO accent choice; the green is the whole point.
 
@@ -1463,6 +1493,8 @@ Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully rep
 
 ## 51. 🔧 CLI `build-for-testing` can't resolve TalariaTests' test host — blocks CLI test-compilation validation
 
+> **Audit 2026-07-13:** Downgraded from a first-pass 'RESOLVED' flip to stale-wording after adversarial re-check. `project.yml:305-311` on main DOES now carry an explicit `TEST_HOST`/`BUNDLE_LOADER` override with a comment naming the exact PRODUCT_NAME-has-a-space bug this item diagnosed — but no one has re-run `xcodebuild build-for-testing` to confirm the 'could not find test host' error is actually gone (no PR/issue/commit/dated note records it), and sibling #52 scheme-drift is still open. Stays 🔧, not ✅. The 'Next:' paragraph is stale — `project.yml` no longer relies on xcodegen auto-derivation; it has an explicit override to verify against a real Mac `build-for-testing` run.
+
 **Found 2026-07-04** (Mac, reviewing Fable's PRs). `xcodebuild build` of the `Talaria` app scheme succeeds, but `xcodebuild build-for-testing -scheme Talaria` fails with `Could not find test host for TalariaTests: TEST_HOST evaluates to ".../Debug-iphonesimulator/Talaria.app/Talaria"` — identically on `generic/platform=iOS Simulator` and on a concrete simulator id, and after a fresh `xcodegen generate`. So it is NOT the stale scheme (#52) and NOT a destination issue; the app target builds fine standalone. `project.yml` looks correct (`TalariaTests` = `bundle.unit-test`, `dependencies: [target: Talaria]`, app `scheme.testTargets: [TalariaTests]`), so xcodegen should auto-wire TEST_HOST/BUNDLE_LOADER — the failure is downstream of that.
 
 **Impact:** PR reviews on the Mac can compile/verify the app target from the CLI but cannot compile the *test* targets — so test additions (e.g. the store PRs appending to `AppStoresTests.swift`) are diff-reviewed but not CLI-compiled. Xcode's GUI test runner resolves the host differently, so in-app test runs are unaffected.
@@ -1473,7 +1505,9 @@ Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully rep
 
 **Found 2026-07-04** (Mac). On clean `main`, `xcodegen generate` rewrites `Talaria.xcodeproj/xcshareddata/xcschemes/Talaria.xcscheme` (the pbxproj itself was already current), so the committed scheme has drifted from `project.yml`. Minor hygiene; did not resolve #51. **Fix:** regenerate and commit the scheme (or fold into the standing post-checkout xcodegen step), file-scoped.
 
-## 53. 🐛 Sensor drain — a stuck location upload starves the health outbox
+## 53. 🔧 Sensor drain — location/health outboxes decoupled (fix merged 2026-07-06; device verification owed)
+
+> **Audit 2026-07-13:** Re-verified against current main (working tree = origin/main tip `cca1345`). The auditor's code citations are all accurate: `Talaria/Services/Live/SensorUploadService.swift` has `LocationUploadOutcome.retry` (line 136) with its own backoff (`locationBusyRetries`/`maxLocationBusyRetries`, lines 161 & 487-497), and `drainOutboxIfPossible()` runs location (lines 473-503) and health (lines 508-540) as two independent `while` loops — location always exits after one outcome (line 502) and unconditionally falls through to health (comment lines 505-507: "Independent of location — runs even when location failed above"). This traces to commit `fbb31e4` ("fix: decouple location and health outbox drain paths, add location retry/backoff," 2026-07-06) — its file content is byte-identical to HEAD's (`git diff fbb31e4:...SensorUploadService.swift cca1345:...SensorUploadService.swift` = empty), though `fbb31e4` itself is not a direct ancestor of HEAD (`git merge-base --is-ancestor` = false; `git blame` shows the boundary commit `^9964f02`), consistent with this repo's fork/rename history. Notably, a 2026-07-09 "dedup pass" commit (`b6913eb`) DID write this exact resolution into OPEN_ITEMS.md ("RESOLVED — on main since 2026-07-06... Verified in code on main") — but that commit is likewise NOT an ancestor of current HEAD, so its text is genuinely absent from today's file (confirmed: item #53's block, lines 1476-1478, is byte-for-byte the original 2026-07-04 report, no update notes at all — the auditor is correct that none was ever appended on the surviving lineage). However, even that lost note only claimed code-level verification, not device-verification — and per this project's own "merged != device-verified" standard, that is not sufficient to mark a client-side runtime/behavioral bug (originally caught via on-device connector-outage testing, symptom = health outbox count climbing) as ✅ done. No test target covers `SensorUploadService`/`LocationUploadOutcome`/`drainOutboxIfPossible` (zero hits outside the source file), and no note anywhere on current main confirms the original symptom (475→481+ climbing) was re-observed and is now gone. The closest corroboration is item #103 (2026-07-11 live production incident): a fresh investigation into a real connector-outage/backlog incident found "the app-side outbox machinery is correct" without flagging the #53 symptom — supportive circumstantial evidence, but not a targeted re-test of this exact scenario. Conclusion: the fix is real, structurally sound, and has been on main for a week, so the current 🐛 "open, unaddressed, GitHub issue snippet drafted" framing is factually stale and should be corrected — but the auditor's recommended clean "✅ RESOLVED" flip over-reaches past the available evidence. Recommend 🔧 (merged-unverified) with a note pointing at `fbb31e4` and flagging device re-verification of the original connector-outage scenario as the remaining step.
 
 **Found 2026-07-04** (on-device, during connector-outage testing). `SensorUploadService.drainOutboxIfPossible()` drains location first and `break`s the entire loop on a location `.failed`, so it never reaches the health block. When location persistently returns `deliveryState=retry` (connector down / busy / forward stalled), the health outbox climbs unbounded even though health itself is fine — observed 475→481+ live. `LocationUploadOutcome` has no `.retry` case, so a transient `retry` is mis-mapped to a hard `.failed` that wedges the loop. **Fix (iOS, Fable):** a location failure must not `break` past health; give location its own transient retry/backoff (mirror health's `.retry` handling); drain the two outboxes on independent passes so neither can starve the other. Distinct from #24a (that was a poison *health* sample wedging health; this is the *location* path wedging health). GitHub issue snippet drafted.
 
@@ -1499,7 +1533,9 @@ host-connection nonce; connector auto-reconnect with backoff) remains open.
 
 ---
 
-## 55. 🔧 OJAMD service layer reverted to out-of-the-box (nssm removed); safe-update rewritten
+## 55. 💤 OJAMD service layer reverted to out-of-the-box (2026-07-04) — relay portion SUPERSEDED by NSSM reinstatement (#88, #98, #105); gateway/connector Startup-script arrangement still current
+
+> **Audit 2026-07-13:** Confirmed the auditor's core finding but the scope was overstated — this is a *relay-only* reversal, not a full service-layer reversal. Item 55's own latest dated note (2026-07-08, "gateway operations recipe") still describes the gateway as a Startup-launched `pythonw` (via `Hermes_Gateway.vbs`) and predates the reversal, so it does not self-contradict. The contradiction comes from later items: #88 (RESOLVED 2026-07-09) verifies "the relay is NSSM-managed again (`HermesMobileRelay`... nssm.exe → uvicorn)"; #98's 2026-07-12 deploy note uses "elevated `Restart-Service HermesMobileRelay`"; #54's 2026-07-12 update references "the #98 deploy restart of `HermesMobileRelay`"; and #105 (Fixed 2026-07-12) retires the stray `Hermes_Relay.cmd` Startup script specifically because "the relay is NSSM-owned now," calling it "#55's competing-launch-layers problem in mirror image." All four citations verified verbatim at their cited lines. However, #103 (2026-07-11 post-mortem) and #105 itself both state the **gateway and connector are still on #55's Startup-script arrangement** ("HermesGateway now runs as a user pythonw process... not an NSSM service"; "the connector is a plain bat-launched process and the gateway runs as Owen's user pythonw... neither is a service") — so "SUPERSEDED by NSSM reinstatement" as a blanket claim overstates it; only the relay flipped back. (Side note: CLAUDE.md's "OJAMD services" section calling the gateway a "scheduled task" is itself inconsistent with #103/#105's more granular, dated account and is worth a spot-check next OJAMD pass — not something this audit can resolve.) Of item 55's 4 remaining checklist bullets: #1 (PYTHONUTF8 in both bats) is independently mooted by #87's source-level `encoding="utf-8"` fix across 17 subprocess sites (deployed + verified 2026-07-11, connector suite 104/1 skipped) — a durable fix that doesn't depend on the bat env var at all; #3 (reboot/login validation) was not technically validated but was effectively closed by #105's explicit "accepted, not fixed" policy call (Owen: attended-reboots-only, 2026-07-12). Bullets #2 (rework the "Restart All" shortcut, still described as referencing deleted services as of #54's 2026-07-04 evening note) and #4 (first real `hermes-update-safe.ps1` run) have **no confirming evidence anywhere in OPEN_ITEMS.md** and should be carried forward as genuinely open, not swept away by the supersession framing. Precedent for this kind of retroactive annotation already exists in this file: item 24i carries a "> **SUPERSEDED 2026-07-04 by #55**" blockquote added after the fact while keeping its own ✅ header — #55 deserves the equivalent treatment now that its relay premise has been reversed.
 
 **Context (2026-07-04 evening session).** Updates kept tanking even via `hermes-update-safe.ps1`,
 requiring manual intervention every time, and `HermesGateway` sat Paused in services.msc while
@@ -1576,7 +1612,9 @@ Logged 2026-07-04.
 
 ---
 
-## 56. 🔧 Wave 2 Issue E (GitHub #6) — "Ask Hermes" App Intent — BUILT IN CLOUD, not compiled
+## 56. 🔧 Wave 2 Issue E (GitHub #6) — "Ask Hermes" App Intent — MERGED (PR #11), core device-verified 2026-07-11; sub-checks remain
+
+> **Audit 2026-07-13:** PR #11 (GitHub #6) merged this to main 2026-07-06; header's 'BUILT IN CLOUD, not compiled' is stale — a 2026-07-11 device pass (commits f35edb9, b05fef9) CORE VERIFIED both Siri actions. 🔧 remains correct only because >25s long-run hand-off, Siri Stop, and tailnet-unreachable error surface are still unchecked, not because the build is missing.
 
 **Device pass 2026-07-11: CORE VERIFIED — phrase mystery solved, no code defect.** The intent works: both actions present and functional in Shortcuts, and "Hey Siri, ask Talaria twenty-seven" produced the "What should I ask Hermes?" prompt. Root cause of every voice miss: `.applicationName` resolves to `CFBundleDisplayName: Talaria27` (project.yml), so the registered phrase is "Ask Talaria27" — NOT "Ask Hermes" (→ Siri contacts) or "Ask Talaria" (→ Siri mythology facts). Apple requires the applicationName token in every phrase, so the utterance is permanently bound to the display name; making plain "Ask Talaria" work means renaming the app — a deliberate product decision, not a patch. Remaining sub-checks before full flip: >25s long-run hand-off, Siri Stop, tailnet-unreachable error surface.
 
@@ -1614,7 +1652,9 @@ Logged 2026-07-06.
 
 ---
 
-## 57. 🔧 Wave 2 Issue G (GitHub #8) — attachment text-inlining + Extract Text OCR — BUILT IN CLOUD, not compiled
+## 57. 🔧 Wave 2 Issue G (GitHub #8) — attachment text-inlining + Extract Text OCR — MERGED (PR #11); device verify owed
+
+> **Audit 2026-07-13:** PR #11 (GitHub #8) merged this to main 2026-07-06; header's 'BUILT IN CLOUD, not compiled' is stale — AttachmentInlining.swift and DocumentTextExtractor.swift are on main and compiled. Unlike siblings #56/#58/#60, #57 is absent from the 2026-07-11 device-verification backlog (commit 373f65d) and carries no device-pass note — it is merged-unverified, not uncompiled.
 
 **Shipped (`25bf98c`, 2026-07-06).** Fixes the #43 remainder: staged text-MIME files now reach
 the agent as delimited `{type:"text"}` parts instead of silently dropping.
@@ -1641,7 +1681,9 @@ Logged 2026-07-06.
 
 ---
 
-## 58. 🔧 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — BUILT IN CLOUD, not compiled
+## 58. 🔧 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — MERGED (PR #11); device pass 2026-07-11 partial fail, Ask-control wiring bug localized
+
+> **Audit 2026-07-13:** PR #11 (GitHub #7) merged this to main 2026-07-06; header's 'BUILT IN CLOUD, not compiled' is stale. The item's own 2026-07-11 device pass (commits f35edb9, b05fef9) already ran on a compiled build and localized a real bug: the Ask control's action wiring in HermesControls.swift (Talk control is separately wedge-blocked on item #82, not a code defect). 🔧 stays correct as a live, localized bug — 'Small, well-bounded fix' per the item's own text — not because the build is missing.
 
 **Device pass 2026-07-11: PARTIAL FAIL** — Talk control inert (EXPECTED under the #82 audio wedge, don't chase). Ask Hermes control also inert — NOT expected; suspect the deep-link path (#77, registered-unverified) rather than the control itself. Triage: fire the `hermes://` URL directly (Safari/Shortcuts) to split control-vs-deeplink before touching code.
 
@@ -1671,7 +1713,9 @@ Logged 2026-07-06.
 
 ---
 
-## 59. 🔧 Wave 2 Issue H (GitHub #9) — voice-memo attachments — BUILT IN CLOUD, not compiled
+## 59. 🔧 Wave 2 Issue H (GitHub #9) — voice-memo attachments — MERGED (PR #11); device verify owed
+
+> **Audit 2026-07-13:** PR #11 (GitHub #9) merged this to main 2026-07-06; header's 'BUILT IN CLOUD, not compiled' is stale — VoiceMemoRecorder.swift/VoiceMemoTranscriber.swift/VoiceMemoAttachmentTests.swift are on main and compiled. Like #57, #59 is absent from the 2026-07-11 device-verification backlog (commit 373f65d) — merged-unverified, not uncompiled.
 
 **Shipped (`3aa638a`, 2026-07-06).** Record (`VoiceMemoRecorder` — AVAudioRecorder, AAC mono,
 real metering, session held only while recording) → transcribe fully on-device
@@ -1697,6 +1741,8 @@ attachments today) — worth a sweep task later?
 
 Logged 2026-07-06.
 ## 60. 🔧 Wave 3 / 4.15 — `_thinking` reasoning channel surfaced; delta key needs device probe
+
+> **Audit 2026-07-13:** Branch claude/wave-3-on-device-intelligence-rxht4l = PR #12, merged to main 2026-07-06. The body's closing line ('not yet compiled — needs xcodegen generate + CLI build + device verify') is stale — a 2026-07-11 device pass on the compiled build already ran and FAILED (reasoning pane mirrors the final answer verbatim; commits f35edb9, 373f65d). Header title itself is still accurate (probe genuinely owed); 🔧 stays correct as an open investigation, not because the build is missing — per the item's own 'Do NOT edit app code before the probe' instruction, this is diagnosis-pending, not yet a fix-in-progress.
 
 **Device pass 2026-07-11: FAIL** — reasoning pane mirrors the final answer verbatim (markdown differences only). Consistent with the fallback key chain grabbing a response-bearing field (`message`/`preview`?) — or the gateway synthesizing `_thinking` from output. Next step is exactly this entry's prescribed OJAMD probe: `curl -N` a reasoning-model streaming turn, pin the real delta key. Do NOT edit app code before the probe.
 
@@ -1739,6 +1785,8 @@ not yet compiled — needs `xcodegen generate` + CLI build + device verify.
   pending replies per pass instead of only the newest.
 
 ## 61. 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels
+
+> **Audit 2026-07-13:** Header 🔧 is correct (2026-07-13 Lane H/PR #83 note leaves device re-verify owed), but the older 'Same not-compiled caveat as #60' line is stale — PR #12 (original) and PR #83 (Lane H guard) are both merged (PR_INDEX), and this item's own 2026-07-11/07-12 notes already record real on-device runs, not a pre-compile state.
 
 **Device pass 2026-07-11: FAIL** — title and preview show the same repeated raw text. Localize which path ran (guided generation vs deterministic fallback) via logs before touching code. Possibly same on-device-model degeneracy family as #102 (local brain phrase-looping in the same session).
 
@@ -1801,6 +1849,8 @@ Expected 163/163 after the Mac test run.
 
 ## 63. 🔧 Wave 4 — native background wake: BGAppRefreshTask + BGContinuedProcessingTask (GitHub #14 → PR #22)
 
+> **Audit 2026-07-13:** PR #22 merged (PR_INDEX; BackgroundTaskService.swift present on main) — the 'compile-check BGContinuedProcessingTaskRequest.strategy naming + register return handling' clause is stale pre-merge wording. Real remaining work is only the device-verify half (BGTaskScheduler `_simulateLaunchForTaskWithIdentifier` pass); keep 🔧 but drop the compile-check/'Needs Mac' framing.
+
 First BackgroundTasks usage. `Services/Live/BackgroundTaskService.swift`:
 `BackgroundRefreshScheduler` registers in `didFinishLaunchingWithOptions` and
 arms on scene background entry; each pass re-arms first, then runs
@@ -1823,6 +1873,8 @@ cold BG launch has nothing to reconcile by design.
 
 ## 64. 🔧 Wave 4 — health widget tiles query HealthKit directly (GitHub #15 → PR #21)
 
+> **Audit 2026-07-13:** PR #21 merged (PR_INDEX; Shared/HealthQueryCore.swift + HealthQueryCoreTests.swift present on main) — 'Needs Mac: build, then...' is stale wording. Only the device-verify half (tiles advance with app killed, snapshot shown when locked) remains open; keep 🔧, drop the 'build' framing.
+
 `Shared/HealthQueryCore.swift` (compiled into app + widget targets, same
 pattern as ThemePaletteCore): cumulativeSum / latest-sample / sleep-duration
 primitives, the shared query windows (start-of-day rollups, 24h HR look-back,
@@ -1841,6 +1893,8 @@ show the snapshot (not blanks) when locked. Freshness bounded by the WidgetKit
 reload budget (~40–70/day) — honest ceiling.
 
 ## 65. 🔧 Wave 4 — AlarmKit executor: /alarm behind the confirm gate (GitHub #16 → PR #23)
+
+> **Audit 2026-07-13:** PR #23 merged (PR_INDEX; AlarmService.swift, TalariaAlarmLiveActivity.swift, AlarmCommandParsingTests.swift present on main) — the 'compile-check AlarmManager.AlarmConfiguration/AlarmPresentationState/AlarmAttributes' clause is stale. Only the device-verify half (ring through Silent mode + countdown Live Activity) is still legitimately open; keep 🔧.
 
 Phase 1 of the phone-side-tool pattern (zero server work). `/alarm` registered
 in `SlashCommand.localCommands`; `Services/Live/AlarmService.swift` parses
@@ -1861,6 +1915,8 @@ grammar. **Needs Mac:** AlarmKit API surface is new (iOS 26) — compile-check
 + the countdown Live Activity.
 
 ## 66. 🔧 Wave 4 — Spotlight IndexedEntity donation + OpenSessionIntent (GitHub #17 → PR #24)
+
+> **Audit 2026-07-13:** PR #24 merged (PR_INDEX; SpotlightEntities.swift, SpotlightIndexingService.swift, SpotlightIndexingTests.swift present on main) — 'compile-check the iOS 18 indexAppEntities/entity-query shapes' is stale. Only the device-verify half (Spotlight find → tap-through, toggle-off removes results) is still open; keep 🔧.
 
 First AppEntity surface. `Intents/SpotlightEntities.swift`: `ChatSessionEntity`
 (id = Sessions API string id) + `AgentFileEntity` (#21 Tier 1 staged files —
@@ -1886,6 +1942,8 @@ Fast-follow (own issue): View Annotations on `MessageBubble`/`ChatScreen` +
 entity ids on the finished-notification.
 
 ## 67. 🔧 Wave 4.5 — LocalChatBackend: on-device chat brain (GitHub #26)
+
+> **Audit 2026-07-13:** PR #32 merged (PR_INDEX; LocalChatBackend.swift + LocalChatBackendTests.swift present on main), and the router it was gated behind (#27) also merged as PR #33 — so the 'compile-check against the installed 27-beta SDK' clause is stale and the 'after #27 lands' gate is already satisfied. Remaining work is only the device checklist (airplane-mode local answer, kill/relaunch context continuity, Apple Intelligence off state, no SessionsHermesClient regression); keep 🔧.
 
 The standalone chat brain: `Services/Live/LocalChatBackend.swift` conforms to
 `HermesClientProtocol` backed by Apple FoundationModels, so ChatStore /
@@ -1919,6 +1977,8 @@ conversation continues with context; Apple Intelligence off → honest
 unavailable state; no SessionsHermesClient regression.
 
 ## 68. 🔧 Wave 4.5 — ChatBackendRouter: two brains, one seam (GitHub #27)
+
+> **Audit 2026-07-13:** PR #33 (GitHub #27) confirmed merged to main; ChatBackendRouter.swift + ChatBackendRouterTests.swift present at HEAD cca1345. Per MAIN_LOG (373f65d backlog listing, f35edb9 verification results) item #68 was NOT among the #69/#70/#92 items verified on 2026-07-11, so 🔧 and the device checklist / Questions for Owen correctly stand open. Correction: 'Needs Mac: compile + device' is stale on the compile half — the merge already required a successful build; only the device-verification pass and the two open product decisions remain owed.
 
 `Services/Support/ChatBackendRouter.swift` conforms to `HermesClientProtocol`
 and fronts BOTH clients — ChatStore is untouched structurally (its
@@ -2057,6 +2117,8 @@ Availability → unavailable states).
 
 ## 72. 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30)
 
+> **Audit 2026-07-13:** PR #37 (GitHub #30) confirmed merged to main. LocalChatBackend.swift's isPrivateCloudAvailable/isPrivateCloudUsable (lines 153/162) are the exact symbols item #111 (2026-07-12 device-pass log, whoGoesThere) observed compiling and executing on-device — repeatedly failing PCC XPC session establishment for the ungranted com.apple.developer.private-cloud-compute entitlement. Correction: 'Needs Mac: compile-check the 27-beta surface' is stale — it has compiled and is running on-device already; only Apple's entitlement grant plus the resulting functional device checklist remain owed. project.yml still carries no private-cloud-compute entitlement, so that part of the item stands. Status is more precisely 'blocked externally' (the item's own words) than plain in-progress.
+
 Per the 2026-07-05 decision: on-device is the permanent free floor; PCC is
 opportunistic and VISIBLY labeled beta. PCC is a MODE of LocalChatBackend
 (`LocalModelTier`), never a third client — both models conform to the iOS 27
@@ -2105,6 +2167,8 @@ degrades on-device with notice, no crash, no fabrication; add the
 entitlement to project.yml (surgical commit) only once Apple grants it.
 
 ## 73. 🔧 Wave 5 — native fallback voice mode: SpeechAnalyzer → active backend → AVSpeechSynthesizer (GitHub #18)
+
+> **Audit 2026-07-13:** PR #39 (`claude/w5-18-native-voice`→main, merged) and GitHub #18 (closed) confirm this landed; `Talaria/Services/Live/NativeVoicePipelineService.swift`, `Talaria/Services/Support/VoiceEngineRouter.swift`, and `TalariaTests/NativeVoicePipelineTests.swift` are present on main. The 'BUILT IN CLOUD, not compiled or device-verified' and 'Needs Mac: xcodegen generate...' wording is stale (merge already implies xcodegen+build+test); the real remaining work is the on-device checklist (mic→transcription→chat brain→TTS loop, echo cancellation, relay-down/airplane-mode path) — keep emoji 🔧 as merged-unverified.
 
 **Update 2026-07-07 (cloud session, branch `claude/w5-18-native-voice`):** BUILT
 IN CLOUD, not compiled or device-verified. Two voice engines behind TalkStore's
@@ -2164,6 +2228,8 @@ badge + settings rows show LOCAL; Realtime path unchanged when configured;
 transcript hand-off renders once, no duplicate context turn.
 
 ## 74. 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19)
+
+> **Audit 2026-07-13:** PR #40 (`claude/w5-19-carplay-voice`→main, merged) and GitHub #19 (closed) confirm the code landed; `Talaria/CarPlay/CarPlayVoiceManager.swift` (nonisolated `maxTranscriptTitleLength`/`blockedTitle`, matching the described compile fix) and `TalariaTests/CarPlayVoiceStateTests.swift` are on main, and `project.yml:61` shows the CarPlay entitlement commented out per the hotfix. The item's own Mac-session note already confirms xcodegen/build/tests done, so the trailing 'Needs Mac: xcodegen generate... CLI build + tests' text is stale; the genuinely open work is the CarPlay Simulator functional pass (entitlement currently disabled) and filing Apple's discretionary grant — keep 🔧, this item is effectively blocked on that external approval.
 
 **Update 2026-07-07 (Mac session — MERGED to `main`, PR #40 / GitHub #19):**
 Reviewed → xcodegen regen → built + tested (iPhone 17 Pro Max iOS 27 sim) →
@@ -2231,6 +2297,8 @@ grant lands.
 
 ## 75. 🔧 HUD header labels wrap/truncate — single-line hardening (GitHub #42)
 
+> **Audit 2026-07-13:** PR #43 (`claude/talaria-27-issue-42-042f8a`→main, merged) and GitHub #42 (closed) confirm this landed; `Talaria/Core/HUD/HUDComponents.swift:476` has `hudSingleLine(minScale:)` on main. The 'BUILT IN CLOUD, not compiled or device-verified' claim is stale (merge already implies build+test pass); the real remaining work is only the on-device/sim acceptance pass (narrow widths, both brains, long model name, Dynamic Type sweep) — keep emoji 🔧 as merged-unverified.
+
 **Update 2026-07-08 (cloud session, branch `claude/talaria-27-issue-42-042f8a`):**
 BUILT IN CLOUD, not compiled or device-verified. On-device captures (issue #42)
 showed the chat header character-wrapping under width pressure: wordmark
@@ -2263,7 +2331,9 @@ SDK-related (issue asks; the fix is robust either way).
 
 ---
 
-## 76. 🔧 Orphan-surface audit — hygiene tooling (GitHub #49)
+## 76. ✅ Orphan-surface audit — hygiene tooling (GitHub #49)
+
+> **Audit 2026-07-13:** Re-verified independently and upheld as under-reported. PR #50 (claude/t27-49-orphan-audit→main) Merged=YES; issue #49 CLOSED. `tools/orphan-audit.sh` (16235 bytes, executable) has `--self-test` (arg at line 255) and `SELF_TEST_ORACLE` (line 57, 5 real graveyard names); `tools/orphan-audit-report.md` (27059 bytes) opens "Generated by `tools/orphan-audit.sh` at commit `6e604e9`" and contains all four claimed tiers/counts (12/8/118/38). `BRANCHING.md:66,68` carries the checklist line verbatim. Went beyond the original note's evidence: actually re-ran `bash tools/orphan-audit.sh --self-test` live against current origin/main tip (cca1345; tree has grown to 222 app files/388 types vs. 204/324 at authoring) — exit 0, "self-test OK — all 5 known graveyard types re-flagged." A second in-repo corroboration exists at OPEN_ITEMS.md:2438 (item #80's same-day note): "Orphan-audit `--self-test` re-run: still green." Pure bash+python tooling, no Xcode/device dependency, nothing pending in the item's own text ("No app code touched, no xcodegen. Nothing was deleted; the report is the deliverable") — meets the done carve-out for docs/tooling items. Header corrected 🔧→✅. (Side note: the original PR-merge commits 335a1c0/986bc62/6e604e9 are not in current origin/main's git ancestry — but this is a repo-wide artifact affecting the whole #50–#55 stacked wave equally, not specific to #76; file presence + PR_INDEX + live execution all independently confirm the deliverable is on main and functioning, per the guide's own warning not to rely on git ancestry for squash/rewrite cases.)
 
 **Update 2026-07-08 (cloud session, branch `claude/t27-49-orphan-audit`):**
 BUILT + RUN IN CLOUD — no Xcode dependency (pure bash + python3, both present
@@ -2298,6 +2368,8 @@ deliverable.
 
 ## 77. 🔧 hermes:// URL scheme registered + ask?q= payload route (GitHub #48)
 
+> **Audit 2026-07-13:** PR #51 merged to main (GitHub #48 closed); code confirmed on main (`project.yml`/`Info.plist` CFBundleURLTypes hermes scheme, `ChatStore.pendingComposerSeed`/`seedComposer`/`consumeComposerSeed`, `AppEntry.handleDeeplink` ask?q= route). The 'not compiled' wording above is stale, but 🔧 correctly stands since no device-verification note has been added.
+
 **Update 2026-07-08 (cloud session, branch `claude/t27-48-url-scheme`):**
 BUILT IN CLOUD, not compiled or device-verified. The deep-link router
 (`AppEntry.handleDeeplink`, chat/voice/session/health) was fully built but
@@ -2331,6 +2403,8 @@ a Developer-screen toggle later? Shipped stance is seed-only.
 ---
 
 ## 78. 🔧 Message context menu — copy/share/select/regenerate/edit (GitHub #44)
+
+> **Audit 2026-07-13:** PR #52 merged to main (GitHub #44 closed); code confirmed on main (`MessageBubble.swift` `.contextMenu`/`SelectableTextSheet`, `ChatStore.regenerateReply`/`extractTurnForEditing`/`EditableTurn`). The 'not compiled'/'Needs Mac: CLI build + tests' wording above is stale, but 🔧 correctly stands since no device-verification note has been added.
 
 **Update 2026-07-08 (cloud session, branch `claude/t27-44-message-context-menu`):**
 BUILT IN CLOUD, not compiled or device-verified. You previously couldn't get
@@ -2368,7 +2442,9 @@ Regenerate/Edit while another run streams.
 
 ---
 
-## 79. 🔧 Turn Receipts — per-turn tokens, cost, and time (GitHub #46)
+## 79. ✅ Turn Receipts — per-turn tokens, cost, and time (GitHub #46)
+
+> **Audit 2026-07-13:** Header corrected 🔧 → ✅ (independently re-verified). PR #53 (`claude/t27-46-turn-receipts`→main) confirmed Merged=YES in PR_INDEX.md; GitHub #46 and follow-up #57 both confirmed CLOSED in ISSUE_INDEX.md. Code confirmed on the current `origin/main` checkout: `Talaria/Services/Support/TurnReceipts.swift` + `TalariaTests/TurnReceiptsTests.swift` exist; `ModelPricingCatalog` used at `ModelsSettingsScreen.swift:62,80`, `ChatScreen.swift:741,746`, `MessageBubble.swift:309`, `AppContainer.swift:1290`; `Message.swift:77,80,83` has `usage`/`turnDuration`/`servingModel`. The #57 hardening (`.lineLimit(1)` + `.minimumScaleFactor(0.7)` + `.truncationMode(.middle)` + `.frame(maxWidth:.infinity,.leading)`) is present verbatim at `MessageBubble.swift:317-320`, matching commit `81b160c`'s diff exactly (verified with `git show 81b160c`) and matching the item's own note description word-for-word. The item's own second 2026-07-08 note explicitly states "merged to main via PR #53; device-verified with the wave" with concrete runtime detail ("Runtime measurement showed the receipt itself fit at ~319pt"). Independently corroborated by cross-referenced item #83, which documents an actual on-device debugging session that same evening that specifically runtime-measured ("`sizeThatFits` measurements") and exonerated the "receipt" component of a display bug — this is external, non-self-referential evidence of genuine device verification, not a rubber-stamped claim. Contrast with sibling wave items #76-78/#80-81, which remain single-note "BUILT IN CLOUD, not compiled or device-verified" with no such follow-up — confirming #79's second note is a deliberate, specific update, not a templating artifact.
 
 **Update 2026-07-08 (cloud session, branch `claude/t27-46-turn-receipts`):**
 BUILT IN CLOUD, not compiled or device-verified. Every turn's usage report
@@ -2422,6 +2498,8 @@ Display Zoom/beta letterbox → item #83. The cap stays as cheap insurance.)
 ---
 
 ## 80. 🔧 Inbox wired + agent-initiated producer tools (GitHub #45)
+
+> **Audit 2026-07-13:** The 2026-07-10 note's claims 'gh#58 app-side hardening BUILT, not compiled' and 'xcodegen regen owed' are stale — Lane C (PR #59, `claude/lane-c-dispatch-5bbw9k`) has since merged to main (commit `80b534a` and docs commit `3607bdd` both present in `git log origin/main`; `TalariaTests/InboxDecodingTests.swift` confirmed in the working tree). The decoder hardening is compiled and on main, not merely cloud-written. Still correctly 🔧/merged-unverified, not ✅: the original #45 device checklist (silent-push wake, verdict readback, alert push) remains unchecked, the gh#58 client fix's own device re-check is unconfirmed, and GitHub #58's server-side `kind`-validation half is still OPEN (ISSUE_INDEX).
 
 **Update 2026-07-08 (cloud session, branch `claude/t27-45-inbox-wiring`):**
 iOS half BUILT IN CLOUD (not compiled/device-verified); connector half
@@ -2654,7 +2732,9 @@ Logged 2026-07-08.
 
 ---
 
-## 84. 🔧 Talk-mode preflight + mic flatline tripwire + route display — BUILT IN CLOUD, not compiled
+## 84. 🔧 Talk-mode preflight + mic flatline tripwire + route display — merged to main (PR #62); device checklist owed
+
+> **Audit 2026-07-13:** PR #62 (branch `claude/t27-84-talk-preflight`) merged to main 2026-07-10 (`8830b11`). `Talaria/Services/Support/TalkPreflight.swift` and `TalariaTests/TalkPreflightTests.swift` (20 @Test cases) are confirmed present at origin/main tip `cca1345`. The 'BUILT IN CLOUD, not compiled' header and 'Needs Mac: xcodegen generate ..., CLI build' body text are stale — that build step already happened as part of the PR #62 merge. The on-device checklist (items 1-7, including the reboot-guidance addition from the 2026-07-10 update) remains unconfirmed — no device-verification note exists, so this stays merged-unverified rather than done.
 
 **The "never again" from the #82 evening (2026-07-08), built 2026-07-09** (cloud session,
 branch `claude/t27-84-talk-preflight`). Talk rendered a live LISTENING state over a dead
@@ -2854,6 +2934,8 @@ Logged 2026-07-10.
 
 ## 91. ✅ Theme suite — SHIPPED: Event Horizon bar cleared, Phase 2 schema + full gallery port merged
 
+> **Audit 2026-07-13:** Header confirmed accurate - PRs #66, #70, #72, #73, #74 all Merged=YES per PR_INDEX (code present in Shared/ThemePaletteCore.swift, Talaria/Core/ThemeArtDirection.swift, Talaria/Core/HUD/{ReactorOrb,ThemeTextures,HUDComponents}.swift); #71 correctly shows Merged=no, matching the item's 'lost PR, recreated as #74' account. The trailing 'Update 2026-07-11 (cloud session — Phases 2+3 BUILT, NOT compiled, gated on device verdict)' paragraph is now stale — it predates the merge + device-verdict pass documented above it and still cites the superseded PR #71. Recommend trimming or marking that paragraph historical.
+
 **Context (verified at HEAD 2026-07-10):** the `talaria-neon-arcade` gallery (17 themes; now in-repo at `design/themes/`) is the outrageous-theme suite. On device today: 4 flagships + 4 seasonals + 4 complex (Cereal Box / Bubblegum Mecha / Retro Sci-Fi / Event Horizon), all selectable. Why the complex ones "didn't hit right": (1) no atmosphere motion engine — the handoffs' 4-layer parallax drift was never ported; (2) no bespoke orbs — `ThemeOrbStyle` has only the 4 flagship cases, complex themes fall back to `.arcReactor`; (3) only Event Horizon has an art-direction override — the other three are pure recolors. 10 gallery themes unported entirely (incl. Neon Arcade #01 itself, Glitch Garden, Witch's Brew, Holo Sushi, Lunar Diner, Cyber Cactus, Deep Sea Diner, Disco Inferno, Graffiti Galaxy SE, Karaoke Supernova SE).
 
 **Phase 1 (Lane E, spec at `dispatch/FABLE-LANE-E-theme-drama.md`):** catalog taxonomy → gallery categories (Flagship / Neon Arcade Collection / Special Edition / Seasonal); data-driven atmosphere motion engine (TimelineView+Canvas, 3 on-device A/B presets, reduced-motion safe, widget layer untouched); `.singularity` orb composition; Event Horizon intensity pass. No `ChatScreen.swift` overlap — independent of Lanes A–D merge order.
@@ -2890,6 +2972,8 @@ Device-verdict knobs called out per PR (laser `barHeight`/`speckRadius`, graffit
 ---
 
 ## 92. ✅ Lane B — markdown rendering depth (dispatch FABLE-LANES-BC)
+
+> **Audit 2026-07-13:** Confirmed device-verified and merged — PR #60 Merged=YES; CodeSyntaxHighlighter.swift and all 5 named Markdown*Tests.swift files present on main; item #100 independently cites '#92 verified 2026-07-11', matching this item's own 'Device pass 2026-07-11: PASS' line. The trailing 'Update 2026-07-10 (cloud session...): BUILT IN CLOUD, not compiled or device-verified... Needs Mac: xcodegen generate + CLI build + device test' paragraph is now stale, superseded by the device pass recorded above it — recommend trimming or marking it historical.
 
 **Device pass 2026-07-11: PASS** — table/headings/quote/lists/code block all rendered on device. Unblocks #100.
 
@@ -2941,6 +3025,8 @@ blocks still read correctly and Paper Tape (light) keeps token colors
 legible; confirm table horizontal scroll inside bubbles.
 
 ## 93. 🔧 P1 continuity fabric — journal primary, hop transplant, compose outbox (Lane A)
+
+> **Audit 2026-07-13:** PR #61 merged (commit 5ab3477) with xcodegen regen (828ecf4) and a post-merge iOS compile fix (818d1be) — the 'NOT compiled' claim and the 'Next Mac session' merge/xcodegen checklist above are stale; that work is done (Lane C #59 -> Lane B #60 -> Lane A #61, exact order specified). No device-verified note exists anywhere in this file for Lane A/continuity fabric, and no note confirms CondenserFidelityTests actually RAN (vs. skipped) on Apple Intelligence hardware — 🔧/merged-unverified is correct, only the compiled-status wording needs fixing.
 
 **Built 2026-07-10 in the cloud (Fable, Lane A — `dispatch/FABLE-LANE-A-continuity-fabric.md`),
 branch `claude/talaria-27-lane-a-to5zv3`. NOT compiled, NOT device-verified.** Greenlit by the #89
@@ -3029,7 +3115,9 @@ removed, flag stale). (5) Drain FIFO restore matches the re-queued turn by id, n
 
 Logged 2026-07-10.
 
-## 94. 🔧 Pairing hardening — pair() clears the old record before redeem succeeds
+## 94. ✅ Pairing hardening — pair() already redeems before clearing the old record (no ordering bug found)
+
+> **Audit 2026-07-13:** Independently re-verified, refutation attempted and failed. `Talaria/Stores/PairingStore.swift` (HEAD `cca1345`) redeems the new code FIRST (`try await pairingService.redeemPairingCode(...)`, lines 84-87) and only clears/saves afterward (lines 95-99), all inside the same `do` block — a throw from redeem (network/relay failure) jumps straight to `catch` (line 107) and never reaches the clear/save code. This is exactly the "redeem FIRST, then clear+save atomically" fix shape the item proposes as still-needed. `git blame` traces lines 63-111 to commit `9964f02` (2026-07-10 14:58:15 -0500), the shallow-clone boundary commit — and critically, `git show 560b560:Talaria/Stores/PairingStore.swift` (560b560 is the exact commit, 2026-07-11 12:59:24 -0500, whose diff added item #94's text to OPEN_ITEMS.md) shows the SAME already-correct ordering. So the item's factual claim was wrong at the moment it was authored, not merely stale later. Checked for alternate culprits and found none: `LivePairingService.redeemPairingCode` (Services/Live/LivePairingService.swift) is a pure network POST + response decode with zero local Keychain/UserDefaults mutation, so no clearing happens inside redeem either; the only production call site of `pair(using:)` is `ConnectHermesScreen.swift:338`, with no pre-clear wrapper. Item #46 (✅, "Verified on device 2026-07-05") independently corroborates that this same clear-after-redeem "clean slate on pair()" logic has been live since before #94 was even logged. Recommend closing; no code change required.
 
 `PairingStore.pair()` calls `clearPairedRelayConfiguration()` BEFORE redeeming the new code (deliberate, for #3 stale-identity protection) — so a pair attempt that fails midway destroys the existing pairing and saves nothing. This is the likely mechanism behind the 2026-07-10 "total wipe" (a failed PAIR DEVICE tap during the frozen/wedged chaos): defaults copy + keychain mirror both gone, nothing for #41 rehydration to restore. Fix shape: redeem FIRST, then clear+save atomically (preserving the stale-identity wipe semantics on SUCCESS only). Small, low-urgency — recoverable by one re-pair — but it converts a transient network/relay failure into credential loss.
 
@@ -3105,13 +3193,17 @@ Everything lives in `relay/` — zero Swift contact as speced. What shipped:
 
 Logged 2026-07-11.
 
-## 99. 🔧 Interactive artifact / HTML preview — Lane I, UN-GATED (Lane D merged as #106)
+## 99. 🔧 Interactive artifact / HTML preview — Lane I MERGED (PR #78), device-verify owed
+
+> **Audit 2026-07-13:** PR #78 (`claude/t27-lane-i-ajkjno` → main) merged same session, 2026-07-12 04:16:49 -0500, merge commit 0bf97c5 (independently confirmed as an ancestor of current main tip cca1345 via `git merge-base --is-ancestor`). Implementation commits 6917979/57bba54/8e3f8c2/a5c9785 — all tagged `(#99)` — plus xcodegen regen 516ae7f (the PR branch's tip, i.e. the merge's second parent) are all confirmed ancestors of the merge. `Talaria/Features/Chat/HTMLPreviewView.swift`, `FilePreviewSheet.swift`, and `TalariaTests/FilePreviewTests.swift` are tracked on main today. Merge commit message: "CLI sim build SUCCEEDED, FilePreviewTests 17/17 passed... Known v1 follow-up: remote subresource fetches not yet blocked (needs WKContentRuleList)" — simulator build + unit tests only, no physical-device pass, with a residual gap. No mention of Lane I / PR #78 / HTMLPreviewView / FilePreviewSheet / a device pass appears anywhere else in this file, despite 9 further doc commits touching OPEN_ITEMS.md afterward (#107/#108/#110/#111/#112 etc.) through 2026-07-12 22:08 that never backfilled #99. Status is genuinely merged-unverified, not done — device-verify and the WKContentRuleList gap remain real open work, so the 🔧 marker is correct and this is not a status flip to ✅; only the body wording (which still describes the pre-build "spec revised, GATE CLEARED" stage) is stale and should say the lane shipped.
 
 Both competitors render generated HTML/interactive content in-app; Talaria reconstructs agent files into a ShareLink bubble only. Natural successor to the P8 IR v0 rung: render agent-written single-file HTML (and later the IR) in an in-app preview surface (WKWebView, new-files-heavy). GATE CLEARED 2026-07-12: Lane D merged (#106); spec revised on top of the landed IR at `dispatch/FABLE-LANE-I-preview-surface.md` — preview sheet takes a generic content view so the future P8 rung slots into the same chrome. Sandboxed WKWebView (no bridges, navigation locked to initial content), text/code preview reuses the #92 stack, ShareLink relocates into the sheet toolbar.
 
 Logged 2026-07-11.
 
 ## 100. 📝 Inline charts / data viz — UNBLOCKED (#92 verified 2026-07-11)
+
+> **Audit 2026-07-13:** Item #92's own note ('Device pass 2026-07-11: PASS ... Unblocks #100') confirms #92 already flipped fully verified on the same date this item's header claims. The body sentence 'Lane B — merged, awaiting device verify... queue until #92 flips ✅' is now stale and contradicts this item's own header — strike the 'awaiting device verify' clause; #100 itself remains correctly undispatched (no chart/data-viz PR in PR_INDEX.md).
 
 Both competitors render charts inline; pairs naturally with Talaria's health/sensor and cost telemetry. Detect chart/table specs in Hermes output and render native Swift Charts. Depends on the markdown/code rendering pipeline (#92, Lane B — merged, awaiting device verify) as the detection/rendering substrate; queue until #92 flips ✅.
 
@@ -3123,7 +3215,9 @@ Both competitors personalize across conversations; the continuity fabric (#93, m
 
 Logged 2026-07-11.
 
-## 102. 🔍 Local brain generation health — phrase-loop + thermal "serious" during use
+## 102. 🔧 Local brain generation health — MERGED (Lane H, PR #83), organic-trigger device-verify owed
+
+> **Audit 2026-07-13:** Header emoji 🔍 (investigating) is stale and self-contradicts the item's own latest (2026-07-13) note, which describes a shipped, merged, unit-tested fix, not an open investigation. Independently re-verified: PR #83 (`claude/lane-h-setup-bmi058` → main) is closed/Merged=YES per PR_INDEX.md, titled "Lane H — local brain generation health (#102 #61)"; merge commit `23387b7` and implementation commit `c2de665` ("#102: bound + retune chat generation; hysteresis tail-repetition breaker") both present in MAIN_LOG.txt, and `c2de665` is literally the last commit touching `Talaria/Services/Live/LocalChatBackend.swift` in the current tree. `chatGenerationOptions(for:)` is defined at LocalChatBackend.swift:76 and called at lines 280/370 exactly as described; the hysteresis tail-repetition breaker (`RepetitionBreaker.shouldAbandon`, `TailRepetitionRun`, `degenerateTailRepetitionRun`) is present at lines ~800-925, with a matching bank of `@Test` cases in `TalariaTests/LocalChatBackendTests.swift` (tailRepetition*/breaker* tests). The claimed Mac-loop compile fix is corroborated by commit `ef5e89d` ("hoist mutating shouldAbandon calls out of #expect"), which sits directly between the spec-dispatch and implementation commits. Follow-up docs commits `578e5ca`/`63284e9` match the device-pass narrative, and both spun-off items #110 and #111 exist in the file. However, per the "merged != device-verified" rule, this is NOT done: the note's own words are "Device pass 2026-07-12 (partial)" and "STILL OWED (organic): #67-style session — loop should self-terminate..., thermal recover, log shows the breaker line; then SEND ANOTHER MESSAGE after a trip" plus "D3 (post-trip send probe) stays conditionally owed." The deterministic repro was defeated by the model's own guardrails, so the breaker's actual on-device trip has never been observed — only synthetic unit tests and a thermal-only partial pass exist. 🔍 is also the only use of that emoji anywhere in OPEN_ITEMS.md, while comparable "MERGED, verification pending" items in this file (e.g. #61) use 🔧, not 🔍 — reinforcing that the header was simply never revisited after the merge landed. Recommend downgrading to 🔧 and updating the title to name the MERGED state and the specific organic-trigger device-verification still owed; do not mark ✅.
 
 Device pass 2026-07-11, observed during the #67 session (which otherwise mostly passed): (a) the on-device brain repeats a certain phrase while in use; (b) `deviceStatus` reported thermal state "serious," attributed to running apps, with only Talaria running. Investigate TOGETHER — a repetition/generation loop that keeps the ANE/GPU spinning would explain both. Check: generation stop conditions / max-token bounds in `LocalChatBackend`, whether the loop persists across sessions, and thermal recovery after force-quit. If repetition is plain small-model sampling degeneracy, thermal may still warrant a mitigation (throttle sustained inference or surface a thermal notice). Possibly related: #61's repeated title/preview text (same model, same session).
 
@@ -3240,6 +3334,8 @@ cross-references (spec, runbook, env template, scripts, CLAUDE.md) were renumber
 Logged 2026-07-12.
 
 ## 108. 🔧 iPad support — universal foundation + native split view (Lane J)
+
+> **Audit 2026-07-13:** PR #81 (Lane J PR 2 — NavigationSplitView) is confirmed MERGED and on main (RootLayoutPlan @ ContentView.swift:9, ConversationListPane @ SessionsDrawer.swift:312; PR_INDEX #81 Merged=YES; merge commit 3fd5554), consistent with this item's own 'MERGED 2026-07-12 ... PRs #80 + #81 landed on main' paragraph. The item's final paragraph ('PR 2 BUILT IN CLOUD ... not compiled') is stale wording left over from before the Mac merge — PR 2 has since merged and compiled. Header 🔧 is still correct on its own separate merits: iPad-side device verification (J-3 resize matrix, external keyboard sweep, mid-stream Stage Manager boundary crossing, column-transparency check on Shelley's iPad Air) remains genuinely outstanding per this item's own 'Remaining matrix items are iPad-side' line.
 
 Spec: `dispatch/FABLE-LANE-J-ipad-support.md`. Target hardware: Shelley's iPad Air (M3) on iPadOS 27 beta (M3 = Apple Intelligence-capable — on-device brain fully live, not gated). Two PRs: PR 1 universal foundation (this branch, `claude/lane-j-ipad-support-uf1t39`), PR 2 NavigationSplitView (stacked).
 
