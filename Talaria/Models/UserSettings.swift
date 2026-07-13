@@ -308,7 +308,7 @@ enum AppearanceAccent: String, Codable, CaseIterable, Hashable, Sendable {
     case violet
 
     /// The slot's canonical (Deep Field) label.
-    var displayLabel: String { displayLabel(for: .deepField) }
+    var displayLabel: String { displayLabel(for: ThemeID.deepField) }
 
     /// Contextual label for the slot as resolved inside a theme — read from
     /// the theme's accent-variant data (#49), so a new theme names its slots
