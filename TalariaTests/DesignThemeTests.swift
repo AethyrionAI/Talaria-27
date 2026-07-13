@@ -146,6 +146,9 @@ struct DesignThemeTests {
         #expect(ThemePalette(theme: .casinoLucky7s, accent: .cyan).base == Color(hex: 0x4F9DFF))
         #expect(ThemePalette(theme: .cosmicBowling, accent: .cyan).base == Color(hex: 0x00B3A4))
         #expect(ThemePalette(theme: .stickerBombToybox, accent: .cyan).base == Color(hex: 0x4BBF22))
+        // The adaptive pair (Lane L Phase 2).
+        #expect(ThemePalette(theme: .comicVillain, accent: .cyan).base == Color(hex: 0xFFD828))
+        #expect(ThemePalette(theme: .comicFunnies, accent: .cyan).base == Color(hex: 0x00A8E8))
     }
 
     @Test func contextualAccentLabels() {
@@ -175,6 +178,9 @@ struct DesignThemeTests {
         #expect(AppearanceAccent.cyan.displayLabel(for: .moltenForge) == "Lava Orange")
         #expect(AppearanceAccent.amber.displayLabel(for: .moltenForge) == "Spark Gold")
         #expect(AppearanceAccent.violet.displayLabel(for: .moltenForge) == "Hammered Steel")
+        // The adaptive theme's schemeless label reads its canonical (dark)
+        // half; the settings screen resolves variant labels scheme-aware.
+        #expect(AppearanceAccent.cyan.displayLabel(for: .comicBook) == "Kapow Yellow")
         // Midnight Marquee keeps the handoff-native slot names (Lane L).
         #expect(AppearanceAccent.cyan.displayLabel(for: .luchaLibre) == "Royal Blue")
         #expect(AppearanceAccent.amber.displayLabel(for: .luchaLibre) == "Pyro Orange")
@@ -250,6 +256,9 @@ struct DesignThemeTests {
         #expect(ThemePalette(theme: .casinoLucky7s, accent: .cyan).orbStyle == .luckySevens)
         #expect(ThemePalette(theme: .cosmicBowling, accent: .cyan).orbStyle == .houseBall)
         #expect(ThemePalette(theme: .stickerBombToybox, accent: .cyan).orbStyle == .stickerStar)
+        // The adaptive pair: distinct compositions per variant (Lane L Phase 2).
+        #expect(ThemePalette(theme: .comicVillain, accent: .cyan).orbStyle == .powBurst)
+        #expect(ThemePalette(theme: .comicFunnies, accent: .cyan).orbStyle == .zapBurst)
     }
 
     // MARK: Runtime mirroring
@@ -299,5 +308,83 @@ struct DesignThemeTests {
         let decoded = try JSONDecoder().decode(UserSettings.self, from: data)
         #expect(decoded.appearanceTheme == .paperTape)
         #expect(decoded.appearanceAccent == .amber)
+    }
+
+    // MARK: Adaptive theme — Comic Book (Lane L Phase 2)
+
+    @Test func comicBookFollowsTheSystemScheme() {
+        #expect(AppearanceTheme.comicBook.themeID(for: .dark) == .comicVillain)
+        #expect(AppearanceTheme.comicBook.themeID(for: .light) == .comicFunnies)
+        // The canonical (scheme-free) identity is the dark half.
+        #expect(AppearanceTheme.comicBook.themeID == .comicVillain)
+        // The two halves are a real dark/light pair.
+        #expect(!ThemePalette(theme: .comicVillain, accent: .cyan).isLight)
+        #expect(ThemePalette(theme: .comicFunnies, accent: .cyan).isLight)
+    }
+
+    @Test func nonAdaptiveThemesIgnoreTheScheme() {
+        // Snapshot of the pre-adaptive mapping: every fixed theme resolves
+        // identically under both schemes, and identically to its canonical id.
+        for theme in AppearanceTheme.allCases where theme != .comicBook {
+            #expect(theme.themeID(for: .light) == theme.themeID)
+            #expect(theme.themeID(for: .dark) == theme.themeID)
+        }
+    }
+
+    @Test func onlyComicBookLeavesTheSchemeToTheSystem() {
+        for theme in AppearanceTheme.allCases {
+            if theme == .comicBook {
+                #expect(theme.preferredColorScheme == nil)
+            } else {
+                #expect(theme.preferredColorScheme == (theme.isLight ? .light : .dark))
+            }
+        }
+    }
+
+    @Test func comicBookPersistsAsItsOwnRawValue() throws {
+        var settings = UserSettings()
+        settings.appearanceTheme = .comicBook
+        let decoded = try JSONDecoder().decode(
+            UserSettings.self, from: JSONEncoder().encode(settings))
+        #expect(decoded.appearanceTheme == .comicBook)
+        // The app raw value and the Shared widget resolver cannot drift.
+        #expect(AppearanceTheme.comicBook.rawValue == AdaptiveThemeIdentity.comicBookRawValue)
+    }
+
+    @Test func adaptiveIdentityResolvesForBothTargets() {
+        // The Shared resolver the widget matchApp path uses (raw "comicBook"
+        // is not a ThemeID — unwired it would fall back to Deep Field).
+        #expect(AdaptiveThemeIdentity.resolve(persistedRawValue: "comicBook", prefersDark: true) == .comicVillain)
+        #expect(AdaptiveThemeIdentity.resolve(persistedRawValue: "comicBook", prefersDark: false) == .comicFunnies)
+        #expect(AdaptiveThemeIdentity.resolve(persistedRawValue: "deepField", prefersDark: false) == .deepField)
+        #expect(AdaptiveThemeIdentity.resolve(persistedRawValue: "notATheme", prefersDark: true) == nil)
+    }
+
+    @MainActor
+    @Test func runtimeResolvesComicBookWithTheMirroredScheme() {
+        let runtime = ThemeRuntime.shared
+        let originalTheme = runtime.theme
+        let originalScheme = runtime.systemColorScheme
+        defer {
+            runtime.theme = originalTheme
+            runtime.systemColorScheme = originalScheme
+        }
+
+        runtime.theme = .comicBook
+        runtime.systemColorScheme = .dark
+        let darkPalette = runtime.palette
+        runtime.systemColorScheme = .light
+        let lightPalette = runtime.palette
+
+        #expect(darkPalette == ThemePalette(theme: .comicVillain, accent: runtime.accent.slot))
+        #expect(lightPalette == ThemePalette(theme: .comicFunnies, accent: runtime.accent.slot))
+        // Art direction rides the same seam — distinct treatments per variant.
+        runtime.systemColorScheme = .dark
+        let darkArt = runtime.artDirection
+        runtime.systemColorScheme = .light
+        let lightArt = runtime.artDirection
+        #expect(darkArt == ThemeArtDirectionCatalog.artDirection(for: .comicVillain))
+        #expect(lightArt == ThemeArtDirectionCatalog.artDirection(for: .comicFunnies))
+        #expect(darkArt != lightArt)
     }
 }

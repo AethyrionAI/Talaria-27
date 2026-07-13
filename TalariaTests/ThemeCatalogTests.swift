@@ -106,7 +106,8 @@ struct ThemeCatalogTests {
                  .midnightAquarium, .moltenForge])
         #expect(ThemeCatalog.midnightMarquee.map(\.appearanceTheme) ==
                 [.luchaLibre, .kaijuAttack, .pulpNoir,
-                 .casinoLucky7s, .cosmicBowling, .stickerBombToybox])
+                 .casinoLucky7s, .cosmicBowling, .stickerBombToybox,
+                 .comicBook])
         #expect(ThemeCatalog.seasonal.map(\.appearanceTheme) ==
                 [.winterFrost, .springSprout, .summerSolar, .autumnHarvest])
     }

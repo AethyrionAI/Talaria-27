@@ -31,7 +31,7 @@ struct ThemeArtDirectionTests {
         // caustics; Haunted VHS was cut on device verdict 2026-07-11).
         let lineTextures: Set<ThemeID> = [
             .holoSushi, .cyberCactus, .graffitiGalaxy, .midnightAquarium,
-            .cosmicBowling,
+            .cosmicBowling, .comicVillain, .comicFunnies,
         ]
         let scanlineOverlays: Set<ThemeID> = [
             .glitchGarden, .bubblegumMecha, .retroSciFi, .discoInferno,
@@ -41,7 +41,7 @@ struct ThemeArtDirectionTests {
             // Midnight Marquee (Lane L): every marquee composes its
             // handoff's print offsets (+ glow layers) as one shadow stack.
             .luchaLibre, .kaijuAttack, .pulpNoir, .casinoLucky7s,
-            .cosmicBowling, .stickerBombToybox,
+            .cosmicBowling, .stickerBombToybox, .comicVillain, .comicFunnies,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -165,9 +165,9 @@ struct ThemeArtDirectionTests {
             .glitchSeed, .cauldronBrew, .holoNigiri, .prizeWheel, .candyMecha,
             .jukeboxGlow, .cactusBloom, .anglerLure, .discoBall, .sprayCap,
             .mirrorBall, .rocketBadge, .moonJelly, .crucible, .phosphor,
-            // Midnight Marquee (Lane L).
+            // Midnight Marquee (Lane L) — the adaptive pair owns one each.
             .rudoMask, .kaijuSiren, .dimeStamp, .luckySevens, .houseBall,
-            .stickerStar,
+            .stickerStar, .powBurst, .zapBurst,
         ]
         let orphans: Set<ThemeOrbStyle> = [.anglerLure, .phosphor]
         let selected = ThemeID.allCases.map { ThemePalette(theme: $0, accent: .cyan).orbStyle }
@@ -245,10 +245,13 @@ struct ThemeArtDirectionTests {
         }
         // Pre-batch-4 adopters of the extended specs stay static: Graffiti
         // Galaxy's TAG never blinks, no earlier line field drifts, no
-        // earlier atmosphere quantizes its pan.
+        // earlier atmosphere quantizes its pan. Deliberate drift adopters:
+        // Midnight Aquarium's caustics + the Comic Book pair's speed lines
+        // (Lane L Phase 2).
         #expect(ThemeArtDirectionCatalog.artDirection(for: .graffitiGalaxy)
             .cornerRibbon?.blinkPeriod == nil)
-        for theme in ThemeID.allCases where theme != .midnightAquarium {
+        let driftingLineFields: Set<ThemeID> = [.midnightAquarium, .comicVillain, .comicFunnies]
+        for theme in ThemeID.allCases where !driftingLineFields.contains(theme) {
             #expect(ThemeArtDirectionCatalog.artDirection(for: theme)
                 .lineTexture?.driftPeriod == nil)
         }
@@ -343,7 +346,7 @@ struct ThemeArtDirectionTests {
             .midnightAquarium, .moltenForge,
             // Midnight Marquee (Lane L).
             .luchaLibre, .kaijuAttack, .pulpNoir, .casinoLucky7s,
-            .cosmicBowling, .stickerBombToybox,
+            .cosmicBowling, .stickerBombToybox, .comicVillain, .comicFunnies,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -448,8 +451,9 @@ struct ThemeArtDirectionTests {
             .lunarDiner, .discoInferno, .karaokeSupernova,
             .midnightAquarium, .moltenForge,
             // Midnight Marquee (Lane L): the static crowd/city/carpet/sticker
-            // speck fields.
+            // speck fields, plus the adaptive pair's DRIFTING halftones.
             .luchaLibre, .kaijuAttack, .cosmicBowling, .stickerBombToybox,
+            .comicVillain, .comicFunnies,
         ]
         for theme in ThemeID.allCases {
             let art = ThemeArtDirectionCatalog.artDirection(for: theme)
@@ -647,10 +651,11 @@ struct ThemeArtDirectionTests {
     }
 
     @Test func lightMarqueesPrintInsteadOfGlow() {
-        // Pulp Noir + Sticker-Bomb Toybox are print environments: paper
-        // glow scale, and deliberately NO panel halo (their designs use
-        // hard offset ink shadows, not glows).
-        for theme in [ThemeID.pulpNoir, .stickerBombToybox] {
+        // Pulp Noir, Sticker-Bomb Toybox, and the Sunday Funnies half of
+        // Comic Book are print environments: paper glow scale, and
+        // deliberately NO panel halo (their designs use hard offset ink
+        // shadows, not glows).
+        for theme in [ThemeID.pulpNoir, .stickerBombToybox, .comicFunnies] {
             #expect(ThemePalette(theme: theme, accent: .cyan).glowScale == 0.15)
             #expect(ThemeArtDirectionCatalog.artDirection(for: theme).panelHalo == nil)
         }
@@ -658,5 +663,42 @@ struct ThemeArtDirectionTests {
         let toybox = ThemeArtDirectionCatalog.artDirection(for: .stickerBombToybox)
         #expect(toybox.atmosphereMotion?.layers.map(\.tileSize) == [140, 170, 190])
         #expect(toybox.atmosphereMotion?.fieldOpacity == 0.5)
+    }
+
+    @Test func comicBookPairSitsAtLineupLevels() {
+        // The collection's most animated theme: both halves drift their
+        // halftone AND their speed lines, and both shake their titles —
+        // with distinct per-variant treatments (Lane L Phase 2).
+        let villain = ThemeArtDirectionCatalog.artDirection(for: .comicVillain)
+        #expect(villain.atmosphereMotion?.period == 8)
+        #expect(villain.atmosphereMotion?.layers.count == 1)
+        #expect(villain.lineTexture?.driftPeriod == 3)
+        #expect(villain.lineTexture?.layers.allSatisfy { $0.angleDegrees == 105 } == true)
+        #expect(villain.titleShadow?.glitchPeriod == 6)
+        #expect(villain.panelHalo != nil)
+
+        let funnies = ThemeArtDirectionCatalog.artDirection(for: .comicFunnies)
+        #expect(funnies.atmosphereMotion?.period == 10)
+        #expect(funnies.atmosphereMotion?.layers.map(\.tileSize) == [22, 30])
+        #expect(funnies.lineTexture?.driftPeriod == 4)
+        #expect(funnies.lineTexture?.layers.allSatisfy { $0.angleDegrees == 75 } == true)
+        #expect(funnies.titleShadow?.glitchPeriod == 7)
+
+        // Drifting fields keep the seamless whole-tile invariant.
+        for art in [villain, funnies] {
+            for layer in art.atmosphereMotion?.layers ?? [] {
+                #expect(abs(layer.driftX) == layer.tileSize)
+                #expect(abs(layer.driftY) == (layer.tileHeight ?? layer.tileSize))
+            }
+        }
+
+        // The halftone's static half is palette grid data on both variants
+        // (white 26px by night, Ben-Day cyan 18px by day).
+        let villainPalette = ThemePalette(theme: .comicVillain, accent: .cyan)
+        #expect(villainPalette.gridStyle == .dots)
+        #expect(villainPalette.gridCell == 26)
+        let funniesPalette = ThemePalette(theme: .comicFunnies, accent: .cyan)
+        #expect(funniesPalette.gridStyle == .dots)
+        #expect(funniesPalette.gridCell == 18)
     }
 }
