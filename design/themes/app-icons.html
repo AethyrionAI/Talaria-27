@@ -35,6 +35,9 @@
     .icon-canvas svg { display: block; width: 100%; height: 100%; }
     .icon-name { font-family: var(--font-display); font-size: 0.85rem; font-weight: 700; margin: 0 0 0.25rem; }
     .icon-meta { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .se-flag { position: absolute; top: 10px; right: 10px; font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.08em; color: #ffdc50; border: 1px solid rgba(255, 220, 80, 0.45); border-radius: 6px; padding: 2px 6px; background: rgba(255, 220, 80, 0.08); pointer-events: none; }
+    .section-title.se { display: flex; align-items: baseline; gap: 0.6rem; border-bottom-color: rgba(255, 220, 80, 0.3); }
+    .section-title.se .se-sub { font-family: var(--font-mono); font-size: 0.65rem; font-weight: 400; color: #ffdc50; text-transform: uppercase; letter-spacing: 0.12em; }
     .selected-preview { position: sticky; bottom: 1rem; background: rgba(10, 6, 16, 0.92); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; backdrop-filter: blur(12px); display: flex; gap: 1rem; align-items: center; max-width: 520px; margin: 2rem auto 0; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
     .selected-preview .icon-canvas { width: 72px; height: 72px; flex-shrink: 0; margin: 0; }
     .selected-info h3 { margin: 0 0 0.25rem; font-family: var(--font-display); font-size: 1rem; }
@@ -60,11 +63,14 @@
   <main>
     <header>
       <h1>Talaria App Icons</h1>
-      <div class="subtitle">17 theme-specific iOS app icon designs</div>
+      <div class="subtitle">19 standard + 5 special edition iOS app icon designs</div>
     </header>
 
     <section class="section-title">Choose an App Icon</section>
     <div class="icon-grid" id="iconGrid" role="radiogroup" aria-label="App icon choices"></div>
+
+    <section class="section-title se">Special Edition <span class="se-sub">Limited series</span></section>
+    <div class="icon-grid" id="seIconGrid" role="radiogroup" aria-label="Special edition app icon choices"></div>
 
     <div class="selected-preview" id="selectedPreview" style="display:none" role="status" aria-live="polite" aria-atomic="true">
       <div class="icon-canvas" id="previewCanvas" aria-hidden="true"></div>
@@ -212,10 +218,51 @@
         desc: 'Snowflake crystal on icy glass.',
         bg: '#03080c',
         svg: `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><rect width="1024" height="1024" fill="#03080c"/><g transform="translate(512,512)"><g stroke="#78d2ff" stroke-width="18" stroke-linecap="round"><line y1="-360" y2="360"/><line x1="-360" x2="360"/><line x1="-255" y1="-255" x2="255" y2="255"/><line x1="255" y1="-255" x2="-255" y2="255"/></g><g stroke="#a0dcf0" stroke-width="12" stroke-linecap="round"><line x1="-80" y1="-360" x2="-40" y2="-280"/><line x1="80" y1="-360" x2="40" y2="-280"/><line x1="-80" y1="360" x2="-40" y2="280"/><line x1="80" y1="360" x2="40" y2="280"/><line x1="-360" y1="-80" x2="-280" y2="-40"/><line x1="-360" y1="80" x2="-280" y2="40"/><line x1="360" y1="-80" x2="280" y2="-40"/><line x1="360" y1="80" x2="280" y2="40"/></g><circle r="55" fill="#78d2ff"/></g></svg>`
+      },
+      {
+        id: 'event-horizon',
+        name: 'Event Horizon',
+        desc: 'Lensed accretion disc bending light around a silent black core.',
+        bg: '#040208',
+        se: true,
+        svg: `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="ehBg" cx="50%" cy="40%" r="75%"><stop offset="0" stop-color="#100a1a"/><stop offset="100%" stop-color="#040208"/></radialGradient><linearGradient id="ehDisc" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#00f0ff"/><stop offset="45%" stop-color="#8a5cff"/><stop offset="100%" stop-color="#ff2aa8"/></linearGradient></defs><rect width="1024" height="1024" fill="url(#ehBg)"/><g fill="#f7f4ff"><circle cx="140" cy="180" r="6" opacity="0.7"/><circle cx="870" cy="150" r="4" opacity="0.5"/><circle cx="830" cy="850" r="5" opacity="0.6"/><circle cx="170" cy="850" r="4" opacity="0.45"/><circle cx="930" cy="500" r="3" opacity="0.4"/></g><g transform="translate(512,512) rotate(-18)"><ellipse rx="380" ry="120" fill="none" stroke="url(#ehDisc)" stroke-width="26" opacity="0.4"/><ellipse rx="300" ry="90" fill="none" stroke="url(#ehDisc)" stroke-width="20" opacity="0.6"/><circle r="152" fill="none" stroke="#ffdc50" stroke-width="16"/><circle r="128" fill="#000000"/><path d="M-380 0 A380 120 0 0 0 380 0" fill="none" stroke="url(#ehDisc)" stroke-width="30"/><path d="M-200 -200 Q0 -300 200 -200" fill="none" stroke="#00f0ff" stroke-width="10" stroke-linecap="round" opacity="0.5"/></g></svg>`
+      },
+      {
+        id: 'graffiti-galaxy',
+        name: 'Graffiti Galaxy',
+        desc: 'Spray-tagged planet with a wet-paint ring, still dripping.',
+        bg: '#0c0a14',
+        se: true,
+        svg: `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="ggPlanet"><circle cx="512" cy="512" r="225"/></clipPath></defs><rect width="1024" height="1024" fill="#0c0a14"/><circle cx="512" cy="512" r="340" fill="none" stroke="#8338ec" stroke-width="70" opacity="0.18"/><g transform="translate(512,512) rotate(-20)"><ellipse rx="360" ry="105" fill="none" stroke="#00f5d4" stroke-width="34" opacity="0.45"/></g><circle cx="512" cy="512" r="225" fill="#ff006e"/><g clip-path="url(#ggPlanet)"><circle cx="430" cy="430" r="200" fill="#ffffff" opacity="0.16"/><circle cx="590" cy="580" r="100" fill="#8338ec" opacity="0.6"/><circle cx="450" cy="600" r="60" fill="#fbff26" opacity="0.5"/></g><g transform="translate(512,512) rotate(-20)"><path d="M-360 0 A360 105 0 0 0 360 0" fill="none" stroke="#00f5d4" stroke-width="34"/></g><g fill="#00f5d4"><rect x="380" y="635" width="30" height="110" rx="15"/><rect x="500" y="655" width="30" height="150" rx="15"/><rect x="620" y="625" width="30" height="95" rx="15"/></g><path d="M762 192 L782 252 L842 272 L782 292 L762 352 L742 292 L682 272 L742 252 Z" fill="#fbff26"/><path d="M212 252 L224 288 L260 300 L224 312 L212 348 L200 312 L164 300 L200 288 Z" fill="#00f5d4" opacity="0.9"/></svg>`
+      },
+      {
+        id: 'karaoke-supernova',
+        name: 'Karaoke Supernova',
+        desc: 'Mic head detonating into a laser starburst.',
+        bg: '#050417',
+        se: true,
+        svg: `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="ksGrille" width="56" height="56" patternUnits="userSpaceOnUse"><circle cx="28" cy="28" r="11" fill="#ff00aa"/></pattern><clipPath id="ksHead"><circle cx="512" cy="440" r="168"/></clipPath></defs><rect width="1024" height="1024" fill="#050417"/><g transform="translate(512,440)"><g stroke="#ff2a6d" stroke-width="22" stroke-linecap="round"><line y1="-260" y2="-400"/><line x1="184" y1="-184" x2="283" y2="-283"/><line x1="-184" y1="-184" x2="-283" y2="-283"/><line x1="260" x2="400"/><line x1="-260" x2="-400"/></g><g stroke="#ffe600" stroke-width="14" stroke-linecap="round" opacity="0.9"><line x1="100" y1="-300" x2="132" y2="-396"/><line x1="-100" y1="-300" x2="-132" y2="-396"/><line x1="300" y1="-100" x2="396" y2="-132"/><line x1="-300" y1="-100" x2="-396" y2="-132"/></g><circle r="420" fill="none" stroke="#00f0ff" stroke-width="8" stroke-dasharray="30 44" opacity="0.5"/><circle r="196" fill="#0d0a2e" stroke="#00f0ff" stroke-width="16"/></g><g clip-path="url(#ksHead)"><rect x="316" y="244" width="392" height="392" fill="url(#ksGrille)"/></g><g transform="translate(512,440)"><rect x="-56" y="192" width="112" height="230" rx="44" fill="#ff00aa"/><line x1="-56" x2="56" y1="252" y2="252" stroke="#ffe600" stroke-width="18"/><path d="M310 310 L322 346 L358 358 L322 370 L310 406 L298 370 L262 358 L298 346 Z" fill="#ffe600"/></g></svg>`
+      },
+      {
+        id: 'midnight-aquarium',
+        name: 'Midnight Aquarium',
+        desc: 'Moon jelly drifting through blacklit tank water.',
+        bg: '#030a14',
+        se: true,
+        svg: `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="maGlow" cx="50%" cy="42%" r="55%"><stop offset="0" stop-color="#ff7ad9" stop-opacity="0.3"/><stop offset="100%" stop-color="#ff7ad9" stop-opacity="0"/></radialGradient><linearGradient id="maBell" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7ad9"/><stop offset="100%" stop-color="#8a7cff"/></linearGradient></defs><rect width="1024" height="1024" fill="#030a14"/><rect width="1024" height="1024" fill="url(#maGlow)"/><g transform="translate(512,430)"><path d="M-230 60 Q-230 -230 0 -230 Q230 -230 230 60 Q115 112 0 96 Q-115 112 -230 60 Z" fill="url(#maBell)" opacity="0.92"/><path d="M-230 60 Q-230 -230 0 -230 Q230 -230 230 60" fill="none" stroke="#ff7ad9" stroke-width="10" opacity="0.8"/><g fill="#3ef2e0" opacity="0.9"><circle cx="-52" cy="-104" r="34"/><circle cx="52" cy="-104" r="34"/><circle cx="-52" cy="-32" r="34"/><circle cx="52" cy="-32" r="34"/></g><g fill="none" stroke-linecap="round"><path d="M-150 86 Q-195 230 -150 380" stroke="#8a7cff" stroke-width="16"/><path d="M-56 100 Q-90 270 -46 430" stroke="#3ef2e0" stroke-width="14"/><path d="M48 100 Q80 250 36 410" stroke="#ff7ad9" stroke-width="16"/><path d="M146 86 Q186 210 152 350" stroke="#8a7cff" stroke-width="14"/></g><g fill="#3ef2e0"><circle cx="310" cy="-230" r="16" opacity="0.7"/><circle cx="350" cy="-130" r="10" opacity="0.5"/><circle cx="-320" cy="-180" r="12" opacity="0.6"/><circle cx="-350" cy="-80" r="8" opacity="0.4"/></g></g></svg>`
+      },
+      {
+        id: 'molten-forge',
+        name: 'Molten Forge',
+        desc: 'White-hot billet on the anvil, sparks mid-flight.',
+        bg: '#0d0603',
+        se: true,
+        svg: `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="mfBg" cx="50%" cy="55%" r="70%"><stop offset="0" stop-color="#1c0e06"/><stop offset="100%" stop-color="#0d0603"/></radialGradient><linearGradient id="mfIron" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffd23c"/><stop offset="100%" stop-color="#ff6a1a"/></linearGradient></defs><rect width="1024" height="1024" fill="url(#mfBg)"/><g transform="translate(512,540)"><ellipse cy="180" rx="330" ry="70" fill="#ff6a1a" opacity="0.15"/><g stroke="#ffd23c" stroke-width="12" stroke-linecap="round"><line x1="-250" y1="-300" x2="-310" y2="-380"/><line x1="-150" y1="-320" x2="-170" y2="-420"/><line x1="-40" y1="-310" x2="-16" y2="-400"/></g><circle cx="-330" cy="-260" r="10" fill="#ff6a1a"/><circle cx="60" cy="-350" r="8" fill="#ffd23c"/><path d="M120 -400 L132 -364 L168 -352 L132 -340 L120 -304 L108 -340 L72 -352 L108 -364 Z" fill="#ffd23c"/><ellipse cx="-110" cy="-194" rx="210" ry="24" fill="#ff6a1a" opacity="0.35"/><rect x="-260" y="-248" width="300" height="54" rx="27" fill="url(#mfIron)"/><path d="M220 -194 Q340 -194 392 -148 Q318 -106 220 -94 Z" fill="#2e3a44" stroke="#a9c2d1" stroke-width="8"/><rect x="-300" y="-194" width="520" height="100" rx="18" fill="#2e3a44" stroke="#a9c2d1" stroke-width="8"/><path d="M-120 -94 L120 -94 L82 44 L-82 44 Z" fill="#212a32" stroke="#a9c2d1" stroke-width="6"/><rect x="-212" y="44" width="424" height="78" rx="14" fill="#2e3a44" stroke="#a9c2d1" stroke-width="8"/></g></svg>`
       }
     ];
 
     const grid = document.getElementById('iconGrid');
+    const seGrid = document.getElementById('seIconGrid');
     const preview = document.getElementById('selectedPreview');
     const previewCanvas = document.getElementById('previewCanvas');
     const previewName = document.getElementById('previewName');
@@ -235,13 +282,16 @@
     }
 
     function render() {
-      grid.innerHTML = icons.map((icon, index) => `
+      const cardHTML = (icon) => `
         <div class="icon-card" role="radio" aria-checked="false" tabindex="0" aria-label="${icon.name} — ${icon.desc}" data-id="${icon.id}" onclick="selectIcon('${icon.id}')" onkeydown="handleKey(event, '${icon.id}')">
+          ${icon.se ? '<div class="se-flag">SE</div>' : ''}
           <div class="icon-canvas" style="background:${icon.bg}">${icon.svg}</div>
           <div class="icon-name">${icon.name}</div>
           <div class="icon-meta">${icon.id}</div>
         </div>
-      `).join('');
+      `;
+      grid.innerHTML = icons.filter(i => !i.se).map(cardHTML).join('');
+      seGrid.innerHTML = icons.filter(i => i.se).map(cardHTML).join('');
     }
 
     function handleKey(e, id) {
