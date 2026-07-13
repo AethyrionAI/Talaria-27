@@ -147,11 +147,19 @@ final class LocalChatBackend: HermesClientProtocol {
 
     // MARK: - Private Cloud Compute tier (#30)
 
-    /// Whether PCC exists for this install at all: iOS 27+, entitlement
-    /// granted, device/region eligible. Denied/pending Apple approval reads
-    /// as unavailable — the on-device path is unaffected.
+    /// Master gate: PCC needs an Apple-granted entitlement that is NOT live yet
+    /// (#72, awaiting approval). On this beta seed, constructing or using
+    /// `PrivateCloudComputeLanguageModel` without the grant traps (SIGTRAP) —
+    /// an uncatchable crash on send. Until the grant lands we never touch the
+    /// type at all. Flip to `true` (or wire to a real signal) once granted;
+    /// that alone re-enables the picker, routing, status, and session paths.
+    static let pccGrantConfirmed = false
+
+    /// Whether PCC exists for this install at all: grant confirmed, iOS 27+,
+    /// entitlement granted, device/region eligible. Denied/pending Apple
+    /// approval reads as unavailable — the on-device path is unaffected.
     var isPrivateCloudAvailable: Bool {
-        guard #available(iOS 27.0, *) else { return false }
+        guard #available(iOS 27.0, *), Self.pccGrantConfirmed else { return false }
         return PrivateCloudComputeLanguageModel().isAvailable
     }
 
@@ -160,7 +168,7 @@ final class LocalChatBackend: HermesClientProtocol {
     /// rate-limited tier degrades to on-device with a visible indicator
     /// change instead of failing turns.
     var isPrivateCloudUsable: Bool {
-        guard #available(iOS 27.0, *) else { return false }
+        guard #available(iOS 27.0, *), Self.pccGrantConfirmed else { return false }
         let pcc = PrivateCloudComputeLanguageModel()
         return pcc.isAvailable && !pcc.quotaUsage.isLimitReached
     }
@@ -179,7 +187,7 @@ final class LocalChatBackend: HermesClientProtocol {
     }
 
     func privateCloudStatus() -> PrivateCloudStatus? {
-        guard #available(iOS 27.0, *) else { return nil }
+        guard #available(iOS 27.0, *), Self.pccGrantConfirmed else { return nil }
         let pcc = PrivateCloudComputeLanguageModel()
         guard pcc.isAvailable else { return nil }
         let usage = pcc.quotaUsage
@@ -199,7 +207,7 @@ final class LocalChatBackend: HermesClientProtocol {
 
     /// Presents the system's iCloud+ upgrade path for more PCC access.
     func showPrivateCloudLimitIncreaseOptions() {
-        guard #available(iOS 27.0, *) else { return }
+        guard #available(iOS 27.0, *), Self.pccGrantConfirmed else { return }
         PrivateCloudComputeLanguageModel().quotaUsage.limitIncreaseSuggestion?.show()
     }
 
@@ -234,7 +242,7 @@ final class LocalChatBackend: HermesClientProtocol {
     /// PCC fetch fails, falls back to the on-device window: a conservative
     /// budget that can never over-commit the larger tier.
     private func activeContextSize() async -> Int {
-        if #available(iOS 27.0, *), activeTier == .privateCloud {
+        if #available(iOS 27.0, *), Self.pccGrantConfirmed, activeTier == .privateCloud {
             if let cached = pccContextSize { return cached }
             if let size = try? await PrivateCloudComputeLanguageModel().contextSize {
                 pccContextSize = size
@@ -680,7 +688,7 @@ final class LocalChatBackend: HermesClientProtocol {
         // #30: both SystemLanguageModel and PrivateCloudComputeLanguageModel
         // conform to LanguageModel (iOS 27) — the session API is unified, so
         // the PCC tier is one argument, not a second code path.
-        if #available(iOS 27.0, *), activeTier == .privateCloud {
+        if #available(iOS 27.0, *), Self.pccGrantConfirmed, activeTier == .privateCloud {
             return LanguageModelSession(
                 model: PrivateCloudComputeLanguageModel(),
                 tools: tools,
