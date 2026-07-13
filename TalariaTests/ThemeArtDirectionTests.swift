@@ -607,9 +607,9 @@ struct ThemeArtDirectionTests {
     }
 
     @Test func eventHorizonUsesHandoffSlotNames() {
-        #expect(AppearanceAccent.cyan.displayLabel(for: .eventHorizon) == "Accretion Violet")
-        #expect(AppearanceAccent.amber.displayLabel(for: .eventHorizon) == "Hawking Cyan")
-        #expect(AppearanceAccent.violet.displayLabel(for: .eventHorizon) == "Supernova Gold")
+        #expect(AppearanceAccent.cyan.displayLabel(for: AppearanceTheme.eventHorizon) == "Accretion Violet")
+        #expect(AppearanceAccent.amber.displayLabel(for: AppearanceTheme.eventHorizon) == "Hawking Cyan")
+        #expect(AppearanceAccent.violet.displayLabel(for: AppearanceTheme.eventHorizon) == "Supernova Gold")
     }
 
     @Test func eventHorizonSelectsTheStarfieldTexture() {
