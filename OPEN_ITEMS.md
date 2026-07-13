@@ -1750,7 +1750,21 @@ play), then send over tailnet; confirm finalized-result concatenation spacing on
 attachments today) — worth a sweep task later?
 
 Logged 2026-07-06.
-## 60. 🔧 Wave 3 / 4.15 — `_thinking` reasoning channel surfaced; delta key needs device probe
+## 60. 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under `_thinking`); real reasoning lives in `run.completed.reasoning_content`
+
+**PROBE 2026-07-13 — COMPLETE.** Mac-side `curl -N` against the OJAMD gateway Sessions API (`100.110.102.59:8642`), raw SSE captured and dissected. Root cause found; the app is NOT the culprit.
+
+- **Delta key = `delta`** — the same field name as `assistant.delta`. Not `content`/`text`/`message`/`preview`; the parser's first guess was right all along.
+- **Single cumulative terminal event, not increments.** Exactly ONE `tool.progress` (`tool_name:"_thinking"`) at `seq 43`, arriving *after* all 40 `assistant.delta` chunks (seq 3–42), carrying the whole text at once (dlen = full answer). Wire-mode hedge resolves to **cumulative snapshot** — `incrementalReasoningDelta` is never exercised by this host.
+- **The `_thinking` delta is byte-identical to the assembled answer** ("They weigh exactly the same … Equal"). The mirror bug is reproduced on the wire.
+- **Verdict: gateway-side defect.** The app reads `delta` correctly; the gateway populates the `_thinking` event with the ANSWER text rather than reasoning. The "app fallback key-chain grabbed a response-bearing field" hypothesis is **DEAD**.
+- **Real reasoning exists and is distinct — but never streams.** It is delivered only in `run.completed.messages[].reasoning_content` (with a duplicate `reasoning` field): genuine CoT ("The user is asking me to reason through the classic riddle … a pound is a unit of weight/mass …"), nothing like the answer. The streaming `_thinking` channel never carries it.
+
+**Fix tracks (probe done — the "do NOT edit app code before the probe" guardrail is now lifted):**
+1. **Gateway (root cause, live UX):** make the API-server SSE emitter stream the model's `reasoning_content` deltas over the `_thinking` channel instead of the assistant answer. Emit site is Hermes gateway code on OJAMD (`~/.hermes/hermes-agent/gateway/…`). This is the real fix — live reasoning in the chevron.
+2. **App fallback (cheap, non-live, belt-and-suspenders):** on `run.completed`, adopt `messages[].reasoning_content` into `Message.reasoning`, and distrust a `_thinking` delta that equals the assembled answer. Corrects the pane even if the gateway/model regresses. Dispatchable to Fable in Talaria-27.
+
+Raw capture retained this session at `/tmp/sse_capture.txt` (Mac).
 
 > **Audit 2026-07-13:** Branch claude/wave-3-on-device-intelligence-rxht4l = PR #12, merged to main 2026-07-06. The body's closing line ('not yet compiled — needs xcodegen generate + CLI build + device verify') is stale — a 2026-07-11 device pass on the compiled build already ran and FAILED (reasoning pane mirrors the final answer verbatim; commits f35edb9, 373f65d). Header title itself is still accurate (probe genuinely owed); 🔧 stays correct as an open investigation, not because the build is missing — per the item's own 'Do NOT edit app code before the probe' instruction, this is diagnosis-pending, not yet a fix-in-progress.
 
