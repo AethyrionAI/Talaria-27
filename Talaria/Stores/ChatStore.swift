@@ -469,8 +469,16 @@ final class ChatStore {
                         resolved.toolActivities = activities
                         resolved.codeDiff = diff
                         // #4.15: keep the accumulated reasoning when the final
-                        // message doesn't carry its own (relay/mock clients).
-                        if resolved.reasoning == nil { resolved.reasoning = streamedReasoning }
+                        // message doesn't carry its own (relay/mock clients) —
+                        // unless it just mirrors the answer (#60: the defective
+                        // `_thinking` channel echoes the answer verbatim; the
+                        // client refused to attach it, so the placeholder's
+                        // copy must not resurrect it here).
+                        if resolved.reasoning == nil,
+                           let streamed = streamedReasoning, !streamed.isEmpty,
+                           !SessionsHermesClient.reasoningMirrorsAnswer(streamed, content: resolved.content) {
+                            resolved.reasoning = streamed
+                        }
                         // #46: the turn receipt. Usage rode this run's
                         // `run.completed` (or the local brain's session
                         // stats); duration is wall-clock from the optimistic
