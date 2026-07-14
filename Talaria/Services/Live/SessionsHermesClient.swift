@@ -274,11 +274,16 @@ final class SessionsHermesClient: HermesClientProtocol {
                     // the terminal transcript's structured reasoning wins —
                     // the gateway's `_thinking` stream is a defective
                     // answer-mirror upstream, while the real CoT rides
-                    // `run.completed` per-message. Assembled deltas attach
-                    // only when genuinely distinct from the answer, so the
-                    // day upstream streams real deltas they are adopted live;
+                    // `run.completed` per-message. The mirror guard applies
+                    // to BOTH branches (60B): a structured aggregate that
+                    // just restates the answer counts as absent and falls
+                    // through, and assembled deltas attach only when
+                    // genuinely distinct from the answer, so the day
+                    // upstream streams real deltas they are adopted live;
                     // an answer-mirror never attaches.
-                    if let structured = decodeRunReasoning(currentData) {
+                    let structured = decodeRunReasoning(currentData)
+                    if let structured,
+                       !Self.reasoningMirrorsAnswer(structured, content: message.content) {
                         message.reasoning = structured
                     } else if !assembledReasoning.isEmpty,
                               !Self.reasoningMirrorsAnswer(assembledReasoning, content: message.content) {
@@ -906,22 +911,30 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// Extracts the model's REAL reasoning from a `run.completed` SSE payload
     /// (#60): the terminal transcript carries it per-message under
     /// `reasoning_content` (and a duplicate `reasoning` key), while the
-    /// streamed `_thinking` channel mirrors the answer. The LAST assistant
-    /// entry wins; `reasoning_content` is preferred with `reasoning` as the
-    /// fallback (blank counts as absent — same shape-drift posture as the
-    /// other parsers here). Returns nil when absent, blank, or unparseable.
+    /// streamed `_thinking` channel mirrors the answer. On tool-using turns
+    /// the transcript is multi-message and the genuine plan CoT rides the
+    /// INTERMEDIATE assistant entries (60B), so EVERY assistant entry
+    /// contributes: non-blank segments aggregate in transcript order,
+    /// blank-line joined — matching Hermes's own web UI, which shows each
+    /// reasoning segment across the run. Per entry, `reasoning_content` is
+    /// preferred with `reasoning` as the fallback (blank counts as absent —
+    /// same shape-drift posture as the other parsers here). Returns nil when
+    /// no segment survives or the payload is unparseable.
     nonisolated private func decodeRunReasoning(_ data: String) -> String? {
         guard let raw = data.data(using: .utf8),
               let envelope = try? JSONDecoder().decode(RunCompletedEnvelope.self, from: raw),
-              let transcript = envelope.messages,
-              let assistant = transcript.last(where: { $0.role == "assistant" })
+              let transcript = envelope.messages
         else { return nil }
-        for candidate in [assistant.reasoningContent, assistant.reasoning] {
-            guard let trimmed = candidate?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  !trimmed.isEmpty else { continue }
-            return trimmed
+        var segments: [String] = []
+        for entry in transcript where entry.role == "assistant" {
+            for candidate in [entry.reasoningContent, entry.reasoning] {
+                guard let trimmed = candidate?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      !trimmed.isEmpty else { continue }
+                segments.append(trimmed)
+                break
+            }
         }
-        return nil
+        return segments.isEmpty ? nil : segments.joined(separator: "\n\n")
     }
 
     private struct RunCompletedEnvelope: Decodable {
