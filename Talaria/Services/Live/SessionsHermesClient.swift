@@ -267,11 +267,23 @@ final class SessionsHermesClient: HermesClientProtocol {
                     let usage = decodeRunUsage(currentData)
                     var message = pendingFinalMessage
                         ?? Message(sender: .hermes, content: assembledContent, status: .delivered)
-                    // Reasoning attaches HERE, at the yield, from the full
-                    // accumulator — never earlier: a `_thinking` chunk can
-                    // land between assistant.completed and run.completed,
-                    // and a value frozen at assistant.completed would lose it.
-                    if !assembledReasoning.isEmpty { message.reasoning = assembledReasoning }
+                    // Reasoning attaches HERE, at the yield — never earlier: a
+                    // `_thinking` chunk can land between assistant.completed
+                    // and run.completed, and a value frozen at
+                    // assistant.completed would lose it. Precedence (#60):
+                    // the terminal transcript's structured reasoning wins —
+                    // the gateway's `_thinking` stream is a defective
+                    // answer-mirror upstream, while the real CoT rides
+                    // `run.completed` per-message. Assembled deltas attach
+                    // only when genuinely distinct from the answer, so the
+                    // day upstream streams real deltas they are adopted live;
+                    // an answer-mirror never attaches.
+                    if let structured = decodeRunReasoning(currentData) {
+                        message.reasoning = structured
+                    } else if !assembledReasoning.isEmpty,
+                              !Self.reasoningMirrorsAnswer(assembledReasoning, content: message.content) {
+                        message.reasoning = assembledReasoning
+                    }
                     if !producedFiles.isEmpty { message.attachments = producedFiles }
                     continuation.yield(.finished(message, usage, nil))
                     finalMessageDelivered = true
@@ -314,7 +326,13 @@ final class SessionsHermesClient: HermesClientProtocol {
                     content: assembledContent,
                     status: .delivered
                 )
-                if !assembledReasoning.isEmpty { fallbackMessage.reasoning = assembledReasoning }
+                // #60: no run.completed payload exists here by construction,
+                // so only the assembled `_thinking` text is available — and it
+                // attaches only when it isn't the upstream answer-mirror.
+                if !assembledReasoning.isEmpty,
+                   !Self.reasoningMirrorsAnswer(assembledReasoning, content: fallbackMessage.content) {
+                    fallbackMessage.reasoning = assembledReasoning
+                }
                 if !producedFiles.isEmpty { fallbackMessage.attachments = producedFiles }
                 continuation.yield(.finished(fallbackMessage, nil, nil))
             }
@@ -764,6 +782,26 @@ final class SessionsHermesClient: HermesClientProtocol {
         return chunk
     }
 
+    /// #60 mirror guard: the gateway's `_thinking` channel is defective
+    /// upstream — its single cumulative end-of-stream event carries the
+    /// assistant ANSWER verbatim, not reasoning. True when `reasoning` is
+    /// just the answer text, whitespace-folded so chunk-join artifacts can
+    /// never fake a difference. An answer-mirror must never attach as
+    /// reasoning; genuinely distinct text (real deltas, the day upstream
+    /// fixes the stream) compares different and passes through. Callers
+    /// guard for non-empty reasoning first.
+    nonisolated static func reasoningMirrorsAnswer(_ reasoning: String, content: String) -> Bool {
+        whitespaceFolded(reasoning) == whitespaceFolded(content)
+    }
+
+    /// Collapses every whitespace run (spaces, tabs, newlines) to a single
+    /// space and trims the ends — the same fold as #110's
+    /// `SpeechOutputService.shouldRetractSpeech`, copied so the two mirror
+    /// detections can't drift apart.
+    private nonisolated static func whitespaceFolded(_ text: String) -> String {
+        text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
     /// #11: builds a `ToolCallEvent` from a `tool.started` / `tool.completed`
     /// payload (`{tool_name, args:{…}, preview}`). `_thinking` is the reasoning
     /// channel, never a tool call. Returns nil when no tool name is present —
@@ -865,8 +903,43 @@ final class SessionsHermesClient: HermesClientProtocol {
         )
     }
 
+    /// Extracts the model's REAL reasoning from a `run.completed` SSE payload
+    /// (#60): the terminal transcript carries it per-message under
+    /// `reasoning_content` (and a duplicate `reasoning` key), while the
+    /// streamed `_thinking` channel mirrors the answer. The LAST assistant
+    /// entry wins; `reasoning_content` is preferred with `reasoning` as the
+    /// fallback (blank counts as absent — same shape-drift posture as the
+    /// other parsers here). Returns nil when absent, blank, or unparseable.
+    nonisolated private func decodeRunReasoning(_ data: String) -> String? {
+        guard let raw = data.data(using: .utf8),
+              let envelope = try? JSONDecoder().decode(RunCompletedEnvelope.self, from: raw),
+              let transcript = envelope.messages,
+              let assistant = transcript.last(where: { $0.role == "assistant" })
+        else { return nil }
+        for candidate in [assistant.reasoningContent, assistant.reasoning] {
+            guard let trimmed = candidate?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !trimmed.isEmpty else { continue }
+            return trimmed
+        }
+        return nil
+    }
+
     private struct RunCompletedEnvelope: Decodable {
         let usage: RunCompletedUsage?
+        let messages: [RunTranscriptMessage]?
+    }
+
+    /// One transcript row in the terminal `run.completed` payload (#60).
+    /// Only the reasoning-bearing keys are decoded; everything else
+    /// (content, finish_reason) is ignored.
+    private struct RunTranscriptMessage: Decodable {
+        let role: String?
+        let reasoning: String?
+        let reasoningContent: String?
+        enum CodingKeys: String, CodingKey {
+            case role, reasoning
+            case reasoningContent = "reasoning_content"
+        }
     }
 
     private struct RunCompletedUsage: Decodable {
