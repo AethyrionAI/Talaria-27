@@ -430,14 +430,45 @@ struct ReasoningChannelTests {
             #expect(finished.message.reasoning == "canonical")
         }
 
-        @Test func lastAssistantEntryWins() async throws {
+        @Test func aggregatesReasoningAcrossAssistantEntries() async throws {
+            // Wire truth (captured 2026-07-13, terminal-tool turn): on
+            // tool-using turns the genuine plan CoT rides the INTERMEDIATE
+            // assistant entries; the final entry's reasoning is typically a
+            // draft-the-answer compile step. Every segment survives, in
+            // transcript order — last-assistant-wins discarded the plan.
             let body = Self.sse(Self.turnPrefix(thinkingMirror: false) + [
                 (event: "run.completed",
-                 data: #"{"messages":[{"role":"assistant","reasoning_content":"first round"},{"role":"user","content":"Q"},{"role":"assistant","reasoning_content":"final round"}]}"#),
+                 data: #"{"messages":[{"role":"assistant","content":"","reasoning_content":"Plan: check the host clock with the terminal."},{"role":"tool","content":"{\"output\":\"Tue, Jul 14\"}"},{"role":"assistant","content":"The answer.","finish_reason":"stop","reasoning_content":"Compile the final answer."}]}"#),
                 (event: "done", data: #"{}"#),
             ])
             let finished = try #require(await streamTurn(sseBody: body))
-            #expect(finished.message.reasoning == "final round")
+            #expect(finished.message.reasoning == "Plan: check the host clock with the terminal.\n\nCompile the final answer.")
+        }
+
+        @Test func blankEntriesAndNonAssistantRowsNeverContribute() async throws {
+            // Blank per-entry reasoning stays absent-equivalent inside the
+            // aggregate — no empty segments, no doubled separators — and a
+            // reasoning key on a non-assistant row is ignored outright.
+            let body = Self.sse(Self.turnPrefix(thinkingMirror: false) + [
+                (event: "run.completed",
+                 data: #"{"messages":[{"role":"assistant","reasoning_content":"First thought."},{"role":"assistant","reasoning_content":"  \n ","reasoning":""},{"role":"tool","reasoning_content":"tool noise"},{"role":"assistant","reasoning_content":"Second thought."}]}"#),
+                (event: "done", data: #"{}"#),
+            ])
+            let finished = try #require(await streamTurn(sseBody: body))
+            #expect(finished.message.reasoning == "First thought.\n\nSecond thought.")
+        }
+
+        @Test func perEntryKeyPreferenceHoldsInsideAggregate() async throws {
+            // `reasoning_content` over `reasoning` is decided PER ENTRY, not
+            // across the transcript: an entry carrying only the fallback key
+            // still contributes its text to the aggregate.
+            let body = Self.sse(Self.turnPrefix(thinkingMirror: false) + [
+                (event: "run.completed",
+                 data: #"{"messages":[{"role":"assistant","reasoning":"fallback plan"},{"role":"assistant","reasoning":"stale duplicate","reasoning_content":"canonical compile"}]}"#),
+                (event: "done", data: #"{}"#),
+            ])
+            let finished = try #require(await streamTurn(sseBody: body))
+            #expect(finished.message.reasoning == "fallback plan\n\ncanonical compile")
         }
 
         @Test func blankOrAbsentStructuredReasoningYieldsNil() async throws {
@@ -487,6 +518,34 @@ struct ReasoningChannelTests {
             #expect(finished.message.content == "The answer.")
             #expect(finished.message.reasoning == "Real chain of thought.")
             #expect(finished.usage?.totalTokens == 15)
+        }
+
+        @Test func mirroringAggregateFallsThroughToAssembledDeltas() async throws {
+            // 60B: a single-entry transcript whose reasoning just restates
+            // the answer (whitespace-folded) counts as absent — the attach
+            // falls through to the assembled `_thinking` branch, adopting
+            // genuinely distinct deltas...
+            let distinct = Self.sse([
+                (event: "run.started", data: #"{"run_id":"r1"}"#),
+                (event: "tool.progress", data: #"{"tool_name":"_thinking","delta":"Genuine thought."}"#),
+                (event: "assistant.delta", data: #"{"delta":"The answer."}"#),
+                (event: "assistant.completed", data: #"{"content":"The answer."}"#),
+                (event: "run.completed",
+                 data: #"{"messages":[{"role":"assistant","content":"The answer.","reasoning_content":"The  answer."}]}"#),
+                (event: "done", data: #"{}"#),
+            ])
+            let distinctFinished = try #require(await streamTurn(sseBody: distinct))
+            #expect(distinctFinished.message.reasoning == "Genuine thought.")
+
+            // ...and when the `_thinking` fixture is the mirror too, nothing
+            // attaches — no chevron, same as every other mirror path.
+            let mirror = Self.sse(Self.turnPrefix(thinkingMirror: true) + [
+                (event: "run.completed",
+                 data: #"{"messages":[{"role":"assistant","content":"The answer.","reasoning_content":"The answer."}]}"#),
+                (event: "done", data: #"{}"#),
+            ])
+            let mirrorFinished = try #require(await streamTurn(sseBody: mirror))
+            #expect(mirrorFinished.message.reasoning == nil)
         }
 
         @Test func thinkingMirrorAloneNeverAttaches() async throws {
