@@ -1024,7 +1024,13 @@ and `AskHermesIntent` (#56 / Wave 2 Issue E), both registered in the single
 
 ---
 
-## 33. 📝 Apple app integrations — device-side EventKit shipped & device-verified (#69/#70); Hermes connectors (Mac-host only) still gated on T6 (#34/#107)
+## 33. 📝 Apple app integrations — device-side EventKit shipped (#69/#70); Mac-host layer LIVE 2026-07-15: iMessage ✅ Notes ✅, FindMy parked, Photon rejected
+
+> **Update 2026-07-15:** the server-side layer is no longer gated — #107 Phase 2 executed.
+> iMessage (imsg sender / BlueBubbles reader) and Notes (memo + AppleScript) verified end-to-end
+> agent-driven on the Mini. FindMy parked (pyicloud path documented in #107). Reminders skill
+> exists server-side (`remindctl`, not installed) but is redundant with device-side EventKit.
+> Reaching these from the phone = Part 2 profile switcher (#114).
 
 > **Audit 2026-07-13:** The device-side EventKit half this item frames as forward-looking scope ('near-term scope if pursued') is already merged and device-verified under OPEN_ITEMS #69/#70 (GitHub #28/#29, PRs #34/#35, both Merged=YES) — `DeviceCalendarTools.swift` explicitly notes it 'pulls main-repo #33 forward device-side.' Recommend cross-referencing #69/#70 here so the item doesn't read as unstarted. The Mac-connector (server-side) half remains genuinely open, correctly gated on T6/#34/#107.
 
@@ -1522,6 +1528,10 @@ Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully rep
 **Found 2026-07-04** (on-device, during connector-outage testing). `SensorUploadService.drainOutboxIfPossible()` drains location first and `break`s the entire loop on a location `.failed`, so it never reaches the health block. When location persistently returns `deliveryState=retry` (connector down / busy / forward stalled), the health outbox climbs unbounded even though health itself is fine — observed 475→481+ live. `LocationUploadOutcome` has no `.retry` case, so a transient `retry` is mis-mapped to a hard `.failed` that wedges the loop. **Fix (iOS, Fable):** a location failure must not `break` past health; give location its own transient retry/backoff (mirror health's `.retry` handling); drain the two outboxes on independent passes so neither can starve the other. Distinct from #24a (that was a poison *health* sample wedging health; this is the *location* path wedging health). GitHub issue snippet drafted.
 
 ## 54. ✅ Relay restart forces connector re-attach — RESOLVED (nonce DB-persisted + race-safe eviction, verified 2026-07-09)
+
+> **Mac deployment re-verified 2026-07-15:** `verify-phase1.sh --restart-check` on the Mini —
+> relay bounced via launchctl kickstart, connector reattached unattended, `last_connected_at`
+> advanced. Same DB-backed behavior as OJAMD.
 
 **Update 2026-07-12 (Mac deployment, verification owed):** the T6 Phase 1 re-home (#107)
 adds a second deployment of this exact seam — launchd-managed connector vs launchd-managed
@@ -3331,7 +3341,37 @@ Logged 2026-07-12.
 
 ---
 
-## 107. 🔧 T6 Phase 1 — relay + connector re-homed onto the Mac Mini (spec + scaffolding landed; Mini execution owed)
+## 107. 🔧 T6 Phase 1+2 — Mac Mini backend EXECUTED (relay/connector/shim live, iMessage + Notes verified); .p8 + reboot + dev pairing owed
+
+> **Executed 2026-07-14/15 (Claude Desktop session, main @ da24e4a).** Phase 1 on-box complete:
+> relay LaunchAgent `org.aethyrion.talaria-relay` live on :8000 (venv py3.13), connector
+> `ai.hermes.mobile.connector` running + attached, shim re-rendered onto this checkout,
+> gateway persistence confirmed native (`ai.hermes.gateway`, RunAtLoad+KeepAlive).
+> `verify-phase1.sh --restart-check`: 13 pass / 0 fail / 1 warn (warn = native gateway agent,
+> expected). macOS suites: relay 117 passed, connector 105 passed (LaunchAgent test un-skipped).
+> Findings: (a) first launchd boot took ~13 min — Gatekeeper/syspolicyd assessing venv .so files;
+> one-time, restarts ~5s; the installer's 30s health poll reports a false failure — wait it out.
+> (b) `pytest -q` doubles pyproject's `addopts=-q` and suppresses the summary — run bare `pytest`.
+> (c) BB server password appeared once in a Claude transcript (webhook-list dump) — rotation
+> recommended at Owen's convenience; BB is loopback-bound, low exposure.
+>
+> **Phase 2 (Apple connectors):** Q2 verdict — **`imsg` (brew, v0.13.0) is the sender of record**,
+> invoked via terminal with full path; upstream deliberately ships no agent-callable send tool.
+> **BlueBubbles = inbound/reader only**, adapter enabled credential-driven, gated
+> (`require_mention: true`, `send_read_receipts: false`), reusing the pre-existing 2026-07-05
+> webhook. **Photon evaluated & REJECTED** (managed cloud iMessage lines — wrong identity, no
+> Mac session state; Owen: no adoption plans). iMessage **send ✅ + read ✅** verified agent-driven
+> through the Sessions API (the exact app path). Notes: `memo` installed, **read ✅ + write ✅**
+> verified agent-driven (write via AppleScript — memo's -a/-s flags are interactive-only; skill
+> corrected). FindMy: UI automation abandoned (too fragile, Owen call) — pyicloud `play_sound()`
+> is the documented adoption path if ever wanted (#114-adjacent, parked). TCC ledger: FDA granted
+> to gateway python (uv cpython 3.11 — re-add if `hermes update` swaps the runtime) + Claude;
+> Notes Automation + Accessibility granted; launchd Automation prompts DO surface with an active
+> GUI session (run stalls at prompt, resumes on approval — better than the silent-denial trap).
+> Skills hardened on-box: apple-messaging (confirm-before-send + single-writer rules),
+> apple-notes (non-interactive corrections), findmy (parked banner).
+> **Remaining:** .p8 → `~/.secrets/apns/` + relay kickstart; reboot test (Owen); dev-device
+> pairing rides Part 2 (#114).
 
 **Executes #34 (un-deferred by Owen 2026-07-12); enables #33's server-side connectors.**
 Spec committed at `design/T6_MAC_BACKEND_SPEC.md` (v0.2, Q1–Q5 defaults recorded in §7);
@@ -3493,3 +3533,43 @@ Logged 2026-07-12 (dispatch-prep session).
 - Optional app-side: consider surfacing repeated retry-exhaustion as an inbox alert instead of a panel-only string (kind must be within the app enum).
 
 Logged 2026-07-14.
+
+---
+
+## 114. 🔧 Backend Profiles — server switcher (T6 Part 2): second profile without wiping the first
+
+Owen's model (2026-07-14/15 session): capability-based hosts — OJAMD = production brain
+(sensors, Windows toolsets, scheduled runs); Mac Mini = Apple-ecosystem hands (iMessage,
+Notes, Xcode toolsets, agent files). Re-homing via a Settings profile switcher: tap the
+profile, pick the host, bam — new work targets it; switch back for Windows needs.
+
+Spec: `planning/SPEC-backend-profiles-v1.md` (v2 + session directives; Fable lane dispatch
+pending final doc pass). Locked decisions: relay plane FOLLOWS the profile (one-time QR pair
+per relay, N stored pairings — amends #91); sensors stay pinned to production
+(`sensorDestinationProfileID`); sessions carry immutable birth-host `profileID` (drawer
+routes reconnects; pushes from both relays route by session tag); **"New chat on <profile>"
+shortcut IS in v1** (Owen), including retooling/removing the warning text on the current
+New Chat button. Settings cleanups folded in: retire the dead relay "use hosted" tab; retire
+the Hermes Host Relay/Direct switch (Direct-only reality per #108 iPad lesson — every
+profile is Direct-with-its-own-key by construction).
+
+Definition of done: whoGoesThere holds OJAMD + Mac profiles simultaneously, switching is
+non-destructive both ways, and "send an iMessage to Shelley" works from Talaria chat on the
+Mac profile with the #4 confirm gate.
+
+Logged 2026-07-15.
+
+---
+
+## 115. 🐛 Connector `resolve_mcp_command_path()` breaks on macOS venvs (symlinked python) — one-line fix
+
+`Path(sys.executable).resolve().with_name("hermes-mobile-mcp")` resolves the venv python
+symlink to the framework/uv binary FIRST, escaping the venv, so the sibling lookup misses
+`.venv/bin/hermes-mobile-mcp` and setup/configure-mcp report "Could not find
+hermes-mobile-mcp" (Windows venvs copy the exe — OJAMD never hit this). Workaround used on
+the Mini 2026-07-14: `PATH="$PWD/.venv/bin:$PATH" hermes-mobile configure-mcp` (shutil.which
+candidate wins). Fix: try the UNRESOLVED sibling (`Path(sys.executable).with_name(...)`)
+before the resolved one, in `connector/src/hermes_mobile_connector/mcp_registration.py`.
+Micro-PR, standalone.
+
+Logged 2026-07-15.
