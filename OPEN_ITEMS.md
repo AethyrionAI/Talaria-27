@@ -3478,3 +3478,18 @@ Logged 2026-07-12 (dispatch-prep session).
 **Owed on device (whoGoesThere):** Comic Book live-switch (Settings → toggle system appearance foregrounded → villain↔funnies re-skin without relaunch), the two documented seams for Owen's verdict — (a) picker card previews the presented-surface variant while a fixed theme forces the scheme, (b) cold light-mode launch flashes the villain half for one frame before the mirror lands — plus new-icon spot check and light-chrome pass on Pulp Noir / Sticker-Bomb.
 
 **2026-07-13 follow-up (`48770cd`):** icon picker was a silent no-op on iPad — iPadOS reads `CFBundleIcons~ipad` exclusively for alternate-icon support and we only declared the base key (iPhone unaffected). Fixed via YAML anchor/alias in `project.yml` so both keys stay byte-identical with a single edit point. **Shelley's iPad icon-picker check rides her next install.**
+
+## 113. 🐛 Connector process died silently — health outbox piled up on all devices (202-retry trap); connector needs supervision
+
+**Incident (2026-07-14):** health uploads stopped draining on both whoGoesThere and Shelley's iPad ("upload busy, retries exhausted" in the sensor diagnostics panel). Diagnosis walked outside-in from the Mac: app-side drain/chunking ruled out (#104 touched persistence only; #24a chunking long shipped), relay up with `/v1/device/sensor/health` answering 401 in 27ms unauthenticated — then on OJAMD, `Get-NetTCPConnection -State Established -LocalPort 8000` showed only device sockets, no local connector, and `Get-Process hermes-mobile` returned nothing. **The connector process was dead entirely** — relay 202-busied every ingest, devices mapped it to `.retry`, exhausted, deferred, piled up. Chat unaffected (Sessions plane).
+
+**Fix:** relaunched via `O:\Hermes\Talaria\scripts\start-connector.bat`; connector re-attached in ~10s (Established from `100.110.102.59`), both devices confirmed delivering + clearing on next foreground drain. Diagnostics panel string (#15) earned its keep — it was the 30-second confirmation.
+
+**Distinct from #54** (re-attach when the process lives, resolved 2026-07-09): this is process mortality. Relay and shim are NSSM-supervised; the connector is a bare bat-launched user process — a crash is a permanent detach until a human notices via piled-up sensors.
+
+**Owed:**
+- **Forensics on next OJAMD pass:** why it died (connector log around time of death; likely window = during/after the 07-13 evening deploy work) + confirm whether #85/#86 deploys actually landed (handoff listed them owed; OJAMD DC session dropped before verification).
+- **Supervision decision (Owen):** promote connector to an NSSM service like relay/shim (must respect the single-instance enforcer + `PYTHONUTF8=1` env), or a scheduled-task watchdog that re-runs the bat when `hermes-mobile` is absent.
+- Optional app-side: consider surfacing repeated retry-exhaustion as an inbox alert instead of a panel-only string (kind must be within the app enum).
+
+Logged 2026-07-14.
