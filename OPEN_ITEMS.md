@@ -1720,7 +1720,20 @@ Logged 2026-07-06.
 
 ---
 
-## 58. 🔧 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — MERGED (PR #11); device pass 2026-07-11 partial fail, Ask-control wiring bug localized
+## 58. 🔧 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — Ask-control wiring FIXED (PR #100, 2026-07-16); device re-verify owed
+
+> **MERGED 2026-07-16 (PR #100, `007417b`).** Root cause exactly as localized: both extension-local
+> launch intents paired `static let openAppWhenRun = true` with the `OpenURLIntent` returned from
+> `perform()` — Apple's control-opens-app-to-URL shape is the `OpenURLIntent` ALONE, and setting
+> both makes Control Center silently swallow the tap. Fix drops the member (protocol default
+> false) from `OpenHermesChatIntent` + `OpenHermesVoiceIntent`; `.notice` instrumentation in both
+> `perform()`s (subsystem `org.aethyrion.talaria27.widgets`, public privacy) so Console can answer
+> "did perform fire?". `HermesControlsTests` pins openAppWhenRun/isDiscoverable false + stable
+> `kind` strings (HermesControls.swift compiles into the test bundle via project.yml — the
+> extension isn't an importable module). Loop: regen pbxproj-only, entitlements survived, suite
+> **647 tests / 55 suites green**. → **Device re-verify owed:** tap Ask Hermes from Control Center
+> on whoGoesThere — expect app launch to chat + the perform log line in Console. Talk control
+> stays #82 wedge-excused until the next beta seed.
 
 > **Audit 2026-07-13:** PR #11 (GitHub #7) merged this to main 2026-07-06; header's 'BUILT IN CLOUD, not compiled' is stale. The item's own 2026-07-11 device pass (commits f35edb9, b05fef9) already ran on a compiled build and localized a real bug: the Ask control's action wiring in HermesControls.swift (Talk control is separately wedge-blocked on item #82, not a code defect). 🔧 stays correct as a live, localized bug — 'Small, well-bounded fix' per the item's own text — not because the build is missing.
 
@@ -3671,7 +3684,19 @@ Logged 2026-07-15.
 
 ---
 
-## 116. 🔧 Shim plane — kill the manual token paste + make the probe honest
+## 116. 🔧 Shim plane — kill the manual token paste + make the probe honest — BOTH HALVES MERGED (PRs #101 + #102, 2026-07-16); DoD device pass owed
+
+> **Loop verdict 2026-07-16:** PR #101 (server half) merged `544b500` — relay suite **124/124**
+> and connector suite **115/115** re-run green on the Mac (Fable's Linux run had 114 + 1
+> macOS-only skip; the skip runs here). PR #102 (app half) merged `a8b27e0` — loop merged main
+> into the branch BEFORE the regen, so the branch tree == merged main tree (tree SHAs verified
+> identical `a846d93`); full suite on that exact tree **687 tests / 58 suites green**. Post-merge
+> validation satisfied by construction. New baseline: 687/58.
+> **Deploy still owed before the DoD device pass:** restart relay + connector on the Mini's live
+> checkout (blocked at loop time — the working copy was on `fix/voice-native-blocked`; restart
+> after it returns to main) and the OJAMD `ojamd-deploy` rebase (Owen's gate). DoD pass: forget
+> Mac pairing → re-pair via QR → auto-fill lands → shim dot honest (NO KEY vs ONLINE) → models
+> surface works. Then repeat pairing against OJAMD once it's deployed there.
 
 > **Update 2026-07-16 (Fable lane, PR 1 of 2 — server half built):** connector now ships a
 > provisioning descriptor `{shim_base_url, shim_token, gateway_base_url}` on ws hello and
