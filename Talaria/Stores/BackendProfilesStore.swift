@@ -167,6 +167,16 @@ final class BackendProfilesStore {
         return true
     }
 
+    /// M-9: records that a profile's relay tokens were just minted/refreshed,
+    /// so the dormant-refresh pass can skip it for the next window.
+    func stampTokenRefresh(profileID: UUID?, at date: Date = .now) {
+        guard let profileID,
+              let index = state.profiles.firstIndex(where: { $0.id == profileID }) else { return }
+        var updated = state
+        updated.profiles[index].lastTokenRefreshAt = date
+        state = updated
+    }
+
     /// Deletes a profile. The active profile and the sensor-destination
     /// profile are undeletable (house rule) — switch/repin first.
     func deleteProfile(id: UUID) throws {
