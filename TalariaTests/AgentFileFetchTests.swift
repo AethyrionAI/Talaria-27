@@ -82,7 +82,9 @@ struct AgentFileFetchTests {
     }
 
     @Test func contentPresentStaysTier1Staged() throws {
-        let payload = #"{"tool_name":"write_file","args":{"path":"O:\\Hermes\\out.md","content":"# Report"}}"#
+        // ##-delimited: the JSON contains `"#` (in "# Report"), which would
+        // close a plain #"…"# raw literal mid-string.
+        let payload = ##"{"tool_name":"write_file","args":{"path":"O:\\Hermes\\out.md","content":"# Report"}}"##
         let attachment = try #require(SessionsHermesClient.parseWrittenFile(payload, profileID: UUID()))
         defer { removeStagedFile(attachment) }
         // Staged now, nothing to fetch later — no regression on the Tier 1 path.
