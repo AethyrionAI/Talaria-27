@@ -18,6 +18,13 @@ struct SessionProfileIndex: Codable, Hashable, Sendable {
         sessionProfileIDs[sessionID]
     }
 
+    /// The routing rule (M-5/M-7): a session resolves to its recorded birth
+    /// profile; unrecorded ids are pre-Lane-M sessions, which all belong to
+    /// the migrated profile — the active one at fallback time.
+    func routingProfileID(forSessionID sessionID: String, activeProfileID: UUID?) -> UUID? {
+        sessionProfileIDs[sessionID] ?? activeProfileID
+    }
+
     mutating func record(sessionID: String, profileID: UUID) {
         sessionProfileIDs[sessionID] = profileID
     }

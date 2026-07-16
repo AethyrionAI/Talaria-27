@@ -29,6 +29,12 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
     /// migration unable to strand an existing pairing (#41): even if the
     /// profile list itself were lost, re-migration re-adopts the same keys.
     var usesLegacyCredentialKeys: Bool
+    /// When this profile's relay tokens were last known refreshed (M-9):
+    /// dormant profiles get an opportunistic refresh so the 30-day refresh
+    /// TTL never strands one. Stamped on pair and on dormant refresh; the
+    /// ACTIVE profile's tokens rotate organically, so its stamp may lag —
+    /// worst case is one redundant cheap refresh after a switch.
+    var lastTokenRefreshAt: Date?
 
     init(
         id: UUID = UUID(),
@@ -37,7 +43,8 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
         relayBaseURL: String,
         shimBaseURL: String? = nil,
         note: String? = nil,
-        usesLegacyCredentialKeys: Bool = false
+        usesLegacyCredentialKeys: Bool = false,
+        lastTokenRefreshAt: Date? = nil
     ) {
         self.id = id
         self.name = name
@@ -46,6 +53,7 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
         self.shimBaseURL = shimBaseURL
         self.note = note
         self.usesLegacyCredentialKeys = usesLegacyCredentialKeys
+        self.lastTokenRefreshAt = lastTokenRefreshAt
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -56,6 +64,7 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
         case shimBaseURL
         case note
         case usesLegacyCredentialKeys
+        case lastTokenRefreshAt
     }
 
     /// Hand-written so future additive fields decode tolerantly — a decode
@@ -69,6 +78,7 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
         shimBaseURL = try container.decodeIfPresent(String.self, forKey: .shimBaseURL)
         note = try container.decodeIfPresent(String.self, forKey: .note)
         usesLegacyCredentialKeys = try container.decodeIfPresent(Bool.self, forKey: .usesLegacyCredentialKeys) ?? false
+        lastTokenRefreshAt = try container.decodeIfPresent(Date.self, forKey: .lastTokenRefreshAt)
     }
 
     /// The scope under which this profile's credentials are keyed: nil means
