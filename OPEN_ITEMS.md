@@ -3568,6 +3568,15 @@ Logged 2026-07-14.
 > install as "OJAMD" (active, sensor destination) with pairing intact; add "Mac Mini" profile
 > (gateway `http://100.79.222.100:8642`, relay `http://100.79.222.100:8000/v1`, shim `:8765`);
 > pair via `hermes-mobile pair-phone` on the Mini; switch both ways confirming NOTHING wipes;
+>
+> **DEVICE-VERIFIED 2026-07-16 (whoGoesThere):** migration landed as "OJAMD" with pairing intact;
+> Mac Mini profile added, keyed, and paired (relay devices table = 1 row, redeem 200 from the
+> phone's tailnet IP); **both cards PAIRED simultaneously — the P0, on device**; switched both
+> ways with a successful chat round-trip on EACH host; SENSORS badge stayed pinned to OJAMD
+> while Mac was active (D2). Remaining: the Shelley iMessage closer (deferred by Owen to
+> after-work hours — the human confirm gate at work; closes this DoD + #107's last criterion).
+> Friction found: shim token required manual locate-and-paste, and SHIM ONLINE reads green from
+> the unauthenticated /healthz probe even with no/bad token → both captured as #116.
 > "New chat on Mac Mini" long-press; then the closer: "send an iMessage to Shelley: …" from the
 > Mac profile → #4 confirm → delivered — which also closes #107's dev-pairing criterion.
 
@@ -3607,3 +3616,27 @@ before the resolved one, in `connector/src/hermes_mobile_connector/mcp_registrat
 Micro-PR, standalone.
 
 Logged 2026-07-15.
+
+---
+
+## 116. 🔧 Shim plane — kill the manual token paste + make the probe honest
+
+Two related gaps surfaced during #114 device verification (2026-07-16):
+
+1. **Provisioning:** the shim token (`~/.hermes/talaria_shim_token` on each host) had to be
+   manually located on the host and pasted into the profile — bad for Owen every time, worse
+   for any future user installing the stack. The pairing QR configures the relay plane only
+   (#108); the gateway key at least has the Uplink nudge. The shim has nothing.
+   **Candidate design (preferred):** post-pair provisioning bundle — after a successful pairing
+   redeem, the app pulls a host-provisioning payload from the relay (connector supplies it via
+   the internal API: shim base URL + shim token, possibly gateway base URL), authenticated by
+   the fresh pairing token, and auto-fills the profile. Alternative: fold the shim fields into
+   the QR payload itself (connector `pair-phone` change). Decide whether the gateway API key
+   joins the bundle or deliberately stays a manual gate.
+2. **Probe honesty:** `SHIM ONLINE` comes from unauthenticated `/healthz`, so the dot is green
+   with a missing/wrong token. Give the shim probe the gateway treatment: when a token is
+   present, make an authenticated call and render answering-but-unkeyed distinctly
+   (ServerSettingsScreen probe layer, small).
+
+Server-side touches ride the fork (relay internal API + connector), app-side is a small lane
+or rides the next Settings lane. Logged 2026-07-16.
