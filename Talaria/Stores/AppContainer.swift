@@ -694,7 +694,9 @@ final class AppContainer {
             // the relay client actually read now. One-way, every writer
             // covered, so the two records can't drift.
             profilesStore.updateActiveProfile { profile in
-                profile.relayBaseURL = configuration.activeBaseURLString ?? ""
+                // Normalized when valid; the raw text while mid-edit, so a
+                // partially typed URL never snaps the bound field to "".
+                profile.relayBaseURL = configuration.activeBaseURLString ?? configuration.customRelayBaseURL
             }
             await refreshUnpairedRelayContext()
         }
@@ -1773,6 +1775,34 @@ final class AppContainer {
     }
 
     // MARK: - Models shim token
+
+    /// Lane M (M-12): a profile's stored gateway API key, for the Server
+    /// screen's editor prefill. Reads the Keychain directly — the cache may
+    /// not have been populated for never-activated profiles.
+    func gatewayAPIKey(for profile: BackendProfile) async -> String? {
+        guard let secureStore else { return nil }
+        return await secureStore.retrieve(key: BackendProfileScopedKeys.gatewayAPIKey(profile.credentialScopeID))
+    }
+
+    /// Lane M (M-12): saves a gateway API key into a NAMED profile's slot.
+    /// The active profile takes the full `saveHermesAPIKey` path (box +
+    /// routing signal); other profiles update the Keychain + cache so the
+    /// per-session endpoint resolver picks the key up immediately.
+    func saveGatewayAPIKey(_ value: String, for profile: BackendProfile) async {
+        guard profile.id != profilesStore?.activeProfileID else {
+            await saveHermesAPIKey(value)
+            return
+        }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        gatewayKeyCache?.set(trimmed, forScope: profile.credentialScopeID)
+        guard let secureStore else { return }
+        let key = BackendProfileScopedKeys.gatewayAPIKey(profile.credentialScopeID)
+        if trimmed.isEmpty {
+            await secureStore.delete(key: key)
+        } else {
+            await secureStore.store(key: key, value: trimmed)
+        }
+    }
 
     /// Persists the models-shim bearer token in the Keychain (under the
     /// ACTIVE profile's slot) and updates the in-memory copy that
