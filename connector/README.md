@@ -176,6 +176,27 @@ Platform notes:
 - Windows support is WSL2-only through a Scheduled Task
 - native Windows Hermes execution is not supported
 
+## Host provisioning descriptor
+
+On every relay connection (and on idle heartbeats when something changed) the
+connector reports a provisioning descriptor so a freshly paired phone can
+auto-fill its profile — `GET /v1/device/provisioning` on the relay:
+
+- `shim_base_url` + `shim_token` — included only while the models-shim token
+  file exists (`~/.hermes/talaria_shim_token`; override the path with
+  `TALARIA_SHIM_TOKEN_FILE`). The file is re-read lazily, so rotating the
+  token propagates within one heartbeat.
+- `gateway_base_url` — the Hermes Sessions API (`:8642`).
+- The gateway **API key is never included** — adding it to the app stays a
+  manual step by design.
+
+URLs default to `http://<relay host>:<standard port>` (the relay's
+`PUBLIC_BASE_URL` host is phone-reachable by definition and co-located with
+the shim + gateway in the reference topology). Overrides, in order of
+precedence: `TALARIA_SHIM_BASE_URL` / `TALARIA_GATEWAY_BASE_URL` (full URLs),
+`TALARIA_PROVISIONING_HOST` (host for the derived defaults). A loopback relay
+URL falls back to the machine hostname.
+
 ## Realtime talk configuration
 
 Realtime talk is connector-owned, not app-owned.
