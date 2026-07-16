@@ -1,3 +1,8 @@
+# ⛔ ALREADY SHIPPED — DO NOT DISPATCH
+# Merged to main before 2026-07-16 (see OPEN_ITEMS entry). Kept for the record.
+# Dead-dispatch incident 2026-07-16: staleness passes MUST check merged-PR
+# state (git log --grep / gh pr list) before refreshing any spec.
+
 # FABLE T27-110 — Read-aloud stops on a retracted reply (#110)
 
 **OPEN_ITEMS:** #110 (read-aloud speaks the collapsed loop)

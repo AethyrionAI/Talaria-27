@@ -1,3 +1,8 @@
+# ⛔ ALREADY SHIPPED — DO NOT DISPATCH
+# Merged to main before 2026-07-16 (see OPEN_ITEMS entry). Kept for the record.
+# Dead-dispatch incident 2026-07-16: staleness passes MUST check merged-PR
+# state (git log --grep / gh pr list) before refreshing any spec.
+
 # FABLE-T27-60 — Adopt `run.completed` reasoning_content; never show the answer as reasoning
 
 **OPEN_ITEMS:** #60 (probe complete 2026-07-13; this is the app-side fix track)

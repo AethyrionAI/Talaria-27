@@ -1762,6 +1762,8 @@ attachments today) — worth a sweep task later?
 Logged 2026-07-06.
 ## 60. 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under `_thinking`); real reasoning lives in `run.completed.reasoning_content`
 
+> **App-side half MERGED (`b88914f`): SessionsHermesClient adopts `run.completed` reasoning; answer-mirror never attaches.** Remaining: the gateway-side root cause (streaming reasoning deltas) — upstream Hermes code, update-unsafe to patch; re-probe on v0.18.2 (Mac gateway available) to see if upstream fixed the emitter, else it's an upstream ask, not a patch.
+
 **PROBE 2026-07-13 — COMPLETE.** Mac-side `curl -N` against the OJAMD gateway Sessions API (`100.110.102.59:8642`), raw SSE captured and dissected. Root cause found; the app is NOT the culprit.
 
 - **Delta key = `delta`** — the same field name as `assistant.delta`. Not `content`/`text`/`message`/`preview`; the parser's first guess was right all along.
@@ -2640,6 +2642,8 @@ Console names the skipped one.
 
 ## 81. 🔧 Lock-screen reply to Hermes — UNTextInputNotificationAction (GitHub #47)
 
+> **MERGED (branch `claude/t27-47-lockscreen-reply` is an ancestor of main — verified 2026-07-16).** Device checklist owed (long-press push → Reply → headless post → next push carries Reply). Note for the checklist: with #114 profiles, verify the headless reply posts to the push's SESSION birth profile.
+
 **Update 2026-07-08 (cloud session, branch `claude/t27-47-lockscreen-reply`):**
 Relay half **tested green here** (72 passed); iOS half BUILT IN CLOUD, not
 compiled or device-verified. Completion pushes (#38) were tap-to-open only —
@@ -3301,6 +3305,8 @@ Logged 2026-07-11.
 
 ## 104. 🔧 Sensor outbox persistence churn — full rewrite on every tick, main actor, unbounded backlog
 
+> **MERGED 2026-07-13 as PR #85 (`93e0222`)** + xcodegen registration `e903cb2` — discovered 2026-07-16 via the same dead-dispatch incident as #110. **Follow-up in flight (2026-07-16):** Fable, re-reviewing against this spec, found a real bug in the DRAINING path and is building the fix now — PR expected; loop it on arrival. Device verify owed for both.
+
 > **Dispatch spec 2026-07-13 (eve):** `dispatch/FABLE-T27-104-sensor-outbox-churn.md` — cloud-safe, unit-test-gated (debounce+flush / backlog cap / off-main encode). Ready to send to CC.
 
 Found 2026-07-11 while investigating #103's thermal contribution: `SensorUploadService.persistOutboxState()` (backed by `UserDefaultsAppPersistenceStore.saveSensorOutboxState`) encodes and rewrites the WHOLE outbox on every location update, motion activity change, and health snapshot — in `@MainActor` tasks. Cost scales linearly with backlog size and there is no backlog cap, so any connector outage (like #103) turns routine sensor ticks into a sustained CPU/IO loop (heat + potential UI jank). Hardening shape: (a) debounce/coalesce persistence (e.g. persist at most every few seconds or on chunk boundaries — crash-loss window of a few seconds of sensor samples is acceptable), (b) cap `pendingHealthSamples` with oldest-drop + an honest diagnostics note when capped, (c) move the encode off the main actor. Small, file-scoped to `SensorUploadService.swift` + the persistence store; no collision with Lanes D/F/G/H. UN-GATED 2026-07-11: #103's deploy drained 2k→0 cleanly and the device cooled as the backlog fell — current semantics proven, mechanism empirically supported. Dispatchable as its own small lane whenever desired.
@@ -3487,6 +3493,8 @@ Logged 2026-07-12.
 
 ## 110. 🔧 Read-aloud speaks the collapsed loop — breaker trip vs speech queue (Lane H follow-up)
 
+> **MERGED 2026-07-13 as PR #86 (`a62dc8c`)** — discovered 2026-07-16 when a fresh dispatch found the work shipped (Fable audit branch `claude/fable-t27-110-readaloud-wbsvmy` @ 3c15f1d verifies every acceptance line against the tree; implementation seam: `shouldRetractSpeech` static + `finishStream(finishedContent:)`, five decision tests + suite green via PR #94's Mac run 618/51). Remaining: organic-only device verify (deterministic repro defeated by base-model guardrails per #102). **Ledger lesson: this entry sat 🔧 with no merge note for 3 days and caused a dead dispatch** — merge notes are not optional.
+
 > **Dispatch spec 2026-07-13 (eve):** `dispatch/FABLE-T27-110-readaloud-retract.md` — cloud-safe, pure-decision-fn test gate. Ready to send to CC.
 
 Fell out of Lane H's adversarial review (PR #83), outside its file scope (touches `ChatStore`/`SpeechOutputService`, which Lane H deliberately never contacted): with auto read-aloud ON, a #102 breaker trip rewrites the bubble to one copy of the looped phrase — but the utterances already enqueued during streaming still SPEAK the full run of copies. The user sees the fixed transcript while hearing the loop the breaker just cut.
@@ -3498,6 +3506,8 @@ Only reachable when a breaker trip and auto read-aloud coincide, so low urgency 
 Logged 2026-07-13 (Mac session, Lane H merge train).
 
 ## 111. 🐛 PCC availability check churns doomed ModelManager sessions on every UI tick (#30 follow-up)
+
+> **2026-07-16: the closing stopgap (`claude/t27-pcc-crash-stopgap`) is NOT merged** — verified not an ancestor of main, so the churn is still live on device. Queued for the Mac review loop TODAY (small: `pccGrantConfirmed` gate). The memoize fix stays deferred until the PCC entitlement lands.
 
 > **2026-07-13 (eve): closed by the #72 stopgap.** This churn is the same unentitled `ModelManager` requests; the `pccGrantConfirmed` gate (branch `claude/t27-pcc-crash-stopgap`) never constructs a PCC session, so the churn stops. → ✅ once that branch merges.
 

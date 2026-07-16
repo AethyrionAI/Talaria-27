@@ -1,3 +1,8 @@
+# ⛔ ALREADY SHIPPED — DO NOT DISPATCH
+# Merged to main before 2026-07-16 (see OPEN_ITEMS entry). Kept for the record.
+# Dead-dispatch incident 2026-07-16: staleness passes MUST check merged-PR
+# state (git log --grep / gh pr list) before refreshing any spec.
+
 # FABLE T27-104 — Sensor-outbox churn hardening (#104)
 
 **OPEN_ITEMS:** #104 (sensor-outbox persistence churn)
