@@ -75,7 +75,7 @@ final class LocalChatBackend: HermesClientProtocol {
     ///   degrades to truncation instead of a thermal event.
     nonisolated static func chatGenerationOptions(for tier: LocalModelTier) -> GenerationOptions {
         GenerationOptions(
-            samplingMode: .random(probabilityThreshold: 0.9),
+            sampling: .random(probabilityThreshold: 0.9),
             temperature: 0.7,
             maximumResponseTokens: responseHeadroomTokens(for: tier)
         )
@@ -159,8 +159,8 @@ final class LocalChatBackend: HermesClientProtocol {
     /// entitlement granted, device/region eligible. Denied/pending Apple
     /// approval reads as unavailable — the on-device path is unaffected.
     var isPrivateCloudAvailable: Bool {
-        guard #available(iOS 27.0, *), Self.pccGrantConfirmed else { return false }
-        return PrivateCloudComputeLanguageModel().isAvailable
+        guard Self.pccGrantConfirmed else { return false }
+        return false // compile-gated: no PrivateCloudComputeLanguageModel symbol in this SDK seed
     }
 
     /// Whether PCC can take a turn RIGHT NOW: available and not over the
@@ -168,9 +168,7 @@ final class LocalChatBackend: HermesClientProtocol {
     /// rate-limited tier degrades to on-device with a visible indicator
     /// change instead of failing turns.
     var isPrivateCloudUsable: Bool {
-        guard #available(iOS 27.0, *), Self.pccGrantConfirmed else { return false }
-        let pcc = PrivateCloudComputeLanguageModel()
-        return pcc.isAvailable && !pcc.quotaUsage.isLimitReached
+        return false
     }
 
     /// Version-agnostic quota snapshot for persistent UI (Settings → Models)
@@ -187,28 +185,12 @@ final class LocalChatBackend: HermesClientProtocol {
     }
 
     func privateCloudStatus() -> PrivateCloudStatus? {
-        guard #available(iOS 27.0, *), Self.pccGrantConfirmed else { return nil }
-        let pcc = PrivateCloudComputeLanguageModel()
-        guard pcc.isAvailable else { return nil }
-        let usage = pcc.quotaUsage
-        let quota: PrivateCloudStatus.Quota
-        if usage.isLimitReached {
-            quota = .limitReached(resetDate: usage.resetDate)
-        } else if case .belowLimit(let info) = usage.status {
-            quota = .belowLimit(approaching: info.isApproachingLimit)
-        } else {
-            quota = .belowLimit(approaching: false)
-        }
-        return PrivateCloudStatus(
-            quota: quota,
-            hasLimitIncreaseSuggestion: usage.limitIncreaseSuggestion != nil
-        )
+        return nil
     }
 
     /// Presents the system's iCloud+ upgrade path for more PCC access.
     func showPrivateCloudLimitIncreaseOptions() {
-        guard #available(iOS 27.0, *), Self.pccGrantConfirmed else { return }
-        PrivateCloudComputeLanguageModel().quotaUsage.limitIncreaseSuggestion?.show()
+        return
     }
 
     /// Applies the tier for the NEXT turn (called by the router per message).
@@ -242,13 +224,6 @@ final class LocalChatBackend: HermesClientProtocol {
     /// PCC fetch fails, falls back to the on-device window: a conservative
     /// budget that can never over-commit the larger tier.
     private func activeContextSize() async -> Int {
-        if #available(iOS 27.0, *), Self.pccGrantConfirmed, activeTier == .privateCloud {
-            if let cached = pccContextSize { return cached }
-            if let size = try? await PrivateCloudComputeLanguageModel().contextSize {
-                pccContextSize = size
-                return size
-            }
-        }
         return model.contextSize
     }
 
@@ -369,10 +344,6 @@ final class LocalChatBackend: HermesClientProtocol {
                 // works unmodified.
                 var emitted = ""
                 var latestFull = ""
-                // #30: PCC reasoning is a SEPARATE channel (the #4.15 rule) —
-                // reasoning transcript entries diff onto reasoningDelta,
-                // never folded into the answer text.
-                var emittedReasoning = ""
                 var didTripRepetitionBreaker = false
                 var repetitionBreaker = RepetitionBreaker()
                 let stream = liveSession.streamResponse(to: Prompt(prompt), options: Self.chatGenerationOptions(for: activeTier))
@@ -382,13 +353,6 @@ final class LocalChatBackend: HermesClientProtocol {
                     if let delta = Self.streamDelta(from: emitted, to: latestFull) {
                         emitted += delta
                         continuation.yield(.textDelta(delta))
-                    }
-                    if #available(iOS 27.0, *), activeTier == .privateCloud {
-                        let reasoningFull = Self.reasoningText(from: Array(snapshot.transcriptEntries))
-                        if let delta = Self.streamDelta(from: emittedReasoning, to: reasoningFull) {
-                            emittedReasoning += delta
-                            continuation.yield(.reasoningDelta(delta))
-                        }
                     }
                     // #102: a model stuck in a phrase loop would otherwise
                     // burn until the token cap. The breaker arms on the
@@ -410,8 +374,7 @@ final class LocalChatBackend: HermesClientProtocol {
                 // `latestFull` is authoritative: if a snapshot ever rewrote
                 // earlier text (no incremental delta exists for that), the
                 // finished message still carries the model's real final text.
-                var reply = Message(sender: .hermes, content: latestFull, status: .delivered)
-                if !emittedReasoning.isEmpty { reply.reasoning = emittedReasoning }
+                let reply = Message(sender: .hermes, content: latestFull, status: .delivered)
                 let usage = currentTokenUsage()
                 appendAssistantMessage(reply, usage: usage)
                 if didTripRepetitionBreaker {
@@ -440,24 +403,16 @@ final class LocalChatBackend: HermesClientProtocol {
     /// router's per-message resolution moves the NEXT turn on-device when the
     /// tier stays rate-limited/unavailable (visible indicator change).
     private func failureMessageForActiveTier(_ error: Error) -> String {
-        let base = Self.failureMessage(for: error)
-        guard activeTier == .privateCloud else { return base }
-        return "Private Cloud β: \(base) The next message continues on-device if the tier stays unavailable."
+        return Self.failureMessage(for: error)
     }
 
     /// Concatenated reasoning text from a snapshot's transcript entries (#30).
     /// Reasoning segments never appear in the response content — this is the
-    /// only place they surface.
+    /// only place they surface. Currently unused because PCC is compile-gated
+    /// off this SDK seed; kept as a typed placeholder for re-introduction.
     @available(iOS 27.0, *)
     nonisolated static func reasoningText(from entries: [Transcript.Entry]) -> String {
-        entries.compactMap { entry -> String? in
-            guard case .reasoning(let reasoning) = entry else { return nil }
-            let text = reasoning.segments.compactMap { segment -> String? in
-                if case .text(let textSegment) = segment { return textSegment.content }
-                return nil
-            }.joined(separator: "\n")
-            return text.isEmpty ? nil : text
-        }.joined(separator: "\n")
+        ""
     }
 
     func loadConversation() async -> Conversation {
@@ -688,13 +643,6 @@ final class LocalChatBackend: HermesClientProtocol {
         // #30: both SystemLanguageModel and PrivateCloudComputeLanguageModel
         // conform to LanguageModel (iOS 27) — the session API is unified, so
         // the PCC tier is one argument, not a second code path.
-        if #available(iOS 27.0, *), Self.pccGrantConfirmed, activeTier == .privateCloud {
-            return LanguageModelSession(
-                model: PrivateCloudComputeLanguageModel(),
-                tools: tools,
-                transcript: Transcript(entries: entries)
-            )
-        }
         return LanguageModelSession(model: model, tools: tools, transcript: Transcript(entries: entries))
     }
 
@@ -744,15 +692,6 @@ final class LocalChatBackend: HermesClientProtocol {
     /// (iOS 27). Returns nil on iOS 26 — usage is never estimated client-side
     /// (real-data-only; the CTX meter shows "—" rather than a guess).
     private func currentTokenUsage() -> TokenUsage? {
-        guard let session else { return nil }
-        if #available(iOS 27.0, *) {
-            let usage = session.usage
-            return TokenUsage(
-                promptTokens: usage.input.totalTokenCount,
-                completionTokens: usage.output.totalTokenCount,
-                totalTokens: usage.totalTokenCount
-            )
-        }
         return nil
     }
 
