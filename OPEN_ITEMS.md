@@ -3667,3 +3667,28 @@ Two related gaps surfaced during #114 device verification (2026-07-16):
 
 Server-side touches ride the fork (relay internal API + connector), app-side is a small lane
 or rides the next Settings lane. Logged 2026-07-16.
+
+---
+
+## 117. 🔧 Health-drain give-up paths hammered the connector — no-backoff loop (PR #85 follow-up) — MERGED PR #103
+
+Found by Fable re-reviewing the merged #104 work against its spec (2026-07-16): in
+`drainOutboxIfPossible()`'s health phase, every give-up outcome (transient failure,
+busy-retry exhaustion, stalled poison isolation) ended in a bare `break` that only exits
+the `switch` — the `while` loop then re-sent the same failing chunk back-to-back with **no
+backoff for as long as the outage lasted**. That is the #113 dead-connector shape from the
+app side, and it also made the #104 drain-end flush unreachable while wedged.
+
+Fix (`SensorUploadService.swift`, MERGED as PR #103 @ `4ec97dc`): trailing loop-break
+mirroring the location phase's idiom — give-up paths exit the drain and keep the backlog
+for the next trigger, with honest deferral notes ("retries exhausted" / "upload failed").
+Injectable `busyBackoffWait` seam (2/4/8s ladder) for deterministic tests. 4 regression
+tests (`SensorDrainGiveUpTests`, circuit-breaker-guarded so a reintroduced loop fails on
+attempt counts). Mac loop 2026-07-16: BUILD SUCCEEDED, full suite **647 tests / 55 suites
+green**. M-8 destination routing untouched.
+
+Device verify owed: during a connector outage the diagnostics panel should show drains
+deferring instead of continuous POST traffic. Cross-refs: #104 (parent), #113 (the
+server-side twin — connector supervision), #24a (chunking semantics preserved).
+
+Logged 2026-07-16.
