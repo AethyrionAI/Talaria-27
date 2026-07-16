@@ -79,6 +79,31 @@ final class ProfileRelaySessionFactory {
         }
     }
 
+    /// #21 Tier 2: downloads an agent-written file from a profile's OWN relay
+    /// (`/v1/device/files`), authed with that profile's pairing-minted device
+    /// bearer — a fetchable file announced in a session must come from the
+    /// session's birth profile's whitelist, never a global relay base. On a
+    /// 401 a DORMANT profile gets one token refresh + retry here; the ACTIVE
+    /// profile's rotation belongs to AppSessionStore's #15 ladder, so its 401
+    /// propagates for the caller to recover.
+    func downloadAgentFile(remotePath: String, profileID: UUID) async throws -> URL {
+        guard isPaired(profileID: profileID) else {
+            throw RelayAPIClient.FileDownloadError.unauthorized
+        }
+        let client = apiClient(forProfileID: profileID)
+        guard let token = await accessToken(forProfileID: profileID), !token.isEmpty else {
+            throw RelayAPIClient.FileDownloadError.unauthorized
+        }
+        do {
+            return try await client.downloadFile(path: remotePath, accessToken: token)
+        } catch RelayAPIClient.FileDownloadError.unauthorized where profileID != activeProfileIDProvider() {
+            guard let fresh = await refreshAccessToken(forProfileID: profileID), !fresh.isEmpty else {
+                throw RelayAPIClient.FileDownloadError.unauthorized
+            }
+            return try await client.downloadFile(path: remotePath, accessToken: fresh)
+        }
+    }
+
     /// Persists a profile's push-registration flag (M-7) — the dormant-relay
     /// counterpart of `sessionStore.state.pushTokenRegistered`.
     func markPushTokenRegistered(_ registered: Bool, profileID: UUID) {
