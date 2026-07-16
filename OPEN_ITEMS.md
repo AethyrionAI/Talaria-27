@@ -3673,6 +3673,22 @@ Logged 2026-07-15.
 
 ## 116. 🔧 Shim plane — kill the manual token paste + make the probe honest
 
+> **Update 2026-07-16 (Fable lane, PR 1 of 2 — server half built):** connector now ships a
+> provisioning descriptor `{shim_base_url, shim_token, gateway_base_url}` on ws hello and
+> re-sends on idle heartbeat when anything changed (token file re-read lazily; absent file →
+> shim fields omitted; gateway API key EXCLUDED by design). URLs default to the relay-URL
+> host (`PUBLIC_BASE_URL` is phone-reachable by definition) with
+> `TALARIA_SHIM_BASE_URL`/`TALARIA_GATEWAY_BASE_URL`/`TALARIA_PROVISIONING_HOST` env
+> overrides; loopback falls back to the machine hostname. Relay stores it on `hermes_hosts`
+> (`provisioning_data` JSON + `provisioning_updated_at`, additive migration — DB-backed per
+> the #24f lesson; hello WITHOUT the key preserves the stored bundle, explicit `{}` clears
+> it) and serves `GET /v1/device/provisioning` (device-bearer auth, same class as
+> `/v1/device/files`; explicit empty shape when nothing reported). Suites: relay 124 passed
+> (117 baseline + 7 new), connector 114 passed + 1 macOS-only skip on Linux (104 + 10 new).
+> OJAMD deploy rides the `ojamd-deploy` rebase (Owen's gate); Mac deploy = restart relay +
+> connector on the Mini's live checkout. PR 2 (app half: auto-fill on pair, honest
+> authenticated shim probe, re-provision affordance) follows stacked on this branch.
+
 Two related gaps surfaced during #114 device verification (2026-07-16):
 
 1. **Provisioning:** the shim token (`~/.hermes/talaria_shim_token` on each host) had to be

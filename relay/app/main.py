@@ -103,6 +103,8 @@ from .services import (
     record_inbox_action,
     redeem_phone_pairing_code,
     resolve_registration_user,
+    sanitize_provisioning_descriptor,
+    update_host_provisioning,
     redeem_host_enrollment_invite,
     redeem_pairing_invite,
     refresh_auth_session,
@@ -986,6 +988,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         resolved = resolve_agent_file(path, request_settings.agent_files_dir)
         media_type = mimetypes.guess_type(resolved.name)[0] or "application/octet-stream"
         return FileResponse(path=str(resolved), filename=resolved.name, media_type=media_type)
+
+    @app.get("/v1/device/provisioning")
+    def device_provisioning(
+        auth: AuthContext = Depends(get_auth_context),
+        db: Session = Depends(get_db),
+    ) -> dict:
+        # #116: the post-pair provisioning bundle. Same auth class as
+        # /v1/device/files (any paired device of this user). Absent host or
+        # descriptor renders as the explicit empty shape — the app fills only
+        # what the connector actually reported, never a fabricated default.
+        # The gateway API key is deliberately NOT in the bundle (the manual
+        # Uplink gate, #108) — do not add it.
+        host = current_hermes_host_for_user(db, user_id=auth.user.id)
+        descriptor = (host.provisioning_data or {}) if host else {}
+        return success(
+            {
+                "provisioning": {
+                    "shimBaseURL": descriptor.get("shim_base_url"),
+                    "shimToken": descriptor.get("shim_token"),
+                    "gatewayBaseURL": descriptor.get("gateway_base_url"),
+                },
+                "updatedAt": host.provisioning_updated_at if host is not None and descriptor else None,
+            }
+        )
 
     def _meta() -> dict:
         return {"requestId": str(uuid.uuid4()), "timestamp": datetime.now(timezone.utc).isoformat()}
@@ -2348,6 +2374,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     hermes_version=connector_info.get("hermesVersion"),
                     hermes_model=connector_info.get("hermesModel"),
                     display_name=connector_info.get("displayName"),
+                    provisioning=sanitize_provisioning_descriptor(hello_message.get("provisioning")),
                 )
                 host_id = activated_host.id
                 user_id = activated_host.user_id
@@ -2418,6 +2445,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                                     incoming.get("deliveryId"),
                                     delivered=incoming.get("deliveryState", "delivered") == "delivered",
                                 )
+                                continue
+
+                            if message_type == "provisioning.update":
+                                descriptor = sanitize_provisioning_descriptor(incoming.get("provisioning")) or {}
+                                with database.session() as db:
+                                    updated = update_host_provisioning(
+                                        db, host_id=host_id, connection_nonce=connection_nonce, provisioning=descriptor
+                                    )
+                                if updated is None:
+                                    await websocket.close(code=4401)
+                                    return
                                 continue
 
                             if message_type == "rpc.response":
@@ -2565,6 +2603,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     with database.session() as db:
                         touched = touch_hermes_host_connection(db, host_id=host_id, connection_nonce=connection_nonce)
                     if touched is None:
+                        await websocket.close(code=4401)
+                        return
+                    continue
+
+                if incoming.get("type") == "provisioning.update":
+                    descriptor = sanitize_provisioning_descriptor(incoming.get("provisioning")) or {}
+                    with database.session() as db:
+                        updated = update_host_provisioning(
+                            db, host_id=host_id, connection_nonce=connection_nonce, provisioning=descriptor
+                        )
+                    if updated is None:
                         await websocket.close(code=4401)
                         return
                     continue

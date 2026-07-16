@@ -550,6 +550,7 @@ def activate_hermes_host_connection(
     hermes_version: str | None,
     hermes_model: str | None = None,
     display_name: str | None = None,
+    provisioning: dict | None = None,
 ) -> HermesHost:
     host.active_connection_nonce = connection_nonce
     host.connector_version = connector_version
@@ -559,8 +560,58 @@ def activate_hermes_host_connection(
     host.hermes_version = hermes_version
     host.hermes_model = hermes_model
     host.display_name = display_name
+    # #116: None = a pre-provisioning connector said nothing — keep whatever
+    # descriptor is stored. A dict (even empty) is the connector's current
+    # truth and replaces the stored one.
+    if provisioning is not None:
+        _apply_host_provisioning(host, provisioning)
     host.last_seen_at = utcnow()
     host.last_connected_at = utcnow()
+    db.commit()
+    db.refresh(host)
+    return host
+
+
+_PROVISIONING_FIELDS = ("shim_base_url", "shim_token", "gateway_base_url")
+
+
+def sanitize_provisioning_descriptor(raw: object) -> dict | None:
+    """Reduce a connector-sent provisioning payload to the known shape (#116).
+
+    None passes through (meaning "connector said nothing — keep stored");
+    any other non-dict collapses to {} (explicitly empty). Only known keys
+    with non-empty string values survive.
+    """
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        return {}
+    descriptor: dict = {}
+    for field in _PROVISIONING_FIELDS:
+        value = raw.get(field)
+        if isinstance(value, str) and value.strip():
+            descriptor[field] = value.strip()
+    return descriptor
+
+
+def _apply_host_provisioning(host: HermesHost, provisioning: dict) -> None:
+    if (host.provisioning_data or {}) != provisioning:
+        host.provisioning_data = provisioning
+        host.provisioning_updated_at = utcnow()
+
+
+def update_host_provisioning(
+    db: Session, *, host_id: str, connection_nonce: str, provisioning: dict
+) -> HermesHost | None:
+    """Store a provisioning.update descriptor — nonce-guarded like touch (#116)."""
+    host = db.get(HermesHost, host_id)
+    if host is None or host.revoked_at is not None:
+        return None
+    if host.active_connection_nonce != connection_nonce:
+        return None
+
+    _apply_host_provisioning(host, provisioning)
+    host.last_seen_at = utcnow()
     db.commit()
     db.refresh(host)
     return host

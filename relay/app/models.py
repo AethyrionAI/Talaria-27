@@ -95,6 +95,12 @@ class HermesHost(Base):
     connector_version: Mapped[str | None] = mapped_column(Text)
     connector_token_hash: Mapped[str | None] = mapped_column(Text)
     active_connection_nonce: Mapped[str | None] = mapped_column(Text)
+    # #116: host-provisioning descriptor the connector supplies on hello /
+    # provisioning.update ({shim_base_url, shim_token, gateway_base_url} —
+    # snake_case as sent). DB-backed like everything else host-shaped: the
+    # relay keeps no in-memory registries (the #24f lesson).
+    provisioning_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    provisioning_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_connected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
