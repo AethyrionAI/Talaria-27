@@ -39,17 +39,6 @@ struct HermesStatusWidget: Widget {
     }
 }
 
-extension WidgetFamily {
-    /// Silence the iOS 26.5 SDK warning: the symbol is declared in newer
-    /// SDKs, but the availability check alone isn't enough for the compiler to
-    /// resolve the member. This shim returns the documented raw value (18) for
-    /// iOS 27's `systemExtraLargePortrait` family.
-    @available(iOS 27.0, *)
-    static var systemExtraLargePortrait: WidgetFamily {
-        WidgetFamily(rawValue: 18)!
-    }
-}
-
 // MARK: - Views
 
 private struct HermesStatusView: View {
