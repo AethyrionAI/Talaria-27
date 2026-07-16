@@ -60,8 +60,24 @@ final class SessionsDrawerModel {
         return "\(sessions.count) THREADS · \(active) ACTIVE"
     }
 
+    /// Lane M (M-16): one entry per backend profile for the New Chat
+    /// context menu — "fire a task at the Mac without leaving OJAMD-land".
+    struct NewChatProfileOption: Identifiable, Hashable {
+        let id: UUID
+        let name: String
+    }
+
+    /// Populated by the host screen when profiles exist; the context menu
+    /// only renders with two or more (a single backend has nothing to pick).
+    var newChatProfiles: [NewChatProfileOption] = []
+    /// The active profile's id, so the menu can mark the default target.
+    var activeNewChatProfileID: UUID? = nil
+
     // Wiring seams — the host screen connects these to real behavior later.
     var onNewChat: (() -> Void)? = nil
+    /// Lane M (M-16): new chat born on a NAMED profile, without flipping the
+    /// app-wide default.
+    var onNewChatOnProfile: ((UUID) -> Void)? = nil
     var onSelectSession: ((SessionSummary) -> Void)? = nil
     var onOpenHostSettings: (() -> Void)? = nil
     /// Lane J (J-8): asks the host screen to re-fetch the session list. The
@@ -189,6 +205,11 @@ final class SessionsDrawerModel {
 
     func newChat() {
         onNewChat?()
+    }
+
+    /// M-16: new chat targeting a named profile.
+    func newChat(onProfile profileID: UUID) {
+        onNewChatOnProfile?(profileID)
     }
 
     /// Lane J (J-9): ⌘K in regular width focuses the visible pane's inline
@@ -445,6 +466,25 @@ struct ConversationListPane: View {
         GlowButton(title: "New Chat", systemImage: "plus", height: 46) {
             model.newChat()
             dismissHost?()
+        }
+        // M-16: with more than one backend profile, long-press offers "New
+        // chat on <profile>" — the session is born on that host, the default
+        // stays put. A single backend keeps the plain button.
+        .contextMenu {
+            if model.newChatProfiles.count > 1 {
+                ForEach(model.newChatProfiles) { option in
+                    Button {
+                        model.newChat(onProfile: option.id)
+                        dismissHost?()
+                    } label: {
+                        if option.id == model.activeNewChatProfileID {
+                            Label("New chat on \(option.name)", systemImage: "checkmark")
+                        } else {
+                            Text("New chat on \(option.name)")
+                        }
+                    }
+                }
+            }
         }
     }
 

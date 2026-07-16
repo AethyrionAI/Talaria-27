@@ -34,6 +34,6 @@ final class SettingsStore {
         self.environmentPolicy = environmentPolicy
         self.buildConfiguration = buildConfiguration
         let storedSettings = persistence.loadUserSettings() ?? DemoData.sampleUserSettings
-        self.settings = storedSettings.applyingEnvironmentPolicy(environmentPolicy, buildConfiguration: buildConfiguration)
+        self.settings = storedSettings.applyingEnvironmentPolicy(environmentPolicy)
     }
 }

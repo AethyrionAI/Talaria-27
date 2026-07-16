@@ -1,18 +1,12 @@
 import Foundation
 
 struct AppBuildConfiguration: Equatable, Sendable {
-    let hostedRelayBaseURL: String?
-    let hostedRelayEnabled: Bool
     let supportURL: URL?
     let termsOfServiceURL: URL?
     let privacyPolicyURL: URL?
 
     static func current(bundle: Bundle = .main) -> AppBuildConfiguration {
         let info = bundle.infoDictionary ?? [:]
-        let hostedRelayBaseURL = RelayConfiguration.normalizeBaseURL(
-            info["APP_HOSTED_RELAY_URL"] as? String
-        )
-        let hostedRelayEnabled = (info["APP_HOSTED_RELAY_ENABLED"] as? Bool) ?? false
 
         func urlValue(_ key: String) -> URL? {
             guard let raw = info[key] as? String, !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -22,8 +16,6 @@ struct AppBuildConfiguration: Equatable, Sendable {
         }
 
         return AppBuildConfiguration(
-            hostedRelayBaseURL: hostedRelayBaseURL,
-            hostedRelayEnabled: hostedRelayEnabled && hostedRelayBaseURL != nil,
             supportURL: urlValue("APP_SUPPORT_URL"),
             termsOfServiceURL: urlValue("APP_TERMS_URL"),
             privacyPolicyURL: urlValue("APP_PRIVACY_URL")
@@ -31,101 +23,48 @@ struct AppBuildConfiguration: Equatable, Sendable {
     }
 }
 
-enum RelayMode: String, Codable, CaseIterable, Hashable, Sendable {
-    case custom
-    case hosted
-
-    var displayLabel: String {
-        switch self {
-        case .custom: "Use My Relay"
-        case .hosted: "Use Hosted Relay"
-        }
-    }
-}
-
+/// The user's relay endpoint. Lane M (#114) retired the "hosted relay" mode
+/// (never used, never will be — Owen) and the mode switch with it: every
+/// backend profile is its-own-relay by construction, and this struct
+/// survives only as the legacy seed the profile migration reads plus the
+/// pre-profile persistence shape. Old persisted blobs (with `relayMode` /
+/// hosted keys) decode by ignoring the dead keys.
 struct RelayConfiguration: Codable, Hashable, Sendable {
-    var relayMode: RelayMode
     var customRelayBaseURL: String
-    var hostedRelayBaseURL: String?
-    var hostedRelayEnabled: Bool
 
-    init(
-        relayMode: RelayMode = .custom,
-        customRelayBaseURL: String = "",
-        hostedRelayBaseURL: String? = nil,
-        hostedRelayEnabled: Bool = false
-    ) {
-        self.relayMode = relayMode
+    init(customRelayBaseURL: String = "") {
         self.customRelayBaseURL = RelayConfiguration.normalizeBaseURL(customRelayBaseURL) ?? customRelayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.hostedRelayBaseURL = RelayConfiguration.normalizeBaseURL(hostedRelayBaseURL)
-        self.hostedRelayEnabled = hostedRelayEnabled && self.hostedRelayBaseURL != nil
-        if relayMode == .hosted && !self.canUseHosted {
-            self.relayMode = .custom
-        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case customRelayBaseURL
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        customRelayBaseURL = try container.decodeIfPresent(String.self, forKey: .customRelayBaseURL) ?? ""
     }
 
     static func defaultValue(
-        buildConfiguration: AppBuildConfiguration = .current(),
         environmentPolicy: AppEnvironmentPolicy = .currentBuild
     ) -> RelayConfiguration {
         RelayConfiguration(
-            relayMode: .custom,
-            customRelayBaseURL: environmentPolicy.allowsEnvironmentOverrides ? AppEnvironment.development.baseURLString : "",
-            hostedRelayBaseURL: buildConfiguration.hostedRelayBaseURL,
-            hostedRelayEnabled: buildConfiguration.hostedRelayEnabled
+            customRelayBaseURL: environmentPolicy.allowsEnvironmentOverrides ? AppEnvironment.development.baseURLString : ""
         )
     }
 
     static func migratedLegacyValue(
         environment: AppEnvironment,
-        buildConfiguration: AppBuildConfiguration = .current(),
         environmentPolicy: AppEnvironmentPolicy = .currentBuild
     ) -> RelayConfiguration {
         if environmentPolicy.allowsEnvironmentOverrides, environment != .production {
-            return RelayConfiguration(
-                relayMode: .custom,
-                customRelayBaseURL: environment.baseURLString,
-                hostedRelayBaseURL: buildConfiguration.hostedRelayBaseURL,
-                hostedRelayEnabled: buildConfiguration.hostedRelayEnabled
-            )
+            return RelayConfiguration(customRelayBaseURL: environment.baseURLString)
         }
-
-        if buildConfiguration.hostedRelayEnabled, buildConfiguration.hostedRelayBaseURL != nil {
-            return RelayConfiguration(
-                relayMode: .hosted,
-                customRelayBaseURL: "",
-                hostedRelayBaseURL: buildConfiguration.hostedRelayBaseURL,
-                hostedRelayEnabled: true
-            )
-        }
-
-        return RelayConfiguration.defaultValue(
-            buildConfiguration: buildConfiguration,
-            environmentPolicy: environmentPolicy
-        )
-    }
-
-    mutating func applyBuildConfiguration(_ buildConfiguration: AppBuildConfiguration) {
-        hostedRelayBaseURL = buildConfiguration.hostedRelayBaseURL
-        hostedRelayEnabled = buildConfiguration.hostedRelayEnabled && hostedRelayBaseURL != nil
-        customRelayBaseURL = RelayConfiguration.normalizeBaseURL(customRelayBaseURL) ?? customRelayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        if relayMode == .hosted && !canUseHosted {
-            relayMode = .custom
-        }
-    }
-
-    var canUseHosted: Bool {
-        hostedRelayEnabled && hostedRelayBaseURL != nil
+        return RelayConfiguration.defaultValue(environmentPolicy: environmentPolicy)
     }
 
     var activeBaseURLString: String? {
-        switch relayMode {
-        case .custom:
-            return RelayConfiguration.normalizeBaseURL(customRelayBaseURL)
-        case .hosted:
-            guard canUseHosted else { return RelayConfiguration.normalizeBaseURL(customRelayBaseURL) }
-            return hostedRelayBaseURL
-        }
+        RelayConfiguration.normalizeBaseURL(customRelayBaseURL)
     }
 
     var relayOriginLabel: String {
@@ -136,17 +75,12 @@ struct RelayConfiguration: Codable, Hashable, Sendable {
     }
 
     var validationMessage: String? {
-        switch relayMode {
-        case .custom:
-            let trimmed = customRelayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { return "Enter your relay URL." }
-            guard RelayConfiguration.normalizeBaseURL(trimmed) != nil else {
-                return "Relay URL must be an absolute http(s) URL ending with /v1."
-            }
-            return nil
-        case .hosted:
-            return canUseHosted ? nil : "Hosted relay is not configured in this app build."
+        let trimmed = customRelayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "Enter your relay URL." }
+        guard RelayConfiguration.normalizeBaseURL(trimmed) != nil else {
+            return "Relay URL must be an absolute http(s) URL ending with /v1."
         }
+        return nil
     }
 
     static func normalizeBaseURL(_ raw: String?) -> String? {
@@ -546,15 +480,9 @@ struct UserSettings: Codable, Hashable, Sendable {
     }
 
     func applyingEnvironmentPolicy(
-        _ policy: AppEnvironmentPolicy = .currentBuild,
-        buildConfiguration: AppBuildConfiguration = .current()
+        _ policy: AppEnvironmentPolicy = .currentBuild
     ) -> UserSettings {
-        var sanitized = policy.sanitize(self)
-        sanitized.relayConfiguration.applyBuildConfiguration(buildConfiguration)
-        if sanitized.relayConfiguration.relayMode == .hosted, !sanitized.relayConfiguration.canUseHosted {
-            sanitized.relayConfiguration.relayMode = .custom
-        }
-        return sanitized
+        policy.sanitize(self)
     }
 
     /// The theme actually rendered: the manual pick, or the seasonal theme when

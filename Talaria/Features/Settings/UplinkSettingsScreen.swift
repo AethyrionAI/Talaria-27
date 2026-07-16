@@ -6,10 +6,12 @@ import SwiftUI
 // base URL, a Keychain-backed API key, and pair / test-connection actions.
 // Mirrors design/Settings.dc.html screen 02.
 //
-// The RELAY/DIRECT control is a *readout* of the current effective transport,
-// not an override — chat is locked to DIRECT per the architecture and the relay
-// carries the independent sensor path. Relay/pairing configuration is migrated
-// separately (it is not part of the direct-link surface the design shows here).
+// The RELAY/DIRECT segment was RETIRED by Lane M (M-14, per #108's iPad
+// lesson): relay-only cannot reach the Sessions API — the key is a separate
+// plane the pairing QR doesn't carry — so Direct is the only workable mode,
+// and profiles make it moot (every profile is Direct-with-its-own-key by
+// construction). What replaced it is the honest state that mattered: a
+// paired-but-UNKEYED profile says so here instead of failing silently.
 struct UplinkSettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var container
@@ -41,9 +43,11 @@ struct UplinkSettingsScreen: View {
 
             ScrollView {
                 VStack(spacing: Design.Spacing.lg) {
-                    SettingsScreenHeader(title: "Uplink", subtitle: "Hermes Host") { dismiss() }
+                    SettingsScreenHeader(title: "Uplink", subtitle: activeProfileName) { dismiss() }
                     linkStatusPanel
-                    linkModeReadout
+                    if showsUnkeyedNudge {
+                        unkeyedProfileNotice
+                    }
                     baseURLSection
                     apiKeySection
                     actionButtons
@@ -134,40 +138,54 @@ struct UplinkSettingsScreen: View {
             ?? settingsStore.settings.hermesAPIBaseURL
     }
 
-    // MARK: Link-mode readout (display-only)
+    // MARK: Unkeyed-profile notice (M-14, per #108)
 
-    private var linkModeReadout: some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
-            MonoLabel("// Link Mode", size: 10, tracking: Design.Tracking.monoXWide,
-                      color: Design.Colors.mutedForeground)
-
-            HStack(spacing: Design.Spacing.xxs) {
-                modeSegment("Relay", active: !isDirect && effectiveConnectionState == .online)
-                modeSegment("Direct", active: isDirect)
-            }
-            .padding(Design.Spacing.xxs)
-            .background(Design.Colors.background.opacity(0.5),
-                        in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
-            .overlay {
-                RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                    .strokeBorder(Design.Colors.hairline, lineWidth: 1)
-            }
-
-            Text("Chat uses the direct Sessions API; the relay carries the independent sensor path.")
-                .font(Design.Typography.caption)
-                .foregroundStyle(Design.Colors.secondaryForeground)
-        }
+    /// True when the active profile is paired for the relay plane but has no
+    /// Sessions API key — chat would fail silently without this state.
+    /// Static so the rule is unit-testable (M-17).
+    static func unkeyedNudgeVisible(isPaired: Bool, apiKey: String) -> Bool {
+        isPaired && apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    private func modeSegment(_ label: String, active: Bool) -> some View {
-        Text(label.uppercased())
-            .font(Design.Typography.display(12, weight: .semibold, relativeTo: .caption))
-            .tracking(Design.Tracking.button)
-            .foregroundStyle(active ? Design.Colors.background : Design.Colors.secondaryForeground)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, Design.Spacing.sm)
-            .background(active ? Design.Brand.accent : Color.clear,
-                        in: RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
+    /// The active profile's relay-plane pairing state. Mirrors
+    /// ServerSettingsScreen's accessor (there is no `pairingStore` in this
+    /// view's environment); false when profiles haven't been wired yet.
+    private var activeProfileIsPaired: Bool {
+        guard let activeID = container.profilesStore?.activeProfileID,
+              let sessions = container.profileRelaySessions else { return false }
+        return sessions.isPaired(profileID: activeID)
+    }
+
+    private var showsUnkeyedNudge: Bool {
+        Self.unkeyedNudgeVisible(isPaired: activeProfileIsPaired, apiKey: container.hermesAPIKey)
+    }
+
+    private var unkeyedProfileNotice: some View {
+        HStack(alignment: .top, spacing: Design.Spacing.sm) {
+            Image(systemName: "key.slash")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Design.Brand.forge)
+                .padding(.top, 2)
+            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                MonoLabel("PAIRED — KEY MISSING", size: 10, weight: .medium,
+                          tracking: Design.Tracking.monoWide, color: Design.Brand.forge)
+                Text("\(activeProfileName) is paired for sensors, but chat needs its API key. Paste the API_SERVER_KEY from ~/.hermes/.env below.")
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+            }
+        }
+        .padding(Design.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.lg,
+            borderColor: Design.Brand.forge.opacity(0.35),
+            fill: Design.Brand.forge.opacity(0.07),
+            innerGlow: false
+        )
+    }
+
+    private var activeProfileName: String {
+        container.profilesStore?.activeProfile?.name ?? "Hermes Host"
     }
 
     // MARK: Base URL

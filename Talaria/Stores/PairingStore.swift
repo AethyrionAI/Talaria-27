@@ -30,9 +30,10 @@ final class PairingStore {
     /// existing tests construct.
     private let profileResolver: @MainActor (UUID?) -> BackendProfile?
 
-    /// Lane M: when set, the next `pair(using:)` redeems into THIS profile's
-    /// slot instead of the active one (the per-profile pair flow, M-12).
-    /// Consumed by the pair call; cleared afterwards either way.
+    /// Lane M: when set, `pair(using:)` redeems into THIS profile's slot
+    /// instead of the active one (the per-profile pair flow, M-12). Survives
+    /// failed attempts (a retry must keep targeting the user's pick);
+    /// cleared on success and when the pairing screen is left.
     var pairingTargetProfileID: UUID?
 
     init(
@@ -105,12 +106,10 @@ final class PairingStore {
         isWorking = true
         lastErrorMessage = nil
         // Lane M: resolve the target slot up front — the active profile
-        // unless a per-profile pair flow named another (M-12). Consumed
-        // either way so a failed pair can't strand a stale target.
+        // unless a per-profile pair flow named another (M-12).
         let targetProfile = profileResolver(pairingTargetProfileID)
         let targetScope = targetProfile?.credentialScopeID
         let targetIsActive = targetProfile?.id == nil || targetProfile?.id == profileResolver(nil)?.id
-        pairingTargetProfileID = nil
         defer { isWorking = false }
 
         do {
@@ -155,6 +154,7 @@ final class PairingStore {
                 setNeedsPermissionsOnboarding(true)
             }
             lastErrorMessage = nil
+            pairingTargetProfileID = nil
             onProfileTokensMinted?(targetProfile?.id)
             pairingLog.notice("pair: adopted relay user \(result.state.userID?.uuidString ?? "unknown", privacy: .public) on a clean slate (profile \(targetProfile?.name ?? "default", privacy: .public))")
             if targetIsActive {
@@ -174,6 +174,23 @@ final class PairingStore {
 
         await sessionStore.revokeCurrentSession()
         await clearLocalPairing(notify: true)
+    }
+
+    /// Lane M (M-12): forgets ONE profile's pairing. The active profile takes
+    /// the full `disconnect()` path (server-side revoke + reset notify); a
+    /// dormant profile's slot is cleared locally — its relay session can't be
+    /// revoked through the active bootstrap client, and a dormant forget must
+    /// not log the active profile out.
+    func forgetPairing(profileID: UUID) async {
+        guard let profile = profileResolver(profileID) else { return }
+        if profile.id == profileResolver(nil)?.id {
+            await disconnect()
+            return
+        }
+        let scope = profile.credentialScopeID
+        persistence.clearPairedRelayConfiguration(profileScope: scope)
+        await sessionStore.clearSession(credentialScope: scope)
+        pairingLog.notice("forgetPairing: cleared dormant profile '\(profile.name, privacy: .public)'")
     }
 
     func completePermissionsOnboarding() {
