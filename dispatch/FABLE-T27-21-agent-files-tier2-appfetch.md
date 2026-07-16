@@ -134,3 +134,27 @@ the reason the trigger logic is what it is.
 - All `@Test` suites green (Swift Testing ✔ line). Device-verify owed on
   whoGoesThere (relay reachable): the end-to-end tap→download→share.
 - PR titled `#21 Tier 2 — app-side agent-file fetch`.
+
+
+## POST-LANE-M ADDENDUM (2026-07-16) — read before building
+
+Lane M (#114, merged) landed backend profiles, and it changes this lane's
+fetch path materially:
+
+1. **Sessions carry an immutable birth-profile `profileID`** and every relay
+   interaction resolves through `ProfileRelaySessionFactory`
+   (`Talaria/Services/Support/ProfileRelaySession.swift`). A
+   `fetchableAgentFile` announced in a session MUST be fetched from **that
+   session's birth profile's relay** — a Mac-hosted session's file lives in
+   the MAC relay's `/v1/device/files`, an OJAMD session's in OJAMD's. Do not
+   use a global relay base URL anywhere in the fetch path; resolve per-session.
+2. Auth: use the profile-scoped relay tokens (Keychain, profile-keyed —
+   `BackendProfileScopedKeys`). The factory already exposes the per-profile
+   session; prefer extending it over parallel plumbing.
+3. Both hosts are live and paired on whoGoesThere, so device verification can
+   exercise BOTH directions: task the Mac ("make me a PDF in MobileDL"), fetch
+   its file; same against OJAMD. The Mac's `AGENT_FILES_DIR` is
+   `~/Hermes/agent-work/MobileDL` and the probe artifact `probe-t21.pdf`
+   (1503 bytes, real PDF) is already sitting there — a ready-made fixture.
+4. The probe verdict at the top of this spec (2026-07-16) resolves the gate:
+   build the Tier 2 branch; the trigger must not key off `write_file` args.

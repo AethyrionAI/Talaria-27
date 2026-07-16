@@ -18,7 +18,7 @@ means content was retracted, so speaking the rest is wrong by construction.
 
 ## Grounding — read BEFORE designing
 
-- `Talaria/Stores/ChatStore.swift:517` — `self.speechOutput?.finishStream(messageID:)`
+- `Talaria/Stores/ChatStore.swift:528 (POST-LANE-M 2026-07-16: drifted from :517 — the call is now `self.speechOutput?.finishStream(` at :528; SpeechOutputService exposes both stop() at :73 and finishStream() at :112)` — `self.speechOutput?.finishStream(messageID:)`
   in the stream-completion block (the exact site named in PR #83's write-up).
   During streaming, deltas are enqueued at :393 (`enqueueStreamChunk`); cancel
   paths are :534/:590/:607; hard stop is `speechOutput?.stop()` (:670/:692). The

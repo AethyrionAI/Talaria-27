@@ -90,3 +90,23 @@ semantics.
 - Device-verify owed (later, on-device): during a simulated connector outage the
   device no longer heats / the main thread no longer churns on sensor ticks.
 - PR titled `#104 — sensor-outbox churn hardening`.
+
+
+## POST-LANE-M ADDENDUM (2026-07-16) — read before building
+
+Lane M (#114, PRs 96–98, merged) landed backend profiles. Impacts on this spec:
+
+1. **Destination routing now exists upstream of the upload path.** The outbox
+   drains to `sensorDestinationProfileID` (default: the migrated OJAMD
+   profile), resolved through `ProfileRelaySessionFactory` — INDEPENDENT of
+   the active profile. This lane's fix is persistence-batching only; do NOT
+   touch destination resolution, and add nothing that assumes a single global
+   relay URL. Regressing M-8 pinning is a P0.
+2. **`AppPersistenceStoreProtocol` grew `profileScope: UUID?` params** on the
+   session/pairing methods (sensor-outbox methods are unchanged). The mock in
+   `TalariaTests/SensorOutboxChurnTests.swift` already conforms — extend it,
+   don't fork it.
+3. Owner file unchanged: `Talaria/Services/Live/SensorUploadService.swift`
+   (note its in-code #24a wedge and #42 missing-state lessons — preserve both).
+4. Collision surface refresh: main is at/past `1b9998b`; branch from current
+   main, not the commit this spec originally cited.
