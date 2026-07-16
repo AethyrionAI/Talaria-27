@@ -2732,7 +2732,26 @@ ordering, with the minor side effect that the tap path now awaits `handleNotific
 
 ---
 
-## 82. ⏸️ PARKED — Voice capture wedge: ANY Talaria capture kills system-wide audio input on the current iOS 27 beta seed (reboot to recover)
+## 82. 🔧 REOPENED — Voice capture wedge: root cause was OUR read-aloud session hijack, NOT the OS seed — fix merged (PR #106); device confirm owed
+
+> **ROOT CAUSE FOUND + FIX MERGED 2026-07-16 (PR #106).** The 'beta-OS-wide wedge' framing is
+> DISPROVEN. Instrumented device run (13 tagged `setActive` sites, Hermes's Discord-works
+> observation as the tell): the chat read-aloud `SpeechOutputService` (`managesAudioSession ==
+> true`) was calling `setActive(false)` dozens of times a minute during native voice sessions —
+> `talkStore.onSessionStateChanged` fires on every state tick, AppContainer's callback called
+> `speechOutput.stop()` each time, and `stop()` reached `releaseAudioSessionIfIdle()`
+> unconditionally. The shared session died under the live mic (route → 'no input → Speaker' →
+> flatline tripwire). The famous 'tears down and rebuilds ~3× then works' was pre-#105
+> categoryChange→restartCapture churn ACCIDENTALLY re-activating the session — a thrash-heal
+> loop that #105's correct churn fix removed, converting it into a clean mic death.
+> Fix (PR #106): `didActivateAudioSession` — the service releases only a session it activated
+> (pure `shouldReleaseAudioSession`, 4 tests) — plus edge-triggered talk callback. Suite 691/58.
+> **Device confirm owed** on `probe/t27-fix84-verify` (fix + 🔊 instrumentation + STOCK
+> `.voiceChat`/VPIO): expect no `@SpeechOutputService#2` spam mid-session and a working mic. The
+> `auou/vpio` render errors are presumed a victim of the hijack, not a cause — if they return on
+> the verify run, `probe/t27-vpio-bypass` (mode `.default`, skip `setVoiceProcessingEnabled`) is
+> the ready fallback. Apple Feedback filing should WAIT for the verify verdict — the repro we
+> would have filed was our own bug.
 
 **Found 2026-07-08 evening on whoGoesThere.** Talk in Talaria-27 no longer works; Diagnostics
 truthfully shows connected/ready. **Isolated to T27**: Talaria prime on the same phone has
