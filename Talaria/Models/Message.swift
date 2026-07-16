@@ -14,6 +14,19 @@ struct MessageAttachment: Codable, Identifiable, Hashable, Sendable {
     /// bubble. Optional + synthesized Codable ⇒ pre-#9 caches (no key) still
     /// decode.
     let voiceMemoAudioPath: String?
+    /// #21 Tier 2: the AGENT_FILES_DIR-relative path of an agent-written file
+    /// whose bytes never rode the SSE stream (binaries — the 2026-07-16 probe).
+    /// The relay's `GET /v1/device/files` serves it; a nil `localStoragePath`
+    /// alongside a non-nil `remotePath` renders as a fetchable bubble. Only
+    /// ever the whitelist-relative form — never an arbitrary host path.
+    /// Optional + synthesized Codable ⇒ pre-#21 caches still decode.
+    let remotePath: String?
+    /// Lane M (#114): the birth profile of the session that announced this
+    /// file — a fetch MUST hit THAT profile's relay (a Mac-hosted session's
+    /// file lives in the Mac relay's whitelist, an OJAMD session's in
+    /// OJAMD's). Nil collapses to the active profile at fetch time
+    /// (pre-Lane-M records, profile-less constructions).
+    let remoteProfileID: UUID?
 
     init(
         id: UUID = UUID(),
@@ -22,7 +35,9 @@ struct MessageAttachment: Codable, Identifiable, Hashable, Sendable {
         mimeType: String,
         thumbnailBase64: String? = nil,
         localStoragePath: String? = nil,
-        voiceMemoAudioPath: String? = nil
+        voiceMemoAudioPath: String? = nil,
+        remotePath: String? = nil,
+        remoteProfileID: UUID? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -31,6 +46,8 @@ struct MessageAttachment: Codable, Identifiable, Hashable, Sendable {
         self.thumbnailBase64 = thumbnailBase64
         self.localStoragePath = localStoragePath
         self.voiceMemoAudioPath = voiceMemoAudioPath
+        self.remotePath = remotePath
+        self.remoteProfileID = remoteProfileID
     }
 
     init(from pending: PendingAttachment) {
@@ -41,6 +58,8 @@ struct MessageAttachment: Codable, Identifiable, Hashable, Sendable {
         self.thumbnailBase64 = pending.thumbnailBase64
         self.localStoragePath = pending.localStoragePath
         self.voiceMemoAudioPath = pending.voiceMemoAudioPath
+        self.remotePath = nil
+        self.remoteProfileID = nil
     }
 }
 
@@ -220,7 +239,7 @@ extension MessageAttachment {
     /// locally and stages it for the share sheet. Text content only (Tier 1).
     /// Returns nil if the content can't be staged to disk.
     static func agentFile(remotePath: String, content: String) -> MessageAttachment? {
-        let lastComponent = (remotePath as NSString).lastPathComponent
+        let lastComponent = lastPathComponentAcrossHosts(remotePath)
         let fileName = lastComponent.isEmpty ? "agent_output.txt" : lastComponent
         guard let data = content.data(using: .utf8),
               let storedPath = stageAgentFile(data: data, preferredFileName: fileName)
@@ -238,6 +257,21 @@ extension MessageAttachment {
     /// composer uses for outgoing attachments. Self-contained (mirrors the
     /// `PendingAttachment` staging) so the existing upload path stays untouched.
     private static func stageAgentFile(data: Data, preferredFileName: String) -> String? {
+        guard let destination = agentFileStagingDestination(preferredFileName: preferredFileName) else {
+            return nil
+        }
+        do {
+            try data.write(to: destination, options: .atomic)
+            return destination.path
+        } catch {
+            return nil
+        }
+    }
+
+    /// A unique destination inside the Attachments staging directory, with the
+    /// directory created — shared by the Tier 1 (bytes) and Tier 2 (downloaded
+    /// file) staging paths.
+    private static func agentFileStagingDestination(preferredFileName: String) -> URL? {
         let fileManager = FileManager.default
         guard let baseDirectory = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
             return nil
@@ -247,13 +281,20 @@ extension MessageAttachment {
             .appendingPathComponent("Attachments", isDirectory: true)
         do {
             try fileManager.createDirectory(at: attachmentDirectory, withIntermediateDirectories: true, attributes: nil)
-            let sanitized = sanitizeAgentFileName(preferredFileName)
-            let destination = attachmentDirectory.appendingPathComponent("\(UUID().uuidString)-\(sanitized)")
-            try data.write(to: destination, options: .atomic)
-            return destination.path
         } catch {
             return nil
         }
+        let sanitized = sanitizeAgentFileName(preferredFileName)
+        return attachmentDirectory.appendingPathComponent("\(UUID().uuidString)-\(sanitized)")
+    }
+
+    /// Path tail for display across BOTH agent hosts: OJAMD's `write_file`
+    /// paths use Windows `\` separators, which `NSString`'s path methods
+    /// don't split on — a naive `lastPathComponent` would name the file
+    /// "O:\Hermes\MobileDL\report.pdf" instead of "report.pdf".
+    static func lastPathComponentAcrossHosts(_ path: String) -> String {
+        let normalized = path.replacingOccurrences(of: "\\", with: "/")
+        return (normalized as NSString).lastPathComponent
     }
 
     private static func sanitizeAgentFileName(_ fileName: String) -> String {
@@ -262,9 +303,11 @@ extension MessageAttachment {
         return cleaned.isEmpty ? "agent_output.txt" : cleaned
     }
 
-    /// Best-effort MIME inference from the file extension. Defaults to
-    /// `text/plain` because Tier 1 only reconstructs text the agent streamed as
-    /// a string in `args.content`.
+    /// Best-effort MIME inference from the file extension. Text types cover the
+    /// Tier 1 reconstructions (string `args.content`); the binary entries exist
+    /// for Tier 2 fetchables (#21) — the relay's own `mimetypes` guess governs
+    /// the actual response, this only drives client-side chip presentation.
+    /// Defaults to `text/plain` (the long-standing Tier 1 behavior).
     static func inferredMimeType(forFileName fileName: String) -> String {
         let ext = (fileName as NSString).pathExtension.lowercased()
         let map: [String: String] = [
@@ -276,7 +319,69 @@ extension MessageAttachment {
             "swift": "text/x-swift", "py": "text/x-python", "js": "text/javascript",
             "ts": "text/typescript", "sh": "text/x-shellscript", "rtf": "text/rtf",
             "ini": "text/plain", "conf": "text/plain", "env": "text/plain",
+            "pdf": "application/pdf", "png": "image/png", "jpg": "image/jpeg",
+            "jpeg": "image/jpeg", "gif": "image/gif", "webp": "image/webp",
+            "heic": "image/heic", "svg": "image/svg+xml", "zip": "application/zip",
+            "mp3": "audio/mpeg", "m4a": "audio/mp4", "wav": "audio/wav",
+            "mp4": "video/mp4", "mov": "video/quicktime",
         ]
         return map[ext] ?? "text/plain"
+    }
+}
+
+// MARK: - Agent-generated files (#21 Tier 2)
+
+extension MessageAttachment {
+    /// A file the agent produced on the host whose bytes never rode the SSE
+    /// stream (binaries — verified by the 2026-07-16 probe: host-side
+    /// `terminal` writes never invoke `write_file`, and binary content appears
+    /// nowhere in tool args). Carries only the AGENT_FILES_DIR-relative path;
+    /// the bytes arrive later via the relay's `/v1/device/files` route, at
+    /// which point `staged(atLocalPath:)` flips this into a Tier 1 attachment.
+    static func fetchableAgentFile(name: String, remotePath: String, profileID: UUID?) -> MessageAttachment {
+        let fileName = name.isEmpty ? "agent_output" : name
+        return MessageAttachment(
+            kind: "file",
+            fileName: fileName,
+            mimeType: inferredMimeType(forFileName: fileName),
+            thumbnailBase64: nil,
+            localStoragePath: nil,
+            remotePath: remotePath,
+            remoteProfileID: profileID
+        )
+    }
+
+    /// A copy of this attachment with downloaded bytes staged locally — same
+    /// identity, so the transcript row updates in place and the bubble becomes
+    /// a normal Tier 1 bubble (preview + ShareLink).
+    func staged(atLocalPath path: String) -> MessageAttachment {
+        MessageAttachment(
+            id: id,
+            kind: kind,
+            fileName: fileName,
+            mimeType: mimeType,
+            thumbnailBase64: thumbnailBase64,
+            localStoragePath: path,
+            voiceMemoAudioPath: voiceMemoAudioPath,
+            remotePath: remotePath,
+            remoteProfileID: remoteProfileID
+        )
+    }
+
+    /// Stages a downloaded temp file into the Attachments directory (#21
+    /// Tier 2). Moved, not copied — the download is already on disk and a
+    /// binary must never double up in memory or storage. Returns the staged
+    /// path, or nil when the move fails (the temp file is left for the system
+    /// to reap).
+    static func stageFetchedAgentFile(from temporaryURL: URL, preferredFileName: String) -> String? {
+        guard let destination = agentFileStagingDestination(preferredFileName: preferredFileName) else {
+            return nil
+        }
+        do {
+            try FileManager.default.moveItem(at: temporaryURL, to: destination)
+            return destination.path
+        } catch {
+            return nil
+        }
     }
 }

@@ -516,7 +516,26 @@ dropdown, no popover, no "Start New Session" — straight to the shim-backed lis
 
 ---
 
-## 21. 🔧 Present/download agent-generated files — Tier 1 (app) ✅ done; Tier 2 relay route ✅ done + deployed to OJAMD; Tier 2 app-side fetch still pending
+## 21. 🔧 Present/download agent-generated files — Tier 1 ✅; Tier 2 relay route ✅; Tier 2 app-side fetch MERGED (PR #99, 2026-07-16) — dual-host device pass owed
+
+> **Tier 2 app-side MERGED 2026-07-16 (PR #99, branch `claude/fable-t27-21-agent-appfetch-prvsf2`,
+> 10 commits).** Built to the probe verdict (binaries never ride SSE; `write_file` never fires for
+> them): two-layer trigger — content-absent write tools still stage/fetch, but the load-bearing
+> path is the announcement scan (case-insensitive `MobileDL/<segments>` harvest from tool payloads
+> + final prose, deduped vs Tier 1, attached at run.completed). Lane M compliant: attachments
+> stamped with the hop's birth `profileID`; fetch via `ProfileRelaySessionFactory.downloadAgentFile`
+> (profile-scoped bearer, that profile's relay; dormant 401 → one refresh+retry, active 401 → #15
+> ladder). Bonus fix: Windows `write_file` path tails (`lastPathComponentAcrossHosts`).
+> Mac loop: regen clean (entitlements survived), BUILD SUCCEEDED first compile, one test-target
+> fix (a `#"..."#` raw literal whose JSON contained `"#` — closed the string mid-line; now
+> ##-delimited), full suite **671 tests / 55 suites green**.
+>
+> **Device pass (dual-host, queued):** `probe-t21.pdf` already sits in the Mac's MobileDL as a
+> fixture — task the Mac, tap the chip, preview + ShareLink; repeat against OJAMD. Two things to
+> eyeball: (1) announcement-scan noise — ANY turn mentioning a MobileDL path grows a bubble (the
+> listing behavior as specced); if it grates, narrowing to write-shaped tools is a small follow-up.
+> (2) One relay-side check: confirm the device-files route rejects traversal (`MobileDL/../x`) —
+> the client regex admits `..` as a segment, so the server whitelist is the enforcement boundary.
 
 > **Dispatch spec 2026-07-13 (eve):** `dispatch/FABLE-T27-21-agent-files-tier2-appfetch.md` (probe-first). Note: the OJAMD binary-`write_file` probe can't run from cloud CC — it's a local/after-work step. App-side fetch still to build.
 
@@ -2179,6 +2198,12 @@ Availability → unavailable states).
 
 ## 72. 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30)
 
+> **Stopgap merged 2026-07-16 (PR #104):** `pccGrantConfirmed = false` gates every PCC surface,
+> so the SIGTRAP-on-send is unreachable and the tier picker honestly omits PCC. When the SBP →
+> capability-request pipeline grants the entitlement: flip the gate (or wire it to a real
+> signal), rebuild, and the picker/routing/status paths re-enable themselves — then close
+> #111's re-verify note in the same pass.
+
 > **2026-07-13 (eve): crash + stopgap (branch).** Selecting PCC β and sending SIGTRAP-crashed (reproducible) — the entitlement isn't granted, so constructing/using `PrivateCloudComputeLanguageModel` traps (uncatchable; `send()`'s catch can't rescue it). Stopgap on `claude/t27-pcc-crash-stopgap` (c595bf4): a master `pccGrantConfirmed = false` gate — no PCC model constructed until the grant lands, so PCC leaves the picker and can't crash. Flip the flag when Apple grants. Suite 582/582.
 
 > **Audit 2026-07-13:** PR #37 (GitHub #30) confirmed merged to main. LocalChatBackend.swift's isPrivateCloudAvailable/isPrivateCloudUsable (lines 153/162) are the exact symbols item #111 (2026-07-12 device-pass log, whoGoesThere) observed compiling and executing on-device — repeatedly failing PCC XPC session establishment for the ungranted com.apple.developer.private-cloud-compute entitlement. Correction: 'Needs Mac: compile-check the 27-beta surface' is stale — it has compiled and is running on-device already; only Apple's entitlement grant plus the resulting functional device checklist remain owed. project.yml still carries no private-cloud-compute entitlement, so that part of the item stands. Status is more precisely 'blocked externally' (the item's own words) than plain in-progress.
@@ -3507,7 +3532,7 @@ Logged 2026-07-13 (Mac session, Lane H merge train).
 
 ## 111. 🐛 PCC availability check churns doomed ModelManager sessions on every UI tick (#30 follow-up)
 
-> **2026-07-16: the closing stopgap (`claude/t27-pcc-crash-stopgap`) is NOT merged** — verified not an ancestor of main, so the churn is still live on device. Queued for the Mac review loop TODAY (small: `pccGrantConfirmed` gate). The memoize fix stays deferred until the PCC entitlement lands.
+> **MERGED 2026-07-16 as PR #104 (`bf36d29`).** The `pccGrantConfirmed` master gate short-circuits all four PCC surfaces before `PrivateCloudComputeLanguageModel` is ever constructed — no construction, no XPC churn. Branch-base suite 582/49 green; post-merge full-suite validation on main run same day. → ✅ on the next device build (verify the ModelManager flood is gone from the console). The memoize fix stays deferred until the PCC entitlement lands — when it does, flip the gate and re-verify.
 
 > **2026-07-13 (eve): closed by the #72 stopgap.** This churn is the same unentitled `ModelManager` requests; the `pccGrantConfirmed` gate (branch `claude/t27-pcc-crash-stopgap`) never constructs a PCC session, so the churn stops. → ✅ once that branch merges.
 
@@ -3702,3 +3727,28 @@ Two related gaps surfaced during #114 device verification (2026-07-16):
 
 Server-side touches ride the fork (relay internal API + connector), app-side is a small lane
 or rides the next Settings lane. Logged 2026-07-16.
+
+---
+
+## 117. 🔧 Health-drain give-up paths hammered the connector — no-backoff loop (PR #85 follow-up) — MERGED PR #103
+
+Found by Fable re-reviewing the merged #104 work against its spec (2026-07-16): in
+`drainOutboxIfPossible()`'s health phase, every give-up outcome (transient failure,
+busy-retry exhaustion, stalled poison isolation) ended in a bare `break` that only exits
+the `switch` — the `while` loop then re-sent the same failing chunk back-to-back with **no
+backoff for as long as the outage lasted**. That is the #113 dead-connector shape from the
+app side, and it also made the #104 drain-end flush unreachable while wedged.
+
+Fix (`SensorUploadService.swift`, MERGED as PR #103 @ `4ec97dc`): trailing loop-break
+mirroring the location phase's idiom — give-up paths exit the drain and keep the backlog
+for the next trigger, with honest deferral notes ("retries exhausted" / "upload failed").
+Injectable `busyBackoffWait` seam (2/4/8s ladder) for deterministic tests. 4 regression
+tests (`SensorDrainGiveUpTests`, circuit-breaker-guarded so a reintroduced loop fails on
+attempt counts). Mac loop 2026-07-16: BUILD SUCCEEDED, full suite **647 tests / 55 suites
+green**. M-8 destination routing untouched.
+
+Device verify owed: during a connector outage the diagnostics panel should show drains
+deferring instead of continuous POST traffic. Cross-refs: #104 (parent), #113 (the
+server-side twin — connector supervision), #24a (chunking semantics preserved).
+
+Logged 2026-07-16.

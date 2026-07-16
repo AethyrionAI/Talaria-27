@@ -103,6 +103,28 @@ final class RelayAPIClient {
         }
     }
 
+    /// #21 Tier 2: how `downloadFile` failed. Its own enum (not `ClientError`)
+    /// because the agent-file route's status semantics are load-bearing for
+    /// the UI: 401 = the device bearer was refused (re-auth territory), 404 =
+    /// the relay's honest "no such file" — which by design NEVER distinguishes
+    /// missing from outside-the-whitelist, so neither do we.
+    enum FileDownloadError: LocalizedError, Equatable {
+        case unauthorized
+        case notFound
+        case failed(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .unauthorized:
+                "The relay refused this device's authorization."
+            case .notFound:
+                "The file isn't available from the relay."
+            case .failed(let message):
+                message
+            }
+        }
+    }
+
     private let baseURLProvider: @MainActor () -> String
     private let session: URLSession
     private let encoder: JSONEncoder
@@ -147,6 +169,55 @@ final class RelayAPIClient {
             body: requestBody
         )
         return try await send(request)
+    }
+
+    /// #21 Tier 2: downloads an agent-written file from the relay's
+    /// whitelisted agent-files route (`GET /v1/device/files?path=…`) to a
+    /// local temp file and returns its URL. `path` is the
+    /// AGENT_FILES_DIR-relative path (route-form — the relay also accepts
+    /// contained absolute paths, but the app only ever sends the whitelisted
+    /// relative form); the caller stages the returned file and owns its
+    /// lifetime. The device bearer rides the Authorization HEADER only —
+    /// never the URL, query, or logs.
+    func downloadFile(path: String, accessToken: String) async throws -> URL {
+        guard !accessToken.isEmpty else { throw FileDownloadError.unauthorized }
+        let baseURLString = baseURLProvider().trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        // Strict RFC 3986 unreserved-set encoding, ASCII-only on purpose:
+        // `/` and `+` in a filename must not survive raw (Starlette decodes
+        // `+` in a query as a space), and non-ASCII must be percent-encoded
+        // rather than left for URL(string:) to reject.
+        let allowed = CharacterSet(
+            charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
+        )
+        guard !baseURLString.isEmpty,
+              let encodedPath = path.addingPercentEncoding(withAllowedCharacters: allowed),
+              let url = URL(string: "\(baseURLString)/device/files?path=\(encodedPath)") else {
+            throw FileDownloadError.failed("Invalid relay URL for the file download.")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 300
+
+        let (temporaryURL, response) = try await session.download(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            try? FileManager.default.removeItem(at: temporaryURL)
+            throw FileDownloadError.failed("Relay returned an invalid response.")
+        }
+        guard (200 ..< 300).contains(httpResponse.statusCode) else {
+            try? FileManager.default.removeItem(at: temporaryURL)
+            switch httpResponse.statusCode {
+            case 401: throw FileDownloadError.unauthorized
+            case 404: throw FileDownloadError.notFound
+            default: throw FileDownloadError.failed("Relay file download failed with status \(httpResponse.statusCode).")
+            }
+        }
+        // URLSession only guarantees its temp file until this scope returns —
+        // claim it immediately under a name we own.
+        let claimed = FileManager.default.temporaryDirectory
+            .appendingPathComponent("agent-file-\(UUID().uuidString)")
+        try FileManager.default.moveItem(at: temporaryURL, to: claimed)
+        return claimed
     }
 
     private func makeRequest(
