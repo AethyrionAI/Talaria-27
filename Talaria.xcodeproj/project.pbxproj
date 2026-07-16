@@ -218,6 +218,7 @@
 		893E3D0A9F65586C2824B63E /* AppStoresTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F0818490CD153ED5EBCD1CC /* AppStoresTests.swift */; };
 		8948D8F45C1422C15C6D5DD4 /* AppIconCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1EBB25EF20155CC80C56FC4 /* AppIconCatalogTests.swift */; };
 		8A10B164116AB64CF443C0D3 /* IconPreview-MoltenForge.png in Resources */ = {isa = PBXBuildFile; fileRef = A6EED40F681E2DA9D3C5E857 /* IconPreview-MoltenForge.png */; };
+		8A6751DE0DDDD448F0112A77 /* AgentFileFetchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDF1BE5651B4CF68E3034596 /* AgentFileFetchTests.swift */; };
 		8A8B4EB8A9485B58922630EC /* HUDComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 435E06A56ADB375CF5846D31 /* HUDComponents.swift */; };
 		8B1520C8D32C30853CC2B0BF /* SpotlightEntities.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE01F06F2E1E1EF5A76FA7C5 /* SpotlightEntities.swift */; };
 		8BBA368CFD24A594700ED99A /* SlashCommandMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77A5740AD793BC1A65482BD0 /* SlashCommandMenu.swift */; };
@@ -717,6 +718,7 @@
 		BC3A6DB863992287B1727373 /* Icon-WinterFrost@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-WinterFrost@3x.png"; sourceTree = "<group>"; };
 		BCA3528874C96917E5C1B304 /* PermissionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionCard.swift; sourceTree = "<group>"; };
 		BD3E4BCD2A1FA88D1087F9E3 /* LiveHermesClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveHermesClient.swift; sourceTree = "<group>"; };
+		BDF1BE5651B4CF68E3034596 /* AgentFileFetchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentFileFetchTests.swift; sourceTree = "<group>"; };
 		BE01F06F2E1E1EF5A76FA7C5 /* SpotlightEntities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightEntities.swift; sourceTree = "<group>"; };
 		BEBD81AC0A5839FA111D423E /* SensorOutboxChurnTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SensorOutboxChurnTests.swift; sourceTree = "<group>"; };
 		BF886D0188D310FB868BBFD9 /* ThemeArtDirection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeArtDirection.swift; sourceTree = "<group>"; };
@@ -896,6 +898,7 @@
 		103CFAA4F2279113DEBD72F1 /* TalariaTests */ = {
 			isa = PBXGroup;
 			children = (
+				BDF1BE5651B4CF68E3034596 /* AgentFileFetchTests.swift */,
 				8CEBE11A12DBCD1349D97C3B /* AlarmCommandParsingTests.swift */,
 				C1EBB25EF20155CC80C56FC4 /* AppIconCatalogTests.swift */,
 				3F0818490CD153ED5EBCD1CC /* AppStoresTests.swift */,
@@ -2002,6 +2005,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8A6751DE0DDDD448F0112A77 /* AgentFileFetchTests.swift in Sources */,
 				0D61F177FD88F4C441AB9C71 /* AlarmCommandParsingTests.swift in Sources */,
 				8948D8F45C1422C15C6D5DD4 /* AppIconCatalogTests.swift in Sources */,
 				893E3D0A9F65586C2824B63E /* AppStoresTests.swift in Sources */,
