@@ -43,7 +43,7 @@ struct BackendProfilesTests {
                 configuration: PairedRelayConfiguration(
                     baseURLString: request.relayBaseURLString,
                     hostDisplayName: URL(string: request.relayBaseURLString)?.host ?? request.relayBaseURLString,
-                    pairedAt: .now,
+                    pairedAt: Date(timeIntervalSince1970: 1_752_600_000), // whole-second: the store's ISO8601 round-trip drops fractional seconds
                     relayUserID: mintedUserID
                 ),
                 state: AppSessionState(
@@ -193,13 +193,13 @@ struct BackendProfilesTests {
         let configA = PairedRelayConfiguration(
             baseURLString: "http://a.example.test/v1",
             hostDisplayName: "a.example.test",
-            pairedAt: .now,
+            pairedAt: Date(timeIntervalSince1970: 1_752_600_000), // whole-second: the store's ISO8601 round-trip drops fractional seconds
             relayUserID: UUID()
         )
         let configB = PairedRelayConfiguration(
             baseURLString: "http://b.example.test/v1",
             hostDisplayName: "b.example.test",
-            pairedAt: .now,
+            pairedAt: Date(timeIntervalSince1970: 1_752_600_000), // whole-second: the store's ISO8601 round-trip drops fractional seconds
             relayUserID: UUID()
         )
 
