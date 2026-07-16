@@ -200,7 +200,7 @@ final class SensorUploadService {
     private static let healthUploadChunkSize = 100
     /// How many consecutive connector-busy (202 "retry") responses to absorb
     /// per drain before giving up and leaving the rest for the next trigger.
-    private static let maxHealthBusyRetries = 3
+    static let maxHealthBusyRetries = 3
     /// How many consecutive connector-busy (202 "retry") responses to absorb
     /// for location uploads before falling through to health.
     private static let maxLocationBusyRetries = 2
@@ -236,6 +236,10 @@ final class SensorUploadService {
     /// Awaits one debounce window. Injected so tests can gate the interval
     /// deterministically instead of sleeping (#104).
     private let persistDebounceWait: @MainActor () async -> Void
+    /// Awaits one connector-busy backoff step (the 2/4/8s ladder in the
+    /// drain phases). Injected so retry-exhaustion tests run
+    /// deterministically instead of sleeping through the whole ladder.
+    private let busyBackoffWait: @MainActor (TimeInterval) async -> Void
 
     private var isActive = false
     private var isDraining = false
@@ -279,7 +283,8 @@ final class SensorUploadService {
         healthService: LiveHealthService,
         motionService: LiveMotionService? = nil,
         notificationCenter: NotificationCenter = .default,
-        persistDebounceWait: (@MainActor () async -> Void)? = nil
+        persistDebounceWait: (@MainActor () async -> Void)? = nil,
+        busyBackoffWait: (@MainActor (TimeInterval) async -> Void)? = nil
     ) {
         self.apiClient = apiClient
         self.accessTokenProvider = accessTokenProvider
@@ -294,6 +299,9 @@ final class SensorUploadService {
         self.notificationCenter = notificationCenter
         self.persistDebounceWait = persistDebounceWait ?? {
             try? await Task.sleep(for: .seconds(SensorUploadService.persistDebounceInterval))
+        }
+        self.busyBackoffWait = busyBackoffWait ?? { seconds in
+            try? await Task.sleep(for: .seconds(seconds))
         }
         self.outboxState = persistence.loadSensorOutboxState()
         registerLifecycleFlushObservers()
@@ -628,7 +636,7 @@ final class SensorUploadService {
                 locationBusyRetries += 1
                 let delay = Double(1 << locationBusyRetries)
                 sensorLog.notice("drain: location connector busy — retrying in \(delay, privacy: .public)s (attempt \(locationBusyRetries)/\(Self.maxLocationBusyRetries))")
-                try? await Task.sleep(for: .seconds(delay))
+                await busyBackoffWait(delay)
                 continue
             case .failed:
                 recordDrain("Location upload failed")
@@ -639,7 +647,12 @@ final class SensorUploadService {
 
         // ── Health phase ────────────────────────────────────────────
         // Independent of location — runs even when location failed above
-        // (#27: location failure no longer starves health).
+        // (#27: location failure no longer starves health). Give-up
+        // outcomes fall out of the switch to the trailing loop-break: a
+        // bare `break` in a case only exits the `switch`, and without the
+        // trailing break the loop re-sends the same failing chunk
+        // back-to-back with no backoff for as long as the outage lasts
+        // (the #113 shape).
         while isActive && isPairedProvider(), !outboxState.pendingHealthSamples.isEmpty {
             // Chunk to the relay's 100-sample cap and send sequentially —
             // the connector handles one payload at a time (#24a).
@@ -654,11 +667,15 @@ final class SensorUploadService {
                 continue
             case .retry:
                 // Connector busy — back off, then re-send the same chunk.
-                guard healthBusyRetries < Self.maxHealthBusyRetries else { break }
+                guard healthBusyRetries < Self.maxHealthBusyRetries else {
+                    sensorLog.notice("drain: health retries exhausted — deferring to next trigger")
+                    recordDrain("Health upload busy — retries exhausted")
+                    break
+                }
                 healthBusyRetries += 1
                 let delay = Double(1 << healthBusyRetries)
                 sensorLog.notice("drain: connector busy — retrying chunk in \(delay, privacy: .public)s (attempt \(healthBusyRetries)/\(Self.maxHealthBusyRetries))")
-                try? await Task.sleep(for: .seconds(delay))
+                await busyBackoffWait(delay)
                 continue
             case .rejected(let message):
                 // Permanent 400/422: at least one sample in this chunk can
@@ -667,11 +684,16 @@ final class SensorUploadService {
                 // backlog while motion samples pile up behind it (#24a).
                 sensorLog.error("drain: health chunk permanently rejected — \(message, privacy: .public); isolating poison sample(s)")
                 recordDrain("Isolating rejected health sample(s)")
-                guard await resolveRejectedChunk(size: chunk.count) else { break }
+                guard await resolveRejectedChunk(size: chunk.count) else {
+                    sensorLog.notice("drain: poison isolation hit a transient failure — deferring to next trigger")
+                    break
+                }
                 continue
             case .failed:
+                recordDrain("Health upload failed")
                 break
             }
+            break  // retries exhausted, isolation stalled, or failed — exit health phase, keep the backlog
         }
         // #104: chunk-progress writes above are debounced — when this drain
         // consumed work (delivered chunks, cleared fix), force the final
