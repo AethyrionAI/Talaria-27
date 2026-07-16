@@ -184,6 +184,26 @@ struct ServerSettingsTests {
         #expect(ServerProbeResult.unknown.label == "—")
     }
 
+    // MARK: - #116: honest two-step shim probe
+
+    @Test @MainActor
+    func shimProbeClassificationIsHonestAboutAuth() {
+        // No HTTP answer from /healthz at all → offline.
+        #expect(ServerProbeResult.classifyShimProbe(healthzStatus: nil, authedStatus: nil) == .offline)
+        // /healthz answered but unhealthy → its status decides.
+        #expect(ServerProbeResult.classifyShimProbe(healthzStatus: 500, authedStatus: nil) == .offline)
+        // THE #116 fix: /healthz green + authed call refused = answering but
+        // unkeyed — NO KEY, never the old always-green healthz dot.
+        #expect(ServerProbeResult.classifyShimProbe(healthzStatus: 200, authedStatus: 401) == .unauthorized)
+        #expect(ServerProbeResult.classifyShimProbe(healthzStatus: 200, authedStatus: 403) == .unauthorized)
+        // Healthy AND the token works → online.
+        #expect(ServerProbeResult.classifyShimProbe(healthzStatus: 200, authedStatus: 200) == .online)
+        // Healthy /healthz but the authed call died or errored → offline,
+        // not a fake green.
+        #expect(ServerProbeResult.classifyShimProbe(healthzStatus: 200, authedStatus: nil) == .offline)
+        #expect(ServerProbeResult.classifyShimProbe(healthzStatus: 200, authedStatus: 500) == .offline)
+    }
+
     // MARK: - M-13: hosted-relay retirement decode compatibility
 
     @Test @MainActor

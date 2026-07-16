@@ -28,6 +28,17 @@ enum ServerProbeResult: Equatable {
         }
     }
 
+    /// #116: the two-step shim probe's verdict — pure for tests. `/healthz`
+    /// is unauthenticated, so a green dot off it alone lies about the token;
+    /// a healthy shim is followed by an authenticated call whose status is
+    /// what actually decides. `nil` = the request never got an HTTP answer.
+    static func classifyShimProbe(healthzStatus: Int?, authedStatus: Int?) -> ServerProbeResult {
+        guard let healthzStatus else { return .offline }
+        guard (200 ..< 300).contains(healthzStatus) else { return classify(statusCode: healthzStatus) }
+        guard let authedStatus else { return .offline }
+        return classify(statusCode: authedStatus)
+    }
+
     var label: String {
         switch self {
         case .unknown: "—"
@@ -55,6 +66,9 @@ struct ServerSettingsScreen: View {
     @State private var editorTarget: ProfileEditorTarget?
     @State private var pendingForget: BackendProfile?
     @State private var deleteErrorMessage: String?
+    /// #116: outcome of the last "Refresh Provisioning" action — honest
+    /// summary text (what was filled, or that the host reported nothing).
+    @State private var provisioningMessage: String?
 
     private enum ProfileEditorTarget: Identifiable {
         case add
@@ -77,6 +91,9 @@ struct ServerSettingsScreen: View {
                 VStack(spacing: Design.Spacing.lg) {
                     SettingsScreenHeader(title: "Server", subtitle: "Backend Profiles") { dismiss() }
                     profileCards
+                    if let provisioningMessage {
+                        infoNotice(provisioningMessage)
+                    }
                     addProfileButton
                     autoConnectPanel
                     if let deleteErrorMessage {
@@ -230,6 +247,13 @@ struct ServerSettingsScreen: View {
                 Label(isPaired ? "Re-Pair" : "Pair", systemImage: "link")
             }
             if isPaired {
+                // #116: re-pull the host's provisioning bundle — the token
+                // rotation path (URLs are only ever filled when empty).
+                Button {
+                    Task { await refreshProvisioning(profile) }
+                } label: {
+                    Label("Refresh Provisioning", systemImage: "arrow.triangle.2.circlepath")
+                }
                 Button(role: .destructive) {
                     pendingForget = profile
                 } label: {
@@ -322,6 +346,26 @@ struct ServerSettingsScreen: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private func infoNotice(_ message: String) -> some View {
+        Text(message)
+            .font(Design.Typography.caption)
+            .foregroundStyle(Design.Colors.secondaryForeground)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// #116: user-initiated provisioning refresh for one profile. `.refresh`
+    /// mode rotates a stale shim token; endpoints are only filled when empty.
+    private func refreshProvisioning(_ profile: BackendProfile) async {
+        guard let service = container.provisioningService else { return }
+        do {
+            let outcome = try await service.applyProvisioning(profileID: profile.id, mode: .refresh)
+            provisioningMessage = outcome.summary(profileName: profile.name)
+            await probeAllProfiles()
+        } catch {
+            provisioningMessage = "\(profile.name): provisioning refresh failed — \(error.localizedDescription)"
+        }
+    }
+
     // MARK: Auto-connect (relocated from the retired Relay sub-page)
 
     private var autoConnectPanel: some View {
@@ -357,9 +401,9 @@ struct ServerSettingsScreen: View {
         // then fan out static probes whose closures capture only Sendable
         // values + a MainActor accumulator box — the proven
         // SessionsHermesClient pattern. Probes still overlap.
-        var keyed: [(profile: BackendProfile, key: String?)] = []
+        var keyed: [(profile: BackendProfile, key: String?, shimToken: String?)] = []
         for profile in profiles {
-            keyed.append((profile, await container.gatewayAPIKey(for: profile)))
+            keyed.append((profile, await container.gatewayAPIKey(for: profile), await container.shimToken(for: profile)))
         }
         let gathered = ProbeAccumulator()
         // …and the iOS 27 SDK's checker rejects even fully-Sendable captures
@@ -370,7 +414,9 @@ struct ServerSettingsScreen: View {
         // before reading the box.
         let handles = keyed.map { entry in
             Task { @MainActor in
-                gathered.results[entry.profile.id] = await Self.probe(entry.profile, gatewayKey: entry.key)
+                gathered.results[entry.profile.id] = await Self.probe(
+                    entry.profile, gatewayKey: entry.key, shimToken: entry.shimToken
+                )
             }
         }
         for handle in handles {
@@ -381,10 +427,10 @@ struct ServerSettingsScreen: View {
         }
     }
 
-    private static func probe(_ profile: BackendProfile, gatewayKey: String?) async -> ServerProfileReachability {
+    private static func probe(_ profile: BackendProfile, gatewayKey: String?, shimToken: String?) async -> ServerProfileReachability {
         var result = ServerProfileReachability()
         result.gateway = await probeGateway(profile, gatewayKey: gatewayKey)
-        result.shim = await probeShim(profile)
+        result.shim = await probeShim(profile, shimToken: shimToken)
         return result
     }
 
@@ -407,18 +453,35 @@ struct ServerSettingsScreen: View {
         }
     }
 
-    /// GET {shim}/healthz — the shim's unauthenticated health route.
-    private static func probeShim(_ profile: BackendProfile) async -> ServerProbeResult {
+    /// #116: honest two-step shim probe. `/healthz` (unauthenticated) decides
+    /// reachability only; a healthy shim is then hit on `/models?refresh=0`
+    /// with the profile's token — the shim 401s a missing/wrong bearer, so an
+    /// answering-but-unkeyed shim renders NO KEY exactly like the gateway,
+    /// instead of the old always-green healthz dot.
+    private static func probeShim(_ profile: BackendProfile, shimToken: String?) async -> ServerProbeResult {
         guard let raw = profile.shimBaseURL?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !raw.isEmpty, let url = URL(string: normalized(raw) + "/healthz") else { return .unknown }
+              !raw.isEmpty, let healthzURL = URL(string: normalized(raw) + "/healthz") else { return .unknown }
+        let healthzStatus = await statusCode(for: healthzURL, bearer: nil)
+        guard let healthzStatus, (200 ..< 300).contains(healthzStatus),
+              let authedURL = URL(string: normalized(raw) + "/models?refresh=0") else {
+            return ServerProbeResult.classifyShimProbe(healthzStatus: healthzStatus, authedStatus: nil)
+        }
+        let authedStatus = await statusCode(for: authedURL, bearer: shimToken)
+        return ServerProbeResult.classifyShimProbe(healthzStatus: healthzStatus, authedStatus: authedStatus)
+    }
+
+    /// One probe request → HTTP status, nil when no HTTP answer arrived.
+    private static func statusCode(for url: URL, bearer: String?) async -> Int? {
         var request = URLRequest(url: url)
         request.timeoutInterval = 5
+        if let bearer, !bearer.isEmpty {
+            request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
+        }
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else { return .offline }
-            return ServerProbeResult.classify(statusCode: http.statusCode)
+            return (response as? HTTPURLResponse)?.statusCode
         } catch {
-            return .offline
+            return nil
         }
     }
 
