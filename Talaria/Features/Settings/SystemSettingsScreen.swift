@@ -140,9 +140,11 @@ struct SystemSettingsScreen: View {
                     UplinkSettingsScreen()
                 }
                 rowDivider
-                navRow(icon: "point.3.connected.trianglepath.dotted", title: "Relay", value: relayValue,
-                       valueColor: relayColor) {
-                    RelaySettingsScreen()
+                // Lane M (M-12): the Server screen replaces the retired
+                // Relay sub-page — profiles own relay config + pairing now.
+                navRow(icon: "server.rack", title: "Server", value: serverValue,
+                       valueColor: serverColor) {
+                    ServerSettingsScreen()
                 }
                 rowDivider
                 navRow(icon: "cpu", title: "Models", value: modelValue) {
@@ -343,11 +345,11 @@ struct SystemSettingsScreen: View {
         effectiveConnectionState == .online ? Design.Brand.accent : Design.Brand.forge
     }
 
-    private var relayValue: String {
-        pairingStore.isPaired ? "PAIRED" : "SET UP"
+    private var serverValue: String {
+        (container.profilesStore?.activeProfile?.name ?? (pairingStore.isPaired ? "PAIRED" : "SET UP")).uppercased()
     }
 
-    private var relayColor: Color {
+    private var serverColor: Color {
         pairingStore.isPaired ? Design.Brand.accent : Design.Colors.mutedForeground
     }
 
