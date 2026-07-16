@@ -3538,6 +3538,39 @@ Logged 2026-07-14.
 
 ## 114. 🔧 Backend Profiles — server switcher (T6 Part 2): second profile without wiping the first
 
+> **MERGED 2026-07-16** — Lane M landed as the three stacked PRs (#96 model+migration+per-profile
+> clean-slate, #97 routing, #98 Settings surgery), main @ `2ab4945`. Mac review loop: xcodegen
+> regen clean (entitlements survived), BUILD SUCCEEDED, **645 tests green** (643-test full run's
+> only 4 issues were a test-fidelity bug — see trap below — fixed and re-verified 22/22 across
+> the three Lane M suites; tree-identity checked against the tested build).
+>
+> **Loop findings (repo-wide precedents):**
+> - **`withTaskGroup` + @MainActor children is categorically broken on the iOS 27 SDK** —
+>   "pattern that the region-based isolation checker does not understand", regardless of capture
+>   Sendability (three variants tried). Working pattern, now used in `SessionsHermesClient` and
+>   `ServerSettingsScreen`: **unstructured `Task<Void, Never>` handles + a `@MainActor`
+>   accumulator box**, await every handle, then read the box. Add to the Swift-6 gotcha list.
+> - **ISO8601 date round-trip trap:** the #41-era store encodes dates whole-second; tests that
+>   `#expect(loaded == saved)` with `pairedAt: .now` fail invisibly (values print identically).
+>   Use whole-second fixture dates in round-trip expectations.
+> - `Design.Typography.BodyWeight` has no `.semibold` (regular/medium/bold); `Logger.verbose`
+>   is the String-taking TalariaLog extension — no `privacy:` interpolation.
+>
+> **Fable deviations — ACCEPTED:** migrated profile keeps legacy Keychain keys (mapping, not
+> renaming — re-migration after data loss provably re-finds the pairing, #41-safer); active +
+> sensor-destination IDs live on the Keychain-mirrored blob so a reinstall can't recover
+> profiles yet lose which is active.
+>
+> **OPEN (Owen):** should the #4 confirm gate cover agent-initiated iMessage sends? Today the
+> only guard is the apple-messaging skill instruction (soft). Flagged in the dispatch, not built.
+>
+> **Device verification owed (definition of done):** on whoGoesThere — migration lands existing
+> install as "OJAMD" (active, sensor destination) with pairing intact; add "Mac Mini" profile
+> (gateway `http://100.79.222.100:8642`, relay `http://100.79.222.100:8000/v1`, shim `:8765`);
+> pair via `hermes-mobile pair-phone` on the Mini; switch both ways confirming NOTHING wipes;
+> "New chat on Mac Mini" long-press; then the closer: "send an iMessage to Shelley: …" from the
+> Mac profile → #4 confirm → delivered — which also closes #107's dev-pairing criterion.
+
 Owen's model (2026-07-14/15 session): capability-based hosts — OJAMD = production brain
 (sensors, Windows toolsets, scheduled runs); Mac Mini = Apple-ecosystem hands (iMessage,
 Notes, Xcode toolsets, agent files). Re-homing via a Settings profile switcher: tap the
