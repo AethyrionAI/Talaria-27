@@ -36,19 +36,30 @@ final class SessionsHermesClient: HermesClientProtocol {
     private let journal: ConversationJournalStore
     /// Composes the priming turn a fresh hop is transplanted with.
     private let transplanter: ContextTransplanter
+    /// Lane M (#114): the backend profile new server sessions are born on —
+    /// stamped onto the hop and the session→profile index at creation, since
+    /// session ids are server-scoped. Nil in profile-less constructions.
+    private let activeProfileIDProvider: @MainActor () -> UUID?
+    /// Lane M: the durable session→birth-profile index. Optional so tests
+    /// (and the mock path) run without one.
+    private let profileIndex: SessionProfileIndexStore?
 
     init(
         baseURLProvider: @escaping @MainActor () -> String?,
         apiKeyProvider: @escaping @MainActor () -> String?,
         journal: ConversationJournalStore,
         transplanter: ContextTransplanter,
-        session: URLSession = .shared
+        session: URLSession = .shared,
+        activeProfileIDProvider: @escaping @MainActor () -> UUID? = { nil },
+        profileIndex: SessionProfileIndexStore? = nil
     ) {
         self.baseURLProvider = baseURLProvider
         self.apiKeyProvider = apiKeyProvider
         self.journal = journal
         self.transplanter = transplanter
         self.session = session
+        self.activeProfileIDProvider = activeProfileIDProvider
+        self.profileIndex = profileIndex
         self.encoder = JSONEncoder()
         self.decoder = JSONDecoder()
     }
@@ -481,7 +492,14 @@ final class SessionsHermesClient: HermesClientProtocol {
         let (sessionId, convo) = try await fetchSessionConversation(id)
         currentConversation = convo
         connectionStatus = .connected
-        journal.adoptServerSession(id: sessionId, conversation: convo)
+        // Lane M: an adopted session keeps its recorded birth profile; an
+        // unrecorded id (pre-profile history) belongs to the profile it was
+        // fetched from — the active one.
+        let birthProfileID = profileIndex?.profileID(forSessionID: sessionId) ?? activeProfileIDProvider()
+        journal.adoptServerSession(id: sessionId, conversation: convo, profileID: birthProfileID)
+        if let birthProfileID {
+            profileIndex?.record(sessionID: sessionId, profileID: birthProfileID)
+        }
         return convo
     }
 
@@ -588,13 +606,13 @@ final class SessionsHermesClient: HermesClientProtocol {
         }
 
         guard journal.hasEntries else {
-            journal.beginHop(apiSessionId: sessionId, primingUsage: nil)
+            journal.beginHop(apiSessionId: sessionId, primingUsage: nil, profileID: birthProfileID(for: sessionId))
             return PreparedHop(sessionId: sessionId, wasReused: false, priming: nil)
         }
 
         let composition = await transplanter.composePriming(from: journal.entries)
         let usage = try await postPrimingTurn(sessionId: sessionId, text: composition.text)
-        journal.beginHop(apiSessionId: sessionId, primingUsage: usage)
+        journal.beginHop(apiSessionId: sessionId, primingUsage: usage, profileID: birthProfileID(for: sessionId))
         Self.logger.notice("hop: fresh session primed from \(composition.entryCount) journal entries (\(composition.condensedByModel ? "condensed" : "verbatim tail", privacy: .public), \(usage?.totalTokens ?? 0) tokens)")
         return PreparedHop(sessionId: sessionId, wasReused: false, priming: PrimingReceipt(usage: usage))
     }
@@ -607,6 +625,15 @@ final class SessionsHermesClient: HermesClientProtocol {
             body: EmptyBody()
         )
         return response.session.id
+    }
+
+    /// Lane M: stamps a just-created session's birth profile into the index
+    /// and returns it for the hop record. Sessions are born on the ACTIVE
+    /// profile (M-6) — the id→profile binding is immutable from here on.
+    private func birthProfileID(for sessionId: String) -> UUID? {
+        guard let profileID = activeProfileIDProvider() else { return nil }
+        profileIndex?.record(sessionID: sessionId, profileID: profileID)
+        return profileID
     }
 
     /// Posts the transplant as the fresh session's first turn over SSE and

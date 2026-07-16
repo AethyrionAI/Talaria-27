@@ -4,15 +4,19 @@ import Foundation
 final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
     private enum Keys {
         static let userSettings = "hermes.userSettings"
-        static let sessionState = "hermes.sessionState"
         static let inboxState = "hermes.inboxState"
-        static let pairedRelayConfiguration = "hermes.pairedRelayConfiguration"
+        static let backendProfiles = "hermes.backendProfiles"
+        static let sessionProfileIndex = "hermes.sessionProfileIndex"
         static let sensorOutboxState = "hermes.sensorOutboxState"
         static let conversationCache = "hermes.conversationCache"
         static let conversationJournal = "hermes.conversationJournal"
         static let conversationListState = "hermes.conversationListState"
         static let composeOutboxState = "hermes.composeOutboxState"
         static let healthAnchorPrefix = "hermes.healthAnchor."
+        // Session state + pairing config are profile-scoped (Lane M): keys
+        // derive from BackendProfileScopedKeys, where a nil scope yields the
+        // pre-profile strings ("hermes.sessionState" /
+        // "hermes.pairedRelayConfiguration") the migrated profile keeps.
     }
 
     private let defaults: UserDefaults
@@ -59,16 +63,16 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         save(settings, key: Keys.userSettings)
     }
 
-    func loadSessionState() -> AppSessionState? {
-        load(AppSessionState.self, key: Keys.sessionState)
+    func loadSessionState(profileScope: UUID?) -> AppSessionState? {
+        load(AppSessionState.self, key: BackendProfileScopedKeys.sessionState(profileScope))
     }
 
-    func saveSessionState(_ state: AppSessionState) {
-        save(state, key: Keys.sessionState)
+    func saveSessionState(_ state: AppSessionState, profileScope: UUID?) {
+        save(state, key: BackendProfileScopedKeys.sessionState(profileScope))
     }
 
-    func clearSessionState() {
-        defaults.removeObject(forKey: Keys.sessionState)
+    func clearSessionState(profileScope: UUID?) {
+        defaults.removeObject(forKey: BackendProfileScopedKeys.sessionState(profileScope))
     }
 
     func loadInboxState() -> InboxLocalState {
@@ -87,48 +91,93 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
     // Keychain (survives the clean-install container wipes that forced
     // re-pairs even though session tokens were sitting safe in the Keychain).
     // Load prefers the Keychain and re-hydrates whichever store is missing.
+    // Profile-scoped since Lane M — each backend profile has its own slot.
 
-    func loadPairedRelayConfiguration() -> PairedRelayConfiguration? {
-        let defaultsCopy = load(PairedRelayConfiguration.self, key: Keys.pairedRelayConfiguration)
+    func loadPairedRelayConfiguration(profileScope: UUID?) -> PairedRelayConfiguration? {
+        loadDualStored(
+            PairedRelayConfiguration.self,
+            key: BackendProfileScopedKeys.pairedRelayConfiguration(profileScope)
+        )
+    }
+
+    func savePairedRelayConfiguration(_ configuration: PairedRelayConfiguration, profileScope: UUID?) {
+        saveDualStored(configuration, key: BackendProfileScopedKeys.pairedRelayConfiguration(profileScope))
+    }
+
+    func clearPairedRelayConfiguration(profileScope: UUID?) {
+        let key = BackendProfileScopedKeys.pairedRelayConfiguration(profileScope)
+        defaults.removeObject(forKey: key)
+        keychainMirror?.deleteSync(key: key)
+    }
+
+    // Backend profiles ride the same dual-store (Lane M): the profile UUIDs
+    // key every per-profile credential, so they must survive reinstalls
+    // together with the Keychain entries they scope.
+
+    func loadBackendProfilesState() -> BackendProfilesState? {
+        loadDualStored(BackendProfilesState.self, key: Keys.backendProfiles)
+    }
+
+    func saveBackendProfilesState(_ state: BackendProfilesState) {
+        saveDualStored(state, key: Keys.backendProfiles)
+    }
+
+    func clearBackendProfilesState() {
+        defaults.removeObject(forKey: Keys.backendProfiles)
+        keychainMirror?.deleteSync(key: Keys.backendProfiles)
+    }
+
+    func loadSessionProfileIndex() -> SessionProfileIndex {
+        load(SessionProfileIndex.self, key: Keys.sessionProfileIndex) ?? SessionProfileIndex()
+    }
+
+    func saveSessionProfileIndex(_ index: SessionProfileIndex) {
+        save(index, key: Keys.sessionProfileIndex)
+    }
+
+    func clearSessionProfileIndex() {
+        defaults.removeObject(forKey: Keys.sessionProfileIndex)
+    }
+
+    /// The #41 dual-store read: Keychain wins, whichever side is missing is
+    /// re-hydrated. Extracted from the pairing-config path so the backend
+    /// profiles blob gets identical reinstall-recovery semantics.
+    private func loadDualStored<T: Codable>(_ type: T.Type, key: String) -> T? {
+        let defaultsCopy = load(type, key: key)
         guard let keychainMirror else { return defaultsCopy }
 
-        if let json = keychainMirror.retrieveSync(key: Keys.pairedRelayConfiguration) {
+        if let json = keychainMirror.retrieveSync(key: key) {
             do {
-                let keychainCopy = try decoder.decode(PairedRelayConfiguration.self, from: Data(json.utf8))
+                let keychainCopy = try decoder.decode(type, from: Data(json.utf8))
                 if defaultsCopy == nil {
                     // Reinstall recovery: the UserDefaults container was wiped
                     // but the Keychain copy survived — re-hydrate UserDefaults.
-                    save(keychainCopy, key: Keys.pairedRelayConfiguration)
+                    save(keychainCopy, key: key)
                 }
                 return keychainCopy
             } catch {
-                TalariaLog.event("persistence: decode of PairedRelayConfiguration (Keychain mirror) failed: \(error)")
+                TalariaLog.event("persistence: decode of \(type) (Keychain mirror) failed for key \(key): \(error)")
             }
         }
 
         if let defaultsCopy {
-            // Upgrade path for installs paired before the Keychain mirror
+            // Upgrade path for values saved before the Keychain mirror
             // existed: back-fill the Keychain from the UserDefaults copy.
-            mirrorToKeychain(defaultsCopy)
+            mirrorToKeychain(defaultsCopy, key: key)
         }
         return defaultsCopy
     }
 
-    func savePairedRelayConfiguration(_ configuration: PairedRelayConfiguration) {
-        save(configuration, key: Keys.pairedRelayConfiguration)
-        mirrorToKeychain(configuration)
+    private func saveDualStored<T: Codable>(_ value: T, key: String) {
+        save(value, key: key)
+        mirrorToKeychain(value, key: key)
     }
 
-    func clearPairedRelayConfiguration() {
-        defaults.removeObject(forKey: Keys.pairedRelayConfiguration)
-        keychainMirror?.deleteSync(key: Keys.pairedRelayConfiguration)
-    }
-
-    private func mirrorToKeychain(_ configuration: PairedRelayConfiguration) {
+    private func mirrorToKeychain<T: Encodable>(_ value: T, key: String) {
         guard let keychainMirror,
-              let data = try? encoder.encode(configuration),
+              let data = try? encoder.encode(value),
               let json = String(data: data, encoding: .utf8) else { return }
-        keychainMirror.storeSync(key: Keys.pairedRelayConfiguration, value: json)
+        keychainMirror.storeSync(key: key, value: json)
     }
 
     // The sensor outbox is this store's one hot write path — it rewrites on

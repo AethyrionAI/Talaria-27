@@ -6,10 +6,6 @@ private let sessionLog = Logger(subsystem: "org.aethyrion.talaria", category: "A
 @MainActor
 @Observable
 final class AppSessionStore {
-    private enum SecureKeys {
-        static let accessToken = "session.accessToken"
-        static let refreshToken = "session.refreshToken"
-    }
 
     /// How an on-demand access-token refresh resolved (#15). Distinguishes
     /// "retry the request with the fresh token" from "this credential set is
@@ -29,7 +25,7 @@ final class AppSessionStore {
     }
 
     var state: AppSessionState {
-        didSet { persistence.saveSessionState(state) }
+        didSet { persistence.saveSessionState(state, profileScope: credentialScope) }
     }
     var isBootstrapping = false
     var lastErrorMessage: String?
@@ -47,6 +43,16 @@ final class AppSessionStore {
     private let persistence: any AppPersistenceStoreProtocol
     private let notificationService: any NotificationServiceProtocol
     private let environmentProvider: @MainActor () -> AppEnvironment
+    /// Which backend profile's credential slot this store reads/writes
+    /// (Lane M): the ACTIVE profile's `credentialScopeID`. The default (nil)
+    /// resolves the legacy pre-profile keys — the migrated first profile's
+    /// slot, and the exact pre-Lane-M behavior for tests that construct the
+    /// store without profiles.
+    private let credentialScopeProvider: @MainActor () -> UUID?
+
+    /// The scope every token/state access resolves against, read live so a
+    /// profile switch redirects the store without reconstruction.
+    private var credentialScope: UUID? { credentialScopeProvider() }
 
     init(
         bootstrapService: any SessionBootstrapServiceProtocol,
@@ -54,7 +60,8 @@ final class AppSessionStore {
         secureStore: any SecureStoreProtocol,
         persistence: any AppPersistenceStoreProtocol,
         notificationService: any NotificationServiceProtocol,
-        environmentProvider: @escaping @MainActor () -> AppEnvironment
+        environmentProvider: @escaping @MainActor () -> AppEnvironment,
+        credentialScopeProvider: @escaping @MainActor () -> UUID? = { nil }
     ) {
         self.bootstrapService = bootstrapService
         self.syncCoordinator = syncCoordinator
@@ -62,7 +69,8 @@ final class AppSessionStore {
         self.persistence = persistence
         self.notificationService = notificationService
         self.environmentProvider = environmentProvider
-        self.state = persistence.loadSessionState() ?? AppSessionState()
+        self.credentialScopeProvider = credentialScopeProvider
+        self.state = persistence.loadSessionState(profileScope: credentialScopeProvider()) ?? AppSessionState()
     }
 
     func bootstrap(forceRegistration: Bool = false) async {
@@ -115,11 +123,11 @@ final class AppSessionStore {
     }
 
     func currentAccessToken() async -> String? {
-        await secureStore.retrieve(key: SecureKeys.accessToken)
+        await secureStore.retrieve(key: BackendProfileScopedKeys.accessToken(credentialScope))
     }
 
     func currentRefreshToken() async -> String? {
-        await secureStore.retrieve(key: SecureKeys.refreshToken)
+        await secureStore.retrieve(key: BackendProfileScopedKeys.refreshToken(credentialScope))
     }
 
     /// Single-flight: concurrent 401s from talk, sensors, and the host
@@ -207,6 +215,21 @@ final class AppSessionStore {
         await applySessionState(state, tokens: tokens)
     }
 
+    /// Explicit-scope variant (Lane M): adopts a freshly paired session into
+    /// a NAMED profile's credential slot. When the target is the current
+    /// scope this is exactly `applyPairedSession`; for a non-active profile
+    /// the tokens and state land in that profile's slot without disturbing
+    /// the in-memory session the active profile is running on.
+    func applyPairedSession(state pairedState: AppSessionState, tokens: AuthTokens, credentialScope scope: UUID?) async {
+        guard scope != credentialScope else {
+            await applyPairedSession(state: pairedState, tokens: tokens)
+            return
+        }
+        await secureStore.store(key: BackendProfileScopedKeys.accessToken(scope), value: tokens.accessToken)
+        await secureStore.store(key: BackendProfileScopedKeys.refreshToken(scope), value: tokens.refreshToken)
+        persistence.saveSessionState(pairedState, profileScope: scope)
+    }
+
     func revokeCurrentSession() async {
         do {
             try await bootstrapService.revokeCurrentSession(accessToken: await currentAccessToken())
@@ -216,9 +239,21 @@ final class AppSessionStore {
     }
 
     func clearSession() async {
-        await secureStore.delete(key: SecureKeys.accessToken)
-        await secureStore.delete(key: SecureKeys.refreshToken)
+        await clearSession(credentialScope: credentialScope)
+    }
 
+    /// Explicit-scope variant (Lane M): clears ONE profile's credential slot.
+    /// The in-memory session resets only when the cleared slot is the one
+    /// this store is currently running on — clearing a dormant profile (its
+    /// re-pair clean-slate, its deletion) must not log out the active one.
+    func clearSession(credentialScope scope: UUID?) async {
+        await secureStore.delete(key: BackendProfileScopedKeys.accessToken(scope))
+        await secureStore.delete(key: BackendProfileScopedKeys.refreshToken(scope))
+
+        guard scope == credentialScope else {
+            persistence.clearSessionState(profileScope: scope)
+            return
+        }
         let retainedInstallationID = state.installationID
         let retainedEndpoint = state.backendEndpoint
         lastErrorMessage = nil
@@ -227,12 +262,12 @@ final class AppSessionStore {
             installationID: retainedInstallationID,
             backendEndpoint: retainedEndpoint
         )
-        persistence.clearSessionState()
+        persistence.clearSessionState(profileScope: scope)
     }
 
     private func persist(tokens: AuthTokens) async throws {
-        await secureStore.store(key: SecureKeys.accessToken, value: tokens.accessToken)
-        await secureStore.store(key: SecureKeys.refreshToken, value: tokens.refreshToken)
+        await secureStore.store(key: BackendProfileScopedKeys.accessToken(credentialScope), value: tokens.accessToken)
+        await secureStore.store(key: BackendProfileScopedKeys.refreshToken(credentialScope), value: tokens.refreshToken)
     }
 
     private func makeRegistrationRequest() -> DeviceRegistrationRequest {
