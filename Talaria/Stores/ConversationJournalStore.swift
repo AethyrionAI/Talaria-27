@@ -72,12 +72,14 @@ final class ConversationJournalStore {
 
     /// Records a freshly created server session as the active hop.
     /// `primingUsage` carries the transplant turn's real token usage (nil when
-    /// the journal was empty and no priming was sent).
-    func beginHop(apiSessionId: String, primingUsage: TokenUsage?) {
+    /// the journal was empty and no priming was sent). `profileID` is the
+    /// hop's birth host (Lane M) — nil in profile-less constructions.
+    func beginHop(apiSessionId: String, primingUsage: TokenUsage?, profileID: UUID? = nil) {
         journal.activeHop = ConversationJournal.ServerHop(
             apiSessionId: apiSessionId,
             seenEntryCount: journal.entries.count,
-            primingUsage: primingUsage
+            primingUsage: primingUsage,
+            profileID: profileID
         )
         save()
     }
@@ -96,7 +98,7 @@ final class ConversationJournalStore {
     /// journal rebuilds from its history under the given conversation's
     /// identity, with the session as an already-current hop (its history IS
     /// its context — nothing to transplant).
-    func adoptServerSession(id: String, conversation: Conversation) {
+    func adoptServerSession(id: String, conversation: Conversation, profileID: UUID? = nil) {
         let derived = Self.entries(from: conversation)
         journal = ConversationJournal(
             conversationID: conversation.id,
@@ -104,7 +106,8 @@ final class ConversationJournalStore {
             activeHop: ConversationJournal.ServerHop(
                 apiSessionId: id,
                 seenEntryCount: derived.count,
-                primingUsage: nil
+                primingUsage: nil,
+                profileID: profileID
             )
         )
         save()
