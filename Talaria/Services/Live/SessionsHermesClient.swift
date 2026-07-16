@@ -43,6 +43,20 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// Lane M: the durable session→birth-profile index. Optional so tests
     /// (and the mock path) run without one.
     private let profileIndex: SessionProfileIndexStore?
+    /// Lane M PR 2 (M-5): resolves a NON-ACTIVE profile's chat endpoint
+    /// (gateway base URL + that profile's API key). Requests for the active
+    /// profile keep riding `baseURLProvider`/`apiKeyProvider` — byte-identical
+    /// to the single-backend path. Returning nil means the profile has no
+    /// usable endpoint (unknown id, no key cached yet).
+    private let profileEndpointResolver: @MainActor (UUID) -> (baseURL: String, apiKey: String)?
+    /// Lane M PR 2: every profile chat should list sessions from (M-5's
+    /// "drawer shows all sessions"). Empty = single-backend behavior.
+    private let chatProfilesProvider: @MainActor () -> [BackendProfile]
+    /// Lane M (M-16): when set, the NEXT fresh hop is created on this profile
+    /// instead of the active one — "new chat on <profile>" without flipping
+    /// the default. Consumed when the hop is successfully created; a failed
+    /// creation keeps it armed so the user's pick survives a retry.
+    var pendingNewSessionProfileID: UUID?
 
     init(
         baseURLProvider: @escaping @MainActor () -> String?,
@@ -51,7 +65,9 @@ final class SessionsHermesClient: HermesClientProtocol {
         transplanter: ContextTransplanter,
         session: URLSession = .shared,
         activeProfileIDProvider: @escaping @MainActor () -> UUID? = { nil },
-        profileIndex: SessionProfileIndexStore? = nil
+        profileIndex: SessionProfileIndexStore? = nil,
+        profileEndpointResolver: @escaping @MainActor (UUID) -> (baseURL: String, apiKey: String)? = { _ in nil },
+        chatProfilesProvider: @escaping @MainActor () -> [BackendProfile] = { [] }
     ) {
         self.baseURLProvider = baseURLProvider
         self.apiKeyProvider = apiKeyProvider
@@ -60,8 +76,18 @@ final class SessionsHermesClient: HermesClientProtocol {
         self.session = session
         self.activeProfileIDProvider = activeProfileIDProvider
         self.profileIndex = profileIndex
+        self.profileEndpointResolver = profileEndpointResolver
+        self.chatProfilesProvider = chatProfilesProvider
         self.encoder = JSONEncoder()
         self.decoder = JSONDecoder()
+    }
+
+    /// Normalizes a routing profile id for request building: the ACTIVE
+    /// profile (and profile-less nil) collapse to nil so those requests take
+    /// the pre-Lane-M provider path exactly.
+    private func requestProfileID(_ profileID: UUID?) -> UUID? {
+        guard let profileID, profileID != activeProfileIDProvider() else { return nil }
+        return profileID
     }
 
     // MARK: - HermesClientProtocol
@@ -115,20 +141,21 @@ final class SessionsHermesClient: HermesClientProtocol {
     private func performSyncTurn(message: String, attachments: [PendingAttachment]) async throws -> String {
         let hop = try await ensureHopForTurn()
         do {
-            return try await postSyncChat(sessionId: hop.sessionId, message: message, attachments: attachments)
+            return try await postSyncChat(sessionId: hop.sessionId, profileID: hop.profileID, message: message, attachments: attachments)
         } catch SessionsClientError.sessionNotFound where hop.wasReused {
             Self.logger.notice("sync turn: persisted hop stale server-side (404) — re-hopping with transplant")
             journal.endHop()
             let fresh = try await ensureHopForTurn()
-            return try await postSyncChat(sessionId: fresh.sessionId, message: message, attachments: attachments)
+            return try await postSyncChat(sessionId: fresh.sessionId, profileID: fresh.profileID, message: message, attachments: attachments)
         }
     }
 
-    private func postSyncChat(sessionId: String, message: String, attachments: [PendingAttachment]) async throws -> String {
+    private func postSyncChat(sessionId: String, profileID: UUID?, message: String, attachments: [PendingAttachment]) async throws -> String {
         let path = "\(Self.sessionsPath)/\(sessionId)/chat"
         let response: SyncChatResponse = try await postJSON(
             path: path,
-            body: ChatTurnBody.make(message: message, attachments: attachments)
+            body: ChatTurnBody.make(message: message, attachments: attachments),
+            profileID: profileID
         )
         return response.message?.content ?? response.content ?? ""
     }
@@ -179,7 +206,7 @@ final class SessionsHermesClient: HermesClientProtocol {
             }
             let path = "\(Self.sessionsPath)/\(hop.sessionId)/chat/stream"
             let body = try encoder.encode(ChatTurnBody.make(message: content, attachments: attachments))
-            let request = try makeRequest(path: path, method: "POST", body: body, accept: "text/event-stream")
+            let request = try makeRequest(path: path, method: "POST", body: body, accept: "text/event-stream", profileID: hop.profileID)
 
             let (bytes, response) = try await session.bytes(for: request)
             guard let httpResponse = response as? HTTPURLResponse,
@@ -381,8 +408,11 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// is NOT re-adopted here (this is the same thread, not a switch;
     /// ChatStore's post-reconcile sync records the settled exchange).
     func reconcileFromServer() async -> Conversation? {
-        guard let id = journal.activeHop?.apiSessionId else { return nil }
-        guard let (_, convo) = try? await fetchSessionConversation(id) else { return nil }
+        guard let hop = journal.activeHop else { return nil }
+        // M-5: reconcile against the hop's BIRTH host, not the active one —
+        // a run left pending on OJAMD must still resolve after switching to
+        // the Mac.
+        guard let (_, convo) = try? await fetchSessionConversation(hop.apiSessionId, profileID: hop.profileID) else { return nil }
         currentConversation = convo
         connectionStatus = .connected
         return convo
@@ -439,15 +469,22 @@ final class SessionsHermesClient: HermesClientProtocol {
     func switchModel(_ identifier: String) async throws -> String? {
         let command = "/model \(identifier)"
         var response: String?
-        if let hop = journal.activeHop, journal.activeHopIsCurrent {
+        // M-6: model switching is an ACTIVE-profile surface (shim + gateway
+        // pair). Only reuse the hop when it lives on the active profile — a
+        // command turn posted to a foreign hop would pin the model on the
+        // wrong host. A nil hop profile is the pre-Lane-M record, which can
+        // only be the migrated (active) profile.
+        let activeID = activeProfileIDProvider()
+        if let hop = journal.activeHop, journal.activeHopIsCurrent,
+           hop.profileID == nil || hop.profileID == activeID {
             do {
-                response = try await postSyncChat(sessionId: hop.apiSessionId, message: command, attachments: [])
+                response = try await postSyncChat(sessionId: hop.apiSessionId, profileID: hop.profileID, message: command, attachments: [])
             } catch SessionsClientError.sessionNotFound {
                 journal.endHop()
             }
         }
         if response == nil {
-            response = try await postSyncChat(sessionId: try await createBareSession(), message: command, attachments: [])
+            response = try await postSyncChat(sessionId: try await createBareSession(), profileID: nil, message: command, attachments: [])
         }
         journal.endHop()
         return response
@@ -456,8 +493,71 @@ final class SessionsHermesClient: HermesClientProtocol {
     // MARK: - Sessions list / open
 
     func listSessions() async throws -> [HermesSessionInfo] {
+        let profiles = chatProfilesProvider()
+
+        // Single-backend path (profile-less constructions, or exactly one
+        // profile): one fetch, server order preserved — pre-Lane-M behavior.
+        guard profiles.count > 1 else {
+            let only = profiles.first
+            let infos = try await fetchSessionList(profileID: nil, tagAs: only)
+            for info in infos { recordBirth(sessionId: info.id, profileID: info.profileID) }
+            return infos
+        }
+
+        // M-5: the drawer shows ALL profiles' sessions. Fetch each host
+        // concurrently and tolerate partial failure — an unreachable host's
+        // sessions just don't appear this round (its index entries are kept:
+        // pruning only runs on a complete sweep).
+        let activeID = activeProfileIDProvider()
+        var lists: [(profile: BackendProfile, infos: [HermesSessionInfo])] = []
+        var failures: [Error] = []
+        await withTaskGroup(of: (BackendProfile, Result<[HermesSessionInfo], Error>).self) { group in
+            for profile in profiles {
+                group.addTask { @MainActor [weak self] in
+                    guard let self else {
+                        return (profile, .failure(SessionsClientError.requestFailed("Client deallocated")))
+                    }
+                    do {
+                        let requestID = profile.id == activeID ? nil : profile.id
+                        return (profile, .success(try await self.fetchSessionList(profileID: requestID, tagAs: profile)))
+                    } catch {
+                        return (profile, .failure(error))
+                    }
+                }
+            }
+            for await (profile, result) in group {
+                switch result {
+                case .success(let infos):
+                    lists.append((profile, infos))
+                case .failure(let error):
+                    failures.append(error)
+                    Self.logger.notice("listSessions: '\(profile.name, privacy: .public)' unreachable — \(error.localizedDescription, privacy: .public)")
+                }
+            }
+        }
+
+        guard !lists.isEmpty else {
+            throw failures.first ?? SessionsClientError.requestFailed("No backend profile answered.")
+        }
+
+        // Order profile results deterministically (task-group completion
+        // order is racy) before the recency merge.
+        let profileOrder = Dictionary(uniqueKeysWithValues: profiles.enumerated().map { ($0.element.id, $0.offset) })
+        lists.sort { (profileOrder[$0.profile.id] ?? .max) < (profileOrder[$1.profile.id] ?? .max) }
+
+        let merged = Self.mergeSessionLists(lists.map(\.infos))
+        for info in merged { recordBirth(sessionId: info.id, profileID: info.profileID) }
+        // Deliberately NO index pruning here: the fetch is limit-capped
+        // (50/host), so "absent from this sweep" ≠ "gone from the host" —
+        // pruning would unbind older sessions that still resolve. Stale
+        // entries are cheap and harmless by design.
+        return merged
+    }
+
+    /// One host's session list, tagged with its profile (M-5).
+    private func fetchSessionList(profileID: UUID?, tagAs profile: BackendProfile?) async throws -> [HermesSessionInfo] {
         let path = "\(Self.sessionsPath)?limit=50&order=recent&min_messages=1"
-        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json")
+        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json", profileID: profileID)
         let (data, httpResponse) = try await session.data(for: request)
         try ensureSuccess(response: httpResponse, data: data)
         let response: SessionsListResponse
@@ -468,7 +568,7 @@ final class SessionsHermesClient: HermesClientProtocol {
             Self.logger.error("listSessions: decode FAILED — \(error.localizedDescription, privacy: .public). Raw: \(snippet, privacy: .public)")
             throw error
         }
-        Self.logger.verbose("listSessions: decoded \(response.data.count) rows")
+        Self.logger.verbose("listSessions: decoded \(response.data.count) rows for '\(profile?.name ?? "active", privacy: .public)'")
         return response.data.map { row in
             HermesSessionInfo(
                 id: row.id,
@@ -478,9 +578,36 @@ final class SessionsHermesClient: HermesClientProtocol {
                 source: row.source,
                 messageCount: row.messageCount ?? 0,
                 lastActive: row.lastActive.map { Date(timeIntervalSince1970: $0) },
-                isActive: row.isActive ?? false
+                isActive: row.isActive ?? false,
+                profileID: profile?.id,
+                profileName: profile?.name
             )
         }
+    }
+
+    /// Recency merge for multi-host lists (M-5): rows interleave by
+    /// `lastActive` (newest first, unknown-recency rows last), and rows with
+    /// equal timestamps keep their input order. A single list passes through
+    /// untouched. Static + nonisolated so tests drive it directly.
+    nonisolated static func mergeSessionLists(_ lists: [[HermesSessionInfo]]) -> [HermesSessionInfo] {
+        guard lists.count > 1 else { return lists.first ?? [] }
+        let combined = lists.flatMap { $0 }
+        // Stable sort: decorate with the input offset.
+        return combined.enumerated()
+            .sorted { lhs, rhs in
+                switch (lhs.element.lastActive, rhs.element.lastActive) {
+                case let (l?, r?):
+                    if l != r { return l > r }
+                    return lhs.offset < rhs.offset
+                case (_?, nil):
+                    return true
+                case (nil, _?):
+                    return false
+                case (nil, nil):
+                    return lhs.offset < rhs.offset
+                }
+            }
+            .map(\.element)
     }
 
     /// Adopts `id` as the active session and returns its full history. The
@@ -489,25 +616,23 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// nothing to transplant). New messages then continue that thread (see
     /// ensureHopForTurn()).
     func openSession(_ id: String) async throws -> Conversation {
-        let (sessionId, convo) = try await fetchSessionConversation(id)
+        // M-5: the session's history lives on its BIRTH host — resolve the
+        // endpoint from the index (unrecorded ids are pre-profile sessions,
+        // which belong to the active/migrated profile).
+        let birthProfileID = profileIndex?.profileID(forSessionID: id) ?? activeProfileIDProvider()
+        let (sessionId, convo) = try await fetchSessionConversation(id, profileID: birthProfileID)
         currentConversation = convo
         connectionStatus = .connected
-        // Lane M: an adopted session keeps its recorded birth profile; an
-        // unrecorded id (pre-profile history) belongs to the profile it was
-        // fetched from — the active one.
-        let birthProfileID = profileIndex?.profileID(forSessionID: sessionId) ?? activeProfileIDProvider()
         journal.adoptServerSession(id: sessionId, conversation: convo, profileID: birthProfileID)
-        if let birthProfileID {
-            profileIndex?.record(sessionID: sessionId, profileID: birthProfileID)
-        }
+        recordBirth(sessionId: sessionId, profileID: birthProfileID)
         return convo
     }
 
     /// GET + decode + map of one session's history — shared by `openSession`
     /// (which adopts it) and `reconcileFromServer` (which must not).
-    private func fetchSessionConversation(_ id: String) async throws -> (sessionId: String, conversation: Conversation) {
+    private func fetchSessionConversation(_ id: String, profileID: UUID?) async throws -> (sessionId: String, conversation: Conversation) {
         let path = "\(Self.sessionsPath)/\(id)/messages"
-        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json")
+        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json", profileID: profileID)
         let (data, httpResponse) = try await session.data(for: request)
         try ensureSuccess(response: httpResponse, data: data, path: path)
         let response: SessionMessagesResponse
@@ -575,6 +700,9 @@ final class SessionsHermesClient: HermesClientProtocol {
         /// context into it. Nil for continued hops and for fresh hops on an
         /// empty journal (nothing to transplant).
         let priming: PrimingReceipt?
+        /// The hop's birth profile (M-5) — every request on this hop resolves
+        /// its endpoint from it, never from the active profile.
+        let profileID: UUID?
     }
 
     /// The transplant's cost, for the receipts (#46/#90). `usage` is the
@@ -597,43 +725,51 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// a little server-side litter, never a silently unprimed session.
     private func ensureHopForTurn() async throws -> PreparedHop {
         if let hop = journal.activeHop, journal.activeHopIsCurrent {
-            return PreparedHop(sessionId: hop.apiSessionId, wasReused: true, priming: nil)
+            return PreparedHop(sessionId: hop.apiSessionId, wasReused: true, priming: nil, profileID: hop.profileID)
         }
 
-        let sessionId = try await createBareSession()
+        // M-6/M-16: fresh hops are born on the active profile, unless a
+        // "new chat on <profile>" pick armed an override. The override is
+        // consumed only once the hop actually exists — a failed creation
+        // keeps it armed for the retry.
+        let targetProfileID = pendingNewSessionProfileID ?? activeProfileIDProvider()
+        let sessionId = try await createBareSession(profileID: targetProfileID)
         if currentConversation == nil {
             currentConversation = Conversation(title: Conversation.defaultTitle)
         }
 
         guard journal.hasEntries else {
-            journal.beginHop(apiSessionId: sessionId, primingUsage: nil, profileID: birthProfileID(for: sessionId))
-            return PreparedHop(sessionId: sessionId, wasReused: false, priming: nil)
+            journal.beginHop(apiSessionId: sessionId, primingUsage: nil, profileID: targetProfileID)
+            recordBirth(sessionId: sessionId, profileID: targetProfileID)
+            pendingNewSessionProfileID = nil
+            return PreparedHop(sessionId: sessionId, wasReused: false, priming: nil, profileID: targetProfileID)
         }
 
         let composition = await transplanter.composePriming(from: journal.entries)
-        let usage = try await postPrimingTurn(sessionId: sessionId, text: composition.text)
-        journal.beginHop(apiSessionId: sessionId, primingUsage: usage, profileID: birthProfileID(for: sessionId))
+        let usage = try await postPrimingTurn(sessionId: sessionId, profileID: targetProfileID, text: composition.text)
+        journal.beginHop(apiSessionId: sessionId, primingUsage: usage, profileID: targetProfileID)
+        recordBirth(sessionId: sessionId, profileID: targetProfileID)
+        pendingNewSessionProfileID = nil
         Self.logger.notice("hop: fresh session primed from \(composition.entryCount) journal entries (\(composition.condensedByModel ? "condensed" : "verbatim tail", privacy: .public), \(usage?.totalTokens ?? 0) tokens)")
-        return PreparedHop(sessionId: sessionId, wasReused: false, priming: PrimingReceipt(usage: usage))
+        return PreparedHop(sessionId: sessionId, wasReused: false, priming: PrimingReceipt(usage: usage), profileID: targetProfileID)
     }
 
-    /// POST /api/sessions — a fresh, unprimed server session. Hop
-    /// registration and transplanting are the caller's business.
-    private func createBareSession() async throws -> String {
+    /// POST /api/sessions — a fresh, unprimed server session on the given
+    /// profile's gateway. Hop registration and transplanting are the
+    /// caller's business.
+    private func createBareSession(profileID: UUID? = nil) async throws -> String {
         let response: CreateSessionResponse = try await postJSON(
             path: Self.sessionsPath,
-            body: EmptyBody()
+            body: EmptyBody(),
+            profileID: profileID
         )
         return response.session.id
     }
 
-    /// Lane M: stamps a just-created session's birth profile into the index
-    /// and returns it for the hop record. Sessions are born on the ACTIVE
-    /// profile (M-6) — the id→profile binding is immutable from here on.
-    private func birthProfileID(for sessionId: String) -> UUID? {
-        guard let profileID = activeProfileIDProvider() else { return nil }
+    /// Lane M: stamps a session's immutable birth profile into the index.
+    private func recordBirth(sessionId: String, profileID: UUID?) {
+        guard let profileID else { return }
         profileIndex?.record(sessionID: sessionId, profileID: profileID)
-        return profileID
     }
 
     /// Posts the transplant as the fresh session's first turn over SSE and
@@ -641,10 +777,10 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// because usage rides ONLY `run.completed` — the receipts carry real
     /// numbers or none (#46). Deltas are drained and discarded: the
     /// acknowledgment is meta-traffic, not conversation content.
-    private func postPrimingTurn(sessionId: String, text: String) async throws -> TokenUsage? {
+    private func postPrimingTurn(sessionId: String, profileID: UUID?, text: String) async throws -> TokenUsage? {
         let path = "\(Self.sessionsPath)/\(sessionId)/chat/stream"
         let body = try encoder.encode(ChatTurnBody.make(message: text, attachments: []))
-        let request = try makeRequest(path: path, method: "POST", body: body, accept: "text/event-stream")
+        let request = try makeRequest(path: path, method: "POST", body: body, accept: "text/event-stream", profileID: profileID)
         let (bytes, response) = try await session.bytes(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
               (200 ..< 300).contains(httpResponse.statusCode) else {
@@ -685,39 +821,63 @@ final class SessionsHermesClient: HermesClientProtocol {
 
     // MARK: - HTTP plumbing
 
-    private func getJSON<T: Decodable>(path: String) async throws -> T {
-        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json")
+    private func getJSON<T: Decodable>(path: String, profileID: UUID? = nil) async throws -> T {
+        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json", profileID: profileID)
         let (data, response) = try await session.data(for: request)
         try ensureSuccess(response: response, data: data, path: path)
         return try decoder.decode(T.self, from: data)
     }
 
-    private func postJSON<Body: Encodable, T: Decodable>(path: String, body: Body) async throws -> T {
+    private func postJSON<Body: Encodable, T: Decodable>(path: String, body: Body, profileID: UUID? = nil) async throws -> T {
         let encodedBody = try encoder.encode(body)
-        let request = try makeRequest(path: path, method: "POST", body: encodedBody, accept: "application/json")
+        let request = try makeRequest(path: path, method: "POST", body: encodedBody, accept: "application/json", profileID: profileID)
         let (data, response) = try await session.data(for: request)
         try ensureSuccess(response: response, data: data, path: path)
         return try decoder.decode(T.self, from: data)
     }
 
-    private func makeRequest(path: String, method: String, body: Data?, accept: String) throws -> URLRequest {
+    private func makeRequest(path: String, method: String, body: Data?, accept: String, profileID: UUID? = nil) throws -> URLRequest {
+        let endpoint = try resolveEndpoint(profileID: requestProfileID(profileID))
+        guard let url = URL(string: normalizedBaseURL(endpoint.baseURL) + path) else {
+            throw SessionsClientError.notConfigured("Hermes API base URL is not set.")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("Bearer \(endpoint.apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(accept, forHTTPHeaderField: "Accept")
+        request.httpBody = body
+        request.timeoutInterval = 300
+        return request
+    }
+
+    /// Resolves the gateway a request should hit (M-5). nil = the ACTIVE
+    /// profile via the original providers — the pre-Lane-M path, byte for
+    /// byte. A non-nil id is a session pinned to a non-active birth profile.
+    private func resolveEndpoint(profileID: UUID?) throws -> (baseURL: String, apiKey: String) {
+        if let profileID {
+            guard let resolved = profileEndpointResolver(profileID) else {
+                throw SessionsClientError.notConfigured("This conversation lives on a backend profile with no usable endpoint. Check its gateway URL and API key in Settings → Server.")
+            }
+            let baseURL = resolved.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            let apiKey = resolved.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !baseURL.isEmpty else {
+                throw SessionsClientError.notConfigured("The session's backend profile has no gateway URL set.")
+            }
+            guard !apiKey.isEmpty else {
+                throw SessionsClientError.notConfigured("The session's backend profile has no API key set.")
+            }
+            return (baseURL, apiKey)
+        }
         guard let baseURL = baseURLProvider()?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !baseURL.isEmpty,
-              let url = URL(string: normalizedBaseURL(baseURL) + path) else {
+              !baseURL.isEmpty else {
             throw SessionsClientError.notConfigured("Hermes API base URL is not set.")
         }
         guard let apiKey = apiKeyProvider()?.trimmingCharacters(in: .whitespacesAndNewlines),
               !apiKey.isEmpty else {
             throw SessionsClientError.notConfigured("Hermes API key is not set.")
         }
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(accept, forHTTPHeaderField: "Accept")
-        request.httpBody = body
-        request.timeoutInterval = 300
-        return request
+        return (baseURL, apiKey)
     }
 
     private func normalizedBaseURL(_ raw: String) -> String {
