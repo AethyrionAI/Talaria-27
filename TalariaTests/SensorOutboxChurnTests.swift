@@ -3,81 +3,103 @@ import Testing
 import UIKit
 @testable import Talaria
 
+// MARK: - Shared doubles (both suites in this file)
+
+/// Counts persistence traffic without touching UserDefaults. Explicitly
+/// @MainActor: the protocol is main-actor-isolated.
+@MainActor
+private final class SpyPersistenceStore: AppPersistenceStoreProtocol {
+    private(set) var savedSensorOutboxStates: [SensorOutboxState] = []
+    private(set) var clearSensorOutboxCount = 0
+    var stubbedSensorOutboxState = SensorOutboxState()
+
+    var sensorOutboxSaveCount: Int { savedSensorOutboxStates.count }
+
+    func loadSensorOutboxState() -> SensorOutboxState { stubbedSensorOutboxState }
+    func saveSensorOutboxState(_ state: SensorOutboxState) { savedSensorOutboxStates.append(state) }
+    func clearSensorOutboxState() { clearSensorOutboxCount += 1 }
+
+    // Unused protocol surface — inert.
+    func loadUserSettings() -> UserSettings? { nil }
+    func saveUserSettings(_ settings: UserSettings) {}
+    func loadSessionState(profileScope: UUID?) -> AppSessionState? { nil }
+    func saveSessionState(_ state: AppSessionState, profileScope: UUID?) {}
+    func clearSessionState(profileScope: UUID?) {}
+    func loadInboxState() -> InboxLocalState { InboxLocalState() }
+    func saveInboxState(_ state: InboxLocalState) {}
+    func clearInboxState() {}
+    func loadPairedRelayConfiguration(profileScope: UUID?) -> PairedRelayConfiguration? { nil }
+    func savePairedRelayConfiguration(_ configuration: PairedRelayConfiguration, profileScope: UUID?) {}
+    func clearPairedRelayConfiguration(profileScope: UUID?) {}
+    func loadBackendProfilesState() -> BackendProfilesState? { nil }
+    func saveBackendProfilesState(_ state: BackendProfilesState) {}
+    func clearBackendProfilesState() {}
+    func loadSessionProfileIndex() -> SessionProfileIndex { SessionProfileIndex() }
+    func saveSessionProfileIndex(_ index: SessionProfileIndex) {}
+    func clearSessionProfileIndex() {}
+    func loadConversationCache() -> Conversation? { nil }
+    func saveConversationCache(_ conversation: Conversation) {}
+    func clearConversationCache() {}
+    func loadConversationJournal() -> ConversationJournal? { nil }
+    func saveConversationJournal(_ journal: ConversationJournal) {}
+    func clearConversationJournal() {}
+    func loadConversationListState() -> ConversationListState { ConversationListState() }
+    func saveConversationListState(_ state: ConversationListState) {}
+    func clearConversationListState() {}
+    func loadComposeOutboxState() -> ComposeOutboxState { ComposeOutboxState() }
+    func saveComposeOutboxState(_ state: ComposeOutboxState) {}
+    func clearComposeOutboxState() {}
+    func loadHealthQueryAnchorData(for identifier: String) -> Data? { nil }
+    func saveHealthQueryAnchorData(_ data: Data?, for identifier: String) {}
+    func clearHealthQueryAnchorData() {}
+}
+
+/// Deterministic stand-in for the debounce interval: the trailing write
+/// parks here until the test releases it — no real sleeping, no clocks.
+@MainActor
+private final class DebounceGate {
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    var waiterCount: Int { waiters.count }
+
+    func wait() async {
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func release() {
+        let parked = waiters
+        waiters = []
+        for waiter in parked { waiter.resume() }
+    }
+}
+
+/// Unique dedupe key per index: heart_rate is non-windowed, so the key
+/// includes startAt, which varies with the index.
+private func healthSample(_ index: Int) -> HealthSnapshot.Sample {
+    HealthSnapshot.Sample(
+        metric: "heart_rate",
+        value: Double(index),
+        unit: "bpm",
+        startAt: Date(timeIntervalSince1970: Double(index)),
+        endAt: nil
+    )
+}
+
+private func locationUpdate(_ index: Int) -> LocationUpdate {
+    LocationUpdate(
+        latitude: 40.0 + Double(index) * 0.001,
+        longitude: -73.0,
+        altitude: nil,
+        accuracy: 20,
+        timestamp: Date(timeIntervalSince1970: Double(index))
+    )
+}
+
 /// #104 — sensor-outbox churn hardening. Covers the three fixes:
 /// debounced persistence with teardown flush, the health-backlog cap with
 /// oldest-drop + diagnostics honesty, and the off-main serialized write path
 /// (durability round-trip, FIFO ordering, decode compat with pre-#104 caches).
 @MainActor
 struct SensorOutboxChurnTests {
-
-    // MARK: - Test doubles
-
-    /// Counts persistence traffic without touching UserDefaults. Explicitly
-    /// @MainActor: nested types do not inherit the suite's isolation.
-    @MainActor
-    private final class SpyPersistenceStore: AppPersistenceStoreProtocol {
-        private(set) var savedSensorOutboxStates: [SensorOutboxState] = []
-        private(set) var clearSensorOutboxCount = 0
-        var stubbedSensorOutboxState = SensorOutboxState()
-
-        var sensorOutboxSaveCount: Int { savedSensorOutboxStates.count }
-
-        func loadSensorOutboxState() -> SensorOutboxState { stubbedSensorOutboxState }
-        func saveSensorOutboxState(_ state: SensorOutboxState) { savedSensorOutboxStates.append(state) }
-        func clearSensorOutboxState() { clearSensorOutboxCount += 1 }
-
-        // Unused protocol surface — inert.
-        func loadUserSettings() -> UserSettings? { nil }
-        func saveUserSettings(_ settings: UserSettings) {}
-        func loadSessionState(profileScope: UUID?) -> AppSessionState? { nil }
-        func saveSessionState(_ state: AppSessionState, profileScope: UUID?) {}
-        func clearSessionState(profileScope: UUID?) {}
-        func loadInboxState() -> InboxLocalState { InboxLocalState() }
-        func saveInboxState(_ state: InboxLocalState) {}
-        func clearInboxState() {}
-        func loadPairedRelayConfiguration(profileScope: UUID?) -> PairedRelayConfiguration? { nil }
-        func savePairedRelayConfiguration(_ configuration: PairedRelayConfiguration, profileScope: UUID?) {}
-        func clearPairedRelayConfiguration(profileScope: UUID?) {}
-        func loadBackendProfilesState() -> BackendProfilesState? { nil }
-        func saveBackendProfilesState(_ state: BackendProfilesState) {}
-        func clearBackendProfilesState() {}
-        func loadSessionProfileIndex() -> SessionProfileIndex { SessionProfileIndex() }
-        func saveSessionProfileIndex(_ index: SessionProfileIndex) {}
-        func clearSessionProfileIndex() {}
-        func loadConversationCache() -> Conversation? { nil }
-        func saveConversationCache(_ conversation: Conversation) {}
-        func clearConversationCache() {}
-        func loadConversationJournal() -> ConversationJournal? { nil }
-        func saveConversationJournal(_ journal: ConversationJournal) {}
-        func clearConversationJournal() {}
-        func loadConversationListState() -> ConversationListState { ConversationListState() }
-        func saveConversationListState(_ state: ConversationListState) {}
-        func clearConversationListState() {}
-        func loadComposeOutboxState() -> ComposeOutboxState { ComposeOutboxState() }
-        func saveComposeOutboxState(_ state: ComposeOutboxState) {}
-        func clearComposeOutboxState() {}
-        func loadHealthQueryAnchorData(for identifier: String) -> Data? { nil }
-        func saveHealthQueryAnchorData(_ data: Data?, for identifier: String) {}
-        func clearHealthQueryAnchorData() {}
-    }
-
-    /// Deterministic stand-in for the debounce interval: the trailing write
-    /// parks here until the test releases it — no real sleeping, no clocks.
-    @MainActor
-    private final class DebounceGate {
-        private var waiters: [CheckedContinuation<Void, Never>] = []
-        var waiterCount: Int { waiters.count }
-
-        func wait() async {
-            await withCheckedContinuation { waiters.append($0) }
-        }
-
-        func release() {
-            let parked = waiters
-            waiters = []
-            for waiter in parked { waiter.resume() }
-        }
-    }
 
     // MARK: - Helpers
 
@@ -98,28 +120,6 @@ struct SensorOutboxChurnTests {
             motionService: nil,
             notificationCenter: notificationCenter,
             persistDebounceWait: { @MainActor in await gate.wait() }
-        )
-    }
-
-    /// Unique dedupe key per index: heart_rate is non-windowed, so the key
-    /// includes startAt, which varies with the index.
-    private func healthSample(_ index: Int) -> HealthSnapshot.Sample {
-        HealthSnapshot.Sample(
-            metric: "heart_rate",
-            value: Double(index),
-            unit: "bpm",
-            startAt: Date(timeIntervalSince1970: Double(index)),
-            endAt: nil
-        )
-    }
-
-    private func locationUpdate(_ index: Int) -> LocationUpdate {
-        LocationUpdate(
-            latitude: 40.0 + Double(index) * 0.001,
-            longitude: -73.0,
-            altitude: nil,
-            accuracy: 20,
-            timestamp: Date(timeIntervalSince1970: Double(index))
         )
     }
 
@@ -438,5 +438,247 @@ struct SensorOutboxChurnTests {
         #expect(loaded.pendingHealthSamples.count == 1)
         #expect(loaded.pendingHealthSamples.first?.metric == "heart_rate")
         #expect(loaded.droppedHealthSampleCount == 0)
+    }
+}
+
+/// Health-drain give-up regression suite (PR #85 follow-up): a bare `break`
+/// in the health phase's switch only exited the switch, so every give-up
+/// outcome — transient failure, busy-retry exhaustion, stalled poison
+/// isolation — re-sent the same chunk in an endless no-backoff loop (the
+/// #113 outage shape, with a dead connector 202-busying every ingest).
+/// These tests script the relay's responses and prove each give-up path
+/// sends a bounded number of chunks, keeps the backlog for the next
+/// trigger, and returns. Serialized: the URLProtocol stub's handler is a
+/// static shared across the suite.
+@Suite(.serialized)
+@MainActor
+struct SensorDrainGiveUpTests {
+
+    private final class DrainStubURLProtocol: URLProtocol, @unchecked Sendable {
+        nonisolated(unsafe) static var requestHandler: (@Sendable (URLRequest) throws -> (HTTPURLResponse, Data))?
+
+        override class func canInit(with request: URLRequest) -> Bool {
+            true
+        }
+
+        override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+            request
+        }
+
+        override func startLoading() {
+            guard let handler = Self.requestHandler else {
+                client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+                return
+            }
+
+            do {
+                let (response, data) = try handler(request)
+                client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+                client?.urlProtocol(self, didLoad: data)
+                client?.urlProtocolDidFinishLoading(self)
+            } catch {
+                client?.urlProtocol(self, didFailWithError: error)
+            }
+        }
+
+        override func stopLoading() {}
+    }
+
+    private final class MutableBox<T>: @unchecked Sendable {
+        var value: T
+
+        init(_ value: T) {
+            self.value = value
+        }
+    }
+
+    /// isPairedProvider stand-in with a circuit breaker: if a regression
+    /// reintroduces the endless health-phase loop, the gate exhausts and the
+    /// drain exits via "not paired" — so tests fail loudly on their attempt
+    /// counts instead of hanging the whole suite run.
+    @MainActor
+    private final class PairedGate {
+        private var checksRemaining: Int
+        private(set) var tripped = false
+
+        init(limit: Int = 64) {
+            checksRemaining = limit
+        }
+
+        func check() -> Bool {
+            checksRemaining -= 1
+            if checksRemaining < 0 {
+                tripped = true
+                return false
+            }
+            return true
+        }
+    }
+
+    private func makeDrainService(
+        persistence: any AppPersistenceStoreProtocol,
+        gate: DebounceGate,
+        pairedGate: PairedGate,
+        backoffs: MutableBox<[Double]>? = nil
+    ) -> SensorUploadService {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [DrainStubURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        return SensorUploadService(
+            apiClient: RelayAPIClient(baseURLProvider: { "https://relay.test/v1" }, session: session),
+            accessTokenProvider: { "drain-test-token" },
+            persistence: persistence,
+            isPairedProvider: { pairedGate.check() },
+            isHealthCollectionEnabled: { false },
+            isLocationCollectionEnabled: { false },
+            locationService: LiveLocationService(),
+            healthService: LiveHealthService(),
+            motionService: nil,
+            notificationCenter: NotificationCenter(),
+            persistDebounceWait: { @MainActor in await gate.wait() },
+            busyBackoffWait: { @MainActor delay in backoffs?.value.append(delay) }
+        )
+    }
+
+    @Test
+    func transientFailureDefersTheDrainInsteadOfHammering() async {
+        let requests = MutableBox(0)
+        DrainStubURLProtocol.requestHandler = { _ in
+            requests.value += 1
+            throw URLError(.cannotConnectToHost)
+        }
+        defer { DrainStubURLProtocol.requestHandler = nil }
+
+        let store = SpyPersistenceStore()
+        let gate = DebounceGate()
+        let pairedGate = PairedGate()
+        let service = makeDrainService(persistence: store, gate: gate, pairedGate: pairedGate)
+
+        service.start()
+        service.recordHealthSamples((0..<150).map(healthSample))
+        await service.handleSystemLaunch()
+
+        // Pre-fix this re-sent the same chunk in an endless loop; the
+        // give-up path must send exactly ONE chunk, keep the backlog, and
+        // return.
+        #expect(requests.value == 1)
+        #expect(service.sensorDiagnostics.pendingHealthCount == 150)
+        #expect(service.lastDrainSummary == "Partial · loc=0, health=150")
+        // A drain that consumed nothing must not flush (the #104 invariant:
+        // record → failed drain → flush would re-create per-tick writes).
+        #expect(store.sensorOutboxSaveCount == 0)
+
+        // The backlog stays drainable: the next trigger re-attempts once.
+        await service.handleSystemLaunch()
+        #expect(requests.value == 2)
+        #expect(service.sensorDiagnostics.pendingHealthCount == 150)
+        #expect(pairedGate.tripped == false)
+
+        gate.release()
+    }
+
+    @Test
+    func busyRetryExhaustionDefersTheDrainAfterTheBackoffLadder() async {
+        let requests = MutableBox(0)
+        DrainStubURLProtocol.requestHandler = { request in
+            requests.value += 1
+            let url = try #require(request.url)
+            let response = HTTPURLResponse(url: url, statusCode: 202, httpVersion: nil, headerFields: nil)!
+            return (response, Data(#"{"data":{"deliveryState":"retry"}}"#.utf8))
+        }
+        defer { DrainStubURLProtocol.requestHandler = nil }
+
+        let store = SpyPersistenceStore()
+        let gate = DebounceGate()
+        let pairedGate = PairedGate()
+        let backoffs = MutableBox<[Double]>([])
+        let service = makeDrainService(persistence: store, gate: gate, pairedGate: pairedGate, backoffs: backoffs)
+
+        service.start()
+        service.recordHealthSamples((0..<5).map(healthSample))
+        await service.handleSystemLaunch()
+
+        // Initial send + one re-send per allowed busy retry, then give up —
+        // not an endless 202 hammer (the #113 dead-connector shape).
+        #expect(requests.value == 1 + SensorUploadService.maxHealthBusyRetries)
+        #expect(backoffs.value == [2, 4, 8])
+        #expect(service.sensorDiagnostics.pendingHealthCount == 5)
+        #expect(service.lastDrainSummary == "Partial · loc=0, health=5")
+        #expect(store.sensorOutboxSaveCount == 0)
+        #expect(pairedGate.tripped == false)
+
+        gate.release()
+    }
+
+    @Test
+    func stalledPoisonIsolationDefersTheDrainKeepingTheBacklog() async {
+        let requests = MutableBox(0)
+        DrainStubURLProtocol.requestHandler = { request in
+            requests.value += 1
+            if requests.value == 1 {
+                let url = try #require(request.url)
+                let response = HTTPURLResponse(url: url, statusCode: 422, httpVersion: nil, headerFields: nil)!
+                return (response, Data(#"{"detail":"poison sample"}"#.utf8))
+            }
+            throw URLError(.cannotConnectToHost)
+        }
+        defer { DrainStubURLProtocol.requestHandler = nil }
+
+        let store = SpyPersistenceStore()
+        let gate = DebounceGate()
+        let pairedGate = PairedGate()
+        let service = makeDrainService(persistence: store, gate: gate, pairedGate: pairedGate)
+
+        service.start()
+        service.recordHealthSamples((0..<4).map(healthSample))
+        await service.handleSystemLaunch()
+
+        // 422 on the full chunk starts the binary split; its first half (2
+        // samples) hits a transient failure, so isolation stalls and the
+        // drain must defer — whole backlog intact for the next attempt.
+        #expect(requests.value == 2)
+        #expect(service.sensorDiagnostics.pendingHealthCount == 4)
+        #expect(store.sensorOutboxSaveCount == 0)
+        #expect(pairedGate.tripped == false)
+
+        gate.release()
+    }
+
+    @Test
+    func giveUpAfterPartialDeliveryStillFlushesConsumedWork() async {
+        let requests = MutableBox(0)
+        DrainStubURLProtocol.requestHandler = { request in
+            requests.value += 1
+            if requests.value == 1 {
+                let url = try #require(request.url)
+                let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+                return (response, Data(#"{"data":{"deliveryState":"delivered"}}"#.utf8))
+            }
+            throw URLError(.cannotConnectToHost)
+        }
+        defer { DrainStubURLProtocol.requestHandler = nil }
+
+        let store = SpyPersistenceStore()
+        let gate = DebounceGate()
+        let pairedGate = PairedGate()
+        let service = makeDrainService(persistence: store, gate: gate, pairedGate: pairedGate)
+
+        service.start()
+        service.recordHealthSamples((0..<150).map(healthSample))
+        await service.handleSystemLaunch()
+
+        // Chunk 1 (100 samples) delivered, chunk 2 (50) failed: the drain
+        // gives up but consumed real work, so the drain-end flush persists
+        // the shrunken backlog NOW (a crash inside the debounce window must
+        // not re-send the delivered chunk).
+        #expect(requests.value == 2)
+        #expect(service.sensorDiagnostics.pendingHealthCount == 50)
+        #expect(store.sensorOutboxSaveCount == 1)
+        #expect(store.savedSensorOutboxStates.last?.pendingHealthSamples.count == 50)
+        #expect(store.savedSensorOutboxStates.last?.pendingHealthSamples.first?.value == 100)
+        #expect(service.lastDrainSummary == "Partial · loc=0, health=50")
+        #expect(pairedGate.tripped == false)
+
+        gate.release()
     }
 }
