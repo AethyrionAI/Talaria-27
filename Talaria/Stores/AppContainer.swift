@@ -54,6 +54,10 @@ final class AppContainer {
     /// Lane M: the concrete Sessions client, kept for the surfaces that are
     /// profile-aware by nature (M-16's new-chat-on-profile override).
     private(set) var sessionsChatClient: SessionsHermesClient?
+    /// #116: post-pair provisioning bundle — auto-fills a profile's shim
+    /// URL/token (+ empty gateway URL) from the relay after a successful
+    /// pair, and backs the Server screen's "Refresh Provisioning" action.
+    private(set) var provisioningService: ProvisioningService?
     /// M-9 thrash guard: dormant-refresh attempts this process, so a failing
     /// relay isn't re-tried on every foreground.
     private var dormantRefreshAttempts: [UUID: Date] = [:]
@@ -521,9 +525,57 @@ final class AppContainer {
         profilesStore.onActiveProfileChanged = { [weak container] profile in
             await container?.handleActiveProfileChanged(to: profile)
         }
+        // #116: the post-pair provisioning bundle. The fetch rides the
+        // profile's OWN relay + freshly minted access token (works for the
+        // active and dormant slots alike); fills are profile-scoped and the
+        // ACTIVE profile's shim token also lands in the in-memory box the
+        // shim client reads.
+        let provisioningService = ProvisioningService(
+            profileResolver: { profilesStore.profile(id: $0) },
+            upsertProfile: { profilesStore.upsert($0) },
+            readShimToken: { profile in
+                await secureStore.retrieve(key: BackendProfileScopedKeys.shimToken(profile.credentialScopeID))
+            },
+            writeShimToken: { [weak container] value, profile in
+                if profile.id == profilesStore.activeProfileID {
+                    await container?.saveModelsShimToken(value)
+                } else {
+                    await secureStore.store(
+                        key: BackendProfileScopedKeys.shimToken(profile.credentialScopeID),
+                        value: value
+                    )
+                }
+            },
+            fetchDescriptor: { profile in
+                guard let token = await profileRelaySessions.accessToken(forProfileID: profile.id),
+                      !token.isEmpty else {
+                    throw ProvisioningService.ServiceError.notPaired
+                }
+                let client = profileRelaySessions.apiClient(forProfileID: profile.id)
+                let response: DeviceProvisioningResponse = try await client.get(
+                    path: "device/provisioning",
+                    accessToken: token
+                )
+                return response.provisioning
+            }
+        )
+        container.provisioningService = provisioningService
+
         // M-9: a successful pair mints fresh relay tokens — stamp freshness.
+        // #116: …and the relay can now answer the provisioning fetch — key
+        // the profile automatically (fill-empty-only: a manual value is never
+        // clobbered, and a redeem failure never reaches here — the #94
+        // redeem-first ordering is untouched upstream in pair()).
         runtimePairingStore.onProfileTokensMinted = { profileID in
             profilesStore.stampTokenRefresh(profileID: profileID)
+            guard let resolvedID = profileID ?? profilesStore.activeProfileID else { return }
+            Task { @MainActor in
+                do {
+                    _ = try await provisioningService.applyProvisioning(profileID: resolvedID, mode: .fillEmptyOnly)
+                } catch {
+                    containerLog.notice("provisioning auto-fill skipped: \(error.localizedDescription, privacy: .public)")
+                }
+            }
         }
         // Keychain hygiene: a deleted profile's credential slot dies with it.
         // The migrated (legacy-keyed) profile is undeletable in practice —
@@ -1782,6 +1834,13 @@ final class AppContainer {
     func gatewayAPIKey(for profile: BackendProfile) async -> String? {
         guard let secureStore else { return nil }
         return await secureStore.retrieve(key: BackendProfileScopedKeys.gatewayAPIKey(profile.credentialScopeID))
+    }
+
+    /// #116: a profile's stored models-shim token — the Server screen's
+    /// honest shim probe follows /healthz with an authenticated call.
+    func shimToken(for profile: BackendProfile) async -> String? {
+        guard let secureStore else { return nil }
+        return await secureStore.retrieve(key: BackendProfileScopedKeys.shimToken(profile.credentialScopeID))
     }
 
     /// Lane M (M-12): saves a gateway API key into a NAMED profile's slot.

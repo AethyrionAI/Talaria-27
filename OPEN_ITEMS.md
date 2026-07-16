@@ -3663,6 +3663,25 @@ Logged 2026-07-15.
 > OJAMD deploy rides the `ojamd-deploy` rebase (Owen's gate); Mac deploy = restart relay +
 > connector on the Mini's live checkout. PR 2 (app half: auto-fill on pair, honest
 > authenticated shim probe, re-provision affordance) follows stacked on this branch.
+>
+> **Update 2026-07-16 (Fable lane, PR 2 of 2 — app half built):** new
+> `Services/Support/ProvisioningService.swift` — after a successful `pair()` the
+> `onProfileTokensMinted` hook (fires only after the redeem, so #94 redeem-first and the
+> per-profile clean slate are untouched) pulls `GET /device/provisioning` with the fresh
+> profile-scoped tokens and fills EMPTY fields only: shim URL + shim token (Keychain,
+> `BackendProfileScopedKeys.shimToken(scope)`; active profile routes through
+> `saveModelsShimToken` so the in-memory box updates too) and an empty gateway URL — never
+> the gateway key, never a manual value. Honest probe: `ServerSettingsScreen` shim probe is
+> now two-step (`/healthz` reachability → authed `GET /models?refresh=0`), pure
+> `classifyShimProbe(healthzStatus:authedStatus:)` for tests; answering-but-unkeyed renders
+> NO KEY like the gateway. "Refresh Provisioning" context-menu action on paired cards =
+> `.refresh` mode (rotates the shim token; URLs still fill-empty-only) + honest summary
+> notice. Extended within the #114 static-probe/accumulator-box pattern — no
+> `withTaskGroup`. Tests: `ProvisioningServiceTests` (7) + shim classifier in
+> `ServerSettingsTests`. **Cloud-written, NOT compiled** — next Mac session: merge PR 1 →
+> PR 2, `xcodegen generate` (1 new source + 1 new test file), CLI build + tests, then the
+> DoD device pass (forget Mac pairing → re-pair via QR → auto-fill within seconds → probe
+> shows authenticated-online → models surface works; restart Mini relay+connector first).
 
 Two related gaps surfaced during #114 device verification (2026-07-16):
 
