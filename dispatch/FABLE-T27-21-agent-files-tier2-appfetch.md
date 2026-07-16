@@ -43,6 +43,18 @@ stages the bytes, and then behaves like a Tier 1 bubble (ShareLink + the Lane I
 
 ## The gate — PROBE FIRST, it decides the trigger
 
+**PROBE COMPLETE 2026-07-16 — GATE RESOLVED, build the Tier 2 branch.**
+Probed on the Mac Mini gateway (:8642, Hermes v0.18.2 — identical emitter to
+OJAMD). Natural request ("create a small PDF … save it in my MobileDL folder"):
+the agent located MobileDL itself (search_files + find — NO Hermes-side nudge
+was needed), then produced the binary entirely host-side via `terminal`
+(python venv + reportlab). **`write_file` was never called; binary content
+appears NOWHERE in SSE tool args in any form.** Real 1-page PDF landed in
+AGENT_FILES_DIR. Verdict per the gate: content absent → **Tier 2
+`fetchableAgentFile`** — the trigger must NOT key off write_file args; key off
+the Tier-2 listing/announcement path. Raw capture: /tmp/t21-probe.sse (Mini).
+
+Original gate text (for reference):
 The binary-write SSE shape is unprobed. Before any app code:
 
 1. On OJAMD, drive one real **non-text** `write_file` — ask the agent (a chat
