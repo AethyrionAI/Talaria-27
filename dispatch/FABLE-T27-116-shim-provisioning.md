@@ -41,8 +41,8 @@ change):
 (same auth class as `/v1/device/files`). Returns the host's current
 descriptor or an explicit empty shape. Store the descriptor server-side
 wherever host metadata already lives (`hermes_hosts` table has precedent —
-follow the existing migration pattern in `relay/`; the relay is DB-backed,
-никаких in-memory registries).
+follow the existing migration pattern in `relay/`; the relay is DB-backed with
+no in-memory registries — the #24f lesson).
 
 ### Tests (pytest, both suites)
 
