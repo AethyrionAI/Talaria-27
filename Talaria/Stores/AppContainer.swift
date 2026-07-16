@@ -86,6 +86,10 @@ final class AppContainer {
     private var isInitialized = false
     private var lastCommandCatalogRefreshAt: Date?
     private var lastKnownHostOnline = false
+    /// Edge tracker for the talk-session read-aloud cutoff (#84): the
+    /// onSessionStateChanged callback fires on every state tick during a
+    /// session, but the read-aloud stop() belongs only on the OFF->ON edge.
+    private var lastKnownTalkSessionActive = false
 
     private static let commandCatalogRefreshInterval: TimeInterval = 60
 
@@ -846,12 +850,20 @@ final class AppContainer {
             Task { await container?.cancelPushWatch(sessionId: sessionId) }
         }
         container.talkStore.onSessionStateChanged = { [weak container] in
-            container?.updateWidgetData()
-            // A Talk session starting takes the audio session — cut any
-            // in-flight read-aloud instead of colliding with it (#2).
-            if container?.talkStore.isSessionActive == true {
-                container?.speechOutput.stop()
+            guard let container else { return }
+            container.updateWidgetData()
+            // A Talk session STARTING takes the audio session — cut any
+            // in-flight read-aloud instead of colliding with it (#2). Edge-
+            // triggered (#84): this callback fires on every state tick during
+            // a session, and each stop() used to reach setActive(false) on the
+            // shared session, killing the live mic. The release itself is also
+            // gated in SpeechOutputService now (didActivateAudioSession);
+            // this edge guard removes the wasted per-tick stop() churn.
+            let isActive = container.talkStore.isSessionActive
+            if isActive, !container.lastKnownTalkSessionActive {
+                container.speechOutput.stop()
             }
+            container.lastKnownTalkSessionActive = isActive
         }
         container.hostStore.onHostChanged = { [weak container] in
             guard let container else { return }
