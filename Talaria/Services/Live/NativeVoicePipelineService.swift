@@ -109,6 +109,13 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     // transcription evidence or by session teardown.
     private var flatlineTask: Task<Void, Never>?
     private var speechEvidenceObserved = false
+    /// Guards against route-change feedback loops immediately after the
+    /// capture stack reconfigures the audio session.
+    private var isConfiguringAudioSession = false
+    /// Debounce window during which routine configuration side-effect route
+    /// notifications are ignored (prevents the start() → categoryChange →
+    /// restart() → categoryChange loop observed in the console log).
+    private static let audioSessionConfigurationCooldown: Duration = .milliseconds(750)
 
     init(
         backendProvider: @escaping @MainActor () -> (any HermesClientProtocol)?,
@@ -130,7 +137,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             return
         }
         connectionState = .checking
-        let transcriptionSupported = await NativeVoiceCaptureController.isTranscriptionSupported()
+        let transcriptionSupported = await capture.isTranscriptionSupported()
         let backendPresent = backendProvider() != nil
         // Relay concepts (hostOnline) stay nil — unknowable/not applicable on
         // the local engine; `configured` answers "is the local pipeline whole".
@@ -287,12 +294,24 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
 
     private func beginCapture() async throws {
         captureTask?.cancel()
-        let stream = try await capture.start(muted: isMuted)
-        captureTask = Task { @MainActor [weak self] in
-            for await event in stream {
-                guard let self, !self.isEndingSession else { return }
-                self.handleTranscriptionEvent(event)
+        isConfiguringAudioSession = true
+        do {
+            let stream = try await capture.start(muted: isMuted)
+            captureTask = Task { @MainActor [weak self] in
+                for await event in stream {
+                    guard let self, !self.isEndingSession else { return }
+                    self.handleTranscriptionEvent(event)
+                }
             }
+        } catch {
+            isConfiguringAudioSession = false
+            throw error
+        }
+        // Hold the route-change gate open briefly so the category/active change
+        // side effects do not loop back into a restart.
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: Self.audioSessionConfigurationCooldown)
+            self?.isConfiguringAudioSession = false
         }
     }
 
@@ -309,6 +328,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     /// honest #84 blocked state instead of looping.
     private func restartCapture() async {
         guard connectionState == .connected, !isEndingSession else { return }
+        // Ignore self-triggered configuration side effects. A genuine restart is
+        // only needed for real hardware changes, not for our own category
+        // changes during setup.
+        guard !isConfiguringAudioSession else { return }
         // Coalesce: a restart already in flight covers this trigger too.
         if let inFlight = restartTask {
             await inFlight.value
@@ -746,7 +769,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     }
 
     private func handleInterruptionEnded(shouldResume: Bool) async {
-        guard connectionState == .connected else { return }
+        guard connectionState == .connected, !isConfiguringAudioSession else { return }
         guard shouldResume else {
             statusMessage = "Audio interrupted."
             return
@@ -757,12 +780,19 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     /// The mic hardware (and its format) changes across CarPlay / Bluetooth /
     /// headset transitions — rebuild the capture chain on the new route.
     private func handleRouteChange(_ reason: AVAudioSession.RouteChangeReason) async {
-        guard connectionState == .connected else { return }
+        guard connectionState == .connected, !isConfiguringAudioSession else { return }
         updateAudioRouteSummary()
         switch reason {
-        case .newDeviceAvailable, .oldDeviceUnavailable, .override, .routeConfigurationChange, .categoryChange:
+        case .newDeviceAvailable, .oldDeviceUnavailable, .override:
             statusMessage = "Audio route changed."
             await restartCapture()
+        case .routeConfigurationChange, .categoryChange:
+            // Self-inflicted configuration changes (we set the category above,
+            // and the system emits configuration/route changes as side effects)
+            // must not trigger a restart loop. Only react to actual hardware
+            // transitions.
+            statusMessage = "Audio route configured."
+            updateAudioRouteSummary()
         default:
             break
         }
@@ -845,10 +875,29 @@ private actor NativeVoiceCaptureController {
     /// True when either transcriber flavor supports a locale equivalent to
     /// the current one. `SpeechTranscriber` is device-gated by model
     /// availability; `DictationTranscriber` is the broader fallback (#18).
-    static func isTranscriptionSupported() async -> Bool {
+    ///
+    /// The result is cached per locale because the `supportedLocale` probe
+    /// spawns an XPC speech service (`com.apple.speech.localspeechrecognition`)
+    /// each call; hammering it on every readiness check can return false and
+    /// causes log churn. We invalidate on app background or significant locale
+    /// changes via `NotificationCenter`.
+    func isTranscriptionSupported() async -> Bool {
+        if let cached = transcriptionSupportCache, cached.locale == .current {
+            return cached.supported
+        }
+        let supported = await probeTranscriptionSupport()
+        transcriptionSupportCache = (locale: .current, supported: supported)
+        return supported
+    }
+
+    private func probeTranscriptionSupport() async -> Bool {
         if await SpeechTranscriber.supportedLocale(equivalentTo: .current) != nil { return true }
         return await DictationTranscriber.supportedLocale(equivalentTo: .current) != nil
     }
+
+    /// Cache slot for the last-locale support check. Stored as an instance
+    /// property on the isolated actor to avoid nonisolated static mutable state.
+    private var transcriptionSupportCache: (locale: Locale, supported: Bool)?
 
     func setMuted(_ muted: Bool) {
         muteState.withLock { $0 = muted }
@@ -861,7 +910,11 @@ private actor NativeVoiceCaptureController {
         // Session category: playAndRecord because TTS plays while the mic
         // stays live; .voiceChat enables the system voice-processing chain.
         // .allowBluetoothHFP covers headsets and car audio.
+        // Deactivate first to avoid reconfiguring an active session; the
+        // previous stop() already deactivated, but this call is harmless and
+        // makes the intent explicit (prevents category-change thrash).
         let session = AVAudioSession.sharedInstance()
+        try? session.setActive(false, options: .notifyOthersOnDeactivation)
         try session.setCategory(
             .playAndRecord,
             mode: .voiceChat,
