@@ -68,7 +68,6 @@ struct ChatScreen: View {
         self.onConversationSearchShortcut = onConversationSearchShortcut
     }
 
-    @State private var showClearConfirmation = false
     /// #16: a parsed /alarm staged behind the in-app confirm gate — nothing
     /// schedules until the user confirms (decided policy for alarm writes).
     @State private var pendingAlarmConfirm: AlarmService.AlarmRequest?
@@ -104,18 +103,6 @@ struct ChatScreen: View {
     // behavior-preserving: the grouped modifiers are order-independent.
     var body: some View {
         observingContent
-            .confirmationDialog(
-                "Clear Conversation",
-                isPresented: $showClearConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Clear", role: .destructive) {
-                    Task { await performClear() }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This will archive the current conversation and start a new session. This cannot be undone.")
-            }
             .confirmationDialog(
                 "Schedule on this iPhone?",
                 isPresented: Binding(
@@ -252,7 +239,7 @@ struct ChatScreen: View {
     /// Key assignments live in `ChatKeyboardShortcuts` (testable table).
     private var shortcutBridge: some View {
         Group {
-            Button("New Conversation") { showClearConfirmation = true }
+            Button("New Conversation") { Task { await startNewChat(onProfileID: nil) } }
                 .keyboardShortcut(ChatKeyboardShortcuts.newConversation.key,
                                   modifiers: ChatKeyboardShortcuts.newConversation.modifiers)
             Button("Search Conversations") { openConversationSearch() }
@@ -365,7 +352,19 @@ struct ChatScreen: View {
     /// Sessions API (model list + switch, session list + open).
     private func configureChatSeams() {
         modelModel.activeModelNameOverride = displayedModelName
-        sessionsModel.onNewChat = { showClearConfirmation = true }
+        // M-15: New Chat just starts one — archiving is non-destructive (the
+        // conversation stays in the drawer), so the old "cannot be undone"
+        // dialog was wrong on its face and is retired.
+        sessionsModel.onNewChat = { Task { await startNewChat(onProfileID: nil) } }
+        // M-16: "New chat on <profile>" — target a named backend for the
+        // NEXT session without flipping the app-wide default.
+        sessionsModel.onNewChatOnProfile = { profileID in
+            Task { await startNewChat(onProfileID: profileID) }
+        }
+        sessionsModel.newChatProfiles = (container.profilesStore?.profiles ?? []).map {
+            SessionsDrawerModel.NewChatProfileOption(id: $0.id, name: $0.name)
+        }
+        sessionsModel.activeNewChatProfileID = container.profilesStore?.activeProfileID
         sessionsModel.onOpenHostSettings = { router.presentSheet(.settings) }
         // Sessions drawer → Hermes Sessions API. Tapping a session loads its
         // full history and continues that thread.
@@ -1175,7 +1174,7 @@ struct ChatScreen: View {
         // Local commands handled by the iOS app directly.
         switch command.name {
         case "new", "reset", "clear":
-            showClearConfirmation = true
+            Task { await startNewChat(onProfileID: nil) }
 
         case "history":
             showConversationHistory()
@@ -1276,6 +1275,23 @@ struct ChatScreen: View {
         } catch {
             // Conversation unchanged on failure — user can retry
         }
+    }
+
+    /// M-15/M-16: starts a new chat, optionally born on a NAMED backend
+    /// profile. nil (and the active profile's id) = plain new chat on the
+    /// active backend; a non-active id arms the one-shot birth override —
+    /// the first message creates the session there, and `activeProfileID`
+    /// never changes.
+    private func startNewChat(onProfileID profileID: UUID?) async {
+        await performClear()
+        guard let profileID,
+              profileID != container.profilesStore?.activeProfileID,
+              let profile = container.profilesStore?.profile(id: profileID) else {
+            container.sessionsChatClient?.pendingNewSessionProfileID = nil
+            return
+        }
+        container.sessionsChatClient?.pendingNewSessionProfileID = profileID
+        appendSystemMessage("New chat on \(profile.name) — your first message starts the session there.")
     }
 
     private func performRetry() async {
