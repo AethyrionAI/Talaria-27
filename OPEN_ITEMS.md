@@ -2198,6 +2198,12 @@ Availability → unavailable states).
 
 ## 72. 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30)
 
+> **Stopgap merged 2026-07-16 (PR #104):** `pccGrantConfirmed = false` gates every PCC surface,
+> so the SIGTRAP-on-send is unreachable and the tier picker honestly omits PCC. When the SBP →
+> capability-request pipeline grants the entitlement: flip the gate (or wire it to a real
+> signal), rebuild, and the picker/routing/status paths re-enable themselves — then close
+> #111's re-verify note in the same pass.
+
 > **2026-07-13 (eve): crash + stopgap (branch).** Selecting PCC β and sending SIGTRAP-crashed (reproducible) — the entitlement isn't granted, so constructing/using `PrivateCloudComputeLanguageModel` traps (uncatchable; `send()`'s catch can't rescue it). Stopgap on `claude/t27-pcc-crash-stopgap` (c595bf4): a master `pccGrantConfirmed = false` gate — no PCC model constructed until the grant lands, so PCC leaves the picker and can't crash. Flip the flag when Apple grants. Suite 582/582.
 
 > **Audit 2026-07-13:** PR #37 (GitHub #30) confirmed merged to main. LocalChatBackend.swift's isPrivateCloudAvailable/isPrivateCloudUsable (lines 153/162) are the exact symbols item #111 (2026-07-12 device-pass log, whoGoesThere) observed compiling and executing on-device — repeatedly failing PCC XPC session establishment for the ungranted com.apple.developer.private-cloud-compute entitlement. Correction: 'Needs Mac: compile-check the 27-beta surface' is stale — it has compiled and is running on-device already; only Apple's entitlement grant plus the resulting functional device checklist remain owed. project.yml still carries no private-cloud-compute entitlement, so that part of the item stands. Status is more precisely 'blocked externally' (the item's own words) than plain in-progress.
@@ -3526,7 +3532,7 @@ Logged 2026-07-13 (Mac session, Lane H merge train).
 
 ## 111. 🐛 PCC availability check churns doomed ModelManager sessions on every UI tick (#30 follow-up)
 
-> **2026-07-16: the closing stopgap (`claude/t27-pcc-crash-stopgap`) is NOT merged** — verified not an ancestor of main, so the churn is still live on device. Queued for the Mac review loop TODAY (small: `pccGrantConfirmed` gate). The memoize fix stays deferred until the PCC entitlement lands.
+> **MERGED 2026-07-16 as PR #104 (`bf36d29`).** The `pccGrantConfirmed` master gate short-circuits all four PCC surfaces before `PrivateCloudComputeLanguageModel` is ever constructed — no construction, no XPC churn. Branch-base suite 582/49 green; post-merge full-suite validation on main run same day. → ✅ on the next device build (verify the ModelManager flood is gone from the console). The memoize fix stays deferred until the PCC entitlement lands — when it does, flip the gate and re-verify.
 
 > **2026-07-13 (eve): closed by the #72 stopgap.** This churn is the same unentitled `ModelManager` requests; the `pccGrantConfirmed` gate (branch `claude/t27-pcc-crash-stopgap`) never constructs a PCC session, so the churn stops. → ✅ once that branch merges.
 
