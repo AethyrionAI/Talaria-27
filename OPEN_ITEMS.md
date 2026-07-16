@@ -516,7 +516,26 @@ dropdown, no popover, no "Start New Session" — straight to the shim-backed lis
 
 ---
 
-## 21. 🔧 Present/download agent-generated files — Tier 1 (app) ✅ done; Tier 2 relay route ✅ done + deployed to OJAMD; Tier 2 app-side fetch still pending
+## 21. 🔧 Present/download agent-generated files — Tier 1 ✅; Tier 2 relay route ✅; Tier 2 app-side fetch MERGED (PR #99, 2026-07-16) — dual-host device pass owed
+
+> **Tier 2 app-side MERGED 2026-07-16 (PR #99, branch `claude/fable-t27-21-agent-appfetch-prvsf2`,
+> 10 commits).** Built to the probe verdict (binaries never ride SSE; `write_file` never fires for
+> them): two-layer trigger — content-absent write tools still stage/fetch, but the load-bearing
+> path is the announcement scan (case-insensitive `MobileDL/<segments>` harvest from tool payloads
+> + final prose, deduped vs Tier 1, attached at run.completed). Lane M compliant: attachments
+> stamped with the hop's birth `profileID`; fetch via `ProfileRelaySessionFactory.downloadAgentFile`
+> (profile-scoped bearer, that profile's relay; dormant 401 → one refresh+retry, active 401 → #15
+> ladder). Bonus fix: Windows `write_file` path tails (`lastPathComponentAcrossHosts`).
+> Mac loop: regen clean (entitlements survived), BUILD SUCCEEDED first compile, one test-target
+> fix (a `#"..."#` raw literal whose JSON contained `"#` — closed the string mid-line; now
+> ##-delimited), full suite **671 tests / 55 suites green**.
+>
+> **Device pass (dual-host, queued):** `probe-t21.pdf` already sits in the Mac's MobileDL as a
+> fixture — task the Mac, tap the chip, preview + ShareLink; repeat against OJAMD. Two things to
+> eyeball: (1) announcement-scan noise — ANY turn mentioning a MobileDL path grows a bubble (the
+> listing behavior as specced); if it grates, narrowing to write-shaped tools is a small follow-up.
+> (2) One relay-side check: confirm the device-files route rejects traversal (`MobileDL/../x`) —
+> the client regex admits `..` as a segment, so the server whitelist is the enforcement boundary.
 
 > **Dispatch spec 2026-07-13 (eve):** `dispatch/FABLE-T27-21-agent-files-tier2-appfetch.md` (probe-first). Note: the OJAMD binary-`write_file` probe can't run from cloud CC — it's a local/after-work step. App-side fetch still to build.
 
