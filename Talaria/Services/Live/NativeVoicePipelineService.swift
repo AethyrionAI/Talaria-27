@@ -137,8 +137,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             return
         }
         connectionState = .checking
-        let captureController = NativeVoiceCaptureController()
-        let transcriptionSupported = await captureController.isTranscriptionSupported()
+        let transcriptionSupported = await capture.isTranscriptionSupported()
         let backendPresent = backendProvider() != nil
         // Relay concepts (hostOnline) stay nil — unknowable/not applicable on
         // the local engine; `configured` answers "is the local pipeline whole".
