@@ -30,7 +30,10 @@ final class AppSessionStore {
     var isBootstrapping = false
     var lastErrorMessage: String?
 
-    private var tokenRefreshTask: Task<TokenRefreshOutcome, Never>?
+    /// Single-flight per credential scope (Lane M): a dormant-profile switch
+    /// mid-refresh must neither coalesce onto the old profile's round trip
+    /// nor clobber its bookkeeping.
+    private var tokenRefreshTasks: [String: Task<TokenRefreshOutcome, Never>] = [:]
     private var sessionRecoveryTask: Task<Bool, Never>?
     private var lastSessionRecoveryAttemptAt: Date?
     /// Floor between silent re-registration attempts so a relay that keeps
@@ -133,26 +136,36 @@ final class AppSessionStore {
     /// Single-flight: concurrent 401s from talk, sensors, and the host
     /// service coalesce onto one relay round trip instead of racing the
     /// rotation (the loser's refresh would present an already-rotated token).
+    /// Keyed by credential scope (Lane M) so a profile switch mid-refresh
+    /// can't coalesce two profiles onto one rotation.
     @discardableResult
     func refreshAccessTokenIfNeeded() async -> TokenRefreshOutcome {
-        if let tokenRefreshTask {
-            return await tokenRefreshTask.value
+        let scope = credentialScope
+        let key = scope?.uuidString ?? "legacy"
+        if let running = tokenRefreshTasks[key] {
+            return await running.value
         }
-        let task = Task { await performTokenRefresh() }
-        tokenRefreshTask = task
+        let task = Task { await performTokenRefresh(scope: scope) }
+        tokenRefreshTasks[key] = task
         let outcome = await task.value
-        tokenRefreshTask = nil
+        tokenRefreshTasks[key] = nil
         return outcome
     }
 
-    private func performTokenRefresh() async -> TokenRefreshOutcome {
-        guard let refreshToken = await currentRefreshToken() else {
+    /// The scope is CAPTURED at entry: refresh tokens rotate server-side, so
+    /// the freshly minted pair must land in the slot of the profile that
+    /// minted it even if the active profile flips mid-flight — writing it
+    /// under the new profile's keys would strand the old profile on a dead
+    /// refresh token.
+    private func performTokenRefresh(scope: UUID?) async -> TokenRefreshOutcome {
+        guard let refreshToken = await secureStore.retrieve(key: BackendProfileScopedKeys.refreshToken(scope)) else {
             return .missingRefreshToken
         }
 
         do {
             let tokens = try await bootstrapService.refreshAuth(refreshToken: refreshToken)
-            try await persist(tokens: tokens)
+            await secureStore.store(key: BackendProfileScopedKeys.accessToken(scope), value: tokens.accessToken)
+            await secureStore.store(key: BackendProfileScopedKeys.refreshToken(scope), value: tokens.refreshToken)
             return .refreshed
         } catch let error as RelayAPIClient.ClientError {
             lastErrorMessage = error.localizedDescription
@@ -213,6 +226,21 @@ final class AppSessionStore {
     func applyPairedSession(state: AppSessionState, tokens: AuthTokens) async {
         lastErrorMessage = nil
         await applySessionState(state, tokens: tokens)
+    }
+
+    /// Lane M (M-6): re-reads the persisted session for the CURRENT
+    /// credential scope — call immediately after the active profile changes,
+    /// before anything else touches `state` (its didSet persists against the
+    /// live scope). A profile with no persisted session starts fresh,
+    /// retaining the installation id (one app install, many relays).
+    func rebindToCurrentScope() {
+        lastErrorMessage = nil
+        isBootstrapping = false
+        if let persisted = persistence.loadSessionState(profileScope: credentialScope) {
+            state = persisted
+        } else {
+            state = AppSessionState(installationID: state.installationID)
+        }
     }
 
     /// Explicit-scope variant (Lane M): adopts a freshly paired session into

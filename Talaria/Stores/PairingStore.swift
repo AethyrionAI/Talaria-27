@@ -86,6 +86,20 @@ final class PairingStore {
         try pairingService.normalizePairingCode(rawCode)
     }
 
+    /// Lane M (M-6): re-reads the pairing record for the newly ACTIVE
+    /// profile after a switch. Identity-mismatch state is per-pairing, so it
+    /// resets; `validateRestoredIdentity()` re-evaluates it once the new
+    /// profile's session bootstraps.
+    func rebindToActiveProfile() {
+        pairedRelayConfiguration = persistence.loadPairedRelayConfiguration(profileScope: activeCredentialScope)
+        identityMismatchDetected = false
+        lastErrorMessage = nil
+    }
+
+    /// Lane M: fires with the profile whose relay tokens a successful pair
+    /// just minted — the container stamps token freshness for M-9.
+    var onProfileTokensMinted: (@MainActor (UUID?) -> Void)?
+
     @discardableResult
     func pair(using rawSetupCode: String) async -> Bool {
         isWorking = true
@@ -141,6 +155,7 @@ final class PairingStore {
                 setNeedsPermissionsOnboarding(true)
             }
             lastErrorMessage = nil
+            onProfileTokensMinted?(targetProfile?.id)
             pairingLog.notice("pair: adopted relay user \(result.state.userID?.uuidString ?? "unknown", privacy: .public) on a clean slate (profile \(targetProfile?.name ?? "default", privacy: .public))")
             if targetIsActive {
                 await onPairingChanged?(true)
