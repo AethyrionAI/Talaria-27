@@ -168,4 +168,44 @@ struct SpeechOutputTests {
         #expect(service.speakingMessageID == id)
         service.stop()
     }
+
+    // MARK: - #84 audio-session release decision
+
+    /// The load-bearing case: an instance that never activated the session
+    /// (never spoke) must NEVER release it, no matter how many stop() calls
+    /// arrive -- releasing here deactivates the voice engine's live
+    /// .playAndRecord session (the 2026-07-16 flatline).
+    @Test func neverReleasesASessionItDidNotActivate() {
+        #expect(SpeechOutputService.shouldReleaseAudioSession(
+            managesSession: true, didActivate: false,
+            utterancesIdle: true, streamIdle: true
+        ) == false)
+    }
+
+    @Test func releasesOwnActivationWhenFullyIdle() {
+        #expect(SpeechOutputService.shouldReleaseAudioSession(
+            managesSession: true, didActivate: true,
+            utterancesIdle: true, streamIdle: true
+        ) == true)
+    }
+
+    @Test func holdsSessionWhileSpeechIsInFlight() {
+        #expect(SpeechOutputService.shouldReleaseAudioSession(
+            managesSession: true, didActivate: true,
+            utterancesIdle: false, streamIdle: true
+        ) == false)
+        #expect(SpeechOutputService.shouldReleaseAudioSession(
+            managesSession: true, didActivate: true,
+            utterancesIdle: true, streamIdle: false
+        ) == false)
+    }
+
+    /// The native pipeline's dedicated TTS instance (managesAudioSession ==
+    /// false) never touches the session in either direction.
+    @Test func nonManagingInstanceNeverReleases() {
+        #expect(SpeechOutputService.shouldReleaseAudioSession(
+            managesSession: false, didActivate: true,
+            utterancesIdle: true, streamIdle: true
+        ) == false)
+    }
 }
