@@ -3545,7 +3545,8 @@ profile, pick the host, bam — new work targets it; switch back for Windows nee
 
 Spec: `planning/SPEC-backend-profiles-v1.md` (v2 + session directives; Fable lane dispatch
 pending final doc pass). Locked decisions: relay plane FOLLOWS the profile (one-time QR pair
-per relay, N stored pairings — amends #91); sensors stay pinned to production
+per relay, N stored pairings — makes #94/#3 clean-slate-on-pair PER-PROFILE, so a
+second profile never wipes the first; #41 Keychain mirror extends per-profile); sensors stay pinned to production
 (`sensorDestinationProfileID`); sessions carry immutable birth-host `profileID` (drawer
 routes reconnects; pushes from both relays route by session tag); **"New chat on <profile>"
 shortcut IS in v1** (Owen), including retooling/removing the warning text on the current
