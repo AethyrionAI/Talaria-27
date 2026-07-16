@@ -509,32 +509,35 @@ final class SessionsHermesClient: HermesClientProtocol {
         // sessions just don't appear this round (its index entries are kept:
         // pruning only runs on a complete sweep).
         let activeID = activeProfileIDProvider()
-        var lists: [(profile: BackendProfile, infos: [HermesSessionInfo])] = []
-        var failures: [Error] = []
-        await withTaskGroup(of: (BackendProfile, Result<[HermesSessionInfo], Error>).self) { group in
-            for profile in profiles {
-                group.addTask { @MainActor [weak self] in
-                    guard let self else {
-                        return (profile, .failure(SessionsClientError.requestFailed("Client deallocated")))
-                    }
-                    do {
-                        let requestID = profile.id == activeID ? nil : profile.id
-                        return (profile, .success(try await self.fetchSessionList(profileID: requestID, tagAs: profile)))
-                    } catch {
-                        return (profile, .failure(error))
-                    }
+        // Build fix (2026-07-16): `withTaskGroup` with @MainActor children
+        // trips "pattern that the region-based isolation checker does not
+        // understand" on the iOS 27 SDK regardless of capture Sendability
+        // (three variants tried). Unstructured Task handles bypass the
+        // task-group region machinery: fetches still overlap at the await
+        // points, partial failure is still tolerated, error fidelity is
+        // preserved, and every handle is awaited before the box is read.
+        let gathered = ProfileFetchAccumulator()
+        let handles = profiles.map { profile in
+            Task { @MainActor [weak self] in
+                guard let self else {
+                    gathered.failures.append(SessionsClientError.requestFailed("Client deallocated"))
+                    return
                 }
-            }
-            for await (profile, result) in group {
-                switch result {
-                case .success(let infos):
-                    lists.append((profile, infos))
-                case .failure(let error):
-                    failures.append(error)
+                do {
+                    let requestID = profile.id == activeID ? nil : profile.id
+                    let infos = try await self.fetchSessionList(profileID: requestID, tagAs: profile)
+                    gathered.lists.append((profile, infos))
+                } catch {
+                    gathered.failures.append(error)
                     Self.logger.notice("listSessions: '\(profile.name, privacy: .public)' unreachable — \(error.localizedDescription, privacy: .public)")
                 }
             }
         }
+        for handle in handles {
+            await handle.value
+        }
+        var lists = gathered.lists
+        let failures = gathered.failures
 
         guard !lists.isEmpty else {
             throw failures.first ?? SessionsClientError.requestFailed("No backend profile answered.")
@@ -568,7 +571,7 @@ final class SessionsHermesClient: HermesClientProtocol {
             Self.logger.error("listSessions: decode FAILED — \(error.localizedDescription, privacy: .public). Raw: \(snippet, privacy: .public)")
             throw error
         }
-        Self.logger.verbose("listSessions: decoded \(response.data.count) rows for '\(profile?.name ?? "active", privacy: .public)'")
+        Self.logger.verbose("listSessions: decoded \(response.data.count) rows for '\(profile?.name ?? "active")'")
         return response.data.map { row in
             HermesSessionInfo(
                 id: row.id,
@@ -1458,4 +1461,17 @@ final class SessionsHermesClient: HermesClientProtocol {
             }
         }
     }
+}
+
+
+/// Region-checker workaround box for the multi-host session fetch (M-5).
+/// Every child task in the fetch group is MainActor-isolated, so appends
+/// never race; the MainActor-isolated reference type (implicitly Sendable)
+/// is what lets results cross the task-group boundary without moving
+/// non-Sendable `(BackendProfile, Result<_, any Error>)` tuples through it,
+/// which the iOS 27 SDK's region-based isolation checker rejects outright.
+@MainActor
+private final class ProfileFetchAccumulator {
+    var lists: [(profile: BackendProfile, infos: [HermesSessionInfo])] = []
+    var failures: [Error] = []
 }

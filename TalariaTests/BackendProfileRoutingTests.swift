@@ -235,7 +235,7 @@ struct BackendProfileRoutingTests {
             PairedRelayConfiguration(
                 baseURLString: "http://100.110.102.59:8000/v1",
                 hostDisplayName: "ojamd",
-                pairedAt: .now,
+                pairedAt: Date(timeIntervalSince1970: 1_752_600_000), // whole-second: ISO8601 round-trip safe
                 relayUserID: UUID()
             ),
             profileScope: nil
