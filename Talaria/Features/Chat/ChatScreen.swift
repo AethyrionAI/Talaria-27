@@ -821,6 +821,12 @@ struct ChatScreen: View {
                                 },
                                 onEditResend: { userMessage in
                                     performEditResend(userMessage)
+                                },
+                                // #21 Tier 2: fetchable agent files download
+                                // on tap from their birth profile's relay.
+                                agentFileDownloads: chatStore.agentFileDownloads,
+                                onFetchAgentFile: { hostMessage, attachment in
+                                    Task { await chatStore.fetchAgentFile(attachment, in: hostMessage) }
                                 }
                             )
                             .id(message.id)

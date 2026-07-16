@@ -516,6 +516,28 @@ final class AppContainer {
         container.profileRelaySessions = profileRelaySessions
         container.gatewayKeyCache = gatewayKeyCache
         container.sessionsChatClient = sessionsClient
+        // #21 Tier 2: fetchable agent-file bubbles download from the
+        // announcing session's birth-profile relay (Lane M — never a global
+        // relay base), authed with that profile's pairing-minted device
+        // bearer. A nil birth profile is a pre-Lane-M record and collapses to
+        // the active profile. The factory refuses to rotate the ACTIVE
+        // profile's tokens (AppSessionStore owns that single-flight refresh),
+        // so an active-profile 401 runs the #15 recovery ladder here and
+        // retries once.
+        container.chatStore.agentFileDownloader = { profileID, remotePath in
+            guard let resolvedID = profileID ?? profilesStore.activeProfileID else {
+                throw RelayAPIClient.FileDownloadError.unauthorized
+            }
+            do {
+                return try await profileRelaySessions.downloadAgentFile(remotePath: remotePath, profileID: resolvedID)
+            } catch RelayAPIClient.FileDownloadError.unauthorized where resolvedID == profilesStore.activeProfileID {
+                guard let fresh = await relayAccessTokenRefresher(), !fresh.isEmpty else {
+                    throw RelayAPIClient.FileDownloadError.unauthorized
+                }
+                return try await profileRelaySessions.apiClient(forProfileID: resolvedID)
+                    .downloadFile(path: remotePath, accessToken: fresh)
+            }
+        }
         // M-6: activating a profile re-homes the relay-plane surfaces and
         // credential boxes onto the new backend.
         profilesStore.onActiveProfileChanged = { [weak container] profile in

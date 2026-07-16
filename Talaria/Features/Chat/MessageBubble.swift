@@ -11,6 +11,11 @@ struct MessageBubble: View {
     var onRegenerate: ((Message) -> Void)? = nil
     /// #44: truncate a user turn back into the composer (wired by ChatScreen).
     var onEditResend: ((Message) -> Void)? = nil
+    /// #21 Tier 2: per-attachment download state for fetchable agent files
+    /// (absent = idle), plus the tap→download callback. Wired by ChatScreen;
+    /// a staged attachment ignores both and renders the Tier 1 preview chip.
+    var agentFileDownloads: [UUID: AgentFileDownloadState] = [:]
+    var onFetchAgentFile: ((Message, MessageAttachment) -> Void)? = nil
 
     @Environment(SpeechOutputService.self) private var speechOutput
     @Environment(TalkStore.self) private var talkStore
@@ -682,7 +687,7 @@ struct MessageBubble: View {
         return attachment.mimeType == "application/pdf" ? "doc.richtext" : "doc.text"
     }
 
-    // MARK: - Agent File Bubbles (#21 Tier 1)
+    // MARK: - Agent File Bubbles (#21)
 
     @ViewBuilder
     private func hermesAttachments(_ attachments: [MessageAttachment]) -> some View {
@@ -698,11 +703,15 @@ struct MessageBubble: View {
         }
     }
 
-    /// A tappable file chip that opens the in-app preview sheet (#99); the
-    /// share affordance lives in the sheet's toolbar (preview AND share).
+    /// A tappable file chip: staged files open the in-app preview sheet
+    /// (#99, share in its toolbar); a fetchable file (#21 Tier 2 — bytes
+    /// still on the host) downloads on tap and then becomes the same
+    /// preview chip.
     @ViewBuilder
     private func agentFileBubble(_ attachment: MessageAttachment) -> some View {
-        if let path = attachment.localStoragePath {
+        if attachment.localStoragePath == nil, attachment.remotePath != nil {
+            fetchableAgentFileBubble(attachment)
+        } else if let path = attachment.localStoragePath {
             let url = URL(fileURLWithPath: path)
             Button {
                 previewedAttachment = attachment
@@ -743,6 +752,81 @@ struct MessageBubble: View {
             .frame(maxWidth: 280, alignment: .leading)
             .accessibilityLabel("Preview file \(attachment.fileName)")
         }
+    }
+
+    /// #21 Tier 2: the not-yet-downloaded file chip. Tap → download (spinner)
+    /// → the attachment stages and this renders as the Tier 1 preview chip
+    /// instead. Failures show their honest reason inline; tapping retries.
+    @ViewBuilder
+    private func fetchableAgentFileBubble(_ attachment: MessageAttachment) -> some View {
+        let state = agentFileDownloads[attachment.id]
+        let isDownloading = state == .downloading
+        Button {
+            onFetchAgentFile?(message, attachment)
+        } label: {
+            HStack(spacing: Design.Spacing.sm) {
+                if isDownloading {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(Design.Brand.accent)
+                } else if case .failed? = state {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: Design.Size.iconSmall))
+                        .foregroundStyle(Design.Colors.danger)
+                } else {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.system(size: Design.Size.iconSmall))
+                        .foregroundStyle(Design.Brand.accent)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(attachment.fileName)
+                        .font(Design.Typography.mono(12, relativeTo: .caption))
+                        .foregroundStyle(Design.Colors.coolForeground)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    if case .failed(let reason)? = state {
+                        Text(reason)
+                            .font(Design.Typography.monoSmall)
+                            .foregroundStyle(Design.Colors.danger)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                    } else {
+                        Text(Self.fetchableSubtitle(fileName: attachment.fileName, isDownloading: isDownloading))
+                            .font(Design.Typography.monoSmall)
+                            .tracking(Design.Tracking.mono)
+                            .foregroundStyle(Design.Colors.mutedForeground)
+                    }
+                }
+
+                Spacer(minLength: Design.Spacing.sm)
+            }
+            .padding(.horizontal, Design.Spacing.md)
+            .padding(.vertical, Design.Spacing.sm)
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.md,
+                borderColor: Design.Colors.accentTint(0.18),
+                fill: Design.Colors.surface
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isDownloading)
+        .frame(maxWidth: 280, alignment: .leading)
+        .accessibilityLabel(
+            isDownloading
+                ? "Downloading file \(attachment.fileName)"
+                : "Download file \(attachment.fileName) from the host"
+        )
+    }
+
+    /// "PDF · TAP TO DOWNLOAD" / "PDF · DOWNLOADING…" caption for the
+    /// fetchable chip. No size shown — the bytes aren't local yet and the
+    /// stream never carried one (real data only).
+    static func fetchableSubtitle(fileName: String, isDownloading: Bool) -> String {
+        let ext = (fileName as NSString).pathExtension.uppercased()
+        let typeLabel = ext.isEmpty ? "FILE" : ext
+        return "\(typeLabel) · \(isDownloading ? "DOWNLOADING…" : "TAP TO DOWNLOAD")"
     }
 
     /// "MARKDOWN · 2 KB" style caption — file type from extension, size read
