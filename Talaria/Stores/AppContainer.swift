@@ -8,8 +8,6 @@ private let containerLog = Logger(subsystem: "org.aethyrion.talaria", category: 
 @Observable
 final class AppContainer {
     static let apnsTokenDefaultsKey = "hermes.apns.deviceToken"
-    static let hermesAPIKeyKeychainKey = "hermes.apiServerKey"
-    static let modelsShimTokenKeychainKey = "talaria.modelsShimToken"
     private static let sharedDefaultContainer = AppContainer.makeDefault()
 
     let router = TabRouter()
@@ -40,6 +38,13 @@ final class AppContainer {
     /// sessions drawer + conversation search. Nil in bare test containers
     /// that construct stores directly.
     private(set) var conversationListState: ConversationListStateStore?
+    /// Lane M (#114): the named backend profiles — active + sensor
+    /// destination + per-profile credential scoping. Nil in bare test
+    /// containers that construct stores directly (legacy single-backend
+    /// behavior).
+    private(set) var profilesStore: BackendProfilesStore?
+    /// Lane M: session→birth-profile index, written by the Sessions client.
+    private(set) var sessionProfileIndex: SessionProfileIndexStore?
     /// #17: Spotlight donation for sessions + agent files, strictly behind the
     /// Privacy toggle (default OFF); wired in makeDefault().
     let spotlightIndexing = SpotlightIndexingService()
@@ -137,6 +142,20 @@ final class AppContainer {
             persistence: persistence,
             buildConfiguration: buildConfiguration
         )
+        // Lane M (#114): the backend profiles. Construction runs the one-shot
+        // migration — the first launch after this ships mints an "OJAMD"
+        // profile from the pre-profile settings values (which stop being
+        // app-wide truth and become that profile's seeds), keeping the
+        // legacy credential keys so nothing in the Keychain moves.
+        let profilesStore = BackendProfilesStore(
+            persistence: persistence,
+            migrationSeeds: BackendProfilesStore.MigrationSeeds(
+                gatewayBaseURL: settingsStore.settings.hermesAPIBaseURL,
+                relayBaseURL: settingsStore.settings.relayConfiguration.activeBaseURLString,
+                shimBaseURL: settingsStore.settings.modelsShimBaseURL
+            )
+        )
+        let sessionProfileIndex = SessionProfileIndexStore(persistence: persistence)
         // Seed the runtime theme from the persisted appearance prefs before the
         // first frame renders, so a saved non-cyan accent never flashes cyan.
         // (Live updates are mirrored from the app root via ThemeRuntime.apply.)
@@ -160,7 +179,7 @@ final class AppContainer {
 
         let apiClient = RelayAPIClient {
             activePairingStore?.pairedRelayConfiguration?.baseURLString
-                ?? settingsStore.settings.relayConfiguration.activeBaseURLString
+                ?? profilesStore.activeProfile?.relayBaseURL
                 ?? ""
         }
 
@@ -176,7 +195,8 @@ final class AppContainer {
             secureStore: secureStore,
             persistence: persistence,
             notificationService: notificationService,
-            environmentProvider: { settingsStore.settings.environment }
+            environmentProvider: { settingsStore.settings.environment },
+            credentialScopeProvider: { profilesStore.activeProfile?.credentialScopeID }
         )
 
         let runtimePairingStore = PairingStore(
@@ -184,7 +204,8 @@ final class AppContainer {
             sessionStore: sessionStore,
             persistence: persistence,
             environmentProvider: { settingsStore.settings.environment },
-            relayBaseURLProvider: { settingsStore.settings.relayConfiguration.activeBaseURLString }
+            relayBaseURLProvider: { profilesStore.activeProfile?.relayBaseURL },
+            profileResolver: { id in profilesStore.resolvedProfile(id: id) }
         )
         activePairingStore = runtimePairingStore
 
@@ -254,12 +275,15 @@ final class AppContainer {
 
         let sessionsClient = SessionsHermesClient(
             baseURLProvider: {
-                let raw = settingsStore.settings.hermesAPIBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                let raw = (profilesStore.activeProfile?.gatewayBaseURL ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
                 return raw.isEmpty ? nil : raw
             },
             apiKeyProvider: { hermesAPIKeyBox.value },
             journal: journalStore,
-            transplanter: transplanter
+            transplanter: transplanter,
+            activeProfileIDProvider: { profilesStore.activeProfileID },
+            profileIndex: sessionProfileIndex
         )
         let hermesClient = ResilientHermesClient(
             primary: sessionsClient,
@@ -298,7 +322,8 @@ final class AppContainer {
         let shimTokenBox = MutableShimTokenBox()
         let modelsShimClient = ModelsShimClient(
             baseURLProvider: {
-                let raw = settingsStore.settings.modelsShimBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                let raw = (profilesStore.activeProfile?.shimBaseURL ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
                 return raw.isEmpty ? nil : raw
             },
             tokenProvider: { [hermesAPIKeyBox] in
@@ -404,6 +429,25 @@ final class AppContainer {
         // seam as every other store, read by the drawer + search surfaces.
         container.conversationListState = ConversationListStateStore(persistence: persistence)
 
+        // Lane M (#114): backend profiles + session→profile index.
+        container.profilesStore = profilesStore
+        container.sessionProfileIndex = sessionProfileIndex
+        // Keychain hygiene: a deleted profile's credential slot dies with it.
+        // The migrated (legacy-keyed) profile is undeletable in practice —
+        // it's active/sensor-destination until another profile takes over —
+        // but scoped deletion is correct for it too.
+        profilesStore.onProfileDeleted = { profile in
+            let scope = profile.credentialScopeID
+            persistence.clearPairedRelayConfiguration(profileScope: scope)
+            persistence.clearSessionState(profileScope: scope)
+            Task { @MainActor in
+                await secureStore.delete(key: BackendProfileScopedKeys.accessToken(scope))
+                await secureStore.delete(key: BackendProfileScopedKeys.refreshToken(scope))
+                await secureStore.delete(key: BackendProfileScopedKeys.gatewayAPIKey(scope))
+                await secureStore.delete(key: BackendProfileScopedKeys.shimToken(scope))
+            }
+        }
+
         // #27: per-conversation brain preferences key off the live
         // conversation, which ChatStore owns — wire the lookup now that both
         // exist. (The router was built first; ChatStore sits on top of it.)
@@ -457,9 +501,12 @@ final class AppContainer {
         }
 
         // Restore any persisted Hermes Sessions-API key into the in-memory box
-        // so the chat client can pick it up on first send without blocking startup.
+        // so the chat client can pick it up on first send without blocking
+        // startup. Profile-scoped (Lane M): the box carries the ACTIVE
+        // profile's key; the migrated profile resolves the legacy key string.
         Task { @MainActor [weak container, hermesAPIKeyBox] in
-            if let stored = await secureStore.retrieve(key: AppContainer.hermesAPIKeyKeychainKey) {
+            let scope = profilesStore.activeProfile?.credentialScopeID
+            if let stored = await secureStore.retrieve(key: BackendProfileScopedKeys.gatewayAPIKey(scope)) {
                 hermesAPIKeyBox.value = stored
                 container?.hermesAPIKey = stored
                 // #27: the restored key flips the routing signal — update the
@@ -470,7 +517,8 @@ final class AppContainer {
 
         // Restore the persisted models-shim bearer token (same pattern).
         Task { @MainActor [weak container, shimTokenBox] in
-            if let stored = await secureStore.retrieve(key: AppContainer.modelsShimTokenKeychainKey) {
+            let scope = profilesStore.activeProfile?.credentialScopeID
+            if let stored = await secureStore.retrieve(key: BackendProfileScopedKeys.shimToken(scope)) {
                 shimTokenBox.value = stored
                 container?.modelsShimToken = stored
             }
@@ -490,7 +538,8 @@ final class AppContainer {
             container?.pairingStore.reloadPersistedConfigurationIfNeeded()
             if hermesAPIKeyBox.value.isEmpty {
                 Task { @MainActor in
-                    if let stored = await secureStore.retrieve(key: AppContainer.hermesAPIKeyKeychainKey), !stored.isEmpty {
+                    let scope = profilesStore.activeProfile?.credentialScopeID
+                    if let stored = await secureStore.retrieve(key: BackendProfileScopedKeys.gatewayAPIKey(scope)), !stored.isEmpty {
                         hermesAPIKeyBox.value = stored
                         container?.hermesAPIKey = stored
                         container?.chatBackendRouter?.refreshActiveBrain()
@@ -500,7 +549,8 @@ final class AppContainer {
             }
             if shimTokenBox.value.isEmpty {
                 Task { @MainActor in
-                    if let stored = await secureStore.retrieve(key: AppContainer.modelsShimTokenKeychainKey), !stored.isEmpty {
+                    let scope = profilesStore.activeProfile?.credentialScopeID
+                    if let stored = await secureStore.retrieve(key: BackendProfileScopedKeys.shimToken(scope)), !stored.isEmpty {
                         shimTokenBox.value = stored
                         container?.modelsShimToken = stored
                     }
@@ -527,7 +577,7 @@ final class AppContainer {
             guard UIApplication.shared.isProtectedDataAvailable else { return }
             guard container?.pairingStore.isPaired == false else { return }
             await sessionStore?.clearSession()
-            guard let relayBaseURL = container?.settingsStore.settings.relayConfiguration.activeBaseURLString,
+            guard let relayBaseURL = container?.profilesStore?.activeProfile?.relayBaseURL,
                   !relayBaseURL.isEmpty else { return }
             _ = relayBaseURL
             await sessionStore?.bootstrap(forceRegistration: true)
@@ -537,7 +587,15 @@ final class AppContainer {
         settingsStore.onEnvironmentChanged = { _ in
             await refreshUnpairedRelayContext()
         }
-        settingsStore.onRelayConfigurationChanged = { _ in
+        settingsStore.onRelayConfigurationChanged = { configuration in
+            // Lane M: the legacy relay-config surface (Relay settings screen,
+            // onboarding QR auto-fill) still writes UserSettings — mirror the
+            // resolved URL onto the ACTIVE profile, which is what pairing and
+            // the relay client actually read now. One-way, every writer
+            // covered, so the two records can't drift.
+            profilesStore.updateActiveProfile { profile in
+                profile.relayBaseURL = configuration.activeBaseURLString ?? ""
+            }
             await refreshUnpairedRelayContext()
         }
 
@@ -1368,8 +1426,15 @@ final class AppContainer {
 
     // MARK: - Hermes Sessions API key
 
-    /// Persists the Hermes API server key in the Keychain and updates the
-    /// in-memory copy that the chat client reads on each request.
+    /// The active profile's credential scope (Lane M) — nil resolves the
+    /// legacy key strings (the migrated profile, and bare test containers).
+    private var activeCredentialScope: UUID? {
+        profilesStore?.activeProfile?.credentialScopeID
+    }
+
+    /// Persists the Hermes API server key in the Keychain (under the ACTIVE
+    /// profile's slot) and updates the in-memory copy that the chat client
+    /// reads on each request.
     func saveHermesAPIKey(_ value: String) async {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         hermesAPIKey = trimmed
@@ -1378,10 +1443,11 @@ final class AppContainer {
         // indicator immediately instead of waiting for the next health probe.
         chatBackendRouter?.refreshActiveBrain()
         guard let secureStore else { return }
+        let key = BackendProfileScopedKeys.gatewayAPIKey(activeCredentialScope)
         if trimmed.isEmpty {
-            await secureStore.delete(key: Self.hermesAPIKeyKeychainKey)
+            await secureStore.delete(key: key)
         } else {
-            await secureStore.store(key: Self.hermesAPIKeyKeychainKey, value: trimmed)
+            await secureStore.store(key: key, value: trimmed)
         }
     }
 
@@ -1392,17 +1458,19 @@ final class AppContainer {
 
     // MARK: - Models shim token
 
-    /// Persists the models-shim bearer token in the Keychain and updates the
-    /// in-memory copy that `ModelsShimClient` reads on each request.
+    /// Persists the models-shim bearer token in the Keychain (under the
+    /// ACTIVE profile's slot) and updates the in-memory copy that
+    /// `ModelsShimClient` reads on each request.
     func saveModelsShimToken(_ value: String) async {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         modelsShimToken = trimmed
         shimTokenBox?.value = trimmed
         guard let secureStore else { return }
+        let key = BackendProfileScopedKeys.shimToken(activeCredentialScope)
         if trimmed.isEmpty {
-            await secureStore.delete(key: Self.modelsShimTokenKeychainKey)
+            await secureStore.delete(key: key)
         } else {
-            await secureStore.store(key: Self.modelsShimTokenKeychainKey, value: trimmed)
+            await secureStore.store(key: key, value: trimmed)
         }
     }
 

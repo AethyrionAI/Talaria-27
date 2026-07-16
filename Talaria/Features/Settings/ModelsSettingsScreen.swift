@@ -608,8 +608,17 @@ struct ModelsSettingsScreen: View {
 
     private var shimURLBinding: Binding<String> {
         Binding(
-            get: { settingsStore.settings.modelsShimBaseURL },
-            set: { settingsStore.settings.modelsShimBaseURL = $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            get: {
+                container.profilesStore?.activeProfile?.shimBaseURL
+                    ?? settingsStore.settings.modelsShimBaseURL
+            },
+            set: { newValue in
+                let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                // Lane M: the active profile owns the shim endpoint; the
+                // legacy settings field is mirror-written for downgrade safety.
+                container.profilesStore?.updateActiveProfile { $0.shimBaseURL = trimmed.isEmpty ? nil : trimmed }
+                settingsStore.settings.modelsShimBaseURL = trimmed
+            }
         )
     }
 

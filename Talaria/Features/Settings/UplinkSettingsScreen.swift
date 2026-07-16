@@ -121,9 +121,17 @@ struct UplinkSettingsScreen: View {
     }
 
     private var hostDisplay: String {
-        settingsStore.settings.hermesAPIBaseURL
+        gatewayBaseURL
             .replacingOccurrences(of: "https://", with: "")
             .replacingOccurrences(of: "http://", with: "")
+    }
+
+    /// Lane M: the ACTIVE profile's gateway is the source of truth; the
+    /// legacy settings value remains as the profile-less fallback (bare test
+    /// containers) and is mirror-written below so nothing drifts.
+    private var gatewayBaseURL: String {
+        container.profilesStore?.activeProfile?.gatewayBaseURL
+            ?? settingsStore.settings.hermesAPIBaseURL
     }
 
     // MARK: Link-mode readout (display-only)
@@ -266,8 +274,14 @@ struct UplinkSettingsScreen: View {
 
     private var hermesAPIBaseURLBinding: Binding<String> {
         Binding(
-            get: { settingsStore.settings.hermesAPIBaseURL },
-            set: { settingsStore.settings.hermesAPIBaseURL = $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            get: { gatewayBaseURL },
+            set: { newValue in
+                let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                // Lane M: the active profile owns the endpoint; the legacy
+                // settings field is mirror-written for downgrade safety.
+                container.profilesStore?.updateActiveProfile { $0.gatewayBaseURL = trimmed }
+                settingsStore.settings.hermesAPIBaseURL = trimmed
+            }
         )
     }
 
