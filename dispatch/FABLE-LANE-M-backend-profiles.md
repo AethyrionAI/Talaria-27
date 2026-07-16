@@ -224,13 +224,21 @@ not change `activeProfileID`.
 
 ## Collision surface
 
-- **`ChatStore.swift`** — M-5/M-6 touch it. **#110** is a queued micro-fix at
-  `ChatStore.swift:517` (`stop()` not `finishStream()`); if #110 hasn't landed,
-  it may ride this lane or conflict — check main first.
+- **`ChatStore.swift`** — M-5/M-6 touch it. **#110** is a queued micro-fix and is
+  **NOT on main** (verified 2026-07-15). Its item text says `ChatStore.swift:517`
+  but the call has drifted to **`:528`** (`self.speechOutput?.finishStream(`);
+  `SpeechOutputService` exposes both `stop()` (:73) and `finishStream()` (:112).
+  Don't fold #110 in — just expect that line neighborhood to move.
 - **Sensor path** — **#104** (outbox rewritten to UserDefaults on every tick, main
   actor) overlaps M-8. Do not fold #104's fix in; just don't make its churn worse.
-- **`UplinkSettingsScreen.swift`** — M-14 vs #108's nudge branch
-  (`claude/t27-hermes-switch-nudge`, ef5dbd9) if still unmerged. Check main.
+- **`UplinkSettingsScreen.swift`** — **VERIFIED 2026-07-15: #108's nudge branch is
+  NOT merged.** `origin/claude/t27-hermes-switch-nudge` @ ef5dbd9 ("surface a
+  'paired but unkeyed' notice so the Hermes switch isn't silently locked") is not an
+  ancestor of main. So M-14's "keep the nudge" instruction has nothing to keep —
+  **implement the unkeyed-profile notice as part of M-14**, per-profile, and treat
+  ef5dbd9 as reference art (it solves the single-profile case). Owen's call whether
+  to merge ef5dbd9 first; if it lands before this lane, rebase and generalize it
+  instead of reimplementing.
 - **`SessionsDrawer.swift` / `ConversationListPane`** — M-5's badges touch the
   Lane J split-view sidebar. Lane J's regular-width sidebar must stay correct.
 - **Lane F** surfaces (search/pin/archive) exist once — don't duplicate.
