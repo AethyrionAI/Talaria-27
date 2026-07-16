@@ -35,6 +35,14 @@ final class SpeechOutputService: NSObject {
     /// that a `.playback` re-categorization here would break. The shared
     /// read-aloud instance keeps the default (true).
     var managesAudioSession = true
+    /// True only between a successful `setActive(true)` here and our own
+    /// release. The device log behind this flag (#84, 2026-07-16): the voice
+    /// engines share the ONE AVAudioSession, and this instance was deactivating
+    /// it dozens of times a minute during native voice sessions via
+    /// `stop() -> releaseAudioSessionIfIdle()` even though it had never spoken
+    /// or activated -- killing the live mic. Rule: never deactivate a session
+    /// this instance did not activate.
+    private var didActivateAudioSession = false
     /// Persisted voice identifier from UserSettings; nil = best system voice.
     var voiceIdentifierProvider: (@MainActor () -> String?)?
     /// Persisted speech rate from UserSettings (AVSpeechUtterance 0…1 scale).
@@ -215,15 +223,35 @@ final class SpeechOutputService: NSObject {
         do {
             try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
             try session.setActive(true)
+            didActivateAudioSession = true
         } catch {
             Self.logger.notice("audio session configure failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
     private func releaseAudioSessionIfIdle() {
-        guard managesAudioSession else { return }
-        guard activeUtterances.isEmpty, streamMessageID == nil else { return }
+        guard Self.shouldReleaseAudioSession(
+            managesSession: managesAudioSession,
+            didActivate: didActivateAudioSession,
+            utterancesIdle: activeUtterances.isEmpty,
+            streamIdle: streamMessageID == nil
+        ) else { return }
+        didActivateAudioSession = false
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    /// The #84 release decision, pure for tests. `didActivate` is the
+    /// load-bearing guard: a `stop()` from any caller (the AppContainer talk
+    /// callback most of all) must be a session no-op unless THIS instance
+    /// holds the activation -- otherwise it deactivates the voice engine's
+    /// `.playAndRecord` session out from under a live mic.
+    nonisolated static func shouldReleaseAudioSession(
+        managesSession: Bool,
+        didActivate: Bool,
+        utterancesIdle: Bool,
+        streamIdle: Bool
+    ) -> Bool {
+        managesSession && didActivate && utterancesIdle && streamIdle
     }
 
     // MARK: - Text preparation (pure — unit-tested)
