@@ -3341,7 +3341,24 @@ Logged 2026-07-12.
 
 ---
 
-## 107. 🔧 T6 Phase 1+2 — Mac Mini backend EXECUTED (relay/connector/shim live, iMessage + Notes verified); .p8 + reboot + dev pairing owed
+## 107. 🔧 T6 Phase 1+2 — Mac Mini backend EXECUTED + reboot-verified; ONLY the from-Talaria-chat send (Shelley message) remains
+
+> **Reboot test PASS (2026-07-16, Owen at the screen):** relay, connector, gateway, and shim all
+> recovered at login (LaunchAgents); APNs came up clean on its first post-.p8 boot (zero
+> key-not-found lines); connector reattached in ~2 min; phone→Mac chat round-trip worked with no
+> hands on the Mac. Findings: (a) **recovery is login-gated** — auto-login and
+> `pmset autorestart` are both OFF, so an unattended power event parks the stack at the login
+> screen until someone logs in; enabling both is Owen's posture call, documented not decided.
+> (b) **BlueBubbles was the sole casualty**: its login start hung silently in "pre-start checks"
+> (BB-internal flake — identical signature in its log from Jul 5; ruled out: architecture and
+> TCC, since the binary held chat.db handles while hung). Cure: `pkill -9 -f BlueBubbles` +
+> fresh launch → "Successfully started HTTP server"; the gateway's 300s-backoff retry then
+> self-attached ("✓ bluebubbles reconnected successfully"). Incident bonus: BB migrated to the
+> **native arm64 1.9.9 build** (Rosetta retired). Recommended BB settings, Owen's clicks:
+> enable BB auto-start (method: launch-agent — their crash-persistence mode) so boot recovery
+> stops depending on window restoration; note BB's headless quirk (instance logged headless
+> despite config `headless|0` — the dashboard window may not exist when you go looking; the
+> real log is `~/Library/Logs/bluebubbles-server/main.log`).
 
 > **Executed 2026-07-14/15 (Claude Desktop session, main @ da24e4a).** Phase 1 on-box complete:
 > relay LaunchAgent `org.aethyrion.talaria-relay` live on :8000 (venv py3.13), connector
