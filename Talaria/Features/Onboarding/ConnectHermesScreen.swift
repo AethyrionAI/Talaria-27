@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ConnectHermesScreen: View {
+    @Environment(AppContainer.self) private var container
     @Environment(PairingStore.self) private var pairingStore
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(TabRouter.self) private var router
@@ -49,6 +50,19 @@ struct ConnectHermesScreen: View {
                 setupCode = formatted
             }
         }
+        // Lane M (M-12): a per-profile pair target must not outlive the
+        // pairing flow — leaving the screen clears it (success already did).
+        .onDisappear {
+            pairingStore.pairingTargetProfileID = nil
+        }
+    }
+
+    // MARK: - Lane M: pair target (M-12)
+
+    /// The profile this pairing writes into: the named target from the
+    /// Server screen's per-profile Pair action, else the active profile.
+    private var targetProfile: BackendProfile? {
+        container.profilesStore?.resolvedProfile(id: pairingStore.pairingTargetProfileID)
     }
 
     // MARK: - Hero (reactor orb + wordmark)
@@ -93,42 +107,33 @@ struct ConnectHermesScreen: View {
     private var relayConfigurationCard: some View {
         HUDPanel(cornerRadius: Design.CornerRadius.lg) {
             VStack(alignment: .leading, spacing: Design.Spacing.md) {
-                MonoLabel("RELAY", weight: .medium, tracking: Design.Tracking.monoXWide,
-                          color: Design.Colors.secondaryForeground)
+                // Lane M (M-12): pairing writes into ONE named profile's slot
+                // — say which, so pairing the Mac never reads as touching
+                // OJAMD. (The hosted-relay mode is retired, M-13.)
+                MonoLabel(
+                    "RELAY · \((targetProfile?.name ?? "HERMES").uppercased())",
+                    weight: .medium, tracking: Design.Tracking.monoXWide,
+                    color: Design.Colors.secondaryForeground
+                )
 
-                if relayConfiguration.canUseHosted {
-                    Picker("Relay Mode", selection: relayModeBinding) {
-                        Text(RelayMode.custom.displayLabel).tag(RelayMode.custom)
-                        Text(RelayMode.hosted.displayLabel).tag(RelayMode.hosted)
+                TextField("https://your-relay.example.com/v1", text: customRelayURLBinding)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                    .autocorrectionDisabled()
+                    .font(Design.Typography.mono(13, weight: .regular))
+                    .foregroundStyle(Design.Colors.coolForeground)
+                    .padding(Design.Spacing.md)
+                    .background(Design.Colors.background.opacity(0.5),
+                                in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                            .strokeBorder(Design.Colors.strongBorder, lineWidth: 1)
                     }
-                    .pickerStyle(.segmented)
-                    .tint(Design.Brand.accent)
-                }
+                    .accessibilityLabel("Relay URL")
 
-                if relayConfiguration.relayMode == .custom {
-                    TextField("https://your-relay.example.com/v1", text: customRelayURLBinding)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.URL)
-                        .autocorrectionDisabled()
-                        .font(Design.Typography.mono(13, weight: .regular))
-                        .foregroundStyle(Design.Colors.coolForeground)
-                        .padding(Design.Spacing.md)
-                        .background(Design.Colors.background.opacity(0.5),
-                                    in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                                .strokeBorder(Design.Colors.strongBorder, lineWidth: 1)
-                        }
-                        .accessibilityLabel("Relay URL")
-
-                    Text("This should be your relay API base URL. The app will append pairing and chat endpoints to it.")
-                        .font(Design.Typography.caption)
-                        .foregroundStyle(Design.Colors.secondaryForeground)
-                } else if let hostedRelayBaseURL = relayConfiguration.hostedRelayBaseURL {
-                    Text(hostedRelayBaseURL)
-                        .font(Design.Typography.mono(13, weight: .regular))
-                        .foregroundStyle(Design.Colors.secondaryForeground)
-                }
+                Text("This should be your relay API base URL. The app will append pairing and chat endpoints to it.")
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Colors.secondaryForeground)
 
                 if let relayValidationMessage {
                     Text(relayValidationMessage)
@@ -274,42 +279,53 @@ struct ConnectHermesScreen: View {
         pairingStore.lastErrorMessage ?? localErrorMessage
     }
 
-    private var relayConfiguration: RelayConfiguration {
-        settingsStore.settings.relayConfiguration
+    /// The relay URL this pairing will redeem against — the TARGET profile's
+    /// endpoint (Lane M), falling back to the legacy settings field only in
+    /// profile-less constructions.
+    private var currentRelayURL: String {
+        targetProfile?.relayBaseURL ?? settingsStore.settings.relayConfiguration.customRelayBaseURL
     }
 
     private var relayValidationMessage: String? {
-        relayConfiguration.validationMessage
+        let trimmed = currentRelayURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "Enter your relay URL." }
+        guard RelayConfiguration.normalizeBaseURL(trimmed) != nil else {
+            return "Relay URL must be an absolute http(s) URL ending with /v1."
+        }
+        return nil
     }
 
     private var isRelayConfigurationValid: Bool {
         relayValidationMessage == nil
     }
 
-    private var relayModeBinding: Binding<RelayMode> {
-        Binding(
-            get: { settingsStore.settings.relayConfiguration.relayMode },
-            set: { newValue in
-                var relayConfiguration = settingsStore.settings.relayConfiguration
-                relayConfiguration.relayMode = newValue
-                settingsStore.settings.relayConfiguration = relayConfiguration
+    /// Writes the TARGET profile's relay endpoint (Lane M): pairing the Mac
+    /// must never rewrite OJAMD's relay URL. The legacy settings field is
+    /// mirror-written only when the target IS the active profile, keeping the
+    /// pre-profile record coherent.
+    private func setRelayURL(_ rawValue: String) {
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let profilesStore = container.profilesStore, let target = targetProfile {
+            var updated = target
+            updated.relayBaseURL = trimmed
+            profilesStore.upsert(updated)
+            if target.id == profilesStore.activeProfileID {
+                settingsStore.settings.relayConfiguration = RelayConfiguration(customRelayBaseURL: trimmed)
             }
-        )
+        } else {
+            settingsStore.settings.relayConfiguration = RelayConfiguration(customRelayBaseURL: trimmed)
+        }
     }
 
     private var customRelayURLBinding: Binding<String> {
         Binding(
-            get: { settingsStore.settings.relayConfiguration.customRelayBaseURL },
-            set: { newValue in
-                var relayConfiguration = settingsStore.settings.relayConfiguration
-                relayConfiguration.customRelayBaseURL = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                settingsStore.settings.relayConfiguration = relayConfiguration
-            }
+            get: { currentRelayURL },
+            set: { setRelayURL($0) }
         )
     }
 
     /// Parse a QR code value — either a JSON payload `{"code":"...","relay":"..."}` or a plain pairing code.
-    /// When JSON includes a relay URL, auto-configures the relay before pairing.
+    /// When JSON includes a relay URL, auto-configures the TARGET profile's relay before pairing.
     private func handleScannedValue(_ value: String) {
         // Try JSON payload first (new format from connector)
         if let data = value.data(using: .utf8),
@@ -317,10 +333,7 @@ struct ConnectHermesScreen: View {
            let code = json["code"] as? String {
             // Auto-fill relay URL from QR if present
             if let relay = json["relay"] as? String, !relay.isEmpty {
-                var config = settingsStore.settings.relayConfiguration
-                config.relayMode = .custom
-                config.customRelayBaseURL = relay
-                settingsStore.settings.relayConfiguration = config
+                setRelayURL(relay)
             }
             Task { await completePairing(using: code) }
             return

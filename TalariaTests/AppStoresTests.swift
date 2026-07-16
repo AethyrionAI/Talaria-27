@@ -1787,8 +1787,6 @@ struct AppStoresTests {
         let settingsStore = SettingsStore(
             persistence: persistence,
             buildConfiguration: AppBuildConfiguration(
-                hostedRelayBaseURL: nil,
-                hostedRelayEnabled: false,
                 supportURL: nil,
                 termsOfServiceURL: nil,
                 privacyPolicyURL: nil
@@ -1796,10 +1794,7 @@ struct AppStoresTests {
         )
 
         settingsStore.settings.relayConfiguration = RelayConfiguration(
-            relayMode: .custom,
-            customRelayBaseURL: "https://demo.example.com/v1",
-            hostedRelayBaseURL: nil,
-            hostedRelayEnabled: false
+            customRelayBaseURL: "https://demo.example.com/v1"
         )
 
         let reloaded = persistence.loadUserSettings()
