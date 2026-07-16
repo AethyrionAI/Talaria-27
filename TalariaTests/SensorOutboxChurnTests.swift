@@ -29,15 +29,21 @@ struct SensorOutboxChurnTests {
         // Unused protocol surface — inert.
         func loadUserSettings() -> UserSettings? { nil }
         func saveUserSettings(_ settings: UserSettings) {}
-        func loadSessionState() -> AppSessionState? { nil }
-        func saveSessionState(_ state: AppSessionState) {}
-        func clearSessionState() {}
+        func loadSessionState(profileScope: UUID?) -> AppSessionState? { nil }
+        func saveSessionState(_ state: AppSessionState, profileScope: UUID?) {}
+        func clearSessionState(profileScope: UUID?) {}
         func loadInboxState() -> InboxLocalState { InboxLocalState() }
         func saveInboxState(_ state: InboxLocalState) {}
         func clearInboxState() {}
-        func loadPairedRelayConfiguration() -> PairedRelayConfiguration? { nil }
-        func savePairedRelayConfiguration(_ configuration: PairedRelayConfiguration) {}
-        func clearPairedRelayConfiguration() {}
+        func loadPairedRelayConfiguration(profileScope: UUID?) -> PairedRelayConfiguration? { nil }
+        func savePairedRelayConfiguration(_ configuration: PairedRelayConfiguration, profileScope: UUID?) {}
+        func clearPairedRelayConfiguration(profileScope: UUID?) {}
+        func loadBackendProfilesState() -> BackendProfilesState? { nil }
+        func saveBackendProfilesState(_ state: BackendProfilesState) {}
+        func clearBackendProfilesState() {}
+        func loadSessionProfileIndex() -> SessionProfileIndex { SessionProfileIndex() }
+        func saveSessionProfileIndex(_ index: SessionProfileIndex) {}
+        func clearSessionProfileIndex() {}
         func loadConversationCache() -> Conversation? { nil }
         func saveConversationCache(_ conversation: Conversation) {}
         func clearConversationCache() {}
