@@ -87,13 +87,13 @@ struct ServerSettingsTests {
 
         // Seed BOTH slots as paired: OJAMD (active, legacy scope) + Mac.
         let ojamdConfig = PairedRelayConfiguration(
-            baseURLString: "http://ojamd:8000/v1", hostDisplayName: "ojamd", pairedAt: .now, relayUserID: UUID()
+            baseURLString: "http://ojamd:8000/v1", hostDisplayName: "ojamd", pairedAt: Date(timeIntervalSince1970: 1_752_600_000), relayUserID: UUID()
         )
         persistence.savePairedRelayConfiguration(ojamdConfig, profileScope: nil)
         await secureStore.store(key: "session.accessToken", value: "ojamd-token")
         let macScope = try #require(mac.credentialScopeID)
         persistence.savePairedRelayConfiguration(
-            PairedRelayConfiguration(baseURLString: "http://macmini:8000/v1", hostDisplayName: "mac", pairedAt: .now, relayUserID: UUID()),
+            PairedRelayConfiguration(baseURLString: "http://macmini:8000/v1", hostDisplayName: "mac", pairedAt: Date(timeIntervalSince1970: 1_752_600_000), relayUserID: UUID()),
             profileScope: macScope
         )
         await secureStore.store(key: BackendProfileScopedKeys.accessToken(macScope), value: "mac-token")

@@ -166,7 +166,7 @@ struct ServerSettingsScreen: View {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: Design.Spacing.xs) {
                             Text(profile.name)
-                                .font(Design.Typography.body(16, weight: .semibold))
+                                .font(Design.Typography.body(16, weight: .medium))
                                 .foregroundStyle(isActive ? Design.Colors.foregroundBright : Design.Colors.foreground)
                                 .lineLimit(1)
                             if isActive {
@@ -350,33 +350,52 @@ struct ServerSettingsScreen: View {
     // MARK: Reachability probes (real data only — M-12)
 
     private func probeAllProfiles() async {
-        await withTaskGroup(of: (UUID, ServerProfileReachability).self) { group in
-            for profile in profiles {
-                group.addTask { @MainActor in
-                    (profile.id, await self.probe(profile))
-                }
+        // Build fix (2026-07-16): tuple-returning children AND children that
+        // capture the View struct both trip "pattern that the region-based
+        // isolation checker does not understand" on the iOS 27 SDK. Resolve
+        // each profile's key up front (cheap Keychain reads, on the View),
+        // then fan out static probes whose closures capture only Sendable
+        // values + a MainActor accumulator box — the proven
+        // SessionsHermesClient pattern. Probes still overlap.
+        var keyed: [(profile: BackendProfile, key: String?)] = []
+        for profile in profiles {
+            keyed.append((profile, await container.gatewayAPIKey(for: profile)))
+        }
+        let gathered = ProbeAccumulator()
+        // …and the iOS 27 SDK's checker rejects even fully-Sendable captures
+        // inside `withTaskGroup` children here (third pattern variant tried).
+        // Unstructured Task handles bypass the task-group region machinery:
+        // Task<Void, Never> needs only Sendable Void, closures capture only
+        // Sendable values, probes still overlap, and we await every handle
+        // before reading the box.
+        let handles = keyed.map { entry in
+            Task { @MainActor in
+                gathered.results[entry.profile.id] = await Self.probe(entry.profile, gatewayKey: entry.key)
             }
-            for await (id, result) in group {
-                reachability[id] = result
-            }
+        }
+        for handle in handles {
+            await handle.value
+        }
+        for (id, result) in gathered.results {
+            reachability[id] = result
         }
     }
 
-    private func probe(_ profile: BackendProfile) async -> ServerProfileReachability {
+    private static func probe(_ profile: BackendProfile, gatewayKey: String?) async -> ServerProfileReachability {
         var result = ServerProfileReachability()
-        result.gateway = await probeGateway(profile)
+        result.gateway = await probeGateway(profile, gatewayKey: gatewayKey)
         result.shim = await probeShim(profile)
         return result
     }
 
     /// GET {gateway}/v1/models with the profile's key: 2xx = online,
     /// 401/403 = answering but unkeyed, anything else = offline.
-    private func probeGateway(_ profile: BackendProfile) async -> ServerProbeResult {
+    private static func probeGateway(_ profile: BackendProfile, gatewayKey: String?) async -> ServerProbeResult {
         let base = profile.gatewayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !base.isEmpty, let url = URL(string: normalized(base) + "/v1/models") else { return .unknown }
         var request = URLRequest(url: url)
         request.timeoutInterval = 5
-        if let key = await container.gatewayAPIKey(for: profile), !key.isEmpty {
+        if let key = gatewayKey, !key.isEmpty {
             request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         }
         do {
@@ -389,7 +408,7 @@ struct ServerSettingsScreen: View {
     }
 
     /// GET {shim}/healthz — the shim's unauthenticated health route.
-    private func probeShim(_ profile: BackendProfile) async -> ServerProbeResult {
+    private static func probeShim(_ profile: BackendProfile) async -> ServerProbeResult {
         guard let raw = profile.shimBaseURL?.trimmingCharacters(in: .whitespacesAndNewlines),
               !raw.isEmpty, let url = URL(string: normalized(raw) + "/healthz") else { return .unknown }
         var request = URLRequest(url: url)
@@ -403,11 +422,22 @@ struct ServerSettingsScreen: View {
         }
     }
 
-    private func normalized(_ raw: String) -> String {
+    private static func normalized(_ raw: String) -> String {
         var trimmed = raw
         while trimmed.hasSuffix("/") { trimmed.removeLast() }
         return trimmed
     }
+}
+
+/// Region-checker workaround box for the profile reachability probes (M-12).
+/// Every child task in the probe group is MainActor-isolated, so writes never
+/// race; the MainActor-isolated reference type (implicitly Sendable) is what
+/// lets results cross the task-group boundary without moving non-Sendable
+/// tuples — or the View struct itself — through it. Same pattern as
+/// SessionsHermesClient.ProfileFetchAccumulator.
+@MainActor
+private final class ProbeAccumulator {
+    var results: [UUID: ServerProfileReachability] = [:]
 }
 
 // MARK: - Profile editor sheet (add / edit)

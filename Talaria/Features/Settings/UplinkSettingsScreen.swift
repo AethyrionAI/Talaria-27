@@ -147,8 +147,17 @@ struct UplinkSettingsScreen: View {
         isPaired && apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    /// The active profile's relay-plane pairing state. Mirrors
+    /// ServerSettingsScreen's accessor (there is no `pairingStore` in this
+    /// view's environment); false when profiles haven't been wired yet.
+    private var activeProfileIsPaired: Bool {
+        guard let activeID = container.profilesStore?.activeProfileID,
+              let sessions = container.profileRelaySessions else { return false }
+        return sessions.isPaired(profileID: activeID)
+    }
+
     private var showsUnkeyedNudge: Bool {
-        Self.unkeyedNudgeVisible(isPaired: pairingStore.isPaired, apiKey: container.hermesAPIKey)
+        Self.unkeyedNudgeVisible(isPaired: activeProfileIsPaired, apiKey: container.hermesAPIKey)
     }
 
     private var unkeyedProfileNotice: some View {
