@@ -176,6 +176,8 @@ final class AppContainer {
             )
         )
         let sessionProfileIndex = SessionProfileIndexStore(persistence: persistence)
+        // #25: session→last-run-usage index — the CTX gauge's resume cache.
+        let sessionUsageIndex = SessionUsageIndexStore(persistence: persistence)
         // Seed the runtime theme from the persisted appearance prefs before the
         // first frame renders, so a saved non-cyan accent never flashes cyan.
         // (Live updates are mirrored from the app root via ThemeRuntime.apply.)
@@ -309,6 +311,7 @@ final class AppContainer {
             transplanter: transplanter,
             activeProfileIDProvider: { profilesStore.activeProfileID },
             profileIndex: sessionProfileIndex,
+            usageIndex: sessionUsageIndex,
             profileEndpointResolver: { profileID in
                 guard let profile = profilesStore.profile(id: profileID) else { return nil }
                 let baseURL = profile.gatewayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)

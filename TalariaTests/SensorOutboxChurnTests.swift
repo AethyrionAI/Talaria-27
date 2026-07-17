@@ -37,6 +37,9 @@ private final class SpyPersistenceStore: AppPersistenceStoreProtocol {
     func loadSessionProfileIndex() -> SessionProfileIndex { SessionProfileIndex() }
     func saveSessionProfileIndex(_ index: SessionProfileIndex) {}
     func clearSessionProfileIndex() {}
+    func loadSessionUsageIndex() -> SessionUsageIndex { SessionUsageIndex() }
+    func saveSessionUsageIndex(_ index: SessionUsageIndex) {}
+    func clearSessionUsageIndex() {}
     func loadConversationCache() -> Conversation? { nil }
     func saveConversationCache(_ conversation: Conversation) {}
     func clearConversationCache() {}

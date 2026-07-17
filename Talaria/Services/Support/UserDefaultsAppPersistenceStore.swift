@@ -7,6 +7,7 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         static let inboxState = "hermes.inboxState"
         static let backendProfiles = "hermes.backendProfiles"
         static let sessionProfileIndex = "hermes.sessionProfileIndex"
+        static let sessionUsageIndex = "hermes.sessionUsageIndex"
         static let sensorOutboxState = "hermes.sensorOutboxState"
         static let conversationCache = "hermes.conversationCache"
         static let conversationJournal = "hermes.conversationJournal"
@@ -137,6 +138,21 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
 
     func clearSessionProfileIndex() {
         defaults.removeObject(forKey: Keys.sessionProfileIndex)
+    }
+
+    // #25: a malformed blob decodes to nil in load(_:key:) and lands here as
+    // a fresh empty index — the gauge degrades to "unknown", never to a wrong
+    // number and never to a throw.
+    func loadSessionUsageIndex() -> SessionUsageIndex {
+        load(SessionUsageIndex.self, key: Keys.sessionUsageIndex) ?? SessionUsageIndex()
+    }
+
+    func saveSessionUsageIndex(_ index: SessionUsageIndex) {
+        save(index, key: Keys.sessionUsageIndex)
+    }
+
+    func clearSessionUsageIndex() {
+        defaults.removeObject(forKey: Keys.sessionUsageIndex)
     }
 
     /// The #41 dual-store read: Keychain wins, whichever side is missing is
