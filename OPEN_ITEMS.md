@@ -4148,7 +4148,21 @@ Logged 2026-07-17.
 
 ---
 
-## 127. ✨ Monetization scaffold — StoreKit 2 freemium gate (Owen: freemium + paid BYOK-connect, 2026-07-17)
+## 127. 🔧 Monetization scaffold — MERGED DORMANT (PR #114, 2026-07-18); ASC product setup + sandbox pass owed before flip
+
+> **MERGED 2026-07-18 (PR #114, `62d169b`), fully dormant** — `MonetizationConfiguration.isEnabled
+> = false`, one-line flip at launch. Loop-verified against every trap in the dispatch: gate wraps
+> the paywall at the PRESENTATION site (ContentView swaps `ConnectedPaywallView` for
+> `ConnectHermesHostScreen` on `.showPaywall`; the pairing screen itself untouched); the pure
+> `ConnectGate.verdict` matrix pins fail-OPEN for existing pairings and cached-entitled unknowns,
+> fail-closed only for new connects with no entitlement evidence; both product-kind scan paths
+> behind `MonetizationConfiguration.productKind` (subscription nil-expiry errs toward the payer);
+> price only via StoreKit `displayPrice`; DEBUG override in Developer settings. **20 new tests
+> (MonetizationGateTests); suite 800/67 — new baseline.** Tree-identity validated. → **Owed
+> (Owen, pre-flip):** App Store Connect product `org.aethyrion.talaria27.connected` + sandbox
+> tester (steps in the PR body); device sandbox purchase + restore round-trip; DEBUG-override
+> gate walk. Benign loop note: a sim-side stale `hermes.sessionUsageIndex` value exercised the
+> #25 tolerant decode (logged + recovered) — the tolerance working, nothing owed.
 
 Free = standalone (on-device model, voice, OCR, widgets, trends, share, lock). Paid "Connected"
 = the connect-your-own-host feature set (pairing, profiles, uplink, inbox, realtime).
