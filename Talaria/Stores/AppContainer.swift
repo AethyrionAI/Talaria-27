@@ -8,8 +8,6 @@ private let containerLog = Logger(subsystem: "org.aethyrion.talaria", category: 
 @Observable
 final class AppContainer {
     static let apnsTokenDefaultsKey = "hermes.apns.deviceToken"
-    static let hermesAPIKeyKeychainKey = "hermes.apiServerKey"
-    static let modelsShimTokenKeychainKey = "talaria.modelsShimToken"
     private static let sharedDefaultContainer = AppContainer.makeDefault()
 
     let router = TabRouter()
@@ -40,6 +38,29 @@ final class AppContainer {
     /// sessions drawer + conversation search. Nil in bare test containers
     /// that construct stores directly.
     private(set) var conversationListState: ConversationListStateStore?
+    /// Lane M (#114): the named backend profiles — active + sensor
+    /// destination + per-profile credential scoping. Nil in bare test
+    /// containers that construct stores directly (legacy single-backend
+    /// behavior).
+    private(set) var profilesStore: BackendProfilesStore?
+    /// Lane M: session→birth-profile index, written by the Sessions client.
+    private(set) var sessionProfileIndex: SessionProfileIndexStore?
+    /// Lane M PR 2: per-profile relay access for non-active backends —
+    /// pinned sensors (M-8), per-relay push (M-7), dormant refresh (M-9).
+    private(set) var profileRelaySessions: ProfileRelaySessionFactory?
+    /// Lane M PR 2: in-memory gateway API keys for EVERY profile (Keychain
+    /// reads are async; per-session endpoint resolution is sync).
+    fileprivate var gatewayKeyCache: ProfileGatewayKeyCache?
+    /// Lane M: the concrete Sessions client, kept for the surfaces that are
+    /// profile-aware by nature (M-16's new-chat-on-profile override).
+    private(set) var sessionsChatClient: SessionsHermesClient?
+    /// #116: post-pair provisioning bundle — auto-fills a profile's shim
+    /// URL/token (+ empty gateway URL) from the relay after a successful
+    /// pair, and backs the Server screen's "Refresh Provisioning" action.
+    private(set) var provisioningService: ProvisioningService?
+    /// M-9 thrash guard: dormant-refresh attempts this process, so a failing
+    /// relay isn't re-tried on every foreground.
+    private var dormantRefreshAttempts: [UUID: Date] = [:]
     /// #17: Spotlight donation for sessions + agent files, strictly behind the
     /// Privacy toggle (default OFF); wired in makeDefault().
     let spotlightIndexing = SpotlightIndexingService()
@@ -65,6 +86,10 @@ final class AppContainer {
     private var isInitialized = false
     private var lastCommandCatalogRefreshAt: Date?
     private var lastKnownHostOnline = false
+    /// Edge tracker for the talk-session read-aloud cutoff (#84): the
+    /// onSessionStateChanged callback fires on every state tick during a
+    /// session, but the read-aloud stop() belongs only on the OFF->ON edge.
+    private var lastKnownTalkSessionActive = false
 
     private static let commandCatalogRefreshInterval: TimeInterval = 60
 
@@ -137,6 +162,22 @@ final class AppContainer {
             persistence: persistence,
             buildConfiguration: buildConfiguration
         )
+        // Lane M (#114): the backend profiles. Construction runs the one-shot
+        // migration — the first launch after this ships mints an "OJAMD"
+        // profile from the pre-profile settings values (which stop being
+        // app-wide truth and become that profile's seeds), keeping the
+        // legacy credential keys so nothing in the Keychain moves.
+        let profilesStore = BackendProfilesStore(
+            persistence: persistence,
+            migrationSeeds: BackendProfilesStore.MigrationSeeds(
+                gatewayBaseURL: settingsStore.settings.hermesAPIBaseURL,
+                relayBaseURL: settingsStore.settings.relayConfiguration.activeBaseURLString,
+                shimBaseURL: settingsStore.settings.modelsShimBaseURL
+            )
+        )
+        let sessionProfileIndex = SessionProfileIndexStore(persistence: persistence)
+        // #25: session→last-run-usage index — the CTX gauge's resume cache.
+        let sessionUsageIndex = SessionUsageIndexStore(persistence: persistence)
         // Seed the runtime theme from the persisted appearance prefs before the
         // first frame renders, so a saved non-cyan accent never flashes cyan.
         // (Live updates are mirrored from the app root via ThemeRuntime.apply.)
@@ -160,7 +201,7 @@ final class AppContainer {
 
         let apiClient = RelayAPIClient {
             activePairingStore?.pairedRelayConfiguration?.baseURLString
-                ?? settingsStore.settings.relayConfiguration.activeBaseURLString
+                ?? profilesStore.activeProfile?.relayBaseURL
                 ?? ""
         }
 
@@ -176,7 +217,8 @@ final class AppContainer {
             secureStore: secureStore,
             persistence: persistence,
             notificationService: notificationService,
-            environmentProvider: { settingsStore.settings.environment }
+            environmentProvider: { settingsStore.settings.environment },
+            credentialScopeProvider: { profilesStore.activeProfile?.credentialScopeID }
         )
 
         let runtimePairingStore = PairingStore(
@@ -184,7 +226,8 @@ final class AppContainer {
             sessionStore: sessionStore,
             persistence: persistence,
             environmentProvider: { settingsStore.settings.environment },
-            relayBaseURLProvider: { settingsStore.settings.relayConfiguration.activeBaseURLString }
+            relayBaseURLProvider: { profilesStore.activeProfile?.relayBaseURL },
+            profileResolver: { id in profilesStore.resolvedProfile(id: id) }
         )
         activePairingStore = runtimePairingStore
 
@@ -252,14 +295,43 @@ final class AppContainer {
         let journalStore = ConversationJournalStore(persistence: persistence)
         let transplanter = ContextTransplanter(intelligence: localIntelligence)
 
+        // Lane M PR 2: sync per-profile endpoint resolution needs every
+        // profile's gateway key in memory — loaded from the Keychain at
+        // startup (below) and updated on save/switch.
+        let gatewayKeyCache = ProfileGatewayKeyCache()
+
         let sessionsClient = SessionsHermesClient(
             baseURLProvider: {
-                let raw = settingsStore.settings.hermesAPIBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                let raw = (profilesStore.activeProfile?.gatewayBaseURL ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
                 return raw.isEmpty ? nil : raw
             },
             apiKeyProvider: { hermesAPIKeyBox.value },
             journal: journalStore,
-            transplanter: transplanter
+            transplanter: transplanter,
+            activeProfileIDProvider: { profilesStore.activeProfileID },
+            profileIndex: sessionProfileIndex,
+            usageIndex: sessionUsageIndex,
+            profileEndpointResolver: { profileID in
+                guard let profile = profilesStore.profile(id: profileID) else { return nil }
+                let baseURL = profile.gatewayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !baseURL.isEmpty,
+                      let key = gatewayKeyCache.key(forScope: profile.credentialScopeID),
+                      !key.isEmpty else { return nil }
+                return (baseURL, key)
+            },
+            chatProfilesProvider: {
+                // Every profile with a usable chat endpoint lists sessions
+                // (M-5). The active profile always participates — its key
+                // rides the box, which may be ahead of the cache briefly.
+                profilesStore.profiles.filter { profile in
+                    guard !profile.gatewayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                        return false
+                    }
+                    if profile.id == profilesStore.activeProfileID { return true }
+                    return gatewayKeyCache.key(forScope: profile.credentialScopeID)?.isEmpty == false
+                }
+            }
         )
         let hermesClient = ResilientHermesClient(
             primary: sessionsClient,
@@ -298,7 +370,8 @@ final class AppContainer {
         let shimTokenBox = MutableShimTokenBox()
         let modelsShimClient = ModelsShimClient(
             baseURLProvider: {
-                let raw = settingsStore.settings.modelsShimBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                let raw = (profilesStore.activeProfile?.shimBaseURL ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
                 return raw.isEmpty ? nil : raw
             },
             tokenProvider: { [hermesAPIKeyBox] in
@@ -315,16 +388,60 @@ final class AppContainer {
             }
         )
 
+        // Lane M PR 2: per-profile relay access for the non-active backends.
+        let profileRelaySessions = ProfileRelaySessionFactory(
+            persistence: persistence,
+            secureStore: secureStore,
+            profileResolver: { profilesStore.profile(id: $0) },
+            activeProfileIDProvider: { profilesStore.activeProfileID }
+        )
+        profileRelaySessions.onTokensRefreshed = { profilesStore.stampTokenRefresh(profileID: $0) }
+
+        // M-8: the sensor outbox drains to the PINNED destination profile,
+        // independent of the active one — production context must not go
+        // dark when Owen switches to the Mac. When the destination IS the
+        // active profile (the default, and the only pre-Lane-M state) every
+        // provider resolves exactly as before, through the live stores.
+        let sensorDestinationIsActive: @MainActor () -> Bool = {
+            profilesStore.sensorDestinationProfileID == profilesStore.activeProfileID
+        }
+        let sensorRelayClient = RelayAPIClient {
+            if sensorDestinationIsActive() {
+                return activePairingStore?.pairedRelayConfiguration?.baseURLString
+                    ?? profilesStore.activeProfile?.relayBaseURL
+                    ?? ""
+            }
+            guard let destination = profilesStore.sensorDestinationProfileID else { return "" }
+            return profileRelaySessions.relayBaseURL(forProfileID: destination) ?? ""
+        }
         let liveLocationService = LiveLocationService()
         liveLocationService.updateSyncPreference(settingsStore.settings.locationSyncPreference)
         let liveHealthService = LiveHealthService(persistence: persistence)
         let liveMotionService = LiveMotionService()
         let sensorUploadService: SensorUploadService? = usesMockPairingService ? nil : SensorUploadService(
-            apiClient: apiClient,
-            accessTokenProvider: { await sessionStore.currentAccessToken() },
-            accessTokenRefresher: relayAccessTokenRefresher,
+            apiClient: sensorRelayClient,
+            accessTokenProvider: {
+                if sensorDestinationIsActive() {
+                    return await sessionStore.currentAccessToken()
+                }
+                guard let destination = profilesStore.sensorDestinationProfileID else { return nil }
+                return await profileRelaySessions.accessToken(forProfileID: destination)
+            },
+            accessTokenRefresher: {
+                if sensorDestinationIsActive() {
+                    return await relayAccessTokenRefresher()
+                }
+                guard let destination = profilesStore.sensorDestinationProfileID else { return nil }
+                return await profileRelaySessions.refreshAccessToken(forProfileID: destination)
+            },
             persistence: persistence,
-            isPairedProvider: { activePairingStore?.isPaired == true },
+            isPairedProvider: {
+                if sensorDestinationIsActive() {
+                    return activePairingStore?.isPaired == true
+                }
+                guard let destination = profilesStore.sensorDestinationProfileID else { return false }
+                return profileRelaySessions.isPaired(profileID: destination)
+            },
             isHealthCollectionEnabled: { settingsStore.settings.healthCollectionEnabled },
             isLocationCollectionEnabled: { settingsStore.settings.locationCollectionEnabled },
             locationService: liveLocationService,
@@ -404,6 +521,107 @@ final class AppContainer {
         // seam as every other store, read by the drawer + search surfaces.
         container.conversationListState = ConversationListStateStore(persistence: persistence)
 
+        // Lane M (#114): backend profiles + session→profile index.
+        container.profilesStore = profilesStore
+        container.sessionProfileIndex = sessionProfileIndex
+        container.profileRelaySessions = profileRelaySessions
+        container.gatewayKeyCache = gatewayKeyCache
+        container.sessionsChatClient = sessionsClient
+        // #21 Tier 2: fetchable agent-file bubbles download from the
+        // announcing session's birth-profile relay (Lane M — never a global
+        // relay base), authed with that profile's pairing-minted device
+        // bearer. A nil birth profile is a pre-Lane-M record and collapses to
+        // the active profile. The factory refuses to rotate the ACTIVE
+        // profile's tokens (AppSessionStore owns that single-flight refresh),
+        // so an active-profile 401 runs the #15 recovery ladder here and
+        // retries once.
+        container.chatStore.agentFileDownloader = { profileID, remotePath in
+            guard let resolvedID = profileID ?? profilesStore.activeProfileID else {
+                throw RelayAPIClient.FileDownloadError.unauthorized
+            }
+            do {
+                return try await profileRelaySessions.downloadAgentFile(remotePath: remotePath, profileID: resolvedID)
+            } catch RelayAPIClient.FileDownloadError.unauthorized where resolvedID == profilesStore.activeProfileID {
+                guard let fresh = await relayAccessTokenRefresher(), !fresh.isEmpty else {
+                    throw RelayAPIClient.FileDownloadError.unauthorized
+                }
+                return try await profileRelaySessions.apiClient(forProfileID: resolvedID)
+                    .downloadFile(path: remotePath, accessToken: fresh)
+            }
+        }
+        // M-6: activating a profile re-homes the relay-plane surfaces and
+        // credential boxes onto the new backend.
+        profilesStore.onActiveProfileChanged = { [weak container] profile in
+            await container?.handleActiveProfileChanged(to: profile)
+        }
+        // #116: the post-pair provisioning bundle. The fetch rides the
+        // profile's OWN relay + freshly minted access token (works for the
+        // active and dormant slots alike); fills are profile-scoped and the
+        // ACTIVE profile's shim token also lands in the in-memory box the
+        // shim client reads.
+        let provisioningService = ProvisioningService(
+            profileResolver: { profilesStore.profile(id: $0) },
+            upsertProfile: { profilesStore.upsert($0) },
+            readShimToken: { profile in
+                await secureStore.retrieve(key: BackendProfileScopedKeys.shimToken(profile.credentialScopeID))
+            },
+            writeShimToken: { [weak container] value, profile in
+                if profile.id == profilesStore.activeProfileID {
+                    await container?.saveModelsShimToken(value)
+                } else {
+                    await secureStore.store(
+                        key: BackendProfileScopedKeys.shimToken(profile.credentialScopeID),
+                        value: value
+                    )
+                }
+            },
+            fetchDescriptor: { profile in
+                guard let token = await profileRelaySessions.accessToken(forProfileID: profile.id),
+                      !token.isEmpty else {
+                    throw ProvisioningService.ServiceError.notPaired
+                }
+                let client = profileRelaySessions.apiClient(forProfileID: profile.id)
+                let response: DeviceProvisioningResponse = try await client.get(
+                    path: "device/provisioning",
+                    accessToken: token
+                )
+                return response.provisioning
+            }
+        )
+        container.provisioningService = provisioningService
+
+        // M-9: a successful pair mints fresh relay tokens — stamp freshness.
+        // #116: …and the relay can now answer the provisioning fetch — key
+        // the profile automatically (fill-empty-only: a manual value is never
+        // clobbered, and a redeem failure never reaches here — the #94
+        // redeem-first ordering is untouched upstream in pair()).
+        runtimePairingStore.onProfileTokensMinted = { profileID in
+            profilesStore.stampTokenRefresh(profileID: profileID)
+            guard let resolvedID = profileID ?? profilesStore.activeProfileID else { return }
+            Task { @MainActor in
+                do {
+                    _ = try await provisioningService.applyProvisioning(profileID: resolvedID, mode: .fillEmptyOnly)
+                } catch {
+                    containerLog.notice("provisioning auto-fill skipped: \(error.localizedDescription, privacy: .public)")
+                }
+            }
+        }
+        // Keychain hygiene: a deleted profile's credential slot dies with it.
+        // The migrated (legacy-keyed) profile is undeletable in practice —
+        // it's active/sensor-destination until another profile takes over —
+        // but scoped deletion is correct for it too.
+        profilesStore.onProfileDeleted = { profile in
+            let scope = profile.credentialScopeID
+            persistence.clearPairedRelayConfiguration(profileScope: scope)
+            persistence.clearSessionState(profileScope: scope)
+            Task { @MainActor in
+                await secureStore.delete(key: BackendProfileScopedKeys.accessToken(scope))
+                await secureStore.delete(key: BackendProfileScopedKeys.refreshToken(scope))
+                await secureStore.delete(key: BackendProfileScopedKeys.gatewayAPIKey(scope))
+                await secureStore.delete(key: BackendProfileScopedKeys.shimToken(scope))
+            }
+        }
+
         // #27: per-conversation brain preferences key off the live
         // conversation, which ChatStore owns — wire the lookup now that both
         // exist. (The router was built first; ChatStore sits on top of it.)
@@ -456,21 +674,31 @@ final class AppContainer {
             localChatBackend?.setPreferredTier(privateCloud: brain == .privateCloud)
         }
 
-        // Restore any persisted Hermes Sessions-API key into the in-memory box
-        // so the chat client can pick it up on first send without blocking startup.
+        // Restore the persisted Hermes Sessions-API keys into the in-memory
+        // cache (every profile — sync endpoint resolution needs them) and
+        // the active-profile box, so the chat client can pick them up on
+        // first send without blocking startup.
         Task { @MainActor [weak container, hermesAPIKeyBox] in
-            if let stored = await secureStore.retrieve(key: AppContainer.hermesAPIKeyKeychainKey) {
-                hermesAPIKeyBox.value = stored
-                container?.hermesAPIKey = stored
-                // #27: the restored key flips the routing signal — update the
-                // brain indicator without waiting for the next health probe.
-                container?.chatBackendRouter?.refreshActiveBrain()
+            for profile in profilesStore.profiles {
+                let scope = profile.credentialScopeID
+                guard let stored = await secureStore.retrieve(key: BackendProfileScopedKeys.gatewayAPIKey(scope)) else {
+                    continue
+                }
+                gatewayKeyCache.set(stored, forScope: scope)
+                if profile.id == profilesStore.activeProfileID {
+                    hermesAPIKeyBox.value = stored
+                    container?.hermesAPIKey = stored
+                    // #27: the restored key flips the routing signal — update
+                    // the brain indicator without waiting for the next probe.
+                    container?.chatBackendRouter?.refreshActiveBrain()
+                }
             }
         }
 
         // Restore the persisted models-shim bearer token (same pattern).
         Task { @MainActor [weak container, shimTokenBox] in
-            if let stored = await secureStore.retrieve(key: AppContainer.modelsShimTokenKeychainKey) {
+            let scope = profilesStore.activeProfile?.credentialScopeID
+            if let stored = await secureStore.retrieve(key: BackendProfileScopedKeys.shimToken(scope)) {
                 shimTokenBox.value = stored
                 container?.modelsShimToken = stored
             }
@@ -490,7 +718,9 @@ final class AppContainer {
             container?.pairingStore.reloadPersistedConfigurationIfNeeded()
             if hermesAPIKeyBox.value.isEmpty {
                 Task { @MainActor in
-                    if let stored = await secureStore.retrieve(key: AppContainer.hermesAPIKeyKeychainKey), !stored.isEmpty {
+                    let scope = profilesStore.activeProfile?.credentialScopeID
+                    if let stored = await secureStore.retrieve(key: BackendProfileScopedKeys.gatewayAPIKey(scope)), !stored.isEmpty {
+                        gatewayKeyCache.set(stored, forScope: scope)
                         hermesAPIKeyBox.value = stored
                         container?.hermesAPIKey = stored
                         container?.chatBackendRouter?.refreshActiveBrain()
@@ -500,7 +730,8 @@ final class AppContainer {
             }
             if shimTokenBox.value.isEmpty {
                 Task { @MainActor in
-                    if let stored = await secureStore.retrieve(key: AppContainer.modelsShimTokenKeychainKey), !stored.isEmpty {
+                    let scope = profilesStore.activeProfile?.credentialScopeID
+                    if let stored = await secureStore.retrieve(key: BackendProfileScopedKeys.shimToken(scope)), !stored.isEmpty {
                         shimTokenBox.value = stored
                         container?.modelsShimToken = stored
                     }
@@ -527,7 +758,7 @@ final class AppContainer {
             guard UIApplication.shared.isProtectedDataAvailable else { return }
             guard container?.pairingStore.isPaired == false else { return }
             await sessionStore?.clearSession()
-            guard let relayBaseURL = container?.settingsStore.settings.relayConfiguration.activeBaseURLString,
+            guard let relayBaseURL = container?.profilesStore?.activeProfile?.relayBaseURL,
                   !relayBaseURL.isEmpty else { return }
             _ = relayBaseURL
             await sessionStore?.bootstrap(forceRegistration: true)
@@ -537,7 +768,17 @@ final class AppContainer {
         settingsStore.onEnvironmentChanged = { _ in
             await refreshUnpairedRelayContext()
         }
-        settingsStore.onRelayConfigurationChanged = { _ in
+        settingsStore.onRelayConfigurationChanged = { configuration in
+            // Lane M: the legacy relay-config surface (Relay settings screen,
+            // onboarding QR auto-fill) still writes UserSettings — mirror the
+            // resolved URL onto the ACTIVE profile, which is what pairing and
+            // the relay client actually read now. One-way, every writer
+            // covered, so the two records can't drift.
+            profilesStore.updateActiveProfile { profile in
+                // Normalized when valid; the raw text while mid-edit, so a
+                // partially typed URL never snaps the bound field to "".
+                profile.relayBaseURL = configuration.activeBaseURLString ?? configuration.customRelayBaseURL
+            }
             await refreshUnpairedRelayContext()
         }
 
@@ -612,12 +853,20 @@ final class AppContainer {
             Task { await container?.cancelPushWatch(sessionId: sessionId) }
         }
         container.talkStore.onSessionStateChanged = { [weak container] in
-            container?.updateWidgetData()
-            // A Talk session starting takes the audio session — cut any
-            // in-flight read-aloud instead of colliding with it (#2).
-            if container?.talkStore.isSessionActive == true {
-                container?.speechOutput.stop()
+            guard let container else { return }
+            container.updateWidgetData()
+            // A Talk session STARTING takes the audio session — cut any
+            // in-flight read-aloud instead of colliding with it (#2). Edge-
+            // triggered (#84): this callback fires on every state tick during
+            // a session, and each stop() used to reach setActive(false) on the
+            // shared session, killing the live mic. The release itself is also
+            // gated in SpeechOutputService now (didActivateAudioSession);
+            // this edge guard removes the wasted per-tick stop() churn.
+            let isActive = container.talkStore.isSessionActive
+            if isActive, !container.lastKnownTalkSessionActive {
+                container.speechOutput.stop()
             }
+            container.lastKnownTalkSessionActive = isActive
         }
         container.hostStore.onHostChanged = { [weak container] in
             guard let container else { return }
@@ -712,6 +961,8 @@ final class AppContainer {
         // #4.15: a turn that finished while backgrounded skipped reasoning
         // condensation (foreground-only work) — catch it up now.
         await chatStore.condensePendingReasoning()
+        // M-9: keep dormant profiles' relay tokens alive.
+        await refreshDormantProfileTokensIfNeeded()
         reconcileLiveActivities()
         await reportAppStateIfNeeded("foreground")
         updateWidgetData()
@@ -948,18 +1199,22 @@ final class AppContainer {
 
     /// Registers the APNs device token with the relay so it can send silent push notifications.
     func registerPushTokenIfNeeded(_ token: String) async {
-        guard pairingStore.isPaired,
-              let apiClient,
-              let notificationService
-        else { return }
+        guard let notificationService else { return }
+        // M-7: any paired profile makes push registration worth running —
+        // the ACTIVE profile may legitimately be an unpaired one while a
+        // dormant profile still wants its completion pushes.
+        let anyProfilePaired = pairingStore.isPaired
+            || (profilesStore?.profiles.contains { profileRelaySessions?.isPaired(profileID: $0.id) == true } ?? false)
+        guard anyProfilePaired else { return }
 
         // Respect the user's in-app notifications toggle.
-        // If disabled, deactivate any existing registration on the relay
+        // If disabled, deactivate any existing registration on the relays
         // so the user actually stops receiving pushes.
         guard settingsStore.settings.notificationsEnabled else {
             // Always attempt deactivation — the relay may have an active
             // registration from a previous session even if the local flag is false.
             await deactivatePushRegistration()
+            await deactivateDormantPushRegistrations()
             await notificationService.markPushTokenRegistered(false)
             sessionStore.state.pushTokenRegistered = false
             return
@@ -969,6 +1224,22 @@ final class AppContainer {
         guard !normalizedToken.isEmpty else { return }
 
         await notificationService.updatePushToken(normalizedToken)
+        await registerPushTokenWithActiveRelay(normalizedToken, notificationService: notificationService)
+
+        // M-7: every paired relay holds this device's token from its own
+        // pairing and watches its own gateway — completion pushes must work
+        // for BOTH hosts regardless of which is active. Runs even when the
+        // active profile's registration deferred (no token / no deviceID).
+        await registerPushTokenWithDormantRelays(normalizedToken)
+    }
+
+    /// The pre-Lane-M active-relay registration path, verbatim — only the
+    /// dormant fan-out moved out from under its early returns.
+    private func registerPushTokenWithActiveRelay(
+        _ normalizedToken: String,
+        notificationService: any NotificationServiceProtocol
+    ) async {
+        guard pairingStore.isPaired, let apiClient else { return }
 
         guard let accessToken = await sessionStore.currentAccessToken() else {
             containerLog.notice("registerPushToken: no relay access token — registration deferred")
@@ -1029,6 +1300,61 @@ final class AppContainer {
             containerLog.notice("registerPushToken: relay push/register failed: \(error.localizedDescription, privacy: .public)")
             await notificationService.markPushTokenRegistered(false)
             sessionStore.state.pushTokenRegistered = false
+        }
+    }
+
+    /// M-7: best-effort push registration on every paired NON-ACTIVE relay.
+    /// Failures are logged only — the active-relay path above stays the
+    /// authoritative UX signal.
+    private func registerPushTokenWithDormantRelays(_ token: String) async {
+        guard let profilesStore, let profileRelaySessions else { return }
+
+        #if DEBUG
+        let pushEnvironment = "development"
+        #else
+        let pushEnvironment = "production"
+        #endif
+
+        struct PushRegisterBody: Encodable {
+            let deviceId: String
+            let apnsToken: String
+            let pushEnvironment: String
+            let bundleId: String
+        }
+        struct PushRegisterResponse: Decodable {
+            let data: PushData?
+            struct PushData: Decodable { let registered: Bool }
+        }
+
+        for profile in profilesStore.profiles where profile.id != profilesStore.activeProfileID {
+            guard profileRelaySessions.isPaired(profileID: profile.id),
+                  let deviceID = profileRelaySessions.sessionState(forProfileID: profile.id)?.deviceID else { continue }
+            guard var accessToken = await profileRelaySessions.accessToken(forProfileID: profile.id) else { continue }
+
+            let body = PushRegisterBody(
+                deviceId: deviceID.uuidString.lowercased(),
+                apnsToken: token,
+                pushEnvironment: pushEnvironment,
+                bundleId: Bundle.main.bundleIdentifier ?? "org.aethyrion.talaria"
+            )
+            let client = profileRelaySessions.apiClient(forProfileID: profile.id)
+            do {
+                do {
+                    let _: PushRegisterResponse = try await client.post(path: "push/register", body: body, accessToken: accessToken)
+                } catch RelayAPIClient.ClientError.unauthorized {
+                    // Dormant tokens go stale between visits — one refresh,
+                    // one retry, then give up quietly.
+                    guard let refreshed = await profileRelaySessions.refreshAccessToken(forProfileID: profile.id) else {
+                        continue
+                    }
+                    accessToken = refreshed
+                    let _: PushRegisterResponse = try await client.post(path: "push/register", body: body, accessToken: accessToken)
+                }
+                profileRelaySessions.markPushTokenRegistered(true, profileID: profile.id)
+                containerLog.notice("registerPushToken: dormant relay '\(profile.name, privacy: .public)' accepted push registration")
+            } catch {
+                containerLog.notice("registerPushToken: dormant relay '\(profile.name, privacy: .public)' failed: \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 
@@ -1097,6 +1423,26 @@ final class AppContainer {
         ) as DeactivateResponse
     }
 
+    /// M-7: the user's notifications toggle governs EVERY paired relay, not
+    /// just the active one. Best-effort, like the active path.
+    private func deactivateDormantPushRegistrations() async {
+        guard let profilesStore, let profileRelaySessions else { return }
+
+        struct DeactivateResponse: Decodable {
+            let deactivated: Bool?
+        }
+
+        for profile in profilesStore.profiles where profile.id != profilesStore.activeProfileID {
+            guard profileRelaySessions.isPaired(profileID: profile.id),
+                  let accessToken = await profileRelaySessions.accessToken(forProfileID: profile.id) else { continue }
+            _ = try? await profileRelaySessions.apiClient(forProfileID: profile.id).post(
+                path: "push/deactivate",
+                accessToken: accessToken
+            ) as DeactivateResponse
+            profileRelaySessions.markPushTokenRegistered(false, profileID: profile.id)
+        }
+    }
+
     private func registerStoredPushTokenIfNeeded() async {
         guard let storedToken = UserDefaults.standard.string(forKey: Self.apnsTokenDefaultsKey) else {
             return
@@ -1122,15 +1468,51 @@ final class AppContainer {
         await postPushWatch(sessionId: sessionId)
     }
 
+    /// M-7: a watch must be posted to the relay that watches the session's
+    /// BIRTH gateway — a run on the Mac can't be watched by OJAMD's relay.
+    /// Returns nil for the active profile (and for pre-profile sessions,
+    /// which all live on the migrated/active backend): those take the
+    /// original sessionStore-backed path.
+    private func dormantWatchProfileID(forSessionID sessionId: String) -> UUID? {
+        guard let profilesStore, let sessionProfileIndex else { return nil }
+        let target = sessionProfileIndex.index.routingProfileID(
+            forSessionID: sessionId,
+            activeProfileID: profilesStore.activeProfileID
+        )
+        guard let target, target != profilesStore.activeProfileID else { return nil }
+        return target
+    }
+
     func postPushWatch(sessionId: String) async {
-        guard settingsStore.settings.notificationsEnabled,
-              sessionStore.state.pushTokenRegistered,
-              let apiClient,
-              let accessToken = await sessionStore.currentAccessToken()
-        else { return }
+        guard settingsStore.settings.notificationsEnabled else { return }
 
         struct WatchBody: Encodable { let sessionId: String }
         struct WatchResponse: Decodable {}
+
+        if let dormantProfileID = dormantWatchProfileID(forSessionID: sessionId) {
+            // M-7: the session lives on a non-active backend — its own relay
+            // holds this device's push registration and watches its gateway.
+            guard let profileRelaySessions,
+                  profileRelaySessions.sessionState(forProfileID: dormantProfileID)?.pushTokenRegistered == true,
+                  let accessToken = await profileRelaySessions.accessToken(forProfileID: dormantProfileID)
+            else { return }
+            do {
+                let _: WatchResponse = try await profileRelaySessions.apiClient(forProfileID: dormantProfileID).post(
+                    path: "push/watch",
+                    body: WatchBody(sessionId: sessionId),
+                    accessToken: accessToken
+                )
+                containerLog.notice("postPushWatch: dormant-profile relay watching session for completion push")
+            } catch {
+                containerLog.notice("postPushWatch: dormant-profile watch failed (no completion push this run): \(error.localizedDescription, privacy: .public)")
+            }
+            return
+        }
+
+        guard sessionStore.state.pushTokenRegistered,
+              let apiClient,
+              let accessToken = await sessionStore.currentAccessToken()
+        else { return }
 
         do {
             let _: WatchResponse = try await apiClient.post(
@@ -1145,11 +1527,22 @@ final class AppContainer {
     }
 
     func cancelPushWatch(sessionId: String) async {
-        guard let apiClient,
-              let accessToken = await sessionStore.currentAccessToken() else { return }
-
         struct CancelBody: Encodable { let sessionId: String }
         struct CancelResponse: Decodable {}
+
+        if let dormantProfileID = dormantWatchProfileID(forSessionID: sessionId) {
+            guard let profileRelaySessions,
+                  let accessToken = await profileRelaySessions.accessToken(forProfileID: dormantProfileID) else { return }
+            _ = try? await profileRelaySessions.apiClient(forProfileID: dormantProfileID).post(
+                path: "push/watch/cancel",
+                body: CancelBody(sessionId: sessionId),
+                accessToken: accessToken
+            ) as CancelResponse
+            return
+        }
+
+        guard let apiClient,
+              let accessToken = await sessionStore.currentAccessToken() else { return }
 
         _ = try? await apiClient.post(
             path: "push/watch/cancel",
@@ -1368,20 +1761,100 @@ final class AppContainer {
 
     // MARK: - Hermes Sessions API key
 
-    /// Persists the Hermes API server key in the Keychain and updates the
-    /// in-memory copy that the chat client reads on each request.
+    /// The active profile's credential scope (Lane M) — nil resolves the
+    /// legacy key strings (the migrated profile, and bare test containers).
+    private var activeCredentialScope: UUID? {
+        profilesStore?.activeProfile?.credentialScopeID
+    }
+
+    /// Persists the Hermes API server key in the Keychain (under the ACTIVE
+    /// profile's slot) and updates the in-memory copy that the chat client
+    /// reads on each request.
     func saveHermesAPIKey(_ value: String) async {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         hermesAPIKey = trimmed
         chatAPIKeyBox?.value = trimmed
+        gatewayKeyCache?.set(trimmed, forScope: activeCredentialScope)
         // #27: the key is the chat-routing signal — re-resolve the brain
         // indicator immediately instead of waiting for the next health probe.
         chatBackendRouter?.refreshActiveBrain()
         guard let secureStore else { return }
+        let key = BackendProfileScopedKeys.gatewayAPIKey(activeCredentialScope)
         if trimmed.isEmpty {
-            await secureStore.delete(key: Self.hermesAPIKeyKeychainKey)
+            await secureStore.delete(key: key)
         } else {
-            await secureStore.store(key: Self.hermesAPIKeyKeychainKey, value: trimmed)
+            await secureStore.store(key: key, value: trimmed)
+        }
+    }
+
+    // MARK: - Lane M: profile switching (M-6) + dormant freshness (M-9)
+
+    /// Re-homes the app onto a newly activated profile. NON-DESTRUCTIVE by
+    /// construction: nothing is cleared — the previous profile's pairing,
+    /// tokens, and sessions stay in their slots, and the current conversation
+    /// keeps working via its birth-profile affinity (M-5). Only the
+    /// relay-plane interactive surfaces (inbox, host status, push watch
+    /// arming) and the shim/model surfaces re-resolve.
+    func handleActiveProfileChanged(to profile: BackendProfile) async {
+        containerLog.notice("profile switch: activating '\(profile.name, privacy: .public)'")
+        // Rebind the credential-scoped stores FIRST — their persistence
+        // writes resolve the live scope.
+        sessionStore.rebindToCurrentScope()
+        pairingStore.rebindToActiveProfile()
+
+        // Swap the in-memory credential boxes to the new profile's slots.
+        let scope = profile.credentialScopeID
+        if let secureStore {
+            let gatewayKey = await secureStore.retrieve(key: BackendProfileScopedKeys.gatewayAPIKey(scope)) ?? ""
+            gatewayKeyCache?.set(gatewayKey, forScope: scope)
+            hermesAPIKey = gatewayKey
+            chatAPIKeyBox?.value = gatewayKey
+            let shimToken = await secureStore.retrieve(key: BackendProfileScopedKeys.shimToken(scope)) ?? ""
+            modelsShimToken = shimToken
+            shimTokenBox?.value = shimToken
+        }
+        chatBackendRouter?.refreshActiveBrain()
+
+        // Relay-plane + model surfaces re-home (M-6/M-10). The conversation
+        // and journal are deliberately untouched.
+        inboxStore.reset()
+        hostStore.reset()
+        lastKnownHostOnline = false
+        lastCommandCatalogRefreshAt = nil
+        chatStore.resetCommandCatalog()
+
+        if pairingStore.isPaired, await sessionStore.currentAccessToken() != nil {
+            await sessionStore.bootstrap()
+            pairingStore.validateRestoredIdentity()
+            await hostStore.refresh()
+            lastKnownHostOnline = hostStore.isHostOnline
+            await inboxStore.loadInbox(force: true)
+            await registerStoredPushTokenIfNeeded()
+        }
+        await refreshCommandCatalog(force: true)
+        if chatStore.activeModelName == nil {
+            await seedActiveModelFromShim()
+        }
+        await talkStore.refreshReadiness()
+        await chatStore.refreshDirectHealth()
+        updateWidgetData()
+    }
+
+    /// M-9: opportunistically refresh DORMANT profiles' relay tokens on
+    /// foreground so the 30-day refresh TTL never strands one. The policy
+    /// (paired, non-active, >7d since last known refresh, ≥6h between
+    /// attempts) keeps this from thrashing.
+    func refreshDormantProfileTokensIfNeeded() async {
+        guard let profilesStore, let profileRelaySessions else { return }
+        let due = DormantTokenRefreshPolicy.profilesDue(
+            profiles: profilesStore.profiles,
+            activeProfileID: profilesStore.activeProfileID,
+            isPaired: { profileRelaySessions.isPaired(profileID: $0.id) },
+            lastAttempts: dormantRefreshAttempts
+        )
+        for profile in due {
+            dormantRefreshAttempts[profile.id] = .now
+            _ = await profileRelaySessions.refreshAccessToken(forProfileID: profile.id)
         }
     }
 
@@ -1392,17 +1865,54 @@ final class AppContainer {
 
     // MARK: - Models shim token
 
-    /// Persists the models-shim bearer token in the Keychain and updates the
-    /// in-memory copy that `ModelsShimClient` reads on each request.
+    /// Lane M (M-12): a profile's stored gateway API key, for the Server
+    /// screen's editor prefill. Reads the Keychain directly — the cache may
+    /// not have been populated for never-activated profiles.
+    func gatewayAPIKey(for profile: BackendProfile) async -> String? {
+        guard let secureStore else { return nil }
+        return await secureStore.retrieve(key: BackendProfileScopedKeys.gatewayAPIKey(profile.credentialScopeID))
+    }
+
+    /// #116: a profile's stored models-shim token — the Server screen's
+    /// honest shim probe follows /healthz with an authenticated call.
+    func shimToken(for profile: BackendProfile) async -> String? {
+        guard let secureStore else { return nil }
+        return await secureStore.retrieve(key: BackendProfileScopedKeys.shimToken(profile.credentialScopeID))
+    }
+
+    /// Lane M (M-12): saves a gateway API key into a NAMED profile's slot.
+    /// The active profile takes the full `saveHermesAPIKey` path (box +
+    /// routing signal); other profiles update the Keychain + cache so the
+    /// per-session endpoint resolver picks the key up immediately.
+    func saveGatewayAPIKey(_ value: String, for profile: BackendProfile) async {
+        guard profile.id != profilesStore?.activeProfileID else {
+            await saveHermesAPIKey(value)
+            return
+        }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        gatewayKeyCache?.set(trimmed, forScope: profile.credentialScopeID)
+        guard let secureStore else { return }
+        let key = BackendProfileScopedKeys.gatewayAPIKey(profile.credentialScopeID)
+        if trimmed.isEmpty {
+            await secureStore.delete(key: key)
+        } else {
+            await secureStore.store(key: key, value: trimmed)
+        }
+    }
+
+    /// Persists the models-shim bearer token in the Keychain (under the
+    /// ACTIVE profile's slot) and updates the in-memory copy that
+    /// `ModelsShimClient` reads on each request.
     func saveModelsShimToken(_ value: String) async {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         modelsShimToken = trimmed
         shimTokenBox?.value = trimmed
         guard let secureStore else { return }
+        let key = BackendProfileScopedKeys.shimToken(activeCredentialScope)
         if trimmed.isEmpty {
-            await secureStore.delete(key: Self.modelsShimTokenKeychainKey)
+            await secureStore.delete(key: key)
         } else {
-            await secureStore.store(key: Self.modelsShimTokenKeychainKey, value: trimmed)
+            await secureStore.store(key: key, value: trimmed)
         }
     }
 
@@ -1419,4 +1929,30 @@ final class AppContainer {
 @MainActor
 final class MutableHermesAPIKeyBox {
     var value: String = ""
+}
+
+/// Lane M PR 2: in-memory gateway API keys for every profile, keyed by
+/// credential scope. The Keychain is the durable store (async); this cache is
+/// what the Sessions client's SYNCHRONOUS per-profile endpoint resolution
+/// reads. Loaded at startup, updated on save and profile switch.
+@MainActor
+final class ProfileGatewayKeyCache {
+    private var keys: [String: String] = [:]
+
+    private static func cacheKey(_ scope: UUID?) -> String {
+        scope?.uuidString ?? "legacy"
+    }
+
+    func key(forScope scope: UUID?) -> String? {
+        keys[Self.cacheKey(scope)]
+    }
+
+    func set(_ value: String?, forScope scope: UUID?) {
+        let cacheKey = Self.cacheKey(scope)
+        if let value, !value.isEmpty {
+            keys[cacheKey] = value
+        } else {
+            keys.removeValue(forKey: cacheKey)
+        }
+    }
 }

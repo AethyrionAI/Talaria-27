@@ -177,10 +177,13 @@ struct MainTabView: View {
             // #31: the pairing flow's new home. Unpaired → the full pairing
             // screen (relocated from the removed launch wall); paired → the
             // host status/management screen as before.
-            if pairingStore.isPaired {
-                ConnectHermesHostScreen()
-            } else {
+            // Lane M (M-12): a per-profile Pair action names its target
+            // before navigating here — that always means the pairing flow,
+            // even while the ACTIVE profile happens to be paired.
+            if pairingStore.pairingTargetProfileID != nil || !pairingStore.isPaired {
                 ConnectHermesScreen()
+            } else {
+                ConnectHermesHostScreen()
             }
         case .inbox:
             InboxScreen()

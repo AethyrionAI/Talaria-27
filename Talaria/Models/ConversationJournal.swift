@@ -43,6 +43,43 @@ struct ConversationJournal: Codable, Hashable, Sendable {
         /// priming is not free). Nil when the hop started on an empty journal
         /// (nothing to transplant) or the server reported no usage.
         var primingUsage: TokenUsage?
+        /// Birth host (Lane M / #114): the backend profile this hop's server
+        /// session was created on — immutable, since session ids are
+        /// server-scoped. Every send/fetch on the hop must resolve the base
+        /// URL from it, not from the active profile. Nil on hops recorded
+        /// before profiles existed (all of which belong to the migrated
+        /// profile) and in profile-less test constructions.
+        var profileID: UUID?
+
+        init(
+            apiSessionId: String,
+            seenEntryCount: Int,
+            primingUsage: TokenUsage? = nil,
+            profileID: UUID? = nil
+        ) {
+            self.apiSessionId = apiSessionId
+            self.seenEntryCount = seenEntryCount
+            self.primingUsage = primingUsage
+            self.profileID = profileID
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case apiSessionId
+            case seenEntryCount
+            case primingUsage
+            case profileID
+        }
+
+        /// Hand-written so pre-Lane-M persisted hops (no profileID key)
+        /// decode to nil instead of failing — a decode failure here would
+        /// silently drop the journal at launch.
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            apiSessionId = try container.decode(String.self, forKey: .apiSessionId)
+            seenEntryCount = try container.decodeIfPresent(Int.self, forKey: .seenEntryCount) ?? 0
+            primingUsage = try container.decodeIfPresent(TokenUsage.self, forKey: .primingUsage)
+            profileID = try container.decodeIfPresent(UUID.self, forKey: .profileID)
+        }
     }
 
     /// The conversation's identity. Local, durable, and independent of any

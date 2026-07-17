@@ -12,7 +12,10 @@ struct MarkdownContentView: View {
     /// Base color for rendered prose (code blocks/images carry their own styling).
     var textColor: Color = Design.Colors.foreground
 
-    @State private var fullscreenImage: MarkdownSegment?
+    /// The segment presented fullscreen — an `.image` or a `.chart`. One
+    /// slot, one cover; state lives here (not on the segment views) so it
+    /// survives the per-delta re-parse that regenerates segment identity.
+    @State private var fullscreenSegment: MarkdownSegment?
 
     var body: some View {
         let segments = parseMarkdownSegments(content, isStreaming: isStreaming)
@@ -36,18 +39,41 @@ struct MarkdownContentView: View {
                     case .list(_, let items):
                         listView(items)
                     case .table(_, let header, let alignments, let rows):
-                        MarkdownTableView(
-                            header: header,
-                            alignments: alignments,
-                            rows: rows,
-                            textColor: textColor
-                        )
+                        if let promoted = ChartSpec.promoted(header: header, rows: rows) {
+                            ChartableTableView(
+                                header: header,
+                                alignments: alignments,
+                                rows: rows,
+                                textColor: textColor,
+                                spec: promoted,
+                                onExpand: { fullscreenSegment = .chart(spec: $0, source: "") }
+                            )
+                        } else {
+                            MarkdownTableView(
+                                header: header,
+                                alignments: alignments,
+                                rows: rows,
+                                textColor: textColor
+                            )
+                        }
+                    case .chart(_, let spec, _):
+                        Button {
+                            fullscreenSegment = segment
+                        } label: {
+                            ChartSegmentView(spec: spec)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
-            .fullScreenCover(item: $fullscreenImage) { segment in
-                if case .image(_, let url, let altText) = segment {
+            .fullScreenCover(item: $fullscreenSegment) { segment in
+                switch segment {
+                case .image(_, let url, let altText):
                     ImageViewerScreen(url: url, altText: altText)
+                case .chart(_, let spec, _):
+                    ChartViewerScreen(spec: spec)
+                default:
+                    EmptyView()
                 }
             }
         }
@@ -133,7 +159,7 @@ struct MarkdownContentView: View {
 
     private func inlineImageView(url: URL, altText: String, segment: MarkdownSegment) -> some View {
         Button {
-            fullscreenImage = segment
+            fullscreenSegment = segment
         } label: {
             AsyncImage(url: url) { phase in
                 switch phase {

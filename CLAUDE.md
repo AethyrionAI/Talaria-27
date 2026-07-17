@@ -11,7 +11,7 @@ It is **forked from `dylan-buck/Hermes-iOS`**, but the upstream shell + relay ar
 **only** for sensor ingestion + the `hermes_mobile` MCP tools. **Chat and sensors are
 independent paths** — never conflate a relay/connector issue with a chat issue or vice
 versa. Owen directs and tests; Claude writes all code + runs infrastructure (Owen does not
-write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta**.
+write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta3**.
 
 ## Architecture — Clean Chat Path
 
@@ -22,7 +22,7 @@ write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta**.
   **models shim `:8765`**. Independent of chat.
 - **Two machines, all over Tailscale:**
   - **OJAMD** (Windows, `100.110.102.59`) — the production host the phone talks to.
-  - **Mac Mini M4** (`100.79.222.100`) — always-on dev box: Xcode-beta, the repo, a local
+  - **Mac Mini M4** (`100.79.222.100`) — always-on dev box: Xcode-beta3, the repo, a local
     gateway `:8642` + shim `:8765` for dev.
 
 ## SSE taxonomy (verified — Phase 0)
@@ -103,8 +103,10 @@ works against OJAMD.
 
 ## Build / tooling
 
-- **Xcode-beta** (`/Applications/Xcode-beta.app`) is required for iOS 27 targets; release
-  Xcode can't build iOS 27. `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer`.
+- **Xcode-beta3** (`/Applications/Xcode-beta3.app`) is the standard toolchain for iOS 27
+  targets (per Owen, 2026-07-16 — matches the GUI he builds with); release Xcode can't build
+  iOS 27. `DEVELOPER_DIR=/Applications/Xcode-beta3.app/Contents/Developer` in every shell.
+  The older `Xcode-beta.app` still exists on disk — do not use it for builds.
   Team `DNL25ZFSD2`. DerivedData `Talaria-bkmofmhhchhruzcdudrizbbblrae`.
 - **CLI compile check:** `xcodebuild -project Talaria.xcodeproj -scheme Talaria
   -configuration Debug -destination 'generic/platform=iOS Simulator' build

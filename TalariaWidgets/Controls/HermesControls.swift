@@ -1,4 +1,5 @@
 import AppIntents
+import os
 import SwiftUI
 import WidgetKit
 
@@ -28,6 +29,15 @@ import WidgetKit
 // app intents perform directly in the main app process, removing the
 // deep-link hop. Not adopted — verify the SDK shape on a Mac session first.
 
+/// The extension's only diagnostics (#58): one line per control tap so
+/// Console.app can answer "did perform() fire?". `.notice` because Console's
+/// default view suppresses `.info`; `privacy: .public` because interpolations
+/// redact without it.
+private let controlLog = Logger(
+    subsystem: "org.aethyrion.talaria27.widgets",
+    category: "controls"
+)
+
 // MARK: - Launch intents (extension-local)
 
 /// Launches the app on `hermes://chat` — `AppEntry.handleDeeplink` clears any
@@ -39,8 +49,12 @@ struct OpenHermesChatIntent: AppIntent {
         "Opens Talaria to the Hermes chat.",
         categoryName: "Chat"
     )
-    /// The chat UI lives in the app; the control's whole job is the launch.
-    static let openAppWhenRun = true
+    // `openAppWhenRun` is deliberately ABSENT (protocol default false). The
+    // `OpenURLIntent` returned from `perform()` IS the app launch — Apple's
+    // sanctioned control-opens-app-to-URL shape. Pairing it with
+    // `openAppWhenRun = true` made Control Center silently swallow the tap
+    // (#58: control did nothing). Do not re-add it — `HermesControlsTests`
+    // pins both intents to false.
     /// Control-only plumbing — keep it out of Shortcuts/Spotlight so it never
     /// shadows the app target's full-featured `AskHermesIntent`.
     static let isDiscoverable = false
@@ -50,7 +64,10 @@ struct OpenHermesChatIntent: AppIntent {
     private static let destination = URL(string: "hermes://chat")!
 
     func perform() async throws -> some IntentResult & OpensIntent {
-        .result(opensIntent: OpenURLIntent(Self.destination))
+        controlLog.notice(
+            "OpenHermesChatIntent.perform fired — opening \(Self.destination.absoluteString, privacy: .public)"
+        )
+        return .result(opensIntent: OpenURLIntent(Self.destination))
     }
 }
 
@@ -65,7 +82,10 @@ struct OpenHermesVoiceIntent: AppIntent {
         "Opens Talaria and starts a hands-free voice session.",
         categoryName: "Voice"
     )
-    static let openAppWhenRun = true
+    // `openAppWhenRun` deliberately absent — same #58 conflict as
+    // `OpenHermesChatIntent`: the returned `OpenURLIntent` is the launch, and
+    // pairing it with `openAppWhenRun = true` no-ops the tap from Control
+    // Center. Do not re-add it.
     /// Control-only plumbing — `StartVoiceSessionIntent` is the discoverable
     /// Shortcuts/Siri entry point.
     static let isDiscoverable = false
@@ -74,7 +94,10 @@ struct OpenHermesVoiceIntent: AppIntent {
     private static let destination = URL(string: "hermes://voice")!
 
     func perform() async throws -> some IntentResult & OpensIntent {
-        .result(opensIntent: OpenURLIntent(Self.destination))
+        controlLog.notice(
+            "OpenHermesVoiceIntent.perform fired — opening \(Self.destination.absoluteString, privacy: .public)"
+        )
+        return .result(opensIntent: OpenURLIntent(Self.destination))
     }
 }
 

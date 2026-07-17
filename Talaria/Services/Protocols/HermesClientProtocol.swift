@@ -11,6 +11,37 @@ struct HermesSessionInfo: Identifiable, Hashable, Sendable {
     let messageCount: Int
     let lastActive: Date?
     let isActive: Bool
+    /// Lane M (#114): the backend profile this session lives on — session
+    /// ids are server-scoped. Nil from single-backend clients (local brain,
+    /// mocks, profile-less constructions).
+    let profileID: UUID?
+    /// Display name of that profile, carried for the drawer's foreign-host
+    /// badge so the UI never re-resolves ids.
+    let profileName: String?
+
+    init(
+        id: String,
+        title: String?,
+        preview: String?,
+        model: String?,
+        source: String?,
+        messageCount: Int,
+        lastActive: Date?,
+        isActive: Bool,
+        profileID: UUID? = nil,
+        profileName: String? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.preview = preview
+        self.model = model
+        self.source = source
+        self.messageCount = messageCount
+        self.lastActive = lastActive
+        self.isActive = isActive
+        self.profileID = profileID
+        self.profileName = profileName
+    }
 }
 
 @MainActor

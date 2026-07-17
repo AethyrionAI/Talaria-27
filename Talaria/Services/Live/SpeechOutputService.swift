@@ -35,6 +35,14 @@ final class SpeechOutputService: NSObject {
     /// that a `.playback` re-categorization here would break. The shared
     /// read-aloud instance keeps the default (true).
     var managesAudioSession = true
+    /// True only between a successful `setActive(true)` here and our own
+    /// release. The device log behind this flag (#84, 2026-07-16): the voice
+    /// engines share the ONE AVAudioSession, and this instance was deactivating
+    /// it dozens of times a minute during native voice sessions via
+    /// `stop() -> releaseAudioSessionIfIdle()` even though it had never spoken
+    /// or activated -- killing the live mic. Rule: never deactivate a session
+    /// this instance did not activate.
+    private var didActivateAudioSession = false
     /// Persisted voice identifier from UserSettings; nil = best system voice.
     var voiceIdentifierProvider: (@MainActor () -> String?)?
     /// Persisted speech rate from UserSettings (AVSpeechUtterance 0…1 scale).
@@ -47,6 +55,10 @@ final class SpeechOutputService: NSObject {
     private var activeUtterances: Set<ObjectIdentifier> = []
     private var streamMessageID: UUID?
     private var streamBuffer = ""
+    /// Everything streamed for the current message, raw deltas — what
+    /// `finishStream` compares a shortened finish against to detect that
+    /// content was retracted after enqueueing (#110).
+    private var streamedText = ""
 
     override init() {
         personalVoiceAuthorization = AVSpeechSynthesizer.personalVoiceAuthorizationStatus
@@ -69,6 +81,7 @@ final class SpeechOutputService: NSObject {
     func stop() {
         streamBuffer = ""
         streamMessageID = nil
+        streamedText = ""
         activeUtterances.removeAll()
         _ = synthesizer.stopSpeaking(at: .immediate)
         speakingMessageID = nil
@@ -88,6 +101,7 @@ final class SpeechOutputService: NSObject {
             speakingMessageID = messageID
         }
         streamBuffer += delta
+        streamedText += delta
         let (sentences, remainder) = Self.splitFlushableSentences(from: streamBuffer)
         streamBuffer = remainder
         for sentence in sentences {
@@ -97,12 +111,23 @@ final class SpeechOutputService: NSObject {
         }
     }
 
-    /// Flushes whatever remains in the buffer and closes the stream.
-    func finishStream(messageID: UUID) {
+    /// Flushes whatever remains in the buffer and closes the stream. When
+    /// `finishedContent` is passed and is SHORTER than what streamed
+    /// (whitespace-folded), content was retracted after enqueueing — the #102
+    /// loop breaker collapsing a degenerate run to one copy — so the pending
+    /// queue is dropped instead of flushed: the ears must not finish a loop
+    /// the transcript no longer shows (#110).
+    func finishStream(messageID: UUID, finishedContent: String? = nil) {
         guard streamMessageID == messageID else { return }
+        if let finishedContent,
+           Self.shouldRetractSpeech(finishedContent: finishedContent, streamedText: streamedText) {
+            stop()
+            return
+        }
         let tail = Self.speechText(from: streamBuffer)
         streamBuffer = ""
         streamMessageID = nil
+        streamedText = ""
         if !tail.isEmpty {
             enqueue(tail)
         } else if activeUtterances.isEmpty {
@@ -117,6 +142,7 @@ final class SpeechOutputService: NSObject {
         guard streamMessageID == messageID else { return }
         streamBuffer = ""
         streamMessageID = nil
+        streamedText = ""
         if activeUtterances.isEmpty {
             speakingMessageID = nil
             releaseAudioSessionIfIdle()
@@ -197,18 +223,55 @@ final class SpeechOutputService: NSObject {
         do {
             try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
             try session.setActive(true)
+            didActivateAudioSession = true
         } catch {
             Self.logger.notice("audio session configure failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
     private func releaseAudioSessionIfIdle() {
-        guard managesAudioSession else { return }
-        guard activeUtterances.isEmpty, streamMessageID == nil else { return }
+        guard Self.shouldReleaseAudioSession(
+            managesSession: managesAudioSession,
+            didActivate: didActivateAudioSession,
+            utterancesIdle: activeUtterances.isEmpty,
+            streamIdle: streamMessageID == nil
+        ) else { return }
+        didActivateAudioSession = false
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
+    /// The #84 release decision, pure for tests. `didActivate` is the
+    /// load-bearing guard: a `stop()` from any caller (the AppContainer talk
+    /// callback most of all) must be a session no-op unless THIS instance
+    /// holds the activation -- otherwise it deactivates the voice engine's
+    /// `.playAndRecord` session out from under a live mic.
+    nonisolated static func shouldReleaseAudioSession(
+        managesSession: Bool,
+        didActivate: Bool,
+        utterancesIdle: Bool,
+        streamIdle: Bool
+    ) -> Bool {
+        managesSession && didActivate && utterancesIdle && streamIdle
+    }
+
     // MARK: - Text preparation (pure — unit-tested)
+
+    /// The #110 retract decision: true when the finished reply is shorter than
+    /// the text that actually streamed — a shorter finish means content was
+    /// retracted after the fact (the #102 degenerate-loop breaker rewriting
+    /// "phrase phrase phrase" to one "phrase"), so pending speech must stop
+    /// rather than flush. Whitespace-folded so chunk-join artifacts can never
+    /// fake a length difference; a finish equal to or LONGER than the streamed
+    /// text is a normal completion.
+    nonisolated static func shouldRetractSpeech(finishedContent: String, streamedText: String) -> Bool {
+        whitespaceFolded(finishedContent).count < whitespaceFolded(streamedText).count
+    }
+
+    /// Collapses every whitespace run (spaces, tabs, newlines) to a single
+    /// space and trims the ends.
+    private nonisolated static func whitespaceFolded(_ text: String) -> String {
+        text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
 
     /// Splits a streaming buffer into fully terminated sentences plus the
     /// still-accumulating remainder. A sentence flushes on a newline, or on a

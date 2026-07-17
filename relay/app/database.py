@@ -66,6 +66,16 @@ class Database:
             host_columns = {column["name"] for column in inspector.get_columns("hermes_hosts")}
             if "hermes_model" not in host_columns:
                 connection.execute(text("ALTER TABLE hermes_hosts ADD COLUMN hermes_model TEXT"))
+            # #116: connector-supplied provisioning descriptor + freshness stamp.
+            if "provisioning_data" not in host_columns:
+                connection.execute(text("ALTER TABLE hermes_hosts ADD COLUMN provisioning_data JSON"))
+            if "provisioning_updated_at" not in host_columns:
+                if str(self.engine.url).startswith("sqlite"):
+                    connection.execute(text("ALTER TABLE hermes_hosts ADD COLUMN provisioning_updated_at DATETIME"))
+                else:
+                    connection.execute(
+                        text("ALTER TABLE hermes_hosts ADD COLUMN provisioning_updated_at TIMESTAMP WITH TIME ZONE")
+                    )
 
             conversation_columns = {column["name"] for column in inspector.get_columns("conversations")}
             if "hermes_session_id" not in conversation_columns:

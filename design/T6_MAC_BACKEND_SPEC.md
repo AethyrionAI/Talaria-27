@@ -1,5 +1,15 @@
 # T6 — Mac-hosted Talaria backend, Phase 1 (relay + connector on the Mac Mini) + Mac-only connectors
 
+> **STATUS 2026-07-15 — EXECUTED. This spec is now a historical record; live state is OPEN_ITEMS #107.**
+> §6 acceptance scored: (1) launchd persistence ✅ *(Mini reboot still owed — Owen)*;
+> (2) dev-device pairing ⬜ — deferred to #114 (the app can't hold a second profile yet);
+> (3) connector reattach ✅ (`verify-phase1.sh --restart-check`, noted on #54) — pairing-survival
+> half untestable until a device is paired to this relay; (4) macOS suites ✅ relay 117 / connector 105;
+> (5) connector end-to-end ⚠️ PARTIAL — iMessage send+read and Notes read+write verified agent-driven
+> through the Sessions API (byte-for-byte the app's path), but *literally from Talaria chat* waits on
+> #114; (6) OJAMD untouched ✅; (7) OPEN_ITEMS updated ✅.
+> Q1/Q2 below are RESOLVED — do not re-run the evaluation.
+
 **Status:** v0.2 — revised after direct inspection of the OJAMD deployment and repo (relay
 source, `.env`, `CLAUDE.md`, `OPEN_ITEMS.md`). Committed to the repo 2026-07-12 (Q5 answered:
 in-repo at `design/T6_MAC_BACKEND_SPEC.md`).
@@ -158,6 +168,10 @@ proceeds. Runbook section in `DEPLOY_MAC.md`.
 
 - Making the Mac the phone's primary host (that's T6 endgame; requires the #1 consolidation
   reversal to be deliberate, not incidental).
+  **Update 2026-07-15:** that endgame is now specced as **#114 backend profiles** — the
+  deliberate reversal, done as N named profiles rather than a re-point, so OJAMD stays
+  production (sensors pinned) while the Mac becomes reachable. Note for that lane: the in-code
+  stale `ojamd:8642` default called out below is app-side and lands inside #114's surgery.
 - Patching Hermes core (install-script wipes core edits; `config.yaml`/`.env`/skills/sessions
   persist).
 - App-side changes. The app already persists its Hermes base URL and relay URL; no
@@ -191,11 +205,30 @@ is a one-line change if Owen decides otherwise.
    bridge (§4) in parallel? *Adopted:* repo supports both — the bridge is documented as an
    independent runbook section (~30 min, no re-pairing, no repo change); execution order is
    Owen's call at the Mac session. Recommendation stands: both.
+   **RESOLVED 2026-07-15 (Owen):** Phase 1 + Phase 2 executed sequentially; the bridge was
+   NOT built and is not wanted ("no need to build a bridge unless it's necessary") — re-homing
+   via the #114 profile switcher is the chosen shape. The bridge section stays documented as a
+   fallback only.
 2. **iMessage path:** Hermes `imsg` connector, Photon, or keep BlueBubbles as the sender and
    expose it read-only to Hermes? *Adopted:* decision deferred to the Mac session with an
    explicit evaluation step (see runbook Phase 2) — check which path today's macOS Hermes
    treats as first-class, and enforce a single-automated-sender rule to avoid two writers
    racing Messages.
+   **RESOLVED 2026-07-15 — evaluation complete, do not re-run.** Findings on Hermes v0.18.2:
+   there is no `imsg` *connector* — `imsg` is steipete's standalone brew CLI (v0.13.0), and it
+   is the **sender of record**, invoked by the agent via terminal with the full path
+   `/opt/homebrew/bin/imsg` (launchd contexts lack /opt/homebrew/bin on PATH). Upstream ships
+   no agent-callable send tool by design (toolsets.py: outbound messaging lives outside the
+   agent loop) — shelling to a granted CLI is the sanctioned shape; Talaria's #4 confirm gate
+   is the human check. **BlueBubbles = reader only** (`gateway/platforms/bluebubbles.py`
+   enabled via BLUEBUBBLES_SERVER_URL/PASSWORD, gated `require_mention: true` +
+   `send_read_receipts: false` so it never auto-replies to real texts); its webhook feed is the
+   future inbound signal. Single-writer rule is satisfied by construction: one sender (imsg),
+   BB reads. **Photon REJECTED** (Owen: no adoption plans) — it is a managed *cloud* service
+   that allocates its own iMessage lines (`plugins/platforms/photon/`), so it carries the wrong
+   identity and touches no Mac session state: the opposite of T6's purpose. TCC: sends need no
+   grant; reads need Full Disk Access on the gateway python (uv cpython 3.11 — re-add if
+   `hermes update` swaps the runtime).
 3. **APNs on the Mac relay:** *Adopted:* copy `AuthKey_ALB34NY384.p8` from `C:\Secrets\apns\`
    to `~/.secrets/apns/` (chmod 600, absolute path in `.env`);
    `APNS_BUNDLE_ID=org.aethyrion.talaria27` (verified against `project.yml` —

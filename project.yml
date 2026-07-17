@@ -154,7 +154,7 @@ targets:
         # Talaria/Resources/AppIcons/ (Icon-<Name>@2x/@3x.png). Adding an icon =
         # a new key here + its PNGs + an AppIconCatalog entry, then
         # `xcodegen generate`. Keys are the names passed to setAlternateIconName.
-        CFBundleIcons:
+        CFBundleIcons: &talariaBundleIcons
           CFBundlePrimaryIcon:
             CFBundleIconName: AppIcon
           CFBundleAlternateIcons:
@@ -290,6 +290,10 @@ targets:
               CFBundleIconFiles:
                 - Icon-ComicFunnies
               UIPrerenderedIcon: false
+        # iPad reads the ~ipad-suffixed key exclusively for alternate-icon
+        # support (supportsAlternateIcons is false without it). YAML alias =
+        # byte-identical mirror, single edit point when adding icons.
+        "CFBundleIcons~ipad": *talariaBundleIcons
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
         UIBackgroundModes:
@@ -356,6 +360,11 @@ targets:
     platform: iOS
     sources:
       - path: TalariaTests
+      # #58 — HermesControlsTests locks the control intents' static
+      # configuration. The widget extension isn't an importable module, so
+      # this one source file compiles into the test bundle too (same
+      # multi-target pattern as Shared/).
+      - path: TalariaWidgets/Controls/HermesControls.swift
     dependencies:
       - target: Talaria
     settings:

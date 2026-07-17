@@ -12,6 +12,7 @@ import re
 import socket
 import subprocess
 import sys
+from urllib.parse import urlparse
 import uuid
 
 logger = logging.getLogger("hermes.mobile.connector")
@@ -240,6 +241,26 @@ def utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# #116: where the models shim mints its bearer token (tools/models-shim/shim.py
+# writes it 0600 on first boot). `~` expands on Windows too
+# (C:\Users\<user>\.hermes\talaria_shim_token).
+_SHIM_TOKEN_FILE = "~/.hermes/talaria_shim_token"
+_SHIM_DEFAULT_PORT = 8765
+_GATEWAY_DEFAULT_PORT = 8642
+
+
+def _phone_reachable_host(hostname: str | None) -> bool:
+    """True when ``hostname`` is plausibly dialable from the phone.
+
+    Loopback names never are — advertising 127.0.0.1 in a provisioning
+    descriptor would make the phone dial itself (#116).
+    """
+    if not hostname:
+        return False
+    lowered = hostname.lower()
+    return lowered not in ("localhost", "::1") and not lowered.startswith("127.")
+
+
 @dataclass(frozen=True)
 class ConnectorMetadata:
     platform: str
@@ -306,6 +327,66 @@ class HermesMobileConnector:
 
     def default_relay_url(self) -> str:
         return (os.getenv("HERMES_MOBILE_RELAY_URL") or "").rstrip("/")
+
+    # ── Provisioning descriptor (#116) ─────────────────────────
+
+    def provisioning_descriptor(self, state: ConnectorState | None = None) -> dict:
+        """Build the host-provisioning payload the phone auto-fills from (#116).
+
+        Real host knowledge only: the shim fields ride along ONLY while the
+        shim's token file exists (a host may legitimately run no shim), and
+        the file is re-read on every build so a rotated token refreshes on the
+        next heartbeat. The gateway API key is deliberately NOT part of the
+        bundle — adding a key to Uplink stays a manual, human gate (#108).
+        """
+        descriptor: dict = {}
+        shim_token = self._read_shim_token()
+        if shim_token:
+            descriptor["shim_base_url"] = self._shim_base_url(state)
+            descriptor["shim_token"] = shim_token
+        descriptor["gateway_base_url"] = self._gateway_base_url(state)
+        return descriptor
+
+    def _read_shim_token(self) -> str | None:
+        path = os.getenv("TALARIA_SHIM_TOKEN_FILE") or _SHIM_TOKEN_FILE
+        try:
+            token = Path(path).expanduser().read_text(encoding="utf-8").strip()
+        except OSError:
+            return None
+        return token or None
+
+    def _shim_base_url(self, state: ConnectorState | None) -> str:
+        override = (os.getenv("TALARIA_SHIM_BASE_URL") or "").strip()
+        if override:
+            return override.rstrip("/")
+        return f"http://{self._provisioning_host(state)}:{_SHIM_DEFAULT_PORT}"
+
+    def _gateway_base_url(self, state: ConnectorState | None) -> str:
+        override = (os.getenv("TALARIA_GATEWAY_BASE_URL") or "").strip()
+        if override:
+            return override.rstrip("/")
+        config = state.runtime_config if state else None
+        api_url = ((config.api_server_url if config else None) or os.getenv("HERMES_API_SERVER_URL") or "").strip()
+        if api_url and _phone_reachable_host(urlparse(api_url).hostname):
+            return api_url.rstrip("/")
+        return f"http://{self._provisioning_host(state)}:{_GATEWAY_DEFAULT_PORT}"
+
+    def _provisioning_host(self, state: ConnectorState | None) -> str:
+        """The host the PHONE dials for shim/gateway defaults.
+
+        The relay URL the connector enrolled against is minted from the
+        relay's ``PUBLIC_BASE_URL`` — phone-reachable by definition, and the
+        relay is co-located with the shim + gateway in every current
+        deployment — so its hostname is the best zero-config default.
+        ``TALARIA_PROVISIONING_HOST`` overrides when that assumption breaks.
+        """
+        override = (os.getenv("TALARIA_PROVISIONING_HOST") or "").strip()
+        if override:
+            return override
+        relay_host = urlparse(state.relay_url).hostname if state and state.relay_url else None
+        if relay_host and _phone_reachable_host(relay_host):
+            return relay_host
+        return socket.gethostname().lower()
 
     def setup(
         self,
@@ -676,6 +757,7 @@ class HermesMobileConnector:
         self.apply_runtime_environment(state)
         settings = self.settings_for_state(state)
         metadata = self.metadata(display_name=state.connector_display_name, settings=settings)
+        provisioning = self.provisioning_descriptor(state)
         async with websocket_connect(
             state.web_socket_url,
             additional_headers={"Authorization": f"Bearer {state.connector_credential}"},
@@ -695,6 +777,7 @@ class HermesMobileConnector:
                             "hermesModel": metadata.hermes_model,
                             "displayName": metadata.display_name,
                         },
+                        "provisioning": provisioning,
                     }
                 )
             )
@@ -714,6 +797,16 @@ class HermesMobileConnector:
                         timeout=self.heartbeat_interval_seconds,
                     )
                 except asyncio.TimeoutError:
+                    # #116: piggyback provisioning refresh on the idle
+                    # heartbeat — re-read the (tiny) token file and resend the
+                    # descriptor only when something actually changed, so a
+                    # token rotation propagates without a reconnect.
+                    refreshed = self.provisioning_descriptor(state)
+                    if refreshed != provisioning:
+                        provisioning = refreshed
+                        await websocket.send(
+                            json.dumps({"type": "provisioning.update", "provisioning": refreshed})
+                        )
                     await websocket.send(json.dumps({"type": "heartbeat"}))
                     continue
 

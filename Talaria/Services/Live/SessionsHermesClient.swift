@@ -36,21 +36,65 @@ final class SessionsHermesClient: HermesClientProtocol {
     private let journal: ConversationJournalStore
     /// Composes the priming turn a fresh hop is transplanted with.
     private let transplanter: ContextTransplanter
+    /// Lane M (#114): the backend profile new server sessions are born on —
+    /// stamped onto the hop and the session→profile index at creation, since
+    /// session ids are server-scoped. Nil in profile-less constructions.
+    private let activeProfileIDProvider: @MainActor () -> UUID?
+    /// Lane M: the durable session→birth-profile index. Optional so tests
+    /// (and the mock path) run without one.
+    private let profileIndex: SessionProfileIndexStore?
+    /// #25: the durable session→last-run-usage index — written whenever a
+    /// `run.completed` delivers usage, read back on `openSession` so a
+    /// resumed session's CTX gauge has a numerator (the stored-messages
+    /// endpoint carries none). Optional like `profileIndex`.
+    private let usageIndex: SessionUsageIndexStore?
+    /// Lane M PR 2 (M-5): resolves a NON-ACTIVE profile's chat endpoint
+    /// (gateway base URL + that profile's API key). Requests for the active
+    /// profile keep riding `baseURLProvider`/`apiKeyProvider` — byte-identical
+    /// to the single-backend path. Returning nil means the profile has no
+    /// usable endpoint (unknown id, no key cached yet).
+    private let profileEndpointResolver: @MainActor (UUID) -> (baseURL: String, apiKey: String)?
+    /// Lane M PR 2: every profile chat should list sessions from (M-5's
+    /// "drawer shows all sessions"). Empty = single-backend behavior.
+    private let chatProfilesProvider: @MainActor () -> [BackendProfile]
+    /// Lane M (M-16): when set, the NEXT fresh hop is created on this profile
+    /// instead of the active one — "new chat on <profile>" without flipping
+    /// the default. Consumed when the hop is successfully created; a failed
+    /// creation keeps it armed so the user's pick survives a retry.
+    var pendingNewSessionProfileID: UUID?
 
     init(
         baseURLProvider: @escaping @MainActor () -> String?,
         apiKeyProvider: @escaping @MainActor () -> String?,
         journal: ConversationJournalStore,
         transplanter: ContextTransplanter,
-        session: URLSession = .shared
+        session: URLSession = .shared,
+        activeProfileIDProvider: @escaping @MainActor () -> UUID? = { nil },
+        profileIndex: SessionProfileIndexStore? = nil,
+        usageIndex: SessionUsageIndexStore? = nil,
+        profileEndpointResolver: @escaping @MainActor (UUID) -> (baseURL: String, apiKey: String)? = { _ in nil },
+        chatProfilesProvider: @escaping @MainActor () -> [BackendProfile] = { [] }
     ) {
         self.baseURLProvider = baseURLProvider
         self.apiKeyProvider = apiKeyProvider
         self.journal = journal
         self.transplanter = transplanter
         self.session = session
+        self.activeProfileIDProvider = activeProfileIDProvider
+        self.profileIndex = profileIndex
+        self.usageIndex = usageIndex
+        self.profileEndpointResolver = profileEndpointResolver
+        self.chatProfilesProvider = chatProfilesProvider
         self.encoder = JSONEncoder()
         self.decoder = JSONDecoder()
+    }
+
+    /// Normalizes a routing profile id for request building: the ACTIVE
+    /// profile (and profile-less nil) collapse to nil so those requests take
+    /// the pre-Lane-M provider path exactly.
+    private func requestProfileID(_ profileID: UUID?) -> UUID? {
+        guard let profileID, profileID != activeProfileIDProvider() else { return nil }
+        return profileID
     }
 
     // MARK: - HermesClientProtocol
@@ -104,20 +148,21 @@ final class SessionsHermesClient: HermesClientProtocol {
     private func performSyncTurn(message: String, attachments: [PendingAttachment]) async throws -> String {
         let hop = try await ensureHopForTurn()
         do {
-            return try await postSyncChat(sessionId: hop.sessionId, message: message, attachments: attachments)
+            return try await postSyncChat(sessionId: hop.sessionId, profileID: hop.profileID, message: message, attachments: attachments)
         } catch SessionsClientError.sessionNotFound where hop.wasReused {
             Self.logger.notice("sync turn: persisted hop stale server-side (404) — re-hopping with transplant")
             journal.endHop()
             let fresh = try await ensureHopForTurn()
-            return try await postSyncChat(sessionId: fresh.sessionId, message: message, attachments: attachments)
+            return try await postSyncChat(sessionId: fresh.sessionId, profileID: fresh.profileID, message: message, attachments: attachments)
         }
     }
 
-    private func postSyncChat(sessionId: String, message: String, attachments: [PendingAttachment]) async throws -> String {
+    private func postSyncChat(sessionId: String, profileID: UUID?, message: String, attachments: [PendingAttachment]) async throws -> String {
         let path = "\(Self.sessionsPath)/\(sessionId)/chat"
         let response: SyncChatResponse = try await postJSON(
             path: path,
-            body: ChatTurnBody.make(message: message, attachments: attachments)
+            body: ChatTurnBody.make(message: message, attachments: attachments),
+            profileID: profileID
         )
         return response.message?.content ?? response.content ?? ""
     }
@@ -168,7 +213,7 @@ final class SessionsHermesClient: HermesClientProtocol {
             }
             let path = "\(Self.sessionsPath)/\(hop.sessionId)/chat/stream"
             let body = try encoder.encode(ChatTurnBody.make(message: content, attachments: attachments))
-            let request = try makeRequest(path: path, method: "POST", body: body, accept: "text/event-stream")
+            let request = try makeRequest(path: path, method: "POST", body: body, accept: "text/event-stream", profileID: hop.profileID)
 
             let (bytes, response) = try await session.bytes(for: request)
             guard let httpResponse = response as? HTTPURLResponse,
@@ -203,6 +248,13 @@ final class SessionsHermesClient: HermesClientProtocol {
             // #21 Tier 1: files the agent writes are streamed inline on
             // `tool.started`; reconstruct them and attach to the final message.
             var producedFiles: [MessageAttachment] = []
+            // #21 Tier 2: whitelist-relative paths of agent files announced
+            // anywhere in the turn's tool calls. Binaries never ride the
+            // stream (2026-07-16 probe: produced host-side via `terminal`,
+            // `write_file` never called) — the PATH is the only client-visible
+            // signal, so it's harvested from every tool payload and, at
+            // finish, from the assistant's own prose.
+            var announcedAgentPaths: [String] = []
 
             func dispatchEvent() {
                 defer {
@@ -233,11 +285,20 @@ final class SessionsHermesClient: HermesClientProtocol {
                     ) {
                         continuation.yield(.toolActivity(event))
                     }
-                    // #21 Tier 1: a write surfaces only on `tool.started`,
-                    // carrying the bytes inline. `tool.completed` is empty.
-                    if currentEvent == "tool.started",
-                       let file = parseWrittenFile(currentData) {
-                        producedFiles.append(file)
+                    // #21: a write surfaces only on `tool.started` —
+                    // `tool.completed` is empty. Content present → Tier 1
+                    // stages the bytes now; content absent → a Tier 2
+                    // fetchable rides `remotePath` instead.
+                    if currentEvent == "tool.started" {
+                        if let file = Self.parseWrittenFile(currentData, profileID: hop.profileID) {
+                            producedFiles.append(file)
+                        }
+                        // #21 Tier 2: any tool call can reveal an agent-files
+                        // path (`terminal` commands, search results) — harvest
+                        // them all; dedupe happens at finish.
+                        announcedAgentPaths.append(
+                            contentsOf: Self.announcedAgentFilePaths(fromToolPayload: currentData)
+                        )
                     }
                 case "tool.progress":
                     // #4.15: reasoning rides `tool.progress` with
@@ -265,13 +326,48 @@ final class SessionsHermesClient: HermesClientProtocol {
                     // Defer `.finished` until run.completed delivers token usage.
                 case "run.completed":
                     let usage = decodeRunUsage(currentData)
+                    // #25: persist the run's usage keyed by this hop's server
+                    // session — the CTX gauge's only source when the session
+                    // is later resumed (the stored transcript carries no
+                    // usage; see openSession). Tolerant by construction: an
+                    // absent/malformed usage decodes to nil and records
+                    // nothing, leaving the session honestly unknown.
+                    if let usage {
+                        usageIndex?.record(sessionID: hop.sessionId, usage: usage)
+                    }
                     var message = pendingFinalMessage
                         ?? Message(sender: .hermes, content: assembledContent, status: .delivered)
-                    // Reasoning attaches HERE, at the yield, from the full
-                    // accumulator — never earlier: a `_thinking` chunk can
-                    // land between assistant.completed and run.completed,
-                    // and a value frozen at assistant.completed would lose it.
-                    if !assembledReasoning.isEmpty { message.reasoning = assembledReasoning }
+                    // Reasoning attaches HERE, at the yield — never earlier: a
+                    // `_thinking` chunk can land between assistant.completed
+                    // and run.completed, and a value frozen at
+                    // assistant.completed would lose it. Precedence (#60):
+                    // the terminal transcript's structured reasoning wins —
+                    // the gateway's `_thinking` stream is a defective
+                    // answer-mirror upstream, while the real CoT rides
+                    // `run.completed` per-message. The mirror guard applies
+                    // to BOTH branches (60B): a structured aggregate that
+                    // just restates the answer counts as absent and falls
+                    // through, and assembled deltas attach only when
+                    // genuinely distinct from the answer, so the day
+                    // upstream streams real deltas they are adopted live;
+                    // an answer-mirror never attaches.
+                    let structured = decodeRunReasoning(currentData)
+                    if let structured,
+                       !Self.reasoningMirrorsAnswer(structured, content: message.content) {
+                        message.reasoning = structured
+                    } else if !assembledReasoning.isEmpty,
+                              !Self.reasoningMirrorsAnswer(assembledReasoning, content: message.content) {
+                        message.reasoning = assembledReasoning
+                    }
+                    // #21 Tier 2: paths announced in tool calls or the answer
+                    // itself become fetchable bubbles (deduped against the
+                    // Tier 1 reconstructions), stamped with the hop's birth
+                    // profile so the fetch hits the right relay (Lane M).
+                    producedFiles.append(contentsOf: Self.fetchableAgentFileAttachments(
+                        announcedPaths: announcedAgentPaths + Self.agentFilesRelativePaths(in: message.content),
+                        existing: producedFiles,
+                        profileID: hop.profileID
+                    ))
                     if !producedFiles.isEmpty { message.attachments = producedFiles }
                     continuation.yield(.finished(message, usage, nil))
                     finalMessageDelivered = true
@@ -314,7 +410,21 @@ final class SessionsHermesClient: HermesClientProtocol {
                     content: assembledContent,
                     status: .delivered
                 )
-                if !assembledReasoning.isEmpty { fallbackMessage.reasoning = assembledReasoning }
+                // #60: no run.completed payload exists here by construction,
+                // so only the assembled `_thinking` text is available — and it
+                // attaches only when it isn't the upstream answer-mirror.
+                if !assembledReasoning.isEmpty,
+                   !Self.reasoningMirrorsAnswer(assembledReasoning, content: fallbackMessage.content) {
+                    fallbackMessage.reasoning = assembledReasoning
+                }
+                // #21 Tier 2: same fetchable-path sweep as the run.completed
+                // case — a stream the server didn't terminate cleanly must
+                // not drop announced files.
+                producedFiles.append(contentsOf: Self.fetchableAgentFileAttachments(
+                    announcedPaths: announcedAgentPaths + Self.agentFilesRelativePaths(in: fallbackMessage.content),
+                    existing: producedFiles,
+                    profileID: hop.profileID
+                ))
                 if !producedFiles.isEmpty { fallbackMessage.attachments = producedFiles }
                 continuation.yield(.finished(fallbackMessage, nil, nil))
             }
@@ -347,8 +457,11 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// is NOT re-adopted here (this is the same thread, not a switch;
     /// ChatStore's post-reconcile sync records the settled exchange).
     func reconcileFromServer() async -> Conversation? {
-        guard let id = journal.activeHop?.apiSessionId else { return nil }
-        guard let (_, convo) = try? await fetchSessionConversation(id) else { return nil }
+        guard let hop = journal.activeHop else { return nil }
+        // M-5: reconcile against the hop's BIRTH host, not the active one —
+        // a run left pending on OJAMD must still resolve after switching to
+        // the Mac.
+        guard let (_, convo) = try? await fetchSessionConversation(hop.apiSessionId, profileID: hop.profileID) else { return nil }
         currentConversation = convo
         connectionStatus = .connected
         return convo
@@ -405,15 +518,22 @@ final class SessionsHermesClient: HermesClientProtocol {
     func switchModel(_ identifier: String) async throws -> String? {
         let command = "/model \(identifier)"
         var response: String?
-        if let hop = journal.activeHop, journal.activeHopIsCurrent {
+        // M-6: model switching is an ACTIVE-profile surface (shim + gateway
+        // pair). Only reuse the hop when it lives on the active profile — a
+        // command turn posted to a foreign hop would pin the model on the
+        // wrong host. A nil hop profile is the pre-Lane-M record, which can
+        // only be the migrated (active) profile.
+        let activeID = activeProfileIDProvider()
+        if let hop = journal.activeHop, journal.activeHopIsCurrent,
+           hop.profileID == nil || hop.profileID == activeID {
             do {
-                response = try await postSyncChat(sessionId: hop.apiSessionId, message: command, attachments: [])
+                response = try await postSyncChat(sessionId: hop.apiSessionId, profileID: hop.profileID, message: command, attachments: [])
             } catch SessionsClientError.sessionNotFound {
                 journal.endHop()
             }
         }
         if response == nil {
-            response = try await postSyncChat(sessionId: try await createBareSession(), message: command, attachments: [])
+            response = try await postSyncChat(sessionId: try await createBareSession(), profileID: nil, message: command, attachments: [])
         }
         journal.endHop()
         return response
@@ -422,8 +542,74 @@ final class SessionsHermesClient: HermesClientProtocol {
     // MARK: - Sessions list / open
 
     func listSessions() async throws -> [HermesSessionInfo] {
+        let profiles = chatProfilesProvider()
+
+        // Single-backend path (profile-less constructions, or exactly one
+        // profile): one fetch, server order preserved — pre-Lane-M behavior.
+        guard profiles.count > 1 else {
+            let only = profiles.first
+            let infos = try await fetchSessionList(profileID: nil, tagAs: only)
+            for info in infos { recordBirth(sessionId: info.id, profileID: info.profileID) }
+            return infos
+        }
+
+        // M-5: the drawer shows ALL profiles' sessions. Fetch each host
+        // concurrently and tolerate partial failure — an unreachable host's
+        // sessions just don't appear this round (its index entries are kept:
+        // pruning only runs on a complete sweep).
+        let activeID = activeProfileIDProvider()
+        // Build fix (2026-07-16): `withTaskGroup` with @MainActor children
+        // trips "pattern that the region-based isolation checker does not
+        // understand" on the iOS 27 SDK regardless of capture Sendability
+        // (three variants tried). Unstructured Task handles bypass the
+        // task-group region machinery: fetches still overlap at the await
+        // points, partial failure is still tolerated, error fidelity is
+        // preserved, and every handle is awaited before the box is read.
+        let gathered = ProfileFetchAccumulator()
+        let handles = profiles.map { profile in
+            Task { @MainActor [weak self] in
+                guard let self else {
+                    gathered.failures.append(SessionsClientError.requestFailed("Client deallocated"))
+                    return
+                }
+                do {
+                    let requestID = profile.id == activeID ? nil : profile.id
+                    let infos = try await self.fetchSessionList(profileID: requestID, tagAs: profile)
+                    gathered.lists.append((profile, infos))
+                } catch {
+                    gathered.failures.append(error)
+                    Self.logger.notice("listSessions: '\(profile.name, privacy: .public)' unreachable — \(error.localizedDescription, privacy: .public)")
+                }
+            }
+        }
+        for handle in handles {
+            await handle.value
+        }
+        var lists = gathered.lists
+        let failures = gathered.failures
+
+        guard !lists.isEmpty else {
+            throw failures.first ?? SessionsClientError.requestFailed("No backend profile answered.")
+        }
+
+        // Order profile results deterministically (task-group completion
+        // order is racy) before the recency merge.
+        let profileOrder = Dictionary(uniqueKeysWithValues: profiles.enumerated().map { ($0.element.id, $0.offset) })
+        lists.sort { (profileOrder[$0.profile.id] ?? .max) < (profileOrder[$1.profile.id] ?? .max) }
+
+        let merged = Self.mergeSessionLists(lists.map(\.infos))
+        for info in merged { recordBirth(sessionId: info.id, profileID: info.profileID) }
+        // Deliberately NO index pruning here: the fetch is limit-capped
+        // (50/host), so "absent from this sweep" ≠ "gone from the host" —
+        // pruning would unbind older sessions that still resolve. Stale
+        // entries are cheap and harmless by design.
+        return merged
+    }
+
+    /// One host's session list, tagged with its profile (M-5).
+    private func fetchSessionList(profileID: UUID?, tagAs profile: BackendProfile?) async throws -> [HermesSessionInfo] {
         let path = "\(Self.sessionsPath)?limit=50&order=recent&min_messages=1"
-        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json")
+        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json", profileID: profileID)
         let (data, httpResponse) = try await session.data(for: request)
         try ensureSuccess(response: httpResponse, data: data)
         let response: SessionsListResponse
@@ -434,7 +620,7 @@ final class SessionsHermesClient: HermesClientProtocol {
             Self.logger.error("listSessions: decode FAILED — \(error.localizedDescription, privacy: .public). Raw: \(snippet, privacy: .public)")
             throw error
         }
-        Self.logger.verbose("listSessions: decoded \(response.data.count) rows")
+        Self.logger.verbose("listSessions: decoded \(response.data.count) rows for '\(profile?.name ?? "active")'")
         return response.data.map { row in
             HermesSessionInfo(
                 id: row.id,
@@ -444,9 +630,36 @@ final class SessionsHermesClient: HermesClientProtocol {
                 source: row.source,
                 messageCount: row.messageCount ?? 0,
                 lastActive: row.lastActive.map { Date(timeIntervalSince1970: $0) },
-                isActive: row.isActive ?? false
+                isActive: row.isActive ?? false,
+                profileID: profile?.id,
+                profileName: profile?.name
             )
         }
+    }
+
+    /// Recency merge for multi-host lists (M-5): rows interleave by
+    /// `lastActive` (newest first, unknown-recency rows last), and rows with
+    /// equal timestamps keep their input order. A single list passes through
+    /// untouched. Static + nonisolated so tests drive it directly.
+    nonisolated static func mergeSessionLists(_ lists: [[HermesSessionInfo]]) -> [HermesSessionInfo] {
+        guard lists.count > 1 else { return lists.first ?? [] }
+        let combined = lists.flatMap { $0 }
+        // Stable sort: decorate with the input offset.
+        return combined.enumerated()
+            .sorted { lhs, rhs in
+                switch (lhs.element.lastActive, rhs.element.lastActive) {
+                case let (l?, r?):
+                    if l != r { return l > r }
+                    return lhs.offset < rhs.offset
+                case (_?, nil):
+                    return true
+                case (nil, _?):
+                    return false
+                case (nil, nil):
+                    return lhs.offset < rhs.offset
+                }
+            }
+            .map(\.element)
     }
 
     /// Adopts `id` as the active session and returns its full history. The
@@ -455,18 +668,34 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// nothing to transplant). New messages then continue that thread (see
     /// ensureHopForTurn()).
     func openSession(_ id: String) async throws -> Conversation {
-        let (sessionId, convo) = try await fetchSessionConversation(id)
+        // M-5: the session's history lives on its BIRTH host — resolve the
+        // endpoint from the index (unrecorded ids are pre-profile sessions,
+        // which belong to the active/migrated profile).
+        let birthProfileID = profileIndex?.profileID(forSessionID: id) ?? activeProfileIDProvider()
+        let (sessionId, fetched) = try await fetchSessionConversation(id, profileID: birthProfileID)
+        var convo = fetched
+        // #25: the stored transcript carries no usage of any kind (probe
+        // 2026-07-16: per-row `token_count` is always null, and the session
+        // list's `input_tokens` is cumulative billing, not occupancy — see
+        // SessionUsageIndex). The resumed session's CTX numerator is the
+        // cached usage from its last live `run.completed`, or honestly
+        // absent (nil hides the gauge; it must never render 0%). Deliberately
+        // NOT applied in reconcileFromServer: the reconcile path stamps
+        // `latestUsage` onto the recovered reply's receipt, and the cache
+        // holds the PREVIOUS run's numbers there — a wrong receipt.
+        convo.latestUsage = usageIndex?.usage(forSessionID: sessionId)
         currentConversation = convo
         connectionStatus = .connected
-        journal.adoptServerSession(id: sessionId, conversation: convo)
+        journal.adoptServerSession(id: sessionId, conversation: convo, profileID: birthProfileID)
+        recordBirth(sessionId: sessionId, profileID: birthProfileID)
         return convo
     }
 
     /// GET + decode + map of one session's history — shared by `openSession`
     /// (which adopts it) and `reconcileFromServer` (which must not).
-    private func fetchSessionConversation(_ id: String) async throws -> (sessionId: String, conversation: Conversation) {
+    private func fetchSessionConversation(_ id: String, profileID: UUID?) async throws -> (sessionId: String, conversation: Conversation) {
         let path = "\(Self.sessionsPath)/\(id)/messages"
-        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json")
+        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json", profileID: profileID)
         let (data, httpResponse) = try await session.data(for: request)
         try ensureSuccess(response: httpResponse, data: data, path: path)
         let response: SessionMessagesResponse
@@ -534,6 +763,9 @@ final class SessionsHermesClient: HermesClientProtocol {
         /// context into it. Nil for continued hops and for fresh hops on an
         /// empty journal (nothing to transplant).
         let priming: PrimingReceipt?
+        /// The hop's birth profile (M-5) — every request on this hop resolves
+        /// its endpoint from it, never from the active profile.
+        let profileID: UUID?
     }
 
     /// The transplant's cost, for the receipts (#46/#90). `usage` is the
@@ -556,34 +788,57 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// a little server-side litter, never a silently unprimed session.
     private func ensureHopForTurn() async throws -> PreparedHop {
         if let hop = journal.activeHop, journal.activeHopIsCurrent {
-            return PreparedHop(sessionId: hop.apiSessionId, wasReused: true, priming: nil)
+            return PreparedHop(sessionId: hop.apiSessionId, wasReused: true, priming: nil, profileID: hop.profileID)
         }
 
-        let sessionId = try await createBareSession()
+        // M-6/M-16: fresh hops are born on the active profile, unless a
+        // "new chat on <profile>" pick armed an override. The override is
+        // consumed only once the hop actually exists — a failed creation
+        // keeps it armed for the retry.
+        let targetProfileID = pendingNewSessionProfileID ?? activeProfileIDProvider()
+        let sessionId = try await createBareSession(profileID: targetProfileID)
         if currentConversation == nil {
             currentConversation = Conversation(title: Conversation.defaultTitle)
         }
 
         guard journal.hasEntries else {
-            journal.beginHop(apiSessionId: sessionId, primingUsage: nil)
-            return PreparedHop(sessionId: sessionId, wasReused: false, priming: nil)
+            journal.beginHop(apiSessionId: sessionId, primingUsage: nil, profileID: targetProfileID)
+            recordBirth(sessionId: sessionId, profileID: targetProfileID)
+            pendingNewSessionProfileID = nil
+            return PreparedHop(sessionId: sessionId, wasReused: false, priming: nil, profileID: targetProfileID)
         }
 
         let composition = await transplanter.composePriming(from: journal.entries)
-        let usage = try await postPrimingTurn(sessionId: sessionId, text: composition.text)
-        journal.beginHop(apiSessionId: sessionId, primingUsage: usage)
+        let usage = try await postPrimingTurn(sessionId: sessionId, profileID: targetProfileID, text: composition.text)
+        // #25: the priming turn IS the fresh session's context occupancy —
+        // seed the resume cache so a session abandoned right after its
+        // transplant still reads honestly when reopened.
+        if let usage {
+            usageIndex?.record(sessionID: sessionId, usage: usage)
+        }
+        journal.beginHop(apiSessionId: sessionId, primingUsage: usage, profileID: targetProfileID)
+        recordBirth(sessionId: sessionId, profileID: targetProfileID)
+        pendingNewSessionProfileID = nil
         Self.logger.notice("hop: fresh session primed from \(composition.entryCount) journal entries (\(composition.condensedByModel ? "condensed" : "verbatim tail", privacy: .public), \(usage?.totalTokens ?? 0) tokens)")
-        return PreparedHop(sessionId: sessionId, wasReused: false, priming: PrimingReceipt(usage: usage))
+        return PreparedHop(sessionId: sessionId, wasReused: false, priming: PrimingReceipt(usage: usage), profileID: targetProfileID)
     }
 
-    /// POST /api/sessions — a fresh, unprimed server session. Hop
-    /// registration and transplanting are the caller's business.
-    private func createBareSession() async throws -> String {
+    /// POST /api/sessions — a fresh, unprimed server session on the given
+    /// profile's gateway. Hop registration and transplanting are the
+    /// caller's business.
+    private func createBareSession(profileID: UUID? = nil) async throws -> String {
         let response: CreateSessionResponse = try await postJSON(
             path: Self.sessionsPath,
-            body: EmptyBody()
+            body: EmptyBody(),
+            profileID: profileID
         )
         return response.session.id
+    }
+
+    /// Lane M: stamps a session's immutable birth profile into the index.
+    private func recordBirth(sessionId: String, profileID: UUID?) {
+        guard let profileID else { return }
+        profileIndex?.record(sessionID: sessionId, profileID: profileID)
     }
 
     /// Posts the transplant as the fresh session's first turn over SSE and
@@ -591,10 +846,10 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// because usage rides ONLY `run.completed` — the receipts carry real
     /// numbers or none (#46). Deltas are drained and discarded: the
     /// acknowledgment is meta-traffic, not conversation content.
-    private func postPrimingTurn(sessionId: String, text: String) async throws -> TokenUsage? {
+    private func postPrimingTurn(sessionId: String, profileID: UUID?, text: String) async throws -> TokenUsage? {
         let path = "\(Self.sessionsPath)/\(sessionId)/chat/stream"
         let body = try encoder.encode(ChatTurnBody.make(message: text, attachments: []))
-        let request = try makeRequest(path: path, method: "POST", body: body, accept: "text/event-stream")
+        let request = try makeRequest(path: path, method: "POST", body: body, accept: "text/event-stream", profileID: profileID)
         let (bytes, response) = try await session.bytes(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
               (200 ..< 300).contains(httpResponse.statusCode) else {
@@ -635,39 +890,63 @@ final class SessionsHermesClient: HermesClientProtocol {
 
     // MARK: - HTTP plumbing
 
-    private func getJSON<T: Decodable>(path: String) async throws -> T {
-        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json")
+    private func getJSON<T: Decodable>(path: String, profileID: UUID? = nil) async throws -> T {
+        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json", profileID: profileID)
         let (data, response) = try await session.data(for: request)
         try ensureSuccess(response: response, data: data, path: path)
         return try decoder.decode(T.self, from: data)
     }
 
-    private func postJSON<Body: Encodable, T: Decodable>(path: String, body: Body) async throws -> T {
+    private func postJSON<Body: Encodable, T: Decodable>(path: String, body: Body, profileID: UUID? = nil) async throws -> T {
         let encodedBody = try encoder.encode(body)
-        let request = try makeRequest(path: path, method: "POST", body: encodedBody, accept: "application/json")
+        let request = try makeRequest(path: path, method: "POST", body: encodedBody, accept: "application/json", profileID: profileID)
         let (data, response) = try await session.data(for: request)
         try ensureSuccess(response: response, data: data, path: path)
         return try decoder.decode(T.self, from: data)
     }
 
-    private func makeRequest(path: String, method: String, body: Data?, accept: String) throws -> URLRequest {
+    private func makeRequest(path: String, method: String, body: Data?, accept: String, profileID: UUID? = nil) throws -> URLRequest {
+        let endpoint = try resolveEndpoint(profileID: requestProfileID(profileID))
+        guard let url = URL(string: normalizedBaseURL(endpoint.baseURL) + path) else {
+            throw SessionsClientError.notConfigured("Hermes API base URL is not set.")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("Bearer \(endpoint.apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(accept, forHTTPHeaderField: "Accept")
+        request.httpBody = body
+        request.timeoutInterval = 300
+        return request
+    }
+
+    /// Resolves the gateway a request should hit (M-5). nil = the ACTIVE
+    /// profile via the original providers — the pre-Lane-M path, byte for
+    /// byte. A non-nil id is a session pinned to a non-active birth profile.
+    private func resolveEndpoint(profileID: UUID?) throws -> (baseURL: String, apiKey: String) {
+        if let profileID {
+            guard let resolved = profileEndpointResolver(profileID) else {
+                throw SessionsClientError.notConfigured("This conversation lives on a backend profile with no usable endpoint. Check its gateway URL and API key in Settings → Server.")
+            }
+            let baseURL = resolved.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            let apiKey = resolved.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !baseURL.isEmpty else {
+                throw SessionsClientError.notConfigured("The session's backend profile has no gateway URL set.")
+            }
+            guard !apiKey.isEmpty else {
+                throw SessionsClientError.notConfigured("The session's backend profile has no API key set.")
+            }
+            return (baseURL, apiKey)
+        }
         guard let baseURL = baseURLProvider()?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !baseURL.isEmpty,
-              let url = URL(string: normalizedBaseURL(baseURL) + path) else {
+              !baseURL.isEmpty else {
             throw SessionsClientError.notConfigured("Hermes API base URL is not set.")
         }
         guard let apiKey = apiKeyProvider()?.trimmingCharacters(in: .whitespacesAndNewlines),
               !apiKey.isEmpty else {
             throw SessionsClientError.notConfigured("Hermes API key is not set.")
         }
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(accept, forHTTPHeaderField: "Accept")
-        request.httpBody = body
-        request.timeoutInterval = 300
-        return request
+        return (baseURL, apiKey)
     }
 
     private func normalizedBaseURL(_ raw: String) -> String {
@@ -764,6 +1043,26 @@ final class SessionsHermesClient: HermesClientProtocol {
         return chunk
     }
 
+    /// #60 mirror guard: the gateway's `_thinking` channel is defective
+    /// upstream — its single cumulative end-of-stream event carries the
+    /// assistant ANSWER verbatim, not reasoning. True when `reasoning` is
+    /// just the answer text, whitespace-folded so chunk-join artifacts can
+    /// never fake a difference. An answer-mirror must never attach as
+    /// reasoning; genuinely distinct text (real deltas, the day upstream
+    /// fixes the stream) compares different and passes through. Callers
+    /// guard for non-empty reasoning first.
+    nonisolated static func reasoningMirrorsAnswer(_ reasoning: String, content: String) -> Bool {
+        whitespaceFolded(reasoning) == whitespaceFolded(content)
+    }
+
+    /// Collapses every whitespace run (spaces, tabs, newlines) to a single
+    /// space and trims the ends — the same fold as #110's
+    /// `SpeechOutputService.shouldRetractSpeech`, copied so the two mirror
+    /// detections can't drift apart.
+    private nonisolated static func whitespaceFolded(_ text: String) -> String {
+        text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
     /// #11: builds a `ToolCallEvent` from a `tool.started` / `tool.completed`
     /// payload (`{tool_name, args:{…}, preview}`). `_thinking` is the reasoning
     /// channel, never a tool call. Returns nil when no tool name is present —
@@ -820,22 +1119,138 @@ final class SessionsHermesClient: HermesClientProtocol {
         }
     }
 
-    /// #21 Tier 1: pulls an agent-written file out of a `tool.started` payload.
+    /// #21: pulls an agent-written file out of a `tool.started` payload.
     /// Recognizes `write_file` / `create_file`; tolerant of arg-key drift
     /// (`args`/`arguments`/`input`, `path`/`file_path`, `content`/`text`) so a
-    /// minor server-shape change doesn't silently drop the attachment. Returns
-    /// nil for any other tool or when path/content are absent.
-    nonisolated private func parseWrittenFile(_ raw: String) -> MessageAttachment? {
+    /// minor server-shape change doesn't silently drop the attachment.
+    /// Content present → Tier 1 stages the bytes now. Content absent (a
+    /// binary — the stream never carries its bytes) → a Tier 2 fetchable
+    /// attachment, but only when the path sits inside the whitelisted
+    /// agent-files dir: the relay would 404 anything else, and the app never
+    /// attempts arbitrary host paths. Returns nil for any other tool, when
+    /// the path is absent, or for a content-less path outside the whitelist.
+    nonisolated static func parseWrittenFile(_ raw: String, profileID: UUID?) -> MessageAttachment? {
         guard let data = raw.data(using: .utf8),
               let envelope = try? JSONDecoder().decode(ToolStartedEnvelope.self, from: data)
         else { return nil }
         let tool = (envelope.toolName ?? "").lowercased()
         guard tool == "write_file" || tool == "create_file" else { return nil }
         guard let args = envelope.args,
-              let path = args.path, !path.isEmpty,
-              let content = args.content
+              let path = args.path, !path.isEmpty
         else { return nil }
-        return MessageAttachment.agentFile(remotePath: path, content: content)
+        if let content = args.content {
+            return MessageAttachment.agentFile(remotePath: path, content: content)
+        }
+        guard let relative = agentFilesRelativePaths(in: path).first else { return nil }
+        return MessageAttachment.fetchableAgentFile(
+            name: (relative as NSString).lastPathComponent,
+            remotePath: relative,
+            profileID: profileID
+        )
+    }
+
+    // MARK: - Agent-file announcement scan (#21 Tier 2)
+
+    /// The whitelisted agent-files directory's terminal component on BOTH
+    /// hosts (OJAMD `O:\Hermes\MobileDL`, Mac `~/Hermes/agent-work/MobileDL`)
+    /// — the anchor that lets the client derive the route-form relative path
+    /// without knowing the host's absolute AGENT_FILES_DIR.
+    nonisolated private static let agentFilesDirName = "MobileDL"
+
+    /// Matches `MobileDL` followed by one or more path segments, either
+    /// separator style (`\\` doubles in raw JSON, hence the `+`).
+    nonisolated(unsafe) private static let agentFilesPathPattern =
+        /(?i)MobileDL((?:[\/\\]+[A-Za-z0-9._\-]+)+)/
+    /// A plausible file (not directory) tail: an extension of 1–8
+    /// alphanumerics on a non-empty stem.
+    nonisolated(unsafe) private static let fileExtensionPattern = /[^\/.]\.[A-Za-z0-9]{1,8}$/
+
+    /// Extracts the agent-files-relative (route-form) paths mentioned in a
+    /// string — host prose ("Saved to O:\Hermes\MobileDL\report.pdf"), tool
+    /// args (`terminal` commands), search results. Windows or POSIX
+    /// separators normalize to `/`; only tokens with a file-like extension
+    /// qualify, so bare directory mentions ("your MobileDL folder") never
+    /// produce a bubble. Order preserved, duplicates dropped.
+    nonisolated static func agentFilesRelativePaths(in text: String) -> [String] {
+        guard text.range(of: agentFilesDirName, options: .caseInsensitive) != nil else { return [] }
+        var results: [String] = []
+        var seen = Set<String>()
+        for match in text.matches(of: agentFilesPathPattern) {
+            var relative = String(match.1)
+                .replacingOccurrences(of: "\\", with: "/")
+            while relative.contains("//") {
+                relative = relative.replacingOccurrences(of: "//", with: "/")
+            }
+            while relative.hasPrefix("/") { relative.removeFirst() }
+            // Prose punctuation can ride the capture ("…report.pdf.").
+            while relative.hasSuffix(".") { relative.removeLast() }
+            guard !relative.isEmpty,
+                  relative.firstMatch(of: fileExtensionPattern) != nil else { continue }
+            let key = relative.lowercased()
+            if seen.insert(key).inserted { results.append(relative) }
+        }
+        return results
+    }
+
+    /// Harvests agent-files paths from a `tool.started` payload by walking
+    /// every string value in the JSON (args of ANY tool — the probe's binary
+    /// rode a `terminal` command — plus `preview` and friends). Keys are
+    /// walked in sorted order so the result is deterministic.
+    nonisolated static func announcedAgentFilePaths(fromToolPayload raw: String) -> [String] {
+        guard raw.range(of: agentFilesDirName, options: .caseInsensitive) != nil,
+              let data = raw.data(using: .utf8),
+              let payload = try? JSONSerialization.jsonObject(with: data)
+        else { return [] }
+        var strings: [String] = []
+        collectStrings(payload, into: &strings)
+        var results: [String] = []
+        var seen = Set<String>()
+        for string in strings {
+            for path in agentFilesRelativePaths(in: string) where seen.insert(path.lowercased()).inserted {
+                results.append(path)
+            }
+        }
+        return results
+    }
+
+    nonisolated private static func collectStrings(_ value: Any, into strings: inout [String]) {
+        switch value {
+        case let string as String:
+            strings.append(string)
+        case let array as [Any]:
+            for element in array { collectStrings(element, into: &strings) }
+        case let dictionary as [String: Any]:
+            for key in dictionary.keys.sorted() {
+                collectStrings(dictionary[key] as Any, into: &strings)
+            }
+        default:
+            break
+        }
+    }
+
+    /// Builds the turn's fetchable attachments from every announced path,
+    /// deduped against paths already covered and against files the Tier 1
+    /// path already reconstructed (a staged copy with real bytes beats a
+    /// fetchable pointer to the same file).
+    nonisolated static func fetchableAgentFileAttachments(
+        announcedPaths: [String],
+        existing: [MessageAttachment],
+        profileID: UUID?
+    ) -> [MessageAttachment] {
+        var seenPaths = Set(existing.compactMap { $0.remotePath?.lowercased() })
+        // Names normalize to their path tail: pre-fix Tier 1 attachments from
+        // Windows paths carry the whole backslashed path as their fileName.
+        var seenNames = Set(existing.map {
+            MessageAttachment.lastPathComponentAcrossHosts($0.fileName).lowercased()
+        })
+        var results: [MessageAttachment] = []
+        for path in announcedPaths {
+            guard seenPaths.insert(path.lowercased()).inserted else { continue }
+            let name = (path as NSString).lastPathComponent
+            guard !name.isEmpty, seenNames.insert(name.lowercased()).inserted else { continue }
+            results.append(.fetchableAgentFile(name: name, remotePath: path, profileID: profileID))
+        }
+        return results
     }
 
     private func failureMessage(for error: Error) -> String {
@@ -865,8 +1280,51 @@ final class SessionsHermesClient: HermesClientProtocol {
         )
     }
 
+    /// Extracts the model's REAL reasoning from a `run.completed` SSE payload
+    /// (#60): the terminal transcript carries it per-message under
+    /// `reasoning_content` (and a duplicate `reasoning` key), while the
+    /// streamed `_thinking` channel mirrors the answer. On tool-using turns
+    /// the transcript is multi-message and the genuine plan CoT rides the
+    /// INTERMEDIATE assistant entries (60B), so EVERY assistant entry
+    /// contributes: non-blank segments aggregate in transcript order,
+    /// blank-line joined — matching Hermes's own web UI, which shows each
+    /// reasoning segment across the run. Per entry, `reasoning_content` is
+    /// preferred with `reasoning` as the fallback (blank counts as absent —
+    /// same shape-drift posture as the other parsers here). Returns nil when
+    /// no segment survives or the payload is unparseable.
+    nonisolated private func decodeRunReasoning(_ data: String) -> String? {
+        guard let raw = data.data(using: .utf8),
+              let envelope = try? JSONDecoder().decode(RunCompletedEnvelope.self, from: raw),
+              let transcript = envelope.messages
+        else { return nil }
+        var segments: [String] = []
+        for entry in transcript where entry.role == "assistant" {
+            for candidate in [entry.reasoningContent, entry.reasoning] {
+                guard let trimmed = candidate?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      !trimmed.isEmpty else { continue }
+                segments.append(trimmed)
+                break
+            }
+        }
+        return segments.isEmpty ? nil : segments.joined(separator: "\n\n")
+    }
+
     private struct RunCompletedEnvelope: Decodable {
         let usage: RunCompletedUsage?
+        let messages: [RunTranscriptMessage]?
+    }
+
+    /// One transcript row in the terminal `run.completed` payload (#60).
+    /// Only the reasoning-bearing keys are decoded; everything else
+    /// (content, finish_reason) is ignored.
+    private struct RunTranscriptMessage: Decodable {
+        let role: String?
+        let reasoning: String?
+        let reasoningContent: String?
+        enum CodingKeys: String, CodingKey {
+            case role, reasoning
+            case reasoningContent = "reasoning_content"
+        }
     }
 
     private struct RunCompletedUsage: Decodable {
@@ -1185,4 +1643,17 @@ final class SessionsHermesClient: HermesClientProtocol {
             }
         }
     }
+}
+
+
+/// Region-checker workaround box for the multi-host session fetch (M-5).
+/// Every child task in the fetch group is MainActor-isolated, so appends
+/// never race; the MainActor-isolated reference type (implicitly Sendable)
+/// is what lets results cross the task-group boundary without moving
+/// non-Sendable `(BackendProfile, Result<_, any Error>)` tuples through it,
+/// which the iOS 27 SDK's region-based isolation checker rejects outright.
+@MainActor
+private final class ProfileFetchAccumulator {
+    var lists: [(profile: BackendProfile, infos: [HermesSessionInfo])] = []
+    var failures: [Error] = []
 }
