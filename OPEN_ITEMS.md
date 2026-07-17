@@ -845,7 +845,20 @@ backed up; confirmed no bookstack error in the post-fix startup.
 
 ---
 
-## 25. 🐛 CTX meter — 0/absent on resumed sessions: root cause PINNED + wire probe RUN 2026-07-16; spec READY TO SEND
+## 25. 🔧 CTX meter — resume-cache fix MERGED (PR #110, 2026-07-17); device re-verify owed
+
+> **MERGED 2026-07-17 (PR #110, `f42ba3f`→`5510c41`).** Built exactly to the probe verdict:
+> `SessionUsageIndex` + `SessionUsageIndexStore` (SessionProfileIndex pattern) cache each live
+> `run.completed`'s usage keyed by session id; `openSession` reads the cache on resume. The gauge
+> renders ONLY when both halves are known (`ChatScreen.swift:620` gates on window AND numerator) —
+> unknown hides the gauge, never "CTX 0%". Compliance verified in the loop: `token_count` appears
+> only as a warning comment (never decoded — null on 100% of rows per the probe); zero cumulative
+> `input_tokens` division anywhere; the spy-store conformance stubs in SensorOutboxChurnTests are
+> the protocol growth, benign. Suite **754 tests / 62 suites** green (new baseline); tree-identity
+> validation (branch tree == merged main tree). → **Device re-verify owed:** open an OLD session —
+> gauge honestly absent (not 0%); send a message — gauge appears with a real number; kill + relaunch
+> + reopen that session — cached number returns. 'Flashes wrong' second half remains open per the
+> dispatch (separate investigation, not covered by this fix).
 
 **Dispatch spec 2026-07-16:** `dispatch/FABLE-T27-25-ctx-meter.md` — **READY TO SEND (gate
 lifted).** Root cause confirmed in source at HEAD: `SessionsHermesClient.swift:1523`
@@ -3411,9 +3424,10 @@ Logged 2026-07-11.
 > already flowing to the host); confirm it renders themed, tap → fullscreen, VoiceOver reads the
 > label; confirm a malformed fence degrades to a code block rather than vanishing; check a numeric
 > table offers the chart toggle. Verify under a non-default theme (Midnight Marquee) too.
-> → **STILL OWEN'S CALL:** nothing tells the model the ```chart contract exists. Path B works today
-> with zero backend cooperation; Path A needs a system-prompt/instruction addition on the Hermes
-> side. The app surface is built so either lights it up.
+> → **DECIDED 2026-07-17 (Owen): Path B only.** The numeric-table chart toggle is the contract —
+> no prompt addition, no Hermes-side config, no added complexity. The ```chart fence parser stays
+> merged and dormant; if a fence ever arrives it renders, but nothing teaches the model to emit
+> one. Revisit only if Path B proves insufficient on device.
 
 > **Dispatch spec 2026-07-16:** `dispatch/FABLE-T27-100-inline-charts.md` — **READY TO SEND.**
 > Two stacked PRs: PR 1 = `ChartSpec` + `MarkdownSegment.chart` + parser (pure, cloud-testable);
