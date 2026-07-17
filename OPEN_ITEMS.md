@@ -3817,7 +3817,15 @@ Logged 2026-07-15.
 
 ---
 
-## 115. 🐛 Connector `resolve_mcp_command_path()` breaks on macOS venvs (symlinked python) — one-line fix
+## 115. ✅ Connector `resolve_mcp_command_path()` macOS venv fix — MERGED (PR #111) + Mini-VERIFIED 2026-07-17
+
+> **Loop verdict 2026-07-17 (PR #111 merged):** connector suite **118/118 on the Mac** (Fable's
+> Linux 117 + 1 macOS-only skip — the skip runs here, on the platform the bug bites, and passes;
+> import provenance verified against the branch source before trusting the run). **Mini
+> verification complete post-merge:** the venv install is editable, so the pulled fix is live —
+> `resolve_mcp_command_path()` returns `.venv/bin/hermes-mobile-mcp` with NO PATH override. The
+> 2026-07-14 workaround is retired. Process note: OPEN_ITEMS again rode the feature commit
+> (recurring Fable miss, not blocking).
 
 > **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-115-connector-venv-path.md` — **READY TO
 > SEND.** Unresolved-sibling-first fix in `mcp_registration.py:47`, pytest fixtures for
