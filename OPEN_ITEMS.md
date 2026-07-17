@@ -3726,8 +3726,40 @@ Logged 2026-07-12 (dispatch-prep session).
 
 ## 113. 🐛 Connector process died silently — health outbox piled up on all devices (202-retry trap); connector needs supervision
 
-> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-113-connector-supervision.md` — **READY TO
-> SEND.** Cloud half only: connector dies-loudly hardening (nonzero exit + FATAL log),
+> **BUILT 2026-07-17 (cloud) on `claude/fable-t27-113-connector-krjdhu` — all three deliverables.**
+> D1 die-loudly: new `connector/src/hermes_mobile_connector/supervision.py`
+> (`run_connector_until_stopped` + `fatal_exit`) wraps BOTH entry paths (`cli._run_foreground`,
+> `service_runner.run_from_state_dir` incl. startup failures) — any end except Ctrl+C logs a
+> timestamped `FATAL: <reason>` + traceback and exits 1; catches `BaseException` so
+> CancelledError/SystemExit can't slip the loop's `except Exception`; a clean `run_forever()`
+> return is ALSO fatal (that IS the silent-death shape). The reconnect loop's `last_error`
+> bookkeeping save is now best-effort (a transient write must not kill the loop); the state
+> `load()` at loop top stays unguarded on purpose — unreadable identity should die loudly. No
+> lock to release: the bat's enforcer keys off the live process/port, and exit happens after
+> asyncio teardown closes the WS. 8 new tests in `tests/test_supervision.py`; connector suite
+> **122 passed + 1 macOS-only skip (Linux)**. D2: `scripts/connector-watchdog.ps1` committed —
+> port-truth liveness (`Get-NetTCPConnection -State Established -LocalPort 8000` filtered to
+> local-address peers, never process names), one check per run with a persisted miss counter
+> (2 consecutive → fire `start-connector.bat`, fire-and-forget), rotating log at
+> `O:\Hermes\Talaria\logs\connector-watchdog.log`, exact `schtasks /Create … /SC MINUTE /RU Owen`
+> line in the header — NOT installed/executed by the repo. D3 app alert:
+> `ConnectorOutageAlertPolicy` (pure state machine: 3 CONSECUTIVE delivery-free retry-exhausted
+> drain cycles → raise ONCE; only a real delivery clears; inconclusive cycles break the streak
+> but never clear) fed at drain end by `SensorUploadService`; `InboxStore` gains persisted
+> LOCAL items (`InboxLocalState.localItems`, additive decoder per the #42 lesson) — kind
+> `.alert` (valid enum, never touches the #58 decoder), deduped, leads the fetched rows,
+> survives relay-fetch failure AND relaunch mid-outage, Acknowledge/Dismiss resolve locally
+> (no relay round-trip); wired in AppContainer. 16 new Swift tests
+> (`ConnectorOutageAlertTests.swift`). **Swift half cloud-written, NOT compiled** — next Mac
+> session: `xcodegen generate` (2 new files: `Services/Support/ConnectorOutageAlertPolicy.swift`
+> + `TalariaTests/ConnectorOutageAlertTests.swift`; separate commit; verify aps-environment
+> survives), CLI build + app suite (≥755/62 baseline), then device-verify the alert via a
+> connector-down window. Forensics on the 07-14/07-16 deaths STILL OWED (next OJAMD pass);
+> NSSM-promotion vs scheduled-task watchdog remains Owen's infra decision — the watchdog ships
+> either way and is strictly additive.
+
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-113-connector-supervision.md` — SENT (see
+> above). Cloud half only: connector dies-loudly hardening (nonzero exit + FATAL log),
 > `scripts/connector-watchdog.ps1` committed (port-truth liveness per house learnings, invokes
 > start-connector.bat, installed by Owen as a scheduled task — NOT executed by the repo), and the
 > app-side inbox `alert` on repeated retry-exhaustion (valid kind, deduped). NSSM-vs-watchdog
