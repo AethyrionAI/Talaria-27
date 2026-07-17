@@ -4019,3 +4019,72 @@ future #100 rider only.
 > **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-122-session-cost.md` — **READY TO SEND.**
 
 Logged 2026-07-17.
+
+---
+
+## 123. ✨ Share extension — send anything into a Hermes session (free tier)
+
+Inbound share sheet: URL/image/PDF/text from any app → app-group envelope → drained into the
+composer as `PendingAttachment`s on next activation. New `TalariaShare` target modeled on
+TalariaWidgets; NO network in the extension. The habit-forming missing half of the agent-files
+pipeline.
+
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-123-share-extension.md` — **READY TO SEND.**
+> Note: adds a TARGET — the regen is substantial; both targets' entitlements verified post-regen.
+
+Logged 2026-07-17.
+
+---
+
+## 124. ✨ Face ID app lock (free tier)
+
+`.deviceOwnerAuthentication` (passcode fallback, never biometry-only), scene-root overlay on
+launch + return-to-foreground with grace-period setting, obscured app-switcher snapshot, Siri
+intent path unaffected. `NSFaceIDUsageDescription` via project.yml info.properties (the #58
+INFOPLIST_KEY lesson).
+
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-124-faceid-lock.md` — **READY TO SEND.**
+
+Logged 2026-07-17.
+
+---
+
+## 125. ✨ Health trends view — native, on-device (free-tier flagship)
+
+HKStatisticsCollectionQuery daily buckets (7/30/90d) over the already-authorized metric set,
+rendered through the #100 chart pipeline (reuse, don't fork). Hidden cards for unauthorized/
+empty metrics; pure-function trend deltas; no new scopes, no server. The App Store screenshot.
+
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-125-health-trends.md` — **READY TO SEND.**
+
+Logged 2026-07-17.
+
+---
+
+## 126. ✨ Daily briefing — app half (connected-tier centerpiece)
+
+Host cron synthesizes health + calendar + threads → inbox `notification` with markdown body
+(may carry ```chart fences — dormant Path A wakes scoped to briefings), optional `speakable`,
+`category: "briefing"`. App: detail view via MarkdownContentView, read-aloud via the existing
+gated SpeechOutputService, latest-briefing widget via SharedWidgetDataStore, hermes:// deep
+link. Host half = Owen's cron config against the JSON contract in the spec/PR.
+
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-126-daily-briefing.md` — **READY TO SEND.**
+
+Logged 2026-07-17.
+
+---
+
+## 127. ✨ Monetization scaffold — StoreKit 2 freemium gate (Owen: freemium + paid BYOK-connect, 2026-07-17)
+
+Free = standalone (on-device model, voice, OCR, widgets, trends, share, lock). Paid "Connected"
+= the connect-your-own-host feature set (pairing, profiles, uplink, inbox, realtime).
+EntitlementService (StoreKit 2, both product-type paths behind a constant), gate wraps CONNECT
+ENTRY POINTS only — existing pairings fail OPEN on transient entitlement failure; new connects
+fail closed. Paywall sheet (displayPrice, restore, dismissible), DEBUG override, and the whole
+gate lands DORMANT behind `monetizationEnabled=false` until launch.
+
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-127-monetization-scaffold.md` — **READY TO
+> SEND.** StoreKit greenfield verified. App Store Connect product setup = Owen, steps in the PR.
+
+Logged 2026-07-17.
