@@ -3824,6 +3824,16 @@ Logged 2026-07-15.
 > macOS-symlink vs Windows-copy shapes, Windows behavior unchanged. Kills the PATH-override
 > workaround on the Mini.
 
+> **Update 2026-07-17 (Fable lane): built** on `claude/fable-t27-115-connector-venv-tlnhty`.
+> `resolve_mcp_command_path()` now tries the unresolved sibling
+> (`Path(sys.executable).with_name(...)`) before the resolved one; which/PATH candidate
+> order untouched. Three new tests in `connector/tests/test_connector.py` (macOS symlink
+> shape, Windows copied-exe shape, which fall-through); the macOS-shape test verified to
+> FAIL against the old code. Connector suite green on Linux: **117 passed + 1 macOS-only
+> skip** (old baseline 114+1 plus the 3 new tests). No relay/app changes, no Xcode loop.
+> **Owed after merge:** the Mini device check — plain `hermes-mobile configure-mcp` (no
+> PATH override) must succeed; then delete the PATH-override workaround from any Mini notes.
+
 `Path(sys.executable).resolve().with_name("hermes-mobile-mcp")` resolves the venv python
 symlink to the framework/uv binary FIRST, escaping the venv, so the sibling lookup misses
 `.venv/bin/hermes-mobile-mcp` and setup/configure-mcp report "Could not find
