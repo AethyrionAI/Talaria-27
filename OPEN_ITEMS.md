@@ -3849,12 +3849,30 @@ Logged 2026-07-15.
 
 ---
 
-## 115. 🐛 Connector `resolve_mcp_command_path()` breaks on macOS venvs (symlinked python) — one-line fix
+## 115. ✅ Connector `resolve_mcp_command_path()` macOS venv fix — MERGED (PR #111) + Mini-VERIFIED 2026-07-17
+
+> **Loop verdict 2026-07-17 (PR #111 merged):** connector suite **118/118 on the Mac** (Fable's
+> Linux 117 + 1 macOS-only skip — the skip runs here, on the platform the bug bites, and passes;
+> import provenance verified against the branch source before trusting the run). **Mini
+> verification complete post-merge:** the venv install is editable, so the pulled fix is live —
+> `resolve_mcp_command_path()` returns `.venv/bin/hermes-mobile-mcp` with NO PATH override. The
+> 2026-07-14 workaround is retired. Process note: OPEN_ITEMS again rode the feature commit
+> (recurring Fable miss, not blocking).
 
 > **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-115-connector-venv-path.md` — **READY TO
 > SEND.** Unresolved-sibling-first fix in `mcp_registration.py:47`, pytest fixtures for
 > macOS-symlink vs Windows-copy shapes, Windows behavior unchanged. Kills the PATH-override
 > workaround on the Mini.
+
+> **Update 2026-07-17 (Fable lane): built** on `claude/fable-t27-115-connector-venv-tlnhty`.
+> `resolve_mcp_command_path()` now tries the unresolved sibling
+> (`Path(sys.executable).with_name(...)`) before the resolved one; which/PATH candidate
+> order untouched. Three new tests in `connector/tests/test_connector.py` (macOS symlink
+> shape, Windows copied-exe shape, which fall-through); the macOS-shape test verified to
+> FAIL against the old code. Connector suite green on Linux: **117 passed + 1 macOS-only
+> skip** (old baseline 114+1 plus the 3 new tests). No relay/app changes, no Xcode loop.
+> **Owed after merge:** the Mini device check — plain `hermes-mobile configure-mcp` (no
+> PATH override) must succeed; then delete the PATH-override workaround from any Mini notes.
 
 `Path(sys.executable).resolve().with_name("hermes-mobile-mcp")` resolves the venv python
 symlink to the framework/uv binary FIRST, escaping the venv, so the sibling lookup misses

@@ -244,7 +244,8 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             #if canImport(WebRTC)
             // Phase 1: Prepare WebRTC (peer connection + SDP offer) in parallel
             // with the relay bootstrap request. This saves ~200-500ms.
-            try configureAudioSession()
+            // Awaited: activation must complete before the WebRTC engine starts.
+            try await configureAudioSession()
             let prepared = try await prepareWebRTC()
             #endif
 
@@ -307,7 +308,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         peerConnection = nil
         audioTrack = nil
         #endif
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        try? await AudioSessionOffMain.setActive(false, options: .notifyOthersOnDeactivation)
         try? await endRemoteSession()
         voiceSessionID = nil
         voiceState = .idle
@@ -536,7 +537,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
                 self.handleAudioInterruptionBegan()
             case .ended:
                 let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
-                self.handleAudioInterruptionEnded(shouldResume: options.contains(.shouldResume))
+                await self.handleAudioInterruptionEnded(shouldResume: options.contains(.shouldResume))
             @unknown default:
                 break
             }
@@ -554,7 +555,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             else {
                 return
             }
-            self.handleAudioRouteChange(reason)
+            await self.handleAudioRouteChange(reason)
         }
     }
 
@@ -565,7 +566,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         statusMessage = "Audio interrupted."
     }
 
-    func handleAudioInterruptionEnded(shouldResume: Bool) {
+    func handleAudioInterruptionEnded(shouldResume: Bool) async {
         guard hasActiveRealtimeSession else { return }
         guard shouldResume else {
             statusMessage = "Audio interrupted."
@@ -573,7 +574,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         }
 
         do {
-            try configureAudioSession()
+            try await configureAudioSession()
             if connectionState == .connected || connectionState == .connecting {
                 voiceState = .listening
                 statusMessage = "Listening"
@@ -586,7 +587,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         }
     }
 
-    func handleAudioRouteChange(_ reason: AVAudioSession.RouteChangeReason) {
+    func handleAudioRouteChange(_ reason: AVAudioSession.RouteChangeReason) async {
         guard hasActiveRealtimeSession else { return }
         updateAudioRouteSummary()
         switch reason {
@@ -599,7 +600,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             // needs the session category re-asserted — the WebRTC audio unit
             // configures AVAudioSession itself and can leave it shaped for
             // the previous route.
-            reassertAudioSessionForCarAudioIfNeeded()
+            await reassertAudioSessionForCarAudioIfNeeded()
             // Re-assert speaker output when a device is removed (e.g. headphones unplugged)
             // or the route is reconfigured by the system / WebRTC.
             // (Skips itself when car audio / headphones are attached.)
@@ -613,18 +614,19 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     /// mic capture and playback follow the car after WebRTC's own session
     /// meddling. No speaker override here — the car owns the route. Safe to
     /// call when the session is already correctly configured.
-    private func reassertAudioSessionForCarAudioIfNeeded() {
-        let audioSession = AVAudioSession.sharedInstance()
-        let routeHasCarAudio = audioSession.currentRoute.outputs.contains { $0.portType == .carAudio }
-            || audioSession.currentRoute.inputs.contains { $0.portType == .carAudio }
-        guard routeHasCarAudio else { return }
+    private func reassertAudioSessionForCarAudioIfNeeded() async {
         do {
-            try audioSession.setCategory(
-                .playAndRecord,
-                mode: .voiceChat,
-                options: [.allowBluetoothHFP]
-            )
-            try audioSession.setActive(true)
+            try await AudioSessionOffMain.run { audioSession in
+                let routeHasCarAudio = audioSession.currentRoute.outputs.contains { $0.portType == .carAudio }
+                    || audioSession.currentRoute.inputs.contains { $0.portType == .carAudio }
+                guard routeHasCarAudio else { return }
+                try audioSession.setCategory(
+                    .playAndRecord,
+                    mode: .voiceChat,
+                    options: [.allowBluetoothHFP]
+                )
+                try audioSession.setActive(true)
+            }
         } catch {
             Self.logger.warning("CarPlay audio session re-assert failed: \(error.localizedDescription, privacy: .public)")
         }
@@ -669,24 +671,28 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         }
     }
 
-    private func configureAudioSession() throws {
-        let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(
-            .playAndRecord,
-            mode: .voiceChat,
-            options: [.defaultToSpeaker, .allowBluetoothHFP]
-        )
-        try audioSession.setActive(true)
+    /// Rider: one off-main hop — category, activation, and the speaker
+    /// override keep their relative order inside the closure, and callers
+    /// await, so nothing downstream starts before activation completes.
+    private func configureAudioSession() async throws {
+        try await AudioSessionOffMain.run { audioSession in
+            try audioSession.setCategory(
+                .playAndRecord,
+                mode: .voiceChat,
+                options: [.defaultToSpeaker, .allowBluetoothHFP]
+            )
+            try audioSession.setActive(true)
 
-        // Force output to the speaker for maximum volume — but only when no
-        // headphones or Bluetooth audio device is connected. Headsets handle
-        // their own volume and don't need the override.
-        let hasExternalOutput = audioSession.currentRoute.outputs.contains { output in
-            [.headphones, .bluetoothA2DP, .bluetoothHFP, .bluetoothLE, .airPlay, .carAudio]
-                .contains(output.portType)
-        }
-        if !hasExternalOutput {
-            try audioSession.overrideOutputAudioPort(.speaker)
+            // Force output to the speaker for maximum volume — but only when no
+            // headphones or Bluetooth audio device is connected. Headsets handle
+            // their own volume and don't need the override.
+            let hasExternalOutput = audioSession.currentRoute.outputs.contains { output in
+                [.headphones, .bluetoothA2DP, .bluetoothHFP, .bluetoothLE, .airPlay, .carAudio]
+                    .contains(output.portType)
+            }
+            if !hasExternalOutput {
+                try audioSession.overrideOutputAudioPort(.speaker)
+            }
         }
     }
 
@@ -823,16 +829,22 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             if isEndingSession {
                 break
             }
-            let message = ((payload["error"] as? [String: Any])?["message"] as? String) ?? "Realtime talk failed."
-            // Suppress transient "active response in progress" errors — these are harmless
-            // race conditions from our response.create after MCP tool completion.
-            if message.contains("active response in progress") {
-                break
+            let errorPayload = payload["error"] as? [String: Any]
+            let message = (errorPayload?["message"] as? String) ?? "Realtime talk failed."
+            switch RealtimeErrorRule.disposition(code: errorPayload?["code"] as? String, message: message) {
+            case .swallowNoOpCancel:
+                // #119a: the cancel raced a response that already completed —
+                // a normal race. The session is healthy; never bubble the
+                // backend string into the UI or flag the connection failed.
+                Self.logger.notice("no-op cancel race swallowed: \(message, privacy: .public)")
+            case .swallowResponseCreateRace:
+                Self.logger.notice("response.create race swallowed: \(message, privacy: .public)")
+            case .surface:
+                blockedReason = message
+                connectionState = .failed
+                voiceState = .disconnected
+                statusMessage = message
             }
-            blockedReason = message
-            connectionState = .failed
-            voiceState = .disconnected
-            statusMessage = message
         default:
             break
         }

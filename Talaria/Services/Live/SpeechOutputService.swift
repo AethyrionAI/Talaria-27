@@ -217,6 +217,15 @@ final class SpeechOutputService: NSObject {
 
     /// `.playback` + `.spokenAudio` so replies read out over the silent switch
     /// and duck other audio. Never reached while Talk is active (gate above).
+    ///
+    /// Deliberately synchronous (the setActive off-main rider skips this
+    /// service): activation must complete before `synthesizer.speak` on the
+    /// same tick, and the release below is interlocked with the #106
+    /// `didActivateAudioSession` gate — hopping either off-main could reorder
+    /// activate/deactivate across a `stop()` → `speak()` boundary. Voice
+    /// sessions never reach these calls anyway (the native pipeline's
+    /// instance has `managesAudioSession == false`; the shared instance is
+    /// gated off while Talk is active).
     private func configurePlaybackAudioSession() {
         guard managesAudioSession else { return }
         let session = AVAudioSession.sharedInstance()

@@ -143,4 +143,14 @@ enum TalkAudioRoute {
             outputs: route.outputs.map { ($0.portName, $0.portType.rawValue) }
         )
     }
+
+    /// #118: is CarPlay in the live route? Feeds `TalkBackgroundRule`'s
+    /// exemption — CarPlay voice runs with the phone UI backgrounded by
+    /// design (#19), so the background-end privacy hook must stand down.
+    @MainActor
+    static func currentRouteHasCarAudio() -> Bool {
+        let route = AVAudioSession.sharedInstance().currentRoute
+        return route.outputs.contains { $0.portType == .carAudio }
+            || route.inputs.contains { $0.portType == .carAudio }
+    }
 }

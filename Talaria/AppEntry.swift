@@ -245,11 +245,12 @@ struct TalariaApp: App {
                             await container.watchPendingRunIfNeeded()
                         }
                     }
-                    // Note: voice sessions are NOT ended on background.
-                    // The "audio" background mode keeps WebRTC alive so
-                    // the user can continue talking while the app is
-                    // backgrounded. The session ends only when the user
-                    // explicitly closes the voice overlay.
+                    // Voice sessions END on background (#118, privacy):
+                    // AppContainer's didEnterBackground observer runs the
+                    // user-end path so the mic indicator goes dark. CarPlay
+                    // routes are exempt — CarPlay voice runs with the phone
+                    // UI backgrounded by design (#19), which is what the
+                    // "audio" background mode remains for.
                 }
                 .onOpenURL { url in
                     handleDeeplink(url)
