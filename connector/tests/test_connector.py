@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import shutil
 import sys
 
 from hermes_mobile_connector.client import HermesMobileConnector
@@ -11,6 +12,7 @@ from hermes_mobile_connector.mcp_registration import (
     MCPRegistrationStatus,
     native_mcp_readiness_message,
     register_native_mcp_server,
+    resolve_mcp_command_path,
 )
 from hermes_mobile_connector.setup_code import decode_host_setup_code
 from hermes_mobile_connector.runtime_adapter import (
@@ -990,6 +992,53 @@ def test_register_native_mcp_server_updates_existing_hermes_config(monkeypatch, 
     assert text.count("hermes_mobile:") == 1
     assert "other:" in text
     assert "HERMES_MOBILE_CONNECTOR_HOME" in text
+
+
+def test_resolve_mcp_command_path_prefers_unresolved_venv_sibling(monkeypatch, tmp_path):
+    # macOS venv shape: the venv python is a symlink out to the framework
+    # install, but hermes-mobile-mcp lives next to the symlink.
+    framework_bin = tmp_path / "framework" / "bin"
+    framework_bin.mkdir(parents=True)
+    real_python = framework_bin / "python3"
+    real_python.write_text("", encoding="utf-8")
+
+    venv_bin = tmp_path / ".venv" / "bin"
+    venv_bin.mkdir(parents=True)
+    venv_python = venv_bin / "python3"
+    venv_python.symlink_to(real_python)
+    venv_mcp = venv_bin / "hermes-mobile-mcp"
+    venv_mcp.write_text("", encoding="utf-8")
+
+    monkeypatch.setattr(sys, "executable", str(venv_python))
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+
+    assert resolve_mcp_command_path() == venv_mcp
+
+
+def test_resolve_mcp_command_path_copied_exe_without_symlink_unchanged(monkeypatch, tmp_path):
+    # Windows venv shape: the interpreter is a real copied file, no symlink.
+    venv_bin = tmp_path / "venv" / "Scripts"
+    venv_bin.mkdir(parents=True)
+    venv_python = venv_bin / "python.exe"
+    venv_python.write_text("", encoding="utf-8")
+    venv_mcp = venv_bin / "hermes-mobile-mcp"
+    venv_mcp.write_text("", encoding="utf-8")
+
+    monkeypatch.setattr(sys, "executable", str(venv_python))
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+
+    assert resolve_mcp_command_path() == venv_mcp
+
+
+def test_resolve_mcp_command_path_falls_through_to_which(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "nowhere" / "python3"))
+    path_bin = tmp_path / "path-bin"
+    path_bin.mkdir(parents=True)
+    path_mcp = path_bin / "hermes-mobile-mcp"
+    path_mcp.write_text("", encoding="utf-8")
+    monkeypatch.setattr(shutil, "which", lambda name: str(path_mcp))
+
+    assert resolve_mcp_command_path() == path_mcp.resolve()
 
 
 def test_status_lines_include_core_runtime_details(tmp_path):
