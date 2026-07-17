@@ -751,6 +751,31 @@ final class AppContainer {
             Task { @MainActor in refreshCredentialState() }
         }
 
+        // #118 (privacy): leaving the app must not leave the capture chain --
+        // and the system mic indicator -- live. There is no background-audio
+        // voice mode; backgrounding ends the voice session through the same
+        // path as the user's end tap (transcript capture, Live Activity
+        // teardown, overlay dismissal), on WHICHEVER engine is driving.
+        // CarPlay is the one exemption: CarPlay voice runs with the phone UI
+        // backgrounded by design (#19). The notification payload is never
+        // touched (Swift 6 region-isolation landmine) -- the closure only
+        // hops to the main actor.
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil, queue: .main
+        ) { [weak container] _ in
+            Task { @MainActor [weak container] in
+                guard let container else { return }
+                guard TalkBackgroundRule.shouldEndSession(
+                    isSessionActive: container.talkStore.isSessionActive,
+                    routeHasCarAudio: TalkAudioRoute.currentRouteHasCarAudio()
+                ) else { return }
+                containerLog.notice("#118: app backgrounded with a live voice session — ending it")
+                await container.talkStore.endSession()
+                container.router.isVoiceOverlayPresented = false
+            }
+        }
+
         let refreshUnpairedRelayContext: @MainActor () async -> Void = { [weak sessionStore, weak container] in
             // Never act on a pre-unlock reading of "unpaired": clearing the
             // session + force-registering off unreadable credentials would

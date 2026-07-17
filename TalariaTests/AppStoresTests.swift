@@ -1519,7 +1519,7 @@ struct AppStoresTests {
         #expect(voiceService.voiceState == .interrupted)
         #expect(voiceService.statusMessage == "Audio interrupted.")
 
-        voiceService.handleAudioInterruptionEnded(shouldResume: true)
+        await voiceService.handleAudioInterruptionEnded(shouldResume: true)
 
         #expect(voiceService.connectionState == .connected)
         #expect(voiceService.voiceState == .listening)
@@ -1539,7 +1539,7 @@ struct AppStoresTests {
         voiceService.connectionState = .connected
         voiceService.voiceState = .interrupted
 
-        voiceService.handleAudioRouteChange(.oldDeviceUnavailable)
+        await voiceService.handleAudioRouteChange(.oldDeviceUnavailable)
 
         #expect(voiceService.connectionState == .connected)
         #expect(voiceService.voiceState == .listening)
@@ -1614,6 +1614,45 @@ struct AppStoresTests {
         #expect(voiceService.connectionState == .idle)
         #expect(voiceService.voiceState == .idle)
         #expect(voiceService.statusMessage == nil)
+    }
+
+    @Test @MainActor
+    func liveVoiceSessionServiceSwallowsNoOpCancelRaceWithoutFailingSession() async throws {
+        // #119a: a barge-in cancel racing an already-completed response must
+        // not banner the backend string or flag the connection failed — that
+        // false `.failed` was also what wedged the header on CONNECTING
+        // mid-conversation (#119b).
+        let apiClient = RelayAPIClient(
+            baseURLProvider: { "https://relay.example.com/v1" }
+        )
+        let voiceService = LiveVoiceSessionService(
+            apiClient: apiClient,
+            accessTokenProvider: { "token" }
+        )
+
+        voiceService.connectionState = .connected
+        voiceService.voiceState = .listening
+        voiceService.statusMessage = "Listening"
+
+        voiceService.handleDataChannelEvent([
+            "type": "error",
+            "error": ["message": "Cancellation failed: no active response found"],
+        ])
+
+        #expect(voiceService.connectionState == .connected)
+        #expect(voiceService.voiceState == .listening)
+        #expect(voiceService.statusMessage == "Listening")
+        #expect(voiceService.blockedReason == nil)
+
+        // Every other failure still surfaces honestly.
+        voiceService.handleDataChannelEvent([
+            "type": "error",
+            "error": ["message": "Session expired."],
+        ])
+
+        #expect(voiceService.connectionState == .failed)
+        #expect(voiceService.voiceState == .disconnected)
+        #expect(voiceService.blockedReason == "Session expired.")
     }
 
     @Test @MainActor

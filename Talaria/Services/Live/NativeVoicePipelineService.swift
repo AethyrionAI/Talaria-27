@@ -390,7 +390,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         speechOutput.stop()
         await capture.stop()
         resetUtteranceState()
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        try? await AudioSessionOffMain.setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     private func resetUtteranceState() {

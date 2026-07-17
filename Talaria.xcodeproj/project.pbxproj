@@ -130,6 +130,7 @@
 		45267CB3896C33D7A4D3E804 /* ReactorOrb.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CBDFA2D8E88B99FE043B4 /* ReactorOrb.swift */; };
 		466417721369F8D9C3BB759A /* MarkdownListTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E828E5C81481C4CBD167059E /* MarkdownListTests.swift */; };
 		472716FCCACCEAA6F8B289A5 /* InboxItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A8D3AC5A4CD172DB9B3B98 /* InboxItemRow.swift */; };
+		47529498EE239A6304A10651 /* TalkSessionRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = E23630C7B139D9D86F34A8D9 /* TalkSessionRules.swift */; };
 		47AC470D1D4B4BFBA0F71624 /* Icon-HoloSushi@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 4FEF4DC986BD45CCA162C8FD /* Icon-HoloSushi@3x.png */; };
 		4805439DA2901ABBA5815ED8 /* TalariaAlarmMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89B6DC0F730603BCA9C94F52 /* TalariaAlarmMetadata.swift */; };
 		4BC23867516A49731D7575B6 /* AppRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C85FA7AD7546950A9A3BEBD /* AppRootView.swift */; };
@@ -316,6 +317,7 @@
 		C071A887FB7D775DE0017757 /* IconPreview-SummerSolar.png in Resources */ = {isa = PBXBuildFile; fileRef = 85291A40EB53DE9F648C706C /* IconPreview-SummerSolar.png */; };
 		C20AE3B12E90CF743FAD2077 /* Icon-LunarDiner@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 9F6DE4A282467FF9B4ECD50F /* Icon-LunarDiner@3x.png */; };
 		C2DDCB8500B27F368AE44CC0 /* Icon-SpringSprout@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 9E4DFA5389F9FC0BC51F405B /* Icon-SpringSprout@2x.png */; };
+		C353F3E90BF93E9741E06417 /* TalkSessionRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2AED870C806635A35329B5 /* TalkSessionRulesTests.swift */; };
 		C39781914870CF7644CD7132 /* JetBrainsMono-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D46EF8A834CA61E308FE41EA /* JetBrainsMono-Bold.ttf */; };
 		C4A55D23DFA1139000F7D015 /* MockInboxService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80EDA325939230DE08CBF841 /* MockInboxService.swift */; };
 		C502C49891BAC9E2FB333B49 /* ToolActivityRail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82A9EFD28E7758CB1A9CBBD0 /* ToolActivityRail.swift */; };
@@ -633,6 +635,7 @@
 		7AA6B0D4D2F75AB7C4862721 /* Design.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Design.swift; sourceTree = "<group>"; };
 		7AC3BD0D80BBC2C07791C4A5 /* Icon-CyberCactus@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-CyberCactus@3x.png"; sourceTree = "<group>"; };
 		7ADF4A299F8A4B743476C279 /* HUDEffects.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDEffects.swift; sourceTree = "<group>"; };
+		7B2AED870C806635A35329B5 /* TalkSessionRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkSessionRulesTests.swift; sourceTree = "<group>"; };
 		7B804F21A2AE52DB37E2447E /* ContextTransplanter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextTransplanter.swift; sourceTree = "<group>"; };
 		7BAC4C9847BE119AB66D781D /* SplitViewLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitViewLayoutTests.swift; sourceTree = "<group>"; };
 		7C636630DCFDBC1D6F9985D2 /* ConversationJournalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationJournalStore.swift; sourceTree = "<group>"; };
@@ -797,6 +800,7 @@
 		E14FEA341D9CF0849A0D856D /* LiveMediaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveMediaService.swift; sourceTree = "<group>"; };
 		E1C72B32FFD539B62DEFBE7E /* Icon-ComicFunnies@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-ComicFunnies@2x.png"; sourceTree = "<group>"; };
 		E1DAB0AF363C52116231C439 /* ChartSegmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartSegmentView.swift; sourceTree = "<group>"; };
+		E23630C7B139D9D86F34A8D9 /* TalkSessionRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkSessionRules.swift; sourceTree = "<group>"; };
 		E3727619CB1A41ED47CADC62 /* StreamingUpdate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingUpdate.swift; sourceTree = "<group>"; };
 		E4397D4FA2DBFEF4C5B15923 /* ModelsSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsSettingsScreen.swift; sourceTree = "<group>"; };
 		E5AD6E957D927DE3495F4B72 /* AppTemplateUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTemplateUITests.swift; sourceTree = "<group>"; };
@@ -969,6 +973,7 @@
 				43FDBE36354084B4A9D586C5 /* SpotlightIndexingTests.swift */,
 				692CE05A577894FFE49EDDF3 /* SpotlightOpenIntentTests.swift */,
 				557346D0DB64E949DE47F8E2 /* TalkPreflightTests.swift */,
+				7B2AED870C806635A35329B5 /* TalkSessionRulesTests.swift */,
 				F51C80FDDAEBBFCAA3904612 /* ThemeArtDirectionTests.swift */,
 				1C4B0DE180CF1E349DE0C137 /* ThemeCatalogTests.swift */,
 				8064CC89E452AB4576D02AAB /* TurnReceiptsTests.swift */,
@@ -1009,6 +1014,7 @@
 				872B0ADD4223BACB94F26C79 /* ResilientHermesClient.swift */,
 				C7C0A879EC41CB30E663F615 /* ResilientSessionBootstrapService.swift */,
 				3435E81CD684734099521C82 /* TalkPreflight.swift */,
+				E23630C7B139D9D86F34A8D9 /* TalkSessionRules.swift */,
 				976BAC43D166A0D9AD794CF2 /* TurnReceipts.swift */,
 				0AD2308C9C97CEA542271B0C /* UserDefaultsAppPersistenceStore.swift */,
 				CCE85A8CE1548ED41FE4180D /* VoiceEngineRouter.swift */,
@@ -1998,6 +2004,7 @@
 				1D65E5AB7B2A5160256979EE /* TalariaLog.swift in Sources */,
 				08B3FB0C74D278495673F432 /* TalkModeScreen.swift in Sources */,
 				90858A93D62640CD1DCE932B /* TalkPreflight.swift in Sources */,
+				47529498EE239A6304A10651 /* TalkSessionRules.swift in Sources */,
 				82996206D5432D0F8A7A0F68 /* TalkStore.swift in Sources */,
 				7826E55EAE1131F4783743E8 /* ThemeArtDirection.swift in Sources */,
 				29AB3C83EDABB8EBC1BE6519 /* ThemeCatalog.swift in Sources */,
@@ -2093,6 +2100,7 @@
 				9304F2AB740D219F4BBB136C /* SpotlightIndexingTests.swift in Sources */,
 				31AFEA785F400F5330324795 /* SpotlightOpenIntentTests.swift in Sources */,
 				382AE4C2878C84116F806CFC /* TalkPreflightTests.swift in Sources */,
+				C353F3E90BF93E9741E06417 /* TalkSessionRulesTests.swift in Sources */,
 				8BCF79F4CA1B51BD1DEED39F /* ThemeArtDirectionTests.swift in Sources */,
 				85DCD6F8A6E00520C5246486 /* ThemeCatalogTests.swift in Sources */,
 				57E2B573942BCA2EC78C8550 /* TurnReceiptsTests.swift in Sources */,
