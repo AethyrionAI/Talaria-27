@@ -565,7 +565,10 @@ struct ChatScreen: View {
         chatStore.currentContextTokens
     }
 
-    /// Context usage as 0.0–1.0. Shows 0 when no usage data yet.
+    /// Context usage as 0.0–1.0. Only meaningful when `currentContextTokens`
+    /// is known — the gauge hides otherwise (#25: an unknown numerator must
+    /// read as absent, never as "CTX 0%"); the 0 here is just the guard's
+    /// unreachable-by-render fallback.
     private var contextProgress: Double {
         guard let usedTokens = currentContextTokens,
               let maxCtx = effectiveContextWindow, maxCtx > 0
@@ -609,7 +612,12 @@ struct ChatScreen: View {
                 brainIndicator(brainRouter)
             }
 
-            if effectiveContextWindow != nil {
+            // #25: both halves must be known — a context window (denominator)
+            // AND a real numerator (a live `run.completed`, or the resume
+            // cache the Sessions client reads in openSession). A session with
+            // no cached usage — another device's, or one pre-dating the cache
+            // — hides the gauge instead of lying 0%.
+            if effectiveContextWindow != nil, currentContextTokens != nil {
                 contextGauge
             }
         }
