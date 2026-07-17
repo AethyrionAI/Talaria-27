@@ -1617,6 +1617,45 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
+    func liveVoiceSessionServiceSwallowsNoOpCancelRaceWithoutFailingSession() async throws {
+        // #119a: a barge-in cancel racing an already-completed response must
+        // not banner the backend string or flag the connection failed — that
+        // false `.failed` was also what wedged the header on CONNECTING
+        // mid-conversation (#119b).
+        let apiClient = RelayAPIClient(
+            baseURLProvider: { "https://relay.example.com/v1" }
+        )
+        let voiceService = LiveVoiceSessionService(
+            apiClient: apiClient,
+            accessTokenProvider: { "token" }
+        )
+
+        voiceService.connectionState = .connected
+        voiceService.voiceState = .listening
+        voiceService.statusMessage = "Listening"
+
+        voiceService.handleDataChannelEvent([
+            "type": "error",
+            "error": ["message": "Cancellation failed: no active response found"],
+        ])
+
+        #expect(voiceService.connectionState == .connected)
+        #expect(voiceService.voiceState == .listening)
+        #expect(voiceService.statusMessage == "Listening")
+        #expect(voiceService.blockedReason == nil)
+
+        // Every other failure still surfaces honestly.
+        voiceService.handleDataChannelEvent([
+            "type": "error",
+            "error": ["message": "Session expired."],
+        ])
+
+        #expect(voiceService.connectionState == .failed)
+        #expect(voiceService.voiceState == .disconnected)
+        #expect(voiceService.blockedReason == "Session expired.")
+    }
+
+    @Test @MainActor
     func liveHermesClientRefreshesExpiredAccessTokenDuringConversationLoad() async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubURLProtocol.self]

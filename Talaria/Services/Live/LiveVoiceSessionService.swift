@@ -823,16 +823,22 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             if isEndingSession {
                 break
             }
-            let message = ((payload["error"] as? [String: Any])?["message"] as? String) ?? "Realtime talk failed."
-            // Suppress transient "active response in progress" errors — these are harmless
-            // race conditions from our response.create after MCP tool completion.
-            if message.contains("active response in progress") {
-                break
+            let errorPayload = payload["error"] as? [String: Any]
+            let message = (errorPayload?["message"] as? String) ?? "Realtime talk failed."
+            switch RealtimeErrorRule.disposition(code: errorPayload?["code"] as? String, message: message) {
+            case .swallowNoOpCancel:
+                // #119a: the cancel raced a response that already completed —
+                // a normal race. The session is healthy; never bubble the
+                // backend string into the UI or flag the connection failed.
+                Self.logger.notice("no-op cancel race swallowed: \(message, privacy: .public)")
+            case .swallowResponseCreateRace:
+                Self.logger.notice("response.create race swallowed: \(message, privacy: .public)")
+            case .surface:
+                blockedReason = message
+                connectionState = .failed
+                voiceState = .disconnected
+                statusMessage = message
             }
-            blockedReason = message
-            connectionState = .failed
-            voiceState = .disconnected
-            statusMessage = message
         default:
             break
         }

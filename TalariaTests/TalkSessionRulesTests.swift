@@ -40,4 +40,53 @@ struct TalkSessionRulesTests {
             routeHasCarAudio: true
         ))
     }
+
+    // MARK: - RealtimeErrorRule (#119a)
+
+    @Test func observedNoOpCancelShapeIsSwallowed() {
+        // The exact backend string from the #82 confirm-run screenshot.
+        #expect(RealtimeErrorRule.disposition(
+            code: nil,
+            message: "Cancellation failed: no active response found"
+        ) == .swallowNoOpCancel)
+    }
+
+    @Test func noOpCancelCodeIsSwallowedRegardlessOfWording() {
+        #expect(RealtimeErrorRule.disposition(
+            code: "response_cancel_not_active",
+            message: "Some rephrased server wording"
+        ) == .swallowNoOpCancel)
+    }
+
+    @Test func responseCreateRaceKeepsItsSuppression() {
+        // The pre-existing suppression (our response.create after MCP tool
+        // completion racing an active response) — now classified, still silent.
+        #expect(RealtimeErrorRule.disposition(
+            code: nil,
+            message: "Conversation already has an active response in progress"
+        ) == .swallowResponseCreateRace)
+    }
+
+    @Test func otherCancelFailuresStillSurface() {
+        #expect(RealtimeErrorRule.disposition(
+            code: nil,
+            message: "Cancellation failed: connection lost"
+        ) == .surface)
+    }
+
+    @Test func unrelatedErrorsSurface() {
+        #expect(RealtimeErrorRule.disposition(
+            code: nil,
+            message: "Session expired."
+        ) == .surface)
+        #expect(RealtimeErrorRule.disposition(
+            code: "session_expired",
+            message: ""
+        ) == .surface)
+        // The handler's fallback message for a shapeless error payload.
+        #expect(RealtimeErrorRule.disposition(
+            code: nil,
+            message: "Realtime talk failed."
+        ) == .surface)
+    }
 }
