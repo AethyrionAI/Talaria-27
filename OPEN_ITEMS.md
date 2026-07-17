@@ -2732,7 +2732,18 @@ ordering, with the minor side effect that the tap path now awaits `handleNotific
 
 ---
 
-## 82. 🔧 REOPENED — Voice capture wedge: root cause was OUR read-aloud session hijack, NOT the OS seed — fix merged (PR #106); device confirm owed
+## 82. 🔧 Voice capture wedge — root cause was OUR read-aloud session hijack, NOT the OS seed — fix merged (PR #106) + device CONFIRMED 2026-07-16; residuals spun out to #118/#119
+
+> **DEVICE CONFIRMED 2026-07-16 (whoGoesThere, `probe/t27-fix84-verify` = #106 fix +
+> instrumentation + STOCK VPIO):** Owen held a full two-way voice conversation — live
+> transcript, Hermes replies, TTS back. VPIO verdict sealed: voice processing was ENABLED on
+> this build and worked, so the `auou/vpio` render errors were a VICTIM of the session hijack,
+> not a seed bug — echo cancellation is intact, no Apple Feedback owed for the render errors,
+> and the vpio-bypass probe is obsolete. Residual observations from the confirm run filed
+> separately: capture stays live after leaving the app (#118); 'Cancellation failed' banner +
+> header stuck on CONNECTING during an active conversation (#119). Probe branches
+> (`probe/t27-vpio-bypass`, `probe/no-vpio`, `diagnostics/voice-probes`, `probe/t27-fix84-verify`)
+> are disposable once #118/#119 don't need them.
 
 > **ROOT CAUSE FOUND + FIX MERGED 2026-07-16 (PR #106).** The 'beta-OS-wide wedge' framing is
 > DISPROVEN. Instrumented device run (13 tagged `setActive` sites, Hermes's Discord-works
@@ -3794,5 +3805,46 @@ green**. M-8 destination routing untouched.
 Device verify owed: during a connector outage the diagnostics panel should show drains
 deferring instead of continuous POST traffic. Cross-refs: #104 (parent), #113 (the
 server-side twin — connector supervision), #24a (chunking semantics preserved).
+
+Logged 2026-07-16.
+
+---
+
+## 118. 🐛 Voice capture stays live after leaving the app — mic indicator persists in background
+
+Observed on the #82 device-confirm run (2026-07-16, whoGoesThere, `probe/t27-fix84-verify`):
+after backgrounding the app mid/post voice session, the system mic-in-use indicator stays lit —
+the capture chain isn't torn down on scene-phase change or app background. Expected: leaving the
+app (without an intentional background-audio mode) ends capture and releases the session.
+Likely a missing scene-phase/`didEnterBackground` hook in the voice session lifecycle
+(`NativeVoicePipelineService` / `VoiceEngineRouter` teardown path). Privacy-relevant —
+prioritize into the next voice lane.
+
+Logged 2026-07-16.
+
+---
+
+## 119. 🐛 Voice UI — 'Cancellation failed: no active response found' surfaces as a user-facing banner; header stuck on CONNECTING mid-conversation
+
+Same #82 confirm run, screenshot on file: (1) a barge-in/cancel racing an already-completed
+response bubbles the backend error string straight into the session UI — a no-op cancel is a
+normal race, log it and swallow it; (2) the session header still reads 'VOICE LINK ·
+CONNECTING' while a live two-way conversation is flowing — the status label isn't tracking the
+session state machine past the connect phase. Two small fixes, likely same surface
+(voice session screen state plumbing).
+
+Logged 2026-07-16.
+
+---
+
+## 120. 🐛 Chat message list — duplicate ForEach IDs (undefined rendering)
+
+Device logs 2026-07-16 (two separate runs): `ForEach<Array<Message>, UUID, …>: the ID
+1C6EBACD-8632-4E77-9257-9D054CF7E82D occurs multiple times within the collection` plus a
+`LazyVStackLayout` duplicate-child-ID warning. A message UUID appears twice in the rendered
+collection — either a real duplicate in the store (streaming placeholder + finalized message
+both retained?) or a derived-array bug. SwiftUI declares the result undefined; symptoms may
+include ghost/duplicated bubbles. Cross-ref #110's ChatStore territory — could ride the next
+ChatStore micro-lane.
 
 Logged 2026-07-16.
