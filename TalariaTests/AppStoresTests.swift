@@ -1519,7 +1519,7 @@ struct AppStoresTests {
         #expect(voiceService.voiceState == .interrupted)
         #expect(voiceService.statusMessage == "Audio interrupted.")
 
-        voiceService.handleAudioInterruptionEnded(shouldResume: true)
+        await voiceService.handleAudioInterruptionEnded(shouldResume: true)
 
         #expect(voiceService.connectionState == .connected)
         #expect(voiceService.voiceState == .listening)
@@ -1539,7 +1539,7 @@ struct AppStoresTests {
         voiceService.connectionState = .connected
         voiceService.voiceState = .interrupted
 
-        voiceService.handleAudioRouteChange(.oldDeviceUnavailable)
+        await voiceService.handleAudioRouteChange(.oldDeviceUnavailable)
 
         #expect(voiceService.connectionState == .connected)
         #expect(voiceService.voiceState == .listening)

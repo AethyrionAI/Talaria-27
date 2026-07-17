@@ -17,6 +17,11 @@ import Foundation
 //     failure — the old handler bubbled the backend string into the session
 //     UI AND flagged the connection `.failed`, which is also what wedged the
 //     header on CONNECTING (#119b) mid-conversation.
+//   • `AudioSessionOffMain` — the lane rider: synchronous AVAudioSession
+//     activate/deactivate on the main thread logs an iOS 27
+//     UI-unresponsiveness warning per call (`AVAudioSession_iOS.mm:978`).
+//     Mechanics only — callers await, so the #106 ownership and ordering
+//     (activation completes before engine start) are unchanged.
 
 enum TalkBackgroundRule {
     /// True when a `didEnterBackground` event should end the voice session
@@ -55,5 +60,32 @@ enum RealtimeErrorRule {
             return .swallowResponseCreateRace
         }
         return .surface
+    }
+}
+
+/// Moves AVAudioSession calls off the main thread. `Task.detached` is
+/// deliberate — a nonisolated async function can inherit the caller's actor
+/// under `NonisolatedNonsendingByDefault`, which would put the call right
+/// back on main; a detached task never does.
+enum AudioSessionOffMain {
+    /// Off-main `setActive`. Callers await, so call-site ordering relative to
+    /// engine start/stop is exactly what it was when the call was inline.
+    static func setActive(
+        _ active: Bool,
+        options: AVAudioSession.SetActiveOptions = []
+    ) async throws {
+        try await run { session in
+            try session.setActive(active, options: options)
+        }
+    }
+
+    /// Off-main compound configuration (category + activation + overrides in
+    /// one hop, preserving their relative order inside the closure).
+    static func run<T: Sendable>(
+        _ body: @escaping @Sendable (AVAudioSession) throws -> T
+    ) async throws -> T {
+        try await Task.detached(priority: .userInitiated) {
+            try body(AVAudioSession.sharedInstance())
+        }.value
     }
 }
