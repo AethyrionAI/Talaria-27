@@ -69,6 +69,9 @@ struct ServerSettingsScreen: View {
     /// #116: outcome of the last "Refresh Provisioning" action — honest
     /// summary text (what was filled, or that the host reported nothing).
     @State private var provisioningMessage: String?
+    /// #127: the connect gate's locked state — presents the Connected
+    /// paywall instead of the add/pair action. Inert while dormant.
+    @State private var paywallPresented = false
 
     private enum ProfileEditorTarget: Identifiable {
         case add
@@ -151,6 +154,9 @@ struct ServerSettingsScreen: View {
             case .edit(let profile):
                 ProfileEditorSheet(existing: profile)
             }
+        }
+        .sheet(isPresented: $paywallPresented) {
+            ConnectedPaywallSheet()
         }
     }
 
@@ -314,11 +320,25 @@ struct ServerSettingsScreen: View {
 
     private var addProfileButton: some View {
         GhostButton(title: "Add Profile", systemImage: "plus") {
+            // #127: adding a backend profile is a new-connect entry point.
+            guard container.connectGateVerdict(for: .newConnect) == .allow else {
+                paywallPresented = true
+                return
+            }
             editorTarget = .add
         }
     }
 
     private func startPairing(_ profile: BackendProfile) {
+        // #127: pairing an UNPAIRED profile is a new connect; re-pairing one
+        // that is already paired is an existing pairing and always passes
+        // (the fail-open rule — a flaky entitlement check must never stand
+        // between the user and re-establishing a host they already have).
+        let isPaired = container.profileRelaySessions?.isPaired(profileID: profile.id) ?? false
+        guard container.connectGateVerdict(for: isPaired ? .existingPairing : .newConnect) == .allow else {
+            paywallPresented = true
+            return
+        }
         pairingStore.pairingTargetProfileID = profile.id
         router.dismissSheet()
         router.navigate(to: .connectHost)
