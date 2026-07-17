@@ -40,6 +40,11 @@ extension MarkdownSegment {
         return nil
     }
 
+    var chartValue: (spec: ChartSpec, source: String)? {
+        if case .chart(_, let spec, let source) = self { return (spec, source) }
+        return nil
+    }
+
     /// Segment kind as a short label, for interleaving-order assertions.
     var kindLabel: String {
         switch self {
@@ -50,6 +55,7 @@ extension MarkdownSegment {
         case .blockQuote: return "quote"
         case .list: return "list"
         case .table: return "table"
+        case .chart: return "chart"
         }
     }
 }

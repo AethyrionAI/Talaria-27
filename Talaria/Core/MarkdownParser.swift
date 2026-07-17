@@ -1,7 +1,7 @@
 import Foundation
 
 /// A segment of parsed markdown content — prose, fenced code block, image,
-/// heading, block quote, list, or pipe table.
+/// heading, block quote, list, pipe table, or chart.
 enum MarkdownSegment: Identifiable {
     case prose(id: UUID = UUID(), text: String)
     case codeBlock(id: UUID = UUID(), language: String?, code: String)
@@ -20,6 +20,12 @@ enum MarkdownSegment: Identifiable {
     /// GFM pipe table. Every row is normalized to `header.count` cells
     /// (excess cells dropped, missing cells empty — GitHub behavior).
     case table(id: UUID = UUID(), header: [String], alignments: [MarkdownTableAlignment], rows: [[String]])
+    /// A closed ```chart fence whose JSON spec decoded (OPEN_ITEMS #100).
+    /// `source` keeps the original fence body byte-for-byte so the render
+    /// surface can always fall back to showing the data as a code block.
+    /// Unterminated or undecodable chart fences never reach this case —
+    /// they stay `.codeBlock`.
+    case chart(id: UUID = UUID(), spec: ChartSpec, source: String)
 
     var id: UUID {
         switch self {
@@ -30,6 +36,7 @@ enum MarkdownSegment: Identifiable {
         case .blockQuote(let id, _, _): return id
         case .list(let id, _): return id
         case .table(let id, _, _, _): return id
+        case .chart(let id, _, _): return id
         }
     }
 }
@@ -322,6 +329,11 @@ private func tableAlignments(_ line: String) -> [MarkdownTableAlignment]? {
 /// During streaming, an unclosed fence at the end of content is still emitted
 /// as a `.codeBlock` so the user sees code as it arrives; a table header whose
 /// delimiter row hasn't streamed in yet renders as prose until it does.
+///
+/// A fence tagged `chart` becomes `.chart` only once it is CLOSED and its
+/// JSON spec decodes (`ChartSpec.decode`); every other state — mid-stream
+/// partial, malformed JSON, unknown type, over-budget spec — stays a plain
+/// `.codeBlock` so the data is never lost to a chart bug.
 func parseMarkdownSegments(_ content: String, isStreaming: Bool = false) -> [MarkdownSegment] {
     guard !content.isEmpty else { return [] }
 
@@ -438,7 +450,11 @@ func parseMarkdownSegments(_ content: String, isStreaming: Bool = false) -> [Mar
             if line.hasPrefix("```") {
                 insideCodeBlock = false
                 let code = currentCode.joined(separator: "\n")
-                segments.append(.codeBlock(language: codeLanguage, code: code))
+                if codeLanguage?.lowercased() == "chart", let spec = ChartSpec.decode(fenceBody: code) {
+                    segments.append(.chart(spec: spec, source: code))
+                } else {
+                    segments.append(.codeBlock(language: codeLanguage, code: code))
+                }
                 currentCode = []
                 codeLanguage = nil
             } else {
