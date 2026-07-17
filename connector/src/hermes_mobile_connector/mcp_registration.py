@@ -45,8 +45,12 @@ def resolve_hermes_home() -> Path:
 
 
 def resolve_mcp_command_path() -> Path:
+    executable = Path(sys.executable)
     candidates = [
-        Path(sys.executable).resolve().with_name("hermes-mobile-mcp"),
+        # Unresolved sibling must come first: macOS venv pythons are symlinks,
+        # so `.resolve()` escapes the venv and misses `.venv/bin/hermes-mobile-mcp`.
+        executable.with_name("hermes-mobile-mcp"),
+        executable.resolve().with_name("hermes-mobile-mcp"),
     ]
     which_match = shutil.which("hermes-mobile-mcp")
     if which_match:
