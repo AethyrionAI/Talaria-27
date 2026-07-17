@@ -845,21 +845,42 @@ backed up; confirmed no bookstack error in the post-fix startup.
 
 ---
 
-## 25. 🐛 CTX meter — 0/absent on resumed sessions: root cause PINNED at HEAD 2026-07-16 (no usage decoded); spec written but PROBE-GATED
+## 25. 🐛 CTX meter — 0/absent on resumed sessions: root cause PINNED + wire probe RUN 2026-07-16; spec READY TO SEND
 
-> **Dispatch spec 2026-07-16:** `dispatch/FABLE-T27-25-ctx-meter.md` — **WRITTEN, DO NOT SEND
-> YET.** Root cause confirmed in source at HEAD: `SessionsHermesClient.swift:1523`
-> `SessionMessagesResponse.StoredMessage` decodes `role`/`content`/`timestamp`/`toolCalls` and NO
-> usage field → `latestUsage` always nil on a resumed session → `ChatScreen.swift:569`
-> `contextProgress` guards to 0 → "CTX 0%". That is the 'absent/0 on older sessions' symptom
-> mechanically. **Gate:** does `GET /api/sessions/{id}/messages` return usage at all? Three
-> answers → three different fixes (decode per-message / decode session-level / decode approach
-> DEAD, fall back to cached-or-honestly-absent). Fable can't reach a gateway; Owen or Claude
-> Desktop runs the probe. This item already burned one cycle on unverified fix evidence — do not
-> build on assumption. Second half ('flashes in before reading wrong') is separate and NOT covered
-> by the decode fix.
+**Dispatch spec 2026-07-16:** `dispatch/FABLE-T27-25-ctx-meter.md` — **READY TO SEND (gate
+lifted).** Root cause confirmed in source at HEAD: `SessionsHermesClient.swift:1523`
+`SessionMessagesResponse.StoredMessage` decodes `role`/`content`/`timestamp`/`toolCalls` and NO
+usage field → `latestUsage` always nil on a resumed session → `ChatScreen.swift:569`
+`contextProgress` guards to 0 → "CTX 0%".
 
-> **Audit 2026-07-13:** Confirmed independently — auditor's status-flip upheld. The item's own latest dated note (2026-07-05, positioned first in the block) reads "Device verification 2026-07-05: FAILED" with a broader symptom set (CTX shows 0 on some sessions, absent entirely on older sessions, occasionally flashes in before reading wrong) and lists next steps (ground-truth against Hermes's built-in context check; capture a Verbose-Logging + `run.completed` session) that no later note reports as started or done — nothing in OPEN_ITEMS.md after 2026-07-05 mentions CTX/context-window/denominator except item #46's 2026-07-08 note, which independently reaffirms "distinct from OPEN_ITEMS #25 (CTX denominator accuracy — still open)". The header ("0% fixed; denominator ~1.4x high") only describes the superseded 2026-06-27 intermediate state. Source-code at current HEAD (cca1345) mechanically confirms the FAILED note's symptoms are still live: `SessionsHermesClient.fetchSessionConversation` (Talaria/Services/Live/SessionsHermesClient.swift:467-488, used by `openSession`) builds `Conversation` from `SessionMessagesResponse` — which decodes only `role`/`content`/`timestamp`/`toolCalls` (no usage field, lines 1098-1113) — so `latestUsage` is always nil for any resumed/older session; `ChatScreen.contextProgress` (Talaria/Features/Chat/ChatScreen.swift:557-563, comment "Shows 0 when no usage data yet") then guards to 0. This is exactly "absent/0 on older sessions." The note's citations don't hold up as fix evidence either: ISSUE_INDEX.md GitHub #4 = closed "Composer: multi-line TextEditor with Writing Tools" (unrelated) and PR_INDEX.md PR #21 = merged "Health widget tiles query HealthKit directly (#15)" (unrelated) — "#4" is reused in this codebase purely as an internal shorthand tag for CTX-denominator work (also appears in ChatStore.swift, HermesClientProtocol.swift, LocalChatBackend.swift), not a real GitHub link to a fix. MAIN_LOG.txt (174 commits, origin/main tip cca1345) has zero commits touching CTX/meter/denominator/numerator/contextWindow/run.completed. Header/title corrected to reflect the FAILED verification as the current, unresolved status.
+**PROBE RUN 2026-07-16** (Claude Desktop, live against OJAMD `:8642`, 25 sessions, all four
+sources — `api_server`/`cron`/`desktop`/`tui`). Verdict (c), plus a trap the three-way framing
+missed:
+
+1. `GET /api/sessions/{id}/messages` exposes `token_count` per row — **null on 100% of rows**,
+   including `api_server` (Talaria's own source). Decoding it is the obvious one-liner, compiles,
+   passes a hand-made fixture, and renders a permanent 0% on real data. Do not.
+2. Session usage DOES exist on `/api/sessions` (list) and `/api/sessions/{id}` (detail):
+   `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`,
+   `reasoning_tokens`, `api_call_count`. `/runs` and `/usage` → 404, they don't exist.
+3. **But session usage is CUMULATIVE across api calls, not context occupancy.** Live example:
+   `api_1783825106_6e2766ab` — 10 messages, 5 api calls, `input_tokens` 114,754 → naively over a
+   128k window that renders **90%** for a chat occupying a fraction of it. Cumulative/last-run
+   ≈ 1.5× at two calls and worsens with length — **likely the true origin of this item's
+   historical "denominator ~1.4× high" note, which was probably never a denominator bug at all.**
+
+**Fix (per the probe):** no endpoint knows the last run's prompt size, so stop asking one. Cache
+`run.completed` usage app-side keyed by session id (that parse path already works — it's why live
+sessions read correctly), read it on resume, and render the gauge **honestly absent** when
+unknown — never "CTX 0%". Never divide cumulative `input_tokens` by the window; comment it so
+nobody re-tries. Second half ('flashes in before reading wrong') is separate and NOT covered by
+this fix.
+
+**Bonus finding (cross-ref #60, do not scope-creep):** stored messages carry `reasoning` and
+`reasoning_content` per row — resumed sessions could restore their reasoning panes; they don't
+today.
+
+**Audit 2026-07-13:** Confirmed independently — auditor's status-flip upheld. The item's own latest dated note (2026-07-05, positioned first in the block) reads "Device verification 2026-07-05: FAILED" with a broader symptom set (CTX shows 0 on some sessions, absent entirely on older sessions, occasionally flashes in before reading wrong) and lists next steps (ground-truth against Hermes's built-in context check; capture a Verbose-Logging + `run.completed` session) that no later note reports as started or done — nothing in OPEN_ITEMS.md after 2026-07-05 mentions CTX/context-window/denominator except item #46's 2026-07-08 note, which independently reaffirms "distinct from OPEN_ITEMS #25 (CTX denominator accuracy — still open)". The header ("0% fixed; denominator ~1.4x high") only describes the superseded 2026-06-27 intermediate state. Source-code at current HEAD (cca1345) mechanically confirms the FAILED note's symptoms are still live: `SessionsHermesClient.fetchSessionConversation` (Talaria/Services/Live/SessionsHermesClient.swift:467-488, used by `openSession`) builds `Conversation` from `SessionMessagesResponse` — which decodes only `role`/`content`/`timestamp`/`toolCalls` (no usage field, lines 1098-1113) — so `latestUsage` is always nil for any resumed/older session; `ChatScreen.contextProgress` (Talaria/Features/Chat/ChatScreen.swift:557-563, comment "Shows 0 when no usage data yet") then guards to 0. This is exactly "absent/0 on older sessions." The note's citations don't hold up as fix evidence either: ISSUE_INDEX.md GitHub #4 = closed "Composer: multi-line TextEditor with Writing Tools" (unrelated) and PR_INDEX.md PR #21 = merged "Health widget tiles query HealthKit directly (#15)" (unrelated) — "#4" is reused in this codebase purely as an internal shorthand tag for CTX-denominator work (also appears in ChatStore.swift, HermesClientProtocol.swift, LocalChatBackend.swift), not a real GitHub link to a fix. MAIN_LOG.txt (174 commits, origin/main tip cca1345) has zero commits touching CTX/meter/denominator/numerator/contextWindow/run.completed. Header/title corrected to reflect the FAILED verification as the current, unresolved status.
 
 **Device verification 2026-07-05: FAILED** (GitHub #4, PR #21 insufficient). New symptom set:
 CTX shows **0 on some sessions**, **absent entirely on older sessions**, and occasionally

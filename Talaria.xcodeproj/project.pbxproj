@@ -93,6 +93,7 @@
 		30541BC94B93FF41085CDFF9 /* IconPreview-WinterFrost.png in Resources */ = {isa = PBXBuildFile; fileRef = A371A08A4C7ED3E39033A3DB /* IconPreview-WinterFrost.png */; };
 		30BB7CBB8A5164E5AF46FED7 /* ProfileRelaySession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72FAE396354E7BE313E3BA59 /* ProfileRelaySession.swift */; };
 		3122B984BF61C7CE18751D57 /* InboxScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D5BE08A71CB56A6DD58C1BB /* InboxScreen.swift */; };
+		31AFEA785F400F5330324795 /* SpotlightOpenIntentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 692CE05A577894FFE49EDDF3 /* SpotlightOpenIntentTests.swift */; };
 		322859D44BB7C57EBD55BA2C /* UplinkSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48891721C03839B52AFA1F85 /* UplinkSettingsScreen.swift */; };
 		3230576BF12371AC4643AB06 /* AppIconStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90829D7BD62048956A505665 /* AppIconStore.swift */; };
 		32D4551809223831EF676462 /* Icon-HoloSushi@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6A4FCA0EA769EB1D4168F405 /* Icon-HoloSushi@2x.png */; };
@@ -594,6 +595,7 @@
 		66A3F10FC503571E4A8BDD8B /* CondenserFidelityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CondenserFidelityTests.swift; sourceTree = "<group>"; };
 		68053F9AC1107B6078C0A52D /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
 		6874BCC08D52FEC22B4949DF /* FilePreviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePreviewTests.swift; sourceTree = "<group>"; };
+		692CE05A577894FFE49EDDF3 /* SpotlightOpenIntentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightOpenIntentTests.swift; sourceTree = "<group>"; };
 		69438F0D38B60455035902BC /* MarkdownBlockQuoteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockQuoteTests.swift; sourceTree = "<group>"; };
 		6968AE7D731EB530E8784AAB /* TalariaLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalariaLog.swift; sourceTree = "<group>"; };
 		6A4FCA0EA769EB1D4168F405 /* Icon-HoloSushi@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-HoloSushi@2x.png"; sourceTree = "<group>"; };
@@ -948,6 +950,7 @@
 				41D16ECA82E1B93428AB787F /* SpeechOutputTests.swift */,
 				7BAC4C9847BE119AB66D781D /* SplitViewLayoutTests.swift */,
 				43FDBE36354084B4A9D586C5 /* SpotlightIndexingTests.swift */,
+				692CE05A577894FFE49EDDF3 /* SpotlightOpenIntentTests.swift */,
 				557346D0DB64E949DE47F8E2 /* TalkPreflightTests.swift */,
 				F51C80FDDAEBBFCAA3904612 /* ThemeArtDirectionTests.swift */,
 				1C4B0DE180CF1E349DE0C137 /* ThemeCatalogTests.swift */,
@@ -2060,6 +2063,7 @@
 				D534C18BF7446EE2215B44D4 /* SpeechOutputTests.swift in Sources */,
 				D3E7437E18DE7F64ACF26C16 /* SplitViewLayoutTests.swift in Sources */,
 				9304F2AB740D219F4BBB136C /* SpotlightIndexingTests.swift in Sources */,
+				31AFEA785F400F5330324795 /* SpotlightOpenIntentTests.swift in Sources */,
 				382AE4C2878C84116F806CFC /* TalkPreflightTests.swift in Sources */,
 				8BCF79F4CA1B51BD1DEED39F /* ThemeArtDirectionTests.swift in Sources */,
 				85DCD6F8A6E00520C5246486 /* ThemeCatalogTests.swift in Sources */,
