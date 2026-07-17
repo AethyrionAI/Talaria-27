@@ -714,7 +714,16 @@ class HermesMobileConnector:
             except Exception as error:  # noqa: BLE001
                 consecutive_failures += 1
                 state.last_error = str(error)
-                self.state_store.save(state)
+                # #113: this save is telemetry, not identity — a transient
+                # write failure (Windows AV lock, disk hiccup) must not kill
+                # the reconnect loop. The load() at the top of the loop stays
+                # unguarded on purpose: unreadable state is unrecoverable
+                # from here, and escaping to the entry path's FATAL handler
+                # is the loud death a supervisor can act on.
+                try:
+                    self.state_store.save(state)
+                except Exception as save_error:  # noqa: BLE001
+                    logger.warning("Could not persist last_error to connector state: %s", save_error)
                 delay = self._reconnect_delay(error, consecutive_failures)
                 logger.debug(
                     "Connector disconnected (failure #%d, code=%s), "

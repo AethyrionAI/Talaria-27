@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import asyncio
 import getpass
 import os
 import secrets
@@ -15,6 +14,7 @@ import qrcode
 
 from .client import HermesMobileConnector
 from .service_management import build_service_manager
+from .supervision import run_connector_until_stopped
 
 
 def prompt(label: str, *, default: str | None = None, optional: bool = False) -> str | None:
@@ -759,8 +759,10 @@ def cmd_service(args: argparse.Namespace, connector: HermesMobileConnector) -> i
 
 def _run_foreground(connector: HermesMobileConnector) -> int:
     print("Connector running. Press Ctrl+C to stop.\n")
-    asyncio.run(connector.run_forever())
-    return 0
+    # #113: die loudly — any end other than Ctrl+C logs FATAL and exits 1 so
+    # a supervisor (and the connector log) sees the death instead of a
+    # silent detach that only surfaces as piled-up sensors.
+    return run_connector_until_stopped(connector)
 
 
 # ── Entry point ──────────────────────────────────────────────────

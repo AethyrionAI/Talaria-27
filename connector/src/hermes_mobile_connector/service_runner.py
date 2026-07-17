@@ -1,25 +1,27 @@
 from __future__ import annotations
 
-import asyncio
 import os
 from pathlib import Path
 import sys
 
 from .client import HermesMobileConnector
 from .state import ConnectorStateStore
+from .supervision import fatal_exit, run_connector_until_stopped
 
 
 def run_from_state_dir(state_dir: str) -> int:
-    state_store = ConnectorStateStore(state_dir=Path(state_dir))
-    state = state_store.load()
-    if state.runtime_config is not None and state.runtime_config.hermes_home:
-        os.environ["HERMES_HOME"] = state.runtime_config.hermes_home
-    connector = HermesMobileConnector(state_store=state_store)
+    # #113: startup failures (missing/corrupt state.json, bad runtime config)
+    # must be as loud as run-loop deaths — a supervisor restarting on nonzero
+    # exit needs the FATAL line to say why the restarts keep failing.
     try:
-        asyncio.run(connector.run_forever())
-    except KeyboardInterrupt:
-        return 0
-    return 0
+        state_store = ConnectorStateStore(state_dir=Path(state_dir))
+        state = state_store.load()
+        if state.runtime_config is not None and state.runtime_config.hermes_home:
+            os.environ["HERMES_HOME"] = state.runtime_config.hermes_home
+        connector = HermesMobileConnector(state_store=state_store)
+    except Exception as error:  # noqa: BLE001
+        fatal_exit(f"connector startup failed — {type(error).__name__}: {error}", error)
+    return run_connector_until_stopped(connector)
 
 
 def main(argv: list[str] | None = None) -> int:
