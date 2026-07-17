@@ -2037,7 +2037,20 @@ grammar. **Needs Mac:** AlarmKit API surface is new (iOS 26) — compile-check
 `AlarmAttributes.metadata` optionality; device-verify ring through Silent mode
 + the countdown Live Activity.
 
-## 66. 🐛 Wave 4 — Spotlight IndexedEntity donation + OpenSessionIntent (GitHub #17 → PR #24)
+## 66. 🔧 Wave 4 — Spotlight tap-through — launch conflict FIXED (PR #107, 2026-07-17); device re-verify owed
+
+> **MERGED 2026-07-17 (PR #107, `39d17ee`).** Root cause was the #58 twin, exactly as the dispatch
+> predicted: `OpenSessionIntent` + `OpenAgentFileIntent` paired `openAppWhenRun = true` with the
+> `OpenURLIntent` returned from `perform()` — `openAppWhenRun` is read and acts BEFORE `perform()`,
+> so the pair races and the tap dies. **Divergence from the #58 fix, deliberate and correct:** both
+> are declared **explicitly `false`** rather than omitted, because `OpenIntent` rides the
+> `SystemIntent` protocol chain whose default for the member is undocumented — absence could
+> silently mean `true`. `SpotlightOpenIntentTests` pins both. Instrumentation KEPT at all three
+> joints (entity query → perform → deep link, subsystem `org.aethyrion.talaria`, category
+> `SpotlightOpen`) so Console names the broken joint without a rebuild. Loop: regen pbxproj-only,
+> entitlements survived, **695 tests / 59 suites** green. → **Device re-verify owed:** Spotlight →
+> search a session → tap → opens TO THAT SESSION; repeat for a Hermes file result; three `.notice`
+> lines in order. If `perform()` never fires, the defect is donation-side, not launch-side.
 
 > **Dispatch spec 2026-07-16:** `dispatch/FABLE-T27-66-spotlight-tapthrough.md` — **READY TO
 > SEND.** Prime suspect found 2026-07-16 while validating GitHub #88: `SpotlightEntities.swift:89`
@@ -3380,7 +3393,27 @@ Both competitors render generated HTML/interactive content in-app; Talaria recon
 
 Logged 2026-07-11.
 
-## 100. 📝 Inline charts / data viz — UNBLOCKED (#92 verified 2026-07-11)
+## 100. 🔧 Inline charts / data viz — BOTH PRs MERGED (#108 + #109, 2026-07-17); device pass owed
+
+> **MERGED 2026-07-17 — PR #108 (`9e8ac4c`, model+parser) + PR #109 (`5c79d62`, render surface).**
+> Loop merged main into each branch BEFORE the regen, so the tested tree == merged main tree (tree
+> SHAs verified identical `08ad358` on PR 2). Suites: **741/61** after PR 1 (+46 from the chart
+> tolerance + streaming suites), **744/61** after PR 2. New baseline: **744 tests / 61 suites**.
+> Built to spec and past it: `.chart(id:spec:source:)` retains the original fence body (so
+> degradation and copy keep the raw data); `ChartSpec.decode` returns nil — never throws — on
+> malformed JSON / unknown type / ragged series / over-budget (8 series × 500 points) **and** on
+> non-finite values (Fable's own NaN/Inf guard, not specced). Streaming constraint honored: `.chart`
+> is emitted ONLY from the closed-fence branch; an unterminated fence mid-stream stays a
+> `.codeBlock`. Zero hardcoded colors — every axis/series color resolves through `Design.Colors`
+> → `ThemeRuntime.palette`. PR 2 also landed the **Path B numeric-table chart toggle** (optional in
+> the dispatch).
+> → **Device pass owed:** ask Hermes for a ```chart fence of recent resting HR (sensor data is
+> already flowing to the host); confirm it renders themed, tap → fullscreen, VoiceOver reads the
+> label; confirm a malformed fence degrades to a code block rather than vanishing; check a numeric
+> table offers the chart toggle. Verify under a non-default theme (Midnight Marquee) too.
+> → **STILL OWEN'S CALL:** nothing tells the model the ```chart contract exists. Path B works today
+> with zero backend cooperation; Path A needs a system-prompt/instruction addition on the Hermes
+> side. The app surface is built so either lights it up.
 
 > **Dispatch spec 2026-07-16:** `dispatch/FABLE-T27-100-inline-charts.md` — **READY TO SEND.**
 > Two stacked PRs: PR 1 = `ChartSpec` + `MarkdownSegment.chart` + parser (pure, cloud-testable);

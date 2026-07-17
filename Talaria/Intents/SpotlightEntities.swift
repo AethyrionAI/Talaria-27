@@ -1,5 +1,17 @@
 import AppIntents
 import Foundation
+import os
+
+/// #66 diagnostics: one `.notice` line per joint of the Spotlight tap-through
+/// chain — entity query (Spotlight → entity), `perform()` (entity → intent),
+/// and the deep link it builds — so Console.app can name the broken joint
+/// without a rebuild (the #58 lesson). `.notice` because Console's default
+/// view suppresses `.info`; `privacy: .public` because interpolations redact
+/// without it.
+private let spotlightOpenLog = Logger(
+    subsystem: "org.aethyrion.talaria",
+    category: "SpotlightOpen"
+)
 
 // MARK: - #17 Spotlight surface
 //
@@ -49,7 +61,11 @@ struct ChatSessionEntityQuery: EntityQuery {
     /// rather than a network round-trip — intents must resolve fast.
     @MainActor
     func entities(for identifiers: [String]) async throws -> [ChatSessionEntity] {
-        AppContainer.sharedDefault().spotlightIndexing.resolveSessions(identifiers)
+        let resolved = AppContainer.sharedDefault().spotlightIndexing.resolveSessions(identifiers)
+        spotlightOpenLog.notice(
+            "ChatSessionEntityQuery resolved \(resolved.count, privacy: .public)/\(identifiers.count, privacy: .public) for ids [\(identifiers.joined(separator: ","), privacy: .public)]"
+        )
+        return resolved
     }
 
     @MainActor
@@ -77,7 +93,11 @@ struct AgentFileEntity: AppEntity, IndexedEntity {
 struct AgentFileEntityQuery: EntityQuery {
     @MainActor
     func entities(for identifiers: [String]) async throws -> [AgentFileEntity] {
-        AppContainer.sharedDefault().spotlightIndexing.resolveFiles(identifiers)
+        let resolved = AppContainer.sharedDefault().spotlightIndexing.resolveFiles(identifiers)
+        spotlightOpenLog.notice(
+            "AgentFileEntityQuery resolved \(resolved.count, privacy: .public)/\(identifiers.count, privacy: .public) for ids [\(identifiers.joined(separator: ","), privacy: .public)]"
+        )
+        return resolved
     }
 }
 
@@ -89,15 +109,32 @@ struct AgentFileEntityQuery: EntityQuery {
 struct OpenSessionIntent: OpenIntent {
     static let title: LocalizedStringResource = "Open Hermes Session"
     static let description = IntentDescription("Opens a Hermes chat session in Talaria.")
-    static let openAppWhenRun = true
+    // #66: must stay `false`. The `OpenURLIntent` returned from `perform()`
+    // IS the app launch — pairing it with `openAppWhenRun = true` is the
+    // exact combination that made Control Center silently swallow taps (#58,
+    // see HermesControls.swift), and the 2026-07-13 device pass showed the
+    // same dead tap here. Declared EXPLICITLY rather than omitted (the
+    // HermesControls shape) because `OpenIntent` rides a different protocol
+    // chain (`SystemIntent`) whose default for this member is undocumented —
+    // absence could silently mean `true`. `SpotlightOpenIntentTests` pins
+    // both open intents to false; do not re-add `true`.
+    static let openAppWhenRun = false
 
     @Parameter(title: "Session")
     var target: ChatSessionEntity
 
+    /// Split out of `perform()` so the #66 configuration test can pin the
+    /// route shape (percent-encoded id on `hermes://session/`).
+    static func destination(forSessionID id: String) -> URL {
+        let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
+        return URL(string: "hermes://session/\(encoded)") ?? URL(string: "hermes://chat")!
+    }
+
     func perform() async throws -> some IntentResult & OpensIntent {
-        let encoded = target.id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)
-            ?? target.id
-        let url = URL(string: "hermes://session/\(encoded)") ?? URL(string: "hermes://chat")!
+        let url = Self.destination(forSessionID: target.id)
+        spotlightOpenLog.notice(
+            "OpenSessionIntent.perform fired — session \(target.id, privacy: .public), opening \(url.absoluteString, privacy: .public)"
+        )
         return .result(opensIntent: OpenURLIntent(url))
     }
 }
@@ -107,12 +144,22 @@ struct OpenSessionIntent: OpenIntent {
 struct OpenAgentFileIntent: OpenIntent {
     static let title: LocalizedStringResource = "Open Hermes File"
     static let description = IntentDescription("Opens Talaria's chat, where the file was shared.")
-    static let openAppWhenRun = true
+    // #66: must stay `false` — same conflict as `OpenSessionIntent` (never
+    // device-verified, but the shape was identical). Explicit for the same
+    // reason; pinned by `SpotlightOpenIntentTests`.
+    static let openAppWhenRun = false
 
     @Parameter(title: "File")
     var target: AgentFileEntity
 
+    /// Compile-time literal — parsing cannot fail. Static so the #66
+    /// configuration test can pin the route.
+    static let destination = URL(string: "hermes://chat")!
+
     func perform() async throws -> some IntentResult & OpensIntent {
-        .result(opensIntent: OpenURLIntent(URL(string: "hermes://chat")!))
+        spotlightOpenLog.notice(
+            "OpenAgentFileIntent.perform fired — file \(target.id, privacy: .public) (\(target.fileName, privacy: .public)), opening \(Self.destination.absoluteString, privacy: .public)"
+        )
+        return .result(opensIntent: OpenURLIntent(Self.destination))
     }
 }
