@@ -42,6 +42,11 @@ struct MarkdownContentView: View {
                             rows: rows,
                             textColor: textColor
                         )
+                    case .chart(_, _, let source):
+                        // Chart render surface lands with ChartSegmentView
+                        // (OPEN_ITEMS #100 PR 2); until then a decoded chart
+                        // fence still shows its data as a code block.
+                        CodeBlockView(language: "chart", code: source)
                     }
                 }
             }
