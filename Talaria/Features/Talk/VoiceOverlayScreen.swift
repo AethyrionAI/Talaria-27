@@ -143,12 +143,22 @@ struct VoiceOverlayScreen: View {
         .frame(maxWidth: .infinity)
     }
 
+    /// #119b: bound to the live connection state machine — the label must
+    /// never claim CONNECTING once the session is past the connect phase
+    /// (the old shape fell back to CONNECTING for EVERY inactive state, so a
+    /// mid-conversation `.failed` blip read as a stuck connect). Connected
+    /// shows the ticking duration; blocked/failed show the state's own label.
     private var sessionHeaderLabel: String {
-        let sessionTag = talkStore.voiceEngine == .native ? "LOCAL VOICE" : "VOICE SESSION"
-        if talkStore.isSessionActive {
-            return "\(sessionTag) · \(formattedDuration)"
+        let isNative = talkStore.voiceEngine == .native
+        switch talkStore.connectionState {
+        case .connected:
+            return "\(isNative ? "LOCAL VOICE" : "VOICE SESSION") · \(formattedDuration)"
+        case .idle, .checking, .ready, .connecting:
+            return isNative ? "LOCAL VOICE · STARTING" : "VOICE LINK · CONNECTING"
+        case .blocked, .failed:
+            let tag = isNative ? "LOCAL VOICE" : "VOICE LINK"
+            return "\(tag) · \(talkStore.connectionState.displayLabel.uppercased())"
         }
-        return talkStore.voiceEngine == .native ? "LOCAL VOICE · STARTING" : "VOICE LINK · CONNECTING"
     }
 
     private var formattedDuration: String {
