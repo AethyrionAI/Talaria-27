@@ -27,6 +27,10 @@ protocol AppPersistenceStoreProtocol {
     func loadSessionProfileIndex() -> SessionProfileIndex
     func saveSessionProfileIndex(_ index: SessionProfileIndex)
     func clearSessionProfileIndex()
+    // Session→last-run-usage index (#25) — the CTX gauge's resume cache.
+    func loadSessionUsageIndex() -> SessionUsageIndex
+    func saveSessionUsageIndex(_ index: SessionUsageIndex)
+    func clearSessionUsageIndex()
     func loadSensorOutboxState() -> SensorOutboxState
     func saveSensorOutboxState(_ state: SensorOutboxState)
     func clearSensorOutboxState()
