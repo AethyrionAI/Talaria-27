@@ -57,6 +57,7 @@
 		1AC5431689C6E653C516C975 /* FilePreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6874BCC08D52FEC22B4949DF /* FilePreviewTests.swift */; };
 		1ACF900EA56F6A1AABD3CED0 /* LiveNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9317395F2FB6F1E6C58527E /* LiveNotificationService.swift */; };
 		1B6374CD593C44F6329C4F32 /* CodeBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A750F66E6CC7CE70AFEE190 /* CodeBlockView.swift */; };
+		1BFB922912C8BAFE42941E7E /* ChartSegmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1DAB0AF363C52116231C439 /* ChartSegmentView.swift */; };
 		1C07AEBA1620620D11964D9A /* Icon-LuchaLibre@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 18D266B207E1D16C45A7C236 /* Icon-LuchaLibre@2x.png */; };
 		1CEA05061F2084E118FC79C4 /* UserDefaultsAppPersistenceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AD2308C9C97CEA542271B0C /* UserDefaultsAppPersistenceStore.swift */; };
 		1D65E5AB7B2A5160256979EE /* TalariaLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6968AE7D731EB530E8784AAB /* TalariaLog.swift */; };
@@ -790,6 +791,7 @@
 		E06543331C4A1E0CE4075576 /* IconPreview-HoloSushi.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-HoloSushi.png"; sourceTree = "<group>"; };
 		E14FEA341D9CF0849A0D856D /* LiveMediaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveMediaService.swift; sourceTree = "<group>"; };
 		E1C72B32FFD539B62DEFBE7E /* Icon-ComicFunnies@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-ComicFunnies@2x.png"; sourceTree = "<group>"; };
+		E1DAB0AF363C52116231C439 /* ChartSegmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartSegmentView.swift; sourceTree = "<group>"; };
 		E3727619CB1A41ED47CADC62 /* StreamingUpdate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingUpdate.swift; sourceTree = "<group>"; };
 		E4397D4FA2DBFEF4C5B15923 /* ModelsSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsSettingsScreen.swift; sourceTree = "<group>"; };
 		E5AD6E957D927DE3495F4B72 /* AppTemplateUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTemplateUITests.swift; sourceTree = "<group>"; };
@@ -1465,6 +1467,7 @@
 				AC8D099EFF150FF7AF373669 /* Model */,
 				6DF49AB642385B05FD2CD6C6 /* Sessions */,
 				A5044B1A58F14C67ED49975C /* AttachmentPickerSheet.swift */,
+				E1DAB0AF363C52116231C439 /* ChartSegmentView.swift */,
 				6347F95595858FADDEDE54DF /* ChatInputBar.swift */,
 				B51D21BD13D5D766B95E61CC /* ChatScreen.swift */,
 				2A750F66E6CC7CE70AFEE190 /* CodeBlockView.swift */,
@@ -1816,6 +1819,7 @@
 				14A3105BE5AE503B04D61B5A /* CaptureScreen.swift in Sources */,
 				16299D086926FB595B9334A1 /* CarPlaySceneDelegate.swift in Sources */,
 				835FE1F3B6871E5A4015A5CC /* CarPlayVoiceManager.swift in Sources */,
+				1BFB922912C8BAFE42941E7E /* ChartSegmentView.swift in Sources */,
 				EF380CE74ED275D42ECE5D3C /* ChartSpec.swift in Sources */,
 				5C9CD02D776AD6DE92CEFAF3 /* ChatBackendRouter.swift in Sources */,
 				3B9AF2627244C31DB1AA9153 /* ChatInputBar.swift in Sources */,

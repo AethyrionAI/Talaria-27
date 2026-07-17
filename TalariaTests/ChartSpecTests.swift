@@ -162,6 +162,36 @@ struct ChartSpecTests {
         #expect(ChartSpec.decode(fenceBody: json) != nil)
     }
 
+    // MARK: - Render support (PR 2)
+
+    @Test func displayNamesFillUnnamedSeriesAndDedupe() {
+        let spec = ChartSpec(
+            kind: .line, title: nil, xLabel: nil, xValues: ["a", "b"], yLabel: nil,
+            series: [
+                .init(name: "bpm", values: [1, 2]),
+                .init(name: nil, values: [3, 4]),
+                .init(name: "bpm", values: [5, 6]),
+            ]
+        )
+        #expect(spec.seriesDisplayNames == ["bpm", "Series 2", "bpm (2)"])
+    }
+
+    @Test func accessibilitySummaryNamesKindTitleSeriesAndRange() throws {
+        let json = """
+        {"type":"line","title":"Resting HR, 7d",
+         "x":{"values":["Mon","Tue","Wed"]},
+         "series":[{"name":"bpm","values":[58,61,57]}]}
+        """
+        let spec = try #require(ChartSpec.decode(fenceBody: json))
+        #expect(spec.accessibilitySummary == "Line chart: Resting HR, 7d. Series bpm. 3 points from Mon to Wed.")
+    }
+
+    @Test func accessibilitySummaryWithoutOptionals() throws {
+        let json = #"{"type":"point","x":{"values":["a","b"]},"series":[{"values":[1,2]},{"values":[3,4]}]}"#
+        let spec = try #require(ChartSpec.decode(fenceBody: json))
+        #expect(spec.accessibilitySummary == "Scatter chart. 2 series: Series 1, Series 2. 2 points from a to b.")
+    }
+
     // MARK: - Path B: table promotion
 
     @Test func numericTableIsChartable() throws {
