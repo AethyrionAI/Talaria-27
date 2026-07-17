@@ -43,6 +43,11 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// Lane M: the durable session→birth-profile index. Optional so tests
     /// (and the mock path) run without one.
     private let profileIndex: SessionProfileIndexStore?
+    /// #25: the durable session→last-run-usage index — written whenever a
+    /// `run.completed` delivers usage, read back on `openSession` so a
+    /// resumed session's CTX gauge has a numerator (the stored-messages
+    /// endpoint carries none). Optional like `profileIndex`.
+    private let usageIndex: SessionUsageIndexStore?
     /// Lane M PR 2 (M-5): resolves a NON-ACTIVE profile's chat endpoint
     /// (gateway base URL + that profile's API key). Requests for the active
     /// profile keep riding `baseURLProvider`/`apiKeyProvider` — byte-identical
@@ -66,6 +71,7 @@ final class SessionsHermesClient: HermesClientProtocol {
         session: URLSession = .shared,
         activeProfileIDProvider: @escaping @MainActor () -> UUID? = { nil },
         profileIndex: SessionProfileIndexStore? = nil,
+        usageIndex: SessionUsageIndexStore? = nil,
         profileEndpointResolver: @escaping @MainActor (UUID) -> (baseURL: String, apiKey: String)? = { _ in nil },
         chatProfilesProvider: @escaping @MainActor () -> [BackendProfile] = { [] }
     ) {
@@ -76,6 +82,7 @@ final class SessionsHermesClient: HermesClientProtocol {
         self.session = session
         self.activeProfileIDProvider = activeProfileIDProvider
         self.profileIndex = profileIndex
+        self.usageIndex = usageIndex
         self.profileEndpointResolver = profileEndpointResolver
         self.chatProfilesProvider = chatProfilesProvider
         self.encoder = JSONEncoder()
@@ -319,6 +326,15 @@ final class SessionsHermesClient: HermesClientProtocol {
                     // Defer `.finished` until run.completed delivers token usage.
                 case "run.completed":
                     let usage = decodeRunUsage(currentData)
+                    // #25: persist the run's usage keyed by this hop's server
+                    // session — the CTX gauge's only source when the session
+                    // is later resumed (the stored transcript carries no
+                    // usage; see openSession). Tolerant by construction: an
+                    // absent/malformed usage decodes to nil and records
+                    // nothing, leaving the session honestly unknown.
+                    if let usage {
+                        usageIndex?.record(sessionID: hop.sessionId, usage: usage)
+                    }
                     var message = pendingFinalMessage
                         ?? Message(sender: .hermes, content: assembledContent, status: .delivered)
                     // Reasoning attaches HERE, at the yield — never earlier: a
@@ -656,7 +672,18 @@ final class SessionsHermesClient: HermesClientProtocol {
         // endpoint from the index (unrecorded ids are pre-profile sessions,
         // which belong to the active/migrated profile).
         let birthProfileID = profileIndex?.profileID(forSessionID: id) ?? activeProfileIDProvider()
-        let (sessionId, convo) = try await fetchSessionConversation(id, profileID: birthProfileID)
+        let (sessionId, fetched) = try await fetchSessionConversation(id, profileID: birthProfileID)
+        var convo = fetched
+        // #25: the stored transcript carries no usage of any kind (probe
+        // 2026-07-16: per-row `token_count` is always null, and the session
+        // list's `input_tokens` is cumulative billing, not occupancy — see
+        // SessionUsageIndex). The resumed session's CTX numerator is the
+        // cached usage from its last live `run.completed`, or honestly
+        // absent (nil hides the gauge; it must never render 0%). Deliberately
+        // NOT applied in reconcileFromServer: the reconcile path stamps
+        // `latestUsage` onto the recovered reply's receipt, and the cache
+        // holds the PREVIOUS run's numbers there — a wrong receipt.
+        convo.latestUsage = usageIndex?.usage(forSessionID: sessionId)
         currentConversation = convo
         connectionStatus = .connected
         journal.adoptServerSession(id: sessionId, conversation: convo, profileID: birthProfileID)
@@ -783,6 +810,12 @@ final class SessionsHermesClient: HermesClientProtocol {
 
         let composition = await transplanter.composePriming(from: journal.entries)
         let usage = try await postPrimingTurn(sessionId: sessionId, profileID: targetProfileID, text: composition.text)
+        // #25: the priming turn IS the fresh session's context occupancy —
+        // seed the resume cache so a session abandoned right after its
+        // transplant still reads honestly when reopened.
+        if let usage {
+            usageIndex?.record(sessionID: sessionId, usage: usage)
+        }
         journal.beginHop(apiSessionId: sessionId, primingUsage: usage, profileID: targetProfileID)
         recordBirth(sessionId: sessionId, profileID: targetProfileID)
         pendingNewSessionProfileID = nil
