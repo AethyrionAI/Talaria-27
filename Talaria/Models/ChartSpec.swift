@@ -128,6 +128,43 @@ struct ChartSpec: Equatable, Sendable {
     }
 }
 
+// MARK: - Render support
+
+extension ChartSpec {
+    /// Legend / scale-domain names, unique and stable: a series without a
+    /// name becomes "Series N", and duplicate names get a numeric suffix
+    /// (Swift Charts scale domains require unique values).
+    var seriesDisplayNames: [String] {
+        var seen: [String: Int] = [:]
+        return series.enumerated().map { index, series in
+            let base = series.name ?? "Series \(index + 1)"
+            let count = seen[base, default: 0]
+            seen[base] = count + 1
+            return count == 0 ? base : "\(base) (\(count + 1))"
+        }
+    }
+
+    /// One-line VoiceOver summary — the chart must not be an unlabeled blob.
+    var accessibilitySummary: String {
+        let kindName: String
+        switch kind {
+        case .line: kindName = "Line chart"
+        case .bar: kindName = "Bar chart"
+        case .area: kindName = "Area chart"
+        case .point: kindName = "Scatter chart"
+        }
+        var parts: [String] = [title.map { "\(kindName): \($0)" } ?? kindName]
+        let names = seriesDisplayNames
+        parts.append(names.count == 1 ? "Series \(names[0])" : "\(names.count) series: \(names.joined(separator: ", "))")
+        if let first = xValues.first, let last = xValues.last {
+            parts.append(xValues.count == 1
+                ? "1 point at \(first)"
+                : "\(xValues.count) points from \(first) to \(last)")
+        }
+        return parts.joined(separator: ". ") + "."
+    }
+}
+
 // MARK: - Table promotion (Path B)
 
 extension ChartSpec {
