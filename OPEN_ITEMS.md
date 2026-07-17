@@ -3724,7 +3724,17 @@ Logged 2026-07-12 (dispatch-prep session).
 
 **2026-07-13 follow-up (`48770cd`):** icon picker was a silent no-op on iPad — iPadOS reads `CFBundleIcons~ipad` exclusively for alternate-icon support and we only declared the base key (iPhone unaffected). Fixed via YAML anchor/alias in `project.yml` so both keys stay byte-identical with a single edit point. **Shelley's iPad icon-picker check rides her next install.**
 
-## 113. 🐛 Connector process died silently — health outbox piled up on all devices (202-retry trap); connector needs supervision
+## 113. 🔧 Connector supervision — cloud half MERGED (PR #113, 2026-07-18); watchdog INSTALL + forensics owed (Owen/OJAMD)
+
+> **MERGED 2026-07-18 (PR #113, `bb33328`).** Die-loudly hardening (FATAL log + nonzero exit
+> through cli/client/service_runner), `supervision.py` + 5 tests — connector suite **123/123 on
+> the Mac**; `scripts/connector-watchdog.ps1` committed (port-truth liveness, 2-miss threshold,
+> invokes start-connector.bat, log rotation, `schtasks` install line in header — NOT
+> self-executing); app-side outage alert (`type: .alert`, deduped, clears on delivery, 15 tests).
+> App suite **780/65** on the union tree (tree-identity validated). New baseline: **780/65**,
+> connector **123**. → **Owed:** (1) Owen installs the scheduled task on OJAMD (one schtasks line,
+> file header); (2) death forensics from the 07-14/07-16 connector logs, next OJAMD pass;
+> (3) NSSM-promotion decision stays open — watchdog covers either answer.
 
 > **BUILT 2026-07-17 (cloud) on `claude/fable-t27-113-connector-krjdhu` — all three deliverables.**
 > D1 die-loudly: new `connector/src/hermes_mobile_connector/supervision.py`
@@ -3983,7 +3993,13 @@ Logged 2026-07-16.
 
 ---
 
-## 118. 🐛 Voice capture stays live after leaving the app — mic indicator persists in background
+## 118. 🔧 Voice capture background teardown — MERGED (Lane V, PR #112, 2026-07-18); device re-verify owed
+
+> **MERGED 2026-07-18 (PR #112, `ceecfdb`).** Backgrounding ends the session through the user-end
+> path on whichever engine is driving; **CarPlay exempted** (Fable's catch, correct — CarPlay voice
+> runs backgrounded by design, #19); pure `TalkSessionRules.shouldEndSession` pinned by tests. The
+> Swift 6 observer landmine handled by documented payload-untouched main-actor hop. Suite 765/63.
+> → Device: start voice → background → mic indicator OFF; repeat in CarPlay sim → stays ON.
 
 > **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-118-119-voice-residuals.md` (Lane V, shared
 > with #119) — **READY TO SEND.** Background → clean session end via the user-end path; Swift 6
@@ -4003,7 +4019,14 @@ Logged 2026-07-16.
 
 ---
 
-## 119. 🐛 Voice UI — 'Cancellation failed: no active response found' surfaces as a user-facing banner; header stuck on CONNECTING mid-conversation
+## 119. 🔧 Voice UI cancel-race banner + CONNECTING header — MERGED (Lane V, PR #112, 2026-07-18); device re-verify owed
+
+> **MERGED 2026-07-18 (PR #112).** `RealtimeErrorRule` classifies no-op-cancel and
+> response-create races → `.notice` + swallow; real failures still surface. Header bound to live
+> session state past connect. Rider landed with one deliberate exclusion: `SpeechOutputService`
+> stays synchronous (interlocked with the #106 gate — rationale in-source); other voice-path
+> setActive calls moved off-main. → Device: barge-in post-completion → no banner; header tracks a
+> full conversation; setActive warning wall reduced.
 
 > **Dispatch spec 2026-07-17:** rides `dispatch/FABLE-T27-118-119-voice-residuals.md` (Lane V,
 > with #118) — **READY TO SEND.** No-op cancel race classified + swallowed at the call site;
