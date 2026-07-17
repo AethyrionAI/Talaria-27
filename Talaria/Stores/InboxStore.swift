@@ -39,14 +39,62 @@ final class InboxStore {
         do {
             let token = await sessionStore.currentAccessToken()
             let fetchedItems = try await inboxService.fetchInbox(accessToken: token)
-            items = applyLocalState(to: fetchedItems)
+            // #113: locally-raised alerts lead — they're operational state
+            // about THIS device's pipeline, not relay directives.
+            items = applyLocalState(to: localState.localItems + fetchedItems)
         } catch {
             // #45: real data only — a failed fetch shows the unreachable
             // state, never demo items. (The DemoData fallback shipped fake
-            // directives whenever the relay was down.)
+            // directives whenever the relay was down.) Local alerts are real
+            // data — a connector-down alert must survive the relay fetch
+            // failing, since both symptoms share a likely cause.
             lastErrorMessage = error.localizedDescription
-            items = []
+            items = applyLocalState(to: localState.localItems)
         }
+    }
+
+    // MARK: - Local operational alerts (#113)
+
+    /// Marks an app-generated item so action handling never round-trips the
+    /// relay for it. Value, not presence, is checked — a relay payload could
+    /// carry the same key.
+    private static let localAlertPayloadKey = "talaria.localAlert"
+    static let connectorOutageAlertKind = "connector-outage"
+
+    /// Enqueue the connector-down alert (#113). Deduped: while one is live
+    /// in `localItems`, further raises are no-ops — the policy layer also
+    /// guards this, but the store must stay safe to call unconditionally.
+    func raiseConnectorOutageAlert() {
+        guard !localState.localItems.contains(where: { isConnectorOutageAlert($0) }) else { return }
+        let item = InboxItem(
+            type: .alert,
+            title: "Sensor uploads stalled",
+            body: "Sensor uploads can't reach the host — the connector may be down. Data keeps queuing on this device and delivers when the connector returns.",
+            priority: .high,
+            payload: [Self.localAlertPayloadKey: Self.connectorOutageAlertKind],
+            // Both actions resolve locally (submitAction short-circuits for
+            // local items): Acknowledge marks it read, Dismiss removes it.
+            primaryAction: InboxActionDescriptor(id: "acknowledge", title: "Acknowledge"),
+            secondaryAction: InboxActionDescriptor(id: "dismiss", title: "Dismiss", isDestructive: true)
+        )
+        localState.localItems.append(item)
+        items.insert(item, at: 0)
+    }
+
+    /// Remove the connector-down alert — a successful delivery proved the
+    /// connector alive. Safe to call when no alert is live.
+    func clearConnectorOutageAlert() {
+        guard localState.localItems.contains(where: { isConnectorOutageAlert($0) }) else { return }
+        localState.localItems.removeAll { isConnectorOutageAlert($0) }
+        items.removeAll { isConnectorOutageAlert($0) }
+    }
+
+    private func isConnectorOutageAlert(_ item: InboxItem) -> Bool {
+        item.payload?[Self.localAlertPayloadKey] == Self.connectorOutageAlertKind
+    }
+
+    private func isLocalItem(_ item: InboxItem) -> Bool {
+        localState.localItems.contains { $0.id == item.id }
     }
 
     func performPrimaryAction(for item: InboxItem) async {
@@ -59,6 +107,18 @@ final class InboxStore {
     }
 
     private func submitAction(for item: InboxItem, actionID: String) async {
+        // #113: app-generated items have no server row — acting on one must
+        // never hit the relay (the id would 404 and surface as an error).
+        if isLocalItem(item) {
+            if actionID == "dismiss" {
+                localState.localItems.removeAll { $0.id == item.id }
+            } else if let index = localState.localItems.firstIndex(where: { $0.id == item.id }) {
+                localState.localItems[index].isRead = true
+            }
+            applyLocalAction(actionID, to: item)
+            return
+        }
+
         do {
             let token = await sessionStore.currentAccessToken()
             let targetID = item.serverID ?? item.id

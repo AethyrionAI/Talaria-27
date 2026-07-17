@@ -517,6 +517,18 @@ final class AppContainer {
         container.chatAPIKeyBox = hermesAPIKeyBox
         container.shimTokenBox = shimTokenBox
 
+        // #113: repeated drain retry-exhaustion (the dead-connector shape)
+        // surfaces as ONE deduped local inbox alert; the next successful
+        // delivery clears it. Weak: the service is owned by the container.
+        sensorUploadService?.onConnectorOutageAlert = { [weak container] raised in
+            guard let container else { return }
+            if raised {
+                container.inboxStore.raiseConnectorOutageAlert()
+            } else {
+                container.inboxStore.clearConnectorOutageAlert()
+            }
+        }
+
         // #97: pin/archive overlay for server-session rows — same persistence
         // seam as every other store, read by the drawer + search surfaces.
         container.conversationListState = ConversationListStateStore(persistence: persistence)

@@ -265,6 +265,15 @@ final class SensorUploadService {
     private(set) var lastDrainSummary: String?
     private(set) var lastDrainAt: Date?
 
+    /// #113: repeated retry-exhaustion is the dead-connector shape — decide
+    /// once per drain cycle whether it warrants the inbox alert. Pure state,
+    /// fed at drain end; no view reads it.
+    @ObservationIgnored private var outageAlertPolicy = ConnectorOutageAlertPolicy()
+    /// Wired by AppContainer to the inbox: `true` raises the deduped
+    /// connector-down alert, `false` clears it after a delivery proves the
+    /// connector alive.
+    @ObservationIgnored var onConnectorOutageAlert: (@MainActor (_ raised: Bool) -> Void)?
+
     private let iso8601Formatter: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -609,16 +618,25 @@ final class SensorUploadService {
         var healthBusyRetries = 0
         var locationBusyRetries = 0
 
+        // #113: what this drain cycle proved about the connector — fed to
+        // the outage-alert policy at drain end. A cycle that never attempted
+        // an upload (empty outbox) proves nothing and is not an event.
+        var cycleAttemptedUpload = false
+        var cycleSawDelivery = false
+        var cycleSawRetryExhaustion = false
+
         // ── Location phase ──────────────────────────────────────────
         // Drained independently of health — a location failure (transient
         // or retry-exhausted) falls through to health instead of wedging
         // the entire outbox drain (#27).
         while isActive && isPairedProvider(), let pendingLocation = outboxState.pendingLocation {
+            cycleAttemptedUpload = true
             let outcome = await uploadLocation(pendingLocation)
             sensorLog.notice("drain: location upload → \(String(describing: outcome), privacy: .public)")
             switch outcome {
             case .delivered:
                 locationBusyRetries = 0
+                cycleSawDelivery = true
                 clearPendingLocationIfUnchanged(pendingLocation)
             case .rejected:
                 locationBusyRetries = 0
@@ -631,6 +649,7 @@ final class SensorUploadService {
                 guard locationBusyRetries < Self.maxLocationBusyRetries else {
                     sensorLog.notice("drain: location retries exhausted — deferring to next trigger")
                     recordDrain("Location upload busy — retries exhausted")
+                    cycleSawRetryExhaustion = true
                     break
                 }
                 locationBusyRetries += 1
@@ -657,11 +676,13 @@ final class SensorUploadService {
             // Chunk to the relay's 100-sample cap and send sequentially —
             // the connector handles one payload at a time (#24a).
             let chunk = Array(outboxState.pendingHealthSamples.prefix(Self.healthUploadChunkSize))
+            cycleAttemptedUpload = true
             let outcome = await uploadHealthTracked(chunk)
             sensorLog.notice("drain: health chunk (\(chunk.count) of \(self.outboxState.pendingHealthSamples.count) pending) → \(String(describing: outcome), privacy: .public)")
             switch outcome {
             case .delivered:
                 healthBusyRetries = 0
+                cycleSawDelivery = true
                 removeDeliveredHealthPrefix(chunk)
                 scheduleOutboxPersist()
                 continue
@@ -670,6 +691,7 @@ final class SensorUploadService {
                 guard healthBusyRetries < Self.maxHealthBusyRetries else {
                     sensorLog.notice("drain: health retries exhausted — deferring to next trigger")
                     recordDrain("Health upload busy — retries exhausted")
+                    cycleSawRetryExhaustion = true
                     break
                 }
                 healthBusyRetries += 1
@@ -713,6 +735,26 @@ final class SensorUploadService {
             drainOutcome += " · \(outboxState.droppedHealthSampleCount) dropped (cap)"
         }
         recordDrain(drainOutcome)
+
+        // #113: one policy event per drain cycle that actually attempted an
+        // upload. Any delivery proves the connector alive (clears the alert
+        // + streak); a delivery-free cycle that exhausted the busy ladder is
+        // the dead-connector shape; anything else breaks the streak.
+        if cycleAttemptedUpload {
+            let cycleOutcome: ConnectorOutageAlertPolicy.DrainCycleOutcome = cycleSawDelivery
+                ? .delivered
+                : (cycleSawRetryExhaustion ? .retryExhausted : .inconclusive)
+            switch outageAlertPolicy.record(cycleOutcome) {
+            case .raiseAlert:
+                sensorLog.warning("drain: \(ConnectorOutageAlertPolicy.consecutiveExhaustionThreshold) consecutive retry-exhausted cycles — raising connector-down inbox alert")
+                onConnectorOutageAlert?(true)
+            case .clearAlert:
+                sensorLog.notice("drain: delivery succeeded — clearing connector-down inbox alert")
+                onConnectorOutageAlert?(false)
+            case .none:
+                break
+            }
+        }
     }
 
     /// One health upload with its chunk size tracked, so the backlog cap can
