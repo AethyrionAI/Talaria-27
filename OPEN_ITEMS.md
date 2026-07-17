@@ -4160,4 +4160,66 @@ gate lands DORMANT behind `monetizationEnabled=false` until launch.
 > **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-127-monetization-scaffold.md` — **READY TO
 > SEND.** StoreKit greenfield verified. App Store Connect product setup = Owen, steps in the PR.
 
+**Update (2026-07-17): scaffold BUILT on `claude/fable-t27-127-monetization-spgkzl` —
+cloud-written, NOT compiled.** What landed:
+
+- **Pure core** (`Services/Support/MonetizationGate.swift`): `MonetizationConfiguration`
+  (`isEnabled = false` **DORMANT** — the flip-at-launch line; product id
+  `org.aethyrion.talaria27.connected`; `productKind` constant selecting
+  non-consumable vs annual-sub, BOTH paths implemented everywhere it's consulted),
+  `ConnectGate.verdict` (the pinned matrix: dormant → allow; existing pairing →
+  ALWAYS allow; new connect: entitled → allow, not-entitled → paywall even over a
+  stale cache, unknown → cached-paid fails open / else closed), `EntitlementScan`
+  (per-kind transaction classification + definitive-only cache updates),
+  `PaywallPresentation` (displayPrice-or-"—", always dismissible, unlock-only
+  auto-close), DEBUG override combinators + `MonetizationDebugSettings`
+  (UserDefaults, compiles out of Release).
+- **Service trio**: `Services/Protocols/EntitlementServiceProtocol.swift`,
+  `Services/Live/EntitlementService.swift` (StoreKit 2 —
+  `Transaction.currentEntitlements` launch scan + `Transaction.updates` listener,
+  started from `makeDefault()` even while dormant for transaction hygiene; purchase +
+  `AppStore.sync()` restore; last-known cache in UserDefaults),
+  `Services/Mocks/MockEntitlementService.swift` (scriptable).
+- **Gate wiring**: `AppContainer.connectGateVerdict(for:)` is the one seam. Entry
+  points: the `.connectHost` pairing-flow branch in `MainTabView.routeDestination`
+  (covers all four `navigate(.connectHost)` call sites; the paired-host MANAGEMENT
+  screen stays ungated — a live pairing is never severed), Server `Add Profile` +
+  pair-unpaired-profile (re-pair of a paired profile = existing → passes), Uplink
+  first-key save (`keySaveAttempt` static, rotation ungated).
+- **Paywall**: `Features/Paywall/ConnectedPaywallView.swift` (+`ConnectedPaywallSheet`
+  wrapper) — theme-tokened, Connected feature list, `Product.displayPrice` only,
+  purchase/restore/"Not now", pending (Ask to Buy) surfaced, always dismissible.
+- **DEBUG driver**: Developer screen "// Monetization" section — Connect Gate toggle
+  (activates the dormant gate for that build; can never deactivate a launched gate) +
+  entitlement override picker (SYSTEM keeps real StoreKit so sandbox round-trips work
+  with the gate live) + honest STOREKIT status row.
+- **Tests**: `TalariaTests/MonetizationGateTests.swift` — dormancy pinned (the test
+  fails loudly on flip day, delete it in the launch commit), full gate matrix, both
+  product-kind scan paths, cache rule, override combinators, paywall rules, key-save
+  classification, mock unlock semantics.
+
+**Next Mac session checklist:**
+- [ ] Merge, `xcodegen generate` (6 new source + 1 new test file; re-verify
+      `aps-environment` + weatherkit + widget-HealthKit survive regen per #44/#48 —
+      no project.yml changes were made, in-app purchase needs no entitlement key)
+- [ ] CLI build + full suite — green ≥ 755/62 (post-#113 baseline 780/65)
+- [ ] Compile-risk shortlist: `product.purchase()` may warn deprecated on the iOS 27
+      SDK in favor of `purchase(confirmIn:)` (warning-only expected); switch-expression
+      assignments in `DeveloperSettingsScreen.entitlementStatusLabel`; `@Observable`
+      conformance to the `EntitlementServiceProtocol` existential
+- [ ] Device: Developer → Connect Gate ON + override LOCKED → paywall at Server "Add
+      Profile", Server "Pair" (unpaired profile), Uplink first-key save, and the
+      pairing flow via Uplink "Pair Device" / Chat / System Settings; override
+      UNLOCKED → all pass; gate OFF → dormant (production behavior)
+- [ ] Device fail-open check: gate ON + LOCKED with an EXISTING pairing — chat,
+      sensors, re-pair, key rotation all keep working; only NEW connects gated
+- [ ] Sandbox (after Owen's App Store Connect setup): override SYSTEM, purchase +
+      restore round-trip; price renders from displayPrice (never hardcoded)
+- [ ] Owen (App Store Connect): create the in-app purchase with product id EXACTLY
+      `org.aethyrion.talaria27.connected` (non-consumable to start — flip
+      `MonetizationConfiguration.productKind` if pricing lands on the annual sub),
+      create a sandbox tester account; steps also in the PR body
+- [ ] Launch day: flip `MonetizationConfiguration.isEnabled = true`, delete the
+      `scaffoldShipsDormant` test in the same commit
+
 Logged 2026-07-17.

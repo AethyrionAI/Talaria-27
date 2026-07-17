@@ -58,6 +58,10 @@ final class AppContainer {
     /// URL/token (+ empty gateway URL) from the relay after a successful
     /// pair, and backs the Server screen's "Refresh Provisioning" action.
     private(set) var provisioningService: ProvisioningService?
+    /// #127: the Connected-tier entitlement source (StoreKit 2). Nil in bare
+    /// test containers; `connectGateVerdict(for:)` treats nil as unknown,
+    /// which only matters once the (dormant) gate is active.
+    private(set) var entitlementService: (any EntitlementServiceProtocol)?
     /// M-9 thrash guard: dormant-refresh attempts this process, so a failing
     /// relay isn't re-tried on every foreground.
     private var dormantRefreshAttempts: [UUID: Date] = [:]
@@ -133,6 +137,35 @@ final class AppContainer {
 
     var shouldShowLaunchSplash: Bool {
         sessionStore.isBootstrapping || (pairingStore.isPaired && !isInitialized)
+    }
+
+    // MARK: - Connect gate (#127)
+
+    /// The one seam every gated connect entry point asks. Composes the
+    /// dormant config flag (+ the DEBUG Developer-screen override) with the
+    /// entitlement service's live + cached state into `ConnectGate`'s pure
+    /// verdict. While `MonetizationConfiguration.isEnabled` is false and no
+    /// DEBUG override is set, this always returns `.allow`.
+    func connectGateVerdict(for attempt: ConnectAttempt) -> ConnectGateVerdict {
+        var monetizationActive = MonetizationConfiguration.isEnabled
+        var state = entitlementService?.entitlementState ?? .unknown
+        let cached = entitlementService?.cachedEntitlement
+        #if DEBUG
+        monetizationActive = MonetizationDebugRules.effectiveGateActive(
+            configuredEnabled: monetizationActive,
+            debugGateEnabled: MonetizationDebugSettings.gateEnabled
+        )
+        state = MonetizationDebugRules.effectiveEntitlementState(
+            real: state,
+            override: MonetizationDebugSettings.entitlementOverride
+        )
+        #endif
+        return ConnectGate.verdict(
+            monetizationActive: monetizationActive,
+            attempt: attempt,
+            state: state,
+            cachedEntitlement: cached
+        )
     }
 
     static func makeDefault(
@@ -601,6 +634,14 @@ final class AppContainer {
             }
         )
         container.provisioningService = provisioningService
+
+        // #127: the Connected-tier entitlement source. Started even while
+        // the gate is dormant — the Transaction.updates listener is StoreKit
+        // hygiene (unfinished transactions re-deliver until observed), and a
+        // launch-time scan keeps the last-known cache warm for flip day.
+        let entitlementService = EntitlementService()
+        container.entitlementService = entitlementService
+        entitlementService.start()
 
         // M-9: a successful pair mints fresh relay tokens — stamp freshness.
         // #116: …and the relay can now answer the provisioning fetch — key

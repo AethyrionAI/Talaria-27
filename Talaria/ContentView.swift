@@ -28,6 +28,7 @@ enum SidebarVisibilityPersistence {
 }
 
 struct MainTabView: View {
+    @Environment(AppContainer.self) private var container
     @Environment(TabRouter.self) private var router
     @Environment(TalkStore.self) private var talkStore
     @Environment(ChatStore.self) private var chatStore
@@ -180,14 +181,35 @@ struct MainTabView: View {
             // Lane M (M-12): a per-profile Pair action names its target
             // before navigating here — that always means the pairing flow,
             // even while the ACTIVE profile happens to be paired.
+            // #127: the pairing-flow branch is a gated connect entry point —
+            // this one seam covers every navigate(.connectHost) call site.
+            // Only a NEW connect can hit the paywall (re-pairing an
+            // already-paired profile is an existing pairing and always
+            // passes); the management screen below stays ungated so a live
+            // pairing is never severed. Dormant until the #127 flag flips.
             if pairingStore.pairingTargetProfileID != nil || !pairingStore.isPaired {
-                ConnectHermesScreen()
+                if container.connectGateVerdict(for: pairingFlowAttempt) == .showPaywall {
+                    ConnectedPaywallView()
+                } else {
+                    ConnectHermesScreen()
+                }
             } else {
                 ConnectHermesHostScreen()
             }
         case .inbox:
             InboxScreen()
         }
+    }
+
+    /// #127: classify what the pairing flow would do. A named pair target
+    /// that is already paired is a re-pair of an existing pairing (fail
+    /// open); everything else reaching the flow is a new connect.
+    private var pairingFlowAttempt: ConnectAttempt {
+        if let targetID = pairingStore.pairingTargetProfileID,
+           container.profileRelaySessions?.isPaired(profileID: targetID) == true {
+            return .existingPairing
+        }
+        return .newConnect
     }
 
     @ViewBuilder

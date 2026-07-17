@@ -24,6 +24,9 @@ struct UplinkSettingsScreen: View {
     @State private var hermesAPIKeySaving = false
     @State private var hermesAPIKeyJustSaved = false
     @State private var isTesting = false
+    /// #127: the connect gate's locked state — presents the Connected
+    /// paywall instead of enabling a new host. Inert while dormant.
+    @State private var paywallPresented = false
 
     /// Prefers the direct Sessions API probe over the relay-based host state, so
     /// the link reads "online" when chat works even if the relay is down.
@@ -60,6 +63,9 @@ struct UplinkSettingsScreen: View {
         .toolbarVisibility(.hidden, for: .navigationBar)
         .task { await hostStore.refresh() }
         .onAppear { hermesAPIKeyDraft = container.hermesAPIKey }
+        .sheet(isPresented: $paywallPresented) {
+            ConnectedPaywallSheet()
+        }
     }
 
     // MARK: Link status panel
@@ -303,7 +309,20 @@ struct UplinkSettingsScreen: View {
         )
     }
 
+    /// #127: keying a host that has NO stored key is the act that enables
+    /// direct chat — a new connect the gate may lock. Replacing or rotating
+    /// an existing key is maintenance on an existing configuration and
+    /// always passes (fail open). Static so the rule is unit-testable.
+    static func keySaveAttempt(existingKey: String) -> ConnectAttempt {
+        existingKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .newConnect : .existingPairing
+    }
+
     private func saveHermesAPIKey() async {
+        let attempt = Self.keySaveAttempt(existingKey: container.hermesAPIKey)
+        guard container.connectGateVerdict(for: attempt) == .allow else {
+            paywallPresented = true
+            return
+        }
         hermesAPIKeySaving = true
         await container.saveHermesAPIKey(hermesAPIKeyDraft)
         hermesAPIKeySaving = false

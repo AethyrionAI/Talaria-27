@@ -17,6 +17,13 @@ import SwiftUI
 struct DeveloperSettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SettingsStore.self) private var settingsStore
+    #if DEBUG
+    @Environment(AppContainer.self) private var container
+    // #127: local mirrors of MonetizationDebugSettings (UserDefaults-backed,
+    // DEBUG-only) — seeded in onAppear, written through on change.
+    @State private var monetizationGateEnabled = false
+    @State private var entitlementOverride: MonetizationEntitlementOverride = .system
+    #endif
 
     var body: some View {
         ZStack {
@@ -31,6 +38,7 @@ struct DeveloperSettingsScreen: View {
                     flagsSection
                     #if DEBUG
                     generativeUISection
+                    monetizationSection
                     #endif
                     buildSection
                 }
@@ -40,6 +48,12 @@ struct DeveloperSettingsScreen: View {
         }
         .navigationTitle("Developer")
         .toolbarVisibility(.hidden, for: .navigationBar)
+        #if DEBUG
+        .onAppear {
+            monetizationGateEnabled = MonetizationDebugSettings.gateEnabled
+            entitlementOverride = MonetizationDebugSettings.entitlementOverride
+        }
+        #endif
     }
 
     // MARK: Warning
@@ -226,6 +240,122 @@ struct DeveloperSettingsScreen: View {
                 innerGlow: false
             )
         }
+    }
+    // MARK: Monetization (#127 — device testing without sandbox purchases)
+    //
+    // The shipped gate is dormant (`MonetizationConfiguration.isEnabled` =
+    // false). The toggle activates it for THIS DEBUG build; the override
+    // then forces the entitlement answer — LOCKED shows the paywall at
+    // every gated connect entry point, UNLOCKED opens them, SYSTEM keeps
+    // the real StoreKit state so sandbox purchase/restore round-trips are
+    // still testable with the gate live.
+
+    private var monetizationSection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            MonoLabel("// Monetization", size: 10, tracking: Design.Tracking.monoXWide,
+                      color: Design.Colors.mutedForeground)
+
+            VStack(spacing: 0) {
+                flagRow(
+                    "Connect Gate",
+                    detail: "FORCES monetizationEnabled · THIS BUILD ONLY",
+                    isOn: monetizationGateBinding
+                )
+
+                Rectangle()
+                    .fill(Design.Colors.hairline)
+                    .frame(height: 1)
+                    .padding(.horizontal, Design.Spacing.md)
+
+                overrideRow
+
+                Rectangle()
+                    .fill(Design.Colors.hairline)
+                    .frame(height: 1)
+                    .padding(.horizontal, Design.Spacing.md)
+
+                entitlementStatusRow
+            }
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
+        }
+    }
+
+    private var overrideRow: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                Text("Entitlement Override")
+                    .font(Design.Typography.callout)
+                    .foregroundStyle(Design.Colors.foreground)
+                MonoLabel("SYSTEM = REAL STOREKIT (SANDBOX OK)", size: 8, weight: .regular,
+                          tracking: Design.Tracking.mono, color: Design.Colors.mutedForeground)
+            }
+            Spacer()
+            Picker("", selection: overrideBinding) {
+                ForEach(MonetizationEntitlementOverride.allCases, id: \.self) { value in
+                    Text(value.rawValue.uppercased())
+                        .font(Design.Typography.mono(10, weight: .medium))
+                        .tag(value)
+                }
+            }
+            .pickerStyle(.menu)
+            .tint(Design.Brand.accent)
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+    }
+
+    /// Real data only: the live service's actual state + cache, so the
+    /// override's effect can be compared against what StoreKit says.
+    private var entitlementStatusRow: some View {
+        HStack {
+            MonoLabel("STOREKIT", size: 10, weight: .regular,
+                      tracking: Design.Tracking.mono, color: Design.Colors.mutedForeground)
+            Spacer()
+            MonoLabel(entitlementStatusLabel, size: 10, weight: .medium,
+                      tracking: Design.Tracking.mono, color: Design.Colors.coolForeground)
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+    }
+
+    private var entitlementStatusLabel: String {
+        guard let entitlements = container.entitlementService else { return "—" }
+        let state = switch entitlements.entitlementState {
+        case .unknown: "UNKNOWN"
+        case .entitled: "ENTITLED"
+        case .notEntitled: "NOT ENTITLED"
+        }
+        let cache = switch entitlements.cachedEntitlement {
+        case .some(true): "CACHE PAID"
+        case .some(false): "CACHE FREE"
+        case .none: "CACHE —"
+        }
+        return "\(state) · \(cache)"
+    }
+
+    private var monetizationGateBinding: Binding<Bool> {
+        Binding(
+            get: { monetizationGateEnabled },
+            set: { newValue in
+                monetizationGateEnabled = newValue
+                MonetizationDebugSettings.gateEnabled = newValue
+            }
+        )
+    }
+
+    private var overrideBinding: Binding<MonetizationEntitlementOverride> {
+        Binding(
+            get: { entitlementOverride },
+            set: { newValue in
+                entitlementOverride = newValue
+                MonetizationDebugSettings.entitlementOverride = newValue
+            }
+        )
     }
     #endif
 
