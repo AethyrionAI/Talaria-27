@@ -1912,7 +1912,15 @@ not yet compiled — needs `xcodegen generate` + CLI build + device verify.
   version was O(N²) across a long think). Foreground condensation now drains up to 3
   pending replies per pass instead of only the newest.
 
-## 61. 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels
+## 61. 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device re-verify owed
+
+> **MERGED 2026-07-17 (`588d885`, direct merge, loop-validated 755/62).** Recovery note for the
+> record: the fix branch `claude/t27-61-fallback-card-dedup` (07d8d9a) was deleted in error during
+> the 2026-07-17 branch cleanup (misjudged as superseded by Lane H without reading this item),
+> caught during the dispatch sweep, restored from local git objects, merged through the full loop.
+> Lesson: cleanup checks the ITEM TEXT, not the memory of it. → Device re-verify owed:
+> attachment-only/empty user turn → card title and preview are distinct, neither echoes the
+> reply's first line.
 
 > **2026-07-13 (eve): device FAIL confirmed → ROOT-CAUSED + FIXED (branch).** Title+preview both echoed the model's first line — the truncation fallback borrowed the reply's first line for BOTH fields when the user turn had no meaningful line (attachment-only/empty). Fix + fail-first test on `claude/t27-61-fallback-card-dedup` (07d8d9a); full suite 583/583. Merge + device re-verify owed.
 
@@ -3718,6 +3726,14 @@ Logged 2026-07-12 (dispatch-prep session).
 
 ## 113. 🐛 Connector process died silently — health outbox piled up on all devices (202-retry trap); connector needs supervision
 
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-113-connector-supervision.md` — **READY TO
+> SEND.** Cloud half only: connector dies-loudly hardening (nonzero exit + FATAL log),
+> `scripts/connector-watchdog.ps1` committed (port-truth liveness per house learnings, invokes
+> start-connector.bat, installed by Owen as a scheduled task — NOT executed by the repo), and the
+> app-side inbox `alert` on repeated retry-exhaustion (valid kind, deduped). NSSM-vs-watchdog
+> remains Owen's infra decision; the code works under either. Forensics on the 07-14/07-16 deaths
+> still owed on the next OJAMD pass.
+
 **Incident (2026-07-14):** health uploads stopped draining on both whoGoesThere and Shelley's iPad ("upload busy, retries exhausted" in the sensor diagnostics panel). Diagnosis walked outside-in from the Mac: app-side drain/chunking ruled out (#104 touched persistence only; #24a chunking long shipped), relay up with `/v1/device/sensor/health` answering 401 in 27ms unauthenticated — then on OJAMD, `Get-NetTCPConnection -State Established -LocalPort 8000` showed only device sockets, no local connector, and `Get-Process hermes-mobile` returned nothing. **The connector process was dead entirely** — relay 202-busied every ingest, devices mapped it to `.retry`, exhausted, deferred, piled up. Chat unaffected (Sessions plane).
 
 **Fix:** relaunched via `O:\Hermes\Talaria\scripts\start-connector.bat`; connector re-attached in ~10s (Established from `100.110.102.59`), both devices confirmed delivering + clearing on next foreground drain. Diagnostics panel string (#15) earned its keep — it was the 30-second confirmation.
@@ -3802,6 +3818,11 @@ Logged 2026-07-15.
 ---
 
 ## 115. 🐛 Connector `resolve_mcp_command_path()` breaks on macOS venvs (symlinked python) — one-line fix
+
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-115-connector-venv-path.md` — **READY TO
+> SEND.** Unresolved-sibling-first fix in `mcp_registration.py:47`, pytest fixtures for
+> macOS-symlink vs Windows-copy shapes, Windows behavior unchanged. Kills the PATH-override
+> workaround on the Mini.
 
 `Path(sys.executable).resolve().with_name("hermes-mobile-mcp")` resolves the venv python
 symlink to the framework/uv binary FIRST, escaping the venv, so the sibling lookup misses
@@ -3914,6 +3935,12 @@ Logged 2026-07-16.
 
 ## 118. 🐛 Voice capture stays live after leaving the app — mic indicator persists in background
 
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-118-119-voice-residuals.md` (Lane V, shared
+> with #119) — **READY TO SEND.** Background → clean session end via the user-end path; Swift 6
+> selector-observer landmine flagged; realtime engine audited the same way; decision-function
+> test. Rider in the same lane: migrate voice-path setActive calls to the async API without
+> touching #106 ownership.
+
 Observed on the #82 device-confirm run (2026-07-16, whoGoesThere, `probe/t27-fix84-verify`):
 after backgrounding the app mid/post voice session, the system mic-in-use indicator stays lit —
 the capture chain isn't torn down on scene-phase change or app background. Expected: leaving the
@@ -3928,6 +3955,10 @@ Logged 2026-07-16.
 
 ## 119. 🐛 Voice UI — 'Cancellation failed: no active response found' surfaces as a user-facing banner; header stuck on CONNECTING mid-conversation
 
+> **Dispatch spec 2026-07-17:** rides `dispatch/FABLE-T27-118-119-voice-residuals.md` (Lane V,
+> with #118) — **READY TO SEND.** No-op cancel race classified + swallowed at the call site;
+> header bound to live session state instead of the connect phase.
+
 Same #82 confirm run, screenshot on file: (1) a barge-in/cancel racing an already-completed
 response bubbles the backend error string straight into the session UI — a no-op cancel is a
 normal race, log it and swallow it; (2) the session header still reads 'VOICE LINK ·
@@ -3941,6 +3972,12 @@ Logged 2026-07-16.
 
 ## 120. 🐛 Chat message list — duplicate ForEach IDs (undefined rendering)
 
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-120-chat-hygiene.md` — **READY TO SEND.**
+> Fail-first uniqueness test through a stream-then-finalize cycle, fix at the source (no
+> `.id(UUID())` papering). Same lane carries #25's second half (mid-stream gauge flash — interim
+> numerator suppression, cumulative-tokens path stays banned) and a rider: the launch-time
+> CFPreferences kCFPreferencesAnyUser app-group warning (fix the domain or prove it framework-side).
+
 Device logs 2026-07-16 (two separate runs): `ForEach<Array<Message>, UUID, …>: the ID
 1C6EBACD-8632-4E77-9257-9D054CF7E82D occurs multiple times within the collection` plus a
 `LazyVStackLayout` duplicate-child-ID warning. A message UUID appears twice in the rendered
@@ -3950,3 +3987,35 @@ include ghost/duplicated bubbles. Cross-ref #110's ChatStore territory — could
 ChatStore micro-lane.
 
 Logged 2026-07-16.
+
+---
+
+## 121. ✨ Reasoning on resume — restore thinking panes from stored messages
+
+The #25 wire probe (2026-07-16) found `GET /api/sessions/{id}/messages` carries `reasoning` +
+`reasoning_content` per row — fetched on every resume, currently discarded. Live turns restore
+reasoning via `run.completed` (#60 / PRs #94+#95); resumed sessions render permanently empty
+panes. Decode the fields (tolerant), map into the same message property the live path writes,
+and apply the SAME #60 answer-mirror guard (reasoning identical to content → dropped). No new
+UI — the existing pane renders when the field is populated.
+
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-121-reasoning-on-resume.md` — **READY TO
+> SEND.** Cross-ref #60 (the answer-mirror trap is restated in the spec as non-negotiable).
+
+Logged 2026-07-17.
+
+---
+
+## 122. ✨ Session cost & usage surface
+
+The #25 probe proved session-level `input_tokens` / `output_tokens` / `cache_*` /
+`reasoning_tokens` / `estimated_cost_usd` / `actual_cost_usd` / `api_call_count` are served on
+the sessions list + detail endpoints — cumulative billing figures, banned as a context meter,
+perfect as a cost readout. Compact per-session usage row on the existing session metadata
+surface: cost (actual preferred, `~` for estimated), tokens in/out, api calls; absent data hides
+the row (never $0.00 for unknown). No aggregation, no new screens; a spend-over-time chart is a
+future #100 rider only.
+
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-122-session-cost.md` — **READY TO SEND.**
+
+Logged 2026-07-17.
