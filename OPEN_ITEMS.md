@@ -845,7 +845,19 @@ backed up; confirmed no bookstack error in the post-fix startup.
 
 ---
 
-## 25. 🐛 CTX meter — device verify FAILED 2026-07-05: shows 0 on some sessions, absent on older ones, flashes wrong; root cause unpinned
+## 25. 🐛 CTX meter — 0/absent on resumed sessions: root cause PINNED at HEAD 2026-07-16 (no usage decoded); spec written but PROBE-GATED
+
+> **Dispatch spec 2026-07-16:** `dispatch/FABLE-T27-25-ctx-meter.md` — **WRITTEN, DO NOT SEND
+> YET.** Root cause confirmed in source at HEAD: `SessionsHermesClient.swift:1523`
+> `SessionMessagesResponse.StoredMessage` decodes `role`/`content`/`timestamp`/`toolCalls` and NO
+> usage field → `latestUsage` always nil on a resumed session → `ChatScreen.swift:569`
+> `contextProgress` guards to 0 → "CTX 0%". That is the 'absent/0 on older sessions' symptom
+> mechanically. **Gate:** does `GET /api/sessions/{id}/messages` return usage at all? Three
+> answers → three different fixes (decode per-message / decode session-level / decode approach
+> DEAD, fall back to cached-or-honestly-absent). Fable can't reach a gateway; Owen or Claude
+> Desktop runs the probe. This item already burned one cycle on unverified fix evidence — do not
+> build on assumption. Second half ('flashes in before reading wrong') is separate and NOT covered
+> by the decode fix.
 
 > **Audit 2026-07-13:** Confirmed independently — auditor's status-flip upheld. The item's own latest dated note (2026-07-05, positioned first in the block) reads "Device verification 2026-07-05: FAILED" with a broader symptom set (CTX shows 0 on some sessions, absent entirely on older sessions, occasionally flashes in before reading wrong) and lists next steps (ground-truth against Hermes's built-in context check; capture a Verbose-Logging + `run.completed` session) that no later note reports as started or done — nothing in OPEN_ITEMS.md after 2026-07-05 mentions CTX/context-window/denominator except item #46's 2026-07-08 note, which independently reaffirms "distinct from OPEN_ITEMS #25 (CTX denominator accuracy — still open)". The header ("0% fixed; denominator ~1.4x high") only describes the superseded 2026-06-27 intermediate state. Source-code at current HEAD (cca1345) mechanically confirms the FAILED note's symptoms are still live: `SessionsHermesClient.fetchSessionConversation` (Talaria/Services/Live/SessionsHermesClient.swift:467-488, used by `openSession`) builds `Conversation` from `SessionMessagesResponse` — which decodes only `role`/`content`/`timestamp`/`toolCalls` (no usage field, lines 1098-1113) — so `latestUsage` is always nil for any resumed/older session; `ChatScreen.contextProgress` (Talaria/Features/Chat/ChatScreen.swift:557-563, comment "Shows 0 when no usage data yet") then guards to 0. This is exactly "absent/0 on older sessions." The note's citations don't hold up as fix evidence either: ISSUE_INDEX.md GitHub #4 = closed "Composer: multi-line TextEditor with Writing Tools" (unrelated) and PR_INDEX.md PR #21 = merged "Health widget tiles query HealthKit directly (#15)" (unrelated) — "#4" is reused in this codebase purely as an internal shorthand tag for CTX-denominator work (also appears in ChatStore.swift, HermesClientProtocol.swift, LocalChatBackend.swift), not a real GitHub link to a fix. MAIN_LOG.txt (174 commits, origin/main tip cca1345) has zero commits touching CTX/meter/denominator/numerator/contextWindow/run.completed. Header/title corrected to reflect the FAILED verification as the current, unresolved status.
 
@@ -2005,6 +2017,16 @@ grammar. **Needs Mac:** AlarmKit API surface is new (iOS 26) — compile-check
 + the countdown Live Activity.
 
 ## 66. 🐛 Wave 4 — Spotlight IndexedEntity donation + OpenSessionIntent (GitHub #17 → PR #24)
+
+> **Dispatch spec 2026-07-16:** `dispatch/FABLE-T27-66-spotlight-tapthrough.md` — **READY TO
+> SEND.** Prime suspect found 2026-07-16 while validating GitHub #88: `SpotlightEntities.swift:89`
+> `OpenSessionIntent` pairs `openAppWhenRun = true` with `perform()` →
+> `.result(opensIntent: OpenURLIntent(url))` — the **identical combination** PR #100 removed from
+> `HermesControls.swift` the same day to fix the inert Ask control (#58), where it made the system
+> silently swallow the tap. Symptom matches: surface fires, nothing opens. `OpenAgentFileIntent`
+> shares the shape and has never been device-verified. Spec instruments the three joints (entity
+> query → perform → deep link) BEFORE fixing — these are `OpenIntent` not `AppIntent`, so the #58
+> fix may not transfer verbatim and could even invert.
 
 > **Device pass 2026-07-13 (eve): FAILED.** Search surfaced the session but tap → OpenSessionIntent did not open it. Needs investigation (Spotlight donation vs OpenSessionIntent wiring); code-investigatable, device-verify to confirm.
 
@@ -3338,6 +3360,18 @@ Both competitors render generated HTML/interactive content in-app; Talaria recon
 Logged 2026-07-11.
 
 ## 100. 📝 Inline charts / data viz — UNBLOCKED (#92 verified 2026-07-11)
+
+> **Dispatch spec 2026-07-16:** `dispatch/FABLE-T27-100-inline-charts.md` — **READY TO SEND.**
+> Two stacked PRs: PR 1 = `ChartSpec` + `MarkdownSegment.chart` + parser (pure, cloud-testable);
+> PR 2 = themed Swift Charts render surface. Seam verified at HEAD: `MarkdownSegment` already
+> parses `.table` into header/alignments/rows and `MarkdownContentView` already switches on it —
+> one enum case, one switch arm, no forked parser. Hard constraint written into the spec:
+> `parseMarkdownSegments(content, isStreaming:)` re-runs per SSE delta, so a chart fence is
+> malformed JSON for most of its onscreen life — charts materialize only on a closed, decoding
+> fence; every failure path degrades to the original code block. **Owen's open call (in the
+> spec, deliberately unanswered):** nothing tells the model the ```chart contract exists —
+> system-prompt addition, app-side numeric-table promotion, or both. The app surface is built so
+> either path lights it up.
 
 > **Audit 2026-07-13:** Item #92's own note ('Device pass 2026-07-11: PASS ... Unblocks #100') confirms #92 already flipped fully verified on the same date this item's header claims. The body sentence 'Lane B — merged, awaiting device verify... queue until #92 flips ✅' is now stale and contradicts this item's own header — strike the 'awaiting device verify' clause; #100 itself remains correctly undispatched (no chart/data-viz PR in PR_INDEX.md).
 
