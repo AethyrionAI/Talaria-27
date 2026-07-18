@@ -1,4 +1,5 @@
 import Speech
+import os
 import SwiftUI
 import UIKit
 
@@ -520,6 +521,8 @@ struct ChatInputBar: View {
 
     // MARK: - Dictation
 
+    private static let dictationLogger = Logger(subsystem: "org.aethyrion.talaria", category: "Dictation")
+
     private func toggleDictation() {
         if speechService.isListening {
             speechService.stopListening()
@@ -529,8 +532,14 @@ struct ChatInputBar: View {
             Task {
                 do {
                     dictationBaseText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    Self.dictationLogger.notice("dictation start requested")
                     try await speechService.startListening()
+                    Self.dictationLogger.notice("dictation listening")
                 } catch {
+                    // #131: this catch used to swallow the failure silently —
+                    // the mic button just 'did nothing'. Name the error so the
+                    // next device tap identifies the culprit.
+                    Self.dictationLogger.notice("dictation start FAILED: \(String(describing: error), privacy: .public)")
                     dictationBaseText = ""
                 }
             }
