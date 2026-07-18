@@ -4237,3 +4237,36 @@ cloud-written, NOT compiled.** What landed:
       `scaffoldShipsDormant` test in the same commit
 
 Logged 2026-07-17.
+
+---
+
+## 128. 🔧 Voice capture crash — double installTap via actor reentrancy — FIXED (2026-07-17); device re-verify owed
+
+Device crash 2026-07-17 (whoGoesThere, mid-session voice change in settings):
+`AVAEGraphNode CreateRecordingTap: nullptr == Tap()` — uncaught NSException, hard kill. Root
+cause: the defensive `removeTap` sat FOUR suspension points (format negotiation + analyzer prep)
+before the `installTap`; actor serialization does not survive awaits, so two interleaved capture
+starts (triggered by the interruption/route event burst from #129's category yank) both passed
+the remove and double-installed the bus tap. Fix (`d8b9ad7`, merged): remove-then-install in the
+same synchronous stretch — last writer wins cleanly. Invariant pinned in-source; no unit test
+(requires real AVAudioEngine reentrancy) — the comment IS the guard. Suite 800/67.
+→ Device re-verify: repeat the exact repro — active voice session → Settings → audition several
+voices → apply one. No crash; session degrades or recovers per #129's current behavior.
+
+Logged 2026-07-17.
+
+---
+
+## 129. 🐛 Voice preview mid-session routes through the CHAT TTS instance — category yank under a live engine (the #128 trigger)
+
+`VoiceSettingsScreen:187` `speechOutput.previewVoice()` uses the chat instance
+(`managesAudioSession = true`); during an active voice session each preview flips the shared
+session to `.playback` and back under the running capture engine — the interruption/route burst
+that lit #128's race, and even crash-free it degrades the live session. The `isBlocked` gate
+protects `speak()` but not `previewVoice()`. Decide + fix (small): (a) while a session is
+active, route previews through `nativeSpeechOutput` (gate off, no session management — preview
+plays over the live session; probably the right UX), or (b) apply `isBlocked` to preview and
+show 'end the session to preview voices'. Either is a micro-PR; (a) preferred pending Owen's
+call.
+
+Logged 2026-07-17.
