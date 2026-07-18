@@ -519,7 +519,21 @@ final class ChatStore {
                            resolved.brain == nil || resolved.brain == ChatBackendRouter.Brain.hermes.rawValue {
                             resolved.servingModel = self.activeModelName
                         }
-                        self.conversation?.messages[idx] = resolved
+                        // #120: a mid-stream conversation merge (the 2s relay
+                        // poll, a refresh) can already have adopted this reply
+                        // from a backend that appends it before yielding
+                        // `.finished` (LocalChatBackend, the mock). Replacing
+                        // the placeholder would then render the same UUID
+                        // twice — undefined ForEach behavior. Drop any
+                        // pre-merged copy; the placeholder's slot keeps the
+                        // row (it's the bubble the user watched stream).
+                        if var conv = self.conversation {
+                            conv.messages.removeAll { $0.id == resolved.id && $0.id != placeholderID }
+                            if let slot = conv.messages.firstIndex(where: { $0.id == placeholderID }) {
+                                conv.messages[slot] = resolved
+                            }
+                            self.conversation = conv
+                        }
                     }
                     // The direct stream completed, so this message definitively
                     // succeeded — mark it delivered, recovering even if the relay
@@ -1560,6 +1574,16 @@ final class ChatStore {
         into refreshedConversation: Conversation?
     ) -> Conversation? {
         guard var refreshedConversation else { return localConversation }
+
+        // #120: never import the same message id twice from a refresh source
+        // (a relay transcript, a backend's own thread). The local-vs-refreshed
+        // dedupe below can't see an internal duplicate — it would flow into
+        // the rendered collection wholesale. First occurrence wins.
+        var seenRefreshedIDs = Set<UUID>()
+        refreshedConversation.messages = refreshedConversation.messages.filter {
+            seenRefreshedIDs.insert($0.id).inserted
+        }
+
         guard let localConversation else { return refreshedConversation }
 
         if refreshedConversation.latestUsage == nil {
