@@ -3734,9 +3734,9 @@ Lane J PR 1 ships single-window-by-policy (`SingleWindowPolicy`, #108): `UIAppli
 
 Logged 2026-07-12.
 
-## 110. 🔧 Read-aloud speaks the collapsed loop — breaker trip vs speech queue (Lane H follow-up)
+## 110. ✅ Read-aloud retracts the collapsed loop — DEVICE-VERIFIED 2026-07-18
 
-> **Device pass 2026-07-18 (partial, via #134 harness):** read-aloud ON during a forced trip, run completed with no issues reported. Explicit confirmation still owed — did speech CUT to the single collapsed line, or drone the repeated loop before stopping? One targeted re-check flips this to ✅.
+> **DEVICE-VERIFIED 2026-07-18 (Owen's device, via the #134 forced-trip harness):** with read-aloud ON, the trip spoke ONLY the single collapsed on-screen line — the repeated loop tail was NOT droned. #110 retraction (`shouldRetractSpeech` / `finishStream(finishedContent:)`, PR #86) confirmed on device.
 
 > **MERGED 2026-07-13 as PR #86 (`a62dc8c`)** — discovered 2026-07-16 when a fresh dispatch found the work shipped (Fable audit branch `claude/fable-t27-110-readaloud-wbsvmy` @ 3c15f1d verifies every acceptance line against the tree; implementation seam: `shouldRetractSpeech` static + `finishStream(finishedContent:)`, five decision tests + suite green via PR #94's Mac run 618/51). Remaining: organic-only device verify (deterministic repro defeated by base-model guardrails per #102). **Ledger lesson: this entry sat 🔧 with no merge note for 3 days and caused a dead dispatch** — merge notes are not optional.
 
