@@ -228,6 +228,48 @@ struct LocalChatBackendTests {
         #expect(LocalChatBackend.collapsingDegenerateTail(healthy) == healthy)
     }
 
+#if DEBUG
+    // MARK: Forced-trip harness generator (#134)
+
+    @Test func debugDegenerateSnapshotsArmAtSixCopiesAndTripByDefaultCount() {
+        var breaker = LocalChatBackend.RepetitionBreaker()
+        var armedRepeats: Int?
+        var trippedAtRepeats: Int?
+        for snapshot in LocalChatBackend.debugDegenerateSnapshots() {
+            let run = LocalChatBackend.degenerateTailRepetitionRun(in: snapshot)
+            if armedRepeats == nil, let run { armedRepeats = run.repeats }
+            if breaker.shouldAbandon(afterObserving: run) {
+                trippedAtRepeats = run?.repeats
+                break
+            }
+        }
+        // The 32-character unit makes detection first qualify exactly at the
+        // span floor (6 × 32 = 192): the breaker arms at 6 copies and
+        // escalates at the absolute floor of 12 — within the default copy
+        // count, with margin.
+        #expect(armedRepeats == 6)
+        #expect(trippedAtRepeats == LocalChatBackend.repetitionEscalationRepeats)
+    }
+
+    @Test func debugDegenerateSnapshotsAreCumulativeAndEndInADegenerateTail() {
+        let snapshots = LocalChatBackend.debugDegenerateSnapshots()
+        #expect(snapshots.count == LocalChatBackend.debugDegenerateDefaultCopies + 1)
+        // Cumulative and monotonic — FoundationModels' stream shape, so
+        // streamDelta yields one clean unit increment per snapshot.
+        for (previous, next) in zip(snapshots, snapshots.dropFirst()) {
+            #expect(next.hasPrefix(previous))
+            #expect(LocalChatBackend.streamDelta(from: previous, to: next) == LocalChatBackend.debugDegenerateUnit)
+        }
+        #expect(LocalChatBackend.hasDegenerateTailRepetition(snapshots.last ?? ""))
+    }
+
+    @Test func collapsingDebugSnapshotTailKeepsPreambleAndExactlyOneUnit() {
+        let finalSnapshot = LocalChatBackend.debugDegenerateSnapshots().last ?? ""
+        #expect(LocalChatBackend.collapsingDegenerateTail(finalSnapshot)
+            == LocalChatBackend.debugDegeneratePreamble + LocalChatBackend.debugDegenerateUnit)
+    }
+#endif
+
     // MARK: Prompt composition
 
     @Test func composePromptPassesPlainMessageThrough() {
