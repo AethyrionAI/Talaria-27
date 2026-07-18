@@ -4270,3 +4270,28 @@ show 'end the session to preview voices'. Either is a micro-PR; (a) preferred pe
 call.
 
 Logged 2026-07-17.
+
+---
+
+## 130. 🎧 In-session TTS fidelity — voiceChat downlink processing makes voices muddy vs previews; VPIO render-err flood
+
+Device observation 2026-07-17 (post-#128, conversation working): in-session TTS is noticeably
+less crisp than the settings previews. Cause is structural, not a bug: previews play on a
+`.playback` session (full fidelity); session TTS rides `.playAndRecord` + `.voiceChat`, whose
+voice-processing chain telephony-tunes the DOWNLINK (AGC, bandwidth shaping, receiver EQ) so
+echo cancellation has a reference. Same log shows a continuous `auou/vpio render err: -1` flood
+— nonfatal now (#106 keeps the session alive) but CPU-noisy and plausibly part of the quality
+loss; `mBuffers dataByteSize (0)` interleaved.
+
+Options (design decision, prototype before choosing):
+(a) **Half-duplex + `.default` mode** — the vpio-bypass probe PROVED raw capture works on this
+    seed; drop VP entirely, gate transcription while TTS speaks (pipeline already tracks
+    speaking state for barge-in). Crisp TTS, quieter logs; trade: talk-over barge-in degrades to
+    tap-or-gap interruption. Sensitivity note from the probe run ("very sensitive") predates
+    #106 — re-evaluate on the fixed session.
+(b) Keep `.voiceChat`, accept telephony TTS (status quo; every voice-chat app sounds like this).
+(c) Hybrid: `.videoChat` mode or VP-with-ducking-config tuning — marginal gains, same chain.
+
+Owen's call after an (a) prototype run. Dispatchable as a small probe branch first.
+
+Logged 2026-07-17.
