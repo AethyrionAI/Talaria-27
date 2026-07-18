@@ -39,6 +39,9 @@ struct DiagnosticsSettingsScreen: View {
                     statusPanel
                     voicePanel
                     sensorPanel
+                    #if DEBUG
+                    localBrainPanel
+                    #endif
                     infoGrid
                     logsSection
                     footerLinks
@@ -236,6 +239,76 @@ struct DiagnosticsSettingsScreen: View {
             Design.Colors.mutedForeground
         }
     }
+
+    #if DEBUG
+    // MARK: Local brain — forced-trip harness (#134, DEBUG builds only)
+    //
+    // Device-verification trigger for the merged #102 breaker + #110 speech
+    // retraction: drives a synthetic degenerate stream through the REAL
+    // on-device chat path (the live model's guardrails defeat organic loop
+    // repros). The reply in the chat collapses to one copy of the loop unit,
+    // Console shows the #102 escalation notice, and — with read-aloud on —
+    // speech cuts instead of droning the loop.
+
+    private enum ForcedTripState: Equatable {
+        case idle
+        case running
+        case done
+    }
+
+    @State private var forcedTripState: ForcedTripState = .idle
+
+    private var localBrainPanel: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            MonoLabel("// Local brain — #102", size: 10, tracking: Design.Tracking.monoXWide,
+                      color: Design.Colors.mutedForeground)
+
+            VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+                MonoLabel("Streams a synthetic loop through the real on-device chat path. Turn on read-aloud first to verify #110.",
+                          size: 9, tracking: Design.Tracking.mono,
+                          color: Design.Colors.secondaryForeground)
+                GhostButton(
+                    title: forcedTripState == .running ? "Tripping…" : "Force repetition trip",
+                    systemImage: "repeat",
+                    height: 40
+                ) {
+                    runForcedTrip(holdLiveSDKStream: false)
+                }
+                .disabled(forcedTripState == .running)
+                GhostButton(
+                    title: "Force trip (live SDK)",
+                    systemImage: "bolt",
+                    height: 40
+                ) {
+                    runForcedTrip(holdLiveSDKStream: true)
+                }
+                .disabled(forcedTripState == .running)
+                if forcedTripState == .done {
+                    MonoLabel("Tripped — check the chat reply, the #102 Console notice, and that the next send still works.",
+                              size: 9, tracking: Design.Tracking.mono,
+                              color: Design.Brand.accent)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Design.Spacing.md)
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
+        }
+    }
+
+    private func runForcedTrip(holdLiveSDKStream: Bool) {
+        guard forcedTripState != .running else { return }
+        forcedTripState = .running
+        Task {
+            await container.chatStore.debugRunForcedTrip(holdLiveSDKStream: holdLiveSDKStream)
+            forcedTripState = .done
+        }
+    }
+    #endif
 
     // MARK: Sensor pipeline (#15)
 
