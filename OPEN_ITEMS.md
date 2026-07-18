@@ -845,7 +845,7 @@ backed up; confirmed no bookstack error in the post-fix startup.
 
 ---
 
-## 25. 🔧 CTX meter — resume-cache fix MERGED (PR #110, 2026-07-17); device re-verify owed
+## 25. ✅ CTX meter resume-cache — DEVICE VERIFIED 2026-07-17 (old session: honestly absent; live: real number; relaunch: cached). 'Flashes wrong' half rides #120's lane
 
 > **MERGED 2026-07-17 (PR #110, `f42ba3f`→`5510c41`).** Built exactly to the probe verdict:
 > `SessionUsageIndex` + `SessionUsageIndexStore` (SessionProfileIndex pattern) cache each live
@@ -2058,7 +2058,19 @@ grammar. **Needs Mac:** AlarmKit API surface is new (iOS 26) — compile-check
 `AlarmAttributes.metadata` optionality; device-verify ring through Silent mode
 + the countdown Live Activity.
 
-## 66. 🔧 Wave 4 — Spotlight tap-through — launch conflict FIXED (PR #107, 2026-07-17); device re-verify owed
+## 66. 🐛 Spotlight tap-through — device FAIL 2026-07-17 AFTER PR #107; instrumentation verdict: perform() never fires — missing CSSearchableItemActionType handler is the prime suspect
+
+> **Device run 2026-07-17 (post-#107 build): tap still does nothing — and the #107 instrumentation
+> did exactly its job: ZERO SpotlightOpen breadcrumbs in the capture (no entity-query line, no
+> perform line, no deep-link line).** The failure is upstream of our intents entirely — the tap
+> never reaches them. Refined root cause: `indexAppEntities` items opened from Spotlight deliver an
+> `NSUserActivity` of type `CSSearchableItemActionType` (identifier in
+> `CSSearchableItemActivityIdentifier`) — and the app handles that activity NOWHERE (grep
+> verified). The #107 openAppWhenRun fix was necessary for the Shortcuts/Siri surface but not
+> sufficient for Spotlight's tap path. **Fix (micro):** `onContinueUserActivity(
+> CSSearchableItemActionType)` at the scene root → parse the entity identifier → route via the
+> existing `hermes://session/{id}` / file deep-link path; keep the breadcrumb pattern (log the
+> received identifier). GitHub #88 reopened with this evidence.
 
 > **MERGED 2026-07-17 (PR #107, `39d17ee`).** Root cause was the #58 twin, exactly as the dispatch
 > predicted: `OpenSessionIntent` + `OpenAgentFileIntent` paired `openAppWhenRun = true` with the
@@ -3432,6 +3444,11 @@ Logged 2026-07-11.
 > already flowing to the host); confirm it renders themed, tap → fullscreen, VoiceOver reads the
 > label; confirm a malformed fence degrades to a code block rather than vanishing; check a numeric
 > table offers the chart toggle. Verify under a non-default theme (Midnight Marquee) too.
+> **Device check 2026-07-17: app surface PASS (with comedy)** — the OJAMD agent's health tool
+> returned no steps, so it produced a TEMPLATE markdown table instead … which the app dutifully
+> offered the chart toggle on. Surface works end-to-end; the empty host-side health-tool result is
+> a Hermes-side data question (noted for Owen, not an app item). Mac-host attempt failed at the
+> model level, same data issue.
 > → **DECIDED 2026-07-17 (Owen): Path B only.** The numeric-table chart toggle is the contract —
 > no prompt addition, no Hermes-side config, no added complexity. The ```chart fence parser stays
 > merged and dormant; if a fence ever arrives it renders, but nothing teaches the model to emit
@@ -4148,7 +4165,7 @@ Logged 2026-07-17.
 
 ---
 
-## 127. 🔧 Monetization scaffold — MERGED DORMANT (PR #114, 2026-07-18); ASC product setup + sandbox pass owed before flip
+## 127. 🔧 Monetization scaffold — MERGED DORMANT + gate walk DEVICE VERIFIED 2026-07-17 (fail-open live-confirmed on BOTH hosts: gate forced on, existing OJAMD + Mac pairings kept working, profile switch + chat clean); ASC product + sandbox purchase owed pre-flip
 
 > **MERGED 2026-07-18 (PR #114, `62d169b`), fully dormant** — `MonetizationConfiguration.isEnabled
 > = false`, one-line flip at launch. Loop-verified against every trap in the dispatch: gate wraps
@@ -4293,5 +4310,37 @@ Options (design decision, prototype before choosing):
 (c) Hybrid: `.videoChat` mode or VP-with-ducking-config tuning — marginal gains, same chain.
 
 Owen's call after an (a) prototype run. Dispatchable as a small probe branch first.
+
+Logged 2026-07-17.
+
+---
+
+## 131. 🐛 Composer mic (dictation) inert — both hosts, post-2026-07-17 merges
+
+Device 2026-07-17: pressing the composer mic does nothing (OJAMD and Mac Mini, monetization gate
+on — gate almost certainly irrelevant: the button calls `toggleDictation()` on `speechService` =
+`LiveSpeechService`, which Lane V's async-setActive rider REWROTE the same day (+102/-45). Prime
+suspect: rider regression in the dictation start path (activation reordering / early-return
+guard). Discriminators owed: (a) dev-override gate OFF → retry (rule the gate out formally);
+(b) confirm mic worked on the pre-tonight build. Investigate the rider's LiveSpeechService diff
+first; likely a micro-fix.
+
+Logged 2026-07-17.
+
+---
+
+## 132. 🐛 Image attachments not reaching the Hermes host — model receives a text placeholder
+
+Device 2026-07-17 (blocked the #61 card re-verify): attachment-only send (screenshot, no text)
+→ the model reported receiving only the literal text "[screenshot]" with no image attached. The
+streaming client DOES carry `attachments: [PendingAttachment]` end-to-end (verified in
+`SessionsHermesClient.sendStreaming`/`streamTurn` signatures), so the drop is either in the
+attachment→wire encoding, the gateway's handling of image parts, or an attachment-only-specific
+path (text+image may behave differently — discriminator owed: send image WITH text and ask what
+arrived). "[screenshot]" literal appears nowhere in the app source (grep verified) — determine
+who synthesizes it (app placeholder text vs gateway part-stringification); that answers which
+side owns the fix. History note: paste→send round-trip passed device verify 2026-07-13, so if
+text+image also fails, the regression window is this week's merges; if only attachment-only
+fails, it may never have worked.
 
 Logged 2026-07-17.
