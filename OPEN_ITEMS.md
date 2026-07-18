@@ -4478,3 +4478,22 @@ background launch followed by a foreground activation, i.e. two legitimate lifec
 not one launch fanning out.
 
 Logged 2026-07-17.
+
+## 134. 🔧 Free-tier launch gate — DEBUG forced-trip harness to device-verify #102 / #110
+
+> **Dispatch spec 2026-07-18:** `dispatch/FABLE-T27-134-debug-forced-trip-harness.md` —
+> cloud-safe, unit-test-gated, file-scoped to `LocalChatBackend.swift` + its test file.
+> Ready to send to Fable.
+
+The free-tier standalone runaway/overheat gate. #102's token cap is device-proven, but the
+tail-repetition breaker (#102, PR #83) and the read-aloud retraction (#110, PR #86) — both
+MERGED and unit-tested — have NEVER tripped organically on device: the deterministic repro is
+defeated by the base model's own guardrails (it refuses verbatim-repeat and declines
+long-form). This harness adds a `#if DEBUG` `/forceloop` trigger that drives a SYNTHETIC
+degenerate stream through the EXISTING production path, so one device session verifies breaker
+arm→escalate→abandon→collapse, thermal recovery, read-aloud non-drone (#110 retraction), and
+post-trip send (D3, via the `session = nil` rebuild). Release-inert. Touches NO shipped
+breaker/retraction logic — harness only. Scope = free-tier standalone chat; #61 title/preview
+degeneracy is adjacent but OUT of this gate.
+
+Logged 2026-07-18.
