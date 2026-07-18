@@ -1052,6 +1052,15 @@ private actor NativeVoiceCaptureController {
 
         let muteState = muteState
         let capturedFormat = analyzerFormat
+        // #128: this remove must be IMMEDIATELY adjacent to the install —
+        // the earlier defensive removeTap sits before four suspension points
+        // (format negotiation + analyzer prep), and actor serialization does
+        // not survive awaits: two interleaved capture starts both passed it
+        // and double-installed, throwing AVAudioEngine's
+        // `CreateRecordingTap: nullptr == Tap()` (device crash 2026-07-17,
+        // mid-session voice change). Remove-then-install in the same
+        // synchronous stretch makes the last writer win cleanly instead.
+        inputNode.removeTap(onBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { buffer, _ in
             if muteState.withLock({ $0 }) { return }
             if let converted = Self.convertBuffer(buffer, using: converter, outputFormat: capturedFormat) {
