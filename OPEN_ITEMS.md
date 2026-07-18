@@ -3499,7 +3499,9 @@ Both competitors personalize across conversations; the continuity fabric (#93, m
 
 Logged 2026-07-11.
 
-## 102. 🔧 Local brain generation health — MERGED (Lane H, PR #83), organic-trigger device-verify owed
+## 102. ✅ Local brain generation health — DEVICE-VERIFIED 2026-07-18 via #134 harness
+
+> **DEVICE-VERIFIED 2026-07-18 (Owen's device, via the #134 forced-trip harness).** Forced trip → chat reply collapsed to ONE copy of the loop unit; switched to on-device, `deviceStatus` thermal **FAIR** (no overheat); post-trip normal send worked; live-SDK-hold mode repeated clean (abandoning an in-flight SDK generation did NOT wedge the next turn). The free-tier standalone runaway/overheat gate is CLOSED. Read-aloud (#110) cut-vs-drone confirmation tracked separately on #110.
 
 > **Audit 2026-07-13:** Header emoji 🔍 (investigating) is stale and self-contradicts the item's own latest (2026-07-13) note, which describes a shipped, merged, unit-tested fix, not an open investigation. Independently re-verified: PR #83 (`claude/lane-h-setup-bmi058` → main) is closed/Merged=YES per PR_INDEX.md, titled "Lane H — local brain generation health (#102 #61)"; merge commit `23387b7` and implementation commit `c2de665` ("#102: bound + retune chat generation; hysteresis tail-repetition breaker") both present in MAIN_LOG.txt, and `c2de665` is literally the last commit touching `Talaria/Services/Live/LocalChatBackend.swift` in the current tree. `chatGenerationOptions(for:)` is defined at LocalChatBackend.swift:76 and called at lines 280/370 exactly as described; the hysteresis tail-repetition breaker (`RepetitionBreaker.shouldAbandon`, `TailRepetitionRun`, `degenerateTailRepetitionRun`) is present at lines ~800-925, with a matching bank of `@Test` cases in `TalariaTests/LocalChatBackendTests.swift` (tailRepetition*/breaker* tests). The claimed Mac-loop compile fix is corroborated by commit `ef5e89d` ("hoist mutating shouldAbandon calls out of #expect"), which sits directly between the spec-dispatch and implementation commits. Follow-up docs commits `578e5ca`/`63284e9` match the device-pass narrative, and both spun-off items #110 and #111 exist in the file. However, per the "merged != device-verified" rule, this is NOT done: the note's own words are "Device pass 2026-07-12 (partial)" and "STILL OWED (organic): #67-style session — loop should self-terminate..., thermal recover, log shows the breaker line; then SEND ANOTHER MESSAGE after a trip" plus "D3 (post-trip send probe) stays conditionally owed." The deterministic repro was defeated by the model's own guardrails, so the breaker's actual on-device trip has never been observed — only synthetic unit tests and a thermal-only partial pass exist. 🔍 is also the only use of that emoji anywhere in OPEN_ITEMS.md, while comparable "MERGED, verification pending" items in this file (e.g. #61) use 🔧, not 🔍 — reinforcing that the header was simply never revisited after the merge landed. Recommend downgrading to 🔧 and updating the title to name the MERGED state and the specific organic-trigger device-verification still owed; do not mark ✅.
 
@@ -3733,6 +3735,8 @@ Lane J PR 1 ships single-window-by-policy (`SingleWindowPolicy`, #108): `UIAppli
 Logged 2026-07-12.
 
 ## 110. 🔧 Read-aloud speaks the collapsed loop — breaker trip vs speech queue (Lane H follow-up)
+
+> **Device pass 2026-07-18 (partial, via #134 harness):** read-aloud ON during a forced trip, run completed with no issues reported. Explicit confirmation still owed — did speech CUT to the single collapsed line, or drone the repeated loop before stopping? One targeted re-check flips this to ✅.
 
 > **MERGED 2026-07-13 as PR #86 (`a62dc8c`)** — discovered 2026-07-16 when a fresh dispatch found the work shipped (Fable audit branch `claude/fable-t27-110-readaloud-wbsvmy` @ 3c15f1d verifies every acceptance line against the tree; implementation seam: `shouldRetractSpeech` static + `finishStream(finishedContent:)`, five decision tests + suite green via PR #94's Mac run 618/51). Remaining: organic-only device verify (deterministic repro defeated by base-model guardrails per #102). **Ledger lesson: this entry sat 🔧 with no merge note for 3 days and caused a dead dispatch** — merge notes are not optional.
 
@@ -4479,7 +4483,9 @@ not one launch fanning out.
 
 Logged 2026-07-17.
 
-## 134. 🔧 Free-tier launch gate — DEBUG forced-trip harness to device-verify #102 / #110 — harness BUILT 2026-07-18 (cloud); Mac build + device acceptance owed
+## 134. ✅ Free-tier launch gate — DEBUG forced-trip harness — DEVICE-VERIFIED 2026-07-18
+
+> **DONE 2026-07-18.** Merged PR #115 (`fed76b5`); 803 tests / 67 suites green incl. 3 harness tests, zero compiler errors. Device pass (Owen): both buttons — Force repetition trip + Force trip (live SDK) — trip → collapse → #102 notice → thermal FAIR → post-trip send OK, no issues. Trigger lives in Settings → Diagnostics (`// Local brain — #102`), `#if DEBUG` only.
 
 > **Dispatch spec 2026-07-18:** `dispatch/FABLE-T27-134-debug-forced-trip-harness.md` —
 > cloud-safe, unit-test-gated, file-scoped to `LocalChatBackend.swift` + its test file.
