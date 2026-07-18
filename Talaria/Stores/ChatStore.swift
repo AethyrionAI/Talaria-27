@@ -299,7 +299,11 @@ final class ChatStore {
             from: cachedConversation,
             into: await hermesClient.loadConversation()
         )
-        if let latestUsage = conversation?.latestUsage {
+        // #25: while a run is live, a refresh source's conversation-level
+        // usage is an interim number (relay legacy accounting, another
+        // backend's thread) — the gauge keeps the previous turn's honest
+        // value until this run's own run.completed lands.
+        if streamingMessageID == nil, let latestUsage = conversation?.latestUsage {
             lastTokenUsage = latestUsage
         }
         if let conversation {
@@ -547,10 +551,13 @@ final class ChatStore {
                         from: self.conversation,
                         into: self.hermesClient.currentConversation
                     )
-                    if let latestUsage = self.conversation?.latestUsage {
-                        self.lastTokenUsage = latestUsage
-                    } else if let usage {
+                    // #25: run.completed is the numerator's authority — a
+                    // conversation-level number the merge carried in (relay
+                    // accounting, a stale cache) must not outrank it.
+                    if let usage {
                         self.lastTokenUsage = usage
+                    } else if let latestUsage = self.conversation?.latestUsage {
+                        self.lastTokenUsage = latestUsage
                     }
                     self.detectModelSwitch(from: finalMessage.content)
                     self.streamingMessageID = nil
@@ -1341,7 +1348,11 @@ final class ChatStore {
                 guard !Task.isCancelled else { break }
                 let fresh = await self.hermesClient.loadConversation()
                 self.conversation = self.mergeConversationMetadata(from: self.conversation, into: fresh)
-                if let latestUsage = self.conversation?.latestUsage {
+                // #25: adopt the merged usage only when no stream is live —
+                // mid-stream it's an interim number and the gauge must not
+                // flash it. Recovery polling (stream died post-accept,
+                // streamingMessageID already nil) still settles through here.
+                if self.streamingMessageID == nil, let latestUsage = self.conversation?.latestUsage {
                     self.lastTokenUsage = latestUsage
                 }
                 if let conversation = self.conversation {
