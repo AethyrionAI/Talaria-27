@@ -352,6 +352,30 @@ final class LocalChatBackend: HermesClientProtocol {
             return
         }
 
+        #if DEBUG
+        // #134 forced-trip harness: a one-shot turn armed from Settings →
+        // Diagnostics that replays synthetic degenerate snapshots through this
+        // exact path, so the #102 breaker and the #110 read-aloud retraction
+        // can finally be observed tripping on device (the live model's own
+        // guardrails defeat every organic loop repro). Everything downstream —
+        // delta diffing, breaker, collapse, finish — is the production
+        // machinery, unmodified.
+        if let copies = Self.debugForcedTripCopies {
+            Self.debugForcedTripCopies = nil
+            let holdsLiveStream = Self.debugForcedTripHoldsLiveSDKStream
+            Self.debugForcedTripHoldsLiveSDKStream = false
+            await runDebugForcedTripTurn(
+                message: message,
+                attachments: attachments,
+                clientMessageID: clientMessageID,
+                copies: copies,
+                holdLiveSDKStream: holdsLiveStream,
+                into: continuation
+            )
+            return
+        }
+        #endif
+
         let prompt = Self.composePrompt(message: message, attachments: attachments)
         var liveSession = await preparedSession(nextPrompt: prompt, excludingClientMessageID: clientMessageID)
         appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
@@ -1156,3 +1180,128 @@ enum LocalChatBackendError: LocalizedError {
         }
     }
 }
+
+#if DEBUG
+// MARK: - Forced-trip harness (#134 — DEBUG builds only)
+
+/// Device-verification harness for the ALREADY-SHIPPED #102 breaker and #110
+/// read-aloud retraction. The base model's own guardrails defeat every
+/// deterministic loop repro (it refuses verbatim-repeat and declines
+/// long-form), so a synthetic degenerate stream is the only way to watch the
+/// trip happen on a real device. The harness owns NO detection or collapse
+/// logic — it scripts the snapshots and lets the production `streamTurn`
+/// consumer path (deltas → `RepetitionBreaker` → collapse → finish) do the
+/// rest. None of this exists in a Release build.
+extension LocalChatBackend {
+
+    /// One-shot arming: set by `ChatStore.debugRunForcedTrip` immediately
+    /// before a normal send; the next `streamTurn` consumes and clears it.
+    /// Static because extensions can't add stored instance properties —
+    /// AppContainer builds exactly one LocalChatBackend per process, so
+    /// process-wide arming is equivalent.
+    static var debugForcedTripCopies: Int?
+    /// Second mode: additionally hold a REAL SDK generation in flight (output
+    /// suppressed) while the synthetic loop trips — proves that abandoning a
+    /// live stream doesn't wedge the next turn.
+    static var debugForcedTripHoldsLiveSDKStream = false
+
+    /// The loop unit the synthetic stream repeats. Exactly 32 characters and
+    /// not periodic at any divisor period, so detection first qualifies at
+    /// 6 copies (6 × 32 = 192, the span floor) — the breaker ARMS at
+    /// `repetitionMinimumRepeats` and ESCALATES at the
+    /// `repetitionEscalationRepeats` floor of 12, the same shape the #102
+    /// thresholds were tuned for.
+    nonisolated static let debugDegenerateUnit = "The device loop signal repeats. "
+    /// Benign lead-in: gives read-aloud a healthy sentence to start speaking
+    /// (so the #110 retraction visibly CUTS a live queue) and proves the
+    /// collapse preserves pre-loop text.
+    nonisolated static let debugDegeneratePreamble = "Synthetic degenerate stream armed from Diagnostics. "
+    /// Default copy count: the trip lands at copy 12; 16 leaves margin
+    /// without meaningfully lengthening the run.
+    nonisolated static let debugDegenerateDefaultCopies = 16
+    /// Pacing between synthetic snapshots — realistic enough that speech has
+    /// STARTED before the trip (#110 must retract a speaking queue, not one
+    /// that never began) and a held live SDK stream is genuinely
+    /// mid-generation when abandoned.
+    nonisolated static let debugSnapshotPacing: Duration = .milliseconds(200)
+
+    /// Cumulative snapshots mirroring FoundationModels' stream shape: the
+    /// preamble alone, then one appended copy of the loop unit per snapshot.
+    nonisolated static func debugDegenerateSnapshots(copies: Int = debugDegenerateDefaultCopies) -> [String] {
+        var text = debugDegeneratePreamble
+        var snapshots = [text]
+        for _ in 0 ..< max(1, copies) {
+            text += debugDegenerateUnit
+            snapshots.append(text)
+        }
+        return snapshots
+    }
+
+    /// The forced-trip turn: everything a real streamed turn does — the user
+    /// turn lands in history, cumulative snapshots diff onto `.textDelta`,
+    /// every snapshot is judged by a real `RepetitionBreaker`, and the trip
+    /// collapses the tail and invalidates the session (the D3 rebuild seam) —
+    /// with the model generation replaced by scripted snapshots, plus an
+    /// optional suppressed live one.
+    fileprivate func runDebugForcedTripTurn(
+        message: String,
+        attachments: [PendingAttachment],
+        clientMessageID: UUID,
+        copies: Int,
+        holdLiveSDKStream: Bool,
+        into continuation: AsyncStream<StreamingUpdate>.Continuation
+    ) async {
+        Self.logger.notice("debug forced trip: synthetic degenerate stream begins — \(copies, privacy: .public) copies, holds live SDK stream \(holdLiveSDKStream, privacy: .public) (#134)")
+        var liveDrain: Task<Void, Never>?
+        if holdLiveSDKStream {
+            let prompt = Self.composePrompt(message: message, attachments: attachments)
+            let liveSession = await preparedSession(nextPrompt: prompt, excludingClientMessageID: clientMessageID)
+            let options = Self.chatGenerationOptions(for: activeTier)
+            liveDrain = Task { @MainActor in
+                // Output suppressed by design — the held stream exists only so
+                // the trip abandons a REAL in-flight SDK generation.
+                do {
+                    for try await _ in liveSession.streamResponse(to: Prompt(prompt), options: options) {
+                        if Task.isCancelled { break }
+                    }
+                } catch {
+                    Self.logger.notice("debug forced trip: held SDK stream ended — \(error.localizedDescription, privacy: .public) (#134)")
+                }
+            }
+        }
+        appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
+
+        var emitted = ""
+        var latestFull = ""
+        var didTripRepetitionBreaker = false
+        var repetitionBreaker = RepetitionBreaker()
+        for snapshot in Self.debugDegenerateSnapshots(copies: copies) {
+            if Task.isCancelled { break }
+            try? await Task.sleep(for: Self.debugSnapshotPacing)
+            latestFull = snapshot
+            if let delta = Self.streamDelta(from: emitted, to: latestFull) {
+                emitted += delta
+                continuation.yield(.textDelta(delta))
+            }
+            if repetitionBreaker.shouldAbandon(afterObserving: Self.degenerateTailRepetitionRun(in: latestFull)) {
+                didTripRepetitionBreaker = true
+                Self.logger.notice("streamTurn: degenerate tail repetition escalated after \(latestFull.count, privacy: .public) chars — abandoning the stream, collapsing the looped tail (#102)")
+                latestFull = Self.collapsingDegenerateTail(latestFull)
+                break
+            }
+        }
+        liveDrain?.cancel()
+        // No generation happened, so no real usage exists to report
+        // (real-data-only — the receipt stays empty rather than stale).
+        let reply = Message(sender: .hermes, content: latestFull, status: .delivered)
+        appendAssistantMessage(reply, usage: nil)
+        if didTripRepetitionBreaker {
+            // Same post-trip rule as production: the abandoned stream's
+            // transcript state is unknowable — the next turn rebuilds from
+            // our message history (D3 verifies exactly this).
+            session = nil
+        }
+        continuation.yield(.finished(reply, nil, nil))
+    }
+}
+#endif
