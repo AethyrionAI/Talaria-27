@@ -1,3 +1,4 @@
+import CoreSpotlight
 import SwiftUI
 import UIKit
 import UserNotifications
@@ -255,8 +256,42 @@ struct TalariaApp: App {
                 .onOpenURL { url in
                     handleDeeplink(url)
                 }
+                .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                    handleSpotlightItem(activity)
+                }
         }
     }
+
+    /// #66: Spotlight taps on `indexAppEntities` results arrive as a
+    /// CSSearchableItemActionType user activity — NOT through OpenSessionIntent
+    /// (that path serves Siri/Shortcuts; device run 2026-07-17 proved the
+    /// intents never fire from a Spotlight tap). Breadcrumb the raw identifier
+    /// FIRST: if the on-device format is namespaced rather than a bare id,
+    /// the log tells us the shape for round 2 instead of failing silently.
+    private func handleSpotlightItem(_ activity: NSUserActivity) {
+        let raw = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String ?? ""
+        Self.spotlightLogger.notice("SpotlightOpen tap identifier: \(raw, privacy: .public)")
+        guard !raw.isEmpty else { return }
+        let indexing = container.spotlightIndexing
+        if indexing.resolveSessions([raw]).first != nil {
+            Self.spotlightLogger.notice("SpotlightOpen routing session \(raw, privacy: .public)")
+            container.router.activeSheet = nil
+            container.router.popToRoot()
+            container.router.selectedTab = .chat
+            Task { await container.chatStore.openSession(raw) }
+        } else if indexing.resolveFiles([raw]).first != nil {
+            // No file deep-route exists yet — land on Chat and log; the file
+            // is one tap away and the breadcrumb proves resolution worked.
+            Self.spotlightLogger.notice("SpotlightOpen resolved FILE \(raw, privacy: .public) — no file route, landing on chat")
+            container.router.activeSheet = nil
+            container.router.popToRoot()
+            container.router.selectedTab = .chat
+        } else {
+            Self.spotlightLogger.notice("SpotlightOpen identifier \(raw, privacy: .public) resolved to NOTHING — format mismatch? (see #66)")
+        }
+    }
+
+    private static let spotlightLogger = Logger(subsystem: "org.aethyrion.talaria", category: "SpotlightOpen")
 
     private func handleDeeplink(_ url: URL) {
         guard url.scheme == "hermes" else { return }
