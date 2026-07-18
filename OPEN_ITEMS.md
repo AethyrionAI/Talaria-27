@@ -4479,11 +4479,11 @@ not one launch fanning out.
 
 Logged 2026-07-17.
 
-## 134. 🔧 Free-tier launch gate — DEBUG forced-trip harness to device-verify #102 / #110
+## 134. 🔧 Free-tier launch gate — DEBUG forced-trip harness to device-verify #102 / #110 — harness BUILT 2026-07-18 (cloud); Mac build + device acceptance owed
 
 > **Dispatch spec 2026-07-18:** `dispatch/FABLE-T27-134-debug-forced-trip-harness.md` —
 > cloud-safe, unit-test-gated, file-scoped to `LocalChatBackend.swift` + its test file.
-> Ready to send to Fable.
+> Sent to Fable; built same day (update note below).
 
 The free-tier standalone runaway/overheat gate. #102's token cap is device-proven, but the
 tail-repetition breaker (#102, PR #83) and the read-aloud retraction (#110, PR #86) — both
@@ -4495,5 +4495,41 @@ arm→escalate→abandon→collapse, thermal recovery, read-aloud non-drone (#11
 post-trip send (D3, via the `session = nil` rebuild). Release-inert. Touches NO shipped
 breaker/retraction logic — harness only. Scope = free-tier standalone chat; #61 title/preview
 degeneracy is adjacent but OUT of this gate.
+
+**UPDATE 2026-07-18 — harness BUILT (branch `claude/fable-t27-134-forced-trip-s0w9wc`),
+cloud-written, NOT compiled.** Dispatch scope exactly, no new files (no xcodegen):
+- `LocalChatBackend` gains a `#if DEBUG` extension — one-shot static arming
+  (`debugForcedTripCopies` / `debugForcedTripHoldsLiveSDKStream`), the cumulative snapshot
+  generator, and a forced-trip turn spliced into `streamTurn` right after the availability
+  guard that reuses the PRODUCTION machinery verbatim: `streamDelta` → `.textDelta`, a real
+  `RepetitionBreaker` judging every snapshot, the SAME #102 escalation notice,
+  `collapsingDegenerateTail`, `appendAssistantMessage`, `session = nil`, `.finished`.
+- **Unit-length correction to the dispatch:** the example unit ("The signal repeats. ",
+  20 chars) can never trip — a 20-char unit reaches the 192-span detection floor only at
+  10 copies, arming there and pushing the doubling threshold to 20 > the 16-copy default.
+  The spec'd arm-at-6/escalate-at-12 shape requires a ≥32-char unit, hence the 32-char
+  "The device loop signal repeats. " (fundamental period 32, qualifies; math pinned by the
+  new tests: arms at 6, trips at 12).
+- Snapshots pace 200 ms apart so read-aloud has STARTED speaking before the trip — #110
+  must be seen retracting a live queue, not one that never began.
+- `ChatStore.debugRunForcedTrip(copies:holdLiveSDKStream:)` arms one-shot and issues a
+  NORMAL `sendMessage` through the standard streaming consumer (`enqueueStreamChunk` /
+  `finishStream` + retraction). **Routing addition beyond the dispatch:** the router
+  preference is pinned to `.onDevice` for that one turn and restored after — on a
+  Hermes-paired device the backend flag alone is insufficient (the turn would route to
+  Hermes and the stale flag would hijack the next real local turn; it's also cleared
+  unconditionally post-send).
+- Diagnostics `// Local brain — #102` panel (voice/sensor panel pattern): hint
+  ("turn on read-aloud first to verify #110"), **Force repetition trip**, and the
+  nice-to-have **Force trip (live SDK)** — holds a real suppressed SDK generation and
+  cancels it on trip, probing that abandoning a live stream doesn't wedge the next turn.
+- Tests appended to `LocalChatBackendTests` (arm-at-6/trip-at-12 pin, cumulative-shape +
+  one-unit-delta pin, collapse-to-preamble+one-copy pin), all `#if DEBUG`.
+
+**Mac owed:** CLI build + full suite (no regen — verify `git status` clean post-build),
+then the acceptance session on whoGoesThere: **D2** reply collapses to one unit copy +
+the #102 notice in Console + thermal ≤ fair and recovering; **#110** with auto-read-aloud
+ON, speech cuts at the trip instead of droning the loop; **D3** an immediate normal send
+streams a real reply (session rebuilt); plus the live-SDK button's no-wedge check.
 
 Logged 2026-07-18.
