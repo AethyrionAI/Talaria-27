@@ -396,6 +396,27 @@ heart_rate, distance_walking, respiratory_rate, sleep_duration, resting_heart_ra
 workout_minutes, stand_hours, steps). Fresh samples captured: `captureHealth: got 2
 samples — distance_walking, steps`.
 
+**`got 2 samples — distance_walking, steps` is EXPECTED — stop re-diagnosing it
+(2026-07-17).** Chased at least three times now (Debug-2 on 2026-06-28 opened three
+hypotheses about missing observer queries and Health permissions; a device log review on
+2026-07-17 raised it again). It is not a bug:
+
+- `HKObserverQuery` invokes its update handler **once at registration**, regardless of whether
+  new data exists. "11 health observer types fire" at launch means *11 observers registered* —
+  NOT 11 types with data.
+- `collectSnapshot` returns only types with samples in the query window. **Owen wears the Apple
+  Watch infrequently** (confirmed 2026-07-17), so on a typical day steps and distance_walking
+  are the only iPhone-native types with samples to find. Heart rate, resting HR, blood oxygen,
+  respiratory rate, sleep duration, stand hours and workout minutes are all Watch-sourced and
+  legitimately empty.
+- This also resolves Debug-2's server-side observation that `health_samples` only ever holds
+  steps/distance and `health_latest` has ~3 rows. The pipeline is fine; the sensor isn't on the
+  wrist. **Debug-2's Hypotheses 1 and 2 are closed as not-the-cause.**
+
+**Falsifiable re-test if ever suspected again:** wear the Watch for a day, then check whether
+HR/SpO2 appear. If they do NOT *with the Watch worn*, THEN it is a real item — and the place to
+look is the per-type query windows in `LiveHealthService`, not authorization.
+
 ---
 
 ## 17. ✅ Relay sensor delivery — 07-02 fix did NOT hold: connector was dead 2026-07-02→07-11 (9-day prod outage; see #87/#103 post-mortem). Durably fixed + deployed 2026-07-11
@@ -3506,6 +3527,31 @@ Logged 2026-07-11.
 
 Found 2026-07-11 while investigating #103's thermal contribution: `SensorUploadService.persistOutboxState()` (backed by `UserDefaultsAppPersistenceStore.saveSensorOutboxState`) encodes and rewrites the WHOLE outbox on every location update, motion activity change, and health snapshot — in `@MainActor` tasks. Cost scales linearly with backlog size and there is no backlog cap, so any connector outage (like #103) turns routine sensor ticks into a sustained CPU/IO loop (heat + potential UI jank). Hardening shape: (a) debounce/coalesce persistence (e.g. persist at most every few seconds or on chunk boundaries — crash-loss window of a few seconds of sensor samples is acceptable), (b) cap `pendingHealthSamples` with oldest-drop + an honest diagnostics note when capped, (c) move the encode off the main actor. Small, file-scoped to `SensorUploadService.swift` + the persistence store; no collision with Lanes D/F/G/H. UN-GATED 2026-07-11: #103's deploy drained 2k→0 cleanly and the device cooled as the backlog fell — current semantics proven, mechanism empirically supported. Dispatchable as its own small lane whenever desired.
 
+**Partial device-verify evidence 2026-07-17 (log review, Owen's device).** A drain absorbed a
+concurrent capture mid-flight, correctly:
+
+```
+drain: starting. Outbox: loc=false, health=1
+captureHealth: got 2 samples — distance_walking, steps
+drain: health chunk (1 of 3 pending) → delivered
+drain: health chunk (2 of 2 pending) → retry
+drain: connector busy — retrying chunk in 2.000000s (attempt 1/3)
+drain: health chunk (2 of 2 pending) → delivered
+drain: finished. Outbox remaining: loc=false, health=0
+```
+
+The loop re-reads `outboxState.pendingHealthSamples` each pass, so mid-flight growth cost
+nothing: 1-sample chunk delivered → prefix removed → next pass formed a 2-sample chunk →
+busy-retry ladder → delivered → outbox to 0. **Does NOT close the device-verify DoD** — this
+exercised neither the backlog cap nor the debounce under a real outage — but the drain path's
+behaviour under concurrent mutation is now positively observed.
+
+**Read the chunk log carefully — it has already misled one reviewer (2026-07-17):**
+`drain: health chunk (\(chunk.count) of \(pendingHealthSamples.count) pending)` — the FIRST
+number is the chunk SIZE, not a chunk index, and the denominator is evaluated AFTER the
+`await`, so it reports a later instant than the numerator. `(1 of 3)` → `(2 of 2)` is therefore
+correct and NOT a shrinking denominator. Worth rewording if anyone touches that line.
+
 Logged 2026-07-11.
 
 ---
@@ -4362,5 +4408,73 @@ who synthesizes it (app placeholder text vs gateway part-stringification); that 
 side owns the fix. History note: paste→send round-trip passed device verify 2026-07-13, so if
 text+image also fails, the regression window is this week's merges; if only attachment-only
 fails, it may never have worked.
+
+Logged 2026-07-17.
+
+---
+
+## 133. 🐛 Dormant-relay push registration is not idempotent — 5 re-POSTs per launch (M-7 follow-up)
+
+**Found 2026-07-17** in a device log (background launch → foreground activation). One launch,
+zero user input, produced **five** relay push registrations across the 2-profile config (OJAMD
++ Mac Mini, both legitimately paired — Owen confirmed 2026-07-17; the "dormant" label is the
+app's, not a stale entry):
+
+```
+registerPushToken: relay accepted push registration
+registerPushToken: relay accepted push registration
+registerPushToken: dormant relay 'Mac Mini' accepted push registration
+registerPushToken: dormant relay 'Mac Mini' accepted push registration
+...
+registerPushToken: dormant relay 'Mac Mini' accepted push registration
+```
+
+**Mechanism confirmed in source — not hypothesised.** `AppContainer.registerPushTokenWithActiveRelay`
+short-circuits when nothing changed:
+
+```swift
+if notificationService.isPushTokenRegistered,
+   notificationService.currentPushToken == normalizedToken {
+    sessionStore.state.pushTokenRegistered = true
+    return
+}
+```
+
+`registerPushTokenWithDormantRelays` has **no equivalent guard** — it loops
+`profilesStore.profiles where profile.id != activeProfileID` and POSTs unconditionally for
+every paired dormant profile, on every call. That asymmetry is exactly the observed 2-active /
+3-dormant split: the active path deduped after its first success; the dormant path never does.
+
+Amplified by caller count — `registerStoredPushTokenIfNeeded()` has **five** call sites
+(`AppContainer.swift` 1005, 1034, 1168, 1198, 1910), plus `AppEntry.swift:167`
+(`didRegisterForRemoteNotifications`) and the Settings toggle
+(`NotificationsSettingsScreen.swift:217`). None coordinate.
+
+**Fix shape (small, file-scoped).** The per-profile state already exists and is already
+WRITTEN — `profileRelaySessions.markPushTokenRegistered(_:profileID:)` is called on the
+deactivate path — it is simply never READ as a guard. Mirror the active-relay short-circuit per
+profile: skip the POST when that profile's registration is already marked true AND its stored
+token matches `normalizedToken`. Keep the unconditional path for token CHANGE and for re-arming
+after a relay-side registration wipe.
+
+**Also fix while in `AppEntry.swift` (same launch path, trivial):** the `.background` branch of
+the `scenePhase` `onChange` dispatches `reportAppStateIfNeeded("background")` **twice** — once
+in a bare `Task`, once at the head of the following `Task` that also calls
+`watchPendingRunIfNeeded()`. Reads as an edit artifact; drop the bare `Task`.
+
+**Severity: low — no user-visible bug.** The relay is DB-backed (**#24f is DEAD — do not cite
+it**), so every redundant POST is a real round-trip and a real write, but they are idempotent
+server-side. The payoff is (a) 5 writes → 2 per launch, and (b) a readable launch log — which
+matters, because the launch log is the primary diagnostic surface for the whole sensor
+pipeline. Same family as #48's `collectSnapshot` debounce and #111's every-tick churn; a
+natural companion lane.
+
+**NOT a bug — checked 2026-07-17, recorded so nobody re-chases it.** The same log's doubled
+`app-refresh scheduled` and doubled full health/location refresh are NOT fan-out.
+`BackgroundRefreshScheduler.schedule()` has exactly one caller (`AppEntry.swift:239`, on
+`.background`) plus a deliberate re-arm at `BackgroundTaskService.swift:78`; and the log opens
+with `handleSystemLaunch` and only later reaches `handleAppDidBecomeActive` — it was a
+background launch followed by a foreground activation, i.e. two legitimate lifecycle entries,
+not one launch fanning out.
 
 Logged 2026-07-17.
