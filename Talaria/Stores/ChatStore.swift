@@ -1812,3 +1812,39 @@ private extension Array {
         return self[index]
     }
 }
+
+#if DEBUG
+// MARK: - Forced-trip harness entry (#134 — DEBUG builds only)
+
+extension ChatStore {
+    /// Drives the #134 synthetic degenerate turn through THIS store's normal
+    /// send path — the same streaming consumer, read-aloud enqueue, and
+    /// finish/retraction handling every real turn gets (building a parallel
+    /// consumer would silently skip the #110 seam this harness exists to
+    /// verify). The backend is armed one-shot; the router preference pins
+    /// the turn to the on-device brain (a Hermes-paired device would
+    /// otherwise route it to Hermes) and is restored afterward.
+    func debugRunForcedTrip(
+        copies: Int = LocalChatBackend.debugDegenerateDefaultCopies,
+        holdLiveSDKStream: Bool = false
+    ) async {
+        guard !isStreaming else { return }
+        LocalChatBackend.debugForcedTripCopies = copies
+        LocalChatBackend.debugForcedTripHoldsLiveSDKStream = holdLiveSDKStream
+
+        let router = hermesClient as? ChatBackendRouter
+        let preSendConversationID = conversation?.id
+        let previousPreference = router?.preferredBrain(forConversation: preSendConversationID)
+        router?.setPreferredBrain(.onDevice, forConversation: preSendConversationID)
+        await sendMessage("Force repetition trip — #134 debug harness")
+        // Restore on the conversation that actually sent: a nil pre-send id
+        // means the "next"-slot preference migrated onto the conversation the
+        // send created.
+        router?.setPreferredBrain(previousPreference, forConversation: conversation?.id ?? preSendConversationID)
+        // Belt-and-braces: if the turn somehow routed elsewhere, the one-shot
+        // arming must not hijack the user's next real on-device turn.
+        LocalChatBackend.debugForcedTripCopies = nil
+        LocalChatBackend.debugForcedTripHoldsLiveSDKStream = false
+    }
+}
+#endif
