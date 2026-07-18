@@ -4489,7 +4489,7 @@ The free-tier standalone runaway/overheat gate. #102's token cap is device-prove
 tail-repetition breaker (#102, PR #83) and the read-aloud retraction (#110, PR #86) — both
 MERGED and unit-tested — have NEVER tripped organically on device: the deterministic repro is
 defeated by the base model's own guardrails (it refuses verbatim-repeat and declines
-long-form). This harness adds a `#if DEBUG` `/forceloop` trigger that drives a SYNTHETIC
+long-form). This harness adds a `#if DEBUG` button in Settings → Diagnostics that drives a SYNTHETIC
 degenerate stream through the EXISTING production path, so one device session verifies breaker
 arm→escalate→abandon→collapse, thermal recovery, read-aloud non-drone (#110 retraction), and
 post-trip send (D3, via the `session = nil` rebuild). Release-inert. Touches NO shipped
