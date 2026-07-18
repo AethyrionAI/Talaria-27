@@ -2058,7 +2058,7 @@ grammar. **Needs Mac:** AlarmKit API surface is new (iOS 26) — compile-check
 `AlarmAttributes.metadata` optionality; device-verify ring through Silent mode
 + the countdown Live Activity.
 
-## 66. 🐛 Spotlight tap-through — device FAIL 2026-07-17 AFTER PR #107; instrumentation verdict: perform() never fires — missing CSSearchableItemActionType handler is the prime suspect
+## 66. 🔧 Spotlight tap-through — CSSearchableItemActionType handler LANDED 2026-07-17 (round 2); device re-verify owed
 
 > **Device run 2026-07-17 (post-#107 build): tap still does nothing — and the #107 instrumentation
 > did exactly its job: ZERO SpotlightOpen breadcrumbs in the capture (no entity-query line, no
@@ -4276,6 +4276,8 @@ Logged 2026-07-17.
 
 ## 129. 🐛 Voice preview mid-session routes through the CHAT TTS instance — category yank under a live engine (the #128 trigger)
 
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-129-preview-instance.md` — **READY TO SEND** (micro; option (a) selection function, audio law restated).
+
 `VoiceSettingsScreen:187` `speechOutput.previewVoice()` uses the chat instance
 (`managesAudioSession = true`); during an active voice session each preview flips the shared
 session to `.playback` and back under the running capture engine — the interruption/route burst
@@ -4291,6 +4293,8 @@ Logged 2026-07-17.
 ---
 
 ## 130. 🎧 In-session TTS fidelity — voiceChat downlink processing makes voices muddy vs previews; VPIO render-err flood
+
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-130-halfduplex-probe.md` — **READY TO SEND** (A/B probe branch, DO-NOT-MERGE label; Owen's on-device verdict decides #130).
 
 Device observation 2026-07-17 (post-#128, conversation working): in-session TTS is noticeably
 less crisp than the settings previews. Cause is structural, not a bug: previews play on a
@@ -4315,7 +4319,7 @@ Logged 2026-07-17.
 
 ---
 
-## 131. 🐛 Composer mic (dictation) inert — both hosts, post-2026-07-17 merges
+## 131. 🐛 Composer mic (dictation) inert — silent-swallow catch FOUND + instrumented 2026-07-17; next device tap names the failing error. SUSPECT CORRECTION: Lane V touched LiveVoiceSessionService (realtime), NOT LiveSpeechService (dictation, untouched since the wedge era) — the original Lane-V attribution was wrong
 
 Device 2026-07-17: pressing the composer mic does nothing (OJAMD and Mac Mini, monetization gate
 on — gate almost certainly irrelevant: the button calls `toggleDictation()` on `speechService` =
