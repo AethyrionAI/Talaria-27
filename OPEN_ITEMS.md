@@ -4329,7 +4329,23 @@ Logged 2026-07-17.
 
 ---
 
-## 132. 🐛 Image attachments not reaching the Hermes host — model receives a text placeholder
+## 132. 🐛 Image attachments dropped HERMES-SIDE — app exonerated by wire probe (2026-07-17); host model-vision/config question for Owen
+
+> **Wire probe 2026-07-17 (curl direct to OJAMD `:8642`, zero app involvement):** (1) parts array
+> with an INVALID image → HTTP 400 'prepare image failed: failed to decode image' — the gateway is
+> image-aware and validates; (2) parts array with a VALID 1×1 PNG → request accepted, turn ran,
+> and the model reports **'No image came through'**. Validated, then dropped before the model.
+> The app's wire encoding was also read end-to-end and is correct (`ChatTurnBody` → parts array
+> with `image_url` data-URLs; attachment-only display text is '[1 attachment]', so the stored
+> '[screenshot]' was likely Owen's typed caption — immaterial now). **Ownership: Hermes-side.**
+> Candidates: active model lacks vision and the gateway strips images post-validation without
+> surfacing it (worst kind of silent), or tonight's hermes update broke prepared-image →
+> model-call attachment. **Next (Owen/host):** check the active model's vision capability in the
+> hermes config; re-probe after pointing a session at a known-vision model. The 07-13 paste→send
+> pass suggests this worked pre-update — if a vision model was active then, tonight's update is
+> the regression window. App-side follow-up only if Hermes turns out to REQUIRE a different wire
+> shape than the OpenAI-style parts the app sends (nothing suggests so — the 400 proves the shape
+> parses).
 
 Device 2026-07-17 (blocked the #61 card re-verify): attachment-only send (screenshot, no text)
 → the model reported receiving only the literal text "[screenshot]" with no image attached. The
