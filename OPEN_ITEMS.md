@@ -4697,3 +4697,37 @@ the mock-pairing scaffolding (`UITEST_PAIRING_MODE=mock`, `MockPairingService`, 
 to Settings -> Connect Hermes Desktop (#31).
 
 Logged 2026-07-18.
+
+
+---
+
+## 136. 🛠️ Offline-first launch — splash must not await relay/shim (silent-drop black hole)
+
+Device-caught 2026-07-19: with OJAMD's relay `:8000` + shim `:8765` STOPPED (NSSM services down
+for an update) but the machine UP, the app sat on `ESTABLISH UPLINK` for minutes. Root cause is
+two-part. (1) Windows Firewall silently DROPS packets to a listener-less port instead of
+refusing — every relay/shim request hangs the full URLSession timeout (~60s, `-1001`) rather
+than failing fast. (2) `AppContainer.initialize()` is SERIAL and only sets
+`isInitialized = true` (which drops the splash) at the END: `sessionStore.bootstrap()` →
+`hostStore.refresh()` → `loadInbox()` → `refreshCommandCatalog(force: true)` →
+`seedActiveModelFromShim()` → `registerStoredPushTokenIfNeeded()` — each relay/shim-touching
+step eats up to a full timeout back-to-back. The existing #3/#46 degraded-mode hardening
+("do NOT strand the launch splash") only covers relays that ANSWER (401 / refused / instant
+fail); the black-hole case was never exercised because Mac-side services refuse when down.
+Verified live: services restarted → app launched instantly.
+
+**Fix shape (non-negotiables restated in the dispatch spec):** (a) splash drops on
+LOCAL-state-ready — flip `isInitialized` after capabilities reload, conversation load, sensor
+start, and share-inbox drain; NO relay or shim call may sit on the splash critical path.
+(b) Relay-backed init (bootstrap, `validateRestoredIdentity`, host refresh, inbox, command
+catalog, shim model seed, push register) moves to a detached background task that updates state
+as it lands — degraded is the DEFAULT launch posture; connectivity upgrades it live. This is
+the freemium free-tier contract: standalone on-device MUST cold-launch fully functional with
+zero hosts reachable. (c) Belt-and-suspenders: dedicated `URLSessionConfiguration` for the
+bootstrap probes with `timeoutIntervalForRequest` ≈ 5s. (d) Preserve existing semantics: the
+no-access-token → `clearLocalPairing()` guard is Keychain-local and stays on the critical
+path; re-pairing still re-runs `initialize()`; #123 share drain stays free-tier-safe.
+
+**Dispatch spec:** `dispatch/FABLE-T27-136-offline-first-launch.md`
+
+Logged 2026-07-19.
