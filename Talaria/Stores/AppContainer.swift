@@ -65,6 +65,10 @@ final class AppContainer {
     /// M-9 thrash guard: dormant-refresh attempts this process, so a failing
     /// relay isn't re-tried on every foreground.
     private var dormantRefreshAttempts: [UUID: Date] = [:]
+    /// #125: on-device Health Trends daily-bucket queries, gated on the
+    /// LiveHealthService auth surface. Nil in bare test containers that
+    /// construct stores directly.
+    private(set) var healthTrendsService: (any HealthTrendsServiceProtocol)?
     /// #17: Spotlight donation for sessions + agent files, strictly behind the
     /// Privacy toggle (default OFF); wired in makeDefault().
     let spotlightIndexing = SpotlightIndexingService()
@@ -561,6 +565,12 @@ final class AppContainer {
                 container.inboxStore.clearConnectorOutageAlert()
             }
         }
+
+        // #125: Health Trends reads behind the grant LiveHealthService already
+        // established — never a new scope request.
+        container.healthTrendsService = LiveHealthTrendsService(
+            isAuthorized: { liveHealthService.authorizationStatus == .authorized }
+        )
 
         // #97: pin/archive overlay for server-session rows — same persistence
         // seam as every other store, read by the drawer + search surfaces.
