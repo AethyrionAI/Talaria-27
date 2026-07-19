@@ -333,7 +333,7 @@ struct TurnReceiptsTests {
 
     @Test
     func readoutTreatsZeroActualCostAsUncomputedAndFallsThrough() {
-        let usage = SessionUsage(inputTokens: 100, actualCostUSD: 0, estimatedCostUSD: 0.5)
+        let usage = SessionUsage(inputTokens: 100, estimatedCostUSD: 0.5, actualCostUSD: 0)
         let d = SessionCostReadout.display(for: usage)
         #expect(d?.costText == "$0.50")
         #expect(d?.costIsEstimated == true)
