@@ -4242,7 +4242,26 @@ empty metrics; pure-function trend deltas; no new scopes, no server. The App Sto
 
 > **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-125-health-trends.md` — **READY TO SEND.**
 
-Logged 2026-07-17.
+**Built 2026-07-18 (Mac session, branch `claude/t27-125-health-trends`), TDD fail-first:**
+pure math in `Services/Support/HealthTrendsCore.swift` (`dayStarts` calendar-day windows —
+DST-tested over the 2026-03-08 spring-forward; `alignedDailyPoints` sparse-not-zero-filled
+stat alignment; `dailySleepPoints` via the existing `HealthQueryCore.aggregateSleepDuration`
+end-day attribution; `weekOverWeekDelta` averaging only days-with-data, nil on missing
+window or zero baseline; `downsampled` endpoint-preserving stride; `chartSpec` downsamples
+BEFORE the #100 point budget; `cardAccessibilityLabel`), 15 tests in
+`HealthTrendsCoreTests`. Service = `HealthTrendsServiceProtocol` + `LiveHealthTrendsService`
+(HKStatisticsCollectionQuery per quantity metric, `.cumulativeSum` steps/calories vs
+`.discreteAverage` resting-HR/HRV/resp-rate, sleep via sample query + core bucketing; auth
+gate = a closure over `LiveHealthService.authorizationStatus` — never requests scopes) +
+`MockHealthTrendsService` (deterministic, HRV/resp absent to exercise hidden cards). Screen
+`Features/Health/HealthTrendsScreen.swift`: cards render through `ChartCanvas` (the #100
+plot, no fork — `ChartSegmentView` needed no refactor), 7/30/90 pills, hidden empty cards,
+honest NO-TREND-DATA / HEALTH-ACCESS-OFF panels, tap-to-fullscreen via the existing
+`ChartViewerScreen`, per-card VoiceOver label. Entry: nav link under the health card in
+`PermissionsScreen`, only when authorized (the `hermes://health` surface). NOTE: HRV is in
+the metric list per dispatch but the app has never requested its read scope — its card
+stays hidden until a future lane adds the scope. LLM commentary on trends remains the
+future connected-tier rider (no FoundationModels here).
 
 ---
 
