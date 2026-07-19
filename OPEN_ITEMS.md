@@ -4175,7 +4175,7 @@ Logged 2026-07-16.
 
 ---
 
-## 121. ✨ Reasoning on resume — restore thinking panes from stored messages
+## 121. ✨ Reasoning on resume — restore thinking panes from stored messages — MERGED (PR #120) 2026-07-19
 
 The #25 wire probe (2026-07-16) found `GET /api/sessions/{id}/messages` carries `reasoning` +
 `reasoning_content` per row — fetched on every resume, currently discarded. Live turns restore
@@ -4187,11 +4187,18 @@ UI — the existing pane renders when the field is populated.
 > **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-121-reasoning-on-resume.md` — **READY TO
 > SEND.** Cross-ref #60 (the answer-mirror trap is restated in the spec as non-negotiable).
 
+> **MERGED 2026-07-19 as PR #120** (branch `claude/fable-t27-121-resume-tlccml`, 1 commit,
+> mod-only — no regen). Stored `reasoning`/`reasoning_content` rows now decode tolerantly and
+> populate the same message property the live path writes; #60 answer-mirror guard verified
+> applied on BOTH resume decode paths (`SessionsHermesClient.swift` ~356/359 and ~417).
+> Combined-main gate 893/77 green. → ✅ on device verify: resume a session with prior
+> reasoning turns, confirm panes render collapsed and no answer-mirror duplicates appear.
+
 Logged 2026-07-17.
 
 ---
 
-## 122. ✨ Session cost & usage surface
+## 122. ✨ Session cost & usage surface — MERGED (PR #121) 2026-07-19
 
 The #25 probe proved session-level `input_tokens` / `output_tokens` / `cache_*` /
 `reasoning_tokens` / `estimated_cost_usd` / `actual_cost_usd` / `api_call_count` are served on
@@ -4202,6 +4209,13 @@ the row (never $0.00 for unknown). No aggregation, no new screens; a spend-over-
 future #100 rider only.
 
 > **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-122-session-cost.md` — **READY TO SEND.**
+
+> **MERGED 2026-07-19 as PR #121** (GitHub PR number — distinct from this item number;
+> branch `claude/fable-t27-122-session-cost-8x527x`, 5 commits, mod-only — no regen).
+> `SessionUsage` decode + cumulative usage threaded through the sessions list; spend row on
+> Sessions settings (actual cost preferred, `~` estimated, absent data hides the row — never
+> $0.00 for unknown). Combined-main gate 893/77 green. → ✅ on device verify: spend row
+> shows real figures against live gateway sessions and hides on sessions without usage data.
 
 Logged 2026-07-17.
 
