@@ -198,3 +198,180 @@ enum TurnReceiptFormat {
         return formatted.hasSuffix(".0") ? String(formatted.dropLast(2)) : formatted
     }
 }
+
+// MARK: - Session cost & usage surface (#122)
+//
+// Session-level `input_tokens` etc. are CUMULATIVE billing figures — each turn
+// re-sends the whole history, so they over-read superlinearly against context
+// occupancy (a 10-message session measured 90% of a 128k window). The #25
+// probe banned them as a context meter for exactly that reason and pointed at
+// this: they are the right shape for a session-COST surface. The wire serves
+// them per session on `GET /api/sessions` (list) and `GET /api/sessions/{id}`
+// (detail); this is the decode + the honest display readout.
+
+/// Cumulative billing + usage for one Hermes session, from the Sessions
+/// LIST/DETAIL endpoints (#122).
+///
+/// Every field is optional and tolerantly decoded. The #25 probe (2026-07-16)
+/// observed only the token/api-count keys on the wire; the cost keys arrived
+/// later, and an old or sparse session omits some or all of them. Absent or
+/// malformed → nil, never a throw and never a wrong number (the #58
+/// tolerant-decode posture). These are a spend surface, NEVER a context meter.
+struct SessionUsage: Hashable, Sendable {
+    var inputTokens: Int? = nil
+    var outputTokens: Int? = nil
+    var cacheReadTokens: Int? = nil
+    var cacheWriteTokens: Int? = nil
+    var reasoningTokens: Int? = nil
+    var apiCallCount: Int? = nil
+    var toolCallCount: Int? = nil
+    var estimatedCostUSD: Double? = nil
+    var actualCostUSD: Double? = nil
+
+    /// True when no field carries a value — the caller stores nothing (the
+    /// honest-absence rule: an all-absent usage must not render a row of zeros).
+    var isEmpty: Bool {
+        inputTokens == nil && outputTokens == nil && cacheReadTokens == nil
+            && cacheWriteTokens == nil && reasoningTokens == nil
+            && apiCallCount == nil && toolCallCount == nil
+            && estimatedCostUSD == nil && actualCostUSD == nil
+    }
+}
+
+extension SessionUsage {
+    enum CodingKeys: String, CodingKey {
+        case inputTokens = "input_tokens"
+        case outputTokens = "output_tokens"
+        case cacheReadTokens = "cache_read_tokens"
+        case cacheWriteTokens = "cache_write_tokens"
+        case reasoningTokens = "reasoning_tokens"
+        case apiCallCount = "api_call_count"
+        case toolCallCount = "tool_call_count"
+        case estimatedCostUSD = "estimated_cost_usd"
+        case actualCostUSD = "actual_cost_usd"
+    }
+
+    /// Tolerantly reads the flat usage keys that ride alongside a session
+    /// LIST/DETAIL row. Returns nil when NONE are present so callers store
+    /// nothing. A single malformed field degrades to nil for that field only;
+    /// it never throws (mirrors the `StoredMessage.toolCalls` posture in
+    /// `SessionsHermesClient`).
+    static func decodeIfPresent(from decoder: Decoder) -> SessionUsage? {
+        guard let c = try? decoder.container(keyedBy: CodingKeys.self) else { return nil }
+        func int(_ key: CodingKeys) -> Int? { (try? c.decodeIfPresent(Int.self, forKey: key)) ?? nil }
+        func money(_ key: CodingKeys) -> Double? { (try? c.decodeIfPresent(Double.self, forKey: key)) ?? nil }
+        let usage = SessionUsage(
+            inputTokens: int(.inputTokens),
+            outputTokens: int(.outputTokens),
+            cacheReadTokens: int(.cacheReadTokens),
+            cacheWriteTokens: int(.cacheWriteTokens),
+            reasoningTokens: int(.reasoningTokens),
+            apiCallCount: int(.apiCallCount),
+            toolCallCount: int(.toolCallCount),
+            estimatedCostUSD: money(.estimatedCostUSD),
+            actualCostUSD: money(.actualCostUSD)
+        )
+        return usage.isEmpty ? nil : usage
+    }
+}
+
+/// The compact, honest cost/usage readout for a single session's detail row
+/// (#122). Pure so it's fully unit-tested. Returns nil when there is nothing
+/// honest to show — an absent or all-zero usage renders NO row (never
+/// "$0.00"/"0" for the unknown; the #25 honest-absence rule, which matters even
+/// more for money than for context).
+enum SessionCostReadout {
+    struct Display: Equatable {
+        /// The cost figure WITHOUT the estimate marker: "$1.24", "<$0.01".
+        /// Nil when no meaningful (> 0) cost is known.
+        let costText: String?
+        /// True when `costText` came from `estimatedCostUSD` (→ "~" prefix).
+        let costIsEstimated: Bool
+        /// Cumulative input tokens, abbreviated ("66.4k"); nil when absent/0.
+        let inputText: String?
+        /// Cumulative output tokens, abbreviated; nil when absent/0.
+        let outputText: String?
+        /// API call count as a plain integer string; nil when absent/0.
+        let apiCallsText: String?
+
+        /// The single monospace line the row renders, segments joined by
+        /// " · ", e.g. "~$0.01 · IN 66.4k · OUT 1.2k · 5 CALLS". MonoLabel
+        /// restyles to uppercase for the HUD; the lowercase unit here is the
+        /// canonical (unit-tested) format.
+        var line: String {
+            var parts: [String] = []
+            if let costText {
+                parts.append((costIsEstimated ? "~" : "") + costText)
+            }
+            if let inputText { parts.append("IN \(inputText)") }
+            if let outputText { parts.append("OUT \(outputText)") }
+            if let apiCallsText { parts.append("\(apiCallsText) CALLS") }
+            return parts.joined(separator: " · ")
+        }
+    }
+
+    /// The row's display, or nil to hide it entirely (no honest data).
+    static func display(for usage: SessionUsage?) -> Display? {
+        guard let usage else { return nil }
+        let (costText, estimated) = cost(for: usage)
+        let inputText = positiveTokenText(usage.inputTokens)
+        let outputText = positiveTokenText(usage.outputTokens)
+        let apiCallsText = positiveCountText(usage.apiCallCount)
+        guard costText != nil || inputText != nil || outputText != nil || apiCallsText != nil else {
+            return nil
+        }
+        return Display(
+            costText: costText,
+            costIsEstimated: estimated,
+            inputText: inputText,
+            outputText: outputText,
+            apiCallsText: apiCallsText
+        )
+    }
+
+    /// Prefer a real actual cost; fall back to the estimate (marked `~`). A
+    /// cost of 0 or negative is treated as "not meaningfully known" and
+    /// omitted rather than rendered as "$0.00" — the honest-absence rule for
+    /// money. Falling through a zero `actualCostUSD` to a positive estimate is
+    /// deliberate: a literal 0 there reads as "not computed", not "free".
+    static func cost(for usage: SessionUsage) -> (text: String?, estimated: Bool) {
+        if let actual = usage.actualCostUSD, actual > 0 {
+            return (costLabel(actual), false)
+        }
+        if let estimate = usage.estimatedCostUSD, estimate > 0 {
+            return (costLabel(estimate), true)
+        }
+        return (nil, false)
+    }
+
+    /// "$1.24" at a cent and up; "<$0.01" for a real sub-cent cost. Callers
+    /// prepend "~" for estimates. Assumes value > 0 (`cost(for:)` filters 0).
+    static func costLabel(_ value: Double) -> String {
+        value >= 0.01 ? String(format: "$%.2f", value) : "<$0.01"
+    }
+
+    /// Abbreviated token count, LOWERCASE unit per the dispatch: 356 → "356",
+    /// 66_400 → "66.4k", 2_400_000 → "2.4m". Nil for absent or non-positive.
+    static func positiveTokenText(_ count: Int?) -> String? {
+        guard let count, count > 0 else { return nil }
+        switch count {
+        case ..<1_000:
+            return "\(count)"
+        case ..<1_000_000:
+            return trimmedOneDecimal(Double(count) / 1_000) + "k"
+        default:
+            return trimmedOneDecimal(Double(count) / 1_000_000) + "m"
+        }
+    }
+
+    /// A plain positive integer as a string; nil for absent or non-positive.
+    static func positiveCountText(_ count: Int?) -> String? {
+        guard let count, count > 0 else { return nil }
+        return "\(count)"
+    }
+
+    private static func trimmedOneDecimal(_ value: Double) -> String {
+        let formatted = String(format: "%.1f", value)
+        return formatted.hasSuffix(".0") ? String(formatted.dropLast(2)) : formatted
+    }
+}
