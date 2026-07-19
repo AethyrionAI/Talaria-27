@@ -55,9 +55,16 @@ final class HermesHostStore {
         defer { isLoading = false }
 
         do {
-            currentHost = try await hostService.fetchCurrentHost(accessToken: await accessTokenProvider())
+            let fetched = try await hostService.fetchCurrentHost(accessToken: await accessTokenProvider())
+            // #136: a cancelled launch probe was superseded by a reset —
+            // its result must not land over the canceller's state.
+            guard !Task.isCancelled else { return }
+            currentHost = fetched
             lastErrorMessage = nil
             onHostChanged?()
+        } catch is CancellationError {
+            // #136: cancellation is the caller superseding this probe, not
+            // a host failure — don't smear an error over the reset state.
         } catch {
             lastErrorMessage = error.localizedDescription
         }
