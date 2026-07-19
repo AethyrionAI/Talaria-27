@@ -19,6 +19,7 @@ struct PrivacySettingsScreen: View {
     @Environment(AppContainer.self) private var container
     @Environment(PermissionsStore.self) private var permissionsStore
     @Environment(SettingsStore.self) private var settingsStore
+    @Environment(AppLockController.self) private var appLock
 
     /// Permission whose revoke confirmation dialog is showing.
     @State private var pendingRevoke: RevocablePermission?
@@ -61,6 +62,7 @@ struct PrivacySettingsScreen: View {
                     SettingsScreenHeader(title: "Privacy", subtitle: "Permissions") { dismiss() }
                     permissionsSection
                     locationSection
+                    appLockSection
                     spotlightSection
                     revokeSection
                     manageSection
@@ -225,6 +227,92 @@ struct PrivacySettingsScreen: View {
                 await permissionsStore.requestBackgroundLocationAccess()
             }
         }
+    }
+
+    // MARK: App Lock (#124)
+
+    private var appLockSection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            MonoLabel("// App Lock", size: 10, tracking: Design.Tracking.monoXWide,
+                      color: Design.Colors.mutedForeground)
+
+            VStack(alignment: .leading, spacing: Design.Spacing.md) {
+                VStack(alignment: .leading, spacing: Design.Spacing.xs) {
+                    HStack(spacing: Design.Spacing.sm) {
+                        // The label follows what the device can enforce:
+                        // Face ID / Touch ID / Optic ID, "Require Passcode"
+                        // when biometry is absent or unenrolled, and a
+                        // disabled honest state with no passcode at all.
+                        Text(appLock.capability.toggleLabel)
+                            .font(Design.Typography.callout)
+                            .foregroundStyle(appLock.capability.lockPolicyAvailable
+                                             ? Design.Colors.foreground
+                                             : Design.Colors.mutedForeground)
+                        Spacer()
+                        Toggle("", isOn: appLockEnabledBinding)
+                            .labelsHidden()
+                            .tint(Design.Brand.accent)
+                            .disabled(!appLock.capability.lockPolicyAvailable)
+                    }
+                    Text(appLockCaption)
+                        .font(Design.Typography.caption)
+                        .foregroundStyle(Design.Colors.secondaryForeground)
+                }
+
+                if settingsStore.settings.appLockEnabled, appLock.capability.lockPolicyAvailable {
+                    HStack(spacing: Design.Spacing.xxs) {
+                        ForEach(AppLockGracePeriod.allCases, id: \.self) { period in
+                            graceSegment(period)
+                        }
+                    }
+                    .padding(Design.Spacing.xxs)
+                    .background(Design.Colors.background.opacity(0.5),
+                                in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                            .strokeBorder(Design.Colors.hairline, lineWidth: 1)
+                    }
+                }
+            }
+            .padding(Design.Spacing.md)
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
+        }
+        .task { appLock.refreshCapability() }
+    }
+
+    private var appLockCaption: String {
+        appLock.capability.lockPolicyAvailable
+            ? "Locks Talaria on launch and on return to the foreground. Your device passcode always works as a fallback."
+            : "Set a device passcode to use App Lock."
+    }
+
+    private var appLockEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { settingsStore.settings.appLockEnabled },
+            set: { settingsStore.settings.appLockEnabled = $0 }
+        )
+    }
+
+    private func graceSegment(_ period: AppLockGracePeriod) -> some View {
+        let active = settingsStore.settings.appLockGracePeriod == period
+        return Button {
+            settingsStore.settings.appLockGracePeriod = period
+        } label: {
+            Text(period.displayLabel.uppercased())
+                .font(Design.Typography.display(10, weight: .semibold, relativeTo: .caption2))
+                .tracking(Design.Tracking.button)
+                .foregroundStyle(active ? Design.Colors.background : Design.Colors.secondaryForeground)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Design.Spacing.sm)
+                .background(active ? Design.Brand.accent : Color.clear,
+                            in: RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: Spotlight (#17)

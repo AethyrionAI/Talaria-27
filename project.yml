@@ -148,6 +148,10 @@ targets:
         NSLocationAlwaysAndWhenInUseUsageDescription: "Hermes uses your location in the background to provide contextual awareness and proactive suggestions."
         NSMotionUsageDescription: "Hermes uses motion data to understand your current activity for contextual awareness."
         NSSpeechRecognitionUsageDescription: "Hermes uses speech recognition for voice commands and local transcription."
+        # #124: biometric app lock. Lives HERE, not as an INFOPLIST_KEY_
+        # build setting — those are silently ignored with a generated
+        # Info.plist (the #58 lesson).
+        NSFaceIDUsageDescription: "Talaria uses Face ID to unlock the app."
         # #28 device tool belt: contextual permission prompts fire on first
         # tool use (calendar/reminder/contact questions in chat).
         NSCalendarsFullAccessUsageDescription: "Hermes reads your calendar to answer questions about your schedule, and only creates events you approve."

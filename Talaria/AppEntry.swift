@@ -196,6 +196,12 @@ struct TalariaApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @UIApplicationDelegateAdaptor(HermesAppDelegate.self) private var appDelegate
     @State private var container = AppContainer.sharedDefault()
+    // #124: biometric app lock. SettingsStore loads synchronously in its
+    // init, so the cold-launch lock decision lands before the first frame.
+    @State private var appLock = AppLockController(
+        configuration: { AppContainer.sharedDefault().settingsStore.settings.appLockConfiguration }
+    )
+    @State private var appLockPresenter = AppLockWindowPresenter()
 
     var body: some Scene {
         WindowGroup {
@@ -212,7 +218,14 @@ struct TalariaApp: App {
                 .environment(container.talkStore)
                 .environment(container.speechOutput)
                 .environment(ThemeRuntime.shared)
-                .task { await container.initialize() }
+                .environment(appLock)
+                .task {
+                    // #124: mount the lock cover window before anything else
+                    // async — a cold launch with the lock enabled must never
+                    // render content first.
+                    appLockPresenter.attach(controller: appLock)
+                    await container.initialize()
+                }
                 .onChange(of: container.settingsStore.settings) { oldSettings, newSettings in
                     // Mirror the appearance prefs into the runtime theme so the
                     // whole app re-skins live (theme / accent / glow / grid /
@@ -225,8 +238,16 @@ struct TalariaApp: App {
                         || oldSettings.appearanceAccent != newSettings.appearanceAccent {
                         container.updateWidgetData()
                     }
+                    // #124: toggling the lock off releases it; toggling on
+                    // never locks mid-session.
+                    if oldSettings.appLockConfiguration != newSettings.appLockConfiguration {
+                        appLock.configurationChanged()
+                    }
                 }
                 .onChange(of: scenePhase) { _, newPhase in
+                    // #124: the lock decision runs first so the cover is up
+                    // before any foreground work repaints content beneath it.
+                    appLock.scenePhaseChanged(to: AppLockScenePhase(newPhase))
                     if newPhase == .active {
                         // Re-resolve automatic (seasonal) theme on foreground so a
                         // season rollover applies without a relaunch (issue #24).

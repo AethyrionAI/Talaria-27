@@ -334,6 +334,11 @@ struct UserSettings: Codable, Hashable, Sendable {
     /// #17: donate sessions + agent files to Spotlight. Default OFF — chat
     /// previews entering the system index is an explicit opt-in privacy trade.
     var spotlightIndexingEnabled: Bool
+    /// #124: biometric app lock (`.deviceOwnerAuthentication` — biometry with
+    /// passcode fallback, never biometry-only). Default OFF, free tier.
+    var appLockEnabled: Bool
+    /// #124: how long the app may sit backgrounded before return requires auth.
+    var appLockGracePeriod: AppLockGracePeriod
 
     init(
         userName: String = "User",
@@ -360,7 +365,9 @@ struct UserSettings: Codable, Hashable, Sendable {
         gridDensity: GridDensity = .faint,
         reduceMotion: Bool = false,
         verboseLogging: Bool = false,
-        spotlightIndexingEnabled: Bool = false
+        spotlightIndexingEnabled: Bool = false,
+        appLockEnabled: Bool = false,
+        appLockGracePeriod: AppLockGracePeriod = .immediate
     ) {
         self.userName = userName
         self.avatarInitials = avatarInitials
@@ -387,6 +394,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.reduceMotion = reduceMotion
         self.verboseLogging = verboseLogging
         self.spotlightIndexingEnabled = spotlightIndexingEnabled
+        self.appLockEnabled = appLockEnabled
+        self.appLockGracePeriod = appLockGracePeriod
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -415,6 +424,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         case reduceMotion
         case verboseLogging
         case spotlightIndexingEnabled
+        case appLockEnabled
+        case appLockGracePeriod
     }
 
     init(from decoder: Decoder) throws {
@@ -448,6 +459,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         reduceMotion = try container.decodeIfPresent(Bool.self, forKey: .reduceMotion) ?? false
         verboseLogging = try container.decodeIfPresent(Bool.self, forKey: .verboseLogging) ?? false
         spotlightIndexingEnabled = try container.decodeIfPresent(Bool.self, forKey: .spotlightIndexingEnabled) ?? false
+        appLockEnabled = try container.decodeIfPresent(Bool.self, forKey: .appLockEnabled) ?? false
+        appLockGracePeriod = try container.decodeIfPresent(AppLockGracePeriod.self, forKey: .appLockGracePeriod) ?? .immediate
     }
 
     func encode(to encoder: Encoder) throws {
@@ -477,6 +490,12 @@ struct UserSettings: Codable, Hashable, Sendable {
         try container.encode(reduceMotion, forKey: .reduceMotion)
         try container.encode(verboseLogging, forKey: .verboseLogging)
         try container.encode(spotlightIndexingEnabled, forKey: .spotlightIndexingEnabled)
+        try container.encode(appLockEnabled, forKey: .appLockEnabled)
+        try container.encode(appLockGracePeriod, forKey: .appLockGracePeriod)
+    }
+
+    var appLockConfiguration: AppLockConfiguration {
+        AppLockConfiguration(isEnabled: appLockEnabled, gracePeriod: appLockGracePeriod)
     }
 
     func applyingEnvironmentPolicy(
