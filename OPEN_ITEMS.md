@@ -4262,7 +4262,34 @@ INFOPLIST_KEY lesson).
 
 > **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-124-faceid-lock.md` — **READY TO SEND.**
 
-Logged 2026-07-17.
+**Built 2026-07-19 (Mac session, branch `claude/t27-124-faceid-lock`), TDD fail-first:**
+pure `AppLockStateMachine` in `Services/Support/AppLockCore.swift` (scenePhase × grace ×
+toggle × auth matrix, 16 tests; grace clock keys on `.background`, NOT `.inactive` — the
+Face ID sheet itself is `.inactive` and would re-trigger its own lock otherwise);
+`AppLockController` + `BiometricAppLockAuthenticator` in `Core/AppLock/` (fresh `LAContext`
+per attempt; capability degradation: no-biometry→passcode-policy label, no-passcode→toggle
+disabled AND a stale enabled flag neutralized so the app can't brick itself; auto-prompt
+once per lock episode, retry button after fail/cancel). Cover lives in a **dedicated
+UIWindow at `.alert + 1`** (not a root ZStack — sheets/alerts present ABOVE the root view,
+so a ZStack overlay would leave an open sheet readable over the "lock"; the same window is
+the scenePhase-driven app-switcher snapshot obscurer). Intent-bypass decision pinned in
+`AppLockController`'s header comment (headless Ask Hermes runs while locked; anything
+landing in the UI hits the cover). Settings: `UserSettings.appLockEnabled/appLockGracePeriod`
+(default off/immediate, legacy-decode-safe) + Privacy screen App Lock section (adaptive
+capability label, immediate/1 min/5 min grace segments). `NSFaceIDUsageDescription` in
+project.yml info.properties; regen verified — entitlements intact. Lane V (#118) voice-end
+already in main; no ordering interaction.
+
+**Device checklist (whoGoesThere):**
+- [ ] Toggle on → background → reopen → Face ID prompt appears over content.
+- [ ] Fail twice / cancel → retry button → system sheet passcode fallback unlocks.
+- [ ] App switcher shows the obscured splash-style snapshot, not chat content.
+- [ ] Grace 1 min: background <1 min → no prompt; >1 min → prompt.
+- [ ] Siri "Ask Hermes" works while locked; tapping its result lands on the lock.
+- [ ] Backgrounding with a sheet open (Settings) → reopen → cover is ABOVE the sheet.
+- [ ] Incoming push while locked: banner arrives, UI stays locked.
+
+Logged 2026-07-17. Built 2026-07-19 — suite 870/76 green (was 845/72) + UI tests green.
 
 ---
 
