@@ -165,3 +165,27 @@ struct AppLockGracePeriodTests {
         #expect(AppLockGracePeriod.fiveMinutes.seconds == 300)
     }
 }
+
+struct AppLockSettingsCodingTests {
+    @Test func legacyPayloadDecodesWithLockDefaults() throws {
+        // A pre-#124 payload has no appLock keys — decode must default off/immediate.
+        let legacy = try JSONEncoder().encode(UserSettings())
+        var object = try JSONSerialization.jsonObject(with: legacy) as? [String: Any] ?? [:]
+        object.removeValue(forKey: "appLockEnabled")
+        object.removeValue(forKey: "appLockGracePeriod")
+        let data = try JSONSerialization.data(withJSONObject: object)
+        let decoded = try JSONDecoder().decode(UserSettings.self, from: data)
+        #expect(decoded.appLockEnabled == false)
+        #expect(decoded.appLockGracePeriod == .immediate)
+    }
+
+    @Test func roundTripPreservesLockSettings() throws {
+        var settings = UserSettings()
+        settings.appLockEnabled = true
+        settings.appLockGracePeriod = .fiveMinutes
+        let decoded = try JSONDecoder().decode(UserSettings.self, from: JSONEncoder().encode(settings))
+        #expect(decoded.appLockEnabled)
+        #expect(decoded.appLockGracePeriod == .fiveMinutes)
+        #expect(decoded.appLockConfiguration == AppLockConfiguration(isEnabled: true, gracePeriod: .fiveMinutes))
+    }
+}
