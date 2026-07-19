@@ -739,6 +739,13 @@ final class SessionsHermesClient: HermesClientProtocol {
             activities = []
         }
 
+        // #121: restore the reasoning pane on resume. The stored transcript
+        // carries the same reasoning the live `run.completed` path adopts
+        // (#60) — attach it to the same `Message.reasoning` field so the
+        // existing disclosure renders with no UI change. Only assistant rows
+        // reason; user rows never carry it.
+        let reasoning = sender == .hermes ? storedReasoning(m, content: text) : nil
+
         // An assistant row can be tool-calls-only (the text lands on a later
         // row) — keep it so the chips survive history reload.
         guard !text.isEmpty || !activities.isEmpty else { return nil }
@@ -747,8 +754,34 @@ final class SessionsHermesClient: HermesClientProtocol {
             content: text,
             timestamp: ts,
             status: .delivered,
-            toolActivities: activities
+            toolActivities: activities,
+            reasoning: reasoning
         )
+    }
+
+    /// The reasoning to restore for a resumed assistant row, or nil (#121).
+    /// Prefers `reasoning_content` (the live channel's key, matching
+    /// `decodeRunReasoning`'s per-entry preference), falling back to
+    /// `reasoning` only when the primary is blank/absent. Applies the #60
+    /// answer-mirror guard to the chosen value: the defective upstream
+    /// `_thinking` channel historically stored the ANSWER under reasoning, so
+    /// a row whose reasoning just restates its own content is dropped — a
+    /// restored pane parroting its answer is the exact #60 regression. A
+    /// mirror does NOT fall back to the other key: both keys are duplicates on
+    /// the wire, so the fallback would be the same mirror.
+    nonisolated private static func storedReasoning(_ m: SessionMessagesResponse.StoredMessage, content: String) -> String? {
+        let chosen: String?
+        if let primary = m.reasoningContent?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !primary.isEmpty {
+            chosen = primary
+        } else if let fallback = m.reasoning?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !fallback.isEmpty {
+            chosen = fallback
+        } else {
+            chosen = nil
+        }
+        guard let reasoning = chosen else { return nil }
+        return reasoningMirrorsAnswer(reasoning, content: content) ? nil : reasoning
     }
 
     // MARK: - Hop lifecycle (P1 / OPEN_ITEMS #90)
@@ -1567,10 +1600,17 @@ final class SessionsHermesClient: HermesClientProtocol {
             /// Tool calls the API attaches to an assistant row, when it does
             /// (#10 — tolerant: absent/unknown shapes decode to []).
             let toolCalls: [StoredToolCall]
+            /// Reasoning the model produced for this row, carried by
+            /// `GET .../messages` on every resume (#121, probed 2026-07-16:
+            /// both keys present, often null). Decoded tolerantly — absent,
+            /// null, or a non-string all fold to nil, never a throw.
+            let reasoning: String?
+            let reasoningContent: String?
             enum CodingKeys: String, CodingKey {
-                case role, content, timestamp
+                case role, content, timestamp, reasoning
                 case createdAt = "created_at"
                 case toolCalls = "tool_calls"
+                case reasoningContent = "reasoning_content"
             }
             init(from decoder: Decoder) throws {
                 let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -1587,6 +1627,8 @@ final class SessionsHermesClient: HermesClientProtocol {
                     content = nil
                 }
                 toolCalls = (try? c.decodeIfPresent([StoredToolCall].self, forKey: .toolCalls)) ?? []
+                reasoning = (try? c.decodeIfPresent(String.self, forKey: .reasoning)) ?? nil
+                reasoningContent = (try? c.decodeIfPresent(String.self, forKey: .reasoningContent)) ?? nil
             }
             struct ContentPart: Decodable {
                 let type: String?
