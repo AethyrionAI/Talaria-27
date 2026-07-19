@@ -63,6 +63,56 @@ enum SharedInboxError: Error, Equatable {
     case payloadTooLarge(totalBytes: Int)
 }
 
+/// Canonical "what can the composer stage" tables — single source of truth
+/// for the app's staging path (`PendingAttachment` forwards here) AND the
+/// share sheet's honesty check (#123): the sheet must refuse up front what
+/// the app would silently drop at drain time ("real data only" house rule).
+enum StageableTypeCatalog {
+    static let pdfMimeType = "application/pdf"
+
+    static let textMimeTypes: Set<String> = [
+        "text/plain",
+        "text/csv",
+        "text/markdown",
+        "text/html",
+        "text/xml",
+        "text/x-python",
+        "text/x-swift",
+        "text/javascript",
+        "application/json",
+        "application/xml",
+        "application/yaml",
+        "application/x-yaml",
+    ]
+
+    private static let extensionToMime: [String: String] = [
+        "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+        "gif": "image/gif", "webp": "image/webp", "heic": "image/heic",
+        "pdf": "application/pdf",
+        "txt": "text/plain",
+        "json": "application/json", "csv": "text/csv",
+        "md": "text/markdown", "swift": "text/x-swift",
+        "py": "text/x-python", "js": "text/javascript",
+        "html": "text/html", "css": "text/css",
+        "xml": "text/xml", "yml": "application/yaml",
+        "yaml": "application/yaml",
+    ]
+
+    static func mimeType(forFileExtension ext: String) -> String {
+        extensionToMime[ext.lowercased()] ?? "application/octet-stream"
+    }
+
+    static func isStageable(mimeType: String) -> Bool {
+        mimeType.hasPrefix("image/")
+            || textMimeTypes.contains(mimeType)
+            || mimeType == pdfMimeType
+    }
+
+    static func isStageable(fileName: String) -> Bool {
+        isStageable(mimeType: mimeType(forFileExtension: (fileName as NSString).pathExtension))
+    }
+}
+
 /// File-store over the app-group `SharedInbox/` directory. Extension side
 /// writes (blobs first, `envelope.json` LAST — its presence is the
 /// completeness marker); app side drains. Tolerant by design: a corrupt or
