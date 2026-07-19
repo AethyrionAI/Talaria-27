@@ -166,6 +166,97 @@ struct AppLockGracePeriodTests {
     }
 }
 
+// MARK: - Controller tests (mocked evaluator — no LAContext anywhere)
+
+@MainActor
+private final class MockAppLockAuthenticator: AppLockAuthenticating {
+    var stubbedCapability: AppLockCapability = .faceID
+    var nextResult = false
+    private(set) var authenticateCallCount = 0
+    func capability() -> AppLockCapability { stubbedCapability }
+    func authenticate(reason: String) async -> Bool {
+        authenticateCallCount += 1
+        return nextResult
+    }
+}
+
+@MainActor
+struct AppLockControllerTests {
+    private func makeController(
+        enabled: Bool = true,
+        grace: AppLockGracePeriod = .immediate,
+        authenticator: MockAppLockAuthenticator = MockAppLockAuthenticator()
+    ) -> (AppLockController, MockAppLockAuthenticator) {
+        let controller = AppLockController(
+            configuration: { AppLockConfiguration(isEnabled: enabled, gracePeriod: grace) },
+            authenticator: authenticator,
+            now: { Date(timeIntervalSince1970: 2_000_000) }
+        )
+        return (controller, authenticator)
+    }
+
+    @Test func coldLaunchExposesLockedCover() {
+        let (controller, _) = makeController()
+        #expect(controller.cover == .locked)
+    }
+
+    @Test func successfulUnlockClearsCover() async {
+        let (controller, auth) = makeController()
+        auth.nextResult = true
+        controller.scenePhaseChanged(to: .active)
+        await controller.requestUnlock()
+        #expect(controller.cover == .none)
+        #expect(!controller.didFailAuthentication)
+    }
+
+    @Test func failedUnlockKeepsLockAndFlagsRetry() async {
+        let (controller, auth) = makeController()
+        auth.nextResult = false
+        controller.scenePhaseChanged(to: .active)
+        await controller.requestUnlock()
+        #expect(controller.cover == .locked)
+        #expect(controller.didFailAuthentication)
+    }
+
+    @Test func retryAfterFailureUsesNewEvaluation() async {
+        let (controller, auth) = makeController()
+        controller.scenePhaseChanged(to: .active)
+        auth.nextResult = false
+        await controller.requestUnlock()
+        auth.nextResult = true
+        await controller.requestUnlock()
+        #expect(auth.authenticateCallCount >= 2)
+        #expect(controller.cover == .none)
+    }
+
+    // No passcode set → the feature is neutralized even with a stale enabled
+    // flag (an un-evaluable policy would otherwise brick the app).
+    @Test func unavailableCapabilityNeutralizesLock() {
+        let auth = MockAppLockAuthenticator()
+        auth.stubbedCapability = .unavailable
+        let (controller, _) = makeController(authenticator: auth)
+        #expect(controller.cover == .none)
+    }
+
+    @Test func disabledConfigurationNeverAuthenticates() async {
+        let (controller, auth) = makeController(enabled: false)
+        controller.scenePhaseChanged(to: .active)
+        await controller.requestUnlock()
+        #expect(auth.authenticateCallCount == 0)
+        #expect(controller.cover == .none)
+    }
+
+    @Test func coverChangeNotifiesPresenterHook() async {
+        let (controller, auth) = makeController()
+        var observed: [AppLockCover] = []
+        controller.onCoverChanged = { observed.append($0) }
+        auth.nextResult = true
+        controller.scenePhaseChanged(to: .active)
+        await controller.requestUnlock()
+        #expect(observed.last == AppLockCover.none)
+    }
+}
+
 struct AppLockSettingsCodingTests {
     @Test func legacyPayloadDecodesWithLockDefaults() throws {
         // A pre-#124 payload has no appLock keys — decode must default off/immediate.

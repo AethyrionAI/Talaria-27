@@ -77,6 +77,7 @@
 		23BDB5F7E650A9858DBDCCBC /* IconPreview-AutumnHarvest.png in Resources */ = {isa = PBXBuildFile; fileRef = 058B8D699AF44F536D6AD863 /* IconPreview-AutumnHarvest.png */; };
 		247776F4580B529B30F75D06 /* Icon-SolarForge@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 14534B1F938AC24C273D0F31 /* Icon-SolarForge@2x.png */; };
 		24B16B107A6D7001E50E5E23 /* NativeVoicePipelineService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64C042CCDAA333F54214D067 /* NativeVoicePipelineService.swift */; };
+		24C71BA853C3ED51C9657835 /* AppLockController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A470FB52569D59F1AC2FCAD0 /* AppLockController.swift */; };
 		255A768A4F87122ED684C977 /* Icon-RetroSciFi@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 2D05226618AAF6BA5457D37C /* Icon-RetroSciFi@2x.png */; };
 		25CEC84BE34E0B850E88DC3E /* VoiceMemoRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 301C5906499EE7579DB26285 /* VoiceMemoRecorder.swift */; };
 		25D9CAD82CD433E329191ADA /* Icon-StickerBombToybox@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = EC29CB41A2376E24068A0D64 /* Icon-StickerBombToybox@2x.png */; };
@@ -754,6 +755,7 @@
 		A371A08A4C7ED3E39033A3DB /* IconPreview-WinterFrost.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-WinterFrost.png"; sourceTree = "<group>"; };
 		A3A103D6FF3E893A48AE64C3 /* AppTemplateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTemplateTests.swift; sourceTree = "<group>"; };
 		A42B2B8FA97D4011C00D59F8 /* VoiceMemoAttachmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMemoAttachmentTests.swift; sourceTree = "<group>"; };
+		A470FB52569D59F1AC2FCAD0 /* AppLockController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockController.swift; sourceTree = "<group>"; };
 		A47507194C521CFDBCF8486B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A4D59C9D8D1A4E48B49CA305 /* ConversationListState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationListState.swift; sourceTree = "<group>"; };
 		A5044B1A58F14C67ED49975C /* AttachmentPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentPickerSheet.swift; sourceTree = "<group>"; };
@@ -977,6 +979,14 @@
 			path = Talk;
 			sourceTree = "<group>";
 		};
+		0C069352E0A6B0D1098AA2D0 /* AppLock */ = {
+			isa = PBXGroup;
+			children = (
+				A470FB52569D59F1AC2FCAD0 /* AppLockController.swift */,
+			);
+			path = AppLock;
+			sourceTree = "<group>";
+		};
 		0C7C6B2E2CF12915579AA8DB /* Inbox */ = {
 			isa = PBXGroup;
 			children = (
@@ -1123,6 +1133,7 @@
 		37712E24577F57B7F46595E2 /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				0C069352E0A6B0D1098AA2D0 /* AppLock */,
 				21E7B531AF36757335A1E6CF /* Extensions */,
 				926176F5F2C65361719D806D /* HUD */,
 				25817220E61CE362BE6D4D9F /* CodeSyntaxHighlighter.swift */,
@@ -1956,6 +1967,7 @@
 				051C9EB05167E4AC529522C9 /* AppIconCatalog.swift in Sources */,
 				EDEA7E210870D2EB23C505D1 /* AppIconSettingsScreen.swift in Sources */,
 				3230576BF12371AC4643AB06 /* AppIconStore.swift in Sources */,
+				24C71BA853C3ED51C9657835 /* AppLockController.swift in Sources */,
 				F4E72B629E8B408FC11240F2 /* AppLockCore.swift in Sources */,
 				930FB9FF7670840F7991F3E5 /* AppPersistenceStoreProtocol.swift in Sources */,
 				4BC23867516A49731D7575B6 /* AppRootView.swift in Sources */,
