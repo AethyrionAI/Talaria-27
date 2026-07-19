@@ -68,6 +68,10 @@ targets:
       # Theme palette tables shared with the widget extension (single source
       # of truth for theme/accent color values).
       - path: Shared
+      # #123: share-inbox envelope/store core — the extension↔app handoff
+      # surface. Compiled here as a single file (the TalariaShare target
+      # compiles the whole dir) so the widgets target stays untouched.
+      - path: TalariaShare/ShareInboxCore.swift
     resources:
       - path: Talaria/Resources
         optional: true
