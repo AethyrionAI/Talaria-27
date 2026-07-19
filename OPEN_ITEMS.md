@@ -4141,6 +4141,22 @@ Logged 2026-07-16.
 > → **Device check:** stream replies (incl. on-device brain + forced trip) with the relay paired;
 > Console must show no `ForEach`/`LazyVStackLayout` duplicate-ID warnings.
 
+> **E2E REGRESSION GUARD ADDED 2026-07-18 (same lane, `7a08142`), fail-first proven red/green.**
+> `MessageIdentityUITests` drives the real app (cold launch + two warm relaunches, real sends)
+> and asserts transcript id uniqueness via a `chat.dupIDProbe` a11y seam on the transcript
+> ScrollView — it publishes the ForEach source array's max id multiplicity, joins the view tree
+> only under `UITEST_DUPID_PROBE=1`. Determinism comes from a DEBUG+env-gated synthetic turn in
+> `LocalChatBackend` (no model needed): production append→finish machinery, a 2.6s dwell so the
+> 2s poll-tick merge lands inside the duplicate-seeding window, and `currentConversation`
+> cleared pre-`.finished` to model the unprimed-client shape. That clear is what makes red
+> reachable — a key finding from building this: with `currentConversation` populated, the
+> post-finish metadata merge heals the duplicate in the same MainActor turn (SwiftUI never
+> renders it), which is precisely why the bug only survived device warm launches. Red proof:
+> with the `.finished` dedupe reverted, the probe reports multiplicity 2 on the cold-launch
+> send; restored, the full cycle passes. `TalariaUITests` now rides the test scheme (gate:
+> 807/68 unit + identity UITest + launch smoke, TEST SUCCEEDED). The sim-side guard narrows the
+> owed device check to the relay-paired + forced-trip variants.
+
 > **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-120-chat-hygiene.md` — **READY TO SEND.**
 > Fail-first uniqueness test through a stream-then-finalize cycle, fix at the source (no
 > `.id(UUID())` papering). Same lane carries #25's second half (mid-stream gauge flash — interim
@@ -4566,5 +4582,26 @@ then the acceptance session on whoGoesThere: **D2** reply collapses to one unit 
 the #102 notice in Console + thermal ≤ fair and recovering; **#110** with auto-read-aloud
 ON, speech cuts at the trip instead of droning the loop; **D3** an immediate normal send
 streams a real reply (session rebuilt); plus the live-SDK button's no-wedge check.
+
+Logged 2026-07-18.
+
+---
+
+## 135. 🧹 Template UITests stale — pairing-flow tests skipped in scheme, refresh owed
+
+The July-5 `TalariaUITests` class (AppTemplateUITests.swift: manual-pairing flow, chat send,
+paired-launch skip, disconnect, host-status screen) predates the #31 no-pairing-wall redesign —
+every test opens with `Enter Code Manually` as the expected landing state, which no longer
+exists. They had NEVER run: the `TalariaUITests` target wasn't in the test scheme until the
+#120 E2E-guard lane added it (2026-07-18), which is what surfaced all five failing at once.
+Skipped at the scheme level (`project.yml` -> `skippedTests: [TalariaUITests]`), not deleted —
+the mock-pairing scaffolding (`UITEST_PAIRING_MODE=mock`, `MockPairingService`, the
+`/tmp/hermesmobile-uitest-config.json` external config) is worth keeping and refreshing.
+`MessageIdentityUITests` and `TalariaUITestsLaunchTests` stay active in the gate.
+
+**Known-stale locators for the refresh:** GlowButton uppercases its title into the a11y label
+(`CONTINUE`, not `Continue` — verified via hierarchy dump 2026-07-18), so the template's
+`completePairing` Continue-tap silently no-ops; entry points must switch from onboarding-first
+to Settings -> Connect Hermes Desktop (#31).
 
 Logged 2026-07-18.
