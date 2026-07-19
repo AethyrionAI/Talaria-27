@@ -155,6 +155,16 @@ struct SessionsSettingsScreen: View {
                         .truncationMode(.tail)
                     MonoLabel(rowMeta(session), size: 9, weight: .medium,
                               tracking: Design.Tracking.mono, color: Design.Colors.mutedForeground)
+                    // #122: a compact spend/usage line, only when the wire
+                    // carried real figures — absent data hides it (never $0.00).
+                    if let readout = SessionCostReadout.display(for: session.usage) {
+                        MonoLabel(readout.line, size: 9, weight: .medium,
+                                  tracking: Design.Tracking.mono, color: Design.Colors.dimForeground)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            .truncationMode(.tail)
+                            .accessibilityLabel(costAccessibilityLabel(readout))
+                    }
                 }
 
                 Spacer(minLength: Design.Spacing.xs)
@@ -286,6 +296,20 @@ struct SessionsSettingsScreen: View {
         let fmt = RelativeDateTimeFormatter()
         fmt.unitsStyle = .abbreviated
         return fmt.localizedString(for: date, relativeTo: Date())
+    }
+
+    /// Spells the compact cost line out for VoiceOver (#122) — the mono glyphs
+    /// don't read cleanly. Mirrors the fields' honest-absence: only real
+    /// segments are voiced.
+    private func costAccessibilityLabel(_ readout: SessionCostReadout.Display) -> String {
+        var parts: [String] = []
+        if let cost = readout.costText {
+            parts.append("\(readout.costIsEstimated ? "estimated cost " : "cost ")\(cost)")
+        }
+        if let input = readout.inputText { parts.append("\(input) input tokens") }
+        if let output = readout.outputText { parts.append("\(output) output tokens") }
+        if let calls = readout.apiCallsText { parts.append("\(calls) API calls") }
+        return parts.joined(separator: ", ")
     }
 
     private func compactCount(_ n: Int) -> String {

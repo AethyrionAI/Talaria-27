@@ -18,6 +18,11 @@ struct HermesSessionInfo: Identifiable, Hashable, Sendable {
     /// Display name of that profile, carried for the drawer's foreign-host
     /// badge so the UI never re-resolves ids.
     let profileName: String?
+    /// #122: cumulative billing/usage from the Sessions LIST/DETAIL endpoints
+    /// (a cost surface, never a context meter — see #25). Nil when the wire
+    /// omitted it (old/sparse session) or the client has no such data (local
+    /// brain, mocks) — an absent value hides the cost row, never shows zeros.
+    let usage: SessionUsage?
 
     init(
         id: String,
@@ -29,7 +34,8 @@ struct HermesSessionInfo: Identifiable, Hashable, Sendable {
         lastActive: Date?,
         isActive: Bool,
         profileID: UUID? = nil,
-        profileName: String? = nil
+        profileName: String? = nil,
+        usage: SessionUsage? = nil
     ) {
         self.id = id
         self.title = title
@@ -41,6 +47,7 @@ struct HermesSessionInfo: Identifiable, Hashable, Sendable {
         self.isActive = isActive
         self.profileID = profileID
         self.profileName = profileName
+        self.usage = usage
     }
 }
 

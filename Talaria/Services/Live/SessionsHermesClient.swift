@@ -632,7 +632,8 @@ final class SessionsHermesClient: HermesClientProtocol {
                 lastActive: row.lastActive.map { Date(timeIntervalSince1970: $0) },
                 isActive: row.isActive ?? false,
                 profileID: profile?.id,
-                profileName: profile?.name
+                profileName: profile?.name,
+                usage: row.usage
             )
         }
     }
@@ -1577,11 +1578,29 @@ final class SessionsHermesClient: HermesClientProtocol {
             let messageCount: Int?
             let lastActive: Double?
             let isActive: Bool?
+            /// #122: cumulative billing/usage that rides on the same row —
+            /// tolerantly decoded (absent/malformed → nil, the whole thing nil
+            /// when no usage key is present). A cost surface, not a meter (#25).
+            let usage: SessionUsage?
             enum CodingKeys: String, CodingKey {
                 case id, title, preview, model, source
                 case messageCount = "message_count"
                 case lastActive = "last_active"
                 case isActive = "is_active"
+            }
+            init(from decoder: Decoder) throws {
+                let c = try decoder.container(keyedBy: CodingKeys.self)
+                id = try c.decode(String.self, forKey: .id)
+                title = (try? c.decodeIfPresent(String.self, forKey: .title)) ?? nil
+                preview = (try? c.decodeIfPresent(String.self, forKey: .preview)) ?? nil
+                model = (try? c.decodeIfPresent(String.self, forKey: .model)) ?? nil
+                source = (try? c.decodeIfPresent(String.self, forKey: .source)) ?? nil
+                messageCount = (try? c.decodeIfPresent(Int.self, forKey: .messageCount)) ?? nil
+                lastActive = (try? c.decodeIfPresent(Double.self, forKey: .lastActive)) ?? nil
+                isActive = (try? c.decodeIfPresent(Bool.self, forKey: .isActive)) ?? nil
+                // Usage keys are flat siblings of the row keys, so it reads the
+                // SAME decoder (its own keyed container), not a nested object.
+                usage = SessionUsage.decodeIfPresent(from: decoder)
             }
         }
     }

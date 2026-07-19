@@ -232,6 +232,51 @@ struct ContextMeterTests {
         #expect(chatStore.currentContextTokens == nil)
     }
 
+    // MARK: - Session list usage decode (#122 cost surface)
+
+    @Test @MainActor
+    func sessionListDecodesCumulativeUsageIntoInfo() async throws {
+        // The same cumulative `input_tokens` that is banned as a context meter
+        // is decoded here as a cost surface (#122). A rich row carries it; an
+        // old/sparse row omits it → nil (which hides the cost row, never $0.00).
+        let persistence = makePersistence("list-usage")
+        let usageIndex = SessionUsageIndexStore(persistence: persistence)
+        let client = makeClient(
+            persistence: persistence,
+            journal: ConversationJournalStore(persistence: persistence),
+            usageIndex: usageIndex
+        )
+        let body = """
+        {"data": [
+          {"id": "api_rich", "title": "Rich", "source": "api_server", "message_count": 10,
+           "last_active": 1752600000.0, "is_active": false,
+           "input_tokens": 114754, "output_tokens": 2310, "cache_read_tokens": 98000,
+           "reasoning_tokens": 540, "api_call_count": 5, "tool_call_count": 3,
+           "estimated_cost_usd": 0.64, "actual_cost_usd": 0.59,
+           "has_system_prompt": true, "has_model_config": true},
+          {"id": "api_sparse", "title": "Old", "message_count": 2, "last_active": 1750000000.0}
+        ]}
+        """
+        MeterStubURLProtocol.requestHandler = { request in
+            Self.response(for: request, body: body)
+        }
+        defer { MeterStubURLProtocol.requestHandler = nil }
+
+        let infos = try await client.listSessions()
+        #expect(infos.count == 2)
+
+        let rich = try #require(infos.first { $0.id == "api_rich" })
+        #expect(rich.usage?.inputTokens == 114754)
+        #expect(rich.usage?.outputTokens == 2310)
+        #expect(rich.usage?.apiCallCount == 5)
+        #expect(rich.usage?.actualCostUSD == 0.59)
+        #expect(SessionCostReadout.display(for: rich.usage)?.costText == "$0.59")
+
+        let sparse = try #require(infos.first { $0.id == "api_sparse" })
+        #expect(sparse.usage == nil)
+        #expect(SessionCostReadout.display(for: sparse.usage) == nil)
+    }
+
     // MARK: - Live run.completed → cache → resume
 
     @Test @MainActor
