@@ -592,4 +592,187 @@ struct ReasoningChannelTests {
             #expect(distinctFinished.message.reasoning == "Genuine thought.")
         }
     }
+
+    // MARK: Resume path — reasoning restored from GET /messages (#121)
+
+    /// End-to-end fixtures against the REAL `openSession` decode + map path:
+    /// a stubbed URLSession serves the stored-messages endpoint and the mapped
+    /// `Conversation.messages` are inspected. `GET .../messages` carries the
+    /// same per-row reasoning the live `run.completed` path adopts (#60,
+    /// probed 2026-07-16); resume restores the panes without ever reshowing an
+    /// answer-mirror. Serialized — the stub protocol's body is class-global.
+    @Suite(.serialized)
+    struct ResumeReasoningTests {
+
+        private final class MessagesStubProtocol: URLProtocol, @unchecked Sendable {
+            nonisolated(unsafe) static var body = ""
+
+            override class func canInit(with request: URLRequest) -> Bool { true }
+            override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+            override func startLoading() {
+                let url = request.url ?? URL(string: "http://hermes.test")!
+                let response = HTTPURLResponse(
+                    url: url, statusCode: 200, httpVersion: nil,
+                    headerFields: ["Content-Type": "application/json"]
+                )!
+                client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+                client?.urlProtocol(self, didLoad: Data(Self.body.utf8))
+                client?.urlProtocolDidFinishLoading(self)
+            }
+
+            override func stopLoading() {}
+        }
+
+        /// Wraps `data` rows in the probed stored-messages envelope.
+        private static func messagesBody(_ rows: String) -> String {
+            #"{"session_id": "api_sess", "data": [\#(rows)]}"#
+        }
+
+        /// Runs one resume (fresh journal — nothing to transplant) against the
+        /// scripted stored-messages body and returns the mapped messages.
+        @MainActor
+        private func resume(rows: String) async throws -> [Message] {
+            let suiteName = "resume-reasoning-\(UUID().uuidString)"
+            let defaults = UserDefaults(suiteName: suiteName)!
+            defaults.removePersistentDomain(forName: suiteName)
+            let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+
+            let configuration = URLSessionConfiguration.ephemeral
+            configuration.protocolClasses = [MessagesStubProtocol.self]
+            let session = URLSession(configuration: configuration)
+            MessagesStubProtocol.body = Self.messagesBody(rows)
+            defer { MessagesStubProtocol.body = "" }
+
+            let client = SessionsHermesClient(
+                baseURLProvider: { "http://hermes.test" },
+                apiKeyProvider: { "test-key" },
+                journal: ConversationJournalStore(persistence: persistence),
+                transplanter: ContextTransplanter(intelligence: LocalIntelligenceService()),
+                session: session
+            )
+            return try await client.openSession("api_sess").messages
+        }
+
+        @Test @MainActor
+        func restoresReasoningContentOnAssistantRow() async throws {
+            let messages = try await resume(rows: #"""
+            {"role":"user","content":"Ping","timestamp":1752600000.0,"reasoning":null,"reasoning_content":null},
+            {"role":"assistant","content":"Pong.","timestamp":1752600005.0,"reasoning":null,"reasoning_content":"Weigh the options, then answer."}
+            """#)
+            #expect(messages.count == 2)
+            let assistant = try #require(messages.last)
+            #expect(assistant.content == "Pong.")
+            #expect(assistant.reasoning == "Weigh the options, then answer.")
+            // The user row never carries reasoning.
+            #expect(messages.first?.reasoning == nil)
+        }
+
+        @Test @MainActor
+        func dropsAnswerMirrorRow() async throws {
+            // Both keys restate the answer verbatim — the defective upstream
+            // `_thinking` mirror that #60 closed. A restored pane parroting its
+            // own answer is the exact regression; nothing attaches.
+            let messages = try await resume(rows: #"""
+            {"role":"assistant","content":"The answer is 42.","timestamp":1752600005.0,"reasoning":"The answer is 42.","reasoning_content":"The answer is 42."}
+            """#)
+            let assistant = try #require(messages.first)
+            #expect(assistant.content == "The answer is 42.")
+            #expect(assistant.reasoning == nil)
+        }
+
+        @Test @MainActor
+        func dropsWhitespaceFoldedMirror() async throws {
+            // The stored reasoning and answer differ only in whitespace runs —
+            // the #60 fold treats them as the same text and drops it.
+            let messages = try await resume(rows: #"""
+            {"role":"assistant","content":"The answer, spread across lines.","timestamp":1752600005.0,"reasoning_content":"The\n\nanswer,  spread\tacross lines."}
+            """#)
+            #expect(messages.first?.reasoning == nil)
+        }
+
+        @Test @MainActor
+        func reasoningContentWinsOverReasoning() async throws {
+            // Per-row preference: `reasoning_content` matches the live channel.
+            let messages = try await resume(rows: #"""
+            {"role":"assistant","content":"Answer.","timestamp":1752600005.0,"reasoning":"stale duplicate","reasoning_content":"canonical chain"}
+            """#)
+            #expect(messages.first?.reasoning == "canonical chain")
+        }
+
+        @Test @MainActor
+        func fallsBackToReasoningKeyWhenContentBlankAndTrims() async throws {
+            // `reasoning_content` null (row 1) or present-but-blank (row 2)
+            // falls back to `reasoning`; the chosen value is trimmed.
+            let messages = try await resume(rows: #"""
+            {"role":"assistant","content":"First.","timestamp":1752600005.0,"reasoning":"  Real chain of thought.\n","reasoning_content":null},
+            {"role":"assistant","content":"Second.","timestamp":1752600006.0,"reasoning":"blanked fallback","reasoning_content":"   "}
+            """#)
+            #expect(messages.count == 2)
+            #expect(messages.first?.reasoning == "Real chain of thought.")
+            #expect(messages.last?.reasoning == "blanked fallback")
+        }
+
+        @Test @MainActor
+        func nullAbsentAndTypeMismatchedReasoningNeverThrow() async throws {
+            // Real wire: keys present-but-null (row 1), absent entirely
+            // (row 2), and a non-string type where a string is expected
+            // (row 3 — the tolerant decode must swallow it). None throws; none
+            // attaches reasoning; every row still maps.
+            let messages = try await resume(rows: #"""
+            {"role":"assistant","content":"Null keys.","timestamp":1752600001.0,"reasoning":null,"reasoning_content":null},
+            {"role":"assistant","content":"Absent keys.","timestamp":1752600002.0},
+            {"role":"assistant","content":"Wrong type.","timestamp":1752600003.0,"reasoning":42,"reasoning_content":{"nested":"object"}}
+            """#)
+            #expect(messages.count == 3)
+            #expect(messages.allSatisfy { $0.reasoning == nil })
+            #expect(messages.map(\.content) == ["Null keys.", "Absent keys.", "Wrong type."])
+        }
+
+        @Test @MainActor
+        func mixedConversationOnlyWithRowsCarryReasoning() async throws {
+            let messages = try await resume(rows: #"""
+            {"role":"user","content":"Q1","timestamp":1752600000.0},
+            {"role":"assistant","content":"A1.","timestamp":1752600001.0,"reasoning_content":"Think about A1."},
+            {"role":"user","content":"Q2","timestamp":1752600002.0},
+            {"role":"assistant","content":"A2.","timestamp":1752600003.0,"reasoning":null,"reasoning_content":null},
+            {"role":"assistant","content":"A3.","timestamp":1752600004.0,"reasoning_content":"Think about A3."}
+            """#)
+            let assistants = messages.filter { $0.sender == .hermes }
+            #expect(assistants.count == 3)
+            #expect(assistants[0].reasoning == "Think about A1.")
+            #expect(assistants[1].reasoning == nil)
+            #expect(assistants[2].reasoning == "Think about A3.")
+            #expect(messages.filter { $0.sender == .user }.allSatisfy { $0.reasoning == nil })
+        }
+
+        @Test @MainActor
+        func userRowReasoningNeverAttaches() async throws {
+            // Defensive: even if the API ever stamped reasoning on a user row,
+            // the sender gate drops it — reasoning is assistant-only.
+            let messages = try await resume(rows: #"""
+            {"role":"user","content":"Ping","timestamp":1752600000.0,"reasoning_content":"user rows never reason"}
+            """#)
+            #expect(messages.first?.sender == .user)
+            #expect(messages.first?.reasoning == nil)
+        }
+
+        @Test @MainActor
+        func toolCallPlannerRowKeepsPlanReasoning() async throws {
+            // 60B wire truth: on a tool-using turn the genuine plan CoT rides
+            // the tool-call planner row, whose content is empty — distinct from
+            // that empty content, so it survives on the chip's message. The
+            // final answer row's reasoning near-copies the answer → dropped.
+            let messages = try await resume(rows: #"""
+            {"role":"assistant","content":"","timestamp":1752600001.0,"tool_calls":[{"name":"terminal"}],"reasoning_content":"Plan: check the host clock with the terminal."},
+            {"role":"assistant","content":"The current UTC time is 03:02:46.","timestamp":1752600003.0,"reasoning_content":"The current UTC time is 03:02:46."}
+            """#)
+            #expect(messages.count == 2)
+            let planner = try #require(messages.first)
+            #expect(planner.content == "")
+            #expect(planner.toolActivities.map(\.label) == ["terminal"])
+            #expect(planner.reasoning == "Plan: check the host clock with the terminal.")
+            #expect(messages.last?.reasoning == nil)
+        }
+    }
 }
