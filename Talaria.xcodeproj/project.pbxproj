@@ -11,6 +11,7 @@
 		011F2FB5270478C5A49F938C /* CarPlayVoiceStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DF70134F698ABE4575D7784 /* CarPlayVoiceStateTests.swift */; };
 		01B40D14D9E7D5487524FB71 /* ConnectedPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE98467F93649E1B0983EF55 /* ConnectedPaywallView.swift */; };
 		01E7964E5A2DA7BD52A79C60 /* HealthServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87E097ED8DDD1535E7288D6D /* HealthServiceProtocol.swift */; };
+		0274028F731054F34E316B14 /* ShareInboxCoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8739CA6477AD05CC3DAF4CB7 /* ShareInboxCoreTests.swift */; };
 		0299004A9676386CC623F755 /* Icon-ComicVillain@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = D824B41AB02CAA3B16E7D48C /* Icon-ComicVillain@3x.png */; };
 		034D3B45F528195F5D028485 /* MonetizationGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED2F3827A98FF7496E455C60 /* MonetizationGate.swift */; };
 		04B7BB6774E1A29A8EB78C7B /* SpaceGrotesk-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EB419DE4B29313B918FFB7D5 /* SpaceGrotesk-Regular.ttf */; };
@@ -54,6 +55,7 @@
 		1652AB3BBCB351E6209B7AA4 /* EntitlementService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2EFCDE2A014DE769EC551D3 /* EntitlementService.swift */; };
 		16C44715C3D3171758252C7B /* GenUIDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99286B618A5D9C43C4ECBE6A /* GenUIDecoder.swift */; };
 		1793B7266199DC2660136CA9 /* MockHealthTrendsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A034BCD414EE2E598AD6B66 /* MockHealthTrendsService.swift */; };
+		184C02C2204F872D879C7A4E /* ShareInboxCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F07190DC863BEEC78D8676BB /* ShareInboxCore.swift */; };
 		184CBD8A2483750653941ED3 /* IconPreview-LuchaLibre.png in Resources */ = {isa = PBXBuildFile; fileRef = B5FF2ADC2E27467CB66FDA43 /* IconPreview-LuchaLibre.png */; };
 		18956DD849AD6F86627C2C53 /* LiveVoiceSessionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05D62FD47740DE0B77814B5E /* LiveVoiceSessionService.swift */; };
 		1938C7FFA5DE436EF82E4B50 /* Icon-CasinoLucky7s@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 30EF1B0C497FA891F651E8BF /* Icon-CasinoLucky7s@3x.png */; };
@@ -185,6 +187,7 @@
 		6BF5085DD14E241FA41C1EA9 /* ResilientSessionBootstrapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C0A879EC41CB30E663F615 /* ResilientSessionBootstrapService.swift */; };
 		6C4C529164A8B67A321634B5 /* Icon-LuchaLibre@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 885791BF5D014DFF87001553 /* Icon-LuchaLibre@3x.png */; };
 		6CE9246ED97177E3B5530050 /* ModelsSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4397D4FA2DBFEF4C5B15923 /* ModelsSettingsScreen.swift */; };
+		6DBA2CE227CA5E912E18AA66 /* ShareInboxDrainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47B6D7C2209DD2079E8B39A3 /* ShareInboxDrainer.swift */; };
 		6E15D6DFBEF885DCAB056FC9 /* InboxItemType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B460D7581A6DCBA4B2770E8 /* InboxItemType.swift */; };
 		700F3C77CB181111F0096464 /* DeviceCapability.swift in Sources */ = {isa = PBXBuildFile; fileRef = C70E0AC5FF9CE2176CFE8FBB /* DeviceCapability.swift */; };
 		70242AA1A72EECC455F29E14 /* NotificationsSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 430101FE07A1FC46A2952B6E /* NotificationsSettingsScreen.swift */; };
@@ -204,11 +207,13 @@
 		784723436D764DC29E45E022 /* AppEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC4169ED78CE4C1D595AEB4 /* AppEntry.swift */; };
 		7913C0DD2BC82A52A672C650 /* HealthQueryCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF2F27035982B50A41364B24 /* HealthQueryCore.swift */; };
 		7A0465D2B0D5174B24DA77D9 /* LocationServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 213FC95107A5372F98363C1B /* LocationServiceProtocol.swift */; };
+		7B5BEC5E4D34AF13634F687A /* ShareExtensionConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69E5B7A33B613AA64CF8495B /* ShareExtensionConfigTests.swift */; };
 		7D1E913B92F72BB1BD6CB6C6 /* ResilientHermesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872B0ADD4223BACB94F26C79 /* ResilientHermesClient.swift */; };
 		7D594381366A01A69E246F06 /* Icon-AutumnHarvest@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 45A00D780AC82DFD56C2E7B6 /* Icon-AutumnHarvest@2x.png */; };
 		7D814964FE1AEA78D1EF2B5A /* DiagnosticsSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B5AE9C0BA3949E810C4FCE /* DiagnosticsSettingsScreen.swift */; };
 		7F8401F607B2A269FDAB040B /* IconPreview-GraffitiGalaxy.png in Resources */ = {isa = PBXBuildFile; fileRef = 2ACB4CFB03940283DB799C62 /* IconPreview-GraffitiGalaxy.png */; };
 		7F9E2BA498E2251B686F2490 /* SessionUsageIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6E6E416EE333488CD973437 /* SessionUsageIndex.swift */; };
+		812024189A6D1A74E4EF89EF /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 130E0FA1859ADE8DE9A33188 /* ShareViewController.swift */; };
 		815EE6171D00F62DD34EB321 /* HostEnrollmentCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3023E1DA6E802BB58BCA27C /* HostEnrollmentCode.swift */; };
 		82179A392FF95F1903837D38 /* ConversationManagementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6B3E4FEADB3B2E8041A8A6D /* ConversationManagementTests.swift */; };
 		8263A39DC2A0194711CDAB40 /* Icon-PulpNoir@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 3C88FFD7A8182163808414B5 /* Icon-PulpNoir@2x.png */; };
@@ -354,6 +359,7 @@
 		CF50CBC054D83AD4EFC8CEC1 /* MockHermesHostService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7966AEDE93C3C43683A5F83 /* MockHermesHostService.swift */; };
 		D05D81A2C90DD2AE86C4B203 /* HapticEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A2B8983CE86355818012300 /* HapticEngine.swift */; };
 		D0CE97CC717284A4BA3E6C05 /* PairedRelayConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5644BBB6D14C8B003D6BB139 /* PairedRelayConfiguration.swift */; };
+		D15C0EED134302DE964210AB /* ShareInboxDrainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45D990DDA9BCE62652AA3929 /* ShareInboxDrainTests.swift */; };
 		D1DC7E34E9DDD6072FADABF9 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF319C0949C408965268990 /* ContentView.swift */; };
 		D2391E615A802DC6378376C2 /* ContextTransplanter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B804F21A2AE52DB37E2447E /* ContextTransplanter.swift */; };
 		D3346FE690F7B724D9FF8BF4 /* AskHermesLongRunSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 152D6CB942114E291D7E9A9E /* AskHermesLongRunSupport.swift */; };
@@ -383,6 +389,7 @@
 		E23BD96676CCAC2B0DCE3440 /* SensorUploadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABEA0742AA139362CA26B832 /* SensorUploadService.swift */; };
 		E2CC9E9449E1BE51D8077AAA /* CodeSyntaxHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25817220E61CE362BE6D4D9F /* CodeSyntaxHighlighter.swift */; };
 		E2F678F47EA23186FFF960F9 /* RelaySetupCodePayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70B13DA0CB2A5F95326C66C3 /* RelaySetupCodePayload.swift */; };
+		E3345C451D6B5D47ED928C9C /* ShareInboxCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F07190DC863BEEC78D8676BB /* ShareInboxCore.swift */; };
 		E41A27EF2277F8FF8AE441EC /* MockSessionBootstrapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB23EEE4091D1A2F309E9B3C /* MockSessionBootstrapService.swift */; };
 		E41A33A79D56C233A0AE4229 /* DeveloperSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4BC51686A9E81353B562BC7 /* DeveloperSettingsScreen.swift */; };
 		E4EE52A039E47EBA8881069D /* Icon-MidnightAquarium@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 8BD8C35FF4AC86391DCCFEC4 /* Icon-MidnightAquarium@2x.png */; };
@@ -412,6 +419,7 @@
 		F788AB25DDD88BCA177DCBA2 /* MockHermesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD54E9A9E2AA0D4604C4467 /* MockHermesClient.swift */; };
 		F8066BF01CB86C37DB7753D0 /* DesignThemeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E6B35E1530814EA7DBC6EAE /* DesignThemeTests.swift */; };
 		F80700C6730267A8FF7BFB97 /* IconPreview-NeonArcade.png in Resources */ = {isa = PBXBuildFile; fileRef = 2CC5ECD744442BBF8982F5C6 /* IconPreview-NeonArcade.png */; };
+		F982F9F184E4EF8BEE65D3E1 /* TalariaShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 845B6DA6FF0FBFDBF28567B8 /* TalariaShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F9D5CAB68163B1941D5CDECA /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F5622374E497EE8642E4DEE /* Router.swift */; };
 		FB2FB76BB9D8B63101ACFDF4 /* GenUISurfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6DDD296EB3D124F59DAD98D /* GenUISurfaceView.swift */; };
 		FB320457FD3A51DBCEEE88FA /* LiveSpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDF7D4D1DE78C68978B73F6E /* LiveSpeechService.swift */; };
@@ -426,6 +434,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		10DA3E6E18AE3A19296D0B91 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 228D8C57FD8574006AD1BA11 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 239BDCE3B965C7D543CB615D;
+			remoteInfo = TalariaShare;
+		};
 		2F545D03E3A5CE5C660717BF /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 228D8C57FD8574006AD1BA11 /* Project object */;
@@ -457,6 +472,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				636A9AFA0AAB014D3E7046A7 /* TalariaWidgets.appex in Embed Foundation Extensions */,
+				F982F9F184E4EF8BEE65D3E1 /* TalariaShare.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -485,6 +501,7 @@
 		0F52C49687672CA223A85A7A /* Icon-MoltenForge@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-MoltenForge@2x.png"; sourceTree = "<group>"; };
 		11BCD7A66ACF8F173A741574 /* CarPlaySceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlaySceneDelegate.swift; sourceTree = "<group>"; };
 		12A52680EF08D0A9B6EE456B /* Icon-NeonArcade@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-NeonArcade@2x.png"; sourceTree = "<group>"; };
+		130E0FA1859ADE8DE9A33188 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		14534B1F938AC24C273D0F31 /* Icon-SolarForge@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-SolarForge@2x.png"; sourceTree = "<group>"; };
 		14B5F8B2C079548A21E610E1 /* GlassCircleButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassCircleButton.swift; sourceTree = "<group>"; };
 		1504E7B49606D4BA2B051A77 /* ThemePaletteCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemePaletteCore.swift; sourceTree = "<group>"; };
@@ -568,6 +585,8 @@
 		435E06A56ADB375CF5846D31 /* HUDComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDComponents.swift; sourceTree = "<group>"; };
 		43FDBE36354084B4A9D586C5 /* SpotlightIndexingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightIndexingTests.swift; sourceTree = "<group>"; };
 		45A00D780AC82DFD56C2E7B6 /* Icon-AutumnHarvest@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-AutumnHarvest@2x.png"; sourceTree = "<group>"; };
+		45D990DDA9BCE62652AA3929 /* ShareInboxDrainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareInboxDrainTests.swift; sourceTree = "<group>"; };
+		47B6D7C2209DD2079E8B39A3 /* ShareInboxDrainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareInboxDrainer.swift; sourceTree = "<group>"; };
 		481E7932F34BD96E19482B68 /* ChartSpecTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartSpecTests.swift; sourceTree = "<group>"; };
 		48891721C03839B52AFA1F85 /* UplinkSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UplinkSettingsScreen.swift; sourceTree = "<group>"; };
 		49BE87D39A78EEFCD9148AE7 /* SessionProfileIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProfileIndex.swift; sourceTree = "<group>"; };
@@ -632,6 +651,7 @@
 		692CE05A577894FFE49EDDF3 /* SpotlightOpenIntentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightOpenIntentTests.swift; sourceTree = "<group>"; };
 		69438F0D38B60455035902BC /* MarkdownBlockQuoteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockQuoteTests.swift; sourceTree = "<group>"; };
 		6968AE7D731EB530E8784AAB /* TalariaLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalariaLog.swift; sourceTree = "<group>"; };
+		69E5B7A33B613AA64CF8495B /* ShareExtensionConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareExtensionConfigTests.swift; sourceTree = "<group>"; };
 		6A4FCA0EA769EB1D4168F405 /* Icon-HoloSushi@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-HoloSushi@2x.png"; sourceTree = "<group>"; };
 		6AA7F690CBD161B83F8AFB05 /* VoiceSessionServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSessionServiceProtocol.swift; sourceTree = "<group>"; };
 		6B9B3CCAEE9B1CF7C2BB4AF5 /* StartVoiceSessionIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartVoiceSessionIntent.swift; sourceTree = "<group>"; };
@@ -677,11 +697,13 @@
 		82A9EFD28E7758CB1A9CBBD0 /* ToolActivityRail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolActivityRail.swift; sourceTree = "<group>"; };
 		8423FB3F18FCB7BE1F2A738F /* IconPreview-CosmicBowling.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-CosmicBowling.png"; sourceTree = "<group>"; };
 		843DA9094BCC14595B48C63B /* TalariaWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TalariaWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		845B6DA6FF0FBFDBF28567B8 /* TalariaShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TalariaShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		85291A40EB53DE9F648C706C /* IconPreview-SummerSolar.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-SummerSolar.png"; sourceTree = "<group>"; };
 		8549D5DC5D745742DEFC60A2 /* MarkdownContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownContentView.swift; sourceTree = "<group>"; };
 		869D148C883D52BB5E962609 /* IconPreview-EventHorizon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-EventHorizon.png"; sourceTree = "<group>"; };
 		8703770797F16E0192FB5EE2 /* Icon-WitchsBrew@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-WitchsBrew@3x.png"; sourceTree = "<group>"; };
 		872B0ADD4223BACB94F26C79 /* ResilientHermesClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilientHermesClient.swift; sourceTree = "<group>"; };
+		8739CA6477AD05CC3DAF4CB7 /* ShareInboxCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareInboxCoreTests.swift; sourceTree = "<group>"; };
 		87E097ED8DDD1535E7288D6D /* HealthServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthServiceProtocol.swift; sourceTree = "<group>"; };
 		885791BF5D014DFF87001553 /* Icon-LuchaLibre@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-LuchaLibre@3x.png"; sourceTree = "<group>"; };
 		88975BD7EEDA7212610A9EFC /* IconPreview-Terminal.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-Terminal.png"; sourceTree = "<group>"; };
@@ -729,6 +751,7 @@
 		A371A08A4C7ED3E39033A3DB /* IconPreview-WinterFrost.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-WinterFrost.png"; sourceTree = "<group>"; };
 		A3A103D6FF3E893A48AE64C3 /* AppTemplateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTemplateTests.swift; sourceTree = "<group>"; };
 		A42B2B8FA97D4011C00D59F8 /* VoiceMemoAttachmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMemoAttachmentTests.swift; sourceTree = "<group>"; };
+		A47507194C521CFDBCF8486B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A4D59C9D8D1A4E48B49CA305 /* ConversationListState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationListState.swift; sourceTree = "<group>"; };
 		A5044B1A58F14C67ED49975C /* AttachmentPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentPickerSheet.swift; sourceTree = "<group>"; };
 		A59F115068928742EE2EB119 /* Icon-MidnightAquarium@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-MidnightAquarium@3x.png"; sourceTree = "<group>"; };
@@ -793,6 +816,7 @@
 		C7C0A879EC41CB30E663F615 /* ResilientSessionBootstrapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilientSessionBootstrapService.swift; sourceTree = "<group>"; };
 		C7F5E3E734B6B0B778FE98DD /* MarkdownTableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTableTests.swift; sourceTree = "<group>"; };
 		C95A6807F807FEA8E13C921C /* VoiceOrb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceOrb.swift; sourceTree = "<group>"; };
+		C961081B12E72D6D72217B6B /* TalariaShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TalariaShare.entitlements; sourceTree = "<group>"; };
 		C9BCFFFC84E6F8EA156EEC32 /* Icon-MoltenForge@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-MoltenForge@3x.png"; sourceTree = "<group>"; };
 		C9DB35CE33537DD35FFADDB5 /* TranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptView.swift; sourceTree = "<group>"; };
 		CA2D5D9BB35C5C3D189C711E /* ChatStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStore.swift; sourceTree = "<group>"; };
@@ -852,6 +876,7 @@
 		EF1134E862B553380F2CA913 /* DeviceHealthTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceHealthTool.swift; sourceTree = "<group>"; };
 		EFC335534070FF9A84A3D3C2 /* IconPreview-KaijuAttack.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-KaijuAttack.png"; sourceTree = "<group>"; };
 		F04C12A5058B9C64D4E33D9F /* LiveHealthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveHealthService.swift; sourceTree = "<group>"; };
+		F07190DC863BEEC78D8676BB /* ShareInboxCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareInboxCore.swift; sourceTree = "<group>"; };
 		F0DD777FA8C7A1E450D9343F /* IconPreview-Default.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-Default.png"; sourceTree = "<group>"; };
 		F11D4C7D5673FB21C2B22C40 /* GenUISchemaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenUISchemaTests.swift; sourceTree = "<group>"; };
 		F1EBD8B7F747F26B4C97C7A1 /* SetupCodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupCodeScannerView.swift; sourceTree = "<group>"; };
@@ -1008,6 +1033,9 @@
 				6BB71CCECAE06823EA97EEDA /* ReasoningChannelTests.swift */,
 				BEBD81AC0A5839FA111D423E /* SensorOutboxChurnTests.swift */,
 				C0533895BE78322F481C2946 /* ServerSettingsTests.swift */,
+				69E5B7A33B613AA64CF8495B /* ShareExtensionConfigTests.swift */,
+				8739CA6477AD05CC3DAF4CB7 /* ShareInboxCoreTests.swift */,
+				45D990DDA9BCE62652AA3929 /* ShareInboxDrainTests.swift */,
 				41D16ECA82E1B93428AB787F /* SpeechOutputTests.swift */,
 				7BAC4C9847BE119AB66D781D /* SplitViewLayoutTests.swift */,
 				43FDBE36354084B4A9D586C5 /* SpotlightIndexingTests.swift */,
@@ -1064,6 +1092,7 @@
 				059AC4BF9B2C0C3522E078C3 /* RelayAPIClient.swift */,
 				872B0ADD4223BACB94F26C79 /* ResilientHermesClient.swift */,
 				C7C0A879EC41CB30E663F615 /* ResilientSessionBootstrapService.swift */,
+				47B6D7C2209DD2079E8B39A3 /* ShareInboxDrainer.swift */,
 				3435E81CD684734099521C82 /* TalkPreflight.swift */,
 				E23630C7B139D9D86F34A8D9 /* TalkSessionRules.swift */,
 				976BAC43D166A0D9AD794CF2 /* TurnReceipts.swift */,
@@ -1407,6 +1436,7 @@
 			isa = PBXGroup;
 			children = (
 				CF4DD77146A6664BBB6ABC3F /* Talaria.app */,
+				845B6DA6FF0FBFDBF28567B8 /* TalariaShare.appex */,
 				154B99C2DB8349C94F4C6ECF /* TalariaTests.xctest */,
 				40C7430E8F5950871E3B3B8E /* TalariaUITests.xctest */,
 				843DA9094BCC14595B48C63B /* TalariaWidgets.appex */,
@@ -1457,6 +1487,17 @@
 				1D30DA3722A23BA781E30256 /* ToolConfirmationCenter.swift */,
 			);
 			path = DeviceTools;
+			sourceTree = "<group>";
+		};
+		B70EA9DDB9166C54332B9A31 /* TalariaShare */ = {
+			isa = PBXGroup;
+			children = (
+				A47507194C521CFDBCF8486B /* Info.plist */,
+				F07190DC863BEEC78D8676BB /* ShareInboxCore.swift */,
+				130E0FA1859ADE8DE9A33188 /* ShareViewController.swift */,
+				C961081B12E72D6D72217B6B /* TalariaShare.entitlements */,
+			);
+			path = TalariaShare;
 			sourceTree = "<group>";
 		};
 		C249B3A86903BC1458432BD4 /* Onboarding */ = {
@@ -1593,6 +1634,7 @@
 			children = (
 				FB9BD26E1FA77E73A9855CF1 /* Shared */,
 				DE125BC2E9E0D4673B61BFF7 /* Talaria */,
+				B70EA9DDB9166C54332B9A31 /* TalariaShare */,
 				103CFAA4F2279113DEBD72F1 /* TalariaTests */,
 				79E5B7197F6A1FE02D0B4B50 /* TalariaUITests */,
 				51CB509B68A69328A3C3439F /* TalariaWidgets */,
@@ -1665,6 +1707,7 @@
 			);
 			dependencies = (
 				5686D5C0F546141613D6339A /* PBXTargetDependency */,
+				D5A531FDC3AC1789CE85D33C /* PBXTargetDependency */,
 			);
 			name = Talaria;
 			packageProductDependencies = (
@@ -1673,6 +1716,23 @@
 			productName = Talaria;
 			productReference = CF4DD77146A6664BBB6ABC3F /* Talaria.app */;
 			productType = "com.apple.product-type.application";
+		};
+		239BDCE3B965C7D543CB615D /* TalariaShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6AC7AC3F4BF582D1E0B88B3C /* Build configuration list for PBXNativeTarget "TalariaShare" */;
+			buildPhases = (
+				D9874E5811A9E3DCE1959377 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TalariaShare;
+			packageProductDependencies = (
+			);
+			productName = TalariaShare;
+			productReference = 845B6DA6FF0FBFDBF28567B8 /* TalariaShare.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		23F486750C75CAACFBF51049 /* TalariaUITests */ = {
 			isa = PBXNativeTarget;
@@ -1727,6 +1787,10 @@
 						DevelopmentTeam = DNL25ZFSD2;
 						ProvisioningStyle = Automatic;
 					};
+					239BDCE3B965C7D543CB615D = {
+						DevelopmentTeam = DNL25ZFSD2;
+						ProvisioningStyle = Automatic;
+					};
 					23F486750C75CAACFBF51049 = {
 						TestTargetID = 1E8262A30297B30A6BC1DDAA;
 					};
@@ -1753,6 +1817,7 @@
 			projectRoot = "";
 			targets = (
 				1E8262A30297B30A6BC1DDAA /* Talaria */,
+				239BDCE3B965C7D543CB615D /* TalariaShare */,
 				F0FA28CB15B9B08CBC809F0D /* TalariaTests */,
 				23F486750C75CAACFBF51049 /* TalariaUITests */,
 				1B5CF70C2165B59E27FDF0BA /* TalariaWidgets */,
@@ -2065,6 +2130,8 @@
 				9E7BD9196926A1DC9732B4AC /* SettingsSectionView.swift in Sources */,
 				051B582BC2F877D6AA89BD3E /* SettingsStore.swift in Sources */,
 				0E42E08F03B060FA8756D35C /* SetupCodeScannerView.swift in Sources */,
+				E3345C451D6B5D47ED928C9C /* ShareInboxCore.swift in Sources */,
+				6DBA2CE227CA5E912E18AA66 /* ShareInboxDrainer.swift in Sources */,
 				844C28B6544240045C725683 /* ShareSheet.swift in Sources */,
 				0D778B25AF5E3E7FD2498268 /* SharedWidgetDataStore.swift in Sources */,
 				14F6E51E2EDF542C1EF005CE /* SlashCommand.swift in Sources */,
@@ -2179,6 +2246,9 @@
 				542E125ADE6CFAD3AADC94AF /* ReasoningChannelTests.swift in Sources */,
 				39126650E0C3D4914B75988C /* SensorOutboxChurnTests.swift in Sources */,
 				FDDBDDD0DF3E665FD2E6BCE1 /* ServerSettingsTests.swift in Sources */,
+				7B5BEC5E4D34AF13634F687A /* ShareExtensionConfigTests.swift in Sources */,
+				0274028F731054F34E316B14 /* ShareInboxCoreTests.swift in Sources */,
+				D15C0EED134302DE964210AB /* ShareInboxDrainTests.swift in Sources */,
 				D534C18BF7446EE2215B44D4 /* SpeechOutputTests.swift in Sources */,
 				D3E7437E18DE7F64ACF26C16 /* SplitViewLayoutTests.swift in Sources */,
 				9304F2AB740D219F4BBB136C /* SpotlightIndexingTests.swift in Sources */,
@@ -2213,6 +2283,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D9874E5811A9E3DCE1959377 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				184C02C2204F872D879C7A4E /* ShareInboxCore.swift in Sources */,
+				812024189A6D1A74E4EF89EF /* ShareViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -2230,6 +2309,11 @@
 			isa = PBXTargetDependency;
 			target = 1E8262A30297B30A6BC1DDAA /* Talaria */;
 			targetProxy = F774887D414A7978BDBF3744 /* PBXContainerItemProxy */;
+		};
+		D5A531FDC3AC1789CE85D33C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 239BDCE3B965C7D543CB615D /* TalariaShare */;
+			targetProxy = 10DA3E6E18AE3A19296D0B91 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -2255,6 +2339,50 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
+		};
+		11B4712AE6105AEDF99F0A03 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = TalariaShare/TalariaShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = DNL25ZFSD2;
+				INFOPLIST_FILE = TalariaShare/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.aethyrion.talaria27.share;
+				PRODUCT_NAME = TalariaShare;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.2;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		309889DF9C58F15559CCD394 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = TalariaShare/TalariaShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = DNL25ZFSD2;
+				INFOPLIST_FILE = TalariaShare/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.aethyrion.talaria27.share;
+				PRODUCT_NAME = TalariaShare;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.2;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
 		};
 		5515B7BAEE7F9580FBEE0DEA /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -2530,6 +2658,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		6AC7AC3F4BF582D1E0B88B3C /* Build configuration list for PBXNativeTarget "TalariaShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				309889DF9C58F15559CCD394 /* Debug */,
+				11B4712AE6105AEDF99F0A03 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		6FA2862A2994464CF29E360F /* Build configuration list for PBXNativeTarget "Talaria" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
