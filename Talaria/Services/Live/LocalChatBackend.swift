@@ -346,6 +346,26 @@ final class LocalChatBackend: HermesClientProtocol {
         clientMessageID: UUID,
         into continuation: AsyncStream<StreamingUpdate>.Continuation
     ) async {
+        #if DEBUG
+        // #120 (UITest seam): a model-free synthetic turn armed only by the
+        // UITEST_DUPID_PROBE launch env. It runs the production append →
+        // finish machinery — append the reply to `currentConversation`, then
+        // dwell past one poll interval BEFORE yielding `.finished` — so the
+        // 2s poll tick's `loadConversation()` merge deterministically lands
+        // in the exact window that seeds a duplicate id (#120). Placed ahead
+        // of the availability gate so a clean CI simulator with no on-device
+        // model still exercises the path. Inert in every non-UITest run.
+        if Self.isUITestIdentityProbeEnabled {
+            await runUITestIdentityTurn(
+                message: message,
+                attachments: attachments,
+                clientMessageID: clientMessageID,
+                into: continuation
+            )
+            return
+        }
+        #endif
+
         if case .unavailable(let reason) = model.availability {
             connectionStatus = .error
             continuation.yield(.failed(Self.unavailabilityMessage(for: reason)))
@@ -1301,6 +1321,68 @@ extension LocalChatBackend {
             // our message history (D3 verifies exactly this).
             session = nil
         }
+        continuation.yield(.finished(reply, nil, nil))
+    }
+}
+
+// MARK: - Message-identity UITest harness (#120 — DEBUG builds only)
+
+/// Model-free synthetic turn for the #120 end-to-end regression guard. It
+/// exercises the production append → finish sequence with a deterministic
+/// dwell so the 2s poll-tick merge lands in the duplicate-seeding window,
+/// letting a black-box UITest observe whether the rendered transcript ever
+/// holds the same id twice. Armed only by the `UITEST_DUPID_PROBE` launch
+/// env, and compiled out of Release entirely.
+extension LocalChatBackend {
+
+    static var isUITestIdentityProbeEnabled: Bool {
+        ProcessInfo.processInfo.environment["UITEST_DUPID_PROBE"] == "1"
+    }
+
+    /// Dwell strictly longer than one poll interval (2s) so at least one
+    /// `loadConversation()` merge is guaranteed to land after the reply is
+    /// appended but before `.finished` is yielded.
+    private static var uiTestIdentityDwell: Duration { .seconds(2.6) }
+
+    fileprivate func runUITestIdentityTurn(
+        message: String,
+        attachments: [PendingAttachment],
+        clientMessageID: UUID,
+        into continuation: AsyncStream<StreamingUpdate>.Continuation
+    ) async {
+        connectionStatus = .connected
+        appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
+
+        // Stream a short fixed reply the same way the live path does — one
+        // `.textDelta` per word — so the placeholder renders as a real
+        // streaming bubble.
+        let responseText = "Acknowledged \(message)"
+        var emitted = ""
+        for word in responseText.split(separator: " ") {
+            try? await Task.sleep(for: .milliseconds(60))
+            let delta = (emitted.isEmpty ? "" : " ") + word
+            emitted += delta
+            continuation.yield(.textDelta(delta))
+        }
+
+        // Production ordering: the reply lands in `currentConversation`
+        // (which `loadConversation()` serves to the poll merge) BEFORE
+        // `.finished`. The dwell holds that window open long enough for the
+        // merge to adopt the reply while the store still shows the
+        // placeholder — the #120 race, made deterministic.
+        let reply = Message(sender: .hermes, content: emitted, status: .delivered)
+        appendAssistantMessage(reply, usage: nil)
+        try? await Task.sleep(for: Self.uiTestIdentityDwell)
+        // Model the unprimed-client shape (#120's unmasked case): on the
+        // device the duplication only SURVIVED when the client's
+        // `currentConversation` was nil at `.finished` (warm launch — cache
+        // short-circuits priming), because the post-finish metadata merge
+        // otherwise re-imports the backend thread and silently heals the
+        // duplicate in the same MainActor turn. The poll-tick merge above
+        // already adopted the reply from `loadConversation()`; clearing here
+        // removes only the masking source, exactly like the unit test's
+        // MidTurnMergeClient keeps its `currentConversation` nil by design.
+        currentConversation = nil
         continuation.yield(.finished(reply, nil, nil))
     }
 }
