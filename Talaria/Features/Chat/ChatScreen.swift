@@ -307,6 +307,13 @@ struct ChatScreen: View {
             .onChange(of: chatStore.pendingComposerSeed) { _, seed in
                 if seed != nil { consumeComposerSeed() }
             }
+            // #123: share-extension payloads ride a separate slot with the
+            // same two-path drain (cold launch → onAppear, foreground with
+            // the screen mounted → onChange).
+            .onAppear { consumeShareSeed() }
+            .onChange(of: chatStore.pendingShareSeed) { _, seed in
+                if seed != nil { consumeShareSeed() }
+            }
             .task { await startChatSession() }
             .task { await monitorConnectionStatus() }
             .onDisappear { chatStore.setPollingEnabled(false) }
@@ -1120,6 +1127,25 @@ struct ChatScreen: View {
     private func consumeComposerSeed() {
         guard let seed = chatStore.consumeComposerSeed() else { return }
         messageText = seed
+        isComposerFocused = true
+    }
+
+    /// #123: pull drained share-extension content into the composer.
+    /// APPENDS — a share arriving over a half-typed draft must not destroy
+    /// it (unlike the #48 ask-seed, which replaces by contract). Attachments
+    /// beyond the per-message cap are dropped, not silently absorbed.
+    private func consumeShareSeed() {
+        guard let seed = chatStore.consumeShareSeed() else { return }
+        if !seed.text.isEmpty {
+            messageText = messageText.isEmpty ? seed.text : messageText + "\n" + seed.text
+        }
+        for attachment in seed.attachments {
+            guard pendingAttachments.count < PendingAttachment.maxAttachmentsPerMessage else {
+                TalariaLog.event("Share seed: composer full, dropping \(attachment.fileName)")
+                break
+            }
+            pendingAttachments.append(attachment)
+        }
         isComposerFocused = true
     }
 

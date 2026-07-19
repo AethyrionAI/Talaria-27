@@ -153,6 +153,49 @@ struct ChatStorePersistenceTests {
         #expect(chatStore.pendingComposerSeed == nil)
     }
 
+    // MARK: - Share seed (#123 share extension)
+
+    // A separate slot from the #48 ask-seed on purpose: share seeds carry
+    // attachments and APPEND to a queued share (two rapid shares both land),
+    // while the ask-seed stays a replace-only String. Same seed-only security
+    // property: nothing here may auto-send.
+
+    private func stagedTextAttachment(named fileName: String) -> PendingAttachment {
+        PendingAttachment(
+            kind: .file,
+            fileName: fileName,
+            mimeType: "text/markdown",
+            data: Data("body".utf8),
+            localStoragePath: nil,
+            thumbnailData: nil
+        )
+    }
+
+    @Test @MainActor
+    func shareSeedMergesQueuedSharesAndConsumesOnce() throws {
+        let chatStore = ChatStore(hermesClient: ImmediateReplyClient(), persistence: makePersistence())
+
+        chatStore.seedComposerFromShare(text: "  first  ", attachments: [stagedTextAttachment(named: "a.md")])
+        chatStore.seedComposerFromShare(text: "second", attachments: [stagedTextAttachment(named: "b.md")])
+
+        let seed = try #require(chatStore.consumeShareSeed())
+        #expect(seed.text == "first\nsecond")
+        #expect(seed.attachments.map(\.fileName) == ["a.md", "b.md"])
+        #expect(chatStore.consumeShareSeed() == nil)
+    }
+
+    @Test @MainActor
+    func shareSeedAcceptsAttachmentOnlyAndRejectsEmpty() {
+        let chatStore = ChatStore(hermesClient: ImmediateReplyClient(), persistence: makePersistence())
+
+        chatStore.seedComposerFromShare(text: "   ", attachments: [])
+        #expect(chatStore.pendingShareSeed == nil)
+
+        chatStore.seedComposerFromShare(text: "", attachments: [stagedTextAttachment(named: "photo.md")])
+        #expect(chatStore.pendingShareSeed != nil)
+        #expect(chatStore.consumeShareSeed()?.text == "")
+    }
+
     @Test @MainActor
     func coldLoadLeavesHealthyCacheUntouched() async throws {
         let persistence = makePersistence()
