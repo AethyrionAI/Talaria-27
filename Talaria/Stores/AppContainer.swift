@@ -89,6 +89,10 @@ final class AppContainer {
     let modelsShimClient: ModelsShimClient
     let sensorUploadService: SensorUploadService?
     private let apiClient: RelayAPIClient?
+    /// #136: short-timeout client for launch/bootstrap-class probes (command
+    /// catalog, push register). Nil in bare test containers — probe calls
+    /// fall back to `apiClient`.
+    private let probeAPIClient: RelayAPIClient?
     private let notificationService: (any NotificationServiceProtocol)?
     private let secureStore: (any SecureStoreProtocol)?
     private(set) var hermesAPIKey: String = ""
@@ -96,6 +100,17 @@ final class AppContainer {
     private var _chatAPIKeyBox: MutableHermesAPIKeyBox?
     private var _shimTokenBox: MutableShimTokenBox?
     private var isInitialized = false
+    /// #136: the relay-backed half of launch, running behind the live UI.
+    /// Doubles as the single-flight gate and the splash suppressor; exposed
+    /// read-only so tests can await background completion deterministically.
+    private(set) var backgroundBootstrapTask: Task<Void, Never>?
+    /// #136: bumped by every reset/supersede site — a background bootstrap
+    /// only touches container state while its generation is current.
+    private var bootstrapGeneration = 0
+    /// #136: a superseded run may still be unwinding its cancelled awaits;
+    /// the next run drains it first so a half-dead bootstrap can't
+    /// interleave with the fresh one.
+    private var supersededBootstrapDrain: Task<Void, Never>?
     private var lastCommandCatalogRefreshAt: Date?
     private var lastKnownHostOnline = false
     /// Edge tracker for the talk-session read-aloud cutoff (#84): the
@@ -117,6 +132,7 @@ final class AppContainer {
         modelsShimClient: ModelsShimClient,
         sensorUploadService: SensorUploadService? = nil,
         apiClient: RelayAPIClient? = nil,
+        probeAPIClient: RelayAPIClient? = nil,
         notificationService: (any NotificationServiceProtocol)? = nil,
         secureStore: (any SecureStoreProtocol)? = nil,
         localIntelligence: LocalIntelligenceService = LocalIntelligenceService(),
@@ -133,6 +149,7 @@ final class AppContainer {
         self.modelsShimClient = modelsShimClient
         self.sensorUploadService = sensorUploadService
         self.apiClient = apiClient
+        self.probeAPIClient = probeAPIClient
         self.notificationService = notificationService
         self.secureStore = secureStore
         self.localIntelligence = localIntelligence
@@ -144,7 +161,75 @@ final class AppContainer {
     }
 
     var shouldShowLaunchSplash: Bool {
-        sessionStore.isBootstrapping || (pairingStore.isPaired && !isInitialized)
+        if pairingStore.isPaired && !isInitialized { return true }
+        // #136: a bootstrap riding the launch background task must NOT hold
+        // the splash — the critical path is local-only by design. Bootstraps
+        // outside that task (profile-switch re-home, unpaired forced
+        // re-registration) keep today's splash.
+        return sessionStore.isBootstrapping && backgroundBootstrapTask == nil
+    }
+
+    // MARK: - Launch partition (#136)
+
+    /// The launch-path partition: which init steps may run before the splash
+    /// drops. Pure data so tests can assert no network-touching step ever
+    /// creeps in front of `isInitialized = true`, and that the relay-backed
+    /// steps keep their load-bearing order (#3/#46: identity validation
+    /// strictly after bootstrap). `initialize()` and
+    /// `runBackgroundBootstrap(generation:)` mirror these lists step for
+    /// step — a new init step belongs in exactly one list.
+    enum LaunchInitStep: CaseIterable, Sendable {
+        // Critical path — local-only, in order.
+        case reloadCapabilities
+        case loadConversationCache
+        case startSensorService
+        case reconcileLiveActivities
+        case updateWidgetData
+        case drainShareInbox
+        // Background bootstrap — relay/shim-backed, in order.
+        case sessionBootstrap
+        case validateRestoredIdentity
+        case hostRefresh
+        case inboxLoad
+        case commandCatalogRefresh
+        case shimModelSeed
+        case pushTokenRegistration
+        case sensorForegroundRefresh
+
+        /// Whether the step can touch the network. `validateRestoredIdentity`
+        /// is itself local but rides the background list for ordering
+        /// (#3/#46); `loadConversationCache` is the persisted-cache restore
+        /// (its no-cache fallback fetch rides the chat path, whose timeouts
+        /// #136 deliberately leaves alone). `sensorForegroundRefresh` drains
+        /// the sensor outbox — an inline relay upload — which is why it is
+        /// NOT on the critical path even though `startSensorService` is.
+        var touchesNetwork: Bool {
+            switch self {
+            case .reloadCapabilities, .loadConversationCache, .startSensorService,
+                 .reconcileLiveActivities, .updateWidgetData, .drainShareInbox,
+                 .validateRestoredIdentity:
+                false
+            case .sessionBootstrap, .hostRefresh, .inboxLoad, .commandCatalogRefresh,
+                 .shimModelSeed, .pushTokenRegistration, .sensorForegroundRefresh:
+                true
+            }
+        }
+
+        /// The steps allowed to run before `isInitialized = true` drops the
+        /// splash (#136 non-negotiable 1). Local-only, by construction.
+        static let criticalPath: [LaunchInitStep] = [
+            .reloadCapabilities, .loadConversationCache, .startSensorService,
+            .reconcileLiveActivities, .updateWidgetData, .drainShareInbox,
+        ]
+
+        /// The relay-backed steps the background task runs, in order
+        /// (#136 non-negotiable 2). Degraded is the DEFAULT launch posture —
+        /// these upgrade it as each lands.
+        static let backgroundBootstrap: [LaunchInitStep] = [
+            .sessionBootstrap, .validateRestoredIdentity, .hostRefresh, .inboxLoad,
+            .commandCatalogRefresh, .shimModelSeed, .pushTokenRegistration,
+            .sensorForegroundRefresh,
+        ]
     }
 
     // MARK: - Connect gate (#127)
@@ -240,14 +325,24 @@ final class AppContainer {
             pairingService = LivePairingService()
         }
 
-        let apiClient = RelayAPIClient {
+        let relayBaseURLProvider: @MainActor () -> String = {
             activePairingStore?.pairedRelayConfiguration?.baseURLString
                 ?? profilesStore.activeProfile?.relayBaseURL
                 ?? ""
         }
+        let apiClient = RelayAPIClient(baseURLProvider: relayBaseURLProvider)
+        // #136: launch/bootstrap probes ride a dedicated short-timeout
+        // session so a black-holed relay fails in seconds and background
+        // init converges quickly instead of chaining 60s hangs. Probe-class
+        // surfaces only — SSE, file downloads, and sensor uploads keep the
+        // default-session client.
+        let bootstrapProbeClient = RelayAPIClient(
+            baseURLProvider: relayBaseURLProvider,
+            session: RelayAPIClient.makeBootstrapProbeSession()
+        )
 
         let sessionBootstrapService = ResilientSessionBootstrapService(
-            primary: LiveSessionBootstrapService(apiClient: apiClient),
+            primary: LiveSessionBootstrapService(apiClient: bootstrapProbeClient),
             fallback: MockSessionBootstrapService(),
             allowsFallback: { allowMockFallbacks && (activePairingStore?.isPaired != true || usesMockPairingService) }
         )
@@ -302,7 +397,7 @@ final class AppContainer {
             hostService = MockHermesHostService()
         } else {
             hostService = LiveHermesHostService(
-                apiClient: apiClient,
+                apiClient: bootstrapProbeClient,
                 accessTokenRefresher: relayAccessTokenRefresher
             )
         }
@@ -315,7 +410,7 @@ final class AppContainer {
         let inboxService: any InboxServiceProtocol = usesMockPairingService
             ? MockInboxService()
             : LiveInboxService(
-                apiClient: apiClient,
+                apiClient: bootstrapProbeClient,
                 accessTokenRefresher: relayAccessTokenRefresher
             )
 
@@ -549,6 +644,7 @@ final class AppContainer {
             modelsShimClient: modelsShimClient,
             sensorUploadService: sensorUploadService,
             apiClient: apiClient,
+            probeAPIClient: bootstrapProbeClient,
             notificationService: notificationService,
             secureStore: secureStore,
             localIntelligence: localIntelligence,
@@ -989,11 +1085,88 @@ final class AppContainer {
             return
         }
 
+        // #136: the critical path is LOCAL-ONLY (see LaunchInitStep) — the
+        // splash drops on local-state-ready, never on relay convergence. A
+        // black-holed host (firewall DROP, no TCP refusal — every request
+        // hangs the full URLSession timeout, error -1001) must not strand
+        // the launch splash; a cold launch with ZERO hosts reachable lands
+        // on a fully functional app in splash-minimum time.
         await permissionsStore.reloadCapabilities()
+        await chatStore.loadConversationIfNeeded()
+        containerLog.notice("initialize: starting sensor service")
+        sensorUploadService?.start()
+        reconcileLiveActivities()
+        updateWidgetData()
+        // #123: cold-launch safety net for a share queued while the app was
+        // dead — idempotent with the scene-activate drain (the inbox empties
+        // on first pass, so a double invocation is a no-op). Free-tier
+        // surface: stays on the critical path, before any relay-gated work.
+        drainShareInbox()
+        isInitialized = true
+        // Degraded is the DEFAULT launch posture — the relay-backed half
+        // runs behind the live UI and upgrades state as each step lands.
+        startBackgroundBootstrap()
+    }
+
+    // MARK: - Background bootstrap (#136)
+
+    /// Launches the relay-backed half of launch behind the live UI.
+    /// Single-flight: a second `initialize()` (or any re-entry) while one is
+    /// in flight must not double-run bootstrap.
+    private func startBackgroundBootstrap() {
+        guard backgroundBootstrapTask == nil else { return }
+        bootstrapGeneration += 1
+        let generation = bootstrapGeneration
+        let predecessor = supersededBootstrapDrain
+        supersededBootstrapDrain = nil
+        backgroundBootstrapTask = Task { [weak self] in
+            // A superseded run may still be unwinding its cancelled awaits —
+            // drain it first so its in-flight bootstrap can't interleave
+            // with (or silently short-circuit, via AppSessionStore's
+            // isBootstrapping re-entry guard) this run's fresh one.
+            await predecessor?.value
+            await self?.runBackgroundBootstrap(generation: generation)
+            guard let self, self.bootstrapGeneration == generation else { return }
+            self.backgroundBootstrapTask = nil
+        }
+    }
+
+    /// Cancels + supersedes any in-flight background bootstrap. Every
+    /// `isInitialized = false` reset site calls this (#136 non-negotiable
+    /// 5), as does a profile switch — a half-dead run must neither land
+    /// stale state past the reset nor block the next run's single-flight
+    /// gate.
+    private func cancelBackgroundBootstrap() {
+        bootstrapGeneration += 1
+        guard let task = backgroundBootstrapTask else { return }
+        task.cancel()
+        backgroundBootstrapTask = nil
+        // Keep a handle so the NEXT run can wait out the unwinding corpse —
+        // chained, in case resets stack up before another run starts.
+        if let existingDrain = supersededBootstrapDrain {
+            supersededBootstrapDrain = Task {
+                await existingDrain.value
+                await task.value
+            }
+        } else {
+            supersededBootstrapDrain = task
+        }
+    }
+
+    /// The relay-backed launch steps, in `LaunchInitStep.backgroundBootstrap`
+    /// order. Every state write is generation-guarded: a reset that
+    /// superseded this run wins, and nothing stale lands after it.
+    private func runBackgroundBootstrap(generation: Int) async {
+        func isCurrent() -> Bool {
+            bootstrapGeneration == generation && !Task.isCancelled
+        }
+
         await sessionStore.bootstrap()
+        guard isCurrent() else { return }
         // #3/#46: a reinstall can resurrect a previous relay identity from the
         // Keychain — verify the bootstrapped session's user matches the one
-        // this pairing minted before relay-backed features run on it.
+        // this pairing minted before relay-backed features run on it. MUST
+        // stay ordered strictly after bootstrap.
         pairingStore.validateRestoredIdentity()
         if sessionStore.state.connectionStatus != .connected {
             // Relay bootstrap failed (e.g. the relay restarted and invalidated this
@@ -1003,30 +1176,35 @@ final class AppContainer {
             // let the user reach Settings to re-pair / retry rather than being hard
             // locked at launch. Relay-backed features (sensor upload, inbox, push) stay
             // degraded until a valid session is restored; re-pairing re-runs initialize().
+            // (#136: the splash no longer waits for this path at all — this
+            // hardening covers relays that ANSWER with a failure; the
+            // background task + short-timeout probes cover the black hole.)
             containerLog.warning("initialize: relay bootstrap not connected (is \(String(describing: self.sessionStore.state.connectionStatus), privacy: .public)) — entering degraded mode; direct chat still available")
         }
         await hostStore.refresh()
+        guard isCurrent() else { return }
         lastKnownHostOnline = hostStore.isHostOnline
-        await chatStore.loadConversationIfNeeded()
         await inboxStore.loadInbox()
+        guard isCurrent() else { return }
         await refreshCommandCatalog(force: true)
+        guard isCurrent() else { return }
         // Seed the model chip label from the shim if the command catalog didn't
         // provide an active model name (e.g. relay offline). Best-effort: if the
         // shim is unreachable or the token isn't set, the chip shows "HERMES".
         if chatStore.activeModelName == nil {
             await seedActiveModelFromShim()
+            guard isCurrent() else { return }
         }
         await registerStoredPushTokenIfNeeded()
-        containerLog.notice("initialize: starting sensor service + handleAppDidBecomeActive")
-        sensorUploadService?.start()
+        guard isCurrent() else { return }
+        // #136: the sensor foreground refresh drains the outbox — an inline
+        // relay upload — so it rides here, not the splash critical path
+        // (start() itself stays on the critical path: capture + HealthKit
+        // auth must begin at launch).
+        containerLog.notice("initialize: background bootstrap running sensor handleAppDidBecomeActive")
         await sensorUploadService?.handleAppDidBecomeActive()
-        reconcileLiveActivities()
+        guard isCurrent() else { return }
         updateWidgetData()
-        // #123: cold-launch safety net for a share queued while the app was
-        // dead — idempotent with the scene-activate drain (the inbox empties
-        // on first pass, so a double invocation is a no-op).
-        drainShareInbox()
-        isInitialized = true
     }
 
     /// #123: drain the share-extension inbox into the composer and deep-route
@@ -1267,8 +1445,14 @@ final class AppContainer {
         updateWidgetData()
     }
 
-    private func handlePairingActivated() async {
+    /// Pairing-lifecycle reset seam (internal so the #136 reset-race tests
+    /// can drive it): wired to `PairingStore.onPairingChanged` in
+    /// `makeDefault`.
+    func handlePairingActivated() async {
         isInitialized = false
+        // #136: supersede any in-flight background bootstrap — the fresh
+        // initialize() below must run its own, on the new pairing's state.
+        cancelBackgroundBootstrap()
         chatStore.reset()
         inboxStore.reset()
         await initialize()
@@ -1348,7 +1532,10 @@ final class AppContainer {
         _ normalizedToken: String,
         notificationService: any NotificationServiceProtocol
     ) async {
-        guard pairingStore.isPaired, let apiClient else { return }
+        // #136: push registration is a launch/bootstrap-class probe (tiny
+        // POST, retried on next launch) — the short-timeout client keeps
+        // background init converging against a black-holed relay.
+        guard pairingStore.isPaired, let apiClient = probeAPIClient ?? apiClient else { return }
 
         guard let accessToken = await sessionStore.currentAccessToken() else {
             containerLog.notice("registerPushToken: no relay access token — registration deferred")
@@ -1669,8 +1856,10 @@ final class AppContainer {
             return
         }
 
+        // #136: the catalog fetch is a launch/bootstrap-class probe — ride
+        // the short-timeout client so a black-holed relay fails in seconds.
         guard let token = await sessionStore.currentAccessToken(),
-              let client = apiClient else { return }
+              let client = probeAPIClient ?? apiClient else { return }
 
         struct CatalogResponse: Decodable {
             let commands: [RemoteCommand]?
@@ -1787,7 +1976,12 @@ final class AppContainer {
     /// default id). Only called when the command catalog didn't supply one.
     private func seedActiveModelFromShim() async {
         do {
-            let options = try await modelsShimClient.fetchModels(refresh: false)
+            // #136: launch/bootstrap-class probe — the short timeout keeps a
+            // black-holed shim (:8765) from stalling background init.
+            let options = try await modelsShimClient.fetchModels(
+                refresh: false,
+                timeout: RelayAPIClient.bootstrapProbeRequestTimeout
+            )
             // #46: harvest the pricing this payload always carried.
             ModelPricingCatalog.shared.ingest(options)
             if let currentModel = options.model, !currentModel.isEmpty {
@@ -1843,8 +2037,14 @@ final class AppContainer {
         SharedWidgetDataStore.write(data)
     }
 
-    private func handlePairingRemoved() async {
+    /// Pairing-lifecycle reset seam (internal so the #136 reset-race tests
+    /// can drive it): wired to `PairingStore.onPairingChanged` in
+    /// `makeDefault`.
+    func handlePairingRemoved() async {
         isInitialized = false
+        // #136: a half-flight background bootstrap must not land relay
+        // state into the freshly reset stores below.
+        cancelBackgroundBootstrap()
         await talkStore.endSessionIfNeeded()
         talkStore.reset()
         sensorUploadService?.stop()
@@ -1906,6 +2106,10 @@ final class AppContainer {
     /// arming) and the shim/model surfaces re-resolve.
     func handleActiveProfileChanged(to profile: BackendProfile) async {
         containerLog.notice("profile switch: activating '\(profile.name, privacy: .public)'")
+        // #136: the launch background bootstrap may still be in flight
+        // against the OLD profile's stores — supersede it before rebinding
+        // scope, or its late completions would land cross-profile.
+        cancelBackgroundBootstrap()
         // Rebind the credential-scoped stores FIRST — their persistence
         // writes resolve the live scope.
         sessionStore.rebindToCurrentScope()
