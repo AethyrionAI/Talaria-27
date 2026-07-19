@@ -408,6 +408,7 @@
 		EDEA7E210870D2EB23C505D1 /* AppIconSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40B3EFC9CE0AF10120A00B8 /* AppIconSettingsScreen.swift */; };
 		EEEE53322B468B0C200EE113 /* PermissionsOnboardingScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A92A9507C027CCF86579740 /* PermissionsOnboardingScreen.swift */; };
 		EF380CE74ED275D42ECE5D3C /* ChartSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E49B2094965500D4F7FEEC4 /* ChartSpec.swift */; };
+		EF767B81A18433859CDF057B /* AppLockOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E49C66A5464EDFA3E82838 /* AppLockOverlayView.swift */; };
 		EFF5038AD4AC165AAC808DC9 /* IconPreview-CerealBox.png in Resources */ = {isa = PBXBuildFile; fileRef = 5CC442FAC645EDA27FDC1937 /* IconPreview-CerealBox.png */; };
 		F0D7B45CD46C5059C16EAD54 /* SettingsScreenHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25935CD9A0AD28B30B6FFBE1 /* SettingsScreenHeader.swift */; };
 		F27E5034CD34A735DE65FB9A /* TalariaAlarmMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89B6DC0F730603BCA9C94F52 /* TalariaAlarmMetadata.swift */; };
@@ -503,6 +504,7 @@
 		0F42292E29A3C5B4C3A70972 /* ConnectorOutageAlertPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorOutageAlertPolicy.swift; sourceTree = "<group>"; };
 		0F52C49687672CA223A85A7A /* Icon-MoltenForge@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-MoltenForge@2x.png"; sourceTree = "<group>"; };
 		11BCD7A66ACF8F173A741574 /* CarPlaySceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlaySceneDelegate.swift; sourceTree = "<group>"; };
+		11E49C66A5464EDFA3E82838 /* AppLockOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockOverlayView.swift; sourceTree = "<group>"; };
 		12A52680EF08D0A9B6EE456B /* Icon-NeonArcade@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-NeonArcade@2x.png"; sourceTree = "<group>"; };
 		130E0FA1859ADE8DE9A33188 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		14534B1F938AC24C273D0F31 /* Icon-SolarForge@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-SolarForge@2x.png"; sourceTree = "<group>"; };
@@ -983,6 +985,7 @@
 			isa = PBXGroup;
 			children = (
 				A470FB52569D59F1AC2FCAD0 /* AppLockController.swift */,
+				11E49C66A5464EDFA3E82838 /* AppLockOverlayView.swift */,
 			);
 			path = AppLock;
 			sourceTree = "<group>";
@@ -1969,6 +1972,7 @@
 				3230576BF12371AC4643AB06 /* AppIconStore.swift in Sources */,
 				24C71BA853C3ED51C9657835 /* AppLockController.swift in Sources */,
 				F4E72B629E8B408FC11240F2 /* AppLockCore.swift in Sources */,
+				EF767B81A18433859CDF057B /* AppLockOverlayView.swift in Sources */,
 				930FB9FF7670840F7991F3E5 /* AppPersistenceStoreProtocol.swift in Sources */,
 				4BC23867516A49731D7575B6 /* AppRootView.swift in Sources */,
 				C58C8BCED23610D9BC20804A /* AppSessionState.swift in Sources */,
