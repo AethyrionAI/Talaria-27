@@ -868,6 +868,18 @@ backed up; confirmed no bookstack error in the post-fix startup.
 
 ## 25. ✅ CTX meter resume-cache — DEVICE VERIFIED 2026-07-17 (old session: honestly absent; live: real number; relaunch: cached). 'Flashes wrong' half rides #120's lane
 
+> **SECOND HALF ('flashes wrong' mid-stream) FIXED in the #120 lane (PR #116, 2026-07-18);
+> device check owed.** The gauge's only mid-stream writers (the 2s poll tick + `loadConversation`)
+> adopted merged `conversation.latestUsage`, which a refresh source's own non-nil number (relay
+> legacy accounting, another backend's thread) could overwrite — and at `.finished` that merged
+> number outranked the run's own `run.completed` usage, so it could stick, not just flash. Fix:
+> both adopters skip `lastTokenUsage` while a stream is live (previous number keeps displaying,
+> honestly — dispatch option (a)); recovery polling after a dead stream settles unchanged; at
+> `.finished` the run's own usage now wins, merged number stays the no-wire fallback. Cumulative
+> session `input_tokens` still untouched (banned path). Fail-first tests in `ContextMeterTests`.
+> → **Device check:** mid-stream the gauge holds the previous number (or stays hidden), no
+> transient jump, settles on completion.
+
 > **MERGED 2026-07-17 (PR #110, `f42ba3f`→`5510c41`).** Built exactly to the probe verdict:
 > `SessionUsageIndex` + `SessionUsageIndexStore` (SessionProfileIndex pattern) cache each live
 > `run.completed`'s usage keyed by session id; `openSession` reads the cache on resume. The gauge
@@ -4110,7 +4122,40 @@ Logged 2026-07-16.
 
 ---
 
-## 120. 🐛 Chat message list — duplicate ForEach IDs (undefined rendering)
+## 120. 🔧 Chat message list — duplicate ForEach IDs — FIXED in lane (PR #116, 2026-07-18); device check owed
+
+> **LANE BUILT LOCALLY 2026-07-18 (PR #116, `claude/t27-120-chat-hygiene`), suite 807/68 green.**
+> Root cause found + pinned by a fail-first test (`MessageListIdentityTests`, new file, regen'd):
+> conversation-maintaining backends (LocalChatBackend, the mock) append the final reply to their
+> own thread BEFORE yielding `.finished`; a conversation merge landing in that window (the 2s
+> relay-poll tick every send starts) adopts the reply into the store while the streaming
+> placeholder is still in the array, and the `.finished` handler replaced the placeholder by
+> index without checking for an existing copy of the final id — same UUID twice. The post-finish
+> metadata merge only masked it when `hermesClient.currentConversation` happened to contain the
+> reply (nil on warm launch — `loadConversationIfNeeded` returns early from cache; wrong backend
+> under overlapping turns). Fix at the source: `.finished` drops any pre-merged copy before the
+> placeholder swap (placeholder's slot wins — stable identity for animations + #78 menu targets),
+> and `mergeConversationMetadata` now dedupes the refreshed list itself (first occurrence wins),
+> so a foreign transcript can't import an internal duplicate wholesale. Same lane: #25 second
+> half + the CFPrefs rider (closed as framework-side no-op — code-absence proof in the PR body).
+> → **Device check:** stream replies (incl. on-device brain + forced trip) with the relay paired;
+> Console must show no `ForEach`/`LazyVStackLayout` duplicate-ID warnings.
+
+> **E2E REGRESSION GUARD ADDED 2026-07-18 (same lane, `7a08142`), fail-first proven red/green.**
+> `MessageIdentityUITests` drives the real app (cold launch + two warm relaunches, real sends)
+> and asserts transcript id uniqueness via a `chat.dupIDProbe` a11y seam on the transcript
+> ScrollView — it publishes the ForEach source array's max id multiplicity, joins the view tree
+> only under `UITEST_DUPID_PROBE=1`. Determinism comes from a DEBUG+env-gated synthetic turn in
+> `LocalChatBackend` (no model needed): production append→finish machinery, a 2.6s dwell so the
+> 2s poll-tick merge lands inside the duplicate-seeding window, and `currentConversation`
+> cleared pre-`.finished` to model the unprimed-client shape. That clear is what makes red
+> reachable — a key finding from building this: with `currentConversation` populated, the
+> post-finish metadata merge heals the duplicate in the same MainActor turn (SwiftUI never
+> renders it), which is precisely why the bug only survived device warm launches. Red proof:
+> with the `.finished` dedupe reverted, the probe reports multiplicity 2 on the cold-launch
+> send; restored, the full cycle passes. `TalariaUITests` now rides the test scheme (gate:
+> 807/68 unit + identity UITest + launch smoke, TEST SUCCEEDED). The sim-side guard narrows the
+> owed device check to the relay-paired + forced-trip variants.
 
 > **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-120-chat-hygiene.md` — **READY TO SEND.**
 > Fail-first uniqueness test through a stream-then-finalize cycle, fix at the source (no
@@ -4537,5 +4582,26 @@ then the acceptance session on whoGoesThere: **D2** reply collapses to one unit 
 the #102 notice in Console + thermal ≤ fair and recovering; **#110** with auto-read-aloud
 ON, speech cuts at the trip instead of droning the loop; **D3** an immediate normal send
 streams a real reply (session rebuilt); plus the live-SDK button's no-wedge check.
+
+Logged 2026-07-18.
+
+---
+
+## 135. 🧹 Template UITests stale — pairing-flow tests skipped in scheme, refresh owed
+
+The July-5 `TalariaUITests` class (AppTemplateUITests.swift: manual-pairing flow, chat send,
+paired-launch skip, disconnect, host-status screen) predates the #31 no-pairing-wall redesign —
+every test opens with `Enter Code Manually` as the expected landing state, which no longer
+exists. They had NEVER run: the `TalariaUITests` target wasn't in the test scheme until the
+#120 E2E-guard lane added it (2026-07-18), which is what surfaced all five failing at once.
+Skipped at the scheme level (`project.yml` -> `skippedTests: [TalariaUITests]`), not deleted —
+the mock-pairing scaffolding (`UITEST_PAIRING_MODE=mock`, `MockPairingService`, the
+`/tmp/hermesmobile-uitest-config.json` external config) is worth keeping and refreshing.
+`MessageIdentityUITests` and `TalariaUITestsLaunchTests` stay active in the gate.
+
+**Known-stale locators for the refresh:** GlowButton uppercases its title into the a11y label
+(`CONTINUE`, not `Continue` — verified via hierarchy dump 2026-07-18), so the template's
+`completePairing` Continue-tap silently no-ops; entry points must switch from onboarding-first
+to Settings -> Connect Hermes Desktop (#31).
 
 Logged 2026-07-18.

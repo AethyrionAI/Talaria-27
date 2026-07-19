@@ -884,6 +884,12 @@ struct ChatScreen: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .redacted(reason: chatStore.isLoading ? .placeholder : [])
+            // #120 (UITest seam): mirrors the ForEach's rendered array so a
+            // black-box test can assert id uniqueness. Inert unless the
+            // UITEST_DUPID_PROBE launch env is set (never in shipping builds).
+            .overlay(alignment: .top) {
+                MessageListIdentityProbe(messages: chatStore.conversation?.messages ?? [])
+            }
             .onTapGesture {
                 isComposerFocused = false
             }

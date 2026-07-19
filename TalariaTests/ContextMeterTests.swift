@@ -285,6 +285,131 @@ struct ContextMeterTests {
         #expect(convo.latestUsage?.promptTokens == 1234)
     }
 
+    // MARK: - Mid-stream numerator suppression (#25 second half / #120 lane)
+
+    /// A scriptable client for the live-stream gauge seams: the stream can
+    /// park ahead of `.finished` so the test can land a refresh inside the
+    /// window (what the 2s relay-poll tick does), `loadConversation()` serves
+    /// a refresh source carrying its own `latestUsage` (the relay's legacy
+    /// accounting, another backend's thread), and the finish can stamp a
+    /// conversation-level usage the way conversation-maintaining backends do.
+    @MainActor
+    private final class ParkedStreamUsageClient: HermesClientProtocol {
+        var connectionStatus: ConnectionStatus = .connected
+        var currentConversation: Conversation?
+
+        /// Served by `loadConversation()` — the poll-equivalent refresh source.
+        var refreshConversation = Conversation(title: Conversation.defaultTitle)
+        /// When set, stamped onto `currentConversation` just before `.finished`
+        /// yields — a refresh-source number visible at finish time.
+        var finishTimeConversationUsage: TokenUsage?
+        /// The authoritative run.completed usage `.finished` carries.
+        var finishedUsage: TokenUsage?
+
+        var parksBeforeFinish = false
+        private(set) var isParkedBeforeFinish = false
+        private var finishGate: CheckedContinuation<Void, Never>?
+
+        func releaseFinish() {
+            finishGate?.resume()
+            finishGate = nil
+        }
+
+        func connect() async {}
+        func disconnect() async {}
+
+        func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
+            Message(sender: .hermes, content: "unused", status: .delivered)
+        }
+
+        func sendStreaming(
+            message: String,
+            attachments: [PendingAttachment],
+            clientMessageID: UUID
+        ) -> AsyncStream<StreamingUpdate> {
+            AsyncStream { continuation in
+                Task { @MainActor in
+                    continuation.yield(.textDelta("Working "))
+                    if self.parksBeforeFinish {
+                        await withCheckedContinuation { (gate: CheckedContinuation<Void, Never>) in
+                            self.finishGate = gate
+                            self.isParkedBeforeFinish = true
+                        }
+                    }
+                    if let usage = self.finishTimeConversationUsage {
+                        var conv = self.currentConversation ?? Conversation(title: Conversation.defaultTitle)
+                        conv.latestUsage = usage
+                        self.currentConversation = conv
+                    }
+                    continuation.yield(.finished(
+                        Message(sender: .hermes, content: "Done.", status: .delivered),
+                        self.finishedUsage,
+                        nil
+                    ))
+                    continuation.finish()
+                }
+            }
+        }
+
+        func loadConversation() async -> Conversation {
+            refreshConversation
+        }
+
+        func clearConversation() async throws -> Conversation {
+            Conversation(title: Conversation.defaultTitle)
+        }
+    }
+
+    @Test @MainActor
+    func liveStreamGaugeIgnoresInterimRefreshNumbers() async throws {
+        // While a run streams, a conversation refresh (the poll tick) whose
+        // source carries its own latestUsage must NOT move the gauge — the
+        // previous turn's number keeps displaying (honest) until the run's
+        // own run.completed lands.
+        let persistence = makePersistence("live-suppress")
+        let client = ParkedStreamUsageClient()
+        client.parksBeforeFinish = true
+        client.finishedUsage = TokenUsage(promptTokens: 1234, completionTokens: 56, totalTokens: 1290)
+        var refresh = Conversation(title: Conversation.defaultTitle)
+        refresh.latestUsage = TokenUsage(promptTokens: 999_999, completionTokens: 1, totalTokens: 1_000_000)
+        client.refreshConversation = refresh
+
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+        store.lastTokenUsage = TokenUsage(promptTokens: 1000, completionTokens: 20, totalTokens: 1020)
+
+        let sendTask = Task { await store.sendMessage("Hi") }
+        var spins = 0
+        while !client.isParkedBeforeFinish, spins < 10_000 {
+            spins += 1
+            await Task.yield()
+        }
+        #expect(client.isParkedBeforeFinish)
+        #expect(store.currentContextTokens == 1000)
+
+        await store.loadConversation()
+        #expect(store.currentContextTokens == 1000)
+
+        client.releaseFinish()
+        await sendTask.value
+        #expect(store.currentContextTokens == 1234)
+    }
+
+    @Test @MainActor
+    func finishedTurnPrefersAuthoritativeRunUsage() async throws {
+        // run.completed is the numerator's authority (#25 probe verdict).
+        // A merged conversation-level number present at finish time must not
+        // outrank it.
+        let persistence = makePersistence("finish-precedence")
+        let client = ParkedStreamUsageClient()
+        client.finishTimeConversationUsage = TokenUsage(promptTokens: 777_777, completionTokens: 1, totalTokens: 777_778)
+        client.finishedUsage = TokenUsage(promptTokens: 1234, completionTokens: 56, totalTokens: 1290)
+
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+        await store.sendMessage("Hi")
+
+        #expect(store.currentContextTokens == 1234)
+    }
+
     @Test @MainActor
     func malformedWireUsageRecordsNothingAndDoesNotThrow() async throws {
         let persistence = makePersistence("live-malformed")

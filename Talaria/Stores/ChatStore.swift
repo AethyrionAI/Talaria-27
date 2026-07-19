@@ -299,7 +299,11 @@ final class ChatStore {
             from: cachedConversation,
             into: await hermesClient.loadConversation()
         )
-        if let latestUsage = conversation?.latestUsage {
+        // #25: while a run is live, a refresh source's conversation-level
+        // usage is an interim number (relay legacy accounting, another
+        // backend's thread) — the gauge keeps the previous turn's honest
+        // value until this run's own run.completed lands.
+        if streamingMessageID == nil, let latestUsage = conversation?.latestUsage {
             lastTokenUsage = latestUsage
         }
         if let conversation {
@@ -519,7 +523,21 @@ final class ChatStore {
                            resolved.brain == nil || resolved.brain == ChatBackendRouter.Brain.hermes.rawValue {
                             resolved.servingModel = self.activeModelName
                         }
-                        self.conversation?.messages[idx] = resolved
+                        // #120: a mid-stream conversation merge (the 2s relay
+                        // poll, a refresh) can already have adopted this reply
+                        // from a backend that appends it before yielding
+                        // `.finished` (LocalChatBackend, the mock). Replacing
+                        // the placeholder would then render the same UUID
+                        // twice — undefined ForEach behavior. Drop any
+                        // pre-merged copy; the placeholder's slot keeps the
+                        // row (it's the bubble the user watched stream).
+                        if var conv = self.conversation {
+                            conv.messages.removeAll { $0.id == resolved.id && $0.id != placeholderID }
+                            if let slot = conv.messages.firstIndex(where: { $0.id == placeholderID }) {
+                                conv.messages[slot] = resolved
+                            }
+                            self.conversation = conv
+                        }
                     }
                     // The direct stream completed, so this message definitively
                     // succeeded — mark it delivered, recovering even if the relay
@@ -533,10 +551,13 @@ final class ChatStore {
                         from: self.conversation,
                         into: self.hermesClient.currentConversation
                     )
-                    if let latestUsage = self.conversation?.latestUsage {
-                        self.lastTokenUsage = latestUsage
-                    } else if let usage {
+                    // #25: run.completed is the numerator's authority — a
+                    // conversation-level number the merge carried in (relay
+                    // accounting, a stale cache) must not outrank it.
+                    if let usage {
                         self.lastTokenUsage = usage
+                    } else if let latestUsage = self.conversation?.latestUsage {
+                        self.lastTokenUsage = latestUsage
                     }
                     self.detectModelSwitch(from: finalMessage.content)
                     self.streamingMessageID = nil
@@ -1327,7 +1348,11 @@ final class ChatStore {
                 guard !Task.isCancelled else { break }
                 let fresh = await self.hermesClient.loadConversation()
                 self.conversation = self.mergeConversationMetadata(from: self.conversation, into: fresh)
-                if let latestUsage = self.conversation?.latestUsage {
+                // #25: adopt the merged usage only when no stream is live —
+                // mid-stream it's an interim number and the gauge must not
+                // flash it. Recovery polling (stream died post-accept,
+                // streamingMessageID already nil) still settles through here.
+                if self.streamingMessageID == nil, let latestUsage = self.conversation?.latestUsage {
                     self.lastTokenUsage = latestUsage
                 }
                 if let conversation = self.conversation {
@@ -1560,6 +1585,16 @@ final class ChatStore {
         into refreshedConversation: Conversation?
     ) -> Conversation? {
         guard var refreshedConversation else { return localConversation }
+
+        // #120: never import the same message id twice from a refresh source
+        // (a relay transcript, a backend's own thread). The local-vs-refreshed
+        // dedupe below can't see an internal duplicate — it would flow into
+        // the rendered collection wholesale. First occurrence wins.
+        var seenRefreshedIDs = Set<UUID>()
+        refreshedConversation.messages = refreshedConversation.messages.filter {
+            seenRefreshedIDs.insert($0.id).inserted
+        }
+
         guard let localConversation else { return refreshedConversation }
 
         if refreshedConversation.latestUsage == nil {
