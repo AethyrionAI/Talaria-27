@@ -414,6 +414,7 @@
 		F3FD47CEF18E418FE942DC8B /* IconPreview-DeepField.png in Resources */ = {isa = PBXBuildFile; fileRef = B6A3FBA7A6250BBC0DA91EEB /* IconPreview-DeepField.png */; };
 		F4CD2B4FCB1433333B7B5623 /* Icon-MidnightAquarium@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = A59F115068928742EE2EB119 /* Icon-MidnightAquarium@3x.png */; };
 		F4D43B34BB7FA7B25E451D87 /* Icon-ComicFunnies@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = E1C72B32FFD539B62DEFBE7E /* Icon-ComicFunnies@2x.png */; };
+		F4E72B629E8B408FC11240F2 /* AppLockCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA13657305C577F4DC6CD814 /* AppLockCore.swift */; };
 		F54C1CD1154996479260813C /* GenUISchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CB3976CD4EE70D0721D03B0 /* GenUISchema.swift */; };
 		F74187AC47A3F89ED9939E02 /* Icon-DeepField@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = FB4B4E5BA743254D0C695B48 /* Icon-DeepField@2x.png */; };
 		F788AB25DDD88BCA177DCBA2 /* MockHermesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD54E9A9E2AA0D4604C4467 /* MockHermesClient.swift */; };
@@ -426,6 +427,7 @@
 		FC727E69576B9D18BFD559E4 /* MockPairingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED340DA95F6297DE6AF4F24F /* MockPairingService.swift */; };
 		FCF494FA7680EABD16B87E26 /* HealthQueryCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF2F27035982B50A41364B24 /* HealthQueryCore.swift */; };
 		FD0C12BE7E32D0D8D1CD261E /* HermesWidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47A5F74DB08719B659A47C6 /* HermesWidgetData.swift */; };
+		FD770D93F0C4CBDACA2F2544 /* AppLockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CE6B0DE5CE1DCD32DA50DFA /* AppLockTests.swift */; };
 		FD9C24D0167C5C2B57A089E8 /* VoiceMemoAttachmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A42B2B8FA97D4011C00D59F8 /* VoiceMemoAttachmentTests.swift */; };
 		FDDBDDD0DF3E665FD2E6BCE1 /* ServerSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0533895BE78322F481C2946 /* ServerSettingsTests.swift */; };
 		FDFDA22D391BBDAA612D3542 /* PermissionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCA3528874C96917E5C1B304 /* PermissionCard.swift */; };
@@ -630,6 +632,7 @@
 		5BCA800ADCCF66249C2968C5 /* VoiceAttachmentSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceAttachmentSheet.swift; sourceTree = "<group>"; };
 		5C2CA32208388B8F40E1EF71 /* Icon-SpringSprout@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-SpringSprout@3x.png"; sourceTree = "<group>"; };
 		5CC442FAC645EDA27FDC1937 /* IconPreview-CerealBox.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-CerealBox.png"; sourceTree = "<group>"; };
+		5CE6B0DE5CE1DCD32DA50DFA /* AppLockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockTests.swift; sourceTree = "<group>"; };
 		5EB471468F064EE7016C31FE /* TypingDotsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingDotsView.swift; sourceTree = "<group>"; };
 		5F28E7FA18E6D1C83E907BC0 /* VoiceTranscriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceTranscriptTests.swift; sourceTree = "<group>"; };
 		6086194E5DA00269632F6A09 /* Icon-AutumnHarvest@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-AutumnHarvest@3x.png"; sourceTree = "<group>"; };
@@ -765,6 +768,7 @@
 		A933916A6EFB3A25618640A2 /* IconPreview-ComicFunnies.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-ComicFunnies.png"; sourceTree = "<group>"; };
 		A98E68D1390AD8BF008416C4 /* LiveCameraOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveCameraOverlay.swift; sourceTree = "<group>"; };
 		A9DBDFE28E0878C10BBAFF97 /* AppSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSessionStore.swift; sourceTree = "<group>"; };
+		AA13657305C577F4DC6CD814 /* AppLockCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockCore.swift; sourceTree = "<group>"; };
 		AA92264F808D488BC762F6CF /* Icon-DiscoInferno@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-DiscoInferno@3x.png"; sourceTree = "<group>"; };
 		AAA320DD4E3F50724945CC1C /* MessageStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageStatus.swift; sourceTree = "<group>"; };
 		AB2D09CCD9B4464AAADCD11A /* SessionBootstrapResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionBootstrapResponse.swift; sourceTree = "<group>"; };
@@ -989,6 +993,7 @@
 				BDF1BE5651B4CF68E3034596 /* AgentFileFetchTests.swift */,
 				8CEBE11A12DBCD1349D97C3B /* AlarmCommandParsingTests.swift */,
 				C1EBB25EF20155CC80C56FC4 /* AppIconCatalogTests.swift */,
+				5CE6B0DE5CE1DCD32DA50DFA /* AppLockTests.swift */,
 				3F0818490CD153ED5EBCD1CC /* AppStoresTests.swift */,
 				A3A103D6FF3E893A48AE64C3 /* AppTemplateTests.swift */,
 				52BA50723B237D05E12279BE /* AskHermesIntentTests.swift */,
@@ -1079,6 +1084,7 @@
 		2567FA74BC353BECAB3916CC /* Support */ = {
 			isa = PBXGroup;
 			children = (
+				AA13657305C577F4DC6CD814 /* AppLockCore.swift */,
 				96D3920640ABF46FAC184C3D /* AttachmentInlining.swift */,
 				23AE5D825BE2C07683DC0829 /* ChatBackendRouter.swift */,
 				0F42292E29A3C5B4C3A70972 /* ConnectorOutageAlertPolicy.swift */,
@@ -1950,6 +1956,7 @@
 				051C9EB05167E4AC529522C9 /* AppIconCatalog.swift in Sources */,
 				EDEA7E210870D2EB23C505D1 /* AppIconSettingsScreen.swift in Sources */,
 				3230576BF12371AC4643AB06 /* AppIconStore.swift in Sources */,
+				F4E72B629E8B408FC11240F2 /* AppLockCore.swift in Sources */,
 				930FB9FF7670840F7991F3E5 /* AppPersistenceStoreProtocol.swift in Sources */,
 				4BC23867516A49731D7575B6 /* AppRootView.swift in Sources */,
 				C58C8BCED23610D9BC20804A /* AppSessionState.swift in Sources */,
@@ -2201,6 +2208,7 @@
 				8A6751DE0DDDD448F0112A77 /* AgentFileFetchTests.swift in Sources */,
 				0D61F177FD88F4C441AB9C71 /* AlarmCommandParsingTests.swift in Sources */,
 				8948D8F45C1422C15C6D5DD4 /* AppIconCatalogTests.swift in Sources */,
+				FD770D93F0C4CBDACA2F2544 /* AppLockTests.swift in Sources */,
 				893E3D0A9F65586C2824B63E /* AppStoresTests.swift in Sources */,
 				3A416A1C3DE88071A6765234 /* AppTemplateTests.swift in Sources */,
 				B918873555ADC2DBEDE9BB5E /* AskHermesIntentTests.swift in Sources */,

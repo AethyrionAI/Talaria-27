@@ -1,0 +1,167 @@
+import Foundation
+import Testing
+@testable import Talaria
+
+// MARK: - #124 App lock — pure decision-matrix tests
+//
+// The full scenePhase × grace × toggle × auth matrix runs against the pure
+// AppLockStateMachine — no LAContext anywhere (the evaluator is a protocol,
+// mocked in the controller tests appended by later tasks).
+
+struct AppLockStateMachineTests {
+    private let t0 = Date(timeIntervalSince1970: 1_000_000)
+    private func config(_ enabled: Bool, _ grace: AppLockGracePeriod = .immediate) -> AppLockConfiguration {
+        AppLockConfiguration(isEnabled: enabled, gracePeriod: grace)
+    }
+
+    // MARK: Cold launch
+
+    @Test func coldLaunchLocksWhenEnabled() {
+        let machine = AppLockStateMachine(configuration: config(true))
+        #expect(machine.isLocked)
+        #expect(machine.cover(configuration: config(true)) == .locked)
+    }
+
+    @Test func coldLaunchStaysUnlockedWhenDisabled() {
+        let machine = AppLockStateMachine(configuration: config(false))
+        #expect(!machine.isLocked)
+        #expect(machine.cover(configuration: config(false)) == .none)
+    }
+
+    // MARK: Grace period matrix
+
+    @Test func immediateGraceLocksOnAnyBackgroundRoundTrip() {
+        let c = config(true)
+        var machine = unlockedForeground(c)
+        machine.scenePhaseChanged(to: .inactive, configuration: c, now: t0)
+        machine.scenePhaseChanged(to: .background, configuration: c, now: t0.addingTimeInterval(1))
+        machine.scenePhaseChanged(to: .active, configuration: c, now: t0.addingTimeInterval(2))
+        #expect(machine.isLocked)
+    }
+
+    @Test func oneMinuteGraceHonoredWithinWindow() {
+        let c = config(true, .oneMinute)
+        var machine = unlockedForeground(c)
+        machine.scenePhaseChanged(to: .background, configuration: c, now: t0)
+        machine.scenePhaseChanged(to: .active, configuration: c, now: t0.addingTimeInterval(30))
+        #expect(!machine.isLocked)
+    }
+
+    @Test func oneMinuteGraceLocksAtBoundary() {
+        let c = config(true, .oneMinute)
+        var machine = unlockedForeground(c)
+        machine.scenePhaseChanged(to: .background, configuration: c, now: t0)
+        machine.scenePhaseChanged(to: .active, configuration: c, now: t0.addingTimeInterval(60))
+        #expect(machine.isLocked)
+    }
+
+    @Test func fiveMinuteGraceHonoredWithinWindow() {
+        let c = config(true, .fiveMinutes)
+        var machine = unlockedForeground(c)
+        machine.scenePhaseChanged(to: .background, configuration: c, now: t0)
+        machine.scenePhaseChanged(to: .active, configuration: c, now: t0.addingTimeInterval(299))
+        #expect(!machine.isLocked)
+    }
+
+    // The grace clock keys on .background, not .inactive: the Face ID sheet
+    // itself and notification-shade pulls are .inactive, and locking on them
+    // would make authentication re-trigger its own lock.
+    @Test func transientInactiveDoesNotLock() {
+        let c = config(true)
+        var machine = unlockedForeground(c)
+        machine.scenePhaseChanged(to: .inactive, configuration: c, now: t0)
+        #expect(machine.cover(configuration: c) == .obscured)
+        machine.scenePhaseChanged(to: .active, configuration: c, now: t0.addingTimeInterval(5))
+        #expect(!machine.isLocked)
+        #expect(machine.cover(configuration: c) == .none)
+    }
+
+    @Test func graceMeasuredFromBackgroundEntryNotInactive() {
+        let c = config(true, .oneMinute)
+        var machine = unlockedForeground(c)
+        machine.scenePhaseChanged(to: .inactive, configuration: c, now: t0)
+        machine.scenePhaseChanged(to: .background, configuration: c, now: t0.addingTimeInterval(55))
+        machine.scenePhaseChanged(to: .active, configuration: c, now: t0.addingTimeInterval(70))
+        // 70s since inactive but only 15s since background — within grace.
+        #expect(!machine.isLocked)
+    }
+
+    // MARK: Auth results
+
+    @Test func authSuccessUnlocks() {
+        let c = config(true)
+        var machine = AppLockStateMachine(configuration: c)
+        machine.scenePhaseChanged(to: .active, configuration: c, now: t0)
+        machine.authenticationSucceeded()
+        #expect(!machine.isLocked)
+        #expect(machine.cover(configuration: c) == .none)
+    }
+
+    @Test func lockSurvivesRepeatedForegrounding() {
+        let c = config(true)
+        var machine = AppLockStateMachine(configuration: c)
+        machine.scenePhaseChanged(to: .active, configuration: c, now: t0)
+        machine.scenePhaseChanged(to: .background, configuration: c, now: t0.addingTimeInterval(1))
+        machine.scenePhaseChanged(to: .active, configuration: c, now: t0.addingTimeInterval(2))
+        #expect(machine.isLocked)
+    }
+
+    // MARK: Toggle
+
+    @Test func disablingUnlocksAndClearsCover() {
+        var machine = AppLockStateMachine(configuration: config(true))
+        machine.configurationChanged(config(false))
+        #expect(!machine.isLocked)
+        #expect(machine.cover(configuration: config(false)) == .none)
+    }
+
+    @Test func enablingMidSessionDoesNotLockImmediately() {
+        let off = config(false)
+        var machine = AppLockStateMachine(configuration: off)
+        machine.scenePhaseChanged(to: .active, configuration: off, now: t0)
+        machine.configurationChanged(config(true))
+        #expect(!machine.isLocked)
+        #expect(machine.cover(configuration: config(true)) == .none)
+    }
+
+    // MARK: Cover matrix
+
+    @Test func obscuredWhileBackgroundedUnlocked() {
+        let c = config(true, .fiveMinutes)
+        var machine = unlockedForeground(c)
+        machine.scenePhaseChanged(to: .background, configuration: c, now: t0)
+        #expect(machine.cover(configuration: c) == .obscured)
+    }
+
+    @Test func disabledNeverCovers() {
+        let c = config(false)
+        var machine = AppLockStateMachine(configuration: c)
+        machine.scenePhaseChanged(to: .inactive, configuration: c, now: t0)
+        #expect(machine.cover(configuration: c) == .none)
+        machine.scenePhaseChanged(to: .background, configuration: c, now: t0)
+        #expect(machine.cover(configuration: c) == .none)
+    }
+
+    @Test func lockedCoverWinsOverObscured() {
+        let c = config(true)
+        var machine = AppLockStateMachine(configuration: c)
+        machine.scenePhaseChanged(to: .inactive, configuration: c, now: t0)
+        #expect(machine.cover(configuration: c) == .locked)
+    }
+
+    /// Machine that has completed a cold-launch unlock and sits foregrounded.
+    private func unlockedForeground(_ c: AppLockConfiguration) -> AppLockStateMachine {
+        var machine = AppLockStateMachine(configuration: c)
+        machine.scenePhaseChanged(to: .active, configuration: c, now: t0.addingTimeInterval(-100))
+        machine.authenticationSucceeded()
+        return machine
+    }
+}
+
+struct AppLockGracePeriodTests {
+    @Test func secondsMapping() {
+        #expect(AppLockGracePeriod.immediate.seconds == 0)
+        #expect(AppLockGracePeriod.oneMinute.seconds == 60)
+        #expect(AppLockGracePeriod.fiveMinutes.seconds == 300)
+    }
+}
