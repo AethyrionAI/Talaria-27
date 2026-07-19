@@ -203,4 +203,182 @@ struct TurnReceiptsTests {
                 == "IN 1.2K · OUT 356"
         )
     }
+
+    // MARK: - Session cost & usage surface (#122)
+
+    /// Decodes the flat usage keys the way the LIST/DETAIL row does, so
+    /// `SessionUsage.decodeIfPresent` is exercised against real row JSON.
+    private struct UsageRowFixture: Decodable {
+        let usage: SessionUsage?
+        init(from decoder: Decoder) throws { usage = SessionUsage.decodeIfPresent(from: decoder) }
+    }
+
+    private func decodeUsage(_ json: String) throws -> SessionUsage? {
+        try JSONDecoder().decode(UsageRowFixture.self, from: Data(json.utf8)).usage
+    }
+
+    /// A full `/api/sessions` row modeled on the #25 probe's real shape — every
+    /// #122 usage key plus the ignored `has_*` flags and the row's own
+    /// title/model/etc. that sit alongside the flat usage keys.
+    private static let fullUsageRowJSON = """
+    {
+      "id": "api_1783825106_6e2766ab",
+      "title": "Morning briefing",
+      "model": "anthropic/claude-opus-4.8",
+      "source": "api_server",
+      "message_count": 10,
+      "last_active": 1752600000.0,
+      "is_active": false,
+      "input_tokens": 114754,
+      "output_tokens": 2310,
+      "cache_read_tokens": 98000,
+      "cache_write_tokens": 1200,
+      "reasoning_tokens": 540,
+      "api_call_count": 5,
+      "tool_call_count": 3,
+      "estimated_cost_usd": 0.6421,
+      "actual_cost_usd": 0.5893,
+      "has_system_prompt": true,
+      "has_model_config": true
+    }
+    """
+
+    @Test
+    func fullRowDecodesEveryUsageField() throws {
+        let usage = try #require(try decodeUsage(Self.fullUsageRowJSON))
+        #expect(usage.inputTokens == 114754)
+        #expect(usage.outputTokens == 2310)
+        #expect(usage.cacheReadTokens == 98000)
+        #expect(usage.cacheWriteTokens == 1200)
+        #expect(usage.reasoningTokens == 540)
+        #expect(usage.apiCallCount == 5)
+        #expect(usage.toolCallCount == 3)
+        #expect(usage.estimatedCostUSD == 0.6421)
+        #expect(usage.actualCostUSD == 0.5893)
+    }
+
+    @Test
+    func probeShapeRowDecodesTokensAndApiButNoCost() throws {
+        // The #25 probe saw only these keys on the wire — the cost keys are
+        // absent. Those fields must be nil, the present ones populated.
+        let json = """
+        {"id": "api_x", "input_tokens": 70271, "output_tokens": 1800,
+         "cache_read_tokens": 50000, "reasoning_tokens": 0, "api_call_count": 6,
+         "has_system_prompt": true}
+        """
+        let usage = try #require(try decodeUsage(json))
+        #expect(usage.inputTokens == 70271)
+        #expect(usage.apiCallCount == 6)
+        #expect(usage.reasoningTokens == 0)
+        #expect(usage.estimatedCostUSD == nil)
+        #expect(usage.actualCostUSD == nil)
+        #expect(usage.toolCallCount == nil)
+    }
+
+    @Test
+    func nullUsageValuesDecodeToNilNotZero() throws {
+        let json = """
+        {"id": "api_x", "input_tokens": null, "output_tokens": null,
+         "api_call_count": null, "estimated_cost_usd": null, "actual_cost_usd": null}
+        """
+        // All-null usage keys are indistinguishable from absent → nil usage,
+        // so the row carries no cost surface (never a row of zeros).
+        #expect(try decodeUsage(json) == nil)
+    }
+
+    @Test
+    func rowWithoutAnyUsageKeyDecodesToNilUsage() throws {
+        let json = #"{"id": "api_x", "title": "Just a title", "message_count": 4}"#
+        #expect(try decodeUsage(json) == nil)
+    }
+
+    @Test
+    func malformedUsageFieldDegradesToNilAndNeverThrows() throws {
+        // A wrong-typed field drops to nil for that field only; the rest still
+        // decode and the call never throws (the #58 tolerant posture).
+        let json = """
+        {"id": "api_x", "input_tokens": "not-a-number", "output_tokens": 2310,
+         "api_call_count": 5, "actual_cost_usd": "free"}
+        """
+        let usage = try #require(try decodeUsage(json))
+        #expect(usage.inputTokens == nil)
+        #expect(usage.outputTokens == 2310)
+        #expect(usage.apiCallCount == 5)
+        #expect(usage.actualCostUSD == nil)
+    }
+
+    @Test
+    func readoutPrefersActualCostOverEstimate() {
+        let usage = SessionUsage(
+            inputTokens: 66_400, outputTokens: 1_204, apiCallCount: 5,
+            estimatedCostUSD: 0.6421, actualCostUSD: 0.5893
+        )
+        let d = SessionCostReadout.display(for: usage)
+        #expect(d?.costText == "$0.59")
+        #expect(d?.costIsEstimated == false)
+        #expect(d?.inputText == "66.4k")
+        #expect(d?.outputText == "1.2k")
+        #expect(d?.apiCallsText == "5")
+        #expect(d?.line == "$0.59 · IN 66.4k · OUT 1.2k · 5 CALLS")
+    }
+
+    @Test
+    func readoutFallsBackToEstimateMarkedWithTilde() {
+        let usage = SessionUsage(inputTokens: 500, outputTokens: 200, apiCallCount: 2, estimatedCostUSD: 0.0421)
+        let d = SessionCostReadout.display(for: usage)
+        #expect(d?.costText == "$0.04")
+        #expect(d?.costIsEstimated == true)
+        #expect(d?.line == "~$0.04 · IN 500 · OUT 200 · 2 CALLS")
+    }
+
+    @Test
+    func readoutTreatsZeroActualCostAsUncomputedAndFallsThrough() {
+        let usage = SessionUsage(inputTokens: 100, actualCostUSD: 0, estimatedCostUSD: 0.5)
+        let d = SessionCostReadout.display(for: usage)
+        #expect(d?.costText == "$0.50")
+        #expect(d?.costIsEstimated == true)
+    }
+
+    @Test
+    func readoutShowsSubCentCostAsThreshold() {
+        #expect(SessionCostReadout.display(for: SessionUsage(actualCostUSD: 0.004))?.line == "<$0.01")
+        #expect(SessionCostReadout.display(for: SessionUsage(estimatedCostUSD: 0.004))?.line == "~<$0.01")
+    }
+
+    @Test
+    func readoutHidesEntirelyWhenNothingIsKnown() {
+        #expect(SessionCostReadout.display(for: nil) == nil)
+        #expect(SessionCostReadout.display(for: SessionUsage()) == nil)
+        // Present-but-zero everywhere is still "nothing to show" — never zeros.
+        let zeros = SessionUsage(inputTokens: 0, outputTokens: 0, apiCallCount: 0,
+                                 estimatedCostUSD: 0, actualCostUSD: 0)
+        #expect(SessionCostReadout.display(for: zeros) == nil)
+    }
+
+    @Test
+    func readoutShowsUsageEvenWhenCostIsAbsent() {
+        // The #25 probe shape: tokens + api calls, no cost keys. The cost
+        // segment is omitted; the rest still render.
+        let usage = SessionUsage(inputTokens: 114_754, outputTokens: 2_310, apiCallCount: 5)
+        let d = SessionCostReadout.display(for: usage)
+        #expect(d?.costText == nil)
+        #expect(d?.line == "IN 114.8k · OUT 2.3k · 5 CALLS")
+    }
+
+    @Test
+    func sessionTokenLabelsAbbreviateWithLowercaseUnits() {
+        #expect(SessionCostReadout.positiveTokenText(356) == "356")
+        #expect(SessionCostReadout.positiveTokenText(1_000) == "1k")
+        #expect(SessionCostReadout.positiveTokenText(66_400) == "66.4k")
+        #expect(SessionCostReadout.positiveTokenText(2_400_000) == "2.4m")
+        #expect(SessionCostReadout.positiveTokenText(0) == nil)
+        #expect(SessionCostReadout.positiveTokenText(nil) == nil)
+    }
+
+    @Test
+    func sessionCostLabelThresholds() {
+        #expect(SessionCostReadout.costLabel(1.24) == "$1.24")
+        #expect(SessionCostReadout.costLabel(0.01) == "$0.01")
+        #expect(SessionCostReadout.costLabel(0.004) == "<$0.01")
+    }
 }
