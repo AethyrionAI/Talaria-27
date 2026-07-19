@@ -125,6 +125,26 @@ final class RelayAPIClient {
         }
     }
 
+    /// #136: timeouts for launch/bootstrap-class probes. A black-holed host
+    /// — Windows Firewall silently DROPS packets to listener-less ports, so
+    /// there is no TCP refusal and every request hangs the full timeout
+    /// (error -1001) — must fail in seconds, even in background init.
+    static let bootstrapProbeRequestTimeout: TimeInterval = 5
+    static let bootstrapProbeResourceTimeout: TimeInterval = 10
+
+    /// #136: dedicated session for launch/bootstrap probes (session
+    /// bootstrap, host status, inbox fetch, command catalog, push
+    /// register). Scoped to probe-class calls only — NEVER the chat path
+    /// (`:8642`), SSE streams, agent-file downloads, or sensor uploads,
+    /// whose long-transfer semantics a 10s resource timeout would break.
+    static func makeBootstrapProbeSession() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = bootstrapProbeRequestTimeout
+        configuration.timeoutIntervalForResource = bootstrapProbeResourceTimeout
+        configuration.waitsForConnectivity = false
+        return URLSession(configuration: configuration)
+    }
+
     private let baseURLProvider: @MainActor () -> String
     private let session: URLSession
     private let encoder: JSONEncoder
