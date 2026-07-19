@@ -232,6 +232,10 @@ struct TalariaApp: App {
                         // season rollover applies without a relaunch (issue #24).
                         // No-op in manual mode.
                         ThemeRuntime.shared.apply(container.settingsStore.settings)
+                        // #123: stage anything the share extension queued —
+                        // BEFORE handleAppDidBecomeActive, which returns early
+                        // when unpaired (shares are a free-tier surface).
+                        container.drainShareInbox()
                         Task { await container.handleAppDidBecomeActive() }
                     } else if newPhase == .background {
                         // #14: arm the native background-refresh safety net

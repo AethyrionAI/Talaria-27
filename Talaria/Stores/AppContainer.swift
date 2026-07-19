@@ -22,6 +22,10 @@ final class AppContainer {
     /// Local read-aloud TTS for Hermes replies (#2). Created here (not via
     /// init) so every construction path gets one; wired in makeDefault().
     let speechOutput = SpeechOutputService()
+    /// #123: drains the share-extension inbox on foreground. Created here so
+    /// every construction path gets one; free-tier surface — its drain runs
+    /// BEFORE (and independent of) the pairing-gated foreground work.
+    let shareInboxDrainer = ShareInboxDrainer()
     /// On-device FoundationModels intelligence (#4.8 × #4.15): conversation
     /// titles + previews, reasoning condensation. Cheap to create (no model
     /// load until first use); wired to ChatStore in makeDefault(). Shared
@@ -1018,7 +1022,24 @@ final class AppContainer {
         await sensorUploadService?.handleAppDidBecomeActive()
         reconcileLiveActivities()
         updateWidgetData()
+        // #123: cold-launch safety net for a share queued while the app was
+        // dead — idempotent with the scene-activate drain (the inbox empties
+        // on first pass, so a double invocation is a no-op).
+        drainShareInbox()
         isInitialized = true
+    }
+
+    /// #123: drain the share-extension inbox into the composer and deep-route
+    /// to chat. Runs on every foreground BEFORE the pairing-gated work —
+    /// shares are a free-tier surface and must land with no Hermes host at
+    /// all (the on-device brain answers). Seed-only: the user still sends.
+    func drainShareInbox() {
+        guard let result = shareInboxDrainer.drain() else { return }
+        containerLog.notice("Share inbox: staged \(result.envelopeCount) share(s) into the composer")
+        chatStore.seedComposerFromShare(text: result.text, attachments: result.attachments)
+        router.activeSheet = nil
+        router.popToRoot()
+        router.selectedTab = .chat
     }
 
     func handleAppDidBecomeActive() async {

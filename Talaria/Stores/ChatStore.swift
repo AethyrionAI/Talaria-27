@@ -37,6 +37,27 @@ final class ChatStore {
         return pendingComposerSeed
     }
 
+    /// #123: share-extension payloads staged for the composer. A separate
+    /// slot from the #48 ask-seed — see `ShareComposerSeed`.
+    private(set) var pendingShareSeed: ShareComposerSeed?
+
+    func seedComposerFromShare(text: String, attachments: [PendingAttachment]) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty || !attachments.isEmpty else { return }
+        if var existing = pendingShareSeed {
+            existing.text = [existing.text, trimmed].filter { !$0.isEmpty }.joined(separator: "\n")
+            existing.attachments += attachments
+            pendingShareSeed = existing
+        } else {
+            pendingShareSeed = ShareComposerSeed(text: trimmed, attachments: attachments)
+        }
+    }
+
+    func consumeShareSeed() -> ShareComposerSeed? {
+        defer { pendingShareSeed = nil }
+        return pendingShareSeed
+    }
+
     /// Reachability of the Hermes Sessions API itself — the direct connection
     /// (localhost:8642) that actually carries chat, independent of the relay.
     /// The relay is offline by design, so the Chat screen drives its connectivity

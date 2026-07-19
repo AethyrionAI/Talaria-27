@@ -68,12 +68,18 @@ targets:
       # Theme palette tables shared with the widget extension (single source
       # of truth for theme/accent color values).
       - path: Shared
+      # #123: share-inbox envelope/store core — the extension↔app handoff
+      # surface. Compiled here as a single file (the TalariaShare target
+      # compiles the whole dir) so the widgets target stays untouched.
+      - path: TalariaShare/ShareInboxCore.swift
     resources:
       - path: Talaria/Resources
         optional: true
     dependencies:
       - package: WebRTC
       - target: TalariaWidgets
+      # #123: share extension — embedded appex, app-group handoff only.
+      - target: TalariaShare
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria27
@@ -360,6 +366,55 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria27.Widgets
         PRODUCT_NAME: TalariaWidgets
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "6.2"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: "DNL25ZFSD2"
+        TARGETED_DEVICE_FAMILY: "1,2"
+    scheme: {}
+
+  TalariaShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      # Whole dir: the principal controller + sheet AND ShareInboxCore.swift
+      # (which the APP target also compiles, single-file — see its sources).
+      - path: TalariaShare
+    entitlements:
+      path: TalariaShare/TalariaShare.entitlements
+      properties:
+        # App group only — the handoff surface. NO network, NO HealthKit,
+        # NO location in this target (#123 review constraint). Declared here
+        # (not just in the .entitlements file) for the #44/#48 xcodegen
+        # strip trap, which applies to every target.
+        com.apple.security.application-groups:
+          - group.org.aethyrion.talaria
+    info:
+      path: TalariaShare/Info.plist
+      properties:
+        # The name iOS shows on the share-sheet row.
+        CFBundleDisplayName: Talaria27
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          # Pinned via @objc(ShareViewController) — no module-name coupling.
+          NSExtensionPrincipalClass: ShareViewController
+          NSExtensionAttributes:
+            # Dictionary rule, NOT a TRUEPREDICATE subquery (App Review
+            # rejects TRUEPREDICATE): one web URL, up to four images, one
+            # file (PDF/document/etc. — oversize or unstageable files are
+            # refused inside the sheet, honestly), plain text. Pinned by
+            # ShareExtensionConfigTests — a regen or edit can't silently
+            # drop a type.
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsImageWithMaxCount: 4
+              NSExtensionActivationSupportsFileWithMaxCount: 1
+              NSExtensionActivationSupportsText: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria27.share
+        PRODUCT_NAME: TalariaShare
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "6.2"

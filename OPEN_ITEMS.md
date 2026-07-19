@@ -4217,6 +4217,38 @@ pipeline.
 > **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-123-share-extension.md` — **READY TO SEND.**
 > Note: adds a TARGET — the regen is substantial; both targets' entitlements verified post-regen.
 
+**UPDATE 2026-07-19 — BUILT + suite-green + sim-smoked in lane (branch
+`claude/t27-123-share-extension`), Mac-compiled; device checks owed.** Dispatch scope exactly:
+- **Core:** `ShareEnvelope` (ISO-8601 JSON contract) + `SharedInboxStore` over app-group
+  `SharedInbox/` in `TalariaShare/ShareInboxCore.swift` — compiled into the app as a single
+  file so widgets stay untouched. Blobs-first/`envelope.json`-last completeness marker; drain
+  sorts by createdAt, dedupes by id, and corrupt/oversize/stale-incomplete dirs are skipped
+  AND cleaned (tolerant, house rule); 20MB write cap; traversal-safe blob names.
+- **Target:** `TalariaShare` appex modeled on TalariaWidgets — app group in its OWN
+  entitlements + project.yml declaration (strip trap covered for BOTH targets). Dictionary
+  activation rule (1 URL / 4 images / 1 file / text — NO TRUEPREDICATE) pinned from the
+  BUILT appex by `ShareExtensionConfigTests` (#108 built-plist pattern). Sheet = minimal
+  self-contained SwiftUI; NO network/HealthKit/location. Honesty gate IN the sheet: the MIME
+  tables moved to `StageableTypeCatalog` (ShareInboxCore; `PendingAttachment` forwards,
+  byte-identical) so wrong-type and over-20MB payloads (the 25MB-video case) are refused
+  with visible reasons instead of vanishing at drain time.
+- **App side:** `ShareInboxDrainer` on scene-activate BEFORE the pairing gate (free-tier
+  surface) + cold-launch net in `initialize()`; blobs re-materialize through the EXISTING
+  `PendingAttachment.file(at:)` staging path. ChatStore share-seed slot is SEPARATE from the
+  #48 ask-seed: merges queued shares, APPENDS to a draft (never destroys it), deep-routes to
+  chat. Known v1 simplification: drain file IO runs on the main actor (same class of work as
+  the picker path, bounded by the 20MB cap) — revisit only if a real hitch shows.
+- **Verified here:** full suite 845/72 green (baseline 755/62 + the 22 new tests;
+  TEST SUCCEEDED incl. active UITests) after the regen; pbxproj diff PURE INSERTIONS,
+  widgets/tests untouched; both targets' entitlements survived. Sim integration smoke: a
+  hand-planted envelope in the sim's app-group container was consumed on cold launch and the
+  composer showed note + URL, focused, UNPAIRED on the on-device brain.
+
+**Device checklist (Owen, whoGoesThere):** Safari URL → composer text; Photos photo →
+image chip; Files PDF → file chip; two rapid shares → both land in order; 25MB video →
+polite refusal in the sheet; share while force-quit → lands on next launch; `hermes://ask`
+regression (separate seed slots).
+
 Logged 2026-07-17.
 
 ---

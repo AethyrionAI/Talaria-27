@@ -40,27 +40,18 @@ struct PendingAttachment: Identifiable, Sendable {
 
     static let maxAttachmentsPerMessage = 4
 
-    static let pdfMimeType = "application/pdf"
+    // #123: the MIME/type tables moved to `StageableTypeCatalog`
+    // (ShareInboxCore.swift) so the share sheet can honestly refuse up front
+    // what this staging path would reject. These forwarders keep every
+    // existing call site untouched.
+    static let pdfMimeType = StageableTypeCatalog.pdfMimeType
 
-    private static let supportedTextMimeTypes: Set<String> = [
-        "text/plain",
-        "text/csv",
-        "text/markdown",
-        "text/html",
-        "text/xml",
-        "text/x-python",
-        "text/x-swift",
-        "text/javascript",
-        "application/json",
-        "application/xml",
-        "application/yaml",
-        "application/x-yaml",
-    ]
+    private static var supportedTextMimeTypes: Set<String> {
+        StageableTypeCatalog.textMimeTypes
+    }
 
     static func supportsMimeType(_ mimeType: String) -> Bool {
-        mimeType.hasPrefix("image/")
-            || supportedTextMimeTypes.contains(mimeType)
-            || mimeType == pdfMimeType
+        StageableTypeCatalog.isStageable(mimeType: mimeType)
     }
 
     /// Staging size cap by MIME type — see `maxPDFFileSize` for why PDFs differ.
@@ -273,20 +264,7 @@ struct PendingAttachment: Identifiable, Sendable {
     }
 
     private static func mimeType(for url: URL) -> String {
-        let ext = url.pathExtension.lowercased()
-        let map: [String: String] = [
-            "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
-            "gif": "image/gif", "webp": "image/webp", "heic": "image/heic",
-            "pdf": "application/pdf",
-            "txt": "text/plain",
-            "json": "application/json", "csv": "text/csv",
-            "md": "text/markdown", "swift": "text/x-swift",
-            "py": "text/x-python", "js": "text/javascript",
-            "html": "text/html", "css": "text/css",
-            "xml": "text/xml", "yml": "application/yaml",
-            "yaml": "application/yaml",
-        ]
-        return map[ext] ?? "application/octet-stream"
+        StageableTypeCatalog.mimeType(forFileExtension: url.pathExtension)
     }
 
     private static func stageLocally(data: Data, preferredFileName: String) -> String? {
