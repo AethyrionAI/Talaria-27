@@ -61,6 +61,7 @@ struct PrivacySettingsScreen: View {
                 VStack(spacing: Design.Spacing.lg) {
                     SettingsScreenHeader(title: "Privacy", subtitle: "Permissions") { dismiss() }
                     permissionsSection
+                    sensorStreamingSection
                     locationSection
                     appLockSection
                     spotlightSection
@@ -149,6 +150,132 @@ struct PrivacySettingsScreen: View {
         case .denied, .restricted: Design.Colors.danger
         case .notDetermined, .unsupported: Design.Colors.mutedForeground
         }
+    }
+
+    // MARK: Sensor Streaming (#137)
+
+    /// The three relay-streamed sensors behind the master opt-in. Rows only
+    /// render while the master toggle is on; each enable requests its OS
+    /// grant contextually (the #69 pattern) via the container setters, and
+    /// each disable rides the same halt paths as the #6 revoke rows below.
+    private enum StreamedSensor: String, Identifiable, CaseIterable {
+        case health, location, motion
+
+        var id: String { rawValue }
+
+        var displayLabel: String {
+            switch self {
+            case .health: "Health"
+            case .location: "Location"
+            case .motion: "Motion"
+            }
+        }
+
+        var permissionType: PermissionType {
+            switch self {
+            case .health: .health
+            case .location: .location
+            case .motion: .motion
+            }
+        }
+    }
+
+    private var sensorStreamingSection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            MonoLabel("// Sensor Streaming", size: 10, tracking: Design.Tracking.monoXWide,
+                      color: Design.Colors.mutedForeground)
+
+            VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: Design.Spacing.xs) {
+                    HStack(spacing: Design.Spacing.sm) {
+                        Text("Stream Sensors to Hermes")
+                            .font(Design.Typography.callout)
+                            .foregroundStyle(Design.Colors.foreground)
+                        Spacer()
+                        Toggle("", isOn: sensorStreamingBinding)
+                            .labelsHidden()
+                            .tint(Design.Brand.accent)
+                            .accessibilityLabel("Stream Sensors to Hermes")
+                    }
+                    Text(sensorStreamingCaption)
+                        .font(Design.Typography.caption)
+                        .foregroundStyle(Design.Colors.secondaryForeground)
+                }
+                .padding(Design.Spacing.md)
+
+                if settingsStore.settings.sensorStreamingEnabled {
+                    ForEach(StreamedSensor.allCases) { sensor in
+                        Rectangle()
+                            .fill(Design.Colors.hairline)
+                            .frame(height: 1)
+                            .padding(.horizontal, Design.Spacing.md)
+                        sensorStreamRow(sensor)
+                    }
+                }
+            }
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
+        }
+    }
+
+    private var sensorStreamingCaption: String {
+        if !container.pairingStore.isPaired {
+            return "Requires a paired Hermes host — streaming stays idle until one is connected. Each sensor asks for its iOS permission when you turn it on."
+        }
+        return "Streams the sensors you enable to your Hermes host. Each sensor asks for its iOS permission when you turn it on. Turning this off stops capture and drops queued samples."
+    }
+
+    private var sensorStreamingBinding: Binding<Bool> {
+        Binding(
+            get: { settingsStore.settings.sensorStreamingEnabled },
+            set: { newValue in Task { await container.setSensorStreamingEnabled(newValue) } }
+        )
+    }
+
+    private func sensorStreamRow(_ sensor: StreamedSensor) -> some View {
+        let status = permissionsStore.capabilities
+            .first { $0.permissionType == sensor.permissionType }?.status ?? .notDetermined
+        return HStack(spacing: Design.Spacing.sm) {
+            StatusPip(color: statusColor(status), diameter: 7)
+            Text(sensor.displayLabel)
+                .font(Design.Typography.callout)
+                .foregroundStyle(Design.Colors.foreground)
+            Spacer(minLength: Design.Spacing.xs)
+            MonoLabel(status.displayLabel, size: 9, weight: .medium,
+                      tracking: Design.Tracking.mono, color: statusColor(status))
+                .lineLimit(1)
+            Toggle("", isOn: sensorStreamBinding(sensor))
+                .labelsHidden()
+                .tint(Design.Brand.accent)
+                .accessibilityLabel("Stream \(sensor.displayLabel)")
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+    }
+
+    private func sensorStreamBinding(_ sensor: StreamedSensor) -> Binding<Bool> {
+        Binding(
+            get: {
+                switch sensor {
+                case .health: settingsStore.settings.healthCollectionEnabled
+                case .location: settingsStore.settings.locationCollectionEnabled
+                case .motion: settingsStore.settings.motionCollectionEnabled
+                }
+            },
+            set: { newValue in
+                Task {
+                    switch sensor {
+                    case .health: await container.setHealthCollectionEnabled(newValue)
+                    case .location: await container.setLocationCollectionEnabled(newValue)
+                    case .motion: await container.setMotionCollectionEnabled(newValue)
+                    }
+                }
+            }
+        )
     }
 
     // MARK: Location
