@@ -418,6 +418,7 @@
 		F4D43B34BB7FA7B25E451D87 /* Icon-ComicFunnies@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = E1C72B32FFD539B62DEFBE7E /* Icon-ComicFunnies@2x.png */; };
 		F4E72B629E8B408FC11240F2 /* AppLockCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA13657305C577F4DC6CD814 /* AppLockCore.swift */; };
 		F54C1CD1154996479260813C /* GenUISchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CB3976CD4EE70D0721D03B0 /* GenUISchema.swift */; };
+		F554034D7B098340F5B960E5 /* UITestSecureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FAE2542B7FCC56AC7DD7A30 /* UITestSecureStore.swift */; };
 		F74187AC47A3F89ED9939E02 /* Icon-DeepField@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = FB4B4E5BA743254D0C695B48 /* Icon-DeepField@2x.png */; };
 		F788AB25DDD88BCA177DCBA2 /* MockHermesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD54E9A9E2AA0D4604C4467 /* MockHermesClient.swift */; };
 		F8066BF01CB86C37DB7753D0 /* DesignThemeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E6B35E1530814EA7DBC6EAE /* DesignThemeTests.swift */; };
@@ -725,6 +726,7 @@
 		8CF7DE3CA7DE3F9908C24E5F /* VoiceOverlayScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceOverlayScreen.swift; sourceTree = "<group>"; };
 		8D5B4700A4C8D2978B2CA512 /* HermesActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesActivityAttributes.swift; sourceTree = "<group>"; };
 		8DA769E9A5190E37983334B8 /* DeviceMediaTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceMediaTools.swift; sourceTree = "<group>"; };
+		8FAE2542B7FCC56AC7DD7A30 /* UITestSecureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestSecureStore.swift; sourceTree = "<group>"; };
 		9053E72DD0D11D3A48B6D2C8 /* ConversationSearchScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationSearchScreen.swift; sourceTree = "<group>"; };
 		90829D7BD62048956A505665 /* AppIconStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconStore.swift; sourceTree = "<group>"; };
 		90BCDF65B00448418228EF55 /* ConversationExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationExportTests.swift; sourceTree = "<group>"; };
@@ -1645,6 +1647,7 @@
 				CB23EEE4091D1A2F309E9B3C /* MockSessionBootstrapService.swift */,
 				AC5589A3109A1F1544E674F6 /* MockSyncCoordinator.swift */,
 				3EA2C8619D3D07F4F39E95AD /* MockVoiceSessionService.swift */,
+				8FAE2542B7FCC56AC7DD7A30 /* UITestSecureStore.swift */,
 			);
 			path = Mocks;
 			sourceTree = "<group>";
@@ -2188,6 +2191,7 @@
 				718B97699DC8A48CD18472B1 /* TranscriptView.swift in Sources */,
 				5E0758B2A415EB50FAF15068 /* TurnReceipts.swift in Sources */,
 				A971C915FE7F12A522B32237 /* TypingDotsView.swift in Sources */,
+				F554034D7B098340F5B960E5 /* UITestSecureStore.swift in Sources */,
 				322859D44BB7C57EBD55BA2C /* UplinkSettingsScreen.swift in Sources */,
 				1CEA05061F2084E118FC79C4 /* UserDefaultsAppPersistenceStore.swift in Sources */,
 				A471D69AE8AE388DD00569CA /* UserSettings.swift in Sources */,
