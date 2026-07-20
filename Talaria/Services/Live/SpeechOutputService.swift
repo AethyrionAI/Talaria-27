@@ -156,6 +156,21 @@ final class SpeechOutputService: NSObject {
         speak("This is how Hermes replies will sound.", messageID: UUID())
     }
 
+    /// #129: which instance auditions a voice from Settings. Mid-session the
+    /// preview must ride the native pipeline's session-less instance — the
+    /// chat instance re-categorizing the shared session `.playAndRecord →
+    /// .playback` under a live capture engine was the #128 trigger. Outside
+    /// a session the chat instance keeps previews at full `.playback`
+    /// fidelity (#130). Selection only — neither instance's session
+    /// management changes here (#106).
+    static func previewInstance(
+        sessionActive: Bool,
+        chat: SpeechOutputService,
+        native: SpeechOutputService
+    ) -> SpeechOutputService {
+        sessionActive ? native : chat
+    }
+
     /// Personal Voice is opt-in (iOS 17+, physical device, user must have
     /// created one and enabled "Allow Apps to Request to Use"). Once
     /// authorized, personal voices simply appear in `availableVoices()`.

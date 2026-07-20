@@ -183,13 +183,18 @@ struct VoiceSettingsScreen: View {
 
             personalVoiceFooter
 
+            // #129: mid-session the preview rides the native pipeline's
+            // session-less instance (plays over the live session); outside
+            // one, the chat instance keeps full .playback fidelity.
             GhostButton(title: "Preview Voice", systemImage: "play.circle") {
-                speechOutput.previewVoice()
+                SpeechOutputService.previewInstance(
+                    sessionActive: talkStore.isSessionActive,
+                    chat: speechOutput,
+                    native: container.nativeSpeechOutput
+                ).previewVoice()
             }
-            .disabled(talkStore.isSessionActive)
-            .opacity(talkStore.isSessionActive ? 0.45 : 1)
 
-            Text("Read-aloud uses this device's speech voices — download higher-quality voices in Settings → Accessibility → Spoken Content. Paused automatically while a Talk session is live.")
+            Text("Read-aloud uses this device's speech voices — download higher-quality voices in Settings → Accessibility → Spoken Content. Read-aloud pauses automatically while a Talk session is live; voice previews still play.")
                 .font(Design.Typography.caption)
                 .foregroundStyle(Design.Colors.secondaryForeground)
         }

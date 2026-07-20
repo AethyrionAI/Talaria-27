@@ -4490,7 +4490,7 @@ Logged 2026-07-17.
 
 ---
 
-## 129. 🐛 Voice preview mid-session routes through the CHAT TTS instance — category yank under a live engine (the #128 trigger)
+## 129. 🔧 Voice preview mid-session — BUILT (PR #127, 2026-07-20): previews ride the native pipeline's session-less instance; device pass owed
 
 > **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-129-preview-instance.md` — **READY TO SEND** (micro; option (a) selection function, audio law restated).
 
@@ -4505,6 +4505,25 @@ show 'end the session to preview voices'. Either is a micro-PR; (a) preferred pe
 call.
 
 Logged 2026-07-17.
+
+**Update 2026-07-20 — BUILT, option (a) (PR #127, `claude/t27-129-preview-instance`):** pure
+`SpeechOutputService.previewInstance(sessionActive:chat:native:)` selects which instance
+auditions; AppContainer creates `nativeSpeechOutput` unconditionally (mock voice path included
+— wiring hoisted byte-identical, audio law #106 held: no session-management changes, no session
+calls, `didActivateAudioSession` untouched) and exposes it `private(set)` with a session-safe
+closure default for bare containers; the settings preview button routes through the selector
+and its `.disabled(isSessionActive)` stopgap is REMOVED (mid-session audition is the
+acceptance). TDD identity tests in the existing `SpeechOutputTests` (no new files → no regen);
+suite 931/0 + UI bundles green; adversarial review clean. **Record correction:** at base the
+mid-session preview was double-blocked since Wave 1 (disabled button + `previewVoice()` →
+gated `speak()`) — the #128 trigger attribution only works if `isSessionActive` flapped out of
+connecting/connected during the burst, so #128's re-verify stands on its own; selection keys
+on the same predicate, so flap-window behavior is unchanged from base. **Question for Owen
+(in PR):** native-engine sessions share the pipeline's assistant TTS instance — preview
+mid-reply drops the reply's un-spoken audio tail (transcript intact) and the next delta cuts
+the preview; realtime engine (primary case) previews truly play over the session. Accept, or
+add a third dedicated preview instance? → Device pass (Owen): mid-session audition + apply, no
+crash, session keeps running, mic live after; outside a session, full-fidelity previews.
 
 ---
 
