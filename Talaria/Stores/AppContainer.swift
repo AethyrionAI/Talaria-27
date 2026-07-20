@@ -1624,7 +1624,14 @@ final class AppContainer {
 
         for profile in profilesStore.profiles where profile.id != profilesStore.activeProfileID {
             guard profileRelaySessions.isPaired(profileID: profile.id),
-                  let deviceID = profileRelaySessions.sessionState(forProfileID: profile.id)?.deviceID else { continue }
+                  let profileState = profileRelaySessions.sessionState(forProfileID: profile.id),
+                  let deviceID = profileState.deviceID else { continue }
+            // #133: mirror the active path's short-circuit — this relay
+            // already acked exactly this token, so there is nothing to send.
+            guard DormantPushRegistrationPolicy.shouldRegister(
+                recordedToken: profileState.registeredPushToken,
+                currentToken: token
+            ) else { continue }
             guard var accessToken = await profileRelaySessions.accessToken(forProfileID: profile.id) else { continue }
 
             let body = PushRegisterBody(
@@ -1646,7 +1653,7 @@ final class AppContainer {
                     accessToken = refreshed
                     let _: PushRegisterResponse = try await client.post(path: "push/register", body: body, accessToken: accessToken)
                 }
-                profileRelaySessions.markPushTokenRegistered(true, profileID: profile.id)
+                profileRelaySessions.markPushTokenRegistered(true, profileID: profile.id, token: token)
                 containerLog.notice("registerPushToken: dormant relay '\(profile.name, privacy: .public)' accepted push registration")
             } catch {
                 containerLog.notice("registerPushToken: dormant relay '\(profile.name, privacy: .public)' failed: \(error.localizedDescription, privacy: .public)")
