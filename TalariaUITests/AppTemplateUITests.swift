@@ -235,14 +235,29 @@ final class TalariaUITests: XCTestCase {
         let setupCodeField = app.textFields["Setup code"]
         XCTAssertTrue(setupCodeField.waitForExistence(timeout: 5))
         setupCodeField.tap()
-        // Strip the display dash — the field's formatter reinserts it, and
-        // skipping the "-" key avoids a keyboard-plane flake.
-        setupCodeField.typeText(setupCode.replacingOccurrences(of: "-", with: ""))
+        // One keystroke per typeText call: the field's onChange formatter
+        // rewrites the binding when the display dash lands (5th character),
+        // and a single fast burst loses keystrokes inside that rewrite
+        // (observed on-sim: only ABCDEF of ABCDEFGH arrived). Per-call app
+        // idling lets each reformat settle. The dash itself is stripped —
+        // the formatter reinserts it, and skipping the "-" key avoids a
+        // keyboard-plane switch.
+        for character in setupCode.replacingOccurrences(of: "-", with: "") {
+            setupCodeField.typeText(String(character))
+        }
 
         // The GlowButton is titled "Pair Device" but carries an explicit
-        // "Connect Hermes" accessibility label.
+        // "Connect Hermes" accessibility label. It stays disabled until the
+        // code is complete AND the relay URL validates — wait for enablement
+        // so a dropped keystroke fails HERE, not as a downstream timeout.
         let pairButton = app.buttons["Connect Hermes"]
         XCTAssertTrue(pairButton.waitForExistence(timeout: 5))
+        let enableDeadline = Date(timeIntervalSinceNow: 5)
+        while !pairButton.isEnabled, Date() < enableDeadline {
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.5))
+        }
+        XCTAssertTrue(pairButton.isEnabled,
+                      "pair button should enable once the full code is present and the relay URL validates")
         pairButton.tap()
 
         // A successful pair swaps the root to the permissions onboarding.
