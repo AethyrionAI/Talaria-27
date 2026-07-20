@@ -2469,4 +2469,433 @@ struct AppStoresTests {
         #expect(decoded.toolActivities.first?.detail == "path: notes.md")
         #expect(decoded.toolActivities.first?.anchorOffset == 0)
     }
+
+    // MARK: - Offline-first launch (#136)
+    //
+    // The device-caught shape: Windows Firewall silently DROPS packets to
+    // listener-less ports (no TCP refusal), so every relay/shim request hangs
+    // the full URLSession timeout instead of failing fast. The launch splash
+    // must drop on local-state-ready — never on relay convergence.
+
+    /// A relay that never answers. `wait()` suspends until the gate opens and
+    /// honors task cancellation the way URLSession does (throws
+    /// `CancellationError`), so cancelled launch probes unwind instead of
+    /// landing stale results.
+    @MainActor
+    private final class BlackHoleGate {
+        private(set) var isOpen = false
+
+        func open() { isOpen = true }
+
+        func wait() async throws {
+            while !isOpen {
+                try await Task.sleep(for: .milliseconds(10))
+            }
+        }
+    }
+
+    @MainActor
+    private final class BlackHoleSessionBootstrapService: SessionBootstrapServiceProtocol {
+        let gate: BlackHoleGate
+        var registerCallCount = 0
+        var loadCallCount = 0
+        /// The user the relay reports for this session once it finally
+        /// answers. Mismatching the paired user proves
+        /// `validateRestoredIdentity` ran strictly AFTER bootstrap (#3/#46).
+        var sessionUserID = UUID()
+
+        init(gate: BlackHoleGate) {
+            self.gate = gate
+        }
+
+        func registerDevice(_ request: DeviceRegistrationRequest) async throws -> SessionBootstrapResponse {
+            registerCallCount += 1
+            try await gate.wait()
+            return SessionBootstrapResponse(
+                state: AppSessionState(
+                    userID: sessionUserID,
+                    deviceID: UUID(),
+                    installationID: request.installationID,
+                    deviceRegistered: true,
+                    connectionStatus: .connected,
+                    syncStatus: .synced,
+                    isMockMode: false,
+                    backendEndpoint: request.relayBaseURLString,
+                    lastSyncAt: nil,
+                    pushTokenRegistered: false
+                ),
+                tokens: AuthTokens(
+                    accessToken: "blackhole-access-token",
+                    refreshToken: "blackhole-refresh-token",
+                    expiresAt: .distantFuture
+                )
+            )
+        }
+
+        func loadSession(accessToken: String?) async throws -> AppSessionState {
+            loadCallCount += 1
+            try await gate.wait()
+            return AppSessionState(
+                userID: sessionUserID,
+                displayName: "Hermes User",
+                deviceID: UUID(),
+                installationID: UUID(),
+                deviceRegistered: true,
+                connectionStatus: .connected,
+                syncStatus: .synced,
+                isMockMode: false,
+                backendEndpoint: AppEnvironment.production.baseURLString,
+                lastSyncAt: .now,
+                pushTokenRegistered: false
+            )
+        }
+
+        func refreshAuth(refreshToken: String) async throws -> AuthTokens {
+            throw RelayAPIClient.ClientError.requestFailed("no refresh in black-hole launch tests")
+        }
+
+        func revokeCurrentSession(accessToken: String?) async throws {}
+    }
+
+    @MainActor
+    private final class BlackHoleHermesHostService: HermesHostServiceProtocol {
+        let gate: BlackHoleGate
+        var fetchCallCount = 0
+        var host: HermesHostStatus?
+
+        init(gate: BlackHoleGate, host: HermesHostStatus? = nil) {
+            self.gate = gate
+            self.host = host
+        }
+
+        func fetchCurrentHost(accessToken: String?) async throws -> HermesHostStatus? {
+            fetchCallCount += 1
+            try await gate.wait()
+            return host
+        }
+
+        func createEnrollmentCode(accessToken: String?) async throws -> HostEnrollmentCode {
+            HostEnrollmentCode(
+                setupCode: "HC1:blackhole-setup-code",
+                expiresAt: .distantFuture,
+                relayHost: "relay.example.test"
+            )
+        }
+
+        func revokeCurrentHost(accessToken: String?) async throws {}
+    }
+
+    @MainActor
+    private final class BlackHoleInboxService: InboxServiceProtocol {
+        let gate: BlackHoleGate
+        var fetchCallCount = 0
+
+        init(gate: BlackHoleGate) {
+            self.gate = gate
+        }
+
+        func fetchInbox(accessToken: String?) async throws -> [InboxItem] {
+            fetchCallCount += 1
+            try await gate.wait()
+            return [InboxItem(type: .alert, title: "Landed after uplink", body: "Delivered by background init")]
+        }
+
+        func submitAction(itemID: UUID, actionID: String, accessToken: String?) async throws -> InboxActionResult {
+            InboxActionResult(itemID: itemID, actionID: actionID, status: .completed, completedAt: .now)
+        }
+    }
+
+    /// A fully wired bare container whose every relay surface rides a
+    /// black-hole gate, paired with a valid Keychain-local session so the
+    /// launch guards pass.
+    @MainActor
+    private struct LaunchHarness {
+        let container: AppContainer
+        let bootstrapGate: BlackHoleGate
+        let hostGate: BlackHoleGate
+        let inboxGate: BlackHoleGate
+        let bootstrapService: BlackHoleSessionBootstrapService
+        let hostService: BlackHoleHermesHostService
+        let inboxService: BlackHoleInboxService
+        let pairedUserID: UUID
+
+        func openAllGates() {
+            bootstrapGate.open()
+            hostGate.open()
+            inboxGate.open()
+        }
+    }
+
+    @MainActor
+    private func makeLaunchHarness(
+        suiteName: String,
+        sessionUserMatchesPairedUser: Bool
+    ) async -> LaunchHarness {
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+
+        let secureStore = MockSecureStore()
+        await secureStore.store(key: "session.accessToken", value: "launch-access-token")
+        await secureStore.store(key: "session.refreshToken", value: "launch-refresh-token")
+
+        let pairedUserID = UUID()
+        persistence.savePairedRelayConfiguration(
+            PairedRelayConfiguration(
+                baseURLString: "https://relay.example.test/v1",
+                hostDisplayName: "relay.example.test",
+                pairedAt: .now,
+                relayUserID: pairedUserID
+            )
+        )
+
+        let bootstrapGate = BlackHoleGate()
+        let hostGate = BlackHoleGate()
+        let inboxGate = BlackHoleGate()
+
+        let bootstrapService = BlackHoleSessionBootstrapService(gate: bootstrapGate)
+        bootstrapService.sessionUserID = sessionUserMatchesPairedUser ? pairedUserID : UUID()
+
+        let sessionStore = AppSessionStore(
+            bootstrapService: bootstrapService,
+            syncCoordinator: MockSyncCoordinator(),
+            secureStore: secureStore,
+            persistence: persistence,
+            notificationService: MockNotificationService(),
+            environmentProvider: { .production }
+        )
+        let pairingStore = PairingStore(
+            pairingService: RecordingPairingService(),
+            sessionStore: sessionStore,
+            persistence: persistence,
+            environmentProvider: { .production },
+            relayBaseURLProvider: { "https://relay.example.test/v1" }
+        )
+        let hostService = BlackHoleHermesHostService(
+            gate: hostGate,
+            host: HermesHostStatus(
+                id: UUID(),
+                displayName: "OJAMD",
+                hostname: "ojamd.tailnet.test",
+                platform: "windows",
+                connectorVersion: "1.0.0",
+                hermesCommand: "hermes",
+                hermesVersion: "1.0.0",
+                hermesModel: nil,
+                lastSeenAt: .now,
+                lastConnectedAt: .now,
+                isOnline: true
+            )
+        )
+        let hostStore = HermesHostStore(
+            hostService: hostService,
+            accessTokenProvider: { await sessionStore.currentAccessToken() }
+        )
+        let inboxService = BlackHoleInboxService(gate: inboxGate)
+        let container = AppContainer(
+            sessionStore: sessionStore,
+            pairingStore: pairingStore,
+            hostStore: hostStore,
+            chatStore: ChatStore(hermesClient: RecordingHermesClient(), persistence: persistence),
+            inboxStore: InboxStore(
+                inboxService: inboxService,
+                persistence: persistence,
+                sessionStore: sessionStore
+            ),
+            permissionsStore: PermissionsStore(
+                locationService: MockLocationService(),
+                healthService: MockHealthService(),
+                notificationService: MockNotificationService(),
+                mediaService: MockMediaService()
+            ),
+            settingsStore: SettingsStore(persistence: persistence),
+            talkStore: TalkStore(voiceService: RecordingVoiceSessionService()),
+            modelsShimClient: ModelsShimClient(baseURLProvider: { nil }, tokenProvider: { nil })
+        )
+        return LaunchHarness(
+            container: container,
+            bootstrapGate: bootstrapGate,
+            hostGate: hostGate,
+            inboxGate: inboxGate,
+            bootstrapService: bootstrapService,
+            hostService: hostService,
+            inboxService: inboxService,
+            pairedUserID: pairedUserID
+        )
+    }
+
+    /// Polls `condition` until it holds or the deadline passes; returns
+    /// whether it held so the caller's `#expect` names the failing site.
+    @MainActor
+    private func pollUntil(
+        timeout: Duration = .seconds(5),
+        _ condition: @MainActor () -> Bool
+    ) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now + timeout
+        while clock.now < deadline {
+            if condition() { return true }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        return condition()
+    }
+
+    @Test @MainActor
+    func bootstrapProbeSessionUsesShortTimeouts() {
+        // #136 non-negotiable 4: launch/bootstrap probes must converge in
+        // seconds against a black-holed host (firewall DROP → no TCP
+        // refusal → the full request timeout, -1001) — never URLSession's
+        // default 60s.
+        let session = RelayAPIClient.makeBootstrapProbeSession()
+        #expect(session.configuration.timeoutIntervalForRequest == RelayAPIClient.bootstrapProbeRequestTimeout)
+        #expect(session.configuration.timeoutIntervalForResource == RelayAPIClient.bootstrapProbeResourceTimeout)
+        #expect(session.configuration.timeoutIntervalForRequest <= 5)
+        #expect(session.configuration.waitsForConnectivity == false)
+    }
+
+    @Test @MainActor
+    func launchCriticalPathIsLocalOnly() {
+        // #136 non-negotiable 1: nothing before `isInitialized = true` may
+        // touch the network — the splash drops on local-state-ready.
+        for step in AppContainer.LaunchInitStep.criticalPath {
+            #expect(!step.touchesNetwork, "critical-path step \(step) must not touch the network")
+        }
+
+        // The #123 share drain stays on the critical path, before any
+        // relay-gated work (#136 non-negotiable 6).
+        #expect(AppContainer.LaunchInitStep.criticalPath.contains(.drainShareInbox))
+
+        // #3/#46: identity validation stays ordered strictly after bootstrap.
+        let background = AppContainer.LaunchInitStep.backgroundBootstrap
+        let bootstrapIndex = background.firstIndex(of: .sessionBootstrap)
+        let validateIndex = background.firstIndex(of: .validateRestoredIdentity)
+        #expect(bootstrapIndex != nil && validateIndex != nil)
+        if let bootstrapIndex, let validateIndex {
+            #expect(bootstrapIndex < validateIndex)
+        }
+
+        // The partition is total: every step lives in exactly one list.
+        let partitioned = AppContainer.LaunchInitStep.criticalPath + background
+        #expect(partitioned.count == AppContainer.LaunchInitStep.allCases.count)
+        #expect(Set(partitioned) == Set(AppContainer.LaunchInitStep.allCases))
+    }
+
+    @Test @MainActor
+    func blackHoledRelayDoesNotHoldTheLaunchSplash() async throws {
+        let harness = await makeLaunchHarness(
+            suiteName: "launch-blackhole-\(UUID().uuidString)",
+            sessionUserMatchesPairedUser: false
+        )
+        let container = harness.container
+        #expect(container.shouldShowLaunchSplash)
+
+        let initTask = Task { @MainActor in await container.initialize() }
+
+        // The splash must drop on local-state-ready — with every relay
+        // surface still black-holed (#136 non-negotiable 1/7).
+        let splashDropped = await pollUntil { !container.shouldShowLaunchSplash }
+        #expect(splashDropped, "splash must drop without awaiting the black-holed relay")
+
+        // Nothing relay-backed has landed yet, and the #3/#46 identity check
+        // (strictly after bootstrap) has not run.
+        #expect(container.pairingStore.identityMismatchDetected == false)
+        #expect(container.hostStore.currentHost == nil)
+        #expect(container.inboxStore.items.isEmpty)
+
+        // Relay comes back: background init lands state live.
+        harness.openAllGates()
+        let backgroundLanded = await pollUntil {
+            container.hostStore.isHostOnline && !container.inboxStore.items.isEmpty
+        }
+        #expect(backgroundLanded, "background init must land host + inbox state once the relay answers")
+
+        // The relay session reported a DIFFERENT user than the pairing
+        // minted — only the post-bootstrap validation can see that, so the
+        // flag proves bootstrap → validateRestoredIdentity ordering held.
+        let identityValidated = await pollUntil { container.pairingStore.identityMismatchDetected }
+        #expect(identityValidated, "validateRestoredIdentity must run after bootstrap completes")
+
+        await initTask.value
+    }
+
+    @Test @MainActor
+    func launchBootstrapIsSingleFlight() async throws {
+        let harness = await makeLaunchHarness(
+            suiteName: "launch-singleflight-\(UUID().uuidString)",
+            sessionUserMatchesPairedUser: true
+        )
+        let container = harness.container
+
+        let first = Task { @MainActor in await container.initialize() }
+        let second = Task { @MainActor in await container.initialize() }
+
+        let bootstrapStarted = await pollUntil { harness.bootstrapService.registerCallCount >= 1 }
+        #expect(bootstrapStarted)
+
+        harness.openAllGates()
+        await first.value
+        await second.value
+        let settled = await pollUntil { container.hostStore.isHostOnline }
+        #expect(settled)
+
+        #expect(harness.bootstrapService.registerCallCount == 1, "concurrent initialize() must run bootstrap once")
+    }
+
+    @Test @MainActor
+    func resetDuringBackgroundInitLandsNoStaleState() async throws {
+        let harness = await makeLaunchHarness(
+            suiteName: "launch-resetrace-\(UUID().uuidString)",
+            sessionUserMatchesPairedUser: true
+        )
+        let container = harness.container
+        // Bootstrap answers immediately; the HOST probe is the in-flight
+        // black hole the reset must supersede.
+        harness.bootstrapGate.open()
+
+        let initTask = Task { @MainActor in await container.initialize() }
+        let hostProbeInFlight = await pollUntil { harness.hostService.fetchCallCount >= 1 }
+        #expect(hostProbeInFlight)
+
+        // Unpair while the host probe hangs (#136 non-negotiable 5 — the
+        // ~1847 reset site must cancel/supersede in-flight background init).
+        await container.handlePairingRemoved()
+
+        harness.openAllGates()
+        await initTask.value
+        // Give any stray continuation a beat to (incorrectly) land.
+        try? await Task.sleep(for: .milliseconds(200))
+
+        #expect(container.hostStore.currentHost == nil, "no stale host state may land after reset")
+        #expect(container.hostStore.lastErrorMessage == nil, "a cancelled probe must not smear an error over reset state")
+        #expect(container.inboxStore.items.isEmpty, "no stale inbox items may land after reset")
+    }
+
+    @Test @MainActor
+    func rePairSupersedesInFlightBackgroundInit() async throws {
+        let harness = await makeLaunchHarness(
+            suiteName: "launch-repair-\(UUID().uuidString)",
+            sessionUserMatchesPairedUser: true
+        )
+        let container = harness.container
+
+        let initTask = Task { @MainActor in await container.initialize() }
+        let bootstrapStarted = await pollUntil { harness.bootstrapService.registerCallCount >= 1 }
+        #expect(bootstrapStarted)
+
+        // Re-pair while the first bootstrap hangs black-holed (#136
+        // non-negotiable 5 — the ~1271 reset site supersedes, and the fresh
+        // initialize() must actually re-run bootstrap, not silently skip it
+        // on AppSessionStore's isBootstrapping re-entry guard).
+        let rePairTask = Task { @MainActor in await container.handlePairingActivated() }
+        let secondBootstrapStarted = await pollUntil { harness.bootstrapService.registerCallCount >= 2 }
+        #expect(secondBootstrapStarted, "re-pair must supersede the in-flight bootstrap and run a fresh one")
+
+        harness.openAllGates()
+        await initTask.value
+        await rePairTask.value
+
+        let settled = await pollUntil { container.hostStore.isHostOnline }
+        #expect(settled)
+        #expect(container.pairingStore.identityMismatchDetected == false)
+    }
 }

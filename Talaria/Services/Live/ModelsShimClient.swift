@@ -153,9 +153,12 @@ final class ModelsShimClient {
     /// `GET /models?refresh=0|1`. `refresh=true` busts the per-provider disk cache
     /// and re-hits every provider's live `/v1/models` — genuinely slow (~20–60s),
     /// so callers MUST run this off the UI's critical path with a spinner.
-    func fetchModels(refresh: Bool) async throws -> ShimModelOptions {
+    /// `timeout` overrides the default per-request timeout (30s cached /
+    /// 120s refresh) — the #136 launch-probe path passes ~5s so a
+    /// black-holed shim can't stall background init.
+    func fetchModels(refresh: Bool, timeout: TimeInterval? = nil) async throws -> ShimModelOptions {
         let path = "/models?refresh=\(refresh ? 1 : 0)"
-        let request = try makeRequest(path: path, method: "GET", body: nil, timeout: refresh ? 120 : 30)
+        let request = try makeRequest(path: path, method: "GET", body: nil, timeout: timeout ?? (refresh ? 120 : 30))
         let (data, response) = try await session.data(for: request)
         try ensureSuccess(response: response, data: data)
         do {

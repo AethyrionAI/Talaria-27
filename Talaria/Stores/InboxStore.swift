@@ -39,9 +39,15 @@ final class InboxStore {
         do {
             let token = await sessionStore.currentAccessToken()
             let fetchedItems = try await inboxService.fetchInbox(accessToken: token)
+            // #136: a cancelled launch probe was superseded by a reset —
+            // its result must not land over the canceller's state.
+            guard !Task.isCancelled else { return }
             // #113: locally-raised alerts lead — they're operational state
             // about THIS device's pipeline, not relay directives.
             items = applyLocalState(to: localState.localItems + fetchedItems)
+        } catch is CancellationError {
+            // #136: cancellation is the caller superseding this load, not an
+            // unreachable relay — leave items + error state untouched.
         } catch {
             // #45: real data only — a failed fetch shows the unreachable
             // state, never demo items. (The DemoData fallback shipped fake

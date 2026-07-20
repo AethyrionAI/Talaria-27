@@ -102,6 +102,11 @@ final class AppSessionStore {
 
             try await loadAndApplySessionState(installationID: request.installationID)
         } catch {
+            // #136: cancellation is the app superseding this bootstrap
+            // (re-pair / unpair / profile switch mid-launch) — bail before
+            // the recovery ladder burns doomed round trips or smears error
+            // state over the canceller's reset.
+            if error is CancellationError { return }
             if await attemptRefreshAndReload(installationID: request.installationID) {
                 return
             }
