@@ -54,7 +54,11 @@ struct InboxScreen: View {
                                 Task { await inboxStore.dismiss(item) }
                             },
                             onOpenDetails: {
-                                // Inbox detail navigation deprecated — no-op
+                                // #126: briefings get the rich detail; other
+                                // kinds keep the pre-existing no-op.
+                                if item.isBriefing {
+                                    router.navigate(to: .briefing(item))
+                                }
                             }
                         )
                     }

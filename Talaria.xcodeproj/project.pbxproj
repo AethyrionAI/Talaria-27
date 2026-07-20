@@ -122,6 +122,7 @@
 		3A416A1C3DE88071A6765234 /* AppTemplateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3A103D6FF3E893A48AE64C3 /* AppTemplateTests.swift */; };
 		3AEFF0328839876B116DB9E2 /* MessageStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA320DD4E3F50724945CC1C /* MessageStatus.swift */; };
 		3B1425CE28EFB62BCCC6367D /* ChakraPetch-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 0346C9293584A751B2DF7E9E /* ChakraPetch-Medium.ttf */; };
+		3B2A2C9EB08B03298E7A3501 /* BriefingDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4FD21974C01431F1F4BF095 /* BriefingDetailScreen.swift */; };
 		3B9AF2627244C31DB1AA9153 /* ChatInputBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6347F95595858FADDEDE54DF /* ChatInputBar.swift */; };
 		3BB573A82110374D3EC5F24D /* DeviceMediaTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DA769E9A5190E37983334B8 /* DeviceMediaTools.swift */; };
 		3CE466CA7744735C858CF942 /* Icon-PaperTape@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 40C7EB0FCE8B0F81AAAA1E30 /* Icon-PaperTape@3x.png */; };
@@ -907,6 +908,7 @@
 		F40B3EFC9CE0AF10120A00B8 /* AppIconSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconSettingsScreen.swift; sourceTree = "<group>"; };
 		F44FC928449FEFDDB4ABB8E3 /* MessageListIdentityProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageListIdentityProbe.swift; sourceTree = "<group>"; };
 		F4E4E4E79B398DB1BEC0E4A8 /* BackendProfilesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendProfilesTests.swift; sourceTree = "<group>"; };
+		F4FD21974C01431F1F4BF095 /* BriefingDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingDetailScreen.swift; sourceTree = "<group>"; };
 		F51C80FDDAEBBFCAA3904612 /* ThemeArtDirectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeArtDirectionTests.swift; sourceTree = "<group>"; };
 		F6BE1EBB06745A2F54F48D12 /* IconPreview-SolarForge.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-SolarForge.png"; sourceTree = "<group>"; };
 		F6DDD296EB3D124F59DAD98D /* GenUISurfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenUISurfaceView.swift; sourceTree = "<group>"; };
@@ -1001,6 +1003,7 @@
 		0C7C6B2E2CF12915579AA8DB /* Inbox */ = {
 			isa = PBXGroup;
 			children = (
+				F4FD21974C01431F1F4BF095 /* BriefingDetailScreen.swift */,
 				1F2D69A41EA157792FE8855C /* InboxItemDetailSheet.swift */,
 				58A8D3AC5A4CD172DB9B3B98 /* InboxItemRow.swift */,
 				0D5BE08A71CB56A6DD58C1BB /* InboxScreen.swift */,
@@ -1998,6 +2001,7 @@
 				9F036D2AAE305475B84AD8FE /* BackendProfile.swift in Sources */,
 				116EF9006798F7E4FD0C6279 /* BackendProfilesStore.swift in Sources */,
 				43FE22BBDB759478A2CC34D3 /* BackgroundTaskService.swift in Sources */,
+				3B2A2C9EB08B03298E7A3501 /* BriefingDetailScreen.swift in Sources */,
 				14A3105BE5AE503B04D61B5A /* CaptureScreen.swift in Sources */,
 				16299D086926FB595B9334A1 /* CarPlaySceneDelegate.swift in Sources */,
 				835FE1F3B6871E5A4015A5CC /* CarPlayVoiceManager.swift in Sources */,

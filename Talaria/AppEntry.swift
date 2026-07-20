@@ -338,6 +338,12 @@ struct TalariaApp: App {
             container.router.popToRoot()
             container.router.selectedTab = .chat
             container.router.navigate(to: .permissions)
+        case "briefing":
+            // #126: widget tap → the latest briefing's detail.
+            container.router.activeSheet = nil
+            container.router.popToRoot()
+            container.router.selectedTab = .chat
+            container.router.navigate(to: .briefing(nil))
         case "voice":
             // Same flag StartVoiceSessionIntent sets; the Talk to Hermes
             // control (#7) launches through this link. Clear any sheet first —
