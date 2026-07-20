@@ -22,6 +22,17 @@ final class AppContainer {
     /// Local read-aloud TTS for Hermes replies (#2). Created here (not via
     /// init) so every construction path gets one; wired in makeDefault().
     let speechOutput = SpeechOutputService()
+    /// #129: the native voice pipeline's TTS instance — no session
+    /// management, no isBlocked gate — so mid-session voice previews play
+    /// OVER the live Talk session instead of re-categorizing the shared
+    /// audio session under it (the #128 trigger). Replaced in makeDefault()
+    /// with the instance the pipeline actually speaks through; the default
+    /// here keeps bare test containers session-safe.
+    private(set) var nativeSpeechOutput: SpeechOutputService = {
+        let service = SpeechOutputService()
+        service.managesAudioSession = false
+        return service
+    }()
     /// #123: drains the share-extension inbox on foreground. Created here so
     /// every construction path gets one; free-tier surface — its drain runs
     /// BEFORE (and independent of) the pairing-gated foreground work.
@@ -611,18 +622,21 @@ final class AppContainer {
         // paired. The native pipeline's TTS instance manages no audio session
         // (the pipeline owns .playAndRecord) and rides the same persisted
         // read-aloud voice/rate as the chat read-aloud path.
+        // #129: created unconditionally (mock voice path included) so the
+        // Voice settings screen always has a session-less instance to route
+        // mid-session previews through; stored on the container below.
+        let nativeSpeechOutput = SpeechOutputService()
+        nativeSpeechOutput.managesAudioSession = false
+        nativeSpeechOutput.voiceIdentifierProvider = {
+            settingsStore.settings.readAloudVoiceIdentifier
+        }
+        nativeSpeechOutput.rateProvider = {
+            settingsStore.settings.readAloudRate
+        }
         let voiceService: any VoiceSessionServiceProtocol
         if usesMockPairingService {
             voiceService = MockVoiceSessionService()
         } else {
-            let nativeSpeechOutput = SpeechOutputService()
-            nativeSpeechOutput.managesAudioSession = false
-            nativeSpeechOutput.voiceIdentifierProvider = {
-                settingsStore.settings.readAloudVoiceIdentifier
-            }
-            nativeSpeechOutput.rateProvider = {
-                settingsStore.settings.readAloudRate
-            }
             let nativeVoice = NativeVoicePipelineService(
                 // The #18 amendment: the ACTIVE backend, never a hardcoded
                 // SessionsHermesClient — with the local brain routed, this is
@@ -1016,6 +1030,9 @@ final class AppContainer {
         container.chatStore.autoReadAloudEnabled = {
             settingsStore.settings.readAloudAutoPlay
         }
+        // #129: hand Settings the pipeline's own session-less instance for
+        // mid-session voice previews (selection in previewInstance).
+        container.nativeSpeechOutput = nativeSpeechOutput
 
         // On-device intelligence (#4.8 × #4.15): titles/previews + reasoning
         // condensation ride the chat turn lifecycle inside ChatStore.

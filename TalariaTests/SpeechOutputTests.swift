@@ -208,4 +208,32 @@ struct SpeechOutputTests {
             utterancesIdle: true, streamIdle: true
         ) == false)
     }
+
+    // MARK: - #129 preview instance selection
+
+    /// Mid-session, a voice preview must ride the native pipeline's
+    /// session-less instance: the chat instance re-categorizing the shared
+    /// session `.playAndRecord → .playback` under a live capture engine was
+    /// the #128 trigger.
+    @MainActor @Test func sessionActivePreviewsThroughNativeInstance() {
+        let chat = SpeechOutputService()
+        chat.managesAudioSession = false
+        let native = SpeechOutputService()
+        native.managesAudioSession = false
+        #expect(SpeechOutputService.previewInstance(
+            sessionActive: true, chat: chat, native: native
+        ) === native)
+    }
+
+    /// No session → the chat instance previews, unchanged (#130: previews
+    /// keep full `.playback` fidelity outside sessions).
+    @MainActor @Test func noSessionPreviewsThroughChatInstance() {
+        let chat = SpeechOutputService()
+        chat.managesAudioSession = false
+        let native = SpeechOutputService()
+        native.managesAudioSession = false
+        #expect(SpeechOutputService.previewInstance(
+            sessionActive: false, chat: chat, native: native
+        ) === chat)
+    }
 }
