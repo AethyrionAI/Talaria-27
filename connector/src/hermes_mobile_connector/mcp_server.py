@@ -317,6 +317,7 @@ def send_inbox_item(
     kind: str = "notification",
     priority: str = "normal",
     notify: str = "silent",
+    payload: dict[str, str] | None = None,
 ) -> str:
     """Send an item to the user's phone Inbox (the agent → phone channel).
 
@@ -337,6 +338,9 @@ def send_inbox_item(
         notify: How to announce it — "silent" (default: background push wakes
             the app so the item is waiting), "alert" (visible notification
             with the title/body), or "none" (item appears on next app open).
+        payload: Optional flat string→string metadata map delivered verbatim
+            to the app. The #126 daily-briefing contract rides here:
+            {"category": "briefing", "speakable": "<short spoken version>"}.
 
     Returns JSON with the created item's id (save it for get_inbox_verdict)
     and whether a push was sent.
@@ -347,6 +351,10 @@ def send_inbox_item(
         return json.dumps({"error": f"Invalid priority '{priority}'. Use one of: {sorted(INBOX_PRIORITIES)}"})
     if notify not in NOTIFY_MODES:
         return json.dumps({"error": f"Invalid notify mode '{notify}'. Use one of: {sorted(NOTIFY_MODES)}"})
+    if payload is not None and not all(
+        isinstance(k, str) and isinstance(v, str) for k, v in payload.items()
+    ):
+        return json.dumps({"error": "payload must be a flat string→string map"})
 
     internal_key = _internal_api_key()
     if not internal_key:
@@ -370,10 +378,18 @@ def send_inbox_item(
 
     try:
         with httpx.Client(timeout=15.0) as client:
+            create_body: dict[str, object] = {
+                "kind": kind,
+                "title": title,
+                "body": body,
+                "priority": priority,
+            }
+            if payload:
+                create_body["payload"] = payload
             response = client.post(
                 f"{root}/internal/inbox/create",
                 headers=headers,
-                json={"kind": kind, "title": title, "body": body, "priority": priority},
+                json=create_body,
             )
             response.raise_for_status()
             item = response.json()["data"]["item"]

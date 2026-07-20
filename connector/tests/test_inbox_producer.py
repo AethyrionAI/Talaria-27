@@ -222,3 +222,44 @@ def test_secrets_roundtrip_preserves_internal_api_key(tmp_path):
     # Older secrets.json files (no key) still load.
     store.secrets_path.write_text(json.dumps({"openai_api_key": "sk-x"}), encoding="utf-8")
     assert store.load_secrets().internal_api_key is None
+
+
+def test_send_inbox_item_rejects_non_string_payload_values():
+    result = json.loads(mcp_server.send_inbox_item("t", "b", payload={"count": 3}))
+    assert "payload" in result["error"].lower()
+
+
+def test_send_inbox_item_forwards_payload_when_given(connector_home, fake_http):
+    connector_home.save_secrets(ConnectorSecrets(internal_api_key="test-key"))
+    fake_http.queued = [
+        FakeResponse(payload={"data": {"item": {"id": "item-9", "status": "pending"}}}),
+        FakeResponse(payload={"data": {"sent": 1}}),
+    ]
+
+    result = json.loads(
+        mcp_server.send_inbox_item(
+            "Morning briefing — Thu Jul 17",
+            "## Sleep\nYou slept 7h 24m.",
+            payload={"category": "briefing", "speakable": "Good morning."},
+        )
+    )
+
+    assert result["itemId"] == "item-9"
+    create = fake_http.requests[0]
+    assert create[3] == {
+        "kind": "notification",
+        "title": "Morning briefing — Thu Jul 17",
+        "body": "## Sleep\nYou slept 7h 24m.",
+        "priority": "normal",
+        "payload": {"category": "briefing", "speakable": "Good morning."},
+    }
+
+
+def test_send_inbox_item_empty_payload_stays_omitted(connector_home, fake_http):
+    connector_home.save_secrets(ConnectorSecrets(internal_api_key="test-key"))
+    fake_http.queued = [
+        FakeResponse(payload={"data": {"item": {"id": "item-2", "status": "pending"}}}),
+        FakeResponse(payload={"data": {"sent": 1}}),
+    ]
+    mcp_server.send_inbox_item("t", "b", payload={})
+    assert "payload" not in fake_http.requests[0][3]
