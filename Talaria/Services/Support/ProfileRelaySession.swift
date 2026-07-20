@@ -105,12 +105,15 @@ final class ProfileRelaySessionFactory {
     }
 
     /// Persists a profile's push-registration flag (M-7) — the dormant-relay
-    /// counterpart of `sessionStore.state.pushTokenRegistered`.
-    func markPushTokenRegistered(_ registered: Bool, profileID: UUID) {
+    /// counterpart of `sessionStore.state.pushTokenRegistered`. #133: also
+    /// records the acked token (cleared on deactivate), which is what the
+    /// dormant-path idempotency guard reads.
+    func markPushTokenRegistered(_ registered: Bool, profileID: UUID, token: String? = nil) {
         guard let profile = profileResolver(profileID) else { return }
         let scope = profile.credentialScopeID
         guard var state = persistence.loadSessionState(profileScope: scope) else { return }
         state.pushTokenRegistered = registered
+        state.registeredPushToken = registered ? token : nil
         persistence.saveSessionState(state, profileScope: scope)
     }
 
@@ -155,6 +158,17 @@ final class ProfileRelaySessionFactory {
             profileRelayLog.notice("refresh: dormant profile '\(profile.name, privacy: .public)' failed — \(error.localizedDescription, privacy: .public)")
             return nil
         }
+    }
+}
+
+/// #133: whether a dormant profile's relay needs a push-registration POST —
+/// the dormant counterpart of the active path's "same token already acked"
+/// short-circuit. Pure so the idempotency rules are unit-testable: skip only
+/// when the profile's recorded ack is exactly the current token; a cleared
+/// mark (unpair, notifications toggle off) nils the record and re-registers.
+enum DormantPushRegistrationPolicy {
+    static func shouldRegister(recordedToken: String?, currentToken: String) -> Bool {
+        recordedToken != currentToken
     }
 }
 
