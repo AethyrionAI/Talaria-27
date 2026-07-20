@@ -4695,7 +4695,7 @@ Logged 2026-07-18.
 
 ---
 
-## 135. 🔧 Template UITests stale — REFRESHED in lane (green + un-skipped), merge owed
+## 135. ✅ Template UITests refreshed — MERGED (PR #124, merge `b027abd`, 2026-07-20); five flows green + un-skipped
 
 The July-5 `TalariaUITests` class (AppTemplateUITests.swift: manual-pairing flow, chat send,
 paired-launch skip, disconnect, host-status screen) predates the #31 no-pairing-wall redesign —
