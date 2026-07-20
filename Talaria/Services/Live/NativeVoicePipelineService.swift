@@ -32,6 +32,13 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     /// conformance bug, Apple forums #797544).
     nonisolated static let endpointSilence: TimeInterval = 1.35
 
+    /// #130 probe (half-duplex): recognition results are discarded while the
+    /// assistant's TTS is audible and for this hangover afterward, so the
+    /// tail of its own audio can't self-transcribe. With the VP chain off on
+    /// this branch there is no hardware echo cancellation — this gate is the
+    /// software substitute.
+    nonisolated static let halfDuplexHangover: TimeInterval = 0.3
+
     var voiceState: VoiceState = .idle { didSet { publishSnapshot() } }
     var connectionState: TalkConnectionState = .idle { didSet { publishSnapshot() } }
     var transcriptItems: [TranscriptItem] = [] { didSet { publishSnapshot() } }
@@ -100,6 +107,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     private var lastTranscriptionChangeAt: Date?
     private var lastCommittedUtterance = ""
     private var currentAssistantItemID: UUID?
+    /// #130 probe: the last moment TTS was observed audible — feeds the
+    /// half-duplex hangover clock. Bumped wherever speaking state is read
+    /// while true (recognition events, the settle poll, the stop paths).
+    private var lastSpeakingObservedAt: Date?
     /// Identity of the turn currently owning `turnTask` — a superseded
     /// (barge-in-cancelled) run's epilogue must not clear the new turn's
     /// handle or settle its state.
@@ -275,6 +286,9 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         guard turnTask != nil || speechOutput.isSpeaking else { return }
         turnTask?.cancel()
         turnTask = nil
+        // #130 probe: audio was live until this stop — the hangover still
+        // has to swallow its tail.
+        if speechOutput.isSpeaking { lastSpeakingObservedAt = .now }
         speechOutput.stop()
         freezeCurrentAssistantItem()
         if connectionState == .connected {
@@ -399,6 +413,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         lastTranscriptionChangeAt = nil
         lastCommittedUtterance = ""
         currentAssistantItemID = nil
+        lastSpeakingObservedAt = nil
     }
 
     // MARK: - Transcription → turns
@@ -408,10 +423,16 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         case .volatile(let text):
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
             noteSpeechEvidence()
-            // User speech while the assistant is replying = barge-in. Voice
-            // processing (echo cancellation) keeps TTS playback from landing
-            // here, so volatile text during a reply is genuinely the user.
-            if turnTask != nil || speechOutput.isSpeaking {
+            // #130 probe half-duplex gate: with the VP chain off, TTS playback
+            // IS re-transcribed — text arriving while the assistant is audible
+            // (plus the hangover) is presumed self-echo and dropped. The tap
+            // and engine stay untouched; only the text is ignored. Talk-over
+            // barge-in is knowingly lost on this branch (the trade under
+            // evaluation) — interruption is tap-or-gap.
+            if observeSpeakingAndDecideDiscard() { return }
+            // Speech landing here during the thinking phase (nothing audible
+            // yet) is genuinely the user — that barge-in still supersedes.
+            if turnTask != nil {
                 manuallyInterruptAssistantOutput()
             }
             pendingVolatileText = text
@@ -421,6 +442,9 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { return }
             noteSpeechEvidence()
+            // #130 probe: finals from the assistant's own audio are dropped
+            // by the same half-duplex gate as volatiles.
+            if observeSpeakingAndDecideDiscard() { return }
             // A late final can re-cover audio the fallback endpointer already
             // committed — drop it instead of double-sending the turn.
             if Self.isDuplicateFinalization(committed: lastCommittedUtterance, candidate: trimmed) {
@@ -436,6 +460,18 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             voiceState = .disconnected
             statusMessage = reason
         }
+    }
+
+    /// #130 probe: read live TTS state (feeding the hangover clock while
+    /// audible) and answer whether this recognition result gets discarded.
+    private func observeSpeakingAndDecideDiscard() -> Bool {
+        let speaking = speechOutput.isSpeaking
+        if speaking { lastSpeakingObservedAt = .now }
+        return Self.shouldDiscardTranscription(
+            isSpeaking: speaking,
+            lastSpeakingObservedAt: lastSpeakingObservedAt,
+            now: .now
+        )
     }
 
     /// Fallback endpointer loop — commits stale volatile text as a turn when
@@ -466,6 +502,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         if turnTask != nil {
             turnTask?.cancel()
             turnTask = nil
+            if speechOutput.isSpeaking { lastSpeakingObservedAt = .now }
             speechOutput.stop()
             freezeCurrentAssistantItem()
         }
@@ -544,9 +581,15 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     }
 
     /// Hold `.speaking` until the sentence-buffered TTS queue drains, then
-    /// return to listening. The mic stays live throughout (barge-in).
+    /// return to listening. The mic stays live throughout, but on this #130
+    /// probe its text is half-duplex-discarded until playback (plus the
+    /// hangover) ends — interruption while audible is the stop button.
     private func settleAfterSpeaking() async {
         while speechOutput.isSpeaking, !isEndingSession, connectionState == .connected {
+            // #130 probe: keep the hangover clock current even when no
+            // recognition events arrive during playback, so the window is
+            // measured from (near) the actual end of TTS audio.
+            lastSpeakingObservedAt = .now
             try? await Task.sleep(for: .milliseconds(150))
         }
         guard connectionState == .connected, !isEndingSession else { return }
@@ -627,6 +670,21 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         guard !pendingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               let lastChangeAt else { return false }
         return now.timeIntervalSince(lastChangeAt) >= silence
+    }
+
+    /// #130 probe: true when a recognition result should be ignored because
+    /// the assistant is audible (or just stopped being). Half-duplex replaces
+    /// the VP chain's echo cancellation on this branch — the mic stays hot,
+    /// its text is just not honored while TTS plays plus a short hangover.
+    nonisolated static func shouldDiscardTranscription(
+        isSpeaking: Bool,
+        lastSpeakingObservedAt: Date?,
+        now: Date,
+        hangover: TimeInterval = NativeVoicePipelineService.halfDuplexHangover
+    ) -> Bool {
+        if isSpeaking { return true }
+        guard let lastSpeakingObservedAt else { return false }
+        return now.timeIntervalSince(lastSpeakingObservedAt) < hangover
     }
 
     /// True when a transcriber final re-covers an utterance the fallback
@@ -830,10 +888,11 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
 /// `DictationController`; this one keeps the analyzer running for the whole
 /// Talk session and reports volatile + finalized results as they land.
 ///
-/// Echo cancellation: `inputNode.setVoiceProcessingEnabled(true)` before the
-/// tap installs, so assistant TTS playback isn't re-transcribed as new user
-/// input. Voice processing changes the input format — the format is read
-/// AFTER enabling it.
+/// #130 probe: the voice-processing chain (`setVoiceProcessingEnabled`) is
+/// deliberately OFF and the session mode is `.default`, so TTS keeps full
+/// playback fidelity and the VPIO render-err flood can't occur. Echo control
+/// is the service-level half-duplex gate (discard-while-speaking + hangover)
+/// instead of hardware echo cancellation.
 private actor NativeVoiceCaptureController {
     private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "NativeVoiceCapture")
 
@@ -908,7 +967,12 @@ private actor NativeVoiceCaptureController {
         muteState.withLock { $0 = muted }
 
         // Session category: playAndRecord because TTS plays while the mic
-        // stays live; .voiceChat enables the system voice-processing chain.
+        // stays live. #130 probe: mode .default (not .voiceChat) keeps the
+        // downlink OFF the telephony voice-processing tuning (AGC, bandwidth
+        // shaping, receiver EQ) that makes in-session TTS muddier than the
+        // .playback previews. The vpio-bypass probe proved raw capture works
+        // on this seed without the VP chain; echo control moves to the
+        // service's software half-duplex gate.
         // .allowBluetoothHFP covers headsets and car audio.
         // Deactivate first to avoid reconfiguring an active session; the
         // previous stop() already deactivated, but this call is harmless and
@@ -917,7 +981,7 @@ private actor NativeVoiceCaptureController {
         try? session.setActive(false, options: .notifyOthersOnDeactivation)
         try session.setCategory(
             .playAndRecord,
-            mode: .voiceChat,
+            mode: .default,
             options: [.defaultToSpeaker, .allowBluetoothHFP]
         )
         try session.setActive(true)
@@ -983,16 +1047,11 @@ private actor NativeVoiceCaptureController {
         transcriber: some SpeechModule,
         resultsLoop consumeResults: @escaping @Sendable () async -> Void
     ) async throws -> AsyncStream<Event> {
-        // Echo cancellation FIRST — it changes the input format.
         let inputNode = audioEngine.inputNode
-        do {
-            try inputNode.setVoiceProcessingEnabled(true)
-        } catch {
-            // Non-fatal: without the voice-processing chain the pipeline still
-            // works, but TTS playback may be re-transcribed. Barge-in handling
-            // upstream tolerates it; log loudly for the device checklist.
-            Self.logger.warning("voice processing unavailable: \(error.localizedDescription, privacy: .public)")
-        }
+        // #130 probe: setVoiceProcessingEnabled is deliberately NOT called —
+        // the VPIO unit is both the `auou/vpio/appl render err: -1` flood and
+        // the telephony processing under evaluation. TTS re-transcription is
+        // handled upstream by the half-duplex gate, not by echo cancellation.
         inputNode.removeTap(onBus: 0)
         let inputFormat = inputNode.outputFormat(forBus: 0)
         // #82 wedge backstop: installTap with a degenerate hardware format
