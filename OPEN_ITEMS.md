@@ -4554,7 +4554,7 @@ Logged 2026-07-17.
 
 ---
 
-## 133. 🐛 Dormant-relay push registration is not idempotent — 5 re-POSTs per launch (M-7 follow-up) — FIXED in lane (2026-07-20); device pass owed
+## 133. 🔧 Dormant-relay push registration idempotency — MERGED (PR #123, merge `0bc2e0c`, 2026-07-20); device pass owed (M-7 follow-up)
 
 > **LANE BUILT 2026-07-20 (`claude/fable-t27-133-push-idempotency`), suite 901/77 green, TDD
 > (guard tests proven red first).** The fix is the active path's short-circuit mirrored per
