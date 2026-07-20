@@ -595,8 +595,10 @@ final class AppContainer {
                 guard let destination = profilesStore.sensorDestinationProfileID else { return false }
                 return profileRelaySessions.isPaired(profileID: destination)
             },
+            isSensorStreamingEnabled: { settingsStore.settings.sensorStreamingEnabled },
             isHealthCollectionEnabled: { settingsStore.settings.healthCollectionEnabled },
             isLocationCollectionEnabled: { settingsStore.settings.locationCollectionEnabled },
+            isMotionCollectionEnabled: { settingsStore.settings.motionCollectionEnabled },
             locationService: liveLocationService,
             healthService: liveHealthService,
             motionService: liveMotionService
@@ -896,6 +898,9 @@ final class AppContainer {
         let refreshCredentialState: @MainActor () -> Void = { [weak container, hermesAPIKeyBox, shimTokenBox] in
             guard UIApplication.shared.isProtectedDataAvailable else { return }
             container?.pairingStore.reloadPersistedConfigurationIfNeeded()
+            // #137: a migration deferred by a pre-unlock launch lands here,
+            // after the pairing re-read it depends on.
+            container?.migrateSensorStreamingOptInIfNeeded()
             if hermesAPIKeyBox.value.isEmpty {
                 Task { @MainActor in
                     let scope = profilesStore.activeProfile?.credentialScopeID
@@ -1083,6 +1088,12 @@ final class AppContainer {
                 await container?.refreshCommandCatalog(force: becameOnline)
             }
         }
+
+        // #137: grandfather already-streaming devices before the first
+        // sensor start can read the new opt-out defaults. Synchronous local
+        // work only (#136); deferred internally while protected data is
+        // sealed and re-run by refreshCredentialState above.
+        container.migrateSensorStreamingOptInIfNeeded()
 
         return container
     }
@@ -1685,10 +1696,29 @@ final class AppContainer {
     // persisted UserSettings flag keeps SensorUploadService.start() from
     // resurrecting it on the next launch. Camera/Photos stay deep-link-only.
 
+    /// #137: the master sensor-streaming opt-in. Enabling starts the
+    /// capture/drain loop (the upload path stays Hermes-gated underneath);
+    /// disabling stops it and drops the queued outbox — #6 revoke parity.
+    func setSensorStreamingEnabled(_ enabled: Bool) async {
+        settingsStore.settings.sensorStreamingEnabled = enabled
+        if enabled {
+            restartSensorPipelineIfPaired()
+        } else {
+            sensorUploadService?.stop()
+            sensorUploadService?.resetOutbox()
+        }
+        await permissionsStore.reloadCapabilities()
+    }
+
     /// Revoke (`false`) or restore (`true`) the app's HealthKit use.
+    /// Enabling requests the OS grant contextually first (#137 / the #69
+    /// pattern) — a no-op after the install's first decision (read-only
+    /// types re-prompt never; the start() re-assert below restores the
+    /// in-memory status).
     func setHealthCollectionEnabled(_ enabled: Bool) async {
         settingsStore.settings.healthCollectionEnabled = enabled
         if enabled {
+            await permissionsStore.requestPermission(for: .health)
             restartSensorPipelineIfPaired()
         } else {
             await sensorUploadService?.disableHealthCollection()
@@ -1702,11 +1732,26 @@ final class AppContainer {
     func setLocationCollectionEnabled(_ enabled: Bool) async {
         settingsStore.settings.locationCollectionEnabled = enabled
         if enabled {
+            await permissionsStore.requestPermission(for: .location)
             restartSensorPipelineIfPaired()
         } else {
             sensorUploadService?.disableLocationCollection()
             settingsStore.settings.locationSyncPreference = .foregroundOnly
             permissionsStore.updateLocationSyncPreference(.foregroundOnly)
+        }
+        await permissionsStore.reloadCapabilities()
+    }
+
+    /// Revoke (`false`) or restore (`true`) the app's motion use (#137 —
+    /// motion joins the #6 per-sensor gates). Enabling requests the OS grant
+    /// contextually first (the #69 pattern; no-op when already determined).
+    func setMotionCollectionEnabled(_ enabled: Bool) async {
+        settingsStore.settings.motionCollectionEnabled = enabled
+        if enabled {
+            await permissionsStore.requestPermission(for: .motion)
+            restartSensorPipelineIfPaired()
+        } else {
+            sensorUploadService?.disableMotionCollection()
         }
         await permissionsStore.reloadCapabilities()
     }
@@ -1726,6 +1771,29 @@ final class AppContainer {
         guard pairingStore.isPaired else { return }
         sensorUploadService?.stop()
         sensorUploadService?.start()
+    }
+
+    /// #137 one-shot grandfathering — see SensorStreamingGrandfathering.
+    /// Deferred while protected data is sealed (post-reboot background
+    /// launch): pairing reads as absent there, and stamping the migration
+    /// done on that false negative would silently stop a streaming device.
+    /// Re-invoked from the protected-data recovery closure, so the deferral
+    /// resolves on the same seam the #46 credential staleness does.
+    func migrateSensorStreamingOptInIfNeeded() {
+        guard UIApplication.shared.isProtectedDataAvailable else {
+            containerLog.notice("sensor opt-in migration deferred — protected data unavailable")
+            return
+        }
+        pairingStore.reloadPersistedConfigurationIfNeeded()
+        var settings = settingsStore.settings
+        if SensorStreamingGrandfathering.migrateIfNeeded(
+            settings: &settings,
+            isPaired: pairingStore.isPaired,
+            hadPersistedSettings: settingsStore.hadPersistedSettings
+        ) {
+            settingsStore.settings = settings
+            containerLog.notice("sensor opt-in migration: grandfathered streaming ON (active pairing)")
+        }
     }
 
     /// Tells the relay to deactivate push registrations for this device.
