@@ -4340,7 +4340,7 @@ future connected-tier rider (no FoundationModels here).
 
 ## 126. ✨ Daily briefing — app half (connected-tier centerpiece)
 
-> **BUILT in lane 2026-07-20 (`claude/t27-126-daily-briefing`).** App half complete: recognition
+> **BUILT in lane 2026-07-20 (`claude/t27-126-daily-briefing`, PR #126).** App half complete: recognition
 > (`payload.category == "briefing"`, kind-tolerant), `BriefingDetailScreen` through the EXISTING
 > MarkdownContentView (chart fences render + tap through free), read-aloud via the SHARED
 > SpeechOutputService (`speakable` ?? fence-stripped body; #106 gate untouched), Daily Briefing
