@@ -91,6 +91,7 @@
 		29EFA9C39ECB47D62212372E /* DemoData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F30E8B116D689642D0151112 /* DemoData.swift */; };
 		2A54CEEA90D0FA86BB76BA6B /* VoiceSessionBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = D84D166D8E272CB6E7DF3DC6 /* VoiceSessionBanner.swift */; };
 		2A86C5787FDFD2BC8499C6E6 /* Icon-PaperTape@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 50A76862D8411AF3BD87C3C8 /* Icon-PaperTape@2x.png */; };
+		2A86DC681F682437B29E4B8F /* SensorStreamingGrandfathering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D2092B303EF5BCDABE88998 /* SensorStreamingGrandfathering.swift */; };
 		2BF95A673C09DC5145F17A91 /* ThemePaletteCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1504E7B49606D4BA2B051A77 /* ThemePaletteCore.swift */; };
 		2C0ADBCBDA8B4192FB8B83EA /* MarkdownTableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F5E3E734B6B0B778FE98DD /* MarkdownTableTests.swift */; };
 		2C8C6859E028DD486FB10295 /* ConnectionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64E80A052C17C28F4574933C /* ConnectionStatus.swift */; };
@@ -374,6 +375,7 @@
 		D798482710BEB3828D28FE4B /* LiveActivityPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654E84A391098DEAD47A8D51 /* LiveActivityPreviews.swift */; };
 		D7ABD0ED8AA188A3627514FB /* LiveMotionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9971D47F897C6706C20D07DD /* LiveMotionService.swift */; };
 		D7F95D4B5AC3C7A2F1F8DA9E /* HermesWidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F3D7D8D49DB06179C998F7B /* HermesWidgetData.swift */; };
+		D8035EB463C86F3BF4A57174 /* SensorOptInTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E908DCC59357802D176E212 /* SensorOptInTests.swift */; };
 		D88C4D0DFF03453A96884BC6 /* MarkdownChartTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8B0819CCDD35E5401F1BFC3 /* MarkdownChartTests.swift */; };
 		D9F27DA7123DD417BCA3B145 /* DeviceToolBeltTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F7672B25F6886DDA7552BFE /* DeviceToolBeltTests.swift */; };
 		DAD55F32A9534B69E0F4E04A /* ModelSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE1A9E3E373FE488B6548295 /* ModelSelector.swift */; };
@@ -604,9 +606,11 @@
 		4B8FF666C56327F765813BB9 /* TalkModeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkModeScreen.swift; sourceTree = "<group>"; };
 		4CB3976CD4EE70D0721D03B0 /* GenUISchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenUISchema.swift; sourceTree = "<group>"; };
 		4CFEF9D3A27BC3070CA020E2 /* DocumentTextExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentTextExtractor.swift; sourceTree = "<group>"; };
+		4D2092B303EF5BCDABE88998 /* SensorStreamingGrandfathering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SensorStreamingGrandfathering.swift; sourceTree = "<group>"; };
 		4D97832B5B31B91A3CF95D31 /* HermesHostStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesHostStatus.swift; sourceTree = "<group>"; };
 		4DBDD32C7878328DCCBAADAF /* MockEntitlementService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockEntitlementService.swift; sourceTree = "<group>"; };
 		4E4EEF1F7509255B9AE1778A /* ConversationJournal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationJournal.swift; sourceTree = "<group>"; };
+		4E908DCC59357802D176E212 /* SensorOptInTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SensorOptInTests.swift; sourceTree = "<group>"; };
 		4F3D7D8D49DB06179C998F7B /* HermesWidgetData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesWidgetData.swift; sourceTree = "<group>"; };
 		4F7672B25F6886DDA7552BFE /* DeviceToolBeltTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceToolBeltTests.swift; sourceTree = "<group>"; };
 		4FEF4DC986BD45CCA162C8FD /* Icon-HoloSushi@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-HoloSushi@3x.png"; sourceTree = "<group>"; };
@@ -1051,6 +1055,7 @@
 				239665852938D1C25488A8E2 /* PrivateCloudRoutingTests.swift */,
 				58403047D33DC8853F341109 /* ProvisioningServiceTests.swift */,
 				6BB71CCECAE06823EA97EEDA /* ReasoningChannelTests.swift */,
+				4E908DCC59357802D176E212 /* SensorOptInTests.swift */,
 				BEBD81AC0A5839FA111D423E /* SensorOutboxChurnTests.swift */,
 				C0533895BE78322F481C2946 /* ServerSettingsTests.swift */,
 				69E5B7A33B613AA64CF8495B /* ShareExtensionConfigTests.swift */,
@@ -1113,6 +1118,7 @@
 				059AC4BF9B2C0C3522E078C3 /* RelayAPIClient.swift */,
 				872B0ADD4223BACB94F26C79 /* ResilientHermesClient.swift */,
 				C7C0A879EC41CB30E663F615 /* ResilientSessionBootstrapService.swift */,
+				4D2092B303EF5BCDABE88998 /* SensorStreamingGrandfathering.swift */,
 				47B6D7C2209DD2079E8B39A3 /* ShareInboxDrainer.swift */,
 				3435E81CD684734099521C82 /* TalkPreflight.swift */,
 				E23630C7B139D9D86F34A8D9 /* TalkSessionRules.swift */,
@@ -2141,6 +2147,7 @@
 				F9D5CAB68163B1941D5CDECA /* Router.swift in Sources */,
 				C031D275A1C61DC2F100B389 /* SSEEvent.swift in Sources */,
 				B5501CAA541FE16C4B40605B /* SecureStoreProtocol.swift in Sources */,
+				2A86DC681F682437B29E4B8F /* SensorStreamingGrandfathering.swift in Sources */,
 				E23BD96676CCAC2B0DCE3440 /* SensorUploadService.swift in Sources */,
 				0A9E5885F489B6F31EE74EF2 /* ServerSettingsScreen.swift in Sources */,
 				08751E12A738BFBF97809B26 /* SessionBootstrapResponse.swift in Sources */,
@@ -2272,6 +2279,7 @@
 				265A4787A9870DA7441BC100 /* PrivateCloudRoutingTests.swift in Sources */,
 				840B88B41CCC59999D67655D /* ProvisioningServiceTests.swift in Sources */,
 				542E125ADE6CFAD3AADC94AF /* ReasoningChannelTests.swift in Sources */,
+				D8035EB463C86F3BF4A57174 /* SensorOptInTests.swift in Sources */,
 				39126650E0C3D4914B75988C /* SensorOutboxChurnTests.swift in Sources */,
 				FDDBDDD0DF3E665FD2E6BCE1 /* ServerSettingsTests.swift in Sources */,
 				7B5BEC5E4D34AF13634F687A /* ShareExtensionConfigTests.swift in Sources */,
