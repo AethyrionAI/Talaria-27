@@ -4701,7 +4701,13 @@ Logged 2026-07-18.
 
 ---
 
-## 136. 🛠️ Offline-first launch — splash must not await relay/shim (silent-drop black hole)
+## 136. 🔧 Offline-first launch — MERGED (PR #122, 2026-07-19); device pass owed
+
+**MERGED 2026-07-19 (PR #122, merge commit `0528529`).** Splash now drops on
+local-state-ready; relay-backed init backgrounded; 5s bootstrap probe timeouts. **Device
+pass owed:** cold launch with OJAMD relay+shim STOPPED (services down, machine up — the
+firewall black-hole case) must reach chat in seconds, standalone fully functional; services
+restored → state upgrades live without relaunch.
 
 Device-caught 2026-07-19: with OJAMD's relay `:8000` + shim `:8765` STOPPED (NSSM services down
 for an update) but the machine UP, the app sat on `ESTABLISH UPLINK` for minutes. Root cause is
@@ -4731,3 +4737,30 @@ path; re-pairing still re-runs `initialize()`; #123 share drain stays free-tier-
 **Dispatch spec:** `dispatch/FABLE-T27-136-offline-first-launch.md`
 
 Logged 2026-07-19.
+
+---
+
+## 137. ✨ Sensor opt-in redesign — kill the post-pair permissions wall (public-app posture)
+
+**Approved by Owen 2026-07-20.** The Wave 4.5 redesign (#71) removed the pairing wall from
+first launch, but `PermissionsOnboardingScreen` still runs as an all-at-once permission wall
+immediately after a successful pair — health front and center. For a public app that is the
+wrong shape even for the Connected tier: it torches adoption of the optional sensor/MCP layer
+by demanding the scariest grants at the moment of least trust.
+
+**Design:** pairing grants CHAT, nothing else. Remove `PermissionsOnboardingScreen` from the
+post-pair flow entirely. Sensors become a deliberate second decision: a "Sensor Streaming"
+master opt-in in Settings, OFF by default, with per-sensor enables that request OS
+authorization contextually at enable time (the #69 device-tool-belt pattern — one grant, in
+context, user-driven). The capture/drain loop is gated on the opt-in, not on pairing.
+
+**Grandfathering (non-negotiable):** existing paired devices already streaming sensors must
+migrate with the master toggle ON — the redesign must not silently turn off streaming for
+users who already consented. One-shot migration keyed on existing sensor activity/grants.
+
+**Kept intact:** #23 revoke affordances; HealthKit check-before-request rule; the
+Hermes-gating of the upload path (opt-in gates capture on top of it, not instead of it).
+
+**Dispatch spec:** `dispatch/FABLE-T27-137-sensor-optin.md`
+
+Logged 2026-07-20.
