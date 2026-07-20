@@ -4338,7 +4338,20 @@ future connected-tier rider (no FoundationModels here).
 
 ---
 
-## 126. ✨ Daily briefing — app half (connected-tier centerpiece)
+## 126. 🔧 Daily briefing — app half MERGED (PR #126, merge `edeba74`, 2026-07-20); host half + deploy + device pass owed (connected-tier centerpiece)
+
+> **MERGED 2026-07-20.** Recognition (category-only, #58-tolerant), speakable derivation
+> (fenced blocks fully stripped), BriefingDetailScreen via MarkdownContentView (charts render
+> free), local-only markRead, read-aloud toggle, HermesBriefingWidget (small/medium,
+> `hermes://briefing`), payload fields on BOTH lockstep HermesWidgetData copies. Connector:
+> `send_inbox_item` now forwards optional `payload` (additive, own commit) — the dispatch's
+> "no connector changes" premise was wrong for this one field; approved in review.
+> **Remaining, in order:** (1) OJAMD deploy — rebase `ojamd-deploy` onto `t27/main`, restart
+> connector (payload passthrough is dead until deployed); (2) host cron half — scheduled run
+> + prompt using the JSON contract in the PR #126 body; (3) Owen device pass — six-step
+> checklist in the PR body. **Known scope cut (accepted):** notification tap still routes to
+> chat — inbox alert pushes carry no identifying userInfo; the small relay follow-up
+> (userInfo on inbox alert pushes → tap-to-detail) is described in the PR if wanted later.
 
 > **BUILT in lane 2026-07-20 (`claude/t27-126-daily-briefing`, PR #126).** App half complete: recognition
 > (`payload.category == "briefing"`, kind-tolerant), `BriefingDetailScreen` through the EXISTING
