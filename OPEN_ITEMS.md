@@ -4695,7 +4695,7 @@ Logged 2026-07-18.
 
 ---
 
-## 135. 🧹 Template UITests stale — pairing-flow tests skipped in scheme, refresh owed
+## 135. 🔧 Template UITests stale — REFRESHED in lane (green + un-skipped), merge owed
 
 The July-5 `TalariaUITests` class (AppTemplateUITests.swift: manual-pairing flow, chat send,
 paired-launch skip, disconnect, host-status screen) predates the #31 no-pairing-wall redesign —
@@ -4713,6 +4713,40 @@ the mock-pairing scaffolding (`UITEST_PAIRING_MODE=mock`, `MockPairingService`, 
 to Settings -> Connect Hermes Desktop (#31).
 
 Logged 2026-07-18.
+
+> **REFRESHED in lane 2026-07-20 (branch `claude/fable-t27-135-uitests-refresh`).** The five
+> flows rewritten against #31 reality and GREEN on the standard sim (47F68496,
+> `CODE_SIGNING_ALLOWED=NO`), un-skipped in the scheme (project.yml regen; `aps-environment`
+> verified surviving): standalone first launch → chat reachable + asserts the wall is GONE;
+> mock pairing via Settings → Connect Hermes Desktop → ConnectHermesScreen → post-pair
+> permissions onboarding CONTINUE; chat send rides the #120 `UITEST_DUPID_PROBE` synthetic
+> turn (deterministic "Acknowledged" reply — mock pairing sets no API key, so routing stays
+> local-brain by design); paired relaunch skip-path (also asserts the Settings upgrade row is
+> GONE — a real paired-persistence signal); disconnect via Settings → Hermes Host →
+> PAIR DEVICE → Connect Host → Disconnect → standalone chat, wall stays gone, upgrade row
+> returns. `testLaunchPerformance` dropped (redundant with `TalariaUITestsLaunchTests`); the
+> old host-status test folded into the disconnect traversal. Mock scaffolding retained
+> (`UITEST_PAIRING_MODE`, external config JSON, per-test defaults/keychain isolation).
+> Locators audited for the GlowButton casing trap via one case-insensitive containment
+> helper (`CONTAINS[c]` — also absorbs SwiftUI row-button label concatenation).
+>
+> Two harness traps found and fixed on the way:
+> 1. **`typeText` races the code field's reformatter** — the display-dash insertion rewrites
+>    the binding mid-burst and DROPS keystrokes (on-sim: only ABCDEF of ABCDEFGH landed, so
+>    PAIR DEVICE stayed disabled and the tap silently no-oped). Fix: one keystroke per
+>    `typeText` call + an explicit `isEnabled` gate on the pair button.
+> 2. **`CODE_SIGNING_ALLOWED=NO` breaks sim KEYCHAIN writes** (the #125 HealthKit-strip
+>    trap's sibling): the entitlement-stripped build's SecItem writes all fail — silently,
+>    since `KeychainSecureStore` ignores statuses — so the mock pair's tokens vanished and
+>    `initialize()`'s no-access-token guard un-paired the app 6ms after
+>    `pair: adopted relay user…` (sim log; the identical build SIGNED passes).
+>    Accommodation, never a production path: when `UITEST_KEYCHAIN_SERVICE` is set,
+>    `AppContainer` backs `SecureStoreProtocol` with the UITest defaults suite
+>    (`Talaria/Services/Mocks/UITestSecureStore.swift`, relaunch-durable) and skips the
+>    reinstall keychain mirror — `CODE_SIGNING_ALLOWED=NO` stays the standing harness.
+>
+> Full gate green on the Mac: unit suite 901 tests / 77 suites passed (Swift Testing);
+> UI bundle 8/8 (MessageIdentity + the five + launch smoke ×2 configs). Merge owed.
 
 
 ---
