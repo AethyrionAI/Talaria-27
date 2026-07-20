@@ -408,7 +408,6 @@
 		ECECF61949B7CB09685EADFB /* VoiceOverlayScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CF7DE3CA7DE3F9908C24E5F /* VoiceOverlayScreen.swift */; };
 		ED33B71C2B3ABA8004FE43B1 /* LocalChatBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00699F0006940A80E8EA5B /* LocalChatBackend.swift */; };
 		EDEA7E210870D2EB23C505D1 /* AppIconSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40B3EFC9CE0AF10120A00B8 /* AppIconSettingsScreen.swift */; };
-		EEEE53322B468B0C200EE113 /* PermissionsOnboardingScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A92A9507C027CCF86579740 /* PermissionsOnboardingScreen.swift */; };
 		EF380CE74ED275D42ECE5D3C /* ChartSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E49B2094965500D4F7FEEC4 /* ChartSpec.swift */; };
 		EF767B81A18433859CDF057B /* AppLockOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E49C66A5464EDFA3E82838 /* AppLockOverlayView.swift */; };
 		EFF5038AD4AC165AAC808DC9 /* IconPreview-CerealBox.png in Resources */ = {isa = PBXBuildFile; fileRef = 5CC442FAC645EDA27FDC1937 /* IconPreview-CerealBox.png */; };
@@ -748,7 +747,6 @@
 		9971D47F897C6706C20D07DD /* LiveMotionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveMotionService.swift; sourceTree = "<group>"; };
 		99D01CD4530887103707EAA6 /* InboxDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxDecodingTests.swift; sourceTree = "<group>"; };
 		9A09FC324E28A6A2B4439048 /* ConnectHermesHostScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectHermesHostScreen.swift; sourceTree = "<group>"; };
-		9A92A9507C027CCF86579740 /* PermissionsOnboardingScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsOnboardingScreen.swift; sourceTree = "<group>"; };
 		9C033B79367C600767758EB0 /* LiveLocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveLocationService.swift; sourceTree = "<group>"; };
 		9C3685099731A3903F45B2E1 /* ModelsShimClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsShimClient.swift; sourceTree = "<group>"; };
 		9C6A4A5B1356C64A3A6476FA /* LocalIntelligenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalIntelligenceService.swift; sourceTree = "<group>"; };
@@ -1533,7 +1531,6 @@
 			children = (
 				8C85FA7AD7546950A9A3BEBD /* AppRootView.swift */,
 				3BECA22F23DD60CCE3D17F84 /* ConnectHermesScreen.swift */,
-				9A92A9507C027CCF86579740 /* PermissionsOnboardingScreen.swift */,
 				F1EBD8B7F747F26B4C97C7A1 /* SetupCodeScannerView.swift */,
 			);
 			path = Onboarding;
@@ -2133,7 +2130,6 @@
 				FDFDA22D391BBDAA612D3542 /* PermissionCard.swift in Sources */,
 				09FB64373A514E96DB309ADD /* PermissionStatus.swift in Sources */,
 				1D7CCB0E442AE322296D4680 /* PermissionType.swift in Sources */,
-				EEEE53322B468B0C200EE113 /* PermissionsOnboardingScreen.swift in Sources */,
 				0D1E0856BED6801F057F89ED /* PermissionsScreen.swift in Sources */,
 				7105A431C0522A95D5577C02 /* PermissionsStore.swift in Sources */,
 				602E8B613EC5D0DC26659EFF /* PrivacySettingsScreen.swift in Sources */,
