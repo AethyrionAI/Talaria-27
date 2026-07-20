@@ -6,12 +6,9 @@ private let pairingLog = Logger(subsystem: "org.aethyrion.talaria", category: "P
 @MainActor
 @Observable
 final class PairingStore {
-    private static let onboardingKey = "hermes.needsPermissionsOnboarding"
-
     var pairedRelayConfiguration: PairedRelayConfiguration?
     var isWorking = false
     var lastErrorMessage: String?
-    var needsPermissionsOnboarding = false
     var onPairingChanged: (@MainActor (Bool) async -> Void)?
 
     /// True when the restored session authenticates as a different relay user
@@ -53,7 +50,6 @@ final class PairingStore {
         self.pairedRelayConfiguration = persistence.loadPairedRelayConfiguration(
             profileScope: profileResolver(nil)?.credentialScopeID
         )
-        self.needsPermissionsOnboarding = UserDefaults.standard.bool(forKey: Self.onboardingKey)
     }
 
     /// Whether the ACTIVE profile is paired — `pairedRelayConfiguration`
@@ -151,7 +147,6 @@ final class PairingStore {
             if targetIsActive {
                 identityMismatchDetected = false
                 pairedRelayConfiguration = result.configuration
-                setNeedsPermissionsOnboarding(true)
             }
             lastErrorMessage = nil
             pairingTargetProfileID = nil
@@ -193,10 +188,6 @@ final class PairingStore {
         pairingLog.notice("forgetPairing: cleared dormant profile '\(profile.name, privacy: .public)'")
     }
 
-    func completePermissionsOnboarding() {
-        setNeedsPermissionsOnboarding(false)
-    }
-
     func clearLocalPairing(notify: Bool = true) async {
         // Scoped to the ACTIVE profile (Lane M): unpairing one backend never
         // clears another's slot.
@@ -204,7 +195,6 @@ final class PairingStore {
         pairedRelayConfiguration = nil
         lastErrorMessage = nil
         identityMismatchDetected = false
-        setNeedsPermissionsOnboarding(false)
         await sessionStore.clearSession()
         if notify {
             await onPairingChanged?(false)
@@ -236,10 +226,5 @@ final class PairingStore {
             pairingLog.error("validateRestoredIdentity: session user \(actual.uuidString, privacy: .public) ≠ paired user \(expected.uuidString, privacy: .public) — stale Keychain identity (#3). Re-pair required.")
         }
         identityMismatchDetected = mismatch
-    }
-
-    private func setNeedsPermissionsOnboarding(_ value: Bool) {
-        needsPermissionsOnboarding = value
-        UserDefaults.standard.set(value, forKey: Self.onboardingKey)
     }
 }
