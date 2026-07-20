@@ -99,16 +99,9 @@ targets:
         # #120: the message-identity regression guard runs here so it's part
         # of the gate. UITests need a booted simulator (they launch/terminate
         # the app), so a headless unit-only run naturally skips them.
-        - name: TalariaUITests
-          skippedTests:
-            # The July-5 template pairing-flow tests predate #31's
-            # no-pairing-wall redesign (they expect 'Enter Code Manually' as
-            # the landing state) and have never run — the target wasn't in
-            # this scheme until the #120 lane added it. Skipped, not deleted:
-            # the mock-pairing scaffolding is worth refreshing (tracked in
-            # OPEN_ITEMS). MessageIdentityUITests and the launch smoke stay
-            # active.
-            - TalariaUITests
+        # #135: the template pairing-flow tests were refreshed for the #31
+        # no-pairing-wall world and re-activated — no skips remain.
+        - TalariaUITests
     info:
       path: Talaria/Resources/Info.plist
       properties:
