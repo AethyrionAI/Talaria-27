@@ -42,6 +42,10 @@ adoption of the optional sensor layer at the moment of least trust.
 
 ## Tests
 
+- **UITest touchpoint (added post-#135):** the refreshed `AppTemplateUITests` pairing flow
+  (merged PR #124) asserts the post-pair permissions onboarding `CONTINUE` step — the exact
+  screen this lane removes. Update that flow in-lane (pair → straight to chat) so the UI
+  bundle stays green; keep the disconnect flow's assertions intact.
 - Gating: master OFF → capture loop never starts; ON + per-sensor OFF → that sensor idle;
   ON + granted → capture runs.
 - Migration: prior-consent device → toggle ON; fresh device → OFF; migration runs once.
