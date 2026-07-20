@@ -308,4 +308,47 @@ struct BackendProfileRoutingTests {
         let sevenHoursAgo = now.addingTimeInterval(-7 * 60 * 60)
         #expect(due([stale.id: sevenHoursAgo, never.id: sevenHoursAgo]) == ["Stale", "Never"])
     }
+
+    // MARK: - #133: dormant push-registration idempotency
+
+    @Test @MainActor
+    func dormantPushRegistrationGuardSkipsOnlyExactRecordedToken() {
+        // Same token already acked → skip the POST.
+        #expect(DormantPushRegistrationPolicy.shouldRegister(recordedToken: "tok-a", currentToken: "tok-a") == false)
+        // APNs rotated the token → re-register.
+        #expect(DormantPushRegistrationPolicy.shouldRegister(recordedToken: "tok-a", currentToken: "tok-b"))
+        // Never registered → register.
+        #expect(DormantPushRegistrationPolicy.shouldRegister(recordedToken: nil, currentToken: "tok-a"))
+    }
+
+    @Test @MainActor
+    func markPushTokenRegisteredRecordsTokenAndClearingForcesReRegister() throws {
+        let persistence = makePersistence("push-idempotency")
+        let profilesStore = BackendProfilesStore(persistence: persistence, migrationSeeds: Self.ojamdSeeds)
+        let mac = BackendProfile(name: "Mac Mini", gatewayBaseURL: "http://macmini:8642", relayBaseURL: "http://macmini:8000/v1")
+        profilesStore.upsert(mac)
+        persistence.saveSessionState(AppSessionState(deviceID: UUID()), profileScope: mac.credentialScopeID)
+
+        let factory = ProfileRelaySessionFactory(
+            persistence: persistence,
+            secureStore: MockSecureStore(),
+            profileResolver: { profilesStore.profile(id: $0) },
+            activeProfileIDProvider: { profilesStore.activeProfileID }
+        )
+
+        // A successful registration records the exact token it acked…
+        factory.markPushTokenRegistered(true, profileID: mac.id, token: "tok-a")
+        let registered = try #require(factory.sessionState(forProfileID: mac.id))
+        #expect(registered.pushTokenRegistered)
+        #expect(registered.registeredPushToken == "tok-a")
+        #expect(DormantPushRegistrationPolicy.shouldRegister(recordedToken: registered.registeredPushToken, currentToken: "tok-a") == false)
+
+        // …and clearing the mark (unpair / notifications toggle off) nils it,
+        // so the next registration pass POSTs again instead of skipping.
+        factory.markPushTokenRegistered(false, profileID: mac.id)
+        let cleared = try #require(factory.sessionState(forProfileID: mac.id))
+        #expect(cleared.pushTokenRegistered == false)
+        #expect(cleared.registeredPushToken == nil)
+        #expect(DormantPushRegistrationPolicy.shouldRegister(recordedToken: cleared.registeredPushToken, currentToken: "tok-a"))
+    }
 }
