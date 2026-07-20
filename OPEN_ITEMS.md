@@ -4554,7 +4554,23 @@ Logged 2026-07-17.
 
 ---
 
-## 133. 🐛 Dormant-relay push registration is not idempotent — 5 re-POSTs per launch (M-7 follow-up)
+## 133. 🐛 Dormant-relay push registration is not idempotent — 5 re-POSTs per launch (M-7 follow-up) — FIXED in lane (2026-07-20); device pass owed
+
+> **LANE BUILT 2026-07-20 (`claude/fable-t27-133-push-idempotency`), suite 901/77 green, TDD
+> (guard tests proven red first).** The fix is the active path's short-circuit mirrored per
+> profile: `AppSessionState` gains `registeredPushToken` (optional — absent on pre-#133
+> persisted states, so grandfathered profiles POST once, record, then go quiet), and
+> `markPushTokenRegistered(_:profileID:token:)` records the acked token on success and nils it
+> on deactivate. The dormant loop consults pure
+> `DormantPushRegistrationPolicy.shouldRegister(recordedToken:currentToken:)`
+> (`ProfileRelaySession.swift`) before POSTing — skip ONLY on exact recorded-token match, so an
+> APNs token rotation and a cleared mark (unpair, notifications toggle off) both still
+> re-register, and a failed POST leaves the record stale → retried on the next pass. Rider
+> landed: the bare duplicate `reportAppStateIfNeeded("background")` Task in `AppEntry.swift`
+> dropped. No files added/removed — tests ride `BackendProfileRoutingTests` (no regen needed).
+> → **Device pass (Owen):** fresh launch with both profiles paired → at most one registration
+> line per profile in the launch log (2 max, not 5); exactly one background app-state report
+> per backgrounding; sensor pipeline unaffected.
 
 **Found 2026-07-17** in a device log (background launch → foreground activation). One launch,
 zero user input, produced **five** relay push registrations across the 2-profile config (OJAMD

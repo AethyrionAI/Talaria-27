@@ -262,7 +262,6 @@ struct TalariaApp: App {
                         // #14: arm the native background-refresh safety net
                         // alongside the relay app-state report.
                         BackgroundRefreshScheduler.schedule()
-                        Task { await container.reportAppStateIfNeeded("background") }
                         Task {
                             await container.reportAppStateIfNeeded("background")
                             // Walking away mid-run: hand the completion notify
