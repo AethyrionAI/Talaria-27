@@ -4534,7 +4534,21 @@ crash, session keeps running, mic live after; outside a session, full-fidelity p
 
 ## 130. 🎧 In-session TTS fidelity — voiceChat downlink processing makes voices muddy vs previews; VPIO render-err flood
 
-> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-130-halfduplex-probe.md` — **READY TO SEND** (A/B probe branch, DO-NOT-MERGE label; Owen's on-device verdict decides #130).
+> **PROBE BUILT 2026-07-20 (PR #128, `probe/t27-130-halfduplex`, DO-NOT-MERGE + probe labels).**
+> Option (a) as dispatched, all inside `NativeVoicePipelineService.swift`: session mode
+> `.default` (category/options unchanged), `setVoiceProcessingEnabled` never called, and a
+> software half-duplex gate — recognition results discarded while the native TTS instance's
+> `isSpeaking` is true plus a 300ms hangover (`halfDuplexHangover`), so the assistant's audio
+> tail can't self-transcribe; tap/engine/#105/#106/#128 machinery untouched. Discard decision
+> is a pure function (`shouldDiscardTranscription`), TDD'd red-first, 6 new tests; suite
+> 937/84 green on the probe branch (baseline ≥800/67). Talk-over barge-in deliberately does
+> NOT work on the branch (thinking-phase barge-in + stop button survive) — that's the trade
+> under A/B. **Owed: Owen's device A/B vs main** (TTS crispness / render-err flood gone /
+> barge-in cost / mic sensitivity post-#106) → verdict = productionize or close as
+> status-quo-accepted.
+
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-130-halfduplex-probe.md` — SENT (built
+> above; A/B probe branch, DO-NOT-MERGE label; Owen's on-device verdict decides #130).
 
 Device observation 2026-07-17 (post-#128, conversation working): in-session TTS is noticeably
 less crisp than the settings previews. Cause is structural, not a bug: previews play on a
