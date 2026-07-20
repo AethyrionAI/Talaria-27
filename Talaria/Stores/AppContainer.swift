@@ -275,14 +275,31 @@ final class AppContainer {
         }
 
         let buildConfiguration = AppBuildConfiguration.current()
-        let secureStore = KeychainSecureStore(
-            serviceName: processEnvironment["UITEST_KEYCHAIN_SERVICE"] ?? "org.aethyrion.talaria.session"
-        )
+        // #135: UI-test runs build unsigned (CODE_SIGNING_ALLOWED=NO), and
+        // the entitlement-stripped build can't write the iOS 27 simulator
+        // keychain — paired tokens vanished on write and initialize()'s
+        // no-access-token guard un-paired the app instantly. UI tests get a
+        // defaults-suite-backed store (relaunch-durable via
+        // UITEST_DEFAULTS_SUITE); the reinstall-survival keychain mirror is
+        // meaningless there and stays nil.
+        let secureStore: any SecureStoreProtocol
+        let keychainMirror: KeychainSecureStore?
+        if let uiTestKeychainService = processEnvironment["UITEST_KEYCHAIN_SERVICE"] {
+            secureStore = UITestSecureStore(
+                serviceName: uiTestKeychainService,
+                defaults: resolvedDefaults
+            )
+            keychainMirror = nil
+        } else {
+            let keychain = KeychainSecureStore(serviceName: "org.aethyrion.talaria.session")
+            secureStore = keychain
+            keychainMirror = keychain
+        }
         // Keychain-mirrored so the pairing config survives clean reinstalls,
         // like the session tokens already do (#41).
         let persistence = UserDefaultsAppPersistenceStore(
             defaults: resolvedDefaults,
-            keychainMirror: secureStore
+            keychainMirror: keychainMirror
         )
         let settingsStore = SettingsStore(
             persistence: persistence,
