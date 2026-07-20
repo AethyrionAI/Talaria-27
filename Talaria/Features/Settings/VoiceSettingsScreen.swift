@@ -194,7 +194,7 @@ struct VoiceSettingsScreen: View {
                 ).previewVoice()
             }
 
-            Text("Read-aloud uses this device's speech voices — download higher-quality voices in Settings → Accessibility → Spoken Content. Paused automatically while a Talk session is live.")
+            Text("Read-aloud uses this device's speech voices — download higher-quality voices in Settings → Accessibility → Spoken Content. Read-aloud pauses automatically while a Talk session is live; voice previews still play.")
                 .font(Design.Typography.caption)
                 .foregroundStyle(Design.Colors.secondaryForeground)
         }
