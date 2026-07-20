@@ -198,6 +198,8 @@ struct MainTabView: View {
             }
         case .inbox:
             InboxScreen()
+        case .briefing(let item):
+            BriefingDetailScreen(item: item)
         }
     }
 

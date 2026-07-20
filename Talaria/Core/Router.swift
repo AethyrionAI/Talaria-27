@@ -9,6 +9,9 @@ enum Route: Hashable {
     /// #45: the agent→phone Inbox — first reachable entry point (the screen
     /// shipped in every build with zero call sites).
     case inbox
+    /// #126: briefing detail. `nil` = latest briefing (widget deep link);
+    /// a value = the row the user tapped.
+    case briefing(InboxItem?)
 }
 
 // MARK: - Sheet Destinations

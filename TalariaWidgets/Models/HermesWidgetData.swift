@@ -24,6 +24,12 @@ struct HermesWidgetData: Codable, Sendable {
     // absent in pre-theme snapshots, resolved as Deep Field x cyan.
     var appearanceTheme: String?
     var appearanceAccent: String?
+    // #126: latest daily briefing — stamped app-side from the inbox so the
+    // widget renders with zero markdown work of its own. Optional — absent
+    // in pre-briefing snapshots.
+    var briefingTitle: String?
+    var briefingFirstLine: String?
+    var briefingReceivedAt: Date?
 
     static let empty = HermesWidgetData()
 

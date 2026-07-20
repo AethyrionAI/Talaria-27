@@ -4340,6 +4340,22 @@ future connected-tier rider (no FoundationModels here).
 
 ## 126. ✨ Daily briefing — app half (connected-tier centerpiece)
 
+> **BUILT in lane 2026-07-20 (`claude/t27-126-daily-briefing`, PR #126).** App half complete: recognition
+> (`payload.category == "briefing"`, kind-tolerant), `BriefingDetailScreen` through the EXISTING
+> MarkdownContentView (chart fences render + tap through free), read-aloud via the SHARED
+> SpeechOutputService (`speakable` ?? fence-stripped body; #106 gate untouched), Daily Briefing
+> widget (small/medium, `hermes://briefing` deep link, honest empty state), snapshot fields on
+> BOTH HermesWidgetData copies (lockstep verified), `InboxStore.markRead` (local, no relay
+> round-trip). Suites in lane: app **929/84 + UI 8/8** green (pre-lane 913/80), connector **129
+> passed**. DISPATCH CORRECTION: the connector's `send_inbox_item` did NOT forward `payload`
+> (relay DTO/DB/serializer + app decoder all did) — minimal additive passthrough shipped in its
+> own commit, flagged for Owen in the PR alongside the tap-routing decision (inbox alert pushes
+> carry no identifying userInfo, so notification tap stays → chat; detail reachable via row +
+> widget). **Device pass owed:** hand-crafted payload through `send_inbox_item` → push → inbox
+> row → detail renders markdown + inline chart → read-aloud speaks (both speakable and fallback)
+> → widget shows it → widget tap deep-links back. THEN wire the real cron with the PR's JSON
+> example.
+
 Host cron synthesizes health + calendar + threads → inbox `notification` with markdown body
 (may carry ```chart fences — dormant Path A wakes scoped to briefings), optional `speakable`,
 `category: "briefing"`. App: detail view via MarkdownContentView, read-aloud via the existing

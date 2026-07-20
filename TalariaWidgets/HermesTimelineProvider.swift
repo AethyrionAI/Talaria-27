@@ -31,7 +31,10 @@ struct HermesWidgetEntry: TimelineEntry {
             activeCalories: 185,
             sleepHours: 7.4,
             heartRate: 68,
-            updatedAt: .now
+            updatedAt: .now,
+            briefingTitle: "Morning briefing — Sun Jul 20",
+            briefingFirstLine: "Sleep 7h 24m · 3 events today · clear until 3pm",
+            briefingReceivedAt: .now
         )
     )
 }

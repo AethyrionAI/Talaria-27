@@ -10,6 +10,7 @@ struct HermesWidgetBundle: WidgetBundle {
         TalariaAlarmLiveActivity()
         HermesStatusWidget()
         HermesHealthWidget()
+        HermesBriefingWidget()
         // Control Center / Lock Screen / Action-button controls (#7) —
         // WidgetBundleBuilder accepts ControlWidget alongside Widget (iOS 18).
         AskHermesControl()

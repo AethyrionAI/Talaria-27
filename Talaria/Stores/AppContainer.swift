@@ -2126,6 +2126,9 @@ final class AppContainer {
             data.lastMessageSender = msg.sender.rawValue
             data.lastMessageAt = msg.timestamp
         }
+        // #126: latest briefing for the widget — the push-wake path already
+        // orders loadInbox(force:) before this call.
+        data.stampBriefing(from: inboxStore.items)
         SharedWidgetDataStore.write(data)
     }
 
