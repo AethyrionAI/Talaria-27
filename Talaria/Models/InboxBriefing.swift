@@ -52,3 +52,21 @@ extension InboxItem {
         return kept.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
+
+// #126: widget stamping — app target only (LocalIntelligenceService is not
+// compiled into the widget; the widget reads the pre-derived strings).
+extension HermesWidgetData {
+    /// Stamp the latest briefing into the snapshot. When no briefing is
+    /// visible in `items`, existing values are KEPT — a failed or empty
+    /// mid-day fetch must not wipe the morning briefing off the widget.
+    /// (`.empty` on unpair still clears them like everything else.)
+    mutating func stampBriefing(from items: [InboxItem]) {
+        guard let briefing = InboxItem.latestBriefing(in: items) else { return }
+        briefingTitle = briefing.title
+        briefingFirstLine = LocalIntelligenceService.condensedLine(
+            LocalIntelligenceService.firstMeaningfulLine(of: briefing.body) ?? "",
+            limit: 90
+        )
+        briefingReceivedAt = briefing.timestamp
+    }
+}

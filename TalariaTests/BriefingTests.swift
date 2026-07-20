@@ -84,3 +84,63 @@ struct BriefingSpeakableTests {
         #expect(InboxItem.strippingFencedBlocks(from: body) == "Intro line.")
     }
 }
+
+@Suite("Briefing widget snapshot")
+struct BriefingWidgetSnapshotTests {
+
+    @Test("Pre-#126 snapshot JSON (no briefing keys) still decodes")
+    func oldSnapshotDecodes() throws {
+        let old = #"{"hostOnline":true,"voiceSessionActive":false,"updatedAt":770000000}"#
+        let data = try JSONDecoder().decode(HermesWidgetData.self, from: Data(old.utf8))
+        #expect(data.briefingTitle == nil)
+        #expect(data.briefingFirstLine == nil)
+        #expect(data.briefingReceivedAt == nil)
+    }
+
+    @Test("Briefing fields round-trip through the app-group encoding")
+    func roundTrip() throws {
+        var data = HermesWidgetData.empty
+        data.briefingTitle = "Morning briefing — Mon Jul 20"
+        data.briefingFirstLine = "Sleep 7h 24m · 3 events today"
+        data.briefingReceivedAt = Date(timeIntervalSinceReferenceDate: 770_000_000)
+        let decoded = try JSONDecoder().decode(HermesWidgetData.self, from: JSONEncoder().encode(data))
+        #expect(decoded.briefingTitle == data.briefingTitle)
+        #expect(decoded.briefingFirstLine == data.briefingFirstLine)
+        #expect(decoded.briefingReceivedAt == data.briefingReceivedAt)
+    }
+
+    @Test("Stamping fills title, condensed first line, and timestamp from the newest briefing")
+    func stampsNewestBriefing() {
+        let body = "## Sleep\n```chart\n{\"type\":\"bar\"}\n```\nYou slept 7h 24m — solid.\nMore detail."
+        let older = InboxItem(
+            type: .notification, title: "Old", body: "Old body",
+            timestamp: Date(timeIntervalSinceReferenceDate: 1_000),
+            payload: ["category": "briefing"]
+        )
+        let newer = InboxItem(
+            type: .notification, title: "Morning briefing — Mon Jul 20", body: body,
+            timestamp: Date(timeIntervalSinceReferenceDate: 2_000),
+            payload: ["category": "briefing"]
+        )
+        var data = HermesWidgetData.empty
+        data.stampBriefing(from: [older, newer])
+        #expect(data.briefingTitle == "Morning briefing — Mon Jul 20")
+        // First meaningful line: heading markers stripped → "Sleep" is the
+        // first line that carries words; fences are skipped entirely.
+        #expect(data.briefingFirstLine == "Sleep")
+        #expect(data.briefingReceivedAt == Date(timeIntervalSinceReferenceDate: 2_000))
+    }
+
+    @Test("No briefing in the fetch leaves existing stamped values untouched — a mid-day empty fetch must not wipe the widget")
+    func absentBriefingKeepsStampedValues() {
+        var data = HermesWidgetData.empty
+        data.briefingTitle = "Kept"
+        data.briefingFirstLine = "Kept line"
+        data.briefingReceivedAt = Date(timeIntervalSinceReferenceDate: 5)
+        let noise = InboxItem(type: .alert, title: "A", body: "B")
+        data.stampBriefing(from: [noise])
+        #expect(data.briefingTitle == "Kept")
+        #expect(data.briefingFirstLine == "Kept line")
+        #expect(data.briefingReceivedAt == Date(timeIntervalSinceReferenceDate: 5))
+    }
+}
