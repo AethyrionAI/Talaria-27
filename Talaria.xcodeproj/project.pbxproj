@@ -347,6 +347,7 @@
 		C77821A24A5D65B32394136D /* HermesControlsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5B4BC4786992BD264AE00F3 /* HermesControlsTests.swift */; };
 		C780D040BC50E46F1619F0B8 /* SessionBootstrapServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D541DE8865DD6EAF2E07BB /* SessionBootstrapServiceProtocol.swift */; };
 		C7915B7BBFFD0F8C7D7B7D2F /* Icon-RetroSciFi@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 23E22458D216C22DEF8C0750 /* Icon-RetroSciFi@3x.png */; };
+		C7A757A4E2566A5754F04D21 /* HermesBriefingWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CACC22C0750EA080EB24C38F /* HermesBriefingWidget.swift */; };
 		C7B4505CC064FFCCA1072751 /* ThinkingIndicatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4FDA4808AB56DE98DA248FB /* ThinkingIndicatorView.swift */; };
 		C7F005613DFA8AB6A1D3489A /* HealthTrendsCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7776A26E8342E83F3DEEA52E /* HealthTrendsCore.swift */; };
 		C9A6957F9F495C1C52B53128 /* IconPreview-KaijuAttack.png in Resources */ = {isa = PBXBuildFile; fileRef = EFC335534070FF9A84A3D3C2 /* IconPreview-KaijuAttack.png */; };
@@ -837,6 +838,7 @@
 		C9BCFFFC84E6F8EA156EEC32 /* Icon-MoltenForge@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-MoltenForge@3x.png"; sourceTree = "<group>"; };
 		C9DB35CE33537DD35FFADDB5 /* TranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptView.swift; sourceTree = "<group>"; };
 		CA2D5D9BB35C5C3D189C711E /* ChatStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStore.swift; sourceTree = "<group>"; };
+		CACC22C0750EA080EB24C38F /* HermesBriefingWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesBriefingWidget.swift; sourceTree = "<group>"; };
 		CB23EEE4091D1A2F309E9B3C /* MockSessionBootstrapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockSessionBootstrapService.swift; sourceTree = "<group>"; };
 		CB2DC5750CEF76912105266B /* CodeSyntaxHighlighterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeSyntaxHighlighterTests.swift; sourceTree = "<group>"; };
 		CCE85A8CE1548ED41FE4180D /* VoiceEngineRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceEngineRouter.swift; sourceTree = "<group>"; };
@@ -1171,6 +1173,7 @@
 				C6B91EF21C760E11968E6B41 /* Controls */,
 				CA158DDBD954F00E18CE6D4B /* Models */,
 				5B746A419B2EA26609E0E370 /* HermesActivityAttributes.swift */,
+				CACC22C0750EA080EB24C38F /* HermesBriefingWidget.swift */,
 				3EF25B1E060C654A07894F05 /* HermesHealthWidget.swift */,
 				37C4631361E43482328C012F /* HermesLiveActivity.swift */,
 				61B9370067BF51189E67CA57 /* HermesStatusWidget.swift */,
@@ -2313,6 +2316,7 @@
 			files = (
 				7913C0DD2BC82A52A672C650 /* HealthQueryCore.swift in Sources */,
 				64A437D1EC52FCC006035BD9 /* HermesActivityAttributes.swift in Sources */,
+				C7A757A4E2566A5754F04D21 /* HermesBriefingWidget.swift in Sources */,
 				2DC866BFB555CC01C8430B03 /* HermesControls.swift in Sources */,
 				8E7015E5FE925C55122EBE84 /* HermesHealthWidget.swift in Sources */,
 				833F59688DD58FD56BEF8802 /* HermesLiveActivity.swift in Sources */,
