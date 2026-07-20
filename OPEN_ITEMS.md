@@ -4475,6 +4475,11 @@ Logged 2026-07-17.
 
 ## 128. 🔧 Voice capture crash — double installTap via actor reentrancy — FIXED (2026-07-17); device re-verify owed
 
+> **Record correction (2026-07-20, from the #129 lane):** at #129's base commit, mid-session
+> preview was DOUBLE-blocked since Wave 1 (disabled button + gated `speak()`), so "preview
+> triggered #128" only holds if `isSessionActive` flapped during the interruption burst. The
+> device re-verify below stands on its own evidence — PR #127 must NOT be read as closing it.
+
 Device crash 2026-07-17 (whoGoesThere, mid-session voice change in settings):
 `AVAEGraphNode CreateRecordingTap: nullptr == Tap()` — uncaught NSException, hard kill. Root
 cause: the defensive `removeTap` sat FOUR suspension points (format negotiation + analyzer prep)
@@ -4490,7 +4495,7 @@ Logged 2026-07-17.
 
 ---
 
-## 129. 🔧 Voice preview mid-session — BUILT (PR #127, 2026-07-20): previews ride the native pipeline's session-less instance; device pass owed
+## 129. 🔧 Voice preview mid-session — MERGED (PR #127, merge `175261b`, 2026-07-20); device pass owed. Known accepted behavior: native-engine sessions share the assistant TTS instance, so mid-reply preview drops that reply's un-spoken audio tail (transcript intact) and the next chunk cuts the preview short; realtime engine (primary case) previews play over the session. Third dedicated preview instance (~4 lines) deferred pending Owen's device feel.
 
 > **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-129-preview-instance.md` — **READY TO SEND** (micro; option (a) selection function, audio law restated).
 
