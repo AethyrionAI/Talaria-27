@@ -4790,7 +4790,18 @@ Logged 2026-07-19.
 
 ---
 
-## 137. ✨ Sensor opt-in redesign — kill the post-pair permissions wall (public-app posture)
+## 137. 🔧 Sensor opt-in redesign — MERGED (PR #125, merge `db52a22`, 2026-07-20); device passes owed (public-app posture)
+
+> **MERGED 2026-07-20.** Pairing grants chat only; `PermissionsOnboardingScreen` deleted;
+> Privacy → Sensor Streaming master opt-in (OFF default) with contextual per-sensor grants;
+> one-shot grandfathering keyed on active pairing (`SensorStreamingGrandfathering.swift`,
+> pre-first-unlock deferred via protected-data closure); master OFF drops queued outbox (#6
+> parity). Suites 913/80 + UI 8/8 in lane. **Device passes owed:** (1) fresh-install — pair →
+> chat with ZERO prompts, then Settings opt-in fires contextual per-sensor prompts; (2)
+> grandfathered — update whoGoesThere, streaming continues uninterrupted, master shows ON.
+> **Watch during pass:** first tap on PAIR DEVICE right after pairing — a dropped-tap race
+> (previously masked by the interstitial root rebuild) surfaced once in the UI bundle; if a
+> real first-tap no-op reproduces on device, log it as its own item.
 
 **Approved by Owen 2026-07-20.** The Wave 4.5 redesign (#71) removed the pairing wall from
 first launch, but `PermissionsOnboardingScreen` still runs as an all-at-once permission wall
