@@ -223,11 +223,17 @@ final class SensorUploadService {
     private let accessTokenRefresher: @MainActor () async -> String?
     private let persistence: AppPersistenceStoreProtocol
     private let isPairedProvider: @MainActor () -> Bool
+    /// #137 master opt-in: when false, start() is a no-op — the capture/drain
+    /// loop never activates. Sits ON TOP of the Hermes gating (isPaired), not
+    /// instead of it. Must be a fast local read (#136 splash path).
+    private let isSensorStreamingEnabled: @MainActor () -> Bool
     // In-app revoke gates (#6): when false, start() must not wire or (re)start
     // that sensor — otherwise the launch-time health re-assert / location
     // startMonitoring resurrects a collection the user revoked.
     private let isHealthCollectionEnabled: @MainActor () -> Bool
     private let isLocationCollectionEnabled: @MainActor () -> Bool
+    /// #137: motion joins the per-sensor gates (it never had a #6 one).
+    private let isMotionCollectionEnabled: @MainActor () -> Bool
     private let locationService: LiveLocationService
     private let healthService: LiveHealthService
     private let motionService: LiveMotionService?
@@ -286,8 +292,10 @@ final class SensorUploadService {
         accessTokenRefresher: @escaping @MainActor () async -> String? = { nil },
         persistence: AppPersistenceStoreProtocol,
         isPairedProvider: @escaping @MainActor () -> Bool,
+        isSensorStreamingEnabled: @escaping @MainActor () -> Bool = { true },
         isHealthCollectionEnabled: @escaping @MainActor () -> Bool = { true },
         isLocationCollectionEnabled: @escaping @MainActor () -> Bool = { true },
+        isMotionCollectionEnabled: @escaping @MainActor () -> Bool = { true },
         locationService: LiveLocationService,
         healthService: LiveHealthService,
         motionService: LiveMotionService? = nil,
@@ -300,8 +308,10 @@ final class SensorUploadService {
         self.accessTokenRefresher = accessTokenRefresher
         self.persistence = persistence
         self.isPairedProvider = isPairedProvider
+        self.isSensorStreamingEnabled = isSensorStreamingEnabled
         self.isHealthCollectionEnabled = isHealthCollectionEnabled
         self.isLocationCollectionEnabled = isLocationCollectionEnabled
+        self.isMotionCollectionEnabled = isMotionCollectionEnabled
         self.locationService = locationService
         self.healthService = healthService
         self.motionService = motionService
@@ -374,6 +384,10 @@ final class SensorUploadService {
     }
 
     func start() {
+        guard isSensorStreamingEnabled() else {
+            sensorLog.notice("start() skipped — sensor streaming not opted in (#137)")
+            return
+        }
         guard !isActive else {
             sensorLog.notice("start() skipped — already active")
             return
@@ -416,27 +430,33 @@ final class SensorUploadService {
             sensorLog.notice("start() — health collection disabled in-app (#6); not wiring")
         }
 
-        motionService?.onActivityUpdate = { [weak self] activityCode in
-            guard let self else { return }
-            Task { @MainActor in
-                sensorLog.notice("🏃 activity update: code=\(activityCode.rawValue)")
-                let now = Date()
-                let sample = HealthSnapshot.Sample(
-                    metric: "user_activity",
-                    value: Double(activityCode.rawValue),
-                    unit: "activity_code",
-                    startAt: now,
-                    endAt: nil
-                )
-                self.recordHealthSamples([sample])
-                await self.drainOutboxIfPossible()
+        if isMotionCollectionEnabled() {
+            motionService?.onActivityUpdate = { [weak self] activityCode in
+                guard let self else { return }
+                Task { @MainActor in
+                    sensorLog.notice("🏃 activity update: code=\(activityCode.rawValue)")
+                    let now = Date()
+                    let sample = HealthSnapshot.Sample(
+                        metric: "user_activity",
+                        value: Double(activityCode.rawValue),
+                        unit: "activity_code",
+                        startAt: now,
+                        endAt: nil
+                    )
+                    self.recordHealthSamples([sample])
+                    await self.drainOutboxIfPossible()
+                }
             }
+        } else {
+            sensorLog.notice("start() — motion collection disabled in-app (#137); not wiring")
         }
 
         if isLocationCollectionEnabled() {
             locationService.startMonitoring()
         }
-        motionService?.startMonitoring()
+        if isMotionCollectionEnabled() {
+            motionService?.startMonitoring()
+        }
 
         // Health authorization is in-memory only: LiveHealthService resets it to
         // .notDetermined on every launch, and Apple's read-privacy model means it
@@ -535,6 +555,17 @@ final class SensorUploadService {
         outboxState.pendingLocation = nil
         persistOutboxImmediately()
         sensorLog.notice("location collection revoked in-app — monitoring stopped, pending fix dropped")
+    }
+
+    /// Halts motion use now (#137): activity updates unwired, monitoring
+    /// stopped, queued activity samples dropped. The caller persists the
+    /// `motionCollectionEnabled` flag that keeps start() from re-wiring.
+    func disableMotionCollection() {
+        motionService?.onActivityUpdate = nil
+        motionService?.stopMonitoring()
+        outboxState.pendingHealthSamples.removeAll { $0.metric == "user_activity" }
+        persistOutboxImmediately()
+        sensorLog.notice("motion collection revoked in-app — monitoring stopped, queued activity samples dropped")
     }
 
     func handleAppDidBecomeActive() async {

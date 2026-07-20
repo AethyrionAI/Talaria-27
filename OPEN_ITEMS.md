@@ -4814,3 +4814,22 @@ Hermes-gating of the upload path (opt-in gates capture on top of it, not instead
 **Dispatch spec:** `dispatch/FABLE-T27-137-sensor-optin.md`
 
 Logged 2026-07-20.
+
+**2026-07-20 — BUILT in lane (`claude/fable-t27-137-sensor-optin`), merge owed.**
+Pairing grants chat only: `PermissionsOnboardingScreen` deleted (sole call site was the
+`AppRootView` root swap — it was NOT a Settings surface; `PermissionsScreen` +
+`PrivacySettingsScreen` own that), `PairingStore` onboarding machinery removed. New
+Privacy → Sensor Streaming section: master opt-in (OFF default) revealing per-sensor
+Health/Location/Motion rows; enables request OS grants contextually (#69 pattern); #23
+revoke section untouched. Gating = `isSensorStreamingEnabled`/`isMotionCollectionEnabled`
+closures on `SensorUploadService.start()` (one seam, all call sites; in-memory read —
+#136-safe). Motion gained a revoke gate (`disableMotionCollection`). Grandfathering =
+`SensorStreamingGrandfathering`, one-shot on **active pairing** (pre-#137, `isPaired` WAS
+the app-level sensor consent; outbox clears on drain, health read-auth unreadable —
+weaker signals). Two traps closed: paired-device-with-no-settings-blob restores pre-#137
+per-sensor defaults via `SettingsStore.hadPersistedSettings`; pre-first-unlock launches
+defer the migration (no done-stamp) and re-run from `refreshCredentialState`. Suites:
+unit 913/80 green, UI bundle 8/8 green on sim (disconnect flow needed a documented
+re-tap hedge — the removed CONTINUE interstitial had been masking a dropped-tap race).
+Remaining: merge, then Owen's device pass (fresh-install pair→chat zero prompts;
+grandfathered device streams uninterrupted; contextual per-sensor prompts).

@@ -3,8 +3,9 @@ import XCTest
 /// #135: the template pairing-flow tests, refreshed for the #31
 /// no-pairing-wall world. First launch lands in a working on-device chat;
 /// pairing is a Settings-level upgrade (Settings → Connect Hermes Desktop →
-/// the relocated ConnectHermesScreen). A successful pair swaps the root to
-/// the permissions onboarding once; Continue (no grants) returns to chat.
+/// the relocated ConnectHermesScreen). #137: a successful pair pops straight
+/// back to chat — no permissions interstitial exists anymore (sensor
+/// streaming is a separate Settings-level opt-in).
 ///
 /// The mock scaffolding survives from the template: `UITEST_PAIRING_MODE=mock`
 /// routes `PairingStore` at `MockPairingService` (any well-formed code
@@ -62,7 +63,6 @@ final class TalariaUITests: XCTestCase {
         let context = UITestLaunchContext()
         let app = makeApp(context: context)
         app.launch()
-        dismissPermissionsOnboardingIfNeeded(in: app)
 
         guard let composer = waitForComposer(in: app, timeout: 15) else {
             XCTFail("chat composer should be the first-launch landing state (no pairing wall, #31)")
@@ -76,14 +76,13 @@ final class TalariaUITests: XCTestCase {
     }
 
     /// Pairing is a Settings-level upgrade now: Settings → Connect Hermes
-    /// Desktop → manual code entry → mock redeem → the one-time post-pair
-    /// permissions onboarding → back in chat.
+    /// Desktop → manual code entry → mock redeem → straight back in chat
+    /// (#137: no post-pair permissions interstitial).
     @MainActor
     func testMockPairingViaSettingsEntryPoint() throws {
         let context = UITestLaunchContext()
         let app = makeApp(context: context)
         app.launch()
-        dismissPermissionsOnboardingIfNeeded(in: app)
 
         completePairing(in: app, setupCode: context.setupCode)
 
@@ -101,7 +100,6 @@ final class TalariaUITests: XCTestCase {
         let app = makeApp(context: context)
         app.launchEnvironment["UITEST_DUPID_PROBE"] = "1"
         app.launch()
-        dismissPermissionsOnboardingIfNeeded(in: app)
 
         guard let composer = waitForComposer(in: app, timeout: 15) else {
             XCTFail("chat composer should be reachable for the send flow")
@@ -132,7 +130,6 @@ final class TalariaUITests: XCTestCase {
         let context = UITestLaunchContext()
         let app = makeApp(context: context)
         app.launch()
-        dismissPermissionsOnboardingIfNeeded(in: app)
         completePairing(in: app, setupCode: context.setupCode)
         XCTAssertNotNil(waitForComposer(in: app, timeout: 15))
 
@@ -166,7 +163,6 @@ final class TalariaUITests: XCTestCase {
         let context = UITestLaunchContext()
         let app = makeApp(context: context)
         app.launch()
-        dismissPermissionsOnboardingIfNeeded(in: app)
         completePairing(in: app, setupCode: context.setupCode)
         XCTAssertNotNil(waitForComposer(in: app, timeout: 15))
 
@@ -186,7 +182,19 @@ final class TalariaUITests: XCTestCase {
         }
         pairDevice.tap()
 
-        guard let disconnect = waitForButton(containing: "Disconnect", in: app, timeout: 5) else {
+        // iOS 27 beta: this tap dismisses the settings sheet AND pushes the
+        // host screen in one tick — under bundle-warm timing the synthesized
+        // tap occasionally lands without invoking the action at all (screen
+        // recording shows the sheet untouched 5s later; the same flow passes
+        // in isolation). The pre-#137 CONTINUE interstitial masked this by
+        // rebuilding the root after pairing. Re-tap once if nothing moved —
+        // same spirit as the per-keystroke setup-code hedge above.
+        var disconnect = waitForButton(containing: "Disconnect", in: app, timeout: 5)
+        if disconnect == nil, pairDevice.exists {
+            pairDevice.tap()
+            disconnect = waitForButton(containing: "Disconnect", in: app, timeout: 5)
+        }
+        guard let disconnect else {
             XCTFail("the paired host screen should offer Disconnect")
             return
         }
@@ -211,8 +219,7 @@ final class TalariaUITests: XCTestCase {
 
     /// Drives the #31 Settings-level pairing flow end to end: opens Settings,
     /// enters the relocated ConnectHermesScreen through the upgrade row,
-    /// types the code, redeems, and completes the one-time post-pair
-    /// permissions onboarding.
+    /// types the code, and redeems — landing straight back in chat (#137).
     @MainActor
     private func completePairing(in app: XCUIApplication, setupCode: String) {
         let settingsButton = app.buttons["Open settings"]
@@ -260,45 +267,18 @@ final class TalariaUITests: XCTestCase {
                       "pair button should enable once the full code is present and the relay URL validates")
         pairButton.tap()
 
-        // A successful pair swaps the root to the permissions onboarding.
-        guard let continueButton = waitForButton(containing: "Continue", in: app, timeout: 10) else {
-            XCTFail("a successful pair should present the permissions onboarding")
+        // #137: a successful pair pops straight back to chat — no
+        // permissions interstitial may appear.
+        guard waitForComposer(in: app, timeout: 15) != nil else {
+            XCTFail("a successful pair should land straight in chat (#137)")
             return
         }
-        continueButton.tap()
-
+        XCTAssertFalse(app.buttons["CONTINUE"].exists,
+                       "the post-pair permissions wall must not return (#137)")
         XCTAssertTrue(app.buttons["Open settings"].waitForExistence(timeout: 10))
     }
 
     // MARK: - Shared locator helpers
-
-    /// A stale `hermes.needsPermissionsOnboarding` flag in STANDARD defaults
-    /// (it deliberately lives outside the per-test suite) can leak the
-    /// onboarding onto a fresh launch — tolerate it, same as
-    /// MessageIdentityUITests. GlowButton uppercases its title into the
-    /// accessibility label ('CONTINUE', not 'Continue' — hierarchy dump
-    /// 2026-07-18); both are checked.
-    @MainActor
-    private func dismissPermissionsOnboardingIfNeeded(in app: XCUIApplication) {
-        let uppercased = app.buttons["CONTINUE"]
-        let titleCased = app.buttons["Continue"]
-        let deadline = Date(timeIntervalSinceNow: 5)
-        repeat {
-            if uppercased.exists {
-                uppercased.tap()
-                return
-            }
-            if titleCased.exists {
-                titleCased.tap()
-                return
-            }
-            // Already in chat — nothing leaked.
-            if composerInput(in: app).exists {
-                return
-            }
-            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.5))
-        } while Date() < deadline
-    }
 
     /// Case-insensitive containment match, polling until the deadline. One
     /// helper covers both locator traps at once: GlowButton's uppercased

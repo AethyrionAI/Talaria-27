@@ -21,6 +21,10 @@ final class SettingsStore {
         environmentPolicy.availableEnvironments
     }
     let buildConfiguration: AppBuildConfiguration
+    /// Whether construction found a stored settings blob (#137): the
+    /// grandfathering migration needs to tell real #6 revoke decisions apart
+    /// from the fresh-install defaults, which are opt-out post-#137.
+    let hadPersistedSettings: Bool
 
     private let persistence: any AppPersistenceStoreProtocol
     private let environmentPolicy: AppEnvironmentPolicy
@@ -33,7 +37,9 @@ final class SettingsStore {
         self.persistence = persistence
         self.environmentPolicy = environmentPolicy
         self.buildConfiguration = buildConfiguration
-        let storedSettings = persistence.loadUserSettings() ?? DemoData.sampleUserSettings
+        let stored = persistence.loadUserSettings()
+        self.hadPersistedSettings = stored != nil
+        let storedSettings = stored ?? DemoData.sampleUserSettings
         self.settings = storedSettings.applyingEnvironmentPolicy(environmentPolicy)
     }
 }

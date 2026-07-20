@@ -304,6 +304,12 @@ struct UserSettings: Codable, Hashable, Sendable {
     // otherwise re-assert health auth and restart monitoring every launch).
     var healthCollectionEnabled: Bool
     var locationCollectionEnabled: Bool
+    /// #137: master opt-in for the optional sensor streaming layer. OFF by
+    /// default — pairing grants chat, nothing else. Grandfathered ON once
+    /// for devices already streaming (SensorStreamingGrandfathering).
+    var sensorStreamingEnabled: Bool
+    /// #137: motion joins health/location as an individually gated sensor.
+    var motionCollectionEnabled: Bool
     var hermesAPIBaseURL: String
     var modelsShimBaseURL: String
     /// After a Talk session ends, also POST the transcript to the Sessions API
@@ -349,8 +355,10 @@ struct UserSettings: Codable, Hashable, Sendable {
         relayConfiguration: RelayConfiguration = RelayConfiguration.defaultValue(),
         autoConnectOnLaunch: Bool = true,
         locationSyncPreference: LocationSyncPreference = .foregroundOnly,
-        healthCollectionEnabled: Bool = true,
-        locationCollectionEnabled: Bool = true,
+        healthCollectionEnabled: Bool = false,
+        locationCollectionEnabled: Bool = false,
+        sensorStreamingEnabled: Bool = false,
+        motionCollectionEnabled: Bool = false,
         hermesAPIBaseURL: String = UserSettings.defaultHermesAPIBaseURL,
         modelsShimBaseURL: String = UserSettings.defaultModelsShimBaseURL,
         postVoiceTranscriptsToHermes: Bool = true,
@@ -379,6 +387,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.locationSyncPreference = locationSyncPreference
         self.healthCollectionEnabled = healthCollectionEnabled
         self.locationCollectionEnabled = locationCollectionEnabled
+        self.sensorStreamingEnabled = sensorStreamingEnabled
+        self.motionCollectionEnabled = motionCollectionEnabled
         self.hermesAPIBaseURL = hermesAPIBaseURL
         self.modelsShimBaseURL = modelsShimBaseURL
         self.postVoiceTranscriptsToHermes = postVoiceTranscriptsToHermes
@@ -409,6 +419,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         case locationSyncPreference
         case healthCollectionEnabled
         case locationCollectionEnabled
+        case sensorStreamingEnabled
+        case motionCollectionEnabled
         case hermesAPIBaseURL
         case modelsShimBaseURL
         case postVoiceTranscriptsToHermes
@@ -441,6 +453,11 @@ struct UserSettings: Codable, Hashable, Sendable {
         locationSyncPreference = try container.decodeIfPresent(LocationSyncPreference.self, forKey: .locationSyncPreference) ?? .foregroundOnly
         healthCollectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .healthCollectionEnabled) ?? true
         locationCollectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .locationCollectionEnabled) ?? true
+        // #137: absent keys mean a pre-opt-in blob — master stays OFF here;
+        // SensorStreamingGrandfathering (not the decoder) decides whether an
+        // active pairing grandfathers it ON.
+        sensorStreamingEnabled = try container.decodeIfPresent(Bool.self, forKey: .sensorStreamingEnabled) ?? false
+        motionCollectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .motionCollectionEnabled) ?? false
         hermesAPIBaseURL = try container.decodeIfPresent(String.self, forKey: .hermesAPIBaseURL) ?? UserSettings.defaultHermesAPIBaseURL
         modelsShimBaseURL = try container.decodeIfPresent(String.self, forKey: .modelsShimBaseURL) ?? UserSettings.defaultModelsShimBaseURL
         postVoiceTranscriptsToHermes = try container.decodeIfPresent(Bool.self, forKey: .postVoiceTranscriptsToHermes) ?? true
@@ -475,6 +492,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         try container.encode(locationSyncPreference, forKey: .locationSyncPreference)
         try container.encode(healthCollectionEnabled, forKey: .healthCollectionEnabled)
         try container.encode(locationCollectionEnabled, forKey: .locationCollectionEnabled)
+        try container.encode(sensorStreamingEnabled, forKey: .sensorStreamingEnabled)
+        try container.encode(motionCollectionEnabled, forKey: .motionCollectionEnabled)
         try container.encode(hermesAPIBaseURL, forKey: .hermesAPIBaseURL)
         try container.encode(modelsShimBaseURL, forKey: .modelsShimBaseURL)
         try container.encode(postVoiceTranscriptsToHermes, forKey: .postVoiceTranscriptsToHermes)

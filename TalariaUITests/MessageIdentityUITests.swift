@@ -40,7 +40,6 @@ final class MessageIdentityUITests: XCTestCase {
         // across the append→merge→finish window.
         var app = makeApp(context: context)
         app.launch()
-        dismissPermissionsOnboardingIfNeeded(in: app)
 
         guard let composer = waitForComposer(in: app, timeout: 15) else {
             XCTFail("chat composer should be reachable on first launch (on-device, no pairing)")
@@ -57,7 +56,6 @@ final class MessageIdentityUITests: XCTestCase {
             app.terminate()
             app = makeApp(context: context)
             app.launch()
-            dismissPermissionsOnboardingIfNeeded(in: app)
 
             guard let warmComposer = waitForComposer(in: app, timeout: 15) else {
                 XCTFail("chat composer should be reachable on warm launch \(cycle)")
@@ -72,27 +70,6 @@ final class MessageIdentityUITests: XCTestCase {
     }
 
     // MARK: - Helpers
-
-    /// A fresh (unpaired) install lands on the Permissions onboarding screen
-    /// first; the chat surface is behind its Continue button. Tolerant: taps
-    /// when present, proceeds when not (warm relaunches persist the
-    /// completion flag and go straight to chat). No capability is enabled —
-    /// Continue alone skips the grants, so no system permission alerts fire.
-    @MainActor
-    private func dismissPermissionsOnboardingIfNeeded(in app: XCUIApplication) {
-        // GlowButton uppercases its title into the accessibility label —
-        // the element is 'CONTINUE', not 'Continue' (verified via hierarchy
-        // dump 2026-07-18). Both are checked for resilience.
-        let uppercased = app.buttons["CONTINUE"]
-        if uppercased.waitForExistence(timeout: 5) {
-            uppercased.tap()
-            return
-        }
-        let titleCased = app.buttons["Continue"]
-        if titleCased.exists {
-            titleCased.tap()
-        }
-    }
 
     @MainActor
     private func makeApp(context: Context) -> XCUIApplication {

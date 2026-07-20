@@ -12,18 +12,12 @@ struct AppRootView: View {
 
     var body: some View {
         ZStack {
-            Group {
-                // #31: no pairing wall. First launch lands in a working chat
-                // (local brain); Hermes is a Settings-level upgrade
-                // (Settings → Connect Hermes Desktop). The permissions
-                // onboarding still runs once right after a successful pair —
-                // it primes the SENSOR grants, which are Hermes-gated.
-                if container.pairingStore.needsPermissionsOnboarding {
-                    PermissionsOnboardingScreen()
-                } else {
-                    MainTabView()
-                }
-            }
+            // #31: no pairing wall — first launch lands in a working chat
+            // (local brain); Hermes is a Settings-level upgrade (Settings →
+            // Connect Hermes Desktop). #137: no post-pair wall either —
+            // pairing grants CHAT only, and sensor streaming is a separate
+            // Settings-level opt-in (Privacy → Sensor Streaming).
+            MainTabView()
 
             if shouldShowSplash {
                 LaunchSplashView()
@@ -31,7 +25,6 @@ struct AppRootView: View {
             }
         }
         .animation(Design.Motion.standard, value: container.pairingStore.isPaired)
-        .animation(Design.Motion.standard, value: container.pairingStore.needsPermissionsOnboarding)
         .animation(Design.Motion.gentle, value: shouldShowSplash)
         // System chrome (keyboard, sheets, toggles, context menus) follows
         // the theme: light for the light environments, dark for the HUD
