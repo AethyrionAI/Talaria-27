@@ -144,3 +144,128 @@ struct BriefingWidgetSnapshotTests {
         #expect(data.briefingReceivedAt == Date(timeIntervalSinceReferenceDate: 5))
     }
 }
+
+@Suite("InboxStore markRead")
+@MainActor
+struct InboxStoreMarkReadTests {
+
+    @MainActor
+    private final class StubInboxService: InboxServiceProtocol {
+        var stubbedItems: [InboxItem] = []
+        func fetchInbox(accessToken: String?) async throws -> [InboxItem] { stubbedItems }
+        func submitAction(itemID: UUID, actionID: String, accessToken: String?) async throws -> InboxActionResult {
+            Issue.record("markRead must never round-trip the relay")
+            throw URLError(.badServerResponse)
+        }
+    }
+
+    @MainActor
+    private final class MemoryPersistence: AppPersistenceStoreProtocol {
+        var inboxState = InboxLocalState()
+        func loadInboxState() -> InboxLocalState { inboxState }
+        func saveInboxState(_ state: InboxLocalState) { inboxState = state }
+        func clearInboxState() { inboxState = InboxLocalState() }
+        // Unused protocol surface — inert.
+        func loadUserSettings() -> UserSettings? { nil }
+        func saveUserSettings(_ settings: UserSettings) {}
+        func loadSessionState(profileScope: UUID?) -> AppSessionState? { nil }
+        func saveSessionState(_ state: AppSessionState, profileScope: UUID?) {}
+        func clearSessionState(profileScope: UUID?) {}
+        func loadPairedRelayConfiguration(profileScope: UUID?) -> PairedRelayConfiguration? { nil }
+        func savePairedRelayConfiguration(_ configuration: PairedRelayConfiguration, profileScope: UUID?) {}
+        func clearPairedRelayConfiguration(profileScope: UUID?) {}
+        func loadBackendProfilesState() -> BackendProfilesState? { nil }
+        func saveBackendProfilesState(_ state: BackendProfilesState) {}
+        func clearBackendProfilesState() {}
+        func loadSessionProfileIndex() -> SessionProfileIndex { SessionProfileIndex() }
+        func saveSessionProfileIndex(_ index: SessionProfileIndex) {}
+        func clearSessionProfileIndex() {}
+        func loadSessionUsageIndex() -> SessionUsageIndex { SessionUsageIndex() }
+        func saveSessionUsageIndex(_ index: SessionUsageIndex) {}
+        func clearSessionUsageIndex() {}
+        func loadSensorOutboxState() -> SensorOutboxState { SensorOutboxState() }
+        func saveSensorOutboxState(_ state: SensorOutboxState) {}
+        func clearSensorOutboxState() {}
+        func loadConversationCache() -> Conversation? { nil }
+        func saveConversationCache(_ conversation: Conversation) {}
+        func clearConversationCache() {}
+        func loadConversationJournal() -> ConversationJournal? { nil }
+        func saveConversationJournal(_ journal: ConversationJournal) {}
+        func clearConversationJournal() {}
+        func loadConversationListState() -> ConversationListState { ConversationListState() }
+        func saveConversationListState(_ state: ConversationListState) {}
+        func clearConversationListState() {}
+        func loadComposeOutboxState() -> ComposeOutboxState { ComposeOutboxState() }
+        func saveComposeOutboxState(_ state: ComposeOutboxState) {}
+        func clearComposeOutboxState() {}
+        func loadHealthQueryAnchorData(for identifier: String) -> Data? { nil }
+        func saveHealthQueryAnchorData(_ data: Data?, for identifier: String) {}
+        func clearHealthQueryAnchorData() {}
+    }
+
+    private func makeStore(
+        service: StubInboxService = StubInboxService(),
+        persistence: MemoryPersistence = MemoryPersistence()
+    ) async -> InboxStore {
+        let sessionStore = AppSessionStore(
+            bootstrapService: MockSessionBootstrapService(),
+            syncCoordinator: MockSyncCoordinator(),
+            secureStore: MockSecureStore(),
+            persistence: persistence,
+            notificationService: MockNotificationService(),
+            environmentProvider: { .development }
+        )
+        await sessionStore.bootstrap()
+        return InboxStore(inboxService: service, persistence: persistence, sessionStore: sessionStore)
+    }
+
+    @Test("markRead flips the item read + non-actionable without a relay round-trip")
+    func marksReadLocally() async {
+        let service = StubInboxService()
+        let briefing = InboxItem(
+            type: .notification, title: "Briefing", body: "B",
+            payload: ["category": "briefing"]
+        )
+        service.stubbedItems = [briefing]
+        let store = await makeStore(service: service)
+        await store.loadInbox(force: true)
+
+        store.markRead(briefing)
+
+        #expect(store.items.first?.isRead == true)
+        #expect(store.items.first?.status == .opened)
+        #expect(store.items.first?.isActionable == false)
+        #expect(store.unreadCount == 0)
+    }
+
+    @Test("markRead persists — a reloaded store still shows the item read")
+    func persistsAcrossReload() async {
+        let service = StubInboxService()
+        let persistence = MemoryPersistence()
+        let briefing = InboxItem(
+            type: .notification, title: "Briefing", body: "B",
+            payload: ["category": "briefing"]
+        )
+        service.stubbedItems = [briefing]
+        let store = await makeStore(service: service, persistence: persistence)
+        await store.loadInbox(force: true)
+        store.markRead(briefing)
+
+        let reloaded = await makeStore(service: service, persistence: persistence)
+        await reloaded.loadInbox(force: true)
+        #expect(reloaded.items.first?.isRead == true)
+    }
+
+    @Test("markRead is idempotent")
+    func idempotent() async {
+        let service = StubInboxService()
+        let briefing = InboxItem(type: .notification, title: "B", body: "B", payload: ["category": "briefing"])
+        service.stubbedItems = [briefing]
+        let store = await makeStore(service: service)
+        await store.loadInbox(force: true)
+        store.markRead(briefing)
+        store.markRead(briefing)
+        #expect(store.items.count == 1)
+        #expect(store.items.first?.isRead == true)
+    }
+}

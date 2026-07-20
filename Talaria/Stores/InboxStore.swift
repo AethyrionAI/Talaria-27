@@ -112,6 +112,19 @@ final class InboxStore {
         await submitAction(for: item, actionID: item.secondaryAction?.id ?? "dismiss")
     }
 
+    /// #126: opening a briefing detail marks it read — device-local
+    /// bookkeeping only (same rules as `applyLocalState`), never a relay
+    /// action round-trip.
+    func markRead(_ item: InboxItem) {
+        guard !localState.readItemIDs.contains(item.stableIdentifier) else { return }
+        localState.readItemIDs.insert(item.stableIdentifier)
+        if let index = items.firstIndex(where: { $0.id == item.id }) {
+            items[index].isRead = true
+            if items[index].status == .pending { items[index].status = .opened }
+            items[index].isActionable = items[index].status == .pending
+        }
+    }
+
     private func submitAction(for item: InboxItem, actionID: String) async {
         // #113: app-generated items have no server row — acting on one must
         // never hit the relay (the id would 404 and surface as an error).
