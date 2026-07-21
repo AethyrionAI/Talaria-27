@@ -5703,7 +5703,7 @@ size budgets into the on-device context window (#61/#102 family).
 **Scope: POST-LAUNCH (1.1 headline candidate). Not launch-pass work.** Parked with #149;
 when scheduled, start with a design doc: server management UX, transport/auth, tool
 approval, free-vs-connected capability matrix.
-**Cross-ref (2026-07-20 late):** the #149 bridge (now )
+**Cross-ref (2026-07-20 late):** the #149 bridge (now `~/Documents/Claude/HermesMCP`)
 is a working reference implementation for the Hermes-side contract this would consume in
 the Connected tier — session lifecycle, bearer-auth resolution, tasking, transcript
 read-back, and the real timeout envelope (warm ~12s / cold ~21s), all smoke-verified
