@@ -5275,3 +5275,44 @@ registrations on the Mac relay (and OJAMD if present — check same session as #
 Deactivate rather than delete if audit history matters.
 
 Logged 2026-07-20.
+
+## 145. 🐛 App hard-locks when entered during an OJAMD gateway outage (Hermes update window) — no recovery after the host returns; phone restart required
+
+**Observed 2026-07-20 (Owen, whoGoesThere, seed b3 presumed — pre-b4-update).** Owen opened
+the app while `hermes update` was running on OJAMD (gateway `:8642` down/bouncing — the
+user-process plane; relay/shim state during the window unrecorded). The app LOCKED UP, did
+NOT recover after OJAMD came back, and a PHONE RESTART was needed to restore it.
+
+**Why this is its own item and not #136:** it is the INVERSE outage shape. #136’s verified
+pass was relay+shim black-holed with the GATEWAY ALIVE (cold launch → instant, chat worked).
+This event is the gateway down with the rest (presumably) alive — and the entry was almost
+certainly a FOREGROUND/resume, not a cold launch. PR #122 moved `initialize()` off the splash
+critical path; the foreground-activation and chat-plane refresh paths (session sync/poll,
+`handleAppDidBecomeActive`-driven work, any gateway-bound await reachable from UI) were not
+in its scope. With the Windows-firewall black-hole (#136 part 1: DROP, not REFUSE — every
+request eats the full ~60s URLSession timeout), serial gateway calls on a UI-blocking path
+would stack into exactly this.
+
+**Severity:** launch-blocking family. The freemium contract (#136) says degraded is the
+DEFAULT posture — a wedge that outlives the outage and defeats app relaunch (if it did;
+see discriminators) violates it categorically.
+
+**Discriminators owed:**
+- (a) Cold launch vs foreground entry — Owen: was the app already running in the background?
+- (b) Did a plain force-quit + relaunch get tried before the phone restart, and did it fail?
+  (A wedge that survives relaunch points at something persisted/system-side — e.g. a poisoned
+  cache read on the launch path, or a system-level stall — vs a merely hung process.)
+- (c) Which screen froze, and was it full input-freeze or stuck-but-scrollable?
+- (d) Repro under instrumentation: next Hermes-update window (or a deliberate gateway stop on
+  OJAMD), foreground the app with Console attached; if it hangs, grab a spindump / the iOS
+  hang report (Settings → Privacy → Analytics) — the stack names the blocking call directly.
+  Synergy note: the P-3 MetricKit subscriber (MXHangDiagnostic) would capture exactly this
+  class of event in the field — this item is an argument for building P-3 sooner.
+
+**Fix shape (pending discriminators):** extend the #136 non-negotiables to the foreground
+path — no gateway/relay/shim call may block UI-reachable work; foreground refresh becomes the
+same detached-background-upgrade posture as launch; the 5s bootstrap-probe URLSession config
+extends to the chat-plane sync calls. Cross-refs: #136 (✅ stands — its DoD was the launch
+path and it passed), #139 (separate defect family; different plane).
+
+Logged 2026-07-20.
