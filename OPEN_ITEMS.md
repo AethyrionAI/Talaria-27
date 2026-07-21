@@ -5748,3 +5748,61 @@ question is resolved on the beta SDK; 150D is a placeholder. Meta-dispatch retir
 (`8801c9c`).
 
 Logged 2026-07-20.
+
+---
+
+## 151. 🔧 Settings → Hermes Host: "Test Connection" gives NO pass/fail feedback
+
+Reported 2026-07-20 (Owen). Tapping Test Connection in Settings → Hermes Host produces no visible result — success, failure, and in-flight are indistinguishable. The user can't tell whether the host is reachable, which is exactly the moment the control exists to answer.
+
+Fix shape (source-confirm before dispatch): the action almost certainly already performs a reachability probe (bootstrap/health call on the Sessions API plane, :8642); what's missing is the UI binding of its result. Wants a small state enum (idle / testing / success / failure(reason)) driving: an inline spinner while testing, then a pass row (host + latency) or a fail row with a reason (unreachable / auth rejected / wrong port), in the standardized status wording family (#84 / #71 precedent). Distinguish the three network shapes #145/#136 established (refuse fast-fail vs firewall black-hole ~60s vs accepted-but-silent warmup) — a Test button that hangs 60s silently on black-hole is its own papercut, so give it the 5s dedicated-timeout config too.
+
+Source-confirm owed (next Mac shell): locate the Test Connection action (grep testConnection / "Test Connection" under Talaria/Features/Settings), confirm whether it already calls the probe and simply drops the result, and whether a status enum exists to reuse. Fable-dispatchable micro-lane once confirmed; pairs with #152 (same screen).
+
+Logged 2026-07-20.
+
+---
+
+## 152. 🎨 Settings host disconnect/revoke is buried under "Pair Device" — rename the pairing surface
+
+Reported 2026-07-20 (Owen). To DISCONNECT or REVOKE a host you must open Pair Device — an unpair action living behind a label that only advertises pairing. The name describes one direction of a two-direction surface (pair AND unpair/revoke/manage).
+
+Owen's ask: better naming. Candidates, roughly in order:
+
+"Pairing & Devices" — covers both add and remove; plain, App-Settings-idiomatic.
+
+"Manage Pairing" / "Device Pairing" — honest that it's manage, not just add.
+
+"Connection" / "Host Connection" — user-facing framing (they think "connect," not "pair"), but risks colliding with the #151 Test Connection language on the same screen.
+
+"Paired Devices" — good if the screen leads with the current pairing + a revoke and tucks the QR add-flow under a button.
+
+Recommendation: "Pairing & Devices" for the row, and inside, lead with the current host/pairing state + a clear Disconnect/Revoke, with Pair New Device (QR) as the add action — so the destructive/management actions aren't hidden behind an add-only verb. Keep the QR pairing flow itself unchanged (three-plane model intact; pairing QR still carries no Sessions API key).
+
+Source-confirm owed (next Mac shell): find the row label + destination (grep "Pair Device" / "Pairing" under Talaria/Features/Settings), confirm where revoke lives today, and check Siri/Spotlight/deep-link strings or tests that hard-code "Pair Device" before renaming. Pure UX lane, no backend change; batch with #151 as one Settings-host PR.
+
+Logged 2026-07-20.
+
+---
+
+## 153. 🔧 Settings → Server: multi-host management — delete profile (distinct from revoke), active-host selection, list semantics
+
+Reported 2026-07-20 (Owen): "add a delete feature on Settings → Server as well, if there's more than one."
+
+Why it's its own item, not just "add a button": DELETE and REVOKE are different actions and must not be conflated. Revoke (#152) severs the PAIRING/credential but may keep the host profile in the list; DELETE removes the saved profile entirely. A multi-host list (OJAMD + Mac Mini today, Shelley's host plausibly) needs both, plus list plumbing that single-host UI never had to answer:
+
+Which profile is ACTIVE (the one chat/models talk to)? Explicit selection vs implicit.
+
+Deleting the ACTIVE host — block it, or auto-fall-back to another / to standalone free-tier?
+
+Deleting the LAST host — app returns to free-tier standalone cleanly (ties to #136/#137 posture; must not wedge).
+
+Confirm on delete (destructive); revoke may or may not need one.
+
+Does deleting a profile also purge its stored pairing secret from Keychain? (It should — no orphaned credentials.)
+
+Scope: larger than the #151/#152 micro-lane — this is the "Settings → Server becomes a real list" lane. Suggest treating #151 (test feedback) + #152 (rename/surface revoke) as the quick Settings-host PR, and #153 as a slightly larger follow-up that introduces delete + active-selection + empty-list→standalone. Could be one combined lane if the list refactor is small; source-read decides.
+
+Source-confirm owed (next Mac shell): how are hosts stored today — single host record or already an array? (grep host/profile model under Talaria; check SettingsStore / whatever holds pairing state). If it's still single-host, #153 is partly a data-model lane, not just UI — size accordingly. Confirm Keychain key layout for per-host secrets before wiring delete.
+
+Logged 2026-07-20.
