@@ -5708,7 +5708,7 @@ is a working reference implementation for the Hermes-side contract this would co
 the Connected tier — session lifecycle, bearer-auth resolution, tasking, transcript
 read-back, and the real timeout envelope (warm ~12s / cold ~21s), all smoke-verified
 against both 0.19 hosts. Start the design doc from its 5-tool surface.
-**DISPATCH WRITTEN 2026-07-20 late — READY TO SEND (Owen's trigger):**
+**SUPERSEDED same night (Owen: 'do it right') by the real set below. Prior note kept for history:** DISPATCH WRITTEN 2026-07-20 late — READY TO SEND (Owen's trigger):**
 `dispatch/FABLE-T27-150-mcp-client-design.md` (commit `c81500f`). Docs-only lane: Fable
 produces `design/MCP_CLIENT_DESIGN.md` (sections a-h: binding tier matrix per the record
 correction, transport/SDK verdict with citations, server-management + approval UX,
@@ -5718,5 +5718,26 @@ constraints: two new md files only, no Swift/xcodegen, no OPEN_ITEMS edits, cite
 mark OPEN QUESTION. Staleness-checked (no prior #150 work; PR #128 probe unrelated).
 Owen green-lit starting #150 tonight; post-launch scope unchanged - this is the design
 gate, not launch-pass work.
+**DESIGN DONE + LANES SPECCED 2026-07-20 late (Claude-authored, not delegated):**
+`design/MCP_CLIENT_DESIGN.md` (`6ccf097`) makes the decisions: ADOPT official
+`modelcontextprotocol/swift-sdk` via SPM (HTTPClientTransport = Streamable HTTP, SSE on
+Apple platforms, `requestModifier` = auth injection; verified against repo/source, iOS
+minimum + Swift-6 interplay = Lane A compile gate); plug into EXISTING machinery — #70
+`ToolConfirmationCenter` gates all invocations (no new gate), #69 belt architecture hosts
+free-tier tools, #114/#116 honest-probe + Keychain patterns for the registry. KEY FINDING
+(tier inversion): model-driven MCP arrives FREE-TIER-FIRST — the host model cannot reach
+phone-local tools until a Lane-D host<->phone transport exists (own post-1.1 design doc);
+Connected's near-term value is the manual invoke + insert-into-chat surface. Free-tier
+stays inside the record correction: ONE curated guided tool, 1 call/turn, result cap
+~1500 tokens vs the runtime-read 4096/8192 window (#61/#102 budgets). Central OPEN
+QUESTION for Lane C: FM @Generable compile-time args vs MCP runtime schemas (curated
+single-string shape recommended; Dynamic Profiles unverified). Bridge snapshot in-repo
+for Fable: `design/reference/hermes-sessions-mcp-server.py` (`7fe219f`).
+**READY TO SEND (Owen's trigger, in order):** `dispatch/FABLE-T27-150A-mcp-registry-probe.md`
+(`1481610` — registry/settings/SDK-dep/probe; front-loads the SPM+xcodegen+Swift-6 risk),
+then `dispatch/FABLE-T27-150B-mcp-tools-approval.md` (`af9add6` — browse/manual
+invoke/grants/#70 routing; ONLY after 150A merges). 150C specced after the Lane-C open
+question is resolved on the beta SDK; 150D is a placeholder. Meta-dispatch retired
+(`8801c9c`).
 
 Logged 2026-07-20.
