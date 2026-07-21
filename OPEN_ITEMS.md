@@ -5584,6 +5584,16 @@ Logged 2026-07-20.
 **Owen, 2026-07-20 late: “Having mcp access on the app side could be a game changer.”**
 Separate idea from #149 (Claude↔Hermes bridge): the APP becomes an MCP client.
 
+**Record correction (Owen, same night): the on-device model is a 3B FoundationModels
+instruct model — nothing fancy. The free-tier “real standalone agent” framing below is
+OVERSOLD and stands corrected: this is the same model that phrase-loops and degenerates
+cards (#61/#102). Realistic free-tier ceiling: NARROW, GUIDED single-tool use — one tool,
+clear trigger, schema-constrained args via guided generation (which prevents malformed
+calls but does not grant planning) — e.g. fetch-an-MCP-resource-and-summarize, not
+orchestration. The game-changer claim survives only in the CONNECTED tier (host model
+reasons; app-side MCP extends its reach to phone-local/adjacent tools). Read the free-tier
+bullet below with this correction applied.
+
 **Why it is tier-transforming:**
 - **Free tier:** FoundationModels supports on-device tool calling (Tool protocol on
   LanguageModelSession) — on-device brain + user-added MCP servers (streamable HTTP) = a
