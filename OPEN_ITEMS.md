@@ -4093,6 +4093,20 @@ Logged 2026-07-15.
 durable per-session `/model` evaluation that gates this hold is the top action item there.
 Verdict lands back here.
 
+**HOLD LIFTED 2026-07-20 late — eval done, VERDICT: KEEP the shim, unchanged; retire
+nothing.** Full doc: `planning/EVAL-model-routes-vs-shim-2026-07-20.md`. Core finding
+(0.19.0 source read + live probes on BOTH gateways): the native features never reach the
+plane the app uses. `model_routes` resolves only on /v1/chat/completions, /v1/responses,
+/v1/runs — the Sessions API chat path (`/api/sessions/{id}/chat[/stream]`, the Clean Chat
+Path) reads no `model` field and never resolves a route; every phone turn uses the GLOBAL
+default, which only the shim's POST /models/default can change from the phone. Durable
+per-session `/model` is a messaging-platform slash command — the API plane can neither
+issue it nor apply it (consulted once, only to suppress a route). GET /v1/models is skinny
+alias discovery (id/root/parent; live-probed on Mac and OJAMD :8642 — reachable at the
+address the app knows, but no pricing/capabilities/picker payload, no write surface;
+watch `/v1/capabilities` `admin_config_rw` on future updates, false today). Deploy + DoD
+device pass now unblocked as merged (PRs #101/#102) — no design change.
+
 **ON HOLD 2026-07-20 (Owen): deploy + DoD device pass PAUSED pending Hermes 0.19.**
 The 0.19 update (installed on OJAMD tonight — the same update window that surfaced #145)
 appears to make parts of this provisioning mechanism redundant. Before deploying the
@@ -5414,6 +5428,13 @@ same detached-background-upgrade posture as launch; the 5s bootstrap-probe URLSe
 extends to the chat-plane sync calls. Cross-refs: #136 (✅ stands — its DoD was the launch
 path and it passed), #139 (separate defect family; different plane).
 
+**Timing datum (2026-07-20 late, OJAMD sibling session):** gateway cold-start plus a
+~55k-token context measured ~21s to first token on a fresh session; tonight's outage
+window ran roughly 21:14 restart + warmup. Baseline for discriminator (d): a
+healthy-but-cold gateway alone can legitimately eat ~20s+ — the wedge threshold must be
+judged against cold-start latency, not warm-path latency, or a slow-but-alive gateway
+gets misread as the hang.
+
 Logged 2026-07-20.
 
 ## 146. 🐛 Diagnostics push row stuck on TOKEN HELD · AWAITING RELAY — CONFIRMED display desync 2026-07-20 (push delivered while row stuck); fix = kill the dual bookkeeping
@@ -5553,7 +5574,7 @@ parser expects it: `tool.progress` + `tool_name:"_thinking"` + `delta` — NOT f
 nuance: on this turn the `_thinking` text mirrored the answer text — the pre-existing
 “answer-under-reasoning” gateway quirk the client already hedges (SessionsHermesClient ~:768),
 not a 0.19 regression. **The reasoning-shape risk above is RETIRED.**
-**OJAMD caveat (from the sibling 0.19 session):** Owen’s OJAMD update pattern restarts only
+**OJAMD caveat — RETIRED 2026-07-20 late (see addendum below; OJAMD verified on 0.19):** Owen’s OJAMD update pattern restarts only
 the NSSM services — the gateway pythonw and connector are NOT bounced by it, so OJAMD’s
 RUNNING gateway may still be pre-0.19 until rebooted/relaunched. Verify process start time
 vs update time before attributing any OJAMD wire behavior to 0.19 (this also feeds the #143
@@ -5563,6 +5584,23 @@ timing discriminator). The sibling session owns the OJAMD-side execution.
 call — OJAMD works too via its gateway once a capture window exists); (2) model_routes eval
 doc → resolves the #116 hold; (3) host-side skill/tool-name check; (4) fold verdicts back
 into #116/#143.
+
+**0.19 verification addendum (2026-07-20 late) — BOTH HOSTS VERIFIED, sequencing items
+(1)–(2) DONE.** OJAMD side (sibling session): gateway pythonw restarted 21:14, `/health`
+reports 0.19.0 — the OJAMD caveat above is RETIRED; relay/shim/connector all healthy; two
+SSE captures confirm taxonomy identical to CLEAN_CHAT_PATH, `assistant.delta` pure,
+`_thinking` per the known answer-mirroring hedge (pre-existing k3-family gateway quirk,
+`SessionsHermesClient` ~:768 — NOT a 0.19 regression). Two NEW findings:
+(a) `run.completed.messages[]` now carries `reasoning`/`reasoning_content` fields with the
+actual reasoning text (distinct from the answer) — never streamed in captures, exists
+post-hoc; parser tolerates the new fields; candidate source for a REAL thinking display
+later. (b) `/v1/models` is live on `:8642` on both hosts (planes share the port; no
+`model_routes` configured) — folded into the #116 eval. Housekeeping: the 1,192
+`UnicodeDecodeError`s in connector.log are a FOSSIL (June 24–July 2 run, pre-dates the
+verified encoding fixes; log untouched since July 2) — no action. model_routes eval
+(sequencing item 2) DONE — verdict KEEP shim unchanged, recorded in #116 +
+`planning/EVAL-model-routes-vs-shim-2026-07-20.md`. Remaining: (3) host-side tool-name
+check, (4) residual #143 folds.
 
 Logged 2026-07-20.
 
