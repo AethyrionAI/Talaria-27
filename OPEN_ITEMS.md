@@ -5370,3 +5370,44 @@ extends to the chat-plane sync calls. Cross-refs: #136 (✅ stands — its DoD w
 path and it passed), #139 (separate defect family; different plane).
 
 Logged 2026-07-20.
+
+## 146. 🐛 Diagnostics push row stuck on TOKEN HELD · AWAITING RELAY while connected to OJAMD — suspected #133 dual-bookkeeping desync (bool vs recorded token), truthful-failure not ruled out
+
+**Observed 2026-07-20 late (Owen, OJAMD profile active, post-Hermes-0.19 update window).**
+Diagnostics (and presumably Notifications settings — same source of truth) shows the push
+pipeline stuck at TOKEN HELD · AWAITING RELAY. Earlier the same evening push demonstrably
+worked against OJAMD (#143’s ×5 deliveries), so something changed tonight.
+
+**Source-read (2026-07-20):** both screens render `AppContainer.pushTokenPipelineState`,
+which reads a BOOLEAN — `sessionStore.state.pushTokenRegistered` (AppContainer.swift:1527).
+The #133 fix (PR #123) introduced a SECOND bookkeeping surface: per-profile
+`registeredPushToken` (token STRING on AppSessionState) consulted by the skip-on-exact-match
+policy. Two records of one fact.
+
+**Hypothesis (a) — #133 regression, specific mechanism:** a launch that restores a MATCHING
+recorded token skips the POST by design — but if the boolean is false at that point (state
+restoration ordering, a deactivate that cleared the bool but not the mark, or any path where
+the two fields diverge), the UI shows AWAITING RELAY indefinitely and the skip guarantees no
+future POST ever sets it true. Fix shape if confirmed: the skip path must ALSO assert the
+boolean (a skip IS a confirmation — the recorded ack is why we skipped), or better, derive
+the UI state from the recorded token instead of the parallel bool (kill the dual
+bookkeeping).
+
+**Hypothesis (b) — truthful failure:** post-0.19 + tonight’s service bouncing, registration
+may be genuinely failing (markPushTokenRegistered(false) on POST failure is the honest
+path). The same evening’s #145 window makes host-side flux entirely plausible.
+
+**Discriminators (fastest first):**
+1. Trigger any push from OJAMD (agent inbox item) — ARRIVAL while the row reads AWAITING =
+   display bug, hypothesis (a) confirmed in one move.
+2. Launch Console filter `registerPushToken` — an “accepted” line (or a skip with no
+   failure) alongside the stuck row = (a); repeated failure lines = (b), go look at the
+   OJAMD relay.
+3. Note for the #133 device pass: post-fix, a healthy launch may legitimately show ZERO
+   registration lines (skip working as designed) — update that pass’s expectation from
+   “at most one per profile” to “at most one per profile, possibly none”.
+
+Cross-refs: #133 (the fix under suspicion — its device pass and this item should run in the
+same Console session), #143/#144 (same notification plane), #145 (same host-flux evening).
+
+Logged 2026-07-20.
