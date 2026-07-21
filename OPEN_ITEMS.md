@@ -5541,6 +5541,24 @@ Talaria-relevant. Mac-side read-only findings from the same night are folded in.
   voice is in play.
 - `hermes serve` truly headless — leaner hosting option for both hosts.
 
+**SSE capture DONE 2026-07-20 late — 0.19 wire VERDICT: fully compatible, zero app changes
+needed for chat streaming.** Live capture against the Mac gateway (verified running 0.19:
+process up 20:43 tonight, post-update; session `api_1784605409_8898f1c3`, log
+`/tmp/sse-019.log`, 141 lines). Taxonomy observed: run.started, message.started,
+tool.progress, assistant.delta (×41), assistant.completed, run.completed, done — IDENTICAL
+to the CLEAN_CHAT_PATH contract, no new event types. Reasoning arrived exactly where the
+parser expects it: `tool.progress` + `tool_name:"_thinking"` + `delta` — NOT folded into
+`assistant.delta` (clean answer chunks verified pure). show_reasoning-ON just means the
+`_thinking` channel flows; our increments-vs-full hedge covers its cadence. One known-family
+nuance: on this turn the `_thinking` text mirrored the answer text — the pre-existing
+“answer-under-reasoning” gateway quirk the client already hedges (SessionsHermesClient ~:768),
+not a 0.19 regression. **The reasoning-shape risk above is RETIRED.**
+**OJAMD caveat (from the sibling 0.19 session):** Owen’s OJAMD update pattern restarts only
+the NSSM services — the gateway pythonw and connector are NOT bounced by it, so OJAMD’s
+RUNNING gateway may still be pre-0.19 until rebooted/relaunched. Verify process start time
+vs update time before attributing any OJAMD wire behavior to 0.19 (this also feeds the #143
+timing discriminator). The sibling session owns the OJAMD-side execution.
+
 **Sequencing:** (1) live SSE capture on a 0.19 gateway (gated on updating the Mini, Owen’s
 call — OJAMD works too via its gateway once a capture window exists); (2) model_routes eval
 doc → resolves the #116 hold; (3) host-side skill/tool-name check; (4) fold verdicts back
