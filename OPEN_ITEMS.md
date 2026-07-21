@@ -2988,7 +2988,12 @@ Logged 2026-07-08.
 
 ---
 
-## 84. 🔧 Talk-mode preflight + mic flatline tripwire + route display — merged to main (PR #62); device checklist owed
+## 84. ✅ Talk-mode preflight + mic flatline tripwire + route display — merged (PR #62); device checklist PASSED 2026-07-20
+
+**Device pass 2026-07-20 (whoGoesThere, Session V launch sweep): PASS — CLOSED.** All six
+checklist steps verified: denied-mic → actionable banner (never LISTENING); live speech → no
+hint; 12s silence → flatline hint, first words clear it; mute-through-window rearm; ROUTE line
+updates on BT attach/detach; Diagnostics Voice/Talk panel shows real states.
 
 > **Audit 2026-07-13:** PR #62 (branch `claude/t27-84-talk-preflight`) merged to main 2026-07-10 (`8830b11`). `Talaria/Services/Support/TalkPreflight.swift` and `TalariaTests/TalkPreflightTests.swift` (20 @Test cases) are confirmed present at origin/main tip `cca1345`. The 'BUILT IN CLOUD, not compiled' header and 'Needs Mac: xcodegen generate ..., CLI build' body text are stale — that build step already happened as part of the PR #62 merge. The on-device checklist (items 1-7, including the reboot-guidance addition from the 2026-07-10 update) remains unconfirmed — no device-verification note exists, so this stays merged-unverified rather than done.
 
@@ -4072,7 +4077,10 @@ Logged 2026-07-16.
 
 ---
 
-## 118. 🔧 Voice capture background teardown — MERGED (Lane V, PR #112, 2026-07-18); device re-verify owed
+## 118. ✅ Voice capture background teardown — MERGED (Lane V, PR #112, 2026-07-18); device-verified 2026-07-20
+
+**Device pass 2026-07-20 (Session V launch sweep): PASS — CLOSED.** Backgrounding mid/post
+voice session extinguishes the system mic indicator; CarPlay exemption held per checklist.
 
 > **MERGED 2026-07-18 (PR #112, `ceecfdb`).** Backgrounding ends the session through the user-end
 > path on whichever engine is driving; **CarPlay exempted** (Fable's catch, correct — CarPlay voice
@@ -4098,7 +4106,11 @@ Logged 2026-07-16.
 
 ---
 
-## 119. 🔧 Voice UI cancel-race banner + CONNECTING header — MERGED (Lane V, PR #112, 2026-07-18); device re-verify owed
+## 119. ✅ Voice UI cancel-race banner + CONNECTING header — MERGED (Lane V, PR #112, 2026-07-18); device-verified 2026-07-20
+
+**Device pass 2026-07-20 (Session V launch sweep): PASS — CLOSED.** Post-completion barge-in
+surfaces no banner; header tracks live session state past CONNECTING through a full
+conversation.
 
 > **MERGED 2026-07-18 (PR #112).** `RealtimeErrorRule` classifies no-op-cancel and
 > response-create races → `.notice` + swallow; real failures still surface. Header bound to live
@@ -4475,6 +4487,13 @@ Logged 2026-07-17.
 
 ## 128. 🔧 Voice capture crash — double installTap via actor reentrancy — FIXED (2026-07-17); device re-verify owed
 
+**Session V sweep 2026-07-20: DoD NOT closed — the exact repro never cleanly ran.** The attempt
+tangled with a different failure: cycling several auditions in Voice Settings then starting the
+session FROM SETTINGS hung at ESTABLISHING LINK (→ #139; non-reproducible later same day).
+Audition-then-composer-origin start passed. No crash observed at any point — but the #128 repro
+(ACTIVE session → audition several → apply) is still owed. Re-run at the #139 circle-back, both
+hosts.
+
 > **Record correction (2026-07-20, from the #129 lane):** at #129's base commit, mid-session
 > preview was DOUBLE-blocked since Wave 1 (disabled button + gated `speak()`), so "preview
 > triggered #128" only holds if `isSessionActive` flapped during the interruption burst. The
@@ -4496,6 +4515,13 @@ Logged 2026-07-17.
 ---
 
 ## 129. 🔧 Voice preview mid-session — MERGED (PR #127, merge `175261b`, 2026-07-20); device pass owed. Known accepted behavior: native-engine sessions share the assistant TTS instance, so mid-reply preview drops that reply's un-spoken audio tail (transcript intact) and the next chunk cuts the preview short; realtime engine (primary case) previews play over the session. Third dedicated preview instance (~4 lines) deferred pending Owen's device feel.
+
+**Session V sweep 2026-07-20: PARTIAL — DoD still owed.** Pre-session audition →
+composer-origin start passes (selection path sound). The actual DoD (MID-SESSION audition +
+apply, session keeps running, mic live after) was only attempted via the settings-origin flow
+that hit the #139 hang. Third-preview-instance verdict deferred to the circle-back — and note
+#138: on the OJAMD realtime engine the session self-barges on its own TTS, so evaluate the
+verdict on a session whose echo behavior is understood.
 
 > **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-129-preview-instance.md` — **READY TO SEND** (micro; option (a) selection function, audio law restated).
 
@@ -4573,7 +4599,13 @@ Logged 2026-07-17.
 
 ---
 
-## 131. 🐛 Composer mic (dictation) inert — silent-swallow catch FOUND + instrumented 2026-07-17; next device tap names the failing error. SUSPECT CORRECTION: Lane V touched LiveVoiceSessionService (realtime), NOT LiveSpeechService (dictation, untouched since the wedge era) — the original Lane-V attribution was wrong
+## 131. ✅ Composer mic (dictation) inert — NOT REPRODUCIBLE 2026-07-20: dictation works on device; instrumented catch retained. (Suspect correction stands: LiveSpeechService was untouched by Lane V)
+
+**Device pass 2026-07-20 (Session V launch sweep): dictation functional.** Composer mic toggles
+and transcribes on whoGoesThere. The 2026-07-17 inertness did not reproduce; the instrumented
+catch named no error because no failure occurred. Closing as unreproducible-with-guard rather
+than fixed-by-change — the catch stays in place to name it if it recurs (P-3 release-hygiene
+sweep revisits the log level).
 
 Device 2026-07-17: pressing the composer mic does nothing (OJAMD and Mac Mini, monetization gate
 on — gate almost certainly irrelevant: the button calls `toggleDictation()` on `speechService` =
@@ -4911,3 +4943,70 @@ unit 913/80 green, UI bundle 8/8 green on sim (disconnect flow needed a document
 re-tap hedge — the removed CONTINUE interstitial had been masking a dropped-tap race).
 Remaining: merge, then Owen's device pass (fresh-install pair→chat zero prompts;
 grandfathered device streams uninterrupted; contextual per-sensor prompts).
+
+## 138. 🐛 Realtime engine self-barge-in — assistant TTS captured as user speech (OJAMD voice host); slow turn processing noted
+
+**Evidence update 2026-07-20 (eve, via the #139 zombie-session conversation):** the realtime
+downlink is unmistakably SERVER audio (quality/speed far beyond local) — weakens the naive
+app-TTS hypothesis but does NOT settle the reference question: if the app extracts the remote
+track’s PCM and renders it through its own engine/player instead of WebRTC’s internal playout,
+the AEC still has no far-end reference and self-echo follows exactly as observed. Discriminator
+(1) re-scoped to a SOURCE READ: who renders the remote audio track in the realtime path? —
+cloud-doable, no device needed. Self-barge-in persisted through the entire otherwise-excellent
+conversation; per-turn speed once connected was good (earlier slowness re-attributed, see #139).
+
+**Observed 2026-07-20 (Owen, whoGoesThere, OJAMD profile — the voice-configured host).** With
+the realtime engine active, the moment the assistant starts speaking the session takes its own
+audio as the user's response and treats it as barge-in — self-echo into recognition, every
+reply. Also observed: long per-turn processing gaps (host-side K3 inference speed —
+informational, not an app defect, but it widens the window in which self-echo fires).
+
+**Mechanism hypothesis (source-informed, unverified):** the echo path only exists if assistant
+audio is NOT the echo canceller's far-end reference. If the realtime path speaks via the app's
+own TTS (SpeechOutputService synthesizing streamed text) rather than a WebRTC downlink track,
+WebRTC's AEC has no reference for it → mic re-captures it → server VAD fires speech_started →
+spurious barge-in. Same family as #130's native-engine self-transcription, which the half-duplex
+gate (discard recognition while isSpeaking + hangover) already solves on the probe branch — the
+realtime engine may need the identical software gate at its transcription ingest, or proper
+reference routing.
+
+**Discriminators owed (circle-back):** (1) does the realtime session's assistant voice sound
+like the app's TTS voices or like server-generated audio? (2) does the #130 gate concept apply
+cleanly at the realtime ingest? (3) Mac-host comparison once its voice config is brought up.
+
+Logged 2026-07-20 (Session V launch sweep).
+
+---
+
+## 139. 🐛 Engine truth + settings-origin session start — silent realtime→local fallback label lie; slow realtime connect with NO timeout and NO cancel-on-dismiss — abandoned session RESURRECTS with live audio (zombie, 2026-07-20 eve)
+
+**Same-evening escalation 2026-07-20 — the hang is a SLOW CONNECT and dismissal does not
+cancel it: ZOMBIE SESSION confirmed.** One of the "failed" settings-origin sessions kept
+connecting after Owen bailed; minutes later, mid-#61 chat testing, it came alive and started
+speaking — a full two-way conversation ensued. Reclassifies observation (2): ESTABLISHING LINK
+was realtime connect latency, not a dead session. Two concrete defects fall out: (a)
+dismissing/abandoning a connecting session MUST tear it down — a session that resurrects later
+with a live mic and speaker is a privacy-grade surprise, arguably launch-blocking on its own;
+(b) connect needs a timeout + an honest failure/fallback surface (ties to the label lie in
+(1)). Bonus data: once live, realtime quality and latency were excellent ("much different
+experience than local… so quick") — the earlier slow-per-turn read likely conflated connect
+latency or a local-engine session. Self-barge-in persisted throughout → #138.
+
+**Observed 2026-07-20 (Session V sweep); circle-back deferred to end of launch pass (Owen's
+call).** Two linked observations, host-config-dependent (OJAMD is voice-configured; the Mac much
+less so):
+(1) **Label mismatch:** Voice Settings displayed "realtime" while the live session showed the
+local engine — a silent fallback (#73 path) with no user-facing truth. If realtime is
+unavailable or fails to connect on the selected host, the session should SAY it fell back (and
+settings should reflect per-host availability), not claim realtime.
+(2) **Settings-origin start hang:** cycling several voice auditions in Voice Settings, then
+starting the session from INSIDE settings, hung at ESTABLISHING LINK. Not reproducible later the
+same day. Suspects: realtime connect attempt timing out before fallback (consistent with (1)),
+or voice-asset downloads in flight from the auditions. Composer-origin start passed immediately
+after.
+
+**Circle-back checklist:** repro attempts on BOTH hosts; Console capture during a
+settings-origin start; verify what (if anything) the fallback logs; then re-run the exact #128
+and #129 DoDs on whichever engine is truthfully active. #128/#129 stay open until then.
+
+Logged 2026-07-20.
