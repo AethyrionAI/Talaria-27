@@ -2003,6 +2003,13 @@ not yet compiled — needs `xcodegen generate` + CLI build + device verify.
   version was O(N²) across a long think). Foreground condensation now drains up to 3
   pending replies per pass instead of only the newest.
 
+**0.19 re-check (2026-07-20 late, both hosts):** the update did NOT ship the track-1
+fix — captures on the Mac and OJAMD 0.19 gateways still show `_thinking` mirroring the
+answer on k3 turns (the app's mirror guard holds; not a regression, just no upstream
+progress). `run.completed.messages[]` still carries `reasoning` + `reasoning_content`
+with genuine CoT, so the merged adoption path (#94/#95) is unaffected on 0.19. Track 1
+remains wait-for-upstream via `hermes update`; re-check each update.
+
 ## 61. 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device re-verify owed
 
 **Session C sweep 2026-07-20: DoD NOT closed — tangled with a NEW send-path defect (#142).**
@@ -5591,10 +5598,14 @@ reports 0.19.0 — the OJAMD caveat above is RETIRED; relay/shim/connector all h
 SSE captures confirm taxonomy identical to CLEAN_CHAT_PATH, `assistant.delta` pure,
 `_thinking` per the known answer-mirroring hedge (pre-existing k3-family gateway quirk,
 `SessionsHermesClient` ~:768 — NOT a 0.19 regression). Two NEW findings:
-(a) `run.completed.messages[]` now carries `reasoning`/`reasoning_content` fields with the
+(a) `run.completed.messages[]` still carries `reasoning`/`reasoning_content` fields with the
 actual reasoning text (distinct from the answer) — never streamed in captures, exists
-post-hoc; parser tolerates the new fields; candidate source for a REAL thinking display
-later. (b) `/v1/models` is live on `:8642` on both hosts (planes share the port; no
+post-hoc; parser tolerates the fields. CORRECTION on re-check: these fields pre-date
+0.19 (first pinned in #60's 2026-07-13 probe) and are ALREADY the app's shipped
+reasoning source — #60 fix track 2 adopts them at completion (PRs #94/#95,
+device-verified) and #121 restores the panes on resume (PR #120). The 0.19 datum is
+that they SURVIVE the update and the `_thinking` emitter still mirrors — #60 track 1
+stays wait-for-upstream (status note added there). (b) `/v1/models` is live on `:8642` on both hosts (planes share the port; no
 `model_routes` configured) — folded into the #116 eval. Housekeeping: the 1,192
 `UnicodeDecodeError`s in connector.log are a FOSSIL (June 24–July 2 run, pre-dates the
 verified encoding fixes; log untouched since July 2) — no action. model_routes eval
