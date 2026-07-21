@@ -5204,6 +5204,17 @@ becomes a confound for anything non-reproducible — notably the #139 settings-o
 repro attempts and all #138/#130 voice echo observations. Note the seed in any new device
 findings.
 
+**Transition IN PROGRESS 2026-07-20 late: (Owen):** device updating to b4 AND Xcode 27
+beta 4 installing — so the first watch item is answered: this is a full TOOLCHAIN
+transition, not just a seed bump. Consequences queued: (a) DEVELOPER_DIR changes — confirm
+the install path / rename convention (beta3 was a local rename; Apple default is
+Xcode-beta.app) before updating CLAUDE.md and the standing build commands; (b) the pinned
+sim UDID (47F68496…, created under beta3) may not survive — the new Xcode ships its own b4
+sim runtime; re-pin after first boot; (c) first action on the new toolchain: full-suite
+baseline build — the SDK canaries (#108 NavigationSplitViewVisibility alias, #58
+systemExtraLargePortrait) exist to go red on exactly this transition, and a red there is
+information, not failure.
+
 **Watch on first b4 build/run:**
 - Toolchain: does Xcode-beta3 still deploy/debug against a b4 device, or does a new Xcode
   beta land (→ DEVELOPER_DIR change, CLAUDE.md + README:77 update rides #140)?
