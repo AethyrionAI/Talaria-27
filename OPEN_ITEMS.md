@@ -5660,8 +5660,12 @@ infrastructure).** Now lives at `~/Documents/Claude/HermesMCP` under its own loc
 (initial commit `c100e73`); removed from Talaria-27 in `f222ef5` (added in `6f1e665`,
 same night). Venv rebuilt at the new path; 8/8 tests + both-host selftests re-verified
 green post-move; `claude_desktop_config.json` repointed (backed up).
-**Owed:** Claude Desktop restart to load the servers, then first in-anger use (e.g. drive
-a test conversation for a device pass and read the transcript back).
+**SMOKE PASS 2026-07-20 late (native MCP, post-restart):** health both hosts (0.19.0) ->
+OJAMD session create -> chat -> transcript read-back, zero shell. Bonus observations:
+reasoning/reasoning_content present PER-ROW on /messages (same source #121 reads);
+token_count null on all rows (third-client corroboration for #25); warm-gateway turn
+~12.4s (vs #145 cold ~21s). **Owed:** first in-anger use (e.g. drive a test
+conversation for a device pass and read the transcript back).
 
 Logged 2026-07-20.
 
