@@ -539,6 +539,25 @@ dropdown, no popover, no "Start New Session" — straight to the shim-backed lis
 
 ## 21. 🔧 Present/download agent-generated files — Tier 1 ✅; Tier 2 relay route ✅; Tier 2 app-side fetch MERGED (PR #99, 2026-07-16) — dual-host device pass owed
 
+**Session D launch sweep 2026-07-20 — Mac PASS (for what is built), two findings, OJAMD
+test INVALID:**
+- **Mac:** chip appeared, preview sheet presented, ShareLink sheet worked. “PDF preview not
+  working” is a DESIGN GAP, source-confirmed:  carries no PDF/QuickLook
+  path at all — Lane I built HTML + text/code only (per its spec), so the PDF fixture
+  exercised a filetype the surface never claimed. Not a regression. **Follow-up candidate
+  (Owen’s call):** wrap non-HTML/text types in  — small, standard, and
+  PDFs are a likely real agent output.
+- **Share-to-Talaria27 observation (→ #123):** sharing the PDF INTO the app completed with
+  ZERO visible destination feedback — no confirmation, no staged evidence. Discriminator:
+  open the composer / relaunch and check whether the share-inbox drain staged it silently.
+  Logged against the share-extension surface, not this item.
+- **OJAMD “unable to locate file”: INVALID TEST, not a FAIL.** The  fixture
+  only ever existed in the MAC’s MobileDL; OJAMD’s agent truthfully reported an absent file.
+  Valid OJAMD retest: ask OJAMD’s agent to WRITE a fresh file (also exercises the
+  announcement-scan + content-absent staging path), then tap the chip.
+- Still owed on this item: the OJAMD retest above, the relay traversal-rejection check
+  (), and the announcement-scan noise grate-check.
+
 > **Tier 2 app-side MERGED 2026-07-16 (PR #99, branch `claude/fable-t27-21-agent-appfetch-prvsf2`,
 > 10 commits).** Built to the probe verdict (binaries never ride SSE; `write_file` never fires for
 > them): two-layer trigger — content-absent write tools still stage/fetch, but the load-bearing
@@ -3683,7 +3702,14 @@ Logged 2026-07-12.
 
 ---
 
-## 107. 🔧 T6 Phase 1+2 — Mac Mini backend EXECUTED + reboot-verified; ONLY the from-Talaria-chat send (Shelley message) remains
+## 107. ✅ T6 Phase 1+2 — Mac Mini backend EXECUTED + reboot-verified; Shelley send from Talaria chat VERIFIED 2026-07-20 — CLOSED
+
+**Device pass 2026-07-20 (Session D launch sweep): PASS — CLOSED.** Agent-composed iMessage
+sent from Talaria chat, delivered to Shelley, READ RECEIPT 9:53 PM (screenshot on file — the
+agent signed off with “Have a pleasant circadian cycle”). Sender of record is imsg per the
+Phase-2 verdict; the message body’s “sending this via BlueBubbles” self-description is the
+agent’s own flavor text, not the plumbing. First full end-to-end proof of the T6 pipeline in
+the wild. Also closes the #114 residual (note added there).
 
 > **Reboot test PASS (2026-07-16, Owen at the screen):** relay, connector, gateway, and shim all
 > recovered at login (LaunchAgents); APNs came up clean on its first post-.p8 boot (zero
@@ -3951,7 +3977,11 @@ Logged 2026-07-14.
 
 ---
 
-## 114. 🔧 Backend Profiles — server switcher (T6 Part 2): second profile without wiping the first
+## 114. ✅ Backend Profiles — server switcher (T6 Part 2): second profile without wiping the first
+
+**Residual CLOSED 2026-07-20:** the from-Talaria-chat Shelley send — the last outstanding
+DoD element per the 2026-07-16 device verification — landed via #107 (read receipt on file).
+Item complete.
 
 > **MERGED 2026-07-16** — Lane M landed as the three stacked PRs (#96 model+migration+per-profile
 > clean-slate, #97 routing, #98 Settings surgery), main @ `2ab4945`. Mac review loop: xcodegen
