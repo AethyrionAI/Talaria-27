@@ -3486,7 +3486,15 @@ Both competitors render generated HTML/interactive content in-app; Talaria recon
 
 Logged 2026-07-11.
 
-## 100. 🔧 Inline charts / data viz — BOTH PRs MERGED (#108 + #109, 2026-07-17); device pass owed
+## 100. ✅ Inline charts / data viz — BOTH PRs MERGED (#108 + #109); device-verified 2026-07-20 (Path B toggle + fullscreen, real HealthKit data)
+
+**Device pass 2026-07-20 (Session C sweep, second attempt): PASS — CLOSED.** Real-data table
+(avg daily steps, 7 days, numbers-only prompt) → chart toggle surfaced → fullscreen in/out →
+toggle round-trip back to the markdown table. Confirms the earlier inconclusive attempt was
+eligibility (units in cells), not a defect. Residuals redirected, not dropped: the VoiceOver
+label check and the Midnight Marquee contrast spot-check ride the P-2 accessibility lane
+(which names ChartCanvas explicitly). Follow-up candidate stays open for Owen’s call: tolerant
+`numericCell` (strip units/%%/currency) so agent tables qualify without prompt discipline.
 
 **Session C sweep 2026-07-20: attempt INCONCLUSIVE — eligibility, not a defect (probably).**
 Owen asked the agent for a numeric table; a markdown table rendered but no chart toggle.
