@@ -5708,5 +5708,15 @@ is a working reference implementation for the Hermes-side contract this would co
 the Connected tier — session lifecycle, bearer-auth resolution, tasking, transcript
 read-back, and the real timeout envelope (warm ~12s / cold ~21s), all smoke-verified
 against both 0.19 hosts. Start the design doc from its 5-tool surface.
+**DISPATCH WRITTEN 2026-07-20 late — READY TO SEND (Owen's trigger):**
+`dispatch/FABLE-T27-150-mcp-client-design.md` (commit `c81500f`). Docs-only lane: Fable
+produces `design/MCP_CLIENT_DESIGN.md` (sections a-h: binding tier matrix per the record
+correction, transport/SDK verdict with citations, server-management + approval UX,
+honest split-execution analysis, free-tier guided-single-tool flow with #61/#102
+budgets, risks, phased lane plan) + a DRAFT Lane-A spec marked do-not-execute. Hard
+constraints: two new md files only, no Swift/xcodegen, no OPEN_ITEMS edits, cite or
+mark OPEN QUESTION. Staleness-checked (no prior #150 work; PR #128 probe unrelated).
+Owen green-lit starting #150 tonight; post-launch scope unchanged - this is the design
+gate, not launch-pass work.
 
 Logged 2026-07-20.
