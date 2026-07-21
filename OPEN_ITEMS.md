@@ -5215,6 +5215,16 @@ Logged 2026-07-20.
 
 ## 143. 🐛 Siri-ask completion notifications arrive ×5 — mechanism undetermined (app-side local-notification duplication vs relay fan-out)
 
+**Constraint (added 2026-07-20, sweep-owner note):** the Mac ×0 is UNEXPLAINED under both candidate
+mechanisms and should be treated as a hard constraint. The Mac relay holds exactly ONE
+healthy registration for whoGoesThere, so relay fan-out predicts ×1 on Mac-pointed asks —
+not ×0; and app-side local-notification duplication should replicate regardless of host —
+also not ×0. Whatever the mechanism is, it must simultaneously produce ×5 on OJAMD and ×0
+on Mac (e.g. the notification originates host/relay-side and the Mac deploy lacks that path,
+OR the app’s completion-notification only fires on reconcile paths the Mac asks never took).
+Add to the discriminator list: one Mac-pointed ask with Console attached — does ANY
+notification get scheduled/delivered at all, and by which carrier?
+
 **Found 2026-07-20 (Session S sweep, seed b3).** Both the Siri-Stop run (which kept generating,
 #56(2)) and the tailnet-off run (#56(3)) delivered FIVE notifications each for a single ask.
 
