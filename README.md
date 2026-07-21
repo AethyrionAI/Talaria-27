@@ -19,11 +19,11 @@ Talaria is a working alpha, developed and used daily on real hardware. Honestly,
 |------|-------|
 | Streaming chat (SSE) | Working — reasoning and answer channels separated, background continuation, reconciliation |
 | Tool calls & agent files | Working |
-| Sensor pipeline (location / HealthKit / motion) | Working — resume-from-background can occasionally be flaky |
+| Sensor pipeline (location / HealthKit / motion) | Working — deliberate opt-in (off by default) with per-sensor grants; resume-from-background can occasionally be flaky |
 | Model switching (shim) | Working |
 | Local notifications | Working |
-| Remote push (APNs) | Client side complete; delivery pending server-side key configuration |
-| Voice mode | Code-complete, but **currently wedged by an iOS 27 beta seed regression** that breaks third-party audio capture system-wide (not Talaria-specific); revisit on the next seed |
+| Remote push (APNs) | Working — bring your own APNs key (.p8), configured on the relay |
+| Voice mode | Working — realtime speech-to-speech plus an on-device fallback engine; echo/self-interruption tuning and connect hardening actively in progress |
 
 Expect rough edges. There is no TestFlight or App Store distribution — you build and sign it yourself.
 
