@@ -542,21 +542,21 @@ dropdown, no popover, no "Start New Session" — straight to the shim-backed lis
 **Session D launch sweep 2026-07-20 — Mac PASS (for what is built), two findings, OJAMD
 test INVALID:**
 - **Mac:** chip appeared, preview sheet presented, ShareLink sheet worked. “PDF preview not
-  working” is a DESIGN GAP, source-confirmed:  carries no PDF/QuickLook
+  working” is a DESIGN GAP, source-confirmed: `FilePreviewSheet` carries no PDF/QuickLook
   path at all — Lane I built HTML + text/code only (per its spec), so the PDF fixture
   exercised a filetype the surface never claimed. Not a regression. **Follow-up candidate
-  (Owen’s call):** wrap non-HTML/text types in  — small, standard, and
+  (Owen’s call):** wrap non-HTML/text types in `QLPreviewController` — small, standard, and
   PDFs are a likely real agent output.
 - **Share-to-Talaria27 observation (→ #123):** sharing the PDF INTO the app completed with
   ZERO visible destination feedback — no confirmation, no staged evidence. Discriminator:
   open the composer / relaunch and check whether the share-inbox drain staged it silently.
   Logged against the share-extension surface, not this item.
-- **OJAMD “unable to locate file”: INVALID TEST, not a FAIL.** The  fixture
+- **OJAMD “unable to locate file”: INVALID TEST, not a FAIL.** The `probe-t21.pdf` fixture
   only ever existed in the MAC’s MobileDL; OJAMD’s agent truthfully reported an absent file.
   Valid OJAMD retest: ask OJAMD’s agent to WRITE a fresh file (also exercises the
   announcement-scan + content-absent staging path), then tap the chip.
 - Still owed on this item: the OJAMD retest above, the relay traversal-rejection check
-  (), and the announcement-scan noise grate-check.
+  (`MobileDL/../x`), and the announcement-scan noise grate-check.
 
 > **Tier 2 app-side MERGED 2026-07-16 (PR #99, branch `claude/fable-t27-21-agent-appfetch-prvsf2`,
 > 10 commits).** Built to the probe verdict (binaries never ride SSE; `write_file` never fires for
