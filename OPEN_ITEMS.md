@@ -5027,3 +5027,45 @@ settings-origin start; verify what (if anything) the fallback logs; then re-run 
 and #129 DoDs on whichever engine is truthfully active. #128/#129 stay open until then.
 
 Logged 2026-07-20.
+
+## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
+
+**Logged 2026-07-20 (Owen).** Public-facing repo surfaces contradict current reality:
+- **README:26** still claims voice is "currently wedged by an iOS 27 beta seed regression…
+  revisit on the next seed" — that rule was DISPROVEN 2026-07-16 (root cause was app-side
+  AVAudioSession deactivation churn, fixed PR #106; voice confirmed working on device).
+- **README:77** points the toolchain at `Xcode-beta.app`; the standard is **Xcode-beta3**
+  (same staleness CLAUDE.md was flagged for). README:125 "Xcode 27 beta" wording rides along.
+- **docs/index.html (Pages):** no wedge text, but positioning predates the freemium decision
+  — "built for self-hosters" framing and hero copy describe only the Connected tier; the
+  free standalone on-device tier is absent. Screenshots (docs/img/) predate recent UI work
+  (Midnight Marquee, sensor opt-in redesign) — refresh alongside the App Store screenshot
+  pass (LAUNCH_PASS P-4) so the shots are produced once.
+
+Scope: accuracy fixes are a micro-commit doable now; the positioning/screenshot refresh is a
+launch-adjacent pass, naturally batched with P-4. Feature-status table (README:26 region)
+deserves a full sweep — other rows likely stale too.
+
+---
+
+## 141. 👀 iOS 27 beta 4 seed — released 2026-07-20; whoGoesThere updating tonight (watch list)
+
+**Environmental event, logged for attribution discipline.** Owen updates the device tonight;
+remaining launch-pass sweep sessions (C, S, D, J circle-backs) will run on b4, so the OS delta
+becomes a confound for anything non-reproducible — notably the #139 settings-origin hang
+repro attempts and all #138/#130 voice echo observations. Note the seed in any new device
+findings.
+
+**Watch on first b4 build/run:**
+- Toolchain: does Xcode-beta3 still deploy/debug against a b4 device, or does a new Xcode
+  beta land (→ DEVELOPER_DIR change, CLAUDE.md + README:77 update rides #140)?
+- SDK canaries: the `NavigationSplitViewVisibility.automatic` alias test (#108) and the
+  `systemExtraLargePortrait` line (#58) exist to surface exactly this kind of seed change —
+  a new red there is information, not noise.
+- Entitlements: `aps-environment` survival on the next regen (standing trap, #44/#48).
+- Known b3 SYSTEM noise possibly resolved: TextUI/UIKB keyboard constraint dumps (#111
+  triage) — if gone, stop excusing them.
+- Voice: b3-era audio observations (#130 fidelity, #138 self-barge-in) re-observed on b4
+  before any verdicts — seed changes to VPIO/AEC are plausible and would move conclusions.
+
+Logged 2026-07-20.
