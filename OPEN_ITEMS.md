@@ -5578,3 +5578,30 @@ host and reads the transcript back directly). Note 0.19’s webhook/route-script
 (#148) as a possible transport. Parked until Owen schedules it.
 
 Logged 2026-07-20.
+
+## 150. ✨ Talaria as an MCP CLIENT — app-side MCP access (post-launch marquee candidate; distinct from #149)
+
+**Owen, 2026-07-20 late: “Having mcp access on the app side could be a game changer.”**
+Separate idea from #149 (Claude↔Hermes bridge): the APP becomes an MCP client.
+
+**Why it is tier-transforming:**
+- **Free tier:** FoundationModels supports on-device tool calling (Tool protocol on
+  LanguageModelSession) — on-device brain + user-added MCP servers (streamable HTTP) = a
+  REAL standalone agent on the phone with zero host. Reframes free from private chat to
+  private agent; near-unique in the iOS client field.
+- **Connected tier:** generalizes the #69 device tool belt — any user-run MCP server
+  becomes phone-reachable capability instead of hand-built integrations; split execution
+  (host model, phone-local tools) becomes possible.
+
+**Feasibility sketch:** stdio transport impossible on iOS (no subprocesses); streamable
+HTTP transport fine; official Swift MCP SDK exists; Tailscale posture already reaches
+home-lab servers; Keychain patterns cover per-server credentials; the #4 confirm-gate
+pattern generalizes to per-tool approval UX. Watch: background-execution limits, App
+Review posture (user-configured services — standard HTTP-client territory), tool-result
+size budgets into the on-device context window (#61/#102 family).
+
+**Scope: POST-LAUNCH (1.1 headline candidate). Not launch-pass work.** Parked with #149;
+when scheduled, start with a design doc: server management UX, transport/auth, tool
+approval, free-vs-connected capability matrix.
+
+Logged 2026-07-20.
