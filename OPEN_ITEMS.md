@@ -4946,6 +4946,13 @@ grandfathered device streams uninterrupted; contextual per-sensor prompts).
 
 ## 138. 🐛 Realtime engine self-barge-in — assistant TTS captured as user speech (OJAMD voice host); slow turn processing noted
 
+**Scope broadened 2026-07-20 (Owen): NOT realtime-only.** The same self-barge-in occurred on
+the native/TTS engine against the Mac Mini profile — i.e. the #130 self-transcription
+behavior, live on main (the probe branch that gates it is unmerged). Implication: the fix
+should cover BOTH ingest points — the #130 half-duplex gate for the native pipeline, and its
+equivalent (or proper AEC reference routing, pending the source read) at the realtime
+transcription ingest. The #130 A/B verdict now carries double weight.
+
 **Evidence update 2026-07-20 (eve, via the #139 zombie-session conversation):** the realtime
 downlink is unmistakably SERVER audio (quality/speed far beyond local) — weakens the naive
 app-TTS hypothesis but does NOT settle the reference question: if the app extracts the remote
@@ -4979,6 +4986,16 @@ Logged 2026-07-20 (Session V launch sweep).
 ---
 
 ## 139. 🐛 Engine truth + settings-origin session start — silent realtime→local fallback label lie; slow realtime connect with NO timeout and NO cancel-on-dismiss — abandoned session RESURRECTS with live audio (zombie, 2026-07-20 eve)
+
+**Dispatch spec 2026-07-20:** `dispatch/FABLE-T27-139-connect-teardown.md` — **READY TO
+SEND** (commit `1e9d57e`). Mechanism source-confirmed: `startSessionDirectly` awaits the
+connect inline while `isSessionActive` stays false until the post-await snapshot, and the
+overlay’s onDisappear teardown guards on `isSessionActive` — so dismissal during connect
+schedules nothing and the late return flips the store live + starts the Live Activity.
+Spec: session-generation intent (stale connects discarded at return), abandonSession()
+covering .connecting, 12s connect timeout with honest failure wording, fallback stated
+truthfully (overlay + settings row). NativeVoicePipelineService explicitly out of bounds
+(open probe PR #128 owns it).
 
 **Same-evening escalation 2026-07-20 — the hang is a SLOW CONNECT and dismissal does not
 cancel it: ZOMBIE SESSION confirmed.** One of the "failed" settings-origin sessions kept
