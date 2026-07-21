@@ -1810,6 +1810,17 @@ Logged 2026-07-06.
 
 ## 58. 🔧 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — Ask-control wiring FIXED (PR #100, 2026-07-16); device re-verify owed
 
+**Device re-verify 2026-07-20 (Session S launch sweep): FAIL — BOTH controls inert post-PR
+#100** (OJAMD profile confirmed active). Diagnostic contrast that narrows it: #66 (same
+openAppWhenRun fix shape, same OpenURLIntent launch pattern) PASSED 3/3 the same session, and
+the `hermes://` deep link is long proven (#77) — so suspicion moves OFF the intent code and
+onto control registration / the widget-extension process. Triage ladder, in order: (1) remove
+BOTH Talaria controls from Control Center and re-add them (stale control registration across
+app updates/beta seeds is the classic cause — costs 30 seconds); (2) if still dead, Console
+filter subsystem `org.aethyrion.talaria27.widgets` during a tap — PR #100’s instrumentation
+exists for exactly this: perform-line present = launch handling; absent = registration/
+system side; (3) escalate with that answer in hand.
+
 > **MERGED 2026-07-16 (PR #100, `007417b`).** Root cause exactly as localized: both extension-local
 > launch intents paired `static let openAppWhenRun = true` with the `OpenURLIntent` returned from
 > `perform()` — Apple's control-opens-app-to-URL shape is the `OpenURLIntent` ALONE, and setting
@@ -2108,7 +2119,14 @@ grammar. **Needs Mac:** AlarmKit API surface is new (iOS 26) — compile-check
 `AlarmAttributes.metadata` optionality; device-verify ring through Silent mode
 + the countdown Live Activity.
 
-## 66. 🔧 Spotlight tap-through — CSSearchableItemActionType handler LANDED 2026-07-17 (round 2); device re-verify owed
+## 66. ✅ Spotlight tap-through — handler LANDED 2026-07-17 (round 2); device-verified 2026-07-20 (session results 3/3)
+
+**Device pass 2026-07-20 (Session S launch sweep): PASS — CLOSED.** In-app Spotlight search
+→ session result tap → opened directly TO THAT SESSION, 3/3 attempts. The tap-dies-upstream
+defect this item chased is dead. Residual, deferred opportunistic (not blocking closure): the
+Hermes-FILE result variant — the only indexed-eligible file was too recent to appear; check it
+whenever a file result naturally surfaces, and eyeball the three SpotlightOpen .notice lines
+in the same capture.
 
 > **Device run 2026-07-17 (post-#107 build): tap still does nothing — and the #107 instrumentation
 > did exactly its job: ZERO SpotlightOpen breadcrumbs in the capture (no entity-query line, no
@@ -4398,6 +4416,9 @@ future connected-tier rider (no FoundationModels here).
 
 ## 126. 🔧 Daily briefing — app half MERGED (PR #126, merge `edeba74`, 2026-07-20); host half + deploy + device pass owed (connected-tier centerpiece)
 
+**Session S sweep 2026-07-20: deferred to circle-back (Owen’s call)** — consistent with the
+known blockers (OJAMD deploy + host cron half still owed ahead of the device pass).
+
 > **MERGED 2026-07-20.** Recognition (category-only, #58-tolerant), speakable derivation
 > (fenced blocks fully stripped), BriefingDetailScreen via MarkdownContentView (charts render
 > free), local-only markRead, read-aloud toggle, HermesBriefingWidget (small/medium,
@@ -4944,6 +4965,10 @@ Logged 2026-07-19.
 ---
 
 ## 137. 🔧 Sensor opt-in redesign — MERGED (PR #125, merge `db52a22`, 2026-07-20); device passes owed (public-app posture)
+
+**Session S sweep 2026-07-20: deferred to circle-back (Owen’s call).** Both passes (fresh
+install zero-prompt pairing; grandfathered streaming continuity) queued — fresh-install pass
+naturally pairs with a b4-era reinstall.
 
 > **MERGED 2026-07-20.** Pairing grants chat only; `PermissionsOnboardingScreen` deleted;
 > Privacy → Sensor Streaming master opt-in (OFF default) with contextual per-sensor grants;
