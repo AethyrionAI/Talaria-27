@@ -5621,6 +5621,13 @@ ojamd-deploy rebase; OJAMD's INSTALLED copy lives under HERMES_HOME =
 refresh; also re-sweep any OJAMD-only skills the Mac lacks; leave OJAMD's config
 include list alone per the bare-name finding),
 (4) residual #143 folds.
+**Provider pruning APPROVED (Owen, 2026-07-20 late):** hide never-used providers from the
+picker mirror — NVIDIA NIM is the offender (118-model payload bloat in the shim /models
+response; Owen: set up once, never used). Mechanism: v0.19 `enabled: false` /
+`excluded_providers`. Mac host: applied from this session (Mac runs its own backend).
+OJAMD host: QUEUED for next DC window — same config edit + verify shim /models payload
+shrinks. Scope deliberately NVIDIA-only for now; other idle providers can follow after
+Owen eyeballs the result.
 
 Logged 2026-07-20.
 
