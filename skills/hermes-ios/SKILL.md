@@ -11,6 +11,12 @@ metadata:
     related_skills: [find-nearby]
 ---
 
+> Tool names use Hermes's native-MCP convention: the connector's server is
+> registered as `hermes_mobile`, so every tool appears to the agent as
+> `mcp__hermes_mobile__<tool>`. (config.yaml `tools.include` still uses BARE
+> names — the filter runs pre-prefixing.)
+
+
 # Hermes iOS Context
 
 Access real-time sensor data from the user's iPhone via the Hermes Mobile MCP server. This skill provides location awareness, health metrics, activity detection, and custom sensor queries.
@@ -33,14 +39,14 @@ Do NOT use this skill for:
 
 | Tool | Purpose | When to Use |
 |------|---------|-------------|
-| `get_user_location` | Current location with address | "Where am I?", nearby queries |
-| `get_location_history` | Recent location trail | "Where have I been?", travel patterns |
-| `get_health_summary` | All latest health metrics | "How's my health?", general wellness |
-| `get_health_metric` | Time-series for one metric | "Steps this week", "sleep last 3 days" |
-| `get_health_metrics_list` | Available metrics + latest values | Discovering what data exists |
-| `get_user_activity` | Current physical activity | "Am I walking?", context adaptation |
-| `get_sensor_schema` | Database table structure | Before writing custom queries |
-| `query_sensor_data` | Custom SQL against sensor DB | Complex analysis, correlations, trends |
+| `mcp__hermes_mobile__get_user_location` | Current location with address | "Where am I?", nearby queries |
+| `mcp__hermes_mobile__get_location_history` | Recent location trail | "Where have I been?", travel patterns |
+| `mcp__hermes_mobile__get_health_summary` | All latest health metrics | "How's my health?", general wellness |
+| `mcp__hermes_mobile__get_health_metric` | Time-series for one metric | "Steps this week", "sleep last 3 days" |
+| `mcp__hermes_mobile__get_health_metrics_list` | Available metrics + latest values | Discovering what data exists |
+| `mcp__hermes_mobile__get_user_activity` | Current physical activity | "Am I walking?", context adaptation |
+| `mcp__hermes_mobile__get_sensor_schema` | Database table structure | Before writing custom queries |
+| `mcp__hermes_mobile__query_sensor_data` | Custom SQL against sensor DB | Complex analysis, correlations, trends |
 
 ## Quick Patterns
 
@@ -48,36 +54,36 @@ Do NOT use this skill for:
 
 ```
 # Current location
-→ call get_user_location
+→ call mcp__hermes_mobile__get_user_location
 
 # Location history for today
-→ call get_location_history with since="2026-04-08T00:00:00Z"
+→ call mcp__hermes_mobile__get_location_history with since="2026-04-08T00:00:00Z"
 
 # Custom location query
-→ call query_sensor_data with sql="SELECT address, recorded_at FROM location_history WHERE recorded_at > datetime('now', '-6 hours') ORDER BY recorded_at DESC"
+→ call mcp__hermes_mobile__query_sensor_data with sql="SELECT address, recorded_at FROM location_history WHERE recorded_at > datetime('now', '-6 hours') ORDER BY recorded_at DESC"
 ```
 
 ### Health
 
 ```
 # Quick health check
-→ call get_health_summary
+→ call mcp__hermes_mobile__get_health_summary
 
 # Specific metric with history
-→ call get_health_metric with metric="steps"
+→ call mcp__hermes_mobile__get_health_metric with metric="steps"
 
 # Weekly sleep trend
-→ call get_health_metric with metric="sleep_duration" since="2026-04-01T00:00:00Z"
+→ call mcp__hermes_mobile__get_health_metric with metric="sleep_duration" since="2026-04-01T00:00:00Z"
 
 # Cross-metric correlation
-→ call query_sensor_data with sql="SELECT date(start_at) as day, metric, SUM(value) as total FROM health_samples WHERE metric IN ('steps', 'active_calories') AND start_at > datetime('now', '-7 days') GROUP BY day, metric ORDER BY day"
+→ call mcp__hermes_mobile__query_sensor_data with sql="SELECT date(start_at) as day, metric, SUM(value) as total FROM health_samples WHERE metric IN ('steps', 'active_calories') AND start_at > datetime('now', '-7 days') GROUP BY day, metric ORDER BY day"
 ```
 
 ### Activity
 
 ```
 # What's the user doing right now?
-→ call get_user_activity
+→ call mcp__hermes_mobile__get_user_activity
 # Returns: stationary, walking, running, automotive, cycling, or unknown
 ```
 
@@ -112,7 +118,7 @@ Every tool response includes freshness metadata:
 
 ## Sensor Database Schema
 
-The `query_sensor_data` tool runs read-only SQL against these tables:
+The `mcp__hermes_mobile__query_sensor_data` tool runs read-only SQL against these tables:
 
 | Table | Contents |
 |-------|----------|
@@ -122,7 +128,7 @@ The `query_sensor_data` tool runs read-only SQL against these tables:
 | `health_latest` | Most recent value per metric |
 | `health_daily` | Daily aggregated health metrics |
 
-Use `get_sensor_schema` to see exact column definitions before writing queries.
+Use `mcp__hermes_mobile__get_sensor_schema` to see exact column definitions before writing queries.
 
 ## Context-Aware Response Adaptation
 
@@ -139,4 +145,4 @@ When you have activity and location context, adapt your responses:
 - **No data yet**: If the user just installed the app, sensor data may be empty. Say so clearly rather than guessing.
 - **Stale location**: Always check freshness. A 2-hour-old location isn't "where they are now."
 - **Health permissions**: Some metrics require Apple Watch. Missing metrics doesn't mean an error — the user may not have the hardware.
-- **SQL injection**: `query_sensor_data` uses a read-only SQLite connection. Only SELECT statements are allowed. Don't worry about writes — they're blocked at the database level.
+- **SQL injection**: `mcp__hermes_mobile__query_sensor_data` uses a read-only SQLite connection. Only SELECT statements are allowed. Don't worry about writes — they're blocked at the database level.
