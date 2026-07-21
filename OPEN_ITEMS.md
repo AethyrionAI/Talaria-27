@@ -5030,6 +5030,15 @@ Logged 2026-07-20.
 
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
 
+**Accuracy half DONE 2026-07-20 (`3367626`).** README status table corrected: voice row now
+truthful (working, echo/connect hardening in progress — wedge claim removed); APNs row
+current (BYO .p8 on the relay, T6-armed); sensor row states the #137 opt-in default.
+**Record corrections from the pass:** README:77’s generic `Xcode-beta.app` path is CORRECT
+for the public audience (Apple’s default install name; Xcode-beta3 is a local rename) — the
+item overclaimed; and CLAUDE.md already references Xcode-beta3 throughout, no edit needed.
+**Remaining (rides P-4):** docs/index.html positioning for the freemium free tier +
+screenshot refresh, batched with the App Store screenshot pass so shots are produced once.
+
 **Logged 2026-07-20 (Owen).** Public-facing repo surfaces contradict current reality:
 - **README:26** still claims voice is "currently wedged by an iOS 27 beta seed regression…
   revisit on the next seed" — that rule was DISPROVEN 2026-07-16 (root cause was app-side
