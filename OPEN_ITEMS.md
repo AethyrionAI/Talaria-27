@@ -5654,6 +5654,12 @@ outbound send, live events, approval respond — but CANNOT task Hermes (`messag
 is outbound via `send_message_tool`, stdio, local-host only). Ready-to-paste block in the
 tool README if wanted. Webhook/route-script transport idea: not needed — Sessions API is
 cleaner and contract-verified.
+**RELOCATED out of the app repo 2026-07-20 late (Owen: it's a tool for US, not for
+Talaria — nothing in the app touches it, unlike the models shim which is runtime
+infrastructure).** Now lives at `~/Documents/Claude/HermesMCP` under its own local git
+(initial commit `c100e73`); removed from Talaria-27 in `f222ef5` (added in `6f1e665`,
+same night). Venv rebuilt at the new path; 8/8 tests + both-host selftests re-verified
+green post-move; `claude_desktop_config.json` repointed (backed up).
 **Owed:** Claude Desktop restart to load the servers, then first in-anger use (e.g. drive
 a test conversation for a device pass and read the transcript back).
 
