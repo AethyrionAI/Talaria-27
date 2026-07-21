@@ -1739,6 +1739,23 @@ Logged 2026-07-04.
 
 ## 56. 🔧 Wave 2 Issue E (GitHub #6) — "Ask Hermes" App Intent — MERGED (PR #11), core device-verified 2026-07-11; sub-checks remain
 
+**Device sub-checks 2026-07-20 (Session S launch sweep, seed b3):**
+(1) **Long-run hand-off: MOSTLY PASS.** 25s budget hand-off graceful, snippet correct
+(screenshot on file: “Hermes is still working on it. Open Talaria to watch it finish” +
+WORKING card). Wrinkle — the Ask lands in the CURRENT cached conversation (by design, via
+ChatStore.sendMessage), which during the sweep meant appending to a Spotlight-tested thread.
+**Owen leans: Siri asks should open a NEW chat.** Design decision → dispatchable micro-lane
+(new session per Siri ask) once confirmed.
+(2) **Siri Stop: PARTIAL FAIL.** Siri-side cancel clean, but the Talaria-side run KEPT
+GENERATING to completion (+ notification). Discriminator owed: Stop BEFORE the 25s hand-off
+(designed cancelStreaming path — if that doesn’t cancel, real defect) vs Stop AFTER hand-off
+(intent already returned; arguably uncancellable by design — then the defect is wording, not
+behavior).
+(3) **Tailnet-unreachable: FAIL.** Off tailnet AND wifi, the intent still presented as a
+working run (hand-off instead of the designed real-error-text surface) — unreachable is
+indistinguishable from slow in the current flow. Both (2) and (3) produced FIVE notifications
+each → #143.
+
 > **Audit 2026-07-13:** PR #11 (GitHub #6) merged this to main 2026-07-06; header's 'BUILT IN CLOUD, not compiled' is stale — a 2026-07-11 device pass (commits f35edb9, b05fef9) CORE VERIFIED both Siri actions. 🔧 remains correct only because >25s long-run hand-off, Siri Stop, and tailnet-unreachable error surface are still unchecked, not because the build is missing.
 
 **Device pass 2026-07-11: CORE VERIFIED — phrase mystery solved, no code defect.** The intent works: both actions present and functional in Shortcuts, and "Hey Siri, ask Talaria twenty-seven" produced the "What should I ask Hermes?" prompt. Root cause of every voice miss: `.applicationName` resolves to `CFBundleDisplayName: Talaria27` (project.yml), so the registered phrase is "Ask Talaria27" — NOT "Ask Hermes" (→ Siri contacts) or "Ask Talaria" (→ Siri mythology facts). Apple requires the applicationName token in every phrase, so the utterance is permanently bound to the display name; making plain "Ask Talaria" work means renaming the app — a deliberate product decision, not a patch. Remaining sub-checks before full flip: >25s long-run hand-off, Siri Stop, tailnet-unreachable error surface.
@@ -4722,6 +4739,12 @@ Logged 2026-07-17.
 
 ## 133. 🔧 Dormant-relay push registration idempotency — MERGED (PR #123, merge `0bc2e0c`, 2026-07-20); device pass owed (M-7 follow-up)
 
+**Cross-ref 2026-07-20 (#143):** 5× notifications per Siri ask observed — but the Mac relay
+DB shows whoGoesThere’s token registered EXACTLY ONCE (stable device row, last refreshed
+00:17 — the #133 fix visibly holding server-side on this relay). During the owed device pass,
+ALSO count `push_registrations` rows per device on the OJAMD DB to rule relay fan-out in/out
+there; app-side idempotency cannot clean pre-existing duplicate rows if any exist.
+
 > **LANE BUILT 2026-07-20 (`claude/fable-t27-133-push-idempotency`), suite 901/77 green, TDD
 > (guard tests proven red first).** The fix is the active path's short-circuit mirrored per
 > profile: `AppSessionState` gains `registeredPushToken` (optional — absent on pre-#133
@@ -5187,5 +5210,58 @@ which placeholder each path substitutes.
 **Discriminators owed:** wire-capture the outgoing `ChatTurnBody` JSON for all three cases
 (picker-only, paste-only, text+image) — one look at the payloads names the guilty side and
 likely the guilty branch. Then a Fable micro-lane with a fail-first test per case.
+
+Logged 2026-07-20.
+
+## 143. 🐛 Siri-ask completion notifications arrive ×5 — mechanism undetermined (app-side local-notification duplication vs relay fan-out)
+
+**Found 2026-07-20 (Session S sweep, seed b3).** Both the Siri-Stop run (which kept generating,
+#56(2)) and the tailnet-off run (#56(3)) delivered FIVE notifications each for a single ask.
+
+**Evidence so far (Mac relay DB, read 2026-07-20 late):** whoGoesThere’s APNs token is
+registered ONCE on the Mac relay (stable row since 07-16, refreshed today 00:17) — so on Mac
+evidence the phone has no server-side fan-out, and the initially suspected “pre-#133 stale
+registration rows” theory does NOT hold there. (The five same-day registrations that first
+looked like fan-out are test-harness pollution — #144, unrelated device rows.)
+
+**Candidate mechanisms:**
+(a) **App-side local-notification duplication** in the pendingRun/reconcile/retry path — one
+notification scheduled per poll tick / retry attempt / reconcile pass instead of once per
+terminal state. STRENGTHENED by the tailnet-off case: if the relay was unreachable, remote
+push could not have been the carrier (unless the five arrived after reconnect).
+(b) **OJAMD relay-side duplicate registrations** — unverifiable from the Mac; count
+`push_registrations` per device in `O:\Hermes\Talaria\relay\hermes_mobile.db` next OJAMD
+session (rides the #133 device pass, cross-ref added there).
+
+**Discriminators owed (Owen, 30 seconds of memory):** did the five arrive WHILE offline or
+after rejoining? Simultaneous burst or spread (poll-cadence spacing)? Identical content?
+Then: Console capture of one repro — local-notification scheduling lines from our subsystem
+vs APNs delivery tells the carrier immediately.
+
+Logged 2026-07-20.
+
+---
+
+## 144. 🐛 Test-harness runs enroll as LIVE devices on the Mac relay — baseline/sim runs pollute the production DB with device rows + push registrations
+
+**Found 2026-07-20 while chasing #143 (Mac relay DB read).** `devices` shows five
+`CC-M4a-Baseline` rows created 17:46–20:22 (one per merge-loop/baseline run window, each with
+a FRESH `installation_id`) plus two sim “iPhone 17 Pro Max” rows (16:33/16:37) — all with
+ACTIVE `push_registrations` carrying the simulator’s APNs token. The polluter is the
+automated loop itself: harness runs pair/enroll against the LIVE Mac relay because the
+checkout’s config points at it.
+
+**Costs:** unbounded device-row growth (one per run, forever); relay pushes fanning out to
+sim/test tokens (APNs errors + wasted sends); DB reads during diagnosis actively misleading
+(this exact read initially masqueraded as the #143 fan-out mechanism).
+
+**Fix shape (two halves):**
+(1) **Prevention:** test/baseline executions must not enroll against a live relay — env-gate
+pairing/enrollment + push registration in harness runs (e.g. skip under `XCTestConfiguration`
+/ a `TALARIA_TEST_RUN` env), or point the harness at a scratch relay DB. Decide the mechanism
+against how the baseline loop actually launches the app.
+(2) **Cleanup:** one-off sweep of existing `CC-M4a-Baseline` + sim device rows and their
+registrations on the Mac relay (and OJAMD if present — check same session as #143(b)).
+Deactivate rather than delete if audit history matters.
 
 Logged 2026-07-20.
