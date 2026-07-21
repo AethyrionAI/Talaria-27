@@ -1056,7 +1056,14 @@ Logged 2026-06-26.
 
 ---
 
-## 31. 🔧 Paste image into the chat composer — #43 send-side fix merged to main; full paste-then-send flow not yet re-verified on device
+## 31. ✅ Paste image into the chat composer — paste UI + paste-with-text send device-verified 2026-07-20; image-only failure is NOT paste-specific (→ #142)
+
+**Device pass 2026-07-20 (Session C launch sweep): paste flow VERIFIED — CLOSED, history
+rhyming.** Paste attaches and paste-WITH-TEXT sends successfully end-to-end. Pasted image
+ALONE yields a literally EMPTY assistant reply — but picker images alone also fail (as
+“[attachment]” text, see #61 note), so exactly as in the 2026-06-28 round, the residual is a
+shared image-only send defect, not a paste defect → tracked as #142. Paste/picker parity is
+this item’s scope and it holds.
 
 > **Audit 2026-07-13:** Header said ✅ done; downgraded to 🔧 merged-unverified. Code confirms the merge is real: `Talaria/Features/Chat/ChatInputBar.swift:174` (`// Paste image from clipboard (#31)`, uncommented) wires a button to `pasteImageFromClipboard()` (516-518: reads `UIPasteboard.general.image`, calls `onPasteImage`); `ChatScreen.swift:201` routes it to `handleAttachmentResult(.image($0))` (same path as the photo picker, confirmed at line 1135-1136); `Talaria/Services/Support/AttachmentInlining.swift:87` builds a `data:<mime>;base64,...` URL for the `.image` case; `Talaria/Services/Live/SessionsHermesClient.swift`'s `ChatTurnBody.make()` (line 975, comment 956-962 citing "#43 ... they used to be silently dropped here") consumes it and is called from three live send paths (lines 120, 170, 596) — verified by direct grep/read, not by trusting the prior auditor. But no dated note anywhere in this item, in item #43, or in item #48's 2026-07-02 reconcile note ("Build verified on device") ever confirms an on-device re-test of the *full* paste-then-send flow after the merge. This item's own latest dated note (2026-06-28) is pre-merge and negative: image-only send returned HTTP 400, and the paste UI was explicitly "held uncommitted until #43 lands." Contrast item #15 (reconciled the same day, 07-02), which carries an explicit post-reconcile line — "on-device log confirmed drain/delivery" — that #31 conspicuously lacks. A later BGTask crash fix for "attachment sends via beginLongSend" (commit 71468ca, PR #67, ~2026-07-10/11) shows attachment sending was still being debugged on-device well after the merge, with no subsequent success note logged. Per AUDIT_GUIDE.md, "merged to main" alone does not earn ✅ absent an explicit device-verified note — none exists here.
 
@@ -1770,7 +1777,9 @@ Logged 2026-07-06.
 
 ---
 
-## 57. 🔧 Wave 2 Issue G (GitHub #8) — attachment text-inlining + Extract Text OCR — MERGED (PR #11); device verify owed
+## 57. ✅ Wave 2 Issue G (GitHub #8) — attachment text-inlining + Extract Text OCR — MERGED (PR #11); device-verified 2026-07-20
+
+**Device pass 2026-07-20 (Session C launch sweep): PASS — CLOSED.**
 
 > **Audit 2026-07-13:** PR #11 (GitHub #8) merged this to main 2026-07-06; header's 'BUILT IN CLOUD, not compiled' is stale — AttachmentInlining.swift and DocumentTextExtractor.swift are on main and compiled. Unlike siblings #56/#58/#60, #57 is absent from the 2026-07-11 device-verification backlog (commit 373f65d) and carries no device-pass note — it is merged-unverified, not uncompiled.
 
@@ -1844,7 +1853,9 @@ Logged 2026-07-06.
 
 ---
 
-## 59. 🔧 Wave 2 Issue H (GitHub #9) — voice-memo attachments — MERGED (PR #11); device verify owed
+## 59. ✅ Wave 2 Issue H (GitHub #9) — voice-memo attachments — MERGED (PR #11); device-verified 2026-07-20
+
+**Device pass 2026-07-20 (Session C launch sweep): PASS — CLOSED.**
 
 > **Audit 2026-07-13:** PR #11 (GitHub #9) merged this to main 2026-07-06; header's 'BUILT IN CLOUD, not compiled' is stale — VoiceMemoRecorder.swift/VoiceMemoTranscriber.swift/VoiceMemoAttachmentTests.swift are on main and compiled. Like #57, #59 is absent from the 2026-07-11 device-verification backlog (commit 373f65d) — merged-unverified, not uncompiled.
 
@@ -1946,6 +1957,12 @@ not yet compiled — needs `xcodegen generate` + CLI build + device verify.
   pending replies per pass instead of only the newest.
 
 ## 61. 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device re-verify owed
+
+**Session C sweep 2026-07-20: DoD NOT closed — tangled with a NEW send-path defect (#142).**
+Sending an image ALONE delivers “[attachment]” as text to the model (image not seen); adding
+any text makes the image visible to the model. The card dedup check itself is therefore
+inconclusive — the attachment-only turn never carried the attachment. Re-run the card DoD
+after #142 lands.
 
 > **MERGED 2026-07-17 (`588d885`, direct merge, loop-validated 755/62).** Recovery note for the
 > record: the fix branch `claude/t27-61-fallback-card-dedup` (07d8d9a) was deleted in error during
@@ -3456,7 +3473,12 @@ Everything lives in `relay/` — zero Swift contact as speced. What shipped:
 
 Logged 2026-07-11.
 
-## 99. 🔧 Interactive artifact / HTML preview — Lane I MERGED (PR #78), device-verify owed
+## 99. 🔧 Interactive artifact / HTML preview — Lane I MERGED (PR #78), device-verified 2026-07-20; WKContentRuleList pre-launch decision OWED
+
+**Device pass 2026-07-20 (Session C launch sweep): surface PASS.** Preview renders, sheet +
+ShareLink behave. **Remaining, Owen’s call before launch (explicitly requested):** the residual
+WKContentRuleList gap — remote subresource fetches are not blocked in the sandboxed preview.
+Discussion queued to the launch-pass circle-back; accept-for-v1.0 vs small follow-up lane.
 
 > **Audit 2026-07-13:** PR #78 (`claude/t27-lane-i-ajkjno` → main) merged same session, 2026-07-12 04:16:49 -0500, merge commit 0bf97c5 (independently confirmed as an ancestor of current main tip cca1345 via `git merge-base --is-ancestor`). Implementation commits 6917979/57bba54/8e3f8c2/a5c9785 — all tagged `(#99)` — plus xcodegen regen 516ae7f (the PR branch's tip, i.e. the merge's second parent) are all confirmed ancestors of the merge. `Talaria/Features/Chat/HTMLPreviewView.swift`, `FilePreviewSheet.swift`, and `TalariaTests/FilePreviewTests.swift` are tracked on main today. Merge commit message: "CLI sim build SUCCEEDED, FilePreviewTests 17/17 passed... Known v1 follow-up: remote subresource fetches not yet blocked (needs WKContentRuleList)" — simulator build + unit tests only, no physical-device pass, with a residual gap. No mention of Lane I / PR #78 / HTMLPreviewView / FilePreviewSheet / a device pass appears anywhere else in this file, despite 9 further doc commits touching OPEN_ITEMS.md afterward (#107/#108/#110/#111/#112 etc.) through 2026-07-12 22:08 that never backfilled #99. Status is genuinely merged-unverified, not done — device-verify and the WKContentRuleList gap remain real open work, so the 🔧 marker is correct and this is not a status flip to ✅; only the body wording (which still describes the pre-build "spec revised, GATE CLEARED" stage) is stale and should say the lane shipped.
 
@@ -3465,6 +3487,17 @@ Both competitors render generated HTML/interactive content in-app; Talaria recon
 Logged 2026-07-11.
 
 ## 100. 🔧 Inline charts / data viz — BOTH PRs MERGED (#108 + #109, 2026-07-17); device pass owed
+
+**Session C sweep 2026-07-20: attempt INCONCLUSIVE — eligibility, not a defect (probably).**
+Owen asked the agent for a numeric table; a markdown table rendered but no chart toggle.
+Source-read of the gate (`ChartSpec.promoted`, ChartSpec.swift:183): toggle requires ≥2
+columns (≤8 series), 2–500 rows, rectangular, and EVERY cell after column 1 parsing as a pure
+finite number — any unit suffix (“72 bpm”), “%”, “$”, dash, or empty cell anywhere returns
+nil and the table silently stays plain. Agent tables love units, so this is the likely miss.
+Retry with: “Give me a markdown table of X — first column the label, remaining columns numbers
+only, no units or symbols.” **Follow-up candidate (Owen’s call):** tolerant `numericCell` —
+strip common unit suffixes / %% / currency before parsing (small, pure, testable) so
+real-world agent tables qualify.
 
 > **MERGED 2026-07-17 — PR #108 (`9e8ac4c`, model+parser) + PR #109 (`5c79d62`, render surface).**
 > Loop merged main into each branch BEFORE the regen, so the tested tree == merged main tree (tree
@@ -4134,7 +4167,12 @@ Logged 2026-07-16.
 
 ---
 
-## 120. 🔧 Chat message list — duplicate ForEach IDs — FIXED in lane (PR #116, 2026-07-18); device check owed
+## 120. ✅ Chat message list — duplicate ForEach IDs — FIXED (PR #116); device-verified 2026-07-20 (standing Console watch continues)
+
+**Device pass 2026-07-20 (Session C launch sweep): PASS — CLOSED.** Streamed replies across
+variants with zero ForEach/LazyVStack duplicate-ID warnings in Console. Owen’s call: keep this
+as a STANDING WATCH — the dup-ID Console check rides every future device session (added to the
+#141 watch list) rather than being one-and-done.
 
 > **LANE BUILT LOCALLY 2026-07-18 (PR #116, `claude/t27-120-chat-hygiene`), suite 807/68 green.**
 > Root cause found + pinned by a fail-first test (`MessageListIdentityTests`, new file, regen'd):
@@ -4850,7 +4888,15 @@ Logged 2026-07-18.
 
 ---
 
-## 136. 🔧 Offline-first launch — MERGED (PR #122, 2026-07-19); device pass owed
+## 136. ✅ Offline-first launch — MERGED (PR #122); device-verified 2026-07-20 (instant launch under relay+shim black-hole)
+
+**Device pass 2026-07-20 (Session C launch sweep): PASS — CLOSED, with a mystery solved.**
+With the OJAMD NSSM services stopped, cold launch went INSTANTLY to chat — the splash fix
+holds under the exact black-hole case that spawned this item. Owen’s puzzle — “Hermes stays an
+option and messages still go through” — is expected: the NSSM stop killed relay `:8000` + shim
+`:8765` ONLY; the gateway `:8642` is NOT an NSSM service (it runs as the user `pythonw`
+process — standing hard-rule trap) and was never down, and chat rides the gateway plane
+independently of relay/shim. No hidden backup; the architecture behaved as designed.
 
 **MERGED 2026-07-19 (PR #122, merge commit `0528529`).** Splash now drops on
 local-state-ready; relay-backed init backgrounded; 5s bootstrap probe timeouts. **Device
@@ -5076,5 +5122,37 @@ findings.
   triage) — if gone, stop excusing them.
 - Voice: b3-era audio observations (#130 fidelity, #138 self-barge-in) re-observed on b4
   before any verdicts — seed changes to VPIO/AEC are plausible and would move conclusions.
+- Standing #120 watch (Owen, 2026-07-20): the ForEach dup-ID Console check rides EVERY
+  device session going forward — passive, but log any hit immediately.
+
+Logged 2026-07-20.
+
+## 142. 🐛 Image-only sends broken — picker image alone reaches the model as “[attachment]” text; pasted image alone yields an EMPTY reply; image+text works on both paths
+
+**Found 2026-07-20 (Session C launch sweep, whoGoesThere; seed unconfirmed — b4 update was
+scheduled the same night, #141).** Two symptoms, one shared shape:
+- **Picker image, no text:** turn completes but the model responds as if it received only the
+  literal text “[attachment]” — the image never reaches it. (Surfaced while attempting the
+  #61 card DoD, which is blocked on this.)
+- **Pasted image, no text:** assistant returns a literally EMPTY message — no text, no
+  placeholder. Different downstream symptom, same trigger.
+- **Any text + image:** works on BOTH paths — model sees the image. So the attachment
+  pipeline is sound; the failure keys on the ABSENCE of text.
+
+History rhyme: the 2026-06-28 round found image-only sends 400ing because `ChatTurnBody` was
+text-only (→ #43). #43 made attachments transmit — evidently with a remaining image-ONLY
+branch defect.
+
+**Suspects (source-informed, unverified):** (1) the “text-only turns stay byte-identical plain
+strings” branch in `AttachmentInlining` misclassifying an image-only turn (empty text) as a
+text-only turn, so parts assembly never runs; (2) an “[attachment]” placeholder/stub
+substituted for empty `input` (the #43-era 400 guard or the #57 omission-stub family) landing
+INSTEAD of, not alongside, the image part; (3) host-side handling of a parts array whose text
+part is empty (discriminate app vs host FIRST). The picker-vs-paste symptom split may just be
+which placeholder each path substitutes.
+
+**Discriminators owed:** wire-capture the outgoing `ChatTurnBody` JSON for all three cases
+(picker-only, paste-only, text+image) — one look at the payloads names the guilty side and
+likely the guilty branch. Then a Fable micro-lane with a fail-first test per case.
 
 Logged 2026-07-20.
