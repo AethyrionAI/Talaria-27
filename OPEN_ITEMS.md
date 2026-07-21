@@ -5616,7 +5616,10 @@ verified encoding fixes; log untouched since July 2) — no action. model_routes
 `tools.include` verified CORRECT as-is — the filter matches BARE names pre-prefixing,
 mcp_tool.py:5048; apple-messaging/imessage skills CLEAR — imsg CLI + BlueBubbles REST,
 not MCP tools). OJAMD installed skill copy still owed (repo copy rides the
-ojamd-deploy rebase; `~/.hermes/skills` copy on OJAMD needs the same refresh),
+ojamd-deploy rebase; OJAMD's INSTALLED copy lives under HERMES_HOME =
+`C:\Users\Owen\AppData\Local\hermes` — NOT a `~/.hermes` path — and needs the same
+refresh; also re-sweep any OJAMD-only skills the Mac lacks; leave OJAMD's config
+include list alone per the bare-name finding),
 (4) residual #143 folds.
 
 Logged 2026-07-20.
