@@ -5599,8 +5599,14 @@ later. (b) `/v1/models` is live on `:8642` on both hosts (planes share the port;
 `UnicodeDecodeError`s in connector.log are a FOSSIL (June 24–July 2 run, pre-dates the
 verified encoding fixes; log untouched since July 2) — no action. model_routes eval
 (sequencing item 2) DONE — verdict KEEP shim unchanged, recorded in #116 +
-`planning/EVAL-model-routes-vs-shim-2026-07-20.md`. Remaining: (3) host-side tool-name
-check, (4) residual #143 folds.
+`planning/EVAL-model-routes-vs-shim-2026-07-20.md`. Remaining: (3) host-side tool-name check —
+**Mac half DONE 2026-07-20 late** (hermes-ios skill: 19 bare refs migrated to
+`mcp__hermes_mobile__*`, repo source + Mac install, commit `2802b29`; config.yaml
+`tools.include` verified CORRECT as-is — the filter matches BARE names pre-prefixing,
+mcp_tool.py:5048; apple-messaging/imessage skills CLEAR — imsg CLI + BlueBubbles REST,
+not MCP tools). OJAMD installed skill copy still owed (repo copy rides the
+ojamd-deploy rebase; `~/.hermes/skills` copy on OJAMD needs the same refresh),
+(4) residual #143 folds.
 
 Logged 2026-07-20.
 
