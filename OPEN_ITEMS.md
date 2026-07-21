@@ -5207,6 +5207,23 @@ INSTEAD of, not alongside, the image part; (3) host-side handling of a parts arr
 part is empty (discriminate app vs host FIRST). The picker-vs-paste symptom split may just be
 which placeholder each path substitutes.
 
+**Discriminators (a)+(b) ANSWERED 2026-07-20 (Owen): BOTH entry modes affected.** Sequence: app
+was already running (foreground wedge) -> OJAMD restored -> force-quit -> cold RELAUNCH stuck
+on the LAUNCH SNAPSHOT ~10s -> phone restart. Three sharpenings fall out:
+- Stuck-at-snapshot = the fresh process blocked BEFORE FIRST FRAME - upstream of the #122
+  splash logic entirely. Implicates app/scene construction (App struct init, AppContainer
+  construction, any synchronous store/Keychain/protected-data work pre-render), not
+  initialize().
+- The ~10s observation window cannot distinguish a permanent wedge from a slow grind through
+  ~60s black-hole timeouts - the relaunch may have been alive and stacking timeouts.
+- If the relaunch landed inside the gateway's ~15-20s post-start warmup, it hit a THIRD
+  network failure shape: ACCEPTED-BUT-SILENT connections (port listening, no response) -
+  distinct from refuse (fast-fail) and firewall black-hole (60s). The launch path must
+  survive all three; the 5s dedicated-timeout config covers this shape too.
+- IMMEDIATE evidence check (no repro needed): tonight's wedge + stuck relaunch likely left
+  hang/spindump entries in Settings -> Privacy & Security -> Analytics & Improvements ->
+  Analytics Data - a stack from either event names the blocking call outright.
+
 **Discriminators owed:** wire-capture the outgoing `ChatTurnBody` JSON for all three cases
 (picker-only, paste-only, text+image) — one look at the payloads names the guilty side and
 likely the guilty branch. Then a Fable micro-lane with a fail-first test per case.
