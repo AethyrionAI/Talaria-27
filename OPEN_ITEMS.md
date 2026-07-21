@@ -4089,6 +4089,13 @@ Logged 2026-07-15.
 
 ## 116. 🔧 Shim plane — kill the manual token paste + make the probe honest — BOTH HALVES MERGED (PRs #101 + #102, 2026-07-16); DoD device pass owed
 
+**ON HOLD 2026-07-20 (Owen): deploy + DoD device pass PAUSED pending Hermes 0.19.**
+The 0.19 update (installed on OJAMD tonight — the same update window that surfaced #145)
+appears to make parts of this provisioning mechanism redundant. Before deploying the
+server half anywhere or running the pairing DoD: re-read 0.19’s changes against the
+provisioning descriptor design (what does upstream now hand the client at pair/hello time?)
+and decide keep / trim / retire. No deploy, no pass, until that comparison is done.
+
 > **Loop verdict 2026-07-16:** PR #101 (server half) merged `544b500` — relay suite **124/124**
 > and connector suite **115/115** re-run green on the Mac (Fable's Linux run had 114 + 1
 > macOS-only skip; the skip runs here). PR #102 (app half) merged `a8b27e0` — loop merged main
