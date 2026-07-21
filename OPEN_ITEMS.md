@@ -5635,6 +5635,28 @@ Claude↔Hermes↔Fable three-way workflows (e.g. Claude drives a test conversat
 host and reads the transcript back directly). Note 0.19’s webhook/route-script surface
 (#148) as a possible transport. Parked until Owen schedules it.
 
+**BRIDGE BUILT 2026-07-20 late (Owen un-parked it: "Yup. Lets do it").** Shape settled by
+0.19 source read + live proof, in two pieces:
+(1) **Tasking bridge — BUILT, commit `6f1e665`:** `tools/hermes-sessions-mcp/` — stdio
+FastMCP wrapper over the Sessions API. 5 tools: `hermes_gateway_health`,
+`hermes_list_sessions`, `hermes_create_session`, `hermes_chat`, `hermes_read_messages`.
+Host via `HERMES_BASE_URL`; key auto-resolved (env → `~/.hermes/.env` → config.yaml —
+never in Desktop config). 8 unit tests green (transport stubbed) + live selftest green vs
+BOTH 0.19 gateways. Registered in `claude_desktop_config.json` as separate named servers
+`hermes-mac` + `hermes-ojamd` (backup taken) — explicit host selection is the posture:
+tasking a host's Hermes executes tools on that host; no SSH anywhere (Owen clarified the
+standing-access rule was about SSH keys specifically — bearer-token HTTP is fine).
+Live proof preceding the build: Mac → OJAMD session create → chat → "BRIDGE-OK k3"
+(fresh-session input_tokens 55,695 — corroborates the #145 ~55k context datum).
+(2) **Channel-bridge companion — config-only, NOT enabled:** upstream `hermes mcp serve`
+(0.19, `mcp_serve.py`, 10-tool OpenClaw-parity surface) exposes platform conversations,
+outbound send, live events, approval respond — but CANNOT task Hermes (`messages_send`
+is outbound via `send_message_tool`, stdio, local-host only). Ready-to-paste block in the
+tool README if wanted. Webhook/route-script transport idea: not needed — Sessions API is
+cleaner and contract-verified.
+**Owed:** Claude Desktop restart to load the servers, then first in-anger use (e.g. drive
+a test conversation for a device pass and read the transcript back).
+
 Logged 2026-07-20.
 
 ## 150. ✨ Talaria as an MCP CLIENT — app-side MCP access (post-launch marquee candidate; distinct from #149)
