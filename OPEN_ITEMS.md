@@ -5204,6 +5204,21 @@ becomes a confound for anything non-reproducible — notably the #139 settings-o
 repro attempts and all #138/#130 voice echo observations. Note the seed in any new device
 findings.
 
+**Transition COMPLETE 2026-07-20 late — toolchain verified, baseline GREEN.**
+- Xcode 27 beta 4 installed at `/Applications/Xcode-beta4.app` (Xcode 27.0, build
+  `27A5228h`); CLAUDE.md toolchain references updated (own commit) — beta3 retired.
+- Device on iOS 27 b4 (`24A5390f`). Sim runtimes `24A5355p` (b3) + `24A5380g` (b4) coexist;
+  the pinned sim UDID SURVIVED the runtime rebind — no re-pin needed.
+- **Full-suite baseline on the b4 SDK: 931 tests / 84 suites green + all UI bundles, TEST
+  SUCCEEDED.** Canaries held — no SDK movement on the #108 alias or #58 symbol.
+- Field report (Owen, early): keyboard behaving better on b4 — no forced ~15s waits yet.
+  Console confirmation (absence of TUI constraint dumps) still owed before the #111-noise
+  excuse is retired.
+- Two sim-run observations: (a) `com.apple.modelcatalog` assets absent on the fresh b4 sim
+  runtime — expected sim behavior, #61 guard owns it; (b) `SessionUsageIndex` persisted
+  value failed JSON decode (legacy-state wart, self-healed fresh) — WATCH the first b4
+  DEVICE Console for the same line; if it appears there, promote to its own item.
+
 **Transition IN PROGRESS 2026-07-20 late: (Owen):** device updating to b4 AND Xcode 27
 beta 4 installing — so the first watch item is answered: this is a full TOOLCHAIN
 transition, not just a seed bump. Consequences queued: (a) DEVELOPER_DIR changes — confirm
