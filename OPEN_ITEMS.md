@@ -4089,6 +4089,10 @@ Logged 2026-07-15.
 
 ## 116. 🔧 Shim plane — kill the manual token paste + make the probe honest — BOTH HALVES MERGED (PRs #101 + #102, 2026-07-16); DoD device pass owed
 
+**Comparison work now tracked as #148 (2026-07-20 late):** the 0.19 `model_routes` /
+durable per-session `/model` evaluation that gates this hold is the top action item there.
+Verdict lands back here.
+
 **ON HOLD 2026-07-20 (Owen): deploy + DoD device pass PAUSED pending Hermes 0.19.**
 The 0.19 update (installed on OJAMD tonight — the same update window that surfaced #145)
 appears to make parts of this provisioning mechanism redundant. Before deploying the
@@ -5295,6 +5299,13 @@ Logged 2026-07-20.
 
 ## 143. 🐛 Siri-ask completion notifications arrive ×5 — mechanism undetermined (app-side local-notification duplication vs relay fan-out)
 
+**New candidate mechanism 2026-07-20 late (Hermes 0.19 changelog):** 0.19 ships a
+delivery-obligation LEDGER — finished responses are REDELIVERED after a gateway crash/restart.
+A redelivery loop misfiring (or replaying against tonight’s bounced services) could produce
+exactly N identical simultaneous deliveries. New discriminator: establish whether OJAMD was
+already ON 0.19 during the ×5 events (update timing vs Session S sub-checks), and check the
+ledger’s state/logs host-side next OJAMD window.
+
 **Discriminators partially ANSWERED 2026-07-20 late (screenshot on file):** the burst is
 SIMULTANEOUS (all “now”) with IDENTICAL content — and the multiplicity DRIFTED: ×4 on this
 delivery vs ×5 earlier the same evening. Count drift across the relay’s 0.19-window bounce
@@ -5479,5 +5490,73 @@ evening) — but a crash (not a hang) points app-side.
 
 Cross-refs: #126 (suspect PR — its device pass inherits this), #146 (found in the same
 test), #143 (same delivery).
+
+Logged 2026-07-20.
+
+## 148. 🔧 Hermes 0.19 “Quicksilver” impact assessment — wire, shim, and behavior deltas vs Talaria (investigation umbrella)
+
+**Logged 2026-07-20 late (Owen; 0.19 live on OJAMD as of tonight — the #145 update window).**
+Changelog analysis (Hermes’s own summary, on file in Owen’s thread) flags these as
+Talaria-relevant. Mac-side read-only findings from the same night are folded in.
+
+**HIGH — act before/while extending anything:**
+- **Reasoning streams ON by default (display.show_reasoning).** Mac-side parser audit DONE
+  2026-07-20: `SessionsHermesClient` has a `default:` arm — unknown SSE event types are
+  DROPPED GRACEFULLY (no break), and reasoning already rides the `_thinking` channel as a
+  first-class separate stream with an increments-vs-full wire hedge. So: parser will not
+  crash. Residual risk is SHAPE, not tolerance — if 0.19 emits reasoning as a NEW event type
+  we go dark on reasoning display (dropped silently); if it folds reasoning into
+  `assistant.delta` the clean answer gets polluted. **A live SSE capture on a 0.19 gateway
+  decides it — diff against CLEAN_CHAT_PATH.md.** (Capture script is the next Mac action;
+  needs a 0.19 gateway — Mini update is Owen’s posture call.)
+- **model_routes per-client routing (#57028) + durable per-session /model (#57030).** The
+  native version of what the shim approximates globally — phone pins its model per
+  request/session, no global-default fights between clients. **This IS the #116 comparison
+  work** (that item is ON HOLD for exactly this): evaluate shim simplification/retirement.
+  Deliverable: an eval doc — shim surface today vs model_routes + GET /v1/models aliases +
+  session override; migration path; what the app’s models plane changes.
+- **Delivery-obligation ledger + durable delegation.** De-risks the Inbox (the server half
+  of “agent message definitely reaches the phone”) — AND is a new #143 suspect (note added
+  there).
+
+**MEDIUM — behavior notes for testing + follow-ups:**
+- Session auto-reset now defaults OFF — phone chats stay continuous; recalibrate session
+  drawer/lifecycle test expectations.
+- `sessions.json` → state.db consolidation: Mac-side grep DONE — ZERO references to
+  sessions.json anywhere in app/relay/connector/tools. Non-issue for us.
+- Smart approvals default ON + /deny reasons — approval cadence changes if we ever surface
+  prompts; note for #4’s dormant confirm gate.
+- kimi-k3 catalog + adaptive thinking — picker (shim or native) surfaces k3 properly;
+  `excluded_providers` can prune the 25-provider mirror the phone sees.
+- Byte-stable system prompts — cheaper long sessions; no action.
+
+**WATCH:**
+- MCP tool naming `mcp__server__tool`: `_thinking` is a gateway reasoning pseudo-channel,
+  not an MCP tool — app-side matching unaffected (audited). HOST-side instructions that
+  name bare tools (e.g. the apple-messaging skill’s send guidance, hermes_mobile tool
+  references in prompts) may need the new names — check on each host.
+- MEDIA hardening wave + webhook/route scripts — read before wiring agent-media-to-phone or
+  any push transport work.
+- `stt.echo_transcripts` toggle — relevant to the voice path (#138 family) when gateway-side
+  voice is in play.
+- `hermes serve` truly headless — leaner hosting option for both hosts.
+
+**Sequencing:** (1) live SSE capture on a 0.19 gateway (gated on updating the Mini, Owen’s
+call — OJAMD works too via its gateway once a capture window exists); (2) model_routes eval
+doc → resolves the #116 hold; (3) host-side skill/tool-name check; (4) fold verdicts back
+into #116/#143.
+
+Logged 2026-07-20.
+
+---
+
+## 149. ✨ Claude↔Hermes MCP bridge — give Claude (this assistant) an MCP connection to talk to Hermes directly (parked idea)
+
+**Owen, 2026-07-20: “we should make you an MCP to talk to Hermes. Lets do that sometime.”**
+Shape TBD — plausibly an MCP server exposing the Hermes Sessions API (and/or hermes_mobile
+tools) so Claude sessions can query/task Hermes without Owen relaying, enabling
+Claude↔Hermes↔Fable three-way workflows (e.g. Claude drives a test conversation against a
+host and reads the transcript back directly). Note 0.19’s webhook/route-script surface
+(#148) as a possible transport. Parked until Owen schedules it.
 
 Logged 2026-07-20.
