@@ -74,11 +74,24 @@ _lock = threading.Lock()
 _cache = {"payload": None, "compiled_at": 0.0}
 
 def _build(refresh):
-    return build_models_payload(
+    payload = build_models_payload(
         load_picker_context(),
         include_unconfigured=True, picker_hints=True, canonical_order=True,
         pricing=True, capabilities=True, refresh=bool(refresh),
     )
+    # Talaria-facing exclusions: providers the phone should never be offered,
+    # independent of hermes' own picker config (which the host keeps using).
+    # MoA hidden until the app is verified to handle aggregator responses (#148).
+    hidden = {
+        s.strip().lower()
+        for s in os.environ.get("TALARIA_SHIM_HIDDEN_PROVIDERS", "moa").split(",")
+        if s.strip()
+    }
+    payload["providers"] = [
+        p for p in payload.get("providers", [])
+        if str(p.get("slug", "")).lower() not in hidden
+    ]
+    return payload
 
 def _get_models(refresh):
     with _lock:
