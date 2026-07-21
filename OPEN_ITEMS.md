@@ -5269,6 +5269,14 @@ Logged 2026-07-20.
 
 ## 143. 🐛 Siri-ask completion notifications arrive ×5 — mechanism undetermined (app-side local-notification duplication vs relay fan-out)
 
+**Discriminators partially ANSWERED 2026-07-20 late (screenshot on file):** the burst is
+SIMULTANEOUS (all “now”) with IDENTICAL content — and the multiplicity DRIFTED: ×4 on this
+delivery vs ×5 earlier the same evening. Count drift across the relay’s 0.19-window bounce
+favors a server-side row-count mechanism (something count-like changed host-side tonight)
+over app-side duplication; a simultaneous identical burst is consistent with fan-out at send
+time. Sharpens the OJAMD DB query (#143(b)/#144): expect ~4 active registration rows for
+whoGoesThere right now — if the count matches the delivery multiplicity, mechanism closed.
+
 **Constraint (added 2026-07-20, sweep-owner note):** the Mac ×0 is UNEXPLAINED under both candidate
 mechanisms and should be treated as a hard constraint. The Mac relay holds exactly ONE
 healthy registration for whoGoesThere, so relay fan-out predicts ×1 on Mac-pointed asks —
@@ -5371,7 +5379,15 @@ path and it passed), #139 (separate defect family; different plane).
 
 Logged 2026-07-20.
 
-## 146. 🐛 Diagnostics push row stuck on TOKEN HELD · AWAITING RELAY while connected to OJAMD — suspected #133 dual-bookkeeping desync (bool vs recorded token), truthful-failure not ruled out
+## 146. 🐛 Diagnostics push row stuck on TOKEN HELD · AWAITING RELAY — CONFIRMED display desync 2026-07-20 (push delivered while row stuck); fix = kill the dual bookkeeping
+
+**CONFIRMED 2026-07-20 late — hypothesis (a), discriminator 1.** OJAMD’s agent sent an
+inbox item via hermes_mobile; the push DELIVERED (×4, screenshot on file) while the
+Diagnostics row still read AWAITING RELAY. Registration is live server-side; the row lies.
+Dispatchable micro-fix per the fix shape below: the skip path asserts the boolean (a skip IS
+a confirmation), or preferably the UI derives from the recorded token and the parallel bool
+dies. Hypothesis (b) is dead for the current state. Rider observed in the same test: tapping
+the notification crashes the app → #147.
 
 **Observed 2026-07-20 late (Owen, OJAMD profile active, post-Hermes-0.19 update window).**
 Diagnostics (and presumably Notifications settings — same source of truth) shows the push
@@ -5409,5 +5425,33 @@ path). The same evening’s #145 window makes host-side flux entirely plausible.
 
 Cross-refs: #133 (the fix under suspicion — its device pass and this item should run in the
 same Console session), #143/#144 (same notification plane), #145 (same host-flux evening).
+
+Logged 2026-07-20.
+
+## 147. 🐛 Tapping an inbox-alert notification CRASHES the app (2026-07-20 late, post-PR #126)
+
+**Observed 2026-07-20 late (Owen, whoGoesThere):** Hermes inbox-item push delivered (see
+#146/#143); tapping a notification to open it crashes the app. Multiple identical
+notifications remain on the lock screen — live repro material.
+
+**Prime suspect — recency:** PR #126 (merged TODAY, merge edeba74) touched exactly this
+surface: inbox-alert notification handling, with the documented scope cut that inbox alert
+pushes carry NO identifying userInfo and tap deliberately routes to chat. A tap handler
+change that shipped hours before taps started crashing is the first place to look. Second
+suspect: notification-response handling colliding with tonight’s host-flux state (#145
+evening) — but a crash (not a hang) points app-side.
+
+**Discriminators:**
+1. **Crash log — the whole answer:** Settings → Privacy & Security → Analytics &
+   Improvements → Analytics Data → tonight’s Talaria27 .ips entries (the #145 hang check
+   covers the same screen — grab both while there). AirDrop to the Mac; the crashing frame
+   names the fix.
+2. Cold vs warm: does the tap crash when the app is already running, freshly launched by the
+   tap, or both? (Remaining lock-screen notifications = controlled repro.)
+3. Does tapping the inbox ROW inside the app (vs the system notification) also crash? Splits
+   notification-response handling from inbox-detail rendering.
+
+Cross-refs: #126 (suspect PR — its device pass inherits this), #146 (found in the same
+test), #143 (same delivery).
 
 Logged 2026-07-20.
