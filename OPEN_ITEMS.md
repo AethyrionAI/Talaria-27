@@ -5374,10 +5374,17 @@ phone online — rules out offline-queue replay as the sole mechanism; ×4 match
 observation exactly (stable multiplier, not random).
 
 **Discriminator ANSWERED 2026-07-21 late:** second controlled single send → 4 copies,
-SPACED (not a burst) — poll-cadence spacing. Points at LOCAL notification scheduling firing
-once per poll/refresh cycle for the same inbox item, not APNs multi-delivery. Fix direction:
-dedupe scheduled local notifications by inbox itemId (schedule-once guard / replace by
-identifier), and audit the poll path that re-notifies pending items.
+SPACED (not a burst) — poll-cadence spacing. **CARRIER CORRECTED 2026-07-21 (source-read):** NOT app-local scheduling — the app has
+no inbox local-notification path (`LocalNotificationService` covers only reply-failed /
+run-completed, UUID identifiers). Mechanism is RELAY-side: `relay/app/main.py:413` loops
+`active_push_registrations_for_user` (`services.py:918`) and sends one alert push PER
+active (Device, PushRegistration) row — each app reinstall re-enrolls a new active row
+(→ #144's pollution), so ×N = active row count for the phone; spacing = the sequential
+send loop. Tonight's reinstall-heavy debugging likely GREW the multiplier. Fix: dedupe on
+`upsert_push_registration` (`services.py:873`, deactivate prior rows for the same physical
+device / replace same-token), send-loop token dedupe, and APNs 410 → deactivate. Confirm
+first in OJAMD relay DB (count whoGoesThere's active rows, expect ≈4). Ship list in
+`planning/HANDOFF-2026-07-21-PUSH-FIXES.md`.
 
 Logged 2026-07-20.
 
