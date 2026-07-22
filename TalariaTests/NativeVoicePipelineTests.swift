@@ -73,6 +73,66 @@ struct NativeVoicePipelineTests {
         ))
     }
 
+    // MARK: - #130 probe: half-duplex discard gate
+
+    @Test func transcriptionDiscardedWhileTTSIsSpeaking() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        #expect(NativeVoicePipelineService.shouldDiscardTranscription(
+            isSpeaking: true,
+            lastSpeakingObservedAt: nil,
+            now: now
+        ))
+    }
+
+    @Test func transcriptionDiscardedDuringHangoverAfterTTSEnds() {
+        // The tail of the assistant's own audio arrives as recognition results
+        // just after isSpeaking flips false — the hangover must swallow it.
+        let lastSpoke = Date(timeIntervalSince1970: 1_000)
+        let now = lastSpoke.addingTimeInterval(0.1)
+        #expect(NativeVoicePipelineService.shouldDiscardTranscription(
+            isSpeaking: false,
+            lastSpeakingObservedAt: lastSpoke,
+            now: now
+        ))
+    }
+
+    @Test func transcriptionHonoredOnceHangoverElapses() {
+        let lastSpoke = Date(timeIntervalSince1970: 1_000)
+        let now = lastSpoke.addingTimeInterval(NativeVoicePipelineService.halfDuplexHangover + 0.01)
+        #expect(!NativeVoicePipelineService.shouldDiscardTranscription(
+            isSpeaking: false,
+            lastSpeakingObservedAt: lastSpoke,
+            now: now
+        ))
+    }
+
+    @Test func transcriptionHonoredWhenTTSNeverSpoke() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        #expect(!NativeVoicePipelineService.shouldDiscardTranscription(
+            isSpeaking: false,
+            lastSpeakingObservedAt: nil,
+            now: now
+        ))
+    }
+
+    @Test func liveSpeakingDiscardsEvenWithStaleObservation() {
+        // A stale observation timestamp must not override live speaking state.
+        let lastSpoke = Date(timeIntervalSince1970: 1_000)
+        let now = lastSpoke.addingTimeInterval(60)
+        #expect(NativeVoicePipelineService.shouldDiscardTranscription(
+            isSpeaking: true,
+            lastSpeakingObservedAt: lastSpoke,
+            now: now
+        ))
+    }
+
+    @Test func hangoverIsShortEnoughForTapOrGapInterruption() {
+        // The probe's interaction model is tap-or-gap: after a manual stop the
+        // user's next utterance must be honored quickly. Anchor the constant.
+        #expect(NativeVoicePipelineService.halfDuplexHangover <= 0.5)
+        #expect(NativeVoicePipelineService.halfDuplexHangover >= 0.2)
+    }
+
     // MARK: - Engine routing decisions
 
     @Test func readinessRoutesNativeWhenTalkUnconfigured() {
