@@ -184,7 +184,7 @@ On first launch the app works immediately in on-device mode — no account, no c
 
 See [SECURITY.md](SECURITY.md) for the security architecture, reporting process, and known limitations.
 
-One default worth knowing about up front: the app currently ships with a global App Transport Security exception (`NSAllowsArbitraryLoads`) because the expected deployment is plain HTTP to Tailscale IPs on a private tailnet. If you front your services with `tailscale serve` (HTTPS + MagicDNS), you can and should remove this exception locally.
+One default worth knowing about up front: the app ships with a scoped App Transport Security exception permitting insecure HTTP **only to the Tailscale CGNAT range** (`100.64.0.0/10`), because the expected deployment is plain HTTP to Tailscale IPs on a private tailnet. TLS enforcement remains on for all other connections. If you front your services with `tailscale serve` (HTTPS + MagicDNS), you can remove even this exception locally.
 
 ---
 
