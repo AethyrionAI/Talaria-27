@@ -6270,3 +6270,21 @@ hermex's highest-flagged review risk is their share extension's dynamic `UIAppli
 166a + 166d are one small speccable lane (manifests + one key). 166b is a 30-minute experiment that should happen BEFORE that lane so the ATS decision lands in the same project.yml commit. 166c/166e/166f are Owen-side prep. None block current development; all block submission.
 
 Logged 2026-07-22.
+
+## 167. ✅ #166a/#166b/#166d landed (PR #138, merge cbcc824) — and #164 hits its third occurrence
+
+The three code-side items of the #166 review-risk register are done, verified, and merged. Four file-scoped commits; unit suite 1088/96 green on the pinned sim.
+
+**166a — privacy manifests: RESOLVED.** `PrivacyInfo.xcprivacy` for all three bundle targets (app, TalariaWidgets, TalariaShare), plutil-lint clean, wired through the resource build phases (verified in the regenerated pbxproj). Declarations: UserDefaults with CA92.1 + 1C8F.1 (App Group), zero collected data types (sensor/health/location go only to the user's own host — nothing is developer-accessible), tracking false. WebRTC's xcframework ships its own per-slice manifests, so the SDK side needed nothing. If a future upload's ITMS-91053 email names additional required-reason categories, extend these files.
+
+**166b — ATS: RESOLVED, and better than hoped.** `NSAllowsArbitraryLoads` is GONE. Replaced by a range-scoped `NSExceptionDomains` entry keyed by the CGNAT CIDR `100.64.0.0/10` — undocumented form, adopted only after a four-arm controlled experiment on the shipping toolchain (probes inside the app test host, so URLSession obeys the real plist): (1) no exception → tailnet HTTP BLOCKED -1022, so the exception is load-bearing; (2) `NSAllowsLocalNetworking` → still BLOCKED, CGNAT is not "local" to ATS; (3) the CIDR form → both live gateways ALLOWED (http 200); (4) negative control `http://1.1.1.1/` outside the range → still BLOCKED, so the scoping is real, not a leaky global. hermex ships this exact form and passed App Review with it. TLS enforcement is now ON for every non-tailnet connection the app makes. Rollback symptom if an OS update ever regresses the behaviour: -1022 on all host traffic → restore `NSAllowsArbitraryLoads` and reopen this. TalariaShare needed no entry (no-network by design, #123). README + SECURITY.md updated with the evidence so the exception never gets re-litigated from scratch.
+
+**166d — RESOLVED.** `ITSAppUsesNonExemptEncryption: false` declared (HTTPS + DTLS-SRTP are exempt-standard); ends the per-upload compliance prompt.
+
+**#164 — THIRD occurrence, counter reset, priority promoted.** The gate's bundle run failed only `testDisconnectReturnsToStandaloneChat` (XCUITests 7/8). This time the flake dismissal was NOT automatic: the lane touched ATS and the test lives in the connect/disconnect flow — exactly where a real regression would wear the flake's clothes. The solo rerun on the same binary passed 1/1, confirming the ATS change is innocent and the signature matches #164 exactly (warm-bundle fail, solo pass). Consequences per #164's own text: the green-bundle counter resets to 0, and at three occurrences across four lane gates this is no longer ambient noise — the #164 fix lane (wait-predicate first, deliberate quarantine second) should be scheduled rather than deferred.
+
+Remaining from #166: 166c (public HTTPS review host — deployment task), 166e (portal capability pre-flight), 166f (runbook adoption into the launch pass) — all Owner-side, all submission-blocking, none code.
+
+Process note: this lane was landed end-to-end without Desktop Commander (mid-session outage) by relaying exact shell commands through the local Hermes agent (K3) on the Mac — including the gate read, the #164 solo-rerun differential, push, PR #138 creation, merge, and this entry. Verbatim-command relay + raw-output pastes held up; the one hiccup was the shell guard rejecting nohup (K3 substituted its tracked background runner, same invocation).
+
+Logged 2026-07-22.
