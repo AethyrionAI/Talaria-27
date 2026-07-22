@@ -72,9 +72,10 @@ final class InsightsService: InsightsServiceProtocol {
     /// The pagination loop, factored off the transport so tests drive it
     /// with fixture pages. Stops on `has_more` false, an empty page (a
     /// server claiming more while sending nothing must not spin), or the
-    /// page cap — only the cap with `has_more` still true marks the window
-    /// truncated.
-    nonisolated static func collectWindow(
+    /// page cap — only stopping with `has_more` still true marks the window
+    /// truncated. MainActor like its callers — the closure hops are free and
+    /// the iOS 27 strict checker has nothing to prove.
+    static func collectWindow(
         pageSize: Int = InsightsService.pageSize,
         maxPages: Int = InsightsService.maxPages,
         fetchPage: (Int) async throws -> SessionStatsPage
