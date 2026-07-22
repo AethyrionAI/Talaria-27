@@ -1,0 +1,18 @@
+# Hermes Agent version this build of Talaria is developed and tested against.
+#
+# Upstream (NousResearch/hermes-agent) does not guarantee API stability, and
+# Talaria depends on undocumented surfaces — the Sessions API SSE event
+# taxonomy, the /api/sessions response shape, and the models-shim's hermes_cli
+# imports. A silent upstream change breaks those with no compile error.
+#
+# Record the upstream commit here whenever chat, sessions, or model switching
+# is verified end-to-end against a running host, and include this value in bug
+# reports. If you cannot determine the upstream SHA, record the version string
+# from `hermes --version` instead and say so.
+#
+# Format: one line, `sha=<commit>` or `version=<string>`, then the date verified.
+
+version=unknown
+verified=never
+
+# Owed: capture on the next OJAMD verification pass. See OPEN_ITEMS #155.
