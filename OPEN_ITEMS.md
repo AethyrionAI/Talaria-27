@@ -5373,6 +5373,12 @@ FOUR notifications on the phone. Fan-out ×4 confirmed on a clean single send, h
 phone online — rules out offline-queue replay as the sole mechanism; ×4 matches the prior
 observation exactly (stable multiplier, not random).
 
+**Discriminator ANSWERED 2026-07-21 late:** second controlled single send → 4 copies,
+SPACED (not a burst) — poll-cadence spacing. Points at LOCAL notification scheduling firing
+once per poll/refresh cycle for the same inbox item, not APNs multi-delivery. Fix direction:
+dedupe scheduled local notifications by inbox itemId (schedule-once guard / replace by
+identifier), and audit the poll path that re-notifies pending items.
+
 Logged 2026-07-20.
 
 ---
@@ -5553,6 +5559,21 @@ reachable when #143 delivery started working, same night). FIX: `@MainActor` on
 `HermesAppDelegate` (class-level — covers every synthesized completion bridge). Branch
 `claude/t27-147-mainactor-delegate`; build gate in flight; DoD = Owen cold-tap opens clean
 (repro on demand via `mcp__hermes_mobile__send_inbox_item`).
+
+**DEVICE VERIFY 2026-07-21 late — CRASH PORTION CLOSED, remainder folds into #145.**
+PR #129 on device: cold tap no longer crashes (fresh controlled push, item 66feaf42…).
+NEW behavior exposed: launch proceeds to the Talaria splash (bare — no locked/connecting
+sublabel) and WEDGES; backgrounding no-op; force-quit + relaunch wedges again; only a
+REINSTALL clears it (Owen waited ~1 min on the first occurrence, then rebuilt). So the
+wedging state is PERSISTED IN THE APP CONTAINER (reinstall clears, Keychain survives →
+not Keychain), written during notification-tap handling. Suspect surface: what
+`handleNotificationTap` touches — `reconcilePendingRuns()` and inbox local state — leaving
+a record the launch path re-hits before `isInitialized` on every subsequent launch.
+This is #145's family with sharper evidence than #145's own repro (there: outage-entry,
+phone restart; here: tap-created, container-persisted, on-demand reproducible). Remaining
+work tracked in #145: source-read reconcilePendingRuns + pending-run persistence vs the
+#136 LaunchInitStep critical path; extend timeout non-negotiables to the tap/foreground
+path; and the persistence bug (nothing written on the tap path may wedge future launches).
 
 Logged 2026-07-20.
 
