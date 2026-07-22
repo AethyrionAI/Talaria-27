@@ -5960,3 +5960,29 @@ Dispatched to Kimi K3 on the Mac host 2026-07-22 (session `api_1784695729_f089fe
 Suggested sequencing given the above: 156a first (free — the API already exists), then 156b read-only. 156d needs a scope decision (per-turn only). 156e and 156f need Owen posture calls before any code.
 
 Logged 2026-07-22.
+
+## 159. ⚠️ CORRECTION to #158 — Projects DO exist in hermes-agent; 156e reclassified, 156f parked
+
+Owen flagged that Hermes supports Projects natively in the desktop app, contradicting #158's "NOT-POSSIBLE / no concept exists" verdict for 156e. **Owen is right and the K3 inventory was wrong on this item.** Verified directly on the Mac install 2026-07-22.
+
+**Why K3 missed it:** it greped `hermes_state.py` (the sessions DB) and `web_server.py` for session-grouping terms. Projects live in a *separate database and module* — `hermes_cli/projects_db.py` + `tools/project_tools.py` — so a sessions-scoped search returns nothing. Lesson for future dispatches: "does concept X exist" greps must cover the whole tree, not the subsystem we expect it to live in. A negative result scoped to the wrong module reads identically to a true negative.
+
+**What actually exists:**
+- `$HERMES_HOME/projects.db`, per-profile (`~/.hermes/projects.db` on the Mac, 2 rows present).
+- Tables: `projects`, `project_folders`, `project_meta`, `discovered_repos`.
+- `projects` schema: `id, slug, name, description, icon, color, board_slug, primary_path, created_at, archived`.
+- `tools/project_tools.py` describes them as "the named workspaces the desktop sidebar groups sessions into", exposed only to GUI sessions via a `project` toolset deliberately kept off `_HERMES_CORE_TOOLS`.
+
+**The mechanism, and this is the design-critical part:** the `sessions` table has **no `project_id`**. It has `cwd`. Session→project grouping is **path-derived, not stored** — the sidebar matches a session's `cwd` against `projects.primary_path` / `project_folders.path`. There is no foreign key to read.
+
+**Revised verdict for 156e: NEEDS-NEW-RELAY-ENDPOINT, not NOT-POSSIBLE — and notably NOT an upstream PR.** Neither `projects.db` nor session `cwd` is exposed on `:8642` (confirmed: the `/api/sessions/{id}` response carries no `cwd` field). But the relay and connector already run *on the host with filesystem access*, so both can be surfaced by a connector-side endpoint reading `projects.db` and `state.db` directly. That fits Owen's "no PRs against hermes-agent" constraint — this is our-side work.
+
+**Strong recommendation: mirror Hermes's real project model, do not invent client-side folders.** #158 suggested a Talaria-local session→folder mapping as the workaround. With Projects confirmed real, that would be actively harmful: the phone would show a grouping that silently diverges from what the desktop sidebar shows for the same sessions, and there would be no reconciliation path. Read the real projects, match on `cwd`, own nothing.
+
+**156f (mid-run steering) — PARKED per Owen 2026-07-22.** It requires an upstream patch adding a `steer` route to `api_server.py`, and Owen has ruled out PRs against hermes-agent. The `AIAgent.steer()` primitive remains available to the CLI/TUI/messaging paths; it is simply unreachable from the Sessions API and will stay that way. Do not design around it. Revisit only if upstream exposes it independently.
+
+**156c (Memory) — provider confirmed, and it is BOTH.** Owen runs the built-in file backend *and* a local Honcho instance on a third machine that all Hermes instances share. So #158's caveat is live, not hypothetical: `~/.hermes/memories/*.md` is one layer, and the shared Honcho server is authoritative for the pluggable-provider layer. A memory panel that reads only the `.md` files would show a partial and possibly stale view while presenting as complete. Scope owed: decide whether the panel reads both and labels the source, or targets Honcho only. Talaria would need its own Honcho client for the latter. Third-machine host details not yet recorded anywhere in this repo — capture them when the lane is picked up.
+
+**Install SHA note:** #158 recorded upstream `e57918ac` from K3. Local HEAD at `~/.hermes/hermes-agent` read `d8bf3df255` (2026-07-22 02:53Z) shortly after. Treat `UPSTREAM_TESTED_SHA` as approximate until a clean simultaneous capture; the two may differ by an update landing mid-session.
+
+Logged 2026-07-22.
