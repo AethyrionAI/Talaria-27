@@ -84,6 +84,7 @@ enum SingleWindowPolicy {
     }
 }
 
+@MainActor
 final class HermesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(
         _ application: UIApplication,
