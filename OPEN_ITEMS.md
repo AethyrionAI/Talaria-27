@@ -5540,6 +5540,20 @@ a category/userInfo field added that the launch path chokes on?). Console captur
 attempted (transfer failed — resend); fresh .ips from tap #1 owed from Analytics Data —
 that frame names the fix.
 
+**VERDICT 2026-07-21 (.ips Talaria_27-2026-07-21-191840, tap #2):** uncaught
+NSInternalInconsistencyException → SIGABRT on thread 7 (cooperative pool). Chain:
+`HermesAppDelegate.userNotificationCenter(_:didReceive:)` is async but NOT main-actor
+isolated → compiler-synthesized objc completion bridge fires on the cooperative executor
+→ UIKit's completion path runs snapshot/state-restoration
+(`_updateSnapshotAndStateRestoration…` → `_performBlockAfterCATransactionCommitSynchronizes:`)
+which hard-asserts main thread. Main thread confirmed healthy at crash (keyboard-scene
+launch work). Cold-launch-only because warm taps skip the restoration path; #47 reply is
+headless. PR #126 EXONERATED (exposure timing only: cold taps on inbox pushes first became
+reachable when #143 delivery started working, same night). FIX: `@MainActor` on
+`HermesAppDelegate` (class-level — covers every synthesized completion bridge). Branch
+`claude/t27-147-mainactor-delegate`; build gate in flight; DoD = Owen cold-tap opens clean
+(repro on demand via `mcp__hermes_mobile__send_inbox_item`).
+
 Logged 2026-07-20.
 
 ## 148. 🔧 Hermes 0.19 “Quicksilver” impact assessment — wire, shim, and behavior deltas vs Talaria (investigation umbrella)
