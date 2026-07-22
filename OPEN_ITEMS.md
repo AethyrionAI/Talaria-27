@@ -5938,3 +5938,25 @@ Owed: copy the verbatim notice and patent grant out of the distributed XCFramewo
 Related: #156 review noted hermex ships an in-app acknowledgements surface. Worth deciding whether Talaria's licenses live only in the repo or also in Settings; App Review does not require the latter, but it is conventional.
 
 Logged 2026-07-22.
+
+## 158. ✅ #156 source-confirms ANSWERED — hermes-agent 0.19.0 capability inventory
+
+Dispatched to Kimi K3 on the Mac host 2026-07-22 (session `api_1784695729_f089fe1f`, 30 tool calls). Every claim traces to a file/line in the local install at `~/.hermes/hermes-agent` (upstream `e57918ac`) or to a query against the real `state.db`. Nothing returned UNKNOWN. This resolves the source-confirms attached to #156 and re-sizes every sub-lane.
+
+**156a Tasks/cron — BUILDABLE, no new endpoint.** Best outcome available. Durable subsystem at `cron/jobs.py` + `cron/scheduler.py`, persisted to `~/.hermes/cron/jobs.json`. Full CRUD already on `:8642`: `GET/POST /api/jobs`, `GET/PATCH/DELETE /api/jobs/{id}`, plus `/pause`, `/resume`, `/run`. Job record has ~30 fields; PATCH whitelist is `{name, schedule, prompt, deliver, skills, skill, repeat, enabled}`. Caveat: the HTTP surface does NOT expose `script`/`no_agent`/`workdir`/model override on create — those are CLI/tool only. Design the phone UI to the PATCH whitelist, not the full record.
+
+**156b Skills — BUILDABLE (list only).** `GET /v1/skills` on `:8642` returns `{name, description, category}` and nothing else. No path, no enabled state. Note an upstream quirk: the handler calls `_find_all_skills(skip_disabled=False)` but the function excludes disabled skills internally, so disabled skills never appear AND there is no flag to distinguish them. Enabled-state, paths, install and toggle are dashboard (`:9119`) or CLI only. Scope the lane to a read-only browser or accept a new relay endpoint.
+
+**156c Memory — BUILDABLE via direct file read, not via API.** No memory route exists on `:8642` at all. Built-in backend is two plain-text files, `~/.hermes/memories/MEMORY.md` and `USER.md`, free-text entries separated by `§`, under a char budget. **Hard caveat:** if the profile's `memory.provider` is Honcho or Mem0, those files are stale and the real content lives remotely — Talaria would need its own client for that provider. Confirm the active provider before building. Even the dashboard cannot return memory *content*.
+
+**156d Insights — split verdict, and #25 is now CLOSED as a finding.** Per-message token counts are **NOT-POSSIBLE** on 0.19.0. The `messages.token_count` column exists in the schema but is never written: zero non-test call sites, and empirically `COUNT(token_count) = 0` across 7595 real rows on this machine. `GET /api/sessions/{id}/messages` returns the field and it is always null. This is the definitive confirmation of #25's suspicion — it is an upstream gap, not a Talaria bug, and no relay work can fix it. What IS available: session cumulative totals, and **live per-turn usage** returned in `run.completed` on `chat/stream`. Build the panel on per-turn + session totals; never promise per-message history.
+
+**156e Projects — NOT-POSSIBLE server-side.** No project/folder/tag/group concept anywhere. `PATCH /api/sessions/{id}` accepts exactly `{title, end_reason}` — no metadata field to piggyback on. The only handles are `title`, `source`, `parent_session_id`/`_lineage_root_id` (fork tree, not user grouping), `archived`, `profile_name`. If we want this, it is a Talaria-side local mapping (session id → folder, stored on device), or an upstream schema feature. Decide which before designing.
+
+**156f Mid-run steering — NOT-POSSIBLE today, but closer than expected.** The primitive EXISTS and is battle-tested: `AIAgent.steer(text)` at `run_agent.py:2899` stashes text and appends it to the last tool result after the current tool batch, and it is already used by the CLI, messaging gateway, TUI gateway and ACP adapter. It is simply not exposed on `:8642` — zero `.steer(` calls in `api_server.py`, no route. So this is NEEDS-NEW-RELAY-ENDPOINT (an upstream patch adding `POST /api/sessions/{id}/steer`), not architecturally impossible. Reclassify from "may be impossible" to "small upstream shim".
+
+**Operationally important side-finding (not a bug, but verify on any change):** `chat/stream` turns are NOT registered in `_active_run_agents` — that only happens in the `/v1/runs` flow. So `POST /v1/runs/{run_id}/stop` **cannot** stop a session-chat turn; closing the SSE connection is the only cancel path. Talaria is already correct here (`ChatStore.cancelStreaming()` calls `streamingTask?.cancel()`, which closes the stream), but anyone "improving" stop by calling the runs endpoint would ship a silently no-op button.
+
+Suggested sequencing given the above: 156a first (free — the API already exists), then 156b read-only. 156d needs a scope decision (per-turn only). 156e and 156f need Owen posture calls before any code.
+
+Logged 2026-07-22.
