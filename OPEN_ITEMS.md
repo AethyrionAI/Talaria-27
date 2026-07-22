@@ -6178,3 +6178,61 @@ Scope when picked up (small lane):
 Not urgent; it costs minutes per lane, not correctness — but it should not survive into the launch-pass test discipline, where "rerun until green" is exactly the habit to have eliminated.
 
 Logged 2026-07-22.
+
+## 165. 🧩 156d Insights lane BUILT — session usage/cost panel on branch `claude/t27-156d-insights`
+
+Dispatch `dispatch/FABLE-T27-156D-insights.md` executed 2026-07-22 on the Mac Mini
+(Xcode-beta4 toolchain). All five deliverables, one PR, zero new infrastructure (#161
+held — one existing gateway endpoint, `GET /api/sessions` on `:8642`, same
+`API_SERVER_KEY` auth plane as chat, Tasks and Skills). This closes the #156 arc's
+final buildable lane: TASKS → SKILLS → INSIGHTS in the drawer.
+
+**What shipped:** `SessionStatsRow`/`SessionStatsPage` tolerant decode (id required,
+everything else degrades; usage read through the ONE existing
+`SessionUsage.decodeIfPresent` — no second decoder) (D1), `InsightsService` paged
+fetch (3 pages × the server's 200-row max, stops early on `has_more` false,
+`include_children` left false so fork children never double-count; truncation
+surfaced, never implied) (D1), `InsightsSummary` pure aggregation (totals,
+by-source/by-model slices with token shares, nil-usage sessions counted-but-never-
+summed, cost gated present-and-positive with actual-over-estimate precedence and a
+covers-N-of-M honesty count) (D2), `InsightsStore` with the Tasks/Skills load/error
+posture (D3), InsightsScreen — labeled window banner ("LAST N SESSIONS · host · as
+of"), totals strip with "—" while nothing is knowable, numeric breakdown rows,
+expand-in-place session list, no navigation into chat (D3) — and drawer INSIGHTS row
++ `.insights` route + container wiring (D4). 37 tests in 4 suites (D5).
+
+**#25 semantics held (do not relitigate):** nothing per-message (settled
+NOT-POSSIBLE, #158); every figure is billing/activity volume, never framed against a
+model limit — the words context/window/capacity appear nowhere in the UI copy and the
+CTX gauge stays untouched; `estimated_cost_usd: 0.0` and null both suppress (hides
+rather than lies). Charts: numbers-only ship — the #100 ChartCanvas is a chat-fence
+Swift Charts plot (axes/legend/fixed height) and does not "drop in trivially" for
+share bars, so per standing law no bar was rendered and no second chart impl exists.
+Time-bucketed history stays parked (window-cap edge distortion, per the dispatch).
+
+**Verification:** first-compile clean CLI build; full suite on the pinned sim
+(47F68496): Swift Testing `1088 tests in 96 suites passed` (baseline 1051/92 + this
+lane's 37/4). XCUITests **8/8 in-bundle** — nota bene for #164: the
+`testDisconnectReturnsToStandaloneChat` bundle-warm flake did NOT fire this run
+(passed in-bundle, 30.2s); that is green bundle run 1 of the 3 consecutive its close
+criteria want. `aps-environment: development` verified after regen.
+
+**Owed — device checklist (next session with the phone):**
+- [ ] Drawer → INSIGHTS renders real host numbers; banner names the window and host,
+      "AS OF" stamp updates on pull-to-refresh
+- [ ] Totals strip agrees with a spot-check against `GET /api/sessions` on OJAMD
+      (tokens in/out, tool calls, api calls); cost row absent while the host serves
+      0.0/null costs (expected today) — no "$0.00" anywhere
+- [ ] By-source shows api_server/discord/tui split; by-model shows the real model mix;
+      shares sum to ~100%
+- [ ] Session rows: title-or-id-prefix, source badge, relative recency; expand shows
+      duration/cache/reasoning/messages; a usage-less session shows NO zeros (row
+      renders, numbers absent)
+- [ ] >600-session host (if reachable): truncation strip appears and the banner count
+      matches the fetched window, not all-time
+- [ ] Airplane-mode refresh keeps numbers on screen with the REFRESH FAILED strip
+      (never a replacement); CTX gauge in chat unchanged and never contradicted by
+      this screen's copy
+- [ ] Unpaired/bare profile: honest NO HERMES HOST CONFIGURED state
+
+Logged 2026-07-22.
