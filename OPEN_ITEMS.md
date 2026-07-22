@@ -5926,3 +5926,15 @@ Six sub-lanes, sized roughly:
 Do not dispatch as one lane. 156a and 156b are the cheap ones and are the suggested first PR; 156c/156d/156e need their source-confirms answered first; 156f may be impossible and should be checked before any design work.
 
 Logged 2026-07-22.
+
+## 157. ⚖️ Reproduce the verbatim WebRTC BSD-3-Clause notice before App Store submission
+
+`THIRD_PARTY_LICENSES.md` landed 2026-07-22 recording `stasel/WebRTC` 130.0.0 (the only third-party package Talaria links — voice-mode transport, declared in `project.yml` and pinned in `Package.resolved`). The entry currently *describes* the license rather than reproducing it.
+
+BSD 3-Clause requires reproducing the copyright notice, condition list, and disclaimer in binary distributions. Shipping to the App Store without it is a license violation, and it is the kind that surfaces after release rather than before.
+
+Owed: copy the verbatim notice and patent grant out of the distributed XCFramework/package into `THIRD_PARTY_LICENSES.md`. Cheap to do, easy to forget, and blocking for submission rather than for development — so it is not urgent now but must not be carried into a release lane silently.
+
+Related: #156 review noted hermex ships an in-app acknowledgements surface. Worth deciding whether Talaria's licenses live only in the repo or also in Settings; App Review does not require the latter, but it is conventional.
+
+Logged 2026-07-22.
