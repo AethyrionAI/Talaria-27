@@ -5368,6 +5368,11 @@ after rejoining? Simultaneous burst or spread (poll-cadence spacing)? Identical 
 Then: Console capture of one repro — local-notification scheduling lines from our subsystem
 vs APNs delivery tells the carrier immediately.
 
+**Datapoint 2026-07-21 (controlled):** ONE `send_inbox_item` (notify:alert) from OJAMD →
+FOUR notifications on the phone. Fan-out ×4 confirmed on a clean single send, host healthy,
+phone online — rules out offline-queue replay as the sole mechanism; ×4 matches the prior
+observation exactly (stable multiplier, not random).
+
 Logged 2026-07-20.
 
 ---
@@ -5518,6 +5523,22 @@ evening) — but a crash (not a hang) points app-side.
 
 Cross-refs: #126 (suspect PR — its device pass inherits this), #146 (found in the same
 test), #143 (same delivery).
+
+**CONTROLLED REPRO 2026-07-21 (Owen + Claude):** fresh single inbox alert sent via OJAMD
+Hermes (`mcp__hermes_mobile__send_inbox_item`, notify:alert, item 166e88c2…). Tap from
+UNLOCKED home screen, app killed first: launch zoom → BLACK first frame → dead, back to
+home. So: cold-launch-via-notification crash at/before first render; NOT lock-screen
+protected-data race (device unlocked); NOT the #145 wedge (instant exit, no freeze).
+Source-read state (same night): PR #126's app diff did NOT touch the notification-response
+path (only widget deep-link + Route.briefing + BriefingDetailScreen + markRead); the
+didReceive handler is defensive (`userInfo["session_id"] as? String`, nil-tolerant),
+`sharedDefault()` returns a static container, `handleNotificationTap` guards on isPaired —
+no obvious trap on the handler itself. Suspicion shifts to what's UNIQUE about
+notification-launch vs icon-launch: response delivery/scene-connection options during the
+launch window, or the push payload shape from the #126 HOST half (relay/agent side — was
+a category/userInfo field added that the launch path chokes on?). Console capture of tap #2
+attempted (transfer failed — resend); fresh .ips from tap #1 owed from Analytics Data —
+that frame names the fix.
 
 Logged 2026-07-20.
 
