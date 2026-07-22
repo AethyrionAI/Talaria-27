@@ -12,7 +12,9 @@
 #
 # Format: one line, `sha=<commit>` or `version=<string>`, then the date verified.
 
-version=unknown
-verified=never
+version=0.19.0
+captured=2026-07-22
+verified=partial   # gateway health only; full chat+sessions+model-switch pass still owed
+hosts=Mac Mini (100.79.222.100) and OJAMD (100.110.102.59) both report 0.19.0, no skew
 
 # Owed: capture on the next OJAMD verification pass. See OPEN_ITEMS #155.
