@@ -12,6 +12,11 @@ enum Route: Hashable {
     /// #126: briefing detail. `nil` = latest briefing (widget deep link);
     /// a value = the row the user tapped.
     case briefing(InboxItem?)
+    /// #156a: the agent's scheduled cron jobs.
+    case tasks
+    /// #156a: task detail carries only the job id — both screens read the
+    /// same CronJobsStore row, so they can never disagree.
+    case taskDetail(String)
 }
 
 // MARK: - Sheet Destinations
