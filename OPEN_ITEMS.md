@@ -6043,3 +6043,70 @@ But it turns out we barely need even that. Re-checked against #158:
 **Net: the three features worth building need no new services, no new installs, and no upstream changes.** They are client work against endpoints the app already talks to. That is a much better position than the arc looked like when #156 was opened.
 
 Logged 2026-07-22.
+
+## 162. 🛠 156a Tasks lane BUILT — cron browse/create/edit/control on branch `claude/t27-156a-tasks-cron`
+
+Dispatch `dispatch/FABLE-T27-156A-tasks-cron.md` executed 2026-07-22 on the Mac Mini
+(Xcode-beta4 toolchain, upstream re-verified against the local hermes-agent 0.19.0
+checkout at `d8bf3df255`). All six deliverables, one PR, zero new services (#161 held —
+every request rides the `:8642` gateway with the chat path's `API_SERVER_KEY`).
+
+**What shipped:** `CronJob` tolerant models + client-derived status (D2),
+`CronJobService` over the eight `/api/jobs` endpoints with verbatim server-rejection
+text (D1), `CronJobsStore` with the upsert/delete mutation seam (D3), TasksScreen /
+TaskDetailScreen with the four explicit content states and non-destructive refresh
+failure (D3), the structured schedule picker emitting the four verified
+`parse_schedule` forms with Advanced as the free-text escape (D4 ⭐), the one
+create/edit sheet on a diffing draft (D5), and 76 tests in 4 suites (D6). Entry point:
+SCHEDULED TASKS row in the sessions drawer; routes `.tasks` / `.taskDetail(id)`.
+
+**Upstream facts verified beyond the dispatch (all from source, 0.19.0):**
+- `schedule.kind` vocabulary is exactly `once|interval|cron`; recurring = interval/cron.
+- Every mutation answers `{"job": {...}}`; DELETE answers `{"ok": true}`; errors are
+  `{"error": "<msg>"}` (400 validation, 404, 500 parse errors incl. the croniter
+  message, 501 cron-module-absent). Job ids are 12 hex chars.
+- `GET /api/jobs` hides disabled jobs by default — the client passes
+  `include_disabled=true`, or off/needsAttention states would never render.
+- `state` also takes `"completed"` (repeat-exhausted: `enabled=false`,
+  `state="completed"`) and `"error"` (croniter-missing: enabled, `last_error` set, no
+  `next_run_at` — deliberately "not silently disabled" upstream). Derivation order
+  refined accordingly: completed → OFF (finished, not broken); the croniter shape is
+  exactly needsAttention. This is a deliberate refinement of the dispatch's two-branch
+  spec, from verified semantics.
+- PATCH `repeat` must travel as the record's `{times, completed}` dict — upstream update
+  is `{**job, **updates}` with no repeat normalization, and the scheduler reads
+  `repeat.get("times")`; a bare int would corrupt the stored record. `completed` is
+  preserved from the record being edited.
+- No endpoint exposes the host timezone → daily/weekly/advanced inputs carry a
+  whose-clock caveat in the sheet. The absolute one-shot sidesteps #51021 entirely by
+  emitting the DEVICE's UTC offset (`fromisoformat` keeps explicit offsets as-is).
+- Deliver options ride `GET /health/detailed` `platforms` keys (+ built-in
+  origin/local); fetch failure degrades the picker to free text; a value outside the
+  list is preserved as a marked "(custom)" row.
+- `list_jobs` attaches `latest_execution` (executions SQLite row) — its
+  `claimed|running` states are the client's only live RUNNING signal; surfaced as the
+  status badge and in detail.
+
+**Verification:** app target CLI build green; full suite on the pinned sim
+(47F68496): Swift Testing `1007 tests in 88 suites passed` (baseline 931/84 + this
+lane's 76/4), XCUITests 8/8. One flake note: `testDisconnectReturnsToStandaloneChat`
+failed once on the first bundle run ("Enter Code Manually" still in hierarchy after
+disconnect) and passed clean on rerun — the bundle-warm tap-timing class the test's own
+comments document, in a flow this lane does not touch. Not chased here.
+
+**Owed — device checklist (next session with the phone):**
+- [ ] Drawer → SCHEDULED TASKS → list renders real OJAMD jobs (or the honest empty state)
+- [ ] Create via each preset (interval / daily / weekly / once-relative / once-absolute)
+      and confirm the server's `schedule_display` matches the preset's intent
+- [ ] Advanced mode: submit a bad string → sheet stays open with the server's message
+      verbatim; submit a valid cron → server display shown after save
+- [ ] Run Now / Pause / Resume / Delete round-trips; list+detail stay in lockstep with
+      no refetch flicker
+- [ ] Edit an existing job: untouched fields absent from the PATCH (proxy: legacy
+      deliver value survives an unrelated edit)
+- [ ] needsAttention badge on a genuinely dead recurring job (repro: disable one
+      host-side with `enabled: false` via PATCH)
+- [ ] Timezone caveat renders next to daily/weekly time input; once-absolute fires at
+      the device-local instant picked
+
+Logged 2026-07-22.
