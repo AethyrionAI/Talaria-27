@@ -206,6 +206,8 @@ struct MainTabView: View {
             TaskDetailScreen(jobID: jobID)
         case .skills:
             SkillsScreen()
+        case .insights:
+            InsightsScreen()
         }
     }
 

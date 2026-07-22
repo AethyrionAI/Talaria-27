@@ -77,6 +77,10 @@ final class AppContainer {
     /// auth plane as the cron jobs store; read-only (`GET /v1/skills` is the
     /// only skill route). Nil in bare test containers.
     private(set) var skillsStore: SkillsStore?
+    /// #156d: the Insights (session usage/cost) store — same gateway
+    /// endpoint + auth plane as Tasks and Skills; read-only over
+    /// `GET /api/sessions`. Nil in bare test containers.
+    private(set) var insightsStore: InsightsStore?
     /// #116: post-pair provisioning bundle — auto-fills a profile's shim
     /// URL/token (+ empty gateway URL) from the relay after a successful
     /// pair, and backs the Server screen's "Refresh Provisioning" action.
@@ -742,6 +746,19 @@ final class AppContainer {
         // infrastructure). Also feeds the cron editor's skills picker (D5).
         container.skillsStore = SkillsStore(
             service: SkillsService(
+                baseURLProvider: {
+                    let raw = (profilesStore.activeProfile?.gatewayBaseURL ?? "")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    return raw.isEmpty ? nil : raw
+                },
+                apiKeyProvider: { hermesAPIKeyBox.value }
+            )
+        )
+        // #156d: Insights — the usage/cost panel reads the same sessions
+        // list endpoint the drawer already talks to, on the same gateway +
+        // key (#161: zero new infrastructure). Active profile only.
+        container.insightsStore = InsightsStore(
+            service: InsightsService(
                 baseURLProvider: {
                     let raw = (profilesStore.activeProfile?.gatewayBaseURL ?? "")
                         .trimmingCharacters(in: .whitespacesAndNewlines)
