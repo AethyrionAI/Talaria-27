@@ -19,3 +19,31 @@ verified=partial   # gateway health only; full chat+sessions+model-switch pass s
 hosts=Mac Mini (100.79.222.100) and OJAMD (100.110.102.59) both report 0.19.0, no skew
 
 # Owed: capture on the next OJAMD verification pass. See OPEN_ITEMS #155.
+
+# ---------------------------------------------------------------------------
+# Known off-label upstream surfaces
+#
+# Endpoints we depend on that were not designed as contracts for us. These are
+# the likeliest things to break silently on an upstream bump, so they are
+# listed separately from the version pin above. Re-check each when the version
+# changes.
+#
+# 1. /health/detailed  -> "platforms" dict
+#    Used by: Tasks lane (#156a, PR #135) as the source for the cron `deliver`
+#    picker options. This is a DIAGNOSTIC endpoint being read for capability
+#    discovery, so its shape is less likely than a real API to be treated as
+#    stable upstream. Failure is graceful by design (picker degrades to free
+#    text; unrecognised existing values are preserved as a "(custom)" row), so
+#    a break is a UX regression, not data loss.
+#
+# 2. GET /api/jobs   -> requires ?include_disabled=true
+#    Not off-label, but non-obvious: the default hides disabled jobs, so the
+#    off/needsAttention states do not render without it. A future default
+#    change here would silently alter which jobs the phone shows.
+#
+# 3. PATCH /api/jobs/{id} -> `repeat` MUST be sent as {times, completed}
+#    Upstream merges updates with {**job, **updates} and performs no
+#    normalisation, while the scheduler reads repeat.get("times"). Sending a
+#    bare int replaces the dict and throws on the next scheduler pass. This is
+#    host-side breakage caused by a client mistake — treat the dict form as
+#    load-bearing, not stylistic.
