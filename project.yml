@@ -314,8 +314,26 @@ targets:
         # support (supportsAlternateIcons is false without it). YAML alias =
         # byte-identical mirror, single edit point when adding icons.
         "CFBundleIcons~ipad": *talariaBundleIcons
+        # #166b: scoped ATS exception, replacing NSAllowsArbitraryLoads.
+        # Insecure HTTP is permitted ONLY to the Tailscale CGNAT range; TLS
+        # enforcement stays on for the entire public internet. A CIDR key in
+        # NSExceptionDomains is undocumented but empirically real: verified
+        # 2026-07-22 by a four-arm experiment on Xcode-beta4/iOS 27 sim
+        # (no exception -> blocked -1022; NSAllowsLocalNetworking -> blocked,
+        # CGNAT is not "local" to ATS; this CIDR form -> tailnet IPs allowed;
+        # negative control 1.1.1.1 outside the range -> still blocked, so the
+        # exception does NOT leak globally). Same form ships in hermex, which
+        # passed App Review with it. If an OS update ever regresses this, the
+        # symptom is NSURLError -1022 on all host traffic — restore
+        # NSAllowsArbitraryLoads and reopen OPEN_ITEMS #166b.
         NSAppTransportSecurity:
-          NSAllowsArbitraryLoads: true
+          NSExceptionDomains:
+            "100.64.0.0/10":
+              NSExceptionAllowsInsecureHTTPLoads: true
+        # #166d: everything we use is exempt-standard encryption (HTTPS,
+        # DTLS-SRTP via WebRTC). Declared so App Store Connect stops asking
+        # per upload.
+        ITSAppUsesNonExemptEncryption: false
         UIBackgroundModes:
           - fetch
           - processing

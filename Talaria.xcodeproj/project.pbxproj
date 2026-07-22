@@ -180,6 +180,7 @@
 		5C9CD02D776AD6DE92CEFAF3 /* ChatBackendRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23AE5D825BE2C07683DC0829 /* ChatBackendRouter.swift */; };
 		5CDB93AA3B13C56A42382C74 /* Conversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53502E05F0B1B3E8DFCBB4A2 /* Conversation.swift */; };
 		5DCD15D3AE240E043780EB84 /* IconPreview-WitchsBrew.png in Resources */ = {isa = PBXBuildFile; fileRef = 07421A623E331F4C5116F434 /* IconPreview-WitchsBrew.png */; };
+		5E021FABF9925B73DB14923E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F003D8D38FFD1BF2755F625A /* PrivacyInfo.xcprivacy */; };
 		5E0758B2A415EB50FAF15068 /* TurnReceipts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 976BAC43D166A0D9AD794CF2 /* TurnReceipts.swift */; };
 		5E778F56888B871092C97E7F /* Icon-KaraokeSupernova@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = ED93B7714DBE57DAE0FB5F2B /* Icon-KaraokeSupernova@2x.png */; };
 		5F3B60009D9E03118985EF9E /* HermesHostStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D97832B5B31B91A3CF95D31 /* HermesHostStatus.swift */; };
@@ -457,9 +458,11 @@
 		F80700C6730267A8FF7BFB97 /* IconPreview-NeonArcade.png in Resources */ = {isa = PBXBuildFile; fileRef = 2CC5ECD744442BBF8982F5C6 /* IconPreview-NeonArcade.png */; };
 		F82B2134616B485BCC2829BC /* SkillsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCEB34BDA045BEF5C8451A95 /* SkillsService.swift */; };
 		F982F9F184E4EF8BEE65D3E1 /* TalariaShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 845B6DA6FF0FBFDBF28567B8 /* TalariaShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F99F9D950CC11DBA11C4D952 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 24EEEE38B93F07C69DCF30ED /* PrivacyInfo.xcprivacy */; };
 		F9D5CAB68163B1941D5CDECA /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F5622374E497EE8642E4DEE /* Router.swift */; };
 		FB2FB76BB9D8B63101ACFDF4 /* GenUISurfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6DDD296EB3D124F59DAD98D /* GenUISurfaceView.swift */; };
 		FB320457FD3A51DBCEEE88FA /* LiveSpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDF7D4D1DE78C68978B73F6E /* LiveSpeechService.swift */; };
+		FB42759C6395CE1AE7601D11 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 19B057142402EDCE3E248E9A /* PrivacyInfo.xcprivacy */; };
 		FBB9CF26CD2C9D8F844E9F28 /* TaskSkillsPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFD34FD8F83D55B0E3A824F7 /* TaskSkillsPicker.swift */; };
 		FC727E69576B9D18BFD559E4 /* MockPairingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED340DA95F6297DE6AF4F24F /* MockPairingService.swift */; };
 		FCF494FA7680EABD16B87E26 /* HealthQueryCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF2F27035982B50A41364B24 /* HealthQueryCore.swift */; };
@@ -558,6 +561,7 @@
 		18D266B207E1D16C45A7C236 /* Icon-LuchaLibre@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-LuchaLibre@2x.png"; sourceTree = "<group>"; };
 		193B0D14BC2A55D65BAB1254 /* Icon-PulpNoir@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-PulpNoir@3x.png"; sourceTree = "<group>"; };
 		1971FA9A237E9A8F4081017B /* SlashCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlashCommand.swift; sourceTree = "<group>"; };
+		19B057142402EDCE3E248E9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		19C6C9629F76EE94AD95BA67 /* TaskScheduleDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskScheduleDraft.swift; sourceTree = "<group>"; };
 		19F4A85186CCFD7152BA59C6 /* CronJobsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronJobsStoreTests.swift; sourceTree = "<group>"; };
 		1A9D558619D548ADBA4B50E8 /* HealthTrendsCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthTrendsCoreTests.swift; sourceTree = "<group>"; };
@@ -577,6 +581,7 @@
 		23AE5D825BE2C07683DC0829 /* ChatBackendRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatBackendRouter.swift; sourceTree = "<group>"; };
 		23E22458D216C22DEF8C0750 /* Icon-RetroSciFi@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-RetroSciFi@3x.png"; sourceTree = "<group>"; };
 		246CB6A60A7BD2A23A7BB6E9 /* HealthTrendsServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthTrendsServiceProtocol.swift; sourceTree = "<group>"; };
+		24EEEE38B93F07C69DCF30ED /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		250C4DEF3526E776A9F179BB /* IconPreview-StickerBombToybox.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-StickerBombToybox.png"; sourceTree = "<group>"; };
 		25721D36BEBAF77913B109D2 /* SecureStoreProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureStoreProtocol.swift; sourceTree = "<group>"; };
 		2573EFA3B69C8859EC660995 /* KeychainSecureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainSecureStore.swift; sourceTree = "<group>"; };
@@ -946,6 +951,7 @@
 		EE1A9E3E373FE488B6548295 /* ModelSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelSelector.swift; sourceTree = "<group>"; };
 		EF1134E862B553380F2CA913 /* DeviceHealthTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceHealthTool.swift; sourceTree = "<group>"; };
 		EFC335534070FF9A84A3D3C2 /* IconPreview-KaijuAttack.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-KaijuAttack.png"; sourceTree = "<group>"; };
+		F003D8D38FFD1BF2755F625A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F04C12A5058B9C64D4E33D9F /* LiveHealthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveHealthService.swift; sourceTree = "<group>"; };
 		F07190DC863BEEC78D8676BB /* ShareInboxCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareInboxCore.swift; sourceTree = "<group>"; };
 		F0DD777FA8C7A1E450D9343F /* IconPreview-Default.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-Default.png"; sourceTree = "<group>"; };
@@ -1253,6 +1259,7 @@
 				F7EF7C1C1B42AD37C29AA1BB /* HermesTimelineProvider.swift */,
 				8A3D34B1ECAAC5E9F2972E23 /* HermesWidgetBundle.swift */,
 				E7F426FD56C06264562B21C0 /* Info.plist */,
+				24EEEE38B93F07C69DCF30ED /* PrivacyInfo.xcprivacy */,
 				51D3C8A5DD8B31346F8649D7 /* TalariaAlarmLiveActivity.swift */,
 				29B36AC98223CC3A98046CEB /* TalariaWidgets.entitlements */,
 				3396670D4A59E5D8808A7AB3 /* WidgetTheme.swift */,
@@ -1519,6 +1526,7 @@
 				E3AA2540C07B68696A6C360F /* Fonts */,
 				6CE4EEAC02A092183861BD65 /* Assets.xcassets */,
 				97A4A4DFFDB1378E800FD55A /* Info.plist */,
+				F003D8D38FFD1BF2755F625A /* PrivacyInfo.xcprivacy */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -1642,6 +1650,7 @@
 			isa = PBXGroup;
 			children = (
 				A47507194C521CFDBCF8486B /* Info.plist */,
+				19B057142402EDCE3E248E9A /* PrivacyInfo.xcprivacy */,
 				F07190DC863BEEC78D8676BB /* ShareInboxCore.swift */,
 				130E0FA1859ADE8DE9A33188 /* ShareViewController.swift */,
 				C961081B12E72D6D72217B6B /* TalariaShare.entitlements */,
@@ -1831,6 +1840,7 @@
 			buildConfigurationList = DAE8E79BC8D94C4A5611AA3D /* Build configuration list for PBXNativeTarget "TalariaWidgets" */;
 			buildPhases = (
 				D4551E847F194351D42E8A17 /* Sources */,
+				8017311325CB413A44CDA9B4 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -1871,6 +1881,7 @@
 			buildConfigurationList = 6AC7AC3F4BF582D1E0B88B3C /* Build configuration list for PBXNativeTarget "TalariaShare" */;
 			buildPhases = (
 				D9874E5811A9E3DCE1959377 /* Sources */,
+				5491942C4FD2403604CBE992 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -2080,9 +2091,26 @@
 				C39781914870CF7644CD7132 /* JetBrainsMono-Bold.ttf in Resources */,
 				8698DF20693C5FD368744A01 /* JetBrainsMono-Medium.ttf in Resources */,
 				50868BE2CD8995BCB39A72B4 /* JetBrainsMono-Regular.ttf in Resources */,
+				5E021FABF9925B73DB14923E /* PrivacyInfo.xcprivacy in Resources */,
 				0C112C1989A5363AF0993416 /* SpaceGrotesk-Bold.ttf in Resources */,
 				E66E1DCD6DDC6DFDF214ED71 /* SpaceGrotesk-Medium.ttf in Resources */,
 				04B7BB6774E1A29A8EB78C7B /* SpaceGrotesk-Regular.ttf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5491942C4FD2403604CBE992 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FB42759C6395CE1AE7601D11 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8017311325CB413A44CDA9B4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F99F9D950CC11DBA11C4D952 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
