@@ -5986,3 +5986,33 @@ Owen flagged that Hermes supports Projects natively in the desktop app, contradi
 **Install SHA note:** #158 recorded upstream `e57918ac` from K3. Local HEAD at `~/.hermes/hermes-agent` read `d8bf3df255` (2026-07-22 02:53Z) shortly after. Treat `UPSTREAM_TESTED_SHA` as approximate until a clean simultaneous capture; the two may differ by an update landing mid-session.
 
 Logged 2026-07-22.
+
+## 160. 🎨 hermex UI/UX design reference — Tasks, Skills, Projects (K3 analysis 2026-07-22)
+
+Dispatched to K3 on OJAMD (session `api_1784723772_f27fa635`, clone at `O:\Hermes\scratch\hermex`). Design reference only — the brief explicitly forbade pasting their Swift, so provenance stays clean per `THIRD_PARTY_LICENSES.md`. Feeds #156a/b and #159's revised 156e.
+
+**⚠️ CRITICAL MISMATCH — their Projects interaction does not port.** hermex sessions carry an explicit project assignment, so "Move to Project" is a cheap session mutation. Per #159, hermes-agent has **no `project_id`** — grouping is derived by matching session `cwd` against `projects.primary_path`/`project_folders.path`. Moving a session between projects on our backend would mean **re-anchoring its working directory**, which is a heavier and semantically different act (`tools/project_tools.py` wires a workspace callback for exactly this reason and calls switching "a deliberate act, never a side effect of a terminal cd"). Copy their *presentation* (sidebar filter rows, counts, colour identity, create-in-context); do NOT copy their *move* affordance until we decide what "move" even means for us. Likely answer: we don't offer move at all, and projects are read-only groupings on the phone.
+
+**Architecture verdict: their view-model layer is directly copyable.** `@MainActor @Observable` view model + SwiftUI view + tolerant `Decodable` models throughout. That pattern is Swift 6-safe as-is.
+
+**DO-NOT-COPY under strict concurrency** (they are iOS 18 / Swift 5.9):
+- 15+ mutable `static let shared` singletons holding caches (image cache, link-preview cache, audio playback centre, favourites store). Each needs actor/`@MainActor`/Sendable treatment. Inject per-feature stores instead.
+- `extension String: @retroactive Identifiable` — a module-wide conformance on `String` existing solely to feed one `.sheet(item:)`. Use a wrapper struct.
+- Block-based `UNUserNotificationCenter` completion handlers with captured state.
+- Views constructing an API client ad hoc per call inside the view body — defeats cancellation and identity, and will fight actor isolation.
+
+**Three ideas worth stealing:**
+1. **Server-driven picker with free-text fallback.** Optional endpoint: nil/empty → degrade to a plain text field; a current value absent from the server's list is preserved as a marked "(custom)" row so editing never clobbers a legacy value. Zero data loss across server versions. Directly applicable to our model/provider/deliver pickers.
+2. **Optimistic mutation with per-item in-flight guard and rollback**, plus a small `upsert`/`delete` mutation enum passed from detail back up to the list so both stay in sync without a refetch. List and detail never disagree, never flicker.
+3. **Client-side status derivation, including a synthesised state the server never sends.** They compute active/paused/off/error/needs-attention from a pile of optional fields, inventing "Needs Attention" (recurring + disabled + no next run). The UI ends up more truthful than the API. Pairs with lossy decoders so server type drift never blanks a screen.
+
+**Three decisions to avoid:**
+1. **The blind cron field.** Their schedule input is a bare free-text `TextField`; validation checks non-empty and nothing else; no presets, no humanised preview, no next-fire confirmation. Invalid syntax is discovered only via server round-trip. The hardest input in the app is the least assisted. **For Talaria: preset picker (hourly/daily/weekly + interval steppers) emitting the string, raw mode behind an Advanced toggle, and a live "next 3 runs" preview.** Note our server accepts several schedule syntaxes (cron expression, interval, one-shot timestamp) — same tolerance, so a preset UI is purely additive.
+2. **Errors rendered as fake content** — a failed file load becomes the literal text shown in the reader sheet. Error states must be error states.
+3. **No staleness management on Tasks/Skills.** Elapsed time is a load-time snapshot with no timer or polling, so "Running now" is lying within 30 seconds. Either poll while a job runs or timestamp the data. They *did* build a proper offline/cached state for sessions (banner + all mutations disabled while cached) and simply never extended it — the pattern is right, the coverage is partial.
+
+**Worth stealing that is not a feature:** they maintain `docs/agents/feature-gap-index.md`, a machine-readable deferral registry with priority *and* safety columns — and consequently have **zero TODO/FIXME comments** in these three feature areas. Deferrals live in a triage doc with an owner rather than rotting in code. Notably several entries are deferred explicitly as "App Store/safety-sensitive" (terminal, command exec, file editing) — deliberate review-risk management, directly relevant to our own submission plans.
+
+**Scope note for 156b:** they judged a mobile SKILL.md editor not worth building — skills are read-only plus an enable/disable toggle, with create/save/delete left on their roadmap. That matches what our server exposes anyway (#158: `GET /v1/skills` is read-only, no enabled flag). Agreeing with their scoping costs us nothing.
+
+Logged 2026-07-22.
