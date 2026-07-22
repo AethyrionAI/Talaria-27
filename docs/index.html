@@ -279,7 +279,7 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
     <p class="slabel">// WHAT IT IS</p>
     <h2 class="stitle">Your phone. Your agent. Your backend.</h2>
     <p class="sbody">
-      Talaria is a native SwiftUI iPhone app that connects directly to a Hermes AI agent you host yourself. There is no cloud, no managed relay, no subscription — just your device talking to your machine over your network.
+      Talaria is a native SwiftUI iPhone app that runs a full chat brain on-device — and pairs with a Hermes AI agent you host yourself for the rest. There is no cloud, no managed relay — just your device talking to your machine over your network.
     </p>
     <br>
     <p class="sbody">
@@ -396,8 +396,8 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
   <div class="setup-inner">
     <div class="setup-hdr">
       <p class="slabel">// GETTING STARTED</p>
-      <h2 class="stitle">Self-host in five steps.</h2>
-      <p class="sbody">You need a machine running Hermes, a Tailscale network, and Xcode to build the app. There is no TestFlight or App Store distribution.</p>
+      <h2 class="stitle">Self-host in seven steps.</h2>
+      <p class="sbody">The app runs on-device with no host at all. To pair your own agent you need a machine running Hermes, a Tailscale network, and Xcode to build the app. There is no TestFlight or App Store distribution.</p>
     </div>
     <div class="steps">
 
@@ -426,13 +426,33 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
         <div class="step-body">
           <div class="step-title">DEPLOY THE RELAY SIDECAR</div>
           <p class="step-text">
-            Clone this repo and run the HermesMobile relay from <code>relay/</code>. Set <code>AGENT_FILES_DIR</code> in your <code>.env</code> for agent file downloads. The relay handles sensor delivery and the optional voice WebRTC bootstrap. Bind to <code>0.0.0.0</code> so your phone can reach it over Tailscale.
+            Clone this repo and run the HermesMobile relay from <code>relay/</code>. Set <code>AGENT_FILES_DIR</code> in your <code>.env</code> for agent file downloads, and change <code>INTERNAL_API_KEY</code> from its default. The relay carries pairing and auth, sensor ingestion, APNs push, the inbox/directives channel, scheduled runs, agent-file downloads, and the voice WebRTC bootstrap — everything phone-facing except chat, which talks straight to the gateway. Bind to <code>0.0.0.0</code> so your phone can reach it over Tailscale.
           </p>
         </div>
       </div>
 
       <div class="step">
         <div class="step-n">04</div>
+        <div class="step-body">
+          <div class="step-title">INSTALL AND RUN THE CONNECTOR</div>
+          <p class="step-text">
+            From <code>connector/</code>, create a venv, <code>pip install -e .</code>, then run <code>hermes-mobile setup</code>. The connector is the host-side bridge that owns the durable relay connection, registers the <code>hermes_mobile</code> MCP server (the sensor tools your agent calls), and prints phone-pairing codes. Without it, the sensor pipeline and inbox go nowhere.
+          </p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">05</div>
+        <div class="step-body">
+          <div class="step-title">RUN THE MODELS SHIM (OPTIONAL)</div>
+          <p class="step-text">
+            Only needed for live model switching. Run <code>python shim.py</code> from <code>tools/models-shim/</code>; it listens on <code>:8765</code>. It imports Hermes internals, so run it from a Python environment where Hermes is installed, and set <code>TALARIA_SHIM_HOST</code> explicitly — the default is the author's own tailnet IP. Auth is a Bearer token at <code>~/.hermes/talaria_shim_token</code>.
+          </p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">06</div>
         <div class="step-body">
           <div class="step-title">BUILD TALARIA IN XCODE</div>
           <p class="step-text">
@@ -442,11 +462,11 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
       </div>
 
       <div class="step">
-        <div class="step-n">05</div>
+        <div class="step-n">07</div>
         <div class="step-body">
-          <div class="step-title">PAIR VIA THE ONBOARDING SCREEN</div>
+          <div class="step-title">LAUNCH, THEN PAIR (OPTIONAL)</div>
           <p class="step-text">
-            On first launch, Talaria shows the pairing screen. Enter your host's Tailscale IP or hostname, the gateway port (<code>8642</code>), and your <code>API_SERVER_KEY</code>. The app connects directly — no account, no cloud login.
+            On first launch the app works immediately in on-device mode — no account, no cloud login. To connect your Hermes machine, run <code>hermes-mobile pair-phone</code> on the host: it prints a QR code and a short-lived 8-character code. In the app, scan the QR or tap <strong>Enter Code Manually</strong>, paste your relay URL, and enter the code. For hosted chat, go to <strong>Settings → Uplink</strong> and enter your gateway URL (<code>http://your-host:8642</code>) and that host's <code>API_SERVER_KEY</code>. Each paired profile keeps its own key in the Keychain.
             <br><br>
             ⚠️ If you use iCloud Private Relay, disable it for Tailscale IPs or the app will not be able to reach your services.
           </p>
