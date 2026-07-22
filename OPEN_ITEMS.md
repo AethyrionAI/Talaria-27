@@ -5869,3 +5869,26 @@ Scope: larger than the #151/#152 micro-lane — this is the "Settings → Server
 Source-confirm owed (next Mac shell): how are hosts stored today — single host record or already an array? (grep host/profile model under Talaria; check SettingsStore / whatever holds pairing state). If it's still single-host, #153 is partly a data-model lane, not just UI — size accordingly. Confirm Keychain key layout for per-host secrets before wiring delete.
 
 Logged 2026-07-20.
+
+## 154. 🧹 Dead `#available(iOS …)` guards after the deployment-floor bump to 27.0
+
+Surfaced 2026-07-21 while landing PR #132 (deployment floor). `project.yml` had declared the floor twice and disagreed with itself — `options.deploymentTarget.iOS: "27.0"` versus an explicit `settings.base.IPHONEOS_DEPLOYMENT_TARGET: "26.0"`. The explicit build setting wins in XcodeGen, so the real shipping floor had been **26.0** despite Requirements claiming 27. #132 removed the stale override; the floor is now genuinely 27.0.
+
+Consequence: every `#available(iOS …)` guard in the app is now always-true, and each `else` branch behind one is unreachable dead code. 11 sites:
+
+- `27.0` × 8 — `Talaria/Services/Live/LocalChatBackend.swift` lines 162, 171, 190, 210, 245, 430, 735, 792
+- `27.0` × 1 — `TalariaWidgets/HermesStatusWidget.swift:34`
+- `26.4` × 1 — `Talaria/Services/Live/LocalIntelligenceService.swift:271`
+- `26.0` × 1 — `Talaria/Services/Live/SensorUploadService.swift:973`
+
+**Not a bug, and not urgent.** An always-true guard takes the correct branch, so behaviour is right today. Swift emitted no warning for any of these — the 931/84 suite passed clean on beta-4 with zero availability diagnostics. This is cleanup, not a defect.
+
+Why it's worth doing anyway: the dead `else` branches are iOS-26 fallback paths that can no longer execute. They read as live code to anyone reviewing `LocalChatBackend` (8 of the 11 are there, i.e. the on-device FoundationModels path — the newest and least-worn subsystem), which invites someone maintaining a fallback that is structurally unreachable.
+
+Scope note: deliberately kept OUT of #132. That PR was a config change with a mechanical pbxproj regen; deleting branches across 11 sites is a refactor and needs its own review and test pass. Do not fold them together retroactively.
+
+Source-confirm owed before dispatching: for each site, check whether the `else` branch is genuinely dead or whether the guard wraps something with a non-trivial fallback worth preserving as a comment. `LocalChatBackend` clustering suggests several may be one logical guard repeated — collapse rather than delete one-by-one if so. Also confirm nothing in `TalariaTests` asserts on the fallback path (a test exercising unreachable code would still pass and would mask the deletion).
+
+Related: the floor mismatch was invisible to CI by construction — SDK and deployment target are orthogonal, so a 27-SDK build with a 26 floor compiles clean and stays green forever. Nothing in the sim matrix ever exercised a real 26 runtime. Worth remembering the next time "the tests are green" is treated as evidence about deployment posture.
+
+Logged 2026-07-22.
