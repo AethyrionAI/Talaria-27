@@ -8,6 +8,10 @@ import SwiftUI
 struct TaskEditSheet: View {
     let store: CronJobsStore
     @State var draft: CronJobDraft
+    /// #156b D5: feeds the skills picker. nil (bare test containers, or a
+    /// failed fetch leaving the store empty-unloaded) degrades the field to
+    /// the 156a free text — degrade, don't block.
+    var skillsStore: SkillsStore?
 
     @Environment(\.dismiss) private var dismiss
     @State private var isSaving = false
@@ -70,6 +74,11 @@ struct TaskEditSheet: View {
                 // Best-effort platform list for the deliver picker; failure
                 // just means free text (D5).
                 await store.refreshDeliverPlatforms()
+            }
+            .task {
+                // #156b D5: best-effort skill list for the skills picker —
+                // same degradation contract.
+                await skillsStore?.refresh()
             }
             .interactiveDismissDisabled(isSaving)
         }
@@ -168,22 +177,15 @@ struct TaskEditSheet: View {
         }
     }
 
+    /// #156b D5 — the picker 156a's free-text field promised. Fed from the
+    /// gateway skill list; a failed fetch leaves the field free text exactly
+    /// as it was.
     private var skillsField: some View {
         fieldGroup("SKILLS") {
-            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
-                TextField("", text: $draft.skillsText,
-                          prompt: Text("skill-one, skill-two (optional)")
-                              .foregroundStyle(Design.Colors.dimForeground))
-                    .font(Design.Typography.mono(12))
-                    .foregroundStyle(Design.Colors.foreground)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .padding(.horizontal, Design.Spacing.sm)
-                    .frame(height: 44)
-                    .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
-                MonoLabel("COMMA-SEPARATED SKILL NAMES ON THE HOST", size: 8,
-                          tracking: Design.Tracking.mono, color: Design.Colors.dimForeground)
-            }
+            TaskSkillsPicker(
+                skillsText: $draft.skillsText,
+                skills: (skillsStore?.hasLoaded == true) ? skillsStore?.skills : nil
+            )
         }
     }
 

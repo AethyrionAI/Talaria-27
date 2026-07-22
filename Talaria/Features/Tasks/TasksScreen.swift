@@ -33,7 +33,8 @@ struct TasksScreen: View {
         }
         .sheet(isPresented: $showCreateSheet) {
             if let store = container.cronJobsStore {
-                TaskEditSheet(store: store, draft: CronJobDraft())
+                TaskEditSheet(store: store, draft: CronJobDraft(),
+                              skillsStore: container.skillsStore)
             }
         }
     }
