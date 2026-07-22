@@ -5892,3 +5892,37 @@ Source-confirm owed before dispatching: for each site, check whether the `else` 
 Related: the floor mismatch was invisible to CI by construction — SDK and deployment target are orthogonal, so a 27-SDK build with a 26 floor compiles clean and stays green forever. Nothing in the sim matrix ever exercised a real 26 runtime. Worth remembering the next time "the tests are green" is treated as evidence about deployment posture.
 
 Logged 2026-07-22.
+
+## 155. 📌 Capture the real UPSTREAM_TESTED_SHA value
+
+`UPSTREAM_TESTED_SHA` landed seeded with `version=unknown` / `verified=never` rather than a guessed SHA. Owed: on the next OJAMD verification pass, record the actual Hermes Agent commit (or `hermes --version` string if the commit is not determinable) and the date chat + sessions + model switching were verified end-to-end against the running host.
+
+Why it matters: Talaria depends on undocumented upstream surfaces — the Sessions API SSE taxonomy (#154's sibling concern), the `/api/sessions` shape with id at `.session.id`, and the shim's `hermes_cli` imports. The 931-test suite verifies our parser against our own fixtures, not against a live host, so an upstream change breaks the app with no compile error and no red test. The pin does not prevent that; it makes the blast radius diagnosable instead of mysterious.
+
+Pattern borrowed from hermex (`uzairansaruzi/hermex`), which pins its upstream `hermes-webui` commit and requests it in bug reports.
+
+Logged 2026-07-22.
+
+## 156. 🧭 Agent introspection surface — Tasks, Skills, Memory, Insights, Projects, mid-run steering
+
+Competitive review 2026-07-22 against hermex (`uzairansaruzi/hermex`, MIT, App Store, iOS 18). **Important framing: hermex is a client for `nesquena/hermes-webui`, NOT NousResearch/hermes-agent.** Different upstream server entirely; the name collision is coincidental. So this is not feature parity with a direct competitor — it is a catalogue of capability categories Talaria has no answer for, found by looking at a neighbouring app.
+
+The pattern: Talaria is strong on **phone embodiment** (sensors, voice, device tool belt, push, on-device chat — none of which hermex has) and has **nothing** in **agent introspection**. Owen selected all six for scoping.
+
+Six sub-lanes, sized roughly:
+
+**156a — Tasks (view/edit scheduled cron jobs).** Best fit for existing architecture: the relay already runs `scheduler.py` and drives the daily briefing, so there is a scheduling plane to expose rather than invent. Source-confirm owed: does `scheduler.py` expose read/update endpoints, or only internal scheduling? Does Hermes itself own cron state that the relay merely triggers? Answer decides whether this is a UI lane or a relay-API lane.
+
+**156b — Skills browser (browse/search installed skills).** Hermes owns a skills concept and `skills/hermes-ios/SKILL.md` exists in-repo, so skills are discoverable server-side. Likely a read-only list + search screen. Source-confirm: is there a gateway or MCP surface that enumerates installed skills, or would the relay need a new endpoint?
+
+**156c — Memory panel (read agent memory).** Read-only. Source-confirm: where does hermes-agent persist memory, and is it reachable without the privileged dashboard plane (:9119)? If it is dashboard-only, this inherits the same "do not run the privileged plane" constraint that produced the models shim — may need a similarly narrow shim surface rather than exposing the dashboard.
+
+**156d — Insights (usage analytics).** Partially plumbed already: token/CTX accounting exists. NOTE the trap from #25 — `token_count` per stored message is null on 100% of rows, and session-level `input_tokens` is cumulative billing, not context occupancy. Any analytics panel built on those fields inherits that distortion. Resolve #25's semantics before rendering numbers a user would trust.
+
+**156e — Projects (group sessions into projects).** Sessions are currently flat. This is a data-model lane before it is a UI lane, and it overlaps #153's multi-host list work — both touch how sessions/hosts are stored and selected. Sequence after #153 or fold in.
+
+**156f — Steer a run mid-flight.** Distinct from stop, which already exists. Injecting guidance into a running turn requires the Sessions API to accept mid-run input. Source-confirm FIRST: does `/api/sessions/{id}/chat/stream` support any mid-run injection, or is a turn atomic once started? If atomic, this lane is blocked upstream and should be closed rather than designed around.
+
+Do not dispatch as one lane. 156a and 156b are the cheap ones and are the suggested first PR; 156c/156d/156e need their source-confirms answered first; 156f may be impossible and should be checked before any design work.
+
+Logged 2026-07-22.
