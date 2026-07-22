@@ -366,6 +366,7 @@ struct ConversationListPane: View {
                 archivedFilterRow
             }
             tasksRow
+            skillsRow
             footer
         }
         .frame(maxHeight: .infinity, alignment: .top)
@@ -627,6 +628,37 @@ struct ConversationListPane: View {
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.xs)
         .accessibilityLabel("Scheduled tasks")
+    }
+
+    /// #156b: entry to the installed-skills browser — unconditional like
+    /// tasksRow; the screen owns its not-configured state.
+    private var skillsRow: some View {
+        Button {
+            container.router.navigate(to: .skills)
+            dismissHost?()
+        } label: {
+            HStack(spacing: Design.Spacing.xs) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+                MonoLabel("SKILLS", size: 10, weight: .medium,
+                          tracking: Design.Tracking.mono,
+                          color: Design.Colors.secondaryForeground)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Design.Colors.dimForeground)
+            }
+            .padding(.horizontal, Design.Spacing.sm)
+            .frame(height: 40)
+            .contentShape(Rectangle())
+            .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
+        }
+        .buttonStyle(.plain)
+        .hoverEffect(.highlight)
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.top, Design.Spacing.xs)
+        .accessibilityLabel("Skills")
     }
 
     private var footer: some View {

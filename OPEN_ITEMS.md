@@ -6110,3 +6110,50 @@ comments document, in a flow this lane does not touch. Not chased here.
       the device-local instant picked
 
 Logged 2026-07-22.
+
+## 163. 🧩 156b Skills lane BUILT — read-only skills browser + cron skills picker on branch `claude/t27-156b-skills-browser`
+
+Dispatch `dispatch/FABLE-T27-156B-skills-browser.md` executed 2026-07-22 on the Mac Mini
+(Xcode-beta4 toolchain). All six deliverables, one PR, zero new infrastructure (#161
+held — one existing gateway endpoint, `GET /v1/skills` on `:8642`, same
+`API_SERVER_KEY` auth plane as chat and Tasks).
+
+**What shipped:** `Skill` tolerant model + `SkillsPresentation` grouping/search math
+(D2 — Uncategorized last, case-insensitive ordering, client-side sort), `SkillsService`
+over the one skill route (D1), `SkillsStore` with the Tasks-posture load/error state,
+SkillsScreen with the five explicit content states — including the search-no-matches
+state echoing the query, the one state Tasks lacks (D3) — expand-in-place rows instead
+of a detail screen (no detail endpoint exists), drawer SKILLS row + `.skills` route
+(D4), and `TaskSkillsPicker` closing the 156a debt at `TaskScheduleDraft` (D5): a
+multi-select sheet fed from the same store, preserve-unknown-values ("(custom)" rows
+stay selected; a hand-typed legacy value survives any unrelated edit), free-text
+degrade when the fetch fails, and the comma-separated wire format unchanged. 44 tests
+in 4 suites (D6).
+
+**Scope holds from the dispatch (do not relitigate):** no enable/disable toggle (the
+handler filters to enabled skills; no flag in the payload — read-only IS the honest
+surface), no skill detail screen, and the composer autocomplete keeps its relay
+`/v1/commands` catalog — the two planes can disagree and that is expected; no
+reconciliation was built.
+
+**Verification:** full suite on the pinned sim (47F68496): Swift Testing
+`1051 tests in 92 suites passed` (baseline 1007/88 + this lane's 44/4). XCUITests 7/8
+on the bundle run — the one failure is exactly the #162-documented
+`testDisconnectReturnsToStandaloneChat` bundle-warm flake (untouched flow); passed
+clean on a solo rerun. `aps-environment: development` verified after regen.
+
+**Owed — device checklist (next session with the phone):**
+- [ ] Drawer → SKILLS renders the real host list (~98 on the Mac host) grouped by
+      category, Uncategorized last
+- [ ] Search filters live across name/description/category; a garbage query shows the
+      "No skills match" state echoing the query
+- [ ] Expand a row with a long multi-line description — full text, newlines intact;
+      collapse restores the 2-line preview
+- [ ] Pull-to-refresh; then airplane-mode refresh keeps rows on screen with the
+      REFRESH FAILED strip (never a replacement)
+- [ ] Cron editor: SKILLS field shows the picker fed from the host list; a hand-typed
+      value renders "(custom)" and survives an unrelated edit round-trip; with the
+      gateway unreachable the field stays free text
+- [ ] EDIT AS TEXT escape works and round-trips back through the picker
+
+Logged 2026-07-22.

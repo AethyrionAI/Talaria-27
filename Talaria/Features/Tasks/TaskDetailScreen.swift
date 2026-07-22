@@ -35,7 +35,8 @@ struct TaskDetailScreen: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .sheet(isPresented: $showEditSheet) {
             if let store = container.cronJobsStore, let job = store.job(id: jobID) {
-                TaskEditSheet(store: store, draft: CronJobDraft(job: job))
+                TaskEditSheet(store: store, draft: CronJobDraft(job: job),
+                              skillsStore: container.skillsStore)
             }
         }
     }
