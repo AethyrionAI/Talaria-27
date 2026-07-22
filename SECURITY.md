@@ -22,7 +22,7 @@ The phone talks directly to the Hermes gateway's Sessions API on `:8642` with Be
 
 ### Relay
 
-The relay handles sensor ingestion and the voice bootstrap:
+The relay carries everything phone-facing except chat: pairing and auth, sensor ingestion, APNs push, the inbox/directives channel, scheduled runs, agent-file downloads, and the voice WebRTC bootstrap.
 
 - **Authentication:** Bearer token auth for iOS clients, connector credential for WebSocket
 - **CONNECTOR_SETUP_SECRET:** Optional shared secret that gates new connector registration. When set as an env var on the relay, the connector must provide the same value during `hermes-mobile setup`. Strongly recommended for production deployments.
