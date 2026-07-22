@@ -69,6 +69,10 @@ final class AppContainer {
     /// Lane M: the concrete Sessions client, kept for the surfaces that are
     /// profile-aware by nature (M-16's new-chat-on-profile override).
     private(set) var sessionsChatClient: SessionsHermesClient?
+    /// #156a: the Tasks (scheduled cron jobs) store — rides the ACTIVE
+    /// profile's gateway endpoint, same auth as the Sessions chat client.
+    /// Nil in bare test containers that construct stores directly.
+    private(set) var cronJobsStore: CronJobsStore?
     /// #116: post-pair provisioning bundle — auto-fills a profile's shim
     /// URL/token (+ empty gateway URL) from the relay after a successful
     /// pair, and backs the Server screen's "Refresh Provisioning" action.
@@ -715,6 +719,20 @@ final class AppContainer {
         container.profileRelaySessions = profileRelaySessions
         container.gatewayKeyCache = gatewayKeyCache
         container.sessionsChatClient = sessionsClient
+        // #156a: Tasks — the cron-jobs surface talks to the same :8642
+        // gateway with the same API key as chat; no relay, no new services
+        // (#161). Bare test containers skip this (nil store → honest
+        // unavailable state).
+        container.cronJobsStore = CronJobsStore(
+            service: CronJobService(
+                baseURLProvider: {
+                    let raw = (profilesStore.activeProfile?.gatewayBaseURL ?? "")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    return raw.isEmpty ? nil : raw
+                },
+                apiKeyProvider: { hermesAPIKeyBox.value }
+            )
+        )
         // #21 Tier 2: fetchable agent-file bubbles download from the
         // announcing session's birth-profile relay (Lane M — never a global
         // relay base), authed with that profile's pairing-minted device

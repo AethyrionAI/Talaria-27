@@ -365,6 +365,7 @@ struct ConversationListPane: View {
             if model.archivedCount > 0 || model.showingArchived {
                 archivedFilterRow
             }
+            tasksRow
             footer
         }
         .frame(maxHeight: .infinity, alignment: .top)
@@ -595,6 +596,37 @@ struct ConversationListPane: View {
         .accessibilityLabel(model.showingArchived
             ? "Back to sessions"
             : "Archived, \(model.archivedCount) session\(model.archivedCount == 1 ? "" : "s")")
+    }
+
+    /// #156a: entry to the agent's scheduled jobs — the drawer is the app's
+    /// navigation home, and future agent surfaces (156b skills) can join it.
+    private var tasksRow: some View {
+        Button {
+            container.router.navigate(to: .tasks)
+            dismissHost?()
+        } label: {
+            HStack(spacing: Design.Spacing.xs) {
+                Image(systemName: "clock.arrow.2.circlepath")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+                MonoLabel("SCHEDULED TASKS", size: 10, weight: .medium,
+                          tracking: Design.Tracking.mono,
+                          color: Design.Colors.secondaryForeground)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Design.Colors.dimForeground)
+            }
+            .padding(.horizontal, Design.Spacing.sm)
+            .frame(height: 40)
+            .contentShape(Rectangle())
+            .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
+        }
+        .buttonStyle(.plain)
+        .hoverEffect(.highlight)
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.top, Design.Spacing.xs)
+        .accessibilityLabel("Scheduled tasks")
     }
 
     private var footer: some View {

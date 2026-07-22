@@ -200,6 +200,10 @@ struct MainTabView: View {
             InboxScreen()
         case .briefing(let item):
             BriefingDetailScreen(item: item)
+        case .tasks:
+            TasksScreen()
+        case .taskDetail(let jobID):
+            TaskDetailScreen(jobID: jobID)
         }
     }
 
