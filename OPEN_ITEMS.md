@@ -6157,3 +6157,24 @@ clean on a solo rerun. `aps-environment: development` verified after regen.
 - [ ] EDIT AS TEXT escape works and round-trips back through the picker
 
 Logged 2026-07-22.
+
+## 164. 🎲 Recurring UI-test flake: `testDisconnectReturnsToStandaloneChat` fails on bundle-warm runs
+
+Promoted to its own item per the rule stated when it first appeared: one occurrence is noise, two is a pattern. Now at **two consecutive lane runs**:
+
+- 156a bundle run (PR #135, noted in #162) — failed in-bundle, passed solo rerun
+- 156b bundle run (PR #136, noted in #163) — identical: failed in-bundle only, passed solo
+
+Same class both times: the tap-timing/bundle-warm behaviour the test's own comments document, in the pairing/disconnect flow — which **neither lane touched**. Both lanes were additive elsewhere (Tasks, Skills), so the flake is orthogonal to the changes that surfaced it; it fires when the XCUITest bundle runs warm after the full unit suite.
+
+Why it matters despite passing on rerun: it is now a **standing tax on every lane's verification** (each bundle run needs a manual rerun-and-eyeball to distinguish this flake from a real disconnect regression), and its failure mode is exactly the shape a real regression in the disconnect flow would take. A flake that impersonates a plausible regression in a flow we rarely touch is the kind that eventually gets a real bug waved through as "oh, that one again".
+
+Scope when picked up (small lane):
+1. Read the test's own comments about tap timing and the bundle-warm condition; reproduce locally with a full-suite run rather than solo.
+2. Prefer fixing the wait condition (explicit existence/hittable predicate on the post-disconnect standalone-chat element) over adding sleeps.
+3. If the wait is already correct and the flake is genuinely environmental (sim warm-state), quarantine deliberately: mark the test's known-flaky status in-code with a comment pointing here — NOT deletion, NOT a blind retry wrapper that would also mask a real regression.
+4. Close criteria: three consecutive full-suite bundle runs green on the pinned sim, or an explicit quarantine decision recorded here.
+
+Not urgent; it costs minutes per lane, not correctness — but it should not survive into the launch-pass test discipline, where "rerun until green" is exactly the habit to have eliminated.
+
+Logged 2026-07-22.
