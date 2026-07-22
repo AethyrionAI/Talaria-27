@@ -6016,3 +6016,30 @@ Dispatched to K3 on OJAMD (session `api_1784723772_f27fa635`, clone at `O:\Herme
 **Scope note for 156b:** they judged a mobile SKILL.md editor not worth building — skills are read-only plus an enable/disable toggle, with create/save/delete left on their roadmap. That matches what our server exposes anyway (#158: `GET /v1/skills` is read-only, no enabled flag). Agreeing with their scoping costs us nothing.
 
 Logged 2026-07-22.
+
+## 161. ❌ 156e Projects — NOT VIABLE, recommend closing. And a no-new-services constraint for the whole #156 arc.
+
+Owen 2026-07-22: Projects do not exist in Talaria at all today (host-only), and **no new shims** — the Models Shim is being phased out and adding another installable service is a cost we are not paying.
+
+**Projects verdict: don't build it.** Three findings compound, and the third is fatal.
+
+1. **Phone sessions cannot join a project.** Grouping is derived from session `cwd` (#159). Verified against the live Mac `state.db`: `api_server` sessions — the ones Talaria creates — are **28 with `cwd` NULL and 8 at `/Users/owenjones`**. Zero have ever landed in a project path. Only `desktop` (2) and `tui` (7) sessions carry project paths.
+2. **We cannot fix that from the client.** `POST /api/sessions` (`api_server.py:2275`) accepts exactly `id`/`session_id`, `model`, `system_prompt`, `title`. There is **no `cwd`/`workdir` parameter**. Adding one is an upstream change, and Owen has ruled out PRs against hermes-agent (#159).
+3. **So the feature reduces to read-only browsing of other clients' sessions.** On real data that is 2 projects covering ~9 sessions, against 238+ sessions with null/home `cwd` — roughly 4% coverage, and none of the phone's own work. Plus we already knew "move to project" cannot port because it would mean re-anchoring a working directory (#160).
+
+A sidebar filter that groups 4% of sessions, none of which the app itself created, is not worth a relay route, a connector handler, and two DB reads. **Recommend closing 156e.** Revisit only if upstream ever accepts `cwd` on session create — at that point the feature becomes "start a session in project X", which is genuinely valuable and would justify the plumbing.
+
+**No-new-services constraint — and the good news.** Worth stating plainly because it reshapes the arc: a **new route on the existing relay is not a shim**. The relay ships and is installed with Talaria already; the Models Shim is a separate process on `:8765` with its own install and service registration, which is what makes it a burden. Those are different costs.
+
+But it turns out we barely need even that. Re-checked against #158:
+
+- **156a Tasks — ZERO new infrastructure.** Full CRUD is already on `:8642` at `/api/jobs`, the same gateway Talaria already authenticates to for chat. Pure client work.
+- **156b Skills — ZERO new infrastructure.** `GET /v1/skills` is on `:8642` already. Read-only, which matches the scope hermex independently landed on (#160).
+- **156d Insights — ZERO new infrastructure**, provided we scope to session totals plus live per-turn usage from `run.completed`. Per-message history stays impossible (#158) regardless of what we build.
+- 156c Memory — the only remaining lane that would need host-side file access, and it is further complicated by Owen's shared Honcho instance (#159). Defer.
+- 156e Projects — closing per above.
+- 156f Steering — parked per #159.
+
+**Net: the three features worth building need no new services, no new installs, and no upstream changes.** They are client work against endpoints the app already talks to. That is a much better position than the arc looked like when #156 was opened.
+
+Logged 2026-07-22.
