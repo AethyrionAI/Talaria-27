@@ -19,6 +19,8 @@ enum Route: Hashable {
     case taskDetail(String)
     /// #156b: read-only browser over the agent's installed skills.
     case skills
+    /// #156d: read-only usage/cost panel over the agent's sessions.
+    case insights
 }
 
 // MARK: - Sheet Destinations
