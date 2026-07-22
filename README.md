@@ -34,10 +34,7 @@ Talaria is a working alpha, developed and used daily on real hardware. Honestly,
 
 Expect rough edges. There is no TestFlight or App Store distribution — you build and sign it yourself.
 
-Two things worth knowing up front:
-
-- **Pairing is optional.** On-device chat works out of the box. Pairing a host adds server sessions, sensor analytics, and your desktop model roster.
-- **The repo contains a dormant monetization scaffold** for a possible future "Connected" supporter tier. It ships inert (`MonetizationConfiguration.isEnabled = false`), there is no App Store product, and the gate rules are pinned so existing pairings always pass — self-hosting your own server is never paywalled.
+One thing worth knowing up front: **pairing is optional.** On-device chat works out of the box. Pairing a host adds server sessions, sensor analytics, and your desktop model roster.
 
 ---
 

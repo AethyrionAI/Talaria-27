@@ -10,15 +10,21 @@ Talaria is a native iOS app + relay sidecar built specifically for self-hosters 
 
 - Check [OPEN_ITEMS.md](OPEN_ITEMS.md) — active work items and known issues are tracked there
 - For anything architecture-affecting, open an issue first to align before writing code
-- The iOS app requires Xcode with the **iOS 26 SDK** (Xcode-beta as of mid-2026)
+- The iOS app requires Xcode with the **iOS 27 SDK** (Xcode 27 beta — `Xcode-beta4.app` as of mid-2026)
 
 ## Development setup
 
 **iOS app**
 
 ```bash
-# Requires Xcode (iOS 26 SDK)
+# Requires Xcode 27 beta (iOS 27 SDK).
+# The .xcodeproj is generated from project.yml — generate it first.
+xcodegen generate
 open Talaria.xcodeproj
+
+# Building from the command line with several Xcodes installed?
+# Point at the beta toolchain first, or iOS 27 APIs fail to resolve:
+export DEVELOPER_DIR=/Applications/Xcode-beta4.app/Contents/Developer
 ```
 
 > ⚠️ The project uses explicit source file listings via XcodeGen. If you add or remove Swift files, run `xcodegen generate` and commit the regenerated `project.pbxproj`.
@@ -30,6 +36,17 @@ cd relay
 pip install -e .
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
+
+**Connector**
+
+```bash
+cd connector
+python -m venv .venv && source .venv/bin/activate
+pip install -e .
+hermes-mobile setup
+```
+
+Required for the sensor pipeline and inbox — it registers the `hermes_mobile` MCP tools and prints pairing codes. Chat works without it; sensors and inbox do not.
 
 **Models shim**
 
@@ -47,14 +64,25 @@ python shim.py
 
 ## Testing
 
-The relay has a test suite. Run it before submitting relay changes:
+**iOS app** — there is a substantial automated suite (Swift Testing for units, XCUITest for launch/UI). Run it before submitting app changes:
+
+```bash
+export DEVELOPER_DIR=/Applications/Xcode-beta4.app/Contents/Developer
+xcodebuild test -project Talaria.xcodeproj -scheme Talaria \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+  CODE_SIGNING_ALLOWED=NO
+```
+
+Note that Swift Testing and XCTest report separately. Look for the `Test run with N tests in M suites passed` line for the unit suite — the `Executed N tests` line only covers the XCUITest target, so reading that alone badly undercounts. Device-only behaviour (push, HealthKit, real voice) still needs on-device verification.
+
+**Relay** — has its own suite:
 
 ```bash
 cd relay
 pytest
 ```
 
-The iOS app has no automated test suite — changes are verified on-device.
+Run bare `pytest`; the project's `pyproject` already sets `addopts = -q`, and passing `-q` again doubles it and suppresses the summary.
 
 ## Not in scope
 

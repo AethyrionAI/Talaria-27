@@ -1,5 +1,41 @@
 # Talaria — Clean Chat Path
 
+> **Status: Phases 0–3 are complete and shipped.** Everything below the
+> "Verified SSE contract" section is the *original planning document*, kept for
+> history. Read it as a record of how the chat path was built, not as
+> instructions — several details in it are deliberately not updated (it
+> references `HermesMobile/` paths that are now `Talaria/`, a TestFlight step
+> that is explicitly out of scope, and open questions that have since been
+> answered). The authoritative parts are in this header.
+
+## Verified SSE contract
+
+Implemented in `Talaria/Services/Live/SessionsHermesClient.swift`. These are the
+event names the client actually switches on, confirmed against the parser:
+
+| Event | Meaning |
+|---|---|
+| `run.started` | Turn began |
+| `assistant.delta` | Clean answer chunk — this is the visible response text |
+| `tool.started` / `tool.completed` | Tool invocation lifecycle |
+| `tool.progress` | Progress payload. When `tool_name` is `_thinking`, this is a **reasoning delta** and belongs on the reasoning channel — never folded into the answer |
+| `assistant.completed` | Answer finished |
+| `run.completed` | Full transcript plus usage |
+| `done` | Stream terminator |
+
+Reasoning and answer are separate channels. Folding `_thinking` output into
+`assistant.delta` text is the specific bug this separation exists to prevent.
+
+Session creation is `POST /api/sessions`; the id is at `.session.id`, not at the
+top level. Auth is `Authorization: Bearer <API_SERVER_KEY>` on every request.
+
+> Note: there is no `message.started` event in the parser. If you are working
+> from memory or from an older summary that lists one, it is wrong.
+
+---
+
+## Original planning document (historical)
+
 The plan for replacing Talaria's chat layer so it talks directly to the Hermes API server's Sessions API on port 8642 (structured JSON/SSE), instead of the relay → connector → Hermes-CLI pipe.
 
 Save this in the repo (e.g. repo root). Xcode's AI chat is ephemeral; this file is the durable source of truth. Hand the agent one Phase at a time.
