@@ -73,6 +73,10 @@ final class AppContainer {
     /// profile's gateway endpoint, same auth as the Sessions chat client.
     /// Nil in bare test containers that construct stores directly.
     private(set) var cronJobsStore: CronJobsStore?
+    /// #156b: the installed-skills browser store — same gateway endpoint +
+    /// auth plane as the cron jobs store; read-only (`GET /v1/skills` is the
+    /// only skill route). Nil in bare test containers.
+    private(set) var skillsStore: SkillsStore?
     /// #116: post-pair provisioning bundle — auto-fills a profile's shim
     /// URL/token (+ empty gateway URL) from the relay after a successful
     /// pair, and backs the Server screen's "Refresh Provisioning" action.
@@ -725,6 +729,19 @@ final class AppContainer {
         // unavailable state).
         container.cronJobsStore = CronJobsStore(
             service: CronJobService(
+                baseURLProvider: {
+                    let raw = (profilesStore.activeProfile?.gatewayBaseURL ?? "")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    return raw.isEmpty ? nil : raw
+                },
+                apiKeyProvider: { hermesAPIKeyBox.value }
+            )
+        )
+        // #156b: Skills — the read-only installed-skills browser rides the
+        // same gateway endpoint and key as Tasks (#161: zero new
+        // infrastructure). Also feeds the cron editor's skills picker (D5).
+        container.skillsStore = SkillsStore(
+            service: SkillsService(
                 baseURLProvider: {
                     let raw = (profilesStore.activeProfile?.gatewayBaseURL ?? "")
                         .trimmingCharacters(in: .whitespacesAndNewlines)

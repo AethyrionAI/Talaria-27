@@ -17,6 +17,8 @@ enum Route: Hashable {
     /// #156a: task detail carries only the job id — both screens read the
     /// same CronJobsStore row, so they can never disagree.
     case taskDetail(String)
+    /// #156b: read-only browser over the agent's installed skills.
+    case skills
 }
 
 // MARK: - Sheet Destinations
