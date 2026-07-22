@@ -6236,3 +6236,11 @@ criteria want. `aps-environment: development` verified after regen.
 - [ ] Unpaired/bare profile: honest NO HERMES HOST CONFIGURED state
 
 Logged 2026-07-22.
+
+## 157 — CLOSED 2026-07-22. Verbatim WebRTC BSD-3 notices reproduced in THIRD_PARTY_LICENSES.md
+
+Spliced programmatically from the distributed package (SPM checkout, pinned 130.0.0) rather than retyped. Both notices the package carries are reproduced: stasel/WebRTC packaging BSD-3 + Google WebRTC project BSD-3; the binary XCFramework's embedded LICENSE (the Google notice standalone) is noted.
+
+Correction to the item as filed: **no patent grant exists in the distributed package** (zero patent mentions in either file, verified against the checkout and the xcframework). The upstream webrtc.org PATENTS file is not part of what Talaria redistributes and is deliberately not reproduced — the entry states the absence.
+
+Remaining optional follow-on, NOT blocking submission: an in-app acknowledgements screen (Settings → About → Licenses). Conventional but not required by App Review; the repo-level reproduction satisfies BSD-3 clause 2. Small speccable lane if ever wanted — render THIRD_PARTY_LICENSES.md (already in the repo) in a sheet — but it should not be built speculatively.
