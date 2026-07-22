@@ -6244,3 +6244,29 @@ Spliced programmatically from the distributed package (SPM checkout, pinned 130.
 Correction to the item as filed: **no patent grant exists in the distributed package** (zero patent mentions in either file, verified against the checkout and the xcframework). The upstream webrtc.org PATENTS file is not part of what Talaria redistributes and is deliberately not reproduced — the entry states the absence.
 
 Remaining optional follow-on, NOT blocking submission: an in-app acknowledgements screen (Settings → About → Licenses). Conventional but not required by App Review; the repo-level reproduction satisfies BSD-3 clause 2. Small speccable lane if ever wanted — render THIRD_PARTY_LICENSES.md (already in the repo) in a sheet — but it should not be built speculatively.
+
+## 166. 🍎 App Store review-risk register — hermex's actual submission runbook mapped onto Talaria
+
+Source: hermex's `TESTFLIGHT.md` (741-line maintainer runbook from a shipped App Store app) + their `docs/agents/feature-gap-index.md`, read from a fresh shallow clone 2026-07-22, every claim below verified against their tree or ours, not summarized from memory.
+
+### Their #1 risk does NOT apply to us — verified
+hermex's highest-flagged review risk is their share extension's dynamic `UIApplication`/`openURL:` auto-launch workaround (responder-chain hacks to open the containing app). **Talaria's share extension has zero dynamic-launch code** — recursive grep of `TalariaShare/` for `openURL`/`UIApplication.shared`/responder finds nothing. Our App-Group-staging flow is already the "review-safer alternative" their runbook describes. Do not add auto-launch later without reading their Step 6.
+
+### What WILL hit us, in severity order
+
+**166a — Privacy manifests are missing entirely (highest-probability rejection).** hermex ships `PrivacyInfo.xcprivacy` for both app and share-extension targets (theirs: UserDefaults/CA92.1 required-reason, zero collected data types, tracking=false). Talaria has **none** for any target (app, TalariaWidgets, TalariaShare — verified by find). We indisputably touch required-reason APIs (the sensor outbox rewrites UserDefaults on every tick, #104), so uploads will draw ITMS-91053 rejections. Good news verified: the WebRTC xcframework ships its own per-slice manifests, so the SDK side is covered — only our targets need files. **Speccable, small: three manifest files + project.yml wiring.** HealthKit/location App-Privacy posture: data goes only to the user's own host, never to any developer-accessible endpoint — hermex's "zero collected data types" declaration is the same posture we can defend, but the App Privacy questionnaire answers and a public privacy-policy URL (their hard stop condition) are Owen-side work.
+
+**166b — The global ATS exception may be unnecessary, and hermex is the evidence (testable).** They shipped with NO `NSAllowsArbitraryLoads`. Their only "exception" is `100.64.0.0/10` as an `NSExceptionDomains` KEY — a CIDR literal, which is not a valid domain entry and is almost certainly cosmetic. Yet their HTTP-to-Tailscale traffic works for App Store users, which implies ATS is lenient with bare IP-literal URLs in practice. **Test on a dev build: strip our global exception, hit `http://100.79.222.100:8642` and `:8000`.** If traffic flows, delete `NSAllowsArbitraryLoads` from project.yml — removing the single scariest line a reviewer greps for AND closing the SECURITY.md caveat. If it fails, keep + justify in review notes. Either way the answer becomes recorded fact instead of assumption.
+
+**166c — A Tailscale-only host is structurally unreviewable.** Their stop conditions require a live reviewer-reachable server URL + password in App Store Connect, "server awake" through the review window. A reviewer cannot join a tailnet. **Our saving grace, and it's a big one: on-device mode means the reviewer gets a fully working app with zero setup** — hermex had no equivalent. But paired features (hosted chat, Tasks, Skills, Insights, sensors, voice) must be demonstrable, so launch requires a temporarily public HTTPS review host (`tailscale funnel`/`serve`, or a real domain) for the review window. This is a deployment task + review-notes task, not app code.
+
+**166d — `ITSAppUsesNonExemptEncryption` unset.** Theirs: `false` in Info.plist. Ours: absent from project.yml (verified). Everything we use is exempt-standard (HTTPS, DTLS-SRTP via WebRTC). One-line project.yml addition; avoids the per-upload compliance interrogation.
+
+**166e — Portal capability pre-flight.** Their Step 4 checklist, translated: bundle IDs for app + widgets + share extension registered; App Group enabled across all three; push (aps-environment), HealthKit, Siri/App Intents capabilities on the App ID; CarPlay deliberately NOT requested (parked); automatic signing can mint App Store profiles for all targets. Mechanical, Owner-side, but their runbook exists because archive failures here cost them a cycle.
+
+**166f — Adopt their runbook skeleton.** Stop Conditions / Review Notes template / Known Risk Register / Definition of Ready is a genuinely good structure. Their review-notes template ports almost verbatim (self-hosted server framing, "no in-app account creation or purchase flow" — true for us with the gate inert, and the review build must keep it inert with no dead purchase UI reachable, 2.3.1). Fold into the existing launch-pass doc rather than a new file.
+
+### Recommended sequencing
+166a + 166d are one small speccable lane (manifests + one key). 166b is a 30-minute experiment that should happen BEFORE that lane so the ATS decision lands in the same project.yml commit. 166c/166e/166f are Owen-side prep. None block current development; all block submission.
+
+Logged 2026-07-22.
