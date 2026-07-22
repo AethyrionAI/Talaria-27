@@ -14,7 +14,7 @@ re-forking history.
 ## Start every session with this (non-negotiable)
 
 ```sh
-cd /Users/owenjones/Documents/Claude/Talaria
+cd /Users/owenjones/Documents/Claude/Talaria-27
 git fetch origin
 git status                                   # working-tree state
 git rev-list --left-right --count main...origin/main   # want "0<TAB>0"
@@ -50,10 +50,12 @@ git rev-list --left-right --count main...origin/main   # want "0<TAB>0"
 
 ## Gotchas (bit us for real)
 
-- **`xcodegen generate` strips `aps-environment`** from `Talaria.entitlements` — it regenerates
-  entitlements from `project.yml`, which doesn't declare the push entitlement. After any bare
-  `xcodegen`, check `grep aps-environment Talaria/Talaria.entitlements` before deploying, or the
-  #44 notifications fix silently regresses. (Real fix: declare it in `project.yml`.)
+- **`xcodegen generate` used to strip `aps-environment`** from `Talaria.entitlements`, because it
+  regenerates entitlements from `project.yml`. That real fix has since landed — `project.yml` now
+  declares `aps-environment: development` on the app target (and the widget/share targets carry
+  their own entitlement declarations for the same reason). Still worth a
+  `grep aps-environment Talaria/Talaria.entitlements` after any bare `xcodegen`, since a
+  regression here silently un-fixes #44 notifications.
 - **`xcodegen generate` is still mandatory** when adding/removing Swift files (sources are listed
   explicitly) — just verify entitlements survived.
 - **Stale local `origin/main` cache**: if the Mac hasn't fetched in days, all `git log origin/main`
