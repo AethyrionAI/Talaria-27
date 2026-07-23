@@ -6376,3 +6376,36 @@ Do NOT work around this with a relay endpoint that writes `jobs.json` directly; 
 Scope: 170a is a labelling change in `TaskDetailScreen` and could ride the #168/#169 polish lane. 170b is documentation only — no code.
 
 Logged 2026-07-22.
+
+## 171. ✅ Device checklists #162 / #163 / #165 COMPLETE — 17 pass, 2 partial, 1 untestable, 3 defects filed
+
+Full device pass 2026-07-22, Owen driving on the phone against the Mac Mini host, Claude verifying every claim against the live gateway rather than accepting screen state. Host left clean (0 cron jobs; all `T27TEST*` fixtures deleted, verified).
+
+### #162 Tasks — 7/7 PASS
+- **Empty state** → honest, offers creation inline.
+- **All five presets** created and round-tripped against what the server actually stored: interval → `{kind:interval, minutes:30}`; daily → `cron 0 22 * * *`; weekly → `cron 5 22 * * 3` (day-of-week correct, next fire landed on the right Wednesday); once-relative → `{kind:once}` + *"once in 1h"*; once-absolute → `run_at` carrying the device's `-05:00` offset. **This is the D4 verification the whole lane existed for.**
+- **Advanced rejection** → sheet stayed open, input preserved, banner read `HOST REJECTED THIS TASK` with the server's full syntax help verbatim. Better than specced.
+- **Run Now / Pause / Resume / Delete** → host confirmed `completed 0→1`, `last_status: ok`, clean pause/resume, delete propagated. List and detail stayed in lockstep with no refetch flicker.
+- **PATCH-diff proof (the strongest result)** → planted `deliver: "telegram:-100999:42"` host-side (a targeted format with no UI in the app), then renamed the job from the phone. Host after: name changed, **deliver intact**, schedule/prompt/repeat/enabled all untouched. The app sends a MINIMAL patch. Given upstream's naive `{**job, **updates}` merge, a full-record PATCH here would have silently destroyed host-side config the phone doesn't understand.
+- **needsAttention — PARTIAL, checklist repro was wrong.** #162 assumed `enabled:false` produces the dead-job condition. It does not: disabling leaves `state: scheduled` and `next_run_at` populated, so neither attention branch fires. That state is reserved for genuinely uncomputable schedules (the croniter-missing shape), which is covered by unit tests and is not reachable on a healthy host. What the repro DID verify, and it matters more: the disabled job **stayed visible** with an OFF badge — proving `include_disabled=true` is being sent. Without it, any job disabled from the desktop would silently vanish from the phone.
+- **Timezone caveat** → present on daily/weekly/advanced, absent on once-absolute. Correct: cron always evaluates on the host clock, while once-absolute emits a real device offset (verified in the stored `run_at`).
+
+### #163 Skills — 4 PASS, 1 partial
+98 skills, groups alphabetical, Uncategorized last. Search matched name, description AND category independently (a description-only query returned three distinct hits). Multi-line descriptions collapsed cleanly in rows and expanded with breaks intact. Airplane refresh kept all rows behind a `Refresh failed — showing last fetch` strip, with search/scroll/expand still usable.
+**Partial:** the picker's "(custom)"-value preservation could not be asserted on device — #168a makes the return path from EDIT AS TEXT physically unreachable. Model-level tests cover it; re-run this assertion after #168 merges.
+
+### #165 Insights — 5 PASS, 1 untestable
+Banner named window + host + AS OF. Totals reconciled against a live spot-check (app fetched 230 sessions vs the 200-row sample; every total proportionally larger, cost coverage 20→21 as the window grew). Source shares summed to exactly 100%. The no-usage rule got a real workout — ~60% of sessions carry no usage data — and rendered an honest `No Usage Data Recorded` rather than a wall of zeros. Airplane refresh kept numbers and correctly left the AS OF stamp STALE (a stamp that updates on failure is the subtle version of lying). CTX/billing separation held with millions of tokens on screen.
+**Untestable:** the >600-session truncation strip. This host has 231 sessions, so the strip correctly never appears. Rests on its unit test until a host with enough history exists.
+
+### Defects found — all filed, none blocking
+- **#168** — EDIT AS TEXT is a one-way door (`useFreeText` has one write site, no way back) + degraded picker can't recover in-sheet. Spec'd.
+- **#169** — Insights EST COST caveat reads as scoping the whole totals card. Owen double-took on his own screen.
+- **#170** — Task detail renders `model_snapshot` under a bare "Model" label, so an UNPINNED job looks pinned; plus no model selection is possible from the phone at all (upstream: model absent from both the create body and the PATCH whitelist).
+
+### What this pass proves about the method
+Every one of the three defects is invisible to the test suite — 1088 tests green while EDIT AS TEXT had no exit, the cost caveat misled its own author, and a snapshot masqueraded as a pin. All three are UI-path and labelling failures, which unit tests structurally cannot see. Conversely, the checks that mattered most (PATCH-diff, include_disabled, schedule emission) passed cleanly, so the automated coverage was doing its job where it could.
+
+Two process notes worth keeping: (1) verifying host-side rather than trusting the screen caught that `once-abs` had fired and self-removed, which the app correctly showed as stale until refreshed — a screen-only pass would have logged a phantom missing-job bug; (2) the #162 needsAttention repro was wrong in the checklist itself, which is an argument for writing repro steps against source rather than from memory of the spec.
+
+Logged 2026-07-22.
