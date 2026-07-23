@@ -6575,6 +6575,28 @@ Logged 2026-07-22.
 
 ## 168. 🐛 Skills picker "EDIT AS TEXT" is a one-way door + the picker never recovers after a cold-offline launch (device-found 2026-07-22)
 
+**Device re-checks 2026-07-23: ALL THREE PASS** (whoGoesThere, build off `324689b`).
+1. **PASS — and this closes #171's stranded assertion.** EDIT LIST AS TEXT -> typed value ->
+   USE PICKER returned to the picker with the hand-typed value preserved and selectable. The
+   #163 D5 assertion, unreachable since the one-way door was found, is now verified on device.
+2. **PASS.** Standalone with both hosts disconnected: free text only, no USE PICKER, no dead end.
+3. **PASS.** Cold-offline launch (force-quit -> airplane -> launch) correctly degraded to free
+   text with the RETRY control present; tapping it loaded the picker in place, without
+   dismissing the sheet.
+
+**CAVEAT — the retry affordance is effectively invisible.** Owen ran check 3, missed the control
+entirely, and reported it as a FAIL; it had rendered the whole time.
+`HOST LIST UNAVAILABLE — RETRY` is a `MonoLabel(size: 8)` tucked under the caption. This is the
+SECOND time size-8 mono has hidden a control in this exact field — #168's own design note already
+flagged the same treatment for EDIT AS TEXT. **The wiring is right; the visual weight is wrong.**
+Worth a pass on both controls before this ships, because an affordance nobody sees is not an
+affordance.
+
+**Also confirmed correct, recorded so nobody "fixes" it:** restoring connectivity does NOT
+auto-reload the field. That is 168b's deliberate design — the foreground-refresh alternative was
+rejected because it fires on every app switch and gives the user no way to ask. Dismiss-and-reopen
+still recovers as it always did.
+
 Two defects in `TaskSkillsPicker.swift`, both found during the #163 device checklist (Owen driving, Opus verifying against source). Neither is data loss; both are dead-end UX in the cron editor's SKILLS field.
 
 **168a — EDIT AS TEXT cannot be exited (confirmed in source).** `@State useFreeText` has exactly ONE write site: line 122 sets it `true`. Nothing ever sets it back to `false`. So tapping EDIT AS TEXT permanently swaps the picker for a raw `TextField` for the life of the sheet — there is no return control. The caption at line ~90 literally reads "COMMA-SEPARATED — PICKER AVAILABLE WHEN NOT EDITING AS TEXT", i.e. the UI promises a way back that the code does not implement. Fix: add a "USE PICKER" / "DONE" affordance in `freeTextField` that sets `useFreeText = false` (only meaningful when `pickerSkills != nil`; when the host list is unavailable, free text is the only mode and no toggle should show). Consequence today: the "(custom)"-value-preservation property (D5, #160 idea 1) is UNVERIFIABLE on device — you cannot type an unknown value in text mode and return to the picker to see it pinned, because you cannot return. The `SkillsPickerSelectionTests` cover the model round-trip, so the preservation logic is likely intact; it is simply unreachable through the UI. Re-run that device assertion once the return path exists.
@@ -6907,5 +6929,45 @@ share a cause or merely a shape.
 extension — and therefore something to design around rather than fix — or something the app
 influences. Confirming shot: tap the SAME control twice with the extension cold; if only the
 first is swallowed, the shape is established.
+
+Logged 2026-07-23.
+
+
+## 180. 🎨 UMBRELLA — the app hides its own degradation: four instances, one design default
+
+**Raised 2026-07-23 after four independent findings in a single session converged on one shape.**
+Each was filed or observed separately; together they look like a default rather than a run of
+unrelated bugs.
+
+1. **#173 — confident replies over dropped attachments.** The model never received the images;
+   the app presented three fluent answers with no signal that anything was missing.
+2. **Stale skills offered as live.** With both hosts disconnected (standalone), the cron editor's
+   SKILLS picker still lists skills fetched from a host the app is no longer talking to. Cause:
+   `SkillsStore.hasLoaded` latches true on first success and is never reset, and
+   `TaskEditSheet.swift:187` gates the picker on it. Correct for the browser (#163 Check 4
+   verified keep-rows-on-failure); wrong for a picker whose value is written into a job that runs
+   somewhere else.
+3. **Refresh failures are invisible after the first success.** All three list screens gate the
+   error identically — `else if let message = store.lastErrorMessage, !store.hasLoaded`
+   (`SkillsScreen:71`, `TasksScreen:80`, `InsightsScreen:84`). Since `hasLoaded` never returns to
+   false, `lastErrorMessage` is set on every later failure and never displayed. `SkillsStore`,
+   `CronJobsStore` and `InsightsStore` all carry the identical latch.
+4. **No disconnection indicator at all.** Cut off from both hosts, Owen reported "none show i'm
+   disconnected from everything." Nothing on the surfaces he was using said so.
+
+**Adjacent, already filed:** #145 (behaviour under a degraded or absent host) and #139 (silent
+realtime->local fallback presenting a label lie).
+
+**Why this wants one lane rather than six patches.** Each individual fix is small and each
+existing behaviour is locally reasonable — keep-rows-on-failure IS right for a browser, and a
+latch that only rises IS the simple implementation. What is missing is a shared answer to: *what
+does a surface show when the thing behind it is unavailable, and how does the user find out?*
+Patching these one at a time will reproduce the pattern in the next surface built.
+
+**Suggested scope for a design pass — not yet decided:**
+- one connection-state signal the app surfaces consistently
+- a convention for stale-vs-live data in any list fed from a host
+- per surface, decide whether stale data is shown, shown-and-marked, or withheld
+- make `lastErrorMessage` reachable after first load (the latch is fine; the gate is not)
 
 Logged 2026-07-23.
