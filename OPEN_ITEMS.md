@@ -5144,6 +5144,51 @@ Logged 2026-07-19.
 
 ## 137. 🔧 Sensor opt-in redesign — MERGED (PR #125, merge `db52a22`, 2026-07-20); device passes owed (public-app posture)
 
+**2026-07-23 late — TRAP CASE FAILS. The one-shot migration RE-FIRES on reinstall and
+resurrects the permission wall. Fix approved by Owen, below.**
+
+Device sequence (whoGoesThere, fresh build): app DELETED, then reinstalled. Owen performed NO
+pairing action — the Keychain still held the credential, so the app came up already paired.
+**iOS HealthKit authorization dialogs (plus the historical-window sheet) were THE FIRST THING ON
+SCREEN**, before any chat and before Settings was ever opened.
+
+**Verified chain (source-read, `SensorStreamingGrandfathering.migrateIfNeeded`):**
+- `migrationDoneKey` lives in `UserDefaults` — WIPED by app deletion.
+- The pairing credential lives in the Keychain — SURVIVES app deletion.
+- So the "one-shot" migration re-runs on a device it has already migrated: **the done-stamp and
+  the trigger have different lifetimes across a reinstall.**
+- `isPaired` true + `hadPersistedSettings` false -> sets ALL FOUR flags
+  (`sensorStreamingEnabled`, `motionCollectionEnabled`, `healthCollectionEnabled`,
+  `locationCollectionEnabled`).
+- Enabled flags start capture; capture requests HealthKit/Location authorization; the OS dialogs
+  fire at launch.
+
+**This breaks #137's central goal on a path real users hit** — reinstall, or restore to a new
+phone. Not a lab edge case. It also overrode a deliberate opt-out: Owen had turned streaming OFF
+hours earlier, and the record of that choice was in the wiped blob while the thing that overrode
+it was in the surviving one.
+
+The `!hadPersistedSettings` branch was written for pre-#137 devices upgrading IN PLACE, and it
+cannot distinguish those from a post-#137 reinstall — two situations whose correct answers are
+opposite. The done-stamp was meant to disambiguate and cannot, because it does not survive as
+long as the pairing does.
+
+**FIX — both halves, approved by Owen 2026-07-23:**
+1. Move the migration done-stamp to share the PAIRING's lifetime (Keychain, alongside the
+   credential), so a reinstall with a surviving pairing correctly declines to re-migrate.
+2. Make `!hadPersistedSettings` mean OFF, not ON. No settings blob is no evidence of consent;
+   defaulting to ON is the app using a stored credential as a proxy for user intent.
+
+**Fail-first test, no device needed:** `migrateIfNeeded(isPaired: true, hadPersistedSettings:
+false)` against a clean `UserDefaults` must NOT enable health and location.
+
+**Supersedes the state note above:** current device state is all sensors ON — not by choice, but
+as a consequence of this defect (Owen consented to the OS dialogs it triggered).
+
+**Pass (1) fresh-install is STILL OWED and now needs a harder setup:** revoke/disconnect FIRST so
+the Keychain entry goes, THEN delete, THEN install. Deleting alone does not produce a fresh
+device.
+
 **2026-07-23 (state note):** Owen turned sensor streaming back OFF after the gating-seam
 verification above. Current device state is OFF by deliberate choice — do NOT read a future
 "master OFF" observation as a migration failure. Also worth separating: on-device model tool
@@ -6726,5 +6771,45 @@ both Hermes-generated. Carry into #132's host-side question.
 **Why it matters:** this is the session list the paid-tier user actually looks at, and it reads
 as broken even though the app is behaving correctly.
 **Owner: Hermes-side, not app-side.**
+
+Logged 2026-07-23.
+
+
+## 178. 🧹 Build-warning inventory — 21 warnings, one of which FAILS App Store validation
+
+**Captured 2026-07-23 (Xcode issue navigator, successful build, Xcode-beta4).**
+
+**LAUNCH BLOCKER — not a warning in practice:**
+`The CFBundleShortVersionString of an app extension ('1.0') must match that of its containing
+parent app ('1.0.0').` A warning at build time and a HARD REJECTION at App Store validation.
+One-line fix in `project.yml` — align the extension's version with the app's. Must land before
+any submission attempt.
+
+**Deprecations that are load-bearing for open items — migrate deliberately, not opportunistically:**
+- `installTap(onBus:bufferSize:format:)` deprecated in iOS 27.0 — `LiveSpeechService.swift`,
+  `NativeVoicePipelineService.swift`. This is **#128's exact surface** (double-installTap via
+  actor reentrancy). Any rework there should adopt the replacement rather than re-pin the
+  deprecated call.
+- `AVAudioSession.InterruptionType` / `InterruptionOptions` deprecated in iOS 27.0 in favour of
+  `AVAudioSessionDidBecomeInactiveNotification` /
+  `AVAudioSessionResumptionRecommendationNotification` — `LiveVoiceSessionService.swift`,
+  `NativeVoicePipelineService.swift`. Touches the same audio-session bookkeeping that #82/#106
+  fixed; that lane was expensive to get right, so this migration wants its own careful pass.
+
+**Ordinary deprecation debt (cleanup-lane sized):**
+- `CLGeocoder`, `reverseGeocodeLocation`, `geocodeAddressString`, `placemark` — deprecated in
+  iOS 26.0 for MapKit equivalents (`MKReverseGeocodingRequest`, `MKGeocodingRequest`) —
+  `DeviceReadTools.swift`, 6 warnings.
+- `AlarmService.swift` — `init(title:stopButton:secondaryButton:secondaryButtonBehavior:)`
+  deprecated in 26.1; `stopButton` no longer used.
+- `BackgroundTaskService.swift` — `submit` deprecated in 27.0; use
+  `submitTaskRequest:completionHandler:` to capture all error conditions. 2 warnings.
+- `LocalChatBackend.swift` — `GenerationError` deprecated in 27.0. 2 warnings.
+- `ConversationSearch.swift` — 3x `nonisolated(unsafe)` unnecessary for a Sendable
+  `DateFormatter` constant.
+
+**Relationship to #154:** that item covers dead `#available` guards left behind by the 27.0
+deployment-floor bump; this is the complementary list of APIs the same SDK generation
+DEPRECATED. Likely one cleanup lane, two checklists.
 
 Logged 2026-07-23.
