@@ -6333,3 +6333,46 @@ Prefer option 1. Do NOT solve this by dropping the coverage caveat — it is the
 Could ride along with #168's polish lane (different file, same class of finding) or stand alone. Either is fine; do not bundle it into a feature lane.
 
 Logged 2026-07-22.
+
+## 170. ⚠️ Task detail presents `model_snapshot` as if it were the job's model — and the phone cannot pin a model at all (device-found 2026-07-22)
+
+Owen, mid-#162 checklist: "It shows the model there, but it doesn't give an option anywhere to change the model used. That's a gap for sure." Investigating produced two distinct findings — one ours to fix, one upstream.
+
+### 170a — the display is a snapshot wearing a pin's label (OURS, small fix)
+
+`TaskDetailScreen`'s HOST-SIDE (READ-ONLY) card renders:
+```
+Provider    minimax-oauth
+Model       MiniMax-M3
+```
+Verified against the live host for the same job:
+```
+model             = None          <- job is UNPINNED
+provider          = None
+model_snapshot    = 'MiniMax-M3'
+provider_snapshot = 'minimax-oauth'
+```
+
+So the card is rendering the `*_snapshot` fields under bare "Provider"/"Model" labels. That reads as "this job runs on MiniMax-M3". The truth is "this job runs on whatever the host's global default is **at fire time**; the default happened to be MiniMax-M3 when it was created."
+
+Upstream is explicit about this — `cron/jobs.py:1026`: *"Agent cron jobs with unpinned provider/model follow global config at fire time. Capture the current resolution for each unpinned axis so a later [swap] ... is detected"*, and `_resolve_default_model_snapshot` (`:969`) exists purely for that drift guard (#44585 upstream). **The snapshot is frozen at creation and never updates.**
+
+Concrete consequence on Owen's own setup: he set MiniMax as the Mac's global default deliberately ("cheaper for testing, I want to save kimi-k3 for intentional work"). When he flips the default back to k3, every one of these jobs silently starts running k3 — while the app keeps displaying "Model: MiniMax-M3" forever, because the snapshot never moves.
+
+Same class as #169 and the #25 CTX/billing split: a correct value under a label that invites a wrong belief. Fix is labelling only, `TaskDetailScreen` — e.g. render the row as `Model (host default at creation)` / `Follows host default — was MiniMax-M3`, or show it only when `model != nil` and otherwise render `Follows host default`. Prefer the latter: when the job IS pinned (created CLI-side with an explicit model), showing a plain "Model" row is then correct and unambiguous. Note the decode must distinguish `model` from `model_snapshot` — check `SessionStats`/`CronJob` actually keeps both fields separate before writing the view logic.
+
+### 170b — no model selection from the phone, and it cannot be added client-side (UPSTREAM)
+
+Verified both directions on hermes-agent 0.19.0:
+- **Create**: `_handle_create_job` (`api_server.py:4259-4264`) reads exactly `name`, `schedule`, `prompt`, `deliver`, `skills`, `repeat`. No `model`, no `provider`.
+- **Edit**: the PATCH whitelist is `{name, schedule, prompt, deliver, skills, skill, repeat, enabled}` — also no model.
+
+So a phone-created job can never be pinned to a model, and an existing job's model can never be changed from the phone. This is not a Talaria gap; the HTTP surface does not carry the field in either direction. The #156a spec called this correctly ("do not build inputs for them") but framed it as a display concern and did not flag the resulting user-facing limitation — which is what Owen hit.
+
+Do NOT work around this with a relay endpoint that writes `jobs.json` directly; that bypasses upstream's validation and snapshot logic and would desync the drift guard. If model pinning matters, the honest paths are (a) create the job CLI-side where the flag exists, or (b) upstream adds `model` to the create body and PATCH whitelist — currently blocked by the standing no-PRs-against-hermes-agent rule (#159).
+
+**Reopen condition:** if a future hermes-agent release accepts `model`/`provider` on `POST /api/jobs` or in the PATCH whitelist, this becomes a small, worthwhile lane (a model picker fed from the existing models shim roster, which the app already talks to). Re-check on the next `UPSTREAM_TESTED_SHA` bump.
+
+Scope: 170a is a labelling change in `TaskDetailScreen` and could ride the #168/#169 polish lane. 170b is documentation only — no code.
+
+Logged 2026-07-22.
