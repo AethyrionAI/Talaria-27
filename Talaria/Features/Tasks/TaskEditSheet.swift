@@ -184,9 +184,21 @@ struct TaskEditSheet: View {
         fieldGroup("SKILLS") {
             TaskSkillsPicker(
                 skillsText: $draft.skillsText,
-                skills: (skillsStore?.hasLoaded == true) ? skillsStore?.skills : nil
+                skills: (skillsStore?.hasLoaded == true) ? skillsStore?.skills : nil,
+                onRetrySkills: retrySkillsFetch
             )
         }
+    }
+
+    /// #168b — the in-place retry for a field that degraded to free text on a
+    /// cold-offline launch. The `.task` above only fires on sheet appear, so
+    /// without this, restoring connectivity changed nothing until a
+    /// dismiss-and-reopen. The store stays owned here; the field gets a
+    /// closure, never a store reference. nil (bare containers) = no retry
+    /// affordance at all.
+    private var retrySkillsFetch: (@MainActor () async -> Void)? {
+        guard let skillsStore else { return nil }
+        return { await skillsStore.refresh() }
     }
 
     private var repeatField: some View {

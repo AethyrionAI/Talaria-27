@@ -80,6 +80,14 @@ struct SkillsFieldMode: Equatable {
         hasPickerSkills && isFreeText
     }
 
+    /// #168b — the degraded state's retry. Offered only when the host list is
+    /// genuinely unavailable AND the field's owner handed down a refetch: a
+    /// RETRY that cannot fetch is the same dead end as a picker that cannot
+    /// open. Stateless, so it lives with the field's other affordance rules.
+    static func offersRetry(hasPickerSkills: Bool, canRetry: Bool) -> Bool {
+        !hasPickerSkills && canRetry
+    }
+
     mutating func editAsText() {
         isFreeText = true
     }
@@ -101,9 +109,16 @@ struct TaskSkillsPicker: View {
     /// nil = fetch unavailable/failed; empty = host reports no skills. Both
     /// degrade to free text (nothing to pick).
     let skills: [Skill]?
+    /// #168b — asks the field's OWNER to refetch the host skill list, so a
+    /// field that degraded to free text on a cold-offline launch can upgrade
+    /// to a picker IN PLACE instead of needing a dismiss-and-reopen. The view
+    /// deliberately never holds a store of its own. nil (previews, bare
+    /// containers) simply offers no retry.
+    var onRetrySkills: (@MainActor () async -> Void)? = nil
 
     @State private var mode = SkillsFieldMode()
     @State private var showPicker = false
+    @State private var isRetrying = false
 
     private var pickerSkills: [Skill]? {
         guard let skills, !skills.isEmpty else { return nil }
@@ -146,6 +161,10 @@ struct TaskSkillsPicker: View {
             if mode.offersReturnToPicker(hasPickerSkills: hasPickerSkills) {
                 usePickerButton
             }
+            if SkillsFieldMode.offersRetry(hasPickerSkills: hasPickerSkills,
+                                           canRetry: onRetrySkills != nil) {
+                retryButton
+            }
         }
     }
 
@@ -159,6 +178,31 @@ struct TaskSkillsPicker: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Use the skills picker instead of text")
+    }
+
+    /// #168b — the way out of the degraded state without dismissing the
+    /// sheet. `SkillsStore.refresh()` already no-ops while a fetch is in
+    /// flight, so disabling the control for the attempt is guard enough.
+    private var retryButton: some View {
+        Button {
+            retrySkillsFetch()
+        } label: {
+            MonoLabel(isRetrying ? "LOADING HOST LIST…" : "HOST LIST UNAVAILABLE — RETRY",
+                      size: 8, weight: .medium, tracking: Design.Tracking.mono,
+                      color: isRetrying ? Design.Colors.dimForeground : Design.Brand.accent)
+        }
+        .buttonStyle(.plain)
+        .disabled(isRetrying)
+        .accessibilityLabel("Retry loading the host skill list")
+    }
+
+    private func retrySkillsFetch() {
+        guard let onRetrySkills, !isRetrying else { return }
+        isRetrying = true
+        Task { @MainActor in
+            await onRetrySkills()
+            isRetrying = false
+        }
     }
 
     private func pickerControl(_ available: [Skill]) -> some View {
