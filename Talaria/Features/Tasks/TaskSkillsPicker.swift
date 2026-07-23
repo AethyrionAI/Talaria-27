@@ -101,9 +101,10 @@ struct SkillsFieldMode: Equatable {
 
 /// The SKILLS field for the cron create/edit sheet. Server-driven when the
 /// skills fetch succeeded and returned rows; free text (exactly the 156a
-/// field) when it didn't — degrade, don't block. "Edit as text" keeps
-/// hand-typing reachable even with the picker up, same escape the deliver
-/// picker offers.
+/// field) when it didn't — degrade, don't block. EDIT LIST AS TEXT keeps
+/// hand-typing reachable even with the picker up, and USE PICKER returns —
+/// the round trip is the point (#168a), because it is the only way a
+/// hand-typed value can be seen surviving as a "(custom)" row.
 struct TaskSkillsPicker: View {
     @Binding var skillsText: String
     /// nil = fetch unavailable/failed; empty = host reports no skills. Both
@@ -230,13 +231,17 @@ struct TaskSkillsPicker: View {
             .accessibilityLabel("Skills, \(selectionIsEmpty ? "none selected" : currentLabel)")
 
             if mode.offersEditAsText(hasPickerSkills: hasPickerSkills) {
+                // #168 design note: "EDIT AS TEXT" read as editing ONE skill's
+                // name — even to the person who specified the field as a
+                // comma-separated list. LIST is the word that fixes it.
                 Button {
                     mode.editAsText()
                 } label: {
-                    MonoLabel("EDIT AS TEXT", size: 8, weight: .medium,
+                    MonoLabel("EDIT LIST AS TEXT", size: 8, weight: .medium,
                               tracking: Design.Tracking.mono, color: Design.Brand.accent)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Edit the whole skills list as comma-separated text")
             }
         }
         .sheet(isPresented: $showPicker) {
