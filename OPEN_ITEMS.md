@@ -1846,6 +1846,12 @@ Logged 2026-07-06.
 
 ## 58. 🔧 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — Ask-control wiring FIXED (PR #100, 2026-07-16); device re-verify owed
 
+**Device re-verify 2026-07-23: FAIL AGAIN — both controls still inert** (build `cbcc824`, OJAMD
+profile active). **IMPORTANT CAVEAT:** it is UNCONFIRMED whether triage step (1) — remove BOTH
+Talaria controls from Control Center and re-add them — was performed before this observation.
+Until that is answered this result does NOT advance past the 2026-07-20 FAIL, because stale
+control registration remains unexcluded. Ask before escalating to step (2).
+
 **Device re-verify 2026-07-20 (Session S launch sweep): FAIL — BOTH controls inert post-PR
 #100** (OJAMD profile confirmed active). Diagnostic contrast that narrows it: #66 (same
 openAppWhenRun fix shape, same OpenURLIntent launch pattern) PASSED 3/3 the same session, and
@@ -2011,6 +2017,44 @@ with genuine CoT, so the merged adoption path (#94/#95) is unaffected on 0.19. T
 remains wait-for-upstream via `hermes update`; re-check each update.
 
 ## 61. 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device re-verify owed
+
+**2026-07-23 — ROOT-CAUSED. Stop carrying this as "device re-verify owed".**
+
+*Surface correction first — three sessions were spent on the wrong screen.* The connected-mode
+Sessions drawer is SERVER-FED: `SessionsHermesClient.listSessions` maps `row.title` and
+`row.preview` straight from the Hermes sessions API into `HermesSessionInfo`. The on-device card
+never touches it. #61 renders ONLY via `conversation.title` / `generatedPreview` — i.e.
+`ChatScreen`'s own header and `LocalChatBackend.sessionInfo`, which builds the STANDALONE
+session list. **#61 can only be verified in standalone mode.**
+
+*Root cause — the mixed-card branch of `LocalIntelligenceService.conversationCard`.* When guided
+generation returns a title but an EMPTY preview, the function pairs the generated title with
+`fallback.preview`. With a non-empty user turn `fallbackCard` sets that preview to the
+assistant's FIRST line — exactly the line a lazy generated title echoes. The guard written for
+this case (`degenerateCardReason`) then has a coverage gap:
+- containment branch requires `shorter.count * 2 >= longer.count` (title must cover HALF the
+  preview)
+- prefix-echo branch requires `shorter.count >= 24`
+
+So **a generated title of 12-23 characters that is a verbatim prefix of a preview more than
+twice its length passes BOTH checks.** Device evidence (standalone, whoGoesThere, `cbcc824`):
+title ~"I can't create a haiku" (22) against preview ~"I can't create a haiku directly, but
+here's a simple one:" (~57). 22 >= 12 but 22*2 = 44 < 57, so containment misses; 22 < 24, so
+prefix echo misses.
+
+**Fix shape:** an EXACT verbatim prefix needs no length ratio. Either drop
+`cardPrefixEchoMinimumLength` to `cardContainmentMinimumLength`, or waive the ratio in the
+containment branch when `longer.hasPrefix(shorter)`.
+**Fail-first test:** `degenerateCardReason(title: "I can't create a haiku", preview: "I can't
+create a haiku directly, but here's a simple one:")` must return non-nil. It currently returns
+nil.
+
+**Evidence caveat:** the character counts are INFERRED. SwiftUI truncated both fields for
+display, so the numbers come from the visible prefixes plus the 48/90 `condensedLine` limits,
+not the stored strings. The threshold gap is structural and holds regardless; which side of it
+this particular title fell on is the estimated part. A Console read of which notice fired
+(`guided card degenerate` / `mixed card degenerate` / `on-device conversation card generated`)
+would settle it.
 
 **2026-07-23 — UNBLOCKED.** The card DoD was gated behind #142 (image-only sends). #142 is now
 resolved app-side by wire capture, so the #61 device re-verify is runnable.
@@ -3922,6 +3966,23 @@ Logged 2026-07-12 (dispatch-prep session).
 
 ## 113. 🔧 Connector supervision — cloud half MERGED (PR #113, 2026-07-18); watchdog INSTALL + forensics owed (Owen/OJAMD)
 
+**2026-07-23 — WATCHDOG LEG CLOSED; the real gap is somewhere else.** Confirmed on OJAMD via the
+Hermes agent: scheduled task `TalariaConnectorWatchdog`, State=Ready, every minute,
+LastTaskResult 0, NumberOfMissedRuns 0, running since 2026-07-17 18:30. Script at
+`O:\Hermes\Talaria\scripts\connector-watchdog.ps1`, log at
+`O:\Hermes\Talaria\logs\connector-watchdog.log` — 8,405 lines: 7,242 OK, 582 MISS, 580
+RESTART, 0 ERROR. Installed AND working.
+**But it only watches the connector.** Its own header says relay supervision is NSSM's job, and
+NSSM `Automatic` fires at BOOT only — so a service that dies mid-session has no supervisor at
+all. That is why relay and shim sat stopped (forensics note above). **The owed work is no longer
+"install the watchdog"; it is "who watches the services".**
+**Duplicate-connector mechanism candidate:** with the relay down there are no port-8000 sockets,
+so the watchdog cannot tell "connector died" from "relay died" and relaunches the connector
+every 2 minutes into a void. 580 relaunches is a lot of chances to beat
+`start-connector.bat`'s single-instance enforcer — and the two live instances ran under
+DIFFERENT interpreters (venv python vs uv cpython-3.12.11), which would sail past an enforcer
+matching on process name or path. Unproven; check the enforcer's matching criteria first.
+
 **2026-07-23 — FORENSICS (gathered via the Hermes agent on OJAMD, unelevated).**
 - **Two concurrent connector processes**, not one: `hermes-mobile.exe run` under the venv python
   AND under uv-managed cpython-3.12.11. At least one was not launched by
@@ -5082,6 +5143,13 @@ Logged 2026-07-19.
 ---
 
 ## 137. 🔧 Sensor opt-in redesign — MERGED (PR #125, merge `db52a22`, 2026-07-20); device passes owed (public-app posture)
+
+**2026-07-23 (state note):** Owen turned sensor streaming back OFF after the gating-seam
+verification above. Current device state is OFF by deliberate choice — do NOT read a future
+"master OFF" observation as a migration failure. Also worth separating: on-device model tool
+calls that return health/motion data come from the DEVICE TOOL BELT (#69) reading HealthKit
+directly at query time, which works regardless of the streaming toggle. Tool-call output is not
+evidence about the streaming pipeline.
 
 **2026-07-23 — GRANDFATHERED PASS IS UNRUNNABLE ON THIS DEVICE; GATING SEAM VERIFIED INSTEAD.**
 Device read showed the master OFF. This was NOT a migration failure: Owen had toggled sensor
@@ -6621,5 +6689,42 @@ user-initiated.
 load on a self-hosted gateway. Low severity, likely an easy win.
 **Next step:** locate the poll sites and establish whether the cadence is deliberate or an
 observer firing per view-appearance. Not yet investigated — logged from wire evidence only.
+
+Logged 2026-07-23.
+
+
+## 176. 🐛 On-device model fires `readImageText` on a text-only prompt with no image present
+
+**Observed 2026-07-23 (standalone / ON-DEVICE model, whoGoesThere, build `cbcc824`).** The prompt
+was "Write a haiku about rain". The turn shows a `readImageText` tool call — an OCR tool — with
+no image anywhere in the conversation and nothing to read. The reply then opened "I can't create
+a haiku directly, but here's a simple one:" and produced a haiku anyway.
+Two things worth separating: the spurious INVOCATION, and the reply's refusal preamble, which
+reads like the model narrating a tool result it should never have had.
+**Earlier the same session,** "Hello. How are things working today?" produced 4 tool calls
+returning health and motion — appropriate there, but it shows the device tool belt is eager.
+**Why it matters:** every spurious call costs latency and context on a small on-device model
+(that turn: IN 3.5K / OUT 65 / 4.9s) — and #61's card generation consumes the reply, so a
+tool-narrating preamble becomes the conversation's title.
+**Next step:** review the tool-belt tool descriptions and selection prompt for the on-device
+tier. Not yet investigated.
+
+Logged 2026-07-23.
+
+## 177. 🎨 Connected-mode session cards show title and preview as the same line — Hermes-side titling
+
+**Observed 2026-07-23 (whoGoesThere, OJAMD profile).** Every non-AUTO row in the Sessions drawer
+renders a title that is a shorter truncation of its own preview. Scheduled-task rows (AUTO) are
+the only ones with a distinct title, because those are named server-side.
+**This is NOT #61.** The connected drawer is server-fed — `SessionsHermesClient.listSessions`
+maps `row.title` and `row.preview` from the sessions API verbatim. Hermes appears to derive both
+fields from the first user message, so the card reads as a duplicate.
+**Also seen:** image-only sessions render as "[screenshot]" in BOTH fields. Per #142's wire
+capture the app sends no text part at all on those turns, so "[screenshot]" — like
+"[attachment]" — is materialized host-side. Two different placeholder strings for image content,
+both Hermes-generated. Carry into #132's host-side question.
+**Why it matters:** this is the session list the paid-tier user actually looks at, and it reads
+as broken even though the app is behaving correctly.
+**Owner: Hermes-side, not app-side.**
 
 Logged 2026-07-23.
