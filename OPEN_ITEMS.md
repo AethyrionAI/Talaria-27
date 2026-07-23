@@ -6310,3 +6310,26 @@ Severity is therefore LOWER than first filed — dismiss-and-reopen already reco
 Scope: one small lane, `TaskSkillsPicker.swift` plus a touch of `TaskEditSheet.swift`. 168a is a few lines (a toggle-back button + guard); 168b is a retry affordance; the design note rides along. No API changes, no service changes, and `SkillsStore` must not be touched. Swift 6.2 strict-concurrency conventions apply. Spec: `dispatch/FABLE-T27-168-skills-picker-return-path.md`.
 
 Logged 2026-07-22.
+
+## 169. 🎨 Insights EST COST caveat reads as scoping the whole totals card (device-found 2026-07-22)
+
+Found by Owen during the #165 device checklist. Not a data bug — the numbers and the caveat are both correct — but a grouping/legibility problem at the one place on the screen where a misread produces a WRONG belief about the data.
+
+**Observed:** the totals card renders as a 2×2 grid (TOKENS IN / TOKENS OUT / TOOL CALLS / API CALLS) with `EST COST ~$2.59 — COVERS 21 OF 230 SESSIONS` as a full-width row inside the SAME card, directly beneath the grid. Owen's reaction, verbatim: "made me double take thinking that was the cost for everything above it that I just saw."
+
+**Why it matters:** the coverage caveat belongs to the cost figure ALONE — the four totals above it cover all 230 fetched sessions. Sharing a card makes "COVERS 21 OF 230" read as a footnote on the entire panel, i.e. as though the token and call totals were also computed from only 21 sessions. That is a factually wrong reading of correct data, and it undersells the totals by an order of magnitude.
+
+Same pattern as #168's EDIT AS TEXT label: the person who specified the feature misread his own screen. If the author misreads it, users will.
+
+**Fix options (implementer's judgement, all small, `InsightsScreen.swift` only):**
+- Move the EST COST row OUT of the totals card into its own adjacent card — cleanest, makes the caveat's scope structural rather than typographic.
+- Or keep it in-card but fold the scope into the label itself: `EST COST · 21 OF 230 SESSIONS WITH COST DATA` on one line, so the caveat is visibly attached to the cost and not floating under the grid.
+- Or add a hairline separator + indent so the row reads as a distinct block.
+
+Prefer option 1. Do NOT solve this by dropping the coverage caveat — it is the honest-absence rule doing its job (only 21 of 230 sessions carry a nonzero `estimated_cost_usd`; `actual_cost_usd` is null on all 231, verified against the live host).
+
+**Correction to the #156d dispatch while here:** that spec predicted the cost row would be ABSENT on this host ("cost row absent while the host serves 0.0/null costs (expected today)"). Wrong — the Mac host has 21 sessions with real nonzero estimated costs, so the cost path renders and was exercised on device. The prediction was wrong; the implementation handled the case the spec did not expect, which is the tolerant-decode posture working as intended.
+
+Could ride along with #168's polish lane (different file, same class of finding) or stand alone. Either is fine; do not bundle it into a feature lane.
+
+Logged 2026-07-22.
