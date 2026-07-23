@@ -118,6 +118,11 @@ private struct InsightsContent: View {
                     totalsStrip(summary)
                         .padding(.top, Design.Spacing.md)
 
+                    if let costText = InsightsReadout.costText(summary.totals) {
+                        costCard(costText, totals: summary.totals)
+                            .padding(.top, Design.Spacing.sm)
+                    }
+
                     breakdownSection(title: "BY SOURCE", slices: summary.bySource)
                         .padding(.top, Design.Spacing.md)
                     breakdownSection(title: "BY MODEL", slices: summary.byModel)
@@ -241,12 +246,6 @@ private struct InsightsContent: View {
                           InsightsReadout.tileText(totals.apiCallCount,
                                                    usageSessionCount: totals.usageSessionCount))
             }
-            if let costText = InsightsReadout.costText(totals) {
-                Rectangle()
-                    .fill(Design.Colors.divider)
-                    .frame(height: 1)
-                costTile(costText, totals: totals)
-            }
         }
         .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
     }
@@ -273,7 +272,17 @@ private struct InsightsContent: View {
 
     /// Cost only ever appears here as an estimate over the sessions that
     /// actually carry one ("hides rather than lies" — rule 3).
-    private func costTile(_ costText: String, totals: InsightsSummary.Totals) -> some View {
+    ///
+    /// #169 — its OWN card, not a row inside the totals card. The coverage
+    /// caveat belongs to the cost figure alone; the four totals above cover
+    /// every fetched session. Sharing a card made "COVERS 21 OF 230" read as
+    /// a footnote on the whole panel — a factually wrong reading of correct
+    /// data that understated the totals by an order of magnitude (device pass
+    /// #171, and it caught the author of the screen, not a stranger). The
+    /// separation makes the caveat's scope structural rather than
+    /// typographic; the wording carries the scope too, so a future re-nest
+    /// cannot silently reintroduce the misread.
+    private func costCard(_ costText: String, totals: InsightsSummary.Totals) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Design.Spacing.xs) {
             MonoLabel("EST COST", size: 9, weight: .medium,
                       tracking: Design.Tracking.monoXWide,
@@ -283,18 +292,20 @@ private struct InsightsContent: View {
                 Text(costText)
                     .font(Design.Typography.display(17, weight: .semibold, relativeTo: .body))
                     .foregroundStyle(Design.Colors.foregroundBright)
-                if totals.costSessionCount < totals.sessionCount {
+                if let coverage = InsightsReadout.costCoverageText(totals) {
                     MonoLabel(
-                        "COVERS \(totals.costSessionCount) OF \(totals.sessionCount) SESSIONS",
+                        coverage,
                         size: 8,
                         tracking: Design.Tracking.mono,
                         color: Design.Colors.dimForeground
                     )
+                    .multilineTextAlignment(.trailing)
                 }
             }
         }
         .padding(Design.Spacing.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
     }
 
     // MARK: - Breakdowns

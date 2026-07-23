@@ -169,6 +169,18 @@ enum InsightsReadout {
         return "~" + SessionCostReadout.costLabel(cost)
     }
 
+    /// The cost figure's scope line — nil when every fetched session carries
+    /// cost data (nothing to caveat). #169: the wording names cost EXPLICITLY
+    /// rather than saying "covers N of M", because the old phrasing read as a
+    /// footnote on whatever sat above it — on device that meant the token and
+    /// call totals looked like they came from 21 of 230 sessions too, which
+    /// understates them by an order of magnitude. The caveat itself is the
+    /// honest-absence rule working; only its apparent scope was wrong.
+    static func costCoverageText(_ totals: InsightsSummary.Totals) -> String? {
+        guard totals.costSessionCount < totals.sessionCount else { return nil }
+        return "FROM \(totals.costSessionCount) OF \(totals.sessionCount) SESSIONS WITH COST DATA"
+    }
+
     /// "12,847" — plain grouped integer for message/session tallies (these
     /// stay exact; only token/call volumes abbreviate).
     static func groupedText(_ count: Int) -> String {
