@@ -1846,6 +1846,66 @@ Logged 2026-07-06.
 
 ## 58. 🔧 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — Ask-control wiring FIXED (PR #100, 2026-07-16); device re-verify owed
 
+**2026-07-23 late — ROOT-CAUSED via device log capture (`idevicesyslog`, whoGoesThere,
+`cbcc824`). Registration is NOT the problem. The returned URL is.**
+
+Triage step (1) was finally satisfied properly: the app was DELETED and reinstalled — which
+pulls the controls out of Control Center entirely — and both were re-added fresh from the
+gallery. Both still inert. **Stale control registration is now EXCLUDED.**
+
+Step (2) capture, tapping Ask Hermes:
+
+    17:25:39.803  chronod: Started executing LNAction OpenHermesChatIntent ... from control
+                  openAppWhenRun: NO          <- PR #100's fix IS present and correct
+    17:25:39.818  AppIntents: Invoking OpenHermesChatIntent.perform()
+    17:25:39.818  TalariaWidgets: OpenHermesChatIntent.perform fired - opening hermes://chat
+    17:25:39.819  AppIntents: OpenHermesChatIntent.perform() finished
+    17:25:39.819  AppIntents: Prepared url to URL(nil))      <- THE DEFECT
+    17:25:39.819  chronod: Successfully ran action
+
+The control IS registered, Control Center DOES invoke it, the extension process spawns,
+`perform()` runs and logs a valid `hermes://chat` — and AppIntents then extracts a **nil URL**
+from the returned `OpenURLIntent` and reports the action successful. The tap is silent rather
+than erroring because, from the system's point of view, nothing failed.
+
+**Mechanism (leading, evidence-backed).** Four seconds earlier, same extension process:
+
+    17:25:35.316  kernel(Sandbox): TalariaWidgets(15909) deny(1) forbidden-map-ls-database
+    17:25:35.316  LaunchServices: store or url was nil: Error ... Code=-54 "process may not map database"
+    17:25:35.316  Attempt to map database failed: permission was denied. This attempt will not be retried.
+
+The extension's LaunchServices client context fails permanently and is explicitly never retried.
+If AppIntents needs LS to resolve the handler for a custom scheme while preparing the
+`OpenURLIntent`, it gets nothing back and hands over nil.
+
+**Discriminating control — this is what makes it more than a guess:**
+
+| intents | file | target | result |
+| --- | --- | --- | --- |
+| #66 | `Talaria/Intents/SpotlightEntities.swift` | APP | passes 3/3 |
+| #58 | `TalariaWidgets/Controls/HermesControls.swift` | WIDGET EXTENSION | fails 100% |
+
+Byte-for-byte the same shape — `openAppWhenRun` false, `return .result(opensIntent:
+OpenURLIntent(...))`. The only variable is which PROCESS runs it, and only the extension is
+LS-denied.
+
+**PR #100 fixed something that was not the cause.** Dropping `openAppWhenRun` matches Apple's
+documented control-opens-app-to-URL shape and the `HermesControlsTests` pins should STAY — but
+it was never why the control was dead, which is why two further device passes failed after it.
+Equally, this item's earlier reasoning — that #66 passing moved suspicion onto registration —
+was sound and still wrong: the relevant difference was process, not code.
+
+**Fix direction — needs scoping, not guessing. Three device passes have already gone to one
+wrong assumption.**
+(a) Let the control launch the app via `openAppWhenRun` and have the APP read the destination
+    from an app-group handoff, decoupling launch from URL resolution entirely; or
+(b) find an extension-side way to open a custom scheme that does not route through LaunchServices.
+Note (a) directly contradicts #100's premise, so whoever takes this should re-read Apple's
+current ControlWidget guidance for iOS 27 rather than trusting the #100 note.
+
+**Talk control: the #82 wedge excuse is RETIRED** — positive evidence it fails for its own
+reason, see #179.
+
 **Device re-verify 2026-07-23: FAIL AGAIN — both controls still inert** (build `cbcc824`, OJAMD
 profile active). **IMPORTANT CAVEAT:** it is UNCONFIRMED whether triage step (1) — remove BOTH
 Talaria controls from Control Center and re-add them — was performed before this observation.
@@ -6811,5 +6871,41 @@ any submission attempt.
 **Relationship to #154:** that item covers dead `#available` guards left behind by the 27.0
 deployment-floor bump; this is the complementary list of APIs the same SDK generation
 DEPRECATED. Likely one cleanup lane, two checklists.
+
+Logged 2026-07-23.
+
+
+## 179. 🐛 First Control Center tap is swallowed — action reports success before the widget extension exists
+
+**Found 2026-07-23 (device log capture, whoGoesThere, `cbcc824`), while running #58 step 2.**
+The FIRST control tapped after opening Control Center (Talk to Hermes, 17:25:35) produced:
+
+    17:25:35.286  chronod: Starting to run action: OpenHermesVoiceIntent ... openAppWhenRun: NO
+    17:25:35.307  chronod: Successfully ran action: OpenHermesVoiceIntent
+    17:25:35.312  chronod(ExtensionFoundation): Launching process with config: ... TalariaWidgets
+    17:25:35.314  TalariaWidgets: Received connection request on service listener
+
+21 milliseconds from start to "success", with **no `PerformAction` and no `Invoking
+...perform()` sequence at all** — and the extension process was launched only AFTERWARD. The
+action was reported successful without ever having performed.
+
+Contrast the second tap four seconds later (#58's capture), by which time the extension was
+warm: that one ran the full `InitializeAction -> ResolveParameters -> LocateActionPerformer ->
+PerformAction -> perform()` sequence.
+
+**Independent of #58's nil-URL defect, and it will still bite after that is fixed.** The first
+tap against a cold extension does nothing at all, silently.
+
+**Rhymes with the dropped-tap race noted in #137** ("first tap on PAIR DEVICE right after
+pairing ... previously masked by the interstitial root rebuild"). Worth checking whether these
+share a cause or merely a shape.
+
+**Retires the #82 excuse for the Talk control**, which had been wedge-excused since 2026-07-11.
+#82's root cause was fixed in PR #106 anyway.
+
+**Not yet investigated:** whether this is simply Apple's behaviour for a cold `ControlWidget`
+extension — and therefore something to design around rather than fix — or something the app
+influences. Confirming shot: tap the SAME control twice with the extension cold; if only the
+first is swallowed, the shape is established.
 
 Logged 2026-07-23.
