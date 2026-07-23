@@ -2012,6 +2012,9 @@ remains wait-for-upstream via `hermes update`; re-check each update.
 
 ## 61. 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device re-verify owed
 
+**2026-07-23 — UNBLOCKED.** The card DoD was gated behind #142 (image-only sends). #142 is now
+resolved app-side by wire capture, so the #61 device re-verify is runnable.
+
 **Session C sweep 2026-07-20: DoD NOT closed — tangled with a NEW send-path defect (#142).**
 Sending an image ALONE delivers “[attachment]” as text to the model (image not seen); adding
 any text makes the image visible to the model. The card dedup check itself is therefore
@@ -3919,6 +3922,24 @@ Logged 2026-07-12 (dispatch-prep session).
 
 ## 113. 🔧 Connector supervision — cloud half MERGED (PR #113, 2026-07-18); watchdog INSTALL + forensics owed (Owen/OJAMD)
 
+**2026-07-23 — FORENSICS (gathered via the Hermes agent on OJAMD, unelevated).**
+- **Two concurrent connector processes**, not one: `hermes-mobile.exe run` under the venv python
+  AND under uv-managed cpython-3.12.11. At least one was not launched by
+  `scripts/start-connector.bat`. Alongside them, many never-exited per-session spawns
+  (`hermes-mobile-mcp.exe`, `steam_mcp_server.py`, `bluebubbles_mcp_server.py`).
+- **connector.log tail is pure `UnicodeDecodeError`** — cp1252 choking on byte 0x90 from a
+  subprocess stdout reader thread, repeating. Consistent with an instance running WITHOUT the
+  `PYTHONUTF8=1` the bat sets.
+- **Relay AND shim were found Stopped** on 2026-07-23 ~10:00 CDT, both `StartType=Automatic`,
+  with OJAMD up since 2026-07-16 17:45 — so they were stopped well after boot, not a failed
+  boot start. Bounded: the phone checked into the relay at 2026-07-22 13:32, so the stop falls
+  between then and 07-23 10:00. No SCM events inside a 40-event window; dating it exactly needs
+  a wider filtered sweep (EventID 7000/7009/7031/7036).
+- **Nothing alerted.** This is the supervision gap this item exists for, now demonstrated on the
+  NSSM-managed services too, not only the bare connector.
+- Hermes cannot start these itself: `Start-Service` returns "Cannot open <svc> service on
+  computer '.'" — SCM requires elevation, Owen pastes. Diagnosis it CAN do unelevated.
+
 > **MERGED 2026-07-18 (PR #113, `bb33328`).** Die-loudly hardening (FATAL log + nonzero exit
 > through cli/client/service_runner), `supervision.py` + 5 tests — connector suite **123/123 on
 > the Mac**; `scripts/connector-watchdog.ps1` committed (port-truth liveness, 2-miss threshold,
@@ -4801,6 +4822,17 @@ Logged 2026-07-17.
 
 ## 133. 🔧 Dormant-relay push registration idempotency — MERGED (PR #123, merge `0bc2e0c`, 2026-07-20); device pass owed (M-7 follow-up)
 
+**2026-07-23 — ROW-COUNT LEG CLOSED on BOTH relays.** Direct DB reads. Mac relay: 16 device
+rows, every one with exactly 1 push_registrations row. OJAMD relay: 21 device rows, 13
+registrations, none exceeding 1. App-side idempotency verified in the field — no device has
+ever accumulated duplicate registrations.
+**What this leg CANNOT clear, and it matters:** the item's own prediction ("app-side idempotency
+cannot clean pre-existing duplicate rows if any exist") is confirmed true in a shape nobody
+anticipated. The duplication is at the DEVICE-ROW level, not the registration level: one APNs
+token spread across five device rows. That is #143's root cause and it is relay-side. Nothing
+the app can do fixes it.
+Remaining #133 device pass: unchanged.
+
 **Cross-ref 2026-07-20 (#143):** 5× notifications per Siri ask observed — but the Mac relay
 DB shows whoGoesThere’s token registered EXACTLY ONCE (stable device row, last refreshed
 00:17 — the #133 fix visibly holding server-side on this relay). During the owed device pass,
@@ -5051,6 +5083,21 @@ Logged 2026-07-19.
 
 ## 137. 🔧 Sensor opt-in redesign — MERGED (PR #125, merge `db52a22`, 2026-07-20); device passes owed (public-app posture)
 
+**2026-07-23 — GRANDFATHERED PASS IS UNRUNNABLE ON THIS DEVICE; GATING SEAM VERIFIED INSTEAD.**
+Device read showed the master OFF. This was NOT a migration failure: Owen had toggled sensor
+streaming off manually at an earlier point, overwriting whatever state the one-shot migration
+left behind. Because the migration is one-shot keyed on active pairing, pass (2) can no longer
+be staged here. It needs a handset that has streamed continuously across the update, or it
+retires as untestable in the field. **Do not carry it as "one session away".**
+**Banked instead — the gating seam is verified end to end.** Master ON -> location, health and
+motion all resumed within minutes, confirmed host-side on OJAMD (fresh rows at
+2026-07-23T19:27Z, first data since the manual stop at 2026-07-21T01:36:53Z). So
+`isSensorStreamingEnabled` on `SensorUploadService.start()` genuinely restarts capture and
+upload rather than flipping a UI bit.
+**Still owed, unchanged:** pass (1) fresh-install. Note a constraint discovered here: the
+contextual-prompt criterion is UNOBSERVABLE on any device that already holds
+Health/Location/Motion authorization, because iOS will not re-prompt. It requires a true wipe.
+
 **Session S sweep 2026-07-20: deferred to circle-back (Owen’s call).** Both passes (fresh
 install zero-prompt pairing; grandfathered streaming continuity) queued — fresh-install pass
 naturally pairs with a b4-era reinstall.
@@ -5271,7 +5318,26 @@ information, not failure.
 
 Logged 2026-07-20.
 
-## 142. 🐛 Image-only sends broken — picker image alone reaches the model as “[attachment]” text; pasted image alone yields an EMPTY reply; image+text works on both paths
+## 142. ✅ Image-only sends — APP EXONERATED 2026-07-23 by wire capture; the defect is HOST-SIDE handling of a text-less parts array
+
+**2026-07-23 — RESOLVED APP-SIDE (wire capture via logging reverse proxy, Mac host, build `cbcc824`).**
+Three cases captured on the wire from whoGoesThere:
+- picker image, no text -> `{"input":[{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,..."}}]}`
+- pasted image, no text -> structurally IDENTICAL
+- image + text -> `{"input":[{"text":"Test","type":"text"},{"type":"image_url",...}]}`
+
+**Suspect (1) DEAD.** `AttachmentInlining` assembles a correct parts array for a text-less
+turn; it does not misclassify image-only as text-only.
+**Suspect (2) DEAD.** There is no "[attachment]" string anywhere on the wire. The app never
+emits it — so it is generated HOST-SIDE when Hermes (or its model adapter) receives a parts
+array with no text part.
+**Suspect (3) CONFIRMED as the location.** The only structural difference between the working
+and failing cases is the presence of a text part.
+**Kills the picker-vs-paste theory outright:** both paths emit the SAME shape, so two different
+symptoms from byte-identical payload structure cannot be path-specific placeholder substitution.
+All three cases also pass end-to-end against a healthy host as of 2026-07-23.
+**Consequence: #61's card DoD is UNBLOCKED.** Host-side residue joins #132 (same family — app
+exonerated by wire probe, host vision/config question owed).
 
 **Found 2026-07-20 (Session C launch sweep, whoGoesThere; seed unconfirmed — b4 update was
 scheduled the same night, #141).** Two symptoms, one shared shape:
@@ -5318,7 +5384,27 @@ likely the guilty branch. Then a Fable micro-lane with a fail-first test per cas
 
 Logged 2026-07-20.
 
-## 143. 🐛 Siri-ask completion notifications arrive ×5 — mechanism undetermined (app-side local-notification duplication vs relay fan-out)
+## 143. 🐛 Siri-ask completion notifications arrive ×5 — ROOT-CAUSED 2026-07-23: relay-side duplicate device rows sharing ONE APNs token; relay fix owed
+
+**2026-07-23 — ROOT CAUSE FOUND. Source-verified. Mechanism is RELAY-side, not app-side.**
+OJAMD relay DB: APNs token `0aa87bdfa91d...` is registered against FIVE distinct device_ids,
+FOUR still `is_active=1`. Every re-pairing mints a fresh device row; nothing deactivates the old
+ones (21 device rows total, all `is_active=1`).
+Source, `relay/app/services.py`:
+- `upsert_push_registration` keys the upsert on **device_id**, NOT on apns_token — so each new
+  device row gets its own registration carrying the SAME token. This is precisely why every
+  device reads exactly 1 registration and why #133's app-side fix looked correct.
+- `active_push_registrations_for_user` selects every active (Device, PushRegistration) pair for
+  the user with **no dedup on apns_token** — returning four rows for one physical handset.
+Four rows -> four separate APNs requests -> duplicates arriving SPACED rather than bursty,
+which is exactly the observed shape and is why app-local scheduling was correctly ruled out.
+**Numerically corroborated by #146:** that item records the push delivering ×4 (screenshot on
+file) while the diagnostics row sat stuck. Four active registrations, four deliveries.
+**The discriminators previously owed from Owen are NO LONGER NEEDED** — superseded by direct DB
+plus source evidence.
+**Fix shape (relay):** (a) dedup by apns_token at send time — cheap, immediate; (b) proper fix:
+deactivate prior registrations/device rows for the same token at registration time; (c) partial
+unique index on active apns_token to stop recurrence.
 
 **New candidate mechanism 2026-07-20 late (Hermes 0.19 changelog):** 0.19 ships a
 delivery-obligation LEDGER — finished responses are REDELIVERED after a gateway crash/restart.
@@ -5391,6 +5477,16 @@ Logged 2026-07-20.
 ---
 
 ## 144. 🐛 Test-harness runs enroll as LIVE devices on the Mac relay — baseline/sim runs pollute the production DB with device rows + push registrations
+
+**2026-07-23 — DISCRIMINATOR FOUND, no repro needed.** Real devices report
+`UIDevice.current.name` REDACTED as the generic "iPhone"; simulators report their actual
+configured name. The Mac relay therefore separates cleanly: 1 row named "iPhone" (whoGoesThere,
+live) versus 10 named "iPhone 17 Pro Max" and 5 "CC-M4a-Baseline" — all 15 harness/sim
+pollution.
+Cross-confirmed independently: the single anomalous 160-char APNs token (every other token is
+standard 64-char hex) belongs to sim row `135656d8`, named "iPhone 17 Pro Max".
+Name-based filtering is therefore a viable triage rule for cleaning production device tables,
+and a viable guard for keeping harness runs out of them.
 
 **Found 2026-07-20 while chasing #143 (Mac relay DB read).** `devices` shows five
 `CC-M4a-Baseline` rows created 17:46–20:22 (one per merge-loop/baseline run window, each with
@@ -6273,6 +6369,21 @@ Logged 2026-07-22.
 
 ## 167. ✅ #166a/#166b/#166d landed (PR #138, merge cbcc824) — and #164 hits its third occurrence
 
+**2026-07-23 — THE ATS EXCEPTION IS INERT, AND MagicDNS IS A LATENT LANDMINE.**
+The shipped key is `NSExceptionDomains: { "100.64.0.0/10": { NSExceptionAllowsInsecureHTTPLoads:
+true } }`. `NSExceptionDomains` keys are DOMAIN NAMES — ATS does not accept CIDR notation and
+will not expand that string into a range, so it can never match a host like `100.79.222.100`.
+Plain-HTTP tailnet traffic works in the field (verified on device against BOTH hosts on
+`cbcc824` — the phone drove chat against OJAMD and the Mac all session) because bare-IP hosts
+are not policed the way named hosts are, NOT because this exception is doing anything.
+**Consequence:** the moment a host field is pointed at a MagicDNS name (e.g.
+`ojamd.<tailnet>.ts.net`) rather than a raw IP, ATS will block it and no exception will match.
+Revisit before any DNS-based host configuration ships, and before assuming #166b bought
+protection it did not buy.
+**Method correction worth keeping:** an in-session claim that a successful `curl` from the Mac
+confirmed ATS posture was WRONG. curl does not exercise ATS at all — ATS is enforced by
+URLSession. Only on-device traffic tests it.
+
 The three code-side items of the #166 review-risk register are done, verified, and merged. Four file-scoped commits; unit suite 1088/96 green on the pinned sim.
 
 **166a — privacy manifests: RESOLVED.** `PrivacyInfo.xcprivacy` for all three bundle targets (app, TalariaWidgets, TalariaShare), plutil-lint clean, wired through the resource build phases (verified in the regenerated pbxproj). Declarations: UserDefaults with CA92.1 + 1C8F.1 (App Group), zero collected data types (sensor/health/location go only to the user's own host — nothing is developer-accessible), tracking false. WebRTC's xcframework ships its own per-slice manifests, so the SDK side needed nothing. If a future upload's ITMS-91053 email names additional required-reason categories, extend these files.
@@ -6462,3 +6573,53 @@ So tapping **Custom…** swaps the menu for a raw `TextField` permanently, for t
 **Worth doing at the same time:** audit for a third instance. Two of two hand-rolled `useFreeText` escapes in this sheet shipped as one-way doors, which suggests the shape, not the author, is the problem. `grep -rn "useFreeText" Talaria` is the whole audit.
 
 Logged 2026-07-22 (found during the #168/#169/#170a lane; not device-reported).
+
+
+## 173. 🐛 Silent degradation — the app presents confident replies when the host cannot actually see attachments
+
+**Found 2026-07-23, out of the #142 wire-capture session.** During the window when image-only
+sends were failing, the app returned fluent, confident assistant replies with NO indication
+that the model had never received the images. One reply discussed the literal text
+"[attachment]"; another came back empty. From the user's side these are indistinguishable from
+a working conversation with an unhelpful model.
+The wire capture proves the app sent a correct image part every time — so the app has, in
+principle, everything it needs to notice that what it sent and what came back do not correspond.
+**Why it matters:** attachments are a Connected-tier feature and this failure mode is invisible.
+A user who cannot tell their photo was silently dropped concludes the product is bad at vision,
+not that their host is degraded. That is the worst possible attribution.
+**Same family as #145** (app behaviour under a degraded or absent host) and **#139** (silent
+realtime->local fallback presenting a label lie). Worth deciding whether these three want a
+single "honest degradation" lane rather than three separate fixes.
+**Scope to decide:** detection is the hard part. Options include surfacing host capability (does
+the active model advertise vision?), or a lighter approach that simply never claims a success
+it cannot verify.
+
+Logged 2026-07-23.
+
+## 174. 🔧 Attachment payloads inline at full size — 233-472 KB of base64 in one JSON body, no downscaling
+
+**Measured 2026-07-23 (wire capture, whoGoesThere on `cbcc824`).** Three real image sends
+captured: 472,471 / 301,227 / 227,747 bytes of base64 data-URI, inlined directly into the
+`chat/stream` request body. Base64 carries roughly 33% overhead, so the source JPEGs were about
+354 / 226 / 171 KB. No evidence of any downscale or recompression before inlining.
+**Why it matters:** fine on a tailnet, considerably less fine on cellular. A single body that
+size is a plausible contributor to send timeouts on a slow link — and image-send timeouts are a
+symptom already seen this session, though that instance had a different cause. There is also no
+chunking or progress affordance, so a slow upload is indistinguishable from a hang.
+**Candidate fix:** downscale to a sensible max dimension and re-encode before inlining. Most
+vision models gain nothing from full-resolution phone camera output.
+
+Logged 2026-07-23.
+
+## 175. 🧹 Idle chattiness — `/v1/models` polled 6x and the session list 3x inside ~1 minute of idle
+
+**Observed 2026-07-23 (wire capture, Mac host).** With the app open and otherwise idle, the
+capture logged six `GET /v1/models` and three
+`GET /api/sessions?limit=50&order=recent&min_messages=1` within roughly a minute. None
+user-initiated.
+**Why it matters:** battery and cellular data on a device nominally doing nothing, plus needless
+load on a self-hosted gateway. Low severity, likely an easy win.
+**Next step:** locate the poll sites and establish whether the cadence is deliberate or an
+observer firing per view-appearance. Not yet investigated — logged from wire evidence only.
+
+Logged 2026-07-23.
