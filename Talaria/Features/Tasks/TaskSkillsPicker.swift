@@ -43,6 +43,52 @@ struct SkillsPickerSelection: Equatable {
     }
 }
 
+// MARK: - Field mode (testable, no view state)
+
+/// #168a — which of the field's two modes is showing, lifted out of `@State`
+/// so the transitions are assertable. Before this the free-text flag had
+/// exactly ONE write site (`true`) and no way back: tapping EDIT AS TEXT
+/// swapped the picker for a raw `TextField` permanently, for the life of the
+/// sheet, while the caption promised a return path that did not exist.
+///
+/// The mode owns no text. Both transitions leave `skillsText` untouched, so a
+/// round trip through free text is selection-preserving by construction —
+/// which is what makes the "(custom)"-value preservation property (#156b D5)
+/// reachable from the UI at all.
+struct SkillsFieldMode: Equatable {
+    private(set) var isFreeText: Bool
+
+    init(isFreeText: Bool = false) {
+        self.isFreeText = isFreeText
+    }
+
+    /// A picker can only show when the host list actually has rows.
+    func showsPicker(hasPickerSkills: Bool) -> Bool {
+        hasPickerSkills && !isFreeText
+    }
+
+    /// The escape into hand-typing — only from the picker, and only when
+    /// there is a picker to escape.
+    func offersEditAsText(hasPickerSkills: Bool) -> Bool {
+        hasPickerSkills && !isFreeText
+    }
+
+    /// #168a's second dead-end guard: with no host list there is no picker to
+    /// return to, so free text is the only mode and offering a way "back"
+    /// would open a second door onto nothing.
+    func offersReturnToPicker(hasPickerSkills: Bool) -> Bool {
+        hasPickerSkills && isFreeText
+    }
+
+    mutating func editAsText() {
+        isFreeText = true
+    }
+
+    mutating func usePicker() {
+        isFreeText = false
+    }
+}
+
 // MARK: - Field control
 
 /// The SKILLS field for the cron create/edit sheet. Server-driven when the
@@ -56,7 +102,7 @@ struct TaskSkillsPicker: View {
     /// degrade to free text (nothing to pick).
     let skills: [Skill]?
 
-    @State private var useFreeText = false
+    @State private var mode = SkillsFieldMode()
     @State private var showPicker = false
 
     private var pickerSkills: [Skill]? {
@@ -64,8 +110,12 @@ struct TaskSkillsPicker: View {
         return skills
     }
 
+    private var hasPickerSkills: Bool {
+        pickerSkills != nil
+    }
+
     var body: some View {
-        if let pickerSkills, !useFreeText {
+        if mode.showsPicker(hasPickerSkills: hasPickerSkills), let pickerSkills {
             pickerControl(pickerSkills)
         } else {
             freeTextField
@@ -84,14 +134,31 @@ struct TaskSkillsPicker: View {
                 .padding(.horizontal, Design.Spacing.sm)
                 .frame(height: 44)
                 .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
+            // The list-ness of the field stays on screen in both cases; only
+            // the picker promise is gone — the button below says it now.
             MonoLabel(
-                pickerSkills == nil
-                    ? "COMMA-SEPARATED SKILL NAMES ON THE HOST"
-                    : "COMMA-SEPARATED — PICKER AVAILABLE WHEN NOT EDITING AS TEXT",
+                hasPickerSkills
+                    ? "COMMA-SEPARATED SKILL NAMES"
+                    : "COMMA-SEPARATED SKILL NAMES ON THE HOST",
                 size: 8,
                 tracking: Design.Tracking.mono, color: Design.Colors.dimForeground
             )
+            if mode.offersReturnToPicker(hasPickerSkills: hasPickerSkills) {
+                usePickerButton
+            }
         }
+    }
+
+    /// #168a — the return path the caption used to only promise.
+    private var usePickerButton: some View {
+        Button {
+            mode.usePicker()
+        } label: {
+            MonoLabel("USE PICKER", size: 8, weight: .medium,
+                      tracking: Design.Tracking.mono, color: Design.Brand.accent)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Use the skills picker instead of text")
     }
 
     private func pickerControl(_ available: [Skill]) -> some View {
@@ -118,13 +185,15 @@ struct TaskSkillsPicker: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Skills, \(selectionIsEmpty ? "none selected" : currentLabel)")
 
-            Button {
-                useFreeText = true
-            } label: {
-                MonoLabel("EDIT AS TEXT", size: 8, weight: .medium,
-                          tracking: Design.Tracking.mono, color: Design.Brand.accent)
+            if mode.offersEditAsText(hasPickerSkills: hasPickerSkills) {
+                Button {
+                    mode.editAsText()
+                } label: {
+                    MonoLabel("EDIT AS TEXT", size: 8, weight: .medium,
+                              tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
         .sheet(isPresented: $showPicker) {
             SkillsPickerSheet(skillsText: $skillsText, available: available)
