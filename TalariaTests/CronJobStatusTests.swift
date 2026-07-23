@@ -198,3 +198,120 @@ struct CronJobStatusTests {
         #expect(!none.isRecurring)
     }
 }
+
+/// #170a D6 — pin vs. creation-time snapshot. `model ?? model_snapshot` under
+/// a bare "Model" label rendered an UNPINNED job as pinned; upstream only
+/// captures the snapshot as a drift guard and never updates it, so the phone
+/// would keep naming a model the job stopped using the moment the host's
+/// global default changed. Device-found (#171) and invisible to every test
+/// that existed, because the decode was already correct — only the label lied.
+struct CronModelBindingTests {
+
+    private func job(_ json: String) throws -> CronJob {
+        try JSONDecoder().decode(CronJob.self, from: Data(json.utf8))
+    }
+
+    // MARK: - Pinned
+
+    @Test func anExplicitPinRendersAsAPlainValue() throws {
+        let pinned = try job("""
+        {"id": "aaa111aaa111", "model": "kimi-k3", "provider": "moonshot"}
+        """)
+        #expect(pinned.modelBinding == .pinned("kimi-k3"))
+        #expect(pinned.modelBinding.displayValue == "kimi-k3")
+        #expect(pinned.modelBinding.displayDetail == nil)
+        #expect(pinned.providerBinding == .pinned("moonshot"))
+        #expect(pinned.providerBinding.displayValue == "moonshot")
+        #expect(pinned.providerBinding.displayDetail == nil)
+    }
+
+    @Test func anExplicitPinWinsOverAStaleSnapshot() throws {
+        // Both present: the pin is what the job actually runs on.
+        let value = try job("""
+        {"id": "aaa111aaa111", "model": "kimi-k3", "model_snapshot": "MiniMax-M3",
+         "provider": "moonshot", "provider_snapshot": "minimax-oauth"}
+        """)
+        #expect(value.modelBinding == .pinned("kimi-k3"))
+        #expect(value.providerBinding == .pinned("moonshot"))
+    }
+
+    // MARK: - Unpinned (the live-host shape that started this)
+
+    @Test func aSnapshotWithoutAPinReadsAsFollowingTheHostDefault() throws {
+        // Verbatim shape of a phone-created job on the live Mac host:
+        // model/provider null, both snapshots populated.
+        let unpinned = try job("""
+        {"id": "aaa111aaa111", "model": null, "provider": null,
+         "model_snapshot": "MiniMax-M3", "provider_snapshot": "minimax-oauth"}
+        """)
+        #expect(unpinned.modelBinding == .followsHostDefault(snapshotAtCreation: "MiniMax-M3"))
+        #expect(unpinned.modelBinding.displayValue == "Follows host default")
+        #expect(
+            unpinned.modelBinding.displayDetail == "was MiniMax-M3 when this task was created"
+        )
+        #expect(
+            unpinned.providerBinding
+                == .followsHostDefault(snapshotAtCreation: "minimax-oauth")
+        )
+        #expect(unpinned.providerBinding.displayValue == "Follows host default")
+    }
+
+    /// The requirement in one assertion: a reader must not be able to come
+    /// away believing an unpinned job is pinned to the snapshot.
+    @Test func theUnpinnedRowNeverPresentsTheSnapshotAsTheBinding() throws {
+        let unpinned = try job("""
+        {"id": "aaa111aaa111", "model_snapshot": "MiniMax-M3"}
+        """)
+        let value = try #require(unpinned.modelBinding.displayValue)
+        #expect(!value.contains("MiniMax-M3"))
+        let detail = try #require(unpinned.modelBinding.displayDetail)
+        #expect(detail.contains("MiniMax-M3"))
+        #expect(detail.contains("created"))
+    }
+
+    @Test func theAxesResolveIndependently() throws {
+        // Upstream resolves provider and model separately, so a job can be
+        // pinned on one axis and drifting on the other.
+        let mixed = try job("""
+        {"id": "aaa111aaa111", "model": "kimi-k3", "provider_snapshot": "minimax-oauth"}
+        """)
+        #expect(mixed.modelBinding == .pinned("kimi-k3"))
+        #expect(
+            mixed.providerBinding == .followsHostDefault(snapshotAtCreation: "minimax-oauth")
+        )
+    }
+
+    // MARK: - Nothing knowable
+
+    @Test func neitherFieldRendersNoRow() throws {
+        let bare = try job(#"{"id": "aaa111aaa111"}"#)
+        #expect(bare.modelBinding == .unknown)
+        #expect(bare.modelBinding.displayValue == nil)
+        #expect(bare.modelBinding.displayDetail == nil)
+        #expect(bare.providerBinding == .unknown)
+        #expect(bare.providerBinding.displayValue == nil)
+    }
+
+    @Test func blankStringsAreNothingKnowable() throws {
+        // A whitespace-only field is absence, not a value — otherwise the
+        // panel renders an empty "Model" row.
+        let blank = try job("""
+        {"id": "aaa111aaa111", "model": "   ", "model_snapshot": "\\n"}
+        """)
+        #expect(blank.modelBinding == .unknown)
+    }
+
+    @Test func aBlankPinFallsThroughToTheSnapshot() throws {
+        let value = try job("""
+        {"id": "aaa111aaa111", "model": "", "model_snapshot": "MiniMax-M3"}
+        """)
+        #expect(value.modelBinding == .followsHostDefault(snapshotAtCreation: "MiniMax-M3"))
+    }
+
+    @Test func valuesAreTrimmed() throws {
+        let value = try job("""
+        {"id": "aaa111aaa111", "model": "  kimi-k3  "}
+        """)
+        #expect(value.modelBinding == .pinned("kimi-k3"))
+    }
+}

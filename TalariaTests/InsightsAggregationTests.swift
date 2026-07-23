@@ -198,6 +198,39 @@ struct InsightsAggregationTests {
         #expect(InsightsReadout.costText(subCent) == "~<$0.01")
     }
 
+    /// #169 — the coverage caveat scopes ITSELF. It rode inside the totals
+    /// card as "COVERS 21 OF 230 SESSIONS", which read as a footnote on the
+    /// token and call totals sitting directly above it; those cover every
+    /// fetched session, so the misread understated them by an order of
+    /// magnitude. The row now lives in its own card AND says "WITH COST
+    /// DATA", so the scope survives a future re-nest.
+    @Test func costCoverageTextNamesCostAndAppearsOnlyWhenPartial() {
+        var partial = InsightsSummary.Totals()
+        partial.sessionCount = 230
+        partial.costSessionCount = 21
+        #expect(
+            InsightsReadout.costCoverageText(partial)
+                == "FROM 21 OF 230 SESSIONS WITH COST DATA"
+        )
+
+        // Full coverage has nothing to caveat.
+        var full = InsightsSummary.Totals()
+        full.sessionCount = 12
+        full.costSessionCount = 12
+        #expect(InsightsReadout.costCoverageText(full) == nil)
+
+        // An empty window likewise (0 of 0) — never a caveat about nothing.
+        #expect(InsightsReadout.costCoverageText(InsightsSummary.Totals()) == nil)
+
+        // No cost rows at all, but sessions fetched: still worth saying, and
+        // the cost element itself is already gated off by `costText`.
+        var none = InsightsSummary.Totals()
+        none.sessionCount = 5
+        #expect(
+            InsightsReadout.costCoverageText(none) == "FROM 0 OF 5 SESSIONS WITH COST DATA"
+        )
+    }
+
     @Test func durationTextPicksTheRightGranularity() {
         #expect(InsightsReadout.durationText(0) == nil)
         #expect(InsightsReadout.durationText(-5) == nil)
