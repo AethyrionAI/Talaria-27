@@ -294,18 +294,22 @@ struct TaskDetailScreen: View {
     /// present, no inputs (#156a).
     @ViewBuilder
     private func hostOnlyPanel(job: CronJob) -> some View {
-        let model = job.model ?? job.modelSnapshot
-        let provider = job.provider ?? job.providerSnapshot
+        // #170a — pin and creation-time snapshot are separate facts; the old
+        // `model ?? modelSnapshot` coalesce made an unpinned job read as
+        // pinned, which goes stale silently the next time the host's global
+        // default changes.
+        let modelBinding = job.modelBinding
+        let providerBinding = job.providerBinding
         let script = job.script?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let hasContent = model != nil || provider != nil
+        let hasContent = modelBinding.displayValue != nil || providerBinding.displayValue != nil
             || (script?.isEmpty == false) || job.noAgent == true || job.workdir != nil
         if hasContent {
             panel("HOST-SIDE (READ-ONLY)") {
-                if let provider {
-                    metaRow("Provider", provider)
+                if let provider = providerBinding.displayValue {
+                    metaRow("Provider", provider, detail: providerBinding.displayDetail)
                 }
-                if let model {
-                    metaRow("Model", model)
+                if let model = modelBinding.displayValue {
+                    metaRow("Model", model, detail: modelBinding.displayDetail)
                 }
                 if let script, !script.isEmpty {
                     metaTextBlock("Script", script, color: Design.Colors.foreground)
@@ -334,18 +338,30 @@ struct TaskDetailScreen: View {
         .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.divider)
     }
 
-    private func metaRow(_ label: String, _ value: String) -> some View {
+    /// `detail` is the optional second line under a value — used by #170a to
+    /// date a creation-time snapshot without letting it wear the pin's label.
+    private func metaRow(_ label: String, _ value: String, detail: String? = nil) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Design.Spacing.sm) {
             Text(label)
                 .font(Design.Typography.body(12))
                 .foregroundStyle(Design.Colors.mutedForeground)
                 .frame(width: 92, alignment: .leading)
-            Text(value)
-                .font(Design.Typography.body(13))
-                .foregroundStyle(Design.Colors.foreground)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
+            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                Text(value)
+                    .font(Design.Typography.body(13))
+                    .foregroundStyle(Design.Colors.foreground)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+                if let detail {
+                    Text(detail)
+                        .font(Design.Typography.body(11))
+                        .foregroundStyle(Design.Colors.mutedForeground)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                }
+            }
         }
     }
 

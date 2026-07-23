@@ -43,29 +43,95 @@ struct SkillsPickerSelection: Equatable {
     }
 }
 
+// MARK: - Field mode (testable, no view state)
+
+/// #168a — which of the field's two modes is showing, lifted out of `@State`
+/// so the transitions are assertable. Before this the free-text flag had
+/// exactly ONE write site (`true`) and no way back: tapping EDIT AS TEXT
+/// swapped the picker for a raw `TextField` permanently, for the life of the
+/// sheet, while the caption promised a return path that did not exist.
+///
+/// The mode owns no text. Both transitions leave `skillsText` untouched, so a
+/// round trip through free text is selection-preserving by construction —
+/// which is what makes the "(custom)"-value preservation property (#156b D5)
+/// reachable from the UI at all.
+struct SkillsFieldMode: Equatable {
+    private(set) var isFreeText: Bool
+
+    init(isFreeText: Bool = false) {
+        self.isFreeText = isFreeText
+    }
+
+    /// A picker can only show when the host list actually has rows.
+    func showsPicker(hasPickerSkills: Bool) -> Bool {
+        hasPickerSkills && !isFreeText
+    }
+
+    /// The escape into hand-typing — only from the picker, and only when
+    /// there is a picker to escape.
+    func offersEditAsText(hasPickerSkills: Bool) -> Bool {
+        hasPickerSkills && !isFreeText
+    }
+
+    /// #168a's second dead-end guard: with no host list there is no picker to
+    /// return to, so free text is the only mode and offering a way "back"
+    /// would open a second door onto nothing.
+    func offersReturnToPicker(hasPickerSkills: Bool) -> Bool {
+        hasPickerSkills && isFreeText
+    }
+
+    /// #168b — the degraded state's retry. Offered only when the host list is
+    /// genuinely unavailable AND the field's owner handed down a refetch: a
+    /// RETRY that cannot fetch is the same dead end as a picker that cannot
+    /// open. Stateless, so it lives with the field's other affordance rules.
+    static func offersRetry(hasPickerSkills: Bool, canRetry: Bool) -> Bool {
+        !hasPickerSkills && canRetry
+    }
+
+    mutating func editAsText() {
+        isFreeText = true
+    }
+
+    mutating func usePicker() {
+        isFreeText = false
+    }
+}
+
 // MARK: - Field control
 
 /// The SKILLS field for the cron create/edit sheet. Server-driven when the
 /// skills fetch succeeded and returned rows; free text (exactly the 156a
-/// field) when it didn't — degrade, don't block. "Edit as text" keeps
-/// hand-typing reachable even with the picker up, same escape the deliver
-/// picker offers.
+/// field) when it didn't — degrade, don't block. EDIT LIST AS TEXT keeps
+/// hand-typing reachable even with the picker up, and USE PICKER returns —
+/// the round trip is the point (#168a), because it is the only way a
+/// hand-typed value can be seen surviving as a "(custom)" row.
 struct TaskSkillsPicker: View {
     @Binding var skillsText: String
     /// nil = fetch unavailable/failed; empty = host reports no skills. Both
     /// degrade to free text (nothing to pick).
     let skills: [Skill]?
+    /// #168b — asks the field's OWNER to refetch the host skill list, so a
+    /// field that degraded to free text on a cold-offline launch can upgrade
+    /// to a picker IN PLACE instead of needing a dismiss-and-reopen. The view
+    /// deliberately never holds a store of its own. nil (previews, bare
+    /// containers) simply offers no retry.
+    var onRetrySkills: (@MainActor () async -> Void)? = nil
 
-    @State private var useFreeText = false
+    @State private var mode = SkillsFieldMode()
     @State private var showPicker = false
+    @State private var isRetrying = false
 
     private var pickerSkills: [Skill]? {
         guard let skills, !skills.isEmpty else { return nil }
         return skills
     }
 
+    private var hasPickerSkills: Bool {
+        pickerSkills != nil
+    }
+
     var body: some View {
-        if let pickerSkills, !useFreeText {
+        if mode.showsPicker(hasPickerSkills: hasPickerSkills), let pickerSkills {
             pickerControl(pickerSkills)
         } else {
             freeTextField
@@ -84,13 +150,59 @@ struct TaskSkillsPicker: View {
                 .padding(.horizontal, Design.Spacing.sm)
                 .frame(height: 44)
                 .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
+            // The list-ness of the field stays on screen in both cases; only
+            // the picker promise is gone — the button below says it now.
             MonoLabel(
-                pickerSkills == nil
-                    ? "COMMA-SEPARATED SKILL NAMES ON THE HOST"
-                    : "COMMA-SEPARATED — PICKER AVAILABLE WHEN NOT EDITING AS TEXT",
+                hasPickerSkills
+                    ? "COMMA-SEPARATED SKILL NAMES"
+                    : "COMMA-SEPARATED SKILL NAMES ON THE HOST",
                 size: 8,
                 tracking: Design.Tracking.mono, color: Design.Colors.dimForeground
             )
+            if mode.offersReturnToPicker(hasPickerSkills: hasPickerSkills) {
+                usePickerButton
+            }
+            if SkillsFieldMode.offersRetry(hasPickerSkills: hasPickerSkills,
+                                           canRetry: onRetrySkills != nil) {
+                retryButton
+            }
+        }
+    }
+
+    /// #168a — the return path the caption used to only promise.
+    private var usePickerButton: some View {
+        Button {
+            mode.usePicker()
+        } label: {
+            MonoLabel("USE PICKER", size: 8, weight: .medium,
+                      tracking: Design.Tracking.mono, color: Design.Brand.accent)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Use the skills picker instead of text")
+    }
+
+    /// #168b — the way out of the degraded state without dismissing the
+    /// sheet. `SkillsStore.refresh()` already no-ops while a fetch is in
+    /// flight, so disabling the control for the attempt is guard enough.
+    private var retryButton: some View {
+        Button {
+            retrySkillsFetch()
+        } label: {
+            MonoLabel(isRetrying ? "LOADING HOST LIST…" : "HOST LIST UNAVAILABLE — RETRY",
+                      size: 8, weight: .medium, tracking: Design.Tracking.mono,
+                      color: isRetrying ? Design.Colors.dimForeground : Design.Brand.accent)
+        }
+        .buttonStyle(.plain)
+        .disabled(isRetrying)
+        .accessibilityLabel("Retry loading the host skill list")
+    }
+
+    private func retrySkillsFetch() {
+        guard let onRetrySkills, !isRetrying else { return }
+        isRetrying = true
+        Task { @MainActor in
+            await onRetrySkills()
+            isRetrying = false
         }
     }
 
@@ -118,13 +230,19 @@ struct TaskSkillsPicker: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Skills, \(selectionIsEmpty ? "none selected" : currentLabel)")
 
-            Button {
-                useFreeText = true
-            } label: {
-                MonoLabel("EDIT AS TEXT", size: 8, weight: .medium,
-                          tracking: Design.Tracking.mono, color: Design.Brand.accent)
+            if mode.offersEditAsText(hasPickerSkills: hasPickerSkills) {
+                // #168 design note: "EDIT AS TEXT" read as editing ONE skill's
+                // name — even to the person who specified the field as a
+                // comma-separated list. LIST is the word that fixes it.
+                Button {
+                    mode.editAsText()
+                } label: {
+                    MonoLabel("EDIT LIST AS TEXT", size: 8, weight: .medium,
+                              tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Edit the whole skills list as comma-separated text")
             }
-            .buttonStyle(.plain)
         }
         .sheet(isPresented: $showPicker) {
             SkillsPickerSheet(skillsText: $skillsText, available: available)

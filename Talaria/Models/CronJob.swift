@@ -161,6 +161,83 @@ extension CronJob {
     var createdAt: Date? { CronDateParsing.instant(from: createdAtRaw) }
     var nextRunAt: Date? { CronDateParsing.instant(from: nextRunAtRaw) }
     var lastRunAt: Date? { CronDateParsing.instant(from: lastRunAtRaw) }
+
+    /// #170a — how this job is bound to a model, pin vs. snapshot kept apart.
+    var modelBinding: CronModelBinding {
+        CronModelBinding(pinned: model, snapshot: modelSnapshot)
+    }
+
+    /// #170a — the same distinction on the provider axis; upstream resolves
+    /// the two axes independently.
+    var providerBinding: CronModelBinding {
+        CronModelBinding(pinned: provider, snapshot: providerSnapshot)
+    }
+}
+
+// MARK: - Model / provider binding (#170a)
+
+/// What a job's model (or provider) axis actually means. Upstream keeps
+/// `model`/`provider` — an explicit PIN — separate from
+/// `model_snapshot`/`provider_snapshot`, which record only what the host's
+/// GLOBAL DEFAULT resolved to at creation time, captured purely as a drift
+/// guard (`cron/jobs.py:969,1026`: *"Agent cron jobs with unpinned
+/// provider/model follow global config at fire time"*). The snapshot is
+/// frozen at creation and never updates.
+///
+/// Coalescing the two — `model ?? modelSnapshot` under a bare "Model" label —
+/// renders an UNPINNED job as though it were pinned. That is wrong the moment
+/// the host's default changes: the job silently starts running the new
+/// default while the phone keeps displaying the old snapshot forever
+/// (device-found, #170a). Hence an explicit three-case binding rather than a
+/// coalesce.
+enum CronModelBinding: Equatable {
+    /// An explicit pin — the job runs on this whatever the host default is.
+    case pinned(String)
+    /// Unpinned: the job follows the host's global default AT FIRE TIME. The
+    /// associated value is only what that default was when the job was made.
+    case followsHostDefault(snapshotAtCreation: String)
+    /// Neither field carries anything usable — render nothing (honest absence).
+    case unknown
+
+    init(pinned: String?, snapshot: String?) {
+        if let value = Self.usable(pinned) {
+            self = .pinned(value)
+        } else if let value = Self.usable(snapshot) {
+            self = .followsHostDefault(snapshotAtCreation: value)
+        } else {
+            self = .unknown
+        }
+    }
+
+    /// The row's primary value. The unpinned form names the BINDING, never
+    /// the snapshot — a reader must not be able to come away believing the
+    /// job is pinned.
+    var displayValue: String? {
+        switch self {
+        case .pinned(let value):
+            return value
+        case .followsHostDefault:
+            return "Follows host default"
+        case .unknown:
+            return nil
+        }
+    }
+
+    /// The secondary line: the snapshot, explicitly dated to creation so it
+    /// reads as a historical reading rather than as the job's configuration.
+    var displayDetail: String? {
+        switch self {
+        case .pinned, .unknown:
+            return nil
+        case .followsHostDefault(let snapshot):
+            return "was \(snapshot) when this task was created"
+        }
+    }
+
+    private static func usable(_ raw: String?) -> String? {
+        let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
+    }
 }
 
 // MARK: - Timestamp parsing

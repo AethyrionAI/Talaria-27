@@ -6311,6 +6311,15 @@ Scope: one small lane, `TaskSkillsPicker.swift` plus a touch of `TaskEditSheet.s
 
 Logged 2026-07-22.
 
+**UPDATE 2026-07-22 — ALL THREE BUILT + suite-green on branch `claude/t27-168-170-device-polish`** (spec executed: `dispatch/OPUS-T27-168-170-device-polish.md`; Xcode-beta4, pinned sim, **1107 tests / 99 suites passed**, baseline was 1088/96). Compiled and unit-verified on the Mac; **NOT device-verified** — the three device re-checks below are owed.
+
+- **168a (commit `c7b04a2`)** — the mode moved out of `@State` into a `SkillsFieldMode` value type so the transitions are assertable, and a `USE PICKER` control returns from free text. Both transitions leave `skillsText` untouched, so the round trip is selection-preserving *by construction*. Second dead end closed as specified: with `pickerSkills == nil` **neither** toggle renders. The picker-available caption drops the now-false "PICKER AVAILABLE WHEN NOT EDITING AS TEXT" promise and reads `COMMA-SEPARATED SKILL NAMES` (the list-ness stays on screen — that is 168's design note doing double duty); the nil-list caption is unchanged as specced.
+- **168b (commit `d9913cd`)** — chose the **closure-down** option, not a store reference and not a foreground re-refresh. `TaskEditSheet` exposes `retrySkillsFetch` (nil when it has no store) and `TaskSkillsPicker` renders `HOST LIST UNAVAILABLE — RETRY` only when degraded *and* refetchable. On success `hasLoaded` flips, the sheet re-renders, and the field upgrades to a picker **in place**. Rejected the foreground-refresh alternative because it fires on every app switch and gives the user no way to *ask*; rejected any `SkillsStore` change outright. **`SkillsStore.swift` was not modified — confirmed, `git diff main..HEAD --stat` lists neither it nor `SkillsService`/`Skill`.**
+- **168 design note (commit `2590121`)** — `EDIT AS TEXT` → **`EDIT LIST AS TEXT`**, plus a spoken-form accessibility label. The `skill-one, skill-two (optional)` placeholder already carried the hint and stays.
+- **Tests (commit `eae53a7`)** — `SkillsFieldModeTests` (7) + `SkillsFieldRoundTripTests` (2) in the existing `SkillsPickerSelectionTests.swift`. The round-trip suite is exactly the assertion #171 could not reach on device: a hand-typed value survives the trip back and is reported by `customValues(knownNames:)`.
+
+**Device re-checks owed:** (1) tap EDIT LIST AS TEXT → type an unknown value → USE PICKER → confirm it is pinned at the top as a `(custom)` row **(this is #171's owed #163 assertion — re-run it here)**; (2) with no host list, confirm no USE PICKER appears; (3) airplane-mode open the sheet, restore connectivity, tap RETRY, confirm the field becomes a picker without dismissing.
+
 ## 169. 🎨 Insights EST COST caveat reads as scoping the whole totals card (device-found 2026-07-22)
 
 Found by Owen during the #165 device checklist. Not a data bug — the numbers and the caveat are both correct — but a grouping/legibility problem at the one place on the screen where a misread produces a WRONG belief about the data.
@@ -6333,6 +6342,12 @@ Prefer option 1. Do NOT solve this by dropping the coverage caveat — it is the
 Could ride along with #168's polish lane (different file, same class of finding) or stand alone. Either is fine; do not bundle it into a feature lane.
 
 Logged 2026-07-22.
+
+**UPDATE 2026-07-22 — BUILT + suite-green on `claude/t27-168-170-device-polish` (commit `ad34b74`)**, rode along with #168 as suggested. **Chose fix option 1** (the preferred one): the EST COST element moved OUT of the totals card into its own adjacent card, so the caveat's scope is structural rather than typographic. Options 2 and 3 were rejected as strictly weaker — both leave the row inside a card whose other four numbers have a different scope, which is the actual defect; a separator only makes the boundary thinner, not real.
+
+Belt-and-braces on top of the structural fix: the caveat string moved into `InsightsReadout.costCoverageText` and now names its own subject — **`FROM 21 OF 230 SESSIONS WITH COST DATA`** rather than `COVERS 21 OF 230 SESSIONS`. The scope now travels *with the string*, so a future refactor that re-nests the row cannot silently reintroduce the misread. Unit-covered (partial coverage says it, full coverage and an empty window say nothing). The caveat itself is untouched in spirit — it was never the problem.
+
+**NOT device-verified.** Owed on device: confirm the two cards read as two things at a glance, and that the caveat wraps acceptably at the trailing edge on a phone (it is a MonoLabel at size 8 with `.multilineTextAlignment(.trailing)` and no line limit, so it wraps rather than truncating).
 
 ## 170. ⚠️ Task detail presents `model_snapshot` as if it were the job's model — and the phone cannot pin a model at all (device-found 2026-07-22)
 
@@ -6377,6 +6392,20 @@ Scope: 170a is a labelling change in `TaskDetailScreen` and could ride the #168/
 
 Logged 2026-07-22.
 
+**UPDATE 2026-07-22 — 170a BUILT + suite-green on `claude/t27-168-170-device-polish` (commit `08dbb9a`); 170b unchanged and still upstream-blocked.**
+
+The item's own instruction to "check `CronJob` actually keeps both fields separate before writing the view logic" was checked first: it does (`CronJob.swift:19-22` — `model`, `provider`, `providerSnapshot`, `modelSnapshot` all decode independently), so this was view logic only, as predicted.
+
+Implemented as a three-case `CronModelBinding` in `CronJob.swift` rather than a bare conditional in the view — the item offered two shapes and this is the second one ("show it only when `model != nil`"), extended so the snapshot is still *shown* rather than discarded:
+
+- `model != nil` → `Model  kimi-k3` — unchanged, and now correct rather than accidentally correct.
+- `model == nil`, snapshot present → `Model  Follows host default` with a dated second line, *`was MiniMax-M3 when this task was created`*. The primary value names the **binding**; the snapshot only ever appears as a historical reading. A reader cannot come away believing the job is pinned — that is the assertion the test suite now enforces directly.
+- Neither → no row (honest absence). Blank/whitespace strings now count as absence too, so the panel can no longer render an empty `Model` row; the `hasContent` gate is otherwise unchanged and the panel still appears when only a snapshot exists.
+
+Both axes resolve independently, matching upstream's per-axis resolution — a job can be pinned on model and drifting on provider, and the card now says so. **No model picker was added** (#170b: `model` is absent from both the create body and the PATCH whitelist on 0.19.0), and no relay endpoint was written to work around it.
+
+**NOT device-verified.** Owed on device: open a phone-created task and confirm the HOST-SIDE panel reads *Follows host default / was … when this task was created*; then, if convenient, flip the Mac's global default and confirm the phone's wording is now the honest one (it will still name the old snapshot on the second line — that is correct, it is dated to creation).
+
 ## 171. ✅ Device checklists #162 / #163 / #165 COMPLETE — 17 pass, 2 partial, 1 untestable, 3 defects filed
 
 Full device pass 2026-07-22, Owen driving on the phone against the Mac Mini host, Claude verifying every claim against the live gateway rather than accepting screen state. Host left clean (0 cron jobs; all `T27TEST*` fixtures deleted, verified).
@@ -6409,3 +6438,27 @@ Every one of the three defects is invisible to the test suite — 1088 tests gre
 Two process notes worth keeping: (1) verifying host-side rather than trusting the screen caught that `once-abs` had fired and self-removed, which the app correctly showed as stale until refreshed — a screen-only pass would have logged a phantom missing-job bug; (2) the #162 needsAttention repro was wrong in the checklist itself, which is an argument for writing repro steps against source rather than from memory of the spec.
 
 Logged 2026-07-22.
+
+## 172. 🐛 The DELIVER picker has #168a's one-way door too — found while fixing #168, deliberately NOT fixed there
+
+Filed, not fixed, per the #168/#169/#170a dispatch's explicit instruction: the deliver picker shares the pattern but was never reported broken, so fixing it in that lane would have widened a device-found polish lane into an unrequested change.
+
+**Verified in source, same session** (`TaskEditSheet.swift`, `TaskDeliverPicker`):
+
+- `@State private var useFreeText = false` has exactly ONE write site — `Button("Custom…") { useFreeText = true }`.
+- `body` is `if platforms == nil || useFreeText { freeTextField } else { menuPicker }`.
+- `freeTextField` offers no control that sets it back.
+
+So tapping **Custom…** swaps the menu for a raw `TextField` permanently, for the life of the sheet. Identical mechanism to #168a, in the field directly above the one that was just fixed.
+
+**Two reasons it is milder than #168a was, and one reason it still matters:**
+
+1. Milder — the deliver picker already preserves an off-list value as a marked `(custom)` row in the menu (`isCustomValue` / `currentLabel`), so nothing is unverifiable the way #168a made the skills picker's preservation contract unverifiable. The property is reachable; only the affordance is one-way.
+2. Milder — the value is a single token, not a delimited list, so free text is a more plausible terminal state than it was for SKILLS.
+3. Still matters — there is no way back to a server-driven list of connected platforms once you leave it. A user who taps Custom… to inspect the field, or taps it by accident, hand-types the rest of the sheet's most typo-sensitive value (`telegram:-100999:42` shapes live here — see #171's PATCH-diff proof) with no list to fall back to.
+
+**Fix when picked up (tiny, and the pattern now exists):** #168a's `SkillsFieldMode` is a general shape — a mode value type with `showsPicker` / `offersEditAsText` / `offersReturnToPicker`, all gated on whether a list is actually available. Reuse or mirror it; add a `USE LIST` control to the deliver free-text field, rendered only when `platforms != nil`. Roughly a 10-line change plus one test suite mirroring `SkillsFieldModeTests`.
+
+**Worth doing at the same time:** audit for a third instance. Two of two hand-rolled `useFreeText` escapes in this sheet shipped as one-way doors, which suggests the shape, not the author, is the problem. `grep -rn "useFreeText" Talaria` is the whole audit.
+
+Logged 2026-07-22 (found during the #168/#169/#170a lane; not device-reported).
