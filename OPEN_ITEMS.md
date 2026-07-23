@@ -5855,6 +5855,18 @@ Logged 2026-07-20.
 
 ## 148. 🔧 Hermes 0.19 “Quicksilver” impact assessment — wire, shim, and behavior deltas vs Talaria (investigation umbrella)
 
+**2026-07-23 — possible 0.19 behaviour change: `*_snapshot` may no longer be written.** All three
+cron jobs on OJAMD carry `model`, `provider`, `model_snapshot` and `provider_snapshot` as explicit
+JSON null in `cron/jobs.json`, despite completed runs as recent as 2026-07-23 15:00 CDT.
+`executions.db` has no model/provider columns at all, so they are not recorded per-fire either.
+#170a's original 2026-07-22 evidence showed an unpinned job WITH `model_snapshot = 'MiniMax-M3'`,
+so the behaviour has either changed between then and now, or differs between hosts.
+**Cheap discriminator:** read the Mac's own `cron/jobs.json` — if Mac-side jobs still carry
+snapshots and OJAMD's do not, it is a version/config difference rather than a 0.19 regression.
+Consequence if snapshots are genuinely gone: #170a's `.followsHostDefault` display branch becomes
+unreachable in practice, and upstream's drift guard (`cron/jobs.py:969,1026`) is not doing what
+its comments describe.
+
 **Logged 2026-07-20 late (Owen; 0.19 live on OJAMD as of tonight — the #145 update window).**
 Changelog analysis (Hermes’s own summary, on file in Owen’s thread) flags these as
 Talaria-relevant. Mac-side read-only findings from the same night are folded in.
@@ -6628,6 +6640,10 @@ Logged 2026-07-22.
 
 ## 169. 🎨 Insights EST COST caveat reads as scoping the whole totals card (device-found 2026-07-22)
 
+**Device check 2026-07-23: PASS.** EST COST renders as its own card, clearly separate from the
+totals card, and the caveat now reads as scoping cost alone — token and session totals no longer
+inherit the estimate qualifier. Closes the device re-check owed from the PR #139 lane.
+
 Found by Owen during the #165 device checklist. Not a data bug — the numbers and the caveat are both correct — but a grouping/legibility problem at the one place on the screen where a misread produces a WRONG belief about the data.
 
 **Observed:** the totals card renders as a 2×2 grid (TOKENS IN / TOKENS OUT / TOOL CALLS / API CALLS) with `EST COST ~$2.59 — COVERS 21 OF 230 SESSIONS` as a full-width row inside the SAME card, directly beneath the grid. Owen's reaction, verbatim: "made me double take thinking that was the cost for everything above it that I just saw."
@@ -6656,6 +6672,42 @@ Belt-and-braces on top of the structural fix: the caveat string moved into `Insi
 **NOT device-verified.** Owed on device: confirm the two cards read as two things at a glance, and that the caveat wraps acceptably at the trailing edge on a phone (it is a MonoLabel at size 8 with `.multilineTextAlignment(.trailing)` and no line limit, so it wraps rather than truncating).
 
 ## 170. ⚠️ Task detail presents `model_snapshot` as if it were the job's model — and the phone cannot pin a model at all (device-found 2026-07-22)
+
+**Device check 2026-07-23: PARTIAL — the `.unknown` branch is verified; the branch this item was
+FILED about is not.**
+
+Ground truth pulled from OJAMD (`C:\Users\Owen\AppData\Local\hermes\cron\jobs.json`) for the
+only three jobs that exist there, all created host-side through Hermes and none from the phone:
+
+    LLM Model News Digest / Daily Open Source Repo Showcase / Daily Model Hub Watch
+    model: null   provider: null   model_snapshot: null   provider_snapshot: null
+
+All four keys present, all explicit JSON null. So each is `CronModelBinding.unknown`,
+`displayValue` is nil on both axes, `hasContent` is false, and `TaskDetailScreen` omits the
+HOST-SIDE (READ-ONLY) panel entirely. Device confirms exactly that — no Provider row, no Model
+row, no panel. **That is the specified behaviour for this case:** "neither field carries anything
+usable — render nothing (honest absence)".
+
+**Correction to an in-session reading.** The absent row was first read as the app going quiet
+rather than stating the truth — i.e. as another instance of #180. Source says otherwise.
+`CronModelBinding` implements all three cases as specced: `.pinned` renders the model name,
+`.followsHostDefault` renders "Follows host default" with a secondary line "was X when this task
+was created", and `.unknown` renders nothing. Nothing is being withheld; there is genuinely
+nothing to state.
+
+**Still owed, and neither shape is reachable on OJAMD today:**
+- `.followsHostDefault` — needs a job with `model == null` AND `model_snapshot` populated. This is
+  the exact shape #170a was filed against; the 2026-07-22 evidence job carried
+  `model_snapshot = 'MiniMax-M3'`.
+- `.pinned` — needs a CLI-created job with an explicit model.
+
+**NEW FINDING that may RE-SCOPE this item — cross-ref #148.** OJAMD carries no snapshot values
+anywhere: none in `jobs.json`, and `executions.db` has no model or provider columns at all,
+despite all three jobs having completed runs as recently as 2026-07-23 15:00 CDT. OJAMD's current
+global default is `kimi-k3` / `kimi-coding`. So either the 2026-07-22 evidence job was Mac-side,
+or **hermes-agent 0.19 stopped writing `*_snapshot`**. If the latter, `.followsHostDefault` may be
+unreachable in practice and 170a wants re-scoping rather than re-testing. Checkable from the Mac's
+own `jobs.json` with no device involvement.
 
 Owen, mid-#162 checklist: "It shows the model there, but it doesn't give an option anywhere to change the model used. That's a gap for sure." Investigating produced two distinct findings — one ours to fix, one upstream.
 
