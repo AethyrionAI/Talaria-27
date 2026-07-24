@@ -1848,7 +1848,8 @@ final class AppContainer {
         if SensorStreamingGrandfathering.migrateIfNeeded(
             settings: &settings,
             isPaired: pairingStore.isPaired,
-            hadPersistedSettings: settingsStore.hadPersistedSettings
+            hadPersistedSettings: settingsStore.hadPersistedSettings,
+            persistence: settingsStore.persistence
         ) {
             settingsStore.settings = settings
             containerLog.notice("sensor opt-in migration: grandfathered streaming ON (active pairing)")

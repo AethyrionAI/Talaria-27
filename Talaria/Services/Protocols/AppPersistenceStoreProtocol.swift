@@ -49,12 +49,27 @@ protocol AppPersistenceStoreProtocol {
     func loadHealthQueryAnchorData(for identifier: String) -> Data?
     func saveHealthQueryAnchorData(_ data: Data?, for identifier: String)
     func clearHealthQueryAnchorData()
+
+    /// #137: whether the sensor opt-in grandfathering has already been
+    /// considered on this device. Keychain-mirrored in the real store, so it
+    /// shares the PAIRING's lifetime rather than the app container's — a
+    /// reinstall with a surviving pairing must not re-run the migration.
+    func loadSensorStreamingMigrationStamp() -> Bool
+    func saveSensorStreamingMigrationStamp()
+    func clearSensorStreamingMigrationStamp()
 }
 
 // Legacy-key conveniences: the pre-Lane-M call shape, forwarding to the
 // nil (legacy) scope. Kept so single-profile call sites and existing tests
 // read exactly as before.
 extension AppPersistenceStoreProtocol {
+    /// Test doubles that never migrate anything read as never-stamped. The
+    /// real store overrides all three (#137); a double that needs to model a
+    /// prior install's stamp overrides them too.
+    func loadSensorStreamingMigrationStamp() -> Bool { false }
+    func saveSensorStreamingMigrationStamp() {}
+    func clearSensorStreamingMigrationStamp() {}
+
     func loadSessionState() -> AppSessionState? {
         loadSessionState(profileScope: nil)
     }
