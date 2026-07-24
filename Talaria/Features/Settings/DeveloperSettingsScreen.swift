@@ -22,6 +22,8 @@ struct DeveloperSettingsScreen: View {
     // #127: local mirrors of MonetizationDebugSettings (UserDefaults-backed,
     // DEBUG-only) — seeded in onAppear, written through on change.
     @State private var monetizationGateEnabled = false
+    // #137: one-shot feedback for the migration-stamp reset.
+    @State private var migrationStampCleared = false
     @State private var entitlementOverride: MonetizationEntitlementOverride = .system
     #endif
 
@@ -39,6 +41,7 @@ struct DeveloperSettingsScreen: View {
                     #if DEBUG
                     generativeUISection
                     monetizationSection
+                    sensorMigrationSection
                     #endif
                     buildSection
                 }
@@ -208,6 +211,54 @@ struct DeveloperSettingsScreen: View {
     // own SYSTEM-index link; GenUIDebugScreen is compiled out of Release)
 
     #if DEBUG
+    /// #137: clears the grandfathering done-stamp so the next launch re-runs
+    /// the migration. The stamp is MONOTONIC in shipping builds by design —
+    /// clearing it on unpair would let a re-pair re-migrate an un-stamped,
+    /// paired device and switch streaming and motion ON without consent. This
+    /// exists so the fresh-install device pass does not require erasing the
+    /// device, and it ships in no release build.
+    private var sensorMigrationSection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            MonoLabel("// Sensor opt-in migration", size: 10, tracking: Design.Tracking.monoXWide,
+                      color: Design.Colors.mutedForeground)
+
+            Button {
+                container.debugPersistence?.clearSensorStreamingMigrationStamp()
+                withAnimation(Design.Motion.quickResponse) { migrationStampCleared = true }
+            } label: {
+                HStack(spacing: Design.Spacing.sm) {
+                    StatusPip(color: migrationStampCleared ? Design.Brand.accent
+                                                           : Design.Colors.mutedForeground,
+                              diameter: 7)
+                    Text("Clear migration stamp")
+                        .font(Design.Typography.callout)
+                        .foregroundStyle(Design.Colors.foreground)
+                    Spacer(minLength: Design.Spacing.xs)
+                    MonoLabel(migrationStampCleared ? "CLEARED · RELAUNCH" : "#137 · DEBUG ONLY",
+                              size: 9, weight: .medium, tracking: Design.Tracking.mono,
+                              color: migrationStampCleared ? Design.Brand.accent
+                                                           : Design.Colors.mutedForeground)
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, Design.Spacing.md)
+                .padding(.vertical, Design.Spacing.sm)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
+
+            Text("Clears BOTH halves of the stamp — UserDefaults and the Keychain mirror. "
+                 + "Clearing only one reads as still-migrated. Relaunch to re-run grandfathering.")
+                .font(Design.Typography.callout)
+                .foregroundStyle(Design.Colors.mutedForeground)
+        }
+    }
+
     private var generativeUISection: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             MonoLabel("// Generative UI", size: 10, tracking: Design.Tracking.monoXWide,
