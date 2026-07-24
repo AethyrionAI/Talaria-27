@@ -352,7 +352,9 @@ struct UplinkSettingsScreen: View {
 
     private var actionButtons: some View {
         VStack(spacing: Design.Spacing.sm) {
-            GlowButton(title: "Pair Device", systemImage: "link") {
+            // #152: the pairing surface owns revoke and disconnect too, so
+            // the label can't advertise only pairing.
+            GlowButton(title: "Pairing & Devices", systemImage: "link") {
                 router.dismissSheet()
                 router.navigate(to: .connectHost)
             }
