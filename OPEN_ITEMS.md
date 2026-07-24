@@ -4618,7 +4618,31 @@ Logged 2026-07-17. Built 2026-07-19 — suite 870/76 green (was 845/72) + UI tes
 
 ---
 
-## 125. ✨ Health trends view — native, on-device (free-tier flagship)
+## 125. ❌ Health trends view — CUT 2026-07-24 (PR #142, merge `dd3074e`); shipped in PR #117, never reachable in practice, removed rather than rescued
+
+**CUT 2026-07-24 (Owen).** Removed: `HealthTrendsScreen`, `LiveHealthTrendsService`,
+`MockHealthTrendsService`, `HealthTrendsServiceProtocol`, `HealthTrendsCore`,
+`HealthTrendsCoreTests`, the `PermissionsScreen` entry point and the `AppContainer` wiring.
+`xcodegen generate` run (mandatory — files removed); pbxproj diff PURE DELETIONS, 32 lines,
+0 additions; `aps-environment: development` verified intact post-regen. Suite **1091 / 98,
+TEST SUCCEEDED** (baseline 1107/99 — delta is exactly the 16 tests and 1 suite covering the
+deleted code). Zero `HealthTrend` references survive in `Talaria/`, `TalariaTests/`, `Shared/`.
+
+**`Shared/HealthQueryCore.swift` deliberately KEPT** — it is not a trends file. It is the shared
+HealthKit primitive layer behind the sensor pipeline (#103/#104/#117), `DeviceHealthTool` (#28),
+and the widget's shared window (#15). `HealthQueryCoreTests` stays with it.
+
+**Cutting this did NOT shed the HealthKit dependency.** The sensor path still reads health data,
+so the entitlement, the usage strings, and the App Store review scrutiny that comes with HealthKit
+all remain. What was shed is a screen and two lanes of work, not a platform dependency — worth
+recording so nobody later cites this cut as having simplified the review posture.
+
+**Why it went rather than got fixed.** The screen was reachable only in the same session in which
+health was granted (#181). Making it reachable meant persisting the grant, which reaches into
+`collectSnapshot()` and the sensor pipeline — a real lane. And nobody had established that the
+screen would show anything at all for a granted-but-sensors-off free-tier user, which was the
+tier it was built for. Building a pipeline fix to feed a screen of unknown value failed the test.
+
 
 **2026-07-23 — THIS SCREEN IS UNREACHABLE ON A COLD LAUNCH. See #181.** Owen reported never having
 come across Health Trends in the app; a source read found the entry-point gate depends on an
@@ -7087,7 +7111,26 @@ Patching these one at a time will reproduce the pattern in the next surface buil
 
 Logged 2026-07-23.
 
-## 181. 🐛 Health Trends is unreachable on a cold launch — entry-point fix REVERTED 2026-07-24 (PR #141); persisting the grant is the real fix and is OWED
+## 181. ✅ Health Trends entry point — CLOSED MOOT 2026-07-24: the screen it guarded was cut (#125, PR #142)
+
+**CLOSED MOOT 2026-07-24.** This item existed only to make `HealthTrendsScreen` reachable. #125
+cut the screen, so there is nothing left to reach. The grant-persistence lane (option (a)) is
+**not** owed — it was never wanted for its own sake, only as the prerequisite for this entry point.
+
+**One finding worth keeping out of the closure, because it outlives the screen.**
+`LiveHealthService.authorizationStatus` is still in-memory and still resets to `.notDetermined`
+on every launch, recoverable only by `SensorUploadService.start()`'s re-assert behind
+`isHealthCollectionEnabled()`. That means the **Permissions health card still reads "Not Set"
+after a relaunch even when the user has granted access** — a smaller, live instance of the same
+dishonesty, on a surface that still ships. Not tracked here anymore; if it bites, it is a fresh
+item and #16 is the mechanism.
+
+Arc, for the record: filed as a source-read finding → fixed via option (c) (PR #140) → reverted
+next morning (PR #141) → discriminator answered (the link had never rendered on Owen's build,
+which predated the merge) → the screen itself cut (PR #142). Three PRs and a revert to arrive at
+deletion. The cheaper path was available at the first step: ask whether the feature was wanted
+before making it reachable.
+
 
 **REVERTED 2026-07-24 — PR #141 (merge `62ef0be`), Owen's call.** PR #140 shipped option (c)
 — render the link wherever HealthKit exists, and let the screen's HEALTH ACCESS OFF panel
