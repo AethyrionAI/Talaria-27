@@ -119,7 +119,7 @@ final class LiveSessionBootstrapService: SessionBootstrapServiceProtocol {
                 isMockMode: response.session.isMockMode,
                 backendEndpoint: response.session.backendEndpoint,
                 lastSyncAt: response.session.lastSyncAt,
-                pushTokenRegistered: false
+                registeredPushToken: nil
             ),
             tokens: AuthTokens(
                 accessToken: response.auth.accessToken,
@@ -143,8 +143,20 @@ final class LiveSessionBootstrapService: SessionBootstrapServiceProtocol {
             isMockMode: response.session.isMockMode,
             backendEndpoint: response.session.backendEndpoint,
             lastSyncAt: response.session.lastSyncAt,
-            pushTokenRegistered: response.push.tokenRegistered
+            // #146: the relay reports a Bool — it never says WHICH token it
+            // holds. It is registered against this device, so the token it
+            // holds is the one iOS handed us; nil when we hold none, which is
+            // the honest reading (nothing to have registered).
+            registeredPushToken: response.push.tokenRegistered ? Self.locallyHeldAPNsToken() : nil
         )
+    }
+
+    /// The APNs device token iOS last delivered on this install, as cached by
+    /// the app delegate. Read here so `/session`'s registered-or-not Bool can
+    /// be resolved into the single token record (#146).
+    private static func locallyHeldAPNsToken() -> String? {
+        let token = UserDefaults.standard.string(forKey: AppContainer.apnsTokenDefaultsKey)
+        return (token?.isEmpty == false) ? token : nil
     }
 
     func refreshAuth(refreshToken: String) async throws -> AuthTokens {

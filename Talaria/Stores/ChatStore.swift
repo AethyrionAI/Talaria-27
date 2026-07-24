@@ -1254,12 +1254,37 @@ final class ChatStore {
     /// refresh: a stale-but-real list beats an empty one.
     private(set) var lastLoadedSessions: [HermesSessionInfo] = []
 
+    /// #175: when `lastLoadedSessions` was fetched. The session list has no
+    /// timer behind it — every fetch is a view appearing (the chat seams, the
+    /// persistent sidebar's mount, a settings screen wanting a count) and none
+    /// of them know about the others, so an idle minute logged three identical
+    /// `GET /api/sessions`. This is the shared cache they were all missing.
+    private var lastSessionsLoadAt: Date?
+
+    /// How long an unforced `loadSessions()` may answer from the snapshot.
+    /// Sized to swallow a burst of near-simultaneous appearances, not to hold
+    /// a list across real use: everything that MUTATES the list (open, clear,
+    /// new chat) forces through.
+    static let sessionsSnapshotTTL: TimeInterval = 15
+
     /// Recent sessions from the host. Returns [] when unreachable.
-    func loadSessions() async -> [HermesSessionInfo] {
+    ///
+    /// Answers from `lastLoadedSessions` when a fetch landed within
+    /// `sessionsSnapshotTTL` (#175). Pass `force: true` after anything that
+    /// changed the list server-side — a stale count there would be a lie, not
+    /// a saved request.
+    func loadSessions(force: Bool = false) async -> [HermesSessionInfo] {
+        if !force,
+           let loadedAt = lastSessionsLoadAt,
+           Date.now.timeIntervalSince(loadedAt) < Self.sessionsSnapshotTTL {
+            chatLog.verbose("loadSessions: served \(lastLoadedSessions.count) from snapshot (#175)")
+            return lastLoadedSessions
+        }
         do {
             let sessions = try await hermesClient.listSessions()
             chatLog.verbose("loadSessions: got \(sessions.count) sessions")
             lastLoadedSessions = sessions
+            lastSessionsLoadAt = .now
             onSessionsLoaded?(sessions)
             return sessions
         } catch {

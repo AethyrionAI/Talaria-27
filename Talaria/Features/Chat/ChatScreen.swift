@@ -38,6 +38,7 @@ struct ChatScreen: View {
     @Environment(InboxStore.self) private var inboxStore
     @Environment(TabRouter.self) private var router
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.scenePhase) private var scenePhase
 
     // Lane J (J-9): composer draft + staged attachments and the sessions
     // model are OWNED BY MainTabView and passed in. The compact and regular
@@ -293,7 +294,7 @@ struct ChatScreen: View {
         Task {
             await chatStore.openSession(target.id)
             // J-8: keep the persistent sidebar's list + highlight current.
-            await refreshSessions()
+            await refreshSessions(force: true)
         }
     }
 
@@ -382,7 +383,7 @@ struct ChatScreen: View {
                 // move the CURRENT highlight — re-fetch after the switch.
                 // Neutral in compact: the drawer is closed by now and would
                 // refetch on its next open anyway.
-                await refreshSessions()
+                await refreshSessions(force: true)
             }
         }
         // J-8: the persistent sidebar re-fetches on mount through this seam
@@ -399,8 +400,13 @@ struct ChatScreen: View {
     }
 
     /// Fetches the host's sessions and maps them into the drawer's view models.
-    private func refreshSessions() async {
-        let infos = await chatStore.loadSessions()
+    ///
+    /// #175: `force` separates "this view appeared" from "the list actually
+    /// changed". Appearances coalesce onto ChatStore's snapshot — several
+    /// independent views mount around launch and each used to fetch — while
+    /// anything that opened, cleared or created a session fetches for real.
+    private func refreshSessions(force: Bool = false) async {
+        let infos = await chatStore.loadSessions(force: force)
         let activeProfileID = container.profilesStore?.activeProfileID
         sessionsModel.sessions = infos.map {
             Self.sessionSummary(from: $0, activeProfileID: activeProfileID)
@@ -418,13 +424,39 @@ struct ChatScreen: View {
     }
 
     /// Periodically re-checks relay host status and direct Sessions API health
-    /// while the chat screen is visible.
+    /// while the chat screen is visible. #175: cadence and the
+    /// foreground-only rule live in `ChatHealthPollPolicy` — this used to be
+    /// a flat 10s loop that ran while backgrounded too.
     private func monitorConnectionStatus() async {
+        var unchangedProbes = 0
+        var lastStatus = chatStore.directConnectionStatus
         while !Task.isCancelled {
-            try? await Task.sleep(for: .seconds(10))
+            let interval = ChatHealthPollPolicy.interval(consecutiveUnchangedProbes: unchangedProbes)
+            try? await Task.sleep(for: .seconds(interval))
             guard !Task.isCancelled else { break }
+            guard ChatHealthPollPolicy.shouldProbe(scenePhase: pollScenePhase) else {
+                // Re-probe promptly on return rather than up to a steady
+                // interval later.
+                unchangedProbes = 0
+                continue
+            }
             await hostStore.refresh()
             await chatStore.refreshDirectHealth()
+            let status = chatStore.directConnectionStatus
+            if status == lastStatus {
+                unchangedProbes += 1
+            } else {
+                unchangedProbes = 0
+                lastStatus = status
+            }
+        }
+    }
+
+    private var pollScenePhase: ChatHealthPollPolicy.ScenePhaseSnapshot {
+        switch scenePhase {
+        case .active: .active
+        case .inactive: .inactive
+        default: .background
         }
     }
 
@@ -1317,7 +1349,7 @@ struct ChatScreen: View {
             showStatusCard = false
             // J-8: surface the fresh session in the persistent sidebar
             // (compact's drawer refetches on its next open regardless).
-            await refreshSessions()
+            await refreshSessions(force: true)
         } catch {
             // Conversation unchanged on failure — user can retry
         }

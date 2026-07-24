@@ -268,13 +268,13 @@ final class LocalIntelligenceService {
     }
 
     func measuredTokenCount(of text: String) async -> Int {
-        if #available(iOS 26.4, *) {
-            // `tokenCount(for:)` takes Instructions, not Prompt (verified
-            // against the SDK docs 2026-07-07) — either wraps the same text,
-            // and the count is what matters here.
-            if let count = try? await model.tokenCount(for: Instructions("\(text)")) {
-                return count
-            }
+        // `tokenCount(for:)` takes Instructions, not Prompt (verified against
+        // the SDK docs 2026-07-07) — either wraps the same text, and the count
+        // is what matters here. #154: the `#available(iOS 26.4, *)` wrapper is
+        // gone (the floor is 27.0), but the estimate below is NOT a version
+        // fallback — it still catches a throwing/unavailable model.
+        if let count = try? await model.tokenCount(for: Instructions("\(text)")) {
+            return count
         }
         // ~3 chars per token deliberately underestimates the budget room —
         // it can waste input, never overflow the context.

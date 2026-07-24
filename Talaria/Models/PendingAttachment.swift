@@ -27,9 +27,12 @@ struct PendingAttachment: Identifiable, Sendable {
     /// audio alongside for local playback (#9).
     var isVoiceMemo: Bool { voiceMemoAudioPath != nil }
 
-    /// Maximum file size: 350 KB (before base64 encoding -> ~470KB base64).
-    /// The Hermes API server accepts a 1 MB request body for the whole message payload,
-    /// so individual attachments still need additional aggregate request-size validation.
+    /// Staging cap: 350 KB raw (~470 KB base64). A BACKSTOP, not the working
+    /// size — since #174 a staged image is bounded by `imageMaxPixelDimension`
+    /// and lands far below this; the cap's live job is the text-file path,
+    /// which ships its bytes verbatim. The Hermes API server accepts a 1 MB
+    /// request body for the whole message payload, so a stack of attachments
+    /// is still bounded separately by `AttachmentInlining`.
     static let maxFileSize = 350 * 1024
 
     /// PDFs get their own, larger staging cap (#8): a raw PDF is NEVER
@@ -81,18 +84,49 @@ struct PendingAttachment: Identifiable, Sendable {
         kind == .image || mimeType == Self.pdfMimeType
     }
 
+    /// #174: longest-edge cap for a staged image, in PIXELS.
+    ///
+    /// This used to be a bare `768` compared against `UIImage.size` — which is
+    /// POINTS — and rendered through a default-scale `UIGraphicsImageRenderer`,
+    /// so on a 3× device the "768 px" downscale produced a 2304 px raster and
+    /// inlined 233–472 KB of base64 per image (measured on the wire 2026-07-23).
+    ///
+    /// 1536 px is chosen against the two consumers of these exact bytes:
+    /// vision models resize a long edge to roughly 1100–1570 px internally, so
+    /// nothing is lost at the model; and the #8 "Extract text" OCR path runs
+    /// Vision over this same buffer, where a photographed page at 1536 px
+    /// across still puts body text near 22 px cap height. Honoring the old
+    /// 768 comment literally would have halved that and cost extraction
+    /// accuracy on documents.
+    static let imageMaxPixelDimension = 1536
+
+    /// JPEG quality for staged images — deliberately UNCHANGED at the
+    /// long-standing 0.5. #174 is a payload-size fix, and moving quality at
+    /// the same time as the pixel cap would have muddied the measurement:
+    /// 0.6 was tried and gave back roughly a third of the reduction the pixel
+    /// fix won. One knob at a time.
+    static let imageJPEGQuality: CGFloat = 0.5
+
     /// Create an image attachment from a UIImage.
     /// Large images are automatically downscaled to stay within the size limit.
     static func image(_ image: UIImage, fileName: String? = nil) -> PendingAttachment? {
-        var quality: CGFloat = 0.5
+        var quality = imageJPEGQuality
         var targetImage = image
 
-        // Downscale images to 768px max — keeps base64 well under API body limit
-        let maxDimension: CGFloat = 768
-        if max(image.size.width, image.size.height) > maxDimension {
-            let scale = maxDimension / max(image.size.width, image.size.height)
-            let newSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-            let renderer = UIGraphicsImageRenderer(size: newSize)
+        // Measure and render in PIXELS: `size` is points, and the renderer
+        // defaults to the screen's scale, so both halves have to be pinned or
+        // the cap silently multiplies by the device scale (#174).
+        let pixelWidth = image.size.width * image.scale
+        let pixelHeight = image.size.height * image.scale
+        let longestEdge = max(pixelWidth, pixelHeight)
+        let maxDimension = CGFloat(imageMaxPixelDimension)
+        if longestEdge > maxDimension {
+            let ratio = maxDimension / longestEdge
+            let newSize = CGSize(width: pixelWidth * ratio, height: pixelHeight * ratio)
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            format.opaque = true
+            let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
             targetImage = renderer.image { _ in
                 image.draw(in: CGRect(origin: .zero, size: newSize))
             }

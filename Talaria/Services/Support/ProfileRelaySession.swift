@@ -104,15 +104,15 @@ final class ProfileRelaySessionFactory {
         }
     }
 
-    /// Persists a profile's push-registration flag (M-7) — the dormant-relay
-    /// counterpart of `sessionStore.state.pushTokenRegistered`. #133: also
-    /// records the acked token (cleared on deactivate), which is what the
-    /// dormant-path idempotency guard reads.
+    /// Persists a profile's push registration (M-7) — the dormant-relay
+    /// counterpart of the active path's record. #133 recorded the acked token
+    /// here alongside a parallel Bool; #146 made the Bool derived, so this
+    /// writes the ONE field the idempotency guard, the watch guard and the
+    /// Diagnostics row all read.
     func markPushTokenRegistered(_ registered: Bool, profileID: UUID, token: String? = nil) {
         guard let profile = profileResolver(profileID) else { return }
         let scope = profile.credentialScopeID
         guard var state = persistence.loadSessionState(profileScope: scope) else { return }
-        state.pushTokenRegistered = registered
         state.registeredPushToken = registered ? token : nil
         persistence.saveSessionState(state, profileScope: scope)
     }
