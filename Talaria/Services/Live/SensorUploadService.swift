@@ -969,31 +969,26 @@ final class SensorUploadService {
 
     private func reverseGeocode(latitude: Double, longitude: Double) async -> String? {
         let location = CLLocation(latitude: latitude, longitude: longitude)
+        // #154: the `#available(iOS 26.0, *)` guard around this was always true
+        // on a 27.0 floor, and its `else` — a deprecated `CLGeocoder` fallback —
+        // was unreachable. Deleted; MapKit is the only path.
         do {
-            if #available(iOS 26.0, *) {
-                guard let request = MKReverseGeocodingRequest(location: location) else {
-                    return nil
-                }
-                let mapItems = try await request.mapItems
-                guard let item = mapItems.first else { return nil }
-                if let shortAddress = item.address?.shortAddress, !shortAddress.isEmpty {
-                    return shortAddress
-                }
-                if let fullAddress = item.address?.fullAddress, !fullAddress.isEmpty {
-                    return fullAddress
-                }
-                if let singleLine = item.addressRepresentations?.fullAddress(includingRegion: false, singleLine: true),
-                   !singleLine.isEmpty {
-                    return singleLine
-                }
-                return item.name
-            } else {
-                let placemarks = try await CLGeocoder().reverseGeocodeLocation(location)
-                guard let place = placemarks.first else { return nil }
-                let parts = [place.name, place.thoroughfare, place.locality, place.administrativeArea]
-                    .compactMap { $0 }
-                return parts.isEmpty ? nil : parts.joined(separator: ", ")
+            guard let request = MKReverseGeocodingRequest(location: location) else {
+                return nil
             }
+            let mapItems = try await request.mapItems
+            guard let item = mapItems.first else { return nil }
+            if let shortAddress = item.address?.shortAddress, !shortAddress.isEmpty {
+                return shortAddress
+            }
+            if let fullAddress = item.address?.fullAddress, !fullAddress.isEmpty {
+                return fullAddress
+            }
+            if let singleLine = item.addressRepresentations?.fullAddress(includingRegion: false, singleLine: true),
+               !singleLine.isEmpty {
+                return singleLine
+            }
+            return item.name
         } catch {
             return nil
         }
