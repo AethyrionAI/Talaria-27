@@ -7357,3 +7357,35 @@ Cross-refs: #125 (the screen itself), #16 (same in-memory-auth mechanism, found 
 (the sensor posture that exposes it), #180 (the umbrella this belongs under).
 
 Logged 2026-07-23.
+
+## 182. 🎲 Second flaky UI test — `testMockPairingViaSettingsEntryPoint` launch timeout
+
+**Observed 2026-07-24 during the Bundle B lane (PR #144).** Flaked once mid-session with a launch
+timeout; passed in three other runs including the final clean one. **Filed, not fixed** — per the
+#164 spec's standing rule that a flake-hunting lane which widens is a lane that never closes.
+
+**This is NOT #164.** That one is `testDisconnectReturnsToStandaloneChat`, fails on bundle-warm
+runs, and its failure mode impersonates a real disconnect regression. This is a different test with
+a different symptom (launch timeout, not a missed element). Do not merge the two items; do not let
+a fix for one be credited to the other.
+
+**Why it is worth a number rather than a shrug.** #164's entire argument is that a flake which
+looks like a plausible regression eventually gets a real bug waved through as "oh, that one again."
+A SECOND flaky UI test doubles the surface for that habit, and two flakes in one bundle is the
+point at which "rerun until green" starts becoming the house style. The launch-timeout shape also
+differs from #164's in a way that matters: a launch timeout could be environmental (sim cold-start
+under load, and this session ran four full suites back to back) or a real slow-launch regression —
+and #136 (offline-first launch) and #145 (hard-lock on entry during a host outage) both live on
+that surface.
+
+**First questions when picked up:**
+1. Does it correlate with sim load — i.e. does it only appear in back-to-back full-suite runs?
+2. Is the timeout the harness's launch wait, or is the app genuinely slow to become responsive?
+   The second would be a real defect wearing a flake's clothes.
+3. Occurrence count: this is **1**. #164 was promoted to a fix lane at its third. Same bar here —
+   do not spend a lane on a single occurrence, but do count it.
+
+**Standing instruction:** record further occurrences here with build SHA and whether the run was
+warm. A counter nobody increments is how the first one sat unexamined for two weeks.
+
+Logged 2026-07-24 (review of PR #144).
