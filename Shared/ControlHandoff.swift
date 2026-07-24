@@ -80,6 +80,12 @@ struct ControlHandoffStore {
     ///   ordinary launch reads this store too — so "nothing pending" is the
     ///   common case, not an error.
     func consumeDestination(now: Date = .now) -> URL? {
+        // No destination: return WITHOUT clearing. This is the every-launch
+        // path, and clearing here would mean a write into the shared suite on
+        // every single foreground to remove nothing. A torn write can leave a
+        // lone timestamp behind — deliberate litter, inert by construction: a
+        // timestamp alone is never routable, and the next real write
+        // overwrites it.
         guard let raw = defaults.string(forKey: Self.destinationKey) else { return nil }
         let writtenAt = defaults.object(forKey: Self.writtenAtKey) as? Double
         clear()
