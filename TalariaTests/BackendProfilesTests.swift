@@ -374,6 +374,24 @@ struct BackendProfilesTests {
         #expect(profilesStore.profile(id: spare.id) == nil)
     }
 
+    /// #153 × #137: deleting a profile purges that profile's credentials, but
+    /// the sensor-migration stamp is app-wide and MONOTONIC by design.
+    /// Clearing it here would let a later re-pair re-run the migration and
+    /// switch streaming and motion back on without consent.
+    @Test @MainActor
+    func deletingAProfileLeavesTheSensorMigrationStampIntact() throws {
+        let persistence = makePersistence("delete-migration-stamp")
+        persistence.saveSensorStreamingMigrationStamp()
+        #expect(persistence.loadSensorStreamingMigrationStamp())
+
+        let profilesStore = BackendProfilesStore(persistence: persistence, migrationSeeds: Self.ojamdSeeds)
+        let spare = BackendProfile(name: "Spare", gatewayBaseURL: "http://spare:8642", relayBaseURL: "")
+        profilesStore.upsert(spare)
+        try profilesStore.deleteProfile(id: spare.id)
+
+        #expect(persistence.loadSensorStreamingMigrationStamp())
+    }
+
     // MARK: - M-1: session records carry their birth profile
 
     @Test @MainActor
