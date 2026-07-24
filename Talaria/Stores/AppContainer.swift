@@ -92,6 +92,12 @@ final class AppContainer {
     /// M-9 thrash guard: dormant-refresh attempts this process, so a failing
     /// relay isn't re-tried on every foreground.
     private var dormantRefreshAttempts: [UUID: Date] = [:]
+    #if DEBUG
+    /// #137: the live persistence store, exposed for the Developer screen's
+    /// migration-stamp reset only. DEBUG-only so the release container's
+    /// surface is unchanged.
+    fileprivate(set) var debugPersistence: (any AppPersistenceStoreProtocol)?
+    #endif
     /// #17: Spotlight donation for sessions + agent files, strictly behind the
     /// Privacy toggle (default OFF); wired in makeDefault().
     let spotlightIndexing = SpotlightIndexingService()
@@ -709,6 +715,14 @@ final class AppContainer {
 
         // #97: pin/archive overlay for server-session rows — same persistence
         // seam as every other store, read by the drawer + search surfaces.
+        #if DEBUG
+        // #137: the Developer screen's migration-stamp reset needs the REAL
+        // store — the stamp is Keychain-mirrored, so a reconstructed one
+        // without the same mirror would clear only half of it and read as
+        // still-migrated.
+        container.debugPersistence = persistence
+        #endif
+
         container.conversationListState = ConversationListStateStore(persistence: persistence)
 
         // Lane M (#114): backend profiles + session→profile index.

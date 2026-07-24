@@ -156,10 +156,15 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         keychainMirror?.storeSync(key: Keys.sensorStreamingMigrated, value: "1")
     }
 
+    /// DEBUG ONLY — see the protocol. Must clear BOTH halves: `load` returns
+    /// true on the Keychain mirror alone, so a UserDefaults-only reset would
+    /// silently do nothing and cost a device pass to discover.
+    #if DEBUG
     func clearSensorStreamingMigrationStamp() {
         defaults.removeObject(forKey: Keys.sensorStreamingMigrated)
         keychainMirror?.deleteSync(key: Keys.sensorStreamingMigrated)
     }
+    #endif
 
     func loadSessionProfileIndex() -> SessionProfileIndex {
         load(SessionProfileIndex.self, key: Keys.sessionProfileIndex) ?? SessionProfileIndex()
