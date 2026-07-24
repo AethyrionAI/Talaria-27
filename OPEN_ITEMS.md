@@ -6622,6 +6622,42 @@ Logged 2026-07-22.
 
 ## 164. 🎲 Recurring UI-test flake: `testDisconnectReturnsToStandaloneChat` fails on bundle-warm runs
 
+**2026-07-24 — REPRODUCED UNDER CONTROLLED CONDITIONS. Occurrence 4, and the first with a captured
+mechanism.** Three sequential full-suite runs on an otherwise-idle sim (Mac Mini, Owen away):
+**run 1 PASS, run 2 FAIL, run 3 PASS.** So it is ~1-in-3 on back-to-back runs and it is NOT
+dependent on a human driving the machine.
+
+**Mechanism — from the run-2 timing, not inferred.** The failure is the `#31` assertion at
+`AppTemplateUITests.swift:209`:
+
+    t = 41.93s  Checking existence of "chat.composer" TextView     → present
+    t = 41.98s  Checking existence of "Enter Code Manually" Button → ALSO present
+    FAIL: XCTAssertFalse — no pairing wall may return after disconnect (#31)
+
+**Fifty milliseconds apart.** The composer and the dismissing pairing wall coexist in the
+accessibility tree for a beat after disconnect, and the assertion used a bare `.exists` — which is
+true for a view still on its way out. The test was asserting "the wall was never momentarily in the
+tree" when the contract is "the wall is gone."
+
+**This is exactly the ambiguity this item was filed about.** From the log alone, a mid-dismissal
+wall and a genuinely-returned wall (#31 regressing for real) are indistinguishable — which is why
+the spec warned that this flake impersonates a plausible regression. That warning turned out to
+describe the actual failure, not a hypothetical.
+
+**FIX — discriminating, not masking.** `XCTAssertTrue(app.buttons["Enter Code Manually"]
+.waitForNonExistence(timeout: 5))`. This tolerates the dismissal animation **and still fails on a
+real #31 regression**, because a wall that genuinely returned never disappears — it just fails
+after the timeout instead of during someone else's animation. Deliberately NOT a sleep (tuned to
+today's machine) and NOT a plain `.exists` in either direction (one masks the defect, the other
+re-opens the flake). The reasoning is in an in-code comment so the next reader does not "simplify"
+it back.
+
+**Quarantine was NOT taken** — it was the spec's fallback for a genuinely environmental flake, and
+this turned out to have a real, fixable cause in the test's own assertion.
+
+**Note on the reproduction runs:** `testMockPairingViaSettingsEntryPoint` (#182) passed all three
+times in this sequence. Its single flake remains at 1 occurrence.
+
 **Spec written 2026-07-24: `dispatch/OPUS-T27-164-uitest-flake.md`** — deliberately NOT bundled: its close criteria is three consecutive full-suite runs, which holds the sim for ~an hour. Do not re-spec.
 
 Promoted to its own item per the rule stated when it first appeared: one occurrence is noise, two is a pattern. Now at **two consecutive lane runs**:
