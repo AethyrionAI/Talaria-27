@@ -1,5 +1,78 @@
 import SwiftUI
 
+// MARK: - Test Connection outcome (#151)
+
+/// What a Test Connection attempt concluded. Joins the `ServerProbeResult`
+/// wording family (— / ONLINE / NO KEY / OFFLINE) established by #84/#71
+/// rather than inventing a third status vocabulary for the same screen.
+enum ConnectionTestOutcome: Equatable {
+    case passed(latencyMillis: Int)
+    case failed(ConnectionTestFailure)
+}
+
+/// The failure shapes worth telling apart. #145/#136 established that a
+/// refused connection, a firewall black-hole and an answering-but-unkeyed
+/// host are three different problems with three different fixes — collapsing
+/// them into one "failed" is what made the silent button useless.
+enum ConnectionTestFailure: Equatable {
+    /// Nothing is listening on that port — the fast-refuse shape.
+    case refused
+    /// No answer inside the probe budget — the firewall black-hole shape
+    /// (DROP, not REFUSE), or a host that is simply powered down.
+    case timedOut
+    /// The name never resolved.
+    case hostNotFound
+    /// The host answered and rejected the key (401/403).
+    case authRejected
+    /// The host answered, but not with success — often a port pointed at a
+    /// different service entirely.
+    case unexpectedStatus(Int)
+    /// Nothing to probe: no base URL, or one that isn't a valid address.
+    case notConfigured(String)
+    /// Anything else — no network, TLS failure, …
+    case other(String)
+
+    /// The mono status word, in the shared vocabulary where one already fits.
+    var label: String {
+        switch self {
+        case .refused: "REFUSED"
+        case .timedOut: "NO ANSWER"
+        case .hostNotFound: "NO HOST"
+        case .authRejected: "NO KEY"
+        case .unexpectedStatus(let code): "HTTP \(code)"
+        case .notConfigured: "NOT SET"
+        case .other: "FAILED"
+        }
+    }
+
+    /// One sentence naming the likely fix — the whole point of the item.
+    var detail: String {
+        switch self {
+        case .refused:
+            "Nothing is listening on that port. Check the port number and that Hermes is running."
+        case .timedOut:
+            "No reply within 5s. The host may be asleep, or a firewall may be dropping the connection."
+        case .hostNotFound:
+            "That address didn't resolve. Check the hostname, and that Tailscale is up."
+        case .authRejected:
+            "The host answered but rejected the key. Paste the API_SERVER_KEY from ~/.hermes/.env above."
+        case .unexpectedStatus(let code):
+            "The host answered with \(code). That port may belong to a different service."
+        case .notConfigured(let reason):
+            reason
+        case .other(let reason):
+            reason
+        }
+    }
+}
+
+/// The Test Connection control's lifecycle.
+enum ConnectionTestState: Equatable {
+    case idle
+    case testing
+    case done(ConnectionTestOutcome)
+}
+
 // MARK: - Uplink settings screen (Settings → UPLINK)
 //
 // The DIRECT chat link to the Hermes Sessions API (:8642): live link status,
@@ -23,7 +96,10 @@ struct UplinkSettingsScreen: View {
     @State private var hermesAPIKeyDraft = ""
     @State private var hermesAPIKeySaving = false
     @State private var hermesAPIKeyJustSaved = false
-    @State private var isTesting = false
+    /// #151: the Test Connection control's state. Replaces the old bare
+    /// `isTesting` flag, which made success, failure and in-flight
+    /// indistinguishable at exactly the moment the control exists to answer.
+    @State private var testState: ConnectionTestState = .idle
     /// #127: the connect gate's locked state — presents the Connected
     /// paywall instead of enabling a new host. Inert while dormant.
     @State private var paywallPresented = false
@@ -63,6 +139,9 @@ struct UplinkSettingsScreen: View {
         .toolbarVisibility(.hidden, for: .navigationBar)
         .task { await hostStore.refresh() }
         .onAppear { hermesAPIKeyDraft = container.hermesAPIKey }
+        // #151: a verdict belongs to the endpoint it was measured against —
+        // retyping the URL must not leave a stale ONLINE row underneath it.
+        .onChange(of: gatewayBaseURL) { testState = .idle }
         .sheet(isPresented: $paywallPresented) {
             ConnectedPaywallSheet()
         }
@@ -278,20 +357,156 @@ struct UplinkSettingsScreen: View {
                 router.navigate(to: .connectHost)
             }
             GhostButton(
-                title: isTesting ? "Testing…" : "Test Connection",
+                title: testState == .testing ? "Testing…" : "Test Connection",
                 systemImage: "antenna.radiowaves.left.and.right"
             ) {
                 Task { await testConnection() }
             }
+            .disabled(testState == .testing)
+            testStatusRow
         }
         .padding(.top, Design.Spacing.xs)
     }
 
+    // MARK: Test Connection (#151)
+
+    /// The probe budget. Deliberately NOT the shared client path: the Sessions
+    /// client stamps `timeoutInterval = 300` on every request, so reusing
+    /// `refreshDirectHealth()` here would leave Test Connection spinning for
+    /// five minutes against a black-holed host — a worse papercut than the
+    /// silence it replaces. A fast honest "no answer" beats a slow accurate one.
+    static let probeTimeout: TimeInterval = 5
+
     private func testConnection() async {
-        isTesting = true
-        await hostStore.refresh()
-        await container.chatStore.refreshDirectHealth()
-        isTesting = false
+        testState = .testing
+        let outcome = await Self.probe(baseURL: gatewayBaseURL, apiKey: container.hermesAPIKey)
+        testState = .done(outcome)
+        // The link panel above is fed by the shared stores; refresh it
+        // without gating the verdict on the 300s path.
+        Task { await hostStore.refresh() }
+    }
+
+    /// Probes the ACTIVE profile's Sessions API (`/v1/models`) — the plane
+    /// this screen is about. The relay and shim are independent planes with
+    /// their own status surfaces (Settings → Server); a Test Connection that
+    /// silently probed a different one would be worse than none.
+    static func probe(
+        baseURL: String,
+        apiKey: String,
+        session: URLSession = .shared
+    ) async -> ConnectionTestOutcome {
+        var normalized = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else {
+            return .failed(.notConfigured("No base URL set. Enter the Sessions API endpoint above."))
+        }
+        while normalized.hasSuffix("/") { normalized.removeLast() }
+        guard let url = URL(string: normalized + "/v1/models") else {
+            return .failed(.notConfigured("That base URL isn't a valid address."))
+        }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = probeTimeout
+        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !key.isEmpty {
+            request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        }
+
+        let started = Date()
+        do {
+            let (_, response) = try await session.data(for: request)
+            let elapsed = Int((Date().timeIntervalSince(started) * 1000).rounded())
+            guard let http = response as? HTTPURLResponse else {
+                return .failed(.other("The host replied, but not over HTTP."))
+            }
+            return outcome(statusCode: http.statusCode, latencyMillis: elapsed)
+        } catch let error as URLError {
+            return .failed(failure(for: error.code))
+        } catch {
+            return .failed(.other(error.localizedDescription))
+        }
+    }
+
+    /// Status code → verdict. Defers to `ServerProbeResult.classify` so this
+    /// screen and the Server screen can never disagree about what a 401 means.
+    /// Static so the rule is unit-testable (M-17).
+    static func outcome(statusCode: Int, latencyMillis: Int) -> ConnectionTestOutcome {
+        switch ServerProbeResult.classify(statusCode: statusCode) {
+        case .online: .passed(latencyMillis: latencyMillis)
+        case .unauthorized: .failed(.authRejected)
+        case .offline, .unknown: .failed(.unexpectedStatus(statusCode))
+        }
+    }
+
+    /// Transport error → the three network shapes #145/#136 named. Static so
+    /// the mapping is unit-testable without a socket.
+    static func failure(for code: URLError.Code) -> ConnectionTestFailure {
+        switch code {
+        case .cannotConnectToHost: .refused
+        case .timedOut: .timedOut
+        case .cannotFindHost, .dnsLookupFailed: .hostNotFound
+        case .notConnectedToInternet: .other("This device has no network connection.")
+        case .appTransportSecurityRequiresSecureConnection:
+            .other("App Transport Security blocked the request to that address.")
+        default: .other("The connection failed (\(code.rawValue)).")
+        }
+    }
+
+    @ViewBuilder
+    private var testStatusRow: some View {
+        switch testState {
+        case .idle:
+            EmptyView()
+        case .testing:
+            testRow(color: Design.Colors.secondaryForeground, showsSpinner: true) {
+                MonoLabel("TESTING \(hostDisplay)", size: 10, weight: .medium,
+                          tracking: Design.Tracking.mono, color: Design.Colors.secondaryForeground)
+            }
+        case .done(.passed(let latencyMillis)):
+            testRow(color: Design.Brand.accent, showsSpinner: false) {
+                VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                    MonoLabel("ONLINE · \(latencyMillis) MS", size: 10, weight: .medium,
+                              tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                    Text("\(hostDisplay) answered the Sessions API.")
+                        .font(Design.Typography.caption)
+                        .foregroundStyle(Design.Colors.secondaryForeground)
+                }
+            }
+        case .done(.failed(let failure)):
+            testRow(color: Design.Brand.forge, showsSpinner: false) {
+                VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                    MonoLabel(failure.label, size: 10, weight: .medium,
+                              tracking: Design.Tracking.mono, color: Design.Brand.forge)
+                    Text(failure.detail)
+                        .font(Design.Typography.caption)
+                        .foregroundStyle(Design.Colors.secondaryForeground)
+                }
+            }
+        }
+    }
+
+    private func testRow<Content: View>(
+        color: Color,
+        showsSpinner: Bool,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(alignment: .top, spacing: Design.Spacing.sm) {
+            if showsSpinner {
+                ProgressView().controlSize(.mini)
+            } else {
+                StatusPip(color: color, diameter: 7)
+                    .padding(.top, 3)
+            }
+            content()
+            Spacer(minLength: 0)
+        }
+        .padding(Design.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.lg,
+            borderColor: color.opacity(0.35),
+            fill: color.opacity(0.07),
+            innerGlow: false
+        )
     }
 
     // MARK: Bindings / persistence
