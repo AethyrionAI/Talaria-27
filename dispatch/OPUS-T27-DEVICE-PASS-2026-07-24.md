@@ -223,6 +223,14 @@ a bad onboarding step that exists today, not about investing in the shim's futur
 
 ## LANE 10 — #125 Health Trends — READ THE FINDING FIRST
 
+> **UPDATED 2026-07-23 after this spec was written: the entry-point defect is ALREADY FIXED**
+> (#181, PR #140, merge `8c8e3b9`). On a build at or after that merge, the four-step repro
+> ladder below will NOT reproduce — the link should be present from step 1. Run the ladder as
+> a **fix confirmation**: link present on a cold launch with sensors off, and tapping it shows
+> HEALTH ACCESS OFF rather than nothing. That panel is the honest state, not a regression.
+> The auth flag itself is still unfixed (see #181 option (a)), so the Permissions health card
+> will still read "Not Set" after a relaunch despite a granted scope — expected, file nothing.
+
 **Do not run this as a normal device pass.** Source investigation on 2026-07-23 (this spec's
 session) found the reason Owen has never seen this screen, and it is a real defect. It is filed as
 OPEN_ITEMS #181. Confirm the finding on device rather than re-deriving it:
