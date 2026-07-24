@@ -1,6 +1,6 @@
 # OPUS-T27 — Device pass, 2026-07-24
 
-**Items:** OPEN_ITEMS #133, #179, #128, #129, #124, #123, #112, #81, #117, #116
+**Items:** OPEN_ITEMS #133, #179, #128, #129, #124, #123, #112, #81, #117, #116, #61, #172, #137 (the last three are Bundle A, PR #143)
 **Repo:** AethyrionAI/Talaria-27 · **Base:** main (`0dab455` at spec time) · **Branch:** none — this is
 a verification pass, not a code lane. Findings land as OPEN_ITEMS commits only.
 **Driver:** Owen on whoGoesThere (iPhone, iOS 27 b4). **Verifier:** Claude Code Opus, local, full access.
@@ -9,7 +9,7 @@ a verification pass, not a code lane. Findings land as OPEN_ITEMS commits only.
 
 ## Mission
 
-Ten items are carrying owed device verification. All the code is merged; nothing here is
+Thirteen items are carrying owed device verification. All the code is merged; nothing here is
 blocked on a build. The bar for this pass, borrowed from #171 which worked well: **verify every
 claim against live state — relay DB rows, gateway responses, device logs — rather than accepting
 what the screen says.** Screen state is a hypothesis, not evidence.
@@ -36,7 +36,8 @@ this tracker is the cautionary tale.
 3. Note on OJAMD (from #113 forensics, 2026-07-23): relay and shim were found **Stopped** with
    `StartType=Automatic`. Confirm they are running before blaming the app for anything.
 4. Build and install a fresh device build off current `main`. Record the SHA in every finding —
-   "device-verified" without a SHA is worthless six days later.
+   "device-verified" without a SHA is worthless six days later. **The build MUST be at or after
+   merge `fdc6ebb` (PR #143)** or Lane 10 has nothing to test.
 5. `export GH_PAGER=cat` before any `gh` command.
 
 ---
@@ -218,6 +219,60 @@ read as failing, not as silence — "make the probe honest" is half this item's 
 
 **Context worth carrying:** the models shim is being phased out (#161). This DoD is about removing
 a bad onboarding step that exists today, not about investing in the shim's future.
+
+---
+
+## LANE 10 — Bundle A verification: #61, #172, #137 (one build, three checks)
+
+All three shipped in PR #143 (merge `fdc6ebb`). Each was unit-verified; each has a stated blind
+spot that only a device closes.
+
+### 10a — #61 on-device card, STANDALONE ONLY
+
+**This cannot be verified against a paired host.** The connected-mode drawer is server-fed —
+`SessionsHermesClient.listSessions` maps `row.title`/`row.preview` straight from the Hermes API.
+#61 renders only via `conversation.title` / `generatedPreview`, i.e. `ChatScreen`'s header and
+`LocalChatBackend.sessionInfo`. Three prior sessions were spent on the wrong screen. **Disconnect
+both hosts first.**
+
+Run a standalone chat whose reply opens with a short sentence the title is likely to echo. The
+known device case: title `"I can't create a haiku"` (22 chars) against preview
+`"I can't create a haiku directly, but here's a simple one:"` (~57).
+
+- **PASS:** title and preview are visibly different content — the exact-prefix guard discarded the
+  degenerate card and the fallback produced something distinguishable.
+- **FAIL:** title is still a verbatim prefix of the preview.
+- The log names which guard tripped. Capture it either way; that logging is how this was diagnosed
+  and it should confirm the new exact-prefix branch by name.
+
+### 10b — #172 deliver picker return path (one tap)
+
+Not unit-testable — same view-wiring blind spot as #168a.
+
+Task editor → DELIVER field → **Custom…** → confirm a **USE LIST** control appears and returns you
+to the menu, with any typed value preserved as a marked `(custom)` row.
+
+- **PASS:** the return control is present and works; the typed value survives the round trip.
+- **FAIL:** no way back, or the value is lost crossing back.
+- **Also confirm the negative:** with no host connected (`platforms == nil`), **USE LIST must NOT
+  appear.** Offering a return to a list that cannot open is the second dead end #168a was careful
+  to avoid, and it is the check most likely to be skipped.
+
+### 10c — #137 fresh-install, now WITHOUT erasing the device
+
+The setup changed at review. The stamp is monotonic in release, so disconnect no longer produces a
+re-migratable device — but a DEBUG reset now exists (added in PR #143, #134's harness precedent).
+
+1. Settings → Developer → **Sensor opt-in migration** → **Clear migration stamp**
+2. Relaunch the app
+
+- **PASS:** with the device paired and no stored settings blob, the migration does **NOT** enable
+  health or location, and does not resurrect the permission wall.
+- **FAIL:** either sensor comes on by itself, or the wall returns.
+- **Sanity check first:** the reset clears BOTH `UserDefaults` and the Keychain mirror. If a
+  relaunch behaves as though nothing was cleared, the stamp read as still-migrated — that is a
+  defect in the reset, not a #137 pass. File it separately.
+- Note streaming/motion posture before and after, and restore whatever you want at the end.
 
 ---
 
