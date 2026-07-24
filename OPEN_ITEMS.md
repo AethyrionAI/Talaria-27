@@ -5907,6 +5907,8 @@ Logged 2026-07-20.
 
 ## 145. 🐛 App hard-locks when entered during an OJAMD gateway outage (Hermes update window) — no recovery after the host returns; phone restart required
 
+**FIX SPEC WRITTEN 2026-07-24: `dispatch/OPUS-T27-145-foreground-deadlines.md`** — five parts, independently revertable. A: dedicated timeouts on the chat plane (streaming path MUST be distinguished from polling, or live SSE runs get killed). B: UI-state writes moved out from behind the network chain — highest value, this is what makes it outlive the outage. C: reconcile loop budget bounded by wall clock, not attempt count. D: activations supersede rather than stack. E: parallelisation, OPTIONAL and explicitly risky — skip unless the dependency map is certain. Verification is injected-hanging-client only; staging an outage is out of scope. Do not re-spec.
+
 **Spec written 2026-07-24: `dispatch/OPUS-T27-145-147-outage-spike.md`** — INVESTIGATION lane, not a fix lane; a PR is a possible outcome, not the deliverable. Carries the correction that dropping OPEN_ITEMS #126 did NOT remove GitHub PR #126's code, so #147's prime suspect is still in the app. Do not re-spec.
 
 **⚠️ DELIBERATELY EXCLUDED FROM THE 2026-07-24/25 BUILD WEEKEND (Owen).** Not forgotten, not
