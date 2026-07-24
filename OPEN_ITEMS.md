@@ -5866,6 +5866,18 @@ Logged 2026-07-20.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`** (bundled with #174, #175, #154 — PART A, fix shape known). Do not re-spec; check merge state before sending.
 
+**2026-07-24 — FIXED on `claude/t27-bundle-b-hygiene` (PART A, preferred fix taken).** The parallel Bool is dead: `AppSessionState.pushTokenRegistered` is now DERIVED (`registeredPushToken != nil`) and the token string is the only stored record. `pushTokenPipelineState` became a COMPARISON — the token iOS handed us against the token the relay acked — via a new pure `AppContainer.pushTokenPipelineState(heldToken:recordedToken:)`. Two records of one fact cannot drift when there is one record.
+
+**Took the preferred fix, not the minimum,** because asserting the Bool in one more place leaves the shape intact — and the shape had already produced a SECOND defect nobody had named: a rotated APNs token kept reading `registered` off a stale ack, which is the opposite lie from the observed one and would have suppressed a needed re-registration. The comparison fixes both.
+
+**Found while doing it — the divergence had an in-tree cause.** `AppSessionStore.loadAndApplySessionState` builds a FRESH `AppSessionState` from `/session` and only merged the Bool, so every reload WIPED `registeredPushToken`. The two fields diverged by construction, not by an exotic ordering race. The merge now carries the record.
+
+**One bridge was needed:** `/session` reports `push.tokenRegistered` as a Bool and never says WHICH token the relay holds. `LiveSessionBootstrapService` resolves it against the locally cached APNs token — it is registered against THIS device, so that is the token it holds; nil when we hold none, which is the honest reading.
+
+**Migration: none needed.** Pre-fix blobs carry only the Bool, decode as unregistered, and the next foreground's `registerPushTokenIfNeeded` re-registers and records the token. Self-healing in one launch. Asserted in `PushRegistrationRecordTests`.
+
+**Device check still owed** — and per the spec, a device check that still sees the push arrive ×4 has NOT falsified this: that count is #143, relay-side. What to look for is the Diagnostics row reading REGISTERED while a push delivers, and (the new case) the row dropping to AWAITING RELAY after an APNs token rotation instead of sitting on a stale `registered`.
+
 **2026-07-23 — the ×4 delivery count belongs to #143, not to this defect.** This item records the
 push arriving ×4 while the diagnostics row sat stuck. That multiplicity is a separate bug: OJAMD's
 relay holds ONE APNs token against five device rows, four still active, and
@@ -6307,6 +6319,20 @@ Logged 2026-07-20.
 ## 154. 🧹 Dead `#available(iOS …)` guards after the deployment-floor bump to 27.0
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`** (bundled with #146, #174, #175 — PART D, CONFIRM-FIRST, and note the masked-test trap). Do not re-spec; check merge state before sending.
+
+**2026-07-24 — DONE on `claude/t27-bundle-b-hygiene` (PART D). The confirm contradicted this item's own framing, and the contradiction is the useful part:** "each `else` branch behind one is unreachable dead code" holds for **three** of the 11 sites, not 11.
+
+**7 of the 8 `LocalChatBackend` sites are COMPOUND guards** — `#available(iOS 27.0, *), Self.pccGrantConfirmed`. `pccGrantConfirmed` is a `static let = false` pending Apple's PCC grant (#72), so those `else` branches are **not dead — they are the only live path today.** Deleting them would have deleted the shipping behaviour. Only the version clause went; `pccGrantConfirmed` now reads as the single gate it always was. That is also the answer to confirm-question 2: yes, one logical guard repeated, and dropping the redundant clause IS the collapse.
+
+**`LocalIntelligenceService:271` is the same shape for a different reason.** The `try?` inside means the `text.count / 3` estimate below still catches a throwing or unavailable model — it is not a version fallback. Wrapper removed, fallback kept.
+
+**Genuinely dead, deleted (3):** `SensorUploadService:973`'s `else` (a deprecated `CLGeocoder` path), `LocalChatBackend.currentTokenUsage`'s iOS-26 `return nil`, and the widget's conditional `.systemExtraLargePortrait` append.
+
+**THE TRAP, checked as instructed.** Grepped `TalariaTests` for anything exercising a deleted branch: `reverseGeocode`/`CLGeocoder` — zero hits; `currentTokenUsage` — zero (the `usage == nil` hits are `Message` decoding, not this); `systemExtraLargePortrait` — zero; and **no `#available` anywhere in either test target**. `PrivateCloudRoutingTests` drives `ChatBackendRouter` through injected closures and never reaches these guards. Nothing masked the deletion.
+
+**Build stayed clean** — no new warnings, and specifically no "will never be executed" from the now-bare `pccGrantConfirmed` guards.
+
+**Kept out of PR #132's history as instructed** — its own commit, its own review.
 
 Surfaced 2026-07-21 while landing PR #132 (deployment floor). `project.yml` had declared the floor twice and disagreed with itself — `options.deploymentTarget.iOS: "27.0"` versus an explicit `settings.base.IPHONEOS_DEPLOYMENT_TARGET: "26.0"`. The explicit build setting wins in XcodeGen, so the real shipping floor had been **26.0** despite Requirements claiming 27. #132 removed the stale override; the floor is now genuinely 27.0.
 
@@ -7020,6 +7046,20 @@ Logged 2026-07-23.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`** (bundled with #146, #175, #154 — PART B, payload size only; chunking and progress affordance explicitly OUT). Do not re-spec; check merge state before sending.
 
+**2026-07-24 — FIXED on `claude/t27-bundle-b-hygiene` (PART B), and the item's premise was wrong.** "No evidence of any downscale or recompression before inlining" is not what the code does. `PendingAttachment.image(_:)` HAS downscaled all along — it just did not do what its own comment said. It compared `UIImage.size` (**points**) against a bare `768` and rendered through a **default-scale** `UIGraphicsImageRenderer`, so on a 3× device a "768 px" downscale produced a **2304 px** raster: nine times the intended pixel area. The 350 KB staging cap then quietly absorbed it via the progressive-quality loop, which is why nothing looked wrong locally and why the measured payloads clustered just under the cap.
+
+**Confirmed on the sim, not inferred.** `AttachmentDownscaleTests` carries the pre-fix algorithm verbatim and reports `before: 2304×1728 px` off a 4032×3024 source — 768 × 3 exactly.
+
+**Fix:** pin both halves — measure from `size * scale`, render with `format.scale = 1`. Cap `imageMaxPixelDimension = 1536` px on the long edge. **JPEG quality stays 0.5** deliberately: 0.6 was tried and handed back roughly a third of the reduction, and moving two knobs would have muddied the measurement.
+
+**Measured (same fixture): 315,352 → 177,984 B base64, 1.77×.** The fixture is adversarial noise whose grain does NOT scale with the canvas, so it compresses worse after downscaling than real photographic detail; camera output should land at or above the 2.25× pixel-area ratio. Against the item's real captures that projects 472/301/227 KB → roughly 210/134/101 KB.
+
+**The 1536 px choice is a trade-off and is reviewable, not settled.** The binding constraint is that #8's "Extract text" runs Vision OCR over these SAME bytes: at 1536 px across a photographed page, body text sits near 22 px cap height. 1024 px would be ~5× smaller on the wire but pushes OCR to its reliability edge. If cellular pain outweighs extraction accuracy, the knob is one constant.
+
+**Side effect worth having:** four attachments (the composer's max) used to overrun the 900 KB aggregate budget at pre-fix sizes, so images silently became omission stubs. They now fit. Pinned by test.
+
+**Still out of scope, still real:** no chunking and no progress affordance, so a slow upload remains indistinguishable from a hang. Also unexamined: `LiveVoiceSessionService.sendImage` inlines caller-supplied frames with no cap of its own — a different path from the one #174 measured.
+
 **Measured 2026-07-23 (wire capture, whoGoesThere on `cbcc824`).** Three real image sends
 captured: 472,471 / 301,227 / 227,747 bytes of base64 data-URI, inlined directly into the
 `chat/stream` request body. Base64 carries roughly 33% overhead, so the source JPEGs were about
@@ -7036,6 +7076,18 @@ Logged 2026-07-23.
 ## 175. 🧹 Idle chattiness — `/v1/models` polled 6x and the session list 3x inside ~1 minute of idle
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`** (bundled with #146, #174, #154 — PART C, CONFIRM-FIRST: mechanism is not yet established). Do not re-spec; check merge state before sending.
+
+**2026-07-24 — CONFIRMED then FIXED on `claude/t27-bundle-b-hygiene` (PART C). The two counts are two DIFFERENT mechanisms**, which is why a single fix would have been half a fix.
+
+**Six `/v1/models` = a deliberate timer.** `ChatScreen.monitorConnectionStatus()` slept a flat 10s and called `ChatStore.refreshDirectHealth()`, whose `hermesClient.connect()` probe IS the `/v1/models` GET. Six ticks a minute, six requests — the arithmetic is exact, and that is what identifies it rather than a guess. It also kept firing while BACKGROUNDED: a SwiftUI `.task` is cancelled on view *disappearance*, and backgrounding does not disappear the view.
+
+**Three `/api/sessions` = no timer at all.** Nothing polls that endpoint. Every fetch is a view appearing — `configureChatSeams` on appear, the persistent sidebar's mount seam, `SystemSettingsScreen`'s count, `SessionsSettingsScreen`, the Spotlight donation pass — and none of them knew about the others. This is the spec's explicitly-listed third possibility: **a missing shared cache, not a cadence.** A timer change would have fixed nothing.
+
+**Fixes, one per mechanism:** new pure `ChatHealthPollPolicy` relaxes 10s → 30s once the status has held three probes and snaps back the moment it moves (6 req/min → 2 while idle), and probes only while `.active`. Separately `ChatStore.loadSessions()` answers from its existing `lastLoadedSessions` snapshot within 15s; every caller that MUTATES the list (open session, clear, new chat) passes `force: true`. A failed fetch records no timestamp, so it retries rather than serving an empty list for the window.
+
+**Honest limit:** the exact spacing of the three session fetches was not recoverable from the capture, so which views fired is inferred from the call sites rather than observed. The coalescer addresses the class regardless of which three they were. If a device capture still shows repeat fetches more than 15s apart, the remaining source is a view re-appearing on that cadence and wants its own look.
+
+**One existing test needed updating and this is worth flagging:** `ConversationManagementTests`' failed-refresh case would otherwise have been answered from the snapshot and never reached the throwing client — it would have kept PASSING while asserting nothing. `force: true` restores it.
 
 **Observed 2026-07-23 (wire capture, Mac host).** With the app open and otherwise idle, the
 capture logged six `GET /v1/models` and three
