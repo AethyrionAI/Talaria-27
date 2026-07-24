@@ -7409,6 +7409,62 @@ Logged 2026-07-23.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-176-tool-selection.md`** — confirm-then-fix. Preference order: availability gating > description tightening > selection-prompt change. Explicit warning against a test that asserts the model did NOT call a tool (passes/fails on temperament — #183's masked pattern by a new road). Do not re-spec.
 
+**Update 2026-07-24 — BUILT, gating + descriptions (PR #148, `claude/t27-176-tool-selection`):**
+the confirm answered all four questions, and the headline is that the belt was never conditioned
+on anything at all. `DeviceToolBelt.makeReadTools` returns a FIXED 12-tool array, built ONCE in
+`AppContainer` and handed to every `LanguageModelSession` — `readImageText` was offered on every
+turn of every conversation, image or not. The model reached for OCR on a haiku because the belt
+handed it an OCR tool. **Fixed structurally** (option 1, the dispatch's preference): new
+`ImageDependentTool` marker + `DeviceToolBelt.offeredTools(from:hasImageInContext:)` withhold the
+two vision tools when the conversation carries no image; `LocalChatBackend` records the live
+session's tool names (`sessionToolNames`) and recreates the session when the condition flips,
+because a `LanguageModelSession` keeps the tool list it was born with. **Ordering trap found and
+cleared:** all three send paths call `preparedSession` BEFORE `appendUserMessage`, so a gate
+reading stored history alone would have withheld OCR on the exact turn that attaches the image —
+`ConversationImageSource.hasImage(in:incoming:)` takes the turn's pending attachments too. The
+presence check is deliberately cheaper AND more permissive than `latestImage` (reachable bytes,
+no decode): a present-but-undecodable image still gets the tools, which answer honestly. Option 2
+alongside it, for the case gating can't reach (an image twenty turns back keeps the tools
+offered): both descriptions now state when the tool APPLIES — "Use this ONLY when the user is
+asking what an image says or shows". The instructions' capability list drops "image text/barcode
+reading" on exactly the turns the tools are withheld — one image-presence read drives both, so
+the persona can never advertise a tool the session wasn't given. 14 deterministic tests
+(`DeviceToolBeltTests`), asserted against the real `makeReadTools` output, none of them asserting
+what the model chose. `xcodegen` NOT needed — no Swift files added or removed.
+
+**Baseline correction:** the dispatch's "1121 tests / 103 suites" is stale against current main
+(it predates the #146/#147 merges). Main today is **1135 tests**; this branch is **1149 tests /
+104 suites**, i.e. +14, all of them the new `DeviceToolBeltTests` cases, no new suite.
+
+**Option 3 NOT taken, and the finding stands for the record:** the armed capability block has no
+none-of-these path. It lists twelve tools and says *"Use them to work with the user's real data
+instead of guessing"* — while the tool-LESS branch explicitly authorizes *"say so plainly instead
+of guessing"*. A belt that lists tools without an explicit "some turns need none" biases toward
+reaching, which is the general shape behind both this item and the eager 4-call greeting turn.
+Left untouched on purpose: changing it in the same lane would make the gate's effect
+unattributable on device. If over-reach survives the device verify, this sentence is the next
+lever — and it is the item's remaining work, not a new one.
+
+**On defect 2 (the refusal preamble) — mechanism identified, DOWNSTREAM of defect 1.**
+`ImageTextTool.call` with no image returns the literal string *"There's no image attached to this
+conversation to read text from."* That negative tool result lands in the transcript before the
+model composes its answer; *"I can't create a haiku directly, but here's a simple one:"* is the
+model narrating it as a statement about its own capability, then contradicting itself. No
+spurious call → no negative result → nothing to narrate. This is a hypothesis with a concrete
+mechanism, not a confirmed fix — only the device pass can settle it.
+
+**Device verification OWED (Owen), NOT done — this cannot be checked on sim, where the on-device
+model path differs:**
+1. Standalone, on-device model, literal prompt "Write a haiku about rain" — confirm no
+   `readImageText` call and no refusal preamble.
+2. Attach an image and ask what it says — confirm `readImageText` IS still offered and works
+   (the gate's negative case; this is what the ordering trap above protects).
+3. Attach an image, then ask something unrelated in the SAME thread — the tools stay offered
+   here by design, so this is where the tightened description is doing the work alone.
+
+If the preamble survives with no tool call, it is independent — **file it separately, do not
+widen this item.**
+
 **Observed 2026-07-23 (standalone / ON-DEVICE model, whoGoesThere, build `cbcc824`).** The prompt
 was "Write a haiku about rain". The turn shows a `readImageText` tool call — an OCR tool — with
 no image anywhere in the conversation and nothing to read. The reply then opened "I can't create
