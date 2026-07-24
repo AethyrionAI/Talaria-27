@@ -24,11 +24,6 @@ struct PermissionsScreen: View {
                             }
                         }
 
-                        // #125: the trends screen rides the health grant — the
-                        // link exists only where the data can.
-                        if capability.permissionType == .health, capability.status == .authorized {
-                            healthTrendsLink
-                        }
                     }
                 }
                 .padding(.horizontal, Design.Spacing.md)
@@ -37,35 +32,6 @@ struct PermissionsScreen: View {
         }
         .navigationTitle("Permissions")
         .task { await permissionsStore.reloadCapabilities() }
-    }
-
-    private var healthTrendsLink: some View {
-        NavigationLink {
-            HealthTrendsScreen()
-        } label: {
-            HStack(spacing: Design.Spacing.sm) {
-                Image(systemName: "chart.xyaxis.line")
-                    .font(.system(size: Design.Size.iconSmall, weight: .medium))
-                    .foregroundStyle(Design.Brand.accentBright)
-                Text("Health Trends")
-                    .font(Design.Typography.headline)
-                    .foregroundStyle(Design.Colors.foregroundBright)
-                Spacer()
-                MonoLabel("7 · 30 · 90D", size: 10, tracking: Design.Tracking.mono)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Design.Colors.mutedForeground)
-            }
-            .padding(Design.Spacing.md)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .hudPanel(
-                cornerRadius: Design.CornerRadius.lg,
-                borderColor: Design.Colors.accentTint(0.25),
-                fill: Design.Colors.surface
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Health Trends, last 7, 30, or 90 days")
     }
 
     private var headerText: some View {
