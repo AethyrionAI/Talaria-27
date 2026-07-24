@@ -160,6 +160,7 @@
 		4DF08CBE0F2A192FBABF00ED /* Icon-CosmicBowling@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = D1C8260B4538A6EB2CB6BC2D /* Icon-CosmicBowling@3x.png */; };
 		4E4B1F1367DF61EA7F9D835C /* InboxBriefing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 998128B6337A93B7540FDF42 /* InboxBriefing.swift */; };
 		4E5AA772DBB57B51D9598C7E /* SystemSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B6960308556A1B2ADA625CC /* SystemSettingsScreen.swift */; };
+		503D4D57EBB1BA98B00ECA2B /* DeliverFieldModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F851B3F3DCBCD700EE6C8E69 /* DeliverFieldModeTests.swift */; };
 		50868BE2CD8995BCB39A72B4 /* JetBrainsMono-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = BA496D40EFBD6D1622DE20A0 /* JetBrainsMono-Regular.ttf */; };
 		50B980315F65B561C2ED69E8 /* LocalIntelligenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C6A4A5B1356C64A3A6476FA /* LocalIntelligenceService.swift */; };
 		50BD8DD052BECEF8727FA7CA /* IconPreview-GlitchGarden.png in Resources */ = {isa = PBXBuildFile; fileRef = 6BDCDEFD0DC35483E4EB11AC /* IconPreview-GlitchGarden.png */; };
@@ -968,6 +969,7 @@
 		F7EF7C1C1B42AD37C29AA1BB /* HermesTimelineProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesTimelineProvider.swift; sourceTree = "<group>"; };
 		F823A3D71CE9B62362059CE9 /* IconPreview-RetroSciFi.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-RetroSciFi.png"; sourceTree = "<group>"; };
 		F827381E8387C71D8135EFB3 /* LocalChatBackendTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalChatBackendTests.swift; sourceTree = "<group>"; };
+		F851B3F3DCBCD700EE6C8E69 /* DeliverFieldModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeliverFieldModeTests.swift; sourceTree = "<group>"; };
 		F9EE177723360E9DC4562574 /* IconPreview-SpringSprout.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-SpringSprout.png"; sourceTree = "<group>"; };
 		FB4B4E5BA743254D0C695B48 /* Icon-DeepField@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-DeepField@2x.png"; sourceTree = "<group>"; };
 		FC9503176968EC14B829B955 /* SyncStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatus.swift; sourceTree = "<group>"; };
@@ -1095,6 +1097,7 @@
 				C4D7BE5A81A293D59F003C2D /* CronJobDecodingTests.swift */,
 				19F4A85186CCFD7152BA59C6 /* CronJobsStoreTests.swift */,
 				D5DB1DBA36899DDAC5EF1E20 /* CronJobStatusTests.swift */,
+				F851B3F3DCBCD700EE6C8E69 /* DeliverFieldModeTests.swift */,
 				1E6B35E1530814EA7DBC6EAE /* DesignThemeTests.swift */,
 				D8F094AAF1D10D4CEB5D7431 /* DeviceActionToolsTests.swift */,
 				4F7672B25F6886DDA7552BFE /* DeviceToolBeltTests.swift */,
@@ -2392,6 +2395,7 @@
 				18FCC1CA2E79EDFC1233889C /* CronJobDecodingTests.swift in Sources */,
 				AB98DC243A23D5394D76E615 /* CronJobStatusTests.swift in Sources */,
 				A4FDFD1170A7C6CE9B84D779 /* CronJobsStoreTests.swift in Sources */,
+				503D4D57EBB1BA98B00ECA2B /* DeliverFieldModeTests.swift in Sources */,
 				F8066BF01CB86C37DB7753D0 /* DesignThemeTests.swift in Sources */,
 				85765F4F456277D1E0F815F4 /* DeviceActionToolsTests.swift in Sources */,
 				D9F27DA7123DD417BCA3B145 /* DeviceToolBeltTests.swift in Sources */,
