@@ -24,9 +24,11 @@ struct PermissionsScreen: View {
                             }
                         }
 
-                        // #125: the trends screen rides the health grant — the
-                        // link exists only where the data can.
-                        if capability.permissionType == .health, capability.status == .authorized {
+                        // #181: the link renders wherever HealthKit exists, not only
+                        // where the grant is currently asserted — that flag does not
+                        // survive a launch. The screen handles the ungranted case itself.
+                        if capability.permissionType == .health,
+                           capability.status.allowsHealthTrendsEntry {
                             healthTrendsLink
                         }
                     }
