@@ -20,14 +20,20 @@ import WidgetKit
 // widget target — and a control's intent performs in the EXTENSION process,
 // where a fresh AppContainer would mutate router state the app process never
 // observes. Each control instead runs a lightweight extension-local intent
-// whose only job is to launch the app on a `hermes://` deep link;
-// `AppEntry.handleDeeplink` then flips the SAME router flags the real intents
-// flip, in the right process — so both controls run the exact code paths the
-// Siri intents exercise.
+// whose only job is to name a `hermes://` destination; the SYSTEM launches
+// the app (`openAppWhenRun`) and `AppEntry` feeds that destination to
+// `handleDeeplink`, which flips the SAME router flags the real intents flip,
+// in the right process — so both controls run the exact code paths the Siri
+// intents exercise.
+//
+// How the destination travels (#58, 2026-07-24): NOT as a returned
+// `OpenURLIntent` — that shape does not support custom URL schemes, so
+// AppIntents prepared `URL(nil)` and the tap died silently while every log
+// line said success. It rides `ControlHandoffStore` (the app group) instead.
 //
 // iOS 27 upgrade path: `ExecutionTargets.main` (beta API) would let the real
-// app intents perform directly in the main app process, removing the
-// deep-link hop. Not adopted — verify the SDK shape on a Mac session first.
+// app intents perform directly in the main app process, removing the handoff
+// entirely. Not adopted — verify the SDK shape on a Mac session first.
 
 /// The extension's only diagnostics (#58): one line per control tap so
 /// Console.app can answer "did perform() fire?". `.notice` because Console's
@@ -37,6 +43,24 @@ private let controlLog = Logger(
     subsystem: "org.aethyrion.talaria27.widgets",
     category: "controls"
 )
+
+/// Both control intents do the same two things: say so in the log, and leave
+/// the destination where the app will look. Losing the app group is NOT fatal
+/// — the system still launches the app, it just lands on the default screen —
+/// but it has to be visible, because on a device that outcome is
+/// indistinguishable from #179's swallowed first tap.
+private func handOffToApp(_ destination: URL, from intentName: String) {
+    controlLog.notice(
+        "\(intentName, privacy: .public).perform fired — handing off \(destination.absoluteString, privacy: .public)"
+    )
+    guard let store = ControlHandoffStore.appGroup() else {
+        controlLog.error(
+            "\(intentName, privacy: .public).perform — app group unreachable; the app will open to its default screen"
+        )
+        return
+    }
+    store.writeDestination(destination)
+}
 
 // MARK: - Launch intents (extension-local)
 
@@ -49,25 +73,30 @@ struct OpenHermesChatIntent: AppIntent {
         "Opens Talaria to the Hermes chat.",
         categoryName: "Chat"
     )
-    // `openAppWhenRun` is deliberately ABSENT (protocol default false). The
-    // `OpenURLIntent` returned from `perform()` IS the app launch — Apple's
-    // sanctioned control-opens-app-to-URL shape. Pairing it with
-    // `openAppWhenRun = true` made Control Center silently swallow the tap
-    // (#58: control did nothing). Do not re-add it — `HermesControlsTests`
-    // pins both intents to false.
+    // The system performs the launch. This was `false` (absent) until
+    // 2026-07-24, on the premise that the `OpenURLIntent` returned from
+    // `perform()` IS the launch — correct for an ELIGIBLE url, and
+    // `hermes://chat` is not one. The older warning here said pairing
+    // `openAppWhenRun = true` WITH that returned intent made Control Center
+    // swallow the tap: true, and not an argument against this shape. With an
+    // `OpensIntent` result the returned intent is the launch, so setting both
+    // makes two mechanisms compete. This intent returns a plain
+    // `IntentResult` — there is no second mechanism left to compete with.
+    static let openAppWhenRun = true
     /// Control-only plumbing — keep it out of Shortcuts/Spotlight so it never
     /// shadows the app target's full-featured `AskHermesIntent`.
     static let isDiscoverable = false
 
     /// Compile-time literal — parsing cannot fail (the no-force-unwrap
-    /// convention targets network payloads, not constants).
-    private static let destination = URL(string: "hermes://chat")!
+    /// convention targets network payloads, not constants). Internal rather
+    /// than private so `HermesControlsTests` can pin which route this control
+    /// claims: `perform()` itself needs the system AppIntents machinery and
+    /// can't be driven from a test host.
+    static let destination = URL(string: "hermes://chat")!
 
-    func perform() async throws -> some IntentResult & OpensIntent {
-        controlLog.notice(
-            "OpenHermesChatIntent.perform fired — opening \(Self.destination.absoluteString, privacy: .public)"
-        )
-        return .result(opensIntent: OpenURLIntent(Self.destination))
+    func perform() async throws -> some IntentResult {
+        handOffToApp(Self.destination, from: "OpenHermesChatIntent")
+        return .result()
     }
 }
 
@@ -82,22 +111,21 @@ struct OpenHermesVoiceIntent: AppIntent {
         "Opens Talaria and starts a hands-free voice session.",
         categoryName: "Voice"
     )
-    // `openAppWhenRun` deliberately absent — same #58 conflict as
-    // `OpenHermesChatIntent`: the returned `OpenURLIntent` is the launch, and
-    // pairing it with `openAppWhenRun = true` no-ops the tap from Control
-    // Center. Do not re-add it.
+    // Same shape as `OpenHermesChatIntent` — see the #58 reasoning there.
+    // `StartVoiceSessionIntent` (app target) already ships
+    // `openAppWhenRun = true`; this is now the same mechanism.
+    static let openAppWhenRun = true
     /// Control-only plumbing — `StartVoiceSessionIntent` is the discoverable
     /// Shortcuts/Siri entry point.
     static let isDiscoverable = false
 
-    /// Compile-time literal — parsing cannot fail.
-    private static let destination = URL(string: "hermes://voice")!
+    /// Compile-time literal — parsing cannot fail. Internal for the same
+    /// route pin as `OpenHermesChatIntent.destination`.
+    static let destination = URL(string: "hermes://voice")!
 
-    func perform() async throws -> some IntentResult & OpensIntent {
-        controlLog.notice(
-            "OpenHermesVoiceIntent.perform fired — opening \(Self.destination.absoluteString, privacy: .public)"
-        )
-        return .result(opensIntent: OpenURLIntent(Self.destination))
+    func perform() async throws -> some IntentResult {
+        handOffToApp(Self.destination, from: "OpenHermesVoiceIntent")
+        return .result()
     }
 }
 

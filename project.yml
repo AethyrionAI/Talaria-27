@@ -468,6 +468,11 @@ targets:
       # this one source file compiles into the test bundle too (same
       # multi-target pattern as Shared/).
       - path: TalariaWidgets/Controls/HermesControls.swift
+      # #58 — and the app-group handoff HermesControls.swift writes to. It
+      # ships in Shared/ (app + widget), but the line above compiles the
+      # intents into the test bundle WITHOUT the Talaria module, so the store
+      # has to come along or they don't build here.
+      - path: Shared/ControlHandoff.swift
     dependencies:
       - target: Talaria
     settings:
