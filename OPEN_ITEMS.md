@@ -1846,6 +1846,18 @@ Logged 2026-07-06.
 
 ## 58. 🔧 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — Ask-control wiring FIXED (PR #100, 2026-07-16); device re-verify owed
 
+**2026-07-24 — THE TRIAGE CAVEAT IS RESOLVED AND RETIRED.** Owen confirmed: after the delete +
+reinstall he went into Control Center and re-set both controls in order to test them. So triage
+step (1) WAS performed before the 2026-07-23 observation. **Stale control registration is
+excluded on clean evidence** and the `IMPORTANT CAVEAT` recorded below is superseded — the
+2026-07-23 FAIL stands on its own and does advance past 2026-07-20. Do not re-run this triage
+step; do not treat registration as a live suspect.
+
+**Spec written: `dispatch/OPUS-T27-58-control-url-spike.md`.** It is a RESEARCH SPIKE, not a build
+lane — deliverable is a written recommendation appended here, not a PR. Three device passes have
+already gone to confident fixes against wrong assumptions; the spike exists to stop the fourth.
+Note that direction (a) contradicts PR #100's premise and must be argued explicitly if chosen.
+
 **2026-07-23 late — ROOT-CAUSED via device log capture (`idevicesyslog`, whoGoesThere,
 `cbcc824`). Registration is NOT the problem. The returned URL is.**
 
@@ -2077,6 +2089,8 @@ with genuine CoT, so the merged adoption path (#94/#95) is unaffected on 0.19. T
 remains wait-for-upstream via `hermes update`; re-check each update.
 
 ## 61. 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device re-verify owed
+
+**Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-A-178a-172-61-137.md`** (bundled with #178a, #172, #137). Do not re-spec; check merge state before sending.
 
 **2026-07-23 — ROOT-CAUSED. Stop carrying this as "device re-verify owed".**
 
@@ -5278,6 +5292,8 @@ Logged 2026-07-19.
 
 ## 137. 🔧 Sensor opt-in redesign — MERGED (PR #125, merge `db52a22`, 2026-07-20); device passes owed (public-app posture)
 
+**Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-A-178a-172-61-137.md`** (bundled with #178a, #172, #61). Do not re-spec; check merge state before sending.
+
 **2026-07-23 late — TRAP CASE FAILS. The one-shot migration RE-FIRES on reinstall and
 resurrects the permission wall. Fix approved by Owen, below.**
 
@@ -6522,6 +6538,8 @@ Logged 2026-07-22.
 
 ## 164. 🎲 Recurring UI-test flake: `testDisconnectReturnsToStandaloneChat` fails on bundle-warm runs
 
+**Spec written 2026-07-24: `dispatch/OPUS-T27-164-uitest-flake.md`** — deliberately NOT bundled: its close criteria is three consecutive full-suite runs, which holds the sim for ~an hour. Do not re-spec.
+
 Promoted to its own item per the rule stated when it first appeared: one occurrence is noise, two is a pattern. Now at **two consecutive lane runs**:
 
 - 156a bundle run (PR #135, noted in #162) — failed in-bundle, passed solo rerun
@@ -6886,6 +6904,8 @@ Logged 2026-07-22.
 
 ## 172. 🐛 The DELIVER picker has #168a's one-way door too — found while fixing #168, deliberately NOT fixed there
 
+**Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-A-178a-172-61-137.md`** (bundled with #178a, #61, #137). Do not re-spec; check merge state before sending.
+
 Filed, not fixed, per the #168/#169/#170a dispatch's explicit instruction: the deliver picker shares the pattern but was never reported broken, so fixing it in that lane would have widened a device-found polish lane into an unrequested change.
 
 **Verified in source, same session** (`TaskEditSheet.swift`, `TaskDeliverPicker`):
@@ -6997,6 +7017,8 @@ Logged 2026-07-23.
 
 
 ## 178. 🧹 Build-warning inventory — 21 warnings, one of which FAILS App Store validation
+
+**Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-A-178a-172-61-137.md`** (bundled with #172, #61, #137 — this item's PART A is the CFBundleShortVersionString launch blocker only; the deprecation debt is NOT in scope). Do not re-spec; check merge state before sending.
 
 **Captured 2026-07-23 (Xcode issue navigator, successful build, Xcode-beta4).**
 
