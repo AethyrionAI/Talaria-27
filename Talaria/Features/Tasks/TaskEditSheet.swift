@@ -253,6 +253,57 @@ struct TaskEditSheet: View {
     }
 }
 
+// MARK: - Deliver field mode (D5, #172)
+
+/// #172 — which of the deliver field's two modes is showing, lifted out of
+/// `@State` so the transitions are assertable. Before this the free-text flag
+/// had exactly ONE write site (`true`) and no way back: tapping "Custom…"
+/// swapped the server-driven platform menu for a raw `TextField` permanently,
+/// for the life of the sheet. Second instance of the shape #168a fixed one
+/// field above — which is why it lives in a type now rather than a `Bool`.
+///
+/// Milder than #168a: the menu already preserves an off-list value as a marked
+/// "(custom)" row, so nothing became unverifiable. It still matters, because
+/// this is the sheet's most typo-sensitive value — `telegram:-100999:42`
+/// shapes live here (#171) — and there was no way back to the server's list.
+///
+/// Mirrors `SkillsFieldMode` rather than sharing it: "a list exists" means
+/// different things in the two fields and this one has no refetch/retry. A
+/// THIRD instance should collapse all three into one neutral type.
+struct DeliverFieldMode: Equatable {
+    private(set) var isFreeText: Bool
+
+    init(isFreeText: Bool = false) {
+        self.isFreeText = isFreeText
+    }
+
+    /// The menu can only show when `/health/detailed` answered with platforms.
+    func showsPicker(hasPlatformList: Bool) -> Bool {
+        hasPlatformList && !isFreeText
+    }
+
+    /// The escape into hand-typing — only from the menu, and only when there
+    /// is a menu to escape.
+    func offersCustomEntry(hasPlatformList: Bool) -> Bool {
+        hasPlatformList && !isFreeText
+    }
+
+    /// #168a's second dead-end guard, inherited: with no platform list there
+    /// is no menu to return to, so a USE LIST control would open a second door
+    /// onto nothing.
+    func offersReturnToList(hasPlatformList: Bool) -> Bool {
+        hasPlatformList && isFreeText
+    }
+
+    mutating func useCustomEntry() {
+        isFreeText = true
+    }
+
+    mutating func useList() {
+        isFreeText = false
+    }
+}
+
 // MARK: - Deliver picker (D5)
 
 /// Server-driven when `/health/detailed` answered (connected platforms +
@@ -263,10 +314,15 @@ struct TaskDeliverPicker: View {
     @Binding var deliver: String
     let platforms: [String]?
 
-    /// "Custom…" flips to free text without losing the typed value.
-    @State private var useFreeText = false
+    /// "Custom…" flips to free text without losing the typed value — and
+    /// USE LIST comes back (#172).
+    @State private var mode = DeliverFieldMode()
 
     private static let builtIns = ["origin", "local"]
+
+    private var hasPlatformList: Bool {
+        platforms != nil
+    }
 
     var options: [String] {
         guard let platforms else { return [] }
@@ -278,10 +334,10 @@ struct TaskDeliverPicker: View {
     }
 
     var body: some View {
-        if platforms == nil || useFreeText {
-            freeTextField
-        } else {
+        if mode.showsPicker(hasPlatformList: hasPlatformList) {
             menuPicker
+        } else {
+            freeTextField
         }
     }
 
@@ -301,7 +357,23 @@ struct TaskDeliverPicker: View {
                 MonoLabel("HOST PLATFORM LIST UNAVAILABLE — FREE ENTRY", size: 8,
                           tracking: Design.Tracking.mono, color: Design.Colors.dimForeground)
             }
+            if mode.offersReturnToList(hasPlatformList: hasPlatformList) {
+                useListButton
+            }
         }
+    }
+
+    /// #172 — the way back to the server's platform list. Rendered only when
+    /// there IS a list, so it can never be a second dead end.
+    private var useListButton: some View {
+        Button {
+            mode.useList()
+        } label: {
+            MonoLabel("USE LIST", size: 8, weight: .medium,
+                      tracking: Design.Tracking.mono, color: Design.Brand.accent)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Use the platform list instead of text")
     }
 
     private var menuPicker: some View {
@@ -325,7 +397,7 @@ struct TaskDeliverPicker: View {
                     Label("\(deliver) (custom)", systemImage: "checkmark")
                 }
             }
-            Button("Custom…") { useFreeText = true }
+            Button("Custom…") { mode.useCustomEntry() }
         } label: {
             HStack {
                 Text(currentLabel)
