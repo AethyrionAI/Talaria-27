@@ -7102,20 +7102,26 @@ first impression of the free-tier flagship. Reaching for (c) because it was smal
 wrong selection criterion — small and correct are independent, and #140's own PR body already
 admitted it fixed reachability rather than the defect.
 
-**DISCRIMINATOR OWED — do not build on the assumption below until Owen answers.** PR #141's
-body asserts that the link rendered and the screen behind it was blank. **That was inferred,
-not observed.** Owen's report is compatible with two different states and they have different
-fixes:
+**DISCRIMINATOR ANSWERED 2026-07-24 (Owen) — state (ii): the link NEVER RENDERED.** "There was
+never a health insight after you finished last night. I built and could not find it." PR #141's
+body asserted the opposite — that the link rendered over a blank screen — and that assertion was
+inferred from one sentence rather than observed. **It is wrong; disregard it.**
 
-- **(i) Link rendered, screen empty.** Then (c) worked mechanically and failed on product
-  grounds, and option (a) — persist the grant — is the whole remaining fix.
-- **(ii) Link never rendered at all.** Then something further upstream is wrong and (a) alone
-  will not fix it. Candidates: the build predated merge `8c8e3b9`; the health capability
-  resolves `.unsupported` on device (HealthKit present but the store nil-ing out); or the
-  health capability is absent from `PermissionsStore.capabilities` entirely on that build.
+Most probable explanation: the build predated merge `8c8e3b9`, so it never contained #140 at all
+and the revert was decided against a build that could not have shown the change. Not worth
+chasing further — the revert was correct on independent grounds and main is clean.
 
-Ask before dispatching. Diagnosing this from a plausible reading of one sentence is exactly
-the failure mode this tracker has a standing rule against.
+**The finding that actually matters, and it survives all of this:** on Owen's device the screen
+would have been empty even with the link rendering. The health scope was never granted and sensor
+streaming is off, so there is no data behind it. The entry-point gate was never the only thing
+between this user and Health Trends — it was the first of at least two, and the cheaper one to
+notice. Option (a) alone will not produce a populated screen either; it makes the *grant* survive
+a relaunch, which is necessary and not sufficient.
+
+**Before any further work on #125/#181, establish what a real free-tier user actually sees**: grant
+health, leave sensor streaming off, cold launch, and check whether `HealthTrendsService` returns
+anything at all. If it does not, this whole feature needs a data story before it needs an entry
+point, and that is a product question for Owen rather than a lane to dispatch.
 
 **Option (a), still the presumed fix, still owed.** Persist the grant: write
 `didGrantHealthAccess` on a successful `requestAuthorization()` and read it at launch, so the
