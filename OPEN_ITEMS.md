@@ -5926,6 +5926,81 @@ healthy-but-cold gateway alone can legitimately eat ~20s+ — the wedge threshol
 judged against cold-start latency, not warm-path latency, or a slow-but-alive gateway
 gets misread as the hang.
 
+**INVESTIGATION 2026-07-24 (source read, no device) — NAMED BLOCKING PATH. The spec's
+hypothesis is CONFIRMED, and the launch-path half of it is DISPROVED.**
+
+**(1) The chat/session plane has NO timeout configuration at all.** Every service client
+defaults to `URLSession.shared` — `SessionsHermesClient` (gateway `:8642`),
+`ModelsShimClient` (`:8765`), `CronJobService`, `SkillsService`, `InsightsService`. That is
+**60s `timeoutIntervalForRequest` and 7 DAYS `timeoutIntervalForResource`**. The only
+dedicated timeout in the app is `RelayAPIClient.bootstrapProbeRequestTimeout` (5s/10s,
+`RelayAPIClient.swift:132-143`) and it is scoped to the #136 bootstrap probe alone. So the
+answer to #151's question is: the 5s config exists and is used in exactly one place; the
+chat plane never got it.
+
+**(2) `handleAppDidBecomeActive()` (`AppContainer.swift:1324-1357`) is the blocking path —
+TWELVE strictly serial awaits, ~8 of them network-bound, with no deadline, no concurrency,
+no cancellation.** In order: `currentAccessToken` (Keychain) → `reloadCapabilities` →
+**`hostStore.refresh`** → **`refreshCommandCatalog(force:)`** → **`seedActiveModelFromShim`**
+→ **`registerStoredPushTokenIfNeeded`** → **`sensorUploadService.handleAppDidBecomeActive`**
+→ `talkStore.refreshReadiness` → **`chatStore.reconcilePendingRuns`** →
+`condensePendingReasoning` → **`refreshDormantProfileTokensIfNeeded`** →
+**`reportAppStateIfNeeded`**. No `async let`, no task group, no shared deadline. Under the
+#136 black-hole shape (DROP, full 60s per request) one foreground activation costs **8+
+minutes** — and `refreshDormantProfileTokensIfNeeded` (`:2348-2360`) is itself a serial
+`for` loop over dormant profiles, adding N×60s inside that chain. This is the spec's
+question 3 answered: **the calls are serial, not concurrent-with-shared-deadline.**
+
+**(3) Why it outlives the outage — three compounding reasons, this is the load-bearing part:**
+  - **Every UI-state write is sequenced LAST.** `reconcileLiveActivities()` and
+    `updateWidgetData()` are lines 1354/1356, behind all eight network awaits. The app
+    cannot refresh its visible state until the entire chain drains — so it stays frozen on
+    stale content for minutes *after* the host is healthy again.
+  - **The reconcile loop's documented budget is wrong by ~30×.**
+    `ChatStore.startReconcileLoopIfNeeded()` (`ChatStore.swift:1450-1464`) says
+    `maxAttempts = 60 // 60 x 2s = ~2 min` — but that budgets only `Task.sleep`, **not the
+    network call**. Each `attemptReconcile` → `reconcileFromServer()` is an unbounded
+    gateway fetch, so on a black-holed host the real ceiling is 60 × (2s + 60s) ≈ **62
+    minutes**, not 2. The loop is armed at step 9 of the chain above and keeps grinding long
+    after the outage ends.
+  - **Every scene activation queues another full chain.** Background→foreground cycles stack
+    them; nothing coalesces or supersedes.
+
+**(4) DISPROVED — the launch critical path is clean; #136 stands.** The spec (and this
+item's own fix-shape note) suspected a gateway-bound await on the launch path. It is not
+there. Traced every step of `initialize()` (`:1174-1210`): `currentAccessToken()` is a pure
+Keychain read (`AppSessionStore.swift:133-135`), and `loadConversationIfNeeded()`'s
+"no-cache fallback fetch" is **stale documentation** — both backends' `loadConversation()`
+are purely local (`SessionsHermesClient.swift:448-453` returns in-memory-or-fresh;
+`LocalChatBackend.swift:513-519` restores from cache). The `LaunchInitStep` doc comment
+claiming that fallback "rides the chat path" describes the retired relay-backed
+`LiveHermesClient`, not current code. **So #145 is a FOREGROUND-path defect, not a launch
+defect** — consistent with the original observation that entry was a resume, not a cold
+launch.
+
+**(5) The #136 guard test is a tautology.** `AppStoresTests.swift:2751-2752` iterates
+`LaunchInitStep.criticalPath` asserting `!step.touchesNetwork` — but `touchesNetwork` is a
+hand-maintained switch in the *same enum*. It asserts the label against itself, never
+against what `initialize()` actually calls, and it does not model the foreground path at
+all. It would not have caught (2), and will not catch a future network call added to
+`initialize()`.
+
+**Honest limit — what this does NOT explain:** a true input freeze. Serial `await`s on the
+MainActor suspend and yield; they do not block the main thread. This mechanism fully
+explains "wedged, stale, unresponsive-looking, and still broken after the host returned",
+but a literal frozen-touch UI needing a phone restart needs a spindump or an
+`MXHangDiagnostic` to confirm. Treat the "hard-lock" wording as unverified until then;
+discriminator (c) is still owed.
+
+**Fix shape (unchanged in spirit, now specific):** give the chat/session plane the dedicated
+short-timeout `URLSessionConfiguration` that `RelayAPIClient` already has; hoist
+`reconcileLiveActivities()`/`updateWidgetData()` to the FRONT of
+`handleAppDidBecomeActive`; run the independent refreshes concurrently under one shared
+deadline instead of twelve serial awaits; make the reconcile loop budget wall-clock rather
+than sleep-count; and make the foreground chain supersede-on-re-entry the way
+`cancelBackgroundBootstrap()` does. **Owed a device pass** — none of this is provable in
+the simulator.
+
 Logged 2026-07-20.
 
 ## 146. 🐛 Diagnostics push row stuck on TOKEN HELD · AWAITING RELAY — CONFIRMED display desync 2026-07-20 (push delivered while row stuck); fix = kill the dual bookkeeping
@@ -6083,6 +6158,46 @@ phone restart; here: tap-created, container-persisted, on-demand reproducible). 
 work tracked in #145: source-read reconcilePendingRuns + pending-run persistence vs the
 #136 LaunchInitStep critical path; extend timeout non-negotiables to the tap/foreground
 path; and the persistence bug (nothing written on the tap path may wedge future launches).
+
+**INVESTIGATION 2026-07-24 — the owed source-read is DONE. Crash portion re-confirmed
+closed; the "container-persisted wedge" theory is DISPROVED as stated.**
+
+**Spec-premise correction for anyone reading `dispatch/OPUS-T27-145-147-outage-spike.md` (or
+its `-147-145-outage-investigation.md` twin): both are STALE on this item.** They instruct
+"get the crash log before theorising" and name PR #126 as prime suspect. That work was
+already done on 2026-07-21: `.ips Talaria_27-2026-07-21-191840` named the frame, PR #126 was
+EXONERATED, the `@MainActor` fix shipped as PR #129 (merge `20b46fc`, in main — verified live
+at `AppEntry.swift:87`), and the device pass closed the crash. The three ranked candidates
+the spec asks for (userInfo force-unwrap / `InboxStore.markRead` / `briefing` deeplink
+nil-id) are all moot — none was the cause. **Do not re-run Part 1 of that spec.**
+
+**`reconcilePendingRuns` is NOT the persistence culprit.** `pendingRun` is
+`private var pendingRun: PendingRun?` (`ChatStore.swift:202`) — in-memory only, never
+written to the container by any code path. On a cold launch it is nil, so
+`reconcilePendingRuns()` returns at its first guard (`:1443-1448`). **Nothing on the tap
+path persists a record that could re-poison a subsequent launch**, so "only a reinstall
+clears it" needs a different explanation than a poisoned pending-run.
+
+**The likelier reading of the same evidence:** the tap path makes an *unbounded* gateway
+call, not a persistent one. `handleNotificationTap` (`AppContainer.swift:1443-1452`) awaits
+`chatStore.openSession(sessionID)` → `SessionsHermesClient.openSession` on
+`URLSession.shared` — **60s request / 7-day resource, no timeout config anywhere on the chat
+plane** — then `reconcilePendingRuns()`, which arms a retry loop whose documented "~2 min"
+ceiling is really ~62 min against a black-holed host (full derivation in #145). Owen waited
+**~1 min** on the first occurrence before rebuilding — that is right at the 60s URLSession
+boundary, so "force-quit + relaunch wedges again; only a reinstall clears it" is equally
+consistent with **a ~60s-per-launch stall against a host that was still down**, where the
+rebuild+reinstall cycle simply outlasted the outage. Reinstall also wipes the UserDefaults
+pairing flag, which drops the `isPaired && !isInitialized` splash branch entirely — a second
+reason reinstall "fixes" it without any persisted poison existing.
+
+**Consequence:** the remaining work genuinely is #145's, but as a *timeout/serialisation*
+defect on the tap + foreground paths, not a persistence bug. The "nothing written on the tap
+path may wedge future launches" line above is retained for history but is not supported by
+the source. **Owed to settle it definitively:** re-run the controlled repro
+(`send_inbox_item`, cold tap) with the gateway deliberately black-holed, and let it sit 3+
+minutes without rebuilding — if it self-clears, the wedge is the timeout chain and this item
+needs no further work of its own.
 
 Logged 2026-07-20.
 
