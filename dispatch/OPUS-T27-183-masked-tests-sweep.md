@@ -21,6 +21,13 @@ The suite is the primary evidence for every merge decision in this project. A te
 is worse than a missing test, because a missing test is visible in coverage and a masked one reads
 as protection. **1121 green is only meaningful if the green means something.**
 
+> **PHASE 2 IS DEFERRED (Owen, 2026-07-24). Run Phase 1 only.**
+> Reason: the prioritised mutation targets are the same guards Bundle B just changed (#146's
+> derived Bool, #174's bounds) and the same ones the device pass is about to verify by hand.
+> Mutation-checking code that is simultaneously being hand-verified gives a muddier signal than
+> doing it against a settled baseline. **Phase 2 runs after the device pass lands**, against code
+> that has stopped moving. Deliver Phase 1's report and stop there; do not start mutating.
+
 ## Scope — two phases, cheap first
 
 ### Phase 1 — static sweep (no runs needed)
@@ -37,7 +44,7 @@ Find and classify, do not fix yet:
 
 Report counts per category before touching anything.
 
-### Phase 2 — targeted mutation check
+### Phase 2 — targeted mutation check  *(DEFERRED — do not run today)*
 
 **This is the only check that actually proves a test works.** For a prioritised sample: deliberately
 break the production code the test names, and confirm the test goes RED. Any test that stays green
@@ -71,6 +78,12 @@ handful and file the rest as a single follow-up item with the list. A sweep that
 everything it finds does not land.
 
 ## Close criteria
+
+**For today's Phase-1-only run:** the categories reported with counts, clear-cut fixes landed,
+remainder filed, suite green with the delta accounted for. **The item stays OPEN** — a Phase 1
+report is not a closed sweep, and the static pass cannot prove any test actually works.
+
+## Close criteria (full lane, after Phase 2)
 
 - Phase 1 categories reported with counts
 - Phase 2 run against the prioritised list, with a per-test PASS (goes red when mutated) or
