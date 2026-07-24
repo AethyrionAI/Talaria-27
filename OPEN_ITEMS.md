@@ -7087,7 +7087,48 @@ Patching these one at a time will reproduce the pattern in the next surface buil
 
 Logged 2026-07-23.
 
-## 181. 🔧 Health Trends was unreachable on a cold launch — entry point FIXED (PR #140, merge `8c8e3b9`, 2026-07-23); device confirm + the auth-flag fix still owed
+## 181. 🐛 Health Trends is unreachable on a cold launch — entry-point fix REVERTED 2026-07-24 (PR #141); persisting the grant is the real fix and is OWED
+
+**REVERTED 2026-07-24 — PR #141 (merge `62ef0be`), Owen's call.** PR #140 shipped option (c)
+— render the link wherever HealthKit exists, and let the screen's HEALTH ACCESS OFF panel
+handle a missing grant. Owen built main to whoGoesThere and reported: *"there's nothing there
+for health insights."* Reverted same session; suite back to the pre-#140 baseline 1107/99,
+TEST SUCCEEDED. Clean revert of exactly the three files, no intervening code commits.
+
+**Option (c) is dead either way, and the reason is worth keeping.** An entry point whose
+destination explains why it is empty is honest but useless. The HEALTH ACCESS OFF panel was
+written to catch a user who revoked access mid-use; it was never meant to be the *default*
+first impression of the free-tier flagship. Reaching for (c) because it was small was the
+wrong selection criterion — small and correct are independent, and #140's own PR body already
+admitted it fixed reachability rather than the defect.
+
+**DISCRIMINATOR OWED — do not build on the assumption below until Owen answers.** PR #141's
+body asserts that the link rendered and the screen behind it was blank. **That was inferred,
+not observed.** Owen's report is compatible with two different states and they have different
+fixes:
+
+- **(i) Link rendered, screen empty.** Then (c) worked mechanically and failed on product
+  grounds, and option (a) — persist the grant — is the whole remaining fix.
+- **(ii) Link never rendered at all.** Then something further upstream is wrong and (a) alone
+  will not fix it. Candidates: the build predated merge `8c8e3b9`; the health capability
+  resolves `.unsupported` on device (HealthKit present but the store nil-ing out); or the
+  health capability is absent from `PermissionsStore.capabilities` entirely on that build.
+
+Ask before dispatching. Diagnosing this from a plausible reading of one sentence is exactly
+the failure mode this tracker has a standing rule against.
+
+**Option (a), still the presumed fix, still owed.** Persist the grant: write
+`didGrantHealthAccess` on a successful `requestAuthorization()` and read it at launch, so the
+status survives a relaunch and the screen has data behind it before any link points at it.
+Blast radius is real — it changes what `collectSnapshot()` gates on and therefore touches the
+sensor pipeline (#16's territory), which is why it did not ride #140. It needs its own lane,
+a build, and a device pass. **Do not re-render the entry point until (a) lands.**
+
+Lesson recorded alongside #61's and #24f's: a fix that is cheap to write is not thereby the
+right fix, and "the screen handles the empty case honestly" is not the same as "the user gets
+something." Cross-ref #180 — this is the umbrella's inverse and belongs in the same design
+pass: there, the app hid its degradation; here, it would have advertised it.
+
 
 **FIXED SAME DAY — PR #140 (merge `8c8e3b9`).** Option (c) shipped: `PermissionStatus`
 gains `allowsHealthTrendsEntry` (`self != .unsupported`), the entry point at
