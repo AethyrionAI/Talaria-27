@@ -7465,6 +7465,12 @@ The count is only meaningful if the green means something.
 and intermittently. This is the opposite failure — tests that never fail at all. Do not merge these
 items or let a fix for one be credited to the other.
 
+**PHASE 2 DEFERRED (Owen, 2026-07-24) — Phase 1 only for now.** The mutation targets are the guards
+Bundle B just changed and the device pass is about to verify by hand; mutating code that is
+simultaneously moving gives a muddier signal than waiting for a settled baseline. Phase 2 runs
+after the device pass. **A Phase 1 report does NOT close this item** — a static sweep can find
+suspicious tests but cannot prove any test actually works.
+
 **Spec written 2026-07-24: `dispatch/OPUS-T27-183-masked-tests-sweep.md`.** Two phases: a cheap
 static sweep (vacuous suites, skip-guarded tests, never-invoked doubles, assertions on constants),
 then a targeted **mutation check** — deliberately break the production code a test names and
