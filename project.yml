@@ -110,8 +110,15 @@ targets:
       path: Talaria/Resources/Info.plist
       properties:
         CFBundleDisplayName: Talaria27
-        CFBundleShortVersionString: "1.0.0"
-        CFBundleVersion: "1"
+        # #178a: the version keys read the build settings rather than
+        # repeating them. Both extensions omitted these entirely and took
+        # XcodeGen's "1.0" default, which App Store validation rejects
+        # outright ("The CFBundleShortVersionString of an app extension
+        # ('1.0') must match that of its containing parent app ('1.0.0')").
+        # Every target now derives from MARKETING_VERSION, so the next
+        # version bump is one edit per target and cannot drift apart again.
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         # #48: register the hermes:// custom scheme. The deep-link router
         # (AppEntry.handleDeeplink) predates this key but was only reachable
         # from widgetURL / App Intents, which bypass registration — this is
@@ -376,6 +383,11 @@ targets:
       path: TalariaWidgets/Info.plist
       properties:
         CFBundleDisplayName: Talaria27 Widgets
+        # #178a: inherit the parent app's version, do not restate it. Absent
+        # these two keys this plist took XcodeGen's "1.0" default and every
+        # build warned; App Store validation rejects the mismatch.
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
         # Widget-side HealthKit reads (#15). Authorization is only ever
@@ -414,6 +426,10 @@ targets:
       properties:
         # The name iOS shows on the share-sheet row.
         CFBundleDisplayName: Talaria27
+        # #178a: same inheritance as the widget extension — see the app
+        # target's info block for why the literal was the defect.
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
           # Pinned via @objc(ShareViewController) — no module-name coupling.
