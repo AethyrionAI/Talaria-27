@@ -65,6 +65,10 @@ struct ServerSettingsScreen: View {
     @State private var pendingActivation: BackendProfile?
     @State private var editorTarget: ProfileEditorTarget?
     @State private var pendingForget: BackendProfile?
+    /// #153: delete is destructive AND purges the profile's Keychain
+    /// credentials — it confirms, exactly like the (less destructive) Forget
+    /// Pairing already did.
+    @State private var pendingDelete: BackendProfile?
     @State private var deleteErrorMessage: String?
     /// #116: outcome of the last "Refresh Provisioning" action — honest
     /// summary text (what was filled, or that the host reported nothing).
@@ -147,6 +151,24 @@ struct ServerSettingsScreen: View {
         } message: { profile in
             Text("Disconnects \(profile.name)'s relay pairing only. Other profiles are untouched; you'll need to pair again to resume its sensor path.")
         }
+        .confirmationDialog(
+            "Delete this profile?",
+            isPresented: Binding(
+                get: { pendingDelete != nil },
+                set: { if !$0 { pendingDelete = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingDelete
+        ) { profile in
+            Button("Delete \(profile.name)", role: .destructive) {
+                let target = profile
+                pendingDelete = nil
+                deleteProfile(target)
+            }
+            Button("Cancel", role: .cancel) { pendingDelete = nil }
+        } message: { profile in
+            Text("Removes \(profile.name) and its stored credentials — API key, shim token and relay session — from this device. Conversations that started on it stay in your history but can't reach it again until you re-add it. Other profiles are untouched.")
+        }
         .sheet(item: $editorTarget) { target in
             switch target {
             case .add:
@@ -180,7 +202,45 @@ struct ServerSettingsScreen: View {
         let isPaired = container.profileRelaySessions?.isPaired(profileID: profile.id) ?? false
         let probes = reachability[profile.id] ?? ServerProfileReachability()
 
-        return Button {
+        return ZStack(alignment: .topTrailing) {
+            profileCardBody(
+                profile,
+                isActive: isActive,
+                isSensorDestination: isSensorDestination,
+                isPaired: isPaired,
+                probes: probes
+            )
+
+            // #153: the SAME actions the long-press offers, given a visible
+            // affordance. They were discoverable only by long-pressing a card
+            // that gave no sign it was long-pressable — which is why "add a
+            // delete feature" was filed against a screen that already had one.
+            Menu {
+                profileActions(
+                    profile,
+                    isActive: isActive,
+                    isSensorDestination: isSensorDestination,
+                    isPaired: isPaired
+                )
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+                    .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("\(profile.name) actions")
+        }
+    }
+
+    private func profileCardBody(
+        _ profile: BackendProfile,
+        isActive: Bool,
+        isSensorDestination: Bool,
+        isPaired: Bool,
+        probes: ServerProfileReachability
+    ) -> some View {
+        Button {
             guard !isActive else { return }
             pendingActivation = profile
         } label: {
@@ -219,6 +279,9 @@ struct ServerSettingsScreen: View {
                         }
                     }
                 }
+                // #153: reserve the gutter the actions menu floats in, so
+                // neither the name nor the tags sit underneath it.
+                .padding(.trailing, Design.Spacing.lg)
 
                 HStack(spacing: Design.Spacing.md) {
                     statusRow("GATEWAY", result: probes.gateway)
@@ -242,43 +305,63 @@ struct ServerSettingsScreen: View {
         .buttonStyle(.plain)
         .accessibilityLabel("\(profile.name)\(isActive ? ", active" : ""), \(isPaired ? "paired" : "not paired")")
         .contextMenu {
+            profileActions(
+                profile,
+                isActive: isActive,
+                isSensorDestination: isSensorDestination,
+                isPaired: isPaired
+            )
+        }
+    }
+
+    /// The per-profile action set, shared verbatim by the long-press context
+    /// menu and the visible actions menu (#153) so the two can never drift.
+    @ViewBuilder
+    private func profileActions(
+        _ profile: BackendProfile,
+        isActive: Bool,
+        isSensorDestination: Bool,
+        isPaired: Bool
+    ) -> some View {
+        Button {
+            editorTarget = .edit(profile)
+        } label: {
+            Label("Edit", systemImage: "pencil")
+        }
+        Button {
+            startPairing(profile)
+        } label: {
+            Label(isPaired ? "Re-Pair" : "Pair", systemImage: "link")
+        }
+        if isPaired {
+            // #116: re-pull the host's provisioning bundle — the token
+            // rotation path (URLs are only ever filled when empty).
             Button {
-                editorTarget = .edit(profile)
+                Task { await refreshProvisioning(profile) }
             } label: {
-                Label("Edit", systemImage: "pencil")
+                Label("Refresh Provisioning", systemImage: "arrow.triangle.2.circlepath")
             }
+            Button(role: .destructive) {
+                pendingForget = profile
+            } label: {
+                Label("Forget Pairing", systemImage: "link.badge.plus")
+            }
+        }
+        if !isSensorDestination {
             Button {
-                startPairing(profile)
+                container.profilesStore?.setSensorDestination(profile.id)
             } label: {
-                Label(isPaired ? "Re-Pair" : "Pair", systemImage: "link")
+                Label("Route Sensors Here", systemImage: "sensor")
             }
-            if isPaired {
-                // #116: re-pull the host's provisioning bundle — the token
-                // rotation path (URLs are only ever filled when empty).
-                Button {
-                    Task { await refreshProvisioning(profile) }
-                } label: {
-                    Label("Refresh Provisioning", systemImage: "arrow.triangle.2.circlepath")
-                }
-                Button(role: .destructive) {
-                    pendingForget = profile
-                } label: {
-                    Label("Forget Pairing", systemImage: "link.badge.plus")
-                }
-            }
-            if !isSensorDestination {
-                Button {
-                    container.profilesStore?.setSensorDestination(profile.id)
-                } label: {
-                    Label("Route Sensors Here", systemImage: "sensor")
-                }
-            }
-            if !isActive && !isSensorDestination {
-                Button(role: .destructive) {
-                    deleteProfile(profile)
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
+        }
+        if !isActive && !isSensorDestination {
+            // #153: confirms before deleting — this purges Keychain
+            // credentials, so it is strictly more destructive than Forget
+            // Pairing, which already confirmed.
+            Button(role: .destructive) {
+                pendingDelete = profile
+            } label: {
+                Label("Delete", systemImage: "trash")
             }
         }
     }

@@ -5926,6 +5926,81 @@ healthy-but-cold gateway alone can legitimately eat ~20s+ — the wedge threshol
 judged against cold-start latency, not warm-path latency, or a slow-but-alive gateway
 gets misread as the hang.
 
+**INVESTIGATION 2026-07-24 (source read, no device) — NAMED BLOCKING PATH. The spec's
+hypothesis is CONFIRMED, and the launch-path half of it is DISPROVED.**
+
+**(1) The chat/session plane has NO timeout configuration at all.** Every service client
+defaults to `URLSession.shared` — `SessionsHermesClient` (gateway `:8642`),
+`ModelsShimClient` (`:8765`), `CronJobService`, `SkillsService`, `InsightsService`. That is
+**60s `timeoutIntervalForRequest` and 7 DAYS `timeoutIntervalForResource`**. The only
+dedicated timeout in the app is `RelayAPIClient.bootstrapProbeRequestTimeout` (5s/10s,
+`RelayAPIClient.swift:132-143`) and it is scoped to the #136 bootstrap probe alone. So the
+answer to #151's question is: the 5s config exists and is used in exactly one place; the
+chat plane never got it.
+
+**(2) `handleAppDidBecomeActive()` (`AppContainer.swift:1324-1357`) is the blocking path —
+TWELVE strictly serial awaits, ~8 of them network-bound, with no deadline, no concurrency,
+no cancellation.** In order: `currentAccessToken` (Keychain) → `reloadCapabilities` →
+**`hostStore.refresh`** → **`refreshCommandCatalog(force:)`** → **`seedActiveModelFromShim`**
+→ **`registerStoredPushTokenIfNeeded`** → **`sensorUploadService.handleAppDidBecomeActive`**
+→ `talkStore.refreshReadiness` → **`chatStore.reconcilePendingRuns`** →
+`condensePendingReasoning` → **`refreshDormantProfileTokensIfNeeded`** →
+**`reportAppStateIfNeeded`**. No `async let`, no task group, no shared deadline. Under the
+#136 black-hole shape (DROP, full 60s per request) one foreground activation costs **8+
+minutes** — and `refreshDormantProfileTokensIfNeeded` (`:2348-2360`) is itself a serial
+`for` loop over dormant profiles, adding N×60s inside that chain. This is the spec's
+question 3 answered: **the calls are serial, not concurrent-with-shared-deadline.**
+
+**(3) Why it outlives the outage — three compounding reasons, this is the load-bearing part:**
+  - **Every UI-state write is sequenced LAST.** `reconcileLiveActivities()` and
+    `updateWidgetData()` are lines 1354/1356, behind all eight network awaits. The app
+    cannot refresh its visible state until the entire chain drains — so it stays frozen on
+    stale content for minutes *after* the host is healthy again.
+  - **The reconcile loop's documented budget is wrong by ~30×.**
+    `ChatStore.startReconcileLoopIfNeeded()` (`ChatStore.swift:1450-1464`) says
+    `maxAttempts = 60 // 60 x 2s = ~2 min` — but that budgets only `Task.sleep`, **not the
+    network call**. Each `attemptReconcile` → `reconcileFromServer()` is an unbounded
+    gateway fetch, so on a black-holed host the real ceiling is 60 × (2s + 60s) ≈ **62
+    minutes**, not 2. The loop is armed at step 9 of the chain above and keeps grinding long
+    after the outage ends.
+  - **Every scene activation queues another full chain.** Background→foreground cycles stack
+    them; nothing coalesces or supersedes.
+
+**(4) DISPROVED — the launch critical path is clean; #136 stands.** The spec (and this
+item's own fix-shape note) suspected a gateway-bound await on the launch path. It is not
+there. Traced every step of `initialize()` (`:1174-1210`): `currentAccessToken()` is a pure
+Keychain read (`AppSessionStore.swift:133-135`), and `loadConversationIfNeeded()`'s
+"no-cache fallback fetch" is **stale documentation** — both backends' `loadConversation()`
+are purely local (`SessionsHermesClient.swift:448-453` returns in-memory-or-fresh;
+`LocalChatBackend.swift:513-519` restores from cache). The `LaunchInitStep` doc comment
+claiming that fallback "rides the chat path" describes the retired relay-backed
+`LiveHermesClient`, not current code. **So #145 is a FOREGROUND-path defect, not a launch
+defect** — consistent with the original observation that entry was a resume, not a cold
+launch.
+
+**(5) The #136 guard test is a tautology.** `AppStoresTests.swift:2751-2752` iterates
+`LaunchInitStep.criticalPath` asserting `!step.touchesNetwork` — but `touchesNetwork` is a
+hand-maintained switch in the *same enum*. It asserts the label against itself, never
+against what `initialize()` actually calls, and it does not model the foreground path at
+all. It would not have caught (2), and will not catch a future network call added to
+`initialize()`.
+
+**Honest limit — what this does NOT explain:** a true input freeze. Serial `await`s on the
+MainActor suspend and yield; they do not block the main thread. This mechanism fully
+explains "wedged, stale, unresponsive-looking, and still broken after the host returned",
+but a literal frozen-touch UI needing a phone restart needs a spindump or an
+`MXHangDiagnostic` to confirm. Treat the "hard-lock" wording as unverified until then;
+discriminator (c) is still owed.
+
+**Fix shape (unchanged in spirit, now specific):** give the chat/session plane the dedicated
+short-timeout `URLSessionConfiguration` that `RelayAPIClient` already has; hoist
+`reconcileLiveActivities()`/`updateWidgetData()` to the FRONT of
+`handleAppDidBecomeActive`; run the independent refreshes concurrently under one shared
+deadline instead of twelve serial awaits; make the reconcile loop budget wall-clock rather
+than sleep-count; and make the foreground chain supersede-on-re-entry the way
+`cancelBackgroundBootstrap()` does. **Owed a device pass** — none of this is provable in
+the simulator.
+
 Logged 2026-07-20.
 
 ## 146. 🐛 Diagnostics push row stuck on TOKEN HELD · AWAITING RELAY — CONFIRMED display desync 2026-07-20 (push delivered while row stuck); fix = kill the dual bookkeeping
@@ -6083,6 +6158,46 @@ phone restart; here: tap-created, container-persisted, on-demand reproducible). 
 work tracked in #145: source-read reconcilePendingRuns + pending-run persistence vs the
 #136 LaunchInitStep critical path; extend timeout non-negotiables to the tap/foreground
 path; and the persistence bug (nothing written on the tap path may wedge future launches).
+
+**INVESTIGATION 2026-07-24 — the owed source-read is DONE. Crash portion re-confirmed
+closed; the "container-persisted wedge" theory is DISPROVED as stated.**
+
+**Spec-premise correction for anyone reading `dispatch/OPUS-T27-145-147-outage-spike.md` (or
+its `-147-145-outage-investigation.md` twin): both are STALE on this item.** They instruct
+"get the crash log before theorising" and name PR #126 as prime suspect. That work was
+already done on 2026-07-21: `.ips Talaria_27-2026-07-21-191840` named the frame, PR #126 was
+EXONERATED, the `@MainActor` fix shipped as PR #129 (merge `20b46fc`, in main — verified live
+at `AppEntry.swift:87`), and the device pass closed the crash. The three ranked candidates
+the spec asks for (userInfo force-unwrap / `InboxStore.markRead` / `briefing` deeplink
+nil-id) are all moot — none was the cause. **Do not re-run Part 1 of that spec.**
+
+**`reconcilePendingRuns` is NOT the persistence culprit.** `pendingRun` is
+`private var pendingRun: PendingRun?` (`ChatStore.swift:202`) — in-memory only, never
+written to the container by any code path. On a cold launch it is nil, so
+`reconcilePendingRuns()` returns at its first guard (`:1443-1448`). **Nothing on the tap
+path persists a record that could re-poison a subsequent launch**, so "only a reinstall
+clears it" needs a different explanation than a poisoned pending-run.
+
+**The likelier reading of the same evidence:** the tap path makes an *unbounded* gateway
+call, not a persistent one. `handleNotificationTap` (`AppContainer.swift:1443-1452`) awaits
+`chatStore.openSession(sessionID)` → `SessionsHermesClient.openSession` on
+`URLSession.shared` — **60s request / 7-day resource, no timeout config anywhere on the chat
+plane** — then `reconcilePendingRuns()`, which arms a retry loop whose documented "~2 min"
+ceiling is really ~62 min against a black-holed host (full derivation in #145). Owen waited
+**~1 min** on the first occurrence before rebuilding — that is right at the 60s URLSession
+boundary, so "force-quit + relaunch wedges again; only a reinstall clears it" is equally
+consistent with **a ~60s-per-launch stall against a host that was still down**, where the
+rebuild+reinstall cycle simply outlasted the outage. Reinstall also wipes the UserDefaults
+pairing flag, which drops the `isPaired && !isInitialized` splash branch entirely — a second
+reason reinstall "fixes" it without any persisted poison existing.
+
+**Consequence:** the remaining work genuinely is #145's, but as a *timeout/serialisation*
+defect on the tap + foreground paths, not a persistence bug. The "nothing written on the tap
+path may wedge future launches" line above is retained for history but is not supported by
+the source. **Owed to settle it definitively:** re-run the controlled repro
+(`send_inbox_item`, cold tap) with the gateway deliberately black-holed, and let it sit 3+
+minutes without rebuilding — if it self-clears, the wedge is the timeout chain and this item
+needs no further work of its own.
 
 Logged 2026-07-20.
 
@@ -6332,6 +6447,14 @@ Logged 2026-07-20.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-SETTINGS-151-152-153.md`** — PHASE 0 CONFIRM IS MANDATORY (all three carry source-confirm-owed; Bundle B had 2 of 4 premises wrong). #153 is gated: if hosts are a single record it is a data-model lane and gets split out. Do not re-spec.
 
+**2026-07-24 — DONE on `claude/t27-settings-host-surface`. Premise CONFIRMED, and the timing assumption in this item was wrong in the dangerous direction.** `UplinkSettingsScreen.testConnection()` did probe — `hostStore.refresh()` (relay plane) plus `chatStore.refreshDirectHealth()` (chat plane) — and read neither result. Precise correction to "no visible result": the link panel at the TOP of the screen does recompute from those probes, but the button is at the bottom, there is no acknowledgement, no latency, no reason, and `hostStore.lastErrorMessage` is never rendered on this screen at all.
+
+**The 60s in this item's fix shape was optimistic.** `SessionsHermesClient.makeRequest` stamps `request.timeoutInterval = 300` on EVERY request, including the `/v1/models` health call `refreshDirectHealth()` rides. A black-holed host would have hung Test Connection for **five minutes**, not 60s. The 5s dedicated probe is therefore not a nicety — the shared client path was unusable here. Built as its own probe rather than a timeout override on the shared one.
+
+Status vocabulary reused rather than reinvented, as instructed: verdicts defer to `ServerProbeResult.classify`, so a 401 renders **NO KEY** here exactly as on the Server screen. New honest states where the family had only OFFLINE: **REFUSED** (`cannotConnectToHost` — wrong port/nothing listening), **NO ANSWER** (`timedOut` — firewall DROP or host asleep), **NO HOST** (`cannotFindHost`/`dnsLookupFailed`). Each carries a one-sentence fix. Retyping the base URL clears the verdict so a stale ONLINE can't sit under a changed endpoint.
+
+**Owed on device (Owen's):** the three shapes — live host, stopped host, black-holed host.
+
 Reported 2026-07-20 (Owen). Tapping Test Connection in Settings → Hermes Host produces no visible result — success, failure, and in-flight are indistinguishable. The user can't tell whether the host is reachable, which is exactly the moment the control exists to answer.
 
 Fix shape (source-confirm before dispatch): the action almost certainly already performs a reachability probe (bootstrap/health call on the Sessions API plane, :8642); what's missing is the UI binding of its result. Wants a small state enum (idle / testing / success / failure(reason)) driving: an inline spinner while testing, then a pass row (host + latency) or a fail row with a reason (unreachable / auth rejected / wrong port), in the standardized status wording family (#84 / #71 precedent). Distinguish the three network shapes #145/#136 established (refuse fast-fail vs firewall black-hole ~60s vs accepted-but-silent warmup) — a Test button that hangs 60s silently on black-hole is its own papercut, so give it the 5s dedicated-timeout config too.
@@ -6360,6 +6483,18 @@ Owen's ask: better naming. Candidates, roughly in order:
 
 Recommendation: "Pairing & Devices" for the row, and inside, lead with the current host/pairing state + a clear Disconnect/Revoke, with Pair New Device (QR) as the add action — so the destructive/management actions aren't hidden behind an add-only verb. Keep the QR pairing flow itself unchanged (three-plane model intact; pairing QR still carries no Sessions API key).
 
+**2026-07-24 — DONE on `claude/t27-settings-host-surface`. Premise CONFIRMED exactly as filed.** The "Pair Device" `GlowButton` in `UplinkSettingsScreen` routes to `.connectHost`, which while paired resolves (ContentView's route seam) to `ConnectHermesHostScreen` — whose only two actions are **Revoke Host** and **Disconnect**. An unpair behind a pairing verb, confirmed.
+
+Row is now **"Pairing & Devices"** (Owen's recommendation) and the destination screen's title matches. Avoided "Connection"/"Host Connection" per the collision note above.
+
+**Where revoke lived, for the record:** in two places with different scopes — `ConnectHermesHostScreen` (this screen: `hostStore.revokeCurrentHost()` + `pairingStore.disconnect()`), and per-profile **Forget Pairing** in the Server screen's card menu (`pairingStore.forgetPairing(profileID:)`). Only the former was behind the misleading label.
+
+**Pair New Device (QR)** added as the explicit add action, so destructive actions are no longer the entire surface. It names the active profile as pair target, re-resolving the same `.connectHost` seam to the QR flow — the identical path the Server screen's per-profile Pair already uses, so **the pairing flow itself is untouched** and the QR still carries no Sessions API key. Revoke and Disconnect now each carry a one-line description, because they sit adjacent and are not the same operation.
+
+**The rename trap, checked before renaming:** no `"Pair Device"` in any plist, `.xcstrings`, `.strings` or App Intent phrase — the only App Intent phrases in the tree belong to `StartVoiceSessionIntent`. Exactly one test bound it (`AppTemplateUITests.testDisconnectReturnsToStandaloneChat`), updated **in the same commit as the rename**. The onboarding screen's button keeps its "Pair Device" title — that test matches its `"Connect Hermes"` accessibility label, not the renamed one. UI suite green (8/8), so the renamed path is sim-verified end to end.
+
+**Owed on device (Owen's):** the renamed surface reaching revoke.
+
 Source-confirm owed (next Mac shell): find the row label + destination (grep "Pair Device" / "Pairing" under Talaria/Features/Settings), confirm where revoke lives today, and check Siri/Spotlight/deep-link strings or tests that hard-code "Pair Device" before renaming. Pure UX lane, no backend change; batch with #151 as one Settings-host PR.
 
 Logged 2026-07-20.
@@ -6369,6 +6504,23 @@ Logged 2026-07-20.
 ## 153. 🔧 Settings → Server: multi-host management — delete profile (distinct from revoke), active-host selection, list semantics
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-SETTINGS-151-152-153.md`** — PHASE 0 CONFIRM IS MANDATORY (all three carry source-confirm-owed; Bundle B had 2 of 4 premises wrong). #153 is gated: if hosts are a single record it is a data-model lane and gets split out. Do not re-spec.
+
+**2026-07-24 — PARTIALLY DONE on `claude/t27-settings-host-surface`. The premise was CONTRADICTED and the assumed fix was NOT implemented, per the spec's stop rule.** The scope gate came back the good way — hosts are **already an array** (`BackendProfilesState.profiles: [BackendProfile]`, Lane M / #114), so this was never a data-model lane. But the ask itself was already shipped:
+
+- **Delete exists** — `BackendProfilesStore.deleteProfile(id:)`, with the active and sensor-destination house rules (`DeleteError.profileIsActive` / `.profileIsSensorDestination`).
+- **Delete ≠ revoke, already** — `Forget Pairing` is a separate card action with its own confirm.
+- **Active selection is already explicit** — tap a card → "Switch backend?" confirm → `setActiveProfile`.
+- **Keychain purge already wired** — `AppContainer.onProfileDeleted` clears the paired relay configuration, session state, and the four profile-scoped Keychain keys (access/refresh token, gateway API key, shim token).
+
+**Why it read as missing: discoverability.** Every per-profile action lived only under a long-press on a card that gave no sign it was long-pressable. Fixed — the same action set is now also behind a visible menu button on each card, built from one shared `@ViewBuilder` so the two entry points cannot drift.
+
+**One genuine defect found and fixed:** delete did **not** confirm. It fired straight off the menu and purged the profile's credentials, while the strictly *less* destructive Forget Pairing did confirm. It now confirms, naming what is removed and that other profiles are untouched.
+
+**The #137 interaction, checked explicitly as the spec demanded — already safe.** The sensor-migration stamp is stored under a separate **unscoped** key (`saveSensorStreamingMigrationStamp`, UserDefaults) and `onProfileDeleted` does not touch it, so a delete cannot cause a later re-pair to re-run the migration and switch sensors on without consent. Pinned with a regression test so it stays that way.
+
+**Correction to this item's highest-risk path.** "Deleting the LAST host must return to standalone cleanly" is **unreachable by construction** — the last profile is necessarily active (normalization falls back to `profiles.first`), so the active-profile guard blocks it. There is no empty-list path to wedge. "Delete if there's more than one" is precisely the shipped behaviour, which means the open questions below about deleting the active/last host were already answered by the house rules, not left implicit.
+
+**Still open under this number:** nothing from the original ask. If a real empty-list → standalone path is ever wanted, that is a new decision (it would mean allowing the last profile to be deleted), not a completion of this one.
 
 Reported 2026-07-20 (Owen): "add a delete feature on Settings → Server as well, if there's more than one."
 

@@ -125,6 +125,55 @@ struct ServerSettingsTests {
         #expect(UplinkSettingsScreen.unkeyedNudgeVisible(isPaired: false, apiKey: "abc123") == false)
     }
 
+    // MARK: - #151: Test Connection verdicts
+
+    /// The verdict defers to `ServerProbeResult.classify`, so the Uplink and
+    /// Server screens can never disagree about what a 401 means.
+    @Test @MainActor
+    func testConnectionVerdictJoinsTheSharedProbeVocabulary() {
+        #expect(UplinkSettingsScreen.outcome(statusCode: 200, latencyMillis: 42) == .passed(latencyMillis: 42))
+        #expect(UplinkSettingsScreen.outcome(statusCode: 204, latencyMillis: 7) == .passed(latencyMillis: 7))
+        #expect(UplinkSettingsScreen.outcome(statusCode: 401, latencyMillis: 9) == .failed(.authRejected))
+        #expect(UplinkSettingsScreen.outcome(statusCode: 403, latencyMillis: 9) == .failed(.authRejected))
+        #expect(UplinkSettingsScreen.outcome(statusCode: 404, latencyMillis: 9) == .failed(.unexpectedStatus(404)))
+        #expect(UplinkSettingsScreen.outcome(statusCode: 502, latencyMillis: 9) == .failed(.unexpectedStatus(502)))
+        // "NO KEY" is the Server screen's word for the same condition.
+        #expect(ConnectionTestFailure.authRejected.label == ServerProbeResult.unauthorized.label)
+    }
+
+    /// #145/#136 named three distinct network shapes. A control that
+    /// collapsed them into one "failed" is what made the old button useless.
+    @Test @MainActor
+    func testConnectionDistinguishesTheThreeNetworkShapes() {
+        #expect(UplinkSettingsScreen.failure(for: .cannotConnectToHost) == .refused)
+        #expect(UplinkSettingsScreen.failure(for: .timedOut) == .timedOut)
+        #expect(UplinkSettingsScreen.failure(for: .cannotFindHost) == .hostNotFound)
+        #expect(UplinkSettingsScreen.failure(for: .dnsLookupFailed) == .hostNotFound)
+
+        // Each shape names a different fix — the labels and the remedies
+        // must not converge.
+        let shapes: [ConnectionTestFailure] = [.refused, .timedOut, .hostNotFound, .authRejected]
+        #expect(Set(shapes.map(\.label)).count == shapes.count)
+        #expect(Set(shapes.map(\.detail)).count == shapes.count)
+    }
+
+    /// The Sessions client stamps `timeoutInterval = 300` on every request, so
+    /// reusing its health path here would hang the button for five minutes
+    /// against a black-holed host — its own defect.
+    @Test @MainActor
+    func testConnectionProbeUsesItsOwnShortBudget() {
+        #expect(UplinkSettingsScreen.probeTimeout == 5)
+    }
+
+    @Test @MainActor
+    func testConnectionReportsAnUnsetEndpointWithoutTouchingTheNetwork() async {
+        let blank = await UplinkSettingsScreen.probe(baseURL: "   ", apiKey: "key")
+        guard case .failed(.notConfigured) = blank else {
+            Issue.record("an empty base URL should fail as notConfigured — got \(blank)")
+            return
+        }
+    }
+
     // MARK: - M-12: profile editor draft
 
     @Test @MainActor

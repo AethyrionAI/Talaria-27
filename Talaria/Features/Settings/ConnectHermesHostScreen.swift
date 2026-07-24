@@ -1,6 +1,15 @@
 import SwiftUI
 
+// MARK: - Pairing & Devices (#152)
+//
+// Reached from Settings → Hermes Host → "Pairing & Devices". The label used
+// to read "Pair Device", which advertised only the add action while this
+// screen's actual contents are Revoke Host and Disconnect — an unpair hidden
+// behind a pairing verb. The QR pairing flow itself is unchanged; adding a
+// device is now an explicit action HERE rather than the implied purpose of
+// the whole surface.
 struct ConnectHermesHostScreen: View {
+    @Environment(AppContainer.self) private var container
     @Environment(HermesHostStore.self) private var hostStore
     @Environment(PairingStore.self) private var pairingStore
     @Environment(\.dismiss) private var dismiss
@@ -26,7 +35,7 @@ struct ConnectHermesHostScreen: View {
                 .padding(.vertical, Design.Spacing.lg)
             }
         }
-        .navigationTitle("Connect Host")
+        .navigationTitle("Pairing & Devices")
         .task {
             await hostStore.refresh()
         }
@@ -111,6 +120,25 @@ struct ConnectHermesHostScreen: View {
     private var actionsCard: some View {
         HUDPanel(cornerRadius: Design.CornerRadius.xl) {
             VStack(spacing: 0) {
+                // #152: the ADD action, stated plainly. Naming a pair target
+                // re-resolves the shared `.connectHost` seam to the QR flow —
+                // the same path the Server screen's per-profile Pair uses, so
+                // the pairing flow itself is untouched.
+                Button {
+                    pairingStore.pairingTargetProfileID =
+                        container.profilesStore?.activeProfileID
+                } label: {
+                    actionRow(
+                        icon: "qrcode.viewfinder",
+                        label: "Pair New Device (QR)",
+                        detail: "Scan a code from your Hermes machine.",
+                        color: Design.Brand.accent
+                    )
+                }
+                .disabled(container.profilesStore?.activeProfileID == nil)
+
+                Divider().overlay(Design.Colors.divider)
+
                 if hostStore.currentHost != nil {
                     Button(role: .destructive) {
                         Task { await hostStore.revokeCurrentHost() }
@@ -118,6 +146,7 @@ struct ConnectHermesHostScreen: View {
                         actionRow(
                             icon: "desktopcomputer.trianglebadge.exclamationmark",
                             label: "Revoke Host",
+                            detail: "Unregisters this Hermes machine. The phone stays paired.",
                             color: Design.Colors.danger
                         )
                     }
@@ -135,6 +164,7 @@ struct ConnectHermesHostScreen: View {
                     actionRow(
                         icon: "rectangle.portrait.and.arrow.right",
                         label: "Disconnect",
+                        detail: "Signs this device out and clears its pairing.",
                         color: Design.Colors.danger
                     )
                 }
@@ -181,15 +211,30 @@ struct ConnectHermesHostScreen: View {
         }
     }
 
-    private func actionRow(icon: String, label: String, color: Color) -> some View {
+    /// #152: `detail` names what the action actually does — "Revoke Host" and
+    /// "Disconnect" sit next to each other and are not the same operation.
+    private func actionRow(
+        icon: String,
+        label: String,
+        detail: String? = nil,
+        color: Color
+    ) -> some View {
         HStack(spacing: Design.Spacing.sm) {
             Image(systemName: icon)
                 .font(.system(size: 14))
                 .foregroundStyle(color)
                 .frame(width: 20)
-            Text(label)
-                .font(Design.Typography.callout)
-                .foregroundStyle(color)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(Design.Typography.callout)
+                    .foregroundStyle(color)
+                if let detail {
+                    Text(detail)
+                        .font(Design.Typography.caption)
+                        .foregroundStyle(Design.Colors.secondaryForeground)
+                        .multilineTextAlignment(.leading)
+                }
+            }
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.system(size: 12, weight: .semibold))
@@ -197,6 +242,7 @@ struct ConnectHermesHostScreen: View {
         }
         .frame(minHeight: Design.Size.minTapTarget)
         .padding(.horizontal, Design.Spacing.lg)
+        .padding(.vertical, Design.Spacing.xs)
     }
 
     private func errorBanner(message: String) -> some View {

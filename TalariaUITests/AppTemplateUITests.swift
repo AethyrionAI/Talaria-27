@@ -166,9 +166,10 @@ final class TalariaUITests: XCTestCase {
         completePairing(in: app, setupCode: context.setupCode)
         XCTAssertNotNil(waitForComposer(in: app, timeout: 15))
 
-        // Paired management path: Settings → Hermes Host → Pair Device
+        // Paired management path: Settings → Hermes Host → Pairing & Devices
         // (routes to .connectHost, which resolves to the host status screen
-        // while paired).
+        // while paired). #152 renamed this action from "Pair Device" — the
+        // surface owns revoke and disconnect, not just pairing.
         app.buttons["Open settings"].tap()
         guard let hostRow = waitForButton(containing: "Hermes Host", in: app, timeout: 5) else {
             XCTFail("Settings should offer the Hermes Host row")
@@ -176,11 +177,11 @@ final class TalariaUITests: XCTestCase {
         }
         hostRow.tap()
 
-        guard let pairDevice = waitForButton(containing: "Pair Device", in: app, timeout: 5) else {
-            XCTFail("the Hermes Host screen should offer the Pair Device action")
+        guard let pairingRow = waitForButton(containing: "Pairing & Devices", in: app, timeout: 5) else {
+            XCTFail("the Hermes Host screen should offer the Pairing & Devices action")
             return
         }
-        pairDevice.tap()
+        pairingRow.tap()
 
         // iOS 27 beta: this tap dismisses the settings sheet AND pushes the
         // host screen in one tick — under bundle-warm timing the synthesized
@@ -190,8 +191,8 @@ final class TalariaUITests: XCTestCase {
         // rebuilding the root after pairing. Re-tap once if nothing moved —
         // same spirit as the per-keystroke setup-code hedge above.
         var disconnect = waitForButton(containing: "Disconnect", in: app, timeout: 5)
-        if disconnect == nil, pairDevice.exists {
-            pairDevice.tap()
+        if disconnect == nil, pairingRow.exists {
+            pairingRow.tap()
             disconnect = waitForButton(containing: "Disconnect", in: app, timeout: 5)
         }
         guard let disconnect else {
