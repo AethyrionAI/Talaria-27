@@ -223,12 +223,12 @@ a bad onboarding step that exists today, not about investing in the shim's futur
 
 ## LANE 10 — #125 Health Trends — READ THE FINDING FIRST
 
-> **UPDATED 2026-07-24: the fix was shipped (PR #140) and REVERTED same session (PR #141).**
-> Main no longer renders the link, so the four-step repro ladder below is live again and WILL
-> reproduce. Run it as written. **Priority question for this lane, ahead of the ladder:** on
-> the build Owen tested at merge `8c8e3b9`, did the Health Trends link RENDER with an empty
-> screen behind it, or did it never appear? #181 carries this as an owed discriminator and the
-> two answers have different fixes. Establish it first; the rest of the lane is cheap after.
+> **UPDATED 2026-07-24: fix shipped (PR #140) and REVERTED same session (PR #141); main does not
+> render the link.** The discriminator this banner previously asked for is ANSWERED — the link
+> never rendered on Owen's build (#181). Do not re-ask it. **Run this lane only to answer the
+> product question, not the plumbing one:** with health granted and sensor streaming OFF, does
+> `HealthTrendsService` return any data at all on a cold launch? If it returns nothing, #125 needs
+> a data story before it needs an entry point, and that is Owen's call rather than a dispatch.
 
 **Do not run this as a normal device pass.** Source investigation on 2026-07-23 (this spec's
 session) found the reason Owen has never seen this screen, and it is a real defect. It is filed as
