@@ -7087,7 +7087,30 @@ Patching these one at a time will reproduce the pattern in the next surface buil
 
 Logged 2026-07-23.
 
-## 181. 🐛 Health Trends is unreachable on a cold launch — the free-tier flagship hides behind an in-memory auth flag
+## 181. 🔧 Health Trends was unreachable on a cold launch — entry point FIXED (PR #140, merge `8c8e3b9`, 2026-07-23); device confirm + the auth-flag fix still owed
+
+**FIXED SAME DAY — PR #140 (merge `8c8e3b9`).** Option (c) shipped: `PermissionStatus`
+gains `allowsHealthTrendsEntry` (`self != .unsupported`), the entry point at
+`PermissionsScreen.swift` uses it, and three tests pin it against re-narrowing. The doc
+comment on the property carries the reasoning so the next reader does not "correct" it back
+to `.authorized`. Suite **1110 / 99 green** (baseline 1107/99 — delta is exactly the three
+new tests); no new files, no xcodegen regen.
+
+**What PR #140 does NOT fix, and this item stays open for it.** Only reachability was
+addressed. The underlying dishonesty is untouched: `LiveHealthService.authorizationStatus`
+still resets to `.notDetermined` every launch, so the Permissions health card still reads
+"Not Set" after a relaunch even when the user granted access, and `HealthTrendsScreen` will
+still show HEALTH ACCESS OFF until something re-asserts the grant. **Option (a) — persist
+the grant (`didGrantHealthAccess` written on a successful `requestAuthorization()`, read at
+launch) — remains owed** and is the real fix. It is a separate, larger blast radius: it
+touches what `collectSnapshot()` gates on and therefore the sensor pipeline (#16's original
+territory), which is why it did not ride this PR.
+
+**Device confirm (Lane 10 of the 2026-07-24 dispatch) now confirms the FIX, not the defect.**
+The pre-fix repro ladder is preserved above for the record, but on a post-`8c8e3b9` build the
+link should be present on a cold launch with sensors off — showing HEALTH ACCESS OFF when
+tapped, which is the honest state, not a regression.
+
 
 **Found 2026-07-23 by source read (no device needed), prompted by Owen: "ive never come across
 health trends in app."** He is right, and it is not a discoverability problem — the link genuinely
