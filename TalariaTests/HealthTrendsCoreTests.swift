@@ -316,4 +316,27 @@ struct HealthTrendsCoreTests {
         #expect(label.localizedCaseInsensitiveContains("steps"))
         #expect(!label.localizedCaseInsensitiveContains("percent"))
     }
+
+    // MARK: - #181 entry-point gate
+
+    /// The regression pin for #181. The Health Trends link must render for a status
+    /// that is NOT `.authorized`: the health grant flag is in-memory and resets every
+    /// launch, so gating the entry point on it hid the screen on every cold launch.
+    /// If anyone narrows the gate back to the grant, these fail.
+    @Test func trendsEntryRendersWithoutAnAssertedGrant() {
+        #expect(PermissionStatus.notDetermined.allowsHealthTrendsEntry)
+        #expect(PermissionStatus.denied.allowsHealthTrendsEntry)
+        #expect(PermissionStatus.restricted.allowsHealthTrendsEntry)
+        #expect(PermissionStatus.limited.allowsHealthTrendsEntry)
+    }
+
+    @Test func trendsEntryRendersWhenGranted() {
+        #expect(PermissionStatus.authorized.allowsHealthTrendsEntry)
+        #expect(PermissionStatus.authorizedAlways.allowsHealthTrendsEntry)
+    }
+
+    /// The single case that must hide it: no HealthKit on this device.
+    @Test func trendsEntryHiddenWhenHealthKitIsAbsent() {
+        #expect(!PermissionStatus.unsupported.allowsHealthTrendsEntry)
+    }
 }
