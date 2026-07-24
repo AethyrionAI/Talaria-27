@@ -206,8 +206,18 @@ final class TalariaUITests: XCTestCase {
             return
         }
         XCTAssertTrue(composer.exists)
-        XCTAssertFalse(app.buttons["Enter Code Manually"].exists,
-                       "no pairing wall may return after disconnect (#31)")
+        // #164: assert the wall is GONE, not that it was never momentarily in
+        // the tree. The composer and the dismissing wall coexist for a beat —
+        // the reproduction on 2026-07-24 checked the composer at t=41.93s and
+        // the wall 50ms later, catching the dismissal mid-flight.
+        //
+        // This deliberately does NOT paper over #31. A wall that genuinely
+        // returned never disappears, so it still fails — it just fails after
+        // the timeout instead of during someone else's animation. Do not
+        // replace this with a sleep or a plain `.exists` check in either
+        // direction: one masks the real defect, the other re-opens the flake.
+        XCTAssertTrue(app.buttons["Enter Code Manually"].waitForNonExistence(timeout: 5),
+                      "no pairing wall may return after disconnect (#31)")
 
         // Standalone again: the upgrade row is back.
         app.buttons["Open settings"].tap()
