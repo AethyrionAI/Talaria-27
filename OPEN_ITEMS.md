@@ -4264,6 +4264,12 @@ address the app knows, but no pricing/capabilities/picker payload, no write surf
 watch `/v1/capabilities` `admin_config_rw` on future updates, false today). Deploy + DoD
 device pass now unblocked as merged (PRs #101/#102) — no design change.
 
+**2026-07-23 — HOLD LIFTED. Hermes 0.19 is live on BOTH hosts (Owen confirmed).** The gate this
+item was paused behind is gone; deploy + DoD device pass are unblocked and queued as Lane 9 of
+`dispatch/OPUS-T27-DEVICE-PASS-2026-07-24.md`. Mac deploy = restart relay + connector on the
+Mini's live checkout; OJAMD rides the `ojamd-deploy` rebase (Owen's manual gate). The ON HOLD
+line below is superseded, kept for history.
+
 **ON HOLD 2026-07-20 (Owen): deploy + DoD device pass PAUSED pending Hermes 0.19.**
 The 0.19 update (installed on OJAMD tonight — the same update window that surfaced #145)
 appears to make parts of this provisioning mechanism redundant. Before deploying the
@@ -4614,6 +4620,12 @@ Logged 2026-07-17. Built 2026-07-19 — suite 870/76 green (was 845/72) + UI tes
 
 ## 125. ✨ Health trends view — native, on-device (free-tier flagship)
 
+**2026-07-23 — THIS SCREEN IS UNREACHABLE ON A COLD LAUNCH. See #181.** Owen reported never having
+come across Health Trends in the app; a source read found the entry-point gate depends on an
+in-memory health-auth flag that resets every launch. Not a discoverability problem — the link does
+not render. Device pass for this item is blocked behind that finding and runs as Lane 10 of
+`dispatch/OPUS-T27-DEVICE-PASS-2026-07-24.md`.
+
 HKStatisticsCollectionQuery daily buckets (7/30/90d) over the already-authorized metric set,
 rendered through the #100 chart pipeline (reuse, don't fork). Hidden cards for unauthorized/
 empty metrics; pure-function trend deltas; no new scopes, no server. The App Store screenshot.
@@ -4643,7 +4655,22 @@ future connected-tier rider (no FoundationModels here).
 
 ---
 
-## 126. 🔧 Daily briefing — app half MERGED (PR #126, merge `edeba74`, 2026-07-20); host half + deploy + device pass owed (connected-tier centerpiece)
+## 126. ❌ Daily briefing — DROPPED 2026-07-23 (superseded by the #162 Tasks/cron surface); app half stays merged and inert
+
+**DROPPED 2026-07-23 (Owen): “the daily cron — lets drop that. No need now that we have scheduled
+tasks.”** The #162 Tasks lane (cron browse/create/edit/control, PR #135, device-checklisted under
+#171) gives the same outcome through a surface the user drives, without a bespoke host-side cron
+half and a JSON contract to maintain. The two remaining blockers — OJAMD deploy and the host cron
+config — are now moot and will not be built.
+
+**What stays:** the app half is merged (PR #126, `edeba74`) and inert without a host sending
+`category: "briefing"` payloads. `BriefingDetailScreen`, the widget, and `InboxStore.markRead`
+remain wired and harmless. The `send_inbox_item` payload passthrough in the connector stays — it
+is additive and useful to the inbox generally. **No revert commit is owed;** removing it would be
+more churn than leaving it dormant. Revisit only if a briefing product need reappears.
+
+**The six-step device pass is CANCELLED.** Do not run it. #147 (inbox-alert tap crash) was found
+against this PR and stays open on its own merits — dropping #126 does not close #147.
 
 **Session S sweep 2026-07-20: deferred to circle-back (Owen’s call)** — consistent with the
 known blockers (OJAMD deploy + host cron half still owed ahead of the device pass).
@@ -4810,7 +4837,15 @@ Logged 2026-07-17.
 
 ---
 
-## 129. 🔧 Voice preview mid-session — MERGED (PR #127, merge `175261b`, 2026-07-20); device pass owed. Known accepted behavior: native-engine sessions share the assistant TTS instance, so mid-reply preview drops that reply's un-spoken audio tail (transcript intact) and the next chunk cuts the preview short; realtime engine (primary case) previews play over the session. Third dedicated preview instance (~4 lines) deferred pending Owen's device feel.
+## 129. 🔧 Voice preview mid-session — MERGED (PR #127, merge `175261b`, 2026-07-20); device pass owed. Known accepted behavior: native-engine sessions share the assistant TTS instance, so mid-reply preview drops that reply's un-spoken audio tail (transcript intact) and the next chunk cuts the preview short; realtime engine (primary case) previews play over the session. Third dedicated preview instance (~4 lines) CANCELLED — Owen accepted the behaviour 2026-07-23.
+
+**2026-07-23 — OWEN ACCEPTED the native-engine behaviour. The third dedicated preview instance is
+CANCELLED, not deferred.** Asked directly whether the mid-reply tail-drop on native-engine sessions
+(un-spoken audio tail lost, transcript intact, next chunk cuts the preview) was acceptable or
+warranted a third TTS instance, Owen: “acceptable.” The open question in the PR is closed; treat the
+current behaviour as documented and intended. **The device pass itself is still owed** — no crash,
+session survives, mic live after — queued as Lane 3 of `dispatch/OPUS-T27-DEVICE-PASS-2026-07-24.md`
+alongside #128's re-verify, which is the same physical test.
 
 **Session V sweep 2026-07-20: PARTIAL — DoD still owed.** Pre-session audition →
 composer-origin start passes (selection path sound). The actual DoD (MID-SESSION audition +
@@ -7049,5 +7084,63 @@ Patching these one at a time will reproduce the pattern in the next surface buil
 - a convention for stale-vs-live data in any list fed from a host
 - per surface, decide whether stale data is shown, shown-and-marked, or withheld
 - make `lastErrorMessage` reachable after first load (the latch is fine; the gate is not)
+
+Logged 2026-07-23.
+
+## 181. 🐛 Health Trends is unreachable on a cold launch — the free-tier flagship hides behind an in-memory auth flag
+
+**Found 2026-07-23 by source read (no device needed), prompted by Owen: "ive never come across
+health trends in app."** He is right, and it is not a discoverability problem — the link genuinely
+does not render.
+
+The only entry point to `HealthTrendsScreen` is a `NavigationLink` at
+`PermissionsScreen.swift:44`, gated on `capability.permissionType == .health && capability.status
+== .authorized`. That status resolves to `LiveHealthService.authorizationStatus`, which is
+**in-memory only** — `refreshAuthorizationStatus()` (`LiveHealthService.swift:83`) cannot recover
+it, because Apple deliberately hides read-scope status. The method's own comment says exactly this,
+and #16 recorded the same mechanism a month ago.
+
+Exactly two callers set it to `.authorized`:
+
+1. `PermissionsStore.requestPermission(for: .health)` (`:44`) — the manual ENABLE tap.
+2. `SensorUploadService.start()` (`:473`) — the per-launch re-assert, **gated on
+   `isHealthCollectionEnabled()`**.
+
+So the link renders only when sensor health collection is ON, or within the same app session in
+which the user tapped ENABLE. **With sensors off it is invisible on every cold launch.** Owen turned
+sensor streaming OFF on 2026-07-23 (state note in #137) — precisely the posture that hides it.
+
+**Why this matters more than it looks.** #125 calls this screen "the free-tier flagship" and "the
+App Store screenshot." A free-tier standalone user has no host and no reason to enable sensor
+streaming — sensors are a *connected*-tier concern. The one tier the screen was built for is the
+tier that cannot find it.
+
+**Same shape as #180** (the app hides its own state) with a sharper edge: here it hides a *feature*
+rather than a degradation, and the hiding is driven by a flag that resets every launch.
+
+**Fix directions — not yet decided:**
+
+- **(a) Persist the grant.** A `didGrantHealthAccess` flag written on a successful
+  `requestAuthorization()` and read at launch. Cheap, and it matches what the code already
+  *assumes*: "If we previously got authorized via requestAuthorization, keep it" is a comment
+  describing behaviour that does not actually survive relaunch.
+- **(b) Re-assert health auth on launch unconditionally**, not behind `isHealthCollectionEnabled()`.
+  Safe per the existing in-source note — for read-only types iOS shows the sheet at most once per
+  install — but it couples a *view* feature to the *sensor* pipeline, which is the coupling that
+  caused this in the first place.
+- **(c) Render the link whenever HealthKit is available** and let the screen's own HEALTH-ACCESS-OFF
+  panel do the honest work. That panel already exists and already says the right thing; the gate
+  above it is what makes it unreachable.
+
+(c) is probably right and nearly free — the screen was built to handle the unauthorized case and is
+being denied the chance to. (a) is the more correct underlying fix. They are not exclusive.
+
+**Device confirmation queued** as Lane 10 of `dispatch/OPUS-T27-DEVICE-PASS-2026-07-24.md`, with the
+repro ladder written out (sensors off → link absent; ENABLE → link appears in-session; cold relaunch
+→ link gone; sensors on → link stable). Confirm on metal before fixing: the source read is strong
+but unverified.
+
+Cross-refs: #125 (the screen itself), #16 (same in-memory-auth mechanism, found 2026-06-25), #137
+(the sensor posture that exposes it), #180 (the umbrella this belongs under).
 
 Logged 2026-07-23.
