@@ -1846,6 +1846,8 @@ Logged 2026-07-06.
 
 ## 58. 🔧 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — Ask-control wiring FIXED (PR #100, 2026-07-16); device re-verify owed
 
+**Build lane spec'd 2026-07-24: `dispatch/OPUS-T27-58A-appgroup-handoff.md`** — option (a), app-group handoff. Reuses `SharedWidgetDataStore.appGroupID` and routes through the existing `AppEntry.handleDeeplink`, so control / Spotlight / Siri / Safari keep one router path. Carries the correction that `HermesControlsTests`' `openAppWhenRun == false` pins encode the OLD conclusion and must be inverted, and that the in-source do-not-re-add comment must be rewritten or the next reader goes in a circle. Do not re-spec.
+
 **2026-07-24 — SPIKE RUN. QUESTION 2 ANSWERED, AND IT IS NOT A BUG IN OUR CODE.**
 
 **`URL(nil)` is EXPECTED. `OpenURLIntent` does not support custom URL schemes.** Apple DTS
