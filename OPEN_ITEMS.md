@@ -7441,3 +7441,42 @@ that surface.
 warm. A counter nobody increments is how the first one sat unexamined for two weeks.
 
 Logged 2026-07-24 (review of PR #144).
+
+## 183. 🧹 Tests that pass without exercising what they name — three instances, one shape
+
+**Raised 2026-07-24 (Owen) after the second instance surfaced in one bundle.** Three independent
+findings now share a shape, which makes it a pattern rather than a run of accidents:
+
+1. **`ConversationManagementTests`** failed-refresh case answered from a fresh snapshot and never
+   reached the throwing client — passing while testing nothing. Found and fixed in PR #144
+   (`force: true`).
+2. **#154's unreachable-fallback trap.** A test asserting on a branch behind an always-true
+   `#available` guard still passes, and would have *validated* deleting live code. It came back
+   clean — but only because the Bundle B spec told someone to look. Nothing structural caught it.
+3. **#93's `CondenserFidelityTests`** — SKIPPED on sim since 2026-07-13. #93 already records the
+   correct verdict: **a skip is not a pass.** It has been green-by-omission for eleven days.
+
+**Why it earns a lane.** The suite is the primary evidence behind every merge decision here —
+"1105/100 green" has gated Bundle A, the #125 cut, and Bundle B. A test that *cannot fail* is worse
+than a missing test: a missing test is visible in coverage, while a masked one reads as protection.
+The count is only meaningful if the green means something.
+
+**Distinct from #164 and #182**, and the distinction matters: those are flakes, which fail *visibly*
+and intermittently. This is the opposite failure — tests that never fail at all. Do not merge these
+items or let a fix for one be credited to the other.
+
+**Spec written 2026-07-24: `dispatch/OPUS-T27-183-masked-tests-sweep.md`.** Two phases: a cheap
+static sweep (vacuous suites, skip-guarded tests, never-invoked doubles, assertions on constants),
+then a targeted **mutation check** — deliberately break the production code a test names and
+confirm it goes red. That is the only check that proves a test works. Prioritised by blast radius,
+not run across all 1121.
+
+**Two standing cautions carried into the spec:**
+- Every mutation must be reverted; a stray one reaching main would be far worse than the bug hunted.
+- **The lane must not widen.** If the static sweep turns up thirty candidates, fix the obvious few
+  and file the rest as one follow-up. A sweep that tries to fix everything it finds does not land.
+
+**A falling test count is a legitimate outcome** if a vacuous test is deleted rather than repaired.
+Recorded here in advance so nobody preserves a meaningless test to protect the number.
+
+Logged 2026-07-24.
