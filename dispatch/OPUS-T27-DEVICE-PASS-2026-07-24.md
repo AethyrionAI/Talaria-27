@@ -1,6 +1,6 @@
 # OPUS-T27 — Device pass, 2026-07-24
 
-**Items:** OPEN_ITEMS #133, #179, #128, #129, #124, #123, #112, #81, #117, #116, #125
+**Items:** OPEN_ITEMS #133, #179, #128, #129, #124, #123, #112, #81, #117, #116
 **Repo:** AethyrionAI/Talaria-27 · **Base:** main (`0dab455` at spec time) · **Branch:** none — this is
 a verification pass, not a code lane. Findings land as OPEN_ITEMS commits only.
 **Driver:** Owen on whoGoesThere (iPhone, iOS 27 b4). **Verifier:** Claude Code Opus, local, full access.
@@ -9,7 +9,7 @@ a verification pass, not a code lane. Findings land as OPEN_ITEMS commits only.
 
 ## Mission
 
-Eleven items are carrying owed device verification. All the code is merged; nothing here is
+Ten items are carrying owed device verification. All the code is merged; nothing here is
 blocked on a build. The bar for this pass, borrowed from #171 which worked well: **verify every
 claim against live state — relay DB rows, gateway responses, device logs — rather than accepting
 what the screen says.** Screen state is a hypothesis, not evidence.
@@ -221,47 +221,6 @@ a bad onboarding step that exists today, not about investing in the shim's futur
 
 ---
 
-## LANE 10 — #125 Health Trends — READ THE FINDING FIRST
-
-> **UPDATED 2026-07-24: fix shipped (PR #140) and REVERTED same session (PR #141); main does not
-> render the link.** The discriminator this banner previously asked for is ANSWERED — the link
-> never rendered on Owen's build (#181). Do not re-ask it. **Run this lane only to answer the
-> product question, not the plumbing one:** with health granted and sensor streaming OFF, does
-> `HealthTrendsService` return any data at all on a cold launch? If it returns nothing, #125 needs
-> a data story before it needs an entry point, and that is Owen's call rather than a dispatch.
-
-**Do not run this as a normal device pass.** Source investigation on 2026-07-23 (this spec's
-session) found the reason Owen has never seen this screen, and it is a real defect. It is filed as
-OPEN_ITEMS #181. Confirm the finding on device rather than re-deriving it:
-
-The entry point is a `NavigationLink` in `PermissionsScreen.swift:44`, gated on
-`capability.permissionType == .health && capability.status == .authorized`. That status comes from
-`LiveHealthService.authorizationStatus`, which is **in-memory only** — `refreshAuthorizationStatus()`
-cannot recover it because Apple's read-privacy model hides read status. It is set to `.authorized`
-by exactly two callers: the manual ENABLE tap (`PermissionsStore.swift:44`) and
-`SensorUploadService.start()` (`:473`) — and the latter is gated on `isHealthCollectionEnabled()`.
-
-**Consequence:** with sensor health collection OFF, the flagship free-tier screen is invisible on
-every cold launch. It appears only in the same session in which health was granted.
-
-**Confirm on device, in this order:**
-1. Sensors off, cold launch → Permissions → **PASS if the Health Trends link is ABSENT** (confirms
-   the finding; an absent link here is the bug reproducing, not the lane failing)
-2. Tap ENABLE on the health card → **link appears in-session**
-3. Force-quit, cold launch, sensors still off → **link gone again** — this is the defect
-4. Enable sensor health collection → cold launch → **link present and stable**
-
-**Then, with the link reachable, run the actual screen:** 7/30/90 pills switch cleanly; empty cards
-stay hidden; tap-to-fullscreen works; HEALTH-ACCESS-OFF and NO-TREND-DATA panels read honestly.
-
-**Two traps — do not file either as a bug:**
-- A `CODE_SIGNING_ALLOWED=NO` sim build STRIPS entitlements; HealthKit then reads DENIED. That is a
-  harness artifact. Test on device, signed.
-- The HRV card is SUPPOSED to stay hidden. The app has never requested that read scope. Hiding it is
-  the honest behaviour, not a defect.
-
----
-
 ## Optional — #130 TTS fidelity A/B (separate build)
 
 Only if the session has room. Probe branch `probe/t27-130-halfduplex` (PR #128, OPEN, DO-NOT-MERGE).
@@ -271,6 +230,9 @@ half-duplex `.default` and (b) status-quo `.voiceChat`. **Reinstall the main bui
 say so in the write-up.
 
 ---
+
+> **LANE 10 REMOVED 2026-07-24.** #125 Health Trends was CUT (PR #142) — the screen no longer
+> exists, so there is nothing to verify. #181 closed moot with it. Do not look for either.
 
 ## Explicitly OUT of scope — do not spend device time here
 
