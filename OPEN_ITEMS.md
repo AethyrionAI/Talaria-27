@@ -3041,6 +3041,14 @@ ordering, with the minor side effect that the tap path now awaits `handleNotific
 
 ## 82. 🔧 Voice capture wedge — root cause was OUR read-aloud session hijack, NOT the OS seed — fix merged (PR #106) + device CONFIRMED 2026-07-16; residuals spun out to #118/#119
 
+**2026-07-23 — the wedge excuse for the Talk control is RETIRED.** The "Talk to Hermes" Control
+Center button had been excused under this item since 2026-07-11. It is now attributed to two
+defects of its own: **#58** (`OpenURLIntent` resolves to a nil URL in the widget-extension process,
+which the kernel denies the LaunchServices database) and **#179** (the first tap against a cold
+extension is swallowed — action reports success in 21ms with no `PerformAction` sequence). This
+item's own root cause was fixed in PR #106 regardless. **Do not excuse further control failures
+here without positive evidence.**
+
 > **DEVICE CONFIRMED 2026-07-16 (whoGoesThere, `probe/t27-fix84-verify` = #106 fix +
 > instrumentation + STOCK VPIO):** Owen held a full two-way voice conversation — live
 > transcript, Hermes replies, TTS back. VPIO verdict sealed: voice processing was ENABLED on
@@ -4909,6 +4917,13 @@ Logged 2026-07-17.
 
 ## 132. 🐛 Image attachments dropped HERMES-SIDE — app exonerated by wire probe (2026-07-17); host model-vision/config question for Owen
 
+**2026-07-23 — a SECOND host-side placeholder string, same family.** #142's wire capture proved the
+app sends no text part at all for image-only turns, yet Hermes materialises a placeholder anyway:
+`[attachment]` in chat, and `[screenshot]` as the session title/preview for those same turns (see
+#177). Two different strings for one absent-text condition, both generated host-side — which
+suggests deliberate, string-varying substitution rather than one stray constant. Whatever answers
+this item's model-vision/config question should also account for where those strings are minted.
+
 > **Wire probe 2026-07-17 (curl direct to OJAMD `:8642`, zero app involvement):** (1) parts array
 > with an INVALID image → HTTP 400 'prepare image failed: failed to decode image' — the gateway is
 > image-aware and validates; (2) parts array with a VALID 1×1 PNG → request accepted, turn ran,
@@ -5732,6 +5747,13 @@ gets misread as the hang.
 Logged 2026-07-20.
 
 ## 146. 🐛 Diagnostics push row stuck on TOKEN HELD · AWAITING RELAY — CONFIRMED display desync 2026-07-20 (push delivered while row stuck); fix = kill the dual bookkeeping
+
+**2026-07-23 — the ×4 delivery count belongs to #143, not to this defect.** This item records the
+push arriving ×4 while the diagnostics row sat stuck. That multiplicity is a separate bug: OJAMD's
+relay holds ONE APNs token against five device rows, four still active, and
+`active_push_registrations_for_user` does not dedup by token — four rows, four sends.
+**Fixing this item's dual bookkeeping will NOT reduce the count.** Kept separate deliberately so
+neither fix gets judged by the other's symptom.
 
 **CONFIRMED 2026-07-20 late — hypothesis (a), discriminator 1.** OJAMD’s agent sent an
 inbox item via hermes_mobile; the push DELIVERED (×4, screenshot on file) while the
@@ -6765,6 +6787,12 @@ Both axes resolve independently, matching upstream's per-axis resolution — a j
 **NOT device-verified.** Owed on device: open a phone-created task and confirm the HOST-SIDE panel reads *Follows host default / was … when this task was created*; then, if convenient, flip the Mac's global default and confirm the phone's wording is now the honest one (it will still name the old snapshot on the second line — that is correct, it is dated to creation).
 
 ## 171. ✅ Device checklists #162 / #163 / #165 COMPLETE — 17 pass, 2 partial, 1 untestable, 3 defects filed
+
+**2026-07-23 — the stranded assertion is CLOSED.** The #163 D5 check this item parked as
+unreachable — no way back out of text mode, so a hand-typed value could not be shown surviving the
+round trip — was verified on device: EDIT LIST AS TEXT -> type a value -> USE PICKER returns to the
+picker with the typed value preserved and selectable. See #168's device re-checks, all three of
+which pass.
 
 Full device pass 2026-07-22, Owen driving on the phone against the Mac Mini host, Claude verifying every claim against the live gateway rather than accepting screen state. Host left clean (0 cron jobs; all `T27TEST*` fixtures deleted, verified).
 
