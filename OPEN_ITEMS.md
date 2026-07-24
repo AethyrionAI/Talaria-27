@@ -5867,6 +5867,8 @@ Logged 2026-07-20.
 
 ## 145. 🐛 App hard-locks when entered during an OJAMD gateway outage (Hermes update window) — no recovery after the host returns; phone restart required
 
+**Spec written 2026-07-24: `dispatch/OPUS-T27-145-147-outage-spike.md`** — INVESTIGATION lane, not a fix lane; a PR is a possible outcome, not the deliverable. Carries the correction that dropping OPEN_ITEMS #126 did NOT remove GitHub PR #126's code, so #147's prime suspect is still in the app. Do not re-spec.
+
 **⚠️ DELIBERATELY EXCLUDED FROM THE 2026-07-24/25 BUILD WEEKEND (Owen).** Not forgotten, not
 deprioritised by accident — an explicit call. Reason: **unreproduced since 2026-07-20**, and what
 it needs is an INVESTIGATION lane (like #58's spike) rather than a fix lane. Specced work for that
@@ -5997,6 +5999,8 @@ same Console session), #143/#144 (same notification plane), #145 (same host-flux
 Logged 2026-07-20.
 
 ## 147. 🐛 Tapping an inbox-alert notification CRASHES the app (2026-07-20 late, post-PR #126)
+
+**Spec written 2026-07-24: `dispatch/OPUS-T27-145-147-outage-spike.md`** — INVESTIGATION lane, not a fix lane; a PR is a possible outcome, not the deliverable. Carries the correction that dropping OPEN_ITEMS #126 did NOT remove GitHub PR #126's code, so #147's prime suspect is still in the app. Do not re-spec.
 
 **⚠️ DELIBERATELY EXCLUDED FROM THE 2026-07-24/25 BUILD WEEKEND (Owen).** Not forgotten, not
 deprioritised by accident — an explicit call. Reason: **unreproduced since 2026-07-20**, and what
@@ -6326,6 +6330,8 @@ Logged 2026-07-20.
 
 ## 151. 🔧 Settings → Hermes Host: "Test Connection" gives NO pass/fail feedback
 
+**Spec written 2026-07-24: `dispatch/OPUS-T27-SETTINGS-151-152-153.md`** — PHASE 0 CONFIRM IS MANDATORY (all three carry source-confirm-owed; Bundle B had 2 of 4 premises wrong). #153 is gated: if hosts are a single record it is a data-model lane and gets split out. Do not re-spec.
+
 Reported 2026-07-20 (Owen). Tapping Test Connection in Settings → Hermes Host produces no visible result — success, failure, and in-flight are indistinguishable. The user can't tell whether the host is reachable, which is exactly the moment the control exists to answer.
 
 Fix shape (source-confirm before dispatch): the action almost certainly already performs a reachability probe (bootstrap/health call on the Sessions API plane, :8642); what's missing is the UI binding of its result. Wants a small state enum (idle / testing / success / failure(reason)) driving: an inline spinner while testing, then a pass row (host + latency) or a fail row with a reason (unreachable / auth rejected / wrong port), in the standardized status wording family (#84 / #71 precedent). Distinguish the three network shapes #145/#136 established (refuse fast-fail vs firewall black-hole ~60s vs accepted-but-silent warmup) — a Test button that hangs 60s silently on black-hole is its own papercut, so give it the 5s dedicated-timeout config too.
@@ -6337,6 +6343,8 @@ Logged 2026-07-20.
 ---
 
 ## 152. 🎨 Settings host disconnect/revoke is buried under "Pair Device" — rename the pairing surface
+
+**Spec written 2026-07-24: `dispatch/OPUS-T27-SETTINGS-151-152-153.md`** — PHASE 0 CONFIRM IS MANDATORY (all three carry source-confirm-owed; Bundle B had 2 of 4 premises wrong). #153 is gated: if hosts are a single record it is a data-model lane and gets split out. Do not re-spec.
 
 Reported 2026-07-20 (Owen). To DISCONNECT or REVOKE a host you must open Pair Device — an unpair action living behind a label that only advertises pairing. The name describes one direction of a two-direction surface (pair AND unpair/revoke/manage).
 
@@ -6359,6 +6367,8 @@ Logged 2026-07-20.
 ---
 
 ## 153. 🔧 Settings → Server: multi-host management — delete profile (distinct from revoke), active-host selection, list semantics
+
+**Spec written 2026-07-24: `dispatch/OPUS-T27-SETTINGS-151-152-153.md`** — PHASE 0 CONFIRM IS MANDATORY (all three carry source-confirm-owed; Bundle B had 2 of 4 premises wrong). #153 is gated: if hosts are a single record it is a data-model lane and gets split out. Do not re-spec.
 
 Reported 2026-07-20 (Owen): "add a delete feature on Settings → Server as well, if there's more than one."
 
@@ -7202,6 +7212,8 @@ Logged 2026-07-23.
 
 
 ## 176. 🐛 On-device model fires `readImageText` on a text-only prompt with no image present
+
+**Spec written 2026-07-24: `dispatch/OPUS-T27-176-tool-selection.md`** — confirm-then-fix. Preference order: availability gating > description tightening > selection-prompt change. Explicit warning against a test that asserts the model did NOT call a tool (passes/fails on temperament — #183's masked pattern by a new road). Do not re-spec.
 
 **Observed 2026-07-23 (standalone / ON-DEVICE model, whoGoesThere, build `cbcc824`).** The prompt
 was "Write a haiku about rain". The turn shows a `readImageText` tool call — an OCR tool — with
