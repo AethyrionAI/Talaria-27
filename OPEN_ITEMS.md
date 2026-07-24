@@ -2092,6 +2092,16 @@ remains wait-for-upstream via `hermes update`; re-check each update.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-A-178a-172-61-137.md`** (bundled with #178a, #172, #137). Do not re-spec; check merge state before sending.
 
+**2026-07-24 — THE COVERAGE GAP IS FIXED on `claude/t27-bundle-a-four-fixes`; the standalone device re-verify is still owed.**
+
+`degenerateCardReason` gained a **distinct exact-prefix branch** rather than a lowered floor, so the containment and prefix-echo checks keep both their tuning and their log tags — the log line naming which guard tripped is how this was diagnosed, and the new rule gets its own name (`verbatim prefix`) in it.
+
+**No length condition on the new branch, deliberately** — the spec offered that or dropping the floor, and both are floor-free. An exact prefix is not a ratio question: the card renders title and preview together, so a title that is literally the preview's opening is redundant on screen at any length, and the cost of a false positive is one truncation-fallback card. `degenerateCardReason(title: "Haiku", preview: "Haiku about rain in the spring")` is now non-nil, and that choice is pinned by a test so it cannot be reverted by accident.
+
+**Fail-first confirmed:** the device case returned nil before the change (observed, not assumed) and returns `"title and preview near-identical (verbatim prefix)"` after. Four tests added — the device case, the no-ratio/no-floor pair, a boundary above the 24-char floor that must still report `prefix echo`, a boundary inside the 2x ratio that must still report `containment`, and a mid-string echo past the ratio that must stay HEALTHY (the assertion a future tuning pass has to break on purpose).
+
+**Still owed:** the standalone device pass. Per the surface correction below, this cannot be verified against a paired host — the connected-mode Sessions drawer is server-fed and never touches `conversation.title`.
+
 **2026-07-23 — ROOT-CAUSED. Stop carrying this as "device re-verify owed".**
 
 *Surface correction first — three sessions were spent on the wrong screen.* The connected-mode
@@ -5294,6 +5304,24 @@ Logged 2026-07-19.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-A-178a-172-61-137.md`** (bundled with #178a, #172, #61). Do not re-spec; check merge state before sending.
 
+**2026-07-24 — BOTH HALVES OF THE APPROVED FIX LANDED on `claude/t27-bundle-a-four-fixes`.**
+
+*Half 1 — the stamp's lifetime.* The done-stamp moved out of raw `UserDefaults` and into the persistence store's **Keychain-mirrored** storage, the same mechanism the pairing config and backend-profiles blob already use for reinstall survival (#41). It keeps the **exact key string** shipped builds already wrote (`talaria.sensorStreamingMigrated`), so an install that has already migrated still reads as migrated and gets back-filled into the Keychain — re-keying would have re-fired the migration on every existing install, i.e. shipped this defect wider. The stamp reads through `SettingsStore.persistence` (the same store that answers `hadPersistedSettings`), which keeps AppContainer's construction-time call site **synchronous** as #136 requires — it must run before the first sensor start, not from a `Task`.
+
+*Half 2 — what a surviving pairing authorises.* `!hadPersistedSettings` now forces health and location **OFF** rather than ON. Streaming and motion still grandfather, because every pre-#137 sensor start was gated on `isPaired` alone. Forced off rather than left alone, so the guarantee holds whatever the caller hands in.
+
+**⚠️ ONE DELIBERATE DEVIATION FROM THE APPROVED SPEC — the stamp is MONOTONIC, never cleared. Owen's call whether to accept.**
+
+The spec's device note assumed revoke/disconnect would clear the Keychain stamp ("revoke/disconnect FIRST so the Keychain entry goes"). **Implementing that would have opened a fresh consent inversion of exactly the kind half 2 exists to close:** with the stamp cleared on unpair, a re-pair leaves the migration un-stamped and paired, so the next `migrateSensorStreamingOptInIfNeeded` — construction, or any protected-data/activation refresh — re-runs it and switches `sensorStreamingEnabled` and `motionCollectionEnabled` **ON without consent**. That is not a rare path in this project: per the #24f gotcha a relay restart invalidates device tokens and forces a re-pair, so it would fire routinely. Half 2's own rationale condemns it — a stored credential is not a proxy for user intent, and neither is a re-pair.
+
+Half 1's stated purpose ("a reinstall with a surviving pairing correctly declines to re-migrate") is fully satisfied by the monotonic stamp, so only the mechanism detail changed. The existing `migrationRunsExactlyOnce` test — "pairing after the migration means the user chose the new opt-in world" — also encodes the monotonic reading, and it stays green.
+
+**CORRECTED SETUP FOR THE DEVICE LANE — supersedes the "revoke/disconnect FIRST" note below.** Disconnect no longer produces a re-migratable device, and neither does deleting the app: the stamp survives both, which is the whole point. To re-run pass (1) fresh-install you need the Keychain items for `org.aethyrion.talaria.session` gone — a device erase, a different bundle id, or a fresh device. **There is no in-app control that clears it, and I did not add one** (out of scope for this lane; say the word if you want a Developer-screen reset).
+
+**A cleaner discriminator exists if this ever needs revisiting** (NOT built here — beyond the approved scope): pre-#137 blobs lack the `sensorStreamingEnabled` key entirely, which the decoder already tolerates. Exposing "this blob was written by a post-#137 build" would let the migration decline on schema evidence rather than on a stamp, making the lifetime question moot.
+
+**Unit-tested; the Keychain half is a device assertion.** The decision logic and the stamp's upgrade path are covered (`SensorGrandfatheringTests` +1 test and one rewritten, new `SensorMigrationStampStorageTests` suite). The mirrored Keychain write itself is NOT unit-asserted: the test build is unsigned (`CODE_SIGNING_ALLOWED=NO`), which strips entitlements, and the simulator keychain then rejects every `SecItem` write silently — asserting it there would prove nothing.
+
 **2026-07-23 late — TRAP CASE FAILS. The one-shot migration RE-FIRES on reinstall and
 resurrects the permission wall. Fix approved by Owen, below.**
 
@@ -6906,6 +6934,14 @@ Logged 2026-07-22.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-A-178a-172-61-137.md`** (bundled with #178a, #61, #137). Do not re-spec; check merge state before sending.
 
+**2026-07-24 — FIXED on `claude/t27-bundle-a-four-fixes`.** `DeliverFieldMode` (mirroring `SkillsFieldMode`) replaces the `useFreeText` flag, and a `USE LIST` control returns the field to the server's platform menu. Rendered **only when `platforms != nil`** — a return to a list that cannot open would be the second dead end #168a's fix was careful to avoid. New `DeliverFieldModeTests` suite, 7 tests, mirroring `SkillsFieldModeTests` including the no-list guard and the value-preservation property.
+
+**Mirrored rather than shared, deliberately:** "a list exists" means different things in the two fields (a non-nil platforms array vs. a non-empty skills array) and the deliver field has no refetch/retry, so `SkillsFieldMode` did not generalise cleanly without renaming a #168a-era tested type and widening this lane into that one. **If a third instance ever appears, collapse all three into one neutral `ListFieldMode`** — that consolidation is the real cure for the shape and is noted in both types' doc comments.
+
+**Third-instance audit: CLEAN.** `grep -rn "useFreeText" Talaria` now returns nothing — the two instances (#168a's and this one) were the only ones, and both are now mode types.
+
+**What is NOT covered by tests:** the view WIRING, same as #168a. `DeliverFieldModeTests` pins the mode's transitions and gates, but nothing asserts that `TaskDeliverPicker`'s body actually renders `useListButton` — SwiftUI bodies are not reachable from this suite. The device check is one tap: open a cron sheet against a host that answered `/health/detailed`, tap Custom…, confirm `USE LIST` appears and returns to the menu with the typed value intact.
+
 Filed, not fixed, per the #168/#169/#170a dispatch's explicit instruction: the deliver picker shares the pattern but was never reported broken, so fixing it in that lane would have widened a device-found polish lane into an unrequested change.
 
 **Verified in source, same session** (`TaskEditSheet.swift`, `TaskDeliverPicker`):
@@ -7019,6 +7055,14 @@ Logged 2026-07-23.
 ## 178. 🧹 Build-warning inventory — 21 warnings, one of which FAILS App Store validation
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-A-178a-172-61-137.md`** (bundled with #172, #61, #137 — this item's PART A is the CFBundleShortVersionString launch blocker only; the deprecation debt is NOT in scope). Do not re-spec; check merge state before sending.
+
+**2026-07-24 — PART A (178a) FIXED on `claude/t27-bundle-a-four-fixes`. The deprecation debt below is untouched and still open; this item stays open for it.**
+
+The `1.0` was not a stray literal anywhere. Both extension targets DO set `MARKETING_VERSION: "1.0.0"` in their build settings — but neither declared `CFBundleShortVersionString` in its `info.properties` at all, so **XcodeGen wrote its own `"1.0"` default** into each generated plist, while the app target hard-coded `"1.0.0"` in a third place. Three targets, three independent version literals, two of them invisible.
+
+Fix: all three `info.properties` blocks now read `$(MARKETING_VERSION)` / `$(CURRENT_PROJECT_VERSION)` instead of restating them, so the build setting is the single source of truth and a version bump cannot drift the extensions apart again.
+
+**Verified end-to-end, not just in the source:** after `xcodegen generate`, the three BUILT plists in DerivedData all read `1.0.0` / `1` (`Talaria 27.app`, `PlugIns/TalariaWidgets.appex`, `PlugIns/TalariaShare.appex`), and the warning string is absent from a full build log. `aps-environment: development` intact post-regen (#44/#48).
 
 **Captured 2026-07-23 (Xcode issue navigator, successful build, Xcode-beta4).**
 
