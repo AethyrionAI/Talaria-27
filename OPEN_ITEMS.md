@@ -1844,7 +1844,47 @@ Logged 2026-07-06.
 
 ---
 
-## 58. 🔧 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — Ask-control wiring FIXED (PR #100, 2026-07-16); device re-verify owed
+## 58. 🔧 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — app-group handoff BUILT 2026-07-24 (option (a)); device verify owed
+
+<!-- Header was "Ask-control wiring FIXED (PR #100, 2026-07-16)" until 2026-07-24. The spike below
+     established that #100 fixed something that was never the cause, so that heading read as done
+     when the control was still dead. -->
+
+
+**2026-07-24 — OPTION (a) BUILT on `claude/t27-58-appgroup-handoff`. Suite 1130/104 + 8 UI green;
+device verify owed and it is Owen's.** Both control intents now set `openAppWhenRun = true` and
+return a plain `some IntentResult` — the `OpenURLIntent` is GONE, so the two launch mechanisms the
+old in-source warning described can no longer both be present. The destination rides a new
+`Shared/ControlHandoff.swift` (`ControlHandoffStore`), compiled into the app AND the widget
+extension so the group id and keys cannot drift; `perform()` writes it and logs, and
+`AppEntry.consumePendingControlDestination()` collects it on cold launch (after `initialize()`) and
+on every foreground, then feeds it to `handleDeeplink` — **no second router**, so control /
+Spotlight / Siri / Safari still converge. Consume-once (cleared AS it is read, before routing),
+absent = no-op, plus a 30s staleness window so a destination stranded by a launch that never
+arrived expires instead of hijacking the next one. `HermesControlsTests`' `openAppWhenRun == false`
+pins were INVERTED and watched fail first; the do-not-re-add comment is rewritten to say what it
+actually establishes. **Device checklist:** add both controls to Control Center, tap Ask Hermes
+twice (first may still be swallowed, #179) → Talaria opens on the Chat tab; then Talk to Hermes →
+the voice overlay.
+
+**#179 CHANGES SHAPE under this lane — do not misfile it as a regression of it.** With
+`openAppWhenRun = true` the system launches the app even when `perform()` never ran, so a swallowed
+first tap now opens Talaria on its DEFAULT screen instead of doing nothing. Less broken, still
+wrong, and it looks exactly like a routing bug. That is why "missing destination = no-op" is a
+requirement here rather than a nicety.
+
+**Known race, bounded not eliminated.** `perform()` runs in the extension while the system is
+already launching the app, so a write could in principle land just after the app's first read. The
+second read on scene-activate is the hedge and the 30s window bounds the blast radius if both miss.
+Symptom to watch for on the device pass: first tap lands on the default screen AND a later,
+unrelated launch routes — that is this race, not #179.
+
+**What the suite does NOT prove.** The tests drive an injected `UserDefaults` suite, so they pin the
+store's contract (round trip, consume-once, absence, staleness both sides) but not the app-group
+plumbing itself — entitlements are stripped under `CODE_SIGNING_ALLOWED=NO` (the sim log says
+`container…app_group…: client is not entitled`). Cross-process visibility is device-only. Also
+untestable from a unit-test host: `perform()` itself, which needs the system AppIntents machinery —
+what IS pinned is the `destination` constant each intent hands it.
 
 **Build lane spec'd 2026-07-24: `dispatch/OPUS-T27-58A-appgroup-handoff.md`** — option (a), app-group handoff. Reuses `SharedWidgetDataStore.appGroupID` and routes through the existing `AppEntry.handleDeeplink`, so control / Spotlight / Siri / Safari keep one router path. Carries the correction that `HermesControlsTests`' `openAppWhenRun == false` pins encode the OLD conclusion and must be inverted, and that the in-source do-not-re-add comment must be rewritten or the next reader goes in a circle. Do not re-spec.
 

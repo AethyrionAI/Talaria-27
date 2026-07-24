@@ -226,6 +226,11 @@ struct TalariaApp: App {
                     // render content first.
                     appLockPresenter.attach(controller: appLock)
                     await container.initialize()
+                    // #58: cold-launch pickup for a Control Center tap. After
+                    // initialize() so the local critical path (which ends in
+                    // drainShareInbox, itself a router write) can't land on
+                    // top of the route we just chose.
+                    consumePendingControlDestination()
                 }
                 .onChange(of: container.settingsStore.settings) { oldSettings, newSettings in
                     // Mirror the appearance prefs into the runtime theme so the
@@ -258,6 +263,11 @@ struct TalariaApp: App {
                         // BEFORE handleAppDidBecomeActive, which returns early
                         // when unpaired (shares are a free-tier surface).
                         container.drainShareInbox()
+                        // #58: the warm-launch pickup, and a second look on a
+                        // cold one — `perform()` runs in the widget extension
+                        // while the system is already launching us, so the
+                        // write can land just after the first read.
+                        consumePendingControlDestination()
                         Task { await container.handleAppDidBecomeActive() }
                     } else if newPhase == .background {
                         // #14: arm the native background-refresh safety net
@@ -317,6 +327,28 @@ struct TalariaApp: App {
     }
 
     private static let spotlightLogger = Logger(subsystem: "org.aethyrion.talaria", category: "SpotlightOpen")
+
+    /// #58: a Control Center tap can't hand us a URL — `OpenURLIntent` rejects
+    /// custom schemes, which is why the controls were inert through three
+    /// device passes. The control's intent leaves the destination in the app
+    /// group and the SYSTEM launches us; we collect it here and feed it to
+    /// `handleDeeplink`, so the control path stays on the same router as
+    /// Spotlight, Siri and Safari rather than growing a second switch.
+    ///
+    /// Nothing pending is the ordinary case, not a fault: every launch from
+    /// the home screen reads this store, and with `openAppWhenRun = true` the
+    /// system launches us even when the extension's `perform()` never ran
+    /// (#179's cold first-tap swallow — expect a swallowed tap to open Talaria
+    /// on its DEFAULT screen now, rather than doing nothing).
+    private func consumePendingControlDestination() {
+        guard let destination = ControlHandoffStore.appGroup()?.consumeDestination() else { return }
+        Self.controlHandoffLogger.notice(
+            "Control handoff: routing \(destination.absoluteString, privacy: .public)"
+        )
+        handleDeeplink(destination)
+    }
+
+    private static let controlHandoffLogger = Logger(subsystem: "org.aethyrion.talaria", category: "ControlHandoff")
 
     private func handleDeeplink(_ url: URL) {
         guard url.scheme == "hermes" else { return }
