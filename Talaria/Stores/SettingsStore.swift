@@ -26,7 +26,10 @@ final class SettingsStore {
     /// from the fresh-install defaults, which are opt-out post-#137.
     let hadPersistedSettings: Bool
 
-    private let persistence: any AppPersistenceStoreProtocol
+    /// Internal (not private) so the #137 migration can read its done-stamp
+    /// from the same store that answered `hadPersistedSettings` — the stamp
+    /// is Keychain-mirrored there, which is what makes it outlive a reinstall.
+    let persistence: any AppPersistenceStoreProtocol
     private let environmentPolicy: AppEnvironmentPolicy
 
     init(

@@ -207,6 +207,65 @@ struct LocalIntelligenceTests {
         ) == nil)
     }
 
+    // MARK: Verbatim-prefix gap (#61, the 12–23-character residue)
+
+    @Test func degenerateCardTripsOnTheShortVerbatimPrefixDeviceCase() {
+        // Standalone device evidence (whoGoesThere, cbcc824): a 22-character
+        // generated title that is a verbatim prefix of a 56-character
+        // preview. It passed BOTH existing checks — 22 ≥ 12 but 22×2 = 44 <
+        // 56 so containment missed, and 22 < 24 so prefix echo missed — and
+        // shipped a card whose title said nothing the preview didn't.
+        let reason = LocalIntelligenceService.degenerateCardReason(
+            title: "I can't create a haiku",
+            preview: "I can't create a haiku directly, but here's a simple one:"
+        )
+        #expect(reason?.contains("verbatim prefix") == true)
+    }
+
+    @Test func verbatimPrefixNeedsNoLengthRatio() {
+        // The gap was the RATIO, not the length: an exact prefix carries no
+        // information the preview doesn't already show, at any ratio. Both
+        // fields render on the same card, so the duplication is visible.
+        #expect(LocalIntelligenceService.degenerateCardReason(
+            title: "Reverse proxy setup",
+            preview: "Reverse proxy setup on the home lab, then a certificate, then the DNS records"
+        )?.contains("verbatim prefix") == true)
+        // …and no length FLOOR either — a two-word title that simply is the
+        // start of the preview is the same redundancy.
+        #expect(LocalIntelligenceService.degenerateCardReason(
+            title: "Haiku",
+            preview: "Haiku about rain in the spring"
+        )?.contains("verbatim prefix") == true)
+    }
+
+    @Test func theExistingTwoChecksKeepTheirTuningAndTheirLogTags() {
+        // Boundary above the 24-char floor: still the prefix-echo branch, so
+        // the log line that diagnosed #61 keeps naming the same guard.
+        // (29-char folded title, 75-char preview — 29×2 = 58 < 75, so
+        // containment does not claim it first.)
+        #expect(LocalIntelligenceService.degenerateCardReason(
+            title: "The deployment pipeline keeps",
+            preview: "The deployment pipeline keeps failing on the release step every single time"
+        )?.contains("prefix echo") == true)
+        // Boundary inside the 2× ratio, NOT a prefix: containment still owns
+        // this shape untouched.
+        #expect(LocalIntelligenceService.degenerateCardReason(
+            title: "Reverse proxy on the home lab",
+            preview: "Quick reverse proxy on the home lab notes"
+        )?.contains("containment") == true)
+    }
+
+    @Test func widenedPrefixRuleDidNotWidenTheContainmentRatio() {
+        // A mid-string echo (not a prefix) past the 2× ratio stays healthy —
+        // the fix must not have quietly turned containment into a substring
+        // test. This is the assertion a future tuning pass has to break on
+        // purpose.
+        #expect(LocalIntelligenceService.degenerateCardReason(
+            title: "Kyoto side visit",
+            preview: "Planning a Tokyo trip with a Kyoto side visit in April"
+        ) == nil)
+    }
+
     @Test func repeatedRunUnitToleratesTruncation() {
         // condensedLine cuts mid-unit and appends an ellipsis — the partial
         // final copy must still count as the same run.

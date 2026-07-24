@@ -14,6 +14,11 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         static let conversationListState = "hermes.conversationListState"
         static let composeOutboxState = "hermes.composeOutboxState"
         static let healthAnchorPrefix = "hermes.healthAnchor."
+        // #137: deliberately the SAME string the migration first stamped into
+        // UserDefaults. Re-keying would have read every already-migrated
+        // install as never-migrated and re-fired the migration on all of
+        // them — the defect, shipped wider.
+        static let sensorStreamingMigrated = "talaria.sensorStreamingMigrated"
         // Session state + pairing config are profile-scoped (Lane M): keys
         // derive from BackendProfileScopedKeys, where a nil scope yields the
         // pre-profile strings ("hermes.sessionState" /
@@ -127,6 +132,39 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         defaults.removeObject(forKey: Keys.backendProfiles)
         keychainMirror?.deleteSync(key: Keys.backendProfiles)
     }
+
+    // #137: the sensor opt-in migration's done-stamp. UserDefaults alone was
+    // the wrong lifetime — it dies with the app container while the pairing
+    // does not, so a reinstall over a surviving Keychain pairing read as
+    // "never migrated" and re-fired, resurrecting the permission wall and
+    // overriding a deliberate opt-OUT (device, whoGoesThere). Mirrored rather
+    // than dual-stored through loadDualStored: the value is a bare Bool
+    // already written under this key by shipped builds, not a Codable blob.
+
+    func loadSensorStreamingMigrationStamp() -> Bool {
+        if keychainMirror?.retrieveSync(key: Keys.sensorStreamingMigrated) != nil { return true }
+        guard defaults.bool(forKey: Keys.sensorStreamingMigrated) else { return false }
+        // Upgrade path, mirroring loadDualStored's: stamped before the stamp
+        // was mirrored, so back-fill the Keychain now — otherwise this
+        // install stays one reinstall away from the original defect.
+        keychainMirror?.storeSync(key: Keys.sensorStreamingMigrated, value: "1")
+        return true
+    }
+
+    func saveSensorStreamingMigrationStamp() {
+        defaults.set(true, forKey: Keys.sensorStreamingMigrated)
+        keychainMirror?.storeSync(key: Keys.sensorStreamingMigrated, value: "1")
+    }
+
+    /// DEBUG ONLY — see the protocol. Must clear BOTH halves: `load` returns
+    /// true on the Keychain mirror alone, so a UserDefaults-only reset would
+    /// silently do nothing and cost a device pass to discover.
+    #if DEBUG
+    func clearSensorStreamingMigrationStamp() {
+        defaults.removeObject(forKey: Keys.sensorStreamingMigrated)
+        keychainMirror?.deleteSync(key: Keys.sensorStreamingMigrated)
+    }
+    #endif
 
     func loadSessionProfileIndex() -> SessionProfileIndex {
         load(SessionProfileIndex.self, key: Keys.sessionProfileIndex) ?? SessionProfileIndex()

@@ -308,8 +308,9 @@ final class LocalIntelligenceService {
     /// Why a generated card must be discarded — nil when the card is healthy.
     /// The returned reason is a short log-stable tag: repetition in either
     /// field, or title ≈ preview (fold-identical, one contained in the other
-    /// while covering at least half of it, or a long verbatim prefix echo —
-    /// the shapes two truncations of the same degenerate run take).
+    /// while covering at least half of it, a long verbatim prefix echo — the
+    /// shapes two truncations of the same degenerate run take — or, since
+    /// #61's second pass, ANY verbatim prefix regardless of length).
     nonisolated static func degenerateCardReason(title: String, preview: String) -> String? {
         if let unit = repeatedRunUnit(in: title) {
             return "title repeats \"\(unit)\""
@@ -331,6 +332,22 @@ final class LocalIntelligenceService {
         }
         if shorter.count >= cardPrefixEchoMinimumLength, longer.hasPrefix(shorter) {
             return "title and preview near-identical (prefix echo)"
+        }
+        // #61: the residue the two checks above structurally could not reach —
+        // a VERBATIM prefix shorter than the 24-character echo floor but
+        // covering less than half the preview, so containment's ratio missed
+        // it too. Device case (standalone, whoGoesThere, cbcc824): title
+        // "I can't create a haiku" (22) against a 56-character preview it
+        // starts — 22 × 2 = 44 < 56, and 22 < 24.
+        //
+        // No length condition at all, deliberately. An exact prefix is not a
+        // ratio question: the card renders both fields together, so a title
+        // that is literally the preview's opening carries nothing the preview
+        // does not already show, at any length. Kept as its own branch so the
+        // two checks above keep their tuning AND their log tags — the log
+        // line naming which guard tripped is how this was diagnosed.
+        if longer.hasPrefix(shorter) {
+            return "title and preview near-identical (verbatim prefix)"
         }
         return nil
     }

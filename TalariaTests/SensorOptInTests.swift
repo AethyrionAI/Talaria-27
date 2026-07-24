@@ -56,58 +56,126 @@ struct SensorGrandfatheringTests {
         return defaults
     }
 
-    @Test func pairedDeviceWithoutBlobGrandfathersEverythingOn() {
-        let defaults = isolatedDefaults()
-        var settings = UserSettings()
+    // MARK: - What a surviving pairing does and does not authorise (#137)
+
+    @Test func pairedDeviceWithoutBlobGrandfathersStreamingOnlyNotHealthOrLocation() {
+        // #137 half 2. No stored settings blob is NO EVIDENCE OF CONSENT.
+        // Granting health and location here treated a stored credential as a
+        // proxy for user intent — the inversion that let a reinstall override
+        // a deliberate opt-OUT on device. Streaming and motion still
+        // grandfather: every pre-#137 sensor start was gated on `isPaired`
+        // alone, so pairing WAS the app-level streaming consent.
+        let persistence = InertPersistenceStore()
+        var settings = UserSettings(healthCollectionEnabled: true, locationCollectionEnabled: true)
         let mutated = SensorStreamingGrandfathering.migrateIfNeeded(
-            settings: &settings, isPaired: true, hadPersistedSettings: false, defaults: defaults)
+            settings: &settings, isPaired: true, hadPersistedSettings: false, persistence: persistence)
         #expect(mutated)
         #expect(settings.sensorStreamingEnabled == true)
         #expect(settings.motionCollectionEnabled == true)
-        #expect(settings.healthCollectionEnabled == true)
-        #expect(settings.locationCollectionEnabled == true)
+        #expect(settings.healthCollectionEnabled == false)
+        #expect(settings.locationCollectionEnabled == false)
     }
 
     @Test func pairedDeviceWithBlobKeepsPriorRevokes() {
-        let defaults = isolatedDefaults()
+        let persistence = InertPersistenceStore()
         var settings = UserSettings(healthCollectionEnabled: false, locationCollectionEnabled: true)
         _ = SensorStreamingGrandfathering.migrateIfNeeded(
-            settings: &settings, isPaired: true, hadPersistedSettings: true, defaults: defaults)
+            settings: &settings, isPaired: true, hadPersistedSettings: true, persistence: persistence)
         #expect(settings.sensorStreamingEnabled == true)
         #expect(settings.motionCollectionEnabled == true)
         #expect(settings.healthCollectionEnabled == false)  // #6 revoke honored
-        #expect(settings.locationCollectionEnabled == true)
+        #expect(settings.locationCollectionEnabled == true)  // …and so is a real grant
     }
 
     @Test func freshDeviceStaysOptedOut() {
-        let defaults = isolatedDefaults()
+        let persistence = InertPersistenceStore()
         var settings = UserSettings()
         let mutated = SensorStreamingGrandfathering.migrateIfNeeded(
-            settings: &settings, isPaired: false, hadPersistedSettings: false, defaults: defaults)
+            settings: &settings, isPaired: false, hadPersistedSettings: false, persistence: persistence)
         #expect(!mutated)
         #expect(settings.sensorStreamingEnabled == false)
-        #expect(defaults.bool(forKey: SensorStreamingGrandfathering.migrationDoneKey))
+        #expect(persistence.loadSensorStreamingMigrationStamp())
     }
 
     @Test func migrationRunsExactlyOnce() {
-        let defaults = isolatedDefaults()
+        let persistence = InertPersistenceStore()
         var settings = UserSettings()
         _ = SensorStreamingGrandfathering.migrateIfNeeded(
-            settings: &settings, isPaired: false, hadPersistedSettings: false, defaults: defaults)
+            settings: &settings, isPaired: false, hadPersistedSettings: false, persistence: persistence)
         // A later pair must not re-trigger grandfathering — pairing after
         // the migration means the user chose the new opt-in world.
         let second = SensorStreamingGrandfathering.migrateIfNeeded(
-            settings: &settings, isPaired: true, hadPersistedSettings: true, defaults: defaults)
+            settings: &settings, isPaired: true, hadPersistedSettings: true, persistence: persistence)
         #expect(!second)
         #expect(settings.sensorStreamingEnabled == false)
+    }
+
+    // MARK: - The stamp's lifetime (#137 half 1)
+
+    @Test func aStampThatOutlivedTheAppContainerDeclinesToReMigrate() {
+        // The #137 device sequence: app DELETED, then reinstalled with the
+        // Keychain pairing intact and no opt-in performed. Under the old
+        // UserDefaults stamp the wiped container read as "never migrated" and
+        // the migration re-fired, resurrecting the permission wall and
+        // overriding a deliberate opt-out. The stamp now shares the PAIRING's
+        // storage, so a surviving pairing carries a surviving stamp.
+        let persistence = InertPersistenceStore()
+        persistence.saveSensorStreamingMigrationStamp()
+        var settings = UserSettings()
+        let mutated = SensorStreamingGrandfathering.migrateIfNeeded(
+            settings: &settings, isPaired: true, hadPersistedSettings: false, persistence: persistence)
+        #expect(!mutated)
+        #expect(settings.sensorStreamingEnabled == false)
+        #expect(settings.motionCollectionEnabled == false)
+    }
+}
+
+// MARK: - #137 the stamp's storage
+
+@MainActor
+struct SensorMigrationStampStorageTests {
+    private func isolatedDefaults() -> UserDefaults {
+        let suite = "sensor-stamp-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        return defaults
+    }
+
+    /// Keychain-free by construction: `keychainMirror` is nil here, which is
+    /// also what the unsigned test build needs — `CODE_SIGNING_ALLOWED=NO`
+    /// strips the entitlements and the simulator keychain then rejects every
+    /// SecItem write silently. The mirrored half is a device assertion.
+    @Test func stampRoundTripsAndStartsUnset() {
+        let store = UserDefaultsAppPersistenceStore(defaults: isolatedDefaults())
+        #expect(!store.loadSensorStreamingMigrationStamp())
+        store.saveSensorStreamingMigrationStamp()
+        #expect(store.loadSensorStreamingMigrationStamp())
+    }
+
+    @Test func aStampWrittenBeforeThisFixStillReadsAsMigrated() {
+        // Upgrade path: installs that already ran the migration stamped the
+        // raw UserDefaults key. Re-keying would have re-fired the migration
+        // on every one of them — the same defect, shipped wider.
+        let defaults = isolatedDefaults()
+        defaults.set(true, forKey: SensorStreamingGrandfathering.migrationDoneKey)
+        let store = UserDefaultsAppPersistenceStore(defaults: defaults)
+        #expect(store.loadSensorStreamingMigrationStamp())
     }
 }
 
 // MARK: - #137 capture-loop gating
 
-/// Inert persistence for gate tests — no disk, no UserDefaults.
+/// Inert persistence for gate tests — no disk, no UserDefaults. The one piece
+/// of state it does keep is the #137 migration stamp, so the grandfathering
+/// tests can drive both of its lifetimes (never stamped / stamped by a prior
+/// install) without touching a keychain the unsigned test build cannot write.
 @MainActor
 private final class InertPersistenceStore: AppPersistenceStoreProtocol {
+    private var sensorMigrationStamped = false
+    func loadSensorStreamingMigrationStamp() -> Bool { sensorMigrationStamped }
+    func saveSensorStreamingMigrationStamp() { sensorMigrationStamped = true }
+    func clearSensorStreamingMigrationStamp() { sensorMigrationStamped = false }
+
     func loadSensorOutboxState() -> SensorOutboxState { SensorOutboxState() }
     func saveSensorOutboxState(_ state: SensorOutboxState) {}
     func clearSensorOutboxState() {}
