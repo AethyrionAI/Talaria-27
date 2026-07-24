@@ -1846,6 +1846,68 @@ Logged 2026-07-06.
 
 ## 58. 🔧 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — Ask-control wiring FIXED (PR #100, 2026-07-16); device re-verify owed
 
+**2026-07-24 — SPIKE RUN. QUESTION 2 ANSWERED, AND IT IS NOT A BUG IN OUR CODE.**
+
+**`URL(nil)` is EXPECTED. `OpenURLIntent` does not support custom URL schemes.** Apple DTS
+engineers state this directly and repeatedly in the developer forums: universal links are the
+supported mechanism for opening an app from an App Intent, and custom schemes are not supported
+(forum threads 763783, 762586). A third-party report of the identical shape shows LaunchServices
+rejecting the scheme outright with `NSOSStatusErrorDomain Code=-10814` — our nil in its raw form.
+True since iOS 18. **Not an iOS 27 regression and not a beta artifact.**
+
+**App-side conformance is CLEAN — stop looking there.** `OpenHermesChatIntent` /
+`OpenHermesVoiceIntent` are textbook: `perform() async throws -> some IntentResult & OpensIntent`
+returning `.result(opensIntent: OpenURLIntent(destination))`, `openAppWhenRun` absent,
+`isDiscoverable = false`. No conformance mismatch, no wrong property name. The intents do
+everything right and hand the system a URL it will not accept.
+
+**(b) IS DEAD.** There is no extension-side way to open a custom scheme that avoids LaunchServices
+— Apple does not support the shape at all. Not a routing problem to work around.
+
+**What this means for PR #100, precisely.** #100 set `openAppWhenRun: NO` on the premise that the
+returned `OpenURLIntent` IS the launch. **That premise is correct — for an ELIGIBLE url.** #100 was
+not wrong about the mechanism; it was wrong about `hermes://chat` being eligible for it. The fix
+was sound and the input was not — which is exactly why three device passes kept confirming the
+wiring while the control stayed dead.
+
+**CRITICAL correction to the in-source warning.** `HermesControls.swift` says pairing
+`openAppWhenRun = true` with the returned `OpenURLIntent` made Control Center swallow the tap —
+"do not re-add it." **That is accurate about PAIRING them, and it is NOT an argument against (a).**
+Correct (a) REMOVES the `OpenURLIntent` entirely: `openAppWhenRun = true`, `perform()` returning
+plain `some IntentResult` (**not** `OpensIntent`), destination written to the app group before
+returning, app reads it on launch. Setting both is contradictory — with an `OpensIntent` result the
+returned intent IS the launch, so the two mechanisms compete. **That combination was tried.
+Proper (a) never was.**
+
+**New option (c) — universal links, the shape Apple actually supports.** Feasible, but it is
+infrastructure rather than a code change: an AASA file at
+`https://<domain>/.well-known/apple-app-site-association` served from the DOMAIN ROOT (the current
+Pages site is `aethyrionai.github.io/Talaria-27`, a subpath — this needs an org-root Pages repo),
+the `com.apple.developer.associated-domains` entitlement, and app-side universal-link handling.
+**That entitlement would join `aps-environment` on the must-survive-every-`xcodegen generate` list**
+(#44/#48 trap). Payoff is narrower than it looks: `hermes://` still works from Safari, Shortcuts
+and Siri today — only the AppIntents path rejects it — so (c) buys the controls and nothing else.
+
+**RECOMMENDATION: (a) now; (c) later only if a universal-link surface is wanted for its own sake.**
+(a) is app-side only — no hosting, no new entitlement, no regen trap. The app group already exists
+(sensor outbox, share extension). Estimate ~30 lines plus tests.
+
+**#179 implication — honest answer: both directions inherit it, with an asymmetry.** The cold
+first-tap swallow is extension cold-start behaviour, orthogonal to URL eligibility. Under (a) there
+is a consequence worth writing down BEFORE it is mistaken for a routing bug: with
+`openAppWhenRun = true` the system launches the app even when `perform()` never ran, so a swallowed
+first tap opens Talaria to the DEFAULT screen rather than doing nothing. Less broken than today,
+still wrong. Under (c) a swallowed first tap does nothing at all, exactly as now. **Neither
+direction fixes #179 — the app-group handoff must tolerate a MISSING destination rather than
+assume one.**
+
+**Owed next:** a build lane for (a). Not written yet — this spike's remit was the recommendation.
+
+**Method note for the tracker.** Three device passes were spent on this; the answer came from one
+web search and one source read, and cost nothing. **Check the platform contract before the second
+device pass, not the fourth.** When a symptom says "the system rejected our input," the first
+question is whether the input is supported at all — before any question about our wiring.
+
 **2026-07-24 — THE TRIAGE CAVEAT IS RESOLVED AND RETIRED.** Owen confirmed: after the delete +
 reinstall he went into Control Center and re-set both controls in order to test them. So triage
 step (1) WAS performed before the 2026-07-23 observation. **Stale control registration is
