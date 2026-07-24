@@ -5803,6 +5803,19 @@ Logged 2026-07-20.
 
 ## 145. 🐛 App hard-locks when entered during an OJAMD gateway outage (Hermes update window) — no recovery after the host returns; phone restart required
 
+**⚠️ DELIBERATELY EXCLUDED FROM THE 2026-07-24/25 BUILD WEEKEND (Owen).** Not forgotten, not
+deprioritised by accident — an explicit call. Reason: **unreproduced since 2026-07-20**, and what
+it needs is an INVESTIGATION lane (like #58's spike) rather than a fix lane. Specced work for that
+weekend is Bundle B (`dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`), #164 and the #58 spike; this
+is named in Bundle B's out-of-scope section so it does not get picked up mid-lane.
+
+**Standing caution for whoever does pick it up:** #146 and #147 were found in the SAME test and
+share the push surface, so a push-path change can wander into this without meaning to. Keep them
+apart deliberately.
+
+**What it would need to become dispatchable:** a reproduction, or a decision to chase it from logs
+rather than repro. The discriminators already listed below are still the right first questions.
+
 **Observed 2026-07-20 (Owen, whoGoesThere, seed b3 presumed — pre-b4-update).** Owen opened
 the app while `hermes update` was running on OJAMD (gateway `:8642` down/bouncing — the
 user-process plane; relay/shim state during the window unrecorded). The app LOCKED UP, did
@@ -5850,6 +5863,8 @@ gets misread as the hang.
 Logged 2026-07-20.
 
 ## 146. 🐛 Diagnostics push row stuck on TOKEN HELD · AWAITING RELAY — CONFIRMED display desync 2026-07-20 (push delivered while row stuck); fix = kill the dual bookkeeping
+
+**Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`** (bundled with #174, #175, #154 — PART A, fix shape known). Do not re-spec; check merge state before sending.
 
 **2026-07-23 — the ×4 delivery count belongs to #143, not to this defect.** This item records the
 push arriving ×4 while the diagnostics row sat stuck. That multiplicity is a separate bug: OJAMD's
@@ -5906,6 +5921,19 @@ same Console session), #143/#144 (same notification plane), #145 (same host-flux
 Logged 2026-07-20.
 
 ## 147. 🐛 Tapping an inbox-alert notification CRASHES the app (2026-07-20 late, post-PR #126)
+
+**⚠️ DELIBERATELY EXCLUDED FROM THE 2026-07-24/25 BUILD WEEKEND (Owen).** Not forgotten, not
+deprioritised by accident — an explicit call. Reason: **unreproduced since 2026-07-20**, and what
+it needs is an INVESTIGATION lane (like #58's spike) rather than a fix lane. Specced work for that
+weekend is Bundle B (`dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`), #164 and the #58 spike; this
+is named in Bundle B's out-of-scope section so it does not get picked up mid-lane.
+
+**Standing caution for whoever does pick it up:** #146 and #147 were found in the SAME test and
+share the push surface, so a push-path change can wander into this without meaning to. Keep them
+apart deliberately.
+
+**What it would need to become dispatchable:** a reproduction, or a decision to chase it from logs
+rather than repro. The discriminators already listed below are still the right first questions.
 
 **Observed 2026-07-20 late (Owen, whoGoesThere):** Hermes inbox-item push delivered (see
 #146/#143); tapping a notification to open it crashes the app. Multiple identical
@@ -6277,6 +6305,8 @@ Source-confirm owed (next Mac shell): how are hosts stored today — single host
 Logged 2026-07-20.
 
 ## 154. 🧹 Dead `#available(iOS …)` guards after the deployment-floor bump to 27.0
+
+**Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`** (bundled with #146, #174, #175 — PART D, CONFIRM-FIRST, and note the masked-test trap). Do not re-spec; check merge state before sending.
 
 Surfaced 2026-07-21 while landing PR #132 (deployment floor). `project.yml` had declared the floor twice and disagreed with itself — `options.deploymentTarget.iOS: "27.0"` versus an explicit `settings.base.IPHONEOS_DEPLOYMENT_TARGET: "26.0"`. The explicit build setting wins in XcodeGen, so the real shipping floor had been **26.0** despite Requirements claiming 27. #132 removed the stale override; the floor is now genuinely 27.0.
 
@@ -6988,6 +7018,8 @@ Logged 2026-07-23.
 
 ## 174. 🔧 Attachment payloads inline at full size — 233-472 KB of base64 in one JSON body, no downscaling
 
+**Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`** (bundled with #146, #175, #154 — PART B, payload size only; chunking and progress affordance explicitly OUT). Do not re-spec; check merge state before sending.
+
 **Measured 2026-07-23 (wire capture, whoGoesThere on `cbcc824`).** Three real image sends
 captured: 472,471 / 301,227 / 227,747 bytes of base64 data-URI, inlined directly into the
 `chat/stream` request body. Base64 carries roughly 33% overhead, so the source JPEGs were about
@@ -7002,6 +7034,8 @@ vision models gain nothing from full-resolution phone camera output.
 Logged 2026-07-23.
 
 ## 175. 🧹 Idle chattiness — `/v1/models` polled 6x and the session list 3x inside ~1 minute of idle
+
+**Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`** (bundled with #146, #174, #154 — PART C, CONFIRM-FIRST: mechanism is not yet established). Do not re-spec; check merge state before sending.
 
 **Observed 2026-07-23 (wire capture, Mac host).** With the app open and otherwise idle, the
 capture logged six `GET /v1/models` and three
