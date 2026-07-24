@@ -1569,8 +1569,8 @@ final class AppContainer {
     ///   1. iOS issues an APNs device token (requires the aps-environment
     ///      entitlement; cached under `apnsTokenDefaultsKey` when delivered).
     ///   2. The relay accepts that token via POST push/register
-    ///      (`sessionStore.state.pushTokenRegistered`).
-    enum PushTokenPipelineState {
+    ///      (recorded as `sessionStore.state.registeredPushToken`).
+    enum PushTokenPipelineState: Equatable {
         /// iOS has not delivered an APNs device token on this install.
         case notIssued
         /// A token is held locally but the relay registration is unconfirmed.
@@ -1579,9 +1579,24 @@ final class AppContainer {
         case registered
     }
 
+    /// #146: a COMPARISON, not a flag — the token iOS handed us against the
+    /// token the relay acked. A stale record can no longer read as registered,
+    /// and a live registration can no longer read as awaiting: both stages are
+    /// answered by the same field, so there is no second record to strand.
+    /// Pure, so the rule is assertable without standing up a container.
+    static func pushTokenPipelineState(
+        heldToken: String?,
+        recordedToken: String?
+    ) -> PushTokenPipelineState {
+        guard let heldToken else { return .notIssued }
+        return recordedToken == heldToken ? .registered : .awaitingRelay
+    }
+
     var pushTokenPipelineState: PushTokenPipelineState {
-        if sessionStore.state.pushTokenRegistered { return .registered }
-        return cachedAPNsDeviceToken == nil ? .notIssued : .awaitingRelay
+        Self.pushTokenPipelineState(
+            heldToken: cachedAPNsDeviceToken,
+            recordedToken: sessionStore.state.registeredPushToken
+        )
     }
 
     /// The APNs device token most recently delivered by iOS, if any.
@@ -1610,7 +1625,7 @@ final class AppContainer {
             await deactivatePushRegistration()
             await deactivateDormantPushRegistrations()
             await notificationService.markPushTokenRegistered(false)
-            sessionStore.state.pushTokenRegistered = false
+            sessionStore.state.registeredPushToken = nil
             return
         }
 
@@ -1641,20 +1656,22 @@ final class AppContainer {
         guard let accessToken = await sessionStore.currentAccessToken() else {
             containerLog.notice("registerPushToken: no relay access token — registration deferred")
             await notificationService.markPushTokenRegistered(false)
-            sessionStore.state.pushTokenRegistered = false
+            sessionStore.state.registeredPushToken = nil
             return
         }
 
+        // #146: a skip IS a confirmation — this relay already acked exactly
+        // this token, so record it rather than leaving the record behind.
         if notificationService.isPushTokenRegistered,
            notificationService.currentPushToken == normalizedToken {
-            sessionStore.state.pushTokenRegistered = true
+            sessionStore.state.registeredPushToken = normalizedToken
             return
         }
 
         guard let deviceID = sessionStore.state.deviceID else {
             containerLog.notice("registerPushToken: no deviceID in session state — registration deferred")
             await notificationService.markPushTokenRegistered(false)
-            sessionStore.state.pushTokenRegistered = false
+            sessionStore.state.registeredPushToken = nil
             return
         }
 
@@ -1691,12 +1708,12 @@ final class AppContainer {
             )
             containerLog.notice("registerPushToken: relay accepted push registration")
             await notificationService.markPushTokenRegistered(true)
-            sessionStore.state.pushTokenRegistered = true
+            sessionStore.state.registeredPushToken = normalizedToken
         } catch {
             // Non-critical — token will be retried on next app launch
             containerLog.notice("registerPushToken: relay push/register failed: \(error.localizedDescription, privacy: .public)")
             await notificationService.markPushTokenRegistered(false)
-            sessionStore.state.pushTokenRegistered = false
+            sessionStore.state.registeredPushToken = nil
         }
     }
 
@@ -1729,6 +1746,8 @@ final class AppContainer {
                   let deviceID = profileState.deviceID else { continue }
             // #133: mirror the active path's short-circuit — this relay
             // already acked exactly this token, so there is nothing to send.
+            // #146: safe to skip WITHOUT re-marking, now that the record we
+            // consult here is the same one the UI and the watch guard read.
             guard DormantPushRegistrationPolicy.shouldRegister(
                 recordedToken: profileState.registeredPushToken,
                 currentToken: token

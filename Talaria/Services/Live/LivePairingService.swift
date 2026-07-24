@@ -104,7 +104,7 @@ final class LivePairingService: PairingServiceProtocol {
                 isMockMode: response.session.isMockMode,
                 backendEndpoint: resolvedEndpoint,
                 lastSyncAt: response.session.lastSyncAt,
-                pushTokenRegistered: false
+                registeredPushToken: nil
             ),
             tokens: AuthTokens(
                 accessToken: response.auth.accessToken,
