@@ -56,8 +56,7 @@ struct BackendProfilesTests {
                     syncStatus: .synced,
                     isMockMode: false,
                     backendEndpoint: request.relayBaseURLString,
-                    lastSyncAt: .now,
-                    pushTokenRegistered: false
+                    lastSyncAt: .now
                 ),
                 tokens: AuthTokens(
                     accessToken: "paired-access-token-\(normalizedCode)",

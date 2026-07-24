@@ -240,9 +240,11 @@ struct ConversationSearchTests {
         #expect(store.lastLoadedSessions.map(\.id) == ["api_1"])
 
         // A transient failure must not wipe the corpus — stale-but-real
-        // beats empty.
+        // beats empty. `force` is required here since #175: without it the
+        // snapshot would answer and the failing client would never be
+        // reached, so this test would pass while asserting nothing.
         client.shouldThrow = true
-        _ = await store.loadSessions()
+        _ = await store.loadSessions(force: true)
         #expect(store.lastLoadedSessions.map(\.id) == ["api_1"])
     }
 }

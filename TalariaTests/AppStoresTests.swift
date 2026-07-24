@@ -69,8 +69,7 @@ struct AppStoresTests {
                     syncStatus: .synced,
                     isMockMode: false,
                     backendEndpoint: request.relayBaseURLString,
-                    lastSyncAt: nil,
-                    pushTokenRegistered: false
+                    lastSyncAt: nil
                 ),
                 tokens: AuthTokens(
                     accessToken: "recording-access-token",
@@ -92,8 +91,7 @@ struct AppStoresTests {
                 syncStatus: .synced,
                 isMockMode: false,
                 backendEndpoint: AppEnvironment.development.baseURLString,
-                lastSyncAt: .now,
-                pushTokenRegistered: false
+                lastSyncAt: .now
             )
         }
 
@@ -139,8 +137,7 @@ struct AppStoresTests {
                     syncStatus: .synced,
                     isMockMode: false,
                     backendEndpoint: request.relayBaseURLString,
-                    lastSyncAt: .now,
-                    pushTokenRegistered: false
+                    lastSyncAt: .now
                 ),
                 tokens: AuthTokens(
                     accessToken: "paired-access-token-\(normalizedCode)",
@@ -332,8 +329,7 @@ struct AppStoresTests {
                 syncStatus: .synced,
                 isMockMode: false,
                 backendEndpoint: AppEnvironment.development.baseURLString,
-                lastSyncAt: .now,
-                pushTokenRegistered: false
+                lastSyncAt: .now
             )
         )
 
@@ -383,8 +379,7 @@ struct AppStoresTests {
                     syncStatus: .synced,
                     isMockMode: false,
                     backendEndpoint: request.relayBaseURLString,
-                    lastSyncAt: nil,
-                    pushTokenRegistered: false
+                    lastSyncAt: nil
                 ),
                 tokens: AuthTokens(
                     accessToken: "scripted-recovered-access",
@@ -408,8 +403,7 @@ struct AppStoresTests {
                 syncStatus: .synced,
                 isMockMode: false,
                 backendEndpoint: AppEnvironment.development.baseURLString,
-                lastSyncAt: .now,
-                pushTokenRegistered: false
+                lastSyncAt: .now
             )
         }
 
@@ -451,8 +445,7 @@ struct AppStoresTests {
                     syncStatus: .synced,
                     isMockMode: false,
                     backendEndpoint: AppEnvironment.development.baseURLString,
-                    lastSyncAt: .now,
-                    pushTokenRegistered: false
+                    lastSyncAt: .now
                 )
             )
         }
@@ -2521,8 +2514,7 @@ struct AppStoresTests {
                     syncStatus: .synced,
                     isMockMode: false,
                     backendEndpoint: request.relayBaseURLString,
-                    lastSyncAt: nil,
-                    pushTokenRegistered: false
+                    lastSyncAt: nil
                 ),
                 tokens: AuthTokens(
                     accessToken: "blackhole-access-token",
@@ -2545,8 +2537,7 @@ struct AppStoresTests {
                 syncStatus: .synced,
                 isMockMode: false,
                 backendEndpoint: AppEnvironment.production.baseURLString,
-                lastSyncAt: .now,
-                pushTokenRegistered: false
+                lastSyncAt: .now
             )
         }
 
