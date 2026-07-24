@@ -10,6 +10,19 @@ enum PermissionStatus: String, Codable, Hashable, Sendable {
     case restricted
     case unsupported
 
+    /// #181: whether the Health Trends entry point should render for this status.
+    ///
+    /// Deliberately NOT `== .authorized`. `LiveHealthService.authorizationStatus` is
+    /// in-memory and resets to `.notDetermined` on every launch — Apple hides read-scope
+    /// status, so it cannot be recovered. Gating the entry point on an asserted grant
+    /// therefore hid the screen on every cold launch where sensor health collection was
+    /// off, which is the default posture for a free-tier standalone user. The screen's
+    /// own HEALTH ACCESS OFF panel is the honest place to handle a missing grant; the
+    /// entry point only needs to know HealthKit exists on this device at all.
+    var allowsHealthTrendsEntry: Bool {
+        self != .unsupported
+    }
+
     var displayLabel: String {
         switch self {
         case .notDetermined: "Not Set"
