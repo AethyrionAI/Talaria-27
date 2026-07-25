@@ -7792,3 +7792,134 @@ not run across all 1121.
 Recorded here in advance so nobody preserves a meaningless test to protect the number.
 
 Logged 2026-07-24.
+
+## 184. 🐛 ChatStore has three teardown paths and each clears a different subset
+
+Found by ultrareview Pass A (2026-07-25), verified against source. Full write-up:
+`dispatch/RESULTS-T27-ULTRAREVIEW-2026-07-25.md`.
+
+`clearConversation()` (`ChatStore.swift:735–761`) is the canonical teardown: cancels `reconcileTask`,
+fires `onRunResolved` for any abandoned `pendingRun`, nils `pendingRun`, cancels `streamingTask`,
+ends the Live Activity, stops speech. Two siblings also abandon the current run and do not match it:
+
+| | `streamingTask` | `pendingRun` / `reconcileTask` | Live Activity |
+|---|---|---|---|
+| `clearConversation` (:735) | ✓ | ✓ | ✓ |
+| `openSession` (:1297) | ✓ | ✗ | ✓ |
+| `reset()` (:1343) | ✗ | ✗ | ✗ |
+
+**Why a stale `pendingRun` corrupts a different session.** `reconcileFromServer()` takes no session
+argument — `ChatBackendRouter:373–378` delegates straight through, and the client's session has
+already been switched. The reconcile loop (2s tick, `:1444`/`:1451`/`:1459`) then compares S1's
+pending against S2's server view. Harms all persist: S1's `partialReasoning` stamped onto an S2
+reply (`:1487`), a `turnDuration` spanning two sessions written as the turn receipt (`:1498`),
+`onRunResolved?(S1)` withdrawing the S1 relay watch so the #38 completion push is silently dropped
+(`:1514`), and the polluted state saved to cache with the journal hop waterline advanced over it
+(`:1516`/`:1520`). Reach extends past ChatStore — `AppContainer:1416` and `:1948` both route off
+`pendingRunSessionId`.
+
+**The `reset()` half is the worse one, and the review got it backwards.** The report claimed
+`reset()` has no callers and downgraded it to latent hygiene. It has two, both on the pairing
+lifecycle: `AppContainer:1557` in `handlePairingActivated()` (:1552, wired to
+`PairingStore.onPairingChanged`, followed immediately by `await initialize()` against the new
+pairing) and `AppContainer:2243` in `handlePairingRemoved()` (:2231). So: pair or unpair mid-stream
+and `conversation` goes nil while `streamingTask` runs on and `pendingRun` stays armed, then
+`initialize()` runs against a **different host**. Cross-host leakage, not cross-session.
+
+`AppContainer.swift` was excluded from the review bundle for budget, so the reviewer's
+"repository-wide grep" covered a 29-file slice. **Reachability claims from a subset review are
+worthless — grep locally.** Both call sites already carry #136 comments about a half-flight
+background bootstrap landing state into freshly reset stores: the same race class, reasoned about
+for the bootstrap and missed for the streaming task. Note `handlePairingRemoved` calls
+`LiveActivityService.endAllActivities()` and `handlePairingActivated` does not.
+
+**Fix.** One private `abandonPendingRun()`; all three paths call it. Firing `onRunResolved` on the
+way out is deliberate — the user walked away, so the relay watch stands down rather than staying
+armed against a session ChatStore no longer tracks (AppContainer expects paired watches). Tests:
+pending on S1 → `openSession(S2)` → no reconcile against S2; streaming on S1 →
+`handlePairingActivated()` → task cancelled and `pendingRun` nil. The second belongs beside the
+existing #136 reset-race tests, which is where this should have been caught.
+
+**One caveat on the report's own trigger analysis:** it self-corrects mid-proof and lands on the
+claim that S2 commonly holds a Hermes message timestamped after the S1 send. It does not — prior S2
+activity is by definition earlier. The real trigger is one path: drop on S1 → switch to S2 → send
+on S2 → that reply matches. Plausible, but do not spec it as common.
+
+Logged 2026-07-25.
+
+## 185. 🐛 `mergeAttachments` points every duplicate-filename attachment at the first local match
+
+Found by ultrareview Pass A (2026-07-25), verified against source.
+
+`ChatStore.swift:1764`. Each remote attachment resolves via
+`localAttachments.first(where: { fileName && mimeType })`, which never dequeues the match — so N
+remote attachments sharing `(fileName, mimeType)` all resolve to `localAttachments[0]`. The
+`?? localAttachments[safe: index]` fallback shows the intent was "pair by identity, index as
+backup," but it only fires when `first(where:)` returns nil, which never happens when duplicates
+exist. **The safeguard is defeated in exactly the case it was written for.**
+
+Wrongly copied: `localStoragePath`, `voiceMemoAudioPath` (#9), `remotePath` and `remoteProfileID`
+(#21 Tier 2). The second bubble opens the first bubble's bytes; ShareLink hands out the wrong file;
+a Tier 2 re-fetch targets the wrong remote path. Invisible until tapped, and re-applied on every
+merge cycle.
+
+**Trigger is narrower than the report states.** It cites voice memos saved under a stable name —
+false: `PendingAttachment.voiceMemoFileName` (`:252`) is second-resolution
+(`Voice Memo 2026-07-06 14.30.05.txt`) and the recording is `VoiceMemo-{UUID}.m4a`
+(`VoiceMemoRecorder.swift:141`); two memos would have to be recorded in the same second. Photos are
+genuinely safe (`PendingAttachment.image` auto-names `photo_{UUID.prefix(8)}.jpg`, `:158`). **The
+only real trigger is the file picker** (`url.lastPathComponent` verbatim, `:194`/`:197`): two
+same-named files across separate picker rounds.
+
+**Fix.** Match `remote.id` first, fall back to `(fileName, mimeType)`, dequeue matches from a
+mutable copy, keep `localAttachments[safe: index]` as same-index insurance. The sibling
+message-level merge directly above (`:1668–1687`) already keys by id/`clientMessageID`/`jobID` —
+this just follows the convention already in the file.
+
+Logged 2026-07-25.
+
+## 186. 🐛 Permission accept-lists reject valid grants — the tool belt tells users to enable what they enabled
+
+Found by ultrareview Pass B (2026-07-25), verified against source.
+
+Two device tools treat a **narrower but sufficient** grant as a denial, then hand that denial to the
+model. `LocalChatBackend` instructs the model to relay permission-denied results faithfully — so the
+user is told to go turn on a permission they already granted. That is precisely the fabrication the
+tool belt exists to prevent.
+
+1. **`CalendarEventTool` rejects `.writeOnly`** (`DeviceActionTools.swift:213–221`). The switch
+   handles `.notDetermined` and `.fullAccess`; `.writeOnly` falls to `default:`. But
+   `store.save(event, span: .thisEvent, commit: true)` at `:233` is exactly what `.writeOnly`
+   authorizes. The `.notDetermined` branch calls `requestFullAccessToEvents()` (`:215`), which
+   returns false when the user picks "Add Events Only" from Apple's sheet — so the false denial
+   lands on the first attempt and every one after. **Fix: add `case .writeOnly: break`.**
+
+2. **`ContactsTool` rejects `.limited`** (`DeviceReadTools.swift:331–340`). `status != .authorized`
+   catches the iOS 18 Contact Access Picker grant, though `unifiedContacts(matching:)` returns hits
+   from the approved subset fine. It works exactly once — `requestAccess(for:)` returns true for a
+   limited grant so the `.notDetermined` path passes through — then fails every launch after.
+   **Fix: accept `.limited`.** `NSContactsUsageDescription` is present (`project.yml:163`), no plist
+   work needed.
+
+**REJECTED — do not swap in `requestWriteOnlyAccessToEvents()`.** A refinement proposed this on the
+grounds that the tool only creates events. It fails twice over. (a) `project.yml:161` declares only
+`NSCalendarsFullAccessUsageDescription`; calling that API without the write-only key is a **hard TCC
+crash**, not a soft denial. (b) `DeviceCalendarTools.swift:28–37` — the calendar reader — has the
+identical switch shape, so priming with write-only leaves the reader seeing `.writeOnly`, falling to
+`default:`, and **never able to re-prompt** because the status is no longer `.notDetermined`. One
+use of the create tool would permanently cost the user calendar reading. Talaria both reads and
+writes calendars, so full access is the honest ask. Recorded here so nobody re-proposes it.
+
+**Related, still open — write-only dead end on the read side.** Apple's *full-access* sheet itself
+offers "Add Events Only," so `.writeOnly` is reachable from the existing code path. A user who picks
+it gets a reader saying "enable it in Settings" when they granted what they were shown, with no
+re-prompt path. The reader genuinely cannot read under write-only, so this is a message fix, not a
+logic fix: `default:` should name the write-only case and say to widen the grant.
+
+**Verified correct as-is, no change:** `ReminderCreateTool` (`DeviceActionTools.swift:107–116`) and
+`DeviceCalendarTools.swift:92–100` — EventKit has no write-only state for reminders.
+
+**Optional cheap insurance:** add `NSCalendarsWriteOnlyAccessUsageDescription` to `project.yml`
+regardless, closing the crash path if anyone reaches for that API later.
+
+Logged 2026-07-25.
