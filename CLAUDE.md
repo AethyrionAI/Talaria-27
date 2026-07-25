@@ -61,15 +61,24 @@ failure. **The gateway pin can hang ~37s+ or indefinitely** — do not block UI 
 
 - **Relay `:8000`** — `HermesMobileRelay` (NSSM service; `nssm.exe` at `O:\Hermes\nssm\`;
   uvicorn from `O:\Hermes\Talaria\relay`).
-- **Shim `:8765`** — `TalariaModelsShim` scheduled task.
-- **Gateway/API server `:8642`** — `HermesGateway` scheduled task. The API server is a
+- **Shim `:8765`** — `TalariaModelsShim` (**NSSM service**, not a scheduled task).
+- **Gateway/API server `:8642`** — **NOT a service and NOT a scheduled task.** It runs as
+  Owen's user `pythonw` process (`hermes gateway run`) and answers ~15–20s after start.
+  **Do NOT `Start-Service HermesGateway`** — no such service exists, and its absence does
+  **not** mean chat is down. Check the port owner instead:
+  `Get-NetTCPConnection -State Listen -LocalPort 8642 → OwningProcess`. The API server is a
   **gateway adapter**, not standalone — `hermes gateway run` serves the API server + all
   enabled platforms (Discord, etc.) in **one** process. Discord is one token away.
-- Tasks: **S4U principal** (runs as Owen, passwordless, survives logoff), boot + logon
-  triggers, hidden `wscript` wrapper, `ExecutionTimeLimit` zero, auto-restart.
-- **OPS:** changing a task to S4U or adding a boot trigger needs an **elevated** PowerShell;
-  action/settings edits + start/stop are non-elevated. **Do NOT run `hermes gateway install`
-  on Windows** (creates a conflicting login-only task).
+- **Connector** — a plain bat-launched process (`O:\Hermes\Talaria\scripts\start-connector.bat`,
+  logs to `connector\logs\connector.log`, `PYTHONUTF8=1`). Unsupervised, unlike relay and
+  shim: that supervision gap is **OPEN_ITEMS #113**. `restart-relay.ps1` in
+  `C:\Users\Owen\.hermes\scripts\` does `Restart-Service HermesMobileRelay` then the bat.
+- **OPS:** `Start-Service HermesMobileRelay` / `Start-Service TalariaModelsShim` need
+  elevation (Owen pastes). Use `~/.hermes/scripts/hermes-update-safe.ps1`, never bare
+  `hermes update`. **Do NOT run `hermes gateway install` on Windows** (creates a conflicting
+  login-only task).
+- **Diagnostic discipline:** verify OJAMD against live state — port listeners, DB rows,
+  relay logs — never by text-matching a project-knowledge snapshot, which lags.
 - `HERMES_HOME` = `C:\Users\Owen\AppData\Local\hermes`; shim token at
   `C:\Users\Owen\.hermes\talaria_shim_token`; gateway launchers at
   `C:\Users\Owen\.hermes\scripts\`. Owen runs box-side commands in **PowerShell** (`curl`
@@ -95,9 +104,10 @@ works against OJAMD.
   `SensorUploadService.start()` — Settings grants alone don't suffice.
 - `Restart-ScheduledTask` doesn't exist in PowerShell 5.1 — use `Start-ScheduledTask`.
 - `mdfind -name` beats `find` for locating files on the Mac Mini.
-- The relay does **not** persist its JWT signing secret + device registry across restarts
-  (#24f) — a restart invalidates device tokens → re-pair. App-side hard-abort softened
-  (`114caf2`); server-side gap remains.
+- **#24f is DEAD — never cite it as a cause.** The relay is DB-backed
+  (`O:\Hermes\Talaria\relay\hermes_mobile.db`); there is no JWT signing secret and no
+  in-memory device registry, and the registry survives restarts (verified across 4+ relay
+  restarts). The live transport concern is **#54** (connector WS reconnect / nonce).
 - ATS: `project.yml` uses `NSAllowsArbitraryLoads` — scope to `NSAllowsLocalNetworking`
   before App Store submission.
 
@@ -107,8 +117,12 @@ works against OJAMD.
   standard toolchain for iOS 27 targets (per Owen, 2026-07-20; verified same day — full suite
   931/84 green on its SDK); release Xcode can't build iOS 27.
   `DEVELOPER_DIR=/Applications/Xcode-beta4.app/Contents/Developer` in every shell.
-  Older copies (`Xcode-beta.app`, `Xcode-beta3.app`) still exist on disk — do not use them
-  for builds. The pinned sim UDID survived the beta-4 runtime rebind — no re-pin needed.
+  `Xcode-beta.app` and `Xcode-beta3.app` were **deleted 2026-07-24** — beta4 and release
+  Xcode are the only copies on disk. Command Line Tools 27 beta 4 is installed and
+  `xcode-select` points at beta4, but CLT ships no iOS SDK and no `xcodebuild`, so the
+  `DEVELOPER_DIR` export is still mandatory. Sim runtimes kept: **iOS 27.0 (24A5390f)** and
+  **iOS 26.5 (23F77)**; seeds 24A5355p / 24A5380g were deleted the same day. The pinned sim
+  UDID survived both the beta-4 runtime rebind and the seed prune — no re-pin needed.
   Team `DNL25ZFSD2`. DerivedData `Talaria-bkmofmhhchhruzcdudrizbbblrae`.
 - **CLI compile check:** `xcodebuild -project Talaria.xcodeproj -scheme Talaria
   -configuration Debug -destination 'generic/platform=iOS Simulator' build
@@ -170,188 +184,12 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
 - Issues tracked in `OPEN_ITEMS.md` (dated update notes); session continuity in
   the local `handoffs/` notes (gitignored) + `CLEAN_CHAT_PATH.md`.
 
-## Current state (2026-07-12)
+## Project history
 
-- **T6 Phase 1 — Mac-hosted backend (OPEN_ITEMS #34 un-deferred → #107) scaffolded
-  on `claude/talaria-mac-backend-phase1-m0jkm0` (PR #79):** spec committed
-  (`design/T6_MAC_BACKEND_SPEC.md`, Q1–Q5 defaults recorded), ops runbook
-  (`relay/docs/DEPLOY_MAC.md`), Mac relay env template (`relay/.env.mac.example` —
-  fresh keys, `RELAY_ENVIRONMENT=production`, absolute DB/APNs paths, bundle
-  `org.aethyrion.talaria27`), launchd installers + acceptance smoke
-  (`scripts/mac/install-{relay,gateway,shim}-launchd.sh`, `verify-phase1.sh`
-  incl. `--restart-check` for the #54 reconnect seam). No app/relay/connector
-  CODE changes — scripts/docs/env only, so no `xcodegen`; suites re-run as a
-  baseline (relay 117 passed, connector 104 passed + 1 macOS-only skip, Linux).
-  **Execution on the Mini owed** — work the #107 checklist (services, macOS test
-  run, dev-device pairing, Phase 2 imsg-vs-Photon + the launchd-TCC trap).
-  Gotcha found while scaffolding: the committed shim plist still points at the
-  pre-fork `…/Documents/Claude/Talaria` path — `install-shim-launchd.sh`
-  re-renders it against the live checkout.
-
-## Prior state (2026-07-10)
-
-- **Lane A — P1 continuity fabric (OPEN_ITEMS #90) built on
-  `claude/talaria-27-lane-a-to5zv3`:** on-device `ConversationJournal` is the
-  durable primary (identity = local UUID); `SessionsHermesClient`'s single
-  `apiSessionId` replaced by journal-owned per-hop handles; fresh hops get a
-  condensed priming turn (`ContextTransplanter` +
-  `LocalIntelligenceService.condensedContextBrief`, verbatim-tail fallback,
-  budget-enforced); model switch = a hop (context survives); offline compose
-  outbox (`.unreachable` → `.queued` → drain on reachability); priming cost
-  surfaced in the transplant notice + StatusCard totals. Condenser-fidelity
-  acceptance suite (`CondenserFidelityTests`) is model-gated — **must RUN,
-  not skip, on the Mac**. Cloud-written, NOT compiled; merge AFTER Lane C
-  (`ChatScreen.swift` overlap — though this lane ended up not touching
-  ChatScreen), `xcodegen generate` (4 new source + 2 new test files), then
-  the OPEN_ITEMS #90 checklist.
-
-## Prior state (2026-07-08)
-
-- **Enhancements wave (GitHub #44–#49) built as six STACKED per-issue
-  branches off main (6e604e9), one PR each (merge order: #49 → #48 → #44 →
-  #46 → #45 → #47; each PR based on the previous branch so diffs stay
-  per-issue):** `claude/t27-49-orphan-audit` = #49 orphan-surface audit
-  (`tools/orphan-audit.sh` + committed report + BRANCHING.md checklist line;
-  **fully verified here** — `--self-test` green, re-flags the Field Notes §5
-  graveyard; OPEN_ITEMS #76). `claude/t27-48-url-scheme` = #48
-  `CFBundleURLTypes` for `hermes://` (project.yml + hand-mirrored committed
-  Info.plist) + seed-only `hermes://ask?q=` route (never auto-sends —
-  security posture; #77). `claude/t27-44-message-context-menu` = #44
-  long-press Copy/Share/Select Text/Regenerate/Edit & Resend with streaming
-  guards; per-turn `regenerateReply`/`extractTurnForEditing` on ChatStore
-  (client-side truncation, same caveat as /retry; #78).
-  `claude/t27-46-turn-receipts` = #46 `Message.usage/turnDuration/
-  servingModel` stamped at `.finished`, shim pricing harvested into new
-  `ModelPricingCatalog` (`Services/Support/TurnReceipts.swift`), bubble
-  receipt footer + CTX-gauge tap resurrects StatusCardView with session
-  totals (estimate-labeled costs; #79). `claude/t27-45-inbox-wiring` = #45
-  Inbox nav entry (tray + unread pip), DemoData fallback gutted (honest
-  UNREACHABLE state; ResilientInboxService deleted), silent-push wake
-  refreshes inbox, connector producer tools `send_inbox_item`/
-  `get_inbox_verdict` (**connector suite green here**, 101 passed; #80).
-  `claude/t27-47-lockscreen-reply` = #47 relay completion pushes carry
-  category `HERMES_RUN_COMPLETED` (**relay suite green here**, 72 passed) +
-  `UNTextInputNotificationAction` Reply → headless send → explicit
-  `postPushWatch` re-arm, outcome-gated (the positional watcher would
-  insta-push a stale reply after a failed send); failures surface via
-  `notifyReplyFailed` (#81). **Swift halves cloud-written, NOT compiled or
-  device-verified.** Next Mac session: merge in order, `xcodegen generate`
-  (2 new files `TurnReceipts.swift`/`TurnReceiptsTests.swift`, 1 deleted
-  `ResilientInboxService.swift`; re-verify `aps-environment`/WeatherKit/
-  widget-HealthKit per #44/#48), CLI build + tests, then the per-item device
-  checklists in OPEN_ITEMS #76–#81. OPS for Owen: OJAMD relay env must not
-  ship `INTERNAL_API_KEY="replace-me"`; put the real key in
-  `~/.hermes-mobile/secrets.json` (`internal_api_key`) for the producer
-  tools.
-- **Wave 5 (GitHub #18–#19, label standalone-wave-5) built as two STACKED
-  per-issue branches off main (b1a00a7), one PR each (merge order: #18's PR →
-  #19's PR):** `claude/w5-18-native-voice` = #18 native fallback voice
-  (`VoiceEngineRouter` + `NativeVoicePipelineService`: SpeechAnalyzer/
-  SpeechDetector → the ACTIVE `ChatBackendRouter` backend per the #18
-  amendment → dedicated sentence-buffered `SpeechOutputService` with
-  `managesAudioSession=false`; echo cancellation via
-  `setVoiceProcessingEnabled`; auto-selects when unpaired, talk unconfigured,
-  or relay unreachable; honest LOCAL VOICE badging via
-  `TalkSessionSnapshot.engine`; native sessions skip the post-to-Hermes
-  transcript context turn; OPEN_ITEMS #73). `claude/w5-19-carplay-voice` =
-  #19 CarPlay upgrade (auto-start on connect gated on `canStartSession` with
-  a blocked state, `withObservationTracking` replaces the 500ms Timer,
-  `.carAudio` category re-assert in the WebRTC engine, verified
-  `com.apple.developer.carplay-voice-based-conversation` key added locally;
-  Apple grant NOT filed — sim validation first; OPEN_ITEMS #74).
-  **Cloud-written, NOT compiled, NOT sim/device-verified.** Next Mac
-  session: merge in order, `xcodegen generate` (2 new source + 2 new test
-  files; re-verify aps-environment/weatherkit/CarPlay keys survive regen per
-  #44/#48), CLI build + tests, then the #73/#74 checklists (relay-down +
-  airplane-mode local-voice bar for #18; CarPlay Simulator pass for #19).
-- **Wave 4.5 (GitHub #26–#31, label standalone-wave-4.5) built as six STACKED
-  per-issue branches off `claude/talaria-wave-4-5-sg7kdj` (6332869), one PR
-  each, each based on the previous** (merge order: #32 → #33 → #34 → #35 →
-  #36 → #37): PR #32 = #26 `LocalChatBackend` (FoundationModels behind
-  `HermesClientProtocol`; runtime `contextSize`; cumulative-snapshot →
-  `textDelta` diffing; deterministic condensation via the
-  LocalIntelligenceService trimming helpers, now internal; OPEN_ITEMS #67).
-  PR #33 = #27 `ChatBackendRouter` (two brains one seam; never-configured →
-  local, Hermes wins when keyed, per-message routing, no mid-thread swap;
-  `Message.brain` transcript tags; header brain chip + picker; #68). PR #34 =
-  #28 device tool belt (read tools on `ToolEventRelay` →
-  `StreamingUpdate.toolActivity`; WeatherKit entitlement in its own surgical
-  commit; the issue's "FM built-ins" DON'T exist in the framework — Vision/
-  CoreSpotlight implementations instead; #69). PR #35 = #29 action tools +
-  `ToolConfirmationCenter` (awaited-continuation confirm gate, defaults
-  closed; #70). PR #36 = #31 standalone onboarding (pairing wall removed;
-  pairing lives in Settings as the upgrade; honest Apple-Intelligence-off
-  state; notification priming moved to first long-run; #71). PR #37 = #30
-  PCC tier (a MODE of LocalChatBackend behind `#available(iOS 27)` +
-  availability gates; picker entry + quota UI + escalation offer + honest
-  degradation; externally blocked on Apple approval — merges behind gates;
-  #72). **Cloud-written, NOT compiled or device-verified.** FoundationModels
-  names verified against Apple's live SDK-doc JSON 2026-07-07 (incl. the
-  27-beta surface), not the installed SDK — compile-risk shortlists in each
-  PR. Next Mac session: merge the stack in order, `xcodegen generate`
-  (14 new source + 5 new test files; re-verify `aps-environment` AND the new
-  `com.apple.developer.weatherkit` survive regen per #44/#48), CLI build +
-  tests, then the per-item device checklists in OPEN_ITEMS #67–#72
-  (airplane-mode bar for #26/#28).
-- **Wave 4 (GitHub #13–#17) built as five per-issue branches off this branch's
-  tip (656dee2), one PR each into `claude/wave-4-issues-13-17-qu38px`:**
-  PR #20 = #13 stale-test fixes (test-only, OPEN_ITEMS #62); PR #22 = #14
-  BGAppRefreshTask + BGContinuedProcessingTask background wake (#63); PR #21 =
-  #15 widget-side HealthKit queries via new `Shared/HealthQueryCore.swift`
-  (#64); PR #23 = #16 AlarmKit `/alarm` executor behind the in-app confirm
-  gate (#65); PR #24 = #17 Spotlight IndexedEntity donation + OpenSessionIntent,
-  toggle default OFF (#66). **Cloud-written, NOT compiled or device-verified** —
-  next Mac session: merge the PRs (project.yml/Info.plist edits from #14/#15/#16
-  land in different hunks), `xcodegen generate` (9 new files; re-verify
-  `aps-environment` + the new widget HealthKit entitlement per #44/#48), CLI
-  build + tests, then the per-item device checklists in OPEN_ITEMS #62–#66.
-  New-API compile risks flagged in the PRs: AlarmKit configuration/presentation
-  shapes (#16), `BGContinuedProcessingTaskRequest` (#14), `indexAppEntities`
-  (#17).
-- **Wave 2 (Issues E–H / GitHub #6–#9) built on `claude/issues-5-8-batches-cue3vb`**
-  (AethyrionAI/Talaria-27): Ask Hermes App Intent (OPEN_ITEMS #56), attachment
-  text-inlining + explicit Extract Text OCR closing the #43 silent drop (#57), Control
-  Center / Lock Screen controls (#58), voice-memo attachments (#59). **Cloud-written,
-  NOT compiled or device-verified** — next Mac session must `xcodegen generate`
-  (re-verify `aps-environment`, #44/#48), run the CLI build + tests, and work the
-  per-item checklists in OPEN_ITEMS #56–#59. The iOS 27 beta LongRunningIntent adoption
-  is parked behind the undefined `TALARIA_IOS27_INTENTS` flag; the delimited text-part
-  surface lives in `Services/Support/AttachmentInlining.swift` (shared by #57 file
-  inlining and #59 transcripts).
-- **Wave 3 built on `claude/wave-3-on-device-intelligence-rxht4l`** (Wave 2 merged in):
-  on-device intelligence. 4.15: `_thinking` reasoning deltas forwarded as
-  `StreamingUpdate.reasoningDelta` → live line in the streaming placeholder + collapsed
-  REASONING chevron on the bubble (raw text persisted on `Message.reasoning`; the exact
-  `tool.progress` delta key still needs a device probe — tolerant parser + wire-mode
-  hedge, OPEN_ITEMS #60). 4.8: `LocalIntelligenceService` (FoundationModels) generates
-  `{title, preview}` after the first completed exchange → `setConversationTitle` +
-  `Conversation.generatedPreview`; truncation fallback off-AI-hardware; reasoning
-  condensed to one line when foregrounded (OPEN_ITEMS #61). Adversarially reviewed
-  same-session (10 findings fixed — see the #60/#61 update notes). **Not yet compiled** —
-  next Mac session: `xcodegen generate` (1 new source file + 2 test files), CLI build,
-  device verify.
-
-## Prior state (2026-07-03)
-
-- **Theme system built on `claude/theming-options-plan-c4356l`** (#49): four themes ×
-  three accent slots, palette core in `Shared/`, textures, per-theme orbs, theme picker,
-  themed widgets with per-instance selection. **Not yet compiled or device-verified** —
-  written in the cloud session without Xcode; next Mac session must `xcodegen generate`
-  (project.yml now declares `aps-environment`, closing the #44/#48 strip trap), run the
-  CLI build, fix any stragglers, and verify Deep Field is pixel-identical on device.
-- Branch `feat/settings-index-swap`. T3 Settings sub-pages 09–12 built + SYSTEM index
-  swapped live in `ContentView`; dead monolith `SettingsScreen.swift` removed (#28/#30).
-  Verbose Logging shipped + 27 diagnostics gated (#29). CTX meter usage now parsed (#25
-  numerator done; denominator reads ~1.4× high — follow-up). All committed + pushed to
-  `origin` (`ChronoRixun/Talaria`).
-- #9 model-transition overlay shipped + both regressions fixed, committed (`64da247`).
-- #21 **Tier 1 shipped + verified on-device** (`96b291f`): agent `write_file`/`create_file`
-  writes are reconstructed from the SSE stream (`tool.started.args.{path,content}`), staged
-  locally, and surfaced as a tappable `ShareLink` file bubble in the Hermes bubble (Save to
-  Files / AirDrop). No server change. **Tier 2 relay route** (`ccf6e5a`, branch
-  `feat/agent-files-tier2`): `GET /v1/device/files` — device-bearer auth, whitelisted to
-  `AGENT_FILES_DIR` (`O:\Hermes\MobileDL` on OJAMD), traversal-safe, `FileResponse`. Tested
-  (8 + 55 suite) and **deployed + live on OJAMD** (health 200, route 401-gated). **Tier 2
-  app-side fetch** is the remaining piece — blocked on probing the binary-write SSE shape
-  (does a non-text `write_file` carry `args.content`?), which decides the fetch trigger. See
-  `OPEN_ITEMS.md` #21 (full plan), #36 (OJAMD↔fork reconcile), #37 (upstream connector win32 fix).
+Dated per-item history — every wave, lane, and PR previously transcribed here — lives in
+`OPEN_ITEMS.md`, which is the canonical tracker and stays monolithic. The narrative
+duplicate that used to sit at the end of this file was pruned 2026-07-24: it had drifted
+badly, still describing merged work as "cloud-written, NOT compiled" with next-session
+instructions for sessions long past. Read `OPEN_ITEMS.md` for state; read this file for
+standing rules. OPEN_ITEMS item numbers are a **separate sequence** from GitHub issue and
+PR numbers — always disambiguate which you mean.
