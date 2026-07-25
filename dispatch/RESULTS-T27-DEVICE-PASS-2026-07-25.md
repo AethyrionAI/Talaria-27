@@ -4,9 +4,13 @@
 **Device:** whoGoesThere, iPhone 17 Pro Max (iPhone18,2), iOS 27.0, UDID `00008150-000E794C3C47801C`
 **Bundle:** `org.aethyrion.talaria27` — installed 2026-07-24 23:42 CDT, built 23:41 same session
 **Toolchain:** Xcode-beta4 (27.0), Team DNL25ZFSD2
-**Driver:** Owen · **Support:** Claude (Mac Mini, phone corded)
+**Driver:** Owen · **Support:** Claude (Mac Mini)
 
 Outcomes: PASS / FAIL / PARTIAL / UNRUNNABLE. Partials are not rounded up.
+
+**Sessions:** 1 — 2026-07-24 23:42 → 2026-07-25 01:30 CDT, phone corded (A1–A7).
+2 — 2026-07-25 afternoon, phone **not** corded (A8). Code under test is unchanged between them:
+`1ea7e23..3083cc2` touches only `OPEN_ITEMS.md` and two `dispatch/` files, zero Swift.
 
 ---
 
@@ -31,6 +35,8 @@ Notes:
 1. **OJAMD shim `:8765` is down.** Blocks nothing in this pass (A11/#116 targets the Mini, whose
    shim is up; model switching is not a pass item), but it is a stated preflight condition and it
    is not met. Restart needs elevation — Owen pastes.
+   **Cleared at the start of session 2** — OJAMD shim `:8765`, gateway `:8642` and relay `:8000` all
+   answer. The preflight condition is now met on both hosts.
 
 ---
 
@@ -45,10 +51,10 @@ Notes:
 | A5 | #172 | Deliver picker return path | **PASS** | USE LIST returns; typed value survives as `home (custom)`, checkmarked, still selected. |
 | A6 | #128 #129 | Voice preview mid-session | **UNRUNNABLE** (mid-session half) | No UI path reaches Settings during a session. See DOC-2. |
 | A7 | #124 | Face ID app lock (7 checks) | **PASS 7/7** | Incl. the two unit tests can't see (app-switcher cover, cover-above-sheet). #7 re-run after granting authorization: 3 pushes delivered, 0 drops, banner shown, **UI stayed locked**. |
-| A8 | #123 | Share extension (7 checks) | **NOT RUN** | Next up. Limits confirmed from source: 20 MB envelope cap. |
-| A9 | #112 | Comic Book adaptive theme | **NOT RUN** | |
+| A8 | #123 | Share extension (7 checks) | **PASS 6/7**, 1 **UNRUNNABLE** | Every runnable check passed. The video check is impossible by construction — see DOC-3. Size guard verified separately with a valid fixture. |
+| A9 | #112 | Comic Book adaptive theme | **PASS** | Live re-skin on the system Light/Dark toggle, no relaunch. Both known seams accepted as-is by Owen. All 31 app icons present, Lane L's 13 in their own Special Edition / Midnight Marquee sections. |
 | A10 | #81 | Lock-screen reply | **BLOCKED** | Cannot run until the notification-tap crash is fixed — same delegate method. |
-| A11 | #116 | Shim token auto-fill | **NOT RUN** | Needs relay + connector restart on the Mini first. |
+| A11 | #116 | Shim token auto-fill | **UNRUNNABLE** as written | The documented path cannot establish the check's own precondition — see DOC-4. Infrastructure verified healthy; the dispatch's restart step was unnecessary. |
 | A12 | #133 | Push registration idempotency | **NOT RUN** | Strong prior evidence already gathered — see the ×4 side finding (36 device rows / 1 phone). |
 
 ### A1 — FAIL · `openAppWhenRun is not supported in extensions` (iOS 27)
@@ -220,6 +226,131 @@ closed**, and that no one can verify #129 by tapping.
 
 **Runnable half — outside a session, previews at full `.playback` fidelity (#130):** see table.
 
+### A8 — PASS 6/7, one check unrunnable by construction
+
+_Run 2026-07-25 session 2. Phone not corded for this block, so no syslog — every A8 check is
+Owen-visible by design, so nothing was lost except failure diagnostics._
+
+| # | Check | Result | Note |
+|---|---|---|---|
+| 1 | Safari → Share → URL in composer | **PASS** | |
+| 2 | Photos → Share → image chip | **PASS** | |
+| 3 | Files → Share a file → file chip | **PASS**, substituted | `.txt`, not the PDF the doc names. See gap below. |
+| 4 | Rapid successive shares all land | **PASS** | Three shares, all merged into the composer. Order not separately confirmed. |
+| 5 | ~25 MB video → polite refusal | **UNRUNNABLE** | Impossible by construction — **DOC-3**. |
+| 6 | Share while force-quit → lands next launch | **PASS** | |
+| 7 | `hermes://ask` still works | **PASS** | Warm path. Two sub-cases unexercised — below. |
+| — | **Extra:** oversize guard, valid vehicle | **PASS** | Not scored as A8-5. See below. |
+
+**Landing in the newest chat rather than a new one is correct, not a defect.** Observed on 1, 2, 3
+and 6 and checked against source: the drainer produces a `ShareComposerSeed` and
+`ChatStore.seedComposerFromShare` parks it in a slot; nothing in the path creates or selects a
+session. A8's own criterion is "lands in the composer", which is what happens.
+
+**DOC-3 — the video check cannot be performed, by two independent mechanisms.** A video can never
+reach the size guard:
+
+1. `project.yml:444-448` declares `SupportsWebURL / SupportsImage / SupportsFile / SupportsText` —
+   there is **no `NSExtensionActivationSupportsMovieWithMaxCount`**. Photos therefore never offers
+   Talaria for a video at all. This is exactly what Owen observed ("videos don't give an option to
+   share").
+2. Even routed in from Files, `StageableTypeCatalog.isStageable` accepts only `image/*`, 14 text
+   MIME types and `application/pdf`; `.mov`/`.mp4` map to `application/octet-stream`. That fails the
+   **type** guard at [ShareViewController.swift:209](TalariaShare/ShareViewController.swift:209),
+   which returns before the **size** guard at :214. A video's refusal would read "Talaria can't
+   accept this file type" — never "Too large to hand off".
+
+The dispatch asked for a check the app makes impossible. Not a product failure; whether the absence
+of video support is itself worth an item is a separate product question, not a pass result.
+
+**Extra — the size guard does work, verified with a vehicle that can reach it.** A valid 25.07 MiB
+single-page PDF (uncompressed DeviceRGB noise, exact byte count, generated on the Mac and delivered
+via iCloud Drive) was shared from Files. Result, verbatim on device:
+
+```
+Too large to hand off (limit 21 MB)
+```
+
+That is the size branch at `ShareViewController.swift:214`, rendering in the share sheet — no crash,
+no silence. **Recorded as its own result, not as A8-5**, per the dispatch's rule that a substitute
+check does not score the original.
+
+**Minor, from that string:** the cap is 20 MiB (`20 * 1024 * 1024` = 20,971,520) but the label runs
+through `ByteCountFormatter(countStyle: .file)`, which is base-10, so it prints **21 MB**. A user
+handed "limit 21 MB" who tries a 20.5 MB file is refused by a limit the UI told them they were
+under. Cosmetic, one call site, worth a line in #123 rather than its own item.
+
+**Gaps this block leaves open — recorded, not rounded up:**
+
+- **PDF's accept path is untested.** Check 3 substituted `.txt`, and the only PDF put through the
+  extension was deliberately oversize and correctly refused. PDF is one of only three stageable
+  families, so the family that matters most for documents has been proven to *refuse* and never
+  proven to *accept*. One small PDF closes this.
+- **Share ordering** (check 4) was not separately confirmed. `pendingEnvelopes()` sorts by
+  `createdAt` ascending and the drainer joins with `\n`, so ordering is a real assertion the check
+  is meant to make; three shares landing is necessary but not sufficient.
+- **`hermes://ask` cold path.** Check 7 passed warm, from a non-Chat tab with the app backgrounded —
+  the `onChange` consumption path. The cold-launch path consumes via a separate `onAppear` and is
+  unexercised.
+- **The ask/share collision named in the check's own parenthetical was never exercised** — the
+  earlier shares had already drained. The two slots have deliberately opposite contracts:
+  `consumeShareSeed` **appends**, `consumeComposerSeed` **replaces**
+  ([ChatScreen.swift:1161](Talaria/Features/Chat/ChatScreen.swift:1161)). So an ask-seed landing on
+  a pending share should wipe the share's *text* while its attachments survive in a different array.
+  The replace is called "by contract" at :1169, so this may be intended — but the check exists to
+  ask the question, and the question is still open.
+
+**Two "FAIL"s reported during this block were test-harness errors, not app defects**, and are
+recorded as such rather than as findings: the first `hermes://ask` attempt was typed with unescaped
+spaces, which Safari's omnibox resolves as a search rather than a URL; the second dropped the `q`
+parameter name (`?=hello`), which parses to an empty value and is correctly guarded out by
+`seedComposer`. Verified against the real code path — `hermes://ask?=hello` yields `host = ask`,
+`q = ""`; `?q=hello` yields `q = "hello"`; `%20` survives encoding. The app behaved to spec in all
+three cases.
+
+### A11 — UNRUNNABLE as written · the path cannot create the precondition
+
+**The dispatch's setup step was unnecessary, and was not performed.** It says "restart relay +
+connector on the Mini before this". Checked instead of assumed — the Mini relay already holds a
+complete, current descriptor, read straight out of `hermes_mobile.db`:
+
+| field | value |
+|---|---|
+| `gateway_base_url` | `http://100.79.222.100:8642` |
+| `shim_base_url` | `http://100.79.222.100:8765` |
+| `shim_token` | 43 chars, **byte-identical** to `~/.hermes/talaria_shim_token` |
+
+That token authenticates for real: `GET /models` on the live shim returns **HTTP 200, 6 models**.
+The connector is connected (`last_seen_at` current). A restart would have republished an identical
+descriptor and would not even have bumped `provisioning_updated_at` — `_apply_host_provisioning`
+writes only on change. **No service was restarted or stopped.**
+
+**Why the check cannot run.** `ProvisioningService.applyProvisioning` fills conservatively:
+`shimBaseURL` and `gatewayBaseURL` only when blank, and the token only when
+`stored.isEmpty || (mode == .refresh && stored != token)`. Owen ran the documented path — forget the
+Mac pairing, return to the profile — and reported the shim token **still present**, models
+refreshing successfully against it.
+
+That is correct behaviour, not a defect. `PairingStore.forgetPairing` clears the paired relay
+configuration and the session; it never touches Keychain material. The app states the distinction
+itself at [ServerSettingsScreen.swift:359](Talaria/Features/Settings/ServerSettingsScreen.swift:359)
+— Delete "purges Keychain credentials, so it is strictly more destructive than Forget Pairing."
+The shim token is Keychain material, so Forget leaves it by design.
+
+So after the documented path the stored token is non-empty and unchanged: `shouldWrite` is false on
+both clauses, nothing is written, and **there is nothing for the check to observe**. A pass and a
+failure are indistinguishable here — which is what makes it unrunnable rather than a FAIL.
+
+**The path that would work**, for whoever picks this up: **Delete** the profile (the only action
+that purges the Keychain), then re-pair by QR against an empty token slot. Caveat worth stating
+before someone runs it — Delete removes the profile outright, so that exercises "provision a new
+profile", which is adjacent to but not identical to "re-pair an existing one". If #116's contract is
+specifically about re-pairing an existing profile, the app currently offers **no** route to an empty
+token slot for an existing profile, and that gap is the thing to resolve before rewriting A11.
+
+**Not attempted:** the OJAMD half, which the dispatch gates behind the `ojamd-deploy` rebase and
+Owen's manual approval. Asked; the session paused before it was answered.
+
 ### 🔴 MAJOR FINDING — notifications are silently dead: authorization is `NotDetermined`
 
 Surfaced while staging A7 check 7. **Every user-visible notification on this build is being dropped
@@ -307,10 +438,30 @@ completion handler to send across an isolation boundary". That reasoning holds f
 branch. It was not sound for the **tap** branch, which returns into UIKit work that is main-thread
 only.
 
-**Candidate fix:** annotate the delegate method `@MainActor` so the bridged completion resumes on
-the main actor. Needs checking against the #47 headless path before adopting — that path has no
-window scene, so it may not hit the same UIKit work, but it must not lose the process-lifetime
-guarantee the async form was chosen for.
+**⚠️ CORRECTION, 2026-07-25 session 2 — this fix was already shipped, and it does not work.**
+
+This section originally proposed "annotate the delegate method `@MainActor`" as the candidate fix.
+Checking the history before writing it into a dispatch showed that had already been done:
+
+```
+22f92e1  fix(#147): @MainActor on HermesAppDelegate — notification completion bridge must fire
+         on main; cold launch-by-notification hit UIKit state-restoration assert off-main
+```
+
+`git merge-base --is-ancestor 22f92e1 1ea7e23` → **true**. The fix was **in the build that crashed**.
+`22f92e1` is a one-line commit: it adds `@MainActor` to the **class**
+([AppEntry.swift:87](Talaria/AppEntry.swift:87)).
+
+**Why it has no effect on this crash:** both `userNotificationCenter` overloads are declared
+`nonisolated` ([AppEntry.swift:124](Talaria/AppEntry.swift:124) and
+[:141](Talaria/AppEntry.swift:141)), and `nonisolated` on a member explicitly opts that member out of
+its type's actor isolation. The class annotation cannot reach them. #147 is merged, marked fixed, and
+the defect it names still reproduces — on 2026-07-25 00:58, on a build containing it.
+
+**The fix has to remove `nonisolated` from the tap overload**, not annotate the enclosing type. Still
+needs checking against the #47 headless path before adopting — that path has no window scene, so it
+may not hit the same UIKit work, but it must not lose the process-lifetime guarantee the async form
+was chosen for. Reopening #147 with this evidence is the first step, not writing a new item.
 
 **Blocks:** A7 check 7's tap half, and **A10 / #81** — the lock-screen reply path runs through the
 same delegate method.
@@ -422,6 +573,21 @@ Voice & Talk" cannot be performed: the voice overlay is a `fullScreenCover` that
 dismiss, and has been since 2026-04-05 — three months before the #129 fix A6 exists to verify. Full
 analysis in the A6 section. The outside-a-session half remains runnable and was run.
 
+**DOC-3 — A8's video check is impossible by construction.** "A ~25 MB video → a polite refusal in
+the share sheet", flagged in the dispatch as "the one that matters most", cannot be performed: the
+share extension declares no movie activation rule, so Photos never offers Talaria for a video; and
+video MIME types are not stageable, so a video routed in from Files hits the *type* refusal before
+the *size* refusal. Full analysis in the A8 section. The underlying size guard was verified
+separately with a 25.07 MiB PDF and is recorded as its own result, not as A8-5.
+
+**DOC-4 — A11's path cannot establish A11's precondition.** "Forget the Mac pairing → re-pair via
+QR" does not clear the shim token, because Forget Pairing deliberately leaves Keychain material
+alone (only Delete purges it). With a non-empty stored token, `applyProvisioning` writes nothing, so
+auto-fill has nothing to fill and pass is indistinguishable from failure. Full analysis in the A11
+section, including the Delete-then-re-pair route that would work and the reason it is not a
+like-for-like substitute. The dispatch's "restart relay + connector first" step in the same item was
+also unnecessary — verified, not assumed, and skipped.
+
 ---
 
 ## Device / environment state as of the 2026-07-25 01:30 stop
@@ -446,6 +612,22 @@ elevated `Start-Service TalariaModelsShim`.
 
 Background processes: `idevicesyslog` **stopped and confirmed gone**. Nothing else left running.
 
+### Session 2 delta (2026-07-25 afternoon)
+
+| Thing | State | Changed by |
+|---|---|---|
+| OJAMD shim `:8765` | **UP** — was the one open preflight defect | resolved between sessions |
+| OJAMD gateway `:8642` / relay `:8000` | **UP** | — |
+| Phone | **not corded** — no syslog for A8; blocks A12 and the diagnostic half of A10 | — |
+| iCloud Drive | holds `talaria-oversize-share-test.pdf`, **25.07 MiB** | Claude, for the A8 size fixture — **delete when done** |
+| Two Talaria bundles on device | `org.aethyrion.talaria` + `…talaria27` | deliberate fork discriminator; `talaria27` → `talaria` before launch, per Owen. Not a defect. |
+| **Mac Mini pairing** | **FORGOTTEN during A11** — Owen returned to the profile and models refreshed, but whether it was re-paired by QR is unconfirmed | Owen, during A11 — **check this first next session** |
+| Comic Book theme | selected during A9; app icon unchanged | Owen — cosmetic, revert if unwanted |
+
+Services: nothing stopped or restarted by Claude in session 2 — the A11 restart step was verified
+unnecessary rather than performed. No background processes left running (the session-2
+`idevicesyslog` never attached, since the phone was not connected, and was cleaned up).
+
 ## Artifacts
 
 `handoffs/2026-07-25_device-pass-artifacts/` (gitignored):
@@ -454,6 +636,9 @@ Background processes: `idevicesyslog` **stopped and confirmed gone**. Nothing el
 - `A1-control-openAppWhenRun-failures.log` — all four control taps + the 2001 errors
 - `notification-authorization-and-deliveries.log` — the `NotDetermined` drops and every delivery
 - `crash-uncaught-exception.log` — the raw termination block
+- `make_oversize_pdf.py` — regenerates the A8 size fixture (valid 25.07 MiB single-page PDF)
+- `askparse.swift` — reproduces `handleDeeplink`'s `ask` parse; run with `xcrun swift` to check any
+  `hermes://ask?…` form before blaming the app
 
 The full 496 MB `idevicesyslog` capture was in the session scratchpad and is **not** preserved; the
 excerpts above carry everything cited here.
