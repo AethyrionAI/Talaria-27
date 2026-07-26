@@ -1,11 +1,12 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Sessions drawer (UI shell)
 //
-// Left slide-in panel listing chat sessions, per the "02 UPLINK · CHAT" design.
-// This is a presentation shell with a clean wiring seam: all data lives in
-// `SessionsDrawerModel` behind `// TODO: wire to Sessions API`, and user actions
-// surface through callbacks. No backend integration here.
+// Left slide-in panel listing chat sessions. The list surface itself is
+// `ConversationListPane` — the "2b" thumb-anchored shelf, shared verbatim with
+// the regular-width split-view sidebar (Lane J, J-8). Only the slide-in chrome
+// (width, gradient, edge highlight, backdrop, dismissal) is drawer-specific.
 
 // MARK: View model (wiring seam)
 
@@ -32,6 +33,11 @@ final class SessionsDrawerModel {
         var isPinned: Bool = false
         /// Optional mono badge, e.g. "AUTO · DAILY".
         var badge: String? = nil
+        /// Messages the host reported for this session. Drives the
+        /// empty-session filter: `fetchSessionList` already asks for
+        /// `?min_messages=1` and the gateway silently ignores it
+        /// (OPEN_ITEMS #187), so the rule has to live on this side.
+        var messageCount: Int = 0
     }
 
     // Wired to Hermes Sessions API — ChatScreen.refreshSessions() populates
@@ -54,10 +60,27 @@ final class SessionsDrawerModel {
     /// journal's durable flags.
     var journal: ConversationJournalStore? = nil
 
-    /// Header telemetry, e.g. "14 THREADS · 2 ACTIVE".
+    /// Mirrors `UserSettings.showEmptySessions`, wired by the pane. OFF (the
+    /// default) hides zero-message rows — see `grouped`.
+    var showEmptySessions = false
+
+    /// The rows the user can actually see, flattened. The header stat and any
+    /// count that claims to describe the shelf reads THIS, never `sessions` —
+    /// "14 THREADS" over 9 rows is the same class of lie the empty filter
+    /// exists to remove.
+    var visibleSessions: [SessionSummary] {
+        grouped().flatMap(\.items)
+    }
+
+    /// Header telemetry, e.g. "14 THREADS · 2 ACTIVE". At zero active the
+    /// clause is suppressed entirely rather than reading "0 ACTIVE" — the
+    /// stat is a sentence, and a sentence that reflows on every fetch is what
+    /// made the old header collide with its own chrome.
     var headerStat: String {
-        let active = sessions.filter(\.isActive).count
-        return "\(sessions.count) THREADS · \(active) ACTIVE"
+        let visible = visibleSessions
+        let threads = "\(visible.count) THREAD\(visible.count == 1 ? "" : "S")"
+        let active = visible.filter(\.isActive).count
+        return active > 0 ? "\(threads) · \(active) ACTIVE" : threads
     }
 
     /// Lane M (M-16): one entry per backend profile for the New Chat
@@ -85,38 +108,58 @@ final class SessionsDrawerModel {
     /// split-view sidebar uses this seam on mount instead.
     var onRefreshRequest: (() -> Void)? = nil
 
-    /// Sessions filtered by `searchText` and the pin/archive overlay (#97),
-    /// grouped and ordered for display.
+    /// Sessions filtered by `searchText`, the empty-session rule and the
+    /// pin/archive overlay (#97), grouped and ordered for display.
     func grouped() -> [(group: Group, items: [SessionSummary])] {
         Self.grouped(
             sessions: sessions,
             query: searchText,
             pinnedIDs: listState?.state.pinnedSessionIDs ?? [],
             archivedIDs: listState?.state.archivedSessionIDs ?? [],
-            showingArchived: showingArchived
+            showingArchived: showingArchived,
+            showEmptySessions: showEmptySessions
         )
     }
 
     /// The drawer's data-source rule, pure so tests can drive it directly:
     /// query filter (case/diacritic-insensitive, title + subtitle), then the
-    /// overlay — pinned rows float to the PINNED section regardless of their
-    /// recency group, with NO pin cap (ChatGPT caps at 3; we deliberately
-    /// don't); archived rows are hidden from the main list and shown alone
-    /// when `showingArchived` is on. Order within a section is the fetch
-    /// order (recency), untouched.
+    /// empty-session filter, then the overlay — pinned rows float to the
+    /// PINNED section regardless of their recency group, with NO pin cap
+    /// (ChatGPT caps at 3; we deliberately don't); archived rows are hidden
+    /// from the main list and shown alone when `showingArchived` is on. Order
+    /// within a section is the fetch order (recency), untouched.
+    ///
+    /// `showEmptySessions` defaults to `true` (no filtering) so callers that
+    /// have no user setting to consult — and every pre-existing test — keep
+    /// the historical behavior; the pane passes the real preference.
     static func grouped(
         sessions: [SessionSummary],
         query: String,
         pinnedIDs: Set<String>,
         archivedIDs: Set<String>,
-        showingArchived: Bool
+        showingArchived: Bool,
+        showEmptySessions: Bool = true
     ) -> [(group: Group, items: [SessionSummary])] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let filtered = trimmed.isEmpty
+        let matching = trimmed.isEmpty
             ? sessions
             : sessions.filter {
                 $0.title.localizedStandardContains(trimmed)
                     || $0.subtitle.localizedStandardContains(trimmed)
+            }
+
+        // #187: hide zero-message rows, with two exemptions. The ACTIVE
+        // session is not optional — tapping New Chat creates a zero-message
+        // session, and without this it would be invisible in the shelf that
+        // just opened and the current-row bar would have nothing to mark. A
+        // PINNED session is an explicit user act, which outranks a heuristic.
+        let filtered = showEmptySessions
+            ? matching
+            : matching.filter {
+                $0.messageCount > 0
+                    || $0.isActive
+                    || $0.isPinned
+                    || pinnedIDs.contains($0.id)
             }
 
         if showingArchived {
@@ -230,20 +273,40 @@ final class SessionsDrawerModel {
     static let placeholders: [SessionSummary] = [
         SessionSummary(id: "pin-briefing", title: "Morning Briefing",
                        subtitle: "Daily digest · weather, calendar, inbox",
-                       timeLabel: "7:00", group: .pinned, isPinned: true, badge: "AUTO · DAILY"),
+                       timeLabel: "7:00", group: .pinned, isPinned: true,
+                       badge: "AUTO · DAILY", messageCount: 12),
         SessionSummary(id: "today-resched", title: "Reschedule afternoon",
                        subtitle: "4 events moved · note to Sarah queued",
-                       timeLabel: "09:41", group: .today, isActive: true),
+                       timeLabel: "09:41", group: .today, isActive: true,
+                       messageCount: 8),
         SessionSummary(id: "today-invoice", title: "Invoice triage",
                        subtitle: "3 approved · 1 flagged for review",
-                       timeLabel: "08:12", group: .today),
+                       timeLabel: "08:12", group: .today, messageCount: 5),
         SessionSummary(id: "yday-tokyo", title: "Tokyo trip planning",
                        subtitle: "Flights + hotel shortlisted",
-                       timeLabel: "Tue", group: .yesterday),
+                       timeLabel: "Tue", group: .yesterday, messageCount: 22),
         SessionSummary(id: "yday-review", title: "Codebase review",
                        subtitle: "12 files · 3 diffs proposed",
-                       timeLabel: "Tue", group: .yesterday),
+                       timeLabel: "Tue", group: .yesterday, messageCount: 31),
     ]
+}
+
+// MARK: - Device safe area
+
+/// The drawer panel deliberately spans the whole screen so its gradient runs
+/// under the status bar and home indicator. That zeroes the insets SwiftUI
+/// would otherwise hand the pane, so the panel has to source the real device
+/// insets itself — see defect 01 (header collision): the old panel padded a
+/// flat `Spacing.xxl` (48pt) from the panel top and collided with a 59pt inset.
+@MainActor
+enum DeviceSafeArea {
+    static var current: EdgeInsets {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        guard let insets = scene?.keyWindow?.safeAreaInsets else { return EdgeInsets() }
+        return EdgeInsets(top: insets.top, leading: insets.left,
+                          bottom: insets.bottom, trailing: insets.right)
+    }
 }
 
 // MARK: Drawer view
@@ -256,7 +319,15 @@ struct SessionsDrawer: View {
     var hostDetail: String = "LINKED"
     var hostOnline: Bool = true
 
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @State private var deviceInsets = EdgeInsets()
+
     private let panelWidth: CGFloat = 320
+
+    private var reduceMotion: Bool {
+        systemReduceMotion || ThemeRuntime.shared.appReduceMotion
+    }
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -265,7 +336,7 @@ struct SessionsDrawer: View {
                     .transition(.opacity)
                 panel
                     .frame(width: panelWidth)
-                    .transition(.move(edge: .leading))
+                    .transition(panelTransition)
             }
         }
         .animation(Design.Motion.standard, value: isPresented)
@@ -275,7 +346,23 @@ struct SessionsDrawer: View {
             // starts on the main list. (Drawer-only semantics: the split-view
             // sidebar is persistent and keeps its filter state.)
             model.showingArchived = false
+            deviceInsets = DeviceSafeArea.current
         }
+        // Rotation changes the insets (portrait 59/34 → landscape 0/21+left).
+        // The size-class change is SwiftUI's own signal and needs none of
+        // UIDevice's orientation-notification bookkeeping to fire.
+        .onChange(of: verticalSizeClass) { _, _ in
+            deviceInsets = DeviceSafeArea.current
+        }
+    }
+
+    /// §5: Reduce Motion targets TRAVEL, not substitution. The panel stops
+    /// sliding in from the leading edge and cross-fades in place over the same
+    /// duration, on both channels — so the chat never disappears before the
+    /// panel has arrived. The chrome cross-fade itself (ChatScreen's toolbar)
+    /// is exactly the substitution the setting asks *for*, and stays.
+    private var panelTransition: AnyTransition {
+        reduceMotion ? .opacity : .move(edge: .leading)
     }
 
     // MARK: Backdrop
@@ -293,14 +380,15 @@ struct SessionsDrawer: View {
     private var panel: some View {
         // Lane J (J-8): the list surface is the shared ConversationListPane —
         // the SAME component the split-view sidebar embeds (extracted, not
-        // forked). Only the slide-in chrome (width, gradient, edge highlight,
-        // backdrop, dismissal) is drawer-specific.
+        // forked). Only the slide-in chrome is drawer-specific.
         ConversationListPane(
             model: model,
             hostName: hostName,
             hostDetail: hostDetail,
             hostOnline: hostOnline,
-            dismissHost: { isPresented = false }
+            dismissHost: { isPresented = false },
+            actionAnchor: .bottom,
+            safeAreaOverride: deviceInsets
         )
         .background(drawerBackground)
         .overlay(alignment: .leading) {
@@ -323,14 +411,22 @@ struct SessionsDrawer: View {
     }
 }
 
-// MARK: - Conversation list pane (Lane J, J-8)
+// MARK: - Conversation list pane (Lane J, J-8 · the 2b shelf)
 
-/// The conversation-list surface itself: header, inline filter, New Chat,
-/// grouped session list with pin/archive, archived filter row, host footer,
-/// and the full-corpus search sheet. Lane F built this as the drawer's
-/// panel; Lane J extracted it verbatim so the split-view sidebar and the
-/// drawer render ONE component — F's surfaces exist exactly once.
+/// The conversation-list surface itself: a 40pt telemetry header, a scrolling
+/// session list with soft scroll edges, and a thumb-anchored action dock
+/// carrying the four-up nav rail, the single search field, New, and the host
+/// footer.
+///
+/// One component, two anchors (§7): at regular width `actionAnchor` flips to
+/// `.top` and the SAME VStack emits the SAME elements in the other order —
+/// 2b *becomes* the top-anchored 2a variant. There is no second layout.
 struct ConversationListPane: View {
+
+    /// Where the action dock sits. Nil derives it from the horizontal size
+    /// class; explicit values exist for previews and tests.
+    enum ActionAnchor { case top, bottom }
+
     var model: SessionsDrawerModel
     /// Footer host status line (driven by the host screen).
     var hostName: String = "HERMES HOST"
@@ -341,6 +437,15 @@ struct ConversationListPane: View {
     /// close X (with Esc bound). Nil in the split-view sidebar, where the
     /// pane is a persistent column and nothing dismisses.
     var dismissHost: (() -> Void)? = nil
+    /// §7: the regular-width sidebar's ✕ is a *column* toggle, not a
+    /// dismissal — a separate seam because `dismissHost` also fires on every
+    /// row tap, which must never collapse the sidebar.
+    var collapseHost: (() -> Void)? = nil
+    var actionAnchor: ActionAnchor? = nil
+    /// Insets the panel must apply itself because its host ignores the safe
+    /// area (the drawer). Nil in the sidebar, where the split view insets the
+    /// column already.
+    var safeAreaOverride: EdgeInsets? = nil
 
     // #96/#97: the pane wires its own store seams (ChatScreen stays
     // untouched — Lane F constraint). Both are optional-tolerant: absent
@@ -348,32 +453,97 @@ struct ConversationListPane: View {
     // root; previews/tests drive the model directly instead.
     @Environment(AppContainer.self) private var container
     @Environment(ChatStore.self) private var chatStore
+    @Environment(SettingsStore.self) private var settingsStore
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     @State private var showSearch = false
+    /// The query handed to the full-corpus sheet by the SEARCH EVERYTHING row.
+    @State private var searchSeed = ""
+    @State private var scrolledFromTop = false
+    @State private var scrolledFromBottom = false
 
     // Lane J (J-9): ⌘K in regular width focuses the inline filter field.
     @FocusState private var filterFieldFocused: Bool
 
+    // MARK: Metrics
+    //
+    // §2's pt budget. The dock is what the thumb has memorised, so its own
+    // geometry is fixed — Dynamic Type grows the line boxes inside it, never
+    // the spacing around them.
+    private enum Metrics {
+        static let headerRow: CGFloat = 40
+        static let gapAboveList: CGFloat = 8
+        static let dockPad: CGFloat = 11        // + 1pt hairline = 12
+        static let rail: CGFloat = 44
+        static let dockGap: CGFloat = 10
+        static let footerPad: CGFloat = 7       // + 1pt hairline = 8
+        static let hostFooter: CGFloat = 52
+        static let topFade: CGFloat = 24
+        static let bottomFade: CGFloat = 28
+        static let currentBar: CGFloat = 3
+        static let textLeading: CGFloat = 12
+        static let newPillCollapsed: CGFloat = 56
+    }
+
+    /// VoiceOver traversal (§6). 2b deliberately breaks reading-order =
+    /// visual-order: the dock is at the bottom because that is where a thumb
+    /// is, and VoiceOver does not have a thumb. Higher priority reads first.
+    private enum Order {
+        static let header: Double = 70
+        static let search: Double = 60
+        static let newChat: Double = 50
+        static let list: Double = 40
+        static let rail: Double = 30
+        static let host: Double = 20
+        static let close: Double = 10
+    }
+
+    // MARK: Derived state
+
+    private var resolvedAnchor: ActionAnchor {
+        actionAnchor ?? (horizontalSizeClass == .regular ? .top : .bottom)
+    }
+
+    /// §2: opaque on compact (the drawer paints `drawerGradient` behind the
+    /// pane), transparent on regular so the window-spanning atmosphere shows
+    /// through both columns. Keyed off the drawer seam rather than the size
+    /// class — a NavigationSplitView column is free to report `.compact`, and
+    /// the question here is literally "did the drawer paint a gradient behind
+    /// me", which only the drawer knows.
+    private var isOpaquePanel: Bool { dismissHost != nil }
+
+    private var railDropsCaptions: Bool { dynamicTypeSize >= .xxLarge }
+    private var newCollapsesToIcon: Bool { dynamicTypeSize >= .xxLarge }
+    private var footerDropsStatusLine: Bool { dynamicTypeSize >= .accessibility1 }
+    private var searchRowHeight: CGFloat { dynamicTypeSize >= .xxLarge ? 54 : 48 }
+    private var groupHeaderHeight: CGFloat { dynamicTypeSize >= .xxLarge ? 30 : 26 }
+
+    private var fadeTopColor: Color {
+        isOpaquePanel ? Design.Colors.drawerEdgeTop : Design.Colors.background
+    }
+    private var fadeBottomColor: Color {
+        isOpaquePanel ? Design.Colors.drawerEdgeBottom : Design.Colors.background
+    }
+
+    // MARK: Body
+
     var body: some View {
         VStack(spacing: 0) {
             header
-            searchField
-                .padding(.horizontal, Design.Spacing.lg)
-            newChatButton
-                .padding(.horizontal, Design.Spacing.lg)
-                .padding(.top, Design.Spacing.sm)
-            sessionList
-            if model.archivedCount > 0 || model.showingArchived {
-                archivedFilterRow
-            }
-            tasksRow
-            skillsRow
-            insightsRow
-            footer
+            if resolvedAnchor == .top { dock }
+            listSurface
+            if resolvedAnchor == .bottom { dock }
         }
+        .padding(.top, safeAreaOverride?.top ?? 0)
+        .padding(.bottom, safeAreaOverride?.bottom ?? 0)
         .frame(maxHeight: .infinity, alignment: .top)
+        .accessibilityElement(children: .contain)
+        .accessibilityAction(.escape) { dismissHost?() }
         .onAppear {
             model.listState = container.conversationListState
             model.journal = chatStore.journal
+            model.showEmptySessions = settingsStore.settings.showEmptySessions
             // Sidebar context only: the drawer already refreshes on every
             // open via ChatScreen's onChange — no double fetch there.
             if dismissHost == nil {
@@ -385,6 +555,9 @@ struct ConversationListPane: View {
                 filterFieldFocused = true
             }
         }
+        .onChange(of: settingsStore.settings.showEmptySessions) { _, show in
+            model.showEmptySessions = show
+        }
         .onChange(of: model.searchFieldFocusRequested) { _, requested in
             guard requested, model.consumeSearchFieldFocusRequest() else { return }
             filterFieldFocused = true
@@ -392,158 +565,231 @@ struct ConversationListPane: View {
         .sheet(isPresented: $showSearch) {
             ConversationSearchScreen(
                 drawerModel: model,
+                initialQuery: searchSeed,
                 onDidSelect: { dismissHost?() }
             )
         }
     }
 
+    // MARK: Header (§01)
+
+    /// 40pt: telemetry and the ✕, nothing else. The old two-line wordmark
+    /// stack is gone — it is what pushed content into the safe-area inset.
     private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
-                Text("SESSIONS")
-                    .font(Design.Typography.display(22, weight: .semibold, relativeTo: .title2))
-                    .tracking(Design.Tracking.display)
-                    .foregroundStyle(Design.Colors.foregroundBright)
-                MonoLabel(model.headerStat, size: 10, tracking: Design.Tracking.monoWide)
-            }
-            Spacer()
-            // #96: full conversation search (local journal + fetched server
-            // sessions) — the inline field below only filters this list.
-            Button { showSearch = true } label: {
-                headerChipIcon("text.magnifyingglass")
-            }
-            .buttonStyle(.plain)
-            .hoverEffect(.highlight)
-            .accessibilityLabel("Search all conversations")
-            if let dismissHost {
-                Button { dismissHost() } label: {
-                    headerChipIcon("xmark")
-                }
+        HStack(spacing: Design.Spacing.xs) {
+            MonoLabel(model.headerStat, size: 10, tracking: Design.Tracking.monoWide,
+                      color: Design.Colors.secondaryForeground)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .accessibilityAddTraits(.isHeader)
+                .accessibilitySortPriority(Order.header)
+            Spacer(minLength: 0)
+            headerDismissButton
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .frame(height: Metrics.headerRow)
+        .padding(.bottom, Metrics.gapAboveList)
+        .overlay(alignment: .bottom) {
+            hairline.opacity(resolvedAnchor == .bottom && scrolledFromTop ? 1 : 0)
+        }
+    }
+
+    @ViewBuilder
+    private var headerDismissButton: some View {
+        if let dismissHost {
+            Button { dismissHost() } label: { headerGlyph("xmark") }
                 .buttonStyle(.plain)
                 // J-4: Esc closes the drawer overlay (hardware keyboards only).
                 .keyboardShortcut(.cancelAction)
                 .hoverEffect(.highlight)
                 .accessibilityLabel("Close sessions")
-            }
+                .accessibilitySortPriority(Order.close)
+        } else if let collapseHost {
+            // §7: in a column there is nothing to dismiss — Esc goes quiet and
+            // the glyph becomes the sidebar toggle.
+            Button { collapseHost() } label: { headerGlyph("sidebar.leading") }
+                .buttonStyle(.plain)
+                .hoverEffect(.highlight)
+                .accessibilityLabel("Hide sessions column")
+                .accessibilitySortPriority(Order.close)
         }
-        .padding(.horizontal, Design.Spacing.lg)
-        .padding(.top, Design.Spacing.xxl)
-        .padding(.bottom, Design.Spacing.md)
     }
 
-    private func headerChipIcon(_ systemName: String) -> some View {
+    private func headerGlyph(_ systemName: String) -> some View {
         Image(systemName: systemName)
             .font(.system(size: 14, weight: .medium))
             .foregroundStyle(Design.Colors.secondaryForeground)
-            .frame(width: 34, height: 34)
-            .background(Design.Colors.chipSurface, in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
-            .overlay {
-                RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                    .strokeBorder(Design.Colors.chipBorder, lineWidth: 1)
+            .frame(width: Design.Size.minTapTarget, height: Metrics.headerRow)
+            .contentShape(Rectangle())
+    }
+
+    // MARK: List surface (§05)
+
+    private var listSurface: some View {
+        sessionList
+            // The dock is a sibling, not an overlay (§2's budget), so the
+            // only thing the last row has to clear is the bottom fade.
+            .contentMargins(.bottom, Metrics.bottomFade, for: .scrollContent)
+            .onScrollGeometryChange(for: ScrollEdges.self) { geometry in
+                ScrollEdges(
+                    fromTop: geometry.contentOffset.y + geometry.contentInsets.top > 1,
+                    fromBottom: geometry.contentOffset.y + geometry.containerSize.height
+                        < geometry.contentSize.height + geometry.contentInsets.bottom - 1
+                )
+            } action: { _, edges in
+                scrolledFromTop = edges.fromTop
+                scrolledFromBottom = edges.fromBottom
             }
-    }
-
-    private var searchField: some View {
-        HStack(spacing: Design.Spacing.xs) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 13))
-                .foregroundStyle(Design.Colors.mutedForeground)
-            TextField("", text: Binding(get: { model.searchText }, set: { model.searchText = $0 }),
-                      prompt: Text("Search conversations…").foregroundStyle(Design.Colors.dimForeground))
-                .font(Design.Typography.body(13))
-                .foregroundStyle(Design.Colors.foreground)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                // J-9: ⌘K's focus target in regular width.
-                .focused($filterFieldFocused)
-            MonoLabel("⌘K", size: 9, color: Design.Brand.accent)
-                .padding(.horizontal, 6).padding(.vertical, 3)
-                .background(Design.Colors.accentTint(0.08), in: RoundedRectangle(cornerRadius: Design.CornerRadius.xs))
-        }
-        .padding(.horizontal, Design.Spacing.sm)
-        .frame(height: 42)
-        .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
-    }
-
-    private var newChatButton: some View {
-        GlowButton(title: "New Chat", systemImage: "plus", height: 46) {
-            model.newChat()
-            dismissHost?()
-        }
-        // M-16: with more than one backend profile, long-press offers "New
-        // chat on <profile>" — the session is born on that host, the default
-        // stays put. A single backend keeps the plain button.
-        .contextMenu {
-            if model.newChatProfiles.count > 1 {
-                ForEach(model.newChatProfiles) { option in
-                    Button {
-                        model.newChat(onProfile: option.id)
-                        dismissHost?()
-                    } label: {
-                        if option.id == model.activeNewChatProfileID {
-                            Label("New chat on \(option.name)", systemImage: "checkmark")
-                        } else {
-                            Text("New chat on \(option.name)")
-                        }
-                    }
-                }
+            .overlay(alignment: .top) {
+                edgeFade(colors: [fadeTopColor, fadeTopColor.opacity(0)],
+                         height: Metrics.topFade)
             }
-        }
+            .overlay(alignment: .bottom) {
+                edgeFade(colors: [fadeBottomColor.opacity(0), fadeBottomColor],
+                         height: Metrics.bottomFade)
+            }
+            .accessibilitySortPriority(Order.list)
     }
 
-    // A List (not the previous ScrollView) so rows get native swipe actions
-    // (#97). All chrome is stripped — clear backgrounds, hidden separators,
-    // row insets reproducing the old stack spacing — so the HUD panel rows
-    // render as before.
+    /// Scroll-edge state, read in one pass so both hairlines share a source.
+    private struct ScrollEdges: Equatable {
+        var fromTop: Bool
+        var fromBottom: Bool
+    }
+
+    private func edgeFade(colors: [Color], height: CGFloat) -> some View {
+        LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom)
+            .frame(height: height)
+            .allowsHitTesting(false)
+    }
+
+    // The list stays a `List` (not the ScrollView it replaced): #97's pin and
+    // archive ride `.swipeActions`, which exists nowhere else. All chrome is
+    // stripped — clear backgrounds, hidden separators — so the rows can carry
+    // their own hairlines inset to the text leading (§2: no card borders).
     private var sessionList: some View {
         List {
-            if model.showingArchived && model.grouped().isEmpty {
-                MonoLabel("NO ARCHIVED SESSIONS MATCH", size: 9,
-                          tracking: Design.Tracking.monoWide,
-                          color: Design.Colors.dimForeground)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(
-                        top: Design.Spacing.lg, leading: Design.Spacing.md,
-                        bottom: Design.Spacing.xs, trailing: Design.Spacing.md
-                    ))
-            }
             ForEach(model.grouped(), id: \.group.id) { entry in
-                MonoLabel(entry.group.rawValue, size: 9, tracking: Design.Tracking.monoXWide,
-                          color: Design.Colors.dimForeground)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(
-                        top: Design.Spacing.sm,
-                        leading: Design.Spacing.md + Design.Spacing.xxs,
-                        bottom: Design.Spacing.xxs,
-                        trailing: Design.Spacing.md
-                    ))
-                ForEach(entry.items) { item in
-                    SessionRow(summary: item) { model.selectSession(item); dismissHost?() }
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(
-                            top: Design.Spacing.xxs, leading: Design.Spacing.md,
-                            bottom: Design.Spacing.xxs, trailing: Design.Spacing.md
-                        ))
-                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                            pinAction(for: item)
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            archiveAction(for: item)
-                        }
-                        .contextMenu {
-                            pinAction(for: item)
-                            archiveAction(for: item)
-                        }
+                Section {
+                    ForEach(entry.items) { item in
+                        row(for: item)
+                    }
+                } header: {
+                    groupHeader(entry.group)
                 }
             }
+            if model.grouped().isEmpty {
+                emptyStateRow
+            }
+            searchEverythingRow
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .environment(\.defaultMinListRowHeight, 12)
+        .environment(\.defaultMinListRowHeight, 1)
+    }
+
+    private func row(for item: SessionsDrawerModel.SessionSummary) -> some View {
+        SessionRow(summary: item) {
+            model.selectSession(item)
+            dismissHost?()
+        }
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets(top: 0, leading: Design.Spacing.md,
+                                  bottom: 0, trailing: Design.Spacing.md))
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            pinAction(for: item)
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            archiveAction(for: item)
+        }
+        .contextMenu {
+            pinAction(for: item)
+            archiveAction(for: item)
+        }
+    }
+
+    private func groupHeader(_ group: SessionsDrawerModel.Group) -> some View {
+        MonoLabel(group.rawValue, size: 9, tracking: Design.Tracking.monoXWide,
+                  color: Design.Colors.dimForeground)
+            .padding(.leading, Metrics.currentBar + Metrics.textLeading)
+            .frame(height: groupHeaderHeight)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // Sticky headers scroll over live rows — without a backdrop the
+            // mono glyphs read on top of a title.
+            .background(fadeTopColor)
+            .listRowInsets(EdgeInsets(top: 0, leading: Design.Spacing.md,
+                                      bottom: 0, trailing: Design.Spacing.md))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    private var emptyStateRow: some View {
+        MonoLabel(emptyStateText, size: 9, tracking: Design.Tracking.monoWide,
+                  color: Design.Colors.dimForeground)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.vertical, Design.Spacing.lg)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 0, leading: Design.Spacing.md,
+                                      bottom: 0, trailing: Design.Spacing.md))
+    }
+
+    private var emptyStateText: String {
+        if model.showingArchived { return "No archived sessions match" }
+        if !model.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return "No sessions match"
+        }
+        return "No sessions yet"
+    }
+
+    /// §03: the single field filters as you type, and this row — always the
+    /// last one — is the ONLY route to the full-corpus screen. The header
+    /// chip that used to duplicate it is gone.
+    private var searchEverythingRow: some View {
+        Button {
+            searchSeed = model.searchText
+            showSearch = true
+        } label: {
+            HStack(spacing: Design.Spacing.xs) {
+                Image(systemName: "text.magnifyingglass")
+                    .font(.system(size: 12, weight: .medium))
+                MonoLabel(searchEverythingTitle, size: 9, weight: .medium,
+                          tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .medium))
+            }
+            .foregroundStyle(Design.Brand.accent)
+            .padding(.leading, Metrics.currentBar + Metrics.textLeading)
+            .frame(minHeight: 44)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .hoverEffect(.highlight)
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets(top: 0, leading: Design.Spacing.md,
+                                  bottom: 0, trailing: Design.Spacing.md))
+        .accessibilityLabel(searchEverythingAccessibilityLabel)
+    }
+
+    private var trimmedQuery: String {
+        model.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var searchEverythingTitle: String {
+        trimmedQuery.isEmpty ? "Search everything" : "Search everything for \"\(trimmedQuery)\""
+    }
+
+    private var searchEverythingAccessibilityLabel: String {
+        trimmedQuery.isEmpty
+            ? "Search everything"
+            : "Search everything for \(trimmedQuery)"
     }
 
     private func pinAction(for item: SessionsDrawerModel.SessionSummary) -> some View {
@@ -566,233 +812,381 @@ struct ConversationListPane: View {
         .tint(Design.Brand.forge)
     }
 
-    /// #97: the Archived filter row at the drawer bottom — enters the
-    /// archived-only view, and exits it. Hidden while nothing is archived.
-    private var archivedFilterRow: some View {
-        Button {
-            withAnimation(Design.Motion.standard) { model.showingArchived.toggle() }
-        } label: {
-            HStack(spacing: Design.Spacing.xs) {
-                Image(systemName: model.showingArchived ? "chevron.left" : "archivebox")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Design.Colors.secondaryForeground)
-                MonoLabel(model.showingArchived ? "BACK TO SESSIONS" : "ARCHIVED",
-                          size: 10, weight: .medium, tracking: Design.Tracking.mono,
-                          color: Design.Colors.secondaryForeground)
-                Spacer()
-                if !model.showingArchived {
-                    MonoLabel("\(model.archivedCount)", size: 10,
+    // MARK: Dock (§04, §2)
+
+    /// 184pt of controls the thumb has memorised. Emitted below the list at
+    /// compact width and above it at regular — same elements, other order.
+    private var dock: some View {
+        VStack(spacing: 0) {
+            if resolvedAnchor == .bottom {
+                hairline.opacity(scrolledFromBottom ? 1 : 0)
+                Spacer(minLength: 0).frame(height: Metrics.dockPad)
+            }
+            navRail
+                .padding(.horizontal, Design.Spacing.md)
+            Spacer(minLength: 0).frame(height: Metrics.dockGap)
+            searchAndNewRow
+                .padding(.horizontal, Design.Spacing.md)
+            Spacer(minLength: 0).frame(height: Metrics.dockGap)
+            hairline
+            Spacer(minLength: 0).frame(height: Metrics.footerPad)
+            hostFooter
+                .padding(.horizontal, Design.Spacing.md)
+            if resolvedAnchor == .top {
+                Spacer(minLength: 0).frame(height: Metrics.dockPad)
+                hairline.opacity(scrolledFromTop ? 1 : 0)
+            }
+        }
+    }
+
+    private var hairline: some View {
+        Rectangle()
+            .fill(Design.Colors.divider)
+            .frame(height: 1)
+    }
+
+    /// §04: four 40pt rows plus `hudPanel` chrome collapse into one 44pt
+    /// four-up rail. Every destination stays exactly one tap away.
+    private var navRail: some View {
+        HStack(spacing: 0) {
+            railItem(icon: "clock.arrow.2.circlepath", caption: "TASKS",
+                     label: "Scheduled tasks") {
+                container.router.navigate(to: .tasks)
+                dismissHost?()
+            }
+            railItem(icon: "sparkles", caption: "SKILLS", label: "Skills") {
+                container.router.navigate(to: .skills)
+                dismissHost?()
+            }
+            railItem(icon: "chart.bar.xaxis", caption: "INSIGHTS", label: "Insights") {
+                container.router.navigate(to: .insights)
+                dismissHost?()
+            }
+            railItem(icon: model.showingArchived ? "chevron.left" : "archivebox",
+                     caption: model.showingArchived ? "BACK" : "ARCHIVE",
+                     label: archiveAccessibilityLabel,
+                     isOn: model.showingArchived,
+                     showsPip: !model.showingArchived && model.archivedCount > 0) {
+                withAnimation(Design.Motion.standard) { model.showingArchived.toggle() }
+            }
+        }
+        .frame(height: Metrics.rail)
+        .accessibilitySortPriority(Order.rail)
+    }
+
+    private var archiveAccessibilityLabel: String {
+        if model.showingArchived { return "Back to sessions" }
+        let n = model.archivedCount
+        return "Archived, \(n) session\(n == 1 ? "" : "s")"
+    }
+
+    private func railItem(
+        icon: String,
+        caption: String,
+        label: String,
+        isOn: Bool = false,
+        showsPip: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: 2) {
+                Image(systemName: icon)
+                    .font(.system(size: railDropsCaptions ? 20 : 16, weight: .medium))
+                    .overlay(alignment: .topTrailing) {
+                        if showsPip {
+                            StatusPip(color: Design.Brand.accent, diameter: 5)
+                                .offset(x: 5, y: -2)
+                        }
+                    }
+                if !railDropsCaptions {
+                    // §6: the visible caption is decoration — the Button's own
+                    // label always reads the full word, so dropping the caption
+                    // at XXL changes nothing VoiceOver hears.
+                    MonoLabel(caption, size: 8, weight: .medium,
                               tracking: Design.Tracking.mono,
-                              color: Design.Colors.dimForeground)
+                              color: isOn ? Design.Brand.accent : Design.Colors.dimForeground)
+                        .accessibilityHidden(true)
                 }
             }
-            .padding(.horizontal, Design.Spacing.sm)
-            .frame(height: 40)
+            .foregroundStyle(isOn ? Design.Brand.accent : Design.Colors.secondaryForeground)
+            .frame(maxWidth: .infinity)
+            .frame(height: Metrics.rail)
             .contentShape(Rectangle())
-            .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
         }
         .buttonStyle(.plain)
         .hoverEffect(.highlight)
-        .padding(.horizontal, Design.Spacing.md)
-        .padding(.top, Design.Spacing.xs)
-        .accessibilityLabel(model.showingArchived
-            ? "Back to sessions"
-            : "Archived, \(model.archivedCount) session\(model.archivedCount == 1 ? "" : "s")")
+        .accessibilityLabel(label)
     }
 
-    /// #156a: entry to the agent's scheduled jobs — the drawer is the app's
-    /// navigation home, and future agent surfaces (156b skills) can join it.
-    private var tasksRow: some View {
+    private var searchAndNewRow: some View {
+        HStack(spacing: 6) {
+            searchField
+            newChatButton
+        }
+        .frame(height: searchRowHeight)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: Design.Spacing.xs) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 13))
+                .foregroundStyle(Design.Colors.mutedForeground)
+            TextField(
+                "",
+                text: Binding(get: { model.searchText }, set: { model.searchText = $0 }),
+                prompt: Text("Filter sessions…").foregroundStyle(Design.Colors.dimForeground)
+            )
+            .font(Design.Typography.body(13))
+            .foregroundStyle(Design.Colors.foreground)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityLabel("Filter sessions")
+            .submitLabel(.search)
+            .onSubmit {
+                searchSeed = model.searchText
+                showSearch = true
+            }
+            // J-9: ⌘K's focus target in regular width.
+            .focused($filterFieldFocused)
+            if !model.searchText.isEmpty {
+                Button { model.searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Design.Colors.mutedForeground)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear filter")
+            } else if horizontalSizeClass == .regular {
+                MonoLabel("⌘K", size: 9, color: Design.Brand.accent)
+                    .padding(.horizontal, 6).padding(.vertical, 3)
+                    .background(Design.Colors.accentTint(0.08),
+                                in: RoundedRectangle(cornerRadius: Design.CornerRadius.xs))
+                    .accessibilityHidden(true)
+            }
+        }
+        .padding(.horizontal, Design.Spacing.sm)
+        .frame(maxWidth: .infinity)
+        .frame(height: searchRowHeight)
+        .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
+        .accessibilitySortPriority(Order.search)
+    }
+
+    /// §2: a 1.5pt full-strength accent border and an `accentBright` label —
+    /// deliberately NOT a solid fill. Solid accent is the live-state
+    /// signifier; a permanently-lit slab of it devalues the current-row bar.
+    private var newChatButton: some View {
         Button {
-            container.router.navigate(to: .tasks)
+            model.newChat()
             dismissHost?()
         } label: {
-            HStack(spacing: Design.Spacing.xs) {
-                Image(systemName: "clock.arrow.2.circlepath")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Design.Colors.secondaryForeground)
-                MonoLabel("SCHEDULED TASKS", size: 10, weight: .medium,
-                          tracking: Design.Tracking.mono,
-                          color: Design.Colors.secondaryForeground)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Design.Colors.dimForeground)
+            HStack(spacing: 5) {
+                Image(systemName: "plus")
+                    .font(.system(size: newCollapsesToIcon ? 17 : 13, weight: .semibold))
+                if !newCollapsesToIcon {
+                    Text("NEW")
+                        .font(Design.Typography.display(13, weight: .semibold, relativeTo: .headline))
+                        .tracking(Design.Tracking.button)
+                }
             }
-            .padding(.horizontal, Design.Spacing.sm)
-            .frame(height: 40)
+            .foregroundStyle(Design.Brand.accentBright)
+            .padding(.horizontal, newCollapsesToIcon ? 0 : Design.Spacing.sm)
+            .frame(minWidth: Metrics.newPillCollapsed)
+            .frame(height: searchRowHeight)
             .contentShape(Rectangle())
-            .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
+            .overlay {
+                RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                    .strokeBorder(Design.Brand.accent, lineWidth: 1.5)
+            }
         }
         .buttonStyle(.plain)
         .hoverEffect(.highlight)
-        .padding(.horizontal, Design.Spacing.md)
-        .padding(.top, Design.Spacing.xs)
-        .accessibilityLabel("Scheduled tasks")
-    }
-
-    /// #156b: entry to the installed-skills browser — unconditional like
-    /// tasksRow; the screen owns its not-configured state.
-    private var skillsRow: some View {
-        Button {
-            container.router.navigate(to: .skills)
-            dismissHost?()
-        } label: {
-            HStack(spacing: Design.Spacing.xs) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Design.Colors.secondaryForeground)
-                MonoLabel("SKILLS", size: 10, weight: .medium,
-                          tracking: Design.Tracking.mono,
-                          color: Design.Colors.secondaryForeground)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Design.Colors.dimForeground)
+        // M-16: with more than one backend profile, long-press offers "New
+        // chat on <profile>" — the session is born on that host, the default
+        // stays put. A single backend keeps the plain button.
+        .contextMenu {
+            if model.newChatProfiles.count > 1 {
+                ForEach(model.newChatProfiles) { option in
+                    Button {
+                        model.newChat(onProfile: option.id)
+                        dismissHost?()
+                    } label: {
+                        if option.id == model.activeNewChatProfileID {
+                            Label("New chat on \(option.name)", systemImage: "checkmark")
+                        } else {
+                            Text("New chat on \(option.name)")
+                        }
+                    }
+                }
             }
-            .padding(.horizontal, Design.Spacing.sm)
-            .frame(height: 40)
-            .contentShape(Rectangle())
-            .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
         }
-        .buttonStyle(.plain)
-        .hoverEffect(.highlight)
-        .padding(.horizontal, Design.Spacing.md)
-        .padding(.top, Design.Spacing.xs)
-        .accessibilityLabel("Skills")
+        .accessibilityLabel("New chat")
+        .accessibilitySortPriority(Order.newChat)
     }
 
-    /// #156d: entry to the usage/cost panel — unconditional like the other
-    /// agent surfaces; the screen owns its not-configured state.
-    private var insightsRow: some View {
-        Button {
-            container.router.navigate(to: .insights)
-            dismissHost?()
-        } label: {
-            HStack(spacing: Design.Spacing.xs) {
-                Image(systemName: "chart.bar.xaxis")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Design.Colors.secondaryForeground)
-                MonoLabel("INSIGHTS", size: 10, weight: .medium,
-                          tracking: Design.Tracking.mono,
-                          color: Design.Colors.secondaryForeground)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Design.Colors.dimForeground)
-            }
-            .padding(.horizontal, Design.Spacing.sm)
-            .frame(height: 40)
-            .contentShape(Rectangle())
-            .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
-        }
-        .buttonStyle(.plain)
-        .hoverEffect(.highlight)
-        .padding(.horizontal, Design.Spacing.md)
-        .padding(.top, Design.Spacing.xs)
-        .accessibilityLabel("Insights")
-    }
-
-    private var footer: some View {
+    /// §06: a fixed 52pt box that never reflows. The hostname degrades from
+    /// the MIDDLE — `OWENS-MAC-….LOCAL` keeps both the machine and the
+    /// `.local` suffix, where tail truncation would eat the suffix outright.
+    private var hostFooter: some View {
         HStack(spacing: Design.Spacing.xs) {
             StatusPip(color: hostOnline ? Design.Brand.accent : Design.Brand.forge, diameter: 8)
+                // §4 at AX1 the status LINE leaves the footer; the pip is what
+                // carries the state from then on, so it stops being decoration.
+                .accessibilityHidden(!footerDropsStatusLine)
+                .accessibilityLabel("Host status")
+                .accessibilityValue(hostDetail)
             VStack(alignment: .leading, spacing: 2) {
-                MonoLabel(hostName, size: 11, weight: .medium, tracking: Design.Tracking.mono,
+                MonoLabel(hostName, size: 11, weight: .medium,
+                          tracking: Design.Tracking.mono,
                           color: Design.Colors.coolForeground)
-                MonoLabel(hostDetail, size: 9, tracking: Design.Tracking.mono)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .truncationMode(.middle)
+                    .allowsTightening(false)
+                if !footerDropsStatusLine {
+                    MonoLabel(hostDetail, size: 9, tracking: Design.Tracking.mono)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                        .truncationMode(.tail)
+                }
             }
-            Spacer()
-            Button { model.onOpenHostSettings?(); dismissHost?() } label: {
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                model.onOpenHostSettings?()
+                dismissHost?()
+            } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 13))
                     .foregroundStyle(Design.Brand.accent)
                     .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
             .hoverEffect(.highlight)
             .accessibilityLabel("Host settings")
         }
-        .padding(.horizontal, Design.Spacing.sm)
-        .padding(.vertical, Design.Spacing.sm)
-        .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
-        .padding(.horizontal, Design.Spacing.md)
-        .padding(.top, Design.Spacing.sm)
-        .padding(.bottom, Design.Spacing.xl)
+        .frame(height: Metrics.hostFooter)
+        .accessibilitySortPriority(Order.host)
     }
 }
 
 // MARK: - Session row
 
+/// A bare row on a hairline — no card, no border, no fill. The current row is
+/// marked by THREE signals, none of them lightness-of-fill: a 3pt accent bar
+/// in a gutter every row reserves, the title stepping to `foregroundBright` at
+/// medium weight, and the timestamp moving to the accent. `accentTint(.12)`
+/// sits inside the drawer gradient's own range on Deep Field and does not
+/// carry, which is why fill is not one of them.
 private struct SessionRow: View {
     let summary: SessionsDrawerModel.SessionSummary
     let action: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var hasSubtitle: Bool { !summary.subtitle.isEmpty }
+
+    /// §4: rows grow, never reflow. `lineLimit(1)` is absolute at every size,
+    /// so growth is the line boxes only.
+    private var minimumHeight: CGFloat {
+        let grown = dynamicTypeSize >= .xxLarge
+        if hasSubtitle { return grown ? 62 : 52 }
+        return grown ? 45 : 40
+    }
+
     var body: some View {
         Button(action: action) {
-            HStack(alignment: .top, spacing: Design.Spacing.sm) {
-                leadingGlyph
+            HStack(spacing: 0) {
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(summary.isActive ? Design.Brand.accent : .clear)
+                    .frame(width: 3)
+                    .padding(.vertical, 8)
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack {
-                        Text(summary.title)
-                            .font(Design.Typography.body(14, weight: summary.isActive ? .medium : .regular))
-                            .foregroundStyle(summary.isActive ? Design.Colors.foregroundBright : Design.Colors.foreground)
-                            .lineLimit(1)
-                        Spacer()
-                        MonoLabel(summary.timeLabel, size: 9,
-                                  color: summary.isActive ? Design.Brand.accent : Design.Colors.dimForeground)
-                    }
-                    Text(summary.subtitle)
-                        .font(Design.Typography.body(12))
-                        .foregroundStyle(summary.isActive ? Design.Colors.coolForeground : Design.Colors.secondaryForeground)
-                        .lineLimit(1)
-                    if summary.isActive {
-                        badge("● CURRENT", color: Design.Brand.accent, tint: 0.14)
-                    } else if let badge = summary.badge {
-                        self.badge(badge, color: Design.Colors.secondaryForeground, tint: 0.06, neutral: true)
-                    }
+                    titleLine
+                    if hasSubtitle { subtitleLine }
                 }
+                .padding(.leading, 12)
             }
-            .padding(Design.Spacing.sm)
+            .padding(.vertical, 8)
+            .frame(minHeight: minimumHeight)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .hudPanel(
-                cornerRadius: Design.CornerRadius.md,
-                borderColor: summary.isActive ? Design.Colors.accentTint(0.4) : Design.Colors.divider,
-                fill: summary.isActive ? Design.Colors.accentTint(0.1) : Design.Colors.surface
-            )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         // Lane J (J-5): pointer affordance on iPad — inert without a pointer.
         .hoverEffect(.highlight)
-        .accessibilityLabel("\(summary.title), \(summary.subtitle)\(summary.isActive ? ", current session" : "")")
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Design.Colors.divider)
+                .frame(height: 1)
+                // §2: hairlines inset to the text leading, not the row edge.
+                .padding(.leading, 15)
+        }
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(summary.isActive ? [.isButton, .isSelected] : .isButton)
     }
 
-    @ViewBuilder
-    private var leadingGlyph: some View {
-        if summary.isActive {
-            StatusPip(color: Design.Brand.accent, diameter: 7).padding(.top, 5)
-        } else if summary.isPinned {
-            Image(systemName: "diamond.fill")
-                .font(.system(size: 9))
-                .foregroundStyle(Design.Brand.accent)
-                .padding(.top, 3)
-        } else {
-            Image(systemName: "hexagon")
-                .font(.system(size: 10))
-                .foregroundStyle(Design.Colors.mutedForeground)
-                .padding(.top, 3)
+    private var titleLine: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Design.Spacing.xs) {
+            Text(summary.title)
+                .font(Design.Typography.body(14, weight: summary.isActive ? .medium : .regular))
+                .foregroundStyle(summary.isActive
+                                 ? Design.Colors.foregroundBright
+                                 : Design.Colors.foreground)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .modifier(TrailingFade())
+            MonoLabel(summary.timeLabel, size: 9,
+                      color: summary.isActive ? Design.Brand.accent : Design.Colors.dimForeground)
+                .lineLimit(1)
+                .fixedSize()
         }
     }
 
-    private func badge(_ text: String, color: Color, tint: Double, neutral: Bool = false) -> some View {
-        MonoLabel(text, size: 8, tracking: Design.Tracking.mono, color: color)
-            .padding(.horizontal, 6).padding(.vertical, 2)
-            .background(
-                (neutral ? Design.Colors.chipSurface : Design.Colors.accentTint(tint)),
-                in: RoundedRectangle(cornerRadius: Design.CornerRadius.xs)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: Design.CornerRadius.xs)
-                    .strokeBorder(neutral ? Design.Colors.chipBorder : Design.Colors.accentTint(0.4), lineWidth: 1)
+    private var subtitleLine: some View {
+        HStack(spacing: Design.Spacing.xs) {
+            Text(summary.subtitle)
+                .font(Design.Typography.body(12))
+                .foregroundStyle(summary.isActive
+                                 ? Design.Colors.coolForeground
+                                 : Design.Colors.secondaryForeground)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .modifier(TrailingFade())
+            if let badge = summary.badge {
+                MonoLabel(badge, size: 8, tracking: Design.Tracking.mono,
+                          color: Design.Colors.dimForeground)
+                    .lineLimit(1)
+                    .fixedSize()
             }
-            .padding(.top, 4)
+        }
+    }
+
+    /// §6: one element per row, and the current row is a TRAIT (`.isSelected`),
+    /// never a shape VoiceOver has to infer.
+    private var accessibilityLabel: String {
+        var parts = [summary.title]
+        if hasSubtitle { parts.append(summary.subtitle) }
+        parts.append(summary.timeLabel)
+        return parts.joined(separator: ", ")
+    }
+}
+
+// MARK: - Horizontal fade (§05)
+
+/// The same fade language the scroll edges use, run horizontally: text that
+/// reaches the trailing edge dissolves instead of stopping on a hard cut.
+/// Applied to a full-width frame, so a short string never touches it.
+private struct TrailingFade: ViewModifier {
+    var width: CGFloat = 16
+
+    func body(content: Content) -> some View {
+        content.mask {
+            HStack(spacing: 0) {
+                Rectangle().fill(.black)
+                LinearGradient(colors: [.black, .clear],
+                               startPoint: .leading, endPoint: .trailing)
+                    .frame(width: width)
+            }
+        }
     }
 }
