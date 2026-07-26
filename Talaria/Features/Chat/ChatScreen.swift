@@ -48,6 +48,9 @@ struct ChatScreen: View {
     @Binding var messageText: String
     @Binding var pendingAttachments: [PendingAttachment]
     let sessionsModel: SessionsDrawerModel
+    /// #18: the drawer is hosted by MainTabView, above the whole navigation
+    /// stack — this screen only opens and closes it.
+    @Binding var sessionsOpen: Bool
     /// False in the regular split layout, where MainTabView draws ONE
     /// atmosphere spanning the whole window behind both columns (J-9).
     var showsAtmosphere: Bool = true
@@ -59,12 +62,14 @@ struct ChatScreen: View {
         messageText: Binding<String>,
         pendingAttachments: Binding<[PendingAttachment]>,
         sessionsModel: SessionsDrawerModel,
+        sessionsOpen: Binding<Bool> = .constant(false),
         showsAtmosphere: Bool = true,
         onConversationSearchShortcut: (() -> Void)? = nil
     ) {
         self._messageText = messageText
         self._pendingAttachments = pendingAttachments
         self.sessionsModel = sessionsModel
+        self._sessionsOpen = sessionsOpen
         self.showsAtmosphere = showsAtmosphere
         self.onConversationSearchShortcut = onConversationSearchShortcut
     }
@@ -84,7 +89,6 @@ struct ChatScreen: View {
     @State private var showExportShareSheet = false
 
     // HUD shells (presentation only — see SessionsDrawer / ModelSelector).
-    @State private var sessionsOpen = false
     @State private var modelModel = ModelSelectorModel()
 
     // Lane J (J-4): ⌘K presents the Lane F search screen directly from the
@@ -196,35 +200,13 @@ struct ChatScreen: View {
         }
     }
 
-    private var sessionsOverlay: some View {
-        SessionsDrawer(
-            isPresented: $sessionsOpen,
-            model: sessionsModel,
-            hostName: (hostStore.currentHost?.resolvedDisplayName ?? "HERMES HOST"),
-            hostDetail: sessionsHostDetail,
-            hostOnline: isChatHostOnline
-        )
-    }
-
     private var framedContent: some View {
+        // #18: the drawer used to hang off this view as an `.overlay`, which
+        // put it UNDER the navigation toolbar's layer. It is now a sibling of
+        // the whole navigation stack in MainTabView; this screen only opens
+        // and closes it. Crossing into regular width stops rendering it there
+        // structurally, so the old stale-flag reset is gone with it.
         mainStack
-            .overlay {
-                // J-8: the drawer is the COMPACT list surface; regular width
-                // has the persistent sidebar instead.
-                if sessionsOpen && horizontalSizeClass != .regular {
-                    sessionsOverlay
-                }
-            }
-            .onChange(of: horizontalSizeClass) { _, newClass in
-                // Crossing into regular (Stage Manager drag) with the drawer
-                // open: the sidebar takes over — don't leave a stale overlay
-                // flag that would pop the drawer back on the return trip.
-                if newClass == .regular { sessionsOpen = false }
-            }
-            // Animate the outer conditional so the drawer's move/opacity
-            // transitions play on close too — closes were previously
-            // torn down unanimated, so the panel popped instead of sliding (#42).
-            .animation(Design.Motion.standard, value: sessionsOpen)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
             .toolbarBackground(.hidden, for: .navigationBar)
@@ -516,11 +498,22 @@ struct ChatScreen: View {
         let f = DateFormatter(); f.dateFormat = "M/d"; return f
     }()
 
-    private var sessionsHostDetail: String {
-        ChatConnectionPresentation.sessionsHostDetail(effectiveConnectionState)
-    }
-
     // MARK: - Toolbar
+
+    /// #18's root cause, still live: SwiftUI's navigation toolbar renders
+    /// ABOVE `.overlay` content, so the drawer cannot cover it. Opacity on the
+    /// item's own view is not enough — on iOS 26+ the system draws each item's
+    /// glass capsule OUTSIDE that view, so fading the content leaves an empty
+    /// capsule floating over the panel. `sharedBackgroundVisibility` is what
+    /// takes the material; the two have to travel together.
+    ///
+    /// Preferred over hiding the whole bar: `.toolbar(.hidden, for:
+    /// .navigationBar)` would also drop the bar's height from the safe area
+    /// and slide the chat up behind the panel — visible in the peek sliver
+    /// while open, and a jump on close.
+    private var toolbarBackgroundVisibility: Visibility {
+        sessionsOpen ? .hidden : .automatic
+    }
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
@@ -541,11 +534,13 @@ struct ChatScreen: View {
                 .accessibilityLabel("Sessions")
                 .chatChromeSuppressed(sessionsOpen)
             }
+            .sharedBackgroundVisibility(toolbarBackgroundVisibility)
         }
         ToolbarItem(placement: .principal) {
             ModelSelector(model: modelModel, isOnline: isChatHostOnline)
                 .chatChromeSuppressed(sessionsOpen)
         }
+        .sharedBackgroundVisibility(toolbarBackgroundVisibility)
         ToolbarItem(placement: .topBarTrailing) {
             // #45: first reachable entry to the agent→phone Inbox. The pip is
             // real data — it appears only when unread items actually exist.
@@ -561,12 +556,14 @@ struct ChatScreen: View {
             }
             .chatChromeSuppressed(sessionsOpen)
         }
+        .sharedBackgroundVisibility(toolbarBackgroundVisibility)
         ToolbarItem(placement: .topBarTrailing) {
             GlassCircleButton(icon: "gearshape", accessibilityLabel: "Open settings") {
                 router.presentSheet(.settings)
             }
             .chatChromeSuppressed(sessionsOpen)
         }
+        .sharedBackgroundVisibility(toolbarBackgroundVisibility)
     }
 
     private var inboxAccessibilityLabel: String {
