@@ -323,23 +323,39 @@ struct SessionsDrawer: View {
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var deviceInsets = EdgeInsets()
 
-    private let panelWidth: CGFloat = 320
+    /// What the panel leaves behind: enough chat to read as a layer over the
+    /// conversation rather than a floating card, and no more. A fixed 320pt
+    /// panel left 73pt of unusable chat on a 393pt phone and grew worse on a
+    /// Pro Max — the sliver is the design intent, so it is what stays fixed.
+    private static let peekSliver: CGFloat = 32
+    /// Compact width is not always a phone (Stage Manager, Slide Over). Past
+    /// this the shelf stops being a shelf and becomes a page.
+    private static let maxPanelWidth: CGFloat = 480
+    private static let fallbackPanelWidth: CGFloat = 320
 
     private var reduceMotion: Bool {
         systemReduceMotion || ThemeRuntime.shared.appReduceMotion
     }
 
+    private func panelWidth(in available: CGFloat) -> CGFloat {
+        guard available > Self.peekSliver else { return Self.fallbackPanelWidth }
+        return min(available - Self.peekSliver, Self.maxPanelWidth)
+    }
+
     var body: some View {
-        ZStack(alignment: .leading) {
-            if isPresented {
-                backdrop
-                    .transition(.opacity)
-                panel
-                    .frame(width: panelWidth)
-                    .transition(panelTransition)
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                if isPresented {
+                    backdrop
+                        .transition(.opacity)
+                    panel
+                        .frame(width: panelWidth(in: proxy.size.width))
+                        .transition(panelTransition)
+                }
             }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .animation(Design.Motion.standard, value: isPresented)
         }
-        .animation(Design.Motion.standard, value: isPresented)
         .ignoresSafeArea()
         .onAppear {
             // The Archived filter is a transient view — every drawer open
