@@ -108,6 +108,18 @@ enum Design {
             )
         }
 
+        /// The end colours of `drawerGradient`. Scroll-edge fades have to
+        /// dissolve into the panel they sit on, not into an arbitrary flat
+        /// fill — a fade to `background` reads as a band on any theme whose
+        /// drawer stops differ from it.
+        @MainActor static var drawerEdgeTop: Color {
+            ThemeRuntime.shared.palette.drawerColors.first ?? background
+        }
+
+        @MainActor static var drawerEdgeBottom: Color {
+            ThemeRuntime.shared.palette.drawerColors.last ?? background
+        }
+
         // --- Screen background gradient ----------------------------------
         /// Screen radial gradient (Deep Field:
         /// `radial(120% 70% at 50% -8%, #0c2730 → #070d15 → #04070c)`).
