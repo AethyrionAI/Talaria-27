@@ -7957,4 +7957,19 @@ two-line session rows with subtitles are backed by live data, not invented.
 device-local overlay via `ConversationListStateStore`. DELETE and PATCH exist if a
 future lane wants host-side removal or retitling.
 
+**Update 2026-07-26 — option (1) shipped; this item now owns only the gateway half.**
+The client-side filter landed with the 2b sessions shelf. `SessionSummary` gained
+`messageCount` (the drawer's view model never carried it — only `HermesSessionInfo`
+did), and `SessionsDrawerModel.grouped` drops `messageCount == 0` rows with two
+exemptions: the **active** session — non-negotiable, since New Chat creates a
+zero-message session that would otherwise be invisible in the shelf that just opened —
+and any **pinned** session, because an explicit user act outranks a heuristic. The
+header stat and the ⌘1…⌘9 jump ordinals both read the filtered list, so neither can
+claim a count the shelf does not show. `UserSettings.showEmptySessions` (default OFF)
+is the escape hatch, in Settings → Sessions → Shelf.
+
+`min_messages=1` **stays on the request** — deliberately. It is harmless, and dropping
+it belongs to option (2) below, which is still open: the gateway should either honor
+the parameter or the client should stop implying a contract that is not kept.
+
 Logged 2026-07-26.
