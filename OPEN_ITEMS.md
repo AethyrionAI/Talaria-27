@@ -1875,7 +1875,20 @@ Logged 2026-07-06.
 
 ---
 
-## 58. 🔧 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — app-group handoff BUILT 2026-07-24 (option (a)); device verify owed
+## 58. 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — app-group handoff BUILT 2026-07-24 (option (a)); controls DEAD on device 2026-07-25
+
+> **DEVICE PASS 2026-07-25 — controls are 100% dead.** Every tap fails ~6–11 ms in
+> with the OS naming the reason: `openAppWhenRun is not supported in extensions`
+> (Code 2001). `perform()` has never executed, so the app-group handoff built here
+> has never been exercised end to end.
+>
+> `HermesControlsTests.swift:28` asserts `openAppWhenRun == true` — a static
+> constant the OS rejects at dispatch — so the suite is green on a control with
+> zero live executions. The test pins the declaration, not the behavior.
+>
+> Candidate fix: `allowedExecutionTargets = .main` plus `supportedModes`, both
+> available at our deployment target. Adopting it would likely make the
+> `ControlHandoffStore` app-group indirection unnecessary.
 
 <!-- Header was "Ask-control wiring FIXED (PR #100, 2026-07-16)" until 2026-07-24. The spike below
      established that #100 fixed something that was never the cause, so that heading read as done
@@ -3404,7 +3417,14 @@ Logged 2026-07-09.
 
 ---
 
-## 85. 🔧 hermes_delegate MCP path — advertising gated + URL normalized (built in cloud; OJAMD deploy owed)
+## 85. ✅ hermes_delegate MCP path — advertising gated + URL normalized — RESOLVED (deployed on OJAMD; verified live 2026-07-25)
+
+> **CORRECTION 2026-07-25 (OJAMD server pass).** The "OJAMD deploy owed" note was
+> stale. The change is deployed and running. Verified against the live checkout at
+> `O:\Hermes\Talaria` on the box — not against a document snapshot: all four
+> markers present at their named sites, and the source mtimes (2026-07-20
+> 23:19:37) predate the relay service start (2026-07-24 21:53:26), so the running
+> process demonstrably loaded this code. No deploy session is owed.
 
 **Found 2026-07-08 (OJAMD logs), built 2026-07-09** (cloud session, branch
 `claude/t27-85-mcp-path`). Every voice session logged `mcp_list_tools.failed`: the relay
@@ -3436,7 +3456,21 @@ Logged 2026-07-09.
 
 ---
 
-## 86. 🔧 Relay QueuePool exhaustion — session-across-await audit + pool hygiene (built in cloud; OJAMD deploy owed)
+## 86. 🔧 Relay QueuePool exhaustion — session-across-await audit + pool hygiene — DEPLOYED on OJAMD (verified 2026-07-25); pool ceiling untouched
+
+> **CORRECTION 2026-07-25 (OJAMD server pass).** "OJAMD deploy owed" was stale.
+> `pool_pre_ping` and `pool_recycle` are deployed and live, verified the same way
+> as #85 (markers present at named sites; source mtime predates service start).
+>
+> **Scope annotation.** What shipped fixes connection *staleness*. It does not
+> raise the ceiling: `pool_size` (5) and `max_overflow` (10) are still at their
+> defaults, and the ceiling is what the original `QueuePool limit` error names.
+> Deliberately NOT split into a new item — both tracebacks in `relay.log` name
+> `main.py:1999 in hosts_websocket`, but line 1999 of the deployed `main.py` sits
+> inside `send_push` and `hosts_websocket` begins at 2341, so those tracebacks
+> were emitted by an earlier file and predate the running code. There is no
+> evidence the ceiling has been reached since the deploy. Trigger for opening a
+> real item: a fresh traceback whose frames match deployed line numbers.
 
 **Found 2026-07-08 (OJAMD logs: `QueuePool limit of size 5 overflow 10 reached`, 2×), built
 2026-07-09** (cloud session, branch `claude/t27-86-relay-pool`). Root cause: FastAPI's
@@ -4191,7 +4225,24 @@ Logged 2026-07-12 (dispatch-prep session).
 
 **2026-07-13 follow-up (`48770cd`):** icon picker was a silent no-op on iPad — iPadOS reads `CFBundleIcons~ipad` exclusively for alternate-icon support and we only declared the base key (iPhone unaffected). Fixed via YAML anchor/alias in `project.yml` so both keys stay byte-identical with a single edit point. **Shelley's iPad icon-picker check rides her next install.**
 
-## 113. 🔧 Connector supervision — cloud half MERGED (PR #113, 2026-07-18); watchdog INSTALL + forensics owed (Owen/OJAMD)
+## 113. ✅ Connector supervision — cloud half MERGED (PR #113, 2026-07-18) — CLOSED 2026-07-25; duplicate-connector premise refuted on the box. Successor: #188
+
+> **CLOSED 2026-07-25 (OJAMD server pass).** Both premises below are refuted by
+> direct observation on OJAMD.
+>
+> - **There are no duplicate connectors.** The "two live instances under DIFFERENT
+>   interpreters" candidate describes normal health: one connector is three
+>   processes in a single parent chain, all created in the same second, because
+>   the venv `python.exe` trampolines to the uv-managed cpython. The enforcer
+>   matches on `CommandLine`, catches all three, and held at exactly 1 across four
+>   relay restarts.
+> - **The "8,405 lines / 580 RESTART" figures came from a rotated log**, not from
+>   current state. The four watchdog restarts on record all fall inside the single
+>   2026-07-24 relay outage.
+>
+> The one real half — the watchdog cannot distinguish relay-down from
+> connector-down — is documented in the script's own `.NOTES` and continues as
+> **#188**.
 
 **2026-07-23 — WATCHDOG LEG CLOSED; the real gap is somewhere else.** Confirmed on OJAMD via the
 Hermes agent: scheduled task `TalariaConnectorWatchdog`, State=Ready, every minute,
@@ -4403,7 +4454,17 @@ Logged 2026-07-15.
 
 ---
 
-## 116. 🔧 Shim plane — kill the manual token paste + make the probe honest — BOTH HALVES MERGED (PRs #101 + #102, 2026-07-16); DoD device pass owed
+## 116. 🔧 Shim plane — kill the manual token paste + make the probe honest — BOTH HALVES MERGED (PRs #101 + #102, 2026-07-16); DoD UNRUNNABLE as written (2026-07-25)
+
+> **DEVICE PASS 2026-07-25 — DoD remains unverified, and the check is not
+> currently runnable.** The auto-fill path could not be exercised: there is no
+> route to an empty token slot for an existing profile. "Forget this Mac" clears
+> the pairing but the token survives in the Keychain, so the precondition the
+> check depends on was never created. An earlier PASS on this surface scored a
+> condition that had not been established.
+>
+> Blocked on resolving that gap first — either a documented way to reach an empty
+> slot, or a rewritten check that does not require one.
 
 **Comparison work now tracked as #148 (2026-07-20 late):** the 0.19 `model_routes` /
 durable per-session `/model` evaluation that gates this hold is the top action item there.
@@ -4505,7 +4566,19 @@ or rides the next Settings lane. Logged 2026-07-16.
 
 ---
 
-## 117. 🔧 Health-drain give-up paths hammered the connector — no-backoff loop (PR #85 follow-up) — MERGED PR #103
+## 117. 🔧 Health-drain give-up paths hammered the connector — no-backoff loop (PR #85 follow-up) — MERGED PR #103; backoff DECAYS under sustained outage (2026-07-25)
+
+> **DEVICE PASS 2026-07-25 — not fully closed.** Over a 27-minute induced outage
+> the ramp behaved (2→4→8 s) but the inter-burst rest collapsed from ~200 s to
+> ~15 s, ending at **126% of healthy baseline retry rate while delivering
+> nothing** — 18.5 req/min while failing vs 3.5 req/min while draining. Aggressive
+> on failure, lazy on success. The defect is the inter-burst timer, not the ramp.
+>
+> Verified correct: deferral, backlog integrity, and drain — 202 POSTs, zero false
+> "delivered", clean full drain on recovery.
+>
+> **Method note:** this PASSES under a 15-minute window and FAILS at 25. Any
+> re-check must state its duration, or it is not a result.
 
 Found by Fable re-reviewing the merged #104 work against its spec (2026-07-16): in
 `drainOutboxIfPossible()`'s health phase, every give-up outcome (transient failure,
@@ -4991,7 +5064,12 @@ Logged 2026-07-17.
 
 ---
 
-## 128. 🔧 Voice capture crash — double installTap via actor reentrancy — FIXED (2026-07-17); device re-verify owed
+## 128. 🔧 Voice capture crash — double installTap via actor reentrancy — FIXED (2026-07-17); documented repro path unreachable (2026-07-25)
+
+> **2026-07-25.** The documented reproduction path for this crash has been
+> structurally impossible since April. Either the fix is dead defensive code, or
+> the original reproduction used a route that was never recorded. Do not close on
+> the existing note — establish which before spending device time.
 
 **Session V sweep 2026-07-20: DoD NOT closed — the exact repro never cleanly ran.** The attempt
 tangled with a different failure: cycling several auditions in Voice Settings then starting the
@@ -5021,6 +5099,12 @@ Logged 2026-07-17.
 ---
 
 ## 129. 🔧 Voice preview mid-session — MERGED (PR #127, merge `175261b`, 2026-07-20); device pass owed. Known accepted behavior: native-engine sessions share the assistant TTS instance, so mid-reply preview drops that reply's un-spoken audio tail (transcript intact) and the next chunk cuts the preview short; realtime engine (primary case) previews play over the session. Third dedicated preview instance (~4 lines) CANCELLED — Owen accepted the behaviour 2026-07-23.
+
+> **NAMING COLLISION — read carefully (2026-07-25).** GitHub **PR #129** is the
+> merge of the #147 `@MainActor` delegate fix (`20b46fc`) and has nothing to do
+> with this item. OPEN_ITEMS **#129** is this voice-preview item, merged as GitHub
+> **PR #127** (`175261b`). Tracker numbers and GitHub numbers are independent
+> sequences, and the 2026-07-25 results docs cite both senses of "#129".
 
 **2026-07-23 — OWEN ACCEPTED the native-engine behaviour. The third dedicated preview instance is
 CANCELLED, not deferred.** Asked directly whether the mid-reply tail-drop on native-engine sessions
@@ -5174,7 +5258,22 @@ Logged 2026-07-17.
 
 ---
 
-## 133. 🔧 Dormant-relay push registration idempotency — MERGED (PR #123, merge `0bc2e0c`, 2026-07-20); device pass owed (M-7 follow-up)
+## 133. 🐛 Dormant-relay push registration idempotency — MERGED (PR #123, `0bc2e0c`, 2026-07-20); DEFEATED by app-side churn + insert race (2026-07-25)
+
+> **DEVICE PASS 2026-07-25 — idempotency is defeated by app-side identity churn.**
+> One handset produced **36 device rows / 36 active push registrations / 4 distinct
+> tokens** on the Mac Mini (OJAMD: 15 registrations / 9 tokens across 14 rows). Two
+> rows were observed inserted **53 ms apart carrying the same device AND the same
+> token**, both active — a check-then-act race, not a logic error.
+>
+> Consequence for the fix shape: deactivate-at-registration is the same
+> check-then-act that just lost this race. **The partial unique index is
+> load-bearing, not polish.**
+>
+> Also established: `send_push` has no per-token dedup, and the `TOKEN_INVALID`
+> reaper can never fire — `apns.py:173` deactivates only on HTTP 410, and
+> duplicate rows carry a *valid* token, so APNs returns 200 for all of them. The
+> pile-up is not self-limiting by construction.
 
 **2026-07-23 — ROW-COUNT LEG CLOSED on BOTH relays.** Direct DB reads. Mac relay: 16 device
 rows, every one with exactly 1 push_registrations row. OJAMD relay: 21 device rows, 13
@@ -5435,7 +5534,14 @@ Logged 2026-07-19.
 
 ---
 
-## 137. 🔧 Sensor opt-in redesign — MERGED (PR #125, merge `db52a22`, 2026-07-20); device passes owed (public-app posture)
+## 137. 🔧 Sensor opt-in redesign — MERGED (PR #125, `db52a22`, 2026-07-20); prior device check was UNRUNNABLE, guarantee still untested (2026-07-25)
+
+> **DEVICE PASS 2026-07-25 — UNRUNNABLE, not passed.** The check that scored this
+> used an input on which no code path could have changed the health/location
+> posture, so an unchanged posture was recorded as evidence that the guarantee
+> holds. It establishes nothing. The actual guarantee remains untested; a rewritten
+> check must state the input that WOULD have changed the posture had the guarantee
+> failed.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-A-178a-172-61-137.md`** (bundled with #178a, #172, #61). Do not re-spec; check merge state before sending.
 
@@ -5810,7 +5916,17 @@ likely the guilty branch. Then a Fable micro-lane with a fail-first test per cas
 
 Logged 2026-07-20.
 
-## 143. 🐛 Siri-ask completion notifications arrive ×5 — ROOT-CAUSED 2026-07-23: relay-side duplicate device rows sharing ONE APNs token; relay fix owed
+## 143. 🐛 Siri-ask completion notifications arrive ×5 — RE-ROOT-CAUSED 2026-07-25: app-side device-identity churn (same root as #133), NOT relay-side
+
+> **RE-ROOT-CAUSED 2026-07-25 (device pass).** The relay-side framing below is
+> wrong. The relay behaves correctly — it fans out to the active registrations it
+> holds. The duplicate rows are created app-side: same root as **#133**. The fix
+> belongs there; do NOT spec a relay-side fix from this item.
+>
+> Separate lead, explicitly not a verdict: on OJAMD `push_registrations.push_environment`
+> reads `development` for all 15 rows while `devices.environment` reads
+> `production` for all 22 — same handsets. If that contradiction is real, every
+> push originating from OJAMD is addressed to the APNs sandbox.
 
 **2026-07-23 — ROOT CAUSE FOUND. Source-verified. Mechanism is RELAY-side, not app-side.**
 OJAMD relay DB: APNs token `0aa87bdfa91d...` is registered against FIVE distinct device_ids,
@@ -6146,7 +6262,32 @@ same Console session), #143/#144 (same notification plane), #145 (same host-flux
 
 Logged 2026-07-20.
 
-## 147. 🐛 Tapping an inbox-alert notification CRASHES the app (2026-07-20 late, post-PR #126)
+## 147. 🐛 Tapping an inbox-alert notification CRASHES the app — REOPENED 2026-07-25; the 2026-07-21 fix has been inert since it merged
+
+> **REOPENED 2026-07-25 (device pass + ultrareview).** The "device-verified closed
+> 2026-07-21" entry below is wrong. The crash reproduced deterministically on
+> 2026-07-25 across multiple independent Claude Code test runs, on a build
+> containing the fix.
+>
+> **The fix never applied.** `22f92e1` annotated the *class* `HermesAppDelegate`
+> `@MainActor`. Both `userNotificationCenter` overloads are declared `nonisolated`
+> (`AppEntry.swift:124` and `:141`), which opts them back out of class-level
+> isolation. Dated: the `nonisolated` annotations landed in `937e110`
+> (2026-06-29) and `a2a1d88` (2026-07-05), weeks *before* the fix, and nothing has
+> touched the delegate since — the only later commit to `AppEntry.swift` is
+> `a62503f`, which added `consumePendingControlDestination` (+32 lines, delegate
+> untouched). The `@MainActor` has been inert from the moment it merged.
+>
+> **Process note.** This was closed on a merge commit plus one device observation
+> that most likely caught the #145 wedge (the unbounded `openSession` await)
+> rather than a fixed crash — a hang never reaches the completion bridge, so the
+> crash cannot fire. That reading is not required to reopen; the determinism above
+> settles it.
+>
+> **The real fix is a design call, not a one-liner.** Removing or narrowing
+> `nonisolated` must preserve the #47 process-lifetime guarantee protected by the
+> comment at `AppEntry.swift:137–140`. Do NOT write a lane from "annotate the
+> delegate `@MainActor`" — that change is already in the crashing build.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-145-147-outage-spike.md`** — INVESTIGATION lane, not a fix lane; a PR is a possible outcome, not the deliverable. Carries the correction that dropping OPEN_ITEMS #126 did NOT remove GitHub PR #126's code, so #147's prime suspect is still in the app. Do not re-spec.
 
@@ -7525,7 +7666,12 @@ DEPRECATED. Likely one cleanup lane, two checklists.
 Logged 2026-07-23.
 
 
-## 179. 🐛 First Control Center tap is swallowed — action reports success before the widget extension exists
+## 179. 🐛 First Control Center tap is swallowed — action reports success before the widget extension exists — likely SUBSUMED by #58 (2026-07-25)
+
+> **2026-07-25.** Very likely subsumed by the #58 finding: no control tap has ever
+> reached `perform()` (`openAppWhenRun` rejected in extensions, Code 2001), so
+> "first tap swallowed" and "every tap swallowed" are indistinguishable from
+> outside. Do not spec this separately until controls dispatch at all.
 
 **Found 2026-07-23 (device log capture, whoGoesThere, `cbcc824`), while running #58 step 2.**
 The FIRST control tapped after opening Control Center (Talk to Hermes, 17:25:35) produced:
