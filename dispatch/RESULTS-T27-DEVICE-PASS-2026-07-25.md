@@ -55,7 +55,7 @@ Notes:
 | A9 | #112 | Comic Book adaptive theme | **PASS** | Live re-skin on the system Light/Dark toggle, no relaunch. Both known seams accepted as-is by Owen. All 31 app icons present, Lane L's 13 in their own Special Edition / Midnight Marquee sections. |
 | A10 | #81 | Lock-screen reply | **BLOCKED** | Cannot run until the notification-tap crash is fixed — same delegate method. |
 | A11 | #116 | Shim token auto-fill | **UNRUNNABLE** as written | The documented path cannot establish the check's own precondition — see DOC-4. Infrastructure verified healthy; the dispatch's restart step was unnecessary. |
-| A12 | #133 | Push registration idempotency | **NOT RUN** | Strong prior evidence already gathered — see the ×4 side finding (36 device rows / 1 phone). |
+| A12 | #133 | Push registration idempotency | **PASS** on both stated criteria | 1 registration, 0 doubled background reports. A cold launch creates **no** new device row — narrows #133. Adjacent defect found: foreground reports fire 2–3×. |
 
 ### A1 — FAIL · `openAppWhenRun is not supported in extensions` (iOS 27)
 
@@ -308,6 +308,160 @@ parameter name (`?=hello`), which parses to an empty value and is correctly guar
 `q = ""`; `?q=hello` yields `q = "hello"`; `%20` survives encoding. The app behaved to spec in all
 three cases.
 
+### D1 — PARTIAL · the runnable half passed, the guaranteed half was never reached
+
+**What ran, confirmed in the log rather than inferred.** The stamp cleared (`CLEARED · RELAUNCH`),
+and the migration genuinely re-fired:
+
+```
+17:06:44  sensor opt-in migration: grandfathered streaming ON (active pairing)
+```
+
+**Posture, before → after:** Pipeline ACTIVE → ACTIVE · Location WHILE USING · FULL ACCURACY →
+unchanged · Health ENABLED → unchanged · Motion ENABLED → unchanged · Pending Location/Health NONE
+→ NONE. **No permission wall returned.**
+
+**PASS for the input it received.** With a paired device and a stored settings blob, the correct
+behaviour is exactly this: streaming and motion grandfathered on, health and location left alone as
+real #6 decisions, no wall. Nothing switched itself on. That half is a genuine result.
+
+**But #137's actual guarantee was not exercised.** The fix lives entirely in the
+`if !hadPersistedSettings` branch — health and location forced OFF for a paired device with **no**
+blob, which is the reinstall path that originally overrode a deliberate opt-OUT. Owen's device has
+carried a settings blob throughout this pass, so `hadPersistedSettings` was true, the branch was
+skipped, and the two flags were never candidates to change.
+
+So the observed "health and location are still enabled" is **not evidence either way**: they were
+enabled before, and no code path could have altered them. A pass and a failure are
+indistinguishable on this input — which is why this is PARTIAL and not a PASS. See **DOC-7** for the
+corrected path (reinstall the app, *then* clear the stamp, *then* relaunch — in that order, because
+the Keychain-mirrored stamp survives the reinstall by design).
+
+### B1 / B2 — run 2026-07-25 session 2, airplane mode, on-device model
+
+**Conditions verified from the log, not assumed.** Airplane mode confirmed by sensor uploads
+succeeding at 16:51:15 and failing from 16:52:08 (`upload device/sensor/health: error`), and by the
+screenshot's status bar. The card was produced by the right path — `on-device conversation card
+generated (#4.8)` at 16:52:00 — and the session header reads **ON-DEVICE**. B1's "cannot be tested
+while paired" precondition was genuinely met.
+
+**B2 — PASS, corroborated independently.** Owen: USE LIST does not appear, a free typing field is
+offered instead. The log says the same thing without being asked:
+
+```
+16:53:30  deliverPlatforms: unavailable (The Hermes host took too long to respond.)
+          — deliver picker degrades to free text
+```
+
+**B1 — PASS on the stated criteria. #61's defect did not reproduce.** The criteria are "title and
+preview are visibly different content" (PASS) versus "the title is a verbatim prefix of the preview"
+(FAIL). Observed: title `readImageText`, preview "I can't create a haiku directly, but here's a quick
+one inspired by lightning". Those are different content, and the prefix shape is absent.
+
+**The guards confirm it independently: zero `conversationCard:` degenerate lines across the whole
+598,409-line capture.** All six guard branches — repetition ×2, identical, containment, prefix echo,
+and the new verbatim-prefix branch — correctly declined to fire, because none of their conditions
+held. **#61's fix is not implicated and should not be reopened on this evidence.**
+
+**🔴 BUT THE CARD IS BROKEN, by a different defect the criteria do not cover.** Owen reported this as
+a FAIL and was right about the card; the scoring above is about *which item owns it*. Three distinct
+problems are visible in one screenshot:
+
+1. **A spurious tool call.** The on-device model answered "Write a haiku about lightning" by invoking
+   **`readImageText`** — an image OCR tool from `DeviceMediaTools`, for a text-only request with no
+   image anywhere in the conversation. Tool *selection*, not tool execution.
+2. **The user turn is marked failed while its reply succeeded.** The message "Write a haiku about
+   lightning" carries the failed indicator and a **Retry** affordance, yet the assistant's reply to
+   it is present and complete (`IN 3.5K · OUT 75 · 6S`). The conversation is internally
+   inconsistent: a failed send that nonetheless produced a delivered answer. Offering Retry here
+   invites a duplicate turn.
+3. **The card title is the tool call.** Rendered "READIMAGETEXT" — the HUD uppercases it, the same
+   way the tool chip shows `READIMAGETEXT` above the lowercase `readImageText`.
+
+**What produced (3) — two candidates, not yet distinguished, and the log cannot settle it** because
+message content is `<private>` under os_log:
+
+- **The guided generator emitted it.** `conversationCard` tries on-device guided generation first;
+  if the exchange text it was shown carried the tool-call noise, the model could have produced
+  `readImageText` as the title. `degenerateCardReason` would find nothing wrong with it (different
+  from the preview, no repetition) and return it unchanged — **with no log line**, which matches the
+  zero-hit capture exactly.
+- **The fallback picked it up.** `firstUserText` is the first `.user`-sender message
+  ([ChatStore.swift:1563](../Talaria/Stores/ChatStore.swift:1563)) with no status filter. If the
+  failed user turn is held outside `conversation.messages` while the tool-call entry carries a
+  `.user` role, the fallback's `titleSource` would resolve to the tool name. Also silent.
+
+**Discriminator for whoever picks this up:** log `firstUserText` (or its length) at the call site,
+or check whether tool-call messages carry `sender == .user`. One line of instrumentation separates
+"the on-device model wrote a bad title" from "the card reads the wrong message".
+
+**Worth a look but not asserted:** the header reads `HERMES • ONL…` while the device is in airplane
+mode. It may legitimately describe on-device backend readiness rather than host reachability — but
+given the notification panel's false green earlier in this pass, a status string that says ONLINE
+with no network is worth a second look against the "real data only" rule.
+
+### A12 — PASS on both stated criteria, with an adjacent defect
+
+_Run 2026-07-25 session 2, phone corded. Active profile at test time: **Mac Mini**, not OJAMD —
+Owen switched during A11 and did not switch back, so both halves were readable from the Mini relay.
+Measured two ways: the app's own Console lines, and the relay's `audit_log` rows. They agree._
+
+**Instrument note — why audit rows and not device-state writes.** `push/watch` deliberately writes
+`state="background"` too ([relay/app/main.py:1680](../relay/app/main.py:1680)) so the presence gate
+cannot race the separate app-state report. Counting state *writes* would therefore double-count
+every backgrounding that has a run in flight and produce a false FAIL. Only `device.app_state`
+**audit rows** were counted. (`push.watch` total on this relay is **0**, so the path never fired
+here anyway — but the trap is real for OJAMD, where pushes actually flow.)
+
+**Registration half — PASS.** Baseline mark 2026-07-25 21:41:31 UTC. In the whole window:
+
+```
+16:42:25.671  handleSystemLaunch: entered                         ← exactly one cold launch
+16:42:25.925  registerPushToken: relay accepted push registration ← exactly one registration
+16:42:25.967  APNs device token delivered
+```
+
+One registration line, for the active profile. **No** `dormant relay '…' accepted push registration`
+line, and no deferred/failed lines. The relay's audit agrees exactly: `push.register` = **1** in
+window, at 21:42:25.699 UTC. Criterion is "at most ONE per profile (2 max)" — **PASS**. Zero for the
+dormant profile is #146's "a skip IS a confirmation", explicitly not a fail.
+
+**Background half — PASS.** Three background reports in the window (16:41:54, 16:42:17, 16:42:58),
+matching roughly three backgrounding actions. **None paired** — no two within seconds of each other.
+The criterion is "exactly one background app-state report per backgrounding" and the FAIL is "a
+doubled background report". Neither triggered.
+
+**🟡 ADJACENT DEFECT — foreground reports fire 2–3× per transition.** Outside A12's stated criteria,
+which name only *background*, so it is not scored as a FAIL. It is real:
+
+```
+16:42:26.296  foreground
+16:42:33.588  foreground
+16:42:33.915  foreground   ← 0.33 s after the previous one
+```
+
+Three foreground reports for **one** cold launch, two of them a third of a second apart — not user
+action. The same doubling appears on every warm foreground in the window (16:41:31/34, 16:42:12/14).
+
+**Mechanism:** `reportAppStateIfNeeded` has **two unconditional call sites** —
+[`handleSystemLaunch:1511`](../Talaria/Stores/AppContainer.swift:1511) and
+[`handleAppDidBecomeActive:1355`](../Talaria/Stores/AppContainer.swift:1355) — and the function does
+**no deduplication whatsoever** ([:2185](../Talaria/Stores/AppContainer.swift:2185)): no comparison
+against the last reported state, no debounce. It POSTs whenever called and paired. **The name
+promises idempotency the body does not implement.** A cold launch runs both call sites by
+construction; the third report is unattributed (app lock is ON, and an unlock produces a further
+become-active transition — plausible, unproven). Cost is ~3× the intended `device/app-state` traffic
+and an audit table inflated in the same proportion — 312 rows on this relay.
+
+**🟢 USEFUL NEGATIVE — a cold launch does not churn device identity.** Distinct `actor_id` across
+every audit row in the window: **1**. The `devices` table still holds **36** rows and
+`push_registrations` **36** rows over **4** distinct APNs tokens — unchanged by this launch.
+
+This meaningfully narrows #133. The identity churn behind the 36 rows is **not** caused by ordinary
+cold launching, which was the leading hypothesis. Whatever mints a new `device_id` is something
+else — re-pairing, profile switching, or reinstall are the remaining candidates, and all three
+happened repeatedly across this pass. Worth testing directly rather than assumed.
+
 ### A11 — UNRUNNABLE as written · the path cannot create the precondition
 
 **The dispatch's setup step was unnecessary, and was not performed.** It says "restart relay +
@@ -527,20 +681,20 @@ suggests #143 may be mis-filed as relay-side.
 
 | # | Item | Check | Result | Notes |
 |---|---|---|---|---|
-| B1 | #61 | Degenerate conversation cards | **NOT RUN** | |
-| B2 | #172 | USE LIST absent when disconnected | **NOT RUN** | Positive half passed in A5. |
+| B1 | #61 | Degenerate conversation cards | **PASS** on stated criteria — #61 did not reproduce | Title and preview ARE different content. But the card is broken by a **different** defect: its title is a spurious tool call. See below. |
+| B2 | #172 | USE LIST absent when disconnected | **PASS** | USE LIST absent, free-text field offered. Corroborated in the log: `deliverPlatforms: unavailable … degrades to free text`. |
 
 ## GROUP C — connector stopped
 
 | # | Item | Check | Result | Notes |
 |---|---|---|---|---|
-| C1 | #117 | Health-drain deferral under outage | **NOT RUN** | Needs sensor health collection ON, and Claude to stop the Mini connector. |
+| C1 | #117 | Health-drain deferral under outage | **UNRUNNABLE** on the Mac | The dispatch stages the outage on the wrong host — sensors route to **OJAMD**, not the Mini. See DOC-6. Moved to the OJAMD dispatch as O6. |
 
 ## GROUP D — migration reset
 
 | # | Item | Check | Result | Notes |
 |---|---|---|---|---|
-| D1 | #137 | Fresh-install migration | **NOT RUN** | |
+| D1 | #137 | Fresh-install migration | **PARTIAL** | The half that ran behaved correctly and no wall returned. The half #137 exists to guarantee was never reached — the path cannot clear the settings blob. See DOC-7. |
 
 ## Optional
 
@@ -587,6 +741,62 @@ auto-fill has nothing to fill and pass is indistinguishable from failure. Full a
 section, including the Delete-then-re-pair route that would work and the reason it is not a
 like-for-like substitute. The dispatch's "restart relay + connector first" step in the same item was
 also unnecessary — verified, not assumed, and skipped.
+
+**DOC-7 — D1's path cannot produce the state D1 scores.** Its PASS text reads "with the device
+paired **and no stored settings blob**, the migration does NOT enable health or location". The PATH
+it gives — clear the migration stamp, relaunch — resets only the **stamp**. The settings blob is
+untouched, so the run scores a condition it never created.
+
+This matters because the no-blob branch is the whole of #137's fix
+([SensorStreamingGrandfathering.swift:50-61](../Talaria/Services/Support/SensorStreamingGrandfathering.swift:50)):
+`sensorStreamingEnabled` and `motionCollectionEnabled` are set **unconditionally** on any paired
+device, and health/location are forced OFF **only** `if !hadPersistedSettings`. With a blob present
+that branch is skipped entirely and the two flags are left exactly as they were. Owen's device has
+had a settings blob all pass, so `hadPersistedSettings` was true and the guarded code never ran.
+
+**A workable path exists and should replace the current one:** reinstall the **app** (not erase the
+device) — that clears the UserDefaults blob while the Keychain pairing survives — **then** clear the
+stamp from the Developer screen, **then** relaunch. Order matters: the stamp is Keychain-mirrored
+now, so it survives the reinstall and must be cleared *after* it, or the migration never fires at
+all. That ordering is itself #137's fix working, and is worth stating in the rewritten check.
+
+Full analysis in the D1 section. Its runnable half was run and passed.
+
+**DOC-6 — C1 stages its outage on the wrong host.** The dispatch says "the connector on the Mini
+gets stopped", which assumes the Mac Mini is the sensor destination. It is not: the **sensor
+destination is a separate persisted setting** from the active profile
+([BackendProfilesStore.swift:96](../Talaria/Stores/BackendProfilesStore.swift:96) — it only falls
+back to the active profile when unset), and OJAMD holds the badge. Stopping the Mini's connector
+therefore cannot produce the outage #117 needs.
+
+Staged and disproved rather than assumed. With the Mini connector confirmed dead (gone from
+`launchctl list`, PID 1878 terminated, no ESTABLISHED socket to `:8000`), a location upload still
+reported `deliveryState=delivered wasDelivered=true` at 17:01:19, and the on-device diagnostics panel
+read **DELIVERED · OUTBOX CLEAR** throughout. That is impossible for a Mini-bound upload —
+`forward_sensor_payload` returns `"retry"` whenever there is no connector session
+([relay/app/main.py:636](../relay/app/main.py:636)) — and is exactly what a payload routed to OJAMD
+looks like. Owen then confirmed the badge on OJAMD directly.
+
+**C1 moves to the OJAMD dispatch** (added there as O6); stopping OJAMD's connector is a Windows-side
+action unavailable from the Mac. The Mini connector was restored afterwards. Note for whoever
+rewrites C1: it must either name the sensor destination explicitly as a precondition, or instruct
+the driver to re-point it before staging.
+
+**DOC-5 — the dispatch declares a live defect closed and forbids testing it.** Its out-of-scope
+section states: "**#147 is CLOSED** — the crash was fixed 2026-07-21 by PR #129 (`20b46fc`); PR #126
+was exonerated. **Do not re-test it.**"
+
+`20b46fc` is the merge commit for `claude/t27-147-mainactor-delegate` — **one file, one insertion**,
+the class-level `@MainActor` of `22f92e1`. Both are ancestors of the tested build `1ea7e23`. The
+crash reproduced on device on 2026-07-25 anyway, twice, because `nonisolated` on the two
+`userNotificationCenter` overloads opts them out of the class's isolation. Full analysis in the
+crash finding above.
+
+**This is the most consequential of the five defects.** DOC-1 through DOC-4 describe checks that
+could not be performed; DOC-5 instructed the pass *not to perform* one — and the defect it waved off
+is the one that broke A7's notification half and still blocks A10/#81. A "verified closed" claim
+that rests on a merge commit nobody re-tested is exactly the failure mode the pass exists to catch.
+**#147 should be reopened**, and any other item closed on the same evidence standard is worth a look.
 
 ---
 

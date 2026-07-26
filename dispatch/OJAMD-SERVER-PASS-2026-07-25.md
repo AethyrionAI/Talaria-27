@@ -290,6 +290,43 @@ answer its first authenticated `/models` after idle, then answered instantly the
 OJAMD's first authenticated call after idle. If it is also slow, any probe with a ~5s budget can
 report a healthy shim as dead, and that affects more than #116.
 
+## O6 · #117 — health-drain deferral under connector outage
+
+**Moved here from the device pass on 2026-07-25**, where it was **UNRUNNABLE**. The device dispatch
+staged the outage by stopping the **Mac Mini's** connector, on the assumption that the Mini is the
+sensor destination. It is not — the sensor destination is a **separate persisted setting** from the
+active profile, and **OJAMD holds it**. This was disproved empirically, not assumed: with the Mini
+connector confirmed dead, a location upload still returned `deliveryState=delivered` and the
+on-device panel read DELIVERED · OUTBOX CLEAR, which is impossible for a Mini-bound payload because
+`forward_sensor_payload` returns `"retry"` whenever there is no connector session
+([relay/app/main.py:636](../relay/app/main.py:636)).
+
+**So the outage has to be staged on OJAMD.** This needs a phone driver as well as the box, so
+coordinate with Owen — do not stage it while he is away from the device.
+
+**Precondition:** sensor health collection must be ON on the phone, and **OJAMD must still hold the
+sensor-destination badge** (Settings → Server). Confirm both before staging, and record the posture
+Owen wants restored.
+
+**Staging (OJAMD):** stop the connector — the plain bat-launched process — and remember the
+`TalariaConnectorWatchdog` scheduled task relaunches it every ~2 minutes. **Disable the watchdog task
+first or the outage will not hold.** That is the whole point of O3c; if you find the watchdog fights
+you here, that is itself a datapoint for #113.
+
+**PATH on the phone:** Settings → **About & Diagnostics** → the sensor diagnostics panel.
+
+- **PASS:** drains **defer** with honest notes ("retries exhausted" / "upload failed"), and the
+  backlog is **held** for the next trigger.
+- **FAIL:** continuous POST traffic with no backoff — the original no-backoff loop returning.
+
+**Measure retry spacing, not just the panel's summary.** The panel reports a state; the check is
+about *backoff*, which only shows up as intervals between attempts. The app logs `drain: starting` /
+`→ failed` / `Outbox remaining:` lines at `.notice`, so a corded syslog gives the intervals directly.
+
+**Afterwards: restart the connector, re-enable the watchdog, and verify the connector re-attaches**
+(the relay's `hermes_hosts.last_seen_at` should advance). Leaving it down silently is the #113
+failure mode this pass exists to characterise.
+
 ---
 
 ## Not in scope for this pass
