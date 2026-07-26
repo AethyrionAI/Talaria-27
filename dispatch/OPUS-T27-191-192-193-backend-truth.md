@@ -18,11 +18,40 @@ Force quit being the remedy establishes the stuck state is **in-memory only** �
 dies with the process. Expected shape: a transition guard set and not cleared on some path, so every
 later switch attempt is refused up front.
 
-**The missing observation:** whether the toggle **moves then reverts** (switch accepted, apply
-failed) or **refuses to move** (guard rejects the input up front). Different fixes. Establish it from
-source if you can — trace every early-return in the backend-switch path in `ChatBackendRouter` (#68)
-and whatever owns the guard — and **state which case you found**. If source cannot settle it, say so
-and stop rather than guessing; Owen can get the observation in five seconds on device.
+### It is INTERMITTENT — instrument, do not hunt
+
+**Reproduction was attempted 2026-07-26 and the switch behaved correctly.** The defect does not occur
+from a clean app state. Whatever sets the stuck condition is rare and situational.
+
+**This changes the shape of the lane. Read carefully:**
+
+- The observation that would have split the two cases — toggle **moves then reverts** (switch
+  accepted, apply failed) versus **refuses to move** (guard rejects input up front) — is currently
+  **unobtainable**. Do not block on it and do not ask for it.
+- **Do not guess between them and ship a speculative fix.** A wrong guess here plausibly *masks* the
+  symptom by clearing state indiscriminately, which would make the next occurrence harder to catch,
+  not easier.
+- **Do not "fix" it by clearing every guard you find on every path.** That is the same
+  indiscriminate-teardown reflex #184 exists to correct.
+
+**What IS fully available without a reproduction — do this:**
+
+1. **Exhaustive trace.** Enumerate *every* early-return and guard on the backend-switch path —
+   `ChatBackendRouter` (#68), whatever owns the transition state, and the settings surface that
+   drives it. Produce the list. A path that can refuse a switch without leaving a trace is a finding
+   in itself, whether or not it is *this* bug.
+2. **Instrumentation, and this is the primary deliverable.** Every refusal path must log *which*
+   guard refused and *why*, at a level that survives into a device log Owen can retrieve after the
+   fact. Right now the failure is silent, which is the reason a whole session produced no evidence.
+3. **Narrow by construction.** Of the guards found, identify which could plausibly persist across a
+   failed switch and which are cleared on every exit. Rank them. State your reasoning.
+4. **A synthetic test.** If you can drive the suspected state directly in a test — set the guard,
+   attempt a switch, assert refusal, assert recovery — that is worth more than any amount of device
+   time on a bug that will not appear on command.
+
+**Read `Settings-ModelTransition` (project knowledge) against live source** — the transition path has
+design behind it and the doc may name the intended state machine, which would make an unreachable
+state obvious by comparison.
 
 **Read `Settings-ModelTransition` (project knowledge) against live source before speccing a fix** —
 the transition path has design behind it and the doc may name the intended state machine.
@@ -71,7 +100,12 @@ tap-outside may be fine as is. **List what you found and what you did with each.
 
 ## Definition of done
 
-- Switch to on-device and back to Hermes repeatedly without a force quit. The switch takes every time.
+- **#192 does not close on a green suite or a clean device run** — it did not reproduce on demand, so
+  absence of the symptom proves nothing. It closes on: the refusal-path inventory, instrumentation
+  that would capture the next occurrence, and either a synthetic test of the stuck state or an
+  explicit statement that none could be constructed and why.
+- Switch to on-device and back to Hermes repeatedly without a force quit. The switch takes every time
+  — necessary, **not sufficient**, for #192.
 - With on-device active: the header does not claim a Hermes model. In airplane mode it still does not.
 - Switching backends does not leave the previous backend's conversation on screen — or, if that is
   deferred to #190, the PR body says so explicitly and the header is still correct.
