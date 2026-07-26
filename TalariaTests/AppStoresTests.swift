@@ -974,6 +974,119 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
+    func openSessionAbandonsPendingRunFromPreviousSession() async throws {
+        // #184: `reconcileFromServer()` takes no session argument — once
+        // openSession has switched the client's internal session, a pendingRun
+        // left over from S1 gets compared against S2's server view, smearing
+        // S1's partial reasoning and a nonsense turnDuration onto an S2 reply
+        // and persisting both. Switching sessions must abandon the run and
+        // stand its relay watch down (#38).
+        final class SessionSwitchClient: HermesClientProtocol {
+            var connectionStatus: ConnectionStatus = .connected
+            var currentConversation: Conversation?
+            var reconcileFromServerCallCount = 0
+
+            func connect() async {}
+            func disconnect() async {}
+
+            func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
+                Message(sender: .hermes, content: "unused", status: .delivered)
+            }
+
+            func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+                AsyncStream { continuation in
+                    Task { @MainActor in
+                        continuation.yield(.messageSent(jobID: UUID()))
+                        continuation.yield(.interrupted(sessionId: "S1", runId: nil))
+                        continuation.finish()
+                    }
+                }
+            }
+
+            func loadConversation() async -> Conversation {
+                currentConversation ?? Conversation(title: "Hermes")
+            }
+
+            func clearConversation() async throws -> Conversation {
+                Conversation(title: "Hermes")
+            }
+
+            func openSession(_ id: String) async throws -> Conversation {
+                Conversation(title: "S2", messages: [
+                    Message(sender: .hermes, content: "S2 history", status: .delivered),
+                ])
+            }
+
+            func reconcileFromServer() async -> Conversation? {
+                reconcileFromServerCallCount += 1
+                // An S2 reply timestamped after the S1 send — exactly what the
+                // stale pending run's filter would adopt.
+                return Conversation(title: "S2", messages: [
+                    Message(sender: .hermes, content: "S2 reply", status: .delivered),
+                ])
+            }
+        }
+
+        let suiteName = "chat-store-open-session-pending-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = SessionSwitchClient()
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+        var resolvedRuns: [String] = []
+        chatStore.onRunResolved = { resolvedRuns.append($0) }
+
+        await chatStore.sendMessage("probe")
+        #expect(chatStore.pendingRunSessionId == "S1")
+
+        await chatStore.openSession("S2")
+
+        #expect(chatStore.pendingRunSessionId == nil, "openSession must abandon the departing session's pending run")
+        #expect(resolvedRuns == ["S1"], "the relay watch for S1 must stand down (#38)")
+
+        await chatStore.reconcilePendingRuns()
+        #expect(hermesClient.reconcileFromServerCallCount == 0, "no reconcile may fire against S2")
+    }
+
+    @Test @MainActor
+    func resetAbandonsPendingRunAndStream() async throws {
+        // #184: reset() runs on the pairing lifecycle (its only two callers) —
+        // pair or unpair mid-stream and `conversation` goes nil while the
+        // streaming task keeps running and the pendingRun stays armed, then
+        // initialize() runs against a DIFFERENT host. Cross-host leakage, the
+        // serious half of the finding.
+        let suiteName = "chat-store-reset-abandon-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = BlackHoleStreamingChatClient()
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+        var resolvedRuns: [String] = []
+        chatStore.onRunResolved = { resolvedRuns.append($0) }
+
+        // Send #1 interrupts, arming the pending run; send #2 streams into a
+        // black hole and stays live until torn down.
+        await chatStore.sendMessage("arm the pending run")
+        #expect(chatStore.pendingRunSessionId == "S1")
+        let streamingSend = Task { @MainActor in await chatStore.sendMessage("now stream") }
+        let streaming = await pollUntil { chatStore.isStreaming }
+        #expect(streaming)
+
+        chatStore.reset()
+
+        #expect(chatStore.pendingRunSessionId == nil, "reset() must abandon the pending run")
+        #expect(chatStore.isStreaming == false, "reset() must tear down streaming state")
+        #expect(resolvedRuns == ["S1"], "the abandoned run's relay watch must stand down (#38)")
+        let cancelled = await pollUntil { hermesClient.streamCancelled }
+        #expect(cancelled, "reset() must cancel the in-flight streaming task")
+        // Cleanup, not an assertion: on the buggy path reset() leaves the
+        // black-holed stream running and `await streamingSend.value` would
+        // wedge the suite — cut it so the test ends either way.
+        chatStore.cancelStreaming()
+        _ = await streamingSend.value
+    }
+
+    @Test @MainActor
     func liveHermesClientRefreshesConversationBeforeResolvingFinishedStreamMessage() async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubURLProtocol.self]
@@ -1296,6 +1409,143 @@ struct AppStoresTests {
         let mergedAttachment = try #require(userMessage.attachments.first)
         #expect(mergedAttachment.thumbnailBase64 != nil)
         #expect(mergedAttachment.localStoragePath != nil)
+    }
+
+    /// #185: echoes the user's attachments back the way the relay does —
+    /// display fields only (the client-only paths never round-trip), with
+    /// ids either re-minted (the generic echo) or preserved and reordered
+    /// (the id-priority probe).
+    @MainActor
+    private final class AttachmentEchoClient: HermesClientProtocol {
+        var connectionStatus: ConnectionStatus = .connected
+        var currentConversation: Conversation?
+        var preservesIDs = false
+        var reversesEchoOrder = false
+
+        func connect() async {}
+        func disconnect() async {}
+
+        func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
+            Message(sender: .hermes, content: "unused", status: .delivered)
+        }
+
+        func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+            var echoed = attachments.map {
+                MessageAttachment(
+                    id: preservesIDs ? $0.id : UUID(),
+                    kind: $0.kind.rawValue,
+                    fileName: $0.fileName,
+                    mimeType: $0.mimeType,
+                    thumbnailBase64: $0.thumbnailBase64
+                )
+            }
+            if reversesEchoOrder {
+                echoed.reverse()
+            }
+            currentConversation = Conversation(
+                title: "Hermes",
+                messages: [
+                    Message(
+                        id: UUID(),
+                        clientMessageID: clientMessageID,
+                        sender: .user,
+                        content: "",
+                        status: .sent,
+                        attachments: echoed
+                    ),
+                    Message(sender: .hermes, content: "I saw the attachments.", status: .delivered),
+                ]
+            )
+
+            return AsyncStream { continuation in
+                Task { @MainActor in
+                    continuation.yield(.messageSent(jobID: UUID()))
+                    continuation.yield(.finished(Message(sender: .hermes, content: "I saw the attachments.", status: .delivered), nil, nil))
+                    continuation.finish()
+                }
+            }
+        }
+
+        func loadConversation() async -> Conversation {
+            currentConversation ?? Conversation(title: "Hermes")
+        }
+
+        func clearConversation() async throws -> Conversation {
+            Conversation(title: "Hermes")
+        }
+    }
+
+    /// Two picker rounds staging the same file name into distinct local
+    /// copies — the only real #185 trigger (voice memos carry second-
+    /// resolution timestamps and photos carry UUID names).
+    @MainActor
+    private func makeSameNamedPickerAttachments() throws -> (PendingAttachment, PendingAttachment) {
+        let fileManager = FileManager.default
+        let dirA = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let dirB = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: dirA, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: dirB, withIntermediateDirectories: true)
+        let urlA = dirA.appendingPathComponent("report.txt")
+        let urlB = dirB.appendingPathComponent("report.txt")
+        try Data("alpha bytes".utf8).write(to: urlA)
+        try Data("beta bytes".utf8).write(to: urlB)
+        let first = try #require(PendingAttachment.file(at: urlA))
+        let second = try #require(PendingAttachment.file(at: urlB))
+        #expect(first.localStoragePath != second.localStoragePath)
+        return (first, second)
+    }
+
+    @Test @MainActor
+    func mergeResolvesDuplicateFileNamesToDistinctLocalAttachments() async throws {
+        // #185: `first(where: fileName ==)` never dequeued its match, so N
+        // same-named remote attachments all aliased localAttachments[0] —
+        // the second bubble opened the first bubble's bytes, ShareLink
+        // handed out the wrong file, and a #21 Tier 2 re-fetch targeted the
+        // wrong remote path. Each local entry must be claimable once.
+        let (first, second) = try makeSameNamedPickerAttachments()
+
+        let suiteName = "chat-store-duplicate-names-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = AttachmentEchoClient()
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        await chatStore.sendMessage("", attachments: [first, second])
+
+        let userMessage = try #require(chatStore.conversation?.messages.first(where: { $0.sender == .user }))
+        #expect(userMessage.attachments.count == 2)
+        let mergedPaths = userMessage.attachments.map(\.localStoragePath)
+        #expect(mergedPaths == [first.localStoragePath, second.localStoragePath],
+                "same-named attachments must keep their own local bytes, not alias the first match")
+    }
+
+    @Test @MainActor
+    func mergeMatchesEchoedAttachmentIDsBeforeFileNames() async throws {
+        // #185: when the echo preserves attachment ids (`MessageAttachment.id`
+        // survives the round trip), identity must outrank the (fileName,
+        // mimeType) fallback — the same precedence the sibling message-level
+        // merge already models (id, then clientMessageID, then jobID).
+        let (first, second) = try makeSameNamedPickerAttachments()
+
+        let suiteName = "chat-store-id-priority-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = AttachmentEchoClient()
+        hermesClient.preservesIDs = true
+        hermesClient.reversesEchoOrder = true
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        await chatStore.sendMessage("", attachments: [first, second])
+
+        let userMessage = try #require(chatStore.conversation?.messages.first(where: { $0.sender == .user }))
+        #expect(userMessage.attachments.count == 2)
+        for merged in userMessage.attachments {
+            let expected = merged.id == first.id ? first : second
+            #expect(merged.localStoragePath == expected.localStoragePath,
+                    "an id-preserving echo must pair each attachment with ITS local entry, whatever the order")
+        }
     }
 
     @Test @MainActor
@@ -2596,6 +2846,63 @@ struct AppStoresTests {
         }
     }
 
+    /// Chat client for the #184 teardown tests: send #1 interrupts (arming a
+    /// pendingRun for "S1"), later sends stream into a black hole and stay
+    /// live until the consuming task is cancelled — which is recorded, so a
+    /// test can assert teardown actually cancelled the stream rather than
+    /// abandoning it mid-air.
+    @MainActor
+    private final class BlackHoleStreamingChatClient: HermesClientProtocol {
+        var connectionStatus: ConnectionStatus = .connected
+        var currentConversation: Conversation?
+        var sendCount = 0
+        var streamCancelled = false
+        var reconcileFromServerCallCount = 0
+
+        func connect() async {}
+        func disconnect() async {}
+
+        func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
+            Message(sender: .hermes, content: "unused", status: .delivered)
+        }
+
+        func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+            sendCount += 1
+            if sendCount == 1 {
+                return AsyncStream { continuation in
+                    Task { @MainActor in
+                        continuation.yield(.messageSent(jobID: UUID()))
+                        continuation.yield(.interrupted(sessionId: "S1", runId: nil))
+                        continuation.finish()
+                    }
+                }
+            }
+            return AsyncStream { continuation in
+                continuation.onTermination = { @Sendable reason in
+                    if case .cancelled = reason {
+                        Task { @MainActor in self.streamCancelled = true }
+                    }
+                }
+                continuation.yield(.messageSent(jobID: UUID()))
+                continuation.yield(.textDelta("still streaming"))
+                // Never finishes — the run stays live until torn down.
+            }
+        }
+
+        func loadConversation() async -> Conversation {
+            currentConversation ?? Conversation(title: "Hermes")
+        }
+
+        func clearConversation() async throws -> Conversation {
+            Conversation(title: "Hermes")
+        }
+
+        func reconcileFromServer() async -> Conversation? {
+            reconcileFromServerCallCount += 1
+            return nil
+        }
+    }
+
     /// A fully wired bare container whose every relay surface rides a
     /// black-hole gate, paired with a valid Keychain-local session so the
     /// launch guards pass.
@@ -2620,7 +2927,8 @@ struct AppStoresTests {
     @MainActor
     private func makeLaunchHarness(
         suiteName: String,
-        sessionUserMatchesPairedUser: Bool
+        sessionUserMatchesPairedUser: Bool,
+        chatClient: (any HermesClientProtocol)? = nil
     ) async -> LaunchHarness {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -2687,7 +2995,7 @@ struct AppStoresTests {
             sessionStore: sessionStore,
             pairingStore: pairingStore,
             hostStore: hostStore,
-            chatStore: ChatStore(hermesClient: RecordingHermesClient(), persistence: persistence),
+            chatStore: ChatStore(hermesClient: chatClient ?? RecordingHermesClient(), persistence: persistence),
             inboxStore: InboxStore(
                 inboxService: inboxService,
                 persistence: persistence,
@@ -2888,5 +3196,42 @@ struct AppStoresTests {
         let settled = await pollUntil { container.hostStore.isHostOnline }
         #expect(settled)
         #expect(container.pairingStore.identityMismatchDetected == false)
+    }
+
+    @Test @MainActor
+    func rePairMidStreamCancelsStreamAndAbandonsPendingRun() async throws {
+        // #184: the cross-HOST half. Both pairing handlers reason about this
+        // race class for the bootstrap (#136 above) and missed it for the
+        // stream: chatStore.reset() nil'd `conversation` while the streaming
+        // task kept running and the pendingRun stayed armed, then
+        // initialize() ran against a DIFFERENT host.
+        let chatClient = BlackHoleStreamingChatClient()
+        let harness = await makeLaunchHarness(
+            suiteName: "launch-stream-repair-\(UUID().uuidString)",
+            sessionUserMatchesPairedUser: true,
+            chatClient: chatClient
+        )
+        let container = harness.container
+        harness.openAllGates()
+
+        // Send #1 interrupts, arming the pending run; send #2 streams into a
+        // black hole and stays live into the re-pair.
+        await container.chatStore.sendMessage("arm the pending run")
+        #expect(container.chatStore.pendingRunSessionId == "S1")
+        let streamingSend = Task { @MainActor in await container.chatStore.sendMessage("now stream") }
+        let streaming = await pollUntil { container.chatStore.isStreaming }
+        #expect(streaming)
+
+        await container.handlePairingActivated()
+
+        #expect(container.chatStore.pendingRunSessionId == nil, "re-pair must abandon the departing host's pending run")
+        #expect(container.chatStore.isStreaming == false, "re-pair must tear down the departing host's streaming state")
+        let cancelled = await pollUntil { chatClient.streamCancelled }
+        #expect(cancelled, "the streaming task must be cancelled, not left running against the old host")
+        // Cleanup, not an assertion: on the buggy path reset() leaves the
+        // black-holed stream running and `await streamingSend.value` would
+        // wedge the suite — cut it so the test ends either way.
+        container.chatStore.cancelStreaming()
+        _ = await streamingSend.value
     }
 }

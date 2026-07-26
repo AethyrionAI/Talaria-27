@@ -8119,6 +8119,24 @@ on S2 → that reply matches. Plausible, but do not spec it as common.
 
 Logged 2026-07-25.
 
+**UPDATE 2026-07-26 — FIXED + suite-green on branch `claude/t27-184-185-chatstore-integrity`**
+(spec executed: `dispatch/OPUS-T27-184-185-chatstore-integrity.md`; Xcode-beta4, pinned sim
+47F68496: `1152 tests in 105 suites passed`, baseline confirmed 1147/105 before the change).
+`abandonPendingRun(stopSpeech:)` is now the one teardown primitive; `clearConversation`,
+`openSession`, and `reset()` all call it. Per the dispatch's "widen the aim": shaped as THE
+context-switch primitive with the single per-path difference (speech) as a parameter —
+`openSession` passes `stopSpeech: false` to preserve pre-#184 read-aloud behavior across a session
+switch (flag for Owen if that should change). Kept `private` until the #191/#192 lane needs it for
+the backend-switch path — flip to internal then, do not hand-roll another subset. Three
+RED-verified tests: openSession abandons + no reconcile against S2; store-level reset teardown; and
+re-pair mid-stream beside the #136 reset-race tests. The `endAllActivities()` asymmetry judged
+intentional: `reset()` now ends the CHAT Live Activity on both pairing paths, and removal's
+additional `endAllActivities()` sweep pairs with it being the only path that also ends the talk
+session (`endSessionIfNeeded`) — activation deliberately leaves a live talk session's activity
+alone. One deliberate small delta: the primitive nils `pendingMessageSentAt` up front, so a FAILED
+`openSession` no longer strands a stale send timestamp (previously only the success path cleared
+it). NOT device-verified — sim suite only.
+
 ## 185. 🐛 `mergeAttachments` points every duplicate-filename attachment at the first local match
 
 Found by ultrareview Pass A (2026-07-25), verified against source.
@@ -8149,6 +8167,16 @@ message-level merge directly above (`:1668–1687`) already keys by id/`clientMe
 this just follows the convention already in the file.
 
 Logged 2026-07-25.
+
+**UPDATE 2026-07-26 — FIXED + suite-green on branch `claude/t27-184-185-chatstore-integrity`**
+(same run as the #184 note: 1152/105 on the pinned sim, baseline 1147/105). Implemented exactly as
+specced: id first, `(fileName, mimeType)` from an unclaimed pool second, same-index insurance
+last. Two RED-verified tests, written against the corrected trigger (two same-named files across
+separate picker rounds — NOT the voice-memo case the review cited): the generic re-minted-id echo
+resolves duplicates to distinct local entries in send order, and an id-preserving echo lets
+identity outrank the name fallback even when the echo reorders. Single-attachment path verified
+unchanged by the pre-existing round-trip test passing untouched. NOT device-verified — sim suite
+only.
 
 ## 186. 🐛 Permission accept-lists reject valid grants — the tool belt tells users to enable what they enabled
 

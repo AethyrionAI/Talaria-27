@@ -732,7 +732,20 @@ final class ChatStore {
         return true
     }
 
-    func clearConversation() async throws {
+    /// #184: THE teardown primitive for switching conversation context —
+    /// every path that walks away from the current thread (clear, session
+    /// switch, pairing-lifecycle reset) calls this instead of hand-rolling
+    /// its own subset. It releases everything the departing run holds: the
+    /// reconcile loop, the pending run, the streaming task, the poll loop,
+    /// and the Live Activity. Firing `onRunResolved` on the way out is
+    /// deliberate — the user chose to walk away, so the relay watch stands
+    /// down rather than staying armed against a session this store has
+    /// stopped tracking (#38; AppContainer expects paired watches).
+    ///
+    /// `stopSpeech` is the one per-path difference: clear and reset silence
+    /// read-aloud with the thread; a session switch keeps it running today
+    /// (pre-#184 behavior, preserved).
+    private func abandonPendingRun(stopSpeech: Bool) {
         reconcileTask?.cancel()
         reconcileTask = nil
         if let abandoned = pendingRun {
@@ -742,8 +755,17 @@ final class ChatStore {
         streamingTask?.cancel()
         streamingTask = nil
         streamingMessageID = nil
+        pollingTask?.cancel()
+        pollingTask = nil
+        pendingMessageSentAt = nil
         chatLiveActivity.endActivity()
-        speechOutput?.stop()
+        if stopSpeech {
+            speechOutput?.stop()
+        }
+    }
+
+    func clearConversation() async throws {
+        abandonPendingRun(stopSpeech: true)
         let fresh = try await hermesClient.clearConversation()
         conversation = fresh
         lastTokenUsage = fresh.latestUsage
@@ -1296,12 +1318,11 @@ final class ChatStore {
     /// Opens an existing session: loads its history and continues that thread.
     func openSession(_ id: String) async {
         chatLog.verbose("openSession: opening '\(id)'")
-        streamingTask?.cancel()
-        streamingTask = nil
-        streamingMessageID = nil
-        chatLiveActivity.endActivity()
-        pollingTask?.cancel()
-        pollingTask = nil
+        // #184: abandon the departing session's run BEFORE the client
+        // switches its internal session — `reconcileFromServer()` takes no
+        // session argument, so a stale pendingRun would be compared against
+        // the new session's server view and smear S1 artifacts onto it.
+        abandonPendingRun(stopSpeech: false)
         do {
             let convo = try await hermesClient.openSession(id)
             conversation = convo
@@ -1341,8 +1362,12 @@ final class ChatStore {
     }
 
     func reset() {
-        pollingTask?.cancel()
-        pollingTask = nil
+        // #184: reset() runs on the pairing lifecycle — its two callers are
+        // handlePairingActivated/-Removed, after which initialize() runs
+        // against a DIFFERENT host. The departing host's stream and pending
+        // run must die here or they leak cross-host (the same race class the
+        // #136 comments at both call sites reason about for the bootstrap).
+        abandonPendingRun(stopSpeech: true)
         isPollingEnabled = false
         resetCommandCatalog()
         conversation = nil
@@ -1764,10 +1789,19 @@ final class ChatStore {
     private func mergeAttachments(_ localAttachments: [MessageAttachment], onto remoteAttachments: [MessageAttachment]) -> [MessageAttachment] {
         guard !remoteAttachments.isEmpty else { return localAttachments }
 
+        // #185: pair by identity, dequeueing each claimed local so N
+        // same-named remotes (two picker rounds of the same file name — the
+        // only trigger; memos and photos mint unique names) resolve to N
+        // distinct local entries instead of all aliasing the first match.
+        // Precedence mirrors the message-level merge above: id when the echo
+        // preserves it, then (fileName, mimeType), then same-index insurance.
+        var unclaimed = localAttachments
         return remoteAttachments.enumerated().map { index, remote in
-            let match = localAttachments.first(where: {
-                $0.fileName == remote.fileName && $0.mimeType == remote.mimeType
-            }) ?? localAttachments[safe: index]
+            let claimed = unclaimed.firstIndex(where: { $0.id == remote.id })
+                ?? unclaimed.firstIndex(where: {
+                    $0.fileName == remote.fileName && $0.mimeType == remote.mimeType
+                })
+            let match = claimed.map { unclaimed.remove(at: $0) } ?? localAttachments[safe: index]
             guard let match else { return remote }
             return MessageAttachment(
                 id: remote.id,
