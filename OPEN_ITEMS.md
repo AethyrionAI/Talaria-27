@@ -7923,3 +7923,38 @@ logic fix: `default:` should name the write-only case and say to widen the grant
 regardless, closing the crash path if anyone reaches for that API later.
 
 Logged 2026-07-25.
+
+## 187. 🐛 Gateway ignores `min_messages` — empty sessions reach the app on every fetch
+
+`SessionsHermesClient.fetchSessionList` requests
+`/api/sessions?limit=50&order=recent&min_messages=1`. **The gateway does not honor the
+parameter.** Verified against the live Mini gateway (`127.0.0.1:8642`) on 2026-07-26:
+identical payloads with and without `min_messages=1`, including rows with
+`message_count: 0`.
+
+The app is already asking for exactly what it wants and not getting it. The
+"Untitled session · 0 messages" rows in the session shelf — the thing the shelf
+redesign has been designing around — exist because a server-side filter silently
+no-ops.
+
+**What the list payload actually carries** (recorded because it has been unclear):
+23 fields per row, including `message_count`, `preview`, `title` (null for empty
+sessions — "Untitled" is the app's word, not the server's), `last_active`, `model`,
+`source`, `parent_session_id`, and the token/cost set. `preview` being real means
+two-line session rows with subtitles are backed by live data, not invented.
+
+**Fix options:**
+1. **Client-side filter** on `message_count == 0` in the pane. Zero API work,
+   non-destructive, consistent on every device. **Decided (Owen, 2026-07-26) as the
+   shipping default.** Accepted consequence: the app's visible count diverges from
+   the gateway's, since the sessions still exist on the host.
+2. **Gateway-side** — honor `min_messages`, or drop the param from the client so it
+   stops implying a contract that is not kept. Worth doing regardless of (1) so the
+   request stops lying.
+
+**Related host capability, recorded while probing:** `/api/sessions/{id}` responds
+`Allow: DELETE,GET,PATCH`. There is no `/archive` route, so archive stays a
+device-local overlay via `ConversationListStateStore`. DELETE and PATCH exist if a
+future lane wants host-side removal or retitling.
+
+Logged 2026-07-26.
