@@ -115,7 +115,15 @@ struct MainTabView: View {
                     model: sessionsModel,
                     hostName: hostStore.currentHost?.resolvedDisplayName ?? "HERMES HOST",
                     hostDetail: ChatConnectionPresentation.sessionsHostDetail(chatConnectionState),
-                    hostOnline: chatConnectionState == .online
+                    hostOnline: chatConnectionState == .online,
+                    // §7: in a column there is nothing to dismiss — the pane's
+                    // ✕ becomes the sidebar toggle. Deliberately NOT
+                    // `dismissHost`, which also fires on every row tap.
+                    collapseHost: { columnVisibility = .detailOnly },
+                    // §7: 2b becomes 2a here — the SAME VStack, dock on top.
+                    // Stated rather than derived: a split-view column is free
+                    // to report `.compact` and would flip the layout back.
+                    actionAnchor: .top
                 )
                 .navigationSplitViewColumnWidth(min: 300, ideal: 340, max: 420)
                 .toolbarBackground(.hidden, for: .navigationBar)
