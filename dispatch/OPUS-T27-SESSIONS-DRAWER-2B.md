@@ -1,6 +1,6 @@
 # OPUS-T27-SESSIONS-DRAWER — 2b: the thumb-anchored session shelf
 
-**Items:** sessions-drawer redesign (no OPEN_ITEMS entry yet — see note at foot) · **Repo:** AethyrionAI/Talaria-27 · **Base:** main
+**Items:** sessions-drawer redesign — no OPEN_ITEMS entry by design (Owen, 2026-07-26); this spec is the record · **Repo:** AethyrionAI/Talaria-27 · **Base:** main
 **Branch:** `claude/t27-sessions-drawer-2b` · **Toolchain:** Xcode-beta4, pinned sim
 **Baseline:** 1121 tests / 103 suites + 8 UI · `export GH_PAGER=cat` first
 **Staleness check:** run `gh pr list --repo AethyrionAI/Talaria-27 --state all --limit 20`.
