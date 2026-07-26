@@ -8351,6 +8351,20 @@ Logged 2026-07-25.
 
 ## 192. 🐛 Switching to on-device is silently refused until force quit
 
+> **INTERMITTENT — could not be reproduced on demand 2026-07-26.** Owen attempted
+> a fresh reproduction and the switch behaved correctly. This is a real data
+> point, not an absence of one: the defect does not reproduce from a clean app
+> state, so whatever sets the stuck condition is **rare and situational**, not a
+> flag that is always set on a common path.
+>
+> Consequence for the lane: **the missing observation (toggle moves-then-reverts
+> vs refuses to move) is currently unobtainable.** Do not gate work on getting
+> it. See the dispatch for the instrument-first approach.
+>
+> Consequence for verification: a fix shipped without a reproduction **cannot be
+> confirmed on device**. Any fix must therefore carry a test that creates the
+> stuck state synthetically, or the item stays open regardless of what merges.
+
 **Observed 2026-07-25 on whoGoesThere.** Selecting the on-device backend does not take — the UI stays
 on Hermes. Force-quitting clears it, after which the switch succeeds.
 
