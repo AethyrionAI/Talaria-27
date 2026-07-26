@@ -340,6 +340,11 @@ struct UserSettings: Codable, Hashable, Sendable {
     /// #17: donate sessions + agent files to Spotlight. Default OFF — chat
     /// previews entering the system index is an explicit opt-in privacy trade.
     var spotlightIndexingEnabled: Bool
+    /// Sessions drawer: show rows the host reports as having zero messages.
+    /// Default OFF — the gateway accepts `?min_messages=1` and ignores it
+    /// (OPEN_ITEMS #187), so the shelf filters them client-side. The active
+    /// session and any pinned session are exempt from the filter regardless.
+    var showEmptySessions: Bool
     /// #124: biometric app lock (`.deviceOwnerAuthentication` — biometry with
     /// passcode fallback, never biometry-only). Default OFF, free tier.
     var appLockEnabled: Bool
@@ -374,6 +379,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         reduceMotion: Bool = false,
         verboseLogging: Bool = false,
         spotlightIndexingEnabled: Bool = false,
+        showEmptySessions: Bool = false,
         appLockEnabled: Bool = false,
         appLockGracePeriod: AppLockGracePeriod = .immediate
     ) {
@@ -404,6 +410,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.reduceMotion = reduceMotion
         self.verboseLogging = verboseLogging
         self.spotlightIndexingEnabled = spotlightIndexingEnabled
+        self.showEmptySessions = showEmptySessions
         self.appLockEnabled = appLockEnabled
         self.appLockGracePeriod = appLockGracePeriod
     }
@@ -436,6 +443,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         case reduceMotion
         case verboseLogging
         case spotlightIndexingEnabled
+        case showEmptySessions
         case appLockEnabled
         case appLockGracePeriod
     }
@@ -476,6 +484,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         reduceMotion = try container.decodeIfPresent(Bool.self, forKey: .reduceMotion) ?? false
         verboseLogging = try container.decodeIfPresent(Bool.self, forKey: .verboseLogging) ?? false
         spotlightIndexingEnabled = try container.decodeIfPresent(Bool.self, forKey: .spotlightIndexingEnabled) ?? false
+        showEmptySessions = try container.decodeIfPresent(Bool.self, forKey: .showEmptySessions) ?? false
         appLockEnabled = try container.decodeIfPresent(Bool.self, forKey: .appLockEnabled) ?? false
         appLockGracePeriod = try container.decodeIfPresent(AppLockGracePeriod.self, forKey: .appLockGracePeriod) ?? .immediate
     }
@@ -509,6 +518,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         try container.encode(reduceMotion, forKey: .reduceMotion)
         try container.encode(verboseLogging, forKey: .verboseLogging)
         try container.encode(spotlightIndexingEnabled, forKey: .spotlightIndexingEnabled)
+        try container.encode(showEmptySessions, forKey: .showEmptySessions)
         try container.encode(appLockEnabled, forKey: .appLockEnabled)
         try container.encode(appLockGracePeriod, forKey: .appLockGracePeriod)
     }
