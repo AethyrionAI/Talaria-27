@@ -1411,6 +1411,143 @@ struct AppStoresTests {
         #expect(mergedAttachment.localStoragePath != nil)
     }
 
+    /// #185: echoes the user's attachments back the way the relay does —
+    /// display fields only (the client-only paths never round-trip), with
+    /// ids either re-minted (the generic echo) or preserved and reordered
+    /// (the id-priority probe).
+    @MainActor
+    private final class AttachmentEchoClient: HermesClientProtocol {
+        var connectionStatus: ConnectionStatus = .connected
+        var currentConversation: Conversation?
+        var preservesIDs = false
+        var reversesEchoOrder = false
+
+        func connect() async {}
+        func disconnect() async {}
+
+        func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
+            Message(sender: .hermes, content: "unused", status: .delivered)
+        }
+
+        func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+            var echoed = attachments.map {
+                MessageAttachment(
+                    id: preservesIDs ? $0.id : UUID(),
+                    kind: $0.kind.rawValue,
+                    fileName: $0.fileName,
+                    mimeType: $0.mimeType,
+                    thumbnailBase64: $0.thumbnailBase64
+                )
+            }
+            if reversesEchoOrder {
+                echoed.reverse()
+            }
+            currentConversation = Conversation(
+                title: "Hermes",
+                messages: [
+                    Message(
+                        id: UUID(),
+                        clientMessageID: clientMessageID,
+                        sender: .user,
+                        content: "",
+                        status: .sent,
+                        attachments: echoed
+                    ),
+                    Message(sender: .hermes, content: "I saw the attachments.", status: .delivered),
+                ]
+            )
+
+            return AsyncStream { continuation in
+                Task { @MainActor in
+                    continuation.yield(.messageSent(jobID: UUID()))
+                    continuation.yield(.finished(Message(sender: .hermes, content: "I saw the attachments.", status: .delivered), nil, nil))
+                    continuation.finish()
+                }
+            }
+        }
+
+        func loadConversation() async -> Conversation {
+            currentConversation ?? Conversation(title: "Hermes")
+        }
+
+        func clearConversation() async throws -> Conversation {
+            Conversation(title: "Hermes")
+        }
+    }
+
+    /// Two picker rounds staging the same file name into distinct local
+    /// copies — the only real #185 trigger (voice memos carry second-
+    /// resolution timestamps and photos carry UUID names).
+    @MainActor
+    private func makeSameNamedPickerAttachments() throws -> (PendingAttachment, PendingAttachment) {
+        let fileManager = FileManager.default
+        let dirA = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let dirB = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: dirA, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: dirB, withIntermediateDirectories: true)
+        let urlA = dirA.appendingPathComponent("report.txt")
+        let urlB = dirB.appendingPathComponent("report.txt")
+        try Data("alpha bytes".utf8).write(to: urlA)
+        try Data("beta bytes".utf8).write(to: urlB)
+        let first = try #require(PendingAttachment.file(at: urlA))
+        let second = try #require(PendingAttachment.file(at: urlB))
+        #expect(first.localStoragePath != second.localStoragePath)
+        return (first, second)
+    }
+
+    @Test @MainActor
+    func mergeResolvesDuplicateFileNamesToDistinctLocalAttachments() async throws {
+        // #185: `first(where: fileName ==)` never dequeued its match, so N
+        // same-named remote attachments all aliased localAttachments[0] —
+        // the second bubble opened the first bubble's bytes, ShareLink
+        // handed out the wrong file, and a #21 Tier 2 re-fetch targeted the
+        // wrong remote path. Each local entry must be claimable once.
+        let (first, second) = try makeSameNamedPickerAttachments()
+
+        let suiteName = "chat-store-duplicate-names-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = AttachmentEchoClient()
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        await chatStore.sendMessage("", attachments: [first, second])
+
+        let userMessage = try #require(chatStore.conversation?.messages.first(where: { $0.sender == .user }))
+        #expect(userMessage.attachments.count == 2)
+        let mergedPaths = userMessage.attachments.map(\.localStoragePath)
+        #expect(mergedPaths == [first.localStoragePath, second.localStoragePath],
+                "same-named attachments must keep their own local bytes, not alias the first match")
+    }
+
+    @Test @MainActor
+    func mergeMatchesEchoedAttachmentIDsBeforeFileNames() async throws {
+        // #185: when the echo preserves attachment ids (`MessageAttachment.id`
+        // survives the round trip), identity must outrank the (fileName,
+        // mimeType) fallback — the same precedence the sibling message-level
+        // merge already models (id, then clientMessageID, then jobID).
+        let (first, second) = try makeSameNamedPickerAttachments()
+
+        let suiteName = "chat-store-id-priority-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = AttachmentEchoClient()
+        hermesClient.preservesIDs = true
+        hermesClient.reversesEchoOrder = true
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        await chatStore.sendMessage("", attachments: [first, second])
+
+        let userMessage = try #require(chatStore.conversation?.messages.first(where: { $0.sender == .user }))
+        #expect(userMessage.attachments.count == 2)
+        for merged in userMessage.attachments {
+            let expected = merged.id == first.id ? first : second
+            #expect(merged.localStoragePath == expected.localStoragePath,
+                    "an id-preserving echo must pair each attachment with ITS local entry, whatever the order")
+        }
+    }
+
     @Test @MainActor
     func talkStoreReflectsBlockedReadinessState() async throws {
         let voiceService = RecordingVoiceSessionService()
