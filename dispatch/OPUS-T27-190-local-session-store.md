@@ -6,6 +6,38 @@
 
 ## SHIP BLOCKER. Free tier is standalone on-device.
 
+## LANDED SINCE THIS SPEC WAS WRITTEN — read before Phase 2
+
+**PR #150 (#184) merged 2026-07-26 and changed the ground under this lane.** `ChatStore` now has a
+single teardown primitive:
+
+```
+private func abandonPendingRun(stopSpeech: Bool)      // ChatStore.swift:748
+```
+
+It cancels `reconcileTask`, fires `onRunResolved` for any abandoned run, nils `pendingRun`, cancels
+`streamingTask` and `pollingTask`, clears `streamingMessageID` and `pendingMessageSentAt`, ends the
+chat Live Activity, and optionally stops speech. All three teardown paths call it:
+`clearConversation` (`:768`), `openSession` (`:1325`), `reset()` (`:1370`).
+
+**Consequence for this lane, and it is the important one:** the "New must persist before it clears"
+requirement in Phase 2 belongs **in or alongside that primitive**, not hand-rolled into each path.
+#184 existed specifically to collapse three divergent teardown subsets into one. **Do not
+re-fragment it.** If persistence cannot live in the primitive itself — a reasonable argument, since
+the primitive is synchronous and a save may not be — then it goes at a single shared call site, and
+you state in the PR body why the primitive was not the right home.
+
+The primitive is currently `private`. If this lane needs it wider, widen it deliberately and say so;
+do not copy its body.
+
+**Also fold in this one-line change** (Owen's call, 2026-07-26): `openSession` currently passes
+`stopSpeech: false` at `:1325`, so read-aloud keeps playing across a session switch. **Change it to
+`true`.** Audio from session A continuing while the user is looking at session B is the same
+cross-session leak #184 closes — audible instead of persisted. `openSession` is a commit action, not
+a browse. The primitive already calls `speechOutput?.stop()`, which is the correct call per **#110**
+(`stop()`, not `finishStream()`), so no new instance of that defect is introduced. Keep it as its own
+small commit.
+
 ## The observation
 
 Device: whoGoesThere (iPhone 17 Pro Max), on-device backend, 2026-07-25/26.
@@ -60,7 +92,9 @@ Doing it with full transcripts would be materially worse. If you find yourself a
 - `LocalChatBackend.listSessions()` returns every stored local session, most recent first.
 - `LocalChatBackend.openSession(id)` loads by id and succeeds for any stored session.
 - New-chat stops destroying: whatever teardown runs on New must **persist the outgoing conversation**
-  before the new one becomes current.
+  before the new one becomes current. **Route this through `abandonPendingRun` or a single shared
+  call site** — see the LANDED SINCE section above. Note that `clearConversation` (`:767`) is the New
+  path and already calls the primitive at `:768`, so the seam exists.
 - Session identity: a local session needs an id that survives the app. `Conversation.id` already
   exists — use it rather than minting a parallel one, and confirm it is stable across a relaunch.
 
@@ -103,6 +137,7 @@ lane alone removes the data loss half of that trap.** Do not try to fix the othe
 - A pre-existing single cached conversation survives the upgrade and appears as a session.
 - Connected-mode session list and restore behave exactly as before — verified, not assumed.
 - Deterministic tests for: list ordering, open-by-id, new-chat persistence, migration idempotency.
+- Read-aloud stops on session switch; the #184 teardown tests still pass unmodified.
 - Device verification is **owed by Owen** — do not mark the item closed on a green suite. State in
   the PR body exactly what a device run should check.
 
