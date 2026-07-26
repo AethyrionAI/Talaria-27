@@ -286,7 +286,10 @@ struct ChatScreen: View {
         let targets = ChatKeyboardShortcuts.sessionJumpTargets(
             sessions: sessionsModel.sessions,
             pinnedIDs: container.conversationListState?.state.pinnedSessionIDs ?? [],
-            archivedIDs: container.conversationListState?.state.archivedSessionIDs ?? []
+            archivedIDs: container.conversationListState?.state.archivedSessionIDs ?? [],
+            // The ordinals must address what the shelf SHOWS — a jump list
+            // counting rows the drawer hides is off-by-n by construction.
+            showEmptySessions: settingsStore.settings.showEmptySessions
         )
         guard ordinal - 1 < targets.count else { return }
         sessionsOpen = false
@@ -467,9 +470,11 @@ struct ChatScreen: View {
         let title = (info.title?.isEmpty == false)
             ? info.title!
             : ((info.preview?.isEmpty == false) ? info.preview! : "Untitled session")
-        let subtitle = (info.preview?.isEmpty == false)
-            ? info.preview!
-            : "\(info.messageCount) message\(info.messageCount == 1 ? "" : "s")"
+        let subtitle: String = {
+            if let preview = info.preview, !preview.isEmpty { return preview }
+            guard info.messageCount > 0 else { return "No messages" }
+            return "\(info.messageCount) message\(info.messageCount == 1 ? "" : "s")"
+        }()
         let (group, timeLabel) = sessionGroupAndLabel(for: info.lastActive)
         // M-5: sessions living on a NON-ACTIVE backend profile carry their
         // host's name as the row badge; same-host rows keep the AUTO badge.
@@ -485,7 +490,8 @@ struct ChatScreen: View {
             group: group,
             isActive: info.isActive,
             isPinned: false,
-            badge: profileBadge ?? (info.source == "cron" ? "AUTO" : nil)
+            badge: profileBadge ?? (info.source == "cron" ? "AUTO" : nil),
+            messageCount: info.messageCount
         )
     }
 
@@ -533,12 +539,12 @@ struct ChatScreen: View {
                 // Lane J (J-5): pointer affordance on iPad — inert without a pointer.
                 .hoverEffect(.highlight)
                 .accessibilityLabel("Sessions")
-                .allowsHitTesting(!sessionsOpen)
+                .chatChromeSuppressed(sessionsOpen)
             }
         }
         ToolbarItem(placement: .principal) {
             ModelSelector(model: modelModel, isOnline: isChatHostOnline)
-                .allowsHitTesting(!sessionsOpen)
+                .chatChromeSuppressed(sessionsOpen)
         }
         ToolbarItem(placement: .topBarTrailing) {
             // #45: first reachable entry to the agent→phone Inbox. The pip is
@@ -553,13 +559,13 @@ struct ChatScreen: View {
                         .allowsHitTesting(false)
                 }
             }
-            .allowsHitTesting(!sessionsOpen)
+            .chatChromeSuppressed(sessionsOpen)
         }
         ToolbarItem(placement: .topBarTrailing) {
             GlassCircleButton(icon: "gearshape", accessibilityLabel: "Open settings") {
                 router.presentSheet(.settings)
             }
-            .allowsHitTesting(!sessionsOpen)
+            .chatChromeSuppressed(sessionsOpen)
         }
     }
 
@@ -1478,5 +1484,23 @@ struct ChatScreen: View {
         withTransaction(transaction) {
             scrollProxy?.scrollTo(id, anchor: .top)
         }
+    }
+}
+
+// MARK: - Chrome suppression while the sessions drawer is open
+
+private extension View {
+    /// Defect 02: the chat chrome was only ever *deafened* while the drawer
+    /// was open — it kept its pixels and read straight through a 0.35 scrim on
+    /// a light palette. Pixels and taps now leave together.
+    ///
+    /// `allowsHitTesting` is not animatable, so it flips at the START of the
+    /// transition: nothing is tappable while the chrome is still faintly
+    /// visible, which is the ordering that matters.
+    func chatChromeSuppressed(_ suppressed: Bool) -> some View {
+        self
+            .opacity(suppressed ? 0 : 1)
+            .allowsHitTesting(!suppressed)
+            .animation(Design.Motion.standard, value: suppressed)
     }
 }
