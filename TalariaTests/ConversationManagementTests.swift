@@ -545,6 +545,221 @@ struct DrawerDataSourceTests {
     }
 }
 
+// MARK: - #187: the empty-session filter, and a header count that isn't a lie
+
+/// `fetchSessionList` already asks the gateway for `?min_messages=1` and the
+/// gateway silently ignores it (verified live, 2026-07-26), so zero-message
+/// sessions reach the app and pile up in the shelf. The filter is client-side,
+/// and its two exemptions are the whole point: without them, "New Chat"
+/// creates a session that is invisible in the drawer it just opened.
+struct EmptySessionFilterTests {
+
+    @MainActor
+    private static func summary(
+        _ id: String,
+        title: String = "Untitled",
+        group: SessionsDrawerModel.Group = .today,
+        isActive: Bool = false,
+        isPinned: Bool = false,
+        messageCount: Int = 0
+    ) -> SessionsDrawerModel.SessionSummary {
+        SessionsDrawerModel.SessionSummary(
+            id: id, title: title, subtitle: "subtitle", timeLabel: "09:00",
+            group: group, isActive: isActive, isPinned: isPinned,
+            messageCount: messageCount
+        )
+    }
+
+    @MainActor
+    private static func visibleIDs(
+        _ sessions: [SessionsDrawerModel.SessionSummary],
+        pinnedIDs: Set<String> = [],
+        archivedIDs: Set<String> = [],
+        showingArchived: Bool = false,
+        showEmptySessions: Bool = false
+    ) -> [String] {
+        SessionsDrawerModel.grouped(
+            sessions: sessions, query: "",
+            pinnedIDs: pinnedIDs, archivedIDs: archivedIDs,
+            showingArchived: showingArchived,
+            showEmptySessions: showEmptySessions
+        )
+        .flatMap(\.items)
+        .map(\.id)
+    }
+
+    // MARK: The rule
+
+    @Test @MainActor func zeroMessageRowsAreHiddenWhileTheFilterIsOn() {
+        let sessions = [
+            Self.summary("real", messageCount: 4),
+            Self.summary("empty", messageCount: 0),
+        ]
+        #expect(Self.visibleIDs(sessions) == ["real"])
+    }
+
+    @Test @MainActor func theFilterOffRestoresEveryFetchedRow() {
+        let sessions = [
+            Self.summary("real", messageCount: 4),
+            Self.summary("empty", messageCount: 0),
+        ]
+        #expect(Self.visibleIDs(sessions, showEmptySessions: true) == ["real", "empty"])
+    }
+
+    /// The default on the PURE function is "don't filter", so every caller
+    /// without a user setting to consult — and every pre-#187 test — keeps
+    /// the historical behavior.
+    @Test @MainActor func thePureRuleDefaultsToNoFiltering() {
+        let sessions = [Self.summary("empty", messageCount: 0)]
+        let grouped = SessionsDrawerModel.grouped(
+            sessions: sessions, query: "",
+            pinnedIDs: [], archivedIDs: [], showingArchived: false
+        )
+        #expect(grouped.flatMap(\.items).map(\.id) == ["empty"])
+    }
+
+    // MARK: Exemption 1 — the active session (NOT optional)
+
+    @Test @MainActor func activeSessionSurvivesTheFilterAtZeroMessages() {
+        // Tapping NEW CHAT creates exactly this row. Without the exemption it
+        // is invisible in the shelf that just opened, and the current-row
+        // accent bar has nothing to mark.
+        let sessions = [
+            Self.summary("real", messageCount: 9),
+            Self.summary("fresh", isActive: true, messageCount: 0),
+        ]
+        #expect(Self.visibleIDs(sessions) == ["real", "fresh"])
+    }
+
+    // MARK: Exemption 2 — a pinned session (an explicit act outranks a heuristic)
+
+    @Test @MainActor func pinnedSessionSurvivesTheFilterAtZeroMessages() {
+        let sessions = [
+            Self.summary("real", messageCount: 9),
+            Self.summary("kept", messageCount: 0),
+        ]
+        // Pinned via the on-device overlay…
+        let viaOverlay = Self.visibleIDs(sessions, pinnedIDs: ["kept"])
+        #expect(viaOverlay.sorted() == ["kept", "real"])
+
+        // …and pinned via the row's own flag.
+        let rowFlagged = [
+            Self.summary("real", messageCount: 9),
+            Self.summary("kept", isPinned: true, messageCount: 0),
+        ]
+        #expect(Self.visibleIDs(rowFlagged).sorted() == ["kept", "real"])
+    }
+
+    @Test @MainActor func theFilterAppliesInsideTheArchivedViewToo() {
+        let sessions = [
+            Self.summary("archived-real", messageCount: 3),
+            Self.summary("archived-empty", messageCount: 0),
+        ]
+        let visible = Self.visibleIDs(
+            sessions,
+            archivedIDs: ["archived-real", "archived-empty"],
+            showingArchived: true
+        )
+        #expect(visible == ["archived-real"])
+    }
+
+    // MARK: The header count
+
+    @Test @MainActor func headerCountsVisibleRowsNotFetchedOnes() {
+        // "14 THREADS" above 9 rows is the same class of lie the filter
+        // exists to remove.
+        let model = SessionsDrawerModel()
+        model.sessions = [
+            Self.summary("a", messageCount: 2),
+            Self.summary("b", messageCount: 7),
+            Self.summary("empty-1", messageCount: 0),
+            Self.summary("empty-2", messageCount: 0),
+        ]
+        #expect(model.sessions.count == 4)
+        #expect(model.visibleSessions.count == 2)
+        #expect(model.headerStat == "2 THREADS")
+    }
+
+    @Test @MainActor func headerCountFollowsTheArchiveOverlay() {
+        let persistence = TestPersistence.make("header-archive")
+        let listState = ConversationListStateStore(persistence: persistence)
+        let model = SessionsDrawerModel()
+        model.listState = listState
+        model.sessions = [
+            Self.summary("a", messageCount: 2),
+            Self.summary("b", messageCount: 7),
+        ]
+        #expect(model.headerStat == "2 THREADS")
+
+        listState.setArchived(true, sessionID: "b")
+        #expect(model.headerStat == "1 THREAD")
+    }
+
+    @Test @MainActor func headerCountFollowsTheSearchQuery() {
+        let model = SessionsDrawerModel()
+        model.sessions = [
+            Self.summary("a", title: "Tokyo trip", messageCount: 2),
+            Self.summary("b", title: "Invoice triage", messageCount: 7),
+        ]
+        model.searchText = "tokyo"
+        #expect(model.headerStat == "1 THREAD")
+    }
+
+    /// Defect 01: the stat has to stop being a sentence that reflows. At zero
+    /// active the clause is suppressed entirely — never "· 0 ACTIVE".
+    @Test @MainActor func headerSuppressesTheActiveClauseAtZero() {
+        let model = SessionsDrawerModel()
+        model.sessions = [Self.summary("a", messageCount: 2)]
+        #expect(model.headerStat == "1 THREAD")
+        #expect(!model.headerStat.contains("ACTIVE"))
+
+        model.sessions = [
+            Self.summary("a", messageCount: 2),
+            Self.summary("b", isActive: true, messageCount: 5),
+        ]
+        #expect(model.headerStat == "2 THREADS · 1 ACTIVE")
+    }
+
+    /// The ordinals must address what the shelf SHOWS — a jump list counting
+    /// rows the drawer hides is off-by-n by construction.
+    @Test @MainActor func sessionJumpOrdinalsAddressTheVisibleShelf() {
+        let sessions = [
+            Self.summary("first", messageCount: 4),
+            Self.summary("empty", messageCount: 0),
+            Self.summary("second", messageCount: 6),
+        ]
+        let filtered = ChatKeyboardShortcuts.sessionJumpTargets(
+            sessions: sessions, pinnedIDs: [], archivedIDs: [],
+            showEmptySessions: false
+        )
+        #expect(filtered.map(\.id) == ["first", "second"])
+
+        let unfiltered = ChatKeyboardShortcuts.sessionJumpTargets(
+            sessions: sessions, pinnedIDs: [], archivedIDs: [],
+            showEmptySessions: true
+        )
+        #expect(unfiltered.map(\.id) == ["first", "empty", "second"])
+    }
+
+    // MARK: The preference
+
+    @Test func showEmptySessionsDefaultsOffAndSurvivesARoundTrip() throws {
+        // A pre-#187 blob carries no key at all — the filter must come up
+        // ACTIVE rather than inheriting a stray true.
+        let legacy = Data(#"{"userName":"Owen"}"#.utf8)
+        let decoded = try JSONDecoder().decode(UserSettings.self, from: legacy)
+        #expect(decoded.showEmptySessions == false)
+        #expect(UserSettings().showEmptySessions == false)
+
+        var settings = UserSettings()
+        settings.showEmptySessions = true
+        let roundTripped = try JSONDecoder().decode(
+            UserSettings.self, from: JSONEncoder().encode(settings)
+        )
+        #expect(roundTripped.showEmptySessions == true)
+    }
+}
+
 // MARK: - Shared fixtures
 
 private enum TestPersistence {

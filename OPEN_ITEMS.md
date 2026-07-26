@@ -490,6 +490,37 @@ toolbar renders above `.overlay` content.
   `.allowsHitTesting(!sessionsOpen)` — taps on the toolbar area pass to the scrim
   dismiss gesture when the drawer is open
 
+**Update 2026-07-26 — the root cause was never fixed, only mitigated; now it is.**
+Found on device during the 2b shelf work: two grey capsules floating over the top of the
+drawer panel, hiding its own header. They were the chat toolbar. Three layers, peeled in
+order, each one revealing the next:
+
+1. `.allowsHitTesting` killed the taps but never the pixels — that was always the 2026-06-25
+   fix's stated limit, and a scrim is not a fix on a light palette.
+2. Adding `.opacity(sessionsOpen ? 0 : 1)` faded the item CONTENT but left the capsules.
+   On iOS 26+ the system draws each toolbar item's glass **outside** the item's own view, so
+   opacity cannot reach it. `GlassCircleButton` draws a *circle*; the hamburger draws no
+   background at all — the *capsules* were proof the shapes were system-drawn, not ours.
+   `ToolbarContent.sharedBackgroundVisibility(_:)` (iOS 26+) is what takes the material.
+3. With the glass gone the panel's header was **still** invisible while being correctly laid
+   out — the a11y tree showed the `0 THREADS` heading at (16, 73) and the ✕ at (348, 62), and
+   a 440pt-wide bar Group at y=62 over a 408pt panel. The navigation bar composites above
+   `.overlay` content as a LAYER, whatever its contents' alpha.
+
+`.toolbar(.hidden, for: .navigationBar)` did fix it, but dropped the bar's height from the
+safe area and slid the chat up **~57pt** behind the panel — measured in the peek sliver, and
+a jump on close. So the drawer moved out of `ChatScreen.overlay` and became a sibling of the
+whole `NavigationStack` in `MainTabView.compactStack`, with `sessionsOpen` lifted alongside
+the other state that must survive the compact↔regular boundary.
+
+Payoffs beyond the z-order: the panel inherits the window's real safe area, so the UIKit
+`DeviceSafeArea` scene-inset read the drawer needed is **deleted**; and crossing into regular
+width stops rendering the drawer structurally, retiring the `onChange(horizontalSizeClass)`
+stale-flag reset. Layers 1 and 2 are kept — the panel leaves a 32pt peek sliver, and the
+gear's right edge falls inside it.
+
+Verified in the simulator: header legible and unobstructed, no capsules, no reflow.
+
 ---
 
 ## 19. ✅ Session shelf — history now populated from Hermes Sessions API
@@ -7956,5 +7987,49 @@ two-line session rows with subtitles are backed by live data, not invented.
 `Allow: DELETE,GET,PATCH`. There is no `/archive` route, so archive stays a
 device-local overlay via `ConversationListStateStore`. DELETE and PATCH exist if a
 future lane wants host-side removal or retitling.
+
+**Update 2026-07-26 — option (1) shipped; this item now owns only the gateway half.**
+The client-side filter landed with the 2b sessions shelf. `SessionSummary` gained
+`messageCount` (the drawer's view model never carried it — only `HermesSessionInfo`
+did), and `SessionsDrawerModel.grouped` drops `messageCount == 0` rows with two
+exemptions: the **active** session — non-negotiable, since New Chat creates a
+zero-message session that would otherwise be invisible in the shelf that just opened —
+and any **pinned** session, because an explicit user act outranks a heuristic. The
+header stat and the ⌘1…⌘9 jump ordinals both read the filtered list, so neither can
+claim a count the shelf does not show. `UserSettings.showEmptySessions` (default OFF)
+is the escape hatch, in Settings → Sessions → Shelf.
+
+`min_messages=1` **stays on the request** — deliberately. It is harmless, and dropping
+it belongs to option (2) below, which is still open: the gateway should either honor
+the parameter or the client should stop implying a contract that is not kept.
+
+**Update 2026-07-26 — the empties have a single source, and it is not Talaria.**
+
+Measured against the Mini gateway: **200 sessions, 116 with `message_count == 0`.**
+Every one of the 116 carries **`source: "acp"`** — Open Design (Owen, 2026-07-26),
+which speaks ACP to Hermes. `createBareSession` is not leaking; Talaria's own
+`api_server` sessions are all non-empty.
+
+Non-empty sessions by source: `api_server` 32, `acp` 20, `tui` 19, `desktop` 11,
+`cron` 2. So ACP does produce real sessions — it also abandons bare ones in bursts:
+54 on 07-06, 25 on 07-16, 19 on 07-25, against a steady 3–14/day of real traffic.
+Abandoned rows have `end_reason: null` — never closed, just dropped. Three on 07-25
+opened within 90 seconds of each other, which reads as per-connection or per-reconnect
+session creation rather than anything a person did.
+
+**Every `acp` session has `title: null`**, empty and non-empty alike. That is the
+link to the drawer's row defects: with no server title the row falls back to
+`preview`, so Open Design's raw instruction block becomes the visible title —
+hence `# Instructions (read first)  # Open D…` on both lines of the row.
+
+**Practical cost of leaving the gateway half open:** the client fetches `limit=50`
+per host, and 19 of the Mini's most recent 50 are empty. ~38% of the page is spent
+on rows the client then discards, so the shelf shows less history than it could.
+
+**Sharpened fix, gateway side.** Not merely "honor `min_messages`". Either:
+- ACP should not register a session until it has a first message, **or**
+- the list endpoint should not return zero-message sessions.
+
+The first is the real fix; the second is the cheap one and helps every client at once.
 
 Logged 2026-07-26.

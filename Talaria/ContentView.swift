@@ -45,6 +45,11 @@ struct MainTabView: View {
     @State private var composerText = ""
     @State private var composerAttachments: [PendingAttachment] = []
     @State private var sessionsModel = SessionsDrawerModel()
+    /// #18: the sessions drawer is hosted HERE, not inside ChatScreen — see
+    /// `compactStack`. Crossing into regular width therefore stops rendering
+    /// it structurally, which is what the old `onChange(horizontalSizeClass)`
+    /// reset inside ChatScreen was emulating.
+    @State private var sessionsOpen = false
 
     // Lane J (J-9): sidebar visibility, persisted across launches.
     @AppStorage("chatSidebarVisible") private var sidebarVisiblePersisted = true
@@ -80,22 +85,51 @@ struct MainTabView: View {
 
     private var compactStack: some View {
         @Bindable var router = router
-        return NavigationStack(path: router.pathBinding()) {
-            ChatScreen(
-                messageText: $composerText,
-                pendingAttachments: $composerAttachments,
-                sessionsModel: sessionsModel
-            )
-            .navigationDestination(for: Route.self) { route in
-                routeDestination(route)
+        return ZStack {
+            NavigationStack(path: router.pathBinding()) {
+                ChatScreen(
+                    messageText: $composerText,
+                    pendingAttachments: $composerAttachments,
+                    sessionsModel: sessionsModel,
+                    sessionsOpen: $sessionsOpen
+                )
+                .navigationDestination(for: Route.self) { route in
+                    routeDestination(route)
+                }
+            }
+            .sheet(item: $router.activeSheet) { destination in
+                sheetDestination(destination)
+            }
+            .fullScreenCover(isPresented: $router.isVoiceOverlayPresented) {
+                VoiceOverlayScreen()
+            }
+
+            // #18's root cause, fixed at the layer instead of the alpha: the
+            // navigation toolbar composites ABOVE `.overlay` content, so a
+            // drawer hosted inside ChatScreen could never cover it. Fading the
+            // items left the system's own bar layer drawing over the panel and
+            // its header. Hiding the whole bar worked, but dropped its height
+            // from the safe area and slid the chat up ~57pt behind the panel —
+            // visible in the peek sliver, and a jump on close.
+            //
+            // As a SIBLING of the whole NavigationStack the drawer is simply
+            // above it, nothing reflows, and it inherits the window's real
+            // safe area — which is what "the panel owns its own safe-area
+            // inset" was asking for all along.
+            if sessionsOpen {
+                SessionsDrawer(
+                    isPresented: $sessionsOpen,
+                    model: sessionsModel,
+                    hostName: hostStore.currentHost?.resolvedDisplayName ?? "HERMES HOST",
+                    hostDetail: ChatConnectionPresentation.sessionsHostDetail(chatConnectionState),
+                    hostOnline: chatConnectionState == .online
+                )
             }
         }
-        .sheet(item: $router.activeSheet) { destination in
-            sheetDestination(destination)
-        }
-        .fullScreenCover(isPresented: $router.isVoiceOverlayPresented) {
-            VoiceOverlayScreen()
-        }
+        // Animate the outer conditional so the panel's transitions play on
+        // close too — closes were previously torn down unanimated, so the
+        // panel popped instead of sliding (#42).
+        .animation(Design.Motion.standard, value: sessionsOpen)
     }
 
     // MARK: Regular (Lane J split view — J-8/J-9)
@@ -115,7 +149,15 @@ struct MainTabView: View {
                     model: sessionsModel,
                     hostName: hostStore.currentHost?.resolvedDisplayName ?? "HERMES HOST",
                     hostDetail: ChatConnectionPresentation.sessionsHostDetail(chatConnectionState),
-                    hostOnline: chatConnectionState == .online
+                    hostOnline: chatConnectionState == .online,
+                    // §7: in a column there is nothing to dismiss — the pane's
+                    // ✕ becomes the sidebar toggle. Deliberately NOT
+                    // `dismissHost`, which also fires on every row tap.
+                    collapseHost: { columnVisibility = .detailOnly },
+                    // §7: 2b becomes 2a here — the SAME VStack, dock on top.
+                    // Stated rather than derived: a split-view column is free
+                    // to report `.compact` and would flip the layout back.
+                    actionAnchor: .top
                 )
                 .navigationSplitViewColumnWidth(min: 300, ideal: 340, max: 420)
                 .toolbarBackground(.hidden, for: .navigationBar)

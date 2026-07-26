@@ -84,6 +84,11 @@ struct ConversationSearchScreen: View {
     /// seam a drawer row tap uses, and pin/archive badges read the stores the
     /// drawer already wired onto it.
     var drawerModel: SessionsDrawerModel
+    /// §03: the shelf's SEARCH EVERYTHING row is now the only route here, and
+    /// it hands its filter text straight through — the full-corpus screen
+    /// opens already searching rather than making the user retype what they
+    /// just typed into the shelf.
+    var initialQuery: String = ""
     /// Host callback — closes the drawer behind this sheet after a selection.
     var onDidSelect: () -> Void = {}
 
@@ -109,6 +114,13 @@ struct ConversationSearchScreen: View {
             }
             model.serverSessionsProvider = { [chatStore] in
                 chatStore.lastLoadedSessions
+            }
+            let seed = initialQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !seed.isEmpty, model.query.isEmpty {
+                model.query = seed
+                // The providers were only just wired — resolve now rather than
+                // waiting out the debounce on a query the user already typed.
+                model.performSearch(seed)
             }
             searchFocused = true
         }
