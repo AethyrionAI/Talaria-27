@@ -490,6 +490,37 @@ toolbar renders above `.overlay` content.
   `.allowsHitTesting(!sessionsOpen)` — taps on the toolbar area pass to the scrim
   dismiss gesture when the drawer is open
 
+**Update 2026-07-26 — the root cause was never fixed, only mitigated; now it is.**
+Found on device during the 2b shelf work: two grey capsules floating over the top of the
+drawer panel, hiding its own header. They were the chat toolbar. Three layers, peeled in
+order, each one revealing the next:
+
+1. `.allowsHitTesting` killed the taps but never the pixels — that was always the 2026-06-25
+   fix's stated limit, and a scrim is not a fix on a light palette.
+2. Adding `.opacity(sessionsOpen ? 0 : 1)` faded the item CONTENT but left the capsules.
+   On iOS 26+ the system draws each toolbar item's glass **outside** the item's own view, so
+   opacity cannot reach it. `GlassCircleButton` draws a *circle*; the hamburger draws no
+   background at all — the *capsules* were proof the shapes were system-drawn, not ours.
+   `ToolbarContent.sharedBackgroundVisibility(_:)` (iOS 26+) is what takes the material.
+3. With the glass gone the panel's header was **still** invisible while being correctly laid
+   out — the a11y tree showed the `0 THREADS` heading at (16, 73) and the ✕ at (348, 62), and
+   a 440pt-wide bar Group at y=62 over a 408pt panel. The navigation bar composites above
+   `.overlay` content as a LAYER, whatever its contents' alpha.
+
+`.toolbar(.hidden, for: .navigationBar)` did fix it, but dropped the bar's height from the
+safe area and slid the chat up **~57pt** behind the panel — measured in the peek sliver, and
+a jump on close. So the drawer moved out of `ChatScreen.overlay` and became a sibling of the
+whole `NavigationStack` in `MainTabView.compactStack`, with `sessionsOpen` lifted alongside
+the other state that must survive the compact↔regular boundary.
+
+Payoffs beyond the z-order: the panel inherits the window's real safe area, so the UIKit
+`DeviceSafeArea` scene-inset read the drawer needed is **deleted**; and crossing into regular
+width stops rendering the drawer structurally, retiring the `onChange(horizontalSizeClass)`
+stale-flag reset. Layers 1 and 2 are kept — the panel leaves a 32pt peek sliver, and the
+gear's right edge falls inside it.
+
+Verified in the simulator: header legible and unobstructed, no capsules, no reflow.
+
 ---
 
 ## 19. ✅ Session shelf — history now populated from Hermes Sessions API
