@@ -1789,10 +1789,19 @@ final class ChatStore {
     private func mergeAttachments(_ localAttachments: [MessageAttachment], onto remoteAttachments: [MessageAttachment]) -> [MessageAttachment] {
         guard !remoteAttachments.isEmpty else { return localAttachments }
 
+        // #185: pair by identity, dequeueing each claimed local so N
+        // same-named remotes (two picker rounds of the same file name — the
+        // only trigger; memos and photos mint unique names) resolve to N
+        // distinct local entries instead of all aliasing the first match.
+        // Precedence mirrors the message-level merge above: id when the echo
+        // preserves it, then (fileName, mimeType), then same-index insurance.
+        var unclaimed = localAttachments
         return remoteAttachments.enumerated().map { index, remote in
-            let match = localAttachments.first(where: {
-                $0.fileName == remote.fileName && $0.mimeType == remote.mimeType
-            }) ?? localAttachments[safe: index]
+            let claimed = unclaimed.firstIndex(where: { $0.id == remote.id })
+                ?? unclaimed.firstIndex(where: {
+                    $0.fileName == remote.fileName && $0.mimeType == remote.mimeType
+                })
+            let match = claimed.map { unclaimed.remove(at: $0) } ?? localAttachments[safe: index]
             guard let match else { return remote }
             return MessageAttachment(
                 id: remote.id,
