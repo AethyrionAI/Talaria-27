@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 // MARK: - Sessions drawer (UI shell)
 //
@@ -291,24 +290,6 @@ final class SessionsDrawerModel {
     ]
 }
 
-// MARK: - Device safe area
-
-/// The drawer panel deliberately spans the whole screen so its gradient runs
-/// under the status bar and home indicator. That zeroes the insets SwiftUI
-/// would otherwise hand the pane, so the panel has to source the real device
-/// insets itself — see defect 01 (header collision): the old panel padded a
-/// flat `Spacing.xxl` (48pt) from the panel top and collided with a 59pt inset.
-@MainActor
-enum DeviceSafeArea {
-    static var current: EdgeInsets {
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
-        guard let insets = scene?.keyWindow?.safeAreaInsets else { return EdgeInsets() }
-        return EdgeInsets(top: insets.top, leading: insets.left,
-                          bottom: insets.bottom, trailing: insets.right)
-    }
-}
-
 // MARK: Drawer view
 
 struct SessionsDrawer: View {
@@ -320,8 +301,6 @@ struct SessionsDrawer: View {
     var hostOnline: Bool = true
 
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
-    @Environment(\.verticalSizeClass) private var verticalSizeClass
-    @State private var deviceInsets = EdgeInsets()
 
     /// What the panel leaves behind: enough chat to read as a layer over the
     /// conversation rather than a floating card, and no more. A fixed 320pt
@@ -342,6 +321,11 @@ struct SessionsDrawer: View {
         return min(available - Self.peekSliver, Self.maxPanelWidth)
     }
 
+    /// Hosted at the window root (MainTabView), so the panel's CONTENT gets
+    /// the device safe area for free — only the atmosphere ignores it, which
+    /// is the whole of defect 01: the gradient runs under the status bar and
+    /// home indicator while the header starts at the inset, not 48pt from the
+    /// panel top. No UIKit inset read, no orientation bookkeeping.
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
@@ -356,19 +340,11 @@ struct SessionsDrawer: View {
             .frame(width: proxy.size.width, height: proxy.size.height)
             .animation(Design.Motion.standard, value: isPresented)
         }
-        .ignoresSafeArea()
         .onAppear {
             // The Archived filter is a transient view — every drawer open
             // starts on the main list. (Drawer-only semantics: the split-view
             // sidebar is persistent and keeps its filter state.)
             model.showingArchived = false
-            deviceInsets = DeviceSafeArea.current
-        }
-        // Rotation changes the insets (portrait 59/34 → landscape 0/21+left).
-        // The size-class change is SwiftUI's own signal and needs none of
-        // UIDevice's orientation-notification bookkeeping to fire.
-        .onChange(of: verticalSizeClass) { _, _ in
-            deviceInsets = DeviceSafeArea.current
         }
     }
 
@@ -385,6 +361,7 @@ struct SessionsDrawer: View {
 
     private var backdrop: some View {
         Design.Colors.scrim
+            .ignoresSafeArea()
             .contentShape(Rectangle())
             .onTapGesture { isPresented = false }
             .accessibilityLabel("Close sessions")
@@ -403,10 +380,11 @@ struct SessionsDrawer: View {
             hostDetail: hostDetail,
             hostOnline: hostOnline,
             dismissHost: { isPresented = false },
-            actionAnchor: .bottom,
-            safeAreaOverride: deviceInsets
+            actionAnchor: .bottom
         )
-        .background(drawerBackground)
+        // Only the atmosphere bleeds past the safe area — the pane's content
+        // keeps the window's real insets (defect 01).
+        .background { drawerBackground.ignoresSafeArea() }
         .overlay(alignment: .leading) {
             // Bright cyan edge highlight.
             LinearGradient(
@@ -414,11 +392,13 @@ struct SessionsDrawer: View {
                 startPoint: .top, endPoint: .bottom
             )
             .frame(width: 2)
+            .ignoresSafeArea()
         }
         .overlay(alignment: .trailing) {
             Rectangle()
                 .fill(Design.Colors.strongBorder)
                 .frame(width: 1)
+                .ignoresSafeArea()
         }
     }
 
@@ -458,10 +438,6 @@ struct ConversationListPane: View {
     /// row tap, which must never collapse the sidebar.
     var collapseHost: (() -> Void)? = nil
     var actionAnchor: ActionAnchor? = nil
-    /// Insets the panel must apply itself because its host ignores the safe
-    /// area (the drawer). Nil in the sidebar, where the split view insets the
-    /// column already.
-    var safeAreaOverride: EdgeInsets? = nil
 
     // #96/#97: the pane wires its own store seams (ChatScreen stays
     // untouched — Lane F constraint). Both are optional-tolerant: absent
@@ -551,8 +527,6 @@ struct ConversationListPane: View {
             listSurface
             if resolvedAnchor == .bottom { dock }
         }
-        .padding(.top, safeAreaOverride?.top ?? 0)
-        .padding(.bottom, safeAreaOverride?.bottom ?? 0)
         .frame(maxHeight: .infinity, alignment: .top)
         .accessibilityElement(children: .contain)
         .accessibilityAction(.escape) { dismissHost?() }
