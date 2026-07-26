@@ -16,6 +16,7 @@ import SwiftUI
 struct SessionsSettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var container
+    @Environment(SettingsStore.self) private var settingsStore
     @Environment(TabRouter.self) private var router
 
     @State private var sessions: [HermesSessionInfo] = []
@@ -43,6 +44,7 @@ struct SessionsSettingsScreen: View {
                 VStack(spacing: Design.Spacing.lg) {
                     SettingsScreenHeader(title: "Sessions", subtitle: "Storage & Data") { dismiss() }
                     statsRow
+                    shelfSection
                     recentSection
                     manageSection
                     footerNote
@@ -100,6 +102,49 @@ struct SessionsSettingsScreen: View {
             borderColor: Design.Colors.accentTint(0.14),
             fill: Design.Colors.background.opacity(0.5),
             innerGlow: false
+        )
+    }
+
+    // MARK: Shelf
+
+    /// OPEN_ITEMS #187: `fetchSessionList` asks the gateway for
+    /// `?min_messages=1` and the gateway silently ignores it, so zero-message
+    /// sessions reach the app and pile up in the drawer. The shelf filters
+    /// them client-side; this is the escape hatch. The current session and any
+    /// pinned session stay visible either way.
+    private var shelfSection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            MonoLabel("// Shelf", size: 10, tracking: Design.Tracking.monoXWide,
+                      color: Design.Colors.mutedForeground)
+
+            VStack(alignment: .leading, spacing: Design.Spacing.xs) {
+                HStack(spacing: Design.Spacing.sm) {
+                    Text("Show Empty Sessions")
+                        .font(Design.Typography.callout)
+                        .foregroundStyle(Design.Colors.foreground)
+                    Spacer()
+                    Toggle("", isOn: showEmptySessionsBinding)
+                        .labelsHidden()
+                        .tint(Design.Brand.accent)
+                }
+                Text("Sessions the host reports with no messages are hidden from the sessions drawer. The current session and any pinned session always show.")
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+            }
+            .padding(Design.Spacing.md)
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
+        }
+    }
+
+    private var showEmptySessionsBinding: Binding<Bool> {
+        Binding(
+            get: { settingsStore.settings.showEmptySessions },
+            set: { settingsStore.settings.showEmptySessions = $0 }
         )
     }
 
