@@ -8003,4 +8003,33 @@ is the escape hatch, in Settings → Sessions → Shelf.
 it belongs to option (2) below, which is still open: the gateway should either honor
 the parameter or the client should stop implying a contract that is not kept.
 
+**Update 2026-07-26 — the empties have a single source, and it is not Talaria.**
+
+Measured against the Mini gateway: **200 sessions, 116 with `message_count == 0`.**
+Every one of the 116 carries **`source: "acp"`** — Open Design (Owen, 2026-07-26),
+which speaks ACP to Hermes. `createBareSession` is not leaking; Talaria's own
+`api_server` sessions are all non-empty.
+
+Non-empty sessions by source: `api_server` 32, `acp` 20, `tui` 19, `desktop` 11,
+`cron` 2. So ACP does produce real sessions — it also abandons bare ones in bursts:
+54 on 07-06, 25 on 07-16, 19 on 07-25, against a steady 3–14/day of real traffic.
+Abandoned rows have `end_reason: null` — never closed, just dropped. Three on 07-25
+opened within 90 seconds of each other, which reads as per-connection or per-reconnect
+session creation rather than anything a person did.
+
+**Every `acp` session has `title: null`**, empty and non-empty alike. That is the
+link to the drawer's row defects: with no server title the row falls back to
+`preview`, so Open Design's raw instruction block becomes the visible title —
+hence `# Instructions (read first)  # Open D…` on both lines of the row.
+
+**Practical cost of leaving the gateway half open:** the client fetches `limit=50`
+per host, and 19 of the Mini's most recent 50 are empty. ~38% of the page is spent
+on rows the client then discards, so the shelf shows less history than it could.
+
+**Sharpened fix, gateway side.** Not merely "honor `min_messages`". Either:
+- ACP should not register a session until it has a first message, **or**
+- the list endpoint should not return zero-message sessions.
+
+The first is the real fix; the second is the cheap one and helps every client at once.
+
 Logged 2026-07-26.
