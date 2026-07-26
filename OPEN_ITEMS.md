@@ -7579,6 +7579,45 @@ Logged 2026-07-23.
 
 ## 176. 🐛 On-device model fires `readImageText` on a text-only prompt with no image present
 
+> **WIDENED 2026-07-25/26 — the reflex is unconditional, not vision-specific.**
+> On-device, **every** turn routes to a tool, including turns no tool can serve:
+>
+> | Prompt | Tool fired |
+> |---|---|
+> | "Remember the number 7" | offers to create a Reminder |
+> | "Can you tell me about Greece?" | declines to answer, offers to search |
+> | "What's the capital of Greece" | `SEARCHPLACES` (failed, offline) |
+> | "What number did I ask you to remember" | `READREMINDERS` |
+> | "Repeat my previous message word for word" | `READREMINDERS` |
+> | "What is 2+2" | `SEARCHCONVERSATIONS`, searching the literal string "2+2" |
+>
+> It re-selects per turn (different tools chosen across turns), so this is not a
+> jammed selection — the selector always picks **something**. It also declines to
+> state facts it plainly knows ("I can't provide information about Greece
+> directly"), which offline leaves it able to answer almost nothing. Offline
+> capability is the entire premise of the free tier.
+>
+> **The model has the history and ignores it.** Verified in source: history IS
+> replayed into the `LanguageModelSession` transcript on every rebuild —
+> `transcriptTurns(from: currentConversation?.messages ?? [])`,
+> `LocalChatBackend.swift:609`. This is a **selection** defect, not a
+> context-assembly defect.
+>
+> **Absorbing state — the sharpest consequence.** Once any tool returns a denial,
+> `LocalChatBackend` instructs the model to relay denials faithfully, so every
+> subsequent turn returns the same canned denial and the user's actual question is
+> never seen. The chat is dead with no in-chat exit. Reached by declining a
+> permission the user was never asked to grant. Compounds with **#190**: the only
+> escape destroys the history.
+>
+> **Connectivity gating is NOT the fix.** The 2+2 failure occurred online, with
+> full bars. The network was never the problem; routing is.
+>
+> **Bad belt member for standalone:** `ConversationSearchTool` advertises "the
+> current thread's messages plus the titles/previews of indexed past sessions",
+> but standalone has no past sessions (**#190**), so it can only ever see the
+> thread already on screen — and the selector reaches for it constantly.
+
 **Spec written 2026-07-24: `dispatch/OPUS-T27-176-tool-selection.md`** — confirm-then-fix. Preference order: availability gating > description tightening > selection-prompt change. Explicit warning against a test that asserts the model did NOT call a tool (passes/fails on temperament — #183's masked pattern by a new road). Do not re-spec.
 
 **Observed 2026-07-23 (standalone / ON-DEVICE model, whoGoesThere, build `cbcc824`).** The prompt
@@ -8179,3 +8218,174 @@ on rows the client then discards, so the shelf shows less history than it could.
 The first is the real fix; the second is the cheap one and helps every client at once.
 
 Logged 2026-07-26.
+
+---
+
+## 188. 🔧 Connector watchdog cannot distinguish relay-down from connector-down
+
+Successor to **#113**, which closed 2026-07-25 when its duplicate-connector premise was refuted on
+the box. This is the half that survived.
+
+`restart-relay.ps1` (`C:\Users\Owen\.hermes\scripts\`) restarts the relay service and then the
+connector bat. The health probe cannot tell which component is unhealthy, so a relay outage and a
+connector outage produce the same response: restart both. The script's own `.NOTES` documents this
+as intentional.
+
+**Evidence it matters.** All four watchdog restarts on record fall inside the single 2026-07-24
+relay outage — the connector was never the problem and was restarted anyway.
+
+**Coupled forensics gap, and this is the sharper half.** OJAMD currently has **no auditable trace of
+any service transition**:
+
+- `relay.log` is 493 MB / ~6M lines, unrotated, and carries **no timestamps**
+- Windows event 7036 (service state change) is logged **zero** times on this host
+
+When a restart happens there is no way to establish what failed or when. This is why the 07-24
+outage has no fallback narrative.
+
+**Fix direction:** distinct per-component liveness probes before the restart decision; rotate
+`relay.log` and add timestamps; enable service-transition logging. **The forensics half should land
+first** — without it, no watchdog change can be verified.
+
+Logged 2026-07-25.
+
+---
+
+## 189. 🐛 SHIP BLOCKER — notifications are never authorized on a fresh install, and the panel reports a false green
+
+**Observed 2026-07-25 device pass.** Authorization status is `NotDetermined` — not `Denied`. The app
+has never asked. Every notification feature is silently dead for any user who does not happen to
+trip the one priming path.
+
+**Why it never fires.** The #31 contextual-priming trigger at `ChatStore.swift:408` is gated behind
+`continuedSend != nil`, which only exists for messages **with attachments**. A user who sends plain
+text and never watches a run detach is never prompted, ever.
+
+**The false green is the worse half.** The diagnostics panel reports "active · relay registered"
+throughout, because an APNs token and a relay registration row are both obtainable **without user
+authorization**. The panel reads `UNAuthorizationStatus` nowhere — it is asserting a state it cannot
+see.
+
+Related but distinct: **#44** closed on a truthful *push-token* readout. Token truth is not
+authorization truth, and #44's verification does not cover this.
+
+**Fix has two parts and both are required:**
+
+1. A priming path that does not depend on attachments.
+2. The panel must read `UNAuthorizationStatus` and report `NotDetermined` / `Denied` honestly — as
+   it stands this is a real-data-only violation.
+
+Logged 2026-07-25.
+
+---
+
+## 190. 🐛 SHIP BLOCKER — standalone sessions are a single slot at every layer; "New" destroys all prior local history
+
+**Observed 2026-07-25/26 on whoGoesThere (iPhone 17 Pro Max), on-device backend.** Start a new chat
+and the previous local conversation is gone — not merely unlisted, unreachable. Make a new chat, hit
+New again, and that one is gone too. The sessions drawer shows nothing for past local chats. Hermes
+history on the same device is unaffected and restores correctly.
+
+**Root cause — verified in source. This is not a persistence bug.** The standalone path stores
+exactly one conversation, at every layer:
+
+- `AppPersistenceStoreProtocol` — `loadConversationCache() -> Conversation?` is a **single optional,
+  not a keyed collection**; `saveConversationCache(_:)` overwrites; there is no id-keying
+- `LocalChatBackend.listSessions()` (`:563`) returns a **one-element array** synthesized from
+  whatever conversation is currently loaded, or `[]`
+- `LocalChatBackend.openSession(id)` (`:569`) throws `sessionNotFound` unless the id **is** the
+  conversation already open
+
+Marked `// MARK: - Sessions (local-only by design)` and `#26` — a deliberate scope cut that has since
+become a ship blocker: **free tier is standalone on-device**, so the tier meant to earn the upgrade
+is the one that cannot retain a conversation across a single tap.
+
+Contrast **#19** — connected-mode history is populated from the Hermes Sessions API, which is why
+only the local path is affected.
+
+**Fix is a storage schema change, not a bug fix.** Direction decided 2026-07-26: **SwiftData**.
+Keyed store (`id → Conversation`), a real `listSessions`, ChatStore writing per-session instead of
+overwriting, plus migration for the one conversation existing installs already hold.
+
+**Explicitly rejected: scaling the UserDefaults blob to N conversations.** See **#104** — the sensor
+outbox already demonstrates that pathology (whole-blob rewrite every tick, on the main actor). Doing
+it with full transcripts would be materially worse.
+
+**Drawer design, decided 2026-07-26:** one unified list, sorted globally by recency, **not** two
+lanes and not grouped by source. Origin carried by a glyph in the existing leading element rather
+than a text badge, and suppressed entirely until sessions from more than one source exist (free-tier
+users have one source, so the marker is pure noise for them). Unresumable sessions stay visible and
+dimmed with a reason rather than hidden.
+
+**Compounding hazard.** With **#176**'s unconditional tool reflex, a local chat can reach a state
+where every turn returns the same canned tool denial. The only escape is a new chat — which destroys
+the history. Together the two form a trap with no exit, reachable in under a minute from a fresh
+install.
+
+Logged 2026-07-26.
+
+---
+
+## 191. 🐛 Chat header is not backend-aware — title and model pill keep reporting the Hermes session
+
+**Observed 2026-07-25 on whoGoesThere, ON-DEVICE active, phone in airplane mode.** The header read
+`HERMES` with a model pill of `KIMI-K3` — a model that runs on OJAMD and was unreachable at the
+time. Only the ON-DEVICE badge told the truth.
+
+Message count and CTX% **do** update correctly (10→12 messages, 12%→15%). An earlier reading that
+they were frozen was taken from too short a window and is withdrawn.
+
+**Likely mechanism:** the local backend runs inside a Hermes session shell because it has no session
+identity of its own to mint (**#190**). Switching backends does not switch the conversation — the
+Hermes thread stays on screen with the on-device model behind it.
+
+**Not a content leak.** Verified: the on-device model does *not* receive the Hermes transcript — asked
+about prior content it reports no history. Display defect, not contamination.
+
+Same family as **#139** (engine-truth label lie) and **#189** (false-green notification panel):
+surfaces asserting state they do not have.
+
+Logged 2026-07-25.
+
+---
+
+## 192. 🐛 Switching to on-device is silently refused until force quit
+
+**Observed 2026-07-25 on whoGoesThere.** Selecting the on-device backend does not take — the UI stays
+on Hermes. Force-quitting clears it, after which the switch succeeds.
+
+Force quit being the remedy establishes the stuck state is **in-memory only** — nothing persisted, it
+dies with the process. Expected shape: a transition guard set and not cleared on some path, so every
+later switch attempt is refused up front.
+
+**This bug invalidates other tests, which is why it is filed above its apparent severity.** A tester
+can believe they are on-device while Hermes answers every turn. The 2026-07-25 number test was only
+trustworthy because it ran in **airplane mode** — on-device answers offline, Hermes cannot, so any
+reply at all proves the switch took. Any future on-device check must establish the active backend
+independently of the UI's claim.
+
+Fourth instance this weekend of *state a transition should have released and did not* — see **#184**
+(`reset()` cancels nothing; `openSession` leaves `pendingRun` armed) and **#191**.
+
+**Not yet captured:** whether the toggle moves-then-reverts (switch accepted, apply failed) or
+refuses to move (guard rejects input up front). Different fixes; needs one observation.
+
+Read the `Settings-ModelTransition` design doc against live source before speccing.
+
+Logged 2026-07-25.
+
+---
+
+## 193. 🔧 `confirmationDialog` Cancel button does not render on iOS 27
+
+**Observed 2026-07-25 device pass.** Destructive-action confirmations built with
+`.confirmationDialog` present with no visible Cancel affordance — an iOS 26/27 presentation change.
+The cancel role is declared in code, so this is dead code rather than an omission.
+
+**Fix direction:** move destructive confirmations to `.alert`, which still renders an explicit
+cancel.
+
+Low severity in isolation; filed because a destructive action with no visible way out is a poor
+first impression and the affected surfaces are few.
+
+Logged 2026-07-25.
