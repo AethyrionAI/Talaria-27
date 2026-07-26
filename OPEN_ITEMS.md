@@ -6829,7 +6829,7 @@ Do not dispatch as one lane. 156a and 156b are the cheap ones and are the sugges
 
 Logged 2026-07-22.
 
-## 157. ⚖️ Reproduce the verbatim WebRTC BSD-3-Clause notice before App Store submission
+## 157. ✅ Reproduce the verbatim WebRTC BSD-3-Clause notice before App Store submission — CLOSED 2026-07-22
 
 `THIRD_PARTY_LICENSES.md` landed 2026-07-22 recording `stasel/WebRTC` 130.0.0 (the only third-party package Talaria links — voice-mode transport, declared in `project.yml` and pinned in `Package.resolved`). The entry currently *describes* the license rather than reproducing it.
 
@@ -7177,7 +7177,7 @@ criteria want. `aps-environment: development` verified after regen.
 
 Logged 2026-07-22.
 
-## 157 — CLOSED 2026-07-22. Verbatim WebRTC BSD-3 notices reproduced in THIRD_PARTY_LICENSES.md
+**#157 CLOSED 2026-07-22** — Verbatim WebRTC BSD-3 notices reproduced in THIRD_PARTY_LICENSES.md
 
 Spliced programmatically from the distributed package (SPM checkout, pinned 130.0.0) rather than retyped. Both notices the package carries are reproduced: stasel/WebRTC packaging BSD-3 + Google WebRTC project BSD-3; the binary XCFramework's embedded LICENSE (the Google notice standalone) is noted.
 
