@@ -61,7 +61,31 @@ enum DeviceToolBelt {
             AlarmTool(relay: relay, confirmations: confirmations, alarmService: alarmService),
         ]
     }
+
+    /// The belt as it should be OFFERED for one turn (#176). Vision tools come
+    /// off when the conversation carries no image at all.
+    ///
+    /// This is availability gating, chosen over prompt-tuning because it is
+    /// structural: a tool that isn't in the session's tool list cannot be
+    /// selected, however the model feels about it. The reported failure was
+    /// `readImageText` firing on "Write a haiku about rain" — the belt handed
+    /// the model an OCR tool and there was nothing to read.
+    ///
+    /// Everything else passes through in place. The four health/motion calls
+    /// seen on the same session were APPROPRIATE; this narrows selection, it
+    /// does not redesign the belt.
+    static func offeredTools(from belt: [any Tool], hasImageInContext: Bool) -> [any Tool] {
+        guard !hasImageInContext else { return belt }
+        return belt.filter { !($0 is any ImageDependentTool) }
+    }
 }
+
+// MARK: - Context-conditioned tools
+
+/// A tool that can only do its job when the conversation carries an image
+/// (#176). `DeviceToolBelt.offeredTools` withholds these when there is
+/// nothing to look at.
+protocol ImageDependentTool {}
 
 // MARK: - Tool event relay
 

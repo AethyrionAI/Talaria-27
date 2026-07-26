@@ -104,6 +104,12 @@ final class LocalChatBackend: HermesClientProtocol {
     /// Bridges the belt's invocations onto `StreamingUpdate.toolActivity` —
     /// pointed at the live stream's continuation for the duration of a turn.
     private(set) var toolRelay: ToolEventRelay?
+    /// Tool names the LIVE session was created with (#176). The offered belt
+    /// is conditioned on whether the conversation carries an image, and a
+    /// session is stuck with the tool list it was born with — so when the
+    /// condition flips (an image arrives, or a fresh thread has none) the
+    /// session has to be recreated to match.
+    private var sessionToolNames: [String] = []
     /// The memory block synthesized by the last condensation, kept for
     /// diagnostics. Session-lifetime only: rebuilds re-derive it from the full
     /// message history, which the Conversation always retains.
@@ -132,6 +138,7 @@ final class LocalChatBackend: HermesClientProtocol {
         self.tools = tools
         self.toolRelay = relay
         session = nil
+        sessionToolNames = []
     }
 
     /// Honest explanation for the CURRENT unavailability, nil when the model
@@ -285,7 +292,7 @@ final class LocalChatBackend: HermesClientProtocol {
             return Message(sender: .system, content: Self.unavailabilityMessage(for: reason), status: .failed)
         }
         let prompt = Self.composePrompt(message: message, attachments: attachments)
-        var liveSession = await preparedSession(nextPrompt: prompt, excludingClientMessageID: clientMessageID)
+        var liveSession = await preparedSession(nextPrompt: prompt, attachments: attachments, excludingClientMessageID: clientMessageID)
         appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
 
         var didCondenseRetry = false
@@ -314,7 +321,7 @@ final class LocalChatBackend: HermesClientProtocol {
                     // Overflow degrades to summarized memory, never errors:
                     // rebuild with condensation forced and retry exactly once.
                     didCondenseRetry = true
-                    liveSession = await rebuildSession(excludingClientMessageID: clientMessageID, forceCondense: true)
+                    liveSession = await rebuildSession(attachments: attachments, excludingClientMessageID: clientMessageID, forceCondense: true)
                     continue
                 }
                 connectionStatus = .error
@@ -403,7 +410,7 @@ final class LocalChatBackend: HermesClientProtocol {
         #endif
 
         let prompt = Self.composePrompt(message: message, attachments: attachments)
-        var liveSession = await preparedSession(nextPrompt: prompt, excludingClientMessageID: clientMessageID)
+        var liveSession = await preparedSession(nextPrompt: prompt, attachments: attachments, excludingClientMessageID: clientMessageID)
         appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
 
         // #28: tool invocations surface on the existing toolActivity channel
@@ -476,7 +483,7 @@ final class LocalChatBackend: HermesClientProtocol {
                 if !didCondenseRetry, Self.isContextOverflow(error) {
                     didCondenseRetry = true
                     Self.logger.notice("streamTurn: context window exceeded — condensing older turns and retrying once (#26)")
-                    liveSession = await rebuildSession(excludingClientMessageID: clientMessageID, forceCondense: true)
+                    liveSession = await rebuildSession(attachments: attachments, excludingClientMessageID: clientMessageID, forceCondense: true)
                     continue
                 }
                 connectionStatus = .error
@@ -586,33 +593,65 @@ final class LocalChatBackend: HermesClientProtocol {
 
     /// Returns the live session when the next turn still fits its context;
     /// otherwise rebuilds (condensing as needed). Also the lazy-creation path.
-    private func preparedSession(nextPrompt: String, excludingClientMessageID: UUID?) async -> LanguageModelSession {
+    private func preparedSession(
+        nextPrompt: String,
+        attachments: [PendingAttachment],
+        excludingClientMessageID: UUID?
+    ) async -> LanguageModelSession {
         restoreFromCacheIfNeeded()
         if currentConversation == nil {
             currentConversation = Conversation(title: Conversation.defaultTitle)
         }
+        // #176: the turn's incoming attachments count. This runs BEFORE the
+        // user message is appended, so the stored conversation doesn't know
+        // about the image being sent right now.
+        let hasImage = ConversationImageSource.hasImage(in: currentConversation, incoming: attachments)
         if let session {
-            let turns = Self.transcriptTurns(
-                from: currentConversation?.messages ?? [],
-                excludingClientMessageID: excludingClientMessageID
-            )
-            if await fitsContext(turns: turns, nextPrompt: nextPrompt) {
-                return session
+            let offered = DeviceToolBelt.offeredTools(from: tools, hasImageInContext: hasImage)
+            if offered.map(\.name) != sessionToolNames {
+                Self.logger.notice("preparedSession: offered tool set changed for this turn — recreating the session (#176)")
+            } else {
+                let turns = Self.transcriptTurns(
+                    from: currentConversation?.messages ?? [],
+                    excludingClientMessageID: excludingClientMessageID
+                )
+                if await fitsContext(turns: turns, nextPrompt: nextPrompt, hasImageInContext: hasImage) {
+                    return session
+                }
+                Self.logger.notice("preparedSession: context budget approached — condensing older turns (#26)")
             }
-            Self.logger.notice("preparedSession: context budget approached — condensing older turns (#26)")
         }
-        return await rebuildSession(excludingClientMessageID: excludingClientMessageID, forceCondense: false)
+        return await rebuildSession(
+            attachments: attachments,
+            excludingClientMessageID: excludingClientMessageID,
+            forceCondense: false
+        )
     }
 
     @discardableResult
-    private func rebuildSession(excludingClientMessageID: UUID?, forceCondense: Bool) async -> LanguageModelSession {
+    private func rebuildSession(
+        attachments: [PendingAttachment],
+        excludingClientMessageID: UUID?,
+        forceCondense: Bool
+    ) async -> LanguageModelSession {
         let turns = Self.transcriptTurns(
             from: currentConversation?.messages ?? [],
             excludingClientMessageID: excludingClientMessageID
         )
-        let blueprint = await sessionBlueprint(for: turns, forceCondense: forceCondense)
+        // #176: one image-presence read drives BOTH the offered belt and the
+        // instructions' capability list, so the persona can never advertise a
+        // tool this session wasn't given.
+        let hasImage = ConversationImageSource.hasImage(in: currentConversation, incoming: attachments)
+        let blueprint = await sessionBlueprint(
+            for: turns,
+            hasImageInContext: hasImage,
+            forceCondense: forceCondense
+        )
         condensedMemory = blueprint.condensedMemory
-        let fresh = makeSession(from: blueprint)
+        let fresh = makeSession(
+            from: blueprint,
+            offering: DeviceToolBelt.offeredTools(from: tools, hasImageInContext: hasImage)
+        )
         session = fresh
         return fresh
     }
@@ -626,8 +665,16 @@ final class LocalChatBackend: HermesClientProtocol {
         let condensedMemory: String?
     }
 
-    private func sessionBlueprint(for turns: [TranscriptTurn], forceCondense: Bool) async -> SessionBlueprint {
-        let baseInstructions = Self.instructionsText(deviceContext: Self.deviceContextLine(), hasTools: !tools.isEmpty)
+    private func sessionBlueprint(
+        for turns: [TranscriptTurn],
+        hasImageInContext: Bool,
+        forceCondense: Bool
+    ) async -> SessionBlueprint {
+        let baseInstructions = Self.instructionsText(
+            deviceContext: Self.deviceContextLine(),
+            hasTools: !tools.isEmpty,
+            hasImageTools: hasImageInContext
+        )
         // Budget from the model at RUNTIME — never hardcoded (#26 ground rule).
         let contextBudget = max(1024, await activeContextSize() - Self.responseHeadroomTokens(for: activeTier))
 
@@ -686,8 +733,12 @@ final class LocalChatBackend: HermesClientProtocol {
     /// Whether instructions + full history + the next prompt fit the runtime
     /// context budget. Byte count is a safe upper bound for token count, so
     /// the tokenizer only runs once histories actually get long.
-    private func fitsContext(turns: [TranscriptTurn], nextPrompt: String) async -> Bool {
-        let baseInstructions = Self.instructionsText(deviceContext: Self.deviceContextLine(), hasTools: !tools.isEmpty)
+    private func fitsContext(turns: [TranscriptTurn], nextPrompt: String, hasImageInContext: Bool) async -> Bool {
+        let baseInstructions = Self.instructionsText(
+            deviceContext: Self.deviceContextLine(),
+            hasTools: !tools.isEmpty,
+            hasImageTools: hasImageInContext
+        )
         let contextBudget = max(1024, await activeContextSize() - Self.responseHeadroomTokens(for: activeTier))
         let byteTotal = baseInstructions.utf8.count
             + nextPrompt.utf8.count
@@ -702,7 +753,7 @@ final class LocalChatBackend: HermesClientProtocol {
         return tokens <= contextBudget
     }
 
-    private func makeSession(from blueprint: SessionBlueprint) -> LanguageModelSession {
+    private func makeSession(from blueprint: SessionBlueprint, offering offered: [any Tool]) -> LanguageModelSession {
         var entries: [Transcript.Entry] = []
         entries.append(.instructions(Transcript.Instructions(
             id: UUID().uuidString,
@@ -729,11 +780,16 @@ final class LocalChatBackend: HermesClientProtocol {
                 )))
             }
         }
-        // Tools come from the #28 belt (empty until AppContainer installs it).
-        // The transcript's Instructions entry carries no toolDefinitions —
-        // the session's `tools:` parameter is the operative wiring; if
-        // tool-calling misbehaves on replayed sessions, populate
-        // `Transcript.ToolDefinition`s here (flagged for device verify).
+        // Tools come from the #28 belt, gated for this turn by #176 (empty
+        // until AppContainer installs the belt). The transcript's Instructions
+        // entry carries no toolDefinitions — the session's `tools:` parameter
+        // is the operative wiring; if tool-calling misbehaves on replayed
+        // sessions, populate `Transcript.ToolDefinition`s here (flagged for
+        // device verify).
+        //
+        // Recorded so `preparedSession` can tell when the live session's tool
+        // list has gone stale against the current turn's context.
+        sessionToolNames = offered.map(\.name)
         //
         // #30: both SystemLanguageModel and PrivateCloudComputeLanguageModel
         // conform to LanguageModel (iOS 27) — the session API is unified, so
@@ -741,11 +797,11 @@ final class LocalChatBackend: HermesClientProtocol {
         if Self.pccGrantConfirmed, activeTier == .privateCloud {
             return LanguageModelSession(
                 model: PrivateCloudComputeLanguageModel(),
-                tools: tools,
+                tools: offered,
                 transcript: Transcript(entries: entries)
             )
         }
-        return LanguageModelSession(model: model, tools: tools, transcript: Transcript(entries: entries))
+        return LanguageModelSession(model: model, tools: offered, transcript: Transcript(entries: entries))
     }
 
     // MARK: - Conversation bookkeeping
@@ -1098,11 +1154,22 @@ final class LocalChatBackend: HermesClientProtocol {
     as prior conversation memory:
     """
 
-    nonisolated static func instructionsText(deviceContext: String, date: Date = .now, hasTools: Bool = false) -> String {
+    /// `hasImageTools` tracks the #176 gate: the vision tools are withheld
+    /// when the conversation carries no image, so the capability list has to
+    /// stop advertising them for the same turns. An instruction block that
+    /// claims a tool the session was never given is the same class of dishonesty
+    /// as fabricating a sensor reading.
+    nonisolated static func instructionsText(
+        deviceContext: String,
+        date: Date = .now,
+        hasTools: Bool = false,
+        hasImageTools: Bool = false
+    ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
+        let vision = hasImageTools ? ", image text/barcode reading" : ""
         let capabilities = hasTools
             ? """
-            Be direct, warm, and concise. You have device tools — health, location, motion, calendar, reminders, weather, places, contacts, device status, image text/barcode reading, and conversation search — plus action tools that can create reminders, calendar events, and alarms. Use them to work with the user's real data instead of guessing. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully. When a tool reports that a permission isn't granted or no data exists, relay that honestly — never invent a value.
+            Be direct, warm, and concise. You have device tools — health, location, motion, calendar, reminders, weather, places, contacts, device status\(vision), and conversation search — plus action tools that can create reminders, calendar events, and alarms. Use them to work with the user's real data instead of guessing. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully. When a tool reports that a permission isn't granted or no data exists, relay that honestly — never invent a value.
             """
             : """
             Be direct, warm, and concise. You have no internet access and no external tools in this mode — when you don't know something or can't do it on-device, say so plainly instead of guessing.
@@ -1280,7 +1347,7 @@ extension LocalChatBackend {
         var liveDrain: Task<Void, Never>?
         if holdLiveSDKStream {
             let prompt = Self.composePrompt(message: message, attachments: attachments)
-            let liveSession = await preparedSession(nextPrompt: prompt, excludingClientMessageID: clientMessageID)
+            let liveSession = await preparedSession(nextPrompt: prompt, attachments: attachments, excludingClientMessageID: clientMessageID)
             let options = Self.chatGenerationOptions(for: activeTier)
             liveDrain = Task { @MainActor in
                 // Output suppressed by design — the held stream exists only so

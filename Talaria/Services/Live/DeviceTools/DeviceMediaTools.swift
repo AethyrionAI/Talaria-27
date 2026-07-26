@@ -12,26 +12,58 @@ import Vision
 // MARK: - Shared: newest image attachment in the conversation
 
 enum ConversationImageSource {
+    /// Image attachments in the conversation, newest message first and newest
+    /// attachment first within a message. One walk shared by the presence
+    /// check and the decode so the two can never disagree about what counts
+    /// as an image (#176).
+    @MainActor
+    static func imageAttachments(in conversation: Conversation?) -> [MessageAttachment] {
+        guard let conversation else { return [] }
+        return conversation.messages.reversed().flatMap { message in
+            message.attachments.reversed().filter { $0.kind == "image" }
+        }
+    }
+
+    /// Whether the vision tools should be OFFERED for this turn (#176): an
+    /// image already in the thread, or one riding in on the turn being
+    /// composed.
+    ///
+    /// The `incoming` half is load-bearing. Every send path prepares the
+    /// session BEFORE appending the user turn, so a check that read stored
+    /// history alone would withhold OCR on the exact turn that attaches the
+    /// image — the tool's whole purpose.
+    ///
+    /// Deliberately cheaper AND more permissive than `latestImage`: reachable
+    /// bytes, no decode. A present-but-undecodable image still gets the tools
+    /// offered, and they answer honestly about it. The gate must never be the
+    /// reason a real image goes unread.
+    @MainActor
+    static func hasImage(in conversation: Conversation?, incoming: [PendingAttachment] = []) -> Bool {
+        if incoming.contains(where: { $0.kind == .image }) { return true }
+        return imageAttachments(in: conversation).contains { attachment in
+            if attachment.thumbnailBase64 != nil { return true }
+            guard let path = attachment.localStoragePath else { return false }
+            return FileManager.default.fileExists(atPath: path)
+        }
+    }
+
     /// The most recent image attachment (user upload or agent output) whose
     /// bytes are still on disk. The on-device model can't see images (#26),
     /// so OCR/barcode tools are how image questions get honest answers.
     @MainActor
     static func latestImage(in conversation: Conversation?) -> (fileName: String, image: UIImage)? {
-        guard let conversation else { return nil }
-        for message in conversation.messages.reversed() {
-            for attachment in message.attachments.reversed() where attachment.kind == "image" {
-                if let path = attachment.localStoragePath,
-                   let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
-                   let image = UIImage(data: data) {
-                    return (attachment.fileName, image)
-                }
-                // Fall back to the persisted thumbnail — lower fidelity, but
-                // real bytes beat "no image found" for large text/QR codes.
-                if let base64 = attachment.thumbnailBase64,
-                   let data = Data(base64Encoded: base64),
-                   let image = UIImage(data: data) {
-                    return (attachment.fileName, image)
-                }
+        for attachment in imageAttachments(in: conversation) {
+            if let path = attachment.localStoragePath,
+               let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+               let image = UIImage(data: data) {
+                return (attachment.fileName, image)
+            }
+            // Fall back to the persisted thumbnail — lower fidelity, but
+            // real bytes beat "no image found" for large text/QR codes.
+            if let base64 = attachment.thumbnailBase64,
+               let data = Data(base64Encoded: base64),
+               let image = UIImage(data: data) {
+                return (attachment.fileName, image)
             }
         }
         return nil
@@ -40,9 +72,13 @@ enum ConversationImageSource {
 
 // MARK: - OCR (Vision text recognition)
 
-struct ImageTextTool: Tool {
+struct ImageTextTool: Tool, ImageDependentTool {
     let name = "readImageText"
-    let description = "Read (OCR) the text in the most recent image attached to this conversation."
+    // #176: the description states WHEN the tool applies, not just what it
+    // does. Gating covers "no image anywhere"; this covers the other half —
+    // an image from twenty turns ago keeps the tool offered, and the belt
+    // was observed reaching for OCR on "Write a haiku about rain".
+    let description = "Read (OCR) the text in the most recent image attached to this conversation. Use this ONLY when the user is asking what an image says or shows — never to answer a request that isn't about an image."
     let relay: ToolEventRelay
     let conversationProvider: @MainActor () -> Conversation?
 
@@ -79,9 +115,9 @@ struct ImageTextTool: Tool {
 
 // MARK: - Barcode / QR (Vision)
 
-struct BarcodeReaderTool: Tool {
+struct BarcodeReaderTool: Tool, ImageDependentTool {
     let name = "readBarcode"
-    let description = "Scan the most recent image attached to this conversation for barcodes or QR codes and return their contents."
+    let description = "Scan the most recent image attached to this conversation for barcodes or QR codes and return their contents. Use this ONLY when the user is asking about a barcode or QR code in an image."
     let relay: ToolEventRelay
     let conversationProvider: @MainActor () -> Conversation?
 
