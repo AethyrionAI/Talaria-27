@@ -59,14 +59,16 @@ enum ChatKeyboardShortcuts {
     static func sessionJumpTargets(
         sessions: [SessionsDrawerModel.SessionSummary],
         pinnedIDs: Set<String>,
-        archivedIDs: Set<String>
+        archivedIDs: Set<String>,
+        showEmptySessions: Bool = true
     ) -> [SessionsDrawerModel.SessionSummary] {
         SessionsDrawerModel.grouped(
             sessions: sessions,
             query: "",
             pinnedIDs: pinnedIDs,
             archivedIDs: archivedIDs,
-            showingArchived: false
+            showingArchived: false,
+            showEmptySessions: showEmptySessions
         )
         .flatMap(\.items)
     }
