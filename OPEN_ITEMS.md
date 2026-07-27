@@ -8765,3 +8765,24 @@ follow it. Verification: airplane mode, fresh chat, "write a poem" → a poem.
 clause, DoD line) — decided widened, not separate. Tracks with #176 from here.
 
 Logged 2026-07-27.
+
+## 195. 🔧 MessageIdentityUITests — typeText keyboard race renders the test flaky
+
+**Observed 2026-07-27, Mac Mini, pinned sim, during PR #156 verification.** The suite failed
+twice (full run + isolated re-run) on `testTranscriptNeverRendersDuplicateMessageIDs`:
+"the on-device reply for 'first' should render." The AX hierarchy in the xcresult proved the
+app innocent: the composer held **"firstst"** and the probe correctly rendered
+"Acknowledged firstst" — `typeText` fired before the keyboard settled and duplicated the
+trailing characters, so the exact-match `staticTexts["Acknowledged first"]` wait could never
+succeed. Third isolated run, same binary: passed. Cost: ~40 minutes of dispatch-verification
+time attributing a phantom regression (PR #156 touches nothing in the input path).
+
+**Fix direction:** make `sendMessage` robust to input mangling — read the composer's settled
+value after typing and assert against *that* ("Acknowledged \(actualTyped)"), or clear-and-retry
+on mismatch before sending. Keying the assertion to what was actually typed preserves the
+test's real charter (duplicate-id detection) while removing the keyboard-timing dependency.
+
+Test-hygiene severity, but it sits in the verification path of every returned PR, so its
+flake rate taxes every lane.
+
+Logged 2026-07-27.
