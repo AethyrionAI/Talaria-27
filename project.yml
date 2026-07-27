@@ -159,6 +159,11 @@ targets:
         # #28 device tool belt: contextual permission prompts fire on first
         # tool use (calendar/reminder/contact questions in chat).
         NSCalendarsFullAccessUsageDescription: "Hermes reads your calendar to answer questions about your schedule, and only creates events you approve."
+        # #186 insurance: nothing calls requestWriteOnlyAccessToEvents() —
+        # and nothing should, it would poison the reader's re-prompt path —
+        # but if anyone ever does, this key's absence is a hard TCC crash at
+        # request time rather than a soft denial. Declared to close that.
+        NSCalendarsWriteOnlyAccessUsageDescription: "Hermes only creates calendar events you approve."
         NSRemindersFullAccessUsageDescription: "Hermes reads your reminders to answer questions about your to-dos, and only creates reminders you approve."
         NSContactsUsageDescription: "Hermes looks up contacts you ask about — for example, to find a phone number or email address."
         # #16: AlarmKit executor (/alarm). User authorization only — no App

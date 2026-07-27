@@ -635,6 +635,8 @@
 	</dict>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Hermes reads your calendar to answer questions about your schedule, and only creates events you approve.</string>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>Hermes only creates calendar events you approve.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Hermes uses the camera to capture photos and documents for analysis.</string>
 	<key>NSContactsUsageDescription</key>
