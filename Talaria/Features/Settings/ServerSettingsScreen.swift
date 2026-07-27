@@ -114,13 +114,16 @@ struct ServerSettingsScreen: View {
         .navigationTitle("Server")
         .toolbarVisibility(.hidden, for: .navigationBar)
         .task { await probeAllProfiles() }
-        .confirmationDialog(
+        // #193: was a `.confirmationDialog`, whose cancel role does not
+        // render on iOS 26/27. Non-destructive, but a one-button sheet with
+        // no visible decline reads as a forced choice for something that
+        // re-homes the whole app — an alert keeps the explicit Cancel.
+        .alert(
             "Switch backend?",
             isPresented: Binding(
                 get: { pendingActivation != nil },
                 set: { if !$0 { pendingActivation = nil } }
             ),
-            titleVisibility: .visible,
             presenting: pendingActivation
         ) { profile in
             Button("Switch to \(profile.name)") {
@@ -131,13 +134,13 @@ struct ServerSettingsScreen: View {
         } message: { profile in
             Text("New chats, inbox, and models will use \(profile.name). Existing conversations keep talking to the host they started on, and sensors stay on their pinned destination. Nothing is un-paired.")
         }
-        .confirmationDialog(
+        // #193: destructive confirmation → `.alert` (visible Cancel).
+        .alert(
             "Forget this pairing?",
             isPresented: Binding(
                 get: { pendingForget != nil },
                 set: { if !$0 { pendingForget = nil } }
             ),
-            titleVisibility: .visible,
             presenting: pendingForget
         ) { profile in
             Button("Forget \(profile.name) Pairing", role: .destructive) {
@@ -151,13 +154,13 @@ struct ServerSettingsScreen: View {
         } message: { profile in
             Text("Disconnects \(profile.name)'s relay pairing only. Other profiles are untouched; you'll need to pair again to resume its sensor path.")
         }
-        .confirmationDialog(
+        // #193: destructive confirmation → `.alert` (visible Cancel).
+        .alert(
             "Delete this profile?",
             isPresented: Binding(
                 get: { pendingDelete != nil },
                 set: { if !$0 { pendingDelete = nil } }
             ),
-            titleVisibility: .visible,
             presenting: pendingDelete
         ) { profile in
             Button("Delete \(profile.name)", role: .destructive) {

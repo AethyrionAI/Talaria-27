@@ -56,10 +56,12 @@ struct SessionsSettingsScreen: View {
         .navigationTitle("Sessions")
         .toolbarVisibility(.hidden, for: .navigationBar)
         .task { await load() }
-        .confirmationDialog(
+        // #193: was a `.confirmationDialog`, whose cancel role does not
+        // render on iOS 26/27 — destructive confirmations use `.alert`,
+        // which still shows an explicit way out.
+        .alert(
             "Clear the current conversation?",
-            isPresented: $showClearConfirm,
-            titleVisibility: .visible
+            isPresented: $showClearConfirm
         ) {
             Button("Clear Conversation", role: .destructive) {
                 Task { await clearConversation() }

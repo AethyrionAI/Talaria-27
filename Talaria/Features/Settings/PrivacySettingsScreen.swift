@@ -521,13 +521,15 @@ struct PrivacySettingsScreen: View {
                 .foregroundStyle(Design.Colors.secondaryForeground)
                 .padding(.horizontal, Design.Spacing.xxs)
         }
-        .confirmationDialog(
+        // #193: was a `.confirmationDialog`, whose cancel role does not
+        // render on iOS 26/27 — destructive confirmations use `.alert`,
+        // which still shows an explicit way out.
+        .alert(
             "Revoke \(pendingRevoke?.displayLabel ?? "")?",
             isPresented: Binding(
                 get: { pendingRevoke != nil },
                 set: { if !$0 { pendingRevoke = nil } }
             ),
-            titleVisibility: .visible,
             presenting: pendingRevoke
         ) { permission in
             Button("Revoke", role: .destructive) {
