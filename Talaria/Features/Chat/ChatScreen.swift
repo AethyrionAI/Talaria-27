@@ -445,7 +445,9 @@ struct ChatScreen: View {
         }
     }
 
-    private static func sessionSummary(
+    // Internal (not private) since #190: the origin/unresumable mapping is
+    // asserted by unit tests through @testable import.
+    static func sessionSummary(
         from info: HermesSessionInfo,
         activeProfileID: UUID? = nil
     ) -> SessionsDrawerModel.SessionSummary {
@@ -453,6 +455,9 @@ struct ChatScreen: View {
             ? info.title!
             : ((info.preview?.isEmpty == false) ? info.preview! : "Untitled session")
         let subtitle: String = {
+            // #190: a dimmed row's one line is its honest reason, not a
+            // preview it can't deliver on.
+            if !info.isResumable { return info.unresumableReason ?? "Unavailable" }
             if let preview = info.preview, !preview.isEmpty { return preview }
             guard info.messageCount > 0 else { return "No messages" }
             return "\(info.messageCount) message\(info.messageCount == 1 ? "" : "s")"
@@ -473,7 +478,9 @@ struct ChatScreen: View {
             isActive: info.isActive,
             isPinned: false,
             badge: profileBadge ?? (info.source == "cron" ? "AUTO" : nil),
-            messageCount: info.messageCount
+            messageCount: info.messageCount,
+            origin: info.source == LocalChatBackend.localSessionSource ? .local : .remote,
+            isUnresumable: !info.isResumable
         )
     }
 
