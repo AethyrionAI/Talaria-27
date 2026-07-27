@@ -8879,6 +8879,9 @@ native descriptions — the "job description" signal), (3) long shots: #83 Gener
 session shapes (armed as-is / tools minus enumeration prose / enumeration without tools /
 tool-less branch) behind a debug toggle; the passing cells convict the mechanism.
 
+**Dispatch written 2026-07-27: `dispatch/OPUS-T27-176C-194-creative-suppressor.md`** —
+confirm-then-fix shape (harness + labeled inert Part 2), Owen to send.
+
 **2026-07-27, later: BUILT with 176B** — the armed instructions now license
 writing/composing/summarizing and ordinary conversation as first-class ("need no tool"), pinned
 by `armedInstructionsLicenseAnsweringAndCreatingWithoutATool`. The airplane-mode device check
