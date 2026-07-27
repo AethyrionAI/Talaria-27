@@ -7690,6 +7690,26 @@ Logged 2026-07-23.
 > but standalone has no past sessions (**#190**), so it can only ever see the
 > thread already on screen — and the selector reaches for it constantly.
 
+**Update 2026-07-27 — 176B BUILT (branch `claude/opus-t27-belt-truth-wkxblt`): the belt stops
+being a job description.** Part A — `instructionsText`'s armed branch now OPENS by licensing
+tool-free work: answering from own knowledge, writing/composing/summarizing, ordinary
+conversation ("facts you know are not guesses, and general knowledge is not device data"). "Use
+tools instead of guessing" is scoped to the user's own data, and the recovery clause lands the
+absorbing-state exit: a failed or denied tool is never the answer — answer without it, and never
+repeat a denial already given in this conversation. Part B — `ConversationSearchTool` KEPT on the
+belt, not withheld: in-thread search reaches verbatim text that #26 condensation dropped from the
+replayed transcript, and past-session titles/previews are real now that #190's store donates to
+the Spotlight cache (the widened quote's "standalone has no past sessions" predates PR #151); its
+description corrected to the #148 when-it-applies shape — "Use this ONLY … a specific past
+mention — never to answer a question; the recent conversation is already visible to you without
+any tool." Three new deterministic substring tests beside the unmodified #148 set, none asserting
+what the model chose. **NOT compiled:** the build container has no Xcode or Swift toolchain
+(27A5228h unavailable there) — the suite run + green count are owed from the Mac. **Device
+verification owed (Owen), the dispatch's DoD:** offline "2+2" / "capital of Greece" answered, not
+searched; airplane-mode "write a poem about spring" produces a poem (#194); same-chat recall
+answered with no tool; three unrelated questions after a permission denial each answered on their
+own terms; and the negative guard — health/location/calendar questions still route to tools.
+
 **Spec written 2026-07-24: `dispatch/OPUS-T27-176-tool-selection.md`** — confirm-then-fix. Preference order: availability gating > description tightening > selection-prompt change. Explicit warning against a test that asserts the model did NOT call a tool (passes/fails on temperament — #183's masked pattern by a new road). Do not re-spec.
 
 **Update 2026-07-24 — BUILT, gating + descriptions (PR #148, `claude/t27-176-tool-selection`):**
@@ -8264,6 +8284,22 @@ only.
 
 Found by ultrareview Pass B (2026-07-25), verified against source.
 
+**Update 2026-07-27 — BUILT on the 176B branch (`claude/opus-t27-belt-truth-wkxblt`).**
+(1) `CalendarEventTool`: `.writeOnly` proceeds beside `.fullAccess`, and the `.notDetermined`
+branch re-reads the settled status after the request — `requestFullAccessToEvents()` reports an
+"Add Events Only" pick as `false`, so trusting the Bool alone false-denied the FIRST attempt too;
+one deliberate half-step beyond the prescribed patch. The request itself stays full-access; the
+rejected write-only-request swap stays rejected. (2) `ContactsTool` accepts `.limited` beside
+`.authorized`. (3) The calendar reader's `.writeOnly` case names the add-only grant and says
+reading needs Full Access — message fix only, as specced. (4) Insurance taken:
+`NSCalendarsWriteOnlyAccessUsageDescription` declared in `project.yml` and hand-synced into the
+generated `Info.plist` (no xcodegen on the build box; alphabetical key order matches what regen
+emits). The switches live inside `call()` with framework stores — device-verified, not
+unit-tested, per the belt's standing note. **Device checks owed:** add-only calendar grant →
+event creation succeeds on the first attempt and every one after; limited contacts grant →
+lookup works on the second launch and after; add-only grant + a calendar question → the reply
+names the grant instead of "enable it in Settings."
+
 Two device tools treat a **narrower but sufficient** grant as a denial, then hand that denial to the
 model. `LocalChatBackend` instructs the model to relay permission-denied results faithfully — so the
 user is told to go turn on a permission they already granted. That is precisely the fabrication the
@@ -8812,6 +8848,11 @@ follow it. Verification: airplane mode, fresh chat, "write a poem" → a poem.
 
 **2026-07-27 (same day): folded into the 176B dispatch** (Items header, observation, Part A
 clause, DoD line) — decided widened, not separate. Tracks with #176 from here.
+
+**2026-07-27, later: BUILT with 176B** — the armed instructions now license
+writing/composing/summarizing and ordinary conversation as first-class ("need no tool"), pinned
+by `armedInstructionsLicenseAnsweringAndCreatingWithoutATool`. The airplane-mode device check
+("write a poem" → a poem, fresh chat) rides with the 176B verification pass; details under #176.
 
 Logged 2026-07-27.
 
