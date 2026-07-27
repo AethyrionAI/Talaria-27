@@ -34,6 +34,13 @@ struct CalendarReadTool: Tool {
             }
         case .fullAccess:
             break
+        case .writeOnly:
+            // Reachable from Apple's full-access sheet ("Add Events Only"),
+            // and there is no re-prompt path once primed — reading genuinely
+            // needs the wider grant, so name the grant the user actually
+            // holds and how to widen it (#186). "Enable it in Settings" to
+            // someone who granted what they were shown reads as a lie.
+            return "Calendar access is add-only, so events can't be read. To let Hermes read the calendar, choose Full Access for it in Settings → Privacy & Security → Calendars."
         default:
             return "Calendar permission is not granted, so events can't be read. The user can enable it in Settings → Privacy & Security → Calendars."
         }
