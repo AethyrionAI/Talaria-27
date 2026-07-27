@@ -1235,6 +1235,15 @@ final class LocalChatBackend: HermesClientProtocol {
     /// stop advertising them for the same turns. An instruction block that
     /// claims a tool the session was never given is the same class of dishonesty
     /// as fabricating a sensor reading.
+    ///
+    /// The armed branch opens by licensing tool-free answering and creation
+    /// BEFORE it enumerates the belt (#176B/#194): with no such clause the
+    /// on-device model treats the tool list as its job description — every
+    /// turn routes to a tool, "write a poem" deflects to reminders/weather,
+    /// and one permission denial becomes every later turn's answer. Keep the
+    /// "use tools" instruction scoped to the user's own data, never to
+    /// general knowledge, and keep the recovery sentence: a failed tool is
+    /// information about the tool, not the reply.
     nonisolated static func instructionsText(
         deviceContext: String,
         date: Date = .now,
@@ -1245,7 +1254,7 @@ final class LocalChatBackend: HermesClientProtocol {
         let vision = hasImageTools ? ", image text/barcode reading" : ""
         let capabilities = hasTools
             ? """
-            Be direct, warm, and concise. You have device tools — health, location, motion, calendar, reminders, weather, places, contacts, device status\(vision), and conversation search — plus action tools that can create reminders, calendar events, and alarms. Use them to work with the user's real data instead of guessing. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully. When a tool reports that a permission isn't granted or no data exists, relay that honestly — never invent a value.
+            Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. You also have device tools — health, location, motion, calendar, reminders, weather, places, contacts, device status\(vision), and conversation search — plus action tools that can create reminders, calendar events, and alarms. Use the tools for the user's own data — their health, location, schedule, reminders, contacts, and past conversations — instead of guessing at it. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully. When a tool reports that a permission isn't granted or no data exists, relay that honestly — never invent a value. A failed or denied tool is never the answer to the user's question: answer as well as you can without that tool, and don't repeat a denial you've already given in this conversation.
             """
             : """
             Be direct, warm, and concise. You have no internet access and no external tools in this mode — when you don't know something or can't do it on-device, say so plainly instead of guessing.
