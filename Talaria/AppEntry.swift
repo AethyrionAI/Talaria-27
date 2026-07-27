@@ -121,6 +121,11 @@ final class HermesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
     // MARK: - UNUserNotificationCenterDelegate
 
     // Show banner + sound even when the app is in the foreground.
+    //
+    // #147: deliberately still `nonisolated`, unlike didReceive below. This is
+    // the sync completion-handler variant: the handler is invoked
+    // synchronously, touches no actor state, and a synchronous nonisolated
+    // protocol requirement cannot be witnessed by a @MainActor method anyway.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
@@ -134,11 +139,21 @@ final class HermesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
     // notifications don't. Route to chat, open the pushed session when named,
     // and reconcile so the finished reply is fetched.
     //
-    // Async delegate variant: the system awaits this method and keeps the
-    // (possibly scene-less) process alive for its whole duration — exactly the
-    // ordering the #47 reply path needs, with no completion handler to send
-    // across an isolation boundary (Swift 6 region-based data-race safety).
-    nonisolated func userNotificationCenter(
+    // #147: main-actor isolated (inherits the class's @MainActor — do NOT add
+    // `nonisolated` back). The `nonisolated` this method carried opted it out
+    // of the class-level isolation, so the compiler-synthesized objc
+    // completion bridge fired on the cooperative pool and UIKit's
+    // post-response snapshot/state-restoration work hard-asserted off-main:
+    // the deterministic cold-tap SIGABRT (.ips 2026-07-21, reproduced
+    // 2026-07-25 — the class-level @MainActor added by 22f92e1 was inert
+    // against it).
+    //
+    // The #47 process-lifetime guarantee is unchanged: it comes from the
+    // system AWAITING this async variant, and is independent of which actor
+    // the body runs on. (The async variant also has no completion handler to
+    // send across an isolation boundary, which is exactly why it does not
+    // need `nonisolated`.)
+    func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
