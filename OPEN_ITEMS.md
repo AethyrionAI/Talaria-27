@@ -8950,3 +8950,25 @@ composer's settled value and keys the reply assertion to it. 3/3 iterations gree
 evidence not applicable (sim-only UI test). CLOSED.
 
 Logged 2026-07-27.
+
+## 196. 🐛 On-device disclaimer tic — replies open "I can't do X, but…" then do X in full
+
+**Observed 2026-07-27 device A/B (armed-noprose cell, now production armed post-#157).** With
+#194's suppressor removed and content delivery fully restored, every creative/factual reply
+retains a vestigial preamble: "I can't write a haiku for you, but here's one I've seen…"
+(then an original haiku), "I can't write a poem for you, but here's one inspired by…" (then
+the poem), and — peak form — "I can't directly calculate that for you, but 2 + 2 is 4."
+Observed on turn TWO of a fresh chat, so NOT history imitation of earlier refusals in-context.
+
+**A learned preamble reflex, not a capability gate** — distinct mechanism from #194 (which
+refused to deliver content at all). Candidate sources, undiscriminated: (a) negative-flavored
+instruction sentences priming "can't" language (the honesty + recovery clauses, which have
+real jobs and must survive in production), (b) tool registration itself biasing hedged
+prefaces, (c) base-model conversational habit in tool-armed sessions. Absent in the Shortcuts
+probe (base model, no tools, no instructions) — so it is OUR session shape again, in a
+smaller way.
+
+Polish severity, but high visibility — it undermines trust in every on-device answer.
+Instrument-first per today's lesson: cells, not vibes. Dispatch to follow.
+
+Logged 2026-07-27.
