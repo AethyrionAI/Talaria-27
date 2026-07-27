@@ -6291,6 +6291,18 @@ Logged 2026-07-20.
 
 ## 147. 🐛 Tapping an inbox-alert notification CRASHES the app — REOPENED 2026-07-25; the 2026-07-21 fix has been inert since it merged
 
+> **FIX ON BRANCH 2026-07-27** (`claude/opus-t27-notifications-e2e-upxqau`, with #189). The
+> `nonisolated` on the async `didReceive` overload is removed, so it actually inherits the
+> class-level `@MainActor` that `22f92e1` added — the annotation had opted the method back out,
+> which is why the 2026-07-21 "fix" was inert. The `nonisolated` appears carried over from
+> `willPresent`, which genuinely takes a completion handler; `willPresent` stays `nonisolated`
+> deliberately (sync handler, invoked synchronously, no actor-crossing state — and a sync
+> nonisolated requirement cannot be witnessed by a `@MainActor` method anyway). The #47
+> process-lifetime guarantee is untouched: it comes from the system AWAITING the async variant,
+> independent of which actor the body runs on. The crash itself is not unit-testable —
+> **closes only on Owen's on-device cold-launch tap** (the mis-verified case last time), warm tap,
+> and a #47 headless typed reply; repro on demand via `mcp__hermes_mobile__send_inbox_item`.
+
 > **REOPENED 2026-07-25 (device pass + ultrareview).** The "device-verified closed
 > 2026-07-21" entry below is wrong. The crash reproduced deterministically on
 > 2026-07-25 across multiple independent Claude Code test runs, on a build
@@ -8363,6 +8375,25 @@ Logged 2026-07-25.
 ---
 
 ## 189. 🐛 SHIP BLOCKER — notifications are never authorized on a fresh install, and the panel reports a false green
+
+> **FIX ON BRANCH 2026-07-27** (`claude/opus-t27-notifications-e2e-upxqau`, with the #147 fix —
+> shared surface, shipped together per `dispatch/OPUS-T27-189-147-notifications-end-to-end.md`).
+> Cloud-written; Mac build gate + full-suite run + device verification owed (see PR body).
+> **Part 1 — priming:** the trigger no longer sits behind `continuedSend != nil`; authorization is
+> requested on EVERY dispatched send (plain text included). Moment chosen: the user has just handed
+> the agent a run — the first moment a completion notify has value, it precedes any chance for the
+> run to detach, and every user reaches it. Still contextual (never at launch, never on swallowed
+> sends), idempotent per launch and once-ever at the OS level. The detach-path re-prime stays.
+> Injectable seam (`LocalNotificationScheduling`) added so tests pin the trigger.
+> **Part 2 — honest readout:** Diagnostics gains a Notifications row (NOT REQUESTED / AUTHORIZED /
+> PROVISIONAL / DENIED / RESTRICTED) read from `UNAuthorizationStatus` via PermissionsStore;
+> Settings → Notifications resolves its hero through a pure `alertsDisplayState` (the #146
+> precedent) — the only full green is authorized + toggle + relay registered, and the push panel
+> shows PERMISSION and pipeline as separate rows. NotDetermined gets an in-place Enable button.
+> Provisional/ephemeral map to `.limited` (LiveNotificationService) and render as PROVISIONAL —
+> reachable only if a provisional request or App Clip ever appears; handled either way.
+> Deterministic tests: `NotificationAuthorizationTruthTests` (display matrix incl. the observed
+> false-green case) + priming tests in `AppStoresTests`. Closes only on Owen's fresh-install matrix.
 
 **Observed 2026-07-25 device pass.** Authorization status is `NotDetermined` — not `Denied`. The app
 has never asked. Every notification feature is silently dead for any user who does not happen to

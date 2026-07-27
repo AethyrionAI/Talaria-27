@@ -2,13 +2,23 @@ import Foundation
 import UserNotifications
 import UIKit
 
+/// ChatStore's notification side of a run — authorization priming (#31/#189)
+/// and the completion/failure notifies. `LocalNotificationService` is the live
+/// conformer; tests inject a spy so the priming trigger is assertable.
+@MainActor
+protocol LocalNotificationScheduling {
+    func requestAuthorizationIfNeeded() async
+    func notifyReplyFailed(reason: String)
+    func notifyRunCompleted(preview: String?)
+}
+
 /// Local (on-device) notifications for agent runs that finish while the app is
 /// backgrounded. Phase 1 of the agent-run background-completion work
 /// (OPEN_ITEMS #21 / #38): fired when a reconcile detects a run that completed
 /// after the stream was dropped on lock. Authorization is requested lazily on
 /// first send; this should later move behind the NOTIFICATIONS settings screen (#10).
 @MainActor
-final class LocalNotificationService {
+final class LocalNotificationService: LocalNotificationScheduling {
     private var didRequestAuthorization = false
 
     func requestAuthorizationIfNeeded() async {
