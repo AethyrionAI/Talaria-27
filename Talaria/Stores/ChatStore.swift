@@ -125,7 +125,9 @@ final class ChatStore {
 
     private let hermesClient: any HermesClientProtocol
     private let chatLiveActivity = LiveActivityService()
-    private let notifications = LocalNotificationService()
+    /// Injectable (#189) so tests can pin the priming trigger with a spy;
+    /// defaults to the live service in init.
+    private let notifications: any LocalNotificationScheduling
     let persistence: any AppPersistenceStoreProtocol
 
     /// P1 (#90): the durable journal — the conversation's primary on-device
@@ -232,11 +234,13 @@ final class ChatStore {
     init(
         hermesClient: any HermesClientProtocol,
         persistence: any AppPersistenceStoreProtocol,
-        journal: ConversationJournalStore? = nil
+        journal: ConversationJournalStore? = nil,
+        notifications: (any LocalNotificationScheduling)? = nil
     ) {
         self.hermesClient = hermesClient
         self.persistence = persistence
         self.journal = journal
+        self.notifications = notifications ?? LocalNotificationService()
         self.composeOutbox = persistence.loadComposeOutboxState()
     }
 
@@ -401,12 +405,17 @@ final class ChatStore {
         let continuedSend = attachments.isEmpty ? nil : beginContinuedSend?(displayContent)
         continuedSend?.onExpiration = { [weak self] in self?.cancelStreaming() }
 
-        // #31 contextual priming: the notification prompt rides the first
-        // LONG-RUN — a send that can outlive the foreground and want a
-        // completion notify — not the first message ever sent.
-        if continuedSend != nil {
-            Task { await self.notifications.requestAuthorizationIfNeeded() }
-        }
+        // #31 contextual priming, widened by #189: the prompt rides EVERY
+        // dispatched send, not just attachment sends. The old gate
+        // (`continuedSend != nil`) only existed for messages with attachments,
+        // so a plain-text user was never asked, ever — every notification
+        // feature silently dead. The moment kept: the user has just handed the
+        // agent a run — the first moment a completion notify has value, it
+        // precedes any chance for the run to detach, and every user reaches
+        // it. Idempotent: once per launch here, once ever at the OS level; a
+        // no-op prompt-wise when already determined or scene-less (#47
+        // replies, intents).
+        Task { await self.notifications.requestAuthorizationIfNeeded() }
 
         let stream = hermesClient.sendStreaming(message: trimmedContent, attachments: attachments, clientMessageID: clientMessageID)
         var acceptedJobID: UUID?
