@@ -8998,3 +8998,31 @@ per-cell checklist with the two-axis scoring (content delivered / preface presen
 readout table.
 
 Logged 2026-07-27.
+
+## 197. 🐛 Tool-invocation failure aborts the turn and renders the RAW error — types, descriptions, and a memory address in the transcript
+
+**Observed 2026-07-27 18:23, device, airplane mode, armed cell (#196 A/B battery, fresh
+chat).** "Write a 50 word summary about Norway" → the model spuriously invoked WeatherTool
+(place-name → weather association; no weather was asked for) → the invocation failed with a
+FoundationModels "Failed to parse generated content" → the turn DIED with a Retry affordance
+and the transcript rendered the raw error verbatim: tool name, the full description string,
+`RELAY: TALARIA.TOOLEVENTRELAY`, and a live pointer (`<TALARIA.DEVICELOCATIONPROVIDER:
+0x108BD0B00>`).
+
+Two stacked defects:
+1. **Raw internal error as a chat message.** Internal type names and memory addresses are
+   never user-facing content. The streaming path evidently catches (or fails to catch) the
+   thrown tool-invocation error and surfaces its description into the transcript.
+2. **The #176 recovery clause is unreachable on this failure class.** "A failed or denied
+   tool is never the answer — answer without it" operates INSIDE a model turn; a tool
+   invocation that throws kills the turn upstream, so the model never gets to recover. The
+   instruction-level absorbing-state exit has a machinery-level hole.
+
+**Fix direction:** catch tool-invocation errors in the streaming worker; log the full detail
+(`chatLog`), surface a friendly failure — or better, feed a terse tool-failure result back to
+the session so the model can apply the recovery clause and answer without the tool (which is
+what the instructions already promise). Related but distinct observation for the #196 lane:
+spurious tool grabs on non-tool asks persist post-#194 at some rate — the desk A/B should
+score a THIRD axis (tool chip present on a non-tool ask) alongside content/preface.
+
+Logged 2026-07-27.
