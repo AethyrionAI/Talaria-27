@@ -14,10 +14,17 @@ import os
 ///   swap: the brain that starts a run finishes it or fails honestly —
 ///   routing is evaluated per new message.
 /// - Power-user picker (chat header + Settings → Models) appears once any
-///   Hermes host exists; the choice is per-conversation and persisted.
+///   Hermes host exists. #192 (decided 2026-07-27): an explicit pick is a
+///   STICKY MODE — it persists as the resolution default every new chat
+///   inherits, with per-conversation overrides layered on top, so a
+///   conversation-id rotation (New chat / clear / openSession) can never
+///   silently revert the brain. Only an explicit pick — or an announced,
+///   #30-style fallback — changes what routes.
 /// - `activeBrain` drives the always-visible header indicator; finished
 ///   assistant messages are tagged with their producing brain so the
-///   transcript stays honest across reconnects.
+///   transcript stays honest across reconnects. Every `activeBrain` change
+///   logs old → new, its initiator, and the conversation key consulted;
+///   every refusal to re-derive logs the guard that refused (#192).
 @MainActor
 @Observable
 final class ChatBackendRouter: HermesClientProtocol {
@@ -66,15 +73,28 @@ final class ChatBackendRouter: HermesClientProtocol {
 
     private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "ChatBackendRouter")
     static let preferencesDefaultsKey = "talaria.chat.brainPreferences"
-    /// Preference slot for a pick made before any conversation exists; it
-    /// migrates onto the first conversation that sends.
+    /// Slot for a pick made before any conversation exists; it migrates
+    /// onto the first conversation that resolves. Since #192 only pick-only
+    /// (non-sticky) writes land here — an explicit user pick with no
+    /// conversation goes straight to `stickyDefaultKey`.
     static let nextConversationKey = "next"
+    /// #192: the sticky-mode slot — the user's last explicit pick, inherited
+    /// by every conversation that has no override of its own. UUID
+    /// conversation keys can never collide with it.
+    static let stickyDefaultKey = "default"
 
     /// The brain the NEXT message will use (and the one mid-run while a
     /// stream is active). Drives the chat-header indicator.
     private(set) var activeBrain: Brain
-    /// Set for the lifetime of a streaming run — the no-mid-thread-swap lock.
+    /// Set for the lifetime of a run — the no-mid-thread-swap lock. #192:
+    /// paired with `currentRunID` so only the run that set it can release it
+    /// asynchronously, and cleared on EVERY exit (completion, consumer
+    /// termination, `abandonActiveRun`) — a dropped stream must never wedge
+    /// routing until force quit.
     private var runningBrain: Brain?
+    /// Identity of the in-flight run; guards `finishRun` against a stale
+    /// async teardown clearing a NEWER run's lock.
+    private var currentRunID: UUID?
     /// The brain that ran the most recent turn. ChatStore's post-turn
     /// metadata merge reads `currentConversation` after the stream ends (and
     /// after `runningBrain` clears) — it must still see the backend that
@@ -104,6 +124,12 @@ final class ChatBackendRouter: HermesClientProtocol {
     /// on-device (unavailable / rate-limited). Cleared when PCC recovers or
     /// the preference changes; ChatScreen renders it under the header.
     private(set) var privateCloudFallbackNotice: String?
+    /// #192: honest one-line notice when AUTOMATIC routing (no explicit pick
+    /// anywhere) falls back to on-device because Hermes is known-unreachable
+    /// — the same #30 pattern: an un-asked brain change is never silent.
+    /// Cleared when automatic resolution routes to Hermes again or the user
+    /// picks explicitly.
+    private(set) var automaticFallbackNotice: String?
     /// #190: whether a session id names a stored/live LOCAL session — lets
     /// `openSession` route local ids to the local backend even while the
     /// active brain is Hermes (the unified drawer mixes both sources). Wired
@@ -155,65 +181,135 @@ final class ChatBackendRouter: HermesClientProtocol {
     /// Routing decision for a NEW turn. Evaluated per message; never flips a
     /// run already in flight.
     func resolvedBrainForNextTurn() -> Brain {
-        let preferred = resolvePreferenceForCurrentConversation()
+        resolveBrainForNextTurn().brain
+    }
 
-        // #30: a PCC pin degrades to on-device when the tier can't take the
+    /// #192: resolution carries its reason so every `activeBrain` change can
+    /// name its initiator in the log — the instrumentation half of the
+    /// silent-reversion fix.
+    private struct BrainResolution {
+        let brain: Brain
+        let reason: String
+    }
+
+    private func resolveBrainForNextTurn() -> BrainResolution {
+        let preference = resolvePreference()
+
+        // #30: a PCC pick degrades to on-device when the tier can't take the
         // turn (unavailable / daily quota reached) — visible via the header
         // indicator plus the one-line fallback notice, never silent.
-        if preferred == .privateCloud {
+        if preference.brain == .privateCloud {
             if isPrivateCloudUsable() {
                 privateCloudFallbackNotice = nil
-                return .privateCloud
+                return BrainResolution(brain: .privateCloud, reason: preference.source)
             }
             if privateCloudFallbackNotice == nil {
                 privateCloudFallbackNotice = "Private Cloud β is unavailable or over its daily limit — continuing on-device."
                 Self.logger.notice("PCC pin degraded to on-device (unavailable/rate-limited)")
             }
-            return .onDevice
+            return BrainResolution(brain: .onDevice, reason: "pcc-degraded")
         }
 
-        guard isHermesConfigured() else { return .onDevice }
-        if let preferred { return preferred }
-        // Hermes wins by default; known-unreachable at send time routes new
-        // turns local (the header indicator makes the change visible).
-        return hermes.connectionStatus == .error ? .onDevice : .hermes
+        guard isHermesConfigured() else {
+            automaticFallbackNotice = nil
+            return BrainResolution(brain: .onDevice, reason: "hermes-unconfigured")
+        }
+        if let preferred = preference.brain {
+            return BrainResolution(brain: preferred, reason: preference.source)
+        }
+        // Fully automatic: Hermes wins by default; known-unreachable at send
+        // time routes new turns local — announced via the #30-style notice,
+        // never just a silently moved pill (#192).
+        if hermes.connectionStatus == .error {
+            if automaticFallbackNotice == nil {
+                automaticFallbackNotice = "Hermes is unreachable — new messages run on-device until it recovers."
+                Self.logger.notice("automatic routing fell back to on-device: Hermes connectionStatus is error (#192)")
+            }
+            return BrainResolution(brain: .onDevice, reason: "hermes-unreachable")
+        }
+        automaticFallbackNotice = nil
+        return BrainResolution(brain: .hermes, reason: "automatic-default")
     }
 
     /// Re-derives `activeBrain` for the header indicator. No-op while a run
     /// is in flight — the indicator shows the brain actually producing the
-    /// current turn until it settles.
+    /// current turn until it settles. #192: the refusal is LOGGED — this is
+    /// the only guard on the switch path that can decline a re-derivation,
+    /// and its silent decline is how a wedged run hid for a whole session.
     func refreshActiveBrain() {
-        guard runningBrain == nil else { return }
-        activeBrain = resolvedBrainForNextTurn()
+        if let runningBrain {
+            Self.logger.notice("refreshActiveBrain REFUSED: run in flight on \(runningBrain.rawValue, privacy: .public) — re-derivation deferred to run teardown (#192)")
+            return
+        }
+        let resolution = resolveBrainForNextTurn()
+        setActiveBrain(resolution.brain, initiator: "refresh/\(resolution.reason)")
     }
 
-    // MARK: - Per-conversation preference (persisted)
+    /// #192: THE single writer for `activeBrain`. Logs every change — old →
+    /// new, the initiator, and the conversation key consulted — so the next
+    /// silent-reversion report carries evidence instead of a mystery.
+    private func setActiveBrain(_ brain: Brain, initiator: String) {
+        guard brain != activeBrain else { return }
+        let old = activeBrain
+        activeBrain = brain
+        let conversationKey = conversationIDProvider()?.uuidString ?? "none"
+        Self.logger.notice("activeBrain \(old.rawValue, privacy: .public) → \(brain.rawValue, privacy: .public) initiator=\(initiator, privacy: .public) conversation=\(conversationKey, privacy: .public) (#192)")
+    }
 
+    // MARK: - Brain preference (persisted; sticky mode since #192)
+
+    /// The pick the given conversation resolves under: its own override if
+    /// one exists (the pre-conversation "next" slot when no conversation
+    /// exists yet), else the sticky default. Drives the picker checkmarks,
+    /// so they reflect what will actually route — not merely whether this
+    /// conversation has its own row.
     func preferredBrain(forConversation id: UUID?) -> Brain? {
-        storedPreferences()[Self.preferenceKey(for: id)].flatMap(Brain.init(rawValue:))
+        let preferences = storedPreferences()
+        if let brain = preferences[Self.preferenceKey(for: id)].flatMap(Brain.init(rawValue:)) {
+            return brain
+        }
+        return preferences[Self.stickyDefaultKey].flatMap(Brain.init(rawValue:))
     }
 
-    /// Persists the user's pick for the given conversation (nil conversation
-    /// = the next one to start; nil brain = back to automatic routing).
-    func setPreferredBrain(_ brain: Brain?, forConversation id: UUID?) {
+    /// Persists the user's pick. #192 (sticky mode): an explicit brain pick
+    /// writes BOTH the conversation's override and the sticky default, so
+    /// new chats inherit it and an id rotation can never revert the brain.
+    /// nil brain = back to full automatic routing (clears both). Callers
+    /// pinning a single conversation programmatically — the #30 escalation
+    /// offer, the #134 debug harness — pass `updatesDefault: false`: a
+    /// scoped pin must not hijack the user's app-wide mode.
+    func setPreferredBrain(_ brain: Brain?, forConversation id: UUID?, updatesDefault: Bool = true) {
         var preferences = storedPreferences()
         let key = Self.preferenceKey(for: id)
         if let brain {
             preferences[key] = brain.rawValue
+            if updatesDefault {
+                preferences[Self.stickyDefaultKey] = brain.rawValue
+                preferences.removeValue(forKey: Self.nextConversationKey)
+            }
         } else {
             preferences.removeValue(forKey: key)
+            if updatesDefault {
+                preferences.removeValue(forKey: Self.stickyDefaultKey)
+                preferences.removeValue(forKey: Self.nextConversationKey)
+            }
         }
         defaults.set(preferences, forKey: Self.preferencesDefaultsKey)
-        // A fresh pick clears any stale PCC degradation notice — the next
-        // resolution re-derives it if the tier is still down (#30).
+        // A fresh pick clears any stale fallback notice — the next
+        // resolution re-derives it if the tier is still down (#30/#192).
         privateCloudFallbackNotice = nil
+        automaticFallbackNotice = nil
+        let scope = updatesDefault ? "pick+default" : "pick-only"
+        Self.logger.notice("brain preference \(key, privacy: .public) → \(brain?.rawValue ?? "automatic", privacy: .public) [\(scope, privacy: .public)] (#192)")
         refreshActiveBrain()
-        Self.logger.notice("brain preference for \(key, privacy: .public) → \(brain?.rawValue ?? "automatic", privacy: .public)")
     }
 
-    /// Preference for the live conversation, migrating a pre-conversation
-    /// "next" pick onto the first conversation that actually sends.
-    private func resolvePreferenceForCurrentConversation() -> Brain? {
+    /// Effective preference for the live conversation under sticky mode:
+    /// the conversation's own override wins, else the sticky default. A
+    /// "next"-slot pick (legacy stored picks, and the pick-only harness pin)
+    /// still migrates onto the first conversation that resolves, exactly as
+    /// pre-#192 — stored picks are never stranded.
+    private func resolvePreference() -> (brain: Brain?, source: String) {
         var preferences = storedPreferences()
         let conversationID = conversationIDProvider()
         if let conversationID, let pending = preferences[Self.nextConversationKey] {
@@ -221,8 +317,14 @@ final class ChatBackendRouter: HermesClientProtocol {
             preferences.removeValue(forKey: Self.nextConversationKey)
             defaults.set(preferences, forKey: Self.preferencesDefaultsKey)
         }
-        let key = Self.preferenceKey(for: conversationID)
-        return preferences[key].flatMap(Brain.init(rawValue:))
+        if let brain = preferences[Self.preferenceKey(for: conversationID)].flatMap(Brain.init(rawValue:)) {
+            let key = conversationID?.uuidString ?? Self.nextConversationKey
+            return (brain, "override(\(key))")
+        }
+        if let brain = preferences[Self.stickyDefaultKey].flatMap(Brain.init(rawValue:)) {
+            return (brain, "sticky-default")
+        }
+        return (nil, "automatic")
     }
 
     private func storedPreferences() -> [String: String] {
@@ -267,7 +369,7 @@ final class ChatBackendRouter: HermesClientProtocol {
     /// to Hermes without user action (and a dead one flips it local).
     func connect() async {
         guard isHermesConfigured() else {
-            activeBrain = .onDevice
+            setActiveBrain(.onDevice, initiator: "connect/unconfigured")
             await local.connect()
             return
         }
@@ -288,15 +390,15 @@ final class ChatBackendRouter: HermesClientProtocol {
         attachments: [PendingAttachment] = [],
         clientMessageID: UUID
     ) async -> Message {
-        let brain = resolvedBrainForNextTurn()
-        activeBrain = brain
+        let resolution = resolveBrainForNextTurn()
+        let brain = resolution.brain
+        let runID = UUID()
+        setActiveBrain(brain, initiator: "send/\(resolution.reason)")
         runningBrain = brain
+        currentRunID = runID
         lastRunBrain = brain
         if brain != .hermes { applyLocalTier?(brain) }
-        defer {
-            runningBrain = nil
-            refreshActiveBrain()
-        }
+        defer { finishRun(runID, outcome: "send-completed") }
         var reply = await backend(for: brain).send(
             message: message,
             attachments: attachments,
@@ -315,9 +417,12 @@ final class ChatBackendRouter: HermesClientProtocol {
     ) -> AsyncStream<StreamingUpdate> {
         // Routing is decided HERE, once, for the whole run — the brain that
         // starts a run finishes it or fails honestly.
-        let brain = resolvedBrainForNextTurn()
-        activeBrain = brain
+        let resolution = resolveBrainForNextTurn()
+        let brain = resolution.brain
+        let runID = UUID()
+        setActiveBrain(brain, initiator: "stream/\(resolution.reason)")
         runningBrain = brain
+        currentRunID = runID
         lastRunBrain = brain
         if brain != .hermes { applyLocalTier?(brain) }
         Self.logger.notice("sendStreaming routed to \(brain.rawValue, privacy: .public)")
@@ -327,7 +432,7 @@ final class ChatBackendRouter: HermesClientProtocol {
             clientMessageID: clientMessageID
         )
         return AsyncStream { continuation in
-            Task { @MainActor [weak self] in
+            let pump = Task { @MainActor [weak self] in
                 for await update in upstream {
                     if case .finished(var message, let usage, let diff) = update {
                         if message.sender == .hermes {
@@ -338,13 +443,49 @@ final class ChatBackendRouter: HermesClientProtocol {
                         continuation.yield(update)
                     }
                 }
-                self?.runningBrain = nil
-                // A run that failed because Hermes died flips the indicator
-                // to the brain the NEXT message will actually use.
-                self?.refreshActiveBrain()
+                // Reached on upstream completion AND on pump cancellation
+                // (AsyncStream iteration is cancellation-aware) — either way
+                // the run is over and routing must re-derive. A run that
+                // failed because Hermes died flips the indicator to the
+                // brain the NEXT message will actually use.
+                self?.finishRun(runID, outcome: "stream-ended")
                 continuation.finish()
             }
+            // #192: the consumer walking away (stop button, clear, session
+            // switch — anything that cancels ChatStore's streaming task)
+            // terminates this stream. Without this hook, an upstream that
+            // never finishes (the #145/#184 dropped-run family) held
+            // `runningBrain` for the life of the process and wedged the
+            // brain toggle until force quit.
+            continuation.onTermination = { _ in
+                pump.cancel()
+            }
         }
+    }
+
+    /// #192: the one run-teardown primitive. Releases the routing lock set
+    /// by the identified run and re-derives `activeBrain`; a stale teardown
+    /// (a late onTermination after a newer run started) is a no-op by token.
+    private func finishRun(_ id: UUID, outcome: String) {
+        guard currentRunID == id else { return }
+        currentRunID = nil
+        if let brain = runningBrain {
+            Self.logger.notice("run finished on \(brain.rawValue, privacy: .public) [\(outcome, privacy: .public)] — routing lock released (#192)")
+        }
+        runningBrain = nil
+        refreshActiveBrain()
+    }
+
+    /// #192: consumer-side abandonment — wired into ChatStore's
+    /// `abandonPendingRun` (#184's teardown primitive) and `cancelStreaming`
+    /// so every walk-away path releases the routing lock synchronously
+    /// instead of waiting on a stream that may never end.
+    func abandonActiveRun() {
+        guard let brain = runningBrain else { return }
+        Self.logger.notice("abandonActiveRun: releasing routing lock held by \(brain.rawValue, privacy: .public) (#192)")
+        currentRunID = nil
+        runningBrain = nil
+        refreshActiveBrain()
     }
 
     func loadConversation() async -> Conversation {
