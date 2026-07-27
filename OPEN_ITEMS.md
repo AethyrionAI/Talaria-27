@@ -4566,7 +4566,34 @@ or rides the next Settings lane. Logged 2026-07-16.
 
 ---
 
-## 117. 🔧 Health-drain give-up paths hammered the connector — no-backoff loop (PR #85 follow-up) — MERGED PR #103; backoff DECAYS under sustained outage (2026-07-25)
+## 117. 🔧 Health-drain give-up paths hammered the connector — no-backoff loop (PR #85 follow-up) — MERGED PR #103; backoff DECAYS under sustained outage (2026-07-25); cross-cycle backoff BUILT 2026-07-27 (Mac run + >25-min device verify owed)
+
+> **UPDATE 2026-07-27 — cross-cycle backoff BUILT** (spec
+> `dispatch/OPUS-T27-117-cross-cycle-backoff.md`, branch
+> `claude/opus-t27-117-cross-cycle-backoff-r6lo00`). Cloud-written, **NOT compiled** —
+> Mac suite run owed (baseline 1152/105); **device re-verify owed by Owen and must run
+> LONGER THAN 25 MINUTES** (the original close scored a false PASS on a short window).
+> Root cause as located: `healthBusyRetries` is a per-cycle local, and the enqueue-driven
+> triggers restart a fresh cycle the instant the previous one exits — during an outage
+> the backlog is never empty, so the intra-cycle ladder (#103, **untouched**) reset to
+> zero every ~15s (the observed floor = the ladder duration). Fix: the #113
+> `ConnectorOutageAlertPolicy` exhaustion streak is reused as the escalation state
+> (`recommendedCrossCycleBackoff`: 30s doubling to a 300s ceiling; delivery or
+> inconclusive → 0, so only the dead-connector shape escalates), and
+> `SensorUploadService` converts it to a `crossCycleBackoffDeadline` gated at the top of
+> `drainOutboxIfPossible()` — a suppressed tick sends nothing, touches no persisted
+> state (#104 write cadence intact), and logs once per rest. Recovery-plausible signals
+> (foreground, launch/BGAppRefresh, `start()`, outbox reset) lift the DEADLINE but not
+> the streak, so recovery is detected immediately on any wake while an external probe
+> that still exhausts re-arms at the escalated rest. Ceiling justification: worst-case
+> failing burst (location + health ladders, 7 POSTs over ~20s) once per 300s ≈ 1.3
+> req/min — well below the 3.5 req/min healthy-baseline drain rate. Tests (injected
+> `dateProvider` clock, deterministic): strictly increasing rests to the ceiling;
+> delivery resets to base; a **30-SIMULATED-MINUTE** sustained-outage-vs-healthy rate
+> relationship (outage < 50% of healthy; the device pass measured pre-fix at 126%);
+> recovery latency ≤ one ceiling via the timer path and immediate via foreground;
+> escalation preserved across lifts; policy-shape units. Deferral, backlog integrity,
+> and full-drain behavior pinned unchanged by the untouched `SensorDrainGiveUpTests`.
 
 > **DEVICE PASS 2026-07-25 — not fully closed.** Over a 27-minute induced outage
 > the ramp behaved (2→4→8 s) but the inter-burst rest collapsed from ~200 s to
