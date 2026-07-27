@@ -77,6 +77,8 @@ struct DiagnosticsSettingsScreen: View {
                 .contentShape(Rectangle())
                 .onTapGesture { copyPushToken() }
             rowDivider
+            statusRow("Notifications", notificationAuthStatus)
+            rowDivider
             statusRow("Location", locationStatus)
         }
         .hudPanel(
@@ -173,6 +175,45 @@ struct DiagnosticsSettingsScreen: View {
             return RowStatus(text: "TOKEN HELD · AWAITING RELAY", color: Design.Brand.forge, blinks: true)
         case .notIssued:
             return RowStatus(text: "NO APNS TOKEN", color: Design.Colors.mutedForeground, blinks: false)
+        }
+    }
+
+    // #189: OS notification authorization as its own row. An APNs token and a
+    // relay registration are both obtainable while authorization is
+    // NotDetermined, so the Push Token row alone read as a false green — this
+    // panel previously consulted UNAuthorizationStatus nowhere. "Registered"
+    // and "authorized" are different facts and render as different rows.
+    private var notificationAuthStatus: RowStatus {
+        let status = permissionsStore.capabilities
+            .first { $0.permissionType == .notifications }?.status ?? .notDetermined
+        return RowStatus(
+            text: Self.notificationAuthorizationText(status),
+            color: notificationAuthorizationColor(status),
+            blinks: false
+        )
+    }
+
+    /// Pure label rule (the #146 precedent — assertable without a container):
+    /// `NotDetermined` must never render as anything green or active.
+    /// `.limited` is how LiveNotificationService maps the provisional and
+    /// ephemeral UNAuthorizationStatus cases.
+    static func notificationAuthorizationText(_ status: PermissionStatus) -> String {
+        switch status {
+        case .notDetermined: "NOT REQUESTED"
+        case .authorized, .authorizedAlways, .authorizedWhenInUse: "AUTHORIZED"
+        case .limited: "PROVISIONAL"
+        case .denied: "DENIED"
+        case .restricted: "RESTRICTED"
+        case .unsupported: "—"
+        }
+    }
+
+    private func notificationAuthorizationColor(_ status: PermissionStatus) -> Color {
+        switch status {
+        case .authorized, .authorizedAlways, .authorizedWhenInUse: Design.Brand.accent
+        case .limited: Design.Brand.forge
+        case .denied, .restricted: Design.Colors.danger
+        case .notDetermined, .unsupported: Design.Colors.mutedForeground
         }
     }
 
