@@ -113,26 +113,109 @@ struct ChatBackendRouterTests {
         #expect(router.resolvedBrainForNextTurn() == .hermes)
     }
 
-    // MARK: Preference persistence + migration
+    // MARK: Sticky mode (#192, decided 2026-07-27)
 
-    @Test func nextConversationPreferenceMigratesOntoFirstConversation() {
+    @Test func explicitPickIsAStickyModeNewChatsInherit() {
+        let hermes = StubBackend(replyContent: "hermes")
+        let local = StubBackend(replyContent: "local")
+        let router = makeRouter(hermesConfigured: true, hermes: hermes, local: local)
+
+        // Picked before any conversation exists → the sticky default.
+        router.setPreferredBrain(.onDevice, forConversation: nil)
+        #expect(router.preferredBrain(forConversation: nil) == .onDevice)
+
+        // A conversation appears; it inherits the sticky default.
+        let conversationID = UUID()
+        router.conversationIDProvider = { conversationID }
+        #expect(router.resolvedBrainForNextTurn() == .onDevice)
+
+        // #192: an id rotation (New chat / clear / openSession) must NOT
+        // revert the brain — this exact fall-through to "Hermes wins on a
+        // paired device" was the silent self-switch.
+        router.conversationIDProvider = { UUID() }
+        #expect(router.resolvedBrainForNextTurn() == .onDevice)
+        router.refreshActiveBrain()
+        #expect(router.activeBrain == .onDevice)
+    }
+
+    @Test func perConversationOverrideLayersOnTopOfStickyDefault() {
+        let hermes = StubBackend(replyContent: "hermes")
+        let local = StubBackend(replyContent: "local")
+        let router = makeRouter(hermesConfigured: true, hermes: hermes, local: local)
+        let conversationA = UUID()
+        let conversationB = UUID()
+        var current = conversationA
+        router.conversationIDProvider = { current }
+
+        // Pick on-device in A, then Hermes in B: B's pick is the new
+        // app-wide default, but A keeps its own override on top.
+        router.setPreferredBrain(.onDevice, forConversation: conversationA)
+        current = conversationB
+        router.setPreferredBrain(.hermes, forConversation: conversationB)
+        #expect(router.resolvedBrainForNextTurn() == .hermes)
+
+        current = conversationA
+        #expect(router.resolvedBrainForNextTurn() == .onDevice)
+
+        // A NEW chat inherits the LAST explicit pick.
+        current = UUID()
+        #expect(router.resolvedBrainForNextTurn() == .hermes)
+    }
+
+    @Test func pickOnlyOverrideLeavesTheStickyDefaultAlone() {
+        // The #30 escalation offer and the #134 debug harness pin a single
+        // conversation — the app-wide mode must not move with them.
+        let hermes = StubBackend(replyContent: "hermes")
+        let local = StubBackend(replyContent: "local")
+        let router = makeRouter(hermesConfigured: true, hermes: hermes, local: local)
+        let conversationID = UUID()
+        router.conversationIDProvider = { conversationID }
+
+        router.setPreferredBrain(.hermes, forConversation: nil)
+        router.setPreferredBrain(.onDevice, forConversation: conversationID, updatesDefault: false)
+        #expect(router.resolvedBrainForNextTurn() == .onDevice)
+
+        router.conversationIDProvider = { UUID() }
+        #expect(router.resolvedBrainForNextTurn() == .hermes)
+    }
+
+    @Test func legacyNextSlotStillMigratesOntoFirstConversation() {
+        // A pre-#192 pick stored under "next" is never stranded: it migrates
+        // onto the first conversation that resolves, exactly as before.
         let defaults = makeDefaults()
+        defaults.set(
+            [ChatBackendRouter.nextConversationKey: ChatBackendRouter.Brain.onDevice.rawValue],
+            forKey: ChatBackendRouter.preferencesDefaultsKey
+        )
         let hermes = StubBackend(replyContent: "hermes")
         let local = StubBackend(replyContent: "local")
         let router = makeRouter(hermesConfigured: true, hermes: hermes, local: local, defaults: defaults)
 
-        // Picked before any conversation exists → stored under "next".
-        router.setPreferredBrain(.onDevice, forConversation: nil)
-        #expect(router.preferredBrain(forConversation: nil) == .onDevice)
-
-        // A conversation appears; resolution migrates "next" onto its id.
         let conversationID = UUID()
         router.conversationIDProvider = { conversationID }
         #expect(router.resolvedBrainForNextTurn() == .onDevice)
         #expect(router.preferredBrain(forConversation: conversationID) == .onDevice)
-        #expect(router.preferredBrain(forConversation: nil) == nil)
 
-        // A DIFFERENT conversation is unaffected — per-conversation, not global.
+        let stored = defaults.dictionary(forKey: ChatBackendRouter.preferencesDefaultsKey) as? [String: String]
+        #expect(stored?[ChatBackendRouter.nextConversationKey] == nil)
+    }
+
+    @Test func legacyPerConversationPicksSurviveAsOverrides() {
+        // Pre-#192 per-conversation rows keep working as overrides; with no
+        // sticky default stored, other conversations stay automatic.
+        let defaults = makeDefaults()
+        let conversationID = UUID()
+        defaults.set(
+            [conversationID.uuidString: ChatBackendRouter.Brain.onDevice.rawValue],
+            forKey: ChatBackendRouter.preferencesDefaultsKey
+        )
+        let hermes = StubBackend(replyContent: "hermes")
+        let local = StubBackend(replyContent: "local")
+        let router = makeRouter(hermesConfigured: true, hermes: hermes, local: local, defaults: defaults)
+
+        router.conversationIDProvider = { conversationID }
+        #expect(router.resolvedBrainForNextTurn() == .onDevice)
+
         router.conversationIDProvider = { UUID() }
         #expect(router.resolvedBrainForNextTurn() == .hermes)
     }
@@ -148,6 +231,11 @@ struct ChatBackendRouterTests {
         #expect(router.resolvedBrainForNextTurn() == .onDevice)
 
         router.setPreferredBrain(nil, forConversation: conversationID)
+        #expect(router.resolvedBrainForNextTurn() == .hermes)
+
+        // "Automatic" cleared the sticky default too — new chats route
+        // automatically again.
+        router.conversationIDProvider = { UUID() }
         #expect(router.resolvedBrainForNextTurn() == .hermes)
     }
 
@@ -182,6 +270,98 @@ struct ChatBackendRouterTests {
         let reply = await router.send(message: "hello", attachments: [], clientMessageID: UUID())
         #expect(hermes.sentMessages == ["hello"])
         #expect(reply.brain == "hermes")
+    }
+
+    // MARK: #192 — the wedge, synthetically
+
+    /// A backend whose stream yields one delta and then NEVER finishes —
+    /// the #145/#184 dropped-run shape that left `runningBrain` set for the
+    /// life of the process and wedged the brain toggle until force quit.
+    @MainActor
+    final class NeverFinishingBackend: HermesClientProtocol {
+        var connectionStatus: ConnectionStatus = .connected
+        var currentConversation: Conversation?
+
+        func connect() async {}
+        func disconnect() async {}
+
+        func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
+            Message(sender: .hermes, content: "never", status: .delivered)
+        }
+
+        func sendStreaming(message: String, attachments: [PendingAttachment], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+            AsyncStream { continuation in
+                continuation.yield(.textDelta("stuck"))
+                // Deliberately never finished — the dropped-run shape.
+            }
+        }
+
+        func loadConversation() async -> Conversation {
+            Conversation(title: Conversation.defaultTitle)
+        }
+
+        func clearConversation() async throws -> Conversation {
+            Conversation(title: Conversation.defaultTitle)
+        }
+    }
+
+    @Test func wedgedRunRefusesSwitchUntilAbandonedThenRecovers() async {
+        let hermes = NeverFinishingBackend()
+        let local = StubBackend(replyContent: "local")
+        let router = makeRouter(hermesConfigured: true, hermes: hermes, local: local)
+        #expect(router.resolvedBrainForNextTurn() == .hermes)
+
+        // A run starts and its stream never finishes.
+        let stream = router.sendStreaming(message: "hi", attachments: [], clientMessageID: UUID())
+        let consumer = Task { @MainActor in
+            for await _ in stream {}
+        }
+        #expect(router.activeBrain == .hermes)
+
+        // The user picks on-device. The pick PERSISTS, but re-derivation is
+        // refused while the wedged run holds the routing lock — the observed
+        // "switch doesn't take" residue, created on demand.
+        router.setPreferredBrain(.onDevice, forConversation: nil)
+        #expect(router.preferredBrain(forConversation: nil) == .onDevice)
+        #expect(router.activeBrain == .hermes)
+        router.refreshActiveBrain()
+        #expect(router.activeBrain == .hermes)
+
+        // #184's teardown primitive abandons the run → routing re-derives
+        // immediately. No force quit.
+        router.abandonActiveRun()
+        #expect(router.activeBrain == .onDevice)
+        #expect(router.resolvedBrainForNextTurn() == .onDevice)
+
+        consumer.cancel()
+        _ = await consumer.value
+    }
+
+    @Test func consumerWalkAwayAloneReleasesTheRoutingLock() async {
+        // Defense in depth: even WITHOUT the explicit `abandonActiveRun`
+        // call, the consumer cancelling its iteration (what ChatStore's
+        // `streamingTask.cancel()` does) terminates the stream and must
+        // release the routing lock.
+        let hermes = NeverFinishingBackend()
+        let local = StubBackend(replyContent: "local")
+        let router = makeRouter(hermesConfigured: true, hermes: hermes, local: local)
+
+        let stream = router.sendStreaming(message: "hi", attachments: [], clientMessageID: UUID())
+        let consumer = Task { @MainActor in
+            for await _ in stream {}
+        }
+        router.setPreferredBrain(.onDevice, forConversation: nil)
+        #expect(router.activeBrain == .hermes) // wedged while the run holds the lock
+
+        consumer.cancel()
+        _ = await consumer.value
+
+        // The release hops through onTermination → the pump's MainActor
+        // exit; give it a bounded number of scheduler turns, not wall-clock.
+        for _ in 0..<200 where router.activeBrain != .onDevice {
+            await Task.yield()
+        }
+        #expect(router.activeBrain == .onDevice)
     }
 
     // MARK: Transcript tags
