@@ -8904,6 +8904,25 @@ writing/composing/summarizing and ordinary conversation as first-class ("need no
 by `armedInstructionsLicenseAnsweringAndCreatingWithoutATool`. The airplane-mode device check
 ("write a poem" → a poem, fresh chat) rides with the 176B verification pass; details under #176.
 
+**2026-07-27, 176C Part 1 BUILT (branch `claude/t27-176c-creative-suppressor`): the
+session-shape instrument.** `TALARIA_SESSION_SHAPE` launch env (DEBUG-only, DUPID-probe
+precedent, inert unset or unrecognized) selects the session cell at construction time:
+`armed` (production control) / `armed-noprose` (belt registered, instructions minus only the
+roster sentence) / `prose-notools` (armed instructions verbatim, NO tools registered — a
+deliberate, commented doc-rule violation; measurement cell, not shippable) / `toolless` (far
+control). The selector touches construction only (`effectiveOfferedTools` /
+`effectiveInstructionsText`); every session build notice-logs `session shape: <cell>` so
+device runs self-label in Console. The `includeBeltRoster` seam splits the armed paragraph
+without changing it — verified byte-identical to pre-seam for both vision variants, tool-less
+branch untouched. Tests: +4 in `DeviceToolBeltTests` (noprose lacks the roster, keeps all four
+kept sentences; prose-notools == armed verbatim; armed cell == production; env spellings
+parse + tool gating). Part 2 (production armed → noprose) sits as the labeled FINAL commit —
+**do not merge-cherry-pick until the device A/B convicts the enumeration** — and the A/B must
+run on a build of the Part 1 tip, since a binary containing Part 2 makes the armed control
+cell roster-less and collapses the A vs B comparison. Four-cell checklist in the PR body.
+Baseline confirmed 1231 tests / 109 suites green on 27A5228h before the change; Part 1 tip
+green at 1235/109 (delta exactly the 4 new tests).
+
 Logged 2026-07-27.
 
 ## 195. 🔧 MessageIdentityUITests — typeText keyboard race renders the test flaky
