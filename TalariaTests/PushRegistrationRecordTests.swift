@@ -113,3 +113,120 @@ struct PushRegistrationRecordTests {
         #expect(json["pushTokenRegistered"] == nil)
     }
 }
+
+/// #189 — the panels asserted "active · relay registered" while
+/// `UNAuthorizationStatus` was NotDetermined. Both an APNs token and a relay
+/// registration row are obtainable WITHOUT user authorization, so neither
+/// implies alerts can be delivered — authorization is its own fact. These pin
+/// the pure display rules so no configuration produces a green readout that
+/// is not true. (Distinct from #44, which covered push-TOKEN truth only, and
+/// from #146 above, which covered the two pipeline stages agreeing.)
+struct NotificationAuthorizationTruthTests {
+
+    // MARK: Settings → Notifications hero (alertsDisplayState)
+
+    /// The observed 2026-07-25 false green: relay registered, toggle on,
+    /// authorization never requested. The hero must NOT read active.
+    @Test @MainActor func notDeterminedNeverReadsActiveEvenWhenRelayRegistered() {
+        #expect(
+            NotificationsSettingsScreen.alertsDisplayState(
+                authorization: .notDetermined,
+                notificationsEnabled: true,
+                pipeline: .registered
+            ) == .notRequested
+        )
+        // Nor at any earlier pipeline stage.
+        #expect(
+            NotificationsSettingsScreen.alertsDisplayState(
+                authorization: .notDetermined,
+                notificationsEnabled: true,
+                pipeline: .awaitingRelay
+            ) == .notRequested
+        )
+        #expect(
+            NotificationsSettingsScreen.alertsDisplayState(
+                authorization: .notDetermined,
+                notificationsEnabled: true,
+                pipeline: .notIssued
+            ) == .notRequested
+        )
+    }
+
+    @Test @MainActor func deniedAndRestrictedReadBlockedRegardlessOfPipeline() {
+        for pipeline: AppContainer.PushTokenPipelineState in [.registered, .awaitingRelay, .notIssued] {
+            #expect(
+                NotificationsSettingsScreen.alertsDisplayState(
+                    authorization: .denied, notificationsEnabled: true, pipeline: pipeline
+                ) == .blocked
+            )
+            #expect(
+                NotificationsSettingsScreen.alertsDisplayState(
+                    authorization: .restricted, notificationsEnabled: true, pipeline: pipeline
+                ) == .blocked
+            )
+        }
+    }
+
+    /// The only full green: authorized + toggle on + relay registered.
+    @Test @MainActor func activeRequiresAuthorizedPlusTogglePlusRegistration() {
+        #expect(
+            NotificationsSettingsScreen.alertsDisplayState(
+                authorization: .authorized, notificationsEnabled: true, pipeline: .registered
+            ) == .active
+        )
+        // Authorized but the pipeline is behind — pending, not green.
+        #expect(
+            NotificationsSettingsScreen.alertsDisplayState(
+                authorization: .authorized, notificationsEnabled: true, pipeline: .awaitingRelay
+            ) == .awaitingRelay
+        )
+        #expect(
+            NotificationsSettingsScreen.alertsDisplayState(
+                authorization: .authorized, notificationsEnabled: true, pipeline: .notIssued
+            ) == .awaitingToken
+        )
+        // Authorized but the user switched Push off.
+        #expect(
+            NotificationsSettingsScreen.alertsDisplayState(
+                authorization: .authorized, notificationsEnabled: false, pipeline: .registered
+            ) == .paused
+        )
+    }
+
+    /// Provisional/ephemeral (mapped to `.limited` by LiveNotificationService)
+    /// delivers quietly — its own labeled state, never the full green.
+    @Test @MainActor func provisionalIsItsOwnStateNotActive() {
+        #expect(
+            NotificationsSettingsScreen.alertsDisplayState(
+                authorization: .limited, notificationsEnabled: true, pipeline: .registered
+            ) == .provisional
+        )
+    }
+
+    /// The OS gate outranks the app toggle: with authorization denied or
+    /// never requested, "paused" would imply flipping the toggle back on is
+    /// all it takes — it is not.
+    @Test @MainActor func osAuthorizationOutranksTheInAppToggle() {
+        #expect(
+            NotificationsSettingsScreen.alertsDisplayState(
+                authorization: .denied, notificationsEnabled: false, pipeline: .registered
+            ) == .blocked
+        )
+        #expect(
+            NotificationsSettingsScreen.alertsDisplayState(
+                authorization: .notDetermined, notificationsEnabled: false, pipeline: .notIssued
+            ) == .notRequested
+        )
+    }
+
+    // MARK: Diagnostics → Notifications row (label rule)
+
+    @Test @MainActor func diagnosticsRowLabelsReportAuthorizationHonestly() {
+        #expect(DiagnosticsSettingsScreen.notificationAuthorizationText(.notDetermined) == "NOT REQUESTED")
+        #expect(DiagnosticsSettingsScreen.notificationAuthorizationText(.denied) == "DENIED")
+        #expect(DiagnosticsSettingsScreen.notificationAuthorizationText(.restricted) == "RESTRICTED")
+        #expect(DiagnosticsSettingsScreen.notificationAuthorizationText(.authorized) == "AUTHORIZED")
+        #expect(DiagnosticsSettingsScreen.notificationAuthorizationText(.limited) == "PROVISIONAL")
+        #expect(DiagnosticsSettingsScreen.notificationAuthorizationText(.unsupported) == "—")
+    }
+}
