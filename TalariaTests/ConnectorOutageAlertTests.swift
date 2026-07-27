@@ -73,6 +73,58 @@ struct ConnectorOutageAlertPolicyTests {
     func thresholdIsThree() {
         #expect(ConnectorOutageAlertPolicy.consecutiveExhaustionThreshold == 3)
     }
+
+    // MARK: - Cross-cycle backoff recommendation (#117)
+
+    @Test("#117: the recommended rest doubles per consecutive exhausted cycle, strictly, up to the ceiling")
+    func crossCycleRestEscalatesStrictlyToTheCeiling() {
+        var policy = ConnectorOutageAlertPolicy()
+        #expect(policy.recommendedCrossCycleBackoff == 0)  // no evidence, no gate
+
+        var rests: [TimeInterval] = []
+        for _ in 0..<8 {
+            _ = policy.record(.retryExhausted)
+            rests.append(policy.recommendedCrossCycleBackoff)
+        }
+
+        #expect(rests.first == ConnectorOutageAlertPolicy.crossCycleBackoffBase)
+        #expect(rests.last == ConnectorOutageAlertPolicy.crossCycleBackoffCeiling)
+        for (previous, next) in zip(rests, rests.dropFirst()) {
+            #expect(next <= ConnectorOutageAlertPolicy.crossCycleBackoffCeiling)
+            if previous < ConnectorOutageAlertPolicy.crossCycleBackoffCeiling {
+                #expect(next > previous)  // strictly increasing below the ceiling
+            } else {
+                #expect(next == ConnectorOutageAlertPolicy.crossCycleBackoffCeiling)  // pinned at it
+            }
+        }
+    }
+
+    @Test("#117: a delivery zeroes the recommended rest; a fresh outage restarts at the base")
+    func deliveryResetsCrossCycleRestToBaseline() {
+        var policy = ConnectorOutageAlertPolicy()
+        for _ in 0..<4 { _ = policy.record(.retryExhausted) }
+        #expect(policy.recommendedCrossCycleBackoff > ConnectorOutageAlertPolicy.crossCycleBackoffBase)
+
+        _ = policy.record(.delivered)
+        #expect(policy.recommendedCrossCycleBackoff == 0)
+
+        _ = policy.record(.retryExhausted)
+        #expect(policy.recommendedCrossCycleBackoff == ConnectorOutageAlertPolicy.crossCycleBackoffBase)
+    }
+
+    @Test("#117: inconclusive cycles never escalate — only the dead-connector shape does")
+    func inconclusiveNeverEscalatesCrossCycleRest() {
+        var policy = ConnectorOutageAlertPolicy()
+        #expect(policy.record(.inconclusive) == .none)
+        #expect(policy.recommendedCrossCycleBackoff == 0)
+
+        for _ in 0..<3 { _ = policy.record(.retryExhausted) }
+        _ = policy.record(.inconclusive)
+        // The streak is CONSECUTIVE exhaustion (the #113 definition, reused
+        // verbatim by #117): an inconclusive cycle breaks it, so the gate
+        // drops rather than escalating on mixed evidence.
+        #expect(policy.recommendedCrossCycleBackoff == 0)
+    }
 }
 
 // The inbox side: raise is deduped, clear removes, and the local item
