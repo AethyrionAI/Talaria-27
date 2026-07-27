@@ -132,6 +132,20 @@ works against OJAMD.
   installs + launches on **whoGoesThere** (iPhone, iOS 27 beta). `GetConsoleOutput` reads
   device logs. The bridge can't drive physical-device UI. After `xcodegen` regen, RunProject
   may hit a "project modified on disk" modal — stop app / dismiss / retry.
+- **OTA deploy over Tailscale (proven 2026-07-27)** — THE remote deploy path when the phone
+  is not on the home LAN (Owen at work). `scripts/mac/ota-stage.sh <branch>` on the Mac
+  Mini: worktree → headless archive → dev-signed export (`method: debugging`, automatic
+  signing, unlocked login keychain) → stages ipa + manifest into
+  `~/.talaria-ota/serve_root`. Phone installs from Safari at
+  `https://owens-mac-mini.tail5663a6.ts.net` (itms-services; real TLS via
+  `tailscale serve --bg 8477`, which persists in tailscaled state; the
+  `com.talaria.ota-http` LaunchAgent keeps the local file server alive across reboots).
+  Dev-signed **upgrade-install in place** — same bundle id, app data persists. Install-only:
+  no debugger attach, no console. **Do not relitigate Xcode-native wireless over the
+  tailnet:** connect-by-IP was removed from Xcode entirely (Apple DTS, forums thread
+  805833), CoreDevice discovery needs LAN multicast Tailscale can't carry, and the phone's
+  lockdown (62078) + RemotePairing ports do not listen on its Tailscale interface — so
+  pymobiledevice3-over-tailnet is equally dead (verified 2026-07-27).
 - **Desktop Commander** is the primary Mac Mini filesystem/shell/git tool. A persistent
   `zsh -l` (`start_process`) keeps state across `interact_with_process` calls. DC's
   `read_file`/`edit_block` UI tools have hung — prefer `cat`/`perl`/`python3` heredocs in
