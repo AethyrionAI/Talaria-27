@@ -131,6 +131,34 @@ struct DeviceToolBeltTests {
         #expect(blind.contains("never invent a value"))
     }
 
+    // MARK: Belt-truth instructions (#176B / #194)
+
+    @Test func armedInstructionsLicenseAnsweringAndCreatingWithoutATool() {
+        // The tool-LESS branch always authorized "say so plainly instead of
+        // guessing"; the armed branch had no answering clause at all, and the
+        // device read the belt as a job description — "write a poem" deflected
+        // to reminders/weather (#194). The license must come with the belt.
+        let armed = LocalChatBackend.instructionsText(deviceContext: "Device: test.", hasTools: true)
+        #expect(armed.contains("need no tool"))
+        #expect(armed.contains("facts you know are not guesses"))
+        // Generation, not only recall (#194): creative work is first-class.
+        #expect(armed.contains("writing and composing"))
+        #expect(armed.contains("summarizing"))
+        // "Use tools instead of guessing" is scoped to device data, not the world.
+        #expect(armed.contains("the user's own data"))
+        #expect(armed.contains("general knowledge is not device data"))
+    }
+
+    @Test func armedInstructionsCarryTheRecoveryClause() {
+        // The absorbing state (#176B): one permission denial became every
+        // later turn's answer. A failed tool is information about the tool.
+        let armed = LocalChatBackend.instructionsText(deviceContext: "Device: test.", hasTools: true)
+        #expect(armed.contains("never the answer"))
+        #expect(armed.contains("repeat a denial"))
+        // The honesty half stays: recovery must not license invention.
+        #expect(armed.contains("never invent a value"))
+    }
+
     // MARK: Vision-tool availability gating (#176)
 
     /// The SHIPPING read belt, filtered the way `LocalChatBackend` filters it.
@@ -297,5 +325,21 @@ struct DeviceToolBeltTests {
         #expect(ocr.description.localizedCaseInsensitiveContains("only"))
         let barcode = BarcodeReaderTool(relay: ToolEventRelay(), conversationProvider: { nil })
         #expect(barcode.description.localizedCaseInsensitiveContains("only"))
+    }
+
+    @Test @MainActor func conversationSearchDescriptionStatesWhenItApplies() {
+        // #176B Part B: the selector searched the literal string "2+2"
+        // because the old description read like a general memory tool. The
+        // corrected text follows the #148 pattern — when it applies (finding
+        // a specific past mention), and that the recent thread needs no tool.
+        let search = ConversationSearchTool(
+            relay: ToolEventRelay(),
+            conversationProvider: { nil },
+            sessionCacheProvider: { [] },
+            spotlightEnabledProvider: { false }
+        )
+        #expect(search.description.localizedCaseInsensitiveContains("only"))
+        #expect(search.description.localizedCaseInsensitiveContains("past"))
+        #expect(search.description.contains("without any tool"))
     }
 }
