@@ -162,6 +162,16 @@ final class ChatStore {
     var speechOutput: SpeechOutputService?
     var autoReadAloudEnabled: (@MainActor () -> Bool)?
 
+    /// #190: the keyed local-session store, wired by AppContainer. The
+    /// walk-away persist inside `abandonPendingRun` writes through this; nil
+    /// (tests, container-creation failure) restores pre-#190 behavior.
+    var localSessions: (any LocalSessionStoring)?
+    /// #190: the standalone-thread discriminator — same rule the local
+    /// backend uses for legacy adoption, wired by AppContainer. Nil never
+    /// persists (a conversation must be POSITIVELY local to enter the store;
+    /// paired-mode Hermes threads must not).
+    var isLocalSessionThread: (@MainActor (Conversation) -> Bool)?
+
     /// On-device FoundationModels intelligence (#4.8 × #4.15), wired by
     /// AppContainer: conversation title + preview after the first completed
     /// exchange, one-line reasoning condensation. Stays nil in tests.
@@ -742,10 +752,16 @@ final class ChatStore {
     /// down rather than staying armed against a session this store has
     /// stopped tracking (#38; AppContainer expects paired watches).
     ///
-    /// `stopSpeech` is the one per-path difference: clear and reset silence
-    /// read-aloud with the thread; a session switch keeps it running today
-    /// (pre-#184 behavior, preserved).
+    /// #190: the same walk-away moment is when the departing thread must be
+    /// persisted — before whatever replaces it becomes current — so the
+    /// persist lives HERE, first, not hand-rolled into each path. It can:
+    /// the store's main-context save is synchronous.
+    ///
+    /// `stopSpeech` is the one per-path difference (kept for `reset()`'s
+    /// callers to reason about explicitly, though every current path now
+    /// passes true — see `openSession`).
     private func abandonPendingRun(stopSpeech: Bool) {
+        persistDepartingLocalSession()
         reconcileTask?.cancel()
         reconcileTask = nil
         if let abandoned = pendingRun {
@@ -762,6 +778,18 @@ final class ChatStore {
         if stopSpeech {
             speechOutput?.stop()
         }
+    }
+
+    /// #190: the walk-away persist. A departing thread that is positively
+    /// LOCAL (never a paired-mode Hermes thread — its history lives
+    /// server-side) and non-empty is upserted into the keyed session store,
+    /// so New/switch/reset stop destroying standalone history. Both seams
+    /// nil (tests, store-creation failure) restore pre-#190 behavior.
+    private func persistDepartingLocalSession() {
+        guard let localSessions,
+              let conversation, !conversation.messages.isEmpty,
+              isLocalSessionThread?(conversation) == true else { return }
+        localSessions.upsertSession(conversation)
     }
 
     func clearConversation() async throws {
