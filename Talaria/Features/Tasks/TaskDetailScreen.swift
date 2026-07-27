@@ -87,10 +87,12 @@ struct TaskDetailScreen: View {
         }
         .scrollEdgeEffectStyle(.soft, for: .top)
         .refreshable { await store.refresh() }
-        .confirmationDialog(
+        // #193: was a `.confirmationDialog`, whose cancel role does not
+        // render on iOS 26/27 — destructive confirmations use `.alert`,
+        // which still shows an explicit way out.
+        .alert(
             "Delete this task?",
-            isPresented: $showDeleteConfirm,
-            titleVisibility: .visible
+            isPresented: $showDeleteConfirm
         ) {
             Button("Delete \"\(job.displayName)\"", role: .destructive) {
                 Task {
@@ -104,6 +106,7 @@ struct TaskDetailScreen: View {
                     }
                 }
             }
+            Button("Cancel", role: .cancel) { }
         } message: {
             Text("The job is removed from the Hermes host. This cannot be undone.")
         }

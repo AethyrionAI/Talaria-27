@@ -8648,6 +8648,19 @@ surfaces asserting state they do not have.
 
 Logged 2026-07-25.
 
+> **FIX BUILT 2026-07-27 (backend-truth lane, with #192 + #193 — branch
+> `claude/opus-t27-backend-truth-pvj3fn`).** The header now derives from the ACTIVE brain:
+> the wordmark reads TALARIA (not HERMES) while a local brain is active, the model pill
+> names the active brain's model (ON-DEVICE / Private Cloud β) instead of the loaded
+> session's Hermes model, the status pip + telemetry read local readiness
+> (`READY`/`UNAVAILABLE`) instead of `ONLINE · OJAMD`, and the toolbar pill's pip follows
+> local readiness too. Message count and CTX% untouched (they were correct); the CTX
+> denominator stays keyed to the Hermes-reported model deliberately so #191 moves the pill
+> without moving CTX behavior. The conversation-shell swap on backend switch is NOT here —
+> that is #190's identity work — but header truth no longer depends on it. Device
+> verification owed (airplane-mode ground truth). NOT compiled on 27A5228h: the authoring
+> environment has no Xcode — see the PR body.
+
 ---
 
 ## 192. 🐛 The app SWITCHES ITSELF away from on-device; the refused manual switch is the residue
@@ -8720,6 +8733,34 @@ Read the `Settings-ModelTransition` design doc against live source before specci
 
 Logged 2026-07-25.
 
+> **FIX BUILT 2026-07-27 — sticky mode + run teardown + instrumentation (backend-truth
+> lane, branch `claude/opus-t27-backend-truth-pvj3fn`). Item stays OPEN pending device
+> evidence per the dispatch DoD — the wedge never reproduced on demand, so a green suite
+> proves nothing.**
+> - **Sticky mode (decided 2026-07-27):** an explicit pick writes a `default` slot in the
+>   existing preference dict that every new chat inherits; per-conversation overrides layer
+>   on top; "Automatic" clears both. The legacy `next` slot still migrates onto the first
+>   conversation that resolves — stored picks are never stranded. Scoped pins (#30
+>   escalation offer, #134 debug harness) pass `updatesDefault: false` so they cannot
+>   hijack the app-wide mode. Picker checkmarks now show the EFFECTIVE pick.
+> - **Wedge released:** `runningBrain` is paired with a run token and cleared on every
+>   exit — stream completion, consumer termination (`onTermination` cancels the pump), and
+>   the new `abandonActiveRun()` wired into ChatStore's `abandonPendingRun` (#184's
+>   primitive) and `cancelStreaming`.
+> - **Instrumentation:** one `setActiveBrain` writer logs every change old→new + initiator
+>   + conversation key; `refreshActiveBrain` logs WHICH guard refused and why; resolution
+>   reasons are named (override / sticky-default / automatic-default / hermes-unreachable /
+>   pcc-degraded / hermes-unconfigured). All at `.notice` so Console.app shows them.
+> - **No more silent fallback:** automatic error-fallback to on-device now sets
+>   `automaticFallbackNotice`, rendered as the #30-style one-line banner.
+> - **Synthetic tests:** the stuck state is created on demand (never-finishing stream),
+>   the refused switch is asserted, and both recovery paths (explicit abandon; consumer
+>   walk-away alone) are asserted. Refusal-path inventory is in the PR body.
+> - `Settings-ModelTransition` read against live source: it specs the SHIM model-switch
+>   overlay only (`applyingModelID`/`pendingConfirm`/`error`, all cleared on every exit) —
+>   the brain-switch path had no designed transition state machine; `runningBrain` was its
+>   only transition guard, which is exactly where the wedge lived.
+
 ---
 
 ## 193. 🔧 `confirmationDialog` Cancel button does not render on iOS 27
@@ -8735,6 +8776,14 @@ Low severity in isolation; filed because a destructive action with no visible wa
 first impression and the affected surfaces are few.
 
 Logged 2026-07-25.
+
+> **FIX BUILT 2026-07-27 (backend-truth lane).** All seven `confirmationDialog`s converted
+> to `.alert` with an explicit Cancel — five destructive (task delete, privacy revoke,
+> clear conversation, forget pairing, delete profile) and two decided case-by-case: the
+> alarm consent ("rings through Silent mode" needs a visible decline) and the
+> backend-profile switch (a one-button sheet with no visible decline reads as a forced
+> choice for something that re-homes the app). Zero `confirmationDialog` uses remain in
+> app code. Device verification owed.
 
 ## 194. 🐛 On-device brain refuses creative generation, reciting its tool belt — tool fixation
 

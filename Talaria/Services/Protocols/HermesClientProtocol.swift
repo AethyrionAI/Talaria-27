@@ -114,6 +114,12 @@ protocol HermesClientProtocol {
     /// so a run that completed while the stream was dropped can be reconciled.
     /// Returns nil for clients without a server-backed session (relay / mock).
     func reconcileFromServer() async -> Conversation?
+
+    /// #192: the consumer walked away from the in-flight run (stop, clear,
+    /// session switch). Clients holding per-run state release it here so an
+    /// abandoned stream can never wedge later routing; the default is a
+    /// no-op.
+    func abandonActiveRun()
 }
 
 extension HermesClientProtocol {
@@ -126,4 +132,5 @@ extension HermesClientProtocol {
     func listSessions() async throws -> [HermesSessionInfo] { [] }
     func openSession(_ id: String) async throws -> Conversation { await loadConversation() }
     func reconcileFromServer() async -> Conversation? { nil }
+    func abandonActiveRun() {}
 }

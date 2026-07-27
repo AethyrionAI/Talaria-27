@@ -833,6 +833,10 @@ final class ChatStore {
         streamingTask?.cancel()
         streamingTask = nil
         streamingMessageID = nil
+        // #192: release the router's routing lock with the run — a dropped
+        // stream must not leave `runningBrain` set and wedge the brain
+        // toggle until force quit.
+        hermesClient.abandonActiveRun()
         pollingTask?.cancel()
         pollingTask = nil
         pendingMessageSentAt = nil
@@ -876,6 +880,9 @@ final class ChatStore {
     func cancelStreaming() {
         streamingTask?.cancel()
         streamingTask = nil
+        // #192: the stopped run is over from the consumer's side — release
+        // the router's routing lock so the brain toggle re-derives now.
+        hermesClient.abandonActiveRun()
         chatLiveActivity.endActivity()
         // User asked for silence along with the stop — cut read-aloud too.
         speechOutput?.stop()
@@ -2062,12 +2069,13 @@ extension ChatStore {
         let router = hermesClient as? ChatBackendRouter
         let preSendConversationID = conversation?.id
         let previousPreference = router?.preferredBrain(forConversation: preSendConversationID)
-        router?.setPreferredBrain(.onDevice, forConversation: preSendConversationID)
+        // pick-only (#192): the harness pin is scoped to this conversation —
+        // it must not rewrite the user's sticky app-wide mode.
+        router?.setPreferredBrain(.onDevice, forConversation: preSendConversationID, updatesDefault: false)
         await sendMessage("Force repetition trip — #134 debug harness")
-        // Restore on the conversation that actually sent: a nil pre-send id
-        // means the "next"-slot preference migrated onto the conversation the
-        // send created.
-        router?.setPreferredBrain(previousPreference, forConversation: conversation?.id ?? preSendConversationID)
+        // Restore on the conversation that actually sent (a nil pre-send id
+        // means the send created it).
+        router?.setPreferredBrain(previousPreference, forConversation: conversation?.id ?? preSendConversationID, updatesDefault: false)
         // Belt-and-braces: if the turn somehow routed elsewhere, the one-shot
         // arming must not hijack the user's next real on-device turn.
         LocalChatBackend.debugForcedTripCopies = nil

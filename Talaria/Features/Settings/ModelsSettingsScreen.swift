@@ -289,9 +289,10 @@ struct ModelsSettingsScreen: View {
 
     // MARK: Chat brain (#27)
 
-    /// Per-conversation brain pin: Automatic (routing rules decide) / Hermes /
-    /// On-Device — Private Cloud β joins with #30. Applies to the CURRENT
-    /// conversation (or the next one to start when none exists yet).
+    /// Brain pick: Automatic (routing rules decide) / Hermes / On-Device —
+    /// Private Cloud β joins with #30. #192 (sticky mode): an explicit pick
+    /// sets the app-wide default new chats inherit, plus this conversation's
+    /// override; the checkmark reflects what will actually route.
     private func brainSection(_ brainRouter: ChatBackendRouter) -> some View {
         let conversationID = container.chatStore.conversation?.id
         let current = brainRouter.preferredBrain(forConversation: conversationID)

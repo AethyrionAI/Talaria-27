@@ -108,13 +108,15 @@ struct ChatScreen: View {
     // behavior-preserving: the grouped modifiers are order-independent.
     var body: some View {
         observingContent
-            .confirmationDialog(
+            // #193: was a `.confirmationDialog`, whose cancel role does not
+            // render on iOS 26/27 — a consent gate needs a visible decline,
+            // so it's an alert now.
+            .alert(
                 "Schedule on this iPhone?",
                 isPresented: Binding(
                     get: { pendingAlarmConfirm != nil },
                     set: { if !$0 { pendingAlarmConfirm = nil } }
                 ),
-                titleVisibility: .visible,
                 presenting: pendingAlarmConfirm
             ) { request in
                 Button("Schedule") {
@@ -176,7 +178,12 @@ struct ChatScreen: View {
                 } else if let failure = chatStore.sessionOpenFailure {
                     sessionOpenFailureBanner(failure)
                 } else if let notice = container.chatBackendRouter?.privateCloudFallbackNotice {
-                    privateCloudNoticeBanner(notice)
+                    routingNoticeBanner(notice, icon: "cloud")
+                } else if let notice = container.chatBackendRouter?.automaticFallbackNotice {
+                    // #192: automatic routing fell back to on-device (Hermes
+                    // unreachable, no explicit pick) — announced, never a
+                    // silently moved pill.
+                    routingNoticeBanner(notice, icon: "antenna.radiowaves.left.and.right.slash")
                 } else if showsPrivateCloudEscalationOffer {
                     privateCloudEscalationBanner
                 } else if showsConnectionBanner {
@@ -597,19 +604,48 @@ struct ChatScreen: View {
     }
 
     private var isChatHostOnline: Bool {
-        effectiveConnectionState == .online
+        // #191: with a local brain active the toolbar pip reports LOCAL
+        // readiness — Hermes reachability is not what's answering.
+        isLocalBrainActive ? isLocalBrainReady : effectiveConnectionState == .online
+    }
+
+    // MARK: - Active-brain header truth (#191)
+
+    /// #191: whether a LOCAL brain (on-device / PCC) will take the next
+    /// message — the header must describe that brain, not the Hermes host.
+    private var isLocalBrainActive: Bool {
+        guard let brain = container.chatBackendRouter?.activeBrain else { return false }
+        return brain != .hermes
+    }
+
+    private var isLocalBrainReady: Bool {
+        container.localChatBackend?.availabilityExplanation == nil
     }
 
     private var displayedModelName: String? {
-        // The live model comes from the direct Sessions API path (selection /
-        // `/model` switch detection). The relay's `hermesModel` is intentionally
-        // not used as a fallback — the relay is offline by design, so it would
-        // only ever surface a stale value.
-        chatStore.activeModelName
+        // #191: the pill names the ACTIVE brain's model, never whatever the
+        // loaded session shell last reported — a local brain must not wear a
+        // Hermes model name (`KIMI-K3` in airplane mode was the filed
+        // evidence).
+        switch container.chatBackendRouter?.activeBrain {
+        case .onDevice:
+            return ChatBackendRouter.Brain.onDevice.displayLabel
+        case .privateCloud:
+            return ChatBackendRouter.Brain.privateCloud.displayLabel
+        case .hermes, nil:
+            // The live model comes from the direct Sessions API path (selection /
+            // `/model` switch detection). The relay's `hermesModel` is intentionally
+            // not used as a fallback — the relay is offline by design, so it would
+            // only ever surface a stale value.
+            return chatStore.activeModelName
+        }
     }
 
     private var effectiveContextWindow: Int? {
-        chatStore.resolvedContextWindow(fallbackModelName: displayedModelName)
+        // Deliberately keyed to the Hermes-reported model, not the display
+        // pill — #191 changed what the pill SHOWS, and CTX behavior (which
+        // works, per the filed evidence) must not move with it.
+        chatStore.resolvedContextWindow(fallbackModelName: chatStore.activeModelName)
     }
 
     private var currentContextTokens: Int? {
@@ -638,7 +674,7 @@ struct ChatScreen: View {
                     // #42: the wordmark can never give up width — squeezed, it
                     // character-wraps (HE/RM/ES). The telemetry label next to
                     // it absorbs the pressure instead (shrink, then truncate).
-                    Text("HERMES")
+                    Text(headerWordmark)
                         .font(Design.Typography.display(16, weight: .semibold, relativeTo: .headline))
                         .tracking(Design.Tracking.button)
                         .foregroundStyle(Design.Colors.foregroundBright)
@@ -646,7 +682,7 @@ struct ChatScreen: View {
                         .fixedSize(horizontal: true, vertical: false)
                         .layoutPriority(1)
                     StatusPip(color: connectionIndicatorColor, diameter: 6,
-                              blinks: effectiveConnectionState != .online)
+                              blinks: headerPipBlinks)
                     MonoLabel(connectionTelemetry, size: 9, tracking: Design.Tracking.mono)
                         .hudSingleLine()
                 }
@@ -679,7 +715,19 @@ struct ChatScreen: View {
             Rectangle().fill(Design.Colors.hairline).frame(height: 1)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Hermes \(connectionStatusLabel), brain \(container.chatBackendRouter?.activeBrain.displayLabel ?? "Hermes")")
+        .accessibilityLabel("\(headerWordmark.capitalized) \(connectionStatusLabel), brain \(container.chatBackendRouter?.activeBrain.displayLabel ?? "Hermes")")
+    }
+
+    /// #191: the wordmark is the answering agent's identity — HERMES only
+    /// when the Hermes brain will take the next message; TALARIA (the app
+    /// itself) while a local brain holds the conversation. The title must
+    /// never assert a host that is not answering.
+    private var headerWordmark: String {
+        isLocalBrainActive ? "TALARIA" : "HERMES"
+    }
+
+    private var headerPipBlinks: Bool {
+        isLocalBrainActive ? !isLocalBrainReady : effectiveConnectionState != .online
     }
 
     // MARK: - Brain indicator + picker (#27)
@@ -817,6 +865,11 @@ struct ChatScreen: View {
     }
 
     private var connectionTelemetry: String {
+        // #191: a local brain's status line may not assert a host — OJAMD is
+        // not answering. Local readiness is the only truth it has.
+        if isLocalBrainActive {
+            return isLocalBrainReady ? "READY" : "UNAVAILABLE"
+        }
         let host = hostStore.currentHost?.resolvedDisplayName.uppercased()
         switch effectiveConnectionState {
         case .online: return "ONLINE\(host.map { " · \($0)" } ?? "")"
@@ -838,6 +891,9 @@ struct ChatScreen: View {
     }
 
     private var connectionIndicatorColor: Color {
+        if isLocalBrainActive {
+            return isLocalBrainReady ? Design.Brand.accent : Design.Brand.forge
+        }
         switch effectiveConnectionState {
         case .online:
             return Design.Brand.accent
@@ -849,6 +905,9 @@ struct ChatScreen: View {
     }
 
     private var connectionStatusLabel: String {
+        if isLocalBrainActive {
+            return isLocalBrainReady ? "Ready" : "Unavailable"
+        }
         switch effectiveConnectionState {
         case .online:
             return "Online"
@@ -1047,12 +1106,12 @@ struct ChatScreen: View {
 
     // MARK: - Private Cloud β surfaces (#30)
 
-    /// One-line honest notice: a PCC-pinned conversation degraded to
-    /// on-device (unavailable / daily quota). The router clears it when PCC
-    /// recovers or the preference changes.
-    private func privateCloudNoticeBanner(_ notice: String) -> some View {
+    /// One-line honest routing notice — a PCC pick degraded to on-device
+    /// (#30), or automatic routing fell back because Hermes is unreachable
+    /// (#192). The router owns setting and clearing both.
+    private func routingNoticeBanner(_ notice: String, icon: String) -> some View {
         HStack(alignment: .center, spacing: Design.Spacing.sm) {
-            Image(systemName: "cloud")
+            Image(systemName: icon)
                 .font(.system(size: Design.Size.iconSmall))
                 .foregroundStyle(Design.Brand.forge)
             Text(notice)
@@ -1099,7 +1158,10 @@ struct ChatScreen: View {
             .foregroundStyle(Design.Colors.mutedForeground)
 
             Button("Continue on β") {
-                container.chatBackendRouter?.setPreferredBrain(.privateCloud, forConversation: chatStore.conversation?.id)
+                // pick-only (#192): the escalation is about THIS conversation
+                // outgrowing the window — it must not rewrite the sticky
+                // app-wide default.
+                container.chatBackendRouter?.setPreferredBrain(.privateCloud, forConversation: chatStore.conversation?.id, updatesDefault: false)
                 container.localChatBackend?.dismissPrivateCloudEscalationOffer()
             }
             .font(Design.Typography.mono(11, weight: .medium))
