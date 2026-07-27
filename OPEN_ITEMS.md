@@ -8481,9 +8481,9 @@ Logged 2026-07-25.
 > reverts. The refusal half: `refreshActiveBrain()` no-ops while `runningBrain
 > != nil`, and `sendStreaming` only clears `runningBrain` on completion, so a
 > dropped run wedges routing until force quit. Full mechanism + fix
-> requirements in the dispatch. **Carries a product decision for Owen:** brain
-> pick as sticky mode (recommended) vs per-conversation-with-Hermes-default
-> (current coded behavior).
+> requirements in the dispatch. **DECIDED 2026-07-27: sticky mode.** The user's
+> explicit pick is the resolution default; id rotations (New/clear/openSession)
+> must not revert it. Dispatch updated.
 
 > **INTERMITTENT — could not be reproduced on demand 2026-07-26.** Owen attempted
 > a fresh reproduction and the switch behaved correctly. This is a real data

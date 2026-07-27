@@ -48,12 +48,13 @@ without a send, the header snaps Hermes-ward on the next probe after rotation.
 (the #145/#184 dropped-run family) leaves `runningBrain` set for the life of the process, freezing
 re-derivation and wedging the toggle until force quit. In-memory only, exactly as observed.
 
-**The fix has a product decision inside it — flag for Owen, do not decide silently:** should the
-brain pick be (a) a sticky mode (a global default that new chats inherit, per-conversation override
-on top), or (b) stay per-conversation with every new chat defaulting to Hermes? The current
-behavior IS (b) working as coded, and it is what the user experiences as "the app switches itself."
-Recommendation: (a) — the toggle looks like a mode, so it should be one. But implement whichever
-Owen picks, not whichever is closer.
+**DECIDED (Owen, 2026-07-27): (a) — the brain pick is a STICKY MODE.** A global default that new
+chats inherit; per-conversation override remains on top of it. Owen's framing, which is the spec's
+intent test: "if a user sets it to On-Device, you'd want that chat to actually get sent to
+On-Device." Concretely: the user's explicit pick becomes the resolution default — `New chat`,
+`clearConversation`, and `openSession` id rotations must NOT revert the brain; only an explicit user
+pick (or an announced, consented fallback per the #30 pattern) changes it. Migrate the existing
+per-conversation preference store forward; do not strand stored picks.
 
 **Regardless of that decision, all of the following are required:**
 - `runningBrain` must be cleared on run abandonment — wire it into #184's `abandonPendingRun`
