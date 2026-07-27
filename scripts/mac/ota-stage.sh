@@ -12,7 +12,11 @@
 # and the com.talaria.ota-http LaunchAgent serving ~/.talaria-ota/serve_root.
 set -euo pipefail
 
-BRANCH="${1:?usage: ota-stage.sh <branch>}"
+BRANCH="${1:?usage: ota-stage.sh <branch> [Debug|Release]}"
+# Optional configuration (default Release). Debug matters when the build must
+# carry #if DEBUG seams (e.g. the #194 session-shape selector) — Release
+# compiles them out, so an OTA A/B build MUST be staged as Debug.
+CONFIG="${2:-Release}"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta4.app/Contents/Developer}"
 REPO=/Users/owenjones/Documents/Claude/Talaria-27
 SERVE=/Users/owenjones/.talaria-ota/serve_root
@@ -25,8 +29,9 @@ git fetch origin --quiet
 git worktree add -f "$WORK/src" "origin/$BRANCH" --quiet
 SHA=$(git -C "$WORK/src" rev-parse --short HEAD)
 
-echo "== archive $BRANCH @ $SHA (toolchain: $(xcodebuild -version | tr '\n' ' '))"
+echo "== archive $BRANCH @ $SHA [$CONFIG] (toolchain: $(xcodebuild -version | tr '\n' ' '))"
 xcodebuild archive -project "$WORK/src/Talaria.xcodeproj" -scheme Talaria \
+  -configuration "$CONFIG" \
   -destination 'generic/platform=iOS' -archivePath "$WORK/Talaria.xcarchive" \
   -allowProvisioningUpdates -quiet
 
@@ -65,7 +70,7 @@ cat > "$SERVE/manifest.plist" << EOF
     <key>bundle-identifier</key><string>org.aethyrion.talaria27</string>
     <key>bundle-version</key><string>${VER}</string>
     <key>kind</key><string>software</string>
-    <key>title</key><string>Talaria 27 (${BRANCH} @ ${SHA})</string>
+    <key>title</key><string>Talaria 27 (${BRANCH} @ ${SHA} ${CONFIG})</string>
   </dict>
 </dict></array></dict>
 </plist>
@@ -75,7 +80,7 @@ cat > "$SERVE/index.html" << EOF
 <!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Talaria OTA</title></head>
 <body style="font-family:-apple-system;padding:2em;background:#111;color:#eee">
-<h2>Talaria 27 — ${BRANCH} @ ${SHA}</h2>
+<h2>Talaria 27 — ${BRANCH} @ ${SHA} · ${CONFIG}</h2>
 <p>Staged $(date '+%Y-%m-%d %H:%M %Z')</p>
 <p><a style="font-size:1.4em;color:#6cf" href="itms-services://?action=download-manifest&amp;url=${HOSTURL}/manifest.plist">Install build</a></p>
 </body></html>
