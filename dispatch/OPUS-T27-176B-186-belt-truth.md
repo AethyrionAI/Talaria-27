@@ -1,7 +1,10 @@
 # OPUS-T27-176B + 186 — the belt stops reaching, and stops lying about permissions
 
 **Items:** OPEN_ITEMS #176 (widened) + #186 · **Repo:** AethyrionAI/Talaria-27 · **Base:** main
-**Branch:** `claude/t27-176b-belt-truth` · **Toolchain:** Xcode-beta4, pinned sim
+**Branch:** `claude/t27-176b-belt-truth` · **Toolchain:** Xcode-beta4 = **Xcode 27.0 (27A5228h)**, pinned sim
+**Evidence scope:** your return MUST state the Xcode build your suite ran on (`xcodebuild -version`). If your
+environment cannot build against 27A5228h, say so explicitly — a green on any other SDK is NOT a green here
+(2026-07-27: the #189/#147 return did not compile on 27A5228h; Swift 6 isolation strictness differs across SDK builds).
 **Baseline:** confirm the current green count before you start · `export GH_PAGER=cat` first
 
 ## SHIP BLOCKER (the #176 half). Free tier is standalone on-device.
