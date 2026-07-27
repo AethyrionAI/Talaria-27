@@ -8595,3 +8595,30 @@ Low severity in isolation; filed because a destructive action with no visible wa
 first impression and the affected surfaces are few.
 
 Logged 2026-07-25.
+
+## 194. 🐛 On-device brain refuses creative generation, reciting its tool belt — tool fixation
+
+**Observed 2026-07-27, whoGoesThere, AIRPLANE MODE (ground truth: genuinely local).**
+Reproduced 4×: "Write a poem about spring", "Write a sonnet about spring", bare "Write me a
+poem" after a normal greeting — every one refuses in the same shape: *"I can't write
+poems/a sonnet, but I can help with reminders, checking your calendar, or providing
+information about your location or weather."* The deflection list IS the tool belt. Fresh-chat
+input is a consistent ~1.6K tokens (system prompt + belt definitions); the model has
+concluded it is a dispatcher whose only legal moves are its tools.
+
+**Scope of evidence:** offline reproduction on device, iOS 27 beta 4, PR #151 branch build
+(OTA-installed). Same session retroactively convicted the morning's "successful" on-device
+haiku: that chat carried a SEARCHCONVERSATIONS tool chip and IN 5.1K — Hermes answering
+behind the ON-DEVICE badge (the #192 flip; evidence recorded there, not here).
+
+**Distinct from #83's device note** (base model declining verbatim-repetition and long-form
+citing *its own limits* — Apple-side guardrails). Here the model cites *our belt*, which
+implicates the LocalChatBackend system prompt / DeviceToolBelt instructions framing, not the
+base model.
+
+**Fix direction:** the system prompt must license ordinary conversation and creative
+generation as first-class, tools as optional capabilities — not enumerate tools as the job
+description. Adjacent to the #176B belt-truth lane (same prompt surface); widen that lane or
+follow it. Verification: airplane mode, fresh chat, "write a poem" → a poem.
+
+Logged 2026-07-27.
