@@ -8849,6 +8849,26 @@ follow it. Verification: airplane mode, fresh chat, "write a poem" → a poem.
 **2026-07-27 (same day): folded into the 176B dispatch** (Items header, observation, Part A
 clause, DoD line) — decided widened, not separate. Tracks with #176 from here.
 
+**DEVICE PASS 2026-07-27 (post-merge main a86c750, airplane mode) — SPLIT VERDICT, #194
+REOPENS AS ITS OWN ITEM.** The #176 half PASSES: "what's 2+2" -> "The answer is 4.",
+"capital of Greece" -> "Athens", both offline, no tool, no belt recital — the shipped Part A
+clause fixed factual tool-fixation. The #194 creative half FAILS with the clause live
+(fresh-chat IN rose 1.6K -> 1.7K, confirming the new instructions were in-session):
+- Haiku (3 lines) refused identically -> length is not the variable.
+- "You're allowed to write. Write a poem about spring" -> WORD-FOR-WORD identical refusal ->
+  instruction strength / user-level permission is not the variable.
+- Refusal signature stable across BOTH instruction sets all day: "I can't write a poem FOR
+  YOU, but I can help you [tool-flavored deflection]" — reads as base-model policy, not our
+  prompt's voice; rhymes with #83's device note (verbatim-repetition + long-form declines
+  citing the model's own limits).
+
+**Next discriminator (Owen, ~1 min): Shortcuts -> "Use Model" (On-Device) -> "Write a poem
+about spring".** Removes Talaria entirely. Refusal there => Apple base-model policy; no
+instructions text can fix it — resolution becomes PCC escalation offer (#30 pattern) for
+creative asks and/or honest messaging. Success there => the tool-ARMED session shape itself
+suppresses creation — a 176C lane (e.g. probe whether dropping the prose tool enumeration,
+already natively registered on the session, releases it).
+
 **2026-07-27, later: BUILT with 176B** — the armed instructions now license
 writing/composing/summarizing and ordinary conversation as first-class ("need no tool"), pinned
 by `armedInstructionsLicenseAnsweringAndCreatingWithoutATool`. The airplane-mode device check
