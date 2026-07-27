@@ -8569,6 +8569,21 @@ log-only catch. Rework spec: `dispatch/OPUS-T27-190B-151-rework.md`.
 
 ---
 
+**DEVICE PASS 2026-07-27 — GATE CLEARED, MERGED (PR #151, 14:58Z).** Evidence scope: OTA-installed
+190B branch build (02b7c83 + no further code commits), whoGoesThere, iOS 27 beta 4, checks run
+from a work desk over the Tailscale OTA path. Airplane mode as ground truth for local claims.
+- Two local chats created offline: both listed, both **reopen by tap with content** (THE failed
+  check from 07-26, re-verified passing).
+- Force quit + relaunch: all local chats still listed and openable.
+- Symmetric routing both directions: Hermes thread opened while ON-DEVICE active (transcript
+  rendered; a send resumed the real server session — large CTX, history-aware reply); local
+  chat opened while HERMES active (content rendered; no send).
+- Drawer immediacy + title/preview generation observed working same session.
+- Not exercised this pass: read-aloud stop on session switch (item 5); no failure banner ever
+  triggered (no failing open occurred to exercise it).
+- Same session produced fresh #192-family evidence (silent badge flip on Hermes-thread send —
+  recorded at #192) and new #194 (tool fixation).
+
 ## 191. 🐛 Chat header is not backend-aware — title and model pill keep reporting the Hermes session
 
 **Observed 2026-07-25 on whoGoesThere, ON-DEVICE active, phone in airplane mode.** The header read
