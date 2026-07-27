@@ -298,29 +298,33 @@ struct DiagnosticsSettingsScreen: View {
     }
 
     @State private var forcedTripState: ForcedTripState = .idle
-    // #194/176C: mirrors the persisted debug.sessionShape override; seeded
-    // from defaults so the picker reflects the pending (next-launch) cell.
+    // #196: mirrors the persisted debug.sessionShape override; seeded from
+    // defaults so the picker reflects the pending (next-launch) cell,
+    // normalized through SessionShape so a RETIRED cell name from the 176C
+    // A/B ("armed-noprose") can't leave the segmented control unselected.
     @State private var sessionShapeOverride: String =
-        UserDefaults.standard.string(forKey: "debug.sessionShape") ?? "armed"
+        LocalChatBackend.SessionShape(
+            rawValue: UserDefaults.standard.string(forKey: "debug.sessionShape") ?? "armed"
+        )?.rawValue ?? "armed"
 
     private var localBrainPanel: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             MonoLabel("// Local brain — #102", size: 10, tracking: Design.Tracking.monoXWide,
                       color: Design.Colors.mutedForeground)
 
-            // #194/176C desk A/B: pick the session shape for the NEXT launch.
+            // #196 desk A/B: pick the session shape for the NEXT launch.
             // Mirrors the TALARIA_SESSION_SHAPE launch env (which wins when
             // set); read once per process, so a change here needs a
             // force-quit + relaunch to take effect — which is the A/B
             // protocol between cells anyway.
             VStack(alignment: .leading, spacing: Design.Spacing.xs) {
-                MonoLabel("Session shape A/B (#194) — active: \(LocalChatBackend.activeSessionShape.rawValue). Changes apply after force-quit + relaunch; start a NEW chat per cell.",
+                MonoLabel("Session shape A/B (#196) — active: \(LocalChatBackend.activeSessionShape.rawValue). Changes apply after force-quit + relaunch; start a NEW chat per cell.",
                           size: 9, tracking: Design.Tracking.mono,
                           color: Design.Colors.secondaryForeground)
                 Picker("Session shape", selection: $sessionShapeOverride) {
                     Text("armed (control)").tag("armed")
-                    Text("armed-noprose").tag("armed-noprose")
-                    Text("prose-notools").tag("prose-notools")
+                    Text("armed-direct").tag("armed-direct")
+                    Text("armed-noneg").tag("armed-noneg")
                     Text("toolless").tag("toolless")
                 }
                 .pickerStyle(.segmented)
