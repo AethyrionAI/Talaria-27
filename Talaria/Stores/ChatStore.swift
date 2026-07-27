@@ -1350,7 +1350,11 @@ final class ChatStore {
         // switches its internal session — `reconcileFromServer()` takes no
         // session argument, so a stale pendingRun would be compared against
         // the new session's server view and smear S1 artifacts onto it.
-        abandonPendingRun(stopSpeech: false)
+        // stopSpeech true since #190 (Owen, 2026-07-26): session A's
+        // read-aloud continuing over session B is the same cross-session
+        // leak, audible instead of persisted — a switch is a commit, not a
+        // browse.
+        abandonPendingRun(stopSpeech: true)
         do {
             let convo = try await hermesClient.openSession(id)
             conversation = convo
