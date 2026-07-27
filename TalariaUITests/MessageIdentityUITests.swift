@@ -91,16 +91,23 @@ final class MessageIdentityUITests: XCTestCase {
         composer.tap()
         composer.typeText(text)
 
+        // #195: `typeText` can race the keyboard settling and mangle the
+        // input (observed: "first" landed as "firstst", failing an exact-match
+        // wait on "Acknowledged first" while the app behaved correctly). This
+        // test's charter is duplicate-id detection, not keyboard fidelity —
+        // so read what actually settled in the field and assert against THAT.
+        let settled = (composer.value as? String).flatMap { $0.isEmpty ? nil : $0 } ?? text
+
         let send = app.buttons["Send message"]
         XCTAssertTrue(send.waitForExistence(timeout: 5),
                       "send button should appear once the composer holds text")
         send.tap()
 
-        // The synthetic reply is "Acknowledged <text>"; wait for it to settle
-        // so the assertion spans the full append→finish sequence.
-        let reply = app.staticTexts["Acknowledged \(text)"]
+        // The synthetic reply is "Acknowledged <settled text>"; wait for it to
+        // settle so the assertion spans the full append→finish sequence.
+        let reply = app.staticTexts["Acknowledged \(settled)"]
         XCTAssertTrue(reply.waitForExistence(timeout: 20),
-                      "the on-device reply for '\(text)' should render")
+                      "the on-device reply for '\(settled)' should render")
     }
 
     /// Reads the probe's published max-id-multiplicity and fails if any id was
