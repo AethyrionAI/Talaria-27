@@ -107,28 +107,33 @@ struct DeviceToolBeltTests {
     @Test func instructionsMentionToolsOnlyWhenInstalled() {
         let bare = LocalChatBackend.instructionsText(deviceContext: "Device: test.", hasTools: false)
         #expect(bare.contains("no external tools"))
+        // 176C Part 2: the armed branch no longer enumerates the belt in
+        // prose — tool-awareness shows as the scoped use-tools sentence.
         let armed = LocalChatBackend.instructionsText(deviceContext: "Device: test.", hasTools: true)
-        #expect(armed.contains("device tools"))
+        #expect(armed.contains("Use the tools for the user's own data"))
         #expect(armed.contains("never invent a value"))
     }
 
-    @Test func instructionsAdvertiseImageToolsOnlyWhenTheyAreOffered() {
-        // #176: the belt withholds the vision tools when there's no image, so
-        // the persona must stop claiming it can read one — otherwise the
-        // instructions advertise a tool this session was never given.
+    @Test func instructionsCarryNoToolRosterRegardlessOfVision() {
+        // 176C Part 2 (#194): the prose belt roster was the convicted
+        // creative suppressor — the tools' native `Tool.description` metadata
+        // is now the ONLY enumeration, so the instructions can never claim a
+        // tool this session wasn't given. The #176/#148 vision gate lives
+        // structurally in `DeviceToolBelt.offeredTools` (tested below), not
+        // in prose.
         let seeing = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: true, hasImageTools: true
         )
-        #expect(seeing.contains("image text/barcode reading"))
-
         let blind = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: true, hasImageTools: false
         )
-        #expect(!blind.contains("image text/barcode reading"))
-        // The rest of the belt is still advertised — only the vision claim goes.
-        #expect(blind.contains("device tools"))
-        #expect(blind.contains("conversation search"))
-        #expect(blind.contains("never invent a value"))
+        for text in [seeing, blind] {
+            #expect(!text.contains("image text/barcode reading"))
+            #expect(!text.contains("You also have device tools"))
+            // The kept sentences still stand.
+            #expect(text.contains("the user's own data"))
+            #expect(text.contains("never invent a value"))
+        }
     }
 
     // MARK: Belt-truth instructions (#176B / #194)

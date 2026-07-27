@@ -1261,44 +1261,32 @@ final class LocalChatBackend: HermesClientProtocol {
     as prior conversation memory:
     """
 
-    /// `hasImageTools` tracks the #176 gate: the vision tools are withheld
-    /// when the conversation carries no image, so the capability list has to
-    /// stop advertising them for the same turns. An instruction block that
-    /// claims a tool the session was never given is the same class of dishonesty
-    /// as fabricating a sensor reading.
-    ///
     /// The armed branch opens by licensing tool-free answering and creation
-    /// BEFORE it enumerates the belt (#176B/#194): with no such clause the
-    /// on-device model treats the tool list as its job description — every
-    /// turn routes to a tool, "write a poem" deflects to reminders/weather,
-    /// and one permission denial becomes every later turn's answer. Keep the
-    /// "use tools" instruction scoped to the user's own data, never to
-    /// general knowledge, and keep the recovery sentence: a failed tool is
-    /// information about the tool, not the reply.
+    /// (#176B/#194): with no such clause the on-device model treats the belt
+    /// as its job description — every turn routes to a tool, "write a poem"
+    /// deflects to reminders/weather, and one permission denial becomes every
+    /// later turn's answer. Keep the "use tools" instruction scoped to the
+    /// user's own data, never to general knowledge, and keep the recovery
+    /// sentence: a failed tool is information about the tool, not the reply.
     ///
-    /// `includeBeltRoster` is the #194/176C measurement seam: `false` drops
-    /// ONLY the belt-roster sentence (the tools' native `Tool.description`
-    /// metadata on the session is unaffected). Production call sites never
-    /// pass it.
+    /// 176C Part 2 (#194): the prose belt roster — the sentence enumerating
+    /// the tools — was the convicted creative suppressor and is gone from the
+    /// armed branch. The tools' native `Tool.description` metadata, already
+    /// registered on the session, is the ONLY enumeration; the instructions
+    /// therefore can never claim a tool the session wasn't given. The
+    /// #176/#148 vision gate lives structurally in
+    /// `DeviceToolBelt.offeredTools`; `hasImageTools` is kept for call-site
+    /// stability but no longer varies this text.
     nonisolated static func instructionsText(
         deviceContext: String,
         date: Date = .now,
         hasTools: Bool = false,
-        hasImageTools: Bool = false,
-        includeBeltRoster: Bool = true
+        hasImageTools: Bool = false
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
-        let vision = hasImageTools ? ", image text/barcode reading" : ""
-        // #194/176C: the belt roster is its own literal so the DEBUG
-        // session-shape instrument can lift exactly this sentence out
-        // (`armed-noprose`) without touching any kept sentence. Production
-        // call sites never pass `includeBeltRoster` — with the default the
-        // armed text is byte-identical to the pre-seam string.
-        let beltRoster = "You also have device tools — health, location, motion, calendar, reminders, weather, places, contacts, device status\(vision), and conversation search — plus action tools that can create reminders, calendar events, and alarms. "
         let capabilities: String
         if hasTools {
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. "
-                + (includeBeltRoster ? beltRoster : "")
                 + "Use the tools for the user's own data — their health, location, schedule, reminders, contacts, and past conversations — instead of guessing at it. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully. When a tool reports that a permission isn't granted or no data exists, relay that honestly — never invent a value. A failed or denied tool is never the answer to the user's question: answer as well as you can without that tool, and don't repeat a denial you've already given in this conversation."
         } else {
             capabilities = """
@@ -1671,10 +1659,11 @@ extension LocalChatBackend {
                 hasTools: hasTools, hasImageTools: hasImageTools
             )
         case .armedNoProse:
+            // 176C Part 2 removed the roster from the production armed branch,
+            // so this cell is identical to `armed` by construction.
             return instructionsText(
                 deviceContext: deviceContext, date: date,
-                hasTools: hasTools, hasImageTools: hasImageTools,
-                includeBeltRoster: false
+                hasTools: hasTools, hasImageTools: hasImageTools
             )
         case .proseNoTools:
             return instructionsText(
