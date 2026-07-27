@@ -8718,4 +8718,7 @@ generation as first-class, tools as optional capabilities — not enumerate tool
 description. Adjacent to the #176B belt-truth lane (same prompt surface); widen that lane or
 follow it. Verification: airplane mode, fresh chat, "write a poem" → a poem.
 
+**2026-07-27 (same day): folded into the 176B dispatch** (Items header, observation, Part A
+clause, DoD line) — decided widened, not separate. Tracks with #176 from here.
+
 Logged 2026-07-27.
