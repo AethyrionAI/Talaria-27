@@ -85,7 +85,14 @@ enum SingleWindowPolicy {
 }
 
 @MainActor
-final class HermesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+// #147: `@preconcurrency` on the notification-center conformance is what
+// lets the @MainActor `didReceive` witness below satisfy the nonisolated
+// protocol requirement — without it, Swift 6 region isolation rejects
+// sending the non-Sendable UNUserNotificationCenter/UNNotificationResponse
+// parameters into a main-actor-isolated implementation. The system delivers
+// these delegate callbacks on the main thread, so the dynamic isolation
+// precondition this conformance inserts always holds.
+final class HermesAppDelegate: NSObject, UIApplicationDelegate, @preconcurrency UNUserNotificationCenterDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
