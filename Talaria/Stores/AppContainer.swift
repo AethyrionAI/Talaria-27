@@ -522,18 +522,20 @@ final class AppContainer {
         // the store, never a boot crash.
         let localSessionStore = SwiftDataLocalSessionStore.make()
         // #190: the ONE standalone-thread discriminator, shared by the
-        // legacy-cache adoption (backend) and the walk-away persist
-        // (ChatStore). No configured host means every thread is local by
-        // construction; with a host configured, only a transcript carrying a
-        // local-brained assistant turn is positively local — paired-mode
-        // Hermes threads must never enter the local store.
+        // legacy-cache adoption + live-row listing (backend) and the
+        // walk-away persist (ChatStore). No configured host means every
+        // thread is local by construction; with a host configured, a thread
+        // is local iff the store already knows its id — membership IS
+        // origin, established when a thread's first assistant turn settles
+        // on a local brain (ChatStore.recordLocalOriginAfterSettledTurn) and
+        // durable across process death because it lives in the store itself.
+        // #190B: the old rule scanned for ANY local-brained assistant turn,
+        // so #192's mixed paired-mode threads — a Hermes session the brain
+        // flipped under mid-conversation — kept upserting into the local
+        // store, violating this rule's own charter.
         let isLocalThread: @MainActor (Conversation) -> Bool = { [hermesAPIKeyBox] conversation in
             if hermesAPIKeyBox.value.isEmpty { return true }
-            return conversation.messages.contains {
-                ($0.sender == .hermes || $0.sender == .voiceHermes)
-                    && ($0.brain == ChatBackendRouter.Brain.onDevice.rawValue
-                        || $0.brain == ChatBackendRouter.Brain.privateCloud.rawValue)
-            }
+            return localSessionStore?.hasSession(withID: conversation.id) == true
         }
 
         // #26/#27: the on-device brain + the two-brain router. The retry
