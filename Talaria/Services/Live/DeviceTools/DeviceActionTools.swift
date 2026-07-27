@@ -212,9 +212,18 @@ struct CalendarEventTool: Tool {
         let store = EKEventStore()
         switch EKEventStore.authorizationStatus(for: .event) {
         case .notDetermined:
+            // Full access is the honest ask — Talaria also READS calendars,
+            // and priming write-only here would leave the reader unable to
+            // ever re-prompt (#186). Apple's sheet still offers "Add Events
+            // Only": the request reports that pick as false, so re-read the
+            // settled status — a write-only grant authorizes this save.
             let granted = (try? await store.requestFullAccessToEvents()) ?? false
-            guard granted else { return "Calendar permission was not granted — nothing was created." }
-        case .fullAccess:
+            if !granted, EKEventStore.authorizationStatus(for: .event) != .writeOnly {
+                return "Calendar permission was not granted — nothing was created."
+            }
+        case .fullAccess, .writeOnly:
+            // .writeOnly authorizes exactly this tool's one operation —
+            // save(_:span:commit:) — a narrower grant is not a denial (#186).
             break
         default:
             return "Calendar permission is not granted — nothing was created. The user can enable it in Settings → Privacy & Security → Calendars."
