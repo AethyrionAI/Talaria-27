@@ -8882,6 +8882,23 @@ tool-less branch) behind a debug toggle; the passing cells convict the mechanism
 **Dispatch written 2026-07-27: `dispatch/OPUS-T27-176C-194-creative-suppressor.md`** —
 confirm-then-fix shape (harness + labeled inert Part 2), Owen to send.
 
+**DEVICE A/B VERDICT 2026-07-27 ~14:35 — THE ENUMERATION IS CONVICTED.** Desk A/B on the
+`claude/t27-176c-desk-ab` Debug OTA build (Part 1 tip + Diagnostics picker), airplane mode,
+cell confirmed by the Diagnostics active-shape label:
+- `armed` (control, 4 probes): creative content refused every time — deflection only. The
+  control reproduces the defect on this build.
+- `armed-noprose` (belt fully registered, roster sentence removed): haiku WRITTEN, bobsled
+  poem WRITTEN, 100-word Italy summary WRITTEN; tools still fire when apt (READCALENDAR
+  earlier same build). "B writes, A refuses" — the dispatch's conviction cell, exactly.
+The belt itself is exonerated; the prose roster was teaching the model its job description.
+Per the readout: **PR #157 merges whole, Part 2 included** (production armed becomes
+roster-less). `toolless` / `prose-notools` cells not run — decision did not require them.
+
+**Residual (separate item, polish not blocker): the disclaimer tic.** Every noprose reply
+opens "I can't write X for you, but here's one…" and then delivers the content in full
+(peak absurdity: "I can't directly calculate that for you, but 2 + 2 is 4"). A learned
+preamble reflex, not a capability gate — distinct mechanism from #194's refusal.
+
 **2026-07-27, later: BUILT with 176B** — the armed instructions now license
 writing/composing/summarizing and ordinary conversation as first-class ("need no tool"), pinned
 by `armedInstructionsLicenseAnsweringAndCreatingWithoutATool`. The airplane-mode device check
