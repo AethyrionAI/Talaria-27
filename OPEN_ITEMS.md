@@ -1875,7 +1875,42 @@ Logged 2026-07-06.
 
 ---
 
-## 58. 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — app-group handoff BUILT 2026-07-24 (option (a)); controls DEAD on device 2026-07-25
+## 58. 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 (cloud, NOT compiled); controls DEAD on device 2026-07-25
+
+> **2026-07-27 — `.main` EXECUTION BUILT on `claude/opus-t27-58-controls-eopguj`. Cloud
+> session, Linux container: NOT compiled on 27A5228h (no Xcode of any build), suite NOT
+> run, baseline green count NOT confirmable. First Mac step is `xcodegen generate`
+> (two files added: `Shared/HermesControlIntents.swift`, `Talaria/Core/DeeplinkRouter.swift`;
+> verify `aps-environment: development` survives), then build + suite, then Owen's device
+> pass.** Both control intents dropped `openAppWhenRun` (the Code 2001 rejection) for
+> `supportedModes = .foreground` + `allowedExecutionTargets = .main`, and moved to
+> `Shared/` — the app process can only perform an intent compiled into it, so dual
+> membership (app + widget) is load-bearing. API shapes doc-verified 2026-07-27:
+> `IntentModes` (iOS 26+) and `IntentExecutionTargets` (iOS 27+, an Equatable OptionSet
+> with `.main`) — NOTE the doc type is `IntentExecutionTargets`; the WWDC26 spelling
+> `ExecutionTargets` this item carried was session-code drift. Doc-verified ≠
+> SDK-verified; the 27A5228h compile is the arbiter.
+>
+> App-compiled branch (`#if TALARIA_MAIN_APP`, new flag on the app target) routes the
+> tap through `DeeplinkRouter` — `AppEntry.handleDeeplink`'s switch, extracted so the
+> intents and `onOpenURL` share one table and the routing is unit-testable at last.
+> Widget-compiled branch keeps the app-group write as FALLBACK, logging `.error` "…the
+> EXTENSION process — .main did not hold" — so the device log names the branch either
+> way (subsystem `org.aethyrion.talaria` = held; `…talaria27.widgets` = not).
+> **`ControlHandoffStore` is deliberately NOT removed**: its removal is gated on the
+> device pass proving `.main` holds, and the dispatch's confirm-then-fix order cannot
+> be discharged from a container with no SDK. Readers checked 2026-07-27: the
+> extension fallback write, `AppEntry.consumePendingControlDestination()`, and
+> `ControlHandoffTests` — nothing else. If the pass shows app-process dispatch, delete
+> all three together (plus the intents' `#else` branch) as the follow-up.
+>
+> `HermesControlsTests` rewritten: the `openAppWhenRun == true` pins are GONE. The
+> suite now drives the real `perform()` of the chat intent (an ordinary app-module
+> method under `.main`) and asserts the router lands on a clean Chat tab, drives both
+> destinations through `DeeplinkRouter` hermetically, and keeps declaration pins
+> explicitly labeled as regression guards. Stated plainly there and here: **system
+> dispatch is untestable off-device** — no unit test can fail if the OS rejects the
+> declaration at dispatch; the device log is the only such evidence.
 
 > **DEVICE PASS 2026-07-25 — controls are 100% dead.** Every tap fails ~6–11 ms in
 > with the OS naming the reason: `openAppWhenRun is not supported in extensions`
@@ -1885,10 +1920,8 @@ Logged 2026-07-06.
 > `HermesControlsTests.swift:28` asserts `openAppWhenRun == true` — a static
 > constant the OS rejects at dispatch — so the suite is green on a control with
 > zero live executions. The test pins the declaration, not the behavior.
->
-> Candidate fix: `allowedExecutionTargets = .main` plus `supportedModes`, both
-> available at our deployment target. Adopting it would likely make the
-> `ControlHandoffStore` app-group indirection unnecessary.
+> *(Both paragraphs addressed by the 2026-07-27 build above — kept as the device
+> evidence it answers.)*
 
 <!-- Header was "Ask-control wiring FIXED (PR #100, 2026-07-16)" until 2026-07-24. The spike below
      established that #100 fixed something that was never the cause, so that heading read as done
@@ -7801,6 +7834,16 @@ Logged 2026-07-23.
 
 
 ## 179. 🐛 First Control Center tap is swallowed — action reports success before the widget extension exists — likely SUBSUMED by #58 (2026-07-25)
+
+> **2026-07-27 — decision point moves to the #58 device pass.** Under the `.main`
+> execution target built for #58, the tap's action no longer dispatches to the widget
+> process at all — `perform()` runs in the app process — so this item's mechanism
+> (chronod reporting success against a cold extension it only then launches) leaves
+> the tap path entirely, IF `.main` holds. Owen's #58 checklist includes the
+> discriminating shot: the VERY FIRST control tap with everything cold (fresh boot or
+> app+extension long-killed). If that first tap routes, close this against the #58
+> lane; if first-tap behavior still differs from second-tap, this survives as its own
+> item with fresh evidence. Do not spec separately before that pass.
 
 > **2026-07-25.** Very likely subsumed by the #58 finding: no control tap has ever
 > reached `perform()` (`openAppWhenRun` rejected in extensions, Code 2001), so
