@@ -683,7 +683,7 @@ final class LocalChatBackend: HermesClientProtocol {
         // about the image being sent right now.
         let hasImage = ConversationImageSource.hasImage(in: currentConversation, incoming: attachments)
         if let session {
-            let offered = DeviceToolBelt.offeredTools(from: tools, hasImageInContext: hasImage)
+            let offered = effectiveOfferedTools(hasImageInContext: hasImage)
             if offered.map(\.name) != sessionToolNames {
                 Self.logger.notice("preparedSession: offered tool set changed for this turn — recreating the session (#176)")
             } else {
@@ -726,7 +726,7 @@ final class LocalChatBackend: HermesClientProtocol {
         condensedMemory = blueprint.condensedMemory
         let fresh = makeSession(
             from: blueprint,
-            offering: DeviceToolBelt.offeredTools(from: tools, hasImageInContext: hasImage)
+            offering: effectiveOfferedTools(hasImageInContext: hasImage)
         )
         session = fresh
         return fresh
@@ -746,11 +746,7 @@ final class LocalChatBackend: HermesClientProtocol {
         hasImageInContext: Bool,
         forceCondense: Bool
     ) async -> SessionBlueprint {
-        let baseInstructions = Self.instructionsText(
-            deviceContext: Self.deviceContextLine(),
-            hasTools: !tools.isEmpty,
-            hasImageTools: hasImageInContext
-        )
+        let baseInstructions = effectiveInstructionsText(hasImageInContext: hasImageInContext)
         // Budget from the model at RUNTIME — never hardcoded (#26 ground rule).
         let contextBudget = max(1024, await activeContextSize() - Self.responseHeadroomTokens(for: activeTier))
 
@@ -810,11 +806,7 @@ final class LocalChatBackend: HermesClientProtocol {
     /// context budget. Byte count is a safe upper bound for token count, so
     /// the tokenizer only runs once histories actually get long.
     private func fitsContext(turns: [TranscriptTurn], nextPrompt: String, hasImageInContext: Bool) async -> Bool {
-        let baseInstructions = Self.instructionsText(
-            deviceContext: Self.deviceContextLine(),
-            hasTools: !tools.isEmpty,
-            hasImageTools: hasImageInContext
-        )
+        let baseInstructions = effectiveInstructionsText(hasImageInContext: hasImageInContext)
         let contextBudget = max(1024, await activeContextSize() - Self.responseHeadroomTokens(for: activeTier))
         let byteTotal = baseInstructions.utf8.count
             + nextPrompt.utf8.count
@@ -830,6 +822,11 @@ final class LocalChatBackend: HermesClientProtocol {
     }
 
     private func makeSession(from blueprint: SessionBlueprint, offering offered: [any Tool]) -> LanguageModelSession {
+        #if DEBUG
+        // #194/176C: device A/B runs are self-labeling — Console shows which
+        // cell built this session.
+        Self.logger.notice("session shape: \(Self.activeSessionShape.rawValue, privacy: .public) — \(offered.count, privacy: .public) tool(s) registered (#194/176C)")
+        #endif
         var entries: [Transcript.Entry] = []
         entries.append(.instructions(Transcript.Instructions(
             id: UUID().uuidString,
@@ -878,6 +875,40 @@ final class LocalChatBackend: HermesClientProtocol {
             )
         }
         return LanguageModelSession(model: model, tools: offered, transcript: Transcript(entries: entries))
+    }
+
+    // MARK: - Session-shape seam (#194/176C)
+
+    /// The tools this session should REGISTER, after the #176 turn gate. In
+    /// DEBUG the #194/176C session-shape instrument can empty the belt
+    /// (`prose-notools` / `toolless` cells); Release compiles down to the
+    /// production expression.
+    private func effectiveOfferedTools(hasImageInContext hasImage: Bool) -> [any Tool] {
+        #if DEBUG
+        guard Self.activeSessionShape.registersTools else { return [] }
+        #endif
+        return DeviceToolBelt.offeredTools(from: tools, hasImageInContext: hasImage)
+    }
+
+    /// The base instructions for this turn's session. In DEBUG the #194/176C
+    /// instrument reroutes through the shaped variants (the `armed` control
+    /// cell delegates straight back to production); Release compiles down to
+    /// the production expression.
+    private func effectiveInstructionsText(hasImageInContext hasImage: Bool) -> String {
+        #if DEBUG
+        return Self.instructionsText(
+            for: Self.activeSessionShape,
+            deviceContext: Self.deviceContextLine(),
+            hasTools: !tools.isEmpty,
+            hasImageTools: hasImage
+        )
+        #else
+        return Self.instructionsText(
+            deviceContext: Self.deviceContextLine(),
+            hasTools: !tools.isEmpty,
+            hasImageTools: hasImage
+        )
+        #endif
     }
 
     // MARK: - Conversation bookkeeping
@@ -1244,21 +1275,36 @@ final class LocalChatBackend: HermesClientProtocol {
     /// "use tools" instruction scoped to the user's own data, never to
     /// general knowledge, and keep the recovery sentence: a failed tool is
     /// information about the tool, not the reply.
+    ///
+    /// `includeBeltRoster` is the #194/176C measurement seam: `false` drops
+    /// ONLY the belt-roster sentence (the tools' native `Tool.description`
+    /// metadata on the session is unaffected). Production call sites never
+    /// pass it.
     nonisolated static func instructionsText(
         deviceContext: String,
         date: Date = .now,
         hasTools: Bool = false,
-        hasImageTools: Bool = false
+        hasImageTools: Bool = false,
+        includeBeltRoster: Bool = true
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
         let vision = hasImageTools ? ", image text/barcode reading" : ""
-        let capabilities = hasTools
-            ? """
-            Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. You also have device tools — health, location, motion, calendar, reminders, weather, places, contacts, device status\(vision), and conversation search — plus action tools that can create reminders, calendar events, and alarms. Use the tools for the user's own data — their health, location, schedule, reminders, contacts, and past conversations — instead of guessing at it. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully. When a tool reports that a permission isn't granted or no data exists, relay that honestly — never invent a value. A failed or denied tool is never the answer to the user's question: answer as well as you can without that tool, and don't repeat a denial you've already given in this conversation.
-            """
-            : """
+        // #194/176C: the belt roster is its own literal so the DEBUG
+        // session-shape instrument can lift exactly this sentence out
+        // (`armed-noprose`) without touching any kept sentence. Production
+        // call sites never pass `includeBeltRoster` — with the default the
+        // armed text is byte-identical to the pre-seam string.
+        let beltRoster = "You also have device tools — health, location, motion, calendar, reminders, weather, places, contacts, device status\(vision), and conversation search — plus action tools that can create reminders, calendar events, and alarms. "
+        let capabilities: String
+        if hasTools {
+            capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. "
+                + (includeBeltRoster ? beltRoster : "")
+                + "Use the tools for the user's own data — their health, location, schedule, reminders, contacts, and past conversations — instead of guessing at it. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully. When a tool reports that a permission isn't granted or no data exists, relay that honestly — never invent a value. A failed or denied tool is never the answer to the user's question: answer as well as you can without that tool, and don't repeat a denial you've already given in this conversation."
+        } else {
+            capabilities = """
             Be direct, warm, and concise. You have no internet access and no external tools in this mode — when you don't know something or can't do it on-device, say so plainly instead of guessing.
             """
+        }
         return """
         You are Hermes, the user's personal assistant, running entirely on their iPhone with Apple's on-device foundation model. The conversation is private and never leaves the device.
         Today is \(day).
@@ -1562,6 +1608,85 @@ extension LocalChatBackend {
         // MidTurnMergeClient keeps its `currentConversation` nil by design.
         currentConversation = nil
         continuation.yield(.finished(reply, nil, nil))
+    }
+}
+
+// MARK: - Session-shape instrument (#194/176C — DEBUG builds only)
+
+/// A/B cells for the creative-suppressor hunt (#194): which armed-session
+/// ingredient — the registered tool belt itself, or the prose belt roster
+/// inside the instructions — suppresses non-tool turns like "write a poem".
+/// Armed only by the `TALARIA_SESSION_SHAPE` launch environment, following
+/// the `UITEST_DUPID_PROBE` seam precedent: inert in every normal run,
+/// compiled out of Release entirely. The selector touches session
+/// construction only (`effectiveOfferedTools` / `effectiveInstructionsText`).
+extension LocalChatBackend {
+
+    enum SessionShape: String {
+        /// Production behavior — the control cell.
+        case armed
+        /// Tools registered exactly as production; instructions are the armed
+        /// branch WITHOUT the belt-roster sentence.
+        case armedNoProse = "armed-noprose"
+        /// NO tools registered; instructions are the armed branch VERBATIM,
+        /// roster included. This deliberately violates the "never claim a
+        /// tool the session wasn't given" rule (see `instructionsText`'s doc)
+        /// — it is a debug measurement cell, not a shippable state.
+        case proseNoTools = "prose-notools"
+        /// The production tool-less branch with tools unregistered — the far
+        /// control.
+        case toolless
+
+        /// Whether this cell hands the session a tool belt at all.
+        var registersTools: Bool {
+            switch self {
+            case .armed, .armedNoProse: return true
+            case .proseNoTools, .toolless: return false
+            }
+        }
+    }
+
+    /// Read once per process — the cells are launch-scoped, so a mid-run env
+    /// mutation can never make one conversation's session builds disagree.
+    static let activeSessionShape: SessionShape = {
+        guard let raw = ProcessInfo.processInfo.environment["TALARIA_SESSION_SHAPE"],
+              let shape = SessionShape(rawValue: raw) else { return .armed }
+        return shape
+    }()
+
+    /// The instructions each cell hands the session. `hasTools` /
+    /// `hasImageTools` are the PRODUCTION inputs for this turn; the shape
+    /// overrides from there, so `armed` is provably the production text.
+    nonisolated static func instructionsText(
+        for shape: SessionShape,
+        deviceContext: String,
+        date: Date = .now,
+        hasTools: Bool = false,
+        hasImageTools: Bool = false
+    ) -> String {
+        switch shape {
+        case .armed:
+            return instructionsText(
+                deviceContext: deviceContext, date: date,
+                hasTools: hasTools, hasImageTools: hasImageTools
+            )
+        case .armedNoProse:
+            return instructionsText(
+                deviceContext: deviceContext, date: date,
+                hasTools: hasTools, hasImageTools: hasImageTools,
+                includeBeltRoster: false
+            )
+        case .proseNoTools:
+            return instructionsText(
+                deviceContext: deviceContext, date: date,
+                hasTools: true, hasImageTools: hasImageTools
+            )
+        case .toolless:
+            return instructionsText(
+                deviceContext: deviceContext, date: date,
+                hasTools: false, hasImageTools: hasImageTools
+            )
+        }
     }
 }
 #endif
