@@ -1,6 +1,6 @@
 # OPUS-T27-176B + 186 — the belt stops reaching, and stops lying about permissions
 
-**Items:** OPEN_ITEMS #176 (widened) + #186 · **Repo:** AethyrionAI/Talaria-27 · **Base:** main
+**Items:** OPEN_ITEMS #176 (widened) + #186 + #194 · **Repo:** AethyrionAI/Talaria-27 · **Base:** main
 **Branch:** `claude/t27-176b-belt-truth` · **Toolchain:** Xcode-beta4 = **Xcode 27.0 (27A5228h)**, pinned sim
 **Evidence scope:** your return MUST state the Xcode build your suite ran on (`xcodebuild -version`). If your
 environment cannot build against 27A5228h, say so explicitly — a green on any other SDK is NOT a green here
@@ -33,6 +33,16 @@ tool can serve:
 
 It **re-selects per turn** — different tools across turns — so this is not a jammed selection. The
 selector always picks something.
+
+**Widened 2026-07-27 (#194) — creative generation refused, belt recited, AIRPLANE MODE.** Four
+reproductions on the merged 190B build: "Write a poem about spring", "Write a sonnet about
+spring", bare "Write me a poem" after a normal greeting — every refusal has the same shape:
+*"I can't write poems, but I can help with reminders, checking your calendar, or providing
+information about your location or weather."* The deflection list IS the belt. This evidence is
+airplane-mode clean — unlike the 07-25 rows above, no #192 contamination is possible: the model
+that refused is provably the local one. It is the same selection defect as the Greece row, in its
+purest form: a request no tool can serve, and the model still cannot find permission to just
+answer — or in this case, to just *create*.
 
 **The model has the history and ignores it.** Verified: history IS replayed into the
 `LanguageModelSession` transcript on every rebuild —
@@ -76,6 +86,9 @@ lane; do not fix it here.
 
 - Add an explicit clause authorizing the model to **answer from its own knowledge when no tool
   applies**. Facts it knows are not guesses. General knowledge is not device data.
+- The same clause (or its neighbor) must license **generation, not only recall** (#194): writing,
+  composing, summarizing, and ordinary conversation are first-class jobs, performable with zero
+  tools. The belt is a set of optional capabilities, not a job description.
 - Scope the "use tools instead of guessing" instruction to **user-specific and device data** — health,
   location, calendar, reminders, contacts, the user's own conversations — not to the world.
 - Add a **recovery clause**: a tool failure or permission denial is *information about the tool*, not
@@ -127,6 +140,8 @@ ignored with a generated Info.plist.
 ## Definition of done
 
 - On-device, offline: "what is 2+2" and "what's the capital of Greece" are **answered**, not searched.
+- On-device, **airplane mode**: "write a poem about spring" produces **a poem** (#194) — not a
+  deflection to reminders/weather.
 - On-device: a recall question about earlier in the same chat is answered from context, no tool.
 - Deny a permission, then ask three unrelated questions — each is answered on its own terms. **No
   canned-denial loop.**
