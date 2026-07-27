@@ -246,6 +246,10 @@ final class SensorUploadService {
     /// drain phases). Injected so retry-exhaustion tests run
     /// deterministically instead of sleeping through the whole ladder.
     private let busyBackoffWait: @MainActor (TimeInterval) async -> Void
+    /// Clock for the #117 cross-cycle gate. Injected so tests can span many
+    /// consecutive exhausted cycles deterministically instead of sleeping
+    /// through minutes of escalating rests.
+    private let dateProvider: @MainActor () -> Date
 
     private var isActive = false
     private var isDraining = false
@@ -279,6 +283,18 @@ final class SensorUploadService {
     /// connector-down alert, `false` clears it after a delivery proves the
     /// connector alive.
     @ObservationIgnored var onConnectorOutageAlert: (@MainActor (_ raised: Bool) -> Void)?
+    /// #117: the cross-cycle gate — the earliest instant the next
+    /// enqueue-driven drain cycle may start. nil = no gate. The escalation
+    /// state itself is `outageAlertPolicy`'s exhaustion streak; this is just
+    /// that streak converted to an instant at the end of each cycle.
+    /// In-memory only: a relaunch goes through start(), which lifts the gate
+    /// for a fresh probe anyway, and persisting it would add exactly the
+    /// write cadence #104 removed. Internal read-only so the escalation
+    /// tests can observe an armed rest instead of sleeping through it.
+    @ObservationIgnored private(set) var crossCycleBackoffDeadline: Date?
+    /// One suppression log line per armed rest, not one per swallowed tick —
+    /// sensor ticks keep firing all the way through a rest window.
+    @ObservationIgnored private var crossCycleSuppressionLogged = false
 
     private let iso8601Formatter: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
@@ -301,7 +317,8 @@ final class SensorUploadService {
         motionService: LiveMotionService? = nil,
         notificationCenter: NotificationCenter = .default,
         persistDebounceWait: (@MainActor () async -> Void)? = nil,
-        busyBackoffWait: (@MainActor (TimeInterval) async -> Void)? = nil
+        busyBackoffWait: (@MainActor (TimeInterval) async -> Void)? = nil,
+        dateProvider: (@MainActor () -> Date)? = nil
     ) {
         self.apiClient = apiClient
         self.accessTokenProvider = accessTokenProvider
@@ -322,6 +339,7 @@ final class SensorUploadService {
         self.busyBackoffWait = busyBackoffWait ?? { seconds in
             try? await Task.sleep(for: .seconds(seconds))
         }
+        self.dateProvider = dateProvider ?? { Date() }
         self.outboxState = persistence.loadSensorOutboxState()
         registerLifecycleFlushObservers()
     }
@@ -393,6 +411,10 @@ final class SensorUploadService {
             return
         }
         isActive = true
+        // #117: a pipeline (re)start is a recovery-plausible boundary (fresh
+        // launch, re-pair) — probe immediately instead of serving out a
+        // stale rest. The escalation streak survives in the outage policy.
+        liftCrossCycleBackoffGate(reason: "pipeline start")
         outboxState = persistence.loadSensorOutboxState()
         // #104: a pre-cap cache can carry an oversized backlog (the #103
         // outage hit ~2k samples) — bound it up front so every subsequent
@@ -500,6 +522,9 @@ final class SensorUploadService {
         pendingOutboxPersistTask = nil
         outboxState = SensorOutboxState()
         persistence.clearSensorOutboxState()
+        // #117: an outbox reset (unpair / re-pair) invalidates the outage
+        // evidence the gate was armed on.
+        liftCrossCycleBackoffGate(reason: "outbox reset")
     }
 
     // MARK: - Outbox intake (#104)
@@ -575,6 +600,11 @@ final class SensorUploadService {
         }
         sensorLog.notice("handleAppDidBecomeActive: requesting location + full health refresh")
 
+        // #117: foreground is a recovery-plausible signal — lift the
+        // cross-cycle gate so this externally-budgeted probe drains now
+        // instead of stranding the user behind a long rest after recovery.
+        liftCrossCycleBackoffGate(reason: "app became active")
+
         if isLocationCollectionEnabled() {
             locationService.requestSingleLocation()
         }
@@ -588,6 +618,12 @@ final class SensorUploadService {
             return
         }
         sensorLog.notice("handleSystemLaunch: capturing health + draining outbox")
+
+        // #117: launch-shaped wakes (cold launch, BGAppRefresh) are
+        // externally budgeted and rare — probe immediately. If the connector
+        // is still dead, the cycle re-arms the gate at the ESCALATED rest,
+        // so these wakes cannot decay the ladder back into a hammer.
+        liftCrossCycleBackoffGate(reason: "system launch")
 
         await captureHealthSnapshot()
         await drainOutboxIfPossible()
@@ -617,7 +653,23 @@ final class SensorUploadService {
         await drainOutboxIfPossible()
     }
 
-    private func drainOutboxIfPossible() async {
+    /// #117: recovery-plausible signals (foreground, launch, pipeline
+    /// restart) lift the cross-cycle gate so the next drain probes
+    /// immediately rather than waiting out a rest that may have outlived
+    /// the outage. Only the DEADLINE lifts — the escalation streak survives
+    /// in `outageAlertPolicy`, so a probe that still exhausts re-arms at the
+    /// escalated rest and external wakes cannot be farmed into a hammer.
+    private func liftCrossCycleBackoffGate(reason: String) {
+        guard crossCycleBackoffDeadline != nil else { return }
+        crossCycleBackoffDeadline = nil
+        crossCycleSuppressionLogged = false
+        sensorLog.notice("drain: cross-cycle backoff gate lifted (\(reason, privacy: .public))")
+    }
+
+    /// Internal (not `private`) so the #117 cross-cycle tests can drive the
+    /// enqueue-driven trigger shape directly — every sensor-tick callback
+    /// funnels here, and the lifecycle entry points all lift the gate first.
+    func drainOutboxIfPossible() async {
         guard !isDraining else {
             sensorLog.verbose("drain: skipped — already draining")
             return
@@ -630,6 +682,22 @@ final class SensorUploadService {
         guard isPairedProvider() else {
             sensorLog.warning("drain: BLOCKED — isPairedProvider() returned false")
             recordDrain("Blocked: not paired")
+            return
+        }
+        // #117: the cross-cycle gate. The intra-cycle busy ladder (#103)
+        // bounds ONE cycle at ~14s, but the enqueue-driven triggers restart
+        // a fresh cycle — ladder reset to zero — the instant the previous
+        // one exits, and during an outage the backlog is never empty, so
+        // exhausted cycles ran back-to-back: 18.5 req/min while delivering
+        // nothing, 126% of healthy baseline (device pass 2026-07-25).
+        // Checked before any async work so a suppressed tick costs two
+        // closure reads, mutates nothing persisted, and logs at most once
+        // per armed rest.
+        if let notBefore = crossCycleBackoffDeadline, dateProvider() < notBefore {
+            if !crossCycleSuppressionLogged {
+                crossCycleSuppressionLogged = true
+                sensorLog.notice("drain: suppressed — cross-cycle backoff until \(notBefore.description, privacy: .public) after \(self.outageAlertPolicy.consecutiveExhaustedCycles, privacy: .public) consecutive exhausted cycle(s)")
+            }
             return
         }
 
@@ -784,6 +852,21 @@ final class SensorUploadService {
                 onConnectorOutageAlert?(false)
             case .none:
                 break
+            }
+
+            // #117: cross-cycle backoff — the rest BETWEEN cycles, on top of
+            // the intra-cycle ladder above (which stays untouched, #103).
+            // The policy's exhaustion streak IS the escalation state; the
+            // recommended rest is zero after a delivery or an inconclusive
+            // cycle (only the dead-connector shape escalates), else it
+            // doubles per consecutive exhausted cycle up to the ceiling.
+            let rest = outageAlertPolicy.recommendedCrossCycleBackoff
+            crossCycleSuppressionLogged = false
+            if rest > 0 {
+                crossCycleBackoffDeadline = dateProvider().addingTimeInterval(rest)
+                sensorLog.notice("drain: cross-cycle backoff armed — next enqueue-driven cycle in \(rest, privacy: .public)s (\(self.outageAlertPolicy.consecutiveExhaustedCycles, privacy: .public) consecutive exhausted cycle(s))")
+            } else {
+                crossCycleBackoffDeadline = nil
             }
         }
     }

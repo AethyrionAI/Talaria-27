@@ -685,3 +685,449 @@ struct SensorDrainGiveUpTests {
         gate.release()
     }
 }
+
+/// #117 — cross-cycle backoff. The intra-cycle busy ladder (#103) bounds one
+/// drain cycle, but `healthBusyRetries` is a per-cycle local: during an
+/// outage the backlog is never empty, enqueue-driven triggers restart a
+/// fresh cycle the instant the previous one exits, and the ladder resets to
+/// zero every time. The 2026-07-25 device pass measured the result over a
+/// 27-minute induced outage: inter-burst rest collapsed ~200s → ~15s (the
+/// ladder duration itself), 18.5 req/min while delivering nothing vs 3.5
+/// req/min while draining. These tests pin the fix: consecutive
+/// retry-exhausted cycles arm a strictly escalating rest between cycles
+/// (30s doubling to a 300s ceiling), any delivery resets it, and
+/// recovery-plausible signals lift the gate without decaying the ladder.
+///
+/// All multi-cycle tests drive simulated time through the injected
+/// `dateProvider` — no sleeping — so a run spanning 30 simulated minutes of
+/// outage (past the 25-minute window where the original #117 close broke
+/// down) completes in milliseconds. Serialized: the URLProtocol stub's
+/// handler is a static shared across the suite; the stub class is a
+/// deliberate sibling of `SensorDrainGiveUpTests`' (not shared) so the two
+/// suites can run concurrently without handler cross-talk.
+@Suite(.serialized)
+@MainActor
+struct SensorCrossCycleBackoffTests {
+
+    private final class BackoffStubURLProtocol: URLProtocol, @unchecked Sendable {
+        nonisolated(unsafe) static var requestHandler: (@Sendable (URLRequest) throws -> (HTTPURLResponse, Data))?
+
+        override class func canInit(with request: URLRequest) -> Bool {
+            true
+        }
+
+        override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+            request
+        }
+
+        override func startLoading() {
+            guard let handler = Self.requestHandler else {
+                client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+                return
+            }
+
+            do {
+                let (response, data) = try handler(request)
+                client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+                client?.urlProtocol(self, didLoad: data)
+                client?.urlProtocolDidFinishLoading(self)
+            } catch {
+                client?.urlProtocol(self, didFailWithError: error)
+            }
+        }
+
+        override func stopLoading() {}
+    }
+
+    private final class MutableBox<T>: @unchecked Sendable {
+        var value: T
+
+        init(_ value: T) {
+            self.value = value
+        }
+    }
+
+    /// isPairedProvider stand-in with a circuit breaker (same idiom as
+    /// SensorDrainGiveUpTests): if a regression reintroduces an unbounded
+    /// drain loop, the gate exhausts and tests fail loudly on their request
+    /// counts instead of hanging the suite.
+    @MainActor
+    private final class PairedGate {
+        private var checksRemaining: Int
+        private(set) var tripped = false
+
+        init(limit: Int = 1024) {
+            checksRemaining = limit
+        }
+
+        func check() -> Bool {
+            checksRemaining -= 1
+            if checksRemaining < 0 {
+                tripped = true
+                return false
+            }
+            return true
+        }
+    }
+
+    /// The injected clock: tests move `now` explicitly, so escalating rests
+    /// are observed and crossed deterministically.
+    @MainActor
+    private final class SimulatedClock {
+        var now: Date
+
+        init(startingAt instant: Date) {
+            now = instant
+        }
+
+        func advance(by seconds: TimeInterval) {
+            now = now.addingTimeInterval(seconds)
+        }
+    }
+
+    private enum ConnectorScript {
+        /// Relay 202 "retry" on every POST — the dead-connector shape.
+        case busy
+        /// Every POST delivers — the healthy connector.
+        case deliver
+    }
+
+    private func installHandler(script: MutableBox<ConnectorScript>, requests: MutableBox<Int>) {
+        BackoffStubURLProtocol.requestHandler = { request in
+            requests.value += 1
+            let url = try #require(request.url)
+            switch script.value {
+            case .busy:
+                let response = HTTPURLResponse(url: url, statusCode: 202, httpVersion: nil, headerFields: nil)!
+                return (response, Data(#"{"data":{"deliveryState":"retry"}}"#.utf8))
+            case .deliver:
+                let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+                return (response, Data(#"{"data":{"deliveryState":"delivered"}}"#.utf8))
+            }
+        }
+    }
+
+    private func makeBackoffService(
+        persistence: any AppPersistenceStoreProtocol,
+        gate: DebounceGate,
+        pairedGate: PairedGate,
+        clock: SimulatedClock
+    ) -> SensorUploadService {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [BackoffStubURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        return SensorUploadService(
+            apiClient: RelayAPIClient(baseURLProvider: { "https://relay.test/v1" }, session: session),
+            accessTokenProvider: { "backoff-test-token" },
+            persistence: persistence,
+            isPairedProvider: { pairedGate.check() },
+            isHealthCollectionEnabled: { false },
+            isLocationCollectionEnabled: { false },
+            locationService: LiveLocationService(),
+            healthService: LiveHealthService(),
+            motionService: nil,
+            notificationCenter: NotificationCenter(),
+            persistDebounceWait: { @MainActor in await gate.wait() },
+            busyBackoffWait: { @MainActor _ in },
+            dateProvider: { clock.now }
+        )
+    }
+
+    @Test("Consecutive exhausted cycles arm a strictly increasing rest up to the ceiling; ticks inside a rest send nothing")
+    func exhaustedCyclesEscalateTheRestBetweenCycles() async throws {
+        let requests = MutableBox(0)
+        let script = MutableBox(ConnectorScript.busy)
+        installHandler(script: script, requests: requests)
+        defer { BackoffStubURLProtocol.requestHandler = nil }
+
+        let clock = SimulatedClock(startingAt: Date(timeIntervalSince1970: 1_753_500_000))
+        let store = SpyPersistenceStore()
+        let gate = DebounceGate()
+        let pairedGate = PairedGate()
+        let service = makeBackoffService(persistence: store, gate: gate, pairedGate: pairedGate, clock: clock)
+
+        service.start()
+        service.recordHealthSamples((0..<5).map(healthSample))
+
+        var observedRests: [TimeInterval] = []
+        var expectedPosts = 0
+        for _ in 0..<7 {
+            // The enqueue-driven trigger shape: a sensor tick calling the
+            // drain directly, with no gate-lifting lifecycle event.
+            await service.drainOutboxIfPossible()
+            expectedPosts += 1 + SensorUploadService.maxHealthBusyRetries
+            #expect(requests.value == expectedPosts)
+
+            let deadline = try #require(service.crossCycleBackoffDeadline)
+            observedRests.append(deadline.timeIntervalSince(clock.now))
+
+            // A tick INSIDE the rest window is suppressed outright — zero
+            // requests leave the phone.
+            clock.advance(by: 1)
+            await service.drainOutboxIfPossible()
+            #expect(requests.value == expectedPosts)
+
+            clock.now = deadline  // the rest expires — the next cycle is allowed
+        }
+
+        // Strictly increasing gaps between cycles, up to the ceiling, then
+        // pinned at it.
+        let ceiling = ConnectorOutageAlertPolicy.crossCycleBackoffCeiling
+        #expect(observedRests.first == ConnectorOutageAlertPolicy.crossCycleBackoffBase)
+        #expect(observedRests.last == ceiling)
+        for (previous, next) in zip(observedRests, observedRests.dropFirst()) {
+            if previous < ceiling {
+                #expect(next > previous)
+            } else {
+                #expect(next == ceiling)
+            }
+        }
+
+        // Backlog integrity across the whole outage: 28 202-POSTs, zero
+        // false "delivered" — and suppressed ticks never changed the #104
+        // write cadence.
+        #expect(service.sensorDiagnostics.pendingHealthCount == 5)
+        #expect(store.sensorOutboxSaveCount == 0)
+        #expect(pairedGate.tripped == false)
+
+        gate.release()
+    }
+
+    @Test("One delivery resets the escalation to baseline")
+    func deliveryResetsEscalationToBaseline() async throws {
+        let requests = MutableBox(0)
+        let script = MutableBox(ConnectorScript.busy)
+        installHandler(script: script, requests: requests)
+        defer { BackoffStubURLProtocol.requestHandler = nil }
+
+        let clock = SimulatedClock(startingAt: Date(timeIntervalSince1970: 1_753_500_000))
+        let gate = DebounceGate()
+        let pairedGate = PairedGate()
+        let service = makeBackoffService(persistence: SpyPersistenceStore(), gate: gate, pairedGate: pairedGate, clock: clock)
+
+        service.start()
+        service.recordHealthSamples((0..<5).map(healthSample))
+
+        let base = ConnectorOutageAlertPolicy.crossCycleBackoffBase
+        await service.drainOutboxIfPossible()  // exhausted — streak 1
+        var deadline = try #require(service.crossCycleBackoffDeadline)
+        #expect(deadline.timeIntervalSince(clock.now) == base)
+        clock.now = deadline
+
+        await service.drainOutboxIfPossible()  // exhausted — streak 2, escalated
+        deadline = try #require(service.crossCycleBackoffDeadline)
+        #expect(deadline.timeIntervalSince(clock.now) == base * 2)
+        clock.now = deadline
+
+        script.value = .deliver
+        await service.drainOutboxIfPossible()  // the connector is back — one delivery
+        #expect(service.crossCycleBackoffDeadline == nil)
+        #expect(service.sensorDiagnostics.pendingHealthCount == 0)
+
+        // A LATER outage starts the ladder from the base again — the old
+        // streak is gone, not paused.
+        script.value = .busy
+        service.recordHealthSamples([healthSample(100)])
+        await service.drainOutboxIfPossible()
+        deadline = try #require(service.crossCycleBackoffDeadline)
+        #expect(deadline.timeIntervalSince(clock.now) == base)
+        #expect(pairedGate.tripped == false)
+
+        gate.release()
+    }
+
+    @Test("30 simulated minutes of sustained outage: retry rate stays well below the healthy-baseline drain rate")
+    func sustainedOutageRateStaysBelowHealthyBaselineOver30Minutes() async {
+        // Duration statement (the #117 method note): 30 simulated minutes —
+        // past the 25-minute window where the original close's short check
+        // scored a false PASS. Ticks every 10s model continuous sensor
+        // churn, the cadence that made pre-fix cycles run back-to-back.
+        let t0 = Date(timeIntervalSince1970: 1_753_500_000)
+        let tickInterval: TimeInterval = 10
+        let simulatedDuration: TimeInterval = 30 * 60
+
+        // Phase 1 — healthy baseline: every tick's sample delivers.
+        let healthyRequests = MutableBox(0)
+        installHandler(script: MutableBox(ConnectorScript.deliver), requests: healthyRequests)
+        defer { BackoffStubURLProtocol.requestHandler = nil }
+
+        let healthyClock = SimulatedClock(startingAt: t0)
+        let healthyGate = DebounceGate()
+        let healthyPairedGate = PairedGate(limit: 8192)
+        let healthyService = makeBackoffService(
+            persistence: SpyPersistenceStore(),
+            gate: healthyGate,
+            pairedGate: healthyPairedGate,
+            clock: healthyClock
+        )
+        healthyService.start()
+
+        var tick: TimeInterval = 0
+        var sampleIndex = 0
+        while tick < simulatedDuration {
+            healthyClock.now = t0.addingTimeInterval(tick)
+            healthyService.recordHealthSamples([healthSample(sampleIndex)])
+            await healthyService.drainOutboxIfPossible()
+            sampleIndex += 1
+            tick += tickInterval
+        }
+        let healthyPosts = healthyRequests.value
+        #expect(healthyPosts == Int(simulatedDuration / tickInterval))  // sanity: one delivered POST per tick
+        #expect(healthyPairedGate.tripped == false)
+
+        // Phase 2 — the same tick cadence against a dead connector.
+        let outageRequests = MutableBox(0)
+        installHandler(script: MutableBox(ConnectorScript.busy), requests: outageRequests)
+
+        let outageClock = SimulatedClock(startingAt: t0)
+        let outageGate = DebounceGate()
+        let outagePairedGate = PairedGate(limit: 8192)
+        let outageService = makeBackoffService(
+            persistence: SpyPersistenceStore(),
+            gate: outageGate,
+            pairedGate: outagePairedGate,
+            clock: outageClock
+        )
+        outageService.start()
+
+        tick = 0
+        while tick < simulatedDuration {
+            outageClock.now = t0.addingTimeInterval(tick)
+            outageService.recordHealthSamples([healthSample(sampleIndex)])
+            await outageService.drainOutboxIfPossible()
+            sampleIndex += 1
+            tick += tickInterval
+        }
+        let outagePosts = outageRequests.value
+
+        // The #117 invariant as a RELATIONSHIP, not a magic number: a phone
+        // delivering nothing must request well below one draining healthily.
+        // The device pass measured pre-fix at 126% of healthy baseline
+        // (pre-fix this harness produces 4 POSTs per tick — 400%); assert
+        // under 50%.
+        #expect(outagePosts * 2 < healthyPosts)
+        #expect(outagePairedGate.tripped == false)
+
+        healthyGate.release()
+        outageGate.release()
+    }
+
+    @Test("Recovery after a long outage: the enqueue-driven path alone re-probes within one ceiling rest and fully drains")
+    func recoveryAfterLongOutageDrainsPromptly() async throws {
+        let requests = MutableBox(0)
+        let script = MutableBox(ConnectorScript.busy)
+        installHandler(script: script, requests: requests)
+        defer { BackoffStubURLProtocol.requestHandler = nil }
+
+        let clock = SimulatedClock(startingAt: Date(timeIntervalSince1970: 1_753_500_000))
+        let gate = DebounceGate()
+        let pairedGate = PairedGate()
+        let service = makeBackoffService(persistence: SpyPersistenceStore(), gate: gate, pairedGate: pairedGate, clock: clock)
+
+        service.start()
+        service.recordHealthSamples((0..<150).map(healthSample))
+
+        // Ride the ladder to the ceiling: five consecutive exhausted cycles.
+        for cycle in 0..<5 {
+            if cycle > 0 {
+                clock.now = try #require(service.crossCycleBackoffDeadline)
+            }
+            await service.drainOutboxIfPossible()
+        }
+        let deadline = try #require(service.crossCycleBackoffDeadline)
+        let burstPosts = requests.value
+
+        // Worst case: the connector recovers the instant the 5th burst ends
+        // — a full ceiling rest away from the next probe, and no external
+        // wake arrives to lift the gate early.
+        let recoveryInstant = clock.now
+        script.value = .deliver
+        let observedLatency = deadline.timeIntervalSince(recoveryInstant)
+        #expect(observedLatency == ConnectorOutageAlertPolicy.crossCycleBackoffCeiling)
+
+        clock.now = deadline
+        await service.drainOutboxIfPossible()
+
+        // One cycle, two chunks (150 samples), clean FULL drain — no ladder,
+        // no residue, and the delivery dissolved the gate and the streak.
+        #expect(requests.value == burstPosts + 2)
+        #expect(service.sensorDiagnostics.pendingHealthCount == 0)
+        #expect(service.crossCycleBackoffDeadline == nil)
+        #expect(pairedGate.tripped == false)
+
+        gate.release()
+    }
+
+    @Test("Foreground lifts the gate mid-rest: recovery is detected with zero added latency")
+    func foregroundLiftsTheGateForAnImmediateProbe() async throws {
+        let requests = MutableBox(0)
+        let script = MutableBox(ConnectorScript.busy)
+        installHandler(script: script, requests: requests)
+        defer { BackoffStubURLProtocol.requestHandler = nil }
+
+        let clock = SimulatedClock(startingAt: Date(timeIntervalSince1970: 1_753_500_000))
+        let gate = DebounceGate()
+        let pairedGate = PairedGate()
+        let service = makeBackoffService(persistence: SpyPersistenceStore(), gate: gate, pairedGate: pairedGate, clock: clock)
+
+        service.start()
+        service.recordHealthSamples((0..<5).map(healthSample))
+
+        for cycle in 0..<3 {
+            if cycle > 0 {
+                clock.now = try #require(service.crossCycleBackoffDeadline)
+            }
+            await service.drainOutboxIfPossible()
+        }
+        #expect(service.crossCycleBackoffDeadline != nil)  // deep in an armed rest
+
+        // The connector recovers and the user foregrounds the app mid-rest.
+        // The clock does NOT move: the probe must not wait the rest out.
+        script.value = .deliver
+        await service.handleAppDidBecomeActive()
+
+        #expect(service.sensorDiagnostics.pendingHealthCount == 0)
+        #expect(service.crossCycleBackoffDeadline == nil)
+        #expect(pairedGate.tripped == false)
+
+        gate.release()
+    }
+
+    @Test("An external wake that still exhausts re-arms at the ESCALATED rest — lifts cannot decay the ladder")
+    func externalProbeKeepsEscalationWhileStillExhausting() async throws {
+        let requests = MutableBox(0)
+        let script = MutableBox(ConnectorScript.busy)
+        installHandler(script: script, requests: requests)
+        defer { BackoffStubURLProtocol.requestHandler = nil }
+
+        let clock = SimulatedClock(startingAt: Date(timeIntervalSince1970: 1_753_500_000))
+        let gate = DebounceGate()
+        let pairedGate = PairedGate()
+        let service = makeBackoffService(persistence: SpyPersistenceStore(), gate: gate, pairedGate: pairedGate, clock: clock)
+
+        service.start()
+        service.recordHealthSamples((0..<5).map(healthSample))
+
+        for cycle in 0..<2 {
+            if cycle > 0 {
+                clock.now = try #require(service.crossCycleBackoffDeadline)
+            }
+            await service.drainOutboxIfPossible()
+        }
+        let postsBeforeWake = requests.value
+
+        // A launch-shaped wake mid-rest, connector still dead: the probe
+        // runs now (one ladder burst), but the re-armed rest continues the
+        // escalation — streak 3's rest, not a restart from the base.
+        await service.handleSystemLaunch()
+        #expect(requests.value == postsBeforeWake + 1 + SensorUploadService.maxHealthBusyRetries)
+
+        var reference = ConnectorOutageAlertPolicy()
+        for _ in 0..<3 { _ = reference.record(.retryExhausted) }
+        let deadline = try #require(service.crossCycleBackoffDeadline)
+        #expect(deadline.timeIntervalSince(clock.now) == reference.recommendedCrossCycleBackoff)
+        #expect(pairedGate.tripped == false)
+
+        gate.release()
+    }
+}
