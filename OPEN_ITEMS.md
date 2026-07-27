@@ -8472,6 +8472,18 @@ Logged 2026-07-25.
 > (threads believed local actually ran on Hermes) and it feeds the #190
 > `isLocalThread` contamination hole. Severity: this plus #191 means the user
 > CANNOT KNOW which brain has their conversation. Ship blocker adjacent.
+>
+> **INITIATOR FOUND 2026-07-26 late (source, ChatBackendRouter).** Not failover,
+> not big-request routing: `resolvedBrainForNextTurn()` defaults to **Hermes on a
+> paired device**, and the on-device pick is a **per-conversation preference
+> keyed to the conversation UUID** — so New chat / clearConversation / #190
+> openSession orphan the pick and the next send or ~10s `connect()` probe
+> reverts. The refusal half: `refreshActiveBrain()` no-ops while `runningBrain
+> != nil`, and `sendStreaming` only clears `runningBrain` on completion, so a
+> dropped run wedges routing until force quit. Full mechanism + fix
+> requirements in the dispatch. **Carries a product decision for Owen:** brain
+> pick as sticky mode (recommended) vs per-conversation-with-Hermes-default
+> (current coded behavior).
 
 > **INTERMITTENT — could not be reproduced on demand 2026-07-26.** Owen attempted
 > a fresh reproduction and the switch behaved correctly. This is a real data
