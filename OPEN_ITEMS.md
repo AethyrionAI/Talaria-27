@@ -8365,6 +8365,25 @@ Logged 2026-07-25.
 
 ## 190. 🐛 SHIP BLOCKER — standalone sessions are a single slot at every layer; "New" destroys all prior local history
 
+> **DEVICE PASS 2026-07-26 — FAIL; PR #151 held open with requested changes.**
+> What held: sessions list, survive kill/relaunch, and the SIGTRAP workaround
+> survived a cold boot — the storage layer is sound. What failed: tapping a
+> stored session does **nothing**, deterministically.
+>
+> **Root cause (source-traced): a routing asymmetry the unified drawer exposed.**
+> `ChatBackendRouter.openSession` routes local ids by membership, but every
+> non-local id falls through to the **active brain**. Post-#190 the drawer shows
+> Hermes rows while the local brain is active — tapping one sends a Hermes id to
+> `LocalChatBackend.openSession` → `sessionNotFound` → swallowed by
+> `ChatStore.openSession`'s log-only catch → silent dead tap. Interacts with
+> #192: this handset's "on-device" threads mostly ran on Hermes, so nearly every
+> row was a dead tap. Also found: the walk-away persist's `isLocalThread` guard
+> (any message stamped on-device) lets #192's mixed paired-mode threads
+> contaminate the local store. Five requested changes on the PR, including
+> symmetric membership routing, killing the silent catch, and a maximal
+> real-shaped round-trip test. Not SwiftData: predicates were already avoided,
+> Message's Codable is symmetric, and list/fetch share the same fetch-all path.
+
 **Observed 2026-07-25/26 on whoGoesThere (iPhone 17 Pro Max), on-device backend.** Start a new chat
 and the previous local conversation is gone — not merely unlisted, unreachable. Make a new chat, hit
 New again, and that one is gone too. The sessions drawer shows nothing for past local chats. Hermes
@@ -8433,7 +8452,26 @@ Logged 2026-07-25.
 
 ---
 
-## 192. 🐛 Switching to on-device is silently refused until force quit
+## 192. 🐛 The app SWITCHES ITSELF away from on-device; the refused manual switch is the residue
+
+> **RE-DIAGNOSED 2026-07-26 (device, with screenshots).** The original report —
+> "switching to on-device doesn't take" — was the *symptom of recovery*, not the
+> defect. Observed live: with ON-DEVICE active, a request for a 500-word summary
+> **switched the backend to Hermes on its own** — no user action. Screenshots
+> show ON-DEVICE badge + `DEEPSEEK-V4-FLASH` pill + `ONLINE · OJAMD` +
+> server-shaped tool confirmations simultaneously. Whatever performs that
+> reversion leaves state behind that then refuses the manual switch back until a
+> force quit.
+>
+> So the lane is now: **find what INITIATES an un-asked backend change** —
+> deliberate big-request routing? failover on a local-model error? — then
+> instrument both directions. If it is designed failover it must announce itself
+> and be consented; silent reversion with a lying header is not a feature.
+> First reproducible lead: long-form generation requests ("write a 500 word
+> summary"). Consequence already banked: it contaminated the #190 device pass
+> (threads believed local actually ran on Hermes) and it feeds the #190
+> `isLocalThread` contamination hole. Severity: this plus #191 means the user
+> CANNOT KNOW which brain has their conversation. Ship blocker adjacent.
 
 > **INTERMITTENT — could not be reproduced on demand 2026-07-26.** Owen attempted
 > a fresh reproduction and the switch behaved correctly. This is a real data
