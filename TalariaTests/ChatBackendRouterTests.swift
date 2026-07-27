@@ -61,8 +61,8 @@ struct ChatBackendRouterTests {
 
     private func makeRouter(
         hermesConfigured: Bool,
-        hermes: StubBackend,
-        local: StubBackend,
+        hermes: any HermesClientProtocol,
+        local: any HermesClientProtocol,
         defaults: UserDefaults? = nil
     ) -> ChatBackendRouter {
         ChatBackendRouter(
