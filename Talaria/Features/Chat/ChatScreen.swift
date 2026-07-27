@@ -173,6 +173,8 @@ struct ChatScreen: View {
                 // the escalation offer (user decides, never silent).
                 if let explanation = standaloneUnavailableExplanation {
                     standaloneUnavailableBanner(explanation)
+                } else if let failure = chatStore.sessionOpenFailure {
+                    sessionOpenFailureBanner(failure)
                 } else if let notice = container.chatBackendRouter?.privateCloudFallbackNotice {
                     privateCloudNoticeBanner(notice)
                 } else if showsPrivateCloudEscalationOffer {
@@ -1005,6 +1007,44 @@ struct ChatScreen: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// #190B: a session tap that failed to open — the banner form of what
+    /// used to be a silent log line. The current thread is unchanged (the
+    /// open never adopted anything), so the banner rides above it until the
+    /// user dismisses it, opens a session successfully, or starts a new chat.
+    private func sessionOpenFailureBanner(_ failure: ChatStore.SessionOpenFailure) -> some View {
+        HStack(alignment: .center, spacing: Design.Spacing.sm) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: Design.Size.iconSmall))
+                .foregroundStyle(Design.Colors.danger)
+
+            VStack(alignment: .leading, spacing: Design.Spacing.xxxs) {
+                MonoLabel("COULDN'T OPEN CONVERSATION", size: 11, weight: .medium,
+                          tracking: Design.Tracking.mono, color: Design.Colors.foregroundBright)
+                Text(failure.message)
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+            }
+
+            Spacer()
+
+            Button {
+                chatStore.dismissSessionOpenFailure()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: Design.Size.iconSmall, weight: .medium))
+                    .foregroundStyle(Design.Colors.mutedForeground)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss")
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+        .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Colors.danger.opacity(0.35))
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.top, Design.Spacing.md)
+        .frame(maxWidth: Design.Layout.chatMeasureMaxWidth)
+    }
+
     // MARK: - Private Cloud β surfaces (#30)
 
     /// One-line honest notice: a PCC-pinned conversation degraded to
@@ -1357,12 +1397,17 @@ struct ChatScreen: View {
         do {
             try await chatStore.clearConversation()
             showStatusCard = false
-            // J-8: surface the fresh session in the persistent sidebar
-            // (compact's drawer refetches on its next open regardless).
-            await refreshSessions(force: true)
         } catch {
             // Conversation unchanged on failure — user can retry
         }
+        // J-8: surface the fresh session in the persistent sidebar
+        // (compact's drawer refetches on its next open regardless).
+        // #190B: forced on BOTH outcomes — the walk-away persist runs inside
+        // clearConversation's teardown before the Hermes-side clear can
+        // throw, so the session list may have changed even when the clear
+        // failed; skipping the refresh left the drawer's snapshot without
+        // the departing chat.
+        await refreshSessions(force: true)
     }
 
     /// M-15/M-16: starts a new chat, optionally born on a NAMED backend
