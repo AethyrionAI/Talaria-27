@@ -8408,6 +8408,51 @@ install.
 
 Logged 2026-07-26.
 
+**UPDATE 2026-07-26 — BUILT + suite-green on branch `claude/t27-190-local-session-store`** (spec
+executed: `dispatch/OPUS-T27-190-local-session-store.md`; Xcode-beta4, pinned sim 47F68496:
+**1192 tests in 107 suites passed**, baseline confirmed 1166/105 before the change — delta is
+exactly the 26 new tests in 2 new suites; the full bundle run's TEST SUCCEEDED includes the
+UITests). **NOT device-verified — device pass owed by Owen;
+the PR body carries the exact checklist. Do not close this item on suite green.**
+
+- **Phase 1:** `LocalSessionStoring` protocol + `SwiftDataLocalSessionStore` (two `@Model`s:
+  `LocalSessionRecord`, `RemoteSessionStubRecord`). Transcript is an encoded-`Conversation` blob on
+  the row — deliberate: reuses the cache-proven `Message` coders; list queries never decode a
+  transcript (denormalized columns). NOT the #104 pathology: one session row per walk-away, not a
+  whole-collection rewrite per tick. **Beta gotcha, hard-won (bisection + live lldb): on iOS 27
+  beta 4, `ModelContainer.mainContext` SIGTRAPs silently (`brk #1` inside SwiftData, no fatal
+  message) on any fetch issued from a MainActor Task — the runtime executes such tasks on a
+  non-main OS thread ("Task N"), and mainContext is main-QUEUE-asserting underneath. The identical
+  fetch on the true main thread succeeds (proved with an in-app probe matrix: trivial/UUID/unique/
+  Data/optionals models AND the real models all fetch fine from app boot; the same fetch from the
+  chat screen's async chain dies). Fix: a private `ModelContext(container)` — actor confinement
+  via the @MainActor store, explicit saves. Do NOT reach for `mainContext` anywhere on this
+  beta.** Configuration pinned explicit: named store `TalariaLocalSessions.store`,
+  `groupContainer: .none` (app-private; also keeps the unsigned test host off the group
+  container), `cloudKitDatabase: .none`.
+- **Phase 2:** `LocalChatBackend.listSessions()` = stored sessions ∪ live thread (live copy
+  outranks its stale stored row), most-recent-first; `openSession(id)` loads any stored session.
+  The walk-away persist lives INSIDE `abandonPendingRun` (#184's primitive, un-fragmented — the
+  "primitive is sync, saves may not be" objection dissolved: the store's context saves are
+  sync). Discriminator shared by persist + adoption, defined once in AppContainer: local iff no
+  host configured OR a local-brained assistant turn is present. `reset()` therefore no longer
+  destroys standalone history on pairing changes.
+- **Phase 3:** legacy single-slot cache adopted once per process; idempotent via id-keyed upsert
+  (relaunch-proof, unit-asserted); the cache stays as the kill/relaunch restore path.
+- **Phase 4:** router merges one unified recency-sorted list; `openSession` routes by membership
+  first (local ids open locally even while Hermes is the active brain); last live Hermes list is
+  snapshotted so after unpair those sessions stay visible, dimmed, reason "Host unpaired —
+  reconnect to open", non-navigable (drawer + search choke point), excluded from Spotlight
+  donation. Origin glyphs (iphone/desktopcomputer, same language as `Brain.glyph`) render in the
+  row's existing 15pt gutter, suppressed until both sources coexist. Connected-mode: a configured
+  host's list failure still throws exactly as before (unit-asserted).
+- **stopSpeech fold-in (Owen's call, same day, own commit):** `ChatStore.openSession` now passes
+  `stopSpeech: true` — read-aloud stops on session switch. #184 teardown tests pass unmodified.
+- Tests: +26 (`LocalSessionStoreTests`, `LocalSessionHistoryTests`), all watched red first.
+- Known seam left for **#191/#192**: after opening a local session while paired, the NEXT turn
+  still routes by brain preference (un-pinned → Hermes, contextless). Deliberately untouched here.
+- #176's tool-reflex half of the trap remains its own lane; this lane removed the data-loss half.
+
 ---
 
 ## 191. 🐛 Chat header is not backend-aware — title and model pill keep reporting the Hermes session
