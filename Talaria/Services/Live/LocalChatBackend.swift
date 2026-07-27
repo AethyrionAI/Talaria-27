@@ -1637,9 +1637,22 @@ extension LocalChatBackend {
     /// Read once per process — the cells are launch-scoped, so a mid-run env
     /// mutation can never make one conversation's session builds disagree.
     static let activeSessionShape: SessionShape = {
-        guard let raw = ProcessInfo.processInfo.environment["TALARIA_SESSION_SHAPE"],
-              let shape = SessionShape(rawValue: raw) else { return .armed }
-        return shape
+        if let raw = ProcessInfo.processInfo.environment["TALARIA_SESSION_SHAPE"],
+           let shape = SessionShape(rawValue: raw) {
+            return shape
+        }
+        // Desk A/B (#194): a DEBUG-only persisted override so the cells are
+        // reachable from a home-screen launch — OTA installs cannot carry
+        // launch environment, and the phone is unreachable by Xcode over the
+        // tailnet. Read ONCE here like the env path, so the launch-scoped
+        // invariant above holds: the Diagnostics picker takes effect on the
+        // NEXT launch (force-quit between cells is the A/B protocol anyway).
+        // Launch env wins when both are set.
+        if let raw = UserDefaults.standard.string(forKey: "debug.sessionShape"),
+           let shape = SessionShape(rawValue: raw) {
+            return shape
+        }
+        return .armed
     }()
 
     /// The instructions each cell hands the session. `hasTools` /

@@ -298,11 +298,36 @@ struct DiagnosticsSettingsScreen: View {
     }
 
     @State private var forcedTripState: ForcedTripState = .idle
+    // #194/176C: mirrors the persisted debug.sessionShape override; seeded
+    // from defaults so the picker reflects the pending (next-launch) cell.
+    @State private var sessionShapeOverride: String =
+        UserDefaults.standard.string(forKey: "debug.sessionShape") ?? "armed"
 
     private var localBrainPanel: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             MonoLabel("// Local brain — #102", size: 10, tracking: Design.Tracking.monoXWide,
                       color: Design.Colors.mutedForeground)
+
+            // #194/176C desk A/B: pick the session shape for the NEXT launch.
+            // Mirrors the TALARIA_SESSION_SHAPE launch env (which wins when
+            // set); read once per process, so a change here needs a
+            // force-quit + relaunch to take effect — which is the A/B
+            // protocol between cells anyway.
+            VStack(alignment: .leading, spacing: Design.Spacing.xs) {
+                MonoLabel("Session shape A/B (#194) — active: \(LocalChatBackend.activeSessionShape.rawValue). Changes apply after force-quit + relaunch; start a NEW chat per cell.",
+                          size: 9, tracking: Design.Tracking.mono,
+                          color: Design.Colors.secondaryForeground)
+                Picker("Session shape", selection: $sessionShapeOverride) {
+                    Text("armed (control)").tag("armed")
+                    Text("armed-noprose").tag("armed-noprose")
+                    Text("prose-notools").tag("prose-notools")
+                    Text("toolless").tag("toolless")
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: sessionShapeOverride) { _, newValue in
+                    UserDefaults.standard.set(newValue, forKey: "debug.sessionShape")
+                }
+            }
 
             VStack(alignment: .leading, spacing: Design.Spacing.sm) {
                 MonoLabel("Streams a synthetic loop through the real on-device chat path. Turn on read-aloud first to verify #110.",
