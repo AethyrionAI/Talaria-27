@@ -403,13 +403,22 @@ final class ChatBackendRouter: HermesClientProtocol {
 
     func openSession(_ id: String) async throws -> Conversation {
         // #190: the unified drawer mixes sources, so an id routes by
-        // MEMBERSHIP first — a stored local session opens on the local
-        // backend even while the active brain is Hermes. Everything else
-        // keeps the pre-#190 active-brain routing.
+        // MEMBERSHIP on both sides — a stored local session opens on the
+        // local backend even while the active brain is Hermes, and a
+        // non-local id is a REMOTE session that opens on Hermes even while
+        // the active brain is local (the 2026-07-26 device fail: active-brain
+        // routing sent Hermes rows to `LocalChatBackend`, which threw
+        // `sessionNotFound` on every tap). Only an unconfigured Hermes falls
+        // back to the active brain — those rows are unresumable stubs and
+        // the drawer already blocks their taps, so the fallback exists for
+        // shape, not policy.
         if isLocalSessionID?(id) == true {
             return try await local.openSession(id)
         }
-        return try await backend(for: runningBrain ?? activeBrain).openSession(id)
+        guard isHermesConfigured() else {
+            return try await backend(for: runningBrain ?? activeBrain).openSession(id)
+        }
+        return try await hermes.openSession(id)
     }
 
     func reconcileFromServer() async -> Conversation? {
