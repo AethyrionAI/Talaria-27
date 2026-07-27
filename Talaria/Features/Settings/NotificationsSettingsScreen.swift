@@ -71,20 +71,74 @@ struct NotificationsSettingsScreen: View {
         )
     }
 
+    // #189: the single resolution rule for what the hero asserts. OS
+    // authorization is a fact the old hero never read — an APNs token and a
+    // relay registration are both obtainable while authorization is
+    // NotDetermined, so "ALERTS ACTIVE" could render while every alert was
+    // silently dropped. Pure (the #146 precedent) so the no-false-green rule
+    // is assertable without standing up a container.
+    enum AlertsDisplayState: Equatable {
+        /// OS authorization denied/restricted — nothing can be delivered.
+        case blocked
+        /// Authorization has never been requested (`NotDetermined`).
+        case notRequested
+        /// The in-app Push toggle is off.
+        case paused
+        /// Authorized but iOS has not issued an APNs token.
+        case awaitingToken
+        /// Authorized, token held, relay registration unconfirmed.
+        case awaitingRelay
+        /// Provisional/ephemeral authorization (quiet delivery) + registered —
+        /// alerts flow, but not as full banners; labeled as its own fact.
+        case provisional
+        /// Authorized + registered — the only full green.
+        case active
+    }
+
+    static func alertsDisplayState(
+        authorization: PermissionStatus,
+        notificationsEnabled: Bool,
+        pipeline: AppContainer.PushTokenPipelineState
+    ) -> AlertsDisplayState {
+        // The OS gate precedes the app gate: when iOS cannot deliver at all,
+        // that is the headline regardless of the in-app toggle.
+        switch authorization {
+        case .denied, .restricted: return .blocked
+        case .notDetermined: return .notRequested
+        default: break
+        }
+        guard notificationsEnabled else { return .paused }
+        switch pipeline {
+        case .notIssued: return .awaitingToken
+        case .awaitingRelay: return .awaitingRelay
+        case .registered: return authorization == .limited ? .provisional : .active
+        }
+    }
+
+    private var displayState: AlertsDisplayState {
+        Self.alertsDisplayState(
+            authorization: notifAuthStatus,
+            notificationsEnabled: notificationsEnabled,
+            pipeline: pipelineState
+        )
+    }
+
     private var hero: (icon: String, title: String, subtitle: String, color: Color) {
-        if osDenied {
-            return ("bell.slash", "ALERTS BLOCKED", "ENABLE IN SYSTEM SETTINGS", Design.Colors.danger)
-        }
-        guard notificationsEnabled else {
-            return ("bell.slash", "ALERTS PAUSED", "PUSH DISABLED", Design.Colors.mutedForeground)
-        }
-        switch pipelineState {
-        case .registered:
-            return ("bell.badge", "ALERTS ACTIVE", activeSubtitle, Design.Brand.accent)
+        switch displayState {
+        case .blocked:
+            ("bell.slash", "ALERTS BLOCKED", "ENABLE IN SYSTEM SETTINGS", Design.Colors.danger)
+        case .notRequested:
+            ("bell", "ALERTS NOT SET UP", "PERMISSION NOT REQUESTED", Design.Brand.forge)
+        case .paused:
+            ("bell.slash", "ALERTS PAUSED", "PUSH DISABLED", Design.Colors.mutedForeground)
+        case .awaitingToken:
+            ("bell", "ALERTS PENDING", "AWAITING APNS TOKEN", Design.Brand.forge)
         case .awaitingRelay:
-            return ("bell", "ALERTS PENDING", "AWAITING RELAY REGISTRATION", Design.Brand.forge)
-        case .notIssued:
-            return ("bell", "ALERTS PENDING", "AWAITING APNS TOKEN", Design.Brand.forge)
+            ("bell", "ALERTS PENDING", "AWAITING RELAY REGISTRATION", Design.Brand.forge)
+        case .provisional:
+            ("bell.badge", "ALERTS QUIET", "PROVISIONAL · DELIVERED QUIETLY", Design.Brand.forge)
+        case .active:
+            ("bell.badge", "ALERTS ACTIVE", activeSubtitle, Design.Brand.accent)
         }
     }
 
@@ -117,6 +171,23 @@ struct NotificationsSettingsScreen: View {
                     .frame(height: 1)
                     .padding(.horizontal, Design.Spacing.md)
 
+                // #189: two rows, two facts. OS authorization and relay
+                // registration are independent — both can be true or false in
+                // any combination, so neither may stand in for the other.
+                HStack(spacing: Design.Spacing.sm) {
+                    StatusPip(color: permissionState.color, diameter: 6)
+                    MonoLabel("PERMISSION · \(permissionState.text)", size: 10, weight: .medium,
+                              tracking: Design.Tracking.mono, color: permissionState.color)
+                    Spacer()
+                }
+                .padding(.horizontal, Design.Spacing.md)
+                .padding(.vertical, Design.Spacing.sm)
+
+                Rectangle()
+                    .fill(Design.Colors.hairline)
+                    .frame(height: 1)
+                    .padding(.horizontal, Design.Spacing.md)
+
                 HStack(spacing: Design.Spacing.sm) {
                     StatusPip(color: tokenState.color, diameter: 6)
                     MonoLabel(tokenState.text, size: 10, weight: .medium,
@@ -133,6 +204,15 @@ struct NotificationsSettingsScreen: View {
                 innerGlow: false
             )
 
+            if displayState == .notRequested {
+                // #189: the in-place way out of NotDetermined — the primary
+                // priming path rides the first chat send, but this screen must
+                // not be a dead end for a user who lands here first.
+                GhostButton(title: "Enable Notifications", systemImage: "bell.badge", height: 40) {
+                    Task { await permissionsStore.requestPermission(for: .notifications) }
+                }
+            }
+
             if osDenied {
                 Text("Notifications are turned off for Talaria in iOS Settings. Push won't be delivered until re-enabled there.")
                     .font(Design.Typography.caption)
@@ -141,11 +221,32 @@ struct NotificationsSettingsScreen: View {
         }
     }
 
+    /// #189: the OS-authorization fact, from UNAuthorizationStatus via
+    /// PermissionsStore — never inferred from token or registration state.
+    /// `.limited` is how LiveNotificationService maps provisional/ephemeral.
+    private var permissionState: (text: String, color: Color) {
+        switch notifAuthStatus {
+        case .authorized, .authorizedAlways, .authorizedWhenInUse:
+            ("GRANTED", Design.Brand.accent)
+        case .limited:
+            ("PROVISIONAL", Design.Brand.forge)
+        case .denied:
+            ("DENIED", Design.Colors.danger)
+        case .restricted:
+            ("RESTRICTED", Design.Colors.danger)
+        case .notDetermined:
+            ("NOT REQUESTED", Design.Brand.forge)
+        case .unsupported:
+            ("—", Design.Colors.mutedForeground)
+        }
+    }
+
     // Same three-state source of truth Diagnostics renders (AppContainer.
     // pushTokenPipelineState) so the two screens can never contradict:
-    // APNs token issuance and relay registration are separate stages.
+    // APNs token issuance and relay registration are separate stages. Pure
+    // pipeline truth — the OS-authorization fact lives in the PERMISSION row
+    // above (#189), not folded in here.
     private var tokenState: (text: String, color: Color) {
-        if osDenied { return ("OS DENIED", Design.Colors.danger) }
         switch pipelineState {
         case .registered:    return ("RELAY REGISTERED", Design.Brand.accent)
         case .awaitingRelay: return ("TOKEN HELD · AWAITING RELAY", Design.Brand.forge)
