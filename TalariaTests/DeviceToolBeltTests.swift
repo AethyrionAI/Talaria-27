@@ -159,6 +159,82 @@ struct DeviceToolBeltTests {
         #expect(armed.contains("never invent a value"))
     }
 
+    // MARK: Session-shape instrument (#194/176C)
+
+    /// A fixed date so the two texts under comparison can never straddle a
+    /// day boundary mid-test.
+    private static let shapeDate = Date(timeIntervalSince1970: 1_753_600_000)
+
+    @Test func noProseVariantDropsOnlyTheBeltRoster() {
+        let noProse = LocalChatBackend.instructionsText(
+            for: .armedNoProse, deviceContext: "Device: test.",
+            date: Self.shapeDate, hasTools: true
+        )
+        // The roster sentence is gone — both its halves.
+        #expect(!noProse.contains("You also have device tools"))
+        #expect(!noProse.contains("plus action tools"))
+        // The licensing clause now abuts the scoped use-tools sentence: the
+        // removal took exactly one sentence, not its neighbors.
+        #expect(noProse.contains("general knowledge is not device data. Use the tools for the user's own data"))
+        // The four kept sentences survive (176C hard constraint):
+        #expect(noProse.contains("need no tool"))                // licensing
+        #expect(noProse.contains("writing and composing"))       // licensing (#194)
+        #expect(noProse.contains("confirmation card first"))     // action confirmation
+        #expect(noProse.contains("never invent a value"))        // honesty
+        #expect(noProse.contains("never the answer"))            // recovery
+        #expect(noProse.contains("repeat a denial"))             // recovery
+    }
+
+    @Test func proseNoToolsVariantIsTheArmedTextVerbatim() {
+        let armed = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate, hasTools: true
+        )
+        // hasTools: false is what production computes for a session given no
+        // belt — the cell must still speak the armed branch, roster included.
+        let cell = LocalChatBackend.instructionsText(
+            for: .proseNoTools, deviceContext: "Device: test.",
+            date: Self.shapeDate, hasTools: false
+        )
+        #expect(cell == armed)
+    }
+
+    @Test func armedShapeIsProductionVerbatimAndToollessIsTheBareBranch() {
+        for hasImageTools in [false, true] {
+            let production = LocalChatBackend.instructionsText(
+                deviceContext: "Device: test.", date: Self.shapeDate,
+                hasTools: true, hasImageTools: hasImageTools
+            )
+            let control = LocalChatBackend.instructionsText(
+                for: .armed, deviceContext: "Device: test.",
+                date: Self.shapeDate, hasTools: true, hasImageTools: hasImageTools
+            )
+            #expect(control == production)
+        }
+        let bare = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate, hasTools: false
+        )
+        let farControl = LocalChatBackend.instructionsText(
+            for: .toolless, deviceContext: "Device: test.",
+            date: Self.shapeDate, hasTools: true
+        )
+        #expect(farControl == bare)
+    }
+
+    @Test func sessionShapeCellsParseFromLaunchEnvValuesAndGateTools() {
+        // The four launch-env spellings, exactly as the A/B checklist uses them.
+        #expect(LocalChatBackend.SessionShape(rawValue: "armed") == .armed)
+        #expect(LocalChatBackend.SessionShape(rawValue: "armed-noprose") == .armedNoProse)
+        #expect(LocalChatBackend.SessionShape(rawValue: "prose-notools") == .proseNoTools)
+        #expect(LocalChatBackend.SessionShape(rawValue: "toolless") == .toolless)
+        // An unknown value must fall back to production, never crash or guess.
+        #expect(LocalChatBackend.SessionShape(rawValue: "bogus") == nil)
+        // Which cells hand the session a belt at all.
+        #expect(LocalChatBackend.SessionShape.armed.registersTools)
+        #expect(LocalChatBackend.SessionShape.armedNoProse.registersTools)
+        #expect(!LocalChatBackend.SessionShape.proseNoTools.registersTools)
+        #expect(!LocalChatBackend.SessionShape.toolless.registersTools)
+    }
+
     // MARK: Vision-tool availability gating (#176)
 
     /// The SHIPPING read belt, filtered the way `LocalChatBackend` filters it.
