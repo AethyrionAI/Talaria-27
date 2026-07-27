@@ -1,15 +1,22 @@
 import Foundation
 
-/// #58 — the Control Center → app launch handoff.
+/// #58 — the Control Center → app launch handoff. Since 2026-07-27: the
+/// FALLBACK lane, expected to carry nothing.
 ///
-/// A control's intent cannot open the app on a `hermes://` URL. `OpenURLIntent`
-/// does not support custom URL schemes (Apple DTS: universal links are the
-/// supported mechanism), so AppIntents prepares `URL(nil)` and reports the
-/// action successful while nothing happens — the #58 defect, diagnosed from the
-/// device log on 2026-07-23. The controls therefore set `openAppWhenRun = true`
-/// and let the SYSTEM launch the app, leaving the destination here;
-/// `AppEntry` picks it up and feeds it to `handleDeeplink`, so controls,
-/// Spotlight, Siri and Safari all keep converging on one router.
+/// History, because both prior shapes died on device: `OpenURLIntent` does
+/// not support custom URL schemes (AppIntents prepared `URL(nil)` and
+/// reported success — diagnosed 2026-07-23), and the `openAppWhenRun = true`
+/// replacement was rejected outright at dispatch, `openAppWhenRun is not
+/// supported in extensions`, Code 2001 (device pass 2026-07-25) — so
+/// `perform()` never executed and this store was never exercised end to end.
+/// The control intents (`Shared/HermesControlIntents.swift`) now declare
+/// `allowedExecutionTargets = .main`: `perform()` runs in the APP process and
+/// routes via `DeeplinkRouter` directly, no handoff involved. Only the
+/// intents' extension-compiled branch still writes here — which happens only
+/// if the OS performs in the widget process anyway (`.main` not honored);
+/// `AppEntry.consumePendingControlDestination()` keeps draining it for that
+/// case. Once a device pass proves `.main` holds on 27A5228h, delete this
+/// store, that consume path, and the intents' fallback branch together.
 ///
 /// Compiled into BOTH the app and the widget extension (`Shared/` is listed in
 /// both targets' sources) so the two processes cannot drift onto different app
@@ -74,11 +81,10 @@ struct ControlHandoffStore {
     /// - **Consume once.** A destination left behind re-routes the NEXT launch:
     ///   tap the Talk control, quit, reopen from the home screen, and the app
     ///   yanks you into voice for no reason.
-    /// - **Absence is a no-op, never a default route.** With
-    ///   `openAppWhenRun = true` the system launches the app even when
-    ///   `perform()` never ran (#179's cold first-tap swallow), and every
-    ///   ordinary launch reads this store too — so "nothing pending" is the
-    ///   common case, not an error.
+    /// - **Absence is a no-op, never a default route.** On the expected
+    ///   `.main` path nothing is ever written here, and every ordinary
+    ///   launch reads this store too — so "nothing pending" is the common
+    ///   case, not an error.
     func consumeDestination(now: Date = .now) -> URL? {
         // No destination: return WITHOUT clearing. This is the every-launch
         // path, and clearing here would mean a write into the shared suite on

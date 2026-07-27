@@ -65,6 +65,7 @@
 		16C44715C3D3171758252C7B /* GenUIDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99286B618A5D9C43C4ECBE6A /* GenUIDecoder.swift */; };
 		184C02C2204F872D879C7A4E /* ShareInboxCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F07190DC863BEEC78D8676BB /* ShareInboxCore.swift */; };
 		184CBD8A2483750653941ED3 /* IconPreview-LuchaLibre.png in Resources */ = {isa = PBXBuildFile; fileRef = B5FF2ADC2E27467CB66FDA43 /* IconPreview-LuchaLibre.png */; };
+		185B93A13ABA0EA62DD57828 /* DeeplinkRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC2B649BFFE249B53929459 /* DeeplinkRouter.swift */; };
 		18956DD849AD6F86627C2C53 /* LiveVoiceSessionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05D62FD47740DE0B77814B5E /* LiveVoiceSessionService.swift */; };
 		18FCC1CA2E79EDFC1233889C /* CronJobDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D7BE5A81A293D59F003C2D /* CronJobDecodingTests.swift */; };
 		1922C088EA1BD49BD2D9B750 /* TaskEditSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AC3767C82EFB9610099B54F /* TaskEditSheet.swift */; };
@@ -157,6 +158,7 @@
 		47529498EE239A6304A10651 /* TalkSessionRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = E23630C7B139D9D86F34A8D9 /* TalkSessionRules.swift */; };
 		47AC470D1D4B4BFBA0F71624 /* Icon-HoloSushi@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 4FEF4DC986BD45CCA162C8FD /* Icon-HoloSushi@3x.png */; };
 		4805439DA2901ABBA5815ED8 /* TalariaAlarmMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89B6DC0F730603BCA9C94F52 /* TalariaAlarmMetadata.swift */; };
+		4BB52E0CCE60FA2B2FC1062F /* HermesControlIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 372A065CA7C63D2317AEC9E2 /* HermesControlIntents.swift */; };
 		4BC23867516A49731D7575B6 /* AppRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C85FA7AD7546950A9A3BEBD /* AppRootView.swift */; };
 		4C1348D013A2D8DCE11A064B /* WidgetTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3396670D4A59E5D8808A7AB3 /* WidgetTheme.swift */; };
 		4C6B5D44AC6F0ECD63D2A229 /* AttachmentInliningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 036CD989156BAB4FE1A35157 /* AttachmentInliningTests.swift */; };
@@ -180,7 +182,6 @@
 		58EAE21B148EFB6CD6612474 /* Icon-SpringSprout@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C2CA32208388B8F40E1EF71 /* Icon-SpringSprout@3x.png */; };
 		5A9C5EBDAC749A48E05CB003 /* Icon-AutumnHarvest@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6086194E5DA00269632F6A09 /* Icon-AutumnHarvest@3x.png */; };
 		5B1BE28C0064375B3F848E75 /* Design.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AA6B0D4D2F75AB7C4862721 /* Design.swift */; };
-		5BC52DE33328FCC3F62CBFFA /* ControlHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95FD288A6B4D5EDE15F442C8 /* ControlHandoff.swift */; };
 		5C49C4720FA8F43B7B25A932 /* ChatBackendRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D38920943EB10B55009A10F9 /* ChatBackendRouterTests.swift */; };
 		5C9CD02D776AD6DE92CEFAF3 /* ChatBackendRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23AE5D825BE2C07683DC0829 /* ChatBackendRouter.swift */; };
 		5CDB93AA3B13C56A42382C74 /* Conversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53502E05F0B1B3E8DFCBB4A2 /* Conversation.swift */; };
@@ -289,7 +290,6 @@
 		9304F2AB740D219F4BBB136C /* SpotlightIndexingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43FDBE36354084B4A9D586C5 /* SpotlightIndexingTests.swift */; };
 		930FB9FF7670840F7991F3E5 /* AppPersistenceStoreProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00AB5FA1BE69387B3F2AB6D /* AppPersistenceStoreProtocol.swift */; };
 		93A37D051E277488EC3E019E /* ControlHandoffTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BB968D651FD70A49F1BAA43 /* ControlHandoffTests.swift */; };
-		94417E1EFBB5E463C6F316E9 /* HermesControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D7400AD50E67CCB189E8028 /* HermesControls.swift */; };
 		9481D2D387207B47A971355E /* SkillsPickerSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEA4FFA15643D2007BC80DA7 /* SkillsPickerSelectionTests.swift */; };
 		957AC9EA20F97B95B1136AF3 /* Icon-Terminal@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = FCC2A42D9789054064DE93C6 /* Icon-Terminal@2x.png */; };
 		966A9E29D71DD8D4BA519C19 /* VoiceSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58ED77D1094E15E538EEEE59 /* VoiceSettingsScreen.swift */; };
@@ -329,6 +329,7 @@
 		A91CE30181A7FED54130D48E /* IconPreview-MidnightAquarium.png in Resources */ = {isa = PBXBuildFile; fileRef = B7B2AB9947B4855D05C531FF /* IconPreview-MidnightAquarium.png */; };
 		A971C915FE7F12A522B32237 /* TypingDotsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EB471468F064EE7016C31FE /* TypingDotsView.swift */; };
 		AA053A60C1F3D3A1F7C2302C /* HermesWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A3D34B1ECAAC5E9F2972E23 /* HermesWidgetBundle.swift */; };
+		AAEDBF19E4264B3B49075B06 /* HermesControlIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 372A065CA7C63D2317AEC9E2 /* HermesControlIntents.swift */; };
 		AB98DC243A23D5394D76E615 /* CronJobStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5DB1DBA36899DDAC5EF1E20 /* CronJobStatusTests.swift */; };
 		ABB8CA49BE895A22CCC3AA3F /* PairingRedeemResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 620742C177DDD76042D01179 /* PairingRedeemResult.swift */; };
 		AC32A3AC52203CA44AA2A20B /* InboxItemPriority.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DF933619662DB426B20E614 /* InboxItemPriority.swift */; };
@@ -617,6 +618,7 @@
 		3396670D4A59E5D8808A7AB3 /* WidgetTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetTheme.swift; sourceTree = "<group>"; };
 		3435E81CD684734099521C82 /* TalkPreflight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkPreflight.swift; sourceTree = "<group>"; };
 		345A155F17C2C449664C1CA4 /* PairingServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingServiceProtocol.swift; sourceTree = "<group>"; };
+		372A065CA7C63D2317AEC9E2 /* HermesControlIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesControlIntents.swift; sourceTree = "<group>"; };
 		37C4631361E43482328C012F /* HermesLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesLiveActivity.swift; sourceTree = "<group>"; };
 		39E46CE71DF45FCD29B22771 /* LocalSessionStoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSessionStoring.swift; sourceTree = "<group>"; };
 		3B460D7581A6DCBA4B2770E8 /* InboxItemType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxItemType.swift; sourceTree = "<group>"; };
@@ -631,6 +633,7 @@
 		3EF25B1E060C654A07894F05 /* HermesHealthWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesHealthWidget.swift; sourceTree = "<group>"; };
 		3F0818490CD153ED5EBCD1CC /* AppStoresTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoresTests.swift; sourceTree = "<group>"; };
 		3F3EAD544A476678B4CAA8A8 /* TokenUsage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenUsage.swift; sourceTree = "<group>"; };
+		3FC2B649BFFE249B53929459 /* DeeplinkRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeeplinkRouter.swift; sourceTree = "<group>"; };
 		3FDA18B4B440179EED51B685 /* Icon-KaraokeSupernova@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-KaraokeSupernova@3x.png"; sourceTree = "<group>"; };
 		40715ACFEED629379C8F24E1 /* BackendProfilesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendProfilesStore.swift; sourceTree = "<group>"; };
 		40908EA81D14E50EFB18430C /* IconPreview-KaraokeSupernova.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-KaraokeSupernova.png"; sourceTree = "<group>"; };
@@ -1253,6 +1256,7 @@
 				21E7B531AF36757335A1E6CF /* Extensions */,
 				926176F5F2C65361719D806D /* HUD */,
 				25817220E61CE362BE6D4D9F /* CodeSyntaxHighlighter.swift */,
+				3FC2B649BFFE249B53929459 /* DeeplinkRouter.swift */,
 				7AA6B0D4D2F75AB7C4862721 /* Design.swift */,
 				0A2B8983CE86355818012300 /* HapticEngine.swift */,
 				F7A7045D5D1C524A4F69946E /* KeyboardShortcuts.swift */,
@@ -1813,6 +1817,7 @@
 			children = (
 				95FD288A6B4D5EDE15F442C8 /* ControlHandoff.swift */,
 				DF2F27035982B50A41364B24 /* HealthQueryCore.swift */,
+				372A065CA7C63D2317AEC9E2 /* HermesControlIntents.swift */,
 				89B6DC0F730603BCA9C94F52 /* TalariaAlarmMetadata.swift */,
 				1504E7B49606D4BA2B051A77 /* ThemePaletteCore.swift */,
 			);
@@ -2185,6 +2190,7 @@
 				CA5C10292BAFAB1B8AD2B751 /* CronJob.swift in Sources */,
 				D8C70D9FB5DB2CFFB243DB30 /* CronJobService.swift in Sources */,
 				1129B37439D5430176D73969 /* CronJobsStore.swift in Sources */,
+				185B93A13ABA0EA62DD57828 /* DeeplinkRouter.swift in Sources */,
 				29EFA9C39ECB47D62212372E /* DemoData.swift in Sources */,
 				5B1BE28C0064375B3F848E75 /* Design.swift in Sources */,
 				E41A33A79D56C233A0AE4229 /* DeveloperSettingsScreen.swift in Sources */,
@@ -2215,6 +2221,7 @@
 				3FC3D32BA5FCC6C051BE137C /* HermesActivityAttributes.swift in Sources */,
 				CA65B8819B1619503577C599 /* HermesAvatar.swift in Sources */,
 				9B5AE2A8D1A093106533F2C2 /* HermesClientProtocol.swift in Sources */,
+				AAEDBF19E4264B3B49075B06 /* HermesControlIntents.swift in Sources */,
 				DDB23DA5189F6958AF5296B0 /* HermesHostServiceProtocol.swift in Sources */,
 				5F3B60009D9E03118985EF9E /* HermesHostStatus.swift in Sources */,
 				21ABBB6BEBC4263724B61735 /* HermesHostStore.swift in Sources */,
@@ -2427,7 +2434,6 @@
 				4394805941B21566612E2790 /* ConnectorOutageAlertTests.swift in Sources */,
 				9C6F084E3A16D0D62CD8A630 /* ContextMeterTests.swift in Sources */,
 				44E2021F0084C5DC78B04598 /* ContinuityFabricTests.swift in Sources */,
-				5BC52DE33328FCC3F62CBFFA /* ControlHandoff.swift in Sources */,
 				93A37D051E277488EC3E019E /* ControlHandoffTests.swift in Sources */,
 				BD34B74F8B0451721CDE70BC /* ConversationExportTests.swift in Sources */,
 				82179A392FF95F1903837D38 /* ConversationManagementTests.swift in Sources */,
@@ -2441,7 +2447,6 @@
 				1AC5431689C6E653C516C975 /* FilePreviewTests.swift in Sources */,
 				062B015021677D136F335948 /* GenUISchemaTests.swift in Sources */,
 				CD4124B10E098FB583AE1B6E /* HealthQueryCoreTests.swift in Sources */,
-				94417E1EFBB5E463C6F316E9 /* HermesControls.swift in Sources */,
 				C77821A24A5D65B32394136D /* HermesControlsTests.swift in Sources */,
 				F2C9BA7640227E2C6F785B37 /* IPadAdaptationTests.swift in Sources */,
 				DDF78B99205CF033716F82CA /* IdlePollingTests.swift in Sources */,
@@ -2501,6 +2506,7 @@
 				7913C0DD2BC82A52A672C650 /* HealthQueryCore.swift in Sources */,
 				64A437D1EC52FCC006035BD9 /* HermesActivityAttributes.swift in Sources */,
 				C7A757A4E2566A5754F04D21 /* HermesBriefingWidget.swift in Sources */,
+				4BB52E0CCE60FA2B2FC1062F /* HermesControlIntents.swift in Sources */,
 				2DC866BFB555CC01C8430B03 /* HermesControls.swift in Sources */,
 				8E7015E5FE925C55122EBE84 /* HermesHealthWidget.swift in Sources */,
 				833F59688DD58FD56BEF8802 /* HermesLiveActivity.swift in Sources */,
@@ -2716,6 +2722,7 @@
 				PRODUCT_MODULE_NAME = Talaria;
 				PRODUCT_NAME = "Talaria 27";
 				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) TALARIA_MAIN_APP";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -2883,6 +2890,7 @@
 				PRODUCT_MODULE_NAME = Talaria;
 				PRODUCT_NAME = "Talaria 27";
 				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) TALARIA_MAIN_APP";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;

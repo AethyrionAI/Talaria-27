@@ -1,15 +1,16 @@
 import Foundation
 import Testing
+@testable import Talaria
 
-/// #58 — the Control Center → app launch handoff surface.
+/// #58 — the Control Center → app launch handoff surface. Since 2026-07-27
+/// this is the FALLBACK lane: the control intents perform in the app process
+/// (`allowedExecutionTargets = .main`) and route directly, and this store is
+/// written only by their extension-compiled branch — i.e. only if the OS
+/// performs in the widget process anyway. The contract tested here keeps
+/// mattering exactly as long as that branch exists; when a device pass
+/// proves `.main` holds and the store is deleted, this suite goes with it.
 ///
-/// `OpenURLIntent` does not support custom URL schemes, so a control cannot
-/// hand the app a `hermes://` destination directly (AppIntents prepares
-/// `URL(nil)` and the tap dies silently). Instead the system launches the app
-/// (`openAppWhenRun`) and the intent leaves the destination in the app group;
-/// `AppEntry` picks it up and feeds it to `handleDeeplink`.
-///
-/// Two processes share this store, so its contract is the whole feature: what
+/// Two processes can share this store, so its contract is the whole lane: what
 /// is written must read back, exactly once, and only while it is still about
 /// the launch that is happening now. These tests drive a throwaway
 /// `UserDefaults` suite rather than the app group — the production suite is
@@ -57,10 +58,9 @@ struct ControlHandoffTests {
         }
     }
 
-    /// With `openAppWhenRun = true` the system launches the app even when
-    /// `perform()` never ran (#179's cold first-tap swallow), and every launch
-    /// from the home screen reads this store too. Absence is the COMMON case
-    /// and must route nowhere — never to a default destination.
+    /// On the expected `.main` path nothing is ever written here, and every
+    /// launch from the home screen reads this store too. Absence is the
+    /// COMMON case and must route nowhere — never to a default destination.
     @Test func absentDestinationRoutesNowhere() throws {
         try withStore { store, _ in
             #expect(store.consumeDestination(now: Self.t0) == nil)

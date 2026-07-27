@@ -87,6 +87,14 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria27
+        # #58: marks the compile that goes into the MAIN APP binary. The
+        # shared control intents (Shared/HermesControlIntents.swift, compiled
+        # into app + widget) branch on it: app branch routes the tap through
+        # DeeplinkRouter in-process (`.main` execution target); the widget
+        # branch keeps the app-group fallback. `$(inherited)` keeps the
+        # config-level DEBUG condition alive — dropping it would silently
+        # dead-strip every `#if DEBUG` in the target.
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) TALARIA_MAIN_APP"
         PRODUCT_NAME: "Talaria 27"
         # Keep the Swift module importable as `Talaria` (tests use
         # `@testable import Talaria`); PRODUCT_NAME alone would rename the
@@ -463,16 +471,13 @@ targets:
     platform: iOS
     sources:
       - path: TalariaTests
-      # #58 — HermesControlsTests locks the control intents' static
-      # configuration. The widget extension isn't an importable module, so
-      # this one source file compiles into the test bundle too (same
-      # multi-target pattern as Shared/).
-      - path: TalariaWidgets/Controls/HermesControls.swift
-      # #58 — and the app-group handoff HermesControls.swift writes to. It
-      # ships in Shared/ (app + widget), but the line above compiles the
-      # intents into the test bundle WITHOUT the Talaria module, so the store
-      # has to come along or they don't build here.
-      - path: Shared/ControlHandoff.swift
+      # #58 (2026-07-27): the control INTENTS moved to
+      # Shared/HermesControlIntents.swift and are compiled into the APP
+      # target, so HermesControlsTests / ControlHandoffTests now reach them
+      # (and ControlHandoffStore) via `@testable import Talaria` like every
+      # other suite — the extra source-file entries that used to compile
+      # widget sources straight into this bundle are gone. Only the
+      # ControlWidget shells remain widget-only and untested.
     dependencies:
       - target: Talaria
     settings:

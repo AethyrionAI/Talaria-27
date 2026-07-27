@@ -285,10 +285,12 @@ struct TalariaApp: App {
                         // BEFORE handleAppDidBecomeActive, which returns early
                         // when unpaired (shares are a free-tier surface).
                         container.drainShareInbox()
-                        // #58: the warm-launch pickup, and a second look on a
-                        // cold one — `perform()` runs in the widget extension
-                        // while the system is already launching us, so the
-                        // write can land just after the first read.
+                        // #58: the warm-launch pickup for the app-group
+                        // FALLBACK lane (extension-performed intents only —
+                        // a no-op when `.main` execution holds). On that
+                        // lane `perform()` runs while the system is already
+                        // launching us, so the write can land just after
+                        // the cold-launch read; this is the second look.
                         consumePendingControlDestination()
                         Task { await container.handleAppDidBecomeActive() }
                     } else if newPhase == .background {
@@ -350,18 +352,19 @@ struct TalariaApp: App {
 
     private static let spotlightLogger = Logger(subsystem: "org.aethyrion.talaria", category: "SpotlightOpen")
 
-    /// #58: a Control Center tap can't hand us a URL — `OpenURLIntent` rejects
-    /// custom schemes, which is why the controls were inert through three
-    /// device passes. The control's intent leaves the destination in the app
-    /// group and the SYSTEM launches us; we collect it here and feed it to
-    /// `handleDeeplink`, so the control path stays on the same router as
-    /// Spotlight, Siri and Safari rather than growing a second switch.
+    /// #58: the app-group FALLBACK pickup. Since 2026-07-27 the control
+    /// intents declare `allowedExecutionTargets = .main`, so on the expected
+    /// path `perform()` runs in THIS process and routes via `DeeplinkRouter`
+    /// directly — nothing is ever written here and this read finds nothing.
+    /// The store is only written by the intents' extension-compiled branch,
+    /// i.e. only if the OS performs the intent in the widget process after
+    /// all (`.main` not honored — see the branch log lines, subsystem
+    /// `…talaria27.widgets`). Keep this pickup until a device pass proves
+    /// `.main` holds on 27A5228h; then the store, this method, and both call
+    /// sites go together.
     ///
     /// Nothing pending is the ordinary case, not a fault: every launch from
-    /// the home screen reads this store, and with `openAppWhenRun = true` the
-    /// system launches us even when the extension's `perform()` never ran
-    /// (#179's cold first-tap swallow — expect a swallowed tap to open Talaria
-    /// on its DEFAULT screen now, rather than doing nothing).
+    /// the home screen reads this store too.
     private func consumePendingControlDestination() {
         guard let destination = ControlHandoffStore.appGroup()?.consumeDestination() else { return }
         Self.controlHandoffLogger.notice(
@@ -372,54 +375,12 @@ struct TalariaApp: App {
 
     private static let controlHandoffLogger = Logger(subsystem: "org.aethyrion.talaria", category: "ControlHandoff")
 
+    /// The switch itself lives in `DeeplinkRouter` (#58, 2026-07-27) so the
+    /// Control Center intents — performing in THIS process under the `.main`
+    /// execution target — route through the same table without reaching into
+    /// the App struct. This thin wrapper is what `onOpenURL` and the handoff
+    /// pickup call.
     private func handleDeeplink(_ url: URL) {
-        guard url.scheme == "hermes" else { return }
-        switch url.host {
-        case "chat":
-            container.router.activeSheet = nil
-            container.router.popToRoot()
-            container.router.selectedTab = .chat
-        case "session":
-            // #17: hermes://session/{id} — Spotlight results route here via
-            // OpenSessionIntent. Lands on Chat, then adopts the session.
-            guard url.pathComponents.count > 1 else { break }
-            let sessionID = url.pathComponents[1]
-            container.router.activeSheet = nil
-            container.router.popToRoot()
-            container.router.selectedTab = .chat
-            Task { await container.chatStore.openSession(sessionID) }
-        case "health":
-            container.router.activeSheet = nil
-            container.router.popToRoot()
-            container.router.selectedTab = .chat
-            container.router.navigate(to: .permissions)
-        case "briefing":
-            // #126: widget tap → the latest briefing's detail.
-            container.router.activeSheet = nil
-            container.router.popToRoot()
-            container.router.selectedTab = .chat
-            container.router.navigate(to: .briefing(nil))
-        case "voice":
-            // Same flag StartVoiceSessionIntent sets; the Talk to Hermes
-            // control (#7) launches through this link. Clear any sheet first —
-            // MainTabView presentations can't overlap (parity with the intent).
-            container.router.activeSheet = nil
-            container.router.isVoiceOverlayPresented = true
-        case "ask":
-            // #48: hermes://ask?q=… — the payload-carrying route. Lands on
-            // Chat and seeds the composer; the user still taps send. Never
-            // auto-sends: custom-scheme URLs are open to any app or web page,
-            // and an auto-send would let external content inject agent turns.
-            let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-                .queryItems?
-                .first(where: { $0.name == "q" })?
-                .value ?? ""
-            container.router.activeSheet = nil
-            container.router.popToRoot()
-            container.router.selectedTab = .chat
-            container.chatStore.seedComposer(query)
-        default:
-            break
-        }
+        DeeplinkRouter.route(url, router: container.router, chatStore: container.chatStore)
     }
 }
