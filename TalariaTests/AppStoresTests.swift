@@ -708,6 +708,66 @@ struct AppStoresTests {
         #expect(chatStore.conversation?.messages.count == 1)
     }
 
+    // MARK: - Notification priming (#31 × #189)
+
+    /// Spy for the priming trigger — counts every call, no per-launch guard,
+    /// so the assertions see exactly what ChatStore requested.
+    @MainActor
+    private final class PrimingSpyNotifications: LocalNotificationScheduling {
+        var authorizationRequests = 0
+        func requestAuthorizationIfNeeded() async { authorizationRequests += 1 }
+        func notifyReplyFailed(reason: String) {}
+        func notifyRunCompleted(preview: String?) {}
+    }
+
+    /// #189: the old trigger was gated behind `continuedSend != nil`, which
+    /// only exists for attachment sends — a plain-text user was never asked
+    /// for notification authorization, ever. A dispatched plain-text send must
+    /// prime.
+    @Test @MainActor
+    func plainTextSendPrimesNotificationAuthorization() async {
+        let suiteName = "chat-priming-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let spy = PrimingSpyNotifications()
+        let chatStore = ChatStore(
+            hermesClient: RecordingHermesClient(),
+            persistence: persistence,
+            notifications: spy
+        )
+
+        let sent = await chatStore.sendMessage("plain text, no attachments")
+        #expect(sent)
+
+        // The request rides a detached MainActor task — drain it.
+        for _ in 0..<20 where spy.authorizationRequests == 0 { await Task.yield() }
+        #expect(spy.authorizationRequests == 1)
+    }
+
+    /// The priming stays contextual: a swallowed send (empty content) never
+    /// dispatched a run, so it must not prompt — the trigger is "the user
+    /// handed the agent work", not app launch.
+    @Test @MainActor
+    func swallowedSendDoesNotPrimeNotificationAuthorization() async {
+        let suiteName = "chat-priming-swallow-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let spy = PrimingSpyNotifications()
+        let chatStore = ChatStore(
+            hermesClient: RecordingHermesClient(),
+            persistence: persistence,
+            notifications: spy
+        )
+
+        let sent = await chatStore.sendMessage("   ")
+        #expect(sent == false)
+
+        for _ in 0..<20 { await Task.yield() }
+        #expect(spy.authorizationRequests == 0)
+    }
+
     @Test @MainActor
     func chatStorePreservesStreamingArtifactsAfterConversationRefresh() async throws {
         final class StreamingArtifactClient: HermesClientProtocol {
