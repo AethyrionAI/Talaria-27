@@ -823,9 +823,9 @@ final class LocalChatBackend: HermesClientProtocol {
 
     private func makeSession(from blueprint: SessionBlueprint, offering offered: [any Tool]) -> LanguageModelSession {
         #if DEBUG
-        // #194/176C: device A/B runs are self-labeling — Console shows which
+        // #196: device A/B runs are self-labeling — Console shows which
         // cell built this session.
-        Self.logger.notice("session shape: \(Self.activeSessionShape.rawValue, privacy: .public) — \(offered.count, privacy: .public) tool(s) registered (#194/176C)")
+        Self.logger.notice("session shape: \(Self.activeSessionShape.rawValue, privacy: .public) — \(offered.count, privacy: .public) tool(s) registered (#196)")
         #endif
         var entries: [Transcript.Entry] = []
         entries.append(.instructions(Transcript.Instructions(
@@ -877,12 +877,11 @@ final class LocalChatBackend: HermesClientProtocol {
         return LanguageModelSession(model: model, tools: offered, transcript: Transcript(entries: entries))
     }
 
-    // MARK: - Session-shape seam (#194/176C)
+    // MARK: - Session-shape seam (#196, reworked from #194/176C)
 
     /// The tools this session should REGISTER, after the #176 turn gate. In
-    /// DEBUG the #194/176C session-shape instrument can empty the belt
-    /// (`prose-notools` / `toolless` cells); Release compiles down to the
-    /// production expression.
+    /// DEBUG the #196 session-shape instrument can empty the belt (the
+    /// `toolless` cell); Release compiles down to the production expression.
     private func effectiveOfferedTools(hasImageInContext hasImage: Bool) -> [any Tool] {
         #if DEBUG
         guard Self.activeSessionShape.registersTools else { return [] }
@@ -890,7 +889,7 @@ final class LocalChatBackend: HermesClientProtocol {
         return DeviceToolBelt.offeredTools(from: tools, hasImageInContext: hasImage)
     }
 
-    /// The base instructions for this turn's session. In DEBUG the #194/176C
+    /// The base instructions for this turn's session. In DEBUG the #196
     /// instrument reroutes through the shaped variants (the `armed` control
     /// cell delegates straight back to production); Release compiles down to
     /// the production expression.
@@ -1277,17 +1276,40 @@ final class LocalChatBackend: HermesClientProtocol {
     /// #176/#148 vision gate lives structurally in
     /// `DeviceToolBelt.offeredTools`; `hasImageTools` is kept for call-site
     /// stability but no longer varies this text.
+    ///
+    /// #196 measurement seams, the `includeBeltRoster` precedent: production
+    /// call sites never pass either flag, so the armed text is byte-identical
+    /// with the defaults. `includeDirectnessSentence` inserts ONLY the
+    /// anti-preface sentence beside the licensing clause (the `armed-direct`
+    /// cell); `includeHonestyAndRecoveryClauses: false` drops ONLY the honesty
+    /// sentence and the recovery clause (the `armed-noneg` cell — a
+    /// thermometer, never a treatment: it removes #176's absorbing-state
+    /// protections).
     nonisolated static func instructionsText(
         deviceContext: String,
         date: Date = .now,
         hasTools: Bool = false,
-        hasImageTools: Bool = false
+        hasImageTools: Bool = false,
+        includeDirectnessSentence: Bool = false,
+        includeHonestyAndRecoveryClauses: Bool = true
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
+        // #196: the anti-preface sentence — the `armed-direct` cell's whole
+        // treatment. The disclaimer tic opens replies "I can't write X for
+        // you, but here's one…" and then delivers X in full; this sentence
+        // forbids exactly that shape and nothing else.
+        let directness = "Answer directly — never begin a reply by saying you can't do something you are then going to do. "
+        // #176's absorbing-state exits — the honesty sentence and the
+        // recovery clause. Real jobs in production; the `armed-noneg` cell
+        // lifts them out ONLY to measure whether their negative framing
+        // primes the #196 preface tic. Never ship without them.
+        let honestyAndRecovery = " When a tool reports that a permission isn't granted or no data exists, relay that honestly — never invent a value. A failed or denied tool is never the answer to the user's question: answer as well as you can without that tool, and don't repeat a denial you've already given in this conversation."
         let capabilities: String
         if hasTools {
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. "
-                + "Use the tools for the user's own data — their health, location, schedule, reminders, contacts, and past conversations — instead of guessing at it. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully. When a tool reports that a permission isn't granted or no data exists, relay that honestly — never invent a value. A failed or denied tool is never the answer to the user's question: answer as well as you can without that tool, and don't repeat a denial you've already given in this conversation."
+                + (includeDirectnessSentence ? directness : "")
+                + "Use the tools for the user's own data — their health, location, schedule, reminders, contacts, and past conversations — instead of guessing at it. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully."
+                + (includeHonestyAndRecoveryClauses ? honestyAndRecovery : "")
         } else {
             capabilities = """
             Be direct, warm, and concise. You have no internet access and no external tools in this mode — when you don't know something or can't do it on-device, say so plainly instead of guessing.
@@ -1599,37 +1621,46 @@ extension LocalChatBackend {
     }
 }
 
-// MARK: - Session-shape instrument (#194/176C — DEBUG builds only)
+// MARK: - Session-shape instrument (#196, reworked from #194/176C — DEBUG builds only)
 
-/// A/B cells for the creative-suppressor hunt (#194): which armed-session
-/// ingredient — the registered tool belt itself, or the prose belt roster
-/// inside the instructions — suppresses non-tool turns like "write a poem".
-/// Armed only by the `TALARIA_SESSION_SHAPE` launch environment, following
-/// the `UITEST_DUPID_PROBE` seam precedent: inert in every normal run,
-/// compiled out of Release entirely. The selector touches session
-/// construction only (`effectiveOfferedTools` / `effectiveInstructionsText`).
+/// A/B cells for the preface-tic hunt (#196): which armed-session ingredient
+/// makes every reply open with a disclaimer it then contradicts ("I can't
+/// write a haiku for you, but here's one…" — then the haiku). Suspects: the
+/// negative-flavored honesty/recovery clauses priming "can't" language, tool
+/// registration itself, or neither. The 176C cells did their job (#194's
+/// enumeration convicted, PR #157) and are retired; same instrument, new
+/// question. Armed by the `TALARIA_SESSION_SHAPE` launch environment or, at
+/// a desk, the persisted Diagnostics override — following the
+/// `UITEST_DUPID_PROBE` seam precedent: inert in every normal run, compiled
+/// out of Release entirely. The selector touches session construction only
+/// (`effectiveOfferedTools` / `effectiveInstructionsText`).
 extension LocalChatBackend {
 
     enum SessionShape: String {
-        /// Production behavior — the control cell.
+        /// Production behavior — the control cell; the tic lives here.
         case armed
         /// Tools registered exactly as production; instructions are the armed
-        /// branch WITHOUT the belt-roster sentence.
-        case armedNoProse = "armed-noprose"
-        /// NO tools registered; instructions are the armed branch VERBATIM,
-        /// roster included. This deliberately violates the "never claim a
-        /// tool the session wasn't given" rule (see `instructionsText`'s doc)
-        /// — it is a debug measurement cell, not a shippable state.
-        case proseNoTools = "prose-notools"
+        /// branch PLUS the anti-preface directness sentence, placed with the
+        /// licensing clause. The candidate fix: clean here with content
+        /// intact ⇒ Part 2 ships.
+        case armedDirect = "armed-direct"
+        /// Tools registered exactly as production; instructions are the armed
+        /// branch MINUS the honesty sentence and the recovery clause — the
+        /// negative-flavored language suspected of priming "can't" prefaces.
+        /// Measurement cell ONLY, never shippable (the `prose-notools`
+        /// precedent): it removes #176's absorbing-state protections, so a
+        /// denied permission would again be free to become every later
+        /// turn's answer.
+        case armedNoNeg = "armed-noneg"
         /// The production tool-less branch with tools unregistered — the far
-        /// control.
+        /// control. The tic appearing here exonerates tool registration.
         case toolless
 
         /// Whether this cell hands the session a tool belt at all.
         var registersTools: Bool {
             switch self {
-            case .armed, .armedNoProse: return true
-            case .proseNoTools, .toolless: return false
+            case .armed, .armedDirect, .armedNoNeg: return true
+            case .toolless: return false
             }
         }
     }
@@ -1641,13 +1672,15 @@ extension LocalChatBackend {
            let shape = SessionShape(rawValue: raw) {
             return shape
         }
-        // Desk A/B (#194): a DEBUG-only persisted override so the cells are
-        // reachable from a home-screen launch — OTA installs cannot carry
-        // launch environment, and the phone is unreachable by Xcode over the
-        // tailnet. Read ONCE here like the env path, so the launch-scoped
-        // invariant above holds: the Diagnostics picker takes effect on the
-        // NEXT launch (force-quit between cells is the A/B protocol anyway).
-        // Launch env wins when both are set.
+        // Desk A/B (#196, folded from the 176C side branch): a DEBUG-only
+        // persisted override so the cells are reachable from a home-screen
+        // launch — OTA installs cannot carry launch environment, and the
+        // phone is unreachable by Xcode over the tailnet. Read ONCE here like
+        // the env path, so the launch-scoped invariant above holds: the
+        // Diagnostics picker takes effect on the NEXT launch (force-quit
+        // between cells is the A/B protocol anyway). Launch env wins when
+        // both are set. A retired 176C cell name still persisted on a phone
+        // fails to parse and lands on `.armed` — production, by design.
         if let raw = UserDefaults.standard.string(forKey: "debug.sessionShape"),
            let shape = SessionShape(rawValue: raw) {
             return shape
@@ -1671,17 +1704,17 @@ extension LocalChatBackend {
                 deviceContext: deviceContext, date: date,
                 hasTools: hasTools, hasImageTools: hasImageTools
             )
-        case .armedNoProse:
-            // 176C Part 2 removed the roster from the production armed branch,
-            // so this cell is identical to `armed` by construction.
+        case .armedDirect:
             return instructionsText(
                 deviceContext: deviceContext, date: date,
-                hasTools: hasTools, hasImageTools: hasImageTools
+                hasTools: hasTools, hasImageTools: hasImageTools,
+                includeDirectnessSentence: true
             )
-        case .proseNoTools:
+        case .armedNoNeg:
             return instructionsText(
                 deviceContext: deviceContext, date: date,
-                hasTools: true, hasImageTools: hasImageTools
+                hasTools: hasTools, hasImageTools: hasImageTools,
+                includeHonestyAndRecoveryClauses: false
             )
         case .toolless:
             return instructionsText(
