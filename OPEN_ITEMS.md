@@ -8869,6 +8869,16 @@ creative asks and/or honest messaging. Success there => the tool-ARMED session s
 suppresses creation — a 176C lane (e.g. probe whether dropping the prose tool enumeration,
 already natively registered on the session, releases it).
 
+**DISCRIMINATOR RESULT 2026-07-27 12:41 — Shortcuts On-Device model WROTE THE HAIKU**
+("Cherry blossoms bloom— / soft pink whispers in the breeze, / spring wakes the earth.",
+On-Device badge visible). Base-model policy EXONERATED; Talaria's session shape is the
+suppressor. Remaining suspects, in order: (1) the registered tool belt itself biasing the
+armed session, (2) the prose tool enumeration in instructions (redundant with the tools'
+native descriptions — the "job description" signal), (3) long shots: #83 GenerationOptions,
+#26 transcript condensation. Next: 176C device A/B — same creative prompt across four
+session shapes (armed as-is / tools minus enumeration prose / enumeration without tools /
+tool-less branch) behind a debug toggle; the passing cells convict the mechanism.
+
 **2026-07-27, later: BUILT with 176B** — the armed instructions now license
 writing/composing/summarizing and ordinary conversation as first-class ("need no tool"), pinned
 by `armedInstructionsLicenseAnsweringAndCreatingWithoutATool`. The airplane-mode device check
