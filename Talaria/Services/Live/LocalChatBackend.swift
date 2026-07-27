@@ -617,8 +617,18 @@ final class LocalChatBackend: HermesClientProtocol {
             session = nil
             return conversation
         }
-        guard let uuid = UUID(uuidString: id),
-              let stored = sessionStore?.conversation(withID: uuid) else {
+        guard let uuid = UUID(uuidString: id) else {
+            throw LocalChatBackendError.sessionNotFound(id)
+        }
+        guard let stored = sessionStore?.conversation(withID: uuid) else {
+            // #190B: a row that EXISTS but yields no conversation is a
+            // transcript decode failure, not an unknown id — folding the two
+            // together would tell the user a stored session doesn't exist.
+            // The store already logged the decode error; this is the honest
+            // user-facing half.
+            if sessionStore?.hasSession(withID: uuid) == true {
+                throw LocalChatBackendError.sessionUnreadable(id)
+            }
             throw LocalChatBackendError.sessionNotFound(id)
         }
         // Persistence of the DEPARTING thread is not this path's job: it
@@ -1343,6 +1353,10 @@ final class LocalChatBackend: HermesClientProtocol {
 enum LocalChatBackendError: LocalizedError {
     case unknownModel(String)
     case sessionNotFound(String)
+    /// #190B: the session's row exists but its stored transcript failed to
+    /// decode — distinct from an unknown id so the failure the user sees
+    /// tells the truth about what went wrong.
+    case sessionUnreadable(String)
 
     var errorDescription: String? {
         switch self {
@@ -1350,6 +1364,8 @@ enum LocalChatBackendError: LocalizedError {
             return "The on-device brain has no model \"\(id)\"."
         case .sessionNotFound(let id):
             return "No local conversation \"\(id)\" is stored on this device."
+        case .sessionUnreadable:
+            return "This conversation is stored on the device, but its transcript couldn't be read."
         }
     }
 }
