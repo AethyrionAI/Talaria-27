@@ -8485,6 +8485,88 @@ install.
 
 Logged 2026-07-26.
 
+**UPDATE 2026-07-26 — BUILT + suite-green on branch `claude/t27-190-local-session-store`** (spec
+executed: `dispatch/OPUS-T27-190-local-session-store.md`; Xcode-beta4, pinned sim 47F68496:
+**1192 tests in 107 suites passed**, baseline confirmed 1166/105 before the change — delta is
+exactly the 26 new tests in 2 new suites; the full bundle run's TEST SUCCEEDED includes the
+UITests). **NOT device-verified — device pass owed by Owen;
+the PR body carries the exact checklist. Do not close this item on suite green.**
+
+- **Phase 1:** `LocalSessionStoring` protocol + `SwiftDataLocalSessionStore` (two `@Model`s:
+  `LocalSessionRecord`, `RemoteSessionStubRecord`). Transcript is an encoded-`Conversation` blob on
+  the row — deliberate: reuses the cache-proven `Message` coders; list queries never decode a
+  transcript (denormalized columns). NOT the #104 pathology: one session row per walk-away, not a
+  whole-collection rewrite per tick. **Beta gotcha, hard-won (bisection + live lldb): on iOS 27
+  beta 4, `ModelContainer.mainContext` SIGTRAPs silently (`brk #1` inside SwiftData, no fatal
+  message) on any fetch issued from a MainActor Task — the runtime executes such tasks on a
+  non-main OS thread ("Task N"), and mainContext is main-QUEUE-asserting underneath. The identical
+  fetch on the true main thread succeeds (proved with an in-app probe matrix: trivial/UUID/unique/
+  Data/optionals models AND the real models all fetch fine from app boot; the same fetch from the
+  chat screen's async chain dies). Fix: a private `ModelContext(container)` — actor confinement
+  via the @MainActor store, explicit saves. Do NOT reach for `mainContext` anywhere on this
+  beta.** Configuration pinned explicit: named store `TalariaLocalSessions.store`,
+  `groupContainer: .none` (app-private; also keeps the unsigned test host off the group
+  container), `cloudKitDatabase: .none`.
+- **Phase 2:** `LocalChatBackend.listSessions()` = stored sessions ∪ live thread (live copy
+  outranks its stale stored row), most-recent-first; `openSession(id)` loads any stored session.
+  The walk-away persist lives INSIDE `abandonPendingRun` (#184's primitive, un-fragmented — the
+  "primitive is sync, saves may not be" objection dissolved: the store's context saves are
+  sync). Discriminator shared by persist + adoption, defined once in AppContainer: local iff no
+  host configured OR a local-brained assistant turn is present. `reset()` therefore no longer
+  destroys standalone history on pairing changes.
+- **Phase 3:** legacy single-slot cache adopted once per process; idempotent via id-keyed upsert
+  (relaunch-proof, unit-asserted); the cache stays as the kill/relaunch restore path.
+- **Phase 4:** router merges one unified recency-sorted list; `openSession` routes by membership
+  first (local ids open locally even while Hermes is the active brain); last live Hermes list is
+  snapshotted so after unpair those sessions stay visible, dimmed, reason "Host unpaired —
+  reconnect to open", non-navigable (drawer + search choke point), excluded from Spotlight
+  donation. Origin glyphs (iphone/desktopcomputer, same language as `Brain.glyph`) render in the
+  row's existing 15pt gutter, suppressed until both sources coexist. Connected-mode: a configured
+  host's list failure still throws exactly as before (unit-asserted).
+- **stopSpeech fold-in (Owen's call, same day, own commit):** `ChatStore.openSession` now passes
+  `stopSpeech: true` — read-aloud stops on session switch. #184 teardown tests pass unmodified.
+- Tests: +26 (`LocalSessionStoreTests`, `LocalSessionHistoryTests`), all watched red first.
+- Known seam left for **#191/#192**: after opening a local session while paired, the NEXT turn
+  still routes by brain preference (un-pinned → Hermes, contextless). Deliberately untouched here.
+- #176's tool-reflex half of the trap remains its own lane; this lane removed the data-loss half.
+
+**UPDATE 2026-07-26 — device pass FAILED on open-by-tap.** Storage held (list, kill/relaunch,
+SIGTRAP workaround across a cold boot), but tapping a stored session did nothing, deterministically.
+Root cause source-traced in the PR #151 comment (issuecomment-5087007479): routing, not SwiftData —
+`openSession`'s non-local ids fell to the ACTIVE brain, so Hermes rows tapped while the local brain
+was active hit `LocalChatBackend` → `sessionNotFound` → swallowed by `ChatStore.openSession`'s
+log-only catch. Rework spec: `dispatch/OPUS-T27-190B-151-rework.md`.
+
+**UPDATE 2026-07-27 — 190B rework written on the same branch (PR #151 stays open):**
+- **(1) Symmetric membership routing:** non-local ids now open on Hermes whenever it is
+  configured, independent of the active brain — the mirror of the local-id rule. The
+  active-brain fallback survives only with Hermes unconfigured, where those rows are dimmed
+  stubs the drawer already blocks. Unit-asserted with active brain = local.
+- **(2) Silent catch killed:** a failed open is now `ChatStore.sessionOpenFailure` — rendered
+  as a dismissible danger banner in the chat header stack, cleared by the next successful
+  open / New / reset. The store's decode-nil path throws the new
+  `LocalChatBackendError.sessionUnreadable`, distinct from `sessionNotFound`.
+- **(3) Contamination hole closed:** the discriminator stopped scanning brain stamps. With a
+  host configured, a thread is local iff the keyed store knows its id; membership is
+  established in `ChatStore.recordLocalOriginAfterSettledTurn` when a thread's FIRST
+  assistant turn settles on a local brain — origin lives in the store, so it survives process
+  death. #192's mixed threads (Hermes identity, later local turns) are never members.
+  Behavioral note: on a PAIRED device a brand-new local thread now appears in the drawer at
+  its first settled turn rather than mid-first-turn; no-host (free tier) is unchanged.
+- **(4) Maximal round-trip test** through the real SwiftData store: voice banner + voice
+  turns, three attachment shapes, tool activities, reasoning + summary, per-turn
+  usage/duration/model, priming notice, failed row, mixed brains.
+- **(5) Drawer after New:** `performClear` force-refreshes on BOTH clear outcomes (the
+  walk-away persist runs inside the teardown before the Hermes-side clear can throw), and
+  `ChatStore.loadSessions` serves the stale-but-real `lastLoadedSessions` on a failed refresh
+  instead of [] — the empty return is what emptied the drawer whenever the configured host's
+  fetch failed. (The router's list-failure THROW is unchanged — the #190 unit-asserted
+  contract stands; the store layer is where stale-beats-empty was already the documented
+  philosophy.)
+- Tests: +9 across the two #190 suites. **Authored in the cloud session (no Xcode in that
+  environment) — the Mac suite run (fresh DerivedData, verify execution) is OWED before the
+  device pass, and the device pass is owed by Owen. Do not close on suite green.**
+
 ---
 
 ## 191. 🐛 Chat header is not backend-aware — title and model pill keep reporting the Hermes session

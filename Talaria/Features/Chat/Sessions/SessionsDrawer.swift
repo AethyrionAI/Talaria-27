@@ -22,6 +22,23 @@ final class SessionsDrawerModel {
         var id: String { rawValue }
     }
 
+    /// #190: which source a session row came from. Drives the leading-gutter
+    /// origin glyph — and only once BOTH origins are present in the list
+    /// (`showsOriginGlyphs`); a single-source list carries no marker at all.
+    enum SessionOrigin: Hashable {
+        case local
+        case remote
+
+        /// Same iconography as `ChatBackendRouter.Brain.glyph` — the drawer
+        /// and the header pill speak one visual language.
+        var glyphSystemName: String {
+            switch self {
+            case .local: "iphone"
+            case .remote: "desktopcomputer"
+            }
+        }
+    }
+
     struct SessionSummary: Identifiable, Hashable {
         let id: String
         var title: String
@@ -37,6 +54,13 @@ final class SessionsDrawerModel {
         /// `?min_messages=1` and the gateway silently ignores it
         /// (OPEN_ITEMS #187), so the rule has to live on this side.
         var messageCount: Int = 0
+        /// #190: the row's source. Nil (placeholders, pre-#190 callers)
+        /// never renders a glyph.
+        var origin: SessionOrigin? = nil
+        /// #190: true for remote stubs no configured host can open — the row
+        /// renders dimmed with its reason as the subtitle, and does not
+        /// respond to taps. Never hidden: hiding lies about history.
+        var isUnresumable: Bool = false
     }
 
     // Wired to Hermes Sessions API — ChatScreen.refreshSessions() populates
@@ -69,6 +93,17 @@ final class SessionsDrawerModel {
     /// exists to remove.
     var visibleSessions: [SessionSummary] {
         grouped().flatMap(\.items)
+    }
+
+    /// #190: origin markers appear only once sessions from MORE THAN ONE
+    /// source coexist — free-tier users have exactly one source, and a
+    /// marker there is pure noise.
+    var showsOriginGlyphs: Bool {
+        Self.showsOriginGlyphs(sessions: sessions)
+    }
+
+    nonisolated static func showsOriginGlyphs(sessions: [SessionSummary]) -> Bool {
+        Set(sessions.compactMap(\.origin)).count > 1
     }
 
     /// Header telemetry, e.g. "14 THREADS · 2 ACTIVE". At zero active the
@@ -242,6 +277,9 @@ final class SessionsDrawerModel {
     }
 
     func selectSession(_ summary: SessionSummary) {
+        // #190: an unresumable row is visible history, not a destination —
+        // one choke point covers the drawer, the sidebar, and search hits.
+        guard !summary.isUnresumable else { return }
         onSelectSession?(summary)
     }
 
@@ -679,7 +717,7 @@ struct ConversationListPane: View {
     }
 
     private func row(for item: SessionsDrawerModel.SessionSummary) -> some View {
-        SessionRow(summary: item) {
+        SessionRow(summary: item, showsOriginGlyph: model.showsOriginGlyphs) {
             model.selectSession(item)
             dismissHost?()
         }
@@ -1069,6 +1107,9 @@ struct ConversationListPane: View {
 /// carry, which is why fill is not one of them.
 private struct SessionRow: View {
     let summary: SessionsDrawerModel.SessionSummary
+    /// #190: on only when sessions from more than one source coexist —
+    /// computed by the model, never per-row.
+    var showsOriginGlyph: Bool = false
     let action: () -> Void
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -1086,22 +1127,39 @@ private struct SessionRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 0) {
-                RoundedRectangle(cornerRadius: 1.5)
-                    .fill(summary.isActive ? Design.Brand.accent : .clear)
-                    .frame(width: 3)
-                    .padding(.vertical, 8)
+                // #190: the origin glyph lives in the 15pt gutter every row
+                // already reserves (bar + text leading) — no new horizontal
+                // room, which is why it isn't a text badge.
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(summary.isActive ? Design.Brand.accent : .clear)
+                        .frame(width: 3)
+                        .padding(.vertical, 8)
+                    if showsOriginGlyph, let origin = summary.origin {
+                        Image(systemName: origin.glyphSystemName)
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(Design.Colors.dimForeground)
+                            .frame(maxWidth: .infinity)
+                            .padding(.leading, 3)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .frame(width: 15)
                 VStack(alignment: .leading, spacing: 2) {
                     titleLine
                     if hasSubtitle { subtitleLine }
                 }
-                .padding(.leading, 12)
             }
             .padding(.vertical, 8)
             .frame(minHeight: minimumHeight)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
+            // #190: unresumable rows are visible history, dimmed — never
+            // hidden, never navigable.
+            .opacity(summary.isUnresumable ? 0.45 : 1)
         }
         .buttonStyle(.plain)
+        .disabled(summary.isUnresumable)
         // Lane J (J-5): pointer affordance on iPad — inert without a pointer.
         .hoverEffect(.highlight)
         .overlay(alignment: .bottom) {

@@ -104,7 +104,22 @@ final class ChatBackendRouter: HermesClientProtocol {
     /// on-device (unavailable / rate-limited). Cleared when PCC recovers or
     /// the preference changes; ChatScreen renders it under the header.
     private(set) var privateCloudFallbackNotice: String?
+    /// #190: whether a session id names a stored/live LOCAL session — lets
+    /// `openSession` route local ids to the local backend even while the
+    /// active brain is Hermes (the unified drawer mixes both sources). Wired
+    /// by AppContainer; nil keeps the pre-#190 active-brain routing.
+    var isLocalSessionID: (@MainActor (String) -> Bool)?
+    /// #190 Phase 4: records the last session list a LIVE Hermes host
+    /// returned, so the drawer can keep that history visible (dimmed) after
+    /// the host stops being configured. Wired by AppContainer.
+    var recordRemoteSessions: (@MainActor ([HermesSessionInfo]) -> Void)?
+    /// #190 Phase 4: the recorded remote-session snapshot, surfaced —
+    /// re-marked unresumable — while no Hermes host is configured.
+    var remoteSessionStubs: (@MainActor () -> [HermesSessionInfo])?
     private let defaults: UserDefaults
+
+    /// #190: the honest reason line a dimmed remote-stub row carries.
+    static let unresumableReason = "Host unpaired — reconnect to open"
 
     init(
         hermes: any HermesClientProtocol,
@@ -363,11 +378,47 @@ final class ChatBackendRouter: HermesClientProtocol {
     }
 
     func listSessions() async throws -> [HermesSessionInfo] {
-        try await backend(for: runningBrain ?? activeBrain).listSessions()
+        // #190: ONE unified list, sorted globally by recency — never two
+        // lanes. The local store's sessions always participate; the Hermes
+        // side contributes its live list while configured, and its last
+        // recorded snapshot — dimmed, unresumable — once it isn't. A local
+        // listing failure can't exist in practice (`try?` is shape, not
+        // policy); a HERMES failure still throws exactly as before, so
+        // connected-mode error behavior is unchanged.
+        let localSessions = (try? await local.listSessions()) ?? []
+        guard isHermesConfigured() else {
+            let stubs = (remoteSessionStubs?() ?? []).map {
+                $0.asUnresumable(reason: Self.unresumableReason)
+            }
+            return Self.sortedByRecency(localSessions + stubs)
+        }
+        let hermesSessions = try await hermes.listSessions()
+        recordRemoteSessions?(hermesSessions)
+        return Self.sortedByRecency(hermesSessions + localSessions)
+    }
+
+    nonisolated static func sortedByRecency(_ infos: [HermesSessionInfo]) -> [HermesSessionInfo] {
+        infos.sorted { ($0.lastActive ?? .distantPast) > ($1.lastActive ?? .distantPast) }
     }
 
     func openSession(_ id: String) async throws -> Conversation {
-        try await backend(for: runningBrain ?? activeBrain).openSession(id)
+        // #190: the unified drawer mixes sources, so an id routes by
+        // MEMBERSHIP on both sides — a stored local session opens on the
+        // local backend even while the active brain is Hermes, and a
+        // non-local id is a REMOTE session that opens on Hermes even while
+        // the active brain is local (the 2026-07-26 device fail: active-brain
+        // routing sent Hermes rows to `LocalChatBackend`, which threw
+        // `sessionNotFound` on every tap). Only an unconfigured Hermes falls
+        // back to the active brain — those rows are unresumable stubs and
+        // the drawer already blocks their taps, so the fallback exists for
+        // shape, not policy.
+        if isLocalSessionID?(id) == true {
+            return try await local.openSession(id)
+        }
+        guard isHermesConfigured() else {
+            return try await backend(for: runningBrain ?? activeBrain).openSession(id)
+        }
+        return try await hermes.openSession(id)
     }
 
     func reconcileFromServer() async -> Conversation? {

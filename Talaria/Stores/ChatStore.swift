@@ -164,6 +164,35 @@ final class ChatStore {
     var speechOutput: SpeechOutputService?
     var autoReadAloudEnabled: (@MainActor () -> Bool)?
 
+    /// #190: the keyed local-session store, wired by AppContainer. The
+    /// walk-away persist inside `abandonPendingRun` writes through this; nil
+    /// (tests, container-creation failure) restores pre-#190 behavior.
+    var localSessions: (any LocalSessionStoring)?
+    /// #190: the standalone-thread discriminator — same rule the local
+    /// backend uses for legacy adoption, wired by AppContainer. Nil never
+    /// persists (a conversation must be POSITIVELY local to enter the store;
+    /// paired-mode Hermes threads must not). Since #190B the wired rule is
+    /// ORIGIN-based — no host configured, or the id is already store-known —
+    /// and membership is established below in
+    /// `recordLocalOriginAfterSettledTurn`, never by scanning brain stamps.
+    var isLocalSessionThread: (@MainActor (Conversation) -> Bool)?
+
+    /// #190B: a failed session open, surfaced as state the UI renders — the
+    /// old catch logged and returned, which is how a deterministic dead tap
+    /// stayed invisible on device while the suite ran green (#189/#191's
+    /// false-green family). Cleared by the next successful open, a new chat,
+    /// or an explicit dismiss.
+    struct SessionOpenFailure: Equatable {
+        let sessionID: String
+        let message: String
+    }
+
+    private(set) var sessionOpenFailure: SessionOpenFailure?
+
+    func dismissSessionOpenFailure() {
+        sessionOpenFailure = nil
+    }
+
     /// On-device FoundationModels intelligence (#4.8 × #4.15), wired by
     /// AppContainer: conversation title + preview after the first completed
     /// exchange, one-line reasoning condensation. Stays nil in tests.
@@ -423,6 +452,9 @@ final class ChatStore {
         // P1 (#90): whether the settled exchange rode the active Hermes hop —
         // drives the journal's hop-waterline bump after the stream ends.
         var finishedViaHermesHop = false
+        // #190B: whether this turn settled on a local brain — drives the
+        // origin-based store membership below (`recordLocalOriginAfterSettledTurn`).
+        var settledLocalBrainTurn = false
 
         streamingTask = Task { [weak self] in
             guard let self else { return }
@@ -516,6 +548,9 @@ final class ChatStore {
                 case .finished(let finalMessage, let usage, let diff):
                     finishedViaHermesHop = finalMessage.sender == .hermes
                         && (finalMessage.brain == nil || finalMessage.brain == ChatBackendRouter.Brain.hermes.rawValue)
+                    settledLocalBrainTurn = finalMessage.sender == .hermes
+                        && (finalMessage.brain == ChatBackendRouter.Brain.onDevice.rawValue
+                            || finalMessage.brain == ChatBackendRouter.Brain.privateCloud.rawValue)
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
                         let activities = self.conversation?.messages[idx].toolActivities ?? []
                         let streamedReasoning = self.conversation?.messages[idx].reasoning
@@ -737,8 +772,36 @@ final class ChatStore {
             journal?.sync(with: conversation, lastExchangeViaActiveHop: finishedViaHermesHop)
         }
 
+        if settledLocalBrainTurn {
+            recordLocalOriginAfterSettledTurn()
+        }
         finalizeOnDeviceIntelligence()
         return true
+    }
+
+    /// #190B: store membership IS local origin. A thread enters the keyed
+    /// store the moment its FIRST assistant turn settles on a local brain —
+    /// a thread born local — and from then on the origin-based discriminator
+    /// (`isLocalSessionThread`: no host configured, or id store-known) keeps
+    /// it eligible for the walk-away persist, the legacy-cache catch-up, and
+    /// the drawer's live row, across process death. A thread whose earlier
+    /// assistant turns exist (a paired-mode Hermes thread that #192 flipped
+    /// mid-conversation) is NOT born local and never enters the store — its
+    /// identity is a Hermes session; contamination is exactly what the old
+    /// stamp-scanning rule allowed. Already-member threads get their stored
+    /// copy refreshed so the settled turn survives a later process death.
+    private func recordLocalOriginAfterSettledTurn() {
+        guard let localSessions, isLocalSessionThread != nil,
+              let conversation, !conversation.messages.isEmpty else { return }
+        if isLocalSessionThread?(conversation) == true {
+            localSessions.upsertSession(conversation)
+            return
+        }
+        let assistantTurns = conversation.messages.filter { $0.sender == .hermes }.count
+        if assistantTurns == 1 {
+            localSessions.upsertSession(conversation)
+            chatLog.notice("local origin established for '\(conversation.id.uuidString, privacy: .public)' — first assistant turn settled on-device (#190B)")
+        }
     }
 
     /// #184: THE teardown primitive for switching conversation context —
@@ -751,10 +814,16 @@ final class ChatStore {
     /// down rather than staying armed against a session this store has
     /// stopped tracking (#38; AppContainer expects paired watches).
     ///
-    /// `stopSpeech` is the one per-path difference: clear and reset silence
-    /// read-aloud with the thread; a session switch keeps it running today
-    /// (pre-#184 behavior, preserved).
+    /// #190: the same walk-away moment is when the departing thread must be
+    /// persisted — before whatever replaces it becomes current — so the
+    /// persist lives HERE, first, not hand-rolled into each path. It can:
+    /// the store's main-context save is synchronous.
+    ///
+    /// `stopSpeech` is the one per-path difference (kept for `reset()`'s
+    /// callers to reason about explicitly, though every current path now
+    /// passes true — see `openSession`).
     private func abandonPendingRun(stopSpeech: Bool) {
+        persistDepartingLocalSession()
         reconcileTask?.cancel()
         reconcileTask = nil
         if let abandoned = pendingRun {
@@ -773,12 +842,25 @@ final class ChatStore {
         }
     }
 
+    /// #190: the walk-away persist. A departing thread that is positively
+    /// LOCAL (never a paired-mode Hermes thread — its history lives
+    /// server-side) and non-empty is upserted into the keyed session store,
+    /// so New/switch/reset stop destroying standalone history. Both seams
+    /// nil (tests, store-creation failure) restore pre-#190 behavior.
+    private func persistDepartingLocalSession() {
+        guard let localSessions,
+              let conversation, !conversation.messages.isEmpty,
+              isLocalSessionThread?(conversation) == true else { return }
+        localSessions.upsertSession(conversation)
+    }
+
     func clearConversation() async throws {
         abandonPendingRun(stopSpeech: true)
         let fresh = try await hermesClient.clearConversation()
         conversation = fresh
         lastTokenUsage = fresh.latestUsage
         pendingMessageSentAt = nil
+        sessionOpenFailure = nil
         persistence.saveConversationCache(fresh)
         onConversationChanged?()
         // P1 (#90): the journal resets to the fresh thread's identity (the
@@ -1319,8 +1401,15 @@ final class ChatStore {
             onSessionsLoaded?(sessions)
             return sessions
         } catch {
-            chatLog.error("loadSessions: FAILED — \(error.localizedDescription, privacy: .public)")
-            return []
+            // #190B: a failed refresh serves the stale-but-real snapshot
+            // instead of [] — returning empty here EMPTIED the drawer
+            // whenever the configured host's fetch failed, which on device
+            // read as "the departing chat vanished after New" (it was in the
+            // snapshot all along). `lastSessionsLoadAt` deliberately stays
+            // untouched so the next unforced load retries instead of caching
+            // the failure.
+            chatLog.error("loadSessions: FAILED — \(error.localizedDescription, privacy: .public); serving \(self.lastLoadedSessions.count) from the last real list")
+            return lastLoadedSessions
         }
     }
 
@@ -1331,12 +1420,17 @@ final class ChatStore {
         // switches its internal session — `reconcileFromServer()` takes no
         // session argument, so a stale pendingRun would be compared against
         // the new session's server view and smear S1 artifacts onto it.
-        abandonPendingRun(stopSpeech: false)
+        // stopSpeech true since #190 (Owen, 2026-07-26): session A's
+        // read-aloud continuing over session B is the same cross-session
+        // leak, audible instead of persisted — a switch is a commit, not a
+        // browse.
+        abandonPendingRun(stopSpeech: true)
         do {
             let convo = try await hermesClient.openSession(id)
             conversation = convo
             lastTokenUsage = convo.latestUsage
             pendingMessageSentAt = nil
+            sessionOpenFailure = nil
             persistence.saveConversationCache(convo)
             onConversationChanged?()
             // P1 (#90): the Sessions client already adopted the thread into
@@ -1345,7 +1439,15 @@ final class ChatStore {
             journal?.sync(with: convo)
             chatLog.verbose("openSession: loaded \(convo.messages.count) messages for '\(id)'")
         } catch {
-            chatLog.error("openSession: FAILED for '\(id, privacy: .public)' — \(error.localizedDescription, privacy: .public)")
+            // #190B: a failed open is user-visible state, not a log line —
+            // the silent version of this catch is why the 2026-07-26 device
+            // fail read as a dead tap.
+            let described = error.localizedDescription
+            sessionOpenFailure = SessionOpenFailure(
+                sessionID: id,
+                message: described.isEmpty ? "The conversation couldn't be opened." : described
+            )
+            chatLog.error("openSession: FAILED for '\(id, privacy: .public)' — \(described, privacy: .public)")
         }
     }
 
@@ -1383,6 +1485,7 @@ final class ChatStore {
         isLoading = false
         pendingMessageSentAt = nil
         lastTokenUsage = nil
+        sessionOpenFailure = nil
         lastLoadedSessions = []
         persistence.clearConversationCache()
         journal?.reset()

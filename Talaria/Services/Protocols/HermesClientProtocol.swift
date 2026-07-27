@@ -23,6 +23,12 @@ struct HermesSessionInfo: Identifiable, Hashable, Sendable {
     /// omitted it (old/sparse session) or the client has no such data (local
     /// brain, mocks) — an absent value hides the cost row, never shows zeros.
     let usage: SessionUsage?
+    /// #190: false only for remote-stub rows — sessions the drawer still
+    /// shows (dimmed) but no configured host can open right now.
+    let isResumable: Bool
+    /// Honest one-line reason shown on an unresumable row. Nil while
+    /// `isResumable` is true.
+    let unresumableReason: String?
 
     init(
         id: String,
@@ -35,7 +41,9 @@ struct HermesSessionInfo: Identifiable, Hashable, Sendable {
         isActive: Bool,
         profileID: UUID? = nil,
         profileName: String? = nil,
-        usage: SessionUsage? = nil
+        usage: SessionUsage? = nil,
+        isResumable: Bool = true,
+        unresumableReason: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -48,6 +56,28 @@ struct HermesSessionInfo: Identifiable, Hashable, Sendable {
         self.profileID = profileID
         self.profileName = profileName
         self.usage = usage
+        self.isResumable = isResumable
+        self.unresumableReason = unresumableReason
+    }
+
+    /// #190: the same session, re-marked as unopenable — how the router
+    /// surfaces remote stubs once no configured host can resume them.
+    func asUnresumable(reason: String) -> HermesSessionInfo {
+        HermesSessionInfo(
+            id: id,
+            title: title,
+            preview: preview,
+            model: model,
+            source: source,
+            messageCount: messageCount,
+            lastActive: lastActive,
+            isActive: false,
+            profileID: profileID,
+            profileName: profileName,
+            usage: usage,
+            isResumable: false,
+            unresumableReason: reason
+        )
     }
 }
 

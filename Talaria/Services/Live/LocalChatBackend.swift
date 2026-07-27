@@ -119,17 +119,35 @@ final class LocalChatBackend: HermesClientProtocol {
     /// Shared trimming/token-measuring helpers (#4.8) — reused so the
     /// tokenizer-facing surface (and its iOS 26.4 gate) lives in one place.
     private let intelligence: LocalIntelligenceService
-    /// Standalone history is local-only by design (#26): the UserDefaults
-    /// conversation cache — written by ChatStore — is the restore source for
-    /// kill/relaunch continuity and the backing for listSessions/openSession.
+    /// The UserDefaults conversation cache — written by ChatStore — stays the
+    /// restore source for kill/relaunch continuity (#26). Since #190 it is no
+    /// longer the sessions backing: that's `sessionStore`.
     private let persistence: any AppPersistenceStoreProtocol
+    /// #190: keyed, durable session storage. Nil only when the SwiftData
+    /// container failed to create — sessions then degrade to the pre-#190
+    /// single-slot behavior instead of crashing at boot.
+    private let sessionStore: (any LocalSessionStoring)?
+    /// #190: whether a conversation belongs to the standalone path — the one
+    /// discriminator shared by the walk-away persist (ChatStore side) and the
+    /// legacy-cache adoption here. Defaults to "everything is local", the
+    /// correct reading for never-paired devices and standalone tests;
+    /// AppContainer wires the real rule (no configured host, or a
+    /// local-brained turn in the transcript).
+    private let isLocalThread: @MainActor (Conversation) -> Bool
+    /// One-shot legacy adoption gate (#190 Phase 3) — see
+    /// `adoptLegacySingleSlotIfNeeded`.
+    private var didAttemptLegacyAdoption = false
 
     init(
         persistence: any AppPersistenceStoreProtocol,
-        intelligence: LocalIntelligenceService
+        intelligence: LocalIntelligenceService,
+        sessionStore: (any LocalSessionStoring)? = nil,
+        isLocalThread: @escaping @MainActor (Conversation) -> Bool = { _ in true }
     ) {
         self.persistence = persistence
         self.intelligence = intelligence
+        self.sessionStore = sessionStore
+        self.isLocalThread = isLocalThread
     }
 
     /// Installs the device tool belt (#28). Invalidates the live session so
@@ -565,23 +583,81 @@ final class LocalChatBackend: HermesClientProtocol {
         return Self.modelSwitchResponseText(modelID: identifier, contextSize: await activeContextSize())
     }
 
-    // MARK: - Sessions (local-only by design)
+    // MARK: - Sessions (#190: backed by the keyed store; the single-slot
+    // cache remains only the kill/relaunch restore path)
 
     func listSessions() async throws -> [HermesSessionInfo] {
         restoreFromCacheIfNeeded()
-        guard let conversation = currentConversation, !conversation.messages.isEmpty else { return [] }
-        return [Self.sessionInfo(for: conversation)]
+        adoptLegacySingleSlotIfNeeded()
+        guard let sessionStore else {
+            // Degraded mode (container creation failed): the pre-#190 single
+            // slot, honestly — one live conversation or nothing.
+            guard let conversation = currentConversation, !conversation.messages.isEmpty else { return [] }
+            return [Self.sessionInfo(for: conversation)]
+        }
+        let currentID = currentConversation?.id
+        var infos = sessionStore.sessionSummaries().map {
+            Self.sessionInfo(for: $0, isActive: $0.id == currentID)
+        }
+        if let current = currentConversation, !current.messages.isEmpty, isLocalThread(current) {
+            // The live thread outranks its stored row — the store's copy is
+            // frozen at the last walk-away and may lag the conversation.
+            infos.removeAll { $0.id == current.id.uuidString }
+            infos.append(Self.sessionInfo(for: current))
+        }
+        return infos.sorted { ($0.lastActive ?? .distantPast) > ($1.lastActive ?? .distantPast) }
     }
 
     func openSession(_ id: String) async throws -> Conversation {
         restoreFromCacheIfNeeded()
-        guard let conversation = currentConversation, conversation.id.uuidString == id else {
+        adoptLegacySingleSlotIfNeeded()
+        if let conversation = currentConversation, conversation.id.uuidString == id {
+            // Recreate the LanguageModelSession on next send so the reopened
+            // history is replayed into the transcript.
+            session = nil
+            return conversation
+        }
+        guard let uuid = UUID(uuidString: id) else {
             throw LocalChatBackendError.sessionNotFound(id)
         }
-        // Recreate the LanguageModelSession on next send so the reopened
-        // history is replayed into the transcript.
+        guard let stored = sessionStore?.conversation(withID: uuid) else {
+            // #190B: a row that EXISTS but yields no conversation is a
+            // transcript decode failure, not an unknown id — folding the two
+            // together would tell the user a stored session doesn't exist.
+            // The store already logged the decode error; this is the honest
+            // user-facing half.
+            if sessionStore?.hasSession(withID: uuid) == true {
+                throw LocalChatBackendError.sessionUnreadable(id)
+            }
+            throw LocalChatBackendError.sessionNotFound(id)
+        }
+        // Persistence of the DEPARTING thread is not this path's job: it
+        // lives in ChatStore's abandonPendingRun — #184's one teardown
+        // primitive, which every context switch already routes through.
+        currentConversation = stored
         session = nil
-        return conversation
+        condensedMemory = nil
+        // #30: the escalation offer is per-conversation.
+        shouldOfferPrivateCloudEscalation = false
+        escalationOfferDismissed = false
+        return stored
+    }
+
+    /// #190 Phase 3: adopt the single-slot cached conversation into the keyed
+    /// store. Runs once per process before any sessions read; the id-keyed
+    /// upsert makes it idempotent across relaunches (running twice can never
+    /// produce two copies), and the cache itself is deliberately untouched —
+    /// it stays the kill/relaunch restore path. Beyond the one-time upgrade
+    /// migration, this is also the standing catch-up for a thread that was
+    /// live when the process died: no walk-away ran, so the cache alone
+    /// holds its newest turns.
+    private func adoptLegacySingleSlotIfNeeded() {
+        guard !didAttemptLegacyAdoption, let sessionStore else { return }
+        didAttemptLegacyAdoption = true
+        guard let cached = persistence.loadConversationCache(),
+              !cached.messages.isEmpty,
+              isLocalThread(cached) else { return }
+        sessionStore.upsertSession(cached)
     }
 
     func reconcileFromServer() async -> Conversation? {
@@ -1206,6 +1282,21 @@ final class LocalChatBackend: HermesClientProtocol {
         )
     }
 
+    /// Row form (#190): a stored session listed without decoding its
+    /// transcript — the store's denormalized columns carry everything here.
+    nonisolated static func sessionInfo(for summary: LocalSessionSummary, isActive: Bool) -> HermesSessionInfo {
+        HermesSessionInfo(
+            id: summary.id.uuidString,
+            title: summary.title == Conversation.defaultTitle ? nil : summary.title,
+            preview: summary.preview,
+            model: onDeviceModelID,
+            source: localSessionSource,
+            messageCount: summary.messageCount,
+            lastActive: summary.lastActivity,
+            isActive: isActive
+        )
+    }
+
     // MARK: - Honest failure states
 
     nonisolated static func unavailabilityMessage(for reason: SystemLanguageModel.Availability.UnavailableReason) -> String {
@@ -1262,13 +1353,19 @@ final class LocalChatBackend: HermesClientProtocol {
 enum LocalChatBackendError: LocalizedError {
     case unknownModel(String)
     case sessionNotFound(String)
+    /// #190B: the session's row exists but its stored transcript failed to
+    /// decode — distinct from an unknown id so the failure the user sees
+    /// tells the truth about what went wrong.
+    case sessionUnreadable(String)
 
     var errorDescription: String? {
         switch self {
         case .unknownModel(let id):
             return "The on-device brain has no model \"\(id)\"."
         case .sessionNotFound(let id):
-            return "No local conversation \"\(id)\" — standalone history keeps only the current conversation on this device."
+            return "No local conversation \"\(id)\" is stored on this device."
+        case .sessionUnreadable:
+            return "This conversation is stored on the device, but its transcript couldn't be read."
         }
     }
 }

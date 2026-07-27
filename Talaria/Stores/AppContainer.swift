@@ -517,13 +517,36 @@ final class AppContainer {
             allowsFallback: { allowMockFallbacks && (activePairingStore?.isPaired != true || usesMockPairingService) }
         )
 
+        // #190: keyed local-session storage. A nil store (container-creation
+        // failure) degrades sessions to the pre-#190 single slot — logged in
+        // the store, never a boot crash.
+        let localSessionStore = SwiftDataLocalSessionStore.make()
+        // #190: the ONE standalone-thread discriminator, shared by the
+        // legacy-cache adoption + live-row listing (backend) and the
+        // walk-away persist (ChatStore). No configured host means every
+        // thread is local by construction; with a host configured, a thread
+        // is local iff the store already knows its id — membership IS
+        // origin, established when a thread's first assistant turn settles
+        // on a local brain (ChatStore.recordLocalOriginAfterSettledTurn) and
+        // durable across process death because it lives in the store itself.
+        // #190B: the old rule scanned for ANY local-brained assistant turn,
+        // so #192's mixed paired-mode threads — a Hermes session the brain
+        // flipped under mid-conversation — kept upserting into the local
+        // store, violating this rule's own charter.
+        let isLocalThread: @MainActor (Conversation) -> Bool = { [hermesAPIKeyBox] conversation in
+            if hermesAPIKeyBox.value.isEmpty { return true }
+            return localSessionStore?.hasSession(withID: conversation.id) == true
+        }
+
         // #26/#27: the on-device brain + the two-brain router. The retry
         // wrapper stays on the Hermes side only — retries are a network
         // concern the local brain doesn't have. ChatStore talks to the router
         // as its one `any HermesClientProtocol`.
         let localChatBackend = LocalChatBackend(
             persistence: persistence,
-            intelligence: localIntelligence
+            intelligence: localIntelligence,
+            sessionStore: localSessionStore,
+            isLocalThread: isLocalThread
         )
         let chatBackendRouter = ChatBackendRouter(
             hermes: hermesClient,
@@ -926,6 +949,20 @@ final class AppContainer {
             localChatBackend?.setPreferredTier(privateCloud: brain == .privateCloud)
         }
 
+        // #190: unified-drawer seams. Membership routes a stored (or live)
+        // local session id to the local backend even while Hermes is the
+        // active brain; the record/stub pair keeps the last live Hermes list
+        // visible — dimmed — after the host stops being configured. (The
+        // router already holds the backend strongly as `local`; these
+        // closures add no new ownership.)
+        chatBackendRouter.isLocalSessionID = { [weak localChatBackend] id in
+            guard let uuid = UUID(uuidString: id) else { return false }
+            return localSessionStore?.hasSession(withID: uuid) == true
+                || localChatBackend?.currentConversation?.id == uuid
+        }
+        chatBackendRouter.recordRemoteSessions = { localSessionStore?.recordRemoteSessionStubs($0) }
+        chatBackendRouter.remoteSessionStubs = { localSessionStore?.remoteSessionStubs() ?? [] }
+
         // Restore the persisted Hermes Sessions-API keys into the in-memory
         // cache (every profile — sync endpoint resolution needs them) and
         // the active-profile box, so the chat client can pick them up on
@@ -1094,6 +1131,12 @@ final class AppContainer {
         // condensation ride the chat turn lifecycle inside ChatStore.
         container.chatStore.localIntelligence = container.localIntelligence
 
+        // #190: the walk-away persist inside abandonPendingRun writes the
+        // departing local thread through these — same store and same
+        // discriminator as the backend's legacy adoption.
+        container.chatStore.localSessions = localSessionStore
+        container.chatStore.isLocalSessionThread = isLocalThread
+
         // #14: attachment sends (the deliberately-backgroundable long path,
         // #38) ride a BGContinuedProcessingTask — system progress UI, and the
         // run survives the user leaving the app.
@@ -1123,7 +1166,10 @@ final class AppContainer {
             settingsStore.settings.spotlightIndexingEnabled
         }
         container.chatStore.onSessionsLoaded = { [weak container] sessions in
-            container?.spotlightIndexing.donateSessions(sessions)
+            // #190: unresumable stubs stay out of Spotlight — a result that
+            // can't open is the search-pane version of the lie the drawer's
+            // dimmed row exists to avoid.
+            container?.spotlightIndexing.donateSessions(sessions.filter(\.isResumable))
         }
         // Run-completion push watch (#38): when a stream detaches while the
         // app is leaving the foreground, ask the relay to watch the session
