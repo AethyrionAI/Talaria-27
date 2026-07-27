@@ -335,7 +335,9 @@ struct ContactsTool: Tool {
             guard granted else {
                 return "Contacts permission was not granted, so the lookup can't run."
             }
-        } else if status != .authorized {
+        } else if status != .authorized && status != .limited {
+            // .limited (the Contact Access Picker) still returns hits from
+            // the approved subset — a narrower grant is not a denial (#186).
             return "Contacts permission is not granted, so the lookup can't run. The user can enable it in Settings → Privacy & Security → Contacts."
         }
 
