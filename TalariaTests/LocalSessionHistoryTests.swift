@@ -18,6 +18,9 @@ struct LocalSessionHistoryTests {
         private(set) var sessions: [UUID: Conversation] = [:]
         private(set) var upsertedIDs: [UUID] = []
         private(set) var stubs: [HermesSessionInfo] = []
+        /// #190B: ids whose row exists but whose transcript reads as
+        /// undecodable — models the store's decode-nil path.
+        var unreadableIDs: Set<UUID> = []
 
         func upsertSession(_ conversation: Conversation) {
             sessions[conversation.id] = conversation
@@ -40,7 +43,8 @@ struct LocalSessionHistoryTests {
         }
 
         func conversation(withID id: UUID) -> Conversation? {
-            sessions[id]
+            guard !unreadableIDs.contains(id) else { return nil }
+            return sessions[id]
         }
 
         func hasSession(withID id: UUID) -> Bool {
@@ -358,6 +362,7 @@ struct LocalSessionHistoryTests {
         var currentConversation: Conversation?
         var sessions: [HermesSessionInfo] = []
         var listError: Error?
+        var openError: Error?
         private(set) var openedIDs: [String] = []
 
         func connect() async {}
@@ -384,6 +389,7 @@ struct LocalSessionHistoryTests {
         }
 
         func openSession(_ id: String) async throws -> Conversation {
+            if let openError { throw openError }
             openedIDs.append(id)
             return Conversation(title: "opened \(id)")
         }
@@ -479,6 +485,207 @@ struct LocalSessionHistoryTests {
 
         _ = try await router.openSession("h-1")
         #expect(hermes.openedIDs == ["h-1"], "Hermes ids keep routing exactly as before")
+    }
+
+    // MARK: - Symmetric membership routing (#190B change 1)
+
+    @Test @MainActor
+    func routerRoutesRemoteIDsToHermesWhileLocalBrainIsActive() async throws {
+        let hermes = ScriptedClient()
+        let local = ScriptedClient()
+        let router = makeRouter(hermes: hermes, local: local, configured: true)
+        router.isLocalSessionID = { _ in false }
+        // Pin the next conversation on-device so the ACTIVE brain is local —
+        // the exact state the 2026-07-26 device fail was tapped in.
+        router.setPreferredBrain(.onDevice, forConversation: nil)
+        #expect(router.activeBrain == .onDevice)
+
+        _ = try await router.openSession("h-1")
+
+        #expect(hermes.openedIDs == ["h-1"], "a Hermes row tapped while the local brain is active must open on Hermes")
+        #expect(local.openedIDs.isEmpty, "the old active-brain fallback sent this tap to LocalChatBackend, which threw sessionNotFound")
+    }
+
+    @Test @MainActor
+    func routerFallsBackToActiveBrainForRemoteIDsOnlyWhenHermesUnconfigured() async throws {
+        let hermes = ScriptedClient()
+        let local = ScriptedClient()
+        let router = makeRouter(hermes: hermes, local: local, configured: false)
+        router.isLocalSessionID = { _ in false }
+
+        _ = try await router.openSession("h-stub")
+
+        #expect(local.openedIDs == ["h-stub"], "with no Hermes configured the active (local) brain still fields the open")
+        #expect(hermes.openedIDs.isEmpty)
+    }
+
+    // MARK: - Open failure is rendered state, not a log line (#190B change 2)
+
+    @Test @MainActor
+    func failedOpenBecomesRenderableStateAndSuccessClearsIt() async throws {
+        let client = ScriptedClient()
+        client.openError = LocalChatBackendError.sessionNotFound("gone")
+        let chatStore = ChatStore(hermesClient: client, persistence: makePersistence())
+
+        await chatStore.openSession("gone")
+
+        let failure = try #require(chatStore.sessionOpenFailure, "a deterministic open failure must be state the UI can render")
+        #expect(failure.sessionID == "gone")
+        #expect(!failure.message.isEmpty)
+
+        client.openError = nil
+        await chatStore.openSession("s-ok")
+        #expect(chatStore.sessionOpenFailure == nil, "the next successful open clears the failure")
+    }
+
+    @Test @MainActor
+    func newChatClearsOpenFailureState() async throws {
+        let client = ScriptedClient()
+        client.openError = StubError()
+        let chatStore = ChatStore(hermesClient: client, persistence: makePersistence())
+
+        await chatStore.openSession("nope")
+        #expect(chatStore.sessionOpenFailure != nil)
+
+        try await chatStore.clearConversation()
+        #expect(chatStore.sessionOpenFailure == nil, "walking away from the failed open dismisses it")
+    }
+
+    @Test @MainActor
+    func unreadableStoredTranscriptThrowsDistinctlyFromUnknownID() async throws {
+        let store = FakeSessionStore()
+        let stored = localConversation(prompt: "was here", reply: "once", lastActivity: .now)
+        store.upsertSession(stored)
+        store.unreadableIDs = [stored.id]
+        let backend = makeBackend(persistence: makePersistence(), store: store)
+
+        do {
+            _ = try await backend.openSession(stored.id.uuidString)
+            Issue.record("an unreadable stored transcript must throw")
+        } catch LocalChatBackendError.sessionUnreadable {
+            // Expected: the row exists — telling the user it doesn't would be
+            // the decode-nil path lying twice.
+        } catch {
+            Issue.record("expected sessionUnreadable, got \(error)")
+        }
+    }
+
+    // MARK: - Origin-based store membership (#190B change 3)
+
+    /// Yields exactly one `.finished` assistant turn, stamped with the given
+    /// brain — the minimal client for driving ChatStore's settle path.
+    @MainActor
+    private final class SettlingClient: HermesClientProtocol {
+        var connectionStatus: ConnectionStatus = .connected
+        var currentConversation: Conversation?
+        var finishBrain: String?
+
+        func connect() async {}
+        func disconnect() async {}
+
+        func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
+            Message(sender: .hermes, content: "ok", status: .delivered)
+        }
+
+        func sendStreaming(
+            message: String,
+            attachments: [PendingAttachment],
+            clientMessageID: UUID
+        ) -> AsyncStream<StreamingUpdate> {
+            let reply = Message(sender: .hermes, content: "reply", status: .delivered, brain: finishBrain)
+            return AsyncStream { continuation in
+                continuation.yield(.finished(reply, nil, nil))
+                continuation.finish()
+            }
+        }
+
+        func loadConversation() async -> Conversation {
+            currentConversation ?? Conversation(title: "Hermes")
+        }
+
+        func clearConversation() async throws -> Conversation {
+            Conversation(title: "Hermes")
+        }
+    }
+
+    /// The wired discriminator shape since #190B: membership IS locality.
+    @MainActor
+    private func membershipDiscriminator(_ store: FakeSessionStore) -> @MainActor (Conversation) -> Bool {
+        { store.hasSession(withID: $0.id) }
+    }
+
+    @Test @MainActor
+    func firstLocalSettledTurnEstablishesStoreMembership() async throws {
+        let store = FakeSessionStore()
+        let client = SettlingClient()
+        client.finishBrain = ChatBackendRouter.Brain.onDevice.rawValue
+        let chatStore = ChatStore(hermesClient: client, persistence: makePersistence())
+        chatStore.localSessions = store
+        chatStore.isLocalSessionThread = membershipDiscriminator(store)
+
+        await chatStore.sendMessage("hello there")
+
+        let conversationID = try #require(chatStore.conversation?.id)
+        #expect(store.hasSession(withID: conversationID), "a thread born local enters the store the moment its first turn settles")
+
+        await chatStore.sendMessage("and again")
+        #expect(store.sessions[conversationID]?.messages.count == 4, "later settles refresh the stored copy")
+    }
+
+    @Test @MainActor
+    func mixedHermesThreadNeverEntersTheLocalStore() async throws {
+        let store = FakeSessionStore()
+        let client = SettlingClient()
+        client.finishBrain = ChatBackendRouter.Brain.onDevice.rawValue
+        let persistence = makePersistence()
+        // A paired-mode Hermes thread: prior assistant turns un-stamped (the
+        // historical Hermes default) — its identity is a Hermes session.
+        persistence.saveConversationCache(Conversation(title: "Hermes", messages: [
+            Message(sender: .user, content: "earlier", status: .delivered),
+            Message(sender: .hermes, content: "server reply", status: .delivered),
+        ]))
+        let chatStore = ChatStore(hermesClient: client, persistence: persistence)
+        chatStore.localSessions = store
+        chatStore.isLocalSessionThread = membershipDiscriminator(store)
+        await chatStore.loadConversationIfNeeded()
+
+        // #192 flips the brain mid-thread: this turn settles on-device.
+        await chatStore.sendMessage("now local")
+        #expect(store.sessions.isEmpty, "a mixed thread whose identity is a Hermes session must not enter the store")
+
+        // The walk-away persist reaches the same verdict.
+        try await chatStore.clearConversation()
+        #expect(store.sessions.isEmpty)
+    }
+
+    @Test @MainActor
+    func settledHermesTurnEstablishesNothing() async throws {
+        let store = FakeSessionStore()
+        let client = SettlingClient()
+        client.finishBrain = ChatBackendRouter.Brain.hermes.rawValue
+        let chatStore = ChatStore(hermesClient: client, persistence: makePersistence())
+        chatStore.localSessions = store
+        chatStore.isLocalSessionThread = membershipDiscriminator(store)
+
+        await chatStore.sendMessage("routed to Hermes")
+
+        #expect(store.sessions.isEmpty, "a thread born on Hermes has no local origin to record")
+    }
+
+    // MARK: - A failed refresh must not empty the drawer (#190B change 5)
+
+    @Test @MainActor
+    func failedSessionsRefreshServesLastRealList() async throws {
+        let client = ScriptedClient()
+        client.sessions = [remoteInfo(id: "h-1", lastActive: .now)]
+        let chatStore = ChatStore(hermesClient: client, persistence: makePersistence())
+
+        let first = await chatStore.loadSessions(force: true)
+        #expect(first.map(\.id) == ["h-1"])
+
+        client.listError = StubError()
+        let second = await chatStore.loadSessions(force: true)
+        #expect(second.map(\.id) == ["h-1"], "a failed refresh serves the stale-but-real list — [] emptied the drawer on device")
     }
 
     // MARK: - Drawer origin markers (#190 Phase 4)
