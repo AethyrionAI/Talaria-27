@@ -26,13 +26,45 @@ model pill read `DEEPSEEK-V4-FLASH` and the status line read `ONLINE · OJAMD`; 
 server-shaped tool confirmations. The originally-reported "manual switch refused until force quit" is
 the **residue** that reversion leaves behind, not the defect.
 
-So the primary question is now: **what INITIATES an un-asked backend change?** Two candidate shapes —
-deliberate routing of "big" requests off-device, or failover on a local-model error. Find which
-exists in source. If it is designed failover, it must **announce itself and get consent**; silent
-reversion is not acceptable regardless of intent. First reproducible lead: long-form generation
-("write a 500 word summary"). The refusal-path work below still stands, but as the second half:
-instrument BOTH the initiation of any backend change (who, why, from where) and the refusal of manual
-switches.
+**UPDATE 2026-07-26 late: the initiator is FOUND, in source. Both halves. This is now a fix lane,
+not a search lane.**
+
+**Half 1 — the self-switch is `resolvedBrainForNextTurn()`'s default plus id-keyed preferences.**
+`ChatBackendRouter.resolvedBrainForNextTurn()` ends with: `guard isHermesConfigured() else { return
+.onDevice }` / `if let preferred { return preferred }` / `return hermes.connectionStatus == .error ?
+.onDevice : .hermes` — **on a paired device, Hermes wins by default**. The user's on-device pick is
+not a mode; it is a per-conversation preference keyed to the conversation UUID
+(`resolvePreferenceForCurrentConversation`). So the moment the conversation id rotates — **New chat,
+`clearConversation`, or #190's `openSession`** — the new id has no stored preference, resolution
+falls through to the default, and the next turn runs on Hermes. No error, no big-request routing:
+the "500-word summary switched it" was simply the first send after an id rotation. And
+`connect()` runs "on appear and every ~10s" per its own comment ("a restarted gateway flips the next
+turn back to Hermes without user action"), calling `refreshActiveBrain()` each time — so even
+without a send, the header snaps Hermes-ward on the next probe after rotation.
+
+**Half 2 — the refusal-until-force-quit is a stuck `runningBrain`.** `refreshActiveBrain()` is
+`guard runningBrain == nil else { return }`. `send()` clears `runningBrain` in a `defer`;
+`sendStreaming` clears it inside the stream's completion handling — so a stream that never finishes
+(the #145/#184 dropped-run family) leaves `runningBrain` set for the life of the process, freezing
+re-derivation and wedging the toggle until force quit. In-memory only, exactly as observed.
+
+**The fix has a product decision inside it — flag for Owen, do not decide silently:** should the
+brain pick be (a) a sticky mode (a global default that new chats inherit, per-conversation override
+on top), or (b) stay per-conversation with every new chat defaulting to Hermes? The current
+behavior IS (b) working as coded, and it is what the user experiences as "the app switches itself."
+Recommendation: (a) — the toggle looks like a mode, so it should be one. But implement whichever
+Owen picks, not whichever is closer.
+
+**Regardless of that decision, all of the following are required:**
+- `runningBrain` must be cleared on run abandonment — wire it into #184's `abandonPendingRun`
+  (ChatStore's primitive) or the router's own teardown, so an abandoned stream can never wedge
+  routing. Deterministic test: start stream, abandon, assert `refreshActiveBrain()` re-derives.
+- Every `activeBrain` change logs old → new, the initiator (user pick / default resolution / probe
+  refresh / error fallback), and the conversation key consulted. This is the instrumentation half,
+  now with named call sites: `:187`, `:270`, `:292`, `:319`, and both send paths.
+- Any automatic brain change the user did not just ask for must be **visible in the transcript or
+  header at the moment it happens** — the #30 PCC degradation already models this correctly
+  (one-line fallback notice, never silent); reuse that pattern.
 
 Known blast damage, for motivation: this contaminated the #190 device pass (threads believed local
 ran on Hermes) and it feeds the #190 `isLocalThread` store-contamination hole. Combined with #191,
