@@ -18,7 +18,27 @@ Force quit being the remedy establishes the stuck state is **in-memory only** �
 dies with the process. Expected shape: a transition guard set and not cleared on some path, so every
 later switch attempt is refused up front.
 
-### It is INTERMITTENT — instrument, do not hunt
+### RE-DIAGNOSED 2026-07-26 — the defect is SELF-INITIATED switching; read this before the sections below
+
+Device evidence (screenshots on file): with ON-DEVICE active, a request for a 500-word summary
+**switched the backend to Hermes with no user action**. The header kept the ON-DEVICE badge while the
+model pill read `DEEPSEEK-V4-FLASH` and the status line read `ONLINE · OJAMD`; replies carried
+server-shaped tool confirmations. The originally-reported "manual switch refused until force quit" is
+the **residue** that reversion leaves behind, not the defect.
+
+So the primary question is now: **what INITIATES an un-asked backend change?** Two candidate shapes —
+deliberate routing of "big" requests off-device, or failover on a local-model error. Find which
+exists in source. If it is designed failover, it must **announce itself and get consent**; silent
+reversion is not acceptable regardless of intent. First reproducible lead: long-form generation
+("write a 500 word summary"). The refusal-path work below still stands, but as the second half:
+instrument BOTH the initiation of any backend change (who, why, from where) and the refusal of manual
+switches.
+
+Known blast damage, for motivation: this contaminated the #190 device pass (threads believed local
+ran on Hermes) and it feeds the #190 `isLocalThread` store-contamination hole. Combined with #191,
+the user cannot know which brain holds their conversation.
+
+### The refusal half — instrument, do not hunt
 
 **Reproduction was attempted 2026-07-26 and the switch behaved correctly.** The defect does not occur
 from a clean app state. Whatever sets the stuck condition is rare and situational.
