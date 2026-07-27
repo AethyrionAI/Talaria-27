@@ -8875,4 +8875,9 @@ test's real charter (duplicate-id detection) while removing the keyboard-timing 
 Test-hygiene severity, but it sits in the verification path of every returned PR, so its
 flake rate taxes every lane.
 
+**FIXED 2026-07-27 (same day, 414ed4d, direct to main per Owen):** sendMessage reads the
+composer's settled value and keys the reply assertion to it. 3/3 iterations green on
+27A5228h; pre-fix the test failed 3 of 5 runs across three branches including main. Device
+evidence not applicable (sim-only UI test). CLOSED.
+
 Logged 2026-07-27.
