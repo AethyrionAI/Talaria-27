@@ -157,7 +157,14 @@ struct BarcodeReaderTool: Tool, ImageDependentTool {
 
 struct ConversationSearchTool: Tool {
     let name = "searchConversations"
-    let description = "Search the user's Hermes conversations for a word or phrase — the current thread's messages plus the titles/previews of indexed past sessions."
+    // #176B: kept on the standalone belt rather than withheld — in-thread
+    // search reaches verbatim text that #26 condensation dropped from the
+    // transcript, and past-session titles/previews are real once the (#190)
+    // local store's sessions donate. The description instead states WHEN the
+    // tool applies (the #148 pattern): the selector was observed searching
+    // the literal string "2+2" because the old text read like a general
+    // memory tool.
+    let description = "Find where a specific word or phrase appeared earlier — in this conversation's older messages, or in the titles/previews of indexed past sessions. Use this ONLY when the user asks to find or recall a specific past mention — never to answer a question; the recent conversation is already visible to you without any tool."
     let relay: ToolEventRelay
     let conversationProvider: @MainActor () -> Conversation?
     let sessionCacheProvider: @MainActor () -> [CachedSession]
