@@ -2414,14 +2414,22 @@ extension LocalChatBackend {
         Self.batteryEmit("battery: REAP-STEP events begin (#200)")
 
         // Events: enumeration also needs full access (write-only can save
-        // but never read, so it cannot reap). The prompt set creates
-        // near-future events; a −2d…+60d window bounds the sweep without
-        // missing anything a battery could have created.
+        // but never read, so it cannot reap). WRITABLE calendars only, and
+        // a −1d…+14d window: battery events are always near-future ("Friday
+        // at noon" is days out) and can only live where a save landed —
+        // birthday/subscribed/holiday calendars cannot hold them. This is
+        // also the crash lane's 2026-07-28 narrowing: four device runs died
+        // in this reap while the sim probe cleared these exact ops on a
+        // FRESH store, so the all-calendars 62-day scan over the real
+        // store's recurrence/birthday/CalDAV content is the prime suspect;
+        // 14d across writable calendars matches the device-proven
+        // readCalendar envelope. Run-4 verifies.
         var eventsLine = "events=skipped(no-access)"
         if EKEventStore.authorizationStatus(for: .event) == .fullAccess {
-            let start = Date().addingTimeInterval(-2 * 86_400)
-            let end = Date().addingTimeInterval(60 * 86_400)
-            let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+            let start = Date().addingTimeInterval(-1 * 86_400)
+            let end = Date().addingTimeInterval(14 * 86_400)
+            let writable = store.calendars(for: .event).filter(\.allowsContentModifications)
+            let predicate = store.predicateForEvents(withStart: start, end: end, calendars: writable)
             let marked = store.events(matching: predicate).filter { ($0.title ?? "").contains(marker) }
             Self.batteryEmit("battery: REAP-STEP events fetched marked=\(marked.count) (#200)")
             var removed = 0
