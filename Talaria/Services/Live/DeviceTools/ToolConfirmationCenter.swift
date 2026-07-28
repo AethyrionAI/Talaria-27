@@ -45,11 +45,27 @@ final class ToolConfirmationCenter {
     private(set) var pending: PendingConfirmation?
     private var continuation: CheckedContinuation<Decision, Never>?
 
+    #if DEBUG
+    /// #196 battery: headless sessions can never answer a card, and the
+    /// continuation is deliberately non-cancellable — so the rate battery
+    /// flips this on for its run. Every action-tool grab resolves instantly
+    /// as .declined, which doubles as recovery-clause measurement (does the
+    /// model answer anyway, or loop the denial?). Never set outside the
+    /// battery.
+    var autoDeclineForBattery = false
+    #endif
+
     /// Stages a confirmation and suspends the calling tool until the user
     /// decides. Tools run serially per session; if a second request somehow
     /// arrives while one is pending, it auto-declines (defensive — the gate
     /// never queues silently).
     func requestConfirmation(title: String, detail: String? = nil, fields: [Field]) async -> Decision {
+        #if DEBUG
+        if autoDeclineForBattery {
+            Self.logger.notice("confirmation auto-declined (#196 battery): \(title, privacy: .public)")
+            return .declined
+        }
+        #endif
         guard continuation == nil else {
             Self.logger.warning("confirmation requested while another is pending — auto-declining the new one")
             return .declined
