@@ -60,7 +60,21 @@ enum DeviceActionParsing {
 
 struct ReminderCreateTool: Tool {
     let name = "createReminder"
-    let description = "Create a reminder in the user's Reminders app. The user sees a confirmation card and can edit or cancel before anything is created."
+    /// Production description text — the default at every production call
+    /// site, so the shipping belt is byte-identical with or without the
+    /// #196 seam below.
+    static let productionDescription = "Create a reminder in the user's Reminders app. The user sees a confirmation card and can edit or cancel before anything is created."
+    #if DEBUG
+    /// #196 second battery, `armed-remfix` / `armed-fix` treatment: scope
+    /// the tool against task-verb confusion — the first battery measured
+    /// production armed grabbing this tool on 8/10 "write a haiku" requests
+    /// (the model parses the creative verb as a todo). Measurement cells
+    /// only; production ships this text ONLY after a battery verdict.
+    static let scopedDescription196 = "Create a reminder in the user's Reminders app, only when the user asks to be reminded of something or to save a to-do for later — never for requests to write, compose, or answer something now. The user sees a confirmation card and can edit or cancel before anything is created."
+    #endif
+    /// `var` + init default (#196): the battery's shaped belt copies this
+    /// tool and swaps ONLY this string; production call sites never pass it.
+    var description: String = ReminderCreateTool.productionDescription
     let relay: ToolEventRelay
     let confirmations: ToolConfirmationCenter
 
