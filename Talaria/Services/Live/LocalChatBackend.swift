@@ -793,6 +793,23 @@ final class LocalChatBackend: HermesClientProtocol {
             memoryLines.joined(separator: "\n"),
             toTokenBudget: Self.condensedMemoryTokens
         )
+        #if DEBUG
+        // #196 `-noinstr` cells: NO instructions means no instructions even
+        // when condensation fires — the memory block has nowhere to live,
+        // so the condensed turns are DROPPED outright (kept in
+        // `condensedMemory` for diagnostics only). Without this, the
+        // preamble concatenation below would silently convert the cell
+        // into an instructions-bearing session mid-conversation.
+        // Production base instructions are never empty.
+        if baseInstructions.isEmpty {
+            Self.logger.notice("sessionBlueprint: \(split, privacy: .public) condensed turn(s) DROPPED — the -noinstr cell carries no instructions entry for memory (#196)")
+            return SessionBlueprint(
+                instructions: "",
+                verbatimTurns: Array(turns[split...]),
+                condensedMemory: memory
+            )
+        }
+        #endif
         let instructions = baseInstructions + "\n\n" + Self.condensedMemoryPreamble + "\n" + memory
         Self.logger.notice("sessionBlueprint: condensed \(split) older turn(s) into memory; \(turns.count - split) replayed verbatim (#26)")
         return SessionBlueprint(
@@ -827,38 +844,10 @@ final class LocalChatBackend: HermesClientProtocol {
         // cell built this session.
         Self.logger.notice("session shape: \(Self.activeSessionShape.rawValue, privacy: .public) — \(offered.count, privacy: .public) tool(s) registered (#196)")
         #endif
-        var entries: [Transcript.Entry] = []
-        // #196 `-noinstr` cells: an empty blueprint means NO instructions —
-        // the transcript simply carries no instructions entry. Production
-        // instructions are never empty, so the guard is inert outside the
-        // DEBUG instrument.
-        if !blueprint.instructions.isEmpty {
-            entries.append(.instructions(Transcript.Instructions(
-                id: UUID().uuidString,
-                segments: [.text(Transcript.TextSegment(id: UUID().uuidString, content: blueprint.instructions))],
-                toolDefinitions: []
-            )))
-        }
-        for turn in blueprint.verbatimTurns {
-            let segment = Transcript.Segment.text(
-                Transcript.TextSegment(id: UUID().uuidString, content: turn.text)
-            )
-            switch turn.role {
-            case .user:
-                entries.append(.prompt(Transcript.Prompt(
-                    id: UUID().uuidString,
-                    segments: [segment],
-                    options: GenerationOptions(),
-                    responseFormat: nil
-                )))
-            case .assistant:
-                entries.append(.response(Transcript.Response(
-                    id: UUID().uuidString,
-                    assetIDs: [],
-                    segments: [segment]
-                )))
-            }
-        }
+        let entries = Self.transcriptEntries(
+            instructions: blueprint.instructions,
+            verbatimTurns: blueprint.verbatimTurns
+        )
         // Tools come from the #28 belt, gated for this turn by #176 (empty
         // until AppContainer installs the belt). The transcript's Instructions
         // entry carries no toolDefinitions — the session's `tools:` parameter
@@ -881,6 +870,48 @@ final class LocalChatBackend: HermesClientProtocol {
             )
         }
         return LanguageModelSession(model: model, tools: offered, transcript: Transcript(entries: entries))
+    }
+
+    /// The transcript entries a rebuilt session replays: the instructions
+    /// block — when there IS one: the #196 `-noinstr` cells carry none, and
+    /// an empty string means the transcript simply has no instructions
+    /// entry (production instructions are never empty, so the guard is
+    /// inert outside the DEBUG instrument) — followed by the verbatim
+    /// turns. Static + nonisolated so the no-instructions-entry constraint
+    /// is unit-pinned.
+    nonisolated static func transcriptEntries(
+        instructions: String,
+        verbatimTurns: [TranscriptTurn]
+    ) -> [Transcript.Entry] {
+        var entries: [Transcript.Entry] = []
+        if !instructions.isEmpty {
+            entries.append(.instructions(Transcript.Instructions(
+                id: UUID().uuidString,
+                segments: [.text(Transcript.TextSegment(id: UUID().uuidString, content: instructions))],
+                toolDefinitions: []
+            )))
+        }
+        for turn in verbatimTurns {
+            let segment = Transcript.Segment.text(
+                Transcript.TextSegment(id: UUID().uuidString, content: turn.text)
+            )
+            switch turn.role {
+            case .user:
+                entries.append(.prompt(Transcript.Prompt(
+                    id: UUID().uuidString,
+                    segments: [segment],
+                    options: GenerationOptions(),
+                    responseFormat: nil
+                )))
+            case .assistant:
+                entries.append(.response(Transcript.Response(
+                    id: UUID().uuidString,
+                    assetIDs: [],
+                    segments: [segment]
+                )))
+            }
+        }
+        return entries
     }
 
     // MARK: - Session-shape seam (#196, reworked from #194/176C)
@@ -1551,7 +1582,10 @@ extension LocalChatBackend {
         if holdLiveSDKStream {
             let prompt = Self.composePrompt(message: message, attachments: attachments)
             let liveSession = await preparedSession(nextPrompt: prompt, attachments: attachments, excludingClientMessageID: clientMessageID)
-            let options = Self.chatGenerationOptions(for: activeTier)
+            // Through the #196 seam like every live generation: with a
+            // nocall-armed picker, even this held stream must not fire
+            // tools mid-instrument.
+            let options = effectiveGenerationOptions()
             liveDrain = Task { @MainActor in
                 // Output suppressed by design — the held stream exists only so
                 // the trip abandons a REAL in-flight SDK generation.
@@ -1685,7 +1719,10 @@ extension LocalChatBackend {
 /// `effectiveGenerationOptions`).
 extension LocalChatBackend {
 
-    enum SessionShape: String {
+    // CaseIterable (#196 third battery): lets the test pins iterate
+    // `allCases` minus the treated shapes, so a future cell can never
+    // dodge the identity pins by not being in an enumerated list.
+    enum SessionShape: String, CaseIterable {
         /// Production behavior — the in-run control; both mechanisms live
         /// here (first battery: haiku 6/10, 8/10 reminder grabs, Norway
         /// 4/10 with 0 clean opens).
