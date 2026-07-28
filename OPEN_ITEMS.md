@@ -8971,6 +8971,20 @@ smaller way.
 Polish severity, but high visibility — it undermines trust in every on-device answer.
 Instrument-first per today's lesson: cells, not vibes. Dispatch to follow.
 
+**FIRST BATTERY RUN 2026-07-27 19:27 (n=10/cell, PR #158's instrument) — MECHANISMS FOUND.**
+Full table + analysis in `planning/HANDOFF-2026-07-27-EVENING.md`. Headlines: (1) TASK-VERB
+CONFUSION — "write a haiku" parses as a todo; production armed grabbed the reminder tool 8/10
+(the belt's presence, not its prose, drives creative failure; toolless wrote 10/10 flawless).
+(2) KNOWLEDGE-DENIAL ON COMPOSITION — "summarize Norway" refused as "can't access external
+knowledge" across every tool cell; the licensing clause covers recall, not composition; Norway
+content 0-4/10 everywhere. (3) The tool-less branch (never given the clause) went 0/10 on
+Norway with the purest denials. (4) armed-direct LOSES (Norway 1/10, no haiku gain) — Part 2
+dropped from #158 per the readout; instruction stacking is not the road. (5) Single-shot cell
+verdicts on this model are unreliable — n=4 convictions did not survive n=10; rates or nothing.
+Next lane: mechanism-targeted cells (ReminderTool description scope, composition-licensing
+sentence, clause in the tool-less branch), after a battery rev that logs every tool invocation
+(read tools fired invisibly this run).
+
 **2026-07-27, instrument built (branch `claude/t27-196-preface-tic`, dispatch
 `OPUS-T27-196-preface-tic.md`): the reworked cells + the desk picker, confirm-then-fix.**
 Part 0 cherry-picks the 176C side-branch desk instrument (`8f92385`: DEBUG-only persisted
