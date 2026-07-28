@@ -9513,3 +9513,26 @@ byte-identity pin to the new production text, battery re-verify on the promoted
 build); Owen routes. Remaining queue behind it: the multi-turn offer→denial
 instrument; remfix scoping as router insurance; calendar contact de-fixation may be
 moot — this clause largely cured it from upstream.
+
+**#200D PROMOTION SHIPPED, 2026-07-28 night (routed by Owen: "yup, merge and start
+on the next"; PR #167 merged `28551c7`, promotion branch
+`claude/t27-200-promote-clause`): `includeActionDestallClause` defaults TRUE in
+`instructionsText` — the de-stall clause is production.** One edit flips every
+production path by construction (Release call, DEBUG `armedRouted` default shape,
+every structural cell pinned as production-verbatim, the batteries' control cells);
+the toolless branches are `hasTools:false` and never carried it. Explicit `false`
+stays as the pinned ROLLBACK seam — the pre-promotion text, byte-identical, one
+default-flip away. TDD: the #200C off-by-default pin inverted to
+`actionDestallClauseIsProductionDefaultAndRemovable` (clause verbatim at its
+measured seam — after the confirmation-card sentence, before honesty-and-recovery;
+explicit-true identity; explicit-false removes exactly the clause; toolless clean),
+watched RED (3 expectations, the other 51 suite tests green) then GREEN after the
+flip. Full suite **1282/1282 in 111 suites**. The `armed-instrfix` cell is now
+identity with control, which makes the Diagnostics "Instrfix battery n=10 (80)"
+button the RE-VERIFY instrument for free: 2× replication of promoted production,
+20 trials/prompt including the grab canary. AWAITING: Owen installs the promoted
+build and runs it; expected if promotion holds — both cells replicate the #200C
+treated rates (remind ~2/10, alarm ~10/10, calendar ~8/10, grabs ≤3/10 per cell).
+Re-verify verdict files here on classification. Queued behind it: the multi-turn
+offer→denial instrument; remfix scoping as router insurance; the battery
+artifact-contamination fix (per-trial unique titles).
