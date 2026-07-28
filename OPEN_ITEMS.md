@@ -8971,4 +8971,58 @@ smaller way.
 Polish severity, but high visibility — it undermines trust in every on-device answer.
 Instrument-first per today's lesson: cells, not vibes. Dispatch to follow.
 
+**2026-07-27, instrument built (branch `claude/t27-196-preface-tic`, dispatch
+`OPUS-T27-196-preface-tic.md`): the reworked cells + the desk picker, confirm-then-fix.**
+Part 0 cherry-picks the 176C side-branch desk instrument (`8f92385`: DEBUG-only persisted
+`debug.sessionShape` fallback on `activeSessionShape` — read once per process, launch env
+wins — plus the Diagnostics segmented picker with the active-cell label); the side branch
+itself is left for Owen to tidy. Part 1 retires `armed-noprose`/`prose-notools` (question
+closed with PR #157) and rebuilds the cells for the tic: `armed` (production, the control —
+the tic lives here) / `armed-direct` (production PLUS one anti-preface sentence beside the
+licensing clause: "Answer directly — never begin a reply by saying you can't do something
+you are then going to do.") / `armed-noneg` (production MINUS the honesty + recovery
+clauses — thermometer only, NEVER shippable: it removes #176's absorbing-state protections)
+/ `toolless` (production tool-less branch, no tools — discriminates tool registration,
+suspect 2). Two seams in `instructionsText`, production passes neither: armed text
+byte-identical to main's literal, armed-direct a pure one-sentence insertion, armed-noneg a
+pure two-clause tail removal (all three script-checked). A retired cell name still
+persisted on the phone parses to nil → lands on production (pinned by test; the picker
+seeding normalizes the same way). Tests repinned −2/+2 (net zero): suite 1235/109 green on
+27A5228h at the Part 1 tip; baseline on main confirmed 1235/109 the same day. Release
+build succeeds — the seam compiles out. Part 2 (the armed-direct sentence into the
+production armed branch) sits as the labeled inert tip — **do not merge-cherry-pick until
+the device A/B clears `armed-direct`** — and the desk A/B must run on a Debug OTA build of
+the Part 1 tip (`ad0fb73`, branch `claude/t27-196-ab-build`): a binary containing
+Part 2 makes the control cell direct and collapses the comparison. The PR body carries the
+per-cell checklist with the two-axis scoring (content delivered / preface present) and the
+readout table.
+
+Logged 2026-07-27.
+
+## 197. 🐛 Tool-invocation failure aborts the turn and renders the RAW error — types, descriptions, and a memory address in the transcript
+
+**Observed 2026-07-27 18:23, device, airplane mode, armed cell (#196 A/B battery, fresh
+chat).** "Write a 50 word summary about Norway" → the model spuriously invoked WeatherTool
+(place-name → weather association; no weather was asked for) → the invocation failed with a
+FoundationModels "Failed to parse generated content" → the turn DIED with a Retry affordance
+and the transcript rendered the raw error verbatim: tool name, the full description string,
+`RELAY: TALARIA.TOOLEVENTRELAY`, and a live pointer (`<TALARIA.DEVICELOCATIONPROVIDER:
+0x108BD0B00>`).
+
+Two stacked defects:
+1. **Raw internal error as a chat message.** Internal type names and memory addresses are
+   never user-facing content. The streaming path evidently catches (or fails to catch) the
+   thrown tool-invocation error and surfaces its description into the transcript.
+2. **The #176 recovery clause is unreachable on this failure class.** "A failed or denied
+   tool is never the answer — answer without it" operates INSIDE a model turn; a tool
+   invocation that throws kills the turn upstream, so the model never gets to recover. The
+   instruction-level absorbing-state exit has a machinery-level hole.
+
+**Fix direction:** catch tool-invocation errors in the streaming worker; log the full detail
+(`chatLog`), surface a friendly failure — or better, feed a terse tool-failure result back to
+the session so the model can apply the recovery clause and answer without the tool (which is
+what the instructions already promise). Related but distinct observation for the #196 lane:
+spurious tool grabs on non-tool asks persist post-#194 at some rate — the desk A/B should
+score a THIRD axis (tool chip present on a non-tool ask) alongside content/preface.
+
 Logged 2026-07-27.

@@ -164,43 +164,60 @@ struct DeviceToolBeltTests {
         #expect(armed.contains("never invent a value"))
     }
 
-    // MARK: Session-shape instrument (#194/176C)
+    // MARK: Session-shape instrument (#196, reworked from #194/176C)
 
     /// A fixed date so the two texts under comparison can never straddle a
     /// day boundary mid-test.
     private static let shapeDate = Date(timeIntervalSince1970: 1_753_600_000)
 
-    @Test func noProseVariantDropsOnlyTheBeltRoster() {
-        let noProse = LocalChatBackend.instructionsText(
-            for: .armedNoProse, deviceContext: "Device: test.",
-            date: Self.shapeDate, hasTools: true
-        )
-        // The roster sentence is gone — both its halves.
-        #expect(!noProse.contains("You also have device tools"))
-        #expect(!noProse.contains("plus action tools"))
-        // The licensing clause now abuts the scoped use-tools sentence: the
-        // removal took exactly one sentence, not its neighbors.
-        #expect(noProse.contains("general knowledge is not device data. Use the tools for the user's own data"))
-        // The four kept sentences survive (176C hard constraint):
-        #expect(noProse.contains("need no tool"))                // licensing
-        #expect(noProse.contains("writing and composing"))       // licensing (#194)
-        #expect(noProse.contains("confirmation card first"))     // action confirmation
-        #expect(noProse.contains("never invent a value"))        // honesty
-        #expect(noProse.contains("never the answer"))            // recovery
-        #expect(noProse.contains("repeat a denial"))             // recovery
-    }
-
-    @Test func proseNoToolsVariantIsTheArmedTextVerbatim() {
+    @Test func armedDirectVariantAddsOnlyTheDirectnessSentence() {
         let armed = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", date: Self.shapeDate, hasTools: true
         )
-        // hasTools: false is what production computes for a session given no
-        // belt — the cell must still speak the armed branch, roster included.
-        let cell = LocalChatBackend.instructionsText(
-            for: .proseNoTools, deviceContext: "Device: test.",
-            date: Self.shapeDate, hasTools: false
+        let direct = LocalChatBackend.instructionsText(
+            for: .armedDirect, deviceContext: "Device: test.",
+            date: Self.shapeDate, hasTools: true
         )
-        #expect(cell == armed)
+        // The anti-preface sentence is whole and in the cell only —
+        // production armed is the control and must not carry it. (Part 2
+        // flips exactly this pin if the device A/B clears armed-direct.)
+        #expect(!armed.contains("never begin a reply"))
+        #expect(direct.contains("Answer directly — never begin a reply by saying you can't do something you are then going to do."))
+        // Placed with the licensing clause: the insertion took exactly one
+        // sentence and neither neighbor moved.
+        #expect(direct.contains("general knowledge is not device data. Answer directly"))
+        #expect(direct.contains("going to do. Use the tools for the user's own data"))
+        // Every production sentence survives (#176/#194 hard constraints):
+        #expect(direct.contains("need no tool"))                 // licensing
+        #expect(direct.contains("writing and composing"))        // licensing (#194)
+        #expect(direct.contains("confirmation card first"))      // action confirmation
+        #expect(direct.contains("never invent a value"))         // honesty
+        #expect(direct.contains("never the answer"))             // recovery
+        #expect(direct.contains("repeat a denial"))              // recovery
+    }
+
+    @Test func noNegVariantDropsOnlyTheHonestyAndRecoveryClauses() {
+        // The thermometer cell (#196): production minus the negative-flavored
+        // clauses suspected of priming "can't" prefaces. NEVER shippable —
+        // without them a denied permission is again free to become every
+        // later turn's answer (#176's absorbing state).
+        let noNeg = LocalChatBackend.instructionsText(
+            for: .armedNoNeg, deviceContext: "Device: test.",
+            date: Self.shapeDate, hasTools: true
+        )
+        // Both clauses gone — honesty and recovery, all their anchors.
+        #expect(!noNeg.contains("relay that honestly"))
+        #expect(!noNeg.contains("never invent a value"))
+        #expect(!noNeg.contains("never the answer"))
+        #expect(!noNeg.contains("repeat a denial"))
+        // The removal took exactly the tail after the action-confirmation
+        // sentence — nothing else moved.
+        #expect(noNeg.hasSuffix("if they decline, accept it gracefully."))
+        // The kept sentences survive:
+        #expect(noNeg.contains("need no tool"))                  // licensing
+        #expect(noNeg.contains("writing and composing"))         // licensing (#194)
+        #expect(noNeg.contains("the user's own data"))           // scoped use-tools
+        #expect(noNeg.contains("confirmation card first"))       // action confirmation
     }
 
     @Test func armedShapeIsProductionVerbatimAndToollessIsTheBareBranch() {
@@ -226,17 +243,21 @@ struct DeviceToolBeltTests {
     }
 
     @Test func sessionShapeCellsParseFromLaunchEnvValuesAndGateTools() {
-        // The four launch-env spellings, exactly as the A/B checklist uses them.
+        // The four spellings, exactly as the desk A/B checklist uses them.
         #expect(LocalChatBackend.SessionShape(rawValue: "armed") == .armed)
-        #expect(LocalChatBackend.SessionShape(rawValue: "armed-noprose") == .armedNoProse)
-        #expect(LocalChatBackend.SessionShape(rawValue: "prose-notools") == .proseNoTools)
+        #expect(LocalChatBackend.SessionShape(rawValue: "armed-direct") == .armedDirect)
+        #expect(LocalChatBackend.SessionShape(rawValue: "armed-noneg") == .armedNoNeg)
         #expect(LocalChatBackend.SessionShape(rawValue: "toolless") == .toolless)
-        // An unknown value must fall back to production, never crash or guess.
+        // Unknown values must fall back to production, never crash or guess —
+        // including the RETIRED 176C cell names a phone may still carry in
+        // the persisted Diagnostics override from the last A/B.
         #expect(LocalChatBackend.SessionShape(rawValue: "bogus") == nil)
+        #expect(LocalChatBackend.SessionShape(rawValue: "armed-noprose") == nil)
+        #expect(LocalChatBackend.SessionShape(rawValue: "prose-notools") == nil)
         // Which cells hand the session a belt at all.
         #expect(LocalChatBackend.SessionShape.armed.registersTools)
-        #expect(LocalChatBackend.SessionShape.armedNoProse.registersTools)
-        #expect(!LocalChatBackend.SessionShape.proseNoTools.registersTools)
+        #expect(LocalChatBackend.SessionShape.armedDirect.registersTools)
+        #expect(LocalChatBackend.SessionShape.armedNoNeg.registersTools)
         #expect(!LocalChatBackend.SessionShape.toolless.registersTools)
     }
 

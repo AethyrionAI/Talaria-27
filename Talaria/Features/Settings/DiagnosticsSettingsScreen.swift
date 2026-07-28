@@ -298,11 +298,65 @@ struct DiagnosticsSettingsScreen: View {
     }
 
     @State private var forcedTripState: ForcedTripState = .idle
+    // #196: mirrors the persisted debug.sessionShape override; seeded from
+    // defaults so the picker reflects the pending (next-launch) cell,
+    // normalized through SessionShape so a RETIRED cell name from the 176C
+    // A/B ("armed-noprose") can't leave the segmented control unselected.
+    @State private var sessionShapeOverride: String =
+        LocalChatBackend.SessionShape(
+            rawValue: UserDefaults.standard.string(forKey: "debug.sessionShape") ?? "armed"
+        )?.rawValue ?? "armed"
+    // #196: guards the one-tap rate battery against double-fires.
+    @State private var batteryRunning = false
 
     private var localBrainPanel: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             MonoLabel("// Local brain — #102", size: 10, tracking: Design.Tracking.monoXWide,
                       color: Design.Colors.mutedForeground)
+
+            // #196 desk A/B: pick the session shape for the NEXT launch.
+            // Mirrors the TALARIA_SESSION_SHAPE launch env (which wins when
+            // set); read once per process, so a change here needs a
+            // force-quit + relaunch to take effect — which is the A/B
+            // protocol between cells anyway.
+            VStack(alignment: .leading, spacing: Design.Spacing.xs) {
+                MonoLabel("Session shape A/B (#196) — active: \(LocalChatBackend.activeSessionShape.rawValue). Changes apply after force-quit + relaunch; start a NEW chat per cell.",
+                          size: 9, tracking: Design.Tracking.mono,
+                          color: Design.Colors.secondaryForeground)
+                Picker("Session shape", selection: $sessionShapeOverride) {
+                    Text("armed (control)").tag("armed")
+                    Text("armed-direct").tag("armed-direct")
+                    Text("armed-noneg").tag("armed-noneg")
+                    Text("toolless").tag("toolless")
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: sessionShapeOverride) { _, newValue in
+                    UserDefaults.standard.set(newValue, forKey: "debug.sessionShape")
+                }
+
+                // #196 rate battery: all four shapes × 2 prompts × 10 trials,
+                // in-process, results to Console (category LocalChatBackend,
+                // lines prefixed "battery:"). No force-quit cycling needed.
+                Button {
+                    guard !batteryRunning, let backend = container.localChatBackend else { return }
+                    batteryRunning = true
+                    // #196: headless battery sessions can never answer a
+                    // confirmation card (non-cancellable continuation), so
+                    // action-tool grabs auto-decline for the run — which also
+                    // measures post-denial recovery behavior.
+                    container.toolConfirmationCenter.autoDeclineForBattery = true
+                    Task {
+                        await backend.runShapeBattery(trials: 10)
+                        container.toolConfirmationCenter.autoDeclineForBattery = false
+                        batteryRunning = false
+                    }
+                } label: {
+                    MonoLabel(batteryRunning ? "Battery running… watch Console" : "Run #196 battery (4 shapes × 10 trials)",
+                              size: 10, tracking: Design.Tracking.mono,
+                              color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+                }
+                .disabled(batteryRunning)
+            }
 
             VStack(alignment: .leading, spacing: Design.Spacing.sm) {
                 MonoLabel("Streams a synthetic loop through the real on-device chat path. Turn on read-aloud first to verify #110.",
