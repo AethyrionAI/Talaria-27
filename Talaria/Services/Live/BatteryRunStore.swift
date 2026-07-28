@@ -76,6 +76,12 @@ struct BatteryRunRecord: Codable, Equatable, Identifiable {
     /// "reminders=20 events=18 alarms=19 failures=1". Nil when the run had
     /// no reap phase. Optional so pre-#200 run JSONs still decode.
     var reapSummary: String? = nil
+    /// #200 crash diagnostics: false on the per-trial snapshots the
+    /// recorder persists mid-run, true once endRun sealed the record. A
+    /// crashed run therefore survives on disk carrying every completed
+    /// trial AND its own incompleteness. Nil on legacy records (which all
+    /// completed — pre-hardening the only persist was endRun's).
+    var endedCleanly: Bool? = nil
 }
 
 // MARK: - Tally math (pure, testable)
@@ -184,14 +190,25 @@ enum BatteryRunMath {
             if let reapSummary = run.reapSummary {
                 lines.append("battery: REAP \(reapSummary) (\(item))")
             }
-            lines.append("battery: DONE (\(item))")
+            // A crashed run's paste must never read as complete. Nil is
+            // legacy (pre-hardening records only persisted at endRun, so
+            // they all completed) and keeps DONE.
+            if run.endedCleanly == false {
+                lines.append("battery: INCOMPLETE — run died before DONE (\(item))")
+            } else {
+                lines.append("battery: DONE (\(item))")
+            }
         }
         if !run.probes.isEmpty {
             lines.append("router: PROBE START trials=\(run.trialsPerCell) probes=\(run.probes.count) (#196)")
             for probe in run.probes {
                 lines.append("router: \(probe.correct)/\(probe.trials) expected=\(probe.expected) probe=\(probe.probe)")
             }
-            lines.append("router: PROBE DONE (#196)")
+            if run.endedCleanly == false {
+                lines.append("router: PROBE INCOMPLETE — run died before DONE (#196)")
+            } else {
+                lines.append("router: PROBE DONE (#196)")
+            }
         }
         return lines.joined(separator: "\n")
     }
@@ -379,11 +396,24 @@ final class BatteryRunRecorder {
         trialStart = nil
         pendingToolCalls = []
         pendingRoute = nil
+        persistSnapshot()
     }
 
     func recordProbe(probe: String, expected: Bool, correct: Int, trials: Int) {
         guard run != nil else { return }
         run?.probes.append(RouterProbeRecord(probe: probe, expected: expected, correct: correct, trials: trials))
+        persistSnapshot()
+    }
+
+    /// #200 crash diagnostics: persist after EVERY trial/probe, marked
+    /// not-yet-clean, overwriting one file (the run id and start stamp fix
+    /// the filename) — both 2026-07-28 action-battery crashes lost their
+    /// entire runs because the only persist was endRun's. A crashed run
+    /// now survives with every completed trial and its own incompleteness.
+    private func persistSnapshot() {
+        guard var snapshot = run else { return }
+        snapshot.endedCleanly = false
+        store.persist(snapshot)
     }
 
     /// Persists and closes the run. Empty runs (begin/end with no trials and
@@ -397,7 +427,8 @@ final class BatteryRunRecorder {
             pendingToolCalls = []
             pendingRoute = nil
         }
-        guard let run, !(run.trials.isEmpty && run.probes.isEmpty) else { return }
+        guard var run, !(run.trials.isEmpty && run.probes.isEmpty) else { return }
+        run.endedCleanly = true
         store.persist(run)
     }
 }
