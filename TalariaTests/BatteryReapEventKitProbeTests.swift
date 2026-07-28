@@ -65,8 +65,12 @@ struct BatteryReapEventKitProbeTests {
         let predicate = store.predicateForIncompleteReminders(
             withDueDateStarting: nil, ending: nil, calendars: nil
         )
+        // @Sendable mirrors the reap's real completion shape — the fix for
+        // the device-only isolation trap (the sim runtime doesn't enforce
+        // the check, so this probe cannot RED on it; run-5 on device is
+        // the fix's verifier, this pins the op shape).
         let ids: [String] = await withCheckedContinuation { continuation in
-            store.fetchReminders(matching: predicate) { found in
+            store.fetchReminders(matching: predicate) { @Sendable found in
                 continuation.resume(returning: (found ?? [])
                     .filter { ($0.title ?? "").contains(ToolConfirmationCenter.batteryArtifactMarker) }
                     .map(\.calendarItemIdentifier))
