@@ -245,6 +245,33 @@ final class AlarmService {
         batteryScheduledAlarmIDs = []
         return (cancelled, failed)
     }
+
+    /// #200 orphan cleanup: cancel EVERY alarm Talaria has scheduled. The
+    /// 2026-07-28 crashed action batteries stranded their battery alarms —
+    /// tracked IDs die with the process, and AlarmKit's enumeration
+    /// carries no label, so battery alarms cannot be told apart from real
+    /// ones. Nuclear by design and user-invoked only: real /alarm alarms
+    /// die too.
+    static func sweepAllTalariaAlarms() -> (cancelled: Int, failed: Int) {
+        var cancelled = 0
+        var failed = 0
+        do {
+            for alarm in try AlarmManager.shared.alarms {
+                do {
+                    try AlarmManager.shared.cancel(id: alarm.id)
+                    cancelled += 1
+                } catch {
+                    alarmLog.notice("alarm sweep: cancel failed for \(alarm.id, privacy: .public): \(String(describing: error), privacy: .public)")
+                    failed += 1
+                }
+            }
+        } catch {
+            alarmLog.notice("alarm sweep: enumeration failed: \(String(describing: error), privacy: .public)")
+            failed += 1
+        }
+        batteryScheduledAlarmIDs = []
+        return (cancelled, failed)
+    }
     #endif
 
     private func ensureAuthorized() async throws {
