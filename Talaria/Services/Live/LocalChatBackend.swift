@@ -110,14 +110,14 @@ final class LocalChatBackend: HermesClientProtocol {
     /// condition flips (an image arrives, or a fresh thread has none) the
     /// session has to be recreated to match.
     private var sessionToolNames: [String] = []
-    #if DEBUG
-    /// #196 battery 4: the current turn's route under `armed-routed` —
-    /// true when the router judged this turn answerable without the
-    /// device. Set per turn in `preparedSession` before the session gates
-    /// consult it; the #176 recreate seam then swaps the session
-    /// automatically when the route flips between turns.
+    /// #196 (PROMOTED 2026-07-28): the current turn's route — true when the
+    /// router judged this turn answerable without the device. Set per turn
+    /// in `preparedSession` before the session gates consult it; the #176
+    /// recreate seam then swaps the session automatically when the route
+    /// flips between turns. Device evidence for the promotion: battery-4
+    /// 60/60 content AND clean on canary/haiku/norway, router probe
+    /// 200/200 both directions, armed control diseased in the same run.
     private var turnRoutedToolless = false
-    #endif
     /// The memory block synthesized by the last condensation, kept for
     /// diagnostics. Session-lifetime only: rebuilds re-derive it from the full
     /// message history, which the Conversation always retains.
@@ -686,15 +686,17 @@ final class LocalChatBackend: HermesClientProtocol {
         if currentConversation == nil {
             currentConversation = Conversation(title: Conversation.defaultTitle)
         }
-        #if DEBUG
-        // #196 battery 4: under armed-routed, classify THIS turn before any
-        // gate reads the route. One extra guided generation (~1s, greedy);
-        // errors fail safe to armed inside the router.
-        if Self.activeSessionShape == .armedRouted {
+        // #196 (PROMOTED): classify THIS turn before any gate reads the
+        // route. One extra guided generation (~0.6s measured on device,
+        // greedy); errors fail safe to armed inside the router. In DEBUG
+        // the A/B picker can pin a legacy cell, which disables routing for
+        // the launch so every non-routed cell stays pure.
+        if Self.turnRoutingEnabled {
             turnRoutedToolless = !(await routeNeedsDeviceTool(prompt: nextPrompt))
             Self.logger.notice("router: turn routed \(self.turnRoutedToolless ? "toolless" : "armed", privacy: .public) (#196)")
+        } else {
+            turnRoutedToolless = false
         }
-        #endif
         // #176: the turn's incoming attachments count. This runs BEFORE the
         // user message is appended, so the stored conversation doesn't know
         // about the image being sent right now.
@@ -937,11 +939,12 @@ final class LocalChatBackend: HermesClientProtocol {
     /// DEBUG the #196 session-shape instrument can empty the belt (the
     /// `toolless` cell); Release compiles down to the production expression.
     private func effectiveOfferedTools(hasImageInContext hasImage: Bool) -> [any Tool] {
-        #if DEBUG
-        // #196 battery 4: a routed-toolless turn registers NO belt — the
+        // #196 (PROMOTED): a routed-toolless turn registers NO belt — the
         // full structural cure, not a call gate (nocall proved schemas in
-        // context sustain the disclaimer tic on their own).
-        if Self.activeSessionShape == .armedRouted, turnRoutedToolless { return [] }
+        // context sustain the disclaimer tic on their own). Only ever true
+        // when routing is enabled for this launch.
+        if turnRoutedToolless { return [] }
+        #if DEBUG
         guard Self.activeSessionShape.registersTools else { return [] }
         return Self.shapedBelt(
             from: DeviceToolBelt.offeredTools(from: tools, hasImageInContext: hasImage),
@@ -975,17 +978,18 @@ final class LocalChatBackend: HermesClientProtocol {
     /// cell delegates straight back to production); Release compiles down to
     /// the production expression.
     private func effectiveInstructionsText(hasImageInContext hasImage: Bool) -> String {
-        #if DEBUG
-        // #196 battery 4: a routed-toolless turn speaks the licensed bare
-        // branch — the toolless-lic2 payload.
-        if Self.activeSessionShape == .armedRouted, turnRoutedToolless {
+        // #196 (PROMOTED): a routed-toolless turn speaks the licensed bare
+        // branch — the toolless-lic2 payload, the text that measured 60/60
+        // content and clean on device.
+        if turnRoutedToolless {
             return Self.instructionsText(
-                for: .toollessLic2,
                 deviceContext: Self.deviceContextLine(),
                 hasTools: false,
-                hasImageTools: hasImage
+                hasImageTools: hasImage,
+                includeToollessLic2Clause: true
             )
         }
+        #if DEBUG
         return Self.instructionsText(
             for: Self.activeSessionShape,
             deviceContext: Self.deviceContextLine(),
@@ -1934,50 +1938,6 @@ extension LocalChatBackend {
         return shaped
     }
 
-    /// Few-shot router instructions (#196 battery 4) — the ONLY framing
-    /// that cleared the Mac-host probe grid (80/80 at n=8, reconfirmed at
-    /// n=20). The guide-only framing misrouted EVERY creative verb to the
-    /// device — the #196 task-verb confusion lives in classification too —
-    /// and the flipped-polarity framing collapsed to always-true. Few-shot
-    /// examples are Apple's own template convention.
-    nonisolated static let toolIntentRouterInstructions = """
-    You route requests for a phone assistant. Decide if a request needs the device or is answerable with words alone.
-    Examples:
-    "Write a haiku about rain" -> needsDeviceTool: false
-    "Summarize the French Revolution in 50 words" -> needsDeviceTool: false
-    "What's 15% of 80?" -> needsDeviceTool: false
-    "Remind me to call Shelley tomorrow" -> needsDeviceTool: true
-    "How did I sleep last night?" -> needsDeviceTool: true
-    "What's the weather?" -> needsDeviceTool: true
-    """
-
-    /// Greedy + tiny cap: routing must be deterministic and fast; guided
-    /// generation constrains decode to the `ToolIntentRoute` shape, so the
-    /// router can never ramble.
-    nonisolated static var toolIntentRouterOptions: GenerationOptions {
-        GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 64)
-    }
-
-    /// Classifies one turn (#196 battery 4). Fail-safe: any error routes
-    /// to the ARMED session — production behavior, tools available.
-    func routeNeedsDeviceTool(prompt: String) async -> Bool {
-        let session = LanguageModelSession(
-            model: model,
-            instructions: Instructions(Self.toolIntentRouterInstructions)
-        )
-        do {
-            let route = try await session.respond(
-                to: Prompt("Request: \(prompt)"),
-                generating: ToolIntentRoute.self,
-                options: Self.toolIntentRouterOptions
-            ).content
-            return route.needsDeviceTool
-        } catch {
-            Self.logger.notice("router: classification failed — failing safe to armed (\(String(String(describing: error).prefix(80)), privacy: .public)) (#196)")
-            return true
-        }
-    }
-
     /// Read once per process — the cells are launch-scoped, so a mid-run env
     /// mutation can never make one conversation's session builds disagree.
     static let activeSessionShape: SessionShape = {
@@ -1992,13 +1952,17 @@ extension LocalChatBackend {
         // the env path, so the launch-scoped invariant above holds: the
         // Diagnostics picker takes effect on the NEXT launch (force-quit
         // between cells is the A/B protocol anyway). Launch env wins when
-        // both are set. A retired 176C cell name still persisted on a phone
-        // fails to parse and lands on `.armed` — production, by design.
+        // both are set. A retired cell name still persisted on a phone
+        // fails to parse and falls through to the default — production, by
+        // design.
         if let raw = UserDefaults.standard.string(forKey: "debug.sessionShape"),
            let shape = SessionShape(rawValue: raw) {
             return shape
         }
-        return .armed
+        // The default is the PRODUCTION shape. Pre-promotion this was
+        // `.armed`; since the 2026-07-28 battery-4 verdict the production
+        // path routes, so an untouched Debug install behaves like Release.
+        return .armedRouted
     }()
 
     /// The instructions each cell hands the session. `hasTools` /
@@ -2064,17 +2028,87 @@ extension LocalChatBackend {
 }
 #endif
 
-#if DEBUG
-// MARK: - #196 battery 4: tool-intent route shape (DEBUG builds only)
+// MARK: - Per-turn tool-intent routing (#196, PROMOTED to production 2026-07-28)
+//
+// The production session architecture as of the battery-4 device verdict:
+// every turn is classified by a few-shot guided-generation router before the
+// session is built. Words-only turns get NO belt and the `toolless-lic2`
+// instruction text (device: 60/60 content AND clean across the three #196
+// prompts); device turns get the production armed session, byte-identical to
+// the pre-promotion path. Router accuracy on device: 200/200, both
+// directions; fail-safe on error is ARMED. WWDC26 session 242 sanctions the
+// shape: tools withheld where "known to be irrelevant," decided contextually.
 
-/// The route classification for one turn (#196 battery 4). File scope:
-/// the `@Generable` macro expansion needs a non-nested, non-private type.
+extension LocalChatBackend {
+
+    /// Whether this launch routes turns. Production truth: always. DEBUG:
+    /// only the `armed-routed` shape routes, so every legacy A/B cell
+    /// (including the `armed` control) stays pure.
+    static var turnRoutingEnabled: Bool {
+        #if DEBUG
+        return activeSessionShape == .armedRouted
+        #else
+        return true
+        #endif
+    }
+
+    /// Few-shot router instructions — the ONLY framing that cleared the
+    /// Mac-host probe grid (200/200 at n=20), reconfirmed 200/200 on the
+    /// 27b4 device model. The guide-only framing misrouted EVERY creative
+    /// verb to the device — the #196 task-verb confusion lives in
+    /// classification too — and the flipped-polarity framing collapsed to
+    /// always-true. Few-shot examples are Apple's own template convention.
+    /// Pinned by tests: this text is a measured artifact, not prose.
+    nonisolated static let toolIntentRouterInstructions = """
+    You route requests for a phone assistant. Decide if a request needs the device or is answerable with words alone.
+    Examples:
+    "Write a haiku about rain" -> needsDeviceTool: false
+    "Summarize the French Revolution in 50 words" -> needsDeviceTool: false
+    "What's 15% of 80?" -> needsDeviceTool: false
+    "Remind me to call Shelley tomorrow" -> needsDeviceTool: true
+    "How did I sleep last night?" -> needsDeviceTool: true
+    "What's the weather?" -> needsDeviceTool: true
+    """
+
+    /// Greedy + tiny cap: routing must be deterministic and fast (~0.6s
+    /// measured on device); guided generation constrains decode to the
+    /// `ToolIntentRoute` shape, so the router can never ramble.
+    nonisolated static var toolIntentRouterOptions: GenerationOptions {
+        GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 64)
+    }
+
+    /// Classifies one turn. Fail-safe: any error routes to the ARMED
+    /// session — full production behavior, tools available.
+    func routeNeedsDeviceTool(prompt: String) async -> Bool {
+        let session = LanguageModelSession(
+            model: model,
+            instructions: Instructions(Self.toolIntentRouterInstructions)
+        )
+        do {
+            let route = try await session.respond(
+                to: Prompt("Request: \(prompt)"),
+                generating: ToolIntentRoute.self,
+                options: Self.toolIntentRouterOptions
+            ).content
+            return route.needsDeviceTool
+        } catch {
+            Self.logger.notice("router: classification failed — failing safe to armed (\(String(String(describing: error).prefix(80)), privacy: .public)) (#196)")
+            return true
+        }
+    }
+}
+
+/// The route classification for one turn. File scope: the `@Generable`
+/// macro expansion needs a non-nested, non-private type. The @Guide text is
+/// a measured artifact (pinned) — it carries the device-data/device-action
+/// enumeration AND the explicit words-only enumeration.
 @Generable
 struct ToolIntentRoute {
     @Guide(description: "True only when the request needs the user's device data (health, location, weather, calendar, reminders, contacts, past chats) or a device action (create a reminder, calendar event, or alarm). Writing, poems, summaries, math, facts, and conversation are false — they need nothing from the device.")
     var needsDeviceTool: Bool
 }
 
+#if DEBUG
 // MARK: - #196 rate battery (Diagnostics-triggered, DEBUG builds only)
 
 extension LocalChatBackend {
