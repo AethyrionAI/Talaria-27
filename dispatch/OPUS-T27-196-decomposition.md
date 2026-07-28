@@ -60,47 +60,67 @@ Report EXACT findings (declarations, availability) in your return.
 **If a genuine per-turn tool-choice control exists, STOP after Part 0 and report before
 building cells — it changes the cell design and possibly the entire ship path.**
 
-## Part 1 — the five-cell decomposition battery
+## Part 1 v2 — the six-cell decomposition battery (REDESIGNED after Part 0)
 
-Battery-2's treatment cells stay in the `SessionShape` enum (held candidates; the
-Diagnostics picker keeps them reachable for manual spot checks). The BATTERY cell list
-swaps to these five. New raw values must round-trip the enum; retired spellings keep
-parsing to production, pinned by the existing test pattern.
+**Part 0 verdict (chat-lane Opus, declarations verified against the device
+swiftinterface lines 933/2998/3009/3152/3185/3231-3235): findings confirmed, grid
+redesigned.** `GenerationOptions.toolCallingMode` (.allowed/.required/.disallowed,
+per-call) and `Tool.includesSchemaInInstructions` (get-only protocol requirement with a
+default — our structs must DECLARE a stored `var` to override it) give the battery two
+structural axes prose can never reach: schema-text-in-context vs decode-time call
+availability. `armed-example` is CUT (prose lever; Owen's verdict stands — prose is not
+the road; lowest information of the original five). Battery-2's treatment cells stay in
+the enum as held candidates; the BATTERY list is these six:
 
-1. **`armed`** — control, byte-identical production. Unchanged.
+1. **`armed`** — control, byte-identical production. Also covers the ".allowed default
+   may bias toward calling" caveat — .allowed IS the production default.
 2. **`armed-noinstr`** — production belt, NO instructions. Use the no-instructions
-   `LanguageModelSession` init if the API offers one; otherwise the closest the API
-   permits (e.g. empty `Instructions`). DOCUMENT exactly what was passed — this cell's
-   value depends on it.
-3. **`toolless-noinstr`** — no belt, no instructions. The in-app replica of the
-   Shortcuts "Use Model" probe that wrote haiku happily on this same phone.
-4. **`armed-readonly`** — production instructions; belt = production MINUS the three
-   action tools (`ReminderCreateTool`, `CalendarEventTool`, `AlarmTool`). Implement as a
-   shape-keyed filter in `shapedBelt` (the remfix precedent — same instances otherwise,
-   same order, same relay).
-5. **`armed-example`** — production instructions PLUS one worked-example sentence placed
-   beside the licensing clause: "For example, if asked to write a haiku, a poem, or a
-   summary, you simply write it yourself — no tool is involved." (Owen veto at PR
-   review; keep it to exactly one sentence, single-variable discipline.)
+   session init if the API offers one; else the closest it permits. DOCUMENT exactly
+   what was passed.
+3. **`toolless-noinstr`** — no belt, no instructions. The in-app Shortcuts-probe
+   replica.
+4. **`armed-readonly`** — production instructions; belt minus the three action tools
+   (shape-keyed filter in `shapedBelt`, remfix precedent).
+5. **`armed-nocall`** — NEW: production instructions, production belt, but every trial
+   runs with `toolCallingMode: .disallowed`. Schemas remain in context; calling is
+   impossible. This is the per-turn-routing ship path's proof cell.
+6. **`armed-noschema`** — NEW: production instructions; the three ACTION tools carry
+   `includesSchemaInInstructions = false` (stored-var seam, production default `true`
+   at every call site, pinned; `shapedBelt` flips copies for this cell only). Still
+   callable, schemas hidden. Read tools untouched.
 
 What each comparison isolates:
-- `armed` vs `armed-noinstr`: is OUR instruction text a net cause of the armed disease,
-  or is it the belt registration itself? The single most load-bearing comparison — every
-  future fix routes on it.
-- `armed-noinstr` vs `toolless-noinstr`: pure tool-registration effect, zero prose.
-- `toolless-noinstr` vs `toolless`: what the bare-branch PROSE costs (it denies
-  arithmetic 20/20 — is that the text or the model?).
-- `armed` vs `armed-readonly`: grabs must die structurally (no tool to grab); the
-  question is whether haiku CLEAN recovers toward toolless levels. If yes, the ship path
-  is extending #176 availability gating to action tools — built, battle-tested mechanism.
-- `armed` vs `armed-example`: do worked examples beat rules for this model size?
+- `armed` vs `armed-noinstr`: our instruction text vs belt registration as the disease
+  driver — still the fork every future fix routes on.
+- `armed-noinstr` vs `toolless-noinstr`: pure registration effect, zero prose.
+- `toolless-noinstr` vs `toolless` (baseline table): what the bare-branch prose costs
+  (it denies arithmetic 20/20 — text or model?).
+- `armed` vs `armed-nocall`: schema text in context vs call availability. Clean nocall
+  ⇒ routing cures creative/knowledge turns with zero belt surgery and zero prose — the
+  cheapest structural ship path on the board.
+- `armed-nocall` vs `armed-readonly`: readonly removes action schemas AND calls but
+  keeps read tools callable; nocall keeps all schemas and removes ALL calls. Their
+  difference attributes schema-text effects vs call effects.
+- `armed` vs `armed-noschema`: can the model grab what it cannot see? Semantics of
+  hidden-schema-but-callable are undocumented — that uncertainty is exactly what the
+  cell measures. Treat surprising results as findings, not bugs.
+
+Implementation notes:
+- The battery already parameterizes per-cell sessions; add a per-shape
+  `GenerationOptions` transform for `armed-nocall` (set `toolCallingMode = .disallowed`
+  after `chatGenerationOptions`). Battery coverage is REQUIRED; wiring nocall into the
+  live picker path is optional — do it only if the live options construction has a
+  clean seam, and say which you did.
+- Production byte-identity pins extend to the new seams: all three action tools default
+  `includesSchemaInInstructions == true`, `shapedBelt` is identity outside its cells,
+  production `GenerationOptions` carries no `toolCallingMode` override.
 
 ## Part 2 — battery mechanics
 
 Unchanged from PR #159 except the cell list: n as passed (Owen runs n=20), same three
 prompts (canary / haiku / norway), same per-trial log format, `tool=` lines via
 `ToolEventRelay.batteryTrialTag`, confirmation auto-decline, 35s guillotine. Update the
-Diagnostics button labels (5 cells ≈ 300 trials at n=20) and add the new cells to the
+Diagnostics button labels (6 cells ≈ 360 trials at n=20) and add the new cells to the
 picker (menu style).
 
 ## Rules — non-negotiable (CLAUDE.md + this thread's scars)
