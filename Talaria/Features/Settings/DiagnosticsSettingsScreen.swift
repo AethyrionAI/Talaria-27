@@ -381,6 +381,25 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #200 orphan cleanup: the four crashed action batteries stranded
+    // their battery alarms (up to ~50 armed for 6:30 AM, ringing through
+    // Silent). AlarmKit enumeration carries no label, so this cancels ALL
+    // Talaria alarms — real /alarm ones included. User-invoked only.
+    @State private var alarmSweepResult: String?
+
+    @ViewBuilder
+    private var alarmSweepButton: some View {
+        Button {
+            let result = AlarmService.sweepAllTalariaAlarms()
+            alarmSweepResult = "cancelled=\(result.cancelled) failed=\(result.failed)"
+        } label: {
+            MonoLabel(alarmSweepResult.map { "Swept — \($0)" } ?? "Sweep ALL Talaria alarms (incl. real)",
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: alarmSweepResult == nil ? Design.Colors.danger : Design.Colors.mutedForeground)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #196 battery 4: router-accuracy probe — no tools execute (pure
     // classification), so no confirmation auto-decline is needed; the
     // shared batteryRunning guard keeps the two instruments from
@@ -467,6 +486,9 @@ struct DiagnosticsSettingsScreen: View {
                 HStack(spacing: Design.Spacing.sm) {
                     actionBatteryButton(trials: 5, label: "Action battery n=5 (15)")
                     actionBatteryButton(trials: 20, label: "Action battery n=20 (60)")
+                }
+                HStack(spacing: Design.Spacing.sm) {
+                    alarmSweepButton
                 }
 
                 // #196 results-page lane: every run above also persists to
