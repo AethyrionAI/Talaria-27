@@ -1396,7 +1396,7 @@ final class LocalChatBackend: HermesClientProtocol {
         includeCompositionLicensingSentence: Bool = false,
         includeToollessLicensingClause: Bool = false,
         includeToollessLic2Clause: Bool = false,
-        includeActionDestallClause: Bool = false
+        includeActionDestallClause: Bool = true
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
         // #196 second battery: the composition-licensing sentence — the
@@ -1410,13 +1410,14 @@ final class LocalChatBackend: HermesClientProtocol {
         // thermometer that lifted them is retired: measured NOT the tic's
         // source — 10/10 reminder grabs with them gone.)
         let honestyAndRecovery = " When a tool reports that a permission isn't granted or no data exists, relay that honestly — never invent a value. A failed or denied tool is never the answer to the user's question: answer as well as you can without that tool, and don't repeat a denial you've already given in this conversation."
-        // #200C `armed-instrfix` treatment: the de-stall clause, moved
-        // UPSTREAM after #200B falsified the tool-text seam (remind stalls
-        // 0/10-0/10-0/10-1/10 across guide/description/both — the "which
-        // list?" question fires at response planning, before any tool
-        // schema is engaged). Measured artifact; ships ONLY on a battery
-        // verdict. Grab risk is the canary's job: "create it right away"
-        // is grab-flavored, gated by the asks-for antecedent.
+        // #200D (PROMOTED 2026-07-28, #200C verdict on run FFC92E35): the
+        // de-stall clause, default-on. #200B falsified the tool-text seam
+        // (the "which list?" stall fires at response planning, before any
+        // tool schema is engaged); from HERE the same words measured
+        // calendar 0/9 → 8/10, alarm 8/10 → 10/10, remind off zero, and
+        // grabs DOWN 9/10 → 3/9 (the asks-for antecedent sharpens
+        // licensing in both directions). Explicit `false` is the pinned
+        // rollback seam — the pre-promotion text, byte-identical.
         let actionDestall = " When the user asks for a reminder, alarm, or calendar event and says what and when, create it right away — never ask which list, which calendar, or for other optional details first; leave optional fields empty and the defaults apply."
         let capabilities: String
         if hasTools {
