@@ -2132,6 +2132,26 @@ extension LocalChatBackend {
     static let batteryRunStore = BatteryRunStore()
     static let batteryRecorder = BatteryRunRecorder(store: batteryRunStore)
 
+    /// #200B battery mutex — BACKEND-owned, because the Diagnostics
+    /// buttons' @State guard resets when the view is recreated mid-run:
+    /// the 2026-07-28 destall run was contaminated by a second tap
+    /// starting a CONCURRENT loop (interleaved cells, cross-attributed
+    /// tool calls on the shared trial tag, an FM -1/1001 error storm from
+    /// two generation streams). One battery at a time, whatever the UI
+    /// thinks; a refused begin emits a classifiable line.
+    private static var batteryActive = false
+
+    /// True = this caller owns the run and MUST call `endBatteryRun`.
+    static func beginBatteryRun() -> Bool {
+        guard !batteryActive else { return false }
+        batteryActive = true
+        return true
+    }
+
+    static func endBatteryRun() {
+        batteryActive = false
+    }
+
     /// Battery lines go to THREE sinks: os_log (Console.app, the desk
     /// path), stdout (what `devicectl device process launch --console`
     /// bridges — flushed per line, because piped stdout is block-buffered
@@ -2185,6 +2205,11 @@ extension LocalChatBackend {
     /// branch denies arithmetic (toolless canary 0/20), so the canary is
     /// itself a measurement in the no-instructions cells.
     func runShapeBattery(trials: Int) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
         let prompts: [(tag: String, text: String)] = [
             ("canary", "What's 2+2?"),
             ("haiku", "Write a haiku about sledding"),
@@ -2377,6 +2402,11 @@ extension LocalChatBackend {
     /// byte-for-byte.
     func runActionBattery(trials: Int, cells: [ActionBatteryCell] = [.armed],
                           includeGrabCanary: Bool = false) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
         var prompts: [(tag: String, text: String)] = [
             ("remind", "Remind me to test Talaria at 4:30pm"),
             ("alarm", "Set an alarm for 6:30"),
@@ -2540,6 +2570,11 @@ extension LocalChatBackend {
     /// probe. The Mac-host grid measured 200/200; this measures the
     /// 27-beta device model, which is the one that ships.
     func runRouterProbe(trials: Int) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
         let probes: [(text: String, expected: Bool)] = [
             ("What's 2+2?", false),
             ("Write a haiku about sledding", false),
