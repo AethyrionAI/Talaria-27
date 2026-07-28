@@ -9150,8 +9150,20 @@ steps/calendar) correctly routed armed. The device-direction gap from verdict po
 CLOSED; 27b4 matches the Mac's 200/200. Remaining promotion consideration is solely the
 ~0.6s/turn router cost (point 4). Verdict desk: Owen.
 
+**2026-07-28 ~09:05 CDT, PROMOTED (Owen's call, after a live-path spot check on novel
+prompts).** armed-routed is the production session architecture: PR #163
+(`claude/t27-196-promote-routed`, stacked on #162; dispatch
+`OPUS-T27-196-promote-routed.md`). Release routes every turn — words-only turns get NO
+belt + the toolless-lic2 text, device turns get the pre-promotion armed session verbatim,
+router errors fail safe to armed. Router machinery left DEBUG (prompt/options pinned);
+DEBUG A/B intact with default flipped to armed-routed; legacy cells disable routing per
+launch. Suite 1258/110 green + Release-config build SUCCEEDED (the promoted code's first
+compile outside `#if DEBUG`), 27A5228h. Merge order #160 → #161 → #162 → #163. Device
+verification of the promoted default: staged for Owen's install. THE BAR: met — this item
+closes on merge.
+
 Logged 2026-07-27; battery-4/results-page note 2026-07-28; battery-4 VERDICT 2026-07-28;
-router probe 200/200 2026-07-28.
+router probe 200/200 2026-07-28; PROMOTED 2026-07-28.
 
 ## 197. 🐛 Tool-invocation failure aborts the turn and renders the RAW error — types, descriptions, and a memory address in the transcript
 
