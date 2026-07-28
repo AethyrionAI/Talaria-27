@@ -9275,3 +9275,14 @@ create/permission involved. The action battery's classification should count
 "misattributed failure cause" as its own column. (Same turn's flip-back haiku also
 carried the deviceContext date-leak tail — "Tuesday's deep breath" — cosmetic, tracked
 in the #196 verdict quirks.)
+
+**#196 CLOSED 2026-07-28 (~10:00 CDT).** The full stack is merged to main in order:
+PR #160 (decomposition cells, `5e55b22`) → #164 (routed cure, `c05d912` — recreates #161,
+which GitHub closed permanently when #160's head branch was deleted pre-retarget; lesson:
+retarget stacked PRs BEFORE deleting a base branch) → #162 (results page, `7bd3351`) →
+#163 (promotion, `62d7654`). Production is armed-routed. Merge-gate device test passed:
+words→device→words route flip in one conversation, tools firing on the armed half,
+context surviving both session rebuilds. Follow-on items carry the remainder: #197 (raw
+tool errors), #199 (post-decline fabrication), #200 (action-path refusal + misattribution;
+dispatch OPUS-T27-200-action-path.md ready on main). Item closed — five batteries, four
+PRs, one architecture.
