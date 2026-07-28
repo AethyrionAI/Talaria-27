@@ -872,27 +872,42 @@ struct DeviceToolBeltTests {
 
     // MARK: Instructions-level de-stall (#200C)
 
-    /// #200B falsified the tool-text seam (the stall fires before tool
-    /// engagement), so the clause moves upstream into the session
-    /// instructions. Two pins: flag-off text is BYTE-IDENTICAL to
-    /// production (the #196 discipline — a treatment seam must leave the
-    /// shipping text untouched), and flag-on adds exactly the measured
-    /// clause.
-    @Test func actionDestallClauseIsAdditiveAndOffByDefault() {
+    /// #200D (PROMOTED 2026-07-28, #200C verdict on run FFC92E35): the
+    /// de-stall clause is production — calendar 0/9 → 8/10, alarm 8/10 →
+    /// 10/10, remind off zero (2/10 vs 0/40 lifetime control), grabs DOWN
+    /// 9/10 → 3/9. The flag stays as the rollback/re-measure seam:
+    /// explicit `false` reproduces the pre-promotion text. (A rollback
+    /// flips exactly this pin back.)
+    @Test func actionDestallClauseIsProductionDefaultAndRemovable() {
         let production = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: true
         )
-        let treated = LocalChatBackend.instructionsText(
+        // The promoted clause, verbatim, at its measured seam: after the
+        // confirmation-card sentence, before honesty-and-recovery.
+        #expect(production.contains("accept it gracefully. When the user asks for a reminder, alarm, or calendar event and says what and when, create it right away — never ask which list, which calendar, or for other optional details first; leave optional fields empty and the defaults apply. When a tool reports"))
+        // Explicit true is identity with the default — the #200C treated
+        // cell now measures production.
+        let explicitOn = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: true,
             includeActionDestallClause: true
         )
-        #expect(production != treated)
-        #expect(!production.contains("never ask which list"))
-        #expect(treated.contains("never ask which list, which calendar"))
-        #expect(treated.contains("create it right away"))
-        // Additive: everything in production survives verbatim.
-        #expect(treated.contains("confirmation card first; if they decline, accept it gracefully."))
-        #expect(treated.contains("never invent a value"))
+        #expect(explicitOn == production)
+        // The rollback seam: explicit false removes the clause and nothing
+        // else — every neighboring production sentence survives.
+        let rollback = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeActionDestallClause: false
+        )
+        #expect(rollback != production)
+        #expect(!rollback.contains("never ask which list"))
+        #expect(rollback.contains("confirmation card first; if they decline, accept it gracefully."))
+        #expect(rollback.contains("never invent a value"))
+        // The clause never reaches the toolless branch (it rides inside
+        // the hasTools capabilities paragraph).
+        let bare = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: false
+        )
+        #expect(!bare.contains("create it right away"))
     }
 
     /// The instrfix cell is an INSTRUCTIONS treatment only — its belt is
