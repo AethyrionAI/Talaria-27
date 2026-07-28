@@ -9104,7 +9104,46 @@ Battery results view with heuristic-labeled tallies + raw-reply drill-down, and 
 the OTA-staged Debug build at work, runs battery n=20 + router probe n=20, exports, pastes;
 classification stays raw-text at the verdict desk.
 
-Logged 2026-07-27; battery-4/results-page note 2026-07-28.
+**2026-07-28 ~08:37 CDT, BATTERY 4 RUN + VERDICT (device, n=20/cell, zero ERROR/TIMEOUT
+trials — first battery with full denominators everywhere). Provenance: Owen installed the
+OTA-staged Debug build (`claude/t27-196-results-page` @ `004ad98`, v1.0.0(1), iOS 27.0
+24A5390f) at WORK and ran Battery n=20 via the new results page; the run JSON
+(`run-20260728-133701`) arrived through the share-sheet export — the Console-less flow's
+first live use, end to end. Classified from raw text (all 240 replies read).**
+
+| Cell | Canary content/clean | Haiku content/clean | Norway content/clean | Grab trials |
+|---|---|---|---|---|
+| armed (control) | 17/20 · 13/20 | 14/20 · 0/20 | 3/20 · 0/20 | haiku 15/20, norway 6/20 |
+| toolless-lic (A) | 13/20 · 4/20 | 20/20 · 20/20 | 18/20 · 18/20 | — |
+| toolless-lic2 (B) | **20/20 · 20/20** | **20/20 · 20/20** | **20/20 · 20/20** | — |
+| armed-routed | **20/20 · 20/20** | **20/20 · 20/20** | **20/20 · 20/20** | 0 (60/60 routed toolless) |
+
+1. **armed-routed and toolless-lic2 both post 60/60 CONTENT and 60/60 CLEAN — the
+   100%×3 goal (canary/haiku/norway at 20/20 content each) is MET, at the clean bar, with
+   the armed control exhibiting the untreated disease in the same run** (haiku clean 0/20,
+   norway content 3/20, 21 tool-grab trials). THE BAR (toolless-class numbers with a belt
+   available) is met by armed-routed: the belt exists in the architecture; the router
+   withheld it correctly on all 60 words-only trials (WWDC26-242-style contextual gating).
+2. **lic vs lic2 head-to-head resolves decisively for lic2.** lic's device residual on
+   canary: 7/20 arithmetic denials + 8/20 hallucinated `response_format:` JSON scaffolds
+   (clean 4/20). lic2's two added sentences (math/facts license + plain-prose mandate)
+   cure BOTH families completely — canary replies collapse to a bare "4" ×20.
+3. **Router (words-only direction): 60/60 correct on device.** The device-needing
+   direction is still unmeasured on 27b4 (this file carries no probe records — the Router
+   probe n=20 button run is still wanted before any production promotion). Mac-host
+   evidence for that direction remains 200/200 (26.5, directional).
+4. **Router latency cost, measured:** canary 1.1s vs lic2 0.5s; haiku ~1.55s vs ~0.95s;
+   norway ~2.25s vs ~1.65s — the router generation adds **~0.6s per turn**, cheaper than
+   the ~1s feared.
+5. Quirks (content+clean, noted): two routed/lic2 norway trials append an unprompted
+   "Today is Tuesday, July 28, 2026." tail (t13 routed, t17 lic2) — deviceContext leakage
+   flavor, cosmetic. The 26.5 Mac haiku-refusal watch-item did NOT manifest on device
+   (0/60 refusals across lic/lic2/routed haiku).
+6. **Promotion decision (Owen's desk): armed-routed → production.** Evidence for: the
+   table; against/open: device-direction probe unrun, ~0.6s/turn router cost. The held
+   battery-2 candidates remain held; nothing ships without Owen's call.
+
+Logged 2026-07-27; battery-4/results-page note 2026-07-28; battery-4 VERDICT 2026-07-28.
 
 ## 197. 🐛 Tool-invocation failure aborts the turn and renders the RAW error — types, descriptions, and a memory address in the transcript
 
