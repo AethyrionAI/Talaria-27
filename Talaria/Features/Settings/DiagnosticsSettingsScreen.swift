@@ -353,25 +353,35 @@ struct DiagnosticsSettingsScreen: View {
                           size: 9, tracking: Design.Tracking.mono,
                           color: Design.Colors.secondaryForeground)
                 Picker("Session shape", selection: $sessionShapeOverride) {
+                    // Third battery (#196 decomposition) — the live cells:
                     Text("armed (control)").tag("armed")
-                    Text("armed-remfix").tag("armed-remfix")
-                    Text("armed-complic").tag("armed-complic")
-                    Text("armed-fix").tag("armed-fix")
-                    Text("toolless").tag("toolless")
-                    Text("toolless-lic").tag("toolless-lic")
+                    Text("armed-noinstr").tag("armed-noinstr")
+                    Text("toolless-noinstr").tag("toolless-noinstr")
+                    Text("armed-readonly").tag("armed-readonly")
+                    Text("armed-nocall").tag("armed-nocall")
+                    Text("armed-noschema").tag("armed-noschema")
+                    // Battery-2 treatment cells — HELD ship candidates
+                    // (measured wins, held by Owen's verdict): reachable
+                    // for manual spot checks, out of the battery list.
+                    Text("armed-remfix (held)").tag("armed-remfix")
+                    Text("armed-complic (held)").tag("armed-complic")
+                    Text("armed-fix (held)").tag("armed-fix")
+                    Text("toolless (held)").tag("toolless")
+                    Text("toolless-lic (held)").tag("toolless-lic")
                 }
-                // Menu, not segmented: six cells don't fit a phone-width
-                // segmented control (#196 second battery).
+                // Menu, not segmented: eleven cells don't fit a phone-width
+                // segmented control (#196).
                 .pickerStyle(.menu)
                 .onChange(of: sessionShapeOverride) { _, newValue in
                     UserDefaults.standard.set(newValue, forKey: "debug.sessionShape")
                 }
 
-                // #196 second battery: 6 cells × 3 prompts × n trials,
-                // in-process, results to Console (category LocalChatBackend,
-                // lines prefixed "battery:"); every tool start logs per
-                // trial via ToolEventRelay.batteryTrialTag. No force-quit
-                // cycling needed.
+                // #196 third battery (decomposition): 6 structural cells ×
+                // 3 prompts × n trials, in-process, results to Console
+                // (category LocalChatBackend, lines prefixed "battery:");
+                // every tool start logs per trial via
+                // ToolEventRelay.batteryTrialTag. No force-quit cycling
+                // needed.
                 HStack(spacing: Design.Spacing.sm) {
                     batteryButton(trials: 10, label: "Battery n=10 (~180 trials)")
                     batteryButton(trials: 20, label: "Battery n=20 (~360)")

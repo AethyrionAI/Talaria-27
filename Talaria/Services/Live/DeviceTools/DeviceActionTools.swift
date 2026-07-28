@@ -75,6 +75,12 @@ struct ReminderCreateTool: Tool {
     /// `var` + init default (#196): the battery's shaped belt copies this
     /// tool and swaps ONLY this string; production call sites never pass it.
     var description: String = ReminderCreateTool.productionDescription
+    /// FoundationModels' schema-injection gate, surfaced as a stored var so
+    /// the third battery's `armed-noschema` cell can flip copies (#196).
+    /// Production call sites never pass it; the default matches the
+    /// framework default (pinned by `frameworkDefaultInjectsSchemasIntoInstructions`),
+    /// so the shipping belt is byte-identical with the seam in place.
+    var includesSchemaInInstructions: Bool = true
     let relay: ToolEventRelay
     let confirmations: ToolConfirmationCenter
 
@@ -170,6 +176,9 @@ struct ReminderCreateTool: Tool {
 struct CalendarEventTool: Tool {
     let name = "createCalendarEvent"
     let description = "Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created."
+    /// #196 `armed-noschema` seam — see `ReminderCreateTool`'s twin. The
+    /// default matches the framework default; production never passes it.
+    var includesSchemaInInstructions: Bool = true
     let relay: ToolEventRelay
     let confirmations: ToolConfirmationCenter
 
@@ -266,6 +275,9 @@ struct CalendarEventTool: Tool {
 struct AlarmTool: Tool {
     let name = "scheduleAlarm"
     let description = "Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled."
+    /// #196 `armed-noschema` seam — see `ReminderCreateTool`'s twin. The
+    /// default matches the framework default; production never passes it.
+    var includesSchemaInInstructions: Bool = true
     let relay: ToolEventRelay
     let confirmations: ToolConfirmationCenter
     let alarmService: AlarmService
