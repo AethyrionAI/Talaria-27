@@ -57,6 +57,31 @@ struct LocalChatBackendTests {
         #expect(privateCloud.toolCallingMode == nil)
     }
 
+    // MARK: Transcript construction (#196)
+
+    private func isInstructionsEntry(_ entry: Transcript.Entry) -> Bool {
+        if case .instructions = entry { return true }
+        return false
+    }
+
+    @Test func transcriptCarriesNoInstructionsEntryWhenInstructionsAreEmpty() {
+        // The live half of the #196 `-noinstr` constraint: an empty
+        // instructions string means the rebuilt session's transcript has NO
+        // instructions entry — never an empty instructions block. Production
+        // instructions are never empty, so the armed path keeps its entry.
+        let turns = [
+            LocalChatBackend.TranscriptTurn(role: .user, text: "hi"),
+            LocalChatBackend.TranscriptTurn(role: .assistant, text: "hello"),
+        ]
+        let bare = LocalChatBackend.transcriptEntries(instructions: "", verbatimTurns: turns)
+        #expect(bare.count == 2)
+        #expect(!bare.contains(where: isInstructionsEntry))
+        let armed = LocalChatBackend.transcriptEntries(instructions: "You are Hermes.", verbatimTurns: turns)
+        #expect(armed.count == 3)
+        #expect(isInstructionsEntry(armed[0]))
+        #expect(!armed.dropFirst().contains(where: isInstructionsEntry))
+    }
+
     // MARK: Tail-repetition breaker (#102)
 
     @Test func tailRepetitionTripsOnLoopedPhrase() {

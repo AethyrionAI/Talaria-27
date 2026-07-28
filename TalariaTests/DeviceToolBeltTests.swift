@@ -383,6 +383,21 @@ struct DeviceToolBeltTests {
         #expect(control.map { $0.name } == ["deviceStatus", "createReminder", "createCalendarEvent", "scheduleAlarm"])
     }
 
+    @Test @MainActor func shapedBeltIsTheIdentityForEveryUntreatedShape() {
+        // Derived from allCases, not an enumerated list, so a future cell
+        // can never dodge this pin: every shape without a declared belt
+        // treatment must pass the belt through untouched — same names,
+        // same order, production descriptions, schema gates open.
+        let belt = decompositionBelt()
+        let treated: Set<LocalChatBackend.SessionShape> = [.armedRemfix, .armedFix, .armedReadonly, .armedNoschema]
+        for shape in LocalChatBackend.SessionShape.allCases where !treated.contains(shape) {
+            let identity = LocalChatBackend.shapedBelt(from: belt, shape: shape)
+            #expect(identity.map { $0.name } == belt.map { $0.name })
+            #expect(identity.allSatisfy { $0.includesSchemaInInstructions })
+            #expect((identity[1] as? ReminderCreateTool)?.description == ReminderCreateTool.productionDescription)
+        }
+    }
+
     @Test @MainActor func noschemaBeltHidesOnlyTheActionToolSchemas() {
         let belt = decompositionBelt()
         // Production pin: every tool ships with the schema gate OPEN — the
@@ -427,11 +442,8 @@ struct DeviceToolBeltTests {
         #expect(shaped.maximumResponseTokens == base.maximumResponseTokens)
         // Identity for every other shape — armed stays byte-identical
         // production, and no other cell touches decode-time availability.
-        let others: [LocalChatBackend.SessionShape] = [
-            .armed, .armedNoinstr, .toollessNoinstr, .armedReadonly, .armedNoschema,
-            .armedRemfix, .armedComplic, .armedFix, .toolless, .toollessLic,
-        ]
-        for shape in others {
+        // allCases-derived, so a future cell can't slip past the pin.
+        for shape in LocalChatBackend.SessionShape.allCases where shape != .armedNocall {
             #expect(LocalChatBackend.shapedGenerationOptions(base, shape: shape) == base)
         }
     }
@@ -461,12 +473,16 @@ struct DeviceToolBeltTests {
             )
             #expect(text.isEmpty)
         }
-        // Every other cell still hands the session instructions.
-        for shape in [
-            LocalChatBackend.SessionShape.armed, .armedRemfix, .armedComplic, .armedFix,
-            .toolless, .toollessLic, .armedReadonly, .armedNocall, .armedNoschema,
-        ] {
+        // Every other cell still hands the session instructions
+        // (allCases-derived, airtight against future cells).
+        for shape in LocalChatBackend.SessionShape.allCases
+        where shape != .armedNoinstr && shape != .toollessNoinstr {
             #expect(shape.passesInstructions)
+            let text = LocalChatBackend.instructionsText(
+                for: shape, deviceContext: "Device: test.",
+                date: Self.shapeDate, hasTools: true
+            )
+            #expect(!text.isEmpty)
         }
     }
 
