@@ -9286,3 +9286,46 @@ context surviving both session rebuilds. Follow-on items carry the remainder: #1
 tool errors), #199 (post-decline fabrication), #200 (action-path refusal + misattribution;
 dispatch OPUS-T27-200-action-path.md ready on main). Item closed — five batteries, four
 PRs, one architecture.
+
+**#200 update, 2026-07-28 (instrument lane BUILT — PR #165, branch
+`claude/t27-200-action-instrument`, head `a6accab`, OTA-staged Debug).** Dispatch
+OPUS-T27-200-action-path executed: Parts 1+2 complete, Part 3 verified code-side with
+NO code change. (1) Gate: `autoAcceptForBattery` alongside the #196 auto-decline —
+decline checked FIRST (fail-safe: never-create if both flags ever set); auto-accept
+approves the STAGED values with the `[T27-battery]` marker injected (title prefix;
+alarm-request suffix — the alarm grammar takes its time token first, so the marker
+lands in the label, pinned through `AlarmService.parse`); every gate resolution emits
+`battery: confirm=accepted|declined <trial tag>` and records it. Capture field lives
+per TOOL CALL (`BatteryToolCallRecord.confirmation`, optional — deliberate deviation
+from the dispatch's per-trial field: the grammar is per action-tool invocation, and
+per-call pairs each outcome with the invocation that staged it); pre-#200 run JSONs
+decode unchanged (fixture-pinned). (2) Action battery: Diagnostics "Action battery
+n=20 (60)" — remind ("Remind me to test Talaria at 4:30pm", the observed failure) /
+alarm ("Set an alarm for 6:30") / calendar ("Put lunch with Sam on my calendar Friday
+at noon") × 20 each, ARMED production construction (armed-routed armed branch ≡ armed —
+identity in shapedBelt/instructionsText/options — so the cell label is `armed`), no
+per-trial routing, shared trial executor extracted from the shape battery (heuristics
+can't drift), export gains confirm lines + action-run `confirm=none` synthesis
+(pre-gate bail, e.g. unparseable alarm time) + REAP line, all `(#200)`-marked; legacy
+#196 exports byte-identical (pinned). Teardown BEFORE DONE reaps marker-matched
+reminders/events (EventKit, idempotent across crashed runs) and battery alarms by
+tracked ID (AlarmKit enumeration returns no labels); missing read access reports
+`skipped(no-access)`, never a silent zero. Classification caveat: created titles carry
+the `[T27-battery] ` prefix — instrument residue in tool results and echoing replies.
+(3) Part 3 (#31): ALL four EventKit tools + AlarmService already request contextually
+on `.notDetermined`, and every usage-description key is in `project.yml` — the spot
+check's "missing permission, no iOS prompt" is consistent with status `.denied` at the
+time (iOS never re-prompts after a deny), NOT a missing request call. Secondary
+hypotheses if device-verify contradicts: the tools' `try?` swallows a thrown 27b4
+EventKit error as "not granted", or beta full-access semantics changed. Device verify
+needs a permission reset (app delete → re-pair) — Owen's call on timing. Evidence:
+unit suite 1269/1269 green in 110 suites (baseline 1258 + 11 capture pins;
+Xcode-beta4 SDK, 27.0 sim); Release-config build clean (everything `#if DEBUG`-gated);
+UI suite not run (no UI test touches the battery surfaces). NEXT: Owen runs the
+battery (Reminders/Calendar GRANTED), exports from Battery results, pastes for
+classification — columns: tool(s) fired (wrong-tool `readReminders` substitution
+primary), confirm outcome, reply class (honest-confirmation / fabricated-action —
+#199's denominator / denial / misattributed-failure-cause), ERROR trials excluded and
+listed. Multi-turn absorbing-state instrument deliberately NOT built until these
+single-turn numbers say where the failure concentrates. Treatments route at the
+verdict desk afterward — none shipped in this lane.
