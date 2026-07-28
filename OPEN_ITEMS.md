@@ -9329,3 +9329,42 @@ primary), confirm outcome, reply class (honest-confirmation / fabricated-action 
 listed. Multi-turn absorbing-state instrument deliberately NOT built until these
 single-turn numbers say where the failure concentrates. Treatments route at the
 verdict desk afterward — none shipped in this lane.
+
+**#200 update, 2026-07-28 afternoon — battery crash saga RESOLVED (root cause named by
+.ips), instrument device-verified end to end, preliminary n=20/prompt data in hand.**
+Four consecutive action-battery runs (two n=20, two n=5) crashed mid-run. Debug arc, for
+the record: (1) per-trial snapshot persistence + endedCleanly seal shipped after runs 1–2
+lost everything → runs 3–4 survived their crashes carrying every trial, which localized
+the death to the teardown reap (all trials present, never sealed); (2) the alarm sweep
+(42 orphans cancelled clean) exonerated AlarmKit cancel; (3) a sim probe of the reap's
+exact EventKit ops PASSED on a fresh 27.0 store while every device run died — read then
+as content-dependence, and the events query was narrowed to writable calendars/−1d…+14d
+(kept as scope-correctness, but aimed at a step that never ran); (4) Owen's two .ips
+files named the truth, identical frames in both: `EXC_BREAKPOINT brk 1` →
+`_dispatch_assert_queue_fail` → `_swift_task_checkIsolatedSwift` in the reap's
+`fetchReminders` COMPLETION, faulting queue `com.apple.eventkit.reminders.search`. The
+closure, formed in MainActor context, inherited MainActor isolation; EventKit invokes it
+on its private queue; the 27b4 DEVICE runtime dynamically enforces the check (the SIM
+runtime does not — why the probe passed). ReminderReadTool's twin closure never crashed
+because Tool.call is nonisolated. Fix: `@Sendable` on the completion (`972af5c`).
+**Run 5 (n=5, build `4d419a9`) completed and SEALED: `reminders=0 events=13 alarms=4
+failures=0` — the reap swept all 13 Lunch-with-Sam events the crashed runs had
+accumulated; phone ends clean.** New standing gotcha (memory + here): on 27b4, closures
+handed to framework completion APIs from MainActor contexts trap ONLY on device — sim
+green proves nothing for this class; mark framework completions `@Sendable`.
+Preliminary single-turn action-path numbers, four surviving records (runs 1/2/3/5 =
+n=20 per prompt, 0 ERROR trials): **remind 0/20 creates** (≈11 clarify-stalls — six ask
+"which list?", the createReminder `list` field read as required-blank; ≈7 readReminders
+substitutions, two carrying the spot check's exact "I don't see a reminder — would you
+like me to create one?" signature; 2 cant-flavored), **alarm 19/20 creates** (all
+accepted, honest confirmations; 1 recurrence-clarify stall), **calendar 3/20 creates**
+(≈15 lookupContact("Sam") fixation absorbing the task; 1 fabricated constraint — "no
+free slots Friday" after reading only 2 days ahead — the misattributed-cause column,
+live; creates that DID land pulled currentLocation+searchPlaces and attached a
+location). Confirmation capture worked throughout: every create carries
+confirm=accepted; zero declines; zero pre-gate bails. Mechanism read for the verdict
+desk (NOT treated in this lane): the model stalls on optional-but-present schema fields
+instead of defaulting — single-field alarm 19/20 vs three-field reminder 0/20 is the
+cleanest dose-response #196/#200 has produced. NEXT: Owen runs Action battery n=20 (60)
+on `4d419a9` for the fileable table; multi-turn absorbing-state instrument still
+deliberately unbuilt pending those numbers.
