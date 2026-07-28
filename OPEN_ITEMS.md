@@ -9456,3 +9456,60 @@ multi-turn offer→denial instrument (the read-then-offer entry replicated again
 ~15-20% of remind trials), (c) the still-unshipped remfix scoped description as
 grab insurance if the router ever misroutes. The #200B instrument (cells + canary +
 mutex) is reusable as-is for any future text candidate.
+
+**#200C VERDICT FILED, 2026-07-28 night — instrfix battery n=10 (80 trials, PR #167
+branch `6f8da47`, run sealed clean `endedCleanly:true`, `reminders=13 events=9
+alarms=18 failures=0` — reap arithmetic confirms the classification exactly:
+13 reminders = 2 instrfix-remind creates + 9 control haiku grabs + 2 instrfix haiku
+grabs; 9 events = 8 instrfix-calendar creates + 1 instrfix haiku CALENDAR-grab;
+18 alarms = 8 control + 10 instrfix). ERROR trials excluded and listed:
+armed/calendar/t1 ("Session ended without producing a response", 30s, after
+readCalendar) and armed-instrfix/haiku/t7 (ToolCallError: createReminder
+GeneratedContent missing 'title', args were only {due, list} — itself a FAILED grab
+attempt). Zero timeouts.**
+
+| cell | remind creates | alarm | calendar creates | haiku GRABS |
+|---|---|---|---|---|
+| armed (control) | 0/10 | 8/10 | 0/9 | **9/10** |
+| armed-instrfix | **2/10** | **10/10** | **8/10** | **3/9** |
+
+**Treatment verdict: the INSTRUCTIONS seam is LIVE — the identical clause that did
+nothing from inside the tool schema (#200B) moves all three action prompts when
+spoken from `instructionsText`.** Calendar is the headline: 0/9 → 8/10 (lifetime
+control aggregate 3/28), and the mechanism is visible in the traces — control
+fixated on lookupContact("Sam") in 8/9 valid trials (the corrupted arg `Sam}`
+appeared in 5 of them, #197 family), instrfix called lookupContact in only 2/10:
+"create it right away" de-licensed the whole contact-resolution side quest even
+though the clause never mentions contacts. Alarm 8/10 → 10/10 (control stalls:
+"today or a specific date?", "repeat, or just ring once?"). Remind moved OFF ZERO —
+2/10 vs a lifetime control of 0/40 and a best prior treatment of 1/10 (bothfix);
+both creates ran readReminders first, the check-first habit surviving but no longer
+terminal. But the list-stall persists in 5/10 WITH the clause explicitly saying
+"never ask which list" — remind remains the deepest form of the disease. Second
+headline, the RISK INVERTED: the feared grab cost did not materialize — haiku grabs
+went 9/10 control → 3/9 instrfix. The antecedent ("When the user ASKS for a
+reminder…") appears to sharpen creation licensing in BOTH directions: more creates
+when asked, fewer when not. The visible collateral is milder and new: 4/9 instrfix
+haiku trials refused the poem outright with cant=true (vs 1/10 control) — the clause
+makes the model action-conservative enough to sometimes decline the creative task
+itself — plus one garbage create (title `","` while apologizing "I can't write a
+haiku right now"). New specimens: armed-instrfix/calendar/t1 CREATED "Lunch with
+Sam" located at **Rural Damascus, Syria (6,777 miles away)** — searchPlaces("Sam")
+first-hit-as-venue, outdoing Houston; armed-instrfix/haiku/t1 grabbed via CALENDAR —
+a 120-minute "Sledding" event at "an outdoor snowy area"; armed-instrfix/calendar/t5
+ran a seven-call spiral ending in currentWeather then blamed "couldn't access your
+current location or weather or weather data"; armed/calendar/t9 fabricated
+"your calendar is already full for Friday" with cant=true; armed-instrfix/remind/t6
+plan-stalled with a hallucinated due date of 2026-07-08 — three weeks in the PAST.
+Instrument note (mild confound, flag for future remind cells): in-run artifact
+contamination — instrfix remind t3/t8 readReminders FOUND t1/t9's `[T27-battery]`
+artifacts and reported "you already have a reminder" (reap is end-of-run, so earlier
+creates are visible to later read-inclined trials in the same cell); both affected
+trials were read-bound anyway, but per-trial unique titles or a mid-run reap would
+close it. NEXT: the clause meets the dispatch's success bar (remind off zero at
+negative grab cost) — promotion follow-up on the table per the dispatch (#163-style:
+flip `includeActionDestallClause` on in production `instructionsText`, update the
+byte-identity pin to the new production text, battery re-verify on the promoted
+build); Owen routes. Remaining queue behind it: the multi-turn offer→denial
+instrument; remfix scoping as router insurance; calendar contact de-fixation may be
+moot — this clause largely cured it from upstream.
