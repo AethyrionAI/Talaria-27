@@ -9536,3 +9536,37 @@ treated rates (remind ~2/10, alarm ~10/10, calendar ~8/10, grabs ≤3/10 per cel
 Re-verify verdict files here on classification. Queued behind it: the multi-turn
 offer→denial instrument; remfix scoping as router insurance; the battery
 artifact-contamination fix (per-trial unique titles).
+
+**#200D re-verify attempt 1, 2026-07-28 late — STALE INSTALL (run `98DF19D1`): the
+export came from the PRE-promotion app.** Proof is behavioral and arithmetic:
+post-promotion both cells speak byte-identical instructions, but the run is
+sharply asymmetric — armed remind 0/10, calendar 1/10 (8 contact-fixations),
+grabs 8/10 vs instrfix remind 2/10, calendar 9/10, grabs 2/8 — the exact #200C
+control/treated signatures; reap `reminders=12 events=10 alarms=19 failures=0`
+matches that classification exactly (12 = 0+2 remind creates + 8+2 grabs;
+10 = 1+9 events; 19 = 9+10 alarms). The staged ipa was verified CORRECT (the
+binary contains the promoted clause; staged 17:42 CDT, run started 17:50 CDT) —
+the phone ran the still-installed `6f8da47` app. Instrument hole closed on the
+branch: `ota-stage.sh` now stamps CFBundleVersion with the branch commit count,
+so every future run record proves its build via `appBuild` (previously always
+"1" — a stale install was indistinguishable except by behavioral signature).
+BONUS SCIENCE: as an accidental third replication on fresh trials the #200C
+contrast reproduced — treated calendar 9/10 vs control 1/10 (aggregate on this
+instrument: treated 17/20 vs control 1/19), treated remind 2/10 AGAIN with the
+same read-then-create shape (control 0/10; lifetime control 0/50), grab
+suppression replicated (8/10 → 2/8). TIMEOUT trials excluded and listed:
+instrfix/haiku/t1 (latency 2371s — timedOut recorded, but the wedged respond
+still blocked the loop ~39 min; hung-respond instrument note for later) and
+instrfix/haiku/t9 (578s). New specimens: THREE treated calendar events venued at
+Owen's HOME ADDRESS (currentLocation → "19200 Crestwick St" as the lunch venue);
+one venued "Shelley work @ Memorial Hospital" — a location lifted from an
+unrelated calendar event it had just read (cross-event leakage, no contact
+lookup involved); `searchPlaces("lunch}<ctrl43>")` corruption feeding a created
+event's venue ("Cuandet Rd 43, Gulfport"); armed/calendar/t9 echoing
+`Sam}ctrl43` verbatim in user-facing reply text; armed/remind/t1 fabricating a
+capability denial ("I don't have the ability to create reminders") with
+cross-tool deflection; instrfix/haiku/t7 saying "I can't create reminders right
+now" WHILE its accepted createReminder (title `"],"`) went through. AWAITING:
+the true promoted-build run — install the restaged build (the install page now
+shows the build number; the export must show `appBuild` ≠ "1") and rerun
+"Instrfix battery n=10 (80)".
