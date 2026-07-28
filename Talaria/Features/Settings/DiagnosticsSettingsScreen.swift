@@ -303,10 +303,11 @@ struct DiagnosticsSettingsScreen: View {
     // normalized through SessionShape so a RETIRED cell name ("armed-noprose"
     // from 176C, "armed-direct"/"armed-noneg" from the first battery) can't
     // leave the control unselected — it lands on production, by design.
+    // Post-promotion (2026-07-28) production = armed-routed.
     @State private var sessionShapeOverride: String =
         LocalChatBackend.SessionShape(
-            rawValue: UserDefaults.standard.string(forKey: "debug.sessionShape") ?? "armed"
-        )?.rawValue ?? "armed"
+            rawValue: UserDefaults.standard.string(forKey: "debug.sessionShape") ?? "armed-routed"
+        )?.rawValue ?? "armed-routed"
     // #196: guards the one-tap rate battery against double-fires.
     @State private var batteryRunning = false
 
@@ -383,11 +384,12 @@ struct DiagnosticsSettingsScreen: View {
                           size: 9, tracking: Design.Tracking.mono,
                           color: Design.Colors.secondaryForeground)
                 Picker("Session shape", selection: $sessionShapeOverride) {
-                    // Fourth battery (#196 cure lane) — the live cells:
-                    Text("armed (control)").tag("armed")
+                    // Post-promotion (2026-07-28): armed-routed IS
+                    // production; armed is the legacy control.
+                    Text("armed-routed (production)").tag("armed-routed")
+                    Text("armed (legacy control)").tag("armed")
                     Text("toolless-lic (payload A)").tag("toolless-lic")
                     Text("toolless-lic2 (payload B)").tag("toolless-lic2")
-                    Text("armed-routed (candidate)").tag("armed-routed")
                     // Battery-3 decomposition cells + battery-2 treatments:
                     // reachable for spot checks, out of the battery list.
                     Text("armed-noinstr").tag("armed-noinstr")
