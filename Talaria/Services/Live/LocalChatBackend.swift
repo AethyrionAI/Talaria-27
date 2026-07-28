@@ -2372,6 +2372,12 @@ extension LocalChatBackend {
         let store = EKEventStore()
         var failures = 0
 
+        // Step markers (live-only): all four 2026-07-28 action-battery
+        // crashes died somewhere in THIS function (records complete
+        // through the last trial, never sealed) — the capture log's last
+        // REAP-STEP line names the killing sub-step.
+        Self.batteryEmit("battery: REAP-STEP reminders begin (#200)")
+
         // Reminders: enumeration needs full access. Snapshot Sendable
         // identifiers inside the completion handler (EKReminder must not
         // cross the continuation boundary), then re-fetch each by id to
@@ -2389,6 +2395,7 @@ extension LocalChatBackend {
                     continuation.resume(returning: ids)
                 }
             }
+            Self.batteryEmit("battery: REAP-STEP reminders fetched marked=\(markedIDs.count) (#200)")
             var removed = 0
             for id in markedIDs {
                 guard let reminder = store.calendarItem(withIdentifier: id) as? EKReminder else {
@@ -2404,6 +2411,7 @@ extension LocalChatBackend {
             }
             remindersLine = "reminders=\(removed)"
         }
+        Self.batteryEmit("battery: REAP-STEP events begin (#200)")
 
         // Events: enumeration also needs full access (write-only can save
         // but never read, so it cannot reap). The prompt set creates
@@ -2415,6 +2423,7 @@ extension LocalChatBackend {
             let end = Date().addingTimeInterval(60 * 86_400)
             let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
             let marked = store.events(matching: predicate).filter { ($0.title ?? "").contains(marker) }
+            Self.batteryEmit("battery: REAP-STEP events fetched marked=\(marked.count) (#200)")
             var removed = 0
             for event in marked {
                 do {
@@ -2426,9 +2435,11 @@ extension LocalChatBackend {
             }
             eventsLine = "events=\(removed)"
         }
+        Self.batteryEmit("battery: REAP-STEP alarms begin (#200)")
 
         let alarmReap = AlarmService.reapBatteryAlarms()
         failures += alarmReap.failed
+        Self.batteryEmit("battery: REAP-STEP alarms done cancelled=\(alarmReap.cancelled) failed=\(alarmReap.failed) (#200)")
 
         return "\(remindersLine) \(eventsLine) alarms=\(alarmReap.cancelled) failures=\(failures)"
     }
