@@ -102,7 +102,9 @@ struct BatteryResultsScreen: View {
         }
         let failures = run.trials.filter { $0.error != nil || $0.timedOut }.count
         let failureNote = failures == 0 ? "" : " · \(failures) err/timeout"
-        return "battery n=\(run.trialsPerCell) · \(run.trials.count) trials\(failureNote) · \(run.cells.joined(separator: ", "))"
+        // #200 action runs name themselves; legacy shape runs stay "battery".
+        let noun = run.kind == "action" ? "action battery" : "battery"
+        return "\(noun) n=\(run.trialsPerCell) · \(run.trials.count) trials\(failureNote) · \(run.cells.joined(separator: ", "))"
     }
 }
 
@@ -155,6 +157,15 @@ struct BatteryRunDetailScreen: View {
             detailLine("n per cell", "\(run.trialsPerCell)")
             if !run.cells.isEmpty {
                 detailLine("Cells", run.cells.joined(separator: ", "))
+            }
+            // #200 action runs: name the kind, and show the teardown's
+            // artifact-reap accounting — the run's claim that the phone
+            // ended clean, in the same words the export carries.
+            if run.kind == "action" {
+                detailLine("Kind", "action battery (#200) — auto-accept, real writes")
+            }
+            if let reapSummary = run.reapSummary {
+                detailLine("Reap", reapSummary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -406,7 +417,7 @@ struct BatteryTrialListScreen: View {
             }
 
             ForEach(Array(trial.toolCalls.enumerated()), id: \.offset) { _, call in
-                MonoLabel("⚙ \(call.name)\(call.detail.isEmpty ? "" : " — \(call.detail)")",
+                MonoLabel("⚙ \(call.name)\(call.detail.isEmpty ? "" : " — \(call.detail)")\(confirmSuffix(for: call))",
                           size: 9, tracking: Design.Tracking.mono, color: Design.Brand.forge)
                     .lineLimit(4)
             }
@@ -434,6 +445,21 @@ struct BatteryTrialListScreen: View {
             fill: Design.Colors.background.opacity(0.5),
             innerGlow: false
         )
+    }
+
+    /// #200: the confirmation-gate outcome for one tool invocation, in the
+    /// export's own words. A CAPTURED outcome shows on any run kind;
+    /// confirm=none shows only on action runs and only for action-named
+    /// tools — it means the tool ran and bailed before staging a
+    /// confirmation (read tools have no gate, so they get no suffix).
+    private func confirmSuffix(for call: BatteryToolCallRecord) -> String {
+        if let confirmation = call.confirmation {
+            return " · confirm=\(confirmation)"
+        }
+        if run.kind == "action", DeviceToolBelt.actionToolNames.contains(call.name) {
+            return " · confirm=none"
+        }
+        return ""
     }
 }
 #endif
