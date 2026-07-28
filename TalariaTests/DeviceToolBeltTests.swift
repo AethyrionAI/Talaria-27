@@ -778,6 +778,21 @@ struct DeviceToolBeltTests {
         #expect(search.description.localizedCaseInsensitiveContains("past"))
         #expect(search.description.contains("without any tool"))
     }
+
+    // MARK: Action-tool names (#200)
+
+    /// The #200 capture surfaces (confirm=none synthesis in the export, the
+    /// drill-down display) identify action tools by name from ONE list.
+    /// Pinned against the real action belt so the list can never drift.
+    @Test @MainActor func actionToolNamesMatchTheActionBelt() {
+        let names = DeviceToolBelt.makeActionTools(
+            relay: ToolEventRelay(),
+            confirmations: ToolConfirmationCenter(),
+            alarmService: AlarmService()
+        ).map(\.name)
+        #expect(Set(names) == DeviceToolBelt.actionToolNames)
+        #expect(names.count == DeviceToolBelt.actionToolNames.count)
+    }
 }
 
 // MARK: - (#196) framework-default probe tool
