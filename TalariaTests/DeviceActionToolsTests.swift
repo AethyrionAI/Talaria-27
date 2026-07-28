@@ -133,4 +133,95 @@ struct DeviceActionToolsTests {
         center.approve()
         _ = await first
     }
+
+    // MARK: Battery auto-modes (#196 decline / #200 accept)
+
+    @Test func batteryAutoDeclineResolvesDeclinedWithoutStagingACard() async {
+        let center = ToolConfirmationCenter()
+        center.autoDeclineForBattery = true
+        let decision = await center.requestConfirmation(
+            title: "Create this reminder?",
+            fields: [.init(key: "title", label: "Title", value: "test Talaria")]
+        )
+        guard case .declined = decision else {
+            Issue.record("expected auto-decline")
+            return
+        }
+        #expect(center.pending == nil)
+    }
+
+    @Test func batteryAutoAcceptApprovesStagedValuesWithoutStagingACard() async {
+        let center = ToolConfirmationCenter()
+        center.autoAcceptForBattery = true
+        let decision = await center.requestConfirmation(
+            title: "Create this reminder?",
+            fields: [
+                .init(key: "title", label: "Title", value: "test Talaria"),
+                .init(key: "due", label: "Due", value: "Jul 28, 2026 at 4:30 PM"),
+                .init(key: "list", label: "List", value: ""),
+            ]
+        )
+        guard case .approved(let values) = decision else {
+            Issue.record("expected auto-accept")
+            return
+        }
+        // Non-title fields pass through UNCHANGED — the tool must create
+        // exactly what was staged, and the card is never rendered.
+        #expect(values["due"] == "Jul 28, 2026 at 4:30 PM")
+        #expect(values["list"] == "")
+        #expect(center.pending == nil)
+    }
+
+    /// Every battery-created artifact must be reapable: titles carry the
+    /// marker as a PREFIX; the alarm request carries it as a SUFFIX (the
+    /// alarm grammar needs its time token first, and everything after the
+    /// time is the label — so the marker lands in the alarm's label).
+    @Test func batteryAutoAcceptTagsTitlesAndAlarmRequestsWithTheMarker() async {
+        #expect(ToolConfirmationCenter.batteryArtifactMarker == "[T27-battery]")
+
+        let center = ToolConfirmationCenter()
+        center.autoAcceptForBattery = true
+
+        let reminder = await center.requestConfirmation(
+            title: "Create this reminder?",
+            fields: [.init(key: "title", label: "Title", value: "test Talaria")]
+        )
+        guard case .approved(let reminderValues) = reminder else {
+            Issue.record("expected auto-accept")
+            return
+        }
+        #expect(reminderValues["title"] == "[T27-battery] test Talaria")
+
+        let alarm = await center.requestConfirmation(
+            title: "Schedule on this iPhone?",
+            fields: [.init(key: "request", label: "Alarm", value: "6:30")]
+        )
+        guard case .approved(let alarmValues) = alarm else {
+            Issue.record("expected auto-accept")
+            return
+        }
+        #expect(alarmValues["request"] == "6:30 [T27-battery]")
+        // The tagged request still parses through the alarm grammar, with
+        // the marker as the label — reap-visible if it ever survives.
+        let parsed = AlarmService.parse(alarmValues["request"] ?? "")
+        #expect(parsed != nil)
+        #expect(parsed?.label == "[T27-battery]")
+    }
+
+    /// The two auto-modes are mutually exclusive by launcher discipline;
+    /// if both are ever set, DECLINE wins — the fail-safe direction is
+    /// never-create, matching the gate's default-closed design.
+    @Test func batteryAutoDeclineWinsWhenBothFlagsAreSet() async {
+        let center = ToolConfirmationCenter()
+        center.autoDeclineForBattery = true
+        center.autoAcceptForBattery = true
+        let decision = await center.requestConfirmation(
+            title: "Create this reminder?",
+            fields: [.init(key: "title", label: "Title", value: "test Talaria")]
+        )
+        guard case .declined = decision else {
+            Issue.record("expected decline to win over accept")
+            return
+        }
+    }
 }
