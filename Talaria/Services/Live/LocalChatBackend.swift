@@ -2382,13 +2382,25 @@ extension LocalChatBackend {
         // identifiers inside the completion handler (EKReminder must not
         // cross the continuation boundary), then re-fetch each by id to
         // remove it.
+        //
+        // The completion MUST be @Sendable: EventKit invokes it on its
+        // private queue (com.apple.eventkit.reminders.search), and a plain
+        // closure formed here — a MainActor context — inherits MainActor
+        // isolation, which the 27b4 DEVICE runtime dynamically enforces:
+        // dispatch_assert_queue_fail → brk 1. That trap was ALL FOUR
+        // 2026-07-28 action-battery crashes (.ips 12:18 + 12:39, faulting
+        // thread on the eventkit queue, this closure on the stack). The
+        // sim runtime does not enforce the check — the probe passed while
+        // every device run died. @Sendable severs the actor-context
+        // inheritance; ReminderReadTool's twin closure never needed it
+        // because Tool.call is nonisolated.
         var remindersLine = "reminders=skipped(no-access)"
         if EKEventStore.authorizationStatus(for: .reminder) == .fullAccess {
             let predicate = store.predicateForIncompleteReminders(
                 withDueDateStarting: nil, ending: nil, calendars: nil
             )
             let markedIDs: [String] = await withCheckedContinuation { continuation in
-                store.fetchReminders(matching: predicate) { found in
+                store.fetchReminders(matching: predicate) { @Sendable found in
                     let ids = (found ?? [])
                         .filter { ($0.title ?? "").contains(marker) }
                         .map(\.calendarItemIdentifier)
@@ -2417,13 +2429,13 @@ extension LocalChatBackend {
         // but never read, so it cannot reap). WRITABLE calendars only, and
         // a −1d…+14d window: battery events are always near-future ("Friday
         // at noon" is days out) and can only live where a save landed —
-        // birthday/subscribed/holiday calendars cannot hold them. This is
-        // also the crash lane's 2026-07-28 narrowing: four device runs died
-        // in this reap while the sim probe cleared these exact ops on a
-        // FRESH store, so the all-calendars 62-day scan over the real
-        // store's recurrence/birthday/CalDAV content is the prime suspect;
-        // 14d across writable calendars matches the device-proven
-        // readCalendar envelope. Run-4 verifies.
+        // birthday/subscribed/holiday calendars cannot hold them. (This
+        // narrowing was first shipped as a crash-lane suspect; the .ips
+        // later proved the crash was the reminders completion's isolation
+        // trap above and this step never even ran. The narrowing stays as
+        // scope-correctness: it is the minimal honest query for what the
+        // reap needs.) events(matching:) here is SYNCHRONOUS on the
+        // calling thread — no cross-queue closure, no isolation hazard.
         var eventsLine = "events=skipped(no-access)"
         if EKEventStore.authorizationStatus(for: .event) == .fullAccess {
             let start = Date().addingTimeInterval(-1 * 86_400)
