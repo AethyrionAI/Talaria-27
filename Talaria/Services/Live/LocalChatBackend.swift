@@ -2086,14 +2086,35 @@ extension LocalChatBackend {
         .armed, .toollessLic, .toollessLic2, .armedRouted,
     ]
 
-    /// Battery lines go to BOTH os_log (Console.app, the desk path) and
-    /// stdout — stdout is what `devicectl device process launch --console`
-    /// bridges, enabling headless capture with no Xcode session
-    /// (#196 battery 4's autonomous-run seam). MainActor like its callers
-    /// (the battery, the probe, and the AppContainer trigger).
+    /// Battery lines go to THREE sinks: os_log (Console.app, the desk
+    /// path), stdout (what `devicectl device process launch --console`
+    /// bridges — flushed per line, because piped stdout is block-buffered
+    /// and a SIGKILL'd run would otherwise capture NOTHING), and an
+    /// append-only file in the app container (pullable via
+    /// `devicectl device copy from … --domain-type appDataContainer` even
+    /// after the process dies — the locked-screen background kill left a
+    /// zero-byte capture on 2026-07-28's first headless attempt).
     static func batteryEmit(_ line: String) {
         print(line)
+        fflush(stdout)
         logger.notice("\(line, privacy: .public)")
+        batteryFileSink(line)
+    }
+
+    /// The container file sink for `batteryEmit` — Documents/battery-capture.log,
+    /// appended with a trailing newline per line. Failures are silent by
+    /// design (the other two sinks still carry the line).
+    private static func batteryFileSink(_ line: String) {
+        guard let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+        let url = documents.appendingPathComponent("battery-capture.log")
+        let data = Data((line + "\n").utf8)
+        if let handle = try? FileHandle(forWritingTo: url) {
+            defer { try? handle.close() }
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+        } else {
+            try? data.write(to: url)
+        }
     }
 
     /// Third-battery instrument (#196 decomposition): six STRUCTURAL cells
