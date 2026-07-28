@@ -9026,6 +9026,68 @@ the composition verdict REQUIRES n=20: 4/10 vs 8/10 at n=10 is p≈0.17). Suite
 1236/109 + 15 UI green on 27A5228h; Release build verified (instrument compiles out).
 Next: Debug OTA at `d41dc6e`, one tap n=20, verdict from rates.
 
+**2026-07-27 late night, THIRD BATTERY RUN (n=20/cell, Debug `26094e8`, branch
+`claude/t27-196-decomposition-cells` / PR #160, whoGoesThere, 23:32–23:50 CDT) — THE
+DECOMPOSITION READS OUT.** Six structural cells per `dispatch/OPUS-T27-196-decomposition.md`
+v2, built on the Part-0 SDK findings (`GenerationOptions.toolCallingMode` — .allowed/
+.required/.disallowed, per-call, iOS 27 — and `Tool.includesSchemaInInstructions`).
+Classified from raw text (the instrument's 180-char prefixes); clean = no disclaimer open,
+no decline-apology, no spurious tool offer, no garble — note this bar is STRICTER than
+battery-2's "clean opens," so compare cells within this run, not across batteries. 3 ERROR
+trials excluded from denominators (all `ToolCallError` on READ tools, norway — #197's
+family): armed-readonly t9 (currentWeather), t14 (readHealth), armed-noschema t20
+(readHealth). No timeouts. Grabs measured directly (`tool=` lines); all action grabs
+occurred on haiku.
+
+| Cell | Canary content (clean) | Haiku content (clean) | Action grabs | Norway content (clean) |
+|---|---|---|---|---|
+| armed | 13/20 (5) | 15/20 (2) | 19/20 | 5/20 (0) |
+| armed-noinstr | 16/20 (12) | 15/20 (6) | 18/20 | 1/20 (0) |
+| toolless-noinstr | 18/20 (0) | 16/20 (2) | 0 | 1/20 (0) |
+| armed-readonly | 17/20 (13) | 6/20 (0) | 0 | 6/18 (0) |
+| armed-nocall | 14/20 (5) | 19/20 (0) | 0 | 1/20 (0) |
+| armed-noschema | 17/20 (8) | 10/20 (0) | 0 | 2/19 (0) |
+
+The decomposition, comparison by comparison:
+1. **Grabs are SCHEMA VISIBILITY, not prose.** armed-noinstr grabs 18/20 with ZERO
+   instructions — our text was never the grab driver. armed-noschema grabs 0/20 with the
+   action tools still CALLABLE but their schemas hidden — the model cannot grab what it
+   cannot see. nocall (0, `.disallowed` verified — not one `tool=` line) and readonly (0,
+   structural) confirm. Three independent kill switches for the confirmation-card defect.
+2. **Disclaimers are BELT PRESENCE, not call ability.** armed-nocall delivers haiku 19/20
+   — the best armed-path content ever measured — yet clean 0/20: every reply still opens
+   "I can't write haikus, but…". Schemas in context sustain the tic even when calling is
+   impossible. Canary clean tracks action-schema visibility: armed 5 / nocall 5 (schemas
+   visible) vs noschema 8 / noinstr 12 / readonly 13 (hidden or gone).
+3. **Readonly is a trap.** Belt minus action tools COLLAPSED haiku to 6/20 (worse than
+   armed): with only read tools the model reframes as a pure data-reader ("I can't write
+   haikus, but I can describe / check the weather / search"). Extending #176 availability
+   gating to action tools kills grabs but deepens the identity disease — not the creative
+   cure.
+4. **toolless-noinstr falsifies the Shortcuts-replica premise.** The truly bare in-app
+   session hallucinates a TOOL HARNESS from nothing — fake `tool:` / `response_format:` /
+   JSON / XML wrappers on ~18/20 canary+haiku replies (canary clean 0/20 despite content
+   18/20), plus fabricated policy on norway ("I must follow instructions not to create
+   content about specific countries"). The healthy Shortcuts "Use Model" probe must carry
+   its own hidden wrapper. Instructions are what SUPPRESS the scaffold — load-bearing, not
+   the disease.
+5. **Norway is sick in every structural cell** (max 6/18): knowledge-denial is untouched by
+   structure; the licensing prose (battery-2's HELD sentence; toolless-lic 18/20) remains
+   the only measured cure. armed-noinstr norway adds a new absurdity family: 19/20 trials
+   grabbed searchPlaces/currentLocation and demanded LOCATION PERMISSION to summarize a
+   country — read-tool capture of knowledge asks.
+
+**VERDICT vs THE BAR** (toolless-class numbers WITH a belt available): **not met by any
+cell — nothing ships from this battery.** But the armed disease is now decomposed into two
+separable mechanisms with proven structural kill switches: (a) GRABS ← action-schema
+visibility at decode time (kill: per-turn `toolCallingMode: .disallowed`, or
+`includesSchemaInInstructions = false`); (b) DISCLAIMER/DENIAL ← belt presence in context
+plus the missing composition license (cure candidates: the held complic sentence / held
+licensed bare branch). Routed next lane: COMBINATION cells — nocall+complic and
+noschema+complic (structural grab-kill × licensing prose) — and, if one clears, per-turn
+routing (creative/knowledge turns → `.disallowed`) as the production ship path. Verdict
+desk: Owen.
+
 Logged 2026-07-27.
 
 ## 197. 🐛 Tool-invocation failure aborts the turn and renders the RAW error — types, descriptions, and a memory address in the transcript
