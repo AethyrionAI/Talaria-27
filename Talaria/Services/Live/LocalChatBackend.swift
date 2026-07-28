@@ -1395,7 +1395,8 @@ final class LocalChatBackend: HermesClientProtocol {
         hasImageTools: Bool = false,
         includeCompositionLicensingSentence: Bool = false,
         includeToollessLicensingClause: Bool = false,
-        includeToollessLic2Clause: Bool = false
+        includeToollessLic2Clause: Bool = false,
+        includeActionDestallClause: Bool = false
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
         // #196 second battery: the composition-licensing sentence — the
@@ -1409,11 +1410,20 @@ final class LocalChatBackend: HermesClientProtocol {
         // thermometer that lifted them is retired: measured NOT the tic's
         // source — 10/10 reminder grabs with them gone.)
         let honestyAndRecovery = " When a tool reports that a permission isn't granted or no data exists, relay that honestly — never invent a value. A failed or denied tool is never the answer to the user's question: answer as well as you can without that tool, and don't repeat a denial you've already given in this conversation."
+        // #200C `armed-instrfix` treatment: the de-stall clause, moved
+        // UPSTREAM after #200B falsified the tool-text seam (remind stalls
+        // 0/10-0/10-0/10-1/10 across guide/description/both — the "which
+        // list?" question fires at response planning, before any tool
+        // schema is engaged). Measured artifact; ships ONLY on a battery
+        // verdict. Grab risk is the canary's job: "create it right away"
+        // is grab-flavored, gated by the asks-for antecedent.
+        let actionDestall = " When the user asks for a reminder, alarm, or calendar event and says what and when, create it right away — never ask which list, which calendar, or for other optional details first; leave optional fields empty and the defaults apply."
         let capabilities: String
         if hasTools {
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. "
                 + (includeCompositionLicensingSentence ? composition : "")
                 + "Use the tools for the user's own data — their health, location, schedule, reminders, contacts, and past conversations — instead of guessing at it. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully."
+                + (includeActionDestallClause ? actionDestall : "")
                 + honestyAndRecovery
         } else if includeToollessLic2Clause {
             // #196 battery 4, toolless-lic2: the licensed bare branch plus
@@ -2343,6 +2353,10 @@ extension LocalChatBackend {
         /// Both texts together — interaction effects can't hide behind
         /// two individually-clean cells (#196 battery-2 lesson).
         case armedBothfix = "armed-bothfix"
+        /// #200C: production belt UNTOUCHED; the de-stall clause rides the
+        /// session INSTRUCTIONS instead — the seam upstream of response
+        /// planning, where #200B proved the stall actually fires.
+        case armedInstrfix = "armed-instrfix"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2350,7 +2364,8 @@ extension LocalChatBackend {
     /// both (bothfix). Same instances and order for every other tool.
     nonisolated static func destallBelt(from tools: [any Tool], cell: ActionBatteryCell) -> [any Tool] {
         switch cell {
-        case .armed:
+        case .armed, .armedInstrfix:
+            // instrfix treats INSTRUCTIONS, never the belt.
             return tools
         case .armedGuidefix:
             return tools.map { tool in
@@ -2430,6 +2445,15 @@ extension LocalChatBackend {
         Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: cells.map(\.rawValue), kind: "action")
         for cell in cells {
             let belt = Self.destallBelt(from: base, cell: cell)
+            // #200C: instrfix swaps INSTRUCTIONS, not the belt.
+            let cellInstructions = cell == .armedInstrfix
+                ? Self.instructionsText(
+                    deviceContext: Self.deviceContextLine(),
+                    hasTools: !base.isEmpty,
+                    hasImageTools: false,
+                    includeActionDestallClause: true
+                )
+                : instructions
             for (tag, prompt) in prompts {
                 for trial in 1...trials {
                     ToolEventRelay.batteryTrialTag = "shape=\(cell.rawValue) p=\(tag) t=\(trial)"
@@ -2438,7 +2462,7 @@ extension LocalChatBackend {
                     // BEGIN names it exactly.
                     Self.batteryEmit("battery: BEGIN shape=\(cell.rawValue) p=\(tag) t=\(trial)")
                     Self.batteryRecorder.beginTrial()
-                    let session = LanguageModelSession(model: model, tools: belt, instructions: Instructions(instructions))
+                    let session = LanguageModelSession(model: model, tools: belt, instructions: Instructions(cellInstructions))
                     let options = Self.shapedGenerationOptions(Self.chatGenerationOptions(for: activeTier), shape: shape)
                     await executeBatteryTrial(session: session, options: options,
                                               shape: cell.rawValue, promptTag: tag,
@@ -2454,10 +2478,21 @@ extension LocalChatBackend {
         Self.batteryRecorder.endRun()
     }
 
-    /// #200B one-tap wrapper: all four treatment cells × four prompts
-    /// (grab canary included) — 16 × trials generations.
+    /// #200B one-tap wrapper: the four TOOL-TEXT treatment cells × four
+    /// prompts (grab canary included). Kept runnable; the #200B verdict
+    /// falsified these cells (remind 0/0/0/1).
     func runDestallBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: ActionBatteryCell.allCases, includeGrabCanary: true)
+        await runActionBattery(
+            trials: trials,
+            cells: [.armed, .armedGuidefix, .armedToolfix, .armedBothfix],
+            includeGrabCanary: true
+        )
+    }
+
+    /// #200C one-tap wrapper: control vs the INSTRUCTIONS-level de-stall
+    /// clause × four prompts — 8 × trials generations.
+    func runInstrfixBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: [.armed, .armedInstrfix], includeGrabCanary: true)
     }
 
     /// #200 teardown: delete every [T27-battery]-marked reminder and
