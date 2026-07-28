@@ -381,6 +381,34 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #200B destall battery: the reminder list-stall treatment as measured
+    // cells (control / guidefix / toolfix / bothfix) × four prompts — the
+    // haiku grab canary included, since the de-stall texts push toward
+    // immediate creation. Auto-ACCEPT, real writes, reaped. Promotion only
+    // on the classified verdict.
+    @ViewBuilder
+    private func destallBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runDestallBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200 orphan cleanup: the four crashed action batteries stranded
     // their battery alarms (up to ~50 armed for 6:30 AM, ringing through
     // Silent). AlarmKit enumeration carries no label, so this cancels ALL
@@ -486,6 +514,10 @@ struct DiagnosticsSettingsScreen: View {
                 HStack(spacing: Design.Spacing.sm) {
                     actionBatteryButton(trials: 5, label: "Action battery n=5 (15)")
                     actionBatteryButton(trials: 20, label: "Action battery n=20 (60)")
+                }
+                // #200B: 4 treatment cells × 4 prompts (haiku grab canary).
+                HStack(spacing: Design.Spacing.sm) {
+                    destallBatteryButton(trials: 10, label: "Destall battery n=10 (160)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
