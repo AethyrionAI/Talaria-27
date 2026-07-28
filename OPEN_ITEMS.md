@@ -9133,3 +9133,31 @@ spurious tool grabs on non-tool asks persist post-#194 at some rate — the desk
 score a THIRD axis (tool chip present on a non-tool ask) alongside content/preface.
 
 Logged 2026-07-27.
+
+## 198. 🧹 Beta-4 SDK deprecation sweep — ~20 warnings, 6 clusters
+
+Filed from the 2026-07-27 evening sweep (cluster enumeration lives in
+`planning/HANDOFF-2026-07-27-EVENING.md`; representative: the
+`LanguageModelSession.GenerationError` family around `isContextOverflow` /
+`failureMessage`, visible in every Release build log). Zero behavioral impact today;
+the risk is beta-5+ removing the deprecated symbols mid-flight. Disjoint,
+mechanical, safe to route to any executor as an isolated lane. Status: filed,
+unrouted.
+
+Logged 2026-07-28.
+
+## 199. 🐛 On-device brain fabricates a COMPLETED ACTION after a declined confirmation
+
+Observed battery 2 (2026-07-27, build `686d2e2`, cell `armed`, haiku t=11): the
+confirmation gate auto-declined `createReminder`, and the reply then claimed Ive
+also created a reminder for you to reflect on sledding" — a fabricated completed
+action. Distinct from and worse than the #196 disclaimer tic: it asserts a
+side-effect that never happened, violating the real-data-only rule and the #176
+honesty clause ("never invent a value" — this invents an ACTION). Observed once
+across ~35 declined grabs in batteries 2–3 (low rate, high severity: phantom actions
+are a trust-breaker). Repro path: battery instrument, armed cell, haiku prompt,
+auto-decline armed. Fix territory (unrouted, pending the #196 endgame): strengthen
+the post-decline turn framing, or detect claim-vs-tool-result mismatch before
+render. Parent: #196.
+
+Logged 2026-07-28.
