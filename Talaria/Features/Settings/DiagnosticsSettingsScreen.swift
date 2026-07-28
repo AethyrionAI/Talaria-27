@@ -306,6 +306,8 @@ struct DiagnosticsSettingsScreen: View {
         LocalChatBackend.SessionShape(
             rawValue: UserDefaults.standard.string(forKey: "debug.sessionShape") ?? "armed"
         )?.rawValue ?? "armed"
+    // #196: guards the one-tap rate battery against double-fires.
+    @State private var batteryRunning = false
 
     private var localBrainPanel: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
@@ -331,6 +333,29 @@ struct DiagnosticsSettingsScreen: View {
                 .onChange(of: sessionShapeOverride) { _, newValue in
                     UserDefaults.standard.set(newValue, forKey: "debug.sessionShape")
                 }
+
+                // #196 rate battery: all four shapes × 2 prompts × 10 trials,
+                // in-process, results to Console (category LocalChatBackend,
+                // lines prefixed "battery:"). No force-quit cycling needed.
+                Button {
+                    guard !batteryRunning, let backend = container.localChatBackend else { return }
+                    batteryRunning = true
+                    // #196: headless battery sessions can never answer a
+                    // confirmation card (non-cancellable continuation), so
+                    // action-tool grabs auto-decline for the run — which also
+                    // measures post-denial recovery behavior.
+                    container.toolConfirmationCenter.autoDeclineForBattery = true
+                    Task {
+                        await backend.runShapeBattery(trials: 10)
+                        container.toolConfirmationCenter.autoDeclineForBattery = false
+                        batteryRunning = false
+                    }
+                } label: {
+                    MonoLabel(batteryRunning ? "Battery running… watch Console" : "Run #196 battery (4 shapes × 10 trials)",
+                              size: 10, tracking: Design.Tracking.mono,
+                              color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+                }
+                .disabled(batteryRunning)
             }
 
             VStack(alignment: .leading, spacing: Design.Spacing.sm) {

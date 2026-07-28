@@ -1725,3 +1725,57 @@ extension LocalChatBackend {
     }
 }
 #endif
+
+#if DEBUG
+// MARK: - #196 rate battery (Diagnostics-triggered, DEBUG builds only)
+
+extension LocalChatBackend {
+    /// Runs all four session shapes × probe prompts × `trials` generations
+    /// in-process, one classifiable notice line per trial. Deliberately
+    /// bypasses `activeSessionShape`: each session is parameterized
+    /// explicitly, so the launch-scoped invariant is untouched and no
+    /// force-quit cycling is needed. Tools EXECUTE during tool-registered
+    /// cells (real reads) — that is the point: spurious tool grabs and their
+    /// failures surface as battery data instead of anecdotes.
+    func runShapeBattery(trials: Int) async {
+        let prompts = ["Write a haiku about sledding", "write a 50 word summary about Norway"]
+        Self.logger.notice("battery: START trials=\(trials, privacy: .public) (#196)")
+        for shape in [SessionShape.armed, .armedDirect, .armedNoNeg, .toolless] {
+            let tools: [any Tool] = shape.registersTools ? effectiveOfferedTools(hasImageInContext: false) : []
+            let instructions = Self.instructionsText(
+                for: shape,
+                deviceContext: Self.deviceContextLine(),
+                hasTools: !tools.isEmpty,
+                hasImageTools: false
+            )
+            for (promptIndex, prompt) in prompts.enumerated() {
+                for trial in 1...trials {
+                    let session = LanguageModelSession(model: model, tools: tools, instructions: Instructions(instructions))
+                    let options = Self.chatGenerationOptions(for: activeTier)
+                    // 35s guillotine per trial: an action-tool grab stages a
+                    // user confirmation no headless session can answer, which
+                    // deadlocked the first battery run. A timed-out trial IS
+                    // the spurious-grab measurement — log it and move on.
+                    let respondTask = Task { try await session.respond(to: Prompt(prompt), options: options).content }
+                    let timeoutTask = Task { try? await Task.sleep(for: .seconds(35)); respondTask.cancel() }
+                    do {
+                        let text = try await respondTask.value
+                        timeoutTask.cancel()
+                        let flat = text.replacingOccurrences(of: "\n", with: " / ")
+                        let lower = text.lowercased()
+                        let cant = lower.hasPrefix("i can\u{2019}t") || lower.hasPrefix("i cant") || lower.hasPrefix("i cannot") || lower.hasPrefix("i can not") || lower.hasPrefix("i can't")
+                        Self.logger.notice("battery: shape=\(shape.rawValue, privacy: .public) p=\(promptIndex, privacy: .public) t=\(trial, privacy: .public) cant=\(cant, privacy: .public) chars=\(text.count, privacy: .public) text=\(String(flat.prefix(180)), privacy: .public)")
+                    } catch is CancellationError {
+                        timeoutTask.cancel()
+                        Self.logger.notice("battery: shape=\(shape.rawValue, privacy: .public) p=\(promptIndex, privacy: .public) t=\(trial, privacy: .public) TIMEOUT — likely tool grab awaiting confirmation")
+                    } catch {
+                        timeoutTask.cancel()
+                        Self.logger.notice("battery: shape=\(shape.rawValue, privacy: .public) p=\(promptIndex, privacy: .public) t=\(trial, privacy: .public) ERROR=\(String(String(describing: error).prefix(200)), privacy: .public)")
+                    }
+                }
+            }
+        }
+        Self.logger.notice("battery: DONE (#196)")
+    }
+}
+#endif
