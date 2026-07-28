@@ -2,6 +2,9 @@ import Foundation
 import FoundationModels
 import UIKit
 import os
+#if DEBUG
+import EventKit // #200 action battery: the teardown reap reads-and-removes marked artifacts
+#endif
 
 /// On-device chat brain (#26): Apple's FoundationModels framework behind the
 /// same `HermesClientProtocol` seam as `SessionsHermesClient`, so ChatStore's
@@ -2179,15 +2182,6 @@ extension LocalChatBackend {
             ("haiku", "Write a haiku about sledding"),
             ("norway", "write a 50 word summary about Norway"),
         ]
-        // Knowledge-denial forms observed in the first battery — matched
-        // anywhere in the reply, unlike the prefix-only `cant` flag which
-        // missed "I don't have access…" openings entirely.
-        let denialPatterns = [
-            "can't access", "can\u{2019}t access", "cannot access",
-            "don't have access", "don\u{2019}t have access", "do not have access",
-            "no access", "external knowledge", "external database", "external data",
-            "no internet", "internet access", "real-time",
-        ]
         let cells = Self.batteryCells
         Self.batteryEmit("battery: START trials=\(trials) cells=\(cells.count) prompts=\(prompts.count) (#196)")
         Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: cells.map(\.rawValue))
@@ -2243,37 +2237,187 @@ extension LocalChatBackend {
                     // Identity except armed-nocall (`toolCallingMode:
                     // .disallowed` per call — the schemas stay in context).
                     let options = Self.shapedGenerationOptions(Self.chatGenerationOptions(for: activeTier), shape: shape)
-                    // 35s guillotine per trial: backstop only now that the
-                    // confirmation gate auto-declines — a wedged trial still
-                    // logs and the run still moves.
-                    let respondTask = Task { try await session.respond(to: Prompt(prompt), options: options).content }
-                    let timeoutTask = Task { try? await Task.sleep(for: .seconds(35)); respondTask.cancel() }
-                    do {
-                        let text = try await respondTask.value
-                        timeoutTask.cancel()
-                        let flat = text.replacingOccurrences(of: "\n", with: " / ")
-                        let lower = text.lowercased()
-                        let cant = lower.hasPrefix("i can\u{2019}t") || lower.hasPrefix("i cant") || lower.hasPrefix("i cannot") || lower.hasPrefix("i can not") || lower.hasPrefix("i can't")
-                        let denial = denialPatterns.contains { lower.contains($0) }
-                        Self.batteryEmit("battery: shape=\(shape.rawValue) p=\(tag) t=\(trial) cant=\(cant) denial=\(denial) chars=\(text.count) text=\(String(flat.prefix(500)))")
-                        Self.batteryRecorder.endTrial(shape: shape.rawValue, prompt: tag, trial: trial,
-                                                      text: text, cant: cant, denial: denial)
-                    } catch is CancellationError {
-                        timeoutTask.cancel()
-                        Self.batteryEmit("battery: shape=\(shape.rawValue) p=\(tag) t=\(trial) TIMEOUT — wedged trial guillotined")
-                        Self.batteryRecorder.endTrialTimeout(shape: shape.rawValue, prompt: tag, trial: trial)
-                    } catch {
-                        timeoutTask.cancel()
-                        Self.batteryEmit("battery: shape=\(shape.rawValue) p=\(tag) t=\(trial) ERROR=\(String(String(describing: error).prefix(200)))")
-                        Self.batteryRecorder.endTrialError(shape: shape.rawValue, prompt: tag, trial: trial,
-                                                           error: String(describing: error))
-                    }
+                    await executeBatteryTrial(session: session, options: options,
+                                              shape: shape.rawValue, promptTag: tag,
+                                              prompt: prompt, trial: trial)
                 }
             }
         }
         ToolEventRelay.batteryTrialTag = nil
         Self.batteryEmit("battery: DONE (#196)")
         Self.batteryRecorder.endRun()
+    }
+
+    /// Knowledge-denial forms observed in the first battery — matched
+    /// anywhere in the reply, unlike the prefix-only `cant` flag which
+    /// missed "I don't have access…" openings entirely. Shared by every
+    /// battery so the heuristics can never drift between instruments.
+    nonisolated static let batteryDenialPatterns = [
+        "can't access", "can\u{2019}t access", "cannot access",
+        "don't have access", "don\u{2019}t have access", "do not have access",
+        "no access", "external knowledge", "external database", "external data",
+        "no internet", "internet access", "real-time",
+    ]
+
+    /// One battery trial: respond, guillotine at 35s, classify, emit, and
+    /// record — the shared executor behind the shape battery (#196) and the
+    /// action battery (#200). Byte-identical lines to the pre-extraction
+    /// emit path; callers set the trial tag and begin the recorder trial
+    /// BEFORE calling.
+    private func executeBatteryTrial(session: LanguageModelSession, options: GenerationOptions,
+                                     shape: String, promptTag: String,
+                                     prompt: String, trial: Int) async {
+        // 35s guillotine per trial: backstop only now that the confirmation
+        // gate auto-resolves — a wedged trial still logs and the run still
+        // moves.
+        let respondTask = Task { try await session.respond(to: Prompt(prompt), options: options).content }
+        let timeoutTask = Task { try? await Task.sleep(for: .seconds(35)); respondTask.cancel() }
+        do {
+            let text = try await respondTask.value
+            timeoutTask.cancel()
+            let flat = text.replacingOccurrences(of: "\n", with: " / ")
+            let lower = text.lowercased()
+            let cant = lower.hasPrefix("i can\u{2019}t") || lower.hasPrefix("i cant") || lower.hasPrefix("i cannot") || lower.hasPrefix("i can not") || lower.hasPrefix("i can't")
+            let denial = Self.batteryDenialPatterns.contains { lower.contains($0) }
+            Self.batteryEmit("battery: shape=\(shape) p=\(promptTag) t=\(trial) cant=\(cant) denial=\(denial) chars=\(text.count) text=\(String(flat.prefix(500)))")
+            Self.batteryRecorder.endTrial(shape: shape, prompt: promptTag, trial: trial,
+                                          text: text, cant: cant, denial: denial)
+        } catch is CancellationError {
+            timeoutTask.cancel()
+            Self.batteryEmit("battery: shape=\(shape) p=\(promptTag) t=\(trial) TIMEOUT — wedged trial guillotined")
+            Self.batteryRecorder.endTrialTimeout(shape: shape, prompt: promptTag, trial: trial)
+        } catch {
+            timeoutTask.cancel()
+            Self.batteryEmit("battery: shape=\(shape) p=\(promptTag) t=\(trial) ERROR=\(String(String(describing: error).prefix(200)))")
+            Self.batteryRecorder.endTrialError(shape: shape, prompt: promptTag, trial: trial,
+                                               error: String(describing: error))
+        }
+    }
+
+    /// #200 action-path battery: does an APPROPRIATE create go through?
+    /// Three single-turn create prompts × `trials`, ARMED production
+    /// construction — the armed-routed armed branch, whose belt,
+    /// instructions, and options are all identity with `.armed` (verified
+    /// against `shapedBelt` / `instructionsText` / `shapedGenerationOptions`)
+    /// — so the cell label is "armed". NO per-trial routing: the router
+    /// probe already measured these prompts as correctly ROUTED; this
+    /// measures what the armed session does next. The launcher arms
+    /// auto-ACCEPT, so appropriate creates EXECUTE — real EventKit/AlarmKit
+    /// writes, every artifact marker-tagged by the gate — and the teardown
+    /// reaps everything marked BEFORE the DONE line, so the phone ends the
+    /// run clean. Protocol: run with Reminders/Calendar granted (the
+    /// observed #200 failure post-dates the grant; that is the state to
+    /// reproduce).
+    func runActionBattery(trials: Int) async {
+        let prompts: [(tag: String, text: String)] = [
+            ("remind", "Remind me to test Talaria at 4:30pm"),
+            ("alarm", "Set an alarm for 6:30"),
+            ("calendar", "Put lunch with Sam on my calendar Friday at noon"),
+        ]
+        let shape = SessionShape.armedRouted
+        let belt = Self.shapedBelt(
+            from: DeviceToolBelt.offeredTools(from: tools, hasImageInContext: false),
+            shape: shape
+        )
+        let instructions = Self.instructionsText(
+            for: shape,
+            deviceContext: Self.deviceContextLine(),
+            hasTools: !belt.isEmpty,
+            hasImageTools: false
+        )
+        Self.batteryEmit("battery: START trials=\(trials) cells=1 prompts=\(prompts.count) (#200)")
+        Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: ["armed"], kind: "action")
+        for (tag, prompt) in prompts {
+            for trial in 1...trials {
+                ToolEventRelay.batteryTrialTag = "shape=armed p=\(tag) t=\(trial)"
+                Self.batteryRecorder.beginTrial()
+                let session = LanguageModelSession(model: model, tools: belt, instructions: Instructions(instructions))
+                let options = Self.shapedGenerationOptions(Self.chatGenerationOptions(for: activeTier), shape: shape)
+                await executeBatteryTrial(session: session, options: options,
+                                          shape: "armed", promptTag: tag,
+                                          prompt: prompt, trial: trial)
+            }
+        }
+        ToolEventRelay.batteryTrialTag = nil
+        let reapSummary = await reapBatteryArtifacts()
+        Self.batteryEmit("battery: REAP \(reapSummary) (#200)")
+        Self.batteryRecorder.recordReapSummary(reapSummary)
+        Self.batteryEmit("battery: DONE (#200)")
+        Self.batteryRecorder.endRun()
+    }
+
+    /// #200 teardown: delete every [T27-battery]-marked reminder and
+    /// calendar event, and cancel every battery-tracked alarm. Reminders
+    /// and events are found by marker match on their titles (idempotent —
+    /// leftovers from a crashed earlier run get swept too); alarms come
+    /// from `AlarmService.batteryScheduledAlarmIDs`, because AlarmKit's
+    /// `Alarm` carries no label back on enumeration. Returns the REAP
+    /// accounting in the export's words. Missing read access shows up as
+    /// skips, never as a silent zero.
+    private func reapBatteryArtifacts() async -> String {
+        let marker = ToolConfirmationCenter.batteryArtifactMarker
+        let store = EKEventStore()
+        var failures = 0
+
+        // Reminders: enumeration needs full access. Snapshot Sendable
+        // identifiers inside the completion handler (EKReminder must not
+        // cross the continuation boundary), then re-fetch each by id to
+        // remove it.
+        var remindersLine = "reminders=skipped(no-access)"
+        if EKEventStore.authorizationStatus(for: .reminder) == .fullAccess {
+            let predicate = store.predicateForIncompleteReminders(
+                withDueDateStarting: nil, ending: nil, calendars: nil
+            )
+            let markedIDs: [String] = await withCheckedContinuation { continuation in
+                store.fetchReminders(matching: predicate) { found in
+                    let ids = (found ?? [])
+                        .filter { ($0.title ?? "").contains(marker) }
+                        .map(\.calendarItemIdentifier)
+                    continuation.resume(returning: ids)
+                }
+            }
+            var removed = 0
+            for id in markedIDs {
+                guard let reminder = store.calendarItem(withIdentifier: id) as? EKReminder else {
+                    failures += 1
+                    continue
+                }
+                do {
+                    try store.remove(reminder, commit: true)
+                    removed += 1
+                } catch {
+                    failures += 1
+                }
+            }
+            remindersLine = "reminders=\(removed)"
+        }
+
+        // Events: enumeration also needs full access (write-only can save
+        // but never read, so it cannot reap). The prompt set creates
+        // near-future events; a −2d…+60d window bounds the sweep without
+        // missing anything a battery could have created.
+        var eventsLine = "events=skipped(no-access)"
+        if EKEventStore.authorizationStatus(for: .event) == .fullAccess {
+            let start = Date().addingTimeInterval(-2 * 86_400)
+            let end = Date().addingTimeInterval(60 * 86_400)
+            let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+            let marked = store.events(matching: predicate).filter { ($0.title ?? "").contains(marker) }
+            var removed = 0
+            for event in marked {
+                do {
+                    try store.remove(event, span: .thisEvent, commit: true)
+                    removed += 1
+                } catch {
+                    failures += 1
+                }
+            }
+            eventsLine = "events=\(removed)"
+        }
+
+        let alarmReap = AlarmService.reapBatteryAlarms()
+        failures += alarmReap.failed
+
+        return "\(remindersLine) \(eventsLine) alarms=\(alarmReap.cancelled) failures=\(failures)"
     }
 
     /// #196 battery 4: on-device router-accuracy probe — ten probes
