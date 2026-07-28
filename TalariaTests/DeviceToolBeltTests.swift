@@ -779,6 +779,28 @@ struct DeviceToolBeltTests {
         #expect(search.description.contains("without any tool"))
     }
 
+    // MARK: Battery mutex (#200B)
+
+    /// The 2026-07-28 destall run was contaminated by TWO concurrent
+    /// battery loops: the guard lived in the Diagnostics view's @State,
+    /// which resets when the view is recreated mid-run — so a second tap
+    /// started a parallel loop sharing the static trial tag and recorder
+    /// (interleaved cells, cross-attributed tool calls, an FM -1/1001
+    /// error storm from model contention). The mutex is backend-owned:
+    /// one battery at a time, whatever the UI thinks.
+    @Test @MainActor func batteryMutexAdmitsOneRunAtATime() {
+        // Isolate from any state another test left behind.
+        LocalChatBackend.endBatteryRun()
+
+        #expect(LocalChatBackend.beginBatteryRun())
+        // A second begin while active must be refused.
+        #expect(!LocalChatBackend.beginBatteryRun())
+        LocalChatBackend.endBatteryRun()
+        // Released — the next run may begin.
+        #expect(LocalChatBackend.beginBatteryRun())
+        LocalChatBackend.endBatteryRun()
+    }
+
     // MARK: Destall treatment cells (#200B)
 
     /// The de-stalled description is a measured artifact: production text
