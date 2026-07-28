@@ -1,4 +1,5 @@
 import Foundation
+import FoundationModels
 import Testing
 @testable import Talaria
 
@@ -170,57 +171,60 @@ struct DeviceToolBeltTests {
     /// day boundary mid-test.
     private static let shapeDate = Date(timeIntervalSince1970: 1_753_600_000)
 
-    @Test func armedDirectVariantAddsOnlyTheDirectnessSentence() {
+    @Test func complicVariantAddsOnlyTheCompositionSentence() {
         let armed = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", date: Self.shapeDate, hasTools: true
         )
-        let direct = LocalChatBackend.instructionsText(
-            for: .armedDirect, deviceContext: "Device: test.",
+        let complic = LocalChatBackend.instructionsText(
+            for: .armedComplic, deviceContext: "Device: test.",
             date: Self.shapeDate, hasTools: true
         )
-        // The anti-preface sentence is whole and in the cell only —
-        // production armed is the control and must not carry it. (Part 2
-        // flips exactly this pin if the device A/B clears armed-direct.)
-        #expect(!armed.contains("never begin a reply"))
-        #expect(direct.contains("Answer directly — never begin a reply by saying you can't do something you are then going to do."))
-        // Placed with the licensing clause: the insertion took exactly one
+        // The composition-licensing sentence is whole and in the cell only —
+        // production armed is the control and must not carry it. (A battery
+        // verdict for the complic/fix cells flips exactly this pin.)
+        #expect(!armed.contains("is not retrieval"))
+        #expect(complic.contains("You know a great deal about the world — places, people, history, ideas — and writing about it needs no internet, database, or lookup: composing from your own knowledge is not retrieval."))
+        // Placed inside the licensing clause: the insertion took exactly one
         // sentence and neither neighbor moved.
-        #expect(direct.contains("general knowledge is not device data. Answer directly"))
-        #expect(direct.contains("going to do. Use the tools for the user's own data"))
+        #expect(complic.contains("general knowledge is not device data. You know a great deal"))
+        #expect(complic.contains("is not retrieval. Use the tools for the user's own data"))
         // Every production sentence survives (#176/#194 hard constraints):
-        #expect(direct.contains("need no tool"))                 // licensing
-        #expect(direct.contains("writing and composing"))        // licensing (#194)
-        #expect(direct.contains("confirmation card first"))      // action confirmation
-        #expect(direct.contains("never invent a value"))         // honesty
-        #expect(direct.contains("never the answer"))             // recovery
-        #expect(direct.contains("repeat a denial"))              // recovery
+        #expect(complic.contains("need no tool"))                 // licensing
+        #expect(complic.contains("writing and composing"))        // licensing (#194)
+        #expect(complic.contains("confirmation card first"))      // action confirmation
+        #expect(complic.contains("never invent a value"))         // honesty
+        #expect(complic.contains("never the answer"))             // recovery
+        #expect(complic.contains("repeat a denial"))              // recovery
     }
 
-    @Test func noNegVariantDropsOnlyTheHonestyAndRecoveryClauses() {
-        // The thermometer cell (#196): production minus the negative-flavored
-        // clauses suspected of priming "can't" prefaces. NEVER shippable —
-        // without them a denied permission is again free to become every
-        // later turn's answer (#176's absorbing state).
-        let noNeg = LocalChatBackend.instructionsText(
-            for: .armedNoNeg, deviceContext: "Device: test.",
+    @Test func toollessLicVariantIsTheLicensedBareBranchWithTheCaveatKept() {
+        // #196 second battery, cell (c): the bare branch never received
+        // #176B's licensing clause and measured 0/10 on composition with
+        // the purest denials. The licensed form must license composition
+        // AND keep the no-internet honesty caveat — without it the branch
+        // would again be free to guess at current events and user data.
+        let bare = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate, hasTools: false
+        )
+        let lic = LocalChatBackend.instructionsText(
+            for: .toollessLic, deviceContext: "Device: test.",
             date: Self.shapeDate, hasTools: true
         )
-        // Both clauses gone — honesty and recovery, all their anchors.
-        #expect(!noNeg.contains("relay that honestly"))
-        #expect(!noNeg.contains("never invent a value"))
-        #expect(!noNeg.contains("never the answer"))
-        #expect(!noNeg.contains("repeat a denial"))
-        // The removal took exactly the tail after the action-confirmation
-        // sentence — nothing else moved.
-        #expect(noNeg.hasSuffix("if they decline, accept it gracefully."))
-        // The kept sentences survive:
-        #expect(noNeg.contains("need no tool"))                  // licensing
-        #expect(noNeg.contains("writing and composing"))         // licensing (#194)
-        #expect(noNeg.contains("the user's own data"))           // scoped use-tools
-        #expect(noNeg.contains("confirmation card first"))       // action confirmation
+        // Licensed composition, absent from the shipping bare branch:
+        #expect(!bare.contains("needs no internet or lookup"))
+        #expect(lic.contains("writing and composing"))
+        #expect(lic.contains("facts you know are not guesses"))
+        #expect(lic.contains("writing about the world from your own knowledge needs no internet or lookup"))
+        // The honesty caveat survives, both halves:
+        #expect(lic.contains("You have no internet access and no external tools in this mode"))
+        #expect(lic.contains("say so plainly instead of guessing"))
+        // Still the BARE branch — the hasTools:true input above must not
+        // leak the armed clauses in:
+        #expect(!lic.contains("Use the tools"))
+        #expect(!lic.contains("confirmation card"))
     }
 
-    @Test func armedShapeIsProductionVerbatimAndToollessIsTheBareBranch() {
+    @Test func armedAndRemfixInstructionsAreProductionVerbatimAndToollessIsTheBareBranch() {
         for hasImageTools in [false, true] {
             let production = LocalChatBackend.instructionsText(
                 deviceContext: "Device: test.", date: Self.shapeDate,
@@ -231,7 +235,25 @@ struct DeviceToolBeltTests {
                 date: Self.shapeDate, hasTools: true, hasImageTools: hasImageTools
             )
             #expect(control == production)
+            // armed-remfix is a BELT treatment: its instructions must be
+            // the production text verbatim or the cell measures two things.
+            let remfix = LocalChatBackend.instructionsText(
+                for: .armedRemfix, deviceContext: "Device: test.",
+                date: Self.shapeDate, hasTools: true, hasImageTools: hasImageTools
+            )
+            #expect(remfix == production)
         }
+        // armed-fix's INSTRUCTION half is exactly armed-complic's text —
+        // the combined cell adds the belt treatment on top, nothing else.
+        let complic = LocalChatBackend.instructionsText(
+            for: .armedComplic, deviceContext: "Device: test.",
+            date: Self.shapeDate, hasTools: true
+        )
+        let fix = LocalChatBackend.instructionsText(
+            for: .armedFix, deviceContext: "Device: test.",
+            date: Self.shapeDate, hasTools: true
+        )
+        #expect(fix == complic)
         let bare = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", date: Self.shapeDate, hasTools: false
         )
@@ -243,22 +265,65 @@ struct DeviceToolBeltTests {
     }
 
     @Test func sessionShapeCellsParseFromLaunchEnvValuesAndGateTools() {
-        // The four spellings, exactly as the desk A/B checklist uses them.
+        // The six spellings, exactly as the desk A/B checklist uses them.
         #expect(LocalChatBackend.SessionShape(rawValue: "armed") == .armed)
-        #expect(LocalChatBackend.SessionShape(rawValue: "armed-direct") == .armedDirect)
-        #expect(LocalChatBackend.SessionShape(rawValue: "armed-noneg") == .armedNoNeg)
+        #expect(LocalChatBackend.SessionShape(rawValue: "armed-remfix") == .armedRemfix)
+        #expect(LocalChatBackend.SessionShape(rawValue: "armed-complic") == .armedComplic)
+        #expect(LocalChatBackend.SessionShape(rawValue: "armed-fix") == .armedFix)
         #expect(LocalChatBackend.SessionShape(rawValue: "toolless") == .toolless)
-        // Unknown values must fall back to production, never crash or guess —
-        // including the RETIRED 176C cell names a phone may still carry in
-        // the persisted Diagnostics override from the last A/B.
+        #expect(LocalChatBackend.SessionShape(rawValue: "toolless-lic") == .toollessLic)
+        // Unknown values must fall back to production, never crash or
+        // guess — including EVERY retired cell name a phone may still carry
+        // in the persisted Diagnostics override from an earlier A/B (the
+        // 176C names and the first battery's).
         #expect(LocalChatBackend.SessionShape(rawValue: "bogus") == nil)
         #expect(LocalChatBackend.SessionShape(rawValue: "armed-noprose") == nil)
         #expect(LocalChatBackend.SessionShape(rawValue: "prose-notools") == nil)
+        #expect(LocalChatBackend.SessionShape(rawValue: "armed-direct") == nil)
+        #expect(LocalChatBackend.SessionShape(rawValue: "armed-noneg") == nil)
         // Which cells hand the session a belt at all.
         #expect(LocalChatBackend.SessionShape.armed.registersTools)
-        #expect(LocalChatBackend.SessionShape.armedDirect.registersTools)
-        #expect(LocalChatBackend.SessionShape.armedNoNeg.registersTools)
+        #expect(LocalChatBackend.SessionShape.armedRemfix.registersTools)
+        #expect(LocalChatBackend.SessionShape.armedComplic.registersTools)
+        #expect(LocalChatBackend.SessionShape.armedFix.registersTools)
         #expect(!LocalChatBackend.SessionShape.toolless.registersTools)
+        #expect(!LocalChatBackend.SessionShape.toollessLic.registersTools)
+        // Which cells carry the scoped createReminder description.
+        #expect(!LocalChatBackend.SessionShape.armed.usesScopedReminderDescription)
+        #expect(LocalChatBackend.SessionShape.armedRemfix.usesScopedReminderDescription)
+        #expect(!LocalChatBackend.SessionShape.armedComplic.usesScopedReminderDescription)
+        #expect(LocalChatBackend.SessionShape.armedFix.usesScopedReminderDescription)
+        #expect(!LocalChatBackend.SessionShape.toolless.usesScopedReminderDescription)
+        #expect(!LocalChatBackend.SessionShape.toollessLic.usesScopedReminderDescription)
+    }
+
+    @Test @MainActor func shapedBeltSwapsOnlyTheReminderDescriptionInRemfixCells() {
+        // #196 cell (a): fix the tool, not the prompt. The shaped belt must
+        // be the identity everywhere except createReminder's description in
+        // the remfix treatments — same tools, same order, same gate.
+        let relay = ToolEventRelay()
+        let confirmations = ToolConfirmationCenter()
+        let belt: [any Tool] = [
+            ReminderCreateTool(relay: relay, confirmations: confirmations),
+            CalendarEventTool(relay: relay, confirmations: confirmations),
+        ]
+        // The default description IS production — the seam is inert at
+        // every production call site.
+        #expect((belt[0] as? ReminderCreateTool)?.description == ReminderCreateTool.productionDescription)
+
+        let untouched = LocalChatBackend.shapedBelt(from: belt, shape: .armed)
+        #expect(untouched.map { $0.name } == ["createReminder", "createCalendarEvent"])
+        #expect((untouched[0] as? ReminderCreateTool)?.description == ReminderCreateTool.productionDescription)
+
+        for shape in [LocalChatBackend.SessionShape.armedRemfix, .armedFix] {
+            let shaped = LocalChatBackend.shapedBelt(from: belt, shape: shape)
+            #expect(shaped.map { $0.name } == ["createReminder", "createCalendarEvent"])
+            #expect((shaped[0] as? ReminderCreateTool)?.description == ReminderCreateTool.scopedDescription196)
+            #expect((shaped[1] as? CalendarEventTool)?.description == belt[1].description)
+        }
+        // The scoped text names the boundary in both directions.
+        #expect(ReminderCreateTool.scopedDescription196.contains("only when the user asks to be reminded"))
+        #expect(ReminderCreateTool.scopedDescription196.contains("never for requests to write, compose, or answer"))
     }
 
     // MARK: Vision-tool availability gating (#176)

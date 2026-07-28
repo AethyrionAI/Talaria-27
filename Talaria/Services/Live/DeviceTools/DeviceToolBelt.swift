@@ -98,7 +98,23 @@ protocol ImageDependentTool {}
 final class ToolEventRelay {
     var emit: ((ToolCallEvent) -> Void)?
 
+    #if DEBUG
+    /// #196 battery: when non-nil, EVERY tool start logs a classifiable
+    /// notice carrying this trial tag — read tools included, which the
+    /// confirmation gate never sees. (The first battery's blind spot: two
+    /// trials leaked ConversationSearch output into replies with no log
+    /// line anywhere.) Nil in every normal run; the battery sets it per
+    /// trial and clears it at the end of the run.
+    static var batteryTrialTag: String?
+    private static let batteryLogger = Logger(subsystem: "org.aethyrion.talaria", category: "LocalChatBackend")
+    #endif
+
     func started(_ name: String, detail: String? = nil) {
+        #if DEBUG
+        if let tag = Self.batteryTrialTag {
+            Self.batteryLogger.notice("battery: tool=\(name, privacy: .public) \(tag, privacy: .public) detail=\(String((detail ?? "").prefix(80)), privacy: .public)")
+        }
+        #endif
         emit?(ToolCallEvent(name: name, phase: .started, detail: detail))
     }
 

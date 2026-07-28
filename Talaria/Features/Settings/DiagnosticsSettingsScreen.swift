@@ -300,14 +300,43 @@ struct DiagnosticsSettingsScreen: View {
     @State private var forcedTripState: ForcedTripState = .idle
     // #196: mirrors the persisted debug.sessionShape override; seeded from
     // defaults so the picker reflects the pending (next-launch) cell,
-    // normalized through SessionShape so a RETIRED cell name from the 176C
-    // A/B ("armed-noprose") can't leave the segmented control unselected.
+    // normalized through SessionShape so a RETIRED cell name ("armed-noprose"
+    // from 176C, "armed-direct"/"armed-noneg" from the first battery) can't
+    // leave the control unselected — it lands on production, by design.
     @State private var sessionShapeOverride: String =
         LocalChatBackend.SessionShape(
             rawValue: UserDefaults.standard.string(forKey: "debug.sessionShape") ?? "armed"
         )?.rawValue ?? "armed"
     // #196: guards the one-tap rate battery against double-fires.
     @State private var batteryRunning = false
+
+    // #196 second battery: one launcher, two powers — n=10 resolves the
+    // reminder-grab question (8/10 -> ~0 is unmissable); n=20 is required
+    // for a significant composition verdict (4/10 vs 8/10 at n=10 is
+    // p~0.17 — the exact underpowering behind the afternoon's overturned
+    // n=4 conviction).
+    @ViewBuilder
+    private func batteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            // Headless battery sessions can never answer a confirmation
+            // card (non-cancellable continuation), so action-tool grabs
+            // auto-decline for the run — which also measures post-denial
+            // recovery behavior.
+            container.toolConfirmationCenter.autoDeclineForBattery = true
+            Task {
+                await backend.runShapeBattery(trials: trials)
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
 
     private var localBrainPanel: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
@@ -325,37 +354,28 @@ struct DiagnosticsSettingsScreen: View {
                           color: Design.Colors.secondaryForeground)
                 Picker("Session shape", selection: $sessionShapeOverride) {
                     Text("armed (control)").tag("armed")
-                    Text("armed-direct").tag("armed-direct")
-                    Text("armed-noneg").tag("armed-noneg")
+                    Text("armed-remfix").tag("armed-remfix")
+                    Text("armed-complic").tag("armed-complic")
+                    Text("armed-fix").tag("armed-fix")
                     Text("toolless").tag("toolless")
+                    Text("toolless-lic").tag("toolless-lic")
                 }
-                .pickerStyle(.segmented)
+                // Menu, not segmented: six cells don't fit a phone-width
+                // segmented control (#196 second battery).
+                .pickerStyle(.menu)
                 .onChange(of: sessionShapeOverride) { _, newValue in
                     UserDefaults.standard.set(newValue, forKey: "debug.sessionShape")
                 }
 
-                // #196 rate battery: all four shapes × 2 prompts × 10 trials,
+                // #196 second battery: 6 cells × 3 prompts × n trials,
                 // in-process, results to Console (category LocalChatBackend,
-                // lines prefixed "battery:"). No force-quit cycling needed.
-                Button {
-                    guard !batteryRunning, let backend = container.localChatBackend else { return }
-                    batteryRunning = true
-                    // #196: headless battery sessions can never answer a
-                    // confirmation card (non-cancellable continuation), so
-                    // action-tool grabs auto-decline for the run — which also
-                    // measures post-denial recovery behavior.
-                    container.toolConfirmationCenter.autoDeclineForBattery = true
-                    Task {
-                        await backend.runShapeBattery(trials: 10)
-                        container.toolConfirmationCenter.autoDeclineForBattery = false
-                        batteryRunning = false
-                    }
-                } label: {
-                    MonoLabel(batteryRunning ? "Battery running… watch Console" : "Run #196 battery (4 shapes × 10 trials)",
-                              size: 10, tracking: Design.Tracking.mono,
-                              color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+                // lines prefixed "battery:"); every tool start logs per
+                // trial via ToolEventRelay.batteryTrialTag. No force-quit
+                // cycling needed.
+                HStack(spacing: Design.Spacing.sm) {
+                    batteryButton(trials: 10, label: "Battery n=10 (~180 trials)")
+                    batteryButton(trials: 20, label: "Battery n=20 (~360)")
                 }
-                .disabled(batteryRunning)
             }
 
             VStack(alignment: .leading, spacing: Design.Spacing.sm) {

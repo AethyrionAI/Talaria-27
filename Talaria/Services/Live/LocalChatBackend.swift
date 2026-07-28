@@ -885,8 +885,13 @@ final class LocalChatBackend: HermesClientProtocol {
     private func effectiveOfferedTools(hasImageInContext hasImage: Bool) -> [any Tool] {
         #if DEBUG
         guard Self.activeSessionShape.registersTools else { return [] }
-        #endif
+        return Self.shapedBelt(
+            from: DeviceToolBelt.offeredTools(from: tools, hasImageInContext: hasImage),
+            shape: Self.activeSessionShape
+        )
+        #else
         return DeviceToolBelt.offeredTools(from: tools, hasImageInContext: hasImage)
+        #endif
     }
 
     /// The base instructions for this turn's session. In DEBUG the #196
@@ -1278,38 +1283,50 @@ final class LocalChatBackend: HermesClientProtocol {
     /// stability but no longer varies this text.
     ///
     /// #196 measurement seams, the `includeBeltRoster` precedent: production
-    /// call sites never pass either flag, so the armed text is byte-identical
-    /// with the defaults. `includeDirectnessSentence` inserts ONLY the
-    /// anti-preface sentence beside the licensing clause (the `armed-direct`
-    /// cell); `includeHonestyAndRecoveryClauses: false` drops ONLY the honesty
-    /// sentence and the recovery clause (the `armed-noneg` cell — a
-    /// thermometer, never a treatment: it removes #176's absorbing-state
-    /// protections).
+    /// call sites never pass either flag, so both production branches are
+    /// byte-identical with the defaults. `includeCompositionLicensingSentence`
+    /// inserts ONLY the composition-licensing sentence into the armed
+    /// licensing clause (the `armed-complic` / `armed-fix` cells — the first
+    /// battery's knowledge-denial finding: composing about world knowledge
+    /// was refused as retrieval). `includeToollessLicensingClause` swaps ONLY
+    /// the bare branch for its licensed form (the `toolless-lic` cell — the
+    /// bare branch never received #176B's clause and measured 0/10 on
+    /// composition with the purest denials). The first battery's
+    /// `includeDirectnessSentence` (measured loser) and
+    /// `includeHonestyAndRecoveryClauses` thermometer (measured NOT the
+    /// source: 10/10 reminder grabs with the clauses gone) are retired.
     nonisolated static func instructionsText(
         deviceContext: String,
         date: Date = .now,
         hasTools: Bool = false,
         hasImageTools: Bool = false,
-        includeDirectnessSentence: Bool = false,
-        includeHonestyAndRecoveryClauses: Bool = true
+        includeCompositionLicensingSentence: Bool = false,
+        includeToollessLicensingClause: Bool = false
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
-        // #196: the anti-preface sentence — the `armed-direct` cell's whole
-        // treatment. The disclaimer tic opens replies "I can't write X for
-        // you, but here's one…" and then delivers X in full; this sentence
-        // forbids exactly that shape and nothing else.
-        let directness = "Answer directly — never begin a reply by saying you can't do something you are then going to do. "
+        // #196 second battery: the composition-licensing sentence — the
+        // `armed-complic` / `armed-fix` instruction treatment. "summarize
+        // Norway" was refused as "can't access external knowledge" across
+        // every tool cell: the model equates composing about world knowledge
+        // with retrieval. This sentence licenses composition specifically.
+        let composition = "You know a great deal about the world — places, people, history, ideas — and writing about it needs no internet, database, or lookup: composing from your own knowledge is not retrieval. "
         // #176's absorbing-state exits — the honesty sentence and the
-        // recovery clause. Real jobs in production; the `armed-noneg` cell
-        // lifts them out ONLY to measure whether their negative framing
-        // primes the #196 preface tic. Never ship without them.
+        // recovery clause. Real jobs in production. (The armed-noneg
+        // thermometer that lifted them is retired: measured NOT the tic's
+        // source — 10/10 reminder grabs with them gone.)
         let honestyAndRecovery = " When a tool reports that a permission isn't granted or no data exists, relay that honestly — never invent a value. A failed or denied tool is never the answer to the user's question: answer as well as you can without that tool, and don't repeat a denial you've already given in this conversation."
         let capabilities: String
         if hasTools {
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. "
-                + (includeDirectnessSentence ? directness : "")
+                + (includeCompositionLicensingSentence ? composition : "")
                 + "Use the tools for the user's own data — their health, location, schedule, reminders, contacts, and past conversations — instead of guessing at it. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully."
-                + (includeHonestyAndRecoveryClauses ? honestyAndRecovery : "")
+                + honestyAndRecovery
+        } else if includeToollessLicensingClause {
+            // #196 toolless-lic cell: the bare branch, licensed. Composition
+            // licensed up front; the no-internet honesty caveat KEPT — the
+            // branch must still forbid guessing at what the model truly
+            // doesn't know (current events, the user's data).
+            capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job — facts you know are not guesses, and writing about the world from your own knowledge needs no internet or lookup. You have no internet access and no external tools in this mode; when you genuinely don't know something, say so plainly instead of guessing."
         } else {
             capabilities = """
             Be direct, warm, and concise. You have no internet access and no external tools in this mode — when you don't know something or can't do it on-device, say so plainly instead of guessing.
@@ -1623,13 +1640,17 @@ extension LocalChatBackend {
 
 // MARK: - Session-shape instrument (#196, reworked from #194/176C — DEBUG builds only)
 
-/// A/B cells for the preface-tic hunt (#196): which armed-session ingredient
-/// makes every reply open with a disclaimer it then contradicts ("I can't
-/// write a haiku for you, but here's one…" — then the haiku). Suspects: the
-/// negative-flavored honesty/recovery clauses priming "can't" language, tool
-/// registration itself, or neither. The 176C cells did their job (#194's
-/// enumeration convicted, PR #157) and are retired; same instrument, new
-/// question. Armed by the `TALARIA_SESSION_SHAPE` launch environment or, at
+/// A/B cells for #196, second battery: mechanism-TARGETED treatments, after
+/// the first battery (n=10/cell, 2026-07-27) replaced suspicion with
+/// measurement. Findings under test: task-verb confusion (production armed
+/// grabbed `createReminder` on 8/10 "write a haiku" requests — the belt's
+/// presence, not its prose, drives creative failure) and knowledge-denial on
+/// composition ("summarize Norway" refused as inaccessible "external
+/// knowledge" in every tool cell, 0/10 in the never-licensed bare branch).
+/// The first battery's cells did their job and are retired: armed-direct
+/// measured a LOSER (instruction stacking is not the road), armed-noneg
+/// exonerated the honesty/recovery clauses (10/10 grabs without them).
+/// Armed by the `TALARIA_SESSION_SHAPE` launch environment or, at
 /// a desk, the persisted Diagnostics override — following the
 /// `UITEST_DUPID_PROBE` seam precedent: inert in every normal run, compiled
 /// out of Release entirely. The selector touches session construction only
@@ -1637,31 +1658,60 @@ extension LocalChatBackend {
 extension LocalChatBackend {
 
     enum SessionShape: String {
-        /// Production behavior — the control cell; the tic lives here.
+        /// Production behavior — the in-run control; both mechanisms live
+        /// here (first battery: haiku 6/10, 8/10 reminder grabs, Norway
+        /// 4/10 with 0 clean opens).
         case armed
-        /// Tools registered exactly as production; instructions are the armed
-        /// branch PLUS the anti-preface directness sentence, placed with the
-        /// licensing clause. The candidate fix: clean here with content
-        /// intact ⇒ Part 2 ships.
-        case armedDirect = "armed-direct"
-        /// Tools registered exactly as production; instructions are the armed
-        /// branch MINUS the honesty sentence and the recovery clause — the
-        /// negative-flavored language suspected of priming "can't" prefaces.
-        /// Measurement cell ONLY, never shippable (the `prose-notools`
-        /// precedent): it removes #176's absorbing-state protections, so a
-        /// denied permission would again be free to become every later
-        /// turn's answer.
-        case armedNoNeg = "armed-noneg"
+        /// Production instructions, belt with ONLY `createReminder`'s
+        /// description scoped against task-verb confusion
+        /// (`ReminderCreateTool.scopedDescription196`). Fix the tool, not
+        /// the prompt. Target: grabs ~8/10 → ~0.
+        case armedRemfix = "armed-remfix"
+        /// Production belt, instructions PLUS the composition-licensing
+        /// sentence in the licensing clause. Target: Norway content up at
+        /// unchanged haiku.
+        case armedComplic = "armed-complic"
+        /// Both treatments together — the actual ship candidate, measured
+        /// in the same run so an interaction effect can't hide behind two
+        /// individually-clean cells.
+        case armedFix = "armed-fix"
         /// The production tool-less branch with tools unregistered — the far
-        /// control. The tic appearing here exonerates tool registration.
+        /// control (first battery: haiku 10/10 clean, Norway 0/10).
         case toolless
+        /// The tool-less branch rebuilt with the licensing clause the bare
+        /// branch never received in #176B, honesty caveat kept.
+        case toollessLic = "toolless-lic"
 
         /// Whether this cell hands the session a tool belt at all.
         var registersTools: Bool {
             switch self {
-            case .armed, .armedDirect, .armedNoNeg: return true
-            case .toolless: return false
+            case .armed, .armedRemfix, .armedComplic, .armedFix: return true
+            case .toolless, .toollessLic: return false
             }
+        }
+
+        /// Whether this cell's belt carries the #196-scoped
+        /// `createReminder` description (the remfix treatment).
+        var usesScopedReminderDescription: Bool {
+            switch self {
+            case .armedRemfix, .armedFix: return true
+            case .armed, .armedComplic, .toolless, .toollessLic: return false
+            }
+        }
+    }
+
+    /// The belt each cell registers (#196 second battery): identity for
+    /// every cell except the remfix treatments, where ONLY the
+    /// `createReminder` description string is swapped — same instances,
+    /// same order, same relay and confirmation gate.
+    nonisolated static func shapedBelt(from tools: [any Tool], shape: SessionShape) -> [any Tool] {
+        guard shape.usesScopedReminderDescription else { return tools }
+        return tools.map { tool in
+            if var reminder = tool as? ReminderCreateTool {
+                reminder.description = ReminderCreateTool.scopedDescription196
+                return reminder
+            }
+            return tool
         }
     }
 
@@ -1699,27 +1749,29 @@ extension LocalChatBackend {
         hasImageTools: Bool = false
     ) -> String {
         switch shape {
-        case .armed:
+        case .armed, .armedRemfix:
+            // armed-remfix is a BELT treatment: its instructions are the
+            // production text verbatim (the seam lives in `shapedBelt`).
             return instructionsText(
                 deviceContext: deviceContext, date: date,
                 hasTools: hasTools, hasImageTools: hasImageTools
             )
-        case .armedDirect:
+        case .armedComplic, .armedFix:
             return instructionsText(
                 deviceContext: deviceContext, date: date,
                 hasTools: hasTools, hasImageTools: hasImageTools,
-                includeDirectnessSentence: true
-            )
-        case .armedNoNeg:
-            return instructionsText(
-                deviceContext: deviceContext, date: date,
-                hasTools: hasTools, hasImageTools: hasImageTools,
-                includeHonestyAndRecoveryClauses: false
+                includeCompositionLicensingSentence: true
             )
         case .toolless:
             return instructionsText(
                 deviceContext: deviceContext, date: date,
                 hasTools: false, hasImageTools: hasImageTools
+            )
+        case .toollessLic:
+            return instructionsText(
+                deviceContext: deviceContext, date: date,
+                hasTools: false, hasImageTools: hasImageTools,
+                includeToollessLicensingClause: true
             )
         }
     }
@@ -1730,32 +1782,59 @@ extension LocalChatBackend {
 // MARK: - #196 rate battery (Diagnostics-triggered, DEBUG builds only)
 
 extension LocalChatBackend {
-    /// Runs all four session shapes × probe prompts × `trials` generations
-    /// in-process, one classifiable notice line per trial. Deliberately
-    /// bypasses `activeSessionShape`: each session is parameterized
-    /// explicitly, so the launch-scoped invariant is untouched and no
-    /// force-quit cycling is needed. Tools EXECUTE during tool-registered
-    /// cells (real reads) — that is the point: spurious tool grabs and their
-    /// failures surface as battery data instead of anecdotes.
+    /// Second-battery instrument: six session shapes × three prompts ×
+    /// `trials` generations in-process, one classifiable notice line per
+    /// trial. Deliberately bypasses `activeSessionShape` for BOTH
+    /// instructions and belt — each session is parameterized explicitly (the
+    /// first battery's belt still consulted the live selector; a non-armed
+    /// phone selection would have contaminated every tool cell), so the
+    /// launch-scoped invariant is untouched and no force-quit cycling is
+    /// needed. Tools EXECUTE during tool-registered cells (real reads) —
+    /// that is the point — and every tool start now logs through
+    /// `ToolEventRelay.batteryTrialTag`, closing the first battery's
+    /// read-tool blind spot. "What's 2+2?" is the always-pass canary: a
+    /// canary failure marks the surrounding trials suspect (throttling,
+    /// model state) instead of silently polluting rates.
     func runShapeBattery(trials: Int) async {
-        let prompts = ["Write a haiku about sledding", "write a 50 word summary about Norway"]
-        Self.logger.notice("battery: START trials=\(trials, privacy: .public) (#196)")
-        for shape in [SessionShape.armed, .armedDirect, .armedNoNeg, .toolless] {
-            let tools: [any Tool] = shape.registersTools ? effectiveOfferedTools(hasImageInContext: false) : []
+        let prompts: [(tag: String, text: String)] = [
+            ("canary", "What's 2+2?"),
+            ("haiku", "Write a haiku about sledding"),
+            ("norway", "write a 50 word summary about Norway"),
+        ]
+        // Knowledge-denial forms observed in the first battery — matched
+        // anywhere in the reply, unlike the prefix-only `cant` flag which
+        // missed "I don't have access…" openings entirely.
+        let denialPatterns = [
+            "can't access", "can\u{2019}t access", "cannot access",
+            "don't have access", "don\u{2019}t have access", "do not have access",
+            "no access", "external knowledge", "external database", "external data",
+            "no internet", "internet access", "real-time",
+        ]
+        let cells: [SessionShape] = [.armed, .armedRemfix, .armedComplic, .armedFix, .toolless, .toollessLic]
+        Self.logger.notice("battery: START trials=\(trials, privacy: .public) cells=\(cells.count, privacy: .public) prompts=\(prompts.count, privacy: .public) (#196)")
+        for shape in cells {
+            let belt: [any Tool] = shape.registersTools
+                ? Self.shapedBelt(from: DeviceToolBelt.offeredTools(from: tools, hasImageInContext: false), shape: shape)
+                : []
             let instructions = Self.instructionsText(
                 for: shape,
                 deviceContext: Self.deviceContextLine(),
-                hasTools: !tools.isEmpty,
+                hasTools: !belt.isEmpty,
                 hasImageTools: false
             )
-            for (promptIndex, prompt) in prompts.enumerated() {
+            for (tag, prompt) in prompts {
                 for trial in 1...trials {
-                    let session = LanguageModelSession(model: model, tools: tools, instructions: Instructions(instructions))
+                    // Tag set BEFORE the trial so every tool start inside it
+                    // logs attributably. A post-guillotine straggler can
+                    // mislabel into the following trial — rare and visible
+                    // (it trails a TIMEOUT line), acceptable for an
+                    // instrument.
+                    ToolEventRelay.batteryTrialTag = "shape=\(shape.rawValue) p=\(tag) t=\(trial)"
+                    let session = LanguageModelSession(model: model, tools: belt, instructions: Instructions(instructions))
                     let options = Self.chatGenerationOptions(for: activeTier)
-                    // 35s guillotine per trial: an action-tool grab stages a
-                    // user confirmation no headless session can answer, which
-                    // deadlocked the first battery run. A timed-out trial IS
-                    // the spurious-grab measurement — log it and move on.
+                    // 35s guillotine per trial: backstop only now that the
+                    // confirmation gate auto-declines — a wedged trial still
+                    // logs and the run still moves.
                     let respondTask = Task { try await session.respond(to: Prompt(prompt), options: options).content }
                     let timeoutTask = Task { try? await Task.sleep(for: .seconds(35)); respondTask.cancel() }
                     do {
@@ -1764,17 +1843,19 @@ extension LocalChatBackend {
                         let flat = text.replacingOccurrences(of: "\n", with: " / ")
                         let lower = text.lowercased()
                         let cant = lower.hasPrefix("i can\u{2019}t") || lower.hasPrefix("i cant") || lower.hasPrefix("i cannot") || lower.hasPrefix("i can not") || lower.hasPrefix("i can't")
-                        Self.logger.notice("battery: shape=\(shape.rawValue, privacy: .public) p=\(promptIndex, privacy: .public) t=\(trial, privacy: .public) cant=\(cant, privacy: .public) chars=\(text.count, privacy: .public) text=\(String(flat.prefix(180)), privacy: .public)")
+                        let denial = denialPatterns.contains { lower.contains($0) }
+                        Self.logger.notice("battery: shape=\(shape.rawValue, privacy: .public) p=\(tag, privacy: .public) t=\(trial, privacy: .public) cant=\(cant, privacy: .public) denial=\(denial, privacy: .public) chars=\(text.count, privacy: .public) text=\(String(flat.prefix(180)), privacy: .public)")
                     } catch is CancellationError {
                         timeoutTask.cancel()
-                        Self.logger.notice("battery: shape=\(shape.rawValue, privacy: .public) p=\(promptIndex, privacy: .public) t=\(trial, privacy: .public) TIMEOUT — likely tool grab awaiting confirmation")
+                        Self.logger.notice("battery: shape=\(shape.rawValue, privacy: .public) p=\(tag, privacy: .public) t=\(trial, privacy: .public) TIMEOUT — wedged trial guillotined")
                     } catch {
                         timeoutTask.cancel()
-                        Self.logger.notice("battery: shape=\(shape.rawValue, privacy: .public) p=\(promptIndex, privacy: .public) t=\(trial, privacy: .public) ERROR=\(String(String(describing: error).prefix(200)), privacy: .public)")
+                        Self.logger.notice("battery: shape=\(shape.rawValue, privacy: .public) p=\(tag, privacy: .public) t=\(trial, privacy: .public) ERROR=\(String(String(describing: error).prefix(200)), privacy: .public)")
                     }
                 }
             }
         }
+        ToolEventRelay.batteryTrialTag = nil
         Self.logger.notice("battery: DONE (#196)")
     }
 }
