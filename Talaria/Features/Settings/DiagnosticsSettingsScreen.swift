@@ -411,6 +411,17 @@ struct DiagnosticsSettingsScreen: View {
                 HStack(spacing: Design.Spacing.sm) {
                     routerProbeButton(trials: 20, label: "Router probe n=20 (200)")
                 }
+
+                // #196 results-page lane: every run above also persists to
+                // the structured store — view, drill into raw replies, and
+                // export from anywhere, no Console required.
+                NavigationLink {
+                    BatteryResultsScreen()
+                } label: {
+                    MonoLabel("Battery results →", size: 10, weight: .medium,
+                              tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                }
+                .buttonStyle(.plain)
             }
 
             VStack(alignment: .leading, spacing: Design.Spacing.sm) {
