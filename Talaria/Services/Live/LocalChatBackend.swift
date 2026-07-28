@@ -316,7 +316,7 @@ final class LocalChatBackend: HermesClientProtocol {
         var didCondenseRetry = false
         while true {
             do {
-                let response = try await liveSession.respond(to: Prompt(prompt), options: Self.chatGenerationOptions(for: activeTier))
+                let response = try await liveSession.respond(to: Prompt(prompt), options: effectiveGenerationOptions())
                 connectionStatus = .connected
                 let usage = currentTokenUsage()
                 // #102: the sync path has no stream to break, but a capped
@@ -450,7 +450,7 @@ final class LocalChatBackend: HermesClientProtocol {
                 var emittedReasoning = ""
                 var didTripRepetitionBreaker = false
                 var repetitionBreaker = RepetitionBreaker()
-                let stream = liveSession.streamResponse(to: Prompt(prompt), options: Self.chatGenerationOptions(for: activeTier))
+                let stream = liveSession.streamResponse(to: Prompt(prompt), options: effectiveGenerationOptions())
                 for try await snapshot in stream {
                     if Task.isCancelled { break }
                     latestFull = snapshot.content
@@ -828,11 +828,17 @@ final class LocalChatBackend: HermesClientProtocol {
         Self.logger.notice("session shape: \(Self.activeSessionShape.rawValue, privacy: .public) — \(offered.count, privacy: .public) tool(s) registered (#196)")
         #endif
         var entries: [Transcript.Entry] = []
-        entries.append(.instructions(Transcript.Instructions(
-            id: UUID().uuidString,
-            segments: [.text(Transcript.TextSegment(id: UUID().uuidString, content: blueprint.instructions))],
-            toolDefinitions: []
-        )))
+        // #196 `-noinstr` cells: an empty blueprint means NO instructions —
+        // the transcript simply carries no instructions entry. Production
+        // instructions are never empty, so the guard is inert outside the
+        // DEBUG instrument.
+        if !blueprint.instructions.isEmpty {
+            entries.append(.instructions(Transcript.Instructions(
+                id: UUID().uuidString,
+                segments: [.text(Transcript.TextSegment(id: UUID().uuidString, content: blueprint.instructions))],
+                toolDefinitions: []
+            )))
+        }
         for turn in blueprint.verbatimTurns {
             let segment = Transcript.Segment.text(
                 Transcript.TextSegment(id: UUID().uuidString, content: turn.text)
@@ -891,6 +897,24 @@ final class LocalChatBackend: HermesClientProtocol {
         )
         #else
         return DeviceToolBelt.offeredTools(from: tools, hasImageInContext: hasImage)
+        #endif
+    }
+
+    /// The generation options for this turn's respond/stream call. In DEBUG
+    /// the #196 instrument reroutes through the shaped variant — identity
+    /// for every cell but `armed-nocall`, which is the one cell whose
+    /// treatment lives in the OPTIONS, not the belt or the text. This is
+    /// the clean live-path seam the dispatch asked about: nocall works from
+    /// the Diagnostics picker, not only in the battery. Release compiles
+    /// down to the production expression.
+    private func effectiveGenerationOptions() -> GenerationOptions {
+        #if DEBUG
+        return Self.shapedGenerationOptions(
+            Self.chatGenerationOptions(for: activeTier),
+            shape: Self.activeSessionShape
+        )
+        #else
+        return Self.chatGenerationOptions(for: activeTier)
         #endif
     }
 
@@ -1640,21 +1664,25 @@ extension LocalChatBackend {
 
 // MARK: - Session-shape instrument (#196, reworked from #194/176C — DEBUG builds only)
 
-/// A/B cells for #196, second battery: mechanism-TARGETED treatments, after
-/// the first battery (n=10/cell, 2026-07-27) replaced suspicion with
-/// measurement. Findings under test: task-verb confusion (production armed
-/// grabbed `createReminder` on 8/10 "write a haiku" requests — the belt's
-/// presence, not its prose, drives creative failure) and knowledge-denial on
-/// composition ("summarize Norway" refused as inaccessible "external
-/// knowledge" in every tool cell, 0/10 in the never-licensed bare branch).
-/// The first battery's cells did their job and are retired: armed-direct
-/// measured a LOSER (instruction stacking is not the road), armed-noneg
-/// exonerated the honesty/recovery clauses (10/10 grabs without them).
+/// A/B cells for #196, third battery: STRUCTURAL decomposition of the armed
+/// disease, after two batteries of prose treatments. Owen's verdict on the
+/// second battery (n=20/cell, build 686d2e2): nothing on the armed path is
+/// fixed — every prose cell edits sentences; none decomposed the structure.
+/// The six battery cells (`batteryCells`) now isolate the armed session's
+/// INGREDIENTS: instruction text (`armed-noinstr` / `toolless-noinstr`),
+/// action-tool availability (`armed-readonly`), decode-time call ability
+/// with schemas kept in context (`armed-nocall`, on the iOS-27
+/// `GenerationOptions.toolCallingMode` control verified in Part 0), and
+/// schema text with calling kept (`armed-noschema`, on
+/// `Tool.includesSchemaInInstructions`). Battery-2's treatment cells stay in
+/// the enum as HELD ship candidates (measured wins, held by Owen's verdict) —
+/// picker-reachable for spot checks, no longer burning battery trials.
 /// Armed by the `TALARIA_SESSION_SHAPE` launch environment or, at
 /// a desk, the persisted Diagnostics override — following the
 /// `UITEST_DUPID_PROBE` seam precedent: inert in every normal run, compiled
 /// out of Release entirely. The selector touches session construction only
-/// (`effectiveOfferedTools` / `effectiveInstructionsText`).
+/// (`effectiveOfferedTools` / `effectiveInstructionsText` /
+/// `effectiveGenerationOptions`).
 extension LocalChatBackend {
 
     enum SessionShape: String {
@@ -1681,12 +1709,41 @@ extension LocalChatBackend {
         /// The tool-less branch rebuilt with the licensing clause the bare
         /// branch never received in #176B, honesty caveat kept.
         case toollessLic = "toolless-lic"
+        /// Third battery (#196 decomposition): production belt, NO
+        /// instructions. Vs `armed`, isolates whether OUR instruction text
+        /// is a net cause of the armed disease or the belt registration
+        /// itself is — the fork every future fix routes on.
+        case armedNoinstr = "armed-noinstr"
+        /// No belt, no instructions — the in-app replica of the Shortcuts
+        /// "Use Model" probe that wrote haiku happily on this same phone.
+        /// Vs `toolless`, prices the bare branch's prose (which denies
+        /// arithmetic 20/20 — text or model?).
+        case toollessNoinstr = "toolless-noinstr"
+        /// Production instructions; belt MINUS the three action tools
+        /// (grabs die structurally — no tool to grab). If haiku CLEAN
+        /// recovers toward toolless levels, the ship path is extending
+        /// #176 availability gating to action tools.
+        case armedReadonly = "armed-readonly"
+        /// Production instructions AND belt, but every call runs with
+        /// `toolCallingMode: .disallowed` (iOS 27): schemas stay in
+        /// context, calling is impossible. The per-turn-routing ship
+        /// path's proof cell.
+        case armedNocall = "armed-nocall"
+        /// Production instructions; the three action tools carry
+        /// `includesSchemaInInstructions = false` — still callable,
+        /// schemas hidden. Can the model grab what it cannot see? The
+        /// semantics are undocumented; surprising results are findings,
+        /// not bugs.
+        case armedNoschema = "armed-noschema"
 
         /// Whether this cell hands the session a tool belt at all.
         var registersTools: Bool {
             switch self {
-            case .armed, .armedRemfix, .armedComplic, .armedFix: return true
-            case .toolless, .toollessLic: return false
+            case .armed, .armedRemfix, .armedComplic, .armedFix,
+                 .armedNoinstr, .armedReadonly, .armedNocall, .armedNoschema:
+                return true
+            case .toolless, .toollessLic, .toollessNoinstr:
+                return false
             }
         }
 
@@ -1694,25 +1751,89 @@ extension LocalChatBackend {
         /// `createReminder` description (the remfix treatment).
         var usesScopedReminderDescription: Bool {
             switch self {
-            case .armedRemfix, .armedFix: return true
-            case .armed, .armedComplic, .toolless, .toollessLic: return false
+            case .armedRemfix, .armedFix:
+                return true
+            case .armed, .armedComplic, .toolless, .toollessLic,
+                 .armedNoinstr, .toollessNoinstr, .armedReadonly, .armedNocall, .armedNoschema:
+                return false
+            }
+        }
+
+        /// Whether this cell hands the session instructions at all. The two
+        /// `-noinstr` cells pass NOTHING: the battery builds the session
+        /// with the `instructions:` parameter omitted entirely (resolving
+        /// to the SDK's `Instructions? = nil` designated convenience init),
+        /// and the live path builds a transcript with no instructions
+        /// entry. `instructionsText(for:)` returns the empty string for
+        /// them only so its switch stays exhaustive.
+        var passesInstructions: Bool {
+            switch self {
+            case .armedNoinstr, .toollessNoinstr:
+                return false
+            case .armed, .armedRemfix, .armedComplic, .armedFix,
+                 .toolless, .toollessLic, .armedReadonly, .armedNocall, .armedNoschema:
+                return true
             }
         }
     }
 
-    /// The belt each cell registers (#196 second battery): identity for
-    /// every cell except the remfix treatments, where ONLY the
-    /// `createReminder` description string is swapped — same instances,
-    /// same order, same relay and confirmation gate.
+    /// The belt each cell registers (#196): identity for every cell except
+    /// the structural treatments —
+    /// - remfix cells: ONLY the `createReminder` description string is
+    ///   swapped (same instances, same order, same relay and gate);
+    /// - `armed-readonly`: the three action tools are removed outright
+    ///   (the #176 availability-gating mechanism, extended — filter by
+    ///   concrete type so belt order never matters);
+    /// - `armed-noschema`: the three action tools are COPIES with
+    ///   `includesSchemaInInstructions` flipped off — still registered,
+    ///   still callable, schemas hidden from the instructions. Read tools
+    ///   untouched in both.
     nonisolated static func shapedBelt(from tools: [any Tool], shape: SessionShape) -> [any Tool] {
-        guard shape.usesScopedReminderDescription else { return tools }
-        return tools.map { tool in
-            if var reminder = tool as? ReminderCreateTool {
-                reminder.description = ReminderCreateTool.scopedDescription196
-                return reminder
+        switch shape {
+        case .armedRemfix, .armedFix:
+            return tools.map { tool in
+                if var reminder = tool as? ReminderCreateTool {
+                    reminder.description = ReminderCreateTool.scopedDescription196
+                    return reminder
+                }
+                return tool
             }
-            return tool
+        case .armedReadonly:
+            return tools.filter {
+                !($0 is ReminderCreateTool || $0 is CalendarEventTool || $0 is AlarmTool)
+            }
+        case .armedNoschema:
+            return tools.map { tool in
+                if var reminder = tool as? ReminderCreateTool {
+                    reminder.includesSchemaInInstructions = false
+                    return reminder
+                }
+                if var event = tool as? CalendarEventTool {
+                    event.includesSchemaInInstructions = false
+                    return event
+                }
+                if var alarm = tool as? AlarmTool {
+                    alarm.includesSchemaInInstructions = false
+                    return alarm
+                }
+                return tool
+            }
+        case .armed, .armedComplic, .toolless, .toollessLic, .armedNoinstr, .toollessNoinstr, .armedNocall:
+            return tools
         }
+    }
+
+    /// The generation options each cell runs with (#196 third battery):
+    /// identity for every cell except `armed-nocall`, which sets the
+    /// iOS-27 `toolCallingMode: .disallowed` — schemas stay in context,
+    /// decode-time tool calling is impossible. Production options carry no
+    /// override (pinned in `LocalChatBackendTests`), so `armed` remains
+    /// byte-identical production.
+    nonisolated static func shapedGenerationOptions(_ options: GenerationOptions, shape: SessionShape) -> GenerationOptions {
+        guard shape == .armedNocall else { return options }
+        var shaped = options
+        shaped.toolCallingMode = .disallowed
+        return shaped
     }
 
     /// Read once per process — the cells are launch-scoped, so a mid-run env
@@ -1749,13 +1870,21 @@ extension LocalChatBackend {
         hasImageTools: Bool = false
     ) -> String {
         switch shape {
-        case .armed, .armedRemfix:
-            // armed-remfix is a BELT treatment: its instructions are the
-            // production text verbatim (the seam lives in `shapedBelt`).
+        case .armed, .armedRemfix, .armedReadonly, .armedNocall, .armedNoschema:
+            // armed-remfix, and the third battery's belt/options
+            // treatments (readonly / nocall / noschema), are STRUCTURAL:
+            // their instructions are the production text verbatim — the
+            // seams live in `shapedBelt` / `shapedGenerationOptions`.
             return instructionsText(
                 deviceContext: deviceContext, date: date,
                 hasTools: hasTools, hasImageTools: hasImageTools
             )
+        case .armedNoinstr, .toollessNoinstr:
+            // These cells pass NO instructions (`passesInstructions ==
+            // false` — callers omit the parameter / the transcript entry).
+            // Empty keeps this switch exhaustive and the live context
+            // budget honest at zero.
+            return ""
         case .armedComplic, .armedFix:
             return instructionsText(
                 deviceContext: deviceContext, date: date,
@@ -1782,19 +1911,26 @@ extension LocalChatBackend {
 // MARK: - #196 rate battery (Diagnostics-triggered, DEBUG builds only)
 
 extension LocalChatBackend {
-    /// Second-battery instrument: six session shapes × three prompts ×
-    /// `trials` generations in-process, one classifiable notice line per
-    /// trial. Deliberately bypasses `activeSessionShape` for BOTH
-    /// instructions and belt — each session is parameterized explicitly (the
-    /// first battery's belt still consulted the live selector; a non-armed
-    /// phone selection would have contaminated every tool cell), so the
-    /// launch-scoped invariant is untouched and no force-quit cycling is
-    /// needed. Tools EXECUTE during tool-registered cells (real reads) —
-    /// that is the point — and every tool start now logs through
-    /// `ToolEventRelay.batteryTrialTag`, closing the first battery's
-    /// read-tool blind spot. "What's 2+2?" is the always-pass canary: a
-    /// canary failure marks the surrounding trials suspect (throttling,
-    /// model state) instead of silently polluting rates.
+    /// The third battery's cell list (#196 decomposition): the six
+    /// structural cells. Battery-2's treatment cells stay in the enum as
+    /// held ship candidates — picker-reachable, no longer burning trials.
+    nonisolated static let batteryCells: [SessionShape] = [
+        .armed, .armedNoinstr, .toollessNoinstr, .armedReadonly, .armedNocall, .armedNoschema,
+    ]
+
+    /// Third-battery instrument (#196 decomposition): six STRUCTURAL cells
+    /// × three prompts × `trials` generations in-process, one classifiable
+    /// notice line per trial. Deliberately bypasses `activeSessionShape`
+    /// for instructions, belt, AND options — each session is parameterized
+    /// explicitly (the first battery's belt still consulted the live
+    /// selector; a non-armed phone selection would have contaminated every
+    /// tool cell), so the launch-scoped invariant is untouched and no
+    /// force-quit cycling is needed. Tools EXECUTE during tool-registered
+    /// cells (real reads) — that is the point — and every tool start logs
+    /// through `ToolEventRelay.batteryTrialTag`. "What's 2+2?" is the
+    /// always-pass canary — though the second battery discovered the BARE
+    /// branch denies arithmetic (toolless canary 0/20), so the canary is
+    /// itself a measurement in the no-instructions cells.
     func runShapeBattery(trials: Int) async {
         let prompts: [(tag: String, text: String)] = [
             ("canary", "What's 2+2?"),
@@ -1810,7 +1946,7 @@ extension LocalChatBackend {
             "no access", "external knowledge", "external database", "external data",
             "no internet", "internet access", "real-time",
         ]
-        let cells: [SessionShape] = [.armed, .armedRemfix, .armedComplic, .armedFix, .toolless, .toollessLic]
+        let cells = Self.batteryCells
         Self.logger.notice("battery: START trials=\(trials, privacy: .public) cells=\(cells.count, privacy: .public) prompts=\(prompts.count, privacy: .public) (#196)")
         for shape in cells {
             let belt: [any Tool] = shape.registersTools
@@ -1830,8 +1966,18 @@ extension LocalChatBackend {
                     // (it trails a TIMEOUT line), acceptable for an
                     // instrument.
                     ToolEventRelay.batteryTrialTag = "shape=\(shape.rawValue) p=\(tag) t=\(trial)"
-                    let session = LanguageModelSession(model: model, tools: belt, instructions: Instructions(instructions))
-                    let options = Self.chatGenerationOptions(for: activeTier)
+                    // The `-noinstr` cells omit the `instructions:` argument
+                    // entirely — the SDK's `Instructions? = nil` designated
+                    // convenience init, its native no-instructions form (the
+                    // `String?` overload is @_disfavoredOverload) — never an
+                    // empty string, which would still inject an instructions
+                    // block into the prompt.
+                    let session = shape.passesInstructions
+                        ? LanguageModelSession(model: model, tools: belt, instructions: Instructions(instructions))
+                        : LanguageModelSession(model: model, tools: belt)
+                    // Identity except armed-nocall (`toolCallingMode:
+                    // .disallowed` per call — the schemas stay in context).
+                    let options = Self.shapedGenerationOptions(Self.chatGenerationOptions(for: activeTier), shape: shape)
                     // 35s guillotine per trial: backstop only now that the
                     // confirmation gate auto-declines — a wedged trial still
                     // logs and the run still moves.
