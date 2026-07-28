@@ -9411,3 +9411,48 @@ device-verified, table filed. Treatments route at the verdict desk — candidate
 from the data: createReminder `list` @Guide de-stall ("empty = default, do not ask"),
 createCalendarEvent contact/location de-fixation, then the multi-turn instrument for
 the offer→denial absorbing state. None shipped in this lane.**
+
+**#200B VERDICT FILED, 2026-07-28 night — destall battery n=10 (160 trials, PR #166
+branch `bc68112`, run sealed, `reminders=27 events=5 alarms=40 failures=0` — reap
+arithmetic independently confirms the classification counts). First attempt was
+INVALIDATED by a concurrency contamination (two loops from a view-scoped guard; fixed
+with a backend-owned battery mutex, pinned) — clean rerun classified below. ERROR
+trials excluded and listed: armed/calendar/t4 (8,583-token context overflow from a
+searchConversations spiral) and armed-toolfix/alarm/t4 (ModelManager 1041 AFTER the
+accepted schedule; artifact created and reaped). Zero timeouts.**
+
+| cell | remind creates | alarm | calendar creates | haiku GRABS |
+|---|---|---|---|---|
+| armed (control) | 0/10 | 10/10 | 0/9 | **8/10** |
+| armed-guidefix | 0/10 | 10/10 | 0/10 | 7/10 |
+| armed-toolfix | 0/10 | 9/9 | 1/10 | 6/10 |
+| armed-bothfix | 1/10 | 10/10 | 4/10 | 5/10 |
+
+**Treatment verdict: the tool-text seam does NOT reach the remind stall — 0/0/0/1
+across 40 trials.** The de-stalled @Guide ("empty is correct — never ask which list")
+and the de-stalled description ("create immediately; never ask first") both left the
+clarify-stall intact and verbatim ("which list should this go in?"). Mechanism
+refinement: the stall happens at RESPONSE PLANNING, before the model ever engages the
+tool schema — text inside the tool cannot treat a disease that fires before tool
+selection. NOTHING PROMOTES from this battery (dispatch discipline held; two cheap
+text candidates falsified at n=10 before anything shipped). Second headline, from the
+grab canary: **production armed grabs createReminder on 8/10 haiku prompts under
+auto-accept** — the #196 grab disease is fully alive on the armed half whenever the
+gate approves; production is protected ONLY by the router, and the unshipped
+remfix-scoped description was in none of these cells. The treatments trend grabs DOWN
+(8→7→6→5), not up — the feared collateral did not materialize. Curious tertiary:
+calendar creates ROSE in bothfix (4/10 vs 0-1 elsewhere) — schema/description texts
+ride in the session instructions, so the reminder tool's "create immediately" plausibly
+bled into general behavior; n=10, direction only. New specimens for the files:
+armed-toolfix/haiku/t6 dumped HEALTH DATA into a haiku reply (readHealth scope-creep);
+armed-guidefix/calendar/t8 dumped the entire week's calendar into a reply;
+armed-bothfix/calendar/t5 CREATED the event with a confabulated city (Houston, TX —
+from a searchPlaces("lunch with Sam") result — while the phone sat in Gulfport);
+armed-bothfix/haiku/t10: "I can't write a haiku, but I made a reminder for you to
+sledding" — tic + grab + garble in one sentence. NEXT candidates for the verdict desk,
+now correctly aimed upstream: (a) an INSTRUCTIONS-level de-stall clause (the
+`instructionsText` seam — same promoted-payload territory as #196's lic2), (b) the
+multi-turn offer→denial instrument (the read-then-offer entry replicated again at
+~15-20% of remind trials), (c) the still-unshipped remfix scoped description as
+grab insurance if the router ever misroutes. The #200B instrument (cells + canary +
+mutex) is reusable as-is for any future text candidate.
