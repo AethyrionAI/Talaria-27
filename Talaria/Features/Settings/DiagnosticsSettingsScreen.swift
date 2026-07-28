@@ -324,7 +324,10 @@ struct DiagnosticsSettingsScreen: View {
             // Headless battery sessions can never answer a confirmation
             // card (non-cancellable continuation), so action-tool grabs
             // auto-decline for the run — which also measures post-denial
-            // recovery behavior.
+            // recovery behavior. The auto-modes are mutually exclusive:
+            // clearing accept here (and both at run end) keeps the #200
+            // launcher and this one from ever overlapping flags.
+            container.toolConfirmationCenter.autoAcceptForBattery = false
             container.toolConfirmationCenter.autoDeclineForBattery = true
             // A ~20-minute n=20 must survive auto-lock — work-desk runs
             // (#196 results-page lane) have no cable keeping the screen
@@ -333,6 +336,7 @@ struct DiagnosticsSettingsScreen: View {
             Task {
                 await backend.runShapeBattery(trials: trials)
                 container.toolConfirmationCenter.autoDeclineForBattery = false
+                container.toolConfirmationCenter.autoAcceptForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
             }
@@ -340,6 +344,58 @@ struct DiagnosticsSettingsScreen: View {
             MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
                       size: 10, tracking: Design.Tracking.mono,
                       color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
+    // #200 action battery: the action-SUCCESS path. Auto-ACCEPT armed —
+    // every staged confirmation approves, so appropriate creates EXECUTE:
+    // real EventKit/AlarmKit writes, every artifact marker-tagged by the
+    // gate, all reaped before the DONE line. Run with Reminders/Calendar
+    // permissions GRANTED (the observed #200 failure post-dates the grant).
+    // Shares the batteryRunning guard with the other instruments.
+    @ViewBuilder
+    private func actionBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            // Mutually exclusive with the decline mode — decline would
+            // measure the #196 contract, not action success.
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            // Same auto-lock guard as the shape battery.
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runActionBattery(trials: trials)
+                // Both flags cleared at run end, whatever this run armed.
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
+    // #200 orphan cleanup: the four crashed action batteries stranded
+    // their battery alarms (up to ~50 armed for 6:30 AM, ringing through
+    // Silent). AlarmKit enumeration carries no label, so this cancels ALL
+    // Talaria alarms — real /alarm ones included. User-invoked only.
+    @State private var alarmSweepResult: String?
+
+    @ViewBuilder
+    private var alarmSweepButton: some View {
+        Button {
+            let result = AlarmService.sweepAllTalariaAlarms()
+            alarmSweepResult = "cancelled=\(result.cancelled) failed=\(result.failed)"
+        } label: {
+            MonoLabel(alarmSweepResult.map { "Swept — \($0)" } ?? "Sweep ALL Talaria alarms (incl. real)",
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: alarmSweepResult == nil ? Design.Colors.danger : Design.Colors.mutedForeground)
         }
         .disabled(batteryRunning)
     }
@@ -421,6 +477,18 @@ struct DiagnosticsSettingsScreen: View {
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     routerProbeButton(trials: 20, label: "Router probe n=20 (200)")
+                }
+                // #200 action battery: 1 armed cell × 3 create prompts × n,
+                // auto-ACCEPT — real writes, [T27-battery]-tagged, reaped
+                // before DONE. Run with Reminders/Calendar GRANTED. n=5 is
+                // the crash-repro power (both 2026-07-28 n=20 attempts died
+                // mid-run); n=20 is the measurement power.
+                HStack(spacing: Design.Spacing.sm) {
+                    actionBatteryButton(trials: 5, label: "Action battery n=5 (15)")
+                    actionBatteryButton(trials: 20, label: "Action battery n=20 (60)")
+                }
+                HStack(spacing: Design.Spacing.sm) {
+                    alarmSweepButton
                 }
 
                 // #196 results-page lane: every run above also persists to

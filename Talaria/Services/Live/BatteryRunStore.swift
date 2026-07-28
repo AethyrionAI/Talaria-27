@@ -20,6 +20,12 @@ import Foundation
 struct BatteryToolCallRecord: Codable, Equatable {
     var name: String
     var detail: String
+    /// #200: the confirmation-gate outcome for THIS invocation —
+    /// "accepted" or "declined" when the gate resolved while this call was
+    /// the trial's most recent, nil when no confirmation was ever staged
+    /// (read tools always; action tools that bailed before the gate).
+    /// Optional so pre-#200 run JSONs still decode.
+    var confirmation: String? = nil
 }
 
 /// One battery trial: the full reply (or its ERROR/TIMEOUT marker), the
@@ -62,6 +68,20 @@ struct BatteryRunRecord: Codable, Equatable, Identifiable {
     var cells: [String]
     var trials: [BatteryTrialRecord]
     var probes: [RouterProbeRecord]
+    /// #200: "action" for action-path battery runs; nil for the legacy
+    /// shape/probe runs (whose export keeps the #196 grammar). Optional so
+    /// pre-#200 run JSONs still decode.
+    var kind: String? = nil
+    /// #200: the teardown's artifact-reap accounting, e.g.
+    /// "reminders=20 events=18 alarms=19 failures=1". Nil when the run had
+    /// no reap phase. Optional so pre-#200 run JSONs still decode.
+    var reapSummary: String? = nil
+    /// #200 crash diagnostics: false on the per-trial snapshots the
+    /// recorder persists mid-run, true once endRun sealed the record. A
+    /// crashed run therefore survives on disk carrying every completed
+    /// trial AND its own incompleteness. Nil on legacy records (which all
+    /// completed — pre-hardening the only persist was endRun's).
+    var endedCleanly: Bool? = nil
 }
 
 // MARK: - Tally math (pure, testable)
@@ -131,10 +151,14 @@ enum BatteryRunMath {
     /// paste is line-per-trial and classifiable by the same tooling.
     static func renderRawLines(for run: BatteryRunRecord) -> String {
         var lines: [String] = []
+        // #200 action runs carry their own item marker; everything else
+        // keeps the #196 grammar byte-for-byte.
+        let item = run.kind == "action" ? "#200" : "#196"
         let stamp = ISO8601DateFormatter().string(from: run.startedAt)
         lines.append("battery: RUN \(stamp) build=\(run.appVersion)(\(run.appBuild)) os=\(run.osVersion)")
         if !run.trials.isEmpty {
-            lines.append("battery: START trials=\(run.trialsPerCell) cells=\(run.cells.count) prompts=3 (#196)")
+            let promptCount = Set(run.trials.map(\.prompt)).count
+            lines.append("battery: START trials=\(run.trialsPerCell) cells=\(run.cells.count) prompts=\(promptCount) (\(item))")
             for trial in run.trials {
                 let tag = "shape=\(trial.shape) p=\(trial.prompt) t=\(trial.trial)"
                 if let route = trial.route {
@@ -142,6 +166,17 @@ enum BatteryRunMath {
                 }
                 for call in trial.toolCalls {
                     lines.append("battery: tool=\(call.name) \(tag) detail=\(call.detail.replacingOccurrences(of: "\n", with: " / "))")
+                    // A CAPTURED outcome renders on any run kind, matching
+                    // the live emit sequence (tool line, then its confirm
+                    // line). confirm=none is SYNTHESIZED — only for action
+                    // runs (which have capture), and only for action-named
+                    // tools (read tools have no gate): it means the tool
+                    // ran and bailed before ever staging a confirmation.
+                    if let confirmation = call.confirmation {
+                        lines.append("battery: confirm=\(confirmation) \(tag)")
+                    } else if run.kind == "action", DeviceToolBelt.actionToolNames.contains(call.name) {
+                        lines.append("battery: confirm=none \(tag)")
+                    }
                 }
                 if let error = trial.error {
                     lines.append("battery: \(tag) ERROR=\(error)")
@@ -152,14 +187,28 @@ enum BatteryRunMath {
                     lines.append("battery: \(tag) cant=\(trial.cant) denial=\(trial.denial) chars=\(text.count) text=\(flat)")
                 }
             }
-            lines.append("battery: DONE (#196)")
+            if let reapSummary = run.reapSummary {
+                lines.append("battery: REAP \(reapSummary) (\(item))")
+            }
+            // A crashed run's paste must never read as complete. Nil is
+            // legacy (pre-hardening records only persisted at endRun, so
+            // they all completed) and keeps DONE.
+            if run.endedCleanly == false {
+                lines.append("battery: INCOMPLETE — run died before DONE (\(item))")
+            } else {
+                lines.append("battery: DONE (\(item))")
+            }
         }
         if !run.probes.isEmpty {
             lines.append("router: PROBE START trials=\(run.trialsPerCell) probes=\(run.probes.count) (#196)")
             for probe in run.probes {
                 lines.append("router: \(probe.correct)/\(probe.trials) expected=\(probe.expected) probe=\(probe.probe)")
             }
-            lines.append("router: PROBE DONE (#196)")
+            if run.endedCleanly == false {
+                lines.append("router: PROBE INCOMPLETE — run died before DONE (#196)")
+            } else {
+                lines.append("router: PROBE DONE (#196)")
+            }
         }
         return lines.joined(separator: "\n")
     }
@@ -267,7 +316,7 @@ final class BatteryRunRecorder {
         self.store = store
     }
 
-    func beginRun(trialsPerCell: Int, cells: [String]) {
+    func beginRun(trialsPerCell: Int, cells: [String], kind: String? = nil) {
         run = BatteryRunRecord(
             id: UUID(),
             startedAt: Date(),
@@ -277,7 +326,8 @@ final class BatteryRunRecorder {
             trialsPerCell: trialsPerCell,
             cells: cells,
             trials: [],
-            probes: []
+            probes: [],
+            kind: kind
         )
     }
 
@@ -296,6 +346,23 @@ final class BatteryRunRecorder {
     func recordToolCall(name: String, detail: String) {
         guard run != nil else { return }
         pendingToolCalls.append(BatteryToolCallRecord(name: name, detail: detail))
+    }
+
+    /// #200: attaches a confirmation-gate outcome ("accepted"/"declined")
+    /// to the trial's MOST RECENT tool call — the tool that staged it
+    /// (tools run serially, and a tool's `started` always precedes its
+    /// confirmation request). Dropped when no call is pending (defensive;
+    /// a gate resolution can't precede its tool's start).
+    func recordConfirmation(_ outcome: String) {
+        guard run != nil, !pendingToolCalls.isEmpty else { return }
+        pendingToolCalls[pendingToolCalls.count - 1].confirmation = outcome
+    }
+
+    /// #200: the action battery's teardown accounting, stamped on the run
+    /// before `endRun`.
+    func recordReapSummary(_ summary: String) {
+        guard run != nil else { return }
+        run?.reapSummary = summary
     }
 
     func endTrial(shape: String, prompt: String, trial: Int, text: String, cant: Bool, denial: Bool) {
@@ -329,11 +396,24 @@ final class BatteryRunRecorder {
         trialStart = nil
         pendingToolCalls = []
         pendingRoute = nil
+        persistSnapshot()
     }
 
     func recordProbe(probe: String, expected: Bool, correct: Int, trials: Int) {
         guard run != nil else { return }
         run?.probes.append(RouterProbeRecord(probe: probe, expected: expected, correct: correct, trials: trials))
+        persistSnapshot()
+    }
+
+    /// #200 crash diagnostics: persist after EVERY trial/probe, marked
+    /// not-yet-clean, overwriting one file (the run id and start stamp fix
+    /// the filename) — both 2026-07-28 action-battery crashes lost their
+    /// entire runs because the only persist was endRun's. A crashed run
+    /// now survives with every completed trial and its own incompleteness.
+    private func persistSnapshot() {
+        guard var snapshot = run else { return }
+        snapshot.endedCleanly = false
+        store.persist(snapshot)
     }
 
     /// Persists and closes the run. Empty runs (begin/end with no trials and
@@ -347,7 +427,8 @@ final class BatteryRunRecorder {
             pendingToolCalls = []
             pendingRoute = nil
         }
-        guard let run, !(run.trials.isEmpty && run.probes.isEmpty) else { return }
+        guard var run, !(run.trials.isEmpty && run.probes.isEmpty) else { return }
+        run.endedCleanly = true
         store.persist(run)
     }
 }

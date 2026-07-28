@@ -9286,3 +9286,128 @@ context surviving both session rebuilds. Follow-on items carry the remainder: #1
 tool errors), #199 (post-decline fabrication), #200 (action-path refusal + misattribution;
 dispatch OPUS-T27-200-action-path.md ready on main). Item closed — five batteries, four
 PRs, one architecture.
+
+**#200 update, 2026-07-28 (instrument lane BUILT — PR #165, branch
+`claude/t27-200-action-instrument`, head `a6accab`, OTA-staged Debug).** Dispatch
+OPUS-T27-200-action-path executed: Parts 1+2 complete, Part 3 verified code-side with
+NO code change. (1) Gate: `autoAcceptForBattery` alongside the #196 auto-decline —
+decline checked FIRST (fail-safe: never-create if both flags ever set); auto-accept
+approves the STAGED values with the `[T27-battery]` marker injected (title prefix;
+alarm-request suffix — the alarm grammar takes its time token first, so the marker
+lands in the label, pinned through `AlarmService.parse`); every gate resolution emits
+`battery: confirm=accepted|declined <trial tag>` and records it. Capture field lives
+per TOOL CALL (`BatteryToolCallRecord.confirmation`, optional — deliberate deviation
+from the dispatch's per-trial field: the grammar is per action-tool invocation, and
+per-call pairs each outcome with the invocation that staged it); pre-#200 run JSONs
+decode unchanged (fixture-pinned). (2) Action battery: Diagnostics "Action battery
+n=20 (60)" — remind ("Remind me to test Talaria at 4:30pm", the observed failure) /
+alarm ("Set an alarm for 6:30") / calendar ("Put lunch with Sam on my calendar Friday
+at noon") × 20 each, ARMED production construction (armed-routed armed branch ≡ armed —
+identity in shapedBelt/instructionsText/options — so the cell label is `armed`), no
+per-trial routing, shared trial executor extracted from the shape battery (heuristics
+can't drift), export gains confirm lines + action-run `confirm=none` synthesis
+(pre-gate bail, e.g. unparseable alarm time) + REAP line, all `(#200)`-marked; legacy
+#196 exports byte-identical (pinned). Teardown BEFORE DONE reaps marker-matched
+reminders/events (EventKit, idempotent across crashed runs) and battery alarms by
+tracked ID (AlarmKit enumeration returns no labels); missing read access reports
+`skipped(no-access)`, never a silent zero. Classification caveat: created titles carry
+the `[T27-battery] ` prefix — instrument residue in tool results and echoing replies.
+(3) Part 3 (#31): ALL four EventKit tools + AlarmService already request contextually
+on `.notDetermined`, and every usage-description key is in `project.yml` — the spot
+check's "missing permission, no iOS prompt" is consistent with status `.denied` at the
+time (iOS never re-prompts after a deny), NOT a missing request call. Secondary
+hypotheses if device-verify contradicts: the tools' `try?` swallows a thrown 27b4
+EventKit error as "not granted", or beta full-access semantics changed. Device verify
+needs a permission reset (app delete → re-pair) — Owen's call on timing. Evidence:
+unit suite 1269/1269 green in 110 suites (baseline 1258 + 11 capture pins;
+Xcode-beta4 SDK, 27.0 sim); Release-config build clean (everything `#if DEBUG`-gated);
+UI suite not run (no UI test touches the battery surfaces). NEXT: Owen runs the
+battery (Reminders/Calendar GRANTED), exports from Battery results, pastes for
+classification — columns: tool(s) fired (wrong-tool `readReminders` substitution
+primary), confirm outcome, reply class (honest-confirmation / fabricated-action —
+#199's denominator / denial / misattributed-failure-cause), ERROR trials excluded and
+listed. Multi-turn absorbing-state instrument deliberately NOT built until these
+single-turn numbers say where the failure concentrates. Treatments route at the
+verdict desk afterward — none shipped in this lane.
+
+**#200 update, 2026-07-28 afternoon — battery crash saga RESOLVED (root cause named by
+.ips), instrument device-verified end to end, preliminary n=20/prompt data in hand.**
+Four consecutive action-battery runs (two n=20, two n=5) crashed mid-run. Debug arc, for
+the record: (1) per-trial snapshot persistence + endedCleanly seal shipped after runs 1–2
+lost everything → runs 3–4 survived their crashes carrying every trial, which localized
+the death to the teardown reap (all trials present, never sealed); (2) the alarm sweep
+(42 orphans cancelled clean) exonerated AlarmKit cancel; (3) a sim probe of the reap's
+exact EventKit ops PASSED on a fresh 27.0 store while every device run died — read then
+as content-dependence, and the events query was narrowed to writable calendars/−1d…+14d
+(kept as scope-correctness, but aimed at a step that never ran); (4) Owen's two .ips
+files named the truth, identical frames in both: `EXC_BREAKPOINT brk 1` →
+`_dispatch_assert_queue_fail` → `_swift_task_checkIsolatedSwift` in the reap's
+`fetchReminders` COMPLETION, faulting queue `com.apple.eventkit.reminders.search`. The
+closure, formed in MainActor context, inherited MainActor isolation; EventKit invokes it
+on its private queue; the 27b4 DEVICE runtime dynamically enforces the check (the SIM
+runtime does not — why the probe passed). ReminderReadTool's twin closure never crashed
+because Tool.call is nonisolated. Fix: `@Sendable` on the completion (`972af5c`).
+**Run 5 (n=5, build `4d419a9`) completed and SEALED: `reminders=0 events=13 alarms=4
+failures=0` — the reap swept all 13 Lunch-with-Sam events the crashed runs had
+accumulated; phone ends clean.** New standing gotcha (memory + here): on 27b4, closures
+handed to framework completion APIs from MainActor contexts trap ONLY on device — sim
+green proves nothing for this class; mark framework completions `@Sendable`.
+Preliminary single-turn action-path numbers, four surviving records (runs 1/2/3/5 =
+n=20 per prompt, 0 ERROR trials): **remind 0/20 creates** (≈11 clarify-stalls — six ask
+"which list?", the createReminder `list` field read as required-blank; ≈7 readReminders
+substitutions, two carrying the spot check's exact "I don't see a reminder — would you
+like me to create one?" signature; 2 cant-flavored), **alarm 19/20 creates** (all
+accepted, honest confirmations; 1 recurrence-clarify stall), **calendar 3/20 creates**
+(≈15 lookupContact("Sam") fixation absorbing the task; 1 fabricated constraint — "no
+free slots Friday" after reading only 2 days ahead — the misattributed-cause column,
+live; creates that DID land pulled currentLocation+searchPlaces and attached a
+location). Confirmation capture worked throughout: every create carries
+confirm=accepted; zero declines; zero pre-gate bails. Mechanism read for the verdict
+desk (NOT treated in this lane): the model stalls on optional-but-present schema fields
+instead of defaulting — single-field alarm 19/20 vs three-field reminder 0/20 is the
+cleanest dose-response #196/#200 has produced. NEXT: Owen runs Action battery n=20 (60)
+on `4d419a9` for the fileable table; multi-turn absorbing-state instrument still
+deliberately unbuilt pending those numbers.
+
+**#200 MEASUREMENT FILED, 2026-07-28 evening — Action battery n=20 (60 trials), build
+`4d419a9` Debug, armed production construction, auto-accept armed, permissions granted,
+run sealed clean (`reminders=0 events=3 alarms=19 failures=0` — created == reaped
+exactly). Classified from raw text. One TIMEOUT excluded and listed below; zero ERROR
+trials.**
+
+| cell | creates | wrong-tool substitution | clarify-stall | fabricated/misattributed cause |
+|---|---|---|---|---|
+| remind | **0/20** | 5 (`readReminders`) | 15 | 3 of the 5 substitutions carry false-inability framing |
+| alarm | **19/20** | 0 | 1 | 0 |
+| calendar | **3/19** | ~13 contact-lookup fixation (+1 searched "Sam" as a PLACE) | most non-creates end in a question | 3 |
+
+Confirmation capture across the run: 22 staged, 22 accepted, 0 declined, 0 pre-gate
+bails — **the gate never blocked an appropriate create; every reminder/calendar failure
+happens BEFORE tool selection.** Excluded trial: calendar t4 TIMEOUT — a
+`searchConversations` name-spiral (Sam, Shelley, Adam, Amanda, Brent, Corey, Desiree,
+Scott, Owen — 15 tool calls) guillotined at 35s; the contact-fixation absorbing state in
+its extreme form. Mechanism findings, now at rate: (1) **optional-field stall** — 15/20
+remind trials interrogate the `list` (± date) field instead of defaulting ("which list
+should this go in?"); the single-field alarm tool goes 19/20 — the cleanest
+dose-response of the whole investigation, and the direct treatment target for the
+remfix-style seam. (2) **read-for-create substitution** 5/20, three ending in "would you
+like me to create one?" offers a single-turn battery cannot answer — the observed
+spot-check entry point; the multi-turn absorbing-state instrument is now JUSTIFIED by
+these numbers. (3) **contact fixation**: "with Sam" parses as requires-a-contact and its
+absence absorbs the task (~13/19), with two trials emitting corrupted lookup args
+("Sam}<ctrl43>" — #197-family token leakage, one echoed the garbage to the user).
+(4) **fabricated constraints**: "today's calendar is all booked" (after reading 3 days,
+never Friday), "can't create a calendar event without the location" (location is
+optional in the schema), "couldn't retrieve location… needs a live connection" — the
+misattributed-cause column at ~3/19. (5) remind t1 self-contradicts inside one reply
+("I can't see any reminders yet" followed by Owen's actual reminder list). Consistency:
+the four earlier n=5-scale records (independent 20/prompt) match every rate direction —
+remind 0/20 there too, alarm 19/20, calendar 3/20. Same-day legacy shape battery
+(n=20×4 cells, sealed) re-verified production armed-routed at 60/60 clean content while
+the armed control keeps its known diseases (canary tic 15/20, haiku grab 14/20 now with
+confirm=declined captured, norway denials, one #197 malformed-tool-name ERROR).
+**Lane complete: instrument built + crash-hardened, root cause fixed and
+device-verified, table filed. Treatments route at the verdict desk — candidate order
+from the data: createReminder `list` @Guide de-stall ("empty = default, do not ask"),
+createCalendarEvent contact/location de-fixation, then the multi-turn instrument for
+the offer→denial absorbing state. None shipped in this lane.**

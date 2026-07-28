@@ -61,6 +61,32 @@ struct BatteryResultsScreen: View {
                             }
                         }
                     }
+
+                    // #200 crash diagnostics: the append-only emit sink
+                    // survives a crashed run (per-line writes), and off-LAN
+                    // this button is the ONLY way to get it out. Every line
+                    // of every run on this install, newest at the bottom.
+                    if let captureLog = LocalChatBackend.batteryCaptureLogURL,
+                       FileManager.default.fileExists(atPath: captureLog.path) {
+                        ShareLink(item: captureLog) {
+                            HStack(spacing: Design.Spacing.xs) {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 12, weight: .medium))
+                                MonoLabel("Share capture log (survives crashes)", size: 10,
+                                          tracking: Design.Tracking.mono,
+                                          color: Design.Colors.foregroundBright)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 40)
+                            .hudPanel(
+                                cornerRadius: Design.CornerRadius.md,
+                                borderColor: Design.Colors.accentTint(0.2),
+                                fill: Design.Colors.background.opacity(0.5),
+                                innerGlow: false
+                            )
+                        }
+                        .foregroundStyle(Design.Colors.foregroundBright)
+                    }
                 }
                 .padding(.horizontal, Design.Spacing.md)
                 .padding(.vertical, Design.Spacing.sm)
@@ -102,7 +128,12 @@ struct BatteryResultsScreen: View {
         }
         let failures = run.trials.filter { $0.error != nil || $0.timedOut }.count
         let failureNote = failures == 0 ? "" : " · \(failures) err/timeout"
-        return "battery n=\(run.trialsPerCell) · \(run.trials.count) trials\(failureNote) · \(run.cells.joined(separator: ", "))"
+        // #200 action runs name themselves; legacy shape runs stay "battery".
+        let noun = run.kind == "action" ? "action battery" : "battery"
+        // A false flag is a run that died mid-battery — the snapshot is
+        // everything it measured before the crash (#200 diagnostics).
+        let incompleteNote = run.endedCleanly == false ? " · INCOMPLETE (crashed)" : ""
+        return "\(noun) n=\(run.trialsPerCell) · \(run.trials.count) trials\(failureNote)\(incompleteNote) · \(run.cells.joined(separator: ", "))"
     }
 }
 
@@ -155,6 +186,15 @@ struct BatteryRunDetailScreen: View {
             detailLine("n per cell", "\(run.trialsPerCell)")
             if !run.cells.isEmpty {
                 detailLine("Cells", run.cells.joined(separator: ", "))
+            }
+            // #200 action runs: name the kind, and show the teardown's
+            // artifact-reap accounting — the run's claim that the phone
+            // ended clean, in the same words the export carries.
+            if run.kind == "action" {
+                detailLine("Kind", "action battery (#200) — auto-accept, real writes")
+            }
+            if let reapSummary = run.reapSummary {
+                detailLine("Reap", reapSummary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -406,7 +446,7 @@ struct BatteryTrialListScreen: View {
             }
 
             ForEach(Array(trial.toolCalls.enumerated()), id: \.offset) { _, call in
-                MonoLabel("⚙ \(call.name)\(call.detail.isEmpty ? "" : " — \(call.detail)")",
+                MonoLabel("⚙ \(call.name)\(call.detail.isEmpty ? "" : " — \(call.detail)")\(confirmSuffix(for: call))",
                           size: 9, tracking: Design.Tracking.mono, color: Design.Brand.forge)
                     .lineLimit(4)
             }
@@ -434,6 +474,21 @@ struct BatteryTrialListScreen: View {
             fill: Design.Colors.background.opacity(0.5),
             innerGlow: false
         )
+    }
+
+    /// #200: the confirmation-gate outcome for one tool invocation, in the
+    /// export's own words. A CAPTURED outcome shows on any run kind;
+    /// confirm=none shows only on action runs and only for action-named
+    /// tools — it means the tool ran and bailed before staging a
+    /// confirmation (read tools have no gate, so they get no suffix).
+    private func confirmSuffix(for call: BatteryToolCallRecord) -> String {
+        if let confirmation = call.confirmation {
+            return " · confirm=\(confirmation)"
+        }
+        if run.kind == "action", DeviceToolBelt.actionToolNames.contains(call.name) {
+            return " · confirm=none"
+        }
+        return ""
     }
 }
 #endif

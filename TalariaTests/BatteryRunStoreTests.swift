@@ -29,7 +29,7 @@ struct BatteryRunStoreTests {
                 BatteryTrialRecord(
                     shape: "armed", prompt: "canary", trial: 1,
                     text: "2 + 2 = 4.", cant: false, denial: false,
-                    toolCalls: [BatteryToolCallRecord(name: "createReminder", detail: "title: 2+2")],
+                    toolCalls: [BatteryToolCallRecord(name: "createReminder", detail: "title: 2+2", confirmation: "declined")],
                     route: nil, error: nil, timedOut: false, latencySeconds: 1.25
                 ),
                 BatteryTrialRecord(
@@ -124,8 +124,9 @@ struct BatteryRunStoreTests {
         recorder.recordProbe(probe: "What's 2+2?", expected: false, correct: 19, trials: 20)
         recorder.endRun()
 
-        #expect(captured.persisted.count == 1)
-        let run = try #require(captured.persisted.first)
+        // Snapshots persist along the way (#200 crash diagnostics); the
+        // FINAL record carries the whole run.
+        let run = try #require(captured.persisted.last)
         #expect(run.trialsPerCell == 3)
         #expect(run.cells == ["armed", "armed-routed"])
         #expect(run.trials.count == 4)
@@ -142,6 +143,147 @@ struct BatteryRunStoreTests {
         #expect(run.trials[2].text == nil)
         #expect(run.trials[3].timedOut)
         #expect(run.trials.allSatisfy { $0.latencySeconds >= 0 })
+    }
+
+    // MARK: Recorder — confirmation capture (#200)
+
+    @Test func recorderAttachesConfirmationToTheMostRecentToolCall() throws {
+        let captured = CapturingStore()
+        let recorder = BatteryRunRecorder(store: captured)
+        recorder.beginRun(trialsPerCell: 20, cells: ["armed"], kind: "action")
+
+        recorder.beginTrial()
+        recorder.recordToolCall(name: "createReminder", detail: "test Talaria")
+        recorder.recordConfirmation("accepted")
+        recorder.recordToolCall(name: "readReminders", detail: "")
+        recorder.endTrial(shape: "armed", prompt: "remind", trial: 1,
+                          text: "Created it.", cant: false, denial: false)
+        recorder.endRun()
+
+        let run = try #require(captured.persisted.first)
+        #expect(run.trials[0].toolCalls == [
+            BatteryToolCallRecord(name: "createReminder", detail: "test Talaria", confirmation: "accepted"),
+            BatteryToolCallRecord(name: "readReminders", detail: "", confirmation: nil),
+        ])
+    }
+
+    @Test func recorderIgnoresConfirmationBeforeAnyToolCall() throws {
+        let captured = CapturingStore()
+        let recorder = BatteryRunRecorder(store: captured)
+        recorder.beginRun(trialsPerCell: 20, cells: ["armed"], kind: "action")
+
+        recorder.beginTrial()
+        recorder.recordConfirmation("accepted")
+        recorder.endTrial(shape: "armed", prompt: "remind", trial: 1,
+                          text: "ok", cant: false, denial: false)
+        recorder.endRun()
+
+        let run = try #require(captured.persisted.first)
+        #expect(run.trials[0].toolCalls.isEmpty)
+    }
+
+    @Test func recorderCarriesActionKindAndReapSummary() throws {
+        let captured = CapturingStore()
+        let recorder = BatteryRunRecorder(store: captured)
+        recorder.beginRun(trialsPerCell: 20, cells: ["armed"], kind: "action")
+
+        recorder.beginTrial()
+        recorder.endTrial(shape: "armed", prompt: "remind", trial: 1,
+                          text: "ok", cant: false, denial: false)
+        recorder.recordReapSummary("reminders=1 events=0 alarms=0 failures=0")
+        recorder.endRun()
+
+        let run = try #require(captured.persisted.last)
+        #expect(run.kind == "action")
+        #expect(run.reapSummary == "reminders=1 events=0 alarms=0 failures=0")
+    }
+
+    // MARK: Recorder — per-trial snapshots (#200 crash diagnostics)
+
+    /// A run that dies mid-battery must keep everything already measured:
+    /// the recorder persists a snapshot after EVERY trial, marked not-yet-
+    /// clean; endRun persists the final record marked clean. Same run id
+    /// throughout, so the store overwrites one file, never fans out.
+    @Test func recorderPersistsASnapshotPerTrialAndMarksTheEndClean() throws {
+        let captured = CapturingStore()
+        let recorder = BatteryRunRecorder(store: captured)
+        recorder.beginRun(trialsPerCell: 20, cells: ["armed"], kind: "action")
+
+        recorder.beginTrial()
+        recorder.endTrial(shape: "armed", prompt: "remind", trial: 1,
+                          text: "ok", cant: false, denial: false)
+        recorder.beginTrial()
+        recorder.endTrial(shape: "armed", prompt: "remind", trial: 2,
+                          text: "ok", cant: false, denial: false)
+        recorder.endRun()
+
+        // Two snapshots + the final persist, all the same run id.
+        #expect(captured.persisted.count == 3)
+        #expect(Set(captured.persisted.map(\.id)).count == 1)
+        #expect(captured.persisted[0].trials.count == 1)
+        #expect(captured.persisted[0].endedCleanly == false)
+        #expect(captured.persisted[1].trials.count == 2)
+        #expect(captured.persisted[1].endedCleanly == false)
+        #expect(captured.persisted[2].endedCleanly == true)
+    }
+
+    /// Snapshots overwrite ONE file on disk — a crashed run leaves exactly
+    /// one record holding every completed trial.
+    @Test func snapshotsOverwriteTheSameFileOnDisk() {
+        let store = makeTempStore()
+        var run = makeRun()
+        store.persist(run)
+        run.trials.append(BatteryTrialRecord(
+            shape: "armed", prompt: "remind", trial: 2,
+            text: "later", cant: false, denial: false, toolCalls: [],
+            route: nil, error: nil, timedOut: false, latencySeconds: 1.0
+        ))
+        store.persist(run)
+        let loaded = store.loadRuns()
+        #expect(loaded.count == 1)
+        #expect(loaded.first?.trials.count == run.trials.count)
+    }
+
+    /// Export honesty for crashed runs: endedCleanly == false renders an
+    /// INCOMPLETE line where DONE would go — a paste can never read as a
+    /// completed run. Legacy records (nil, all pre-hardening runs completed)
+    /// and clean runs keep DONE.
+    @Test func incompleteRunRendersIncompleteInsteadOfDone() {
+        var run = makeRun()
+        run.probes = []
+        run.endedCleanly = false
+        let rendered = BatteryRunMath.renderRawLines(for: run)
+        #expect(rendered.contains("battery: INCOMPLETE — run died before DONE (#196)"))
+        #expect(!rendered.contains("battery: DONE"))
+
+        run.endedCleanly = true
+        #expect(BatteryRunMath.renderRawLines(for: run).contains("battery: DONE (#196)"))
+        run.endedCleanly = nil
+        #expect(BatteryRunMath.renderRawLines(for: run).contains("battery: DONE (#196)"))
+    }
+
+    @Test func incompleteProbeRunRendersProbeIncomplete() {
+        var run = makeRun()
+        run.trials = []
+        run.endedCleanly = false
+        let rendered = BatteryRunMath.renderRawLines(for: run)
+        #expect(rendered.contains("router: PROBE INCOMPLETE — run died before DONE (#196)"))
+        #expect(!rendered.contains("router: PROBE DONE"))
+    }
+
+    /// Legacy shape-battery runs pass no kind — the record stays nil so the
+    /// export keeps the #196 grammar.
+    @Test func recorderDefaultsKindNil() throws {
+        let captured = CapturingStore()
+        let recorder = BatteryRunRecorder(store: captured)
+        recorder.beginRun(trialsPerCell: 10, cells: ["armed"])
+        recorder.beginTrial()
+        recorder.endTrial(shape: "armed", prompt: "canary", trial: 1,
+                          text: "4", cant: false, denial: false)
+        recorder.endRun()
+        let run = try #require(captured.persisted.first)
+        #expect(run.kind == nil)
+        #expect(run.reapSummary == nil)
     }
 
     @Test func recorderDropsEmptyRuns() {
@@ -197,27 +339,129 @@ struct BatteryRunStoreTests {
 
     // MARK: Export grammar — what classification tooling parses
 
-    @Test func rawLineRenderingMatchesTheEmitGrammar() {
+    @Test func rawLineRenderingMatchesTheEmitGrammar() throws {
         let run = makeRun()
         let lines = BatteryRunMath.renderRawLines(for: run).components(separatedBy: "\n")
 
+        try #require(lines.count == 14)
         #expect(lines[0].hasPrefix("battery: RUN "))
         #expect(lines[0].contains("build=1.0(42)"))
         #expect(lines[1] == "battery: START trials=2 cells=2 prompts=3 (#196)")
         #expect(lines[2] == "battery: tool=createReminder shape=armed p=canary t=1 detail=title: 2+2")
-        #expect(lines[3] == "battery: shape=armed p=canary t=1 cant=false denial=false chars=10 text=2 + 2 = 4.")
-        #expect(lines[4] == "battery: route=toolless shape=armed-routed p=haiku t=1")
+        // A CAPTURED confirmation outcome renders on any run kind (#200);
+        // only the confirm=none synthesis is action-run-scoped.
+        #expect(lines[3] == "battery: confirm=declined shape=armed p=canary t=1")
+        #expect(lines[4] == "battery: shape=armed p=canary t=1 cant=false denial=false chars=10 text=2 + 2 = 4.")
+        #expect(lines[5] == "battery: route=toolless shape=armed-routed p=haiku t=1")
         // Reply newlines flatten to " / " exactly as batteryEmit does, and
         // chars counts the ORIGINAL text.
-        #expect(lines[5] == "battery: shape=armed-routed p=haiku t=1 cant=false denial=false chars=75 text=Snow hush on the hill / runners carve a silver line / breath blooms and is gone")
-        #expect(lines[6] == "battery: route=armed shape=armed-routed p=norway t=1")
-        #expect(lines[7] == "battery: shape=armed-routed p=norway t=1 ERROR=ToolCallError boom")
-        #expect(lines[8] == "battery: shape=armed-routed p=norway t=2 TIMEOUT — wedged trial guillotined")
-        #expect(lines[9] == "battery: DONE (#196)")
-        #expect(lines[10] == "router: PROBE START trials=2 probes=1 (#196)")
-        #expect(lines[11] == "router: 20/20 expected=false probe=Write a haiku about sledding")
-        #expect(lines[12] == "router: PROBE DONE (#196)")
-        #expect(lines.count == 13)
+        #expect(lines[6] == "battery: shape=armed-routed p=haiku t=1 cant=false denial=false chars=75 text=Snow hush on the hill / runners carve a silver line / breath blooms and is gone")
+        #expect(lines[7] == "battery: route=armed shape=armed-routed p=norway t=1")
+        #expect(lines[8] == "battery: shape=armed-routed p=norway t=1 ERROR=ToolCallError boom")
+        #expect(lines[9] == "battery: shape=armed-routed p=norway t=2 TIMEOUT — wedged trial guillotined")
+        #expect(lines[10] == "battery: DONE (#196)")
+        #expect(lines[11] == "router: PROBE START trials=2 probes=1 (#196)")
+        #expect(lines[12] == "router: 20/20 expected=false probe=Write a haiku about sledding")
+        #expect(lines[13] == "router: PROBE DONE (#196)")
+    }
+
+    /// #200 action-battery export: confirm lines per captured outcome,
+    /// confirm=none SYNTHESIZED for action-named tools that never staged a
+    /// confirmation (pre-gate bail), the REAP teardown line, and the #200
+    /// item marker on START/REAP/DONE. Read tools never get a synthesized
+    /// none — they have no gate.
+    @Test func actionRunRendersConfirmAndReapLinesWithThe200Marker() throws {
+        let run = BatteryRunRecord(
+            id: UUID(),
+            startedAt: Date(timeIntervalSince1970: 1_753_700_000),
+            appVersion: "1.0",
+            appBuild: "42",
+            osVersion: "v27",
+            trialsPerCell: 20,
+            cells: ["armed"],
+            trials: [
+                BatteryTrialRecord(
+                    shape: "armed", prompt: "remind", trial: 1,
+                    text: "Created it.", cant: false, denial: false,
+                    toolCalls: [BatteryToolCallRecord(name: "createReminder", detail: "test Talaria", confirmation: "accepted")],
+                    route: nil, error: nil, timedOut: false, latencySeconds: 4.0
+                ),
+                BatteryTrialRecord(
+                    shape: "armed", prompt: "alarm", trial: 1,
+                    text: "Couldn't read a time.", cant: false, denial: false,
+                    toolCalls: [
+                        BatteryToolCallRecord(name: "readReminders", detail: ""),
+                        BatteryToolCallRecord(name: "scheduleAlarm", detail: "6:30"),
+                    ],
+                    route: nil, error: nil, timedOut: false, latencySeconds: 6.0
+                ),
+            ],
+            probes: [],
+            kind: "action",
+            reapSummary: "reminders=1 events=0 alarms=0 failures=0"
+        )
+        let lines = BatteryRunMath.renderRawLines(for: run).components(separatedBy: "\n")
+
+        try #require(lines.count == 11)
+        #expect(lines[0].hasPrefix("battery: RUN "))
+        #expect(lines[1] == "battery: START trials=20 cells=1 prompts=2 (#200)")
+        #expect(lines[2] == "battery: tool=createReminder shape=armed p=remind t=1 detail=test Talaria")
+        #expect(lines[3] == "battery: confirm=accepted shape=armed p=remind t=1")
+        #expect(lines[4] == "battery: shape=armed p=remind t=1 cant=false denial=false chars=11 text=Created it.")
+        #expect(lines[5] == "battery: tool=readReminders shape=armed p=alarm t=1 detail=")
+        #expect(lines[6] == "battery: tool=scheduleAlarm shape=armed p=alarm t=1 detail=6:30")
+        #expect(lines[7] == "battery: confirm=none shape=armed p=alarm t=1")
+        #expect(lines[8] == "battery: shape=armed p=alarm t=1 cant=false denial=false chars=21 text=Couldn't read a time.")
+        #expect(lines[9] == "battery: REAP reminders=1 events=0 alarms=0 failures=0 (#200)")
+        #expect(lines[10] == "battery: DONE (#200)")
+    }
+
+    // MARK: Decode compatibility — old run JSONs must still decode (#200)
+
+    /// A pre-#200 run file has no `confirmation`, `kind`, or `reapSummary`
+    /// keys anywhere. The store-version bump is optionality: decoding must
+    /// succeed with the new fields nil, and every pre-existing field intact.
+    @Test func preCaptureRunJSONStillDecodes() throws {
+        let json = """
+        {
+          "appBuild" : "40",
+          "appVersion" : "1.0",
+          "cells" : ["armed"],
+          "id" : "8E2C1D6A-0F6E-4C11-9D2B-3B6F6D7E8A90",
+          "osVersion" : "Version 27.0",
+          "probes" : [],
+          "startedAt" : "2026-07-27T12:00:00Z",
+          "trials" : [
+            {
+              "cant" : false,
+              "denial" : false,
+              "latencySeconds" : 2.5,
+              "prompt" : "haiku",
+              "shape" : "armed",
+              "text" : "a haiku",
+              "timedOut" : false,
+              "toolCalls" : [
+                { "detail" : "title: sledding", "name" : "createReminder" }
+              ],
+              "trial" : 1
+            }
+          ],
+          "trialsPerCell" : 20
+        }
+        """
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let run = try decoder.decode(BatteryRunRecord.self, from: Data(json.utf8))
+
+        #expect(run.kind == nil)
+        #expect(run.reapSummary == nil)
+        #expect(run.endedCleanly == nil)
+        #expect(run.trials.count == 1)
+        #expect(run.trials[0].toolCalls == [
+            BatteryToolCallRecord(name: "createReminder", detail: "title: sledding", confirmation: nil),
+        ])
+        #expect(run.trials[0].text == "a haiku")
+        #expect(run.trialsPerCell == 20)
     }
 
     @Test func probeOnlyRunRendersOnlyRouterLines() {

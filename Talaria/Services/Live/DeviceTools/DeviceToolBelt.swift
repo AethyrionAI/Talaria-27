@@ -62,6 +62,12 @@ enum DeviceToolBelt {
         ]
     }
 
+    /// #200: the action-tool names as ONE list for the battery capture
+    /// surfaces (the export's confirm=none synthesis, the drill-down
+    /// display). Pinned against `makeActionTools` by test so it can never
+    /// drift from the real belt.
+    static let actionToolNames: Set<String> = ["createReminder", "createCalendarEvent", "scheduleAlarm"]
+
     /// The belt as it should be OFFERED for one turn (#176). Vision tools come
     /// off when the conversation carries no image at all.
     ///

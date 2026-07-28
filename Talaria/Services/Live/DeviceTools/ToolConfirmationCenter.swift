@@ -53,6 +53,20 @@ final class ToolConfirmationCenter {
     /// model answer anyway, or loop the denial?). Never set outside the
     /// battery.
     var autoDeclineForBattery = false
+
+    /// #200 action battery: the inverse mode — every staged confirmation
+    /// resolves instantly as .approved with the staged values, so an
+    /// APPROPRIATE create actually executes (real EventKit/AlarmKit writes).
+    /// Mutually exclusive with `autoDeclineForBattery` by launcher
+    /// discipline; if both are ever set, decline wins (fail-safe:
+    /// never-create, matching the gate's default-closed design). Never set
+    /// outside the battery.
+    var autoAcceptForBattery = false
+
+    /// #200: every artifact created under auto-accept carries this marker —
+    /// injected into the "title"/"request" field at approval — so the run
+    /// teardown can find and delete everything the battery created.
+    static let batteryArtifactMarker = "[T27-battery]"
     #endif
 
     /// Stages a confirmation and suspends the calling tool until the user
@@ -61,9 +75,29 @@ final class ToolConfirmationCenter {
     /// never queues silently).
     func requestConfirmation(title: String, detail: String? = nil, fields: [Field]) async -> Decision {
         #if DEBUG
+        // Decline is checked FIRST: if both battery flags are ever set the
+        // fail-safe direction is never-create.
         if autoDeclineForBattery {
             Self.logger.notice("confirmation auto-declined (#196 battery): \(title, privacy: .public)")
+            recordBatteryOutcome("declined")
             return .declined
+        }
+        if autoAcceptForBattery {
+            var values = Dictionary(uniqueKeysWithValues: fields.map { ($0.key, $0.value) })
+            // Tag the created artifact for the teardown reap: titles get the
+            // marker as a prefix; the alarm "request" gets it as a SUFFIX,
+            // because the alarm grammar needs its time token first and
+            // everything after the time becomes the label.
+            for key in ["title", "request"] {
+                if let value = values[key], !value.isEmpty {
+                    values[key] = key == "title"
+                        ? "\(Self.batteryArtifactMarker) \(value)"
+                        : "\(value) \(Self.batteryArtifactMarker)"
+                }
+            }
+            Self.logger.notice("confirmation auto-accepted (#200 battery): \(title, privacy: .public)")
+            recordBatteryOutcome("accepted")
+            return .approved(values)
         }
         #endif
         guard continuation == nil else {
@@ -102,8 +136,28 @@ final class ToolConfirmationCenter {
         waiting?.resume(returning: decision)
         if case .declined = decision {
             Self.logger.notice("confirmation declined")
+            #if DEBUG
+            recordBatteryOutcome("declined")
+            #endif
         } else {
             Self.logger.notice("confirmation approved")
+            #if DEBUG
+            recordBatteryOutcome("accepted")
+            #endif
         }
     }
+
+    #if DEBUG
+    /// #200: confirmation outcomes are capture data. One classifiable
+    /// `battery: confirm=…` line + one record per gate resolution, carrying
+    /// the SAME trial tag the relay's tool lines use — so the paste and the
+    /// results page can pair each outcome with the tool invocation that
+    /// staged it. No-op outside a battery (nil tag), so the resolve() calls
+    /// above cost nothing in normal runs.
+    private func recordBatteryOutcome(_ outcome: String) {
+        guard let tag = ToolEventRelay.batteryTrialTag else { return }
+        LocalChatBackend.batteryEmit("battery: confirm=\(outcome) \(tag)")
+        LocalChatBackend.batteryRecorder.recordConfirmation(outcome)
+    }
+    #endif
 }
