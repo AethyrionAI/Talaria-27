@@ -461,8 +461,11 @@ struct DiagnosticsSettingsScreen: View {
                 }
                 // #200 action battery: 1 armed cell × 3 create prompts × n,
                 // auto-ACCEPT — real writes, [T27-battery]-tagged, reaped
-                // before DONE. Run with Reminders/Calendar GRANTED.
+                // before DONE. Run with Reminders/Calendar GRANTED. n=5 is
+                // the crash-repro power (both 2026-07-28 n=20 attempts died
+                // mid-run); n=20 is the measurement power.
                 HStack(spacing: Design.Spacing.sm) {
+                    actionBatteryButton(trials: 5, label: "Action battery n=5 (15)")
                     actionBatteryButton(trials: 20, label: "Action battery n=20 (60)")
                 }
 
