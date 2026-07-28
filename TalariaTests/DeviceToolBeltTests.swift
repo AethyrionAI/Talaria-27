@@ -866,7 +866,46 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedGuidefix.rawValue == "armed-guidefix")
         #expect(LocalChatBackend.ActionBatteryCell.armedToolfix.rawValue == "armed-toolfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedBothfix.rawValue == "armed-bothfix")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 4)
+        #expect(LocalChatBackend.ActionBatteryCell.armedInstrfix.rawValue == "armed-instrfix")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 5)
+    }
+
+    // MARK: Instructions-level de-stall (#200C)
+
+    /// #200B falsified the tool-text seam (the stall fires before tool
+    /// engagement), so the clause moves upstream into the session
+    /// instructions. Two pins: flag-off text is BYTE-IDENTICAL to
+    /// production (the #196 discipline — a treatment seam must leave the
+    /// shipping text untouched), and flag-on adds exactly the measured
+    /// clause.
+    @Test func actionDestallClauseIsAdditiveAndOffByDefault() {
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true
+        )
+        let treated = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeActionDestallClause: true
+        )
+        #expect(production != treated)
+        #expect(!production.contains("never ask which list"))
+        #expect(treated.contains("never ask which list, which calendar"))
+        #expect(treated.contains("create it right away"))
+        // Additive: everything in production survives verbatim.
+        #expect(treated.contains("confirmation card first; if they decline, accept it gracefully."))
+        #expect(treated.contains("never invent a value"))
+    }
+
+    /// The instrfix cell is an INSTRUCTIONS treatment only — its belt is
+    /// production, byte-identical, including the reminder tool.
+    @Test @MainActor func instrfixBeltIsProductionIdentity() {
+        let belt = DeviceToolBelt.makeActionTools(
+            relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
+            alarmService: AlarmService()
+        )
+        let instrfix = LocalChatBackend.destallBelt(from: belt, cell: .armedInstrfix)
+        #expect(instrfix.map(\.name) == belt.map(\.name))
+        #expect(instrfix.contains { $0 is ReminderCreateTool })
+        #expect(instrfix.first { $0.name == "createReminder" }?.description == ReminderCreateTool.productionDescription)
     }
 
     // MARK: Action-tool names (#200)

@@ -409,6 +409,33 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #200C instrfix battery: control vs the INSTRUCTIONS-level de-stall
+    // clause (#200B falsified the tool-text seam — the stall fires before
+    // tool engagement). Auto-ACCEPT, grab canary watching whether "create
+    // it right away" pushes haiku grabs above the 8/10 control baseline.
+    @ViewBuilder
+    private func instrfixBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runInstrfixBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200 orphan cleanup: the four crashed action batteries stranded
     // their battery alarms (up to ~50 armed for 6:30 AM, ringing through
     // Silent). AlarmKit enumeration carries no label, so this cancels ALL
@@ -518,6 +545,10 @@ struct DiagnosticsSettingsScreen: View {
                 // #200B: 4 treatment cells × 4 prompts (haiku grab canary).
                 HStack(spacing: Design.Spacing.sm) {
                     destallBatteryButton(trials: 10, label: "Destall battery n=10 (160)")
+                }
+                // #200C: control vs instructions-level de-stall clause.
+                HStack(spacing: Design.Spacing.sm) {
+                    instrfixBatteryButton(trials: 10, label: "Instrfix battery n=10 (80)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
