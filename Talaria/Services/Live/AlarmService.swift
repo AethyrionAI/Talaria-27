@@ -208,7 +208,44 @@ final class AlarmService {
             _ = try await AlarmManager.shared.schedule(id: request.id, configuration: configuration)
             alarmLog.notice("scheduled countdown timer (\(Int(seconds))s)")
         }
+
+        #if DEBUG
+        // #200 action battery: AlarmKit's `Alarm` carries no label back on
+        // enumeration, so marker-matching can't find battery alarms after
+        // the fact — track their IDs at schedule time instead. The marker
+        // reaches the label via the gate's auto-accept request suffix.
+        if request.label?.contains(ToolConfirmationCenter.batteryArtifactMarker) == true {
+            Self.batteryScheduledAlarmIDs.append(request.id)
+        }
+        #endif
     }
+
+    #if DEBUG
+    /// #200: IDs of alarms scheduled under battery auto-accept, in schedule
+    /// order. Process-lifetime only — a run that dies before its teardown
+    /// leaves marker-labeled alarms behind for manual cleanup (they ring as
+    /// "[T27-battery]", visibly instrument residue).
+    static var batteryScheduledAlarmIDs: [UUID] = []
+
+    /// #200 teardown: cancel every battery-scheduled alarm. `cancel` also
+    /// removes an already-fired alarm's remnant; a throw (e.g. the user
+    /// dismissed it mid-run) counts as a failure and the sweep continues.
+    static func reapBatteryAlarms() -> (cancelled: Int, failed: Int) {
+        var cancelled = 0
+        var failed = 0
+        for id in batteryScheduledAlarmIDs {
+            do {
+                try AlarmManager.shared.cancel(id: id)
+                cancelled += 1
+            } catch {
+                alarmLog.notice("battery alarm reap failed for \(id, privacy: .public): \(String(describing: error), privacy: .public)")
+                failed += 1
+            }
+        }
+        batteryScheduledAlarmIDs = []
+        return (cancelled, failed)
+    }
+    #endif
 
     private func ensureAuthorized() async throws {
         switch AlarmManager.shared.authorizationState {
