@@ -50,6 +50,11 @@ struct LocalChatBackendTests {
         #expect(privateCloud.maximumResponseTokens == 4096)
         #expect(privateCloud.temperature == 0.7)
         #expect(privateCloud.samplingMode != nil)
+        // #196 third battery: production options carry NO tool-calling
+        // override — `.disallowed` exists only behind the armed-nocall
+        // shape in `shapedGenerationOptions`.
+        #expect(onDevice.toolCallingMode == nil)
+        #expect(privateCloud.toolCallingMode == nil)
     }
 
     // MARK: Tail-repetition breaker (#102)

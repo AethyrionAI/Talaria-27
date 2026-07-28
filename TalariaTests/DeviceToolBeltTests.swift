@@ -295,6 +295,26 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.SessionShape.armedFix.usesScopedReminderDescription)
         #expect(!LocalChatBackend.SessionShape.toolless.usesScopedReminderDescription)
         #expect(!LocalChatBackend.SessionShape.toollessLic.usesScopedReminderDescription)
+
+        // Third battery (#196 decomposition): the five structural cells.
+        #expect(LocalChatBackend.SessionShape(rawValue: "armed-noinstr") == .armedNoinstr)
+        #expect(LocalChatBackend.SessionShape(rawValue: "toolless-noinstr") == .toollessNoinstr)
+        #expect(LocalChatBackend.SessionShape(rawValue: "armed-readonly") == .armedReadonly)
+        #expect(LocalChatBackend.SessionShape(rawValue: "armed-nocall") == .armedNocall)
+        #expect(LocalChatBackend.SessionShape(rawValue: "armed-noschema") == .armedNoschema)
+        // The cut cell never became a spelling (Owen veto at dispatch v2 —
+        // prose is not the road): it must not parse.
+        #expect(LocalChatBackend.SessionShape(rawValue: "armed-example") == nil)
+        #expect(LocalChatBackend.SessionShape.armedNoinstr.registersTools)
+        #expect(!LocalChatBackend.SessionShape.toollessNoinstr.registersTools)
+        #expect(LocalChatBackend.SessionShape.armedReadonly.registersTools)
+        #expect(LocalChatBackend.SessionShape.armedNocall.registersTools)
+        #expect(LocalChatBackend.SessionShape.armedNoschema.registersTools)
+        // None of the decomposition cells touches the remfix description
+        // treatment — single-variable discipline.
+        for shape in [LocalChatBackend.SessionShape.armedNoinstr, .toollessNoinstr, .armedReadonly, .armedNocall, .armedNoschema] {
+            #expect(!shape.usesScopedReminderDescription)
+        }
     }
 
     @Test @MainActor func shapedBeltSwapsOnlyTheReminderDescriptionInRemfixCells() {
@@ -324,6 +344,130 @@ struct DeviceToolBeltTests {
         // The scoped text names the boundary in both directions.
         #expect(ReminderCreateTool.scopedDescription196.contains("only when the user asks to be reminded"))
         #expect(ReminderCreateTool.scopedDescription196.contains("never for requests to write, compose, or answer"))
+    }
+
+    // MARK: Decomposition cells (#196 third battery)
+
+    /// A four-tool belt with one read tool and all three action tools, in
+    /// belt order — the smallest surface the readonly/noschema treatments
+    /// can be verified against without framework entitlements (every store
+    /// is constructed inside `call()`, so assembly is inert).
+    @MainActor
+    private func decompositionBelt() -> [any Tool] {
+        let relay = ToolEventRelay()
+        let confirmations = ToolConfirmationCenter()
+        return [
+            DeviceStatusTool(relay: relay),
+            ReminderCreateTool(relay: relay, confirmations: confirmations),
+            CalendarEventTool(relay: relay, confirmations: confirmations),
+            AlarmTool(relay: relay, confirmations: confirmations, alarmService: AlarmService()),
+        ]
+    }
+
+    @Test func batteryRunsTheSixDecompositionCells() {
+        // The third battery's cell list — the held battery-2 treatment cells
+        // stay in the enum (picker-reachable) but no longer burn trials.
+        #expect(LocalChatBackend.batteryCells == [
+            .armed, .armedNoinstr, .toollessNoinstr, .armedReadonly, .armedNocall, .armedNoschema,
+        ])
+    }
+
+    @Test @MainActor func readonlyBeltRemovesExactlyTheThreeActionTools() {
+        let belt = decompositionBelt()
+        // armed-readonly: grabs must die structurally — there is no action
+        // tool to grab. The read tool survives in place.
+        let shaped = LocalChatBackend.shapedBelt(from: belt, shape: .armedReadonly)
+        #expect(shaped.map { $0.name } == ["deviceStatus"])
+        // The control keeps the full belt untouched, in order.
+        let control = LocalChatBackend.shapedBelt(from: belt, shape: .armed)
+        #expect(control.map { $0.name } == ["deviceStatus", "createReminder", "createCalendarEvent", "scheduleAlarm"])
+    }
+
+    @Test @MainActor func noschemaBeltHidesOnlyTheActionToolSchemas() {
+        let belt = decompositionBelt()
+        // Production pin: every tool ships with the schema gate OPEN — the
+        // action tools' stored-var seam defaults to the framework default,
+        // so the shipping belt is byte-identical with the seam in place.
+        for tool in belt {
+            #expect(tool.includesSchemaInInstructions)
+        }
+        let shaped = LocalChatBackend.shapedBelt(from: belt, shape: .armedNoschema)
+        // Same tools, same order — still registered, still callable.
+        #expect(shaped.map { $0.name } == belt.map { $0.name })
+        // The three action tools hide their schemas from the instructions…
+        #expect((shaped[1] as? ReminderCreateTool)?.includesSchemaInInstructions == false)
+        #expect((shaped[2] as? CalendarEventTool)?.includesSchemaInInstructions == false)
+        #expect((shaped[3] as? AlarmTool)?.includesSchemaInInstructions == false)
+        // …with every other surface untouched (single-variable discipline).
+        #expect(shaped[1].description == ReminderCreateTool.productionDescription)
+        #expect(shaped[0].includesSchemaInInstructions)
+        // And the held remfix treatment stays single-variable too: its belt
+        // never flips the schema gate.
+        let remfix = LocalChatBackend.shapedBelt(from: belt, shape: .armedRemfix)
+        #expect(remfix.allSatisfy { $0.includesSchemaInInstructions })
+    }
+
+    @Test func frameworkDefaultInjectsSchemasIntoInstructions() {
+        // A bare `Tool` conformance that does NOT declare
+        // `includesSchemaInInstructions` reads the FRAMEWORK's default. The
+        // action tools' stored-var seam defaults `true` on the claim that
+        // this matches the SDK — if an SDK rev ever flips it, this test
+        // screams instead of the shipping belt silently changing shape.
+        #expect(SchemaGateProbeTool().includesSchemaInInstructions)
+    }
+
+    @Test func nocallOptionsDisallowToolCallsAndChangeNothingElse() {
+        let base = LocalChatBackend.chatGenerationOptions(for: .onDevice)
+        let shaped = LocalChatBackend.shapedGenerationOptions(base, shape: .armedNocall)
+        // armed-nocall: schemas stay in context, calling is impossible —
+        // the per-turn-routing ship path's proof cell.
+        #expect(shaped.toolCallingMode == .disallowed)
+        #expect(shaped.temperature == base.temperature)
+        #expect(shaped.samplingMode == base.samplingMode)
+        #expect(shaped.maximumResponseTokens == base.maximumResponseTokens)
+        // Identity for every other shape — armed stays byte-identical
+        // production, and no other cell touches decode-time availability.
+        let others: [LocalChatBackend.SessionShape] = [
+            .armed, .armedNoinstr, .toollessNoinstr, .armedReadonly, .armedNoschema,
+            .armedRemfix, .armedComplic, .armedFix, .toolless, .toollessLic,
+        ]
+        for shape in others {
+            #expect(LocalChatBackend.shapedGenerationOptions(base, shape: shape) == base)
+        }
+    }
+
+    @Test func decompositionCellInstructionsAreProductionVerbatimOrAbsent() {
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate, hasTools: true
+        )
+        // Belt/options treatments carry the production instructions
+        // VERBATIM — the treatment is structural, never prose.
+        for shape in [LocalChatBackend.SessionShape.armedReadonly, .armedNocall, .armedNoschema] {
+            let text = LocalChatBackend.instructionsText(
+                for: shape, deviceContext: "Device: test.",
+                date: Self.shapeDate, hasTools: true
+            )
+            #expect(text == production)
+        }
+        // The -noinstr cells pass NO instructions at all: empty text backs
+        // `passesInstructions == false`, and the session is built without
+        // the instructions parameter (battery) / without an instructions
+        // transcript entry (live path).
+        for shape in [LocalChatBackend.SessionShape.armedNoinstr, .toollessNoinstr] {
+            #expect(!shape.passesInstructions)
+            let text = LocalChatBackend.instructionsText(
+                for: shape, deviceContext: "Device: test.",
+                date: Self.shapeDate, hasTools: true
+            )
+            #expect(text.isEmpty)
+        }
+        // Every other cell still hands the session instructions.
+        for shape in [
+            LocalChatBackend.SessionShape.armed, .armedRemfix, .armedComplic, .armedFix,
+            .toolless, .toollessLic, .armedReadonly, .armedNocall, .armedNoschema,
+        ] {
+            #expect(shape.passesInstructions)
+        }
     }
 
     // MARK: Vision-tool availability gating (#176)
@@ -509,4 +653,23 @@ struct DeviceToolBeltTests {
         #expect(search.description.localizedCaseInsensitiveContains("past"))
         #expect(search.description.contains("without any tool"))
     }
+}
+
+// MARK: - (#196) framework-default probe tool
+
+/// Deliberately does NOT declare `includesSchemaInInstructions` — the whole
+/// point is reading the protocol extension's default (file scope: the
+/// `@Generable` macro expansion can't see into a `private` nested type).
+/// Never called.
+fileprivate struct SchemaGateProbeTool: Tool {
+    let name = "schemaGateProbe"
+    let description = "Probes the framework default for includesSchemaInInstructions."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Unused.")
+        var probe: String
+    }
+
+    func call(arguments: Arguments) async throws -> String { "unused" }
 }
