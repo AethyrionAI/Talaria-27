@@ -61,6 +61,32 @@ struct BatteryResultsScreen: View {
                             }
                         }
                     }
+
+                    // #200 crash diagnostics: the append-only emit sink
+                    // survives a crashed run (per-line writes), and off-LAN
+                    // this button is the ONLY way to get it out. Every line
+                    // of every run on this install, newest at the bottom.
+                    if let captureLog = LocalChatBackend.batteryCaptureLogURL,
+                       FileManager.default.fileExists(atPath: captureLog.path) {
+                        ShareLink(item: captureLog) {
+                            HStack(spacing: Design.Spacing.xs) {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 12, weight: .medium))
+                                MonoLabel("Share capture log (survives crashes)", size: 10,
+                                          tracking: Design.Tracking.mono,
+                                          color: Design.Colors.foregroundBright)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 40)
+                            .hudPanel(
+                                cornerRadius: Design.CornerRadius.md,
+                                borderColor: Design.Colors.accentTint(0.2),
+                                fill: Design.Colors.background.opacity(0.5),
+                                innerGlow: false
+                            )
+                        }
+                        .foregroundStyle(Design.Colors.foregroundBright)
+                    }
                 }
                 .padding(.horizontal, Design.Spacing.md)
                 .padding(.vertical, Design.Spacing.sm)
@@ -104,7 +130,10 @@ struct BatteryResultsScreen: View {
         let failureNote = failures == 0 ? "" : " · \(failures) err/timeout"
         // #200 action runs name themselves; legacy shape runs stay "battery".
         let noun = run.kind == "action" ? "action battery" : "battery"
-        return "\(noun) n=\(run.trialsPerCell) · \(run.trials.count) trials\(failureNote) · \(run.cells.joined(separator: ", "))"
+        // A false flag is a run that died mid-battery — the snapshot is
+        // everything it measured before the crash (#200 diagnostics).
+        let incompleteNote = run.endedCleanly == false ? " · INCOMPLETE (crashed)" : ""
+        return "\(noun) n=\(run.trialsPerCell) · \(run.trials.count) trials\(failureNote)\(incompleteNote) · \(run.cells.joined(separator: ", "))"
     }
 }
 
