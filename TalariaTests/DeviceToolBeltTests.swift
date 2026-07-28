@@ -779,6 +779,74 @@ struct DeviceToolBeltTests {
         #expect(search.description.contains("without any tool"))
     }
 
+    // MARK: Destall treatment cells (#200B)
+
+    /// The de-stalled description is a measured artifact: production text
+    /// plus the create-immediately clause. Pinned so the battery measures
+    /// what the dispatch names.
+    @Test func destalledDescriptionExtendsProductionWithTheNoAskClause() {
+        let destalled = ReminderCreateTool.destalledDescription200
+        #expect(destalled.hasPrefix(ReminderCreateTool.productionDescription))
+        #expect(destalled.contains("never ask"))
+        #expect(destalled != ReminderCreateTool.productionDescription)
+    }
+
+    /// The guidefix copy must be indistinguishable from production except
+    /// for text: same tool name, production description by default (the
+    /// @Guide delta is the cell's ONLY change; bothfix passes the
+    /// destalled description explicitly).
+    @Test @MainActor func guidefixCopySharesNameAndProductionDescription() {
+        let copy = ReminderCreateToolGuidefix(
+            relay: ToolEventRelay(),
+            confirmations: ToolConfirmationCenter()
+        )
+        #expect(copy.name == "createReminder")
+        #expect(copy.description == ReminderCreateTool.productionDescription)
+    }
+
+    /// The battery's belt swap per treatment cell: identity for the
+    /// control; guidefix swaps in the copy struct (production description);
+    /// toolfix keeps the production struct with the destalled description;
+    /// bothfix is the copy struct WITH the destalled description. Belt
+    /// size and every other tool's identity never change.
+    @Test @MainActor func destallBeltSwapsOnlyTheReminderTool() {
+        let relay = ToolEventRelay()
+        let confirmations = ToolConfirmationCenter()
+        let belt = DeviceToolBelt.makeActionTools(
+            relay: relay, confirmations: confirmations, alarmService: AlarmService()
+        )
+
+        let control = LocalChatBackend.destallBelt(from: belt, cell: .armed)
+        #expect(control.map(\.name) == belt.map(\.name))
+        #expect(control.first { $0.name == "createReminder" }?.description == ReminderCreateTool.productionDescription)
+        #expect(control.contains { $0 is ReminderCreateTool })
+
+        let guidefix = LocalChatBackend.destallBelt(from: belt, cell: .armedGuidefix)
+        #expect(guidefix.map(\.name) == belt.map(\.name))
+        #expect(guidefix.contains { $0 is ReminderCreateToolGuidefix })
+        #expect(guidefix.first { $0.name == "createReminder" }?.description == ReminderCreateTool.productionDescription)
+
+        let toolfix = LocalChatBackend.destallBelt(from: belt, cell: .armedToolfix)
+        #expect(toolfix.map(\.name) == belt.map(\.name))
+        #expect(toolfix.contains { $0 is ReminderCreateTool })
+        #expect(toolfix.first { $0.name == "createReminder" }?.description == ReminderCreateTool.destalledDescription200)
+
+        let bothfix = LocalChatBackend.destallBelt(from: belt, cell: .armedBothfix)
+        #expect(bothfix.map(\.name) == belt.map(\.name))
+        #expect(bothfix.contains { $0 is ReminderCreateToolGuidefix })
+        #expect(bothfix.first { $0.name == "createReminder" }?.description == ReminderCreateTool.destalledDescription200)
+    }
+
+    /// Cell raw values are the record/export labels — the classification
+    /// grammar's vocabulary. Pinned.
+    @Test func destallCellLabelsMatchTheDispatch() {
+        #expect(LocalChatBackend.ActionBatteryCell.armed.rawValue == "armed")
+        #expect(LocalChatBackend.ActionBatteryCell.armedGuidefix.rawValue == "armed-guidefix")
+        #expect(LocalChatBackend.ActionBatteryCell.armedToolfix.rawValue == "armed-toolfix")
+        #expect(LocalChatBackend.ActionBatteryCell.armedBothfix.rawValue == "armed-bothfix")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 4)
+    }
+
     // MARK: Action-tool names (#200)
 
     /// The #200 capture surfaces (confirm=none synthesis in the export, the
