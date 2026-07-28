@@ -427,6 +427,46 @@ struct DeviceToolBeltTests {
         #expect(routed == production)
     }
 
+    @Test @MainActor func promotionResolvesTheDefaultShapeToArmedRouted() {
+        // #196 promotion (2026-07-28): the launch-scoped resolution — env,
+        // then persisted picker, then DEFAULT — must land on armed-routed
+        // when nothing overrides. Recomputed from the same inputs the
+        // static reads, so the pin holds on any machine regardless of
+        // ambient sim state.
+        let expected: LocalChatBackend.SessionShape = {
+            if let raw = ProcessInfo.processInfo.environment["TALARIA_SESSION_SHAPE"],
+               let shape = LocalChatBackend.SessionShape(rawValue: raw) {
+                return shape
+            }
+            if let raw = UserDefaults.standard.string(forKey: "debug.sessionShape"),
+               let shape = LocalChatBackend.SessionShape(rawValue: raw) {
+                return shape
+            }
+            return .armedRouted
+        }()
+        #expect(LocalChatBackend.activeSessionShape == expected)
+        // DEBUG semantics of the production gate: routing is enabled
+        // exactly when the launch shape IS the routed shape, so legacy
+        // cells (armed control included) never route.
+        #expect(LocalChatBackend.turnRoutingEnabled
+            == (LocalChatBackend.activeSessionShape == .armedRouted))
+    }
+
+    @Test func promotedRoutedToollessTurnSpeaksExactlyTheMeasuredLic2Text() {
+        // The promoted production branch calls the lic2 flag directly
+        // (no SessionShape in Release) — it must produce byte-identical
+        // text to the toolless-lic2 cell the battery measured at 60/60.
+        let direct = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate,
+            hasTools: false, hasImageTools: false,
+            includeToollessLic2Clause: true
+        )
+        let cell = LocalChatBackend.instructionsText(
+            for: .toollessLic2, deviceContext: "Device: test.", date: Self.shapeDate
+        )
+        #expect(direct == cell)
+    }
+
     @Test func routerConstantsPinTheMeasuredWinningShape() {
         // The few-shot framing is the ONLY one that cleared the Mac-host
         // probe grid (200/200 at n=20): both polarities exampled, the
