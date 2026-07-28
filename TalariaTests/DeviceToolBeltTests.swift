@@ -315,6 +315,16 @@ struct DeviceToolBeltTests {
         for shape in [LocalChatBackend.SessionShape.armedNoinstr, .toollessNoinstr, .armedReadonly, .armedNocall, .armedNoschema] {
             #expect(!shape.usesScopedReminderDescription)
         }
+
+        // Fourth battery (#196 cure lane): the payload and the candidate.
+        #expect(LocalChatBackend.SessionShape(rawValue: "toolless-lic2") == .toollessLic2)
+        #expect(LocalChatBackend.SessionShape(rawValue: "armed-routed") == .armedRouted)
+        #expect(!LocalChatBackend.SessionShape.toollessLic2.registersTools)
+        // armed-routed CAN register — the per-turn router decides whether a
+        // given turn actually does.
+        #expect(LocalChatBackend.SessionShape.armedRouted.registersTools)
+        #expect(!LocalChatBackend.SessionShape.toollessLic2.usesScopedReminderDescription)
+        #expect(!LocalChatBackend.SessionShape.armedRouted.usesScopedReminderDescription)
     }
 
     @Test @MainActor func shapedBeltSwapsOnlyTheReminderDescriptionInRemfixCells() {
@@ -364,12 +374,71 @@ struct DeviceToolBeltTests {
         ]
     }
 
-    @Test func batteryRunsTheSixDecompositionCells() {
-        // The third battery's cell list — the held battery-2 treatment cells
-        // stay in the enum (picker-reachable) but no longer burn trials.
+    @Test func batteryRunsTheFourCureCells() {
+        // The fourth battery's cell list — control, both payload candidates,
+        // and the routed production candidate. Battery-2/-3 cells stay in
+        // the enum (picker-reachable) but no longer burn trials.
         #expect(LocalChatBackend.batteryCells == [
-            .armed, .armedNoinstr, .toollessNoinstr, .armedReadonly, .armedNocall, .armedNoschema,
+            .armed, .toollessLic, .toollessLic2, .armedRouted,
         ])
+    }
+
+    // MARK: Cure cells (#196 battery 4)
+
+    @Test func lic2InstructionsCarryTheTwoCanaryFixesOnTheLicensedBareBranch() {
+        let lic = LocalChatBackend.instructionsText(
+            for: .toollessLic, deviceContext: "Device: test.",
+            date: Self.shapeDate, hasTools: true
+        )
+        let lic2 = LocalChatBackend.instructionsText(
+            for: .toollessLic2, deviceContext: "Device: test.",
+            date: Self.shapeDate, hasTools: true
+        )
+        // The two device-observed canary fixes, present only in lic2:
+        // the math/facts license (third battery: the bare branch denies
+        // arithmetic; licensing covered writing, not calculation)…
+        #expect(!lic.contains("Simple math"))
+        #expect(lic2.contains("Simple math and everyday factual questions you answer directly yourself."))
+        // …and the output-format mandate (the degenerate response_format
+        // JSON wrapper artifact, Apple template convention).
+        #expect(lic2.contains("Reply in plain conversational prose — never JSON, XML, code blocks, or tool syntax unless the user asks for them."))
+        // Still the licensed BARE branch: the licensing sentence and the
+        // honesty caveat survive, and no armed clause leaks in.
+        #expect(lic2.contains("needs no internet or lookup"))
+        #expect(lic2.contains("You have no internet access and no external tools in this mode"))
+        #expect(lic2.contains("say so plainly instead of guessing"))
+        #expect(!lic2.contains("Use the tools"))
+        #expect(!lic2.contains("confirmation card"))
+    }
+
+    @Test func routedShapeSpeaksProductionArmedOnItsArmedHalf() {
+        // armed-routed's instructionsText(for:) is the ARMED half — the
+        // toolless half is resolved by the live routing gates and the
+        // battery's per-trial route, both of which return the
+        // toolless-lic2 text instead. The armed half must be production
+        // verbatim (the router adds no prose to armed turns).
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate, hasTools: true
+        )
+        let routed = LocalChatBackend.instructionsText(
+            for: .armedRouted, deviceContext: "Device: test.",
+            date: Self.shapeDate, hasTools: true
+        )
+        #expect(routed == production)
+    }
+
+    @Test func routerConstantsPinTheMeasuredWinningShape() {
+        // The few-shot framing is the ONLY one that cleared the Mac-host
+        // probe grid (200/200 at n=20): both polarities exampled, the
+        // creative-verb confusion countered explicitly.
+        let instructions = LocalChatBackend.toolIntentRouterInstructions
+        #expect(instructions.contains("\"Write a haiku about rain\" -> needsDeviceTool: false"))
+        #expect(instructions.contains("\"Remind me to call Shelley tomorrow\" -> needsDeviceTool: true"))
+        #expect(instructions.contains("answerable with words alone"))
+        // Deterministic and tiny: greedy decode, hard token cap.
+        let options = LocalChatBackend.toolIntentRouterOptions
+        #expect(options.samplingMode == .greedy)
+        #expect(options.maximumResponseTokens == 64)
     }
 
     @Test @MainActor func readonlyBeltRemovesExactlyTheThreeActionTools() {
