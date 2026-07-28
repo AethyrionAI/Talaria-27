@@ -9088,7 +9088,23 @@ noschema+complic (structural grab-kill × licensing prose) — and, if one clear
 routing (creative/knowledge turns → `.disallowed`) as the production ship path. Verdict
 desk: Owen.
 
-Logged 2026-07-27.
+**2026-07-28, battery 4 built (routed cure, branch `claude/t27-196-routed-cure` / PR #161,
+stacked on #160) + results-page lane (dispatch `OPUS-T27-196-results-page.md`, branch
+`claude/t27-196-results-page` / PR #162, stacked on #161).** Battery 4: per-turn few-shot
+guided-generation router (greedy, fail-safe to armed) → device turns get production armed;
+words-only turns get `toolless-lic2` (licensed bare branch + math/facts license +
+plain-prose mandate, no belt). Mac-host evidence directional only (26.5 model): router
+200/200, lic2 59/60. Headless auto-battery seam shipped (launch env, triple-sink capture),
+but the DEVICE run is still owed — six overnight launch attempts failed on the locked/
+off-LAN phone; zero device rows exist, so no battery-4 verdict yet. Results-page lane
+unblocks Console-less runs from work: structured per-trial store (FULL reply texts,
+untruncated tool details, routes, latency; App Support JSON, bounded 10 runs), Diagnostics →
+Battery results view with heuristic-labeled tallies + raw-reply drill-down, and export
+(clipboard in the emit grammar / JSON share). Suite 1256/110 green (27A5228h). Owen installs
+the OTA-staged Debug build at work, runs battery n=20 + router probe n=20, exports, pastes;
+classification stays raw-text at the verdict desk.
+
+Logged 2026-07-27; battery-4/results-page note 2026-07-28.
 
 ## 197. 🐛 Tool-invocation failure aborts the turn and renders the RAW error — types, descriptions, and a memory address in the transcript
 
