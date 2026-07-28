@@ -338,6 +338,27 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #196 battery 4: router-accuracy probe — no tools execute (pure
+    // classification), so no confirmation auto-decline is needed; the
+    // shared batteryRunning guard keeps the two instruments from
+    // overlapping on the model.
+    @ViewBuilder
+    private func routerProbeButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            Task {
+                await backend.runRouterProbe(trials: trials)
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     private var localBrainPanel: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             MonoLabel("// Local brain — #102", size: 10, tracking: Design.Tracking.monoXWide,
@@ -353,21 +374,22 @@ struct DiagnosticsSettingsScreen: View {
                           size: 9, tracking: Design.Tracking.mono,
                           color: Design.Colors.secondaryForeground)
                 Picker("Session shape", selection: $sessionShapeOverride) {
-                    // Third battery (#196 decomposition) — the live cells:
+                    // Fourth battery (#196 cure lane) — the live cells:
                     Text("armed (control)").tag("armed")
+                    Text("toolless-lic (payload A)").tag("toolless-lic")
+                    Text("toolless-lic2 (payload B)").tag("toolless-lic2")
+                    Text("armed-routed (candidate)").tag("armed-routed")
+                    // Battery-3 decomposition cells + battery-2 treatments:
+                    // reachable for spot checks, out of the battery list.
                     Text("armed-noinstr").tag("armed-noinstr")
                     Text("toolless-noinstr").tag("toolless-noinstr")
                     Text("armed-readonly").tag("armed-readonly")
                     Text("armed-nocall").tag("armed-nocall")
                     Text("armed-noschema").tag("armed-noschema")
-                    // Battery-2 treatment cells — HELD ship candidates
-                    // (measured wins, held by Owen's verdict): reachable
-                    // for manual spot checks, out of the battery list.
                     Text("armed-remfix (held)").tag("armed-remfix")
                     Text("armed-complic (held)").tag("armed-complic")
                     Text("armed-fix (held)").tag("armed-fix")
                     Text("toolless (held)").tag("toolless")
-                    Text("toolless-lic (held)").tag("toolless-lic")
                 }
                 // Menu, not segmented: eleven cells don't fit a phone-width
                 // segmented control (#196).
@@ -376,15 +398,18 @@ struct DiagnosticsSettingsScreen: View {
                     UserDefaults.standard.set(newValue, forKey: "debug.sessionShape")
                 }
 
-                // #196 third battery (decomposition): 6 structural cells ×
-                // 3 prompts × n trials, in-process, results to Console
-                // (category LocalChatBackend, lines prefixed "battery:");
-                // every tool start logs per trial via
-                // ToolEventRelay.batteryTrialTag. No force-quit cycling
-                // needed.
+                // #196 fourth battery (cure lane): 4 cells × 3 prompts × n
+                // trials, in-process, results to Console (category
+                // LocalChatBackend, lines prefixed "battery:"); armed-routed
+                // trials log their per-trial "route=" line, and the router
+                // probe measures classification accuracy alone (lines
+                // prefixed "router:"). No force-quit cycling needed.
                 HStack(spacing: Design.Spacing.sm) {
-                    batteryButton(trials: 10, label: "Battery n=10 (~180 trials)")
-                    batteryButton(trials: 20, label: "Battery n=20 (~360)")
+                    batteryButton(trials: 10, label: "Battery n=10 (~120 trials)")
+                    batteryButton(trials: 20, label: "Battery n=20 (~240)")
+                }
+                HStack(spacing: Design.Spacing.sm) {
+                    routerProbeButton(trials: 20, label: "Router probe n=20 (200)")
                 }
             }
 

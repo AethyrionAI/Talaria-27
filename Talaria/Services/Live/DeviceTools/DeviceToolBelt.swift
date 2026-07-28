@@ -112,7 +112,9 @@ final class ToolEventRelay {
     func started(_ name: String, detail: String? = nil) {
         #if DEBUG
         if let tag = Self.batteryTrialTag {
-            Self.batteryLogger.notice("battery: tool=\(name, privacy: .public) \(tag, privacy: .public) detail=\(String((detail ?? "").prefix(80)), privacy: .public)")
+            // One emit path for every battery line (#196 battery 4):
+            // os_log + flushed stdout + the container file sink.
+            LocalChatBackend.batteryEmit("battery: tool=\(name) \(tag) detail=\(String((detail ?? "").prefix(80)))")
         }
         #endif
         emit?(ToolCallEvent(name: name, phase: .started, detail: detail))

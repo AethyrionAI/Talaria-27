@@ -253,6 +253,12 @@ struct TalariaApp: App {
                     // drainShareInbox, itself a router write) can't land on
                     // top of the route we just chose.
                     consumePendingControlDestination()
+                    #if DEBUG
+                    // #196 battery 4: headless battery/probe runs, armed
+                    // only by launch environment. Last — everything above
+                    // is the production launch path, untouched.
+                    await container.runAutoBatteryIfArmed()
+                    #endif
                 }
                 .onChange(of: container.settingsStore.settings) { oldSettings, newSettings in
                     // Mirror the appearance prefs into the runtime theme so the

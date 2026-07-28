@@ -110,6 +110,14 @@ final class LocalChatBackend: HermesClientProtocol {
     /// condition flips (an image arrives, or a fresh thread has none) the
     /// session has to be recreated to match.
     private var sessionToolNames: [String] = []
+    #if DEBUG
+    /// #196 battery 4: the current turn's route under `armed-routed` —
+    /// true when the router judged this turn answerable without the
+    /// device. Set per turn in `preparedSession` before the session gates
+    /// consult it; the #176 recreate seam then swaps the session
+    /// automatically when the route flips between turns.
+    private var turnRoutedToolless = false
+    #endif
     /// The memory block synthesized by the last condensation, kept for
     /// diagnostics. Session-lifetime only: rebuilds re-derive it from the full
     /// message history, which the Conversation always retains.
@@ -678,6 +686,15 @@ final class LocalChatBackend: HermesClientProtocol {
         if currentConversation == nil {
             currentConversation = Conversation(title: Conversation.defaultTitle)
         }
+        #if DEBUG
+        // #196 battery 4: under armed-routed, classify THIS turn before any
+        // gate reads the route. One extra guided generation (~1s, greedy);
+        // errors fail safe to armed inside the router.
+        if Self.activeSessionShape == .armedRouted {
+            turnRoutedToolless = !(await routeNeedsDeviceTool(prompt: nextPrompt))
+            Self.logger.notice("router: turn routed \(self.turnRoutedToolless ? "toolless" : "armed", privacy: .public) (#196)")
+        }
+        #endif
         // #176: the turn's incoming attachments count. This runs BEFORE the
         // user message is appended, so the stored conversation doesn't know
         // about the image being sent right now.
@@ -921,6 +938,10 @@ final class LocalChatBackend: HermesClientProtocol {
     /// `toolless` cell); Release compiles down to the production expression.
     private func effectiveOfferedTools(hasImageInContext hasImage: Bool) -> [any Tool] {
         #if DEBUG
+        // #196 battery 4: a routed-toolless turn registers NO belt — the
+        // full structural cure, not a call gate (nocall proved schemas in
+        // context sustain the disclaimer tic on their own).
+        if Self.activeSessionShape == .armedRouted, turnRoutedToolless { return [] }
         guard Self.activeSessionShape.registersTools else { return [] }
         return Self.shapedBelt(
             from: DeviceToolBelt.offeredTools(from: tools, hasImageInContext: hasImage),
@@ -955,6 +976,16 @@ final class LocalChatBackend: HermesClientProtocol {
     /// the production expression.
     private func effectiveInstructionsText(hasImageInContext hasImage: Bool) -> String {
         #if DEBUG
+        // #196 battery 4: a routed-toolless turn speaks the licensed bare
+        // branch — the toolless-lic2 payload.
+        if Self.activeSessionShape == .armedRouted, turnRoutedToolless {
+            return Self.instructionsText(
+                for: .toollessLic2,
+                deviceContext: Self.deviceContextLine(),
+                hasTools: false,
+                hasImageTools: hasImage
+            )
+        }
         return Self.instructionsText(
             for: Self.activeSessionShape,
             deviceContext: Self.deviceContextLine(),
@@ -1356,7 +1387,8 @@ final class LocalChatBackend: HermesClientProtocol {
         hasTools: Bool = false,
         hasImageTools: Bool = false,
         includeCompositionLicensingSentence: Bool = false,
-        includeToollessLicensingClause: Bool = false
+        includeToollessLicensingClause: Bool = false,
+        includeToollessLic2Clause: Bool = false
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
         // #196 second battery: the composition-licensing sentence — the
@@ -1376,6 +1408,15 @@ final class LocalChatBackend: HermesClientProtocol {
                 + (includeCompositionLicensingSentence ? composition : "")
                 + "Use the tools for the user's own data — their health, location, schedule, reminders, contacts, and past conversations — instead of guessing at it. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully."
                 + honestyAndRecovery
+        } else if includeToollessLic2Clause {
+            // #196 battery 4, toolless-lic2: the licensed bare branch plus
+            // the two device-observed canary fixes — a math/facts license
+            // (third battery: the licensing sentence covers writing, not
+            // calculation; the bare branch denied arithmetic 20/20) and an
+            // explicit output-format mandate in Apple's own template
+            // convention (kills the degenerate `response_format` JSON
+            // wrapper the licensed branch produced on 4/20 canary trials).
+            capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job — facts you know are not guesses, and writing about the world from your own knowledge needs no internet or lookup. Simple math and everyday factual questions you answer directly yourself. Reply in plain conversational prose — never JSON, XML, code blocks, or tool syntax unless the user asks for them. You have no internet access and no external tools in this mode; when you genuinely don't know something, say so plainly instead of guessing."
         } else if includeToollessLicensingClause {
             // #196 toolless-lic cell: the bare branch, licensed. Composition
             // licensed up front; the no-internet honesty caveat KEPT — the
@@ -1772,14 +1813,29 @@ extension LocalChatBackend {
         /// semantics are undocumented; surprising results are findings,
         /// not bugs.
         case armedNoschema = "armed-noschema"
+        /// Battery 4 (#196 cure lane): the licensed bare branch plus the
+        /// two device-observed canary fixes — math/facts license and an
+        /// output-format mandate (Apple template convention). The routed
+        /// architecture's non-tool payload.
+        case toollessLic2 = "toolless-lic2"
+        /// Battery 4: the production candidate. A per-turn guided-generation
+        /// router (few-shot, greedy — 80/80 on the Mac-host probe grid)
+        /// decides whether the turn needs the device; tool turns get the
+        /// production armed session, everything else gets `toolless-lic2`.
+        /// WWDC26 session 242's sanctioned shape: tools withheld where
+        /// "known to be irrelevant," decided contextually.
+        case armedRouted = "armed-routed"
 
         /// Whether this cell hands the session a tool belt at all.
+        /// `armedRouted` returns true — it CAN register; the per-turn
+        /// router decides whether a given turn actually does.
         var registersTools: Bool {
             switch self {
             case .armed, .armedRemfix, .armedComplic, .armedFix,
-                 .armedNoinstr, .armedReadonly, .armedNocall, .armedNoschema:
+                 .armedNoinstr, .armedReadonly, .armedNocall, .armedNoschema,
+                 .armedRouted:
                 return true
-            case .toolless, .toollessLic, .toollessNoinstr:
+            case .toolless, .toollessLic, .toollessNoinstr, .toollessLic2:
                 return false
             }
         }
@@ -1791,7 +1847,8 @@ extension LocalChatBackend {
             case .armedRemfix, .armedFix:
                 return true
             case .armed, .armedComplic, .toolless, .toollessLic,
-                 .armedNoinstr, .toollessNoinstr, .armedReadonly, .armedNocall, .armedNoschema:
+                 .armedNoinstr, .toollessNoinstr, .armedReadonly, .armedNocall, .armedNoschema,
+                 .toollessLic2, .armedRouted:
                 return false
             }
         }
@@ -1808,7 +1865,8 @@ extension LocalChatBackend {
             case .armedNoinstr, .toollessNoinstr:
                 return false
             case .armed, .armedRemfix, .armedComplic, .armedFix,
-                 .toolless, .toollessLic, .armedReadonly, .armedNocall, .armedNoschema:
+                 .toolless, .toollessLic, .armedReadonly, .armedNocall, .armedNoschema,
+                 .toollessLic2, .armedRouted:
                 return true
             }
         }
@@ -1855,7 +1913,10 @@ extension LocalChatBackend {
                 }
                 return tool
             }
-        case .armed, .armedComplic, .toolless, .toollessLic, .armedNoinstr, .toollessNoinstr, .armedNocall:
+        case .armed, .armedComplic, .toolless, .toollessLic, .armedNoinstr, .toollessNoinstr, .armedNocall,
+             .toollessLic2, .armedRouted:
+            // armedRouted's belt treatment happens per turn in the routing
+            // gates, never here — shapedBelt stays the identity for it.
             return tools
         }
     }
@@ -1871,6 +1932,50 @@ extension LocalChatBackend {
         var shaped = options
         shaped.toolCallingMode = .disallowed
         return shaped
+    }
+
+    /// Few-shot router instructions (#196 battery 4) — the ONLY framing
+    /// that cleared the Mac-host probe grid (80/80 at n=8, reconfirmed at
+    /// n=20). The guide-only framing misrouted EVERY creative verb to the
+    /// device — the #196 task-verb confusion lives in classification too —
+    /// and the flipped-polarity framing collapsed to always-true. Few-shot
+    /// examples are Apple's own template convention.
+    nonisolated static let toolIntentRouterInstructions = """
+    You route requests for a phone assistant. Decide if a request needs the device or is answerable with words alone.
+    Examples:
+    "Write a haiku about rain" -> needsDeviceTool: false
+    "Summarize the French Revolution in 50 words" -> needsDeviceTool: false
+    "What's 15% of 80?" -> needsDeviceTool: false
+    "Remind me to call Shelley tomorrow" -> needsDeviceTool: true
+    "How did I sleep last night?" -> needsDeviceTool: true
+    "What's the weather?" -> needsDeviceTool: true
+    """
+
+    /// Greedy + tiny cap: routing must be deterministic and fast; guided
+    /// generation constrains decode to the `ToolIntentRoute` shape, so the
+    /// router can never ramble.
+    nonisolated static var toolIntentRouterOptions: GenerationOptions {
+        GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 64)
+    }
+
+    /// Classifies one turn (#196 battery 4). Fail-safe: any error routes
+    /// to the ARMED session — production behavior, tools available.
+    func routeNeedsDeviceTool(prompt: String) async -> Bool {
+        let session = LanguageModelSession(
+            model: model,
+            instructions: Instructions(Self.toolIntentRouterInstructions)
+        )
+        do {
+            let route = try await session.respond(
+                to: Prompt("Request: \(prompt)"),
+                generating: ToolIntentRoute.self,
+                options: Self.toolIntentRouterOptions
+            ).content
+            return route.needsDeviceTool
+        } catch {
+            Self.logger.notice("router: classification failed — failing safe to armed (\(String(String(describing: error).prefix(80)), privacy: .public)) (#196)")
+            return true
+        }
     }
 
     /// Read once per process — the cells are launch-scoped, so a mid-run env
@@ -1939,21 +2044,78 @@ extension LocalChatBackend {
                 hasTools: false, hasImageTools: hasImageTools,
                 includeToollessLicensingClause: true
             )
+        case .toollessLic2:
+            return instructionsText(
+                deviceContext: deviceContext, date: date,
+                hasTools: false, hasImageTools: hasImageTools,
+                includeToollessLic2Clause: true
+            )
+        case .armedRouted:
+            // The ARMED half of the routed pair — the toolless half is
+            // resolved by the routing gates (`effectiveInstructionsText`
+            // consults the turn's route and returns the `toollessLic2`
+            // text instead when the turn needs no tool).
+            return instructionsText(
+                deviceContext: deviceContext, date: date,
+                hasTools: hasTools, hasImageTools: hasImageTools
+            )
         }
     }
 }
 #endif
 
 #if DEBUG
+// MARK: - #196 battery 4: tool-intent route shape (DEBUG builds only)
+
+/// The route classification for one turn (#196 battery 4). File scope:
+/// the `@Generable` macro expansion needs a non-nested, non-private type.
+@Generable
+struct ToolIntentRoute {
+    @Guide(description: "True only when the request needs the user's device data (health, location, weather, calendar, reminders, contacts, past chats) or a device action (create a reminder, calendar event, or alarm). Writing, poems, summaries, math, facts, and conversation are false — they need nothing from the device.")
+    var needsDeviceTool: Bool
+}
+
 // MARK: - #196 rate battery (Diagnostics-triggered, DEBUG builds only)
 
 extension LocalChatBackend {
-    /// The third battery's cell list (#196 decomposition): the six
-    /// structural cells. Battery-2's treatment cells stay in the enum as
-    /// held ship candidates — picker-reachable, no longer burning trials.
+    /// The fourth battery's cell list (#196 cure lane): control, the two
+    /// payload candidates, and the routed production candidate. Battery-3's
+    /// decomposition cells and battery-2's treatment cells stay in the enum
+    /// — picker-reachable, no longer burning trials.
     nonisolated static let batteryCells: [SessionShape] = [
-        .armed, .armedNoinstr, .toollessNoinstr, .armedReadonly, .armedNocall, .armedNoschema,
+        .armed, .toollessLic, .toollessLic2, .armedRouted,
     ]
+
+    /// Battery lines go to THREE sinks: os_log (Console.app, the desk
+    /// path), stdout (what `devicectl device process launch --console`
+    /// bridges — flushed per line, because piped stdout is block-buffered
+    /// and a SIGKILL'd run would otherwise capture NOTHING), and an
+    /// append-only file in the app container (pullable via
+    /// `devicectl device copy from … --domain-type appDataContainer` even
+    /// after the process dies — the locked-screen background kill left a
+    /// zero-byte capture on 2026-07-28's first headless attempt).
+    static func batteryEmit(_ line: String) {
+        print(line)
+        fflush(stdout)
+        logger.notice("\(line, privacy: .public)")
+        batteryFileSink(line)
+    }
+
+    /// The container file sink for `batteryEmit` — Documents/battery-capture.log,
+    /// appended with a trailing newline per line. Failures are silent by
+    /// design (the other two sinks still carry the line).
+    private static func batteryFileSink(_ line: String) {
+        guard let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+        let url = documents.appendingPathComponent("battery-capture.log")
+        let data = Data((line + "\n").utf8)
+        if let handle = try? FileHandle(forWritingTo: url) {
+            defer { try? handle.close() }
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+        } else {
+            try? data.write(to: url)
+        }
+    }
 
     /// Third-battery instrument (#196 decomposition): six STRUCTURAL cells
     /// × three prompts × `trials` generations in-process, one classifiable
@@ -1984,7 +2146,7 @@ extension LocalChatBackend {
             "no internet", "internet access", "real-time",
         ]
         let cells = Self.batteryCells
-        Self.logger.notice("battery: START trials=\(trials, privacy: .public) cells=\(cells.count, privacy: .public) prompts=\(prompts.count, privacy: .public) (#196)")
+        Self.batteryEmit("battery: START trials=\(trials) cells=\(cells.count) prompts=\(prompts.count) (#196)")
         for shape in cells {
             let belt: [any Tool] = shape.registersTools
                 ? Self.shapedBelt(from: DeviceToolBelt.offeredTools(from: tools, hasImageInContext: false), shape: shape)
@@ -2003,6 +2165,24 @@ extension LocalChatBackend {
                     // (it trails a TIMEOUT line), acceptable for an
                     // instrument.
                     ToolEventRelay.batteryTrialTag = "shape=\(shape.rawValue) p=\(tag) t=\(trial)"
+                    // #196 battery 4: armed-routed classifies each trial's
+                    // prompt first, then builds the routed session — the
+                    // toolless-lic2 payload, or the full armed construction.
+                    var trialBelt = belt
+                    var trialInstructions = instructions
+                    if shape == .armedRouted {
+                        let needsTool = await routeNeedsDeviceTool(prompt: prompt)
+                        Self.batteryEmit("battery: route=\(needsTool ? "armed" : "toolless") shape=\(shape.rawValue) p=\(tag) t=\(trial)")
+                        if !needsTool {
+                            trialBelt = []
+                            trialInstructions = Self.instructionsText(
+                                for: .toollessLic2,
+                                deviceContext: Self.deviceContextLine(),
+                                hasTools: false,
+                                hasImageTools: false
+                            )
+                        }
+                    }
                     // The `-noinstr` cells omit the `instructions:` argument
                     // entirely — the SDK's `Instructions? = nil` designated
                     // convenience init, its native no-instructions form (the
@@ -2010,8 +2190,8 @@ extension LocalChatBackend {
                     // empty string, which would still inject an instructions
                     // block into the prompt.
                     let session = shape.passesInstructions
-                        ? LanguageModelSession(model: model, tools: belt, instructions: Instructions(instructions))
-                        : LanguageModelSession(model: model, tools: belt)
+                        ? LanguageModelSession(model: model, tools: trialBelt, instructions: Instructions(trialInstructions))
+                        : LanguageModelSession(model: model, tools: trialBelt)
                     // Identity except armed-nocall (`toolCallingMode:
                     // .disallowed` per call — the schemas stay in context).
                     let options = Self.shapedGenerationOptions(Self.chatGenerationOptions(for: activeTier), shape: shape)
@@ -2027,19 +2207,47 @@ extension LocalChatBackend {
                         let lower = text.lowercased()
                         let cant = lower.hasPrefix("i can\u{2019}t") || lower.hasPrefix("i cant") || lower.hasPrefix("i cannot") || lower.hasPrefix("i can not") || lower.hasPrefix("i can't")
                         let denial = denialPatterns.contains { lower.contains($0) }
-                        Self.logger.notice("battery: shape=\(shape.rawValue, privacy: .public) p=\(tag, privacy: .public) t=\(trial, privacy: .public) cant=\(cant, privacy: .public) denial=\(denial, privacy: .public) chars=\(text.count, privacy: .public) text=\(String(flat.prefix(180)), privacy: .public)")
+                        Self.batteryEmit("battery: shape=\(shape.rawValue) p=\(tag) t=\(trial) cant=\(cant) denial=\(denial) chars=\(text.count) text=\(String(flat.prefix(500)))")
                     } catch is CancellationError {
                         timeoutTask.cancel()
-                        Self.logger.notice("battery: shape=\(shape.rawValue, privacy: .public) p=\(tag, privacy: .public) t=\(trial, privacy: .public) TIMEOUT — wedged trial guillotined")
+                        Self.batteryEmit("battery: shape=\(shape.rawValue) p=\(tag) t=\(trial) TIMEOUT — wedged trial guillotined")
                     } catch {
                         timeoutTask.cancel()
-                        Self.logger.notice("battery: shape=\(shape.rawValue, privacy: .public) p=\(tag, privacy: .public) t=\(trial, privacy: .public) ERROR=\(String(String(describing: error).prefix(200)), privacy: .public)")
+                        Self.batteryEmit("battery: shape=\(shape.rawValue) p=\(tag) t=\(trial) ERROR=\(String(String(describing: error).prefix(200)))")
                     }
                 }
             }
         }
         ToolEventRelay.batteryTrialTag = nil
-        Self.logger.notice("battery: DONE (#196)")
+        Self.batteryEmit("battery: DONE (#196)")
+    }
+
+    /// #196 battery 4: on-device router-accuracy probe — ten probes
+    /// (five words-only, five device) × `trials`, one `router:` line per
+    /// probe. The Mac-host grid measured 200/200; this measures the
+    /// 27-beta device model, which is the one that ships.
+    func runRouterProbe(trials: Int) async {
+        let probes: [(text: String, expected: Bool)] = [
+            ("What's 2+2?", false),
+            ("Write a haiku about sledding", false),
+            ("write a 50 word summary about Norway", false),
+            ("Tell me a joke about penguins", false),
+            ("Write a poem for my mom's birthday", false),
+            ("Remind me to buy milk tomorrow at 9am", true),
+            ("What's the weather like right now?", true),
+            ("Set an alarm for 6:30", true),
+            ("How many steps have I taken today?", true),
+            ("Do I have anything on my calendar Friday?", true),
+        ]
+        Self.batteryEmit("router: PROBE START trials=\(trials) probes=\(probes.count) (#196)")
+        for probe in probes {
+            var correct = 0
+            for _ in 1...trials {
+                if await routeNeedsDeviceTool(prompt: probe.text) == probe.expected { correct += 1 }
+            }
+            Self.batteryEmit("router: \(correct)/\(trials) expected=\(probe.expected) probe=\(probe.text)")
+        }
+        Self.batteryEmit("router: PROBE DONE (#196)")
     }
 }
 #endif
