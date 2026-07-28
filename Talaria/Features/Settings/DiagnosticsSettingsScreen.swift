@@ -325,9 +325,14 @@ struct DiagnosticsSettingsScreen: View {
             // auto-decline for the run — which also measures post-denial
             // recovery behavior.
             container.toolConfirmationCenter.autoDeclineForBattery = true
+            // A ~20-minute n=20 must survive auto-lock — work-desk runs
+            // (#196 results-page lane) have no cable keeping the screen
+            // awake, and a locked screen suspends the run mid-battery.
+            UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runShapeBattery(trials: trials)
                 container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
             }
         } label: {
@@ -347,8 +352,12 @@ struct DiagnosticsSettingsScreen: View {
         Button {
             guard !batteryRunning, let backend = container.localChatBackend else { return }
             batteryRunning = true
+            // Same auto-lock guard as the battery button — 200 router
+            // generations take minutes, not seconds.
+            UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runRouterProbe(trials: trials)
+                UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
             }
         } label: {
@@ -411,6 +420,17 @@ struct DiagnosticsSettingsScreen: View {
                 HStack(spacing: Design.Spacing.sm) {
                     routerProbeButton(trials: 20, label: "Router probe n=20 (200)")
                 }
+
+                // #196 results-page lane: every run above also persists to
+                // the structured store — view, drill into raw replies, and
+                // export from anywhere, no Console required.
+                NavigationLink {
+                    BatteryResultsScreen()
+                } label: {
+                    MonoLabel("Battery results →", size: 10, weight: .medium,
+                              tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                }
+                .buttonStyle(.plain)
             }
 
             VStack(alignment: .leading, spacing: Design.Spacing.sm) {

@@ -115,6 +115,9 @@ final class ToolEventRelay {
             // One emit path for every battery line (#196 battery 4):
             // os_log + flushed stdout + the container file sink.
             LocalChatBackend.batteryEmit("battery: tool=\(name) \(tag) detail=\(String((detail ?? "").prefix(80)))")
+            // Results-page store gets the UNTRUNCATED detail — the 80-char
+            // prefix above is Console-line width, not a capture budget.
+            LocalChatBackend.batteryRecorder.recordToolCall(name: name, detail: detail ?? "")
         }
         #endif
         emit?(ToolCallEvent(name: name, phase: .started, detail: detail))

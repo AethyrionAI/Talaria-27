@@ -2086,6 +2086,15 @@ extension LocalChatBackend {
         .armed, .toollessLic, .toollessLic2, .armedRouted,
     ]
 
+    /// #196 results-page lane: structured run capture, ADDITIVE to the
+    /// emit sinks below — full reply texts, tool details, routes, and
+    /// latencies persist per run for the in-app results view + export
+    /// (Console-less work sessions). Static like the relay's trial tag:
+    /// the instrument is one global surface. The store is exposed
+    /// separately because the results screens read and delete through it.
+    static let batteryRunStore = BatteryRunStore()
+    static let batteryRecorder = BatteryRunRecorder(store: batteryRunStore)
+
     /// Battery lines go to THREE sinks: os_log (Console.app, the desk
     /// path), stdout (what `devicectl device process launch --console`
     /// bridges — flushed per line, because piped stdout is block-buffered
@@ -2147,6 +2156,7 @@ extension LocalChatBackend {
         ]
         let cells = Self.batteryCells
         Self.batteryEmit("battery: START trials=\(trials) cells=\(cells.count) prompts=\(prompts.count) (#196)")
+        Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: cells.map(\.rawValue))
         for shape in cells {
             let belt: [any Tool] = shape.registersTools
                 ? Self.shapedBelt(from: DeviceToolBelt.offeredTools(from: tools, hasImageInContext: false), shape: shape)
@@ -2165,6 +2175,9 @@ extension LocalChatBackend {
                     // (it trails a TIMEOUT line), acceptable for an
                     // instrument.
                     ToolEventRelay.batteryTrialTag = "shape=\(shape.rawValue) p=\(tag) t=\(trial)"
+                    // Trial clock starts here, so a routed trial's latency
+                    // includes its router generation — the real turn cost.
+                    Self.batteryRecorder.beginTrial()
                     // #196 battery 4: armed-routed classifies each trial's
                     // prompt first, then builds the routed session — the
                     // toolless-lic2 payload, or the full armed construction.
@@ -2173,6 +2186,7 @@ extension LocalChatBackend {
                     if shape == .armedRouted {
                         let needsTool = await routeNeedsDeviceTool(prompt: prompt)
                         Self.batteryEmit("battery: route=\(needsTool ? "armed" : "toolless") shape=\(shape.rawValue) p=\(tag) t=\(trial)")
+                        Self.batteryRecorder.recordRoute(needsTool ? "armed" : "toolless")
                         if !needsTool {
                             trialBelt = []
                             trialInstructions = Self.instructionsText(
@@ -2208,18 +2222,24 @@ extension LocalChatBackend {
                         let cant = lower.hasPrefix("i can\u{2019}t") || lower.hasPrefix("i cant") || lower.hasPrefix("i cannot") || lower.hasPrefix("i can not") || lower.hasPrefix("i can't")
                         let denial = denialPatterns.contains { lower.contains($0) }
                         Self.batteryEmit("battery: shape=\(shape.rawValue) p=\(tag) t=\(trial) cant=\(cant) denial=\(denial) chars=\(text.count) text=\(String(flat.prefix(500)))")
+                        Self.batteryRecorder.endTrial(shape: shape.rawValue, prompt: tag, trial: trial,
+                                                      text: text, cant: cant, denial: denial)
                     } catch is CancellationError {
                         timeoutTask.cancel()
                         Self.batteryEmit("battery: shape=\(shape.rawValue) p=\(tag) t=\(trial) TIMEOUT — wedged trial guillotined")
+                        Self.batteryRecorder.endTrialTimeout(shape: shape.rawValue, prompt: tag, trial: trial)
                     } catch {
                         timeoutTask.cancel()
                         Self.batteryEmit("battery: shape=\(shape.rawValue) p=\(tag) t=\(trial) ERROR=\(String(String(describing: error).prefix(200)))")
+                        Self.batteryRecorder.endTrialError(shape: shape.rawValue, prompt: tag, trial: trial,
+                                                           error: String(describing: error))
                     }
                 }
             }
         }
         ToolEventRelay.batteryTrialTag = nil
         Self.batteryEmit("battery: DONE (#196)")
+        Self.batteryRecorder.endRun()
     }
 
     /// #196 battery 4: on-device router-accuracy probe — ten probes
@@ -2240,14 +2260,17 @@ extension LocalChatBackend {
             ("Do I have anything on my calendar Friday?", true),
         ]
         Self.batteryEmit("router: PROBE START trials=\(trials) probes=\(probes.count) (#196)")
+        Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: [])
         for probe in probes {
             var correct = 0
             for _ in 1...trials {
                 if await routeNeedsDeviceTool(prompt: probe.text) == probe.expected { correct += 1 }
             }
             Self.batteryEmit("router: \(correct)/\(trials) expected=\(probe.expected) probe=\(probe.text)")
+            Self.batteryRecorder.recordProbe(probe: probe.text, expected: probe.expected, correct: correct, trials: trials)
         }
         Self.batteryEmit("router: PROBE DONE (#196)")
+        Self.batteryRecorder.endRun()
     }
 }
 #endif

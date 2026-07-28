@@ -237,6 +237,7 @@
 		7D1E913B92F72BB1BD6CB6C6 /* ResilientHermesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872B0ADD4223BACB94F26C79 /* ResilientHermesClient.swift */; };
 		7D594381366A01A69E246F06 /* Icon-AutumnHarvest@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 45A00D780AC82DFD56C2E7B6 /* Icon-AutumnHarvest@2x.png */; };
 		7D814964FE1AEA78D1EF2B5A /* DiagnosticsSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B5AE9C0BA3949E810C4FCE /* DiagnosticsSettingsScreen.swift */; };
+		7E684A7F10A754DC9BD54738 /* BatteryResultsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C1F6BBA55BF217D40902D37 /* BatteryResultsScreen.swift */; };
 		7F8401F607B2A269FDAB040B /* IconPreview-GraffitiGalaxy.png in Resources */ = {isa = PBXBuildFile; fileRef = 2ACB4CFB03940283DB799C62 /* IconPreview-GraffitiGalaxy.png */; };
 		7F9E2BA498E2251B686F2490 /* SessionUsageIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6E6E416EE333488CD973437 /* SessionUsageIndex.swift */; };
 		812024189A6D1A74E4EF89EF /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 130E0FA1859ADE8DE9A33188 /* ShareViewController.swift */; };
@@ -340,6 +341,8 @@
 		AEC110AF59F1520879DBECAC /* ConnectHermesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BECA22F23DD60CCE3D17F84 /* ConnectHermesScreen.swift */; };
 		AF7CCA621DC7DDEF66D419F6 /* ChatScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51D21BD13D5D766B95E61CC /* ChatScreen.swift */; };
 		B14D98A0969B463B26C78532 /* MarkdownTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9960B9FE16ABC4CAB81D357 /* MarkdownTestSupport.swift */; };
+		B202DACD63BA046FC3F6EBE4 /* BatteryRunStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73AD47FED8C4DA62D2303D3 /* BatteryRunStoreTests.swift */; };
+		B300923A26AF30147810EBA1 /* BatteryRunStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED83B107CB572AA0F6CF0B42 /* BatteryRunStore.swift */; };
 		B3C557575E129EB751B4C5EF /* VoiceTranscriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F28E7FA18E6D1C83E907BC0 /* VoiceTranscriptTests.swift */; };
 		B5501CAA541FE16C4B40605B /* SecureStoreProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25721D36BEBAF77913B109D2 /* SecureStoreProtocol.swift */; };
 		B7241767A775B74570EAF616 /* InboxStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 078776BA69767B945B3B0B82 /* InboxStore.swift */; };
@@ -573,6 +576,7 @@
 		19C6C9629F76EE94AD95BA67 /* TaskScheduleDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskScheduleDraft.swift; sourceTree = "<group>"; };
 		19F4A85186CCFD7152BA59C6 /* CronJobsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronJobsStoreTests.swift; sourceTree = "<group>"; };
 		1AC3767C82EFB9610099B54F /* TaskEditSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEditSheet.swift; sourceTree = "<group>"; };
+		1C1F6BBA55BF217D40902D37 /* BatteryResultsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryResultsScreen.swift; sourceTree = "<group>"; };
 		1C4B0DE180CF1E349DE0C137 /* ThemeCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeCatalogTests.swift; sourceTree = "<group>"; };
 		1D30DA3722A23BA781E30256 /* ToolConfirmationCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolConfirmationCenter.swift; sourceTree = "<group>"; };
 		1E6B35E1530814EA7DBC6EAE /* DesignThemeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignThemeTests.swift; sourceTree = "<group>"; };
@@ -925,6 +929,7 @@
 		D4BC51686A9E81353B562BC7 /* DeveloperSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperSettingsScreen.swift; sourceTree = "<group>"; };
 		D5DB1DBA36899DDAC5EF1E20 /* CronJobStatusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronJobStatusTests.swift; sourceTree = "<group>"; };
 		D6E6E416EE333488CD973437 /* SessionUsageIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionUsageIndex.swift; sourceTree = "<group>"; };
+		D73AD47FED8C4DA62D2303D3 /* BatteryRunStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryRunStoreTests.swift; sourceTree = "<group>"; };
 		D824B41AB02CAA3B16E7D48C /* Icon-ComicVillain@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-ComicVillain@3x.png"; sourceTree = "<group>"; };
 		D84D166D8E272CB6E7DF3DC6 /* VoiceSessionBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSessionBanner.swift; sourceTree = "<group>"; };
 		D8F094AAF1D10D4CEB5D7431 /* DeviceActionToolsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceActionToolsTests.swift; sourceTree = "<group>"; };
@@ -962,6 +967,7 @@
 		ED2F3827A98FF7496E455C60 /* MonetizationGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonetizationGate.swift; sourceTree = "<group>"; };
 		ED340DA95F6297DE6AF4F24F /* MockPairingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockPairingService.swift; sourceTree = "<group>"; };
 		ED38126D414AFCFC2BEF18D5 /* ContextMeterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextMeterTests.swift; sourceTree = "<group>"; };
+		ED83B107CB572AA0F6CF0B42 /* BatteryRunStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryRunStore.swift; sourceTree = "<group>"; };
 		ED93B7714DBE57DAE0FB5F2B /* Icon-KaraokeSupernova@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-KaraokeSupernova@2x.png"; sourceTree = "<group>"; };
 		EE1A9E3E373FE488B6548295 /* ModelSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelSelector.swift; sourceTree = "<group>"; };
 		EF1134E862B553380F2CA913 /* DeviceHealthTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceHealthTool.swift; sourceTree = "<group>"; };
@@ -1027,6 +1033,7 @@
 				CDE6633BFADD53831BF0672A /* GenerativeUI */,
 				099915A255DC3C5BBF05F29E /* AlarmService.swift */,
 				65889D487C0CEBA19EED6C4C /* BackgroundTaskService.swift */,
+				ED83B107CB572AA0F6CF0B42 /* BatteryRunStore.swift */,
 				7669868F6A925CB1B752A569 /* CronJobService.swift */,
 				C2EFCDE2A014DE769EC551D3 /* EntitlementService.swift */,
 				7F94F97659D571FFFA930600 /* InsightsService.swift */,
@@ -1108,6 +1115,7 @@
 				036CD989156BAB4FE1A35157 /* AttachmentInliningTests.swift */,
 				C6091A184A425BA9DD460418 /* BackendProfileRoutingTests.swift */,
 				F4E4E4E79B398DB1BEC0E4A8 /* BackendProfilesTests.swift */,
+				D73AD47FED8C4DA62D2303D3 /* BatteryRunStoreTests.swift */,
 				B101F84B43323E854C1B5F28 /* BriefingTests.swift */,
 				7DF70134F698ABE4575D7784 /* CarPlayVoiceStateTests.swift */,
 				481E7932F34BD96E19482B68 /* ChartSpecTests.swift */,
@@ -1619,6 +1627,7 @@
 			children = (
 				C226310D52EB40A7356747B7 /* AppearanceSettingsScreen.swift */,
 				F40B3EFC9CE0AF10120A00B8 /* AppIconSettingsScreen.swift */,
+				1C1F6BBA55BF217D40902D37 /* BatteryResultsScreen.swift */,
 				9A09FC324E28A6A2B4439048 /* ConnectHermesHostScreen.swift */,
 				D4BC51686A9E81353B562BC7 /* DeveloperSettingsScreen.swift */,
 				51B5AE9C0BA3949E810C4FCE /* DiagnosticsSettingsScreen.swift */,
@@ -2157,6 +2166,8 @@
 				9F036D2AAE305475B84AD8FE /* BackendProfile.swift in Sources */,
 				116EF9006798F7E4FD0C6279 /* BackendProfilesStore.swift in Sources */,
 				43FE22BBDB759478A2CC34D3 /* BackgroundTaskService.swift in Sources */,
+				7E684A7F10A754DC9BD54738 /* BatteryResultsScreen.swift in Sources */,
+				B300923A26AF30147810EBA1 /* BatteryRunStore.swift in Sources */,
 				3B2A2C9EB08B03298E7A3501 /* BriefingDetailScreen.swift in Sources */,
 				14A3105BE5AE503B04D61B5A /* CaptureScreen.swift in Sources */,
 				16299D086926FB595B9334A1 /* CarPlaySceneDelegate.swift in Sources */,
@@ -2424,6 +2435,7 @@
 				4C6B5D44AC6F0ECD63D2A229 /* AttachmentInliningTests.swift in Sources */,
 				6008464302CE8502ACE28E8E /* BackendProfileRoutingTests.swift in Sources */,
 				BF3A59E064993200D79CC8E0 /* BackendProfilesTests.swift in Sources */,
+				B202DACD63BA046FC3F6EBE4 /* BatteryRunStoreTests.swift in Sources */,
 				D78D0D8D86345D8E41B110B4 /* BriefingTests.swift in Sources */,
 				011F2FB5270478C5A49F938C /* CarPlayVoiceStateTests.swift in Sources */,
 				22F48F91FF6426E5A751032B /* ChartSpecTests.swift in Sources */,
