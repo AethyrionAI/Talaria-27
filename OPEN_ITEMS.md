@@ -9143,7 +9143,15 @@ first live use, end to end. Classified from raw text (all 240 replies read).**
    table; against/open: device-direction probe unrun, ~0.6s/turn router cost. The held
    battery-2 candidates remain held; nothing ships without Owen's call.
 
-Logged 2026-07-27; battery-4/results-page note 2026-07-28; battery-4 VERDICT 2026-07-28.
+**2026-07-28 ~08:52 CDT, ROUTER PROBE RUN (device, `run-20260728-135219`, same
+install/flow): 200/200.** All ten probes 20/20 — five words-only (canary/haiku/norway/
+joke/poem) correctly routed toolless AND five device-needing (reminder/weather/alarm/
+steps/calendar) correctly routed armed. The device-direction gap from verdict point 3 is
+CLOSED; 27b4 matches the Mac's 200/200. Remaining promotion consideration is solely the
+~0.6s/turn router cost (point 4). Verdict desk: Owen.
+
+Logged 2026-07-27; battery-4/results-page note 2026-07-28; battery-4 VERDICT 2026-07-28;
+router probe 200/200 2026-07-28.
 
 ## 197. 🐛 Tool-invocation failure aborts the turn and renders the RAW error — types, descriptions, and a memory address in the transcript
 
