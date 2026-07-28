@@ -115,6 +115,27 @@ Device build+install running in background. NEXT STEPS when it lands:
   toolCallingMode is iOS/macOS 27-only — nocall-style cells canNOT be iterated locally.
 - devicectl env passing = `DEVICECTL_CHILD_` prefix; `--console` bridges stdout only.
 
+## FINAL OVERNIGHT STATE (~00:45)
+
+- The headless launch was built, committed (`f520779`), installed on whoGoesThere — and then
+  **hit the wall: the phone LOCKED when Owen went to bed.** devicectl refuses to launch on a
+  locked device (`FBSOpenApplicationServiceErrorDomain … Locked`) and no workaround is
+  appropriate. The device verdict therefore waits for the first unlock.
+- An overnight retry loop is armed (ScheduleWakeup ~50 min cadence): each wake retries the
+  headless launch; on `Locked` it re-arms, on success it captures (~20 min), classifies, and
+  files the verdict. If Owen unlocks the phone before reading this, the battery may already
+  have run — check the chat tail / OPEN_ITEMS first.
+- **Morning path if the loop didn't catch an unlock window:** unlock the phone, then either
+  (a) tell Claude "phone's unlocked" — the relaunch command is one line (see In-flight §2) —
+  or (b) tap Diagnostics → Local brain → Battery n=20 and Router probe n=20 yourself (the
+  Console lines are also mirrored; both capture paths work).
+- **Composite Mac run (routed pipeline end-to-end, n=20×3):** routing 60/60 correct, zero
+  misroutes; BUT 3/20 haiku trials refused ("I do not have the ability to generate poems") on
+  the 26.5 host model — a capability-denial mode earlier local runs undersampled (pooled
+  ≈3/40). The 27b4 DEVICE model was 20/20 clean on this prompt in the licensed bare branch
+  (battery 3), so likely a 26.5 quirk — and battery 4's table measures lic vs lic2 head-to-head
+  on device anyway. Watch-item, not a blocker. Harness: scratchpad `fmprobe/routed.swift`.
+
 ## Questions for Owen (morning)
 
 1. Merge PRs #160 → #161 (classifier blocks me).
