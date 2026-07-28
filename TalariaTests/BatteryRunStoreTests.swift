@@ -124,8 +124,9 @@ struct BatteryRunStoreTests {
         recorder.recordProbe(probe: "What's 2+2?", expected: false, correct: 19, trials: 20)
         recorder.endRun()
 
-        #expect(captured.persisted.count == 1)
-        let run = try #require(captured.persisted.first)
+        // Snapshots persist along the way (#200 crash diagnostics); the
+        // FINAL record carries the whole run.
+        let run = try #require(captured.persisted.last)
         #expect(run.trialsPerCell == 3)
         #expect(run.cells == ["armed", "armed-routed"])
         #expect(run.trials.count == 4)
@@ -192,9 +193,82 @@ struct BatteryRunStoreTests {
         recorder.recordReapSummary("reminders=1 events=0 alarms=0 failures=0")
         recorder.endRun()
 
-        let run = try #require(captured.persisted.first)
+        let run = try #require(captured.persisted.last)
         #expect(run.kind == "action")
         #expect(run.reapSummary == "reminders=1 events=0 alarms=0 failures=0")
+    }
+
+    // MARK: Recorder — per-trial snapshots (#200 crash diagnostics)
+
+    /// A run that dies mid-battery must keep everything already measured:
+    /// the recorder persists a snapshot after EVERY trial, marked not-yet-
+    /// clean; endRun persists the final record marked clean. Same run id
+    /// throughout, so the store overwrites one file, never fans out.
+    @Test func recorderPersistsASnapshotPerTrialAndMarksTheEndClean() throws {
+        let captured = CapturingStore()
+        let recorder = BatteryRunRecorder(store: captured)
+        recorder.beginRun(trialsPerCell: 20, cells: ["armed"], kind: "action")
+
+        recorder.beginTrial()
+        recorder.endTrial(shape: "armed", prompt: "remind", trial: 1,
+                          text: "ok", cant: false, denial: false)
+        recorder.beginTrial()
+        recorder.endTrial(shape: "armed", prompt: "remind", trial: 2,
+                          text: "ok", cant: false, denial: false)
+        recorder.endRun()
+
+        // Two snapshots + the final persist, all the same run id.
+        #expect(captured.persisted.count == 3)
+        #expect(Set(captured.persisted.map(\.id)).count == 1)
+        #expect(captured.persisted[0].trials.count == 1)
+        #expect(captured.persisted[0].endedCleanly == false)
+        #expect(captured.persisted[1].trials.count == 2)
+        #expect(captured.persisted[1].endedCleanly == false)
+        #expect(captured.persisted[2].endedCleanly == true)
+    }
+
+    /// Snapshots overwrite ONE file on disk — a crashed run leaves exactly
+    /// one record holding every completed trial.
+    @Test func snapshotsOverwriteTheSameFileOnDisk() {
+        let store = makeTempStore()
+        var run = makeRun()
+        store.persist(run)
+        run.trials.append(BatteryTrialRecord(
+            shape: "armed", prompt: "remind", trial: 2,
+            text: "later", cant: false, denial: false, toolCalls: [],
+            route: nil, error: nil, timedOut: false, latencySeconds: 1.0
+        ))
+        store.persist(run)
+        let loaded = store.loadRuns()
+        #expect(loaded.count == 1)
+        #expect(loaded.first?.trials.count == run.trials.count)
+    }
+
+    /// Export honesty for crashed runs: endedCleanly == false renders an
+    /// INCOMPLETE line where DONE would go — a paste can never read as a
+    /// completed run. Legacy records (nil, all pre-hardening runs completed)
+    /// and clean runs keep DONE.
+    @Test func incompleteRunRendersIncompleteInsteadOfDone() {
+        var run = makeRun()
+        run.probes = []
+        run.endedCleanly = false
+        let rendered = BatteryRunMath.renderRawLines(for: run)
+        #expect(rendered.contains("battery: INCOMPLETE — run died before DONE (#196)"))
+        #expect(!rendered.contains("battery: DONE"))
+
+        run.endedCleanly = true
+        #expect(BatteryRunMath.renderRawLines(for: run).contains("battery: DONE (#196)"))
+        run.endedCleanly = nil
+        #expect(BatteryRunMath.renderRawLines(for: run).contains("battery: DONE (#196)"))
+    }
+
+    @Test func incompleteProbeRunRendersProbeIncomplete() {
+        var run = makeRun()
+        run.trials = []
+        run.endedCleanly = false
+        let rendered = BatteryRunMath.renderRawLines(for: run)
+        #expect(rendered.contains("router: PROBE INCOMPLETE — run died before DONE (#196)"))
+        #expect(!rendered.contains("router: PROBE DONE"))
     }
 
     /// Legacy shape-battery runs pass no kind — the record stays nil so the
@@ -381,6 +455,7 @@ struct BatteryRunStoreTests {
 
         #expect(run.kind == nil)
         #expect(run.reapSummary == nil)
+        #expect(run.endedCleanly == nil)
         #expect(run.trials.count == 1)
         #expect(run.trials[0].toolCalls == [
             BatteryToolCallRecord(name: "createReminder", detail: "title: sledding", confirmation: nil),
