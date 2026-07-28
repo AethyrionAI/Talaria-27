@@ -2147,12 +2147,20 @@ extension LocalChatBackend {
         batteryFileSink(line)
     }
 
+    /// The file sink's location, exposed for the results page's share
+    /// button (#200 crash diagnostics): the log survives a crashed run,
+    /// and with the phone off-LAN there is no other way to get it out —
+    /// Documents isn't Files-app-exposed and devicectl needs USB/LAN.
+    static var batteryCaptureLogURL: URL? {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("battery-capture.log")
+    }
+
     /// The container file sink for `batteryEmit` — Documents/battery-capture.log,
     /// appended with a trailing newline per line. Failures are silent by
     /// design (the other two sinks still carry the line).
     private static func batteryFileSink(_ line: String) {
-        guard let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
-        let url = documents.appendingPathComponent("battery-capture.log")
+        guard let url = batteryCaptureLogURL else { return }
         let data = Data((line + "\n").utf8)
         if let handle = try? FileHandle(forWritingTo: url) {
             defer { try? handle.close() }
@@ -2330,6 +2338,11 @@ extension LocalChatBackend {
         for (tag, prompt) in prompts {
             for trial in 1...trials {
                 ToolEventRelay.batteryTrialTag = "shape=armed p=\(tag) t=\(trial)"
+                // Live-only BEGIN line (never rendered from records): if the
+                // run dies inside this trial, the capture log's last BEGIN
+                // names it exactly — a trial that crashes before its first
+                // tool call would otherwise be invisible.
+                Self.batteryEmit("battery: BEGIN shape=armed p=\(tag) t=\(trial)")
                 Self.batteryRecorder.beginTrial()
                 let session = LanguageModelSession(model: model, tools: belt, instructions: Instructions(instructions))
                 let options = Self.shapedGenerationOptions(Self.chatGenerationOptions(for: activeTier), shape: shape)
