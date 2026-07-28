@@ -9263,3 +9263,15 @@ earlier denial"). Related: #197 (raw error rendering), #199 (post-decline
 fabrication). Parent: #196.
 
 Logged 2026-07-28.
+
+**#200 addendum, 2026-07-28 09:50 CDT (merge-gate flip test, same promoted build):** a
+second misattribution specimen, read flavor — "What's the weather right now?" routed
+armed, `currentLocation` RESOLVED (chip shows Gulfport, MS), `currentWeather` then
+failed (the #197 Weather/Health error family; WeatherKit flakiness on 27b4 has battery-3
+precedent), and the reply blamed LOCATION ACCESS: "Would you like to try enabling
+location access for a fix?" — inventing the wrong cause while its own transcript shows
+location succeeded. Same wrong-cause-suggestion mechanism as the reminder case, no
+create/permission involved. The action battery's classification should count
+"misattributed failure cause" as its own column. (Same turn's flip-back haiku also
+carried the deviceContext date-leak tail — "Tuesday's deep breath" — cosmetic, tracked
+in the #196 verdict quirks.)
