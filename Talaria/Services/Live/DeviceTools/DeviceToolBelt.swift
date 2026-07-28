@@ -112,7 +112,11 @@ final class ToolEventRelay {
     func started(_ name: String, detail: String? = nil) {
         #if DEBUG
         if let tag = Self.batteryTrialTag {
-            Self.batteryLogger.notice("battery: tool=\(name, privacy: .public) \(tag, privacy: .public) detail=\(String((detail ?? "").prefix(80)), privacy: .public)")
+            // Mirrored to stdout for the headless `devicectl --console`
+            // capture path (#196 battery 4) — same line, both sinks.
+            let line = "battery: tool=\(name) \(tag) detail=\(String((detail ?? "").prefix(80)))"
+            print(line)
+            Self.batteryLogger.notice("\(line, privacy: .public)")
         }
         #endif
         emit?(ToolCallEvent(name: name, phase: .started, detail: detail))

@@ -2503,3 +2503,39 @@ final class ProfileGatewayKeyCache {
         }
     }
 }
+
+#if DEBUG
+// MARK: - #196 battery 4: headless battery trigger (DEBUG builds only)
+
+extension AppContainer {
+    /// Autonomous device runs: `TALARIA_AUTO_BATTERY=n` runs the shape
+    /// battery on launch and `TALARIA_AUTO_ROUTER_PROBE=n` the router
+    /// probe, in that order — armed only by launch environment (devicectl
+    /// passes `DEVICECTL_CHILD_`-prefixed variables), inert in every
+    /// normal run. Results mirror to stdout via `batteryEmit`, which
+    /// `devicectl device process launch --console` bridges — no Xcode
+    /// session needed. The screen stays awake for the run's duration so
+    /// auto-lock can't suspend the process mid-battery.
+    @MainActor
+    func runAutoBatteryIfArmed() async {
+        let env = ProcessInfo.processInfo.environment
+        let batteryTrials = env["TALARIA_AUTO_BATTERY"].flatMap(Int.init)
+        let routerTrials = env["TALARIA_AUTO_ROUTER_PROBE"].flatMap(Int.init)
+        guard batteryTrials != nil || routerTrials != nil,
+              let backend = localChatBackend else { return }
+        UIApplication.shared.isIdleTimerDisabled = true
+        defer { UIApplication.shared.isIdleTimerDisabled = false }
+        if let trials = batteryTrials {
+            // Same auto-decline contract as the Diagnostics button: a
+            // headless run can never answer a confirmation card.
+            toolConfirmationCenter.autoDeclineForBattery = true
+            await backend.runShapeBattery(trials: trials)
+            toolConfirmationCenter.autoDeclineForBattery = false
+        }
+        if let trials = routerTrials {
+            await backend.runRouterProbe(trials: trials)
+        }
+        LocalChatBackend.batteryEmit("battery: AUTO COMPLETE (#196)")
+    }
+}
+#endif

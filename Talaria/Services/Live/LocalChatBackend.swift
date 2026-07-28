@@ -2086,6 +2086,16 @@ extension LocalChatBackend {
         .armed, .toollessLic, .toollessLic2, .armedRouted,
     ]
 
+    /// Battery lines go to BOTH os_log (Console.app, the desk path) and
+    /// stdout — stdout is what `devicectl device process launch --console`
+    /// bridges, enabling headless capture with no Xcode session
+    /// (#196 battery 4's autonomous-run seam). MainActor like its callers
+    /// (the battery, the probe, and the AppContainer trigger).
+    static func batteryEmit(_ line: String) {
+        print(line)
+        logger.notice("\(line, privacy: .public)")
+    }
+
     /// Third-battery instrument (#196 decomposition): six STRUCTURAL cells
     /// × three prompts × `trials` generations in-process, one classifiable
     /// notice line per trial. Deliberately bypasses `activeSessionShape`
@@ -2115,7 +2125,7 @@ extension LocalChatBackend {
             "no internet", "internet access", "real-time",
         ]
         let cells = Self.batteryCells
-        Self.logger.notice("battery: START trials=\(trials, privacy: .public) cells=\(cells.count, privacy: .public) prompts=\(prompts.count, privacy: .public) (#196)")
+        Self.batteryEmit("battery: START trials=\(trials) cells=\(cells.count) prompts=\(prompts.count) (#196)")
         for shape in cells {
             let belt: [any Tool] = shape.registersTools
                 ? Self.shapedBelt(from: DeviceToolBelt.offeredTools(from: tools, hasImageInContext: false), shape: shape)
@@ -2141,7 +2151,7 @@ extension LocalChatBackend {
                     var trialInstructions = instructions
                     if shape == .armedRouted {
                         let needsTool = await routeNeedsDeviceTool(prompt: prompt)
-                        Self.logger.notice("battery: route=\(needsTool ? "armed" : "toolless", privacy: .public) shape=\(shape.rawValue, privacy: .public) p=\(tag, privacy: .public) t=\(trial, privacy: .public)")
+                        Self.batteryEmit("battery: route=\(needsTool ? "armed" : "toolless") shape=\(shape.rawValue) p=\(tag) t=\(trial)")
                         if !needsTool {
                             trialBelt = []
                             trialInstructions = Self.instructionsText(
@@ -2176,19 +2186,19 @@ extension LocalChatBackend {
                         let lower = text.lowercased()
                         let cant = lower.hasPrefix("i can\u{2019}t") || lower.hasPrefix("i cant") || lower.hasPrefix("i cannot") || lower.hasPrefix("i can not") || lower.hasPrefix("i can't")
                         let denial = denialPatterns.contains { lower.contains($0) }
-                        Self.logger.notice("battery: shape=\(shape.rawValue, privacy: .public) p=\(tag, privacy: .public) t=\(trial, privacy: .public) cant=\(cant, privacy: .public) denial=\(denial, privacy: .public) chars=\(text.count, privacy: .public) text=\(String(flat.prefix(180)), privacy: .public)")
+                        Self.batteryEmit("battery: shape=\(shape.rawValue) p=\(tag) t=\(trial) cant=\(cant) denial=\(denial) chars=\(text.count) text=\(String(flat.prefix(500)))")
                     } catch is CancellationError {
                         timeoutTask.cancel()
-                        Self.logger.notice("battery: shape=\(shape.rawValue, privacy: .public) p=\(tag, privacy: .public) t=\(trial, privacy: .public) TIMEOUT — wedged trial guillotined")
+                        Self.batteryEmit("battery: shape=\(shape.rawValue) p=\(tag) t=\(trial) TIMEOUT — wedged trial guillotined")
                     } catch {
                         timeoutTask.cancel()
-                        Self.logger.notice("battery: shape=\(shape.rawValue, privacy: .public) p=\(tag, privacy: .public) t=\(trial, privacy: .public) ERROR=\(String(String(describing: error).prefix(200)), privacy: .public)")
+                        Self.batteryEmit("battery: shape=\(shape.rawValue) p=\(tag) t=\(trial) ERROR=\(String(String(describing: error).prefix(200)))")
                     }
                 }
             }
         }
         ToolEventRelay.batteryTrialTag = nil
-        Self.logger.notice("battery: DONE (#196)")
+        Self.batteryEmit("battery: DONE (#196)")
     }
 
     /// #196 battery 4: on-device router-accuracy probe — ten probes
@@ -2208,15 +2218,15 @@ extension LocalChatBackend {
             ("How many steps have I taken today?", true),
             ("Do I have anything on my calendar Friday?", true),
         ]
-        Self.logger.notice("router: PROBE START trials=\(trials, privacy: .public) probes=\(probes.count, privacy: .public) (#196)")
+        Self.batteryEmit("router: PROBE START trials=\(trials) probes=\(probes.count) (#196)")
         for probe in probes {
             var correct = 0
             for _ in 1...trials {
                 if await routeNeedsDeviceTool(prompt: probe.text) == probe.expected { correct += 1 }
             }
-            Self.logger.notice("router: \(correct, privacy: .public)/\(trials, privacy: .public) expected=\(probe.expected, privacy: .public) probe=\(probe.text, privacy: .public)")
+            Self.batteryEmit("router: \(correct)/\(trials) expected=\(probe.expected) probe=\(probe.text)")
         }
-        Self.logger.notice("router: PROBE DONE (#196)")
+        Self.batteryEmit("router: PROBE DONE (#196)")
     }
 }
 #endif
