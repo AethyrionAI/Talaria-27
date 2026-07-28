@@ -9011,6 +9011,21 @@ Part 2 makes the control cell direct and collapses the comparison. The PR body c
 per-cell checklist with the two-axis scoring (content delivered / preface present) and the
 readout table.
 
+**2026-07-27, SECOND-BATTERY LANE MERGED (PR #159, Mac-side): mechanism-targeted cells +
+instrument rev.** Cells: `armed` (control) / `armed-remfix` (`createReminder` description
+scoped against task-verb confusion — belt-only treatment) / `armed-complic`
+(composition-licensing sentence — instructions-only) / `armed-fix` (both — the ship
+candidate, same-run so interaction effects can't hide) / `toolless` (far control) /
+`toolless-lic` (bare branch licensed, no-internet caveat kept). First-battery cells
+retired (`armed-direct` measured loser; `armed-noneg` exonerated the clauses); retired
+spellings parse to production. Instrument rev: every tool start logs per trial via
+`ToolEventRelay.batteryTrialTag` (read-tool blind spot closed), battery belt built
+per cell (no `activeSessionShape` leakage into tool cells), "What's 2+2?" canary,
+`denial=` flag for non-prefix knowledge-denials, two-power launcher (n=10 / n=20 —
+the composition verdict REQUIRES n=20: 4/10 vs 8/10 at n=10 is p≈0.17). Suite
+1236/109 + 15 UI green on 27A5228h; Release build verified (instrument compiles out).
+Next: Debug OTA at `d41dc6e`, one tap n=20, verdict from rates.
+
 Logged 2026-07-27.
 
 ## 197. 🐛 Tool-invocation failure aborts the turn and renders the RAW error — types, descriptions, and a memory address in the transcript
