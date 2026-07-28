@@ -71,6 +71,13 @@ struct ReminderCreateTool: Tool {
     /// (the model parses the creative verb as a todo). Measurement cells
     /// only; production ships this text ONLY after a battery verdict.
     static let scopedDescription196 = "Create a reminder in the user's Reminders app, only when the user asks to be reminded of something or to save a to-do for later — never for requests to write, compose, or answer something now. The user sees a confirmation card and can edit or cancel before anything is created."
+
+    /// #200B `armed-toolfix` / `armed-bothfix` treatment: the FILED #200
+    /// table measured remind 0/20 with 15/20 trials interrogating the
+    /// OPTIONAL `list` (± due) field instead of defaulting. This text
+    /// targets the stall at the tool level. Measurement cells only;
+    /// production ships it ONLY after a battery verdict.
+    static let destalledDescription200 = productionDescription + " Create it immediately with the details given; missing fields default — never ask a clarifying question first."
     #endif
     /// `var` + init default (#196): the battery's shaped belt copies this
     /// tool and swaps ONLY this string; production call sites never pass it.
@@ -98,16 +105,30 @@ struct ReminderCreateTool: Tool {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
         await relay.started(name, detail: title)
         defer { Task { await relay.completed(name) } }
+        return await Self.performCreate(
+            rawTitle: title, rawDue: arguments.due, rawList: arguments.list,
+            confirmations: confirmations
+        )
+    }
+
+    /// The whole create flow from staged-title to EventKit save, shared
+    /// with the #200B guidefix copy so a treatment cell's ONLY delta is
+    /// text — structural-identity discipline: two structs, one engine.
+    nonisolated static func performCreate(
+        rawTitle: String, rawDue: String, rawList: String,
+        confirmations: ToolConfirmationCenter
+    ) async -> String {
+        let title = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return "No reminder title was given — nothing staged." }
 
-        let parsedDue = DeviceActionParsing.parseDateTime(arguments.due)
+        let parsedDue = DeviceActionParsing.parseDateTime(rawDue)
         let decision = await confirmations.requestConfirmation(
             title: "Create this reminder?",
             detail: nil,
             fields: [
                 .init(key: "title", label: "Title", value: title),
                 .init(key: "due", label: "Due", value: parsedDue.map { DeviceActionParsing.displayDate($0) } ?? ""),
-                .init(key: "list", label: "List", value: arguments.list.trimmingCharacters(in: .whitespacesAndNewlines)),
+                .init(key: "list", label: "List", value: rawList.trimmingCharacters(in: .whitespacesAndNewlines)),
             ]
         )
         guard case .approved(let values) = decision else {
@@ -170,6 +191,50 @@ struct ReminderCreateTool: Tool {
         return DeviceActionParsing.parseDateTime(edited)
     }
 }
+
+#if DEBUG
+// MARK: - #200B guidefix treatment copy
+
+/// The `armed-guidefix` / `armed-bothfix` cell's reminder tool: identical
+/// to `ReminderCreateTool` in name, flow, and engine — the ONLY deltas are
+/// the `@Guide` texts on the optional fields, de-stalled against the FILED
+/// #200 finding (15/20 remind trials interrogate `list` ± `due` instead of
+/// defaulting; the single-field alarm tool runs 19/20). `@Guide` is a
+/// macro, so this must be a copy struct — the description-var seam can't
+/// reach it. The @Guide texts are the measured artifact; they have no
+/// runtime accessor, so they're pinned here by comment and measured by the
+/// battery itself. Measurement cells only; production ships this ONLY
+/// after a battery verdict.
+struct ReminderCreateToolGuidefix: Tool {
+    let name = "createReminder"
+    /// Production description by default — the @Guide delta is this cell's
+    /// only change; `armed-bothfix` passes the destalled description.
+    var description: String = ReminderCreateTool.productionDescription
+    var includesSchemaInInstructions: Bool = true
+    let relay: ToolEventRelay
+    let confirmations: ToolConfirmationCenter
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "What to be reminded about, e.g. \"Call Shelley\".")
+        var title: String
+        @Guide(description: "Due date and time like \"2026-07-08T09:00\" (local time), or empty for no due date. Use exactly the time the user gave — never ask for more date detail.")
+        var due: String
+        @Guide(description: "Reminders list name. Empty is correct when the user didn't name one — the default list is used; never ask which list.")
+        var list: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        await relay.started(name, detail: title)
+        defer { Task { await relay.completed(name) } }
+        return await ReminderCreateTool.performCreate(
+            rawTitle: title, rawDue: arguments.due, rawList: arguments.list,
+            confirmations: confirmations
+        )
+    }
+}
+#endif
 
 // MARK: - Create calendar event (EventKit)
 

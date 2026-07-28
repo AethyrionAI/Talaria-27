@@ -2132,6 +2132,26 @@ extension LocalChatBackend {
     static let batteryRunStore = BatteryRunStore()
     static let batteryRecorder = BatteryRunRecorder(store: batteryRunStore)
 
+    /// #200B battery mutex — BACKEND-owned, because the Diagnostics
+    /// buttons' @State guard resets when the view is recreated mid-run:
+    /// the 2026-07-28 destall run was contaminated by a second tap
+    /// starting a CONCURRENT loop (interleaved cells, cross-attributed
+    /// tool calls on the shared trial tag, an FM -1/1001 error storm from
+    /// two generation streams). One battery at a time, whatever the UI
+    /// thinks; a refused begin emits a classifiable line.
+    private static var batteryActive = false
+
+    /// True = this caller owns the run and MUST call `endBatteryRun`.
+    static func beginBatteryRun() -> Bool {
+        guard !batteryActive else { return false }
+        batteryActive = true
+        return true
+    }
+
+    static func endBatteryRun() {
+        batteryActive = false
+    }
+
     /// Battery lines go to THREE sinks: os_log (Console.app, the desk
     /// path), stdout (what `devicectl device process launch --console`
     /// bridges — flushed per line, because piped stdout is block-buffered
@@ -2185,6 +2205,11 @@ extension LocalChatBackend {
     /// branch denies arithmetic (toolless canary 0/20), so the canary is
     /// itself a measurement in the no-instructions cells.
     func runShapeBattery(trials: Int) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
         let prompts: [(tag: String, text: String)] = [
             ("canary", "What's 2+2?"),
             ("haiku", "Write a haiku about sledding"),
@@ -2302,53 +2327,123 @@ extension LocalChatBackend {
         }
     }
 
+    /// #200B: the action battery's treatment-cell dimension. The FILED
+    /// #200 table (remind 0/20, 15 list-stalls) routes treatment as
+    /// MEASURED CELLS per the #196 remfix precedent — nothing ships to
+    /// production without a battery verdict.
+    enum ActionBatteryCell: String, CaseIterable {
+        /// Production control — belt identity.
+        case armed
+        /// `ReminderCreateToolGuidefix` copy: de-stalled @Guide texts on
+        /// the optional fields, production description.
+        case armedGuidefix = "armed-guidefix"
+        /// Production struct, `destalledDescription200` — the remfix
+        /// description-var mechanism.
+        case armedToolfix = "armed-toolfix"
+        /// Both texts together — interaction effects can't hide behind
+        /// two individually-clean cells (#196 battery-2 lesson).
+        case armedBothfix = "armed-bothfix"
+    }
+
+    /// The belt each treatment cell registers: identity except the
+    /// reminder tool, which swaps text (toolfix), struct (guidefix), or
+    /// both (bothfix). Same instances and order for every other tool.
+    nonisolated static func destallBelt(from tools: [any Tool], cell: ActionBatteryCell) -> [any Tool] {
+        switch cell {
+        case .armed:
+            return tools
+        case .armedGuidefix:
+            return tools.map { tool in
+                if let reminder = tool as? ReminderCreateTool {
+                    return ReminderCreateToolGuidefix(relay: reminder.relay, confirmations: reminder.confirmations)
+                }
+                return tool
+            }
+        case .armedToolfix:
+            return tools.map { tool in
+                if var reminder = tool as? ReminderCreateTool {
+                    reminder.description = ReminderCreateTool.destalledDescription200
+                    return reminder
+                }
+                return tool
+            }
+        case .armedBothfix:
+            return tools.map { tool in
+                if let reminder = tool as? ReminderCreateTool {
+                    return ReminderCreateToolGuidefix(
+                        description: ReminderCreateTool.destalledDescription200,
+                        relay: reminder.relay, confirmations: reminder.confirmations
+                    )
+                }
+                return tool
+            }
+        }
+    }
+
     /// #200 action-path battery: does an APPROPRIATE create go through?
-    /// Three single-turn create prompts × `trials`, ARMED production
+    /// Single-turn create prompts × `trials` per cell, ARMED production
     /// construction — the armed-routed armed branch, whose belt,
     /// instructions, and options are all identity with `.armed` (verified
-    /// against `shapedBelt` / `instructionsText` / `shapedGenerationOptions`)
-    /// — so the cell label is "armed". NO per-trial routing: the router
-    /// probe already measured these prompts as correctly ROUTED; this
-    /// measures what the armed session does next. The launcher arms
-    /// auto-ACCEPT, so appropriate creates EXECUTE — real EventKit/AlarmKit
-    /// writes, every artifact marker-tagged by the gate — and the teardown
-    /// reaps everything marked BEFORE the DONE line, so the phone ends the
-    /// run clean. Protocol: run with Reminders/Calendar granted (the
-    /// observed #200 failure post-dates the grant; that is the state to
-    /// reproduce).
-    func runActionBattery(trials: Int) async {
-        let prompts: [(tag: String, text: String)] = [
+    /// against `shapedBelt` / `instructionsText` / `shapedGenerationOptions`).
+    /// NO per-trial routing: the router probe already measured these
+    /// prompts as correctly ROUTED; this measures what the armed session
+    /// does next. The launcher arms auto-ACCEPT, so appropriate creates
+    /// EXECUTE — real EventKit/AlarmKit writes, every artifact
+    /// marker-tagged by the gate — and the teardown reaps everything
+    /// marked BEFORE the DONE line, so the phone ends the run clean.
+    /// Protocol: run with Reminders/Calendar granted.
+    ///
+    /// #200B: `cells` swaps the reminder tool's TEXT per cell
+    /// (`destallBelt`); `includeGrabCanary` adds the #196 haiku prompt —
+    /// the de-stall texts push toward immediate creation, so the grab
+    /// disease is the collateral to measure (a grab creates a real marked
+    /// reminder under auto-accept; the reap deletes it; the confirm line
+    /// makes it countable). Defaults preserve the FILED #200 protocol
+    /// byte-for-byte.
+    func runActionBattery(trials: Int, cells: [ActionBatteryCell] = [.armed],
+                          includeGrabCanary: Bool = false) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
+        var prompts: [(tag: String, text: String)] = [
             ("remind", "Remind me to test Talaria at 4:30pm"),
             ("alarm", "Set an alarm for 6:30"),
             ("calendar", "Put lunch with Sam on my calendar Friday at noon"),
         ]
+        if includeGrabCanary {
+            prompts.append(("haiku", "Write a haiku about sledding"))
+        }
         let shape = SessionShape.armedRouted
-        let belt = Self.shapedBelt(
+        let base = Self.shapedBelt(
             from: DeviceToolBelt.offeredTools(from: tools, hasImageInContext: false),
             shape: shape
         )
         let instructions = Self.instructionsText(
             for: shape,
             deviceContext: Self.deviceContextLine(),
-            hasTools: !belt.isEmpty,
+            hasTools: !base.isEmpty,
             hasImageTools: false
         )
-        Self.batteryEmit("battery: START trials=\(trials) cells=1 prompts=\(prompts.count) (#200)")
-        Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: ["armed"], kind: "action")
-        for (tag, prompt) in prompts {
-            for trial in 1...trials {
-                ToolEventRelay.batteryTrialTag = "shape=armed p=\(tag) t=\(trial)"
-                // Live-only BEGIN line (never rendered from records): if the
-                // run dies inside this trial, the capture log's last BEGIN
-                // names it exactly — a trial that crashes before its first
-                // tool call would otherwise be invisible.
-                Self.batteryEmit("battery: BEGIN shape=armed p=\(tag) t=\(trial)")
-                Self.batteryRecorder.beginTrial()
-                let session = LanguageModelSession(model: model, tools: belt, instructions: Instructions(instructions))
-                let options = Self.shapedGenerationOptions(Self.chatGenerationOptions(for: activeTier), shape: shape)
-                await executeBatteryTrial(session: session, options: options,
-                                          shape: "armed", promptTag: tag,
-                                          prompt: prompt, trial: trial)
+        Self.batteryEmit("battery: START trials=\(trials) cells=\(cells.count) prompts=\(prompts.count) (#200)")
+        Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: cells.map(\.rawValue), kind: "action")
+        for cell in cells {
+            let belt = Self.destallBelt(from: base, cell: cell)
+            for (tag, prompt) in prompts {
+                for trial in 1...trials {
+                    ToolEventRelay.batteryTrialTag = "shape=\(cell.rawValue) p=\(tag) t=\(trial)"
+                    // Live-only BEGIN line (never rendered from records): if
+                    // the run dies inside this trial, the capture log's last
+                    // BEGIN names it exactly.
+                    Self.batteryEmit("battery: BEGIN shape=\(cell.rawValue) p=\(tag) t=\(trial)")
+                    Self.batteryRecorder.beginTrial()
+                    let session = LanguageModelSession(model: model, tools: belt, instructions: Instructions(instructions))
+                    let options = Self.shapedGenerationOptions(Self.chatGenerationOptions(for: activeTier), shape: shape)
+                    await executeBatteryTrial(session: session, options: options,
+                                              shape: cell.rawValue, promptTag: tag,
+                                              prompt: prompt, trial: trial)
+                }
             }
         }
         ToolEventRelay.batteryTrialTag = nil
@@ -2357,6 +2452,12 @@ extension LocalChatBackend {
         Self.batteryRecorder.recordReapSummary(reapSummary)
         Self.batteryEmit("battery: DONE (#200)")
         Self.batteryRecorder.endRun()
+    }
+
+    /// #200B one-tap wrapper: all four treatment cells × four prompts
+    /// (grab canary included) — 16 × trials generations.
+    func runDestallBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: ActionBatteryCell.allCases, includeGrabCanary: true)
     }
 
     /// #200 teardown: delete every [T27-battery]-marked reminder and
@@ -2469,6 +2570,11 @@ extension LocalChatBackend {
     /// probe. The Mac-host grid measured 200/200; this measures the
     /// 27-beta device model, which is the one that ships.
     func runRouterProbe(trials: Int) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
         let probes: [(text: String, expected: Bool)] = [
             ("What's 2+2?", false),
             ("Write a haiku about sledding", false),
