@@ -9220,3 +9220,46 @@ the post-decline turn framing, or detect claim-vs-tool-result mismatch before
 render. Parent: #196.
 
 Logged 2026-07-28.
+
+## 200. 🐛 Armed path refuses APPROPRIATE device actions — read-for-create substitution, then capability denial that survives corrections
+
+Observed 2026-07-28 09:28–09:29 CDT, whoGoesThere, promoted build (`8e99402` Debug,
+armed-routed default), live chat, Owen's post-promotion spot check (screenshots on the
+verdict desk). "Remind me to test talaria at 4:30pm" — the router correctly sent every
+attempt ARMED (tool chips rendered), then the armed session failed the action path
+end to end:
+
+1. **Wrong tool**: the create request fired `readReminders` (the READ tool) — never
+   `createReminder`. Twice on the initial prompt, again on a later explicit "you create
+   it" — three reads, zero creates, so the #29 confirmation card never even appeared.
+2. **Absorbing state, action flavor (#176B recurrence)**: the first turn's honest
+   permission-denied tool result became every later turn's answer. After Owen granted
+   Reminders access AND the model itself read real reminders and OFFERED "Would you
+   like to create one now?", his "Yes please" produced a flat capability denial — no
+   tool call at all — escalating over four turns to "I can't access your iPhone's apps
+   or settings, even if you've enabled permissions." False: `createReminder` was
+   registered in that session, and battery evidence shows the model calls it readily —
+   on HAIKU prompts (15/20 inappropriate grabs, battery 4 armed cell).
+3. **Confabulated app model**: readReminders results referencing Owen's "Job Hunter"
+   reminders were woven into fiction — "open Job Hunter App, tap 'Reminders,' and set
+   a new one" — misdirecting the user into a third-party app that cannot do this.
+
+The through-line with #196 is the same task-verb confusion, INVERTED: there the model
+grabbed `createReminder` when nobody asked; here it refuses the identical tool when
+explicitly asked. NOT a promotion regression — the armed session is byte-identical
+pre/post promotion (pinned), and no #196 battery ever measured the action-SUCCESS
+path (the auto-decline contract made grabs measurable but "does an appropriate create
+go through" was never a cell). Coverage gap, now the frontier.
+
+Lane sketch (pending Owen's routing): (a) instrument first — an action-path battery
+cell ("Remind me to X at Ypm" ×n) needing a new auto-ACCEPT (or at least
+count-the-card) mode on the confirmation gate, since auto-decline can't measure
+success; (b) verify ReminderReadTool/ReminderCreateTool EventKit authorization flow
+requests on first use per #31 (the first turn reported missing permission without
+prompting); (c) fix territory afterward: tool descriptions disambiguating read vs
+create intent (the #196 remfix seam exists), and the #176B recovery clause extended
+to permission-recovery ("a permission granted mid-conversation supersedes every
+earlier denial"). Related: #197 (raw error rendering), #199 (post-decline
+fabrication). Parent: #196.
+
+Logged 2026-07-28.
