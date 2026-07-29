@@ -765,10 +765,10 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
-    // #200R: control vs the #200Q schema cell vs the same cell with its
-    // schema description suppressed — replication plus mechanism.
+    // #200S: pooled production re-verify (control + the now-identity
+    // schemafix cell) vs the pinned pre-promotion rollback.
     @ViewBuilder
-    private func schemaMechanismBatteryButton(trials: Int, label: String) -> some View {
+    private func schemaReverifyBatteryButton(trials: Int, label: String) -> some View {
         Button {
             guard !batteryRunning, let backend = container.localChatBackend else { return }
             batteryRunning = true
@@ -776,7 +776,7 @@ struct DiagnosticsSettingsScreen: View {
             container.toolConfirmationCenter.autoAcceptForBattery = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
-                await backend.runSchemaMechanismBattery(trials: trials)
+                await backend.runSchemaReverifyBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
@@ -956,9 +956,9 @@ struct DiagnosticsSettingsScreen: View {
                 HStack(spacing: Design.Spacing.sm) {
                     schemafixBatteryButton(trials: 10, label: "Schemafix battery n=10 (80)")
                 }
-                // #200R: replication + mechanism in one run.
+                // #200S: promotion re-verify vs its own rollback.
                 HStack(spacing: Design.Spacing.sm) {
-                    schemaMechanismBatteryButton(trials: 10, label: "Schema mechanism n=10 (120)")
+                    schemaReverifyBatteryButton(trials: 10, label: "Schema re-verify n=10 (120)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton

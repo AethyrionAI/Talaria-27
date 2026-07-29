@@ -2532,13 +2532,17 @@ extension LocalChatBackend {
         /// the model is no longer required to produce a value it was
         /// being told to leave empty. Belt swap; instructions untouched.
         case armedSchemafix = "armed-schemafix"
-        /// #200R: `armedSchemafix` plus ONE flag —
-        /// `includesSchemaInInstructions = false` on the reminder tool, so
-        /// the optional-field schema still governs DECODING but is no
-        /// longer described in the instructions. #200Q could not separate
-        /// "the field types changed" from "the instructions text changed";
-        /// this cell does.
-        case armedSchemaquiet = "armed-schemaquiet"
+        /// #200S: the promotion's pinned ROLLBACK, as a measured cell —
+        /// `ReminderCreateToolRequiredFields`, i.e. the pre-promotion tool
+        /// with `due`/`list` required again.
+        ///
+        /// (#200R's `armed-schemaquiet` was REMOVED, not retired in place:
+        /// suppressing the reminder schema description made the model
+        /// create CALENDAR EVENTS for 9 of 10 reminder requests while
+        /// claiming a reminder was set. Leaving a cell that silently
+        /// writes wrong artifacts to a real calendar on the picker is a
+        /// hazard, not an archive.)
+        case armedSchemarollback = "armed-schemarollback"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2549,32 +2553,19 @@ extension LocalChatBackend {
         case .armed, .armedInstrfix, .armedToolmode, .armedScoped, .armedCreateonly,
              .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix,
              .armedDatefix, .armedCardrollback, .armedDeadendfix, .armedGrabfix,
-             .armedStallfix:
+             .armedStallfix, .armedSchemafix:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
             // strikefix treat the tool-calling MODE, and the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
             // loop) — none of them swap tool text here.
             return tools
-        case .armedSchemaquiet:
-            // #200R: the #200Q tool with its schema description
-            // suppressed. Same optional-field struct, same production
-            // description — one flag is the whole delta.
+        case .armedSchemarollback:
+            // #200S: one swap — the pre-promotion reminder tool, whose
+            // optional fields are REQUIRED in the schema. The pinned
+            // rollback, measurable.
             return tools.map { tool in
                 if let reminder = tool as? ReminderCreateTool {
-                    var quiet = ReminderCreateToolSchemafix(relay: reminder.relay, confirmations: reminder.confirmations)
-                    quiet.includesSchemaInInstructions = false
-                    return quiet
-                }
-                return tool
-            }
-        case .armedSchemafix:
-            // #200Q: one swap — the reminder tool whose optional fields
-            // are optional in the schema. Everything else is production,
-            // including the tool description (this is NOT #200B's toolfix
-            // under a new name).
-            return tools.map { tool in
-                if let reminder = tool as? ReminderCreateTool {
-                    return ReminderCreateToolSchemafix(relay: reminder.relay, confirmations: reminder.confirmations)
+                    return ReminderCreateToolRequiredFields(relay: reminder.relay, confirmations: reminder.confirmations)
                 }
                 return tool
             }
@@ -2690,6 +2681,7 @@ extension LocalChatBackend {
         // folds these into its counts so reap arithmetic stays exact.
         var perTrialReminders = 0
         var perTrialEvents = 0
+        var perTrialAlarms = 0
         var perTrialFailures = 0
         for cell in cells {
             let cellBelt = Self.destallBelt(from: base, cell: cell)
@@ -2822,15 +2814,24 @@ extension LocalChatBackend {
                     // EVERY trial — #200E's treatment cell lost 4/10
                     // remind trials to already-exists reads of REAL
                     // artifacts the control cell created minutes earlier.
-                    // Alarms stay end-of-run (tracked-ID); the full reap
-                    // below remains as backstop.
+                    // #200S: ALARMS are cancelled per-trial too. They used
+                    // to wait for end-of-run, so every crashed run stranded
+                    // every alarm it had scheduled — 2026-07-29's four
+                    // jetsam kills stranded ~47 (matching the "~50 armed
+                    // for 6:30 AM" already on file from 07-28) and Owen had
+                    // to sweep by hand to keep working. Tracked-ID cancel
+                    // is idempotent, so the end-of-run reap stays as
+                    // backstop and its count folds in.
                     let sweep = await sweepMarkedRemindersAndEvents(emitSteps: false)
+                    let alarmSweep = AlarmService.reapBatteryAlarms()
                     perTrialReminders += sweep.reminders
                     perTrialEvents += sweep.events
-                    perTrialFailures += sweep.failures
+                    perTrialAlarms += alarmSweep.cancelled
+                    perTrialFailures += sweep.failures + alarmSweep.failed
                     Self.batteryEmit(Self.reapTrialLine(
                         reminders: sweep.reminders, events: sweep.events,
-                        failures: sweep.failures,
+                        alarms: alarmSweep.cancelled,
+                        failures: sweep.failures + alarmSweep.failed,
                         tag: "shape=\(cell.rawValue) p=\(tag) t=\(trial)"
                     ))
                 }
@@ -2840,6 +2841,7 @@ extension LocalChatBackend {
         let reapSummary = await reapBatteryArtifacts(
             perTrialReminders: perTrialReminders,
             perTrialEvents: perTrialEvents,
+            perTrialAlarms: perTrialAlarms,
             perTrialFailures: perTrialFailures
         )
         Self.batteryEmit("battery: REAP \(reapSummary) (#200)")
@@ -3060,18 +3062,20 @@ extension LocalChatBackend {
         await runActionBattery(trials: trials, cells: Self.schemafixBatteryCells, includeGrabCanary: true)
     }
 
-    /// #200R cell list — control, #200Q's cell VERBATIM (so its arm is the
-    /// replication), and the quiet variant that answers which half of the
-    /// #200Q change moved the model. All three in one run, per the #200O
-    /// within-run rule. Pinned.
-    nonisolated static let schemaMechanismBatteryCells: [ActionBatteryCell] = [
-        .armed, .armedSchemafix, .armedSchemaquiet,
+    /// #200S cell list — the promotion's re-verify. `.armed` and
+    /// `.armedSchemafix` are IDENTICAL post-promotion, so they pool as
+    /// production at n=20/prompt, while `.armedSchemarollback` measures the
+    /// pre-promotion schema in the SAME run — so the promotion is judged
+    /// against its own rollback rather than against a remembered number.
+    /// Same shape as #200K and #200O. Pinned.
+    nonisolated static let schemaReverifyBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedSchemafix, .armedSchemarollback,
     ]
 
-    /// #200R one-tap wrapper: 3 cells × four prompts — 12 × trials
+    /// #200S one-tap wrapper: 3 cells × four prompts — 12 × trials
     /// generations.
-    func runSchemaMechanismBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.schemaMechanismBatteryCells, includeGrabCanary: true)
+    func runSchemaReverifyBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.schemaReverifyBatteryCells, includeGrabCanary: true)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the
@@ -3179,9 +3183,9 @@ extension LocalChatBackend {
 
     /// #200F Part 0: the REAP-TRIAL line — classification vocabulary,
     /// pinned byte-for-byte by test.
-    nonisolated static func reapTrialLine(reminders: Int, events: Int, failures: Int,
+    nonisolated static func reapTrialLine(reminders: Int, events: Int, alarms: Int, failures: Int,
                                           tag: String) -> String {
-        "battery: REAP-TRIAL reminders=\(reminders) events=\(events) failures=\(failures) \(tag) (#200F)"
+        "battery: REAP-TRIAL reminders=\(reminders) events=\(events) alarms=\(alarms) failures=\(failures) \(tag) (#200F)"
     }
 
     /// #200F: one count segment of the final REAP line. The counts FOLD
@@ -3203,6 +3207,7 @@ extension LocalChatBackend {
     /// sums (#200F) folded into the counts. Missing read access shows up
     /// as skips, never as a silent zero.
     private func reapBatteryArtifacts(perTrialReminders: Int = 0, perTrialEvents: Int = 0,
+                                      perTrialAlarms: Int = 0,
                                       perTrialFailures: Int = 0) async -> String {
         let backstop = await sweepMarkedRemindersAndEvents(emitSteps: true)
         Self.batteryEmit("battery: REAP-STEP alarms begin (#200)")
@@ -3219,7 +3224,7 @@ extension LocalChatBackend {
             "events", backstop: backstop.events,
             perTrial: perTrialEvents, hadAccess: backstop.eventsAccess
         )
-        return "\(remindersSegment) \(eventsSegment) alarms=\(alarmReap.cancelled) failures=\(failures)"
+        return "\(remindersSegment) \(eventsSegment) alarms=\(alarmReap.cancelled + perTrialAlarms) failures=\(failures)"
     }
 
     /// #196 battery 4: on-device router-accuracy probe — ten probes
