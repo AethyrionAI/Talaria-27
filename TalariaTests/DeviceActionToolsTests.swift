@@ -208,6 +208,60 @@ struct DeviceActionToolsTests {
         #expect(parsed?.label == "[T27-battery]")
     }
 
+    // MARK: Unmarked-title echo (#200F)
+
+    /// #200E leak: armed/haiku/t5's REPLY carried "[T27-battery] ," —
+    /// the tool success text echoed the FINAL (marked) title back into
+    /// the model's context. The marker rides only the store write; every
+    /// echoed value is cleaned through this helper first. All three
+    /// injection shapes strip; clean values pass through untouched.
+    @Test func strippingBatteryMarkerRemovesEveryInjectionForm() {
+        let strip = ToolConfirmationCenter.strippingBatteryMarker
+        // The title injection form (prefix)…
+        #expect(strip("[T27-battery] Call Shelley") == "Call Shelley")
+        // …the alarm-request form (suffix)…
+        #expect(strip("6:30 [T27-battery]") == "6:30")
+        // …and mid-string, where the alarm SUMMARY embeds the marked label.
+        #expect(strip("alarm “tea [T27-battery]” for 6:30 AM") == "alarm “tea” for 6:30 AM")
+        // Identity on clean values — normal-mode echoes are untouched.
+        #expect(strip("Call Shelley") == "Call Shelley")
+        #expect(strip("") == "")
+    }
+
+    /// Roundtrip against the gate's REAL injection: whatever auto-accept
+    /// marks, the echo cleaner recovers byte-for-byte — both keys.
+    @Test func strippingBatteryMarkerInvertsTheAutoAcceptInjection() async {
+        let center = ToolConfirmationCenter()
+        center.autoAcceptForBattery = true
+
+        let reminder = await center.requestConfirmation(
+            title: "Create this reminder?",
+            fields: [.init(key: "title", label: "Title", value: "test Talaria")]
+        )
+        guard case .approved(let reminderValues) = reminder else {
+            Issue.record("expected auto-accept")
+            return
+        }
+        #expect(ToolConfirmationCenter.strippingBatteryMarker(reminderValues["title"] ?? "") == "test Talaria")
+
+        let alarm = await center.requestConfirmation(
+            title: "Schedule on this iPhone?",
+            fields: [.init(key: "request", label: "Alarm", value: "6:30")]
+        )
+        guard case .approved(let alarmValues) = alarm else {
+            Issue.record("expected auto-accept")
+            return
+        }
+        let cleaned = ToolConfirmationCenter.strippingBatteryMarker(alarmValues["request"] ?? "")
+        #expect(cleaned == "6:30")
+        // The alarm echo re-parses the CLEANED raw — recovering the
+        // model-requested form exactly: no label here, so the echoed
+        // summary reads "alarm for 6:30 AM", never a marker in quotes.
+        let display = AlarmService.parse(cleaned)
+        #expect(display != nil)
+        #expect(display?.label == nil)
+    }
+
     /// The two auto-modes are mutually exclusive by launcher discipline;
     /// if both are ever set, DECLINE wins — the fail-safe direction is
     /// never-create, matching the gate's default-closed design.
