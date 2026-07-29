@@ -976,31 +976,39 @@ struct DeviceToolBeltTests {
         }
     }
 
-    /// #200F findfix: the two planner-corpus carve-out sentences — the
-    /// find-first carve-out and the reminders-vs-events preference —
-    /// ride a flag that is OFF by default; flag-off is production
-    /// byte-identical. Flag-on adds exactly the two sentences at the
-    /// measured seam: after the promoted de-stall clause, before
-    /// honesty-and-recovery.
-    @Test func findFirstCarveoutIsOffByDefaultAndSitsAfterTheDestallClause() {
+    /// #200G (PROMOTED 2026-07-29, #200F verdict, corded run @ a656004):
+    /// the find-first carve-out is production — remind 9/10 vs 1/10
+    /// control (lifetime control 1/60), find-first killed outright (ZERO
+    /// readReminders calls in the cell's remind trials). The flag stays
+    /// as the rollback/re-measure seam: explicit `false` reproduces the
+    /// pre-promotion text. (A rollback flips exactly this pin back.)
+    @Test func findFirstCarveoutIsProductionDefaultAndRemovable() {
         let production = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: true
         )
-        #expect(!production.contains("'Remind me'"))
-        let explicitOff = LocalChatBackend.instructionsText(
+        // The promoted carve-out, verbatim, at its measured seam: after
+        // the de-stall clause, before honesty-and-recovery.
+        #expect(production.contains("leave optional fields empty and the defaults apply. 'Remind me' means create the reminder — do not search existing reminders first. Reminders and calendar events are different tools — prefer a reminder when the user asks to be reminded. When a tool reports"))
+        // Explicit true is identity with the default — the #200F treated
+        // cell now measures production.
+        let explicitOn = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeFindFirstCarveout: true
+        )
+        #expect(explicitOn == production)
+        // The rollback seam: explicit false removes exactly the two
+        // sentences and nothing else — the neighboring de-stall clause
+        // and honesty-and-recovery close back up.
+        let rollback = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: true,
             includeFindFirstCarveout: false
         )
-        #expect(explicitOff == production)
-        let treated = LocalChatBackend.instructionsText(
-            deviceContext: "Device: test.", hasTools: true,
-            includeFindFirstCarveout: true
-        )
-        #expect(treated.contains("leave optional fields empty and the defaults apply. 'Remind me' means create the reminder — do not search existing reminders first. Reminders and calendar events are different tools — prefer a reminder when the user asks to be reminded. When a tool reports"))
-        // The carve-out rides the armed capabilities paragraph only.
+        #expect(rollback != production)
+        #expect(!rollback.contains("'Remind me'"))
+        #expect(rollback.contains("leave optional fields empty and the defaults apply. When a tool reports"))
+        // The carve-out never reaches the toolless branch.
         let bare = LocalChatBackend.instructionsText(
-            deviceContext: "Device: test.", hasTools: false,
-            includeFindFirstCarveout: true
+            deviceContext: "Device: test.", hasTools: false
         )
         #expect(!bare.contains("'Remind me'"))
     }
@@ -1040,8 +1048,9 @@ struct DeviceToolBeltTests {
             deviceContext: "Device: test.", hasTools: true
         )
         // The promoted clause, verbatim, at its measured seam: after the
-        // confirmation-card sentence, before honesty-and-recovery.
-        #expect(production.contains("accept it gracefully. When the user asks for a reminder, alarm, or calendar event and says what and when, create it right away — never ask which list, which calendar, or for other optional details first; leave optional fields empty and the defaults apply. When a tool reports"))
+        // confirmation-card sentence. Since #200G the find-first carve-out
+        // follows it, before honesty-and-recovery.
+        #expect(production.contains("accept it gracefully. When the user asks for a reminder, alarm, or calendar event and says what and when, create it right away — never ask which list, which calendar, or for other optional details first; leave optional fields empty and the defaults apply. 'Remind me' means"))
         // Explicit true is identity with the default — the #200C treated
         // cell now measures production.
         let explicitOn = LocalChatBackend.instructionsText(
@@ -1050,14 +1059,15 @@ struct DeviceToolBeltTests {
         )
         #expect(explicitOn == production)
         // The rollback seam: explicit false removes the clause and nothing
-        // else — every neighboring production sentence survives.
+        // else — every neighboring production sentence survives, including
+        // the #200G carve-out, which has its OWN flag and rollback.
         let rollback = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: true,
             includeActionDestallClause: false
         )
         #expect(rollback != production)
         #expect(!rollback.contains("never ask which list"))
-        #expect(rollback.contains("confirmation card first; if they decline, accept it gracefully."))
+        #expect(rollback.contains("confirmation card first; if they decline, accept it gracefully. 'Remind me' means"))
         #expect(rollback.contains("never invent a value"))
         // The clause never reaches the toolless branch (it rides inside
         // the hasTools capabilities paragraph).
