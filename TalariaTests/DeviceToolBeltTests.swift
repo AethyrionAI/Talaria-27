@@ -880,7 +880,8 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedGrabfix.rawValue == "armed-grabfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedStallfix.rawValue == "armed-stallfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedSchemafix.rawValue == "armed-schemafix")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 18)
+        #expect(LocalChatBackend.ActionBatteryCell.armedSchemaquiet.rawValue == "armed-schemaquiet")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 19)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -1160,6 +1161,55 @@ struct DeviceToolBeltTests {
             includeDayDefaultClause: true
         )
         #expect(!bare.contains("never ask which day"))
+    }
+
+    // MARK: Which half of the schema change did the work? (#200R)
+
+    /// #200R: #200Q passed every bar AND collapsed grabs 10/10 → 1/10, an
+    /// effect nobody predicted, from a cell whose only intended delta was
+    /// two field types. But `includesSchemaInInstructions` is true, so the
+    /// tool renders its schema INTO the instructions — the field types and
+    /// the instructions text moved together, and #200Q cannot separate
+    /// them.
+    ///
+    /// This cell separates them. The flag governs only whether the schema
+    /// is DESCRIBED in the instructions; the schema still constrains
+    /// decoding either way. So `armed-schemaquiet` is the schemafix tool
+    /// with the description suppressed:
+    ///
+    /// - grabs stay collapsed → the effect is the DECODE constraint, and
+    ///   the instructions text is irrelevant to it
+    /// - grabs rebound toward control → the effect was the instructions
+    ///   TEXT, and "optionality" was never the mechanism
+    ///
+    /// Either answer is worth having before a promotion, because it
+    /// decides whether the follow-on work is schema-shaped or prose-shaped.
+    @Test @MainActor func schemaquietSuppressesOnlyTheReminderSchemaDescription() {
+        let belt = DeviceToolBelt.makeActionTools(
+            relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
+            alarmService: AlarmService()
+        )
+        let treated = LocalChatBackend.destallBelt(from: belt, cell: .armedSchemaquiet)
+        #expect(treated.map(\.name) == belt.map(\.name))
+        // Same optional-field tool as #200Q — this is that cell plus one
+        // flag, not a third variant.
+        #expect(treated.contains { $0 is ReminderCreateToolSchemafix })
+        let reminder = treated.first { $0.name == "createReminder" }
+        #expect(reminder?.includesSchemaInInstructions == false)
+        // EVERY other tool keeps its schema description: one variable.
+        #expect(treated.filter { $0.name != "createReminder" }.allSatisfy { $0.includesSchemaInInstructions })
+        // And the description seam stays production.
+        #expect(reminder?.description == ReminderCreateTool.productionDescription)
+    }
+
+    /// #200R battery: control, #200Q's cell verbatim, and the quiet
+    /// variant — so the run REPLICATES #200Q and answers the mechanism
+    /// question at the same time, all three arms in one run per the #200O
+    /// within-run rule.
+    @Test func schemaMechanismBatteryRunsControlAndBothSchemaArms() {
+        #expect(LocalChatBackend.schemaMechanismBatteryCells == [
+            .armed, .armedSchemafix, .armedSchemaquiet,
+        ])
     }
 
     // MARK: The stall's structural seam (#200Q)
