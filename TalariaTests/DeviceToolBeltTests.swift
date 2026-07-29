@@ -874,7 +874,8 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedSpiralfix.rawValue == "armed-spiralfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedStrikefix.rawValue == "armed-strikefix")
         #expect(LocalChatBackend.ActionBatteryCell.armedCardfix.rawValue == "armed-cardfix")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 12)
+        #expect(LocalChatBackend.ActionBatteryCell.armedDatefix.rawValue == "armed-datefix")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 13)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -991,7 +992,9 @@ struct DeviceToolBeltTests {
         )
         // The promoted carve-out, verbatim, at its measured seam: after
         // the de-stall clause, before honesty-and-recovery.
-        #expect(production.contains("leave optional fields empty and the defaults apply. 'Remind me' means create the reminder — do not search existing reminders first. Reminders and calendar events are different tools — prefer a reminder when the user asks to be reminded. When a tool reports"))
+        // #200K: the card clause now follows the carve-out in production,
+        // so this seam ends at it rather than at honesty-and-recovery.
+        #expect(production.contains("leave optional fields empty and the defaults apply. 'Remind me' means create the reminder — do not search existing reminders first. Reminders and calendar events are different tools — prefer a reminder when the user asks to be reminded. The confirmation card is shown automatically"))
         // Explicit true is identity with the default — the #200F treated
         // cell now measures production.
         let explicitOn = LocalChatBackend.instructionsText(
@@ -1008,7 +1011,7 @@ struct DeviceToolBeltTests {
         )
         #expect(rollback != production)
         #expect(!rollback.contains("'Remind me'"))
-        #expect(rollback.contains("leave optional fields empty and the defaults apply. When a tool reports"))
+        #expect(rollback.contains("leave optional fields empty and the defaults apply. The confirmation card is shown automatically"))
         // The carve-out never reaches the toolless branch.
         let bare = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: false
@@ -1064,7 +1067,7 @@ struct DeviceToolBeltTests {
             deviceContext: "Device: test.", hasTools: true,
             includeLookupSpiralCarveout: true
         )
-        #expect(treated.contains("prefer a reminder when the user asks to be reminded. A person's name in an event title is just part of the title — never search contacts, conversations, or places to identify them before creating the event. Only include an event location the user themselves gave; a place search result is never the location. When a tool reports"))
+        #expect(treated.contains("prefer a reminder when the user asks to be reminded. A person's name in an event title is just part of the title — never search contacts, conversations, or places to identify them before creating the event. Only include an event location the user themselves gave; a place search result is never the location. The confirmation card is shown automatically"))
         // The v1 cross-intent phrasing is GONE, not merely reordered —
         // that word is the whole #200I hypothesis.
         #expect(!treated.contains("event or reminder"))
@@ -1087,38 +1090,82 @@ struct DeviceToolBeltTests {
         ])
     }
 
-    /// #200J: #200I's largest failure bucket was 10 zero-tool trials — 9
-    /// of the remind misses across BOTH cells — where the model writes the
-    /// confirmation card out in prose ("**Title:** … Would you like to
-    /// proceed?") and calls no tool at all. Production already TELLS the
-    /// model a card is shown ("Every action tool shows the user a
-    /// confirmation card first"), so knowing about the card is provably
-    /// not the same as being told not to impersonate it. The clause
-    /// forbids the impersonation and names the tool call as the way to
-    /// ask. Off by default; flag-off is production byte-identical; the
-    /// seam sits after the (off) spiral carve-out, before
-    /// honesty-and-recovery.
-    @Test func cardNarrationClauseIsOffByDefaultAndSitsBeforeHonesty() {
+    /// #200K PROMOTION. The #200J battery killed the specimen outright —
+    /// card narration occurred 3× in control (remind t2/t4/t10, all
+    /// zero-tool) and ZERO times anywhere in the treatment cell's 40
+    /// trials — and remind went 5/10 → 8/10, the largest single-seam gain
+    /// since #200D. Default is now TRUE; explicit `false` is the pinned
+    /// byte-identical rollback (a rollback flips exactly this pin back).
+    @Test func cardNarrationClauseIsProductionDefaultAndRemovable() {
         let production = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: true
         )
-        #expect(!production.contains("never write the card out"))
-        let explicitOff = LocalChatBackend.instructionsText(
+        // The promoted clause, verbatim, at its measured seam: after the
+        // find-first carve-out, before honesty-and-recovery.
+        #expect(production.contains("prefer a reminder when the user asks to be reminded. The confirmation card is shown automatically when you call an action tool — never write the card out, list the details back for approval, or ask whether to proceed; make the call and let the card do the asking. When a tool reports"))
+        // Explicit true is identity with the default — the #200J treated
+        // cell now measures production (the findfix precedent), which is
+        // what makes the re-verify battery pool.
+        let explicitOn = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeCardNarrationClause: true
+        )
+        #expect(explicitOn == production)
+        // The rollback seam: explicit false removes exactly this sentence
+        // and nothing else — the carve-out and honesty close back up.
+        let rollback = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: true,
             includeCardNarrationClause: false
+        )
+        #expect(rollback != production)
+        #expect(!rollback.contains("never write the card out"))
+        #expect(rollback.contains("prefer a reminder when the user asks to be reminded. When a tool reports"))
+        // The clause never reaches the toolless branch.
+        let bare = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: false
+        )
+        #expect(!bare.contains("never write the card out"))
+    }
+
+    /// #200K datefix: #200J's residual remind misses were BOTH zero-tool
+    /// date interrogations ("Could you clarify the due date?", "a specific
+    /// date or keep it open for today?") — a different disease from the
+    /// card narration the promoted clause killed, and one the #200D
+    /// de-stall clause does not reach: it licenses empty OPTIONAL fields,
+    /// while a bare clock time reads as an AMBIGUOUS required one. The
+    /// clause names the resolution instead. Off by default, flag-off
+    /// byte-identical, seated after the promoted card clause.
+    @Test func dayDefaultClauseIsOffByDefaultAndSitsAfterTheCardClause() {
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true
+        )
+        #expect(!production.contains("never ask which day"))
+        let explicitOff = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeDayDefaultClause: false
         )
         #expect(explicitOff == production)
         let treated = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: true,
-            includeCardNarrationClause: true
+            includeDayDefaultClause: true
         )
-        #expect(treated.contains("prefer a reminder when the user asks to be reminded. The confirmation card is shown automatically when you call an action tool — never write the card out, list the details back for approval, or ask whether to proceed; make the call and let the card do the asking. When a tool reports"))
-        // The clause rides the armed capabilities paragraph only.
+        #expect(treated.contains("make the call and let the card do the asking. A time with no day means the next time that clock time comes around — never ask which day. When a tool reports"))
         let bare = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: false,
-            includeCardNarrationClause: true
+            includeDayDefaultClause: true
         )
-        #expect(!bare.contains("never write the card out"))
+        #expect(!bare.contains("never ask which day"))
+    }
+
+    /// #200K battery: the promoted control and the (now identity) cardfix
+    /// cell pool as the production re-verify at n=20/prompt — which is
+    /// what settles #200J's calendar guard, whose control read 7/4/10
+    /// across three runs — while datefix measures the new treatment
+    /// against that pooled control in the same run.
+    @Test func datefixBatteryPoolsTheReverifyAndTheNewTreatment() {
+        #expect(LocalChatBackend.datefixBatteryCells == [
+            .armed, .armedCardfix, .armedDatefix,
+        ])
     }
 
     /// #200J stacks below #200H's carve-out: with both flags on the spiral

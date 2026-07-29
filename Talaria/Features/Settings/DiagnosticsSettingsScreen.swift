@@ -591,6 +591,31 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #200K: the promoted control + the (now identity) cardfix cell —
+    // pooled as the production re-verify — plus the datefix treatment.
+    @ViewBuilder
+    private func datefixBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runDatefixBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200 orphan cleanup: the four crashed action batteries stranded
     // their battery alarms (up to ~50 armed for 6:30 AM, ringing through
     // Silent). AlarmKit enumeration carries no label, so this cancels ALL
@@ -728,6 +753,10 @@ struct DiagnosticsSettingsScreen: View {
                 // #200J: control vs the card-narration clause.
                 HStack(spacing: Design.Spacing.sm) {
                     cardfixBatteryButton(trials: 10, label: "Cardfix battery n=10 (80)")
+                }
+                // #200K: pooled production re-verify + the datefix cell.
+                HStack(spacing: Design.Spacing.sm) {
+                    datefixBatteryButton(trials: 10, label: "Datefix battery n=10 (120)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
