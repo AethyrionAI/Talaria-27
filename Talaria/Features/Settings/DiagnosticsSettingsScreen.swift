@@ -436,6 +436,33 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #200E toolmode battery: promoted-production control vs the structural
+    // `.required` treatment (DynamicProfile with the mandatory demote-after-
+    // first-call exit — a static .required loops). Auto-ACCEPT; the canary
+    // measures which tool a FORCED call grabs on the haiku misroute.
+    @ViewBuilder
+    private func toolmodeBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runToolmodeBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200 orphan cleanup: the four crashed action batteries stranded
     // their battery alarms (up to ~50 armed for 6:30 AM, ringing through
     // Silent). AlarmKit enumeration carries no label, so this cancels ALL
@@ -549,6 +576,10 @@ struct DiagnosticsSettingsScreen: View {
                 // #200C: control vs instructions-level de-stall clause.
                 HStack(spacing: Design.Spacing.sm) {
                     instrfixBatteryButton(trials: 10, label: "Instrfix battery n=10 (80)")
+                }
+                // #200E: control vs structural .required (demote exit).
+                HStack(spacing: Design.Spacing.sm) {
+                    toolmodeBatteryButton(trials: 10, label: "Toolmode battery n=10 (80)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton

@@ -9704,6 +9704,68 @@ invisible to every later reap and stay scheduled (the 42-orphan lesson, now
 structural). Owen asked to confirm the aborted run + run the alarm sweep.
 Instrument follow-ups queued: persist tracked alarm IDs per-run to disk for
 cross-run reap (marker-query reap is impossible — AlarmKit exposes no labels on
-enumeration); document reap counts as this-run + leftovers. **PR #168 merges on
+enumeration); document reap counts as this-run + leftovers.
+**2026-07-29 confirmed by Owen: "I picked up my phone from reflex, and it
+killed the run when I backgrounded it."** The aborted-run hypothesis is fact —
+backgrounding kills the battery loop mid-run (foreground-only is a standing
+instrument constraint, now with a measured failure signature: store leftovers +
+orphaned alarms + inflated next-run reap counts). Alarm sweep requested; the
+per-run persisted alarm-ID reap moves up the instrument queue.
+
+**#200E VERDICT FILED, 2026-07-29 — toolmode battery n=10 (80 trials, PR #169
+branch `fb21bfd`, CORDED deploy via the Xcode bridge — first run with live
+console; classified from the console stream, run sealed clean, reap
+`reminders=17 events=10 alarms=10 failures=0` — arithmetic EXACT:
+17 = 2 control-remind + 6 control-grabs + 5 toolmode-remind + 4
+toolmode-grabs).**
+
+| prompt | armed (promoted control) | armed-toolmode |
+|---|---|---|
+| remind creates | 2/10 | **5/10** |
+| alarm | 10/10 | **0/10 — ALL ERROR** |
+| calendar | 10/10 | **0/10 — ALL ERROR** |
+| haiku GRABS | 6/10 | 4/10 |
+
+**Three-part verdict. (1) The demote mechanism WORKS:** every treated trial
+shows `toolmode call#1` → (optionally `call#2`) → final response — the
+`.required`→`.allowed` exit fired every time, zero infinite loops, and the
+@SessionProperty counter reset per session exactly as designed. **(2) THE
+BLOCKER — a deterministic FoundationModels decoder bug:** every alarm and
+calendar trial under `.required` died with
+`TokenGenerationInference.DecoderModelError.ifpInvalidExpertPickPosition
+("Intermediate repick at position 1763 is not on frequency boundary 32")` —
+position 1763 on ALL TEN alarm trials, 1764 on ALL TEN calendar trials
+(surfacing as `FoundationModels.LanguageModelError Code=-1`). Deterministic by
+prompt: the failing position tracks the prompt's token length, so `.required`
++ guided tool-decode at specific context lengths breaks the MoE
+expert-repick machinery. Remind and haiku (different lengths) never hit it.
+20/20 reproduction = a FILEABLE APPLE BUG with a deterministic repro — the
+`logFeedbackAttachment`/Feedback Assistant channel from the seam survey is the
+route; Owen routes. `.required` is NOT promotable while this exists.
+**(3) The signal where it ran:** remind 2/10 → 5/10 — and the mechanism is
+now visible: the forced first call was `readReminders` in 10/10 treated remind
+trials (find-first is baked into the model — matching Apple's own CATALOG
+planner convention from the survey), and after the forced read, half proceed
+to create. CONFOUND biasing the treatment DOWN: 4 of the 5 non-creates were
+already-exists reads of REAL in-run artifacts (the control cell's creates —
+reap is end-of-run), so 5/10 is a floor; the per-trial unique-title fix is now
+REQUIRED instrument work, not queued nice-to-have. Haiku under forcing is
+benign: the forced call chose `searchConversations` 10/10 (a read, never a
+straight grab); grabs 4/10 vs control 6/10. New specimens: armed/haiku/t5
+LEAKED THE MARKER into its reply ("I created a reminder titled
+'[T27-battery] ,'") — the tool result echoes the final title, so the model
+sees the marker (second reason for the title fix); armed/haiku/t6 created the
+reminder then said "I can't create a reminder about a haiku directly";
+armed/haiku/t7 created ",Sledding" then ASKED "Would you like me to create
+the reminder?"; toolmode/haiku/t8 fabricated "I don't have the capability to
+write creative content" + grabbed; comma-prefix titles in 4 control grabs
+(",Sledding"×2, ","×2 — D4 ongoing); armed/remind/t1 fabricated "there's no
+reminder list active"; toolmode/haiku/t9 offered a sledding spot 8.9 miles
+away in Mississippi in July. Control drift note: promoted-production grabs
+pooled across #200D+E runs now 14/28 ≈ 50%. NEXT per the verdict: file the
+Apple bug; ship the unique-title instrument fix; re-run toolmode ONLY if the
+bug is fixed or the prompts are length-shifted to dodge the boundary (a
+diagnostic cell, not a promotion path); the remaining pivot queue (B bundle,
+tool-scoping, cap cell) proceeds per the survey plan. **PR #168 merges on
 this verdict; the clause is production. #200E (toolmode, demote pattern) is
 next per Owen's routing of the survey plan ("Lets do it").**

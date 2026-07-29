@@ -867,7 +867,37 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedToolfix.rawValue == "armed-toolfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedBothfix.rawValue == "armed-bothfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedInstrfix.rawValue == "armed-instrfix")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 5)
+        #expect(LocalChatBackend.ActionBatteryCell.armedToolmode.rawValue == "armed-toolmode")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 6)
+    }
+
+    // MARK: Structural de-stall via tool-calling mode (#200E)
+
+    /// The toolmode cell is an OPTIONS treatment only — belt AND
+    /// instructions are production; the sole seam is the per-request
+    /// tool-calling mode. Belt identity pinned here (instructions identity
+    /// is structural: the cell takes runActionBattery's non-instrfix
+    /// branch, the production text).
+    @Test @MainActor func toolmodeBeltIsProductionIdentity() {
+        let belt = DeviceToolBelt.makeActionTools(
+            relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
+            alarmService: AlarmService()
+        )
+        let toolmode = LocalChatBackend.destallBelt(from: belt, cell: .armedToolmode)
+        #expect(toolmode.map(\.name) == belt.map(\.name))
+        #expect(toolmode.contains { $0 is ReminderCreateTool })
+        #expect(toolmode.first { $0.name == "createReminder" }?.description == ReminderCreateTool.productionDescription)
+    }
+
+    /// The demote exit is MANDATORY: `.required` loops "until a Tool
+    /// throws an error or this value is changed dynamically" (beta-4 doc
+    /// comment; WWDC26/242 exit pattern). The cell's mode function is
+    /// Apple's own: required until the first tool call, allowed after.
+    /// A regression here re-arms the infinite-loop hazard.
+    @Test func toolmodeDemoteExitMatchesApplesPattern() {
+        #expect(LocalChatBackend.toolmodeMode(after: 0) == .required)
+        #expect(LocalChatBackend.toolmodeMode(after: 1) == .allowed)
+        #expect(LocalChatBackend.toolmodeMode(after: 7) == .allowed)
     }
 
     // MARK: Instructions-level de-stall (#200C)

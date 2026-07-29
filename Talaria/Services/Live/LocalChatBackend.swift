@@ -2308,13 +2308,15 @@ extension LocalChatBackend {
     /// action battery (#200). Byte-identical lines to the pre-extraction
     /// emit path; callers set the trial tag and begin the recorder trial
     /// BEFORE calling.
-    private func executeBatteryTrial(session: LanguageModelSession, options: GenerationOptions,
+    private func executeBatteryTrial(session: LanguageModelSession, options: GenerationOptions?,
                                      shape: String, promptTag: String,
                                      prompt: String, trial: Int) async {
         // 35s guillotine per trial: backstop only now that the confirmation
         // gate auto-resolves — a wedged trial still logs and the run still
-        // moves.
-        let respondTask = Task { try await session.respond(to: Prompt(prompt), options: options).content }
+        // moves. `options: nil` is the profile-backed path (#200E): an empty
+        // GenerationOptions is all-nil fields, so the session profile's
+        // modifiers govern the request.
+        let respondTask = Task { try await session.respond(to: Prompt(prompt), options: options ?? GenerationOptions()).content }
         let timeoutTask = Task { try? await Task.sleep(for: .seconds(35)); respondTask.cancel() }
         do {
             let text = try await respondTask.value
@@ -2358,6 +2360,11 @@ extension LocalChatBackend {
         /// session INSTRUCTIONS instead — the seam upstream of response
         /// planning, where #200B proved the stall actually fires.
         case armedInstrfix = "armed-instrfix"
+        /// #200E: belt AND instructions production verbatim; the sole
+        /// treatment is per-request `.required` tool-calling mode with the
+        /// mandatory demote exit (`ToolmodeBatteryProfile`) — the seam at
+        /// DECODING level, below everything prose can reach.
+        case armedToolmode = "armed-toolmode"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2365,8 +2372,9 @@ extension LocalChatBackend {
     /// both (bothfix). Same instances and order for every other tool.
     nonisolated static func destallBelt(from tools: [any Tool], cell: ActionBatteryCell) -> [any Tool] {
         switch cell {
-        case .armed, .armedInstrfix:
-            // instrfix treats INSTRUCTIONS, never the belt.
+        case .armed, .armedInstrfix, .armedToolmode:
+            // instrfix treats INSTRUCTIONS and toolmode treats the request
+            // OPTIONS — never the belt.
             return tools
         case .armedGuidefix:
             return tools.map { tool in
@@ -2463,9 +2471,24 @@ extension LocalChatBackend {
                     // BEGIN names it exactly.
                     Self.batteryEmit("battery: BEGIN shape=\(cell.rawValue) p=\(tag) t=\(trial)")
                     Self.batteryRecorder.beginTrial()
-                    let session = LanguageModelSession(model: model, tools: belt, instructions: Instructions(cellInstructions))
-                    let options = Self.shapedGenerationOptions(Self.chatGenerationOptions(for: activeTier), shape: shape)
-                    await executeBatteryTrial(session: session, options: options,
+                    let baseOptions = Self.shapedGenerationOptions(Self.chatGenerationOptions(for: activeTier), shape: shape)
+                    let session: LanguageModelSession
+                    let trialOptions: GenerationOptions?
+                    if cell == .armedToolmode {
+                        // #200E: the mode must ride a DynamicProfile so it can
+                        // demote after the first call — raw `.required` in
+                        // respond options has no exit and loops (dispatch).
+                        // Generation options ride the profile; respond() gets
+                        // none (nil → all-nil options, profile governs).
+                        session = LanguageModelSession(profile: ToolmodeBatteryProfile(
+                            model: model, belt: belt,
+                            instructionsText: cellInstructions, options: baseOptions))
+                        trialOptions = nil
+                    } else {
+                        session = LanguageModelSession(model: model, tools: belt, instructions: Instructions(cellInstructions))
+                        trialOptions = baseOptions
+                    }
+                    await executeBatteryTrial(session: session, options: trialOptions,
                                               shape: cell.rawValue, promptTag: tag,
                                               prompt: prompt, trial: trial)
                 }
@@ -2494,6 +2517,20 @@ extension LocalChatBackend {
     /// clause × four prompts — 8 × trials generations.
     func runInstrfixBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: [.armed, .armedInstrfix], includeGrabCanary: true)
+    }
+
+    /// #200E: the demote exit — Apple's own pattern for `.required`, which
+    /// otherwise LOOPS ("until a Tool throws an error or this value is
+    /// changed dynamically", beta-4 doc comment): required until the first
+    /// tool call, allowed after so the model can produce a final response.
+    nonisolated static func toolmodeMode(after callCount: Int) -> GenerationOptions.ToolCallingMode {
+        callCount < 1 ? .required : .allowed
+    }
+
+    /// #200E one-tap wrapper: promoted-production control vs the structural
+    /// `.required` treatment × four prompts — 8 × trials generations.
+    func runToolmodeBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: [.armed, .armedToolmode], includeGrabCanary: true)
     }
 
     /// #200 teardown: delete every [T27-battery]-marked reminder and
@@ -2635,6 +2672,57 @@ extension LocalChatBackend {
         }
         Self.batteryEmit("router: PROBE DONE (#196)")
         Self.batteryRecorder.endRun()
+    }
+}
+
+// MARK: - (#200E) toolmode cell session profile
+
+extension SessionPropertyValues {
+    /// #200E: per-session tool-call counter driving the toolmode demote.
+    /// Fresh session per trial ⇒ resets to 0 ⇒ every trial's first model
+    /// turn is `.required`.
+    @SessionPropertyEntry
+    var batteryToolCallCount: Int = 0
+}
+
+extension LocalChatBackend {
+    /// #200E: the toolmode cell's session. Belt and instructions are
+    /// PRODUCTION verbatim (pinned); generation options are the shaped
+    /// production options carried as profile modifiers. The single
+    /// treatment is the tool-calling mode: `.required` until the first
+    /// tool call, `.allowed` after (`toolmodeMode(after:)`) — the demote
+    /// exit Apple's doc comment makes MANDATORY, because a static
+    /// `.required` loops until a tool throws.
+    struct ToolmodeBatteryProfile: LanguageModelSession.DynamicProfile {
+        let model: SystemLanguageModel
+        let belt: [any Tool]
+        let instructionsText: String
+        let options: GenerationOptions
+
+        @SessionProperty(\.batteryToolCallCount) private var toolCallCount
+
+        var body: some LanguageModelSession.DynamicProfile {
+            Profile {
+                Instructions(instructionsText)
+                belt
+            }
+            .model(model)
+            .samplingMode(options.samplingMode)
+            .temperature(options.temperature)
+            .maximumResponseTokens(options.maximumResponseTokens)
+            .toolCallingMode(LocalChatBackend.toolmodeMode(after: toolCallCount))
+            .onToolCall {
+                toolCallCount += 1
+                // The demote count, surfaced on the capture log. batteryEmit
+                // and the trial tag are MainActor — hop EXPLICITLY (the 27b4
+                // device runtime traps assumed isolation in framework
+                // callbacks; see device-only-isolation-trap).
+                let n = toolCallCount
+                Task { @MainActor in
+                    LocalChatBackend.batteryEmit("battery: toolmode call#\(n) \(ToolEventRelay.batteryTrialTag ?? "")")
+                }
+            }
+        }
     }
 }
 #endif
