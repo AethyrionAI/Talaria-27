@@ -9769,3 +9769,31 @@ diagnostic cell, not a promotion path); the remaining pivot queue (B bundle,
 tool-scoping, cap cell) proceeds per the survey plan. **PR #168 merges on
 this verdict; the clause is production. #200E (toolmode, demote pattern) is
 next per Owen's routing of the survey plan ("Lets do it").**
+
+**#200F BUILT, 2026-07-29 — community-destall battery (PR #170, branch
+`claude/t27-200f-community-destall` @ `a656004`; dispatch
+`dispatch/OPUS-T27-200F-community-destall.md`). ROUTING CORRECTION to the
+#200E note's "NEXT": Owen routed NO Apple filing** ("the last time we thought
+we found an apple bug, it was our own oversight") — the `.required` decoder
+crash is treated as an unresolved environmental constraint (possibly our own
+DynamicProfile usage) and routed around; PR #169 merged (`6c22fe5`) on the
+verdict as filed. Part 0 instrument fixes, both TDD-pinned: **(a) per-trial
+reap** — the reminders+events marker sweep now runs after EVERY action-battery
+trial (the #200E contamination cost 4/10 treatment remind trials to
+already-exists reads of real in-run artifacts); one pinned `REAP-TRIAL` line
+per trial; the final `REAP` line keeps its grammar with the per-trial sums
+folded in, so reap arithmetic stays exact; alarms stay end-of-run tracked-ID
+and the full reap stays as backstop. **(b) unmarked-title echo** —
+`ToolConfirmationCenter.strippingBatteryMarker` cleans every create-tool
+success text (the #200E marker leak: a reply carried "[T27-battery] ,"); the
+store writes keep the marker; the alarm echo re-parses the cleaned raw because
+its SCHEDULED label must keep the marker for the teardown. Cells per the
+dispatch: `armed` control / `armed-scoped` (per-intent 3–5 belt, same-domain
+reads in) / `armed-createonly` (per-intent belt without the same-domain read —
+no readReminders to flee into) / `armed-findfix` (full production belt; the
+two planner-corpus carve-out sentences behind `includeFindFirstCarveout`,
+flag-off byte-identical, pinned). Haiku rides the remind scope in the scoping
+cells. Suite 1292/1292 in 111 suites (8 new pins). Corded deploy on
+whoGoesThere @ `a656004`; Owen running 4×4×10 = 160 trials. Success bar:
+remind ≥8/10 in a cell with alarm/calendar holding ceiling, grabs ≤ control,
+no new corruption. Verdict note follows the classified export.
