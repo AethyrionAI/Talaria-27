@@ -2899,6 +2899,26 @@ extension LocalChatBackend {
         await runActionBattery(trials: trials, cells: Self.deadendBatteryCells, includeGrabCanary: true)
     }
 
+    /// #200N cell list — the v3 confirmation A/B. #200M's v3 passed 5 of 6
+    /// bars and missed remind by ONE trial, with both misses being the
+    /// known conserved stall and 8/10 sitting inside production's own
+    /// historical range. The bar was set at "within 1" before the data
+    /// existed precisely so that call would not be made by eyeball
+    /// afterwards, so it gets a second independent run instead — against a
+    /// baseline that has finally held still (production calendar 5/10 in
+    /// both #200L and #200M). v2 is deliberately absent: #200M found it
+    /// resurrects find-first, so it is retired rather than re-measured.
+    /// Pinned.
+    nonisolated static let deadendVerifyBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedDeadendfix,
+    ]
+
+    /// #200N one-tap wrapper: 2 cells × four prompts — 8 × trials
+    /// generations.
+    func runDeadendVerifyBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.deadendVerifyBatteryCells, includeGrabCanary: true)
+    }
+
     /// #200F: one marker sweep's accounting. `hadAccess` false means the
     /// store could not be enumerated — the summary shows a skip, never a
     /// silent zero.

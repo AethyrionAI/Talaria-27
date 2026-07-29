@@ -10332,3 +10332,56 @@ only. If remind lands ≥9 and calendar repeats ≥production+3, promote v3 on t
 independent runs instead of one. Production calendar has now read 5/10 twice
 consecutively, so the baseline is stable for once and a repeat measurement
 actually means something. Owen routes.
+
+**#200N VERDICT FILED, 2026-07-29 — deadend verify n=10 (80 trials, PR #179
+branch `86bc343`, OTA build 1454 Debug, os 27.0 24A5390f, run sealed
+`reminders=31 events=15 alarms=20 failures=0`). NINTH consecutive exact reap.
+1 excluded and adjudicated: armed/calendar/t6 `ToolCallError(tool: WeatherTool
+…)` = argument-decode, INSTRUMENT. No disease casualties in either cell.**
+
+| prompt | armed (production) | **armed-deadendfix (v3)** |
+|---|---|---|
+| remind | 9/10 | **10/10** |
+| alarm | **10/10** | **10/10** |
+| calendar | 5/9 | **9/10** |
+| haiku grabs | **4/10** | 8/10 |
+
+**THE REMIND BAR — the single trial that stopped the #200M promotion — PASSES
+EMPHATICALLY: v3 10/10, one BETTER than production's 9/10.** Pooled across the
+two runs v3 has now had against production: remind **18/20 vs 19/20** (dead
+level), so #200M's −2 was noise exactly as the specimens suggested, and it was
+right to spend 80 trials rather than argue the point by eyeball.
+
+**THE CALENDAR WIN REPRODUCES, and the mechanism reconfirms.** Calendar **9/10
+vs 5/9** (+4 in counts, the bar wanted +3). Sam dead-end misses: production
+**4** (t2/t3/t8/t10, all "I couldn't find a contact named Sam"), v3 **1**.
+Hunt calls: production 16, v3 **15** — again essentially unchanged, so v3
+still is not suppressing the search, it is licensing the create. Pooled over
+#200M+#200N: **calendar 17/20 (85%) for v3 vs 10/19 (53%) for production, +32
+points, same direction and similar size in both runs.**
+
+**THE GRAB GUARD FAILS: v3 8/10 vs production 4/10, worse by 4 against a K=2
+guard.** Reported without softening — but with the context that makes it hard
+to read: production grabs across recent runs have gone 7/10, 15/20, 9/10,
+9/10, and now **4/10, the lowest ever recorded**, so the guard tripped against
+an outlier control. v3's own grabs are steady (9/10, 8/10). Pooled: v3 17/20
+(85%) vs production 13/20 (65%). Mechanistically a grab increase IS plausible
+here and should not be waved away: the clause is one more "just create it"
+licence, and this program has spent six lanes raising create-pressure — the
+specimens are the meta-grab class ("Write a haiku about sledding" as a reminder
+title, and one v3 trial produced BOTH a reminder and a calendar event).
+
+**Bars: 4 of 5 applicable PASS (remind, calendar, Sam dead-ends, alarm), grabs
+FAIL. Nothing promoted unilaterally — Owen routes.**
+
+**Recommendation: PROMOTE v3 and open the grab lane as the next battery.** The
+two load-bearing axes are now confirmed twice each — calendar +32 points,
+remind level — while the failing guard is a noisy metric measured against
+production's best-ever grab run. Grabs need their own treatment regardless:
+they have risen across five lanes, they are now the program's largest
+untreated disease, and no clause aimed at calendar or reminders will fix a
+disease whose cause is the create-pressure all of those clauses add. Note the
+standing framing: production is armed-routed, so a grab requires a router miss
+first. **Alternative if Owen prefers strictness: one more 80-trial A/B settles
+grabs, at the cost of a run that will not change the calendar or remind
+picture.**

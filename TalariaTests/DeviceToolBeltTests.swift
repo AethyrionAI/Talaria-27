@@ -1203,6 +1203,22 @@ struct DeviceToolBeltTests {
         #expect(!bare.contains("create the event with the name"))
     }
 
+    /// #200N: the confirmation A/B. v3 passed 5 of 6 bars in #200M and
+    /// missed remind by ONE trial (8/10 vs production's 10/10), with both
+    /// misses being the known conserved stall rather than anything the
+    /// carve-out introduced. That is exactly the situation the protocol
+    /// exists for: the number is inside production's own historical range,
+    /// so the temptation is to call it noise by eyeball — instead it gets
+    /// a second independent run against a baseline that has finally held
+    /// still (production calendar 5/10 twice consecutively). v2 is NOT in
+    /// this battery: #200M showed it resurrects find-first, so it is
+    /// retired rather than re-measured.
+    @Test func deadendVerifyBatteryIsProductionVersusV3Only() {
+        #expect(LocalChatBackend.deadendVerifyBatteryCells == [
+            .armed, .armedDeadendfix,
+        ])
+    }
+
     /// #200M battery: production, v3, and v2 in ONE run, so v3 is measured
     /// against the version it is trying to replace rather than against a
     /// remembered number from a different run — the #200I lesson about
