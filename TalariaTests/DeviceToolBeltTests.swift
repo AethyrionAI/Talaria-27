@@ -873,7 +873,8 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedFindfix.rawValue == "armed-findfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedSpiralfix.rawValue == "armed-spiralfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedStrikefix.rawValue == "armed-strikefix")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 11)
+        #expect(LocalChatBackend.ActionBatteryCell.armedCardfix.rawValue == "armed-cardfix")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 12)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -1073,6 +1074,76 @@ struct DeviceToolBeltTests {
             includeLookupSpiralCarveout: true
         )
         #expect(!bare.contains("identify them before creating the event"))
+    }
+
+    // MARK: The narrated confirmation card (#200J)
+
+    /// #200J: control vs the card-narration clause, nothing else. The
+    /// treatment's whole claim is about the remind path, but all four
+    /// prompts run because the clause names every action tool.
+    @Test func cardfixBatteryRunsTheControlAndTheClauseOnly() {
+        #expect(LocalChatBackend.cardfixBatteryCells == [
+            .armed, .armedCardfix,
+        ])
+    }
+
+    /// #200J: #200I's largest failure bucket was 10 zero-tool trials — 9
+    /// of the remind misses across BOTH cells — where the model writes the
+    /// confirmation card out in prose ("**Title:** … Would you like to
+    /// proceed?") and calls no tool at all. Production already TELLS the
+    /// model a card is shown ("Every action tool shows the user a
+    /// confirmation card first"), so knowing about the card is provably
+    /// not the same as being told not to impersonate it. The clause
+    /// forbids the impersonation and names the tool call as the way to
+    /// ask. Off by default; flag-off is production byte-identical; the
+    /// seam sits after the (off) spiral carve-out, before
+    /// honesty-and-recovery.
+    @Test func cardNarrationClauseIsOffByDefaultAndSitsBeforeHonesty() {
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true
+        )
+        #expect(!production.contains("never write the card out"))
+        let explicitOff = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeCardNarrationClause: false
+        )
+        #expect(explicitOff == production)
+        let treated = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeCardNarrationClause: true
+        )
+        #expect(treated.contains("prefer a reminder when the user asks to be reminded. The confirmation card is shown automatically when you call an action tool — never write the card out, list the details back for approval, or ask whether to proceed; make the call and let the card do the asking. When a tool reports"))
+        // The clause rides the armed capabilities paragraph only.
+        let bare = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: false,
+            includeCardNarrationClause: true
+        )
+        #expect(!bare.contains("never write the card out"))
+    }
+
+    /// #200J stacks below #200H's carve-out: with both flags on the spiral
+    /// text comes first and the card clause follows, so neither pin's seam
+    /// can drift when the other promotes.
+    @Test func cardNarrationClauseFollowsTheSpiralCarveoutWhenBothAreOn() {
+        let both = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeLookupSpiralCarveout: true,
+            includeCardNarrationClause: true
+        )
+        #expect(both.contains("a place search result is never the location. The confirmation card is shown automatically"))
+    }
+
+    /// #200J treats INSTRUCTIONS only — belt is production identity, the
+    /// reminder tool included (its description is the seam #200B
+    /// falsified, and it must stay production here).
+    @Test @MainActor func cardfixBeltIsProductionIdentity() {
+        let belt = DeviceToolBelt.makeActionTools(
+            relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
+            alarmService: AlarmService()
+        )
+        let treated = LocalChatBackend.destallBelt(from: belt, cell: .armedCardfix)
+        #expect(treated.map(\.name) == belt.map(\.name))
+        #expect(treated.first { $0.name == "createReminder" }?.description == ReminderCreateTool.productionDescription)
     }
 
     /// #200H strikefix: the third-strike demote is data-derived — across
