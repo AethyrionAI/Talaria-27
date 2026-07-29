@@ -1402,7 +1402,8 @@ final class LocalChatBackend: HermesClientProtocol {
         includeCardNarrationClause: Bool = true,
         includeDayDefaultClause: Bool = false,
         includeDeadEndCarveout: Bool = true,
-        includeCompositionAnswerClause: Bool = false
+        includeCompositionAnswerClause: Bool = false,
+        includeCardCorrectionClause: Bool = false
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
         // #196 second battery: the composition-licensing sentence — the
@@ -1507,6 +1508,19 @@ final class LocalChatBackend: HermesClientProtocol {
         // enough (the model knew the confirmation card existed and
         // impersonated it anyway). This names the artifact instead.
         let compositionAnswerClause = " When the user asks you to write something, the writing itself is the answer — never also create a reminder, event, or alarm about writing it."
+        // #200P stallfix cell: the conserved stall — zero-tool
+        // interrogation, 12 of 30 remind trials in #200O. It survives
+        // field-by-field treatment: #200K's datefix closed the date
+        // question and the model asked about the list instead, same
+        // count, different field. And it cannot be fixed by restating the
+        // promoted #200D clause, which already forbids asking and is
+        // ignored ~40% of the time in a bad run.
+        //
+        // What worked in #200J was naming the CARD as the thing the model
+        // was standing in for. This names the card as where a missing
+        // detail gets fixed, so the question has somewhere to go instead
+        // of being asked. Measured cell only.
+        let cardCorrectionClause = " A missing detail is never a reason to ask first — create it with the default and let the confirmation card be where the user changes it."
         let capabilities: String
         if hasTools {
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. "
@@ -1519,6 +1533,7 @@ final class LocalChatBackend: HermesClientProtocol {
                 + (includeDayDefaultClause ? dayDefaultClause : "")
                 + (includeDeadEndCarveout ? deadEndCarveout : "")
                 + (includeCompositionAnswerClause ? compositionAnswerClause : "")
+                + (includeCardCorrectionClause ? cardCorrectionClause : "")
                 + honestyAndRecovery
         } else if includeToollessLic2Clause {
             // #196 battery 4, toolless-lic2: the licensed bare branch plus
@@ -2508,6 +2523,10 @@ extension LocalChatBackend {
         /// composition-answer clause (`includeCompositionAnswerClause`)
         /// against the meta-grab class.
         case armedGrabfix = "armed-grabfix"
+        /// #200P: full production belt; the instructions gain the
+        /// card-correction clause (`includeCardCorrectionClause`) against
+        /// the conserved zero-tool stall.
+        case armedStallfix = "armed-stallfix"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2517,7 +2536,8 @@ extension LocalChatBackend {
         switch cell {
         case .armed, .armedInstrfix, .armedToolmode, .armedScoped, .armedCreateonly,
              .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix,
-             .armedDatefix, .armedCardrollback, .armedDeadendfix, .armedGrabfix:
+             .armedDatefix, .armedCardrollback, .armedDeadendfix, .armedGrabfix,
+             .armedStallfix:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
             // strikefix treat the tool-calling MODE, and the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
@@ -2675,6 +2695,15 @@ extension LocalChatBackend {
                     hasTools: !base.isEmpty,
                     hasImageTools: false,
                     includeCardNarrationClause: true
+                )
+            case .armedStallfix:
+                // #200P: stallfix adds the card-correction clause on top
+                // of promoted production — belt untouched.
+                cellInstructions = Self.instructionsText(
+                    deviceContext: Self.deviceContextLine(),
+                    hasTools: !base.isEmpty,
+                    hasImageTools: false,
+                    includeCardCorrectionClause: true
                 )
             case .armedGrabfix:
                 // #200O: grabfix adds the composition-answer clause on
@@ -2967,6 +2996,21 @@ extension LocalChatBackend {
     /// generations.
     func runGrabfixBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.grabfixBatteryCells, includeGrabCanary: true)
+    }
+
+    /// #200P cell list — production vs the stall clause, both arms in the
+    /// SAME run. #200O proved cross-run comparison is worthless here (its
+    /// three cells landed on exactly 6/10 remind on three different
+    /// texts), so the control rides along and every bar is a within-run
+    /// delta. Pinned.
+    nonisolated static let stallfixBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedStallfix,
+    ]
+
+    /// #200P one-tap wrapper: 2 cells × four prompts — 8 × trials
+    /// generations.
+    func runStallfixBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.stallfixBatteryCells, includeGrabCanary: true)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the

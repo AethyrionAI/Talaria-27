@@ -878,7 +878,8 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedCardrollback.rawValue == "armed-cardrollback")
         #expect(LocalChatBackend.ActionBatteryCell.armedDeadendfix.rawValue == "armed-deadendfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedGrabfix.rawValue == "armed-grabfix")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 16)
+        #expect(LocalChatBackend.ActionBatteryCell.armedStallfix.rawValue == "armed-stallfix")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 17)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -1158,6 +1159,54 @@ struct DeviceToolBeltTests {
             includeDayDefaultClause: true
         )
         #expect(!bare.contains("never ask which day"))
+    }
+
+    // MARK: The conserved stall (#200P)
+
+    /// #200P: the last disease standing on the remind path. Zero-tool
+    /// interrogation took 12 of 30 remind trials in #200O and it is
+    /// CONSERVED — #200K's datefix closed the date question and the model
+    /// started asking about the list instead, same count, different field.
+    /// So this treats the CLASS, not another field.
+    ///
+    /// It also cannot just repeat the promoted #200D clause, which already
+    /// says "never ask which list… leave optional fields empty and the
+    /// defaults apply" and is demonstrably ignored ~40% of the time in a
+    /// bad run. What worked in #200J was naming the CARD as the thing the
+    /// model was standing in for; this names the card as the place a
+    /// missing detail gets fixed, so the model has somewhere to put the
+    /// question instead of asking it.
+    @Test func cardCorrectionClauseIsOffByDefaultAndSitsAfterTheCarveout() {
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true
+        )
+        #expect(!production.contains("never a reason to ask first"))
+        let explicitOff = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeCardCorrectionClause: false
+        )
+        #expect(explicitOff == production)
+        let treated = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeCardCorrectionClause: true
+        )
+        #expect(treated.contains("create the event with the name exactly as the user gave it. A missing detail is never a reason to ask first — create it with the default and let the confirmation card be where the user changes it. When a tool reports"))
+        let bare = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: false,
+            includeCardCorrectionClause: true
+        )
+        #expect(!bare.contains("never a reason to ask first"))
+    }
+
+    /// #200P battery: production vs the stall clause, two arms in one run.
+    /// #200O proved cross-run comparison is worthless here — all three of
+    /// its cells landed on exactly 6/10 remind on three different texts —
+    /// so the control must ride in the same run, and every bar is a
+    /// within-run delta.
+    @Test func stallfixBatteryIsProductionVersusTheStallClause() {
+        #expect(LocalChatBackend.stallfixBatteryCells == [
+            .armed, .armedStallfix,
+        ])
     }
 
     // MARK: The grab disease (#200O)
