@@ -690,6 +690,31 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #200O: the promoted control + the (now identity) deadendfix cell
+    // pooled as the production re-verify, plus the grabfix treatment.
+    @ViewBuilder
+    private func grabfixBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runGrabfixBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200 orphan cleanup: the four crashed action batteries stranded
     // their battery alarms (up to ~50 armed for 6:30 AM, ringing through
     // Silent). AlarmKit enumeration carries no label, so this cancels ALL
@@ -843,6 +868,10 @@ struct DiagnosticsSettingsScreen: View {
                 // #200N: the v3 confirmation A/B.
                 HStack(spacing: Design.Spacing.sm) {
                     deadendVerifyBatteryButton(trials: 10, label: "Deadend verify n=10 (80)")
+                }
+                // #200O: pooled production re-verify + the grabfix cell.
+                HStack(spacing: Design.Spacing.sm) {
+                    grabfixBatteryButton(trials: 10, label: "Grabfix battery n=10 (120)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
