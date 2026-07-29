@@ -1397,7 +1397,7 @@ final class LocalChatBackend: HermesClientProtocol {
         includeToollessLicensingClause: Bool = false,
         includeToollessLic2Clause: Bool = false,
         includeActionDestallClause: Bool = true,
-        includeFindFirstCarveout: Bool = false
+        includeFindFirstCarveout: Bool = true
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
         // #196 second battery: the composition-licensing sentence — the
@@ -1420,13 +1420,15 @@ final class LocalChatBackend: HermesClientProtocol {
         // licensing in both directions). Explicit `false` is the pinned
         // rollback seam — the pre-promotion text, byte-identical.
         let actionDestall = " When the user asks for a reminder, alarm, or calendar event and says what and when, create it right away — never ask which list, which calendar, or for other optional details first; leave optional fields empty and the defaults apply."
-        // #200F findfix cell: the two planner-corpus carve-outs, one
-        // sentence each. Apple's own CATALOG planner documents
-        // find-first-on-ambiguity (#200E proved it model-baked: the forced
-        // first call was readReminders 10/10) and an explicit
-        // reminders-vs-calendar preference rule — these sentences carve the
-        // "remind me" intent out of both. Measured cell only; never
-        // defaults on without a battery verdict.
+        // #200G (PROMOTED 2026-07-29, #200F verdict on the corded a656004
+        // run): the find-first carve-out, default-on. Apple's own CATALOG
+        // planner documents find-first-on-ambiguity (#200E proved it
+        // model-baked: the forced first call was readReminders 10/10) and
+        // an explicit reminders-vs-calendar preference rule — these two
+        // sentences carve the "remind me" intent out of both, and from
+        // HERE they measured remind 9/10 vs 1/10 control (lifetime control
+        // 1/60) with ZERO readReminders calls. Explicit `false` is the
+        // pinned rollback seam — the pre-promotion text, byte-identical.
         let findFirstCarveout = " 'Remind me' means create the reminder — do not search existing reminders first. Reminders and calendar events are different tools — prefer a reminder when the user asks to be reminded."
         let capabilities: String
         if hasTools {
@@ -2382,9 +2384,10 @@ extension LocalChatBackend {
         /// read-substitution stall killed structurally (no readReminders
         /// to flee into; #200E measured find-first as model-baked).
         case armedCreateonly = "armed-createonly"
-        /// #200F: full production belt; the instructions gain the two
-        /// planner-corpus carve-out sentences (`includeFindFirstCarveout`),
-        /// flag-off byte-identical.
+        /// #200F: full production belt; the instructions pass
+        /// `includeFindFirstCarveout: true` explicitly. Since the #200G
+        /// promotion that is identity with production — the cell now
+        /// measures the promoted text (the instrfix precedent).
         case armedFindfix = "armed-findfix"
     }
 
@@ -2525,8 +2528,8 @@ extension LocalChatBackend {
                     includeActionDestallClause: true
                 )
             case .armedFindfix:
-                // #200F: findfix adds the two planner-corpus carve-out
-                // sentences on top of production — belt untouched.
+                // #200F: findfix passes the carve-out flag explicitly —
+                // identity with production since the #200G promotion.
                 cellInstructions = Self.instructionsText(
                     deviceContext: Self.deviceContextLine(),
                     hasTools: !base.isEmpty,
@@ -2638,6 +2641,16 @@ extension LocalChatBackend {
     /// included) — 16 × trials generations.
     func runCommunityBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.communityBatteryCells, includeGrabCanary: true)
+    }
+
+    /// #200G re-verify wrapper: promoted-production control vs the
+    /// explicit-true findfix cell — identity since the promotion, so both
+    /// halves measure production and pool (the #200D re-verify pattern).
+    /// Four prompts × 8 cells-worth of trials; the grab canary rides at
+    /// pooled n, which is where the #200F grabs caveat (5/10 vs 4/9)
+    /// gets settled.
+    func runFindfixBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: [.armed, .armedFindfix], includeGrabCanary: true)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the

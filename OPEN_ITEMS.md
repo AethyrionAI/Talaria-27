@@ -9853,3 +9853,43 @@ NEXT: promotion decision is Owen's — findfix promotes via the #200D pattern
 (flip `includeFindFirstCarveout` default TRUE, pin flip, re-verify battery)
 with the grab-rate caveat on the table; the searchConversations calendar
 spiral and the cap cell remain queued.
+
+**#200G PROMOTION RE-VERIFY PASSED, 2026-07-29 — findfix battery n=10 (80
+trials, PR #171 branch `f79c074`, corded, classified live from the bridge;
+Owen routed the promotion "Lets get the next lane going" and PR #170 merged
+`2bcf1af` on the #200F verdict). `includeFindFirstCarveout` defaults TRUE;
+both cells now speak identical promoted production and POOL. Per-trial reap
+arithmetic EXACT: reminders 22 = 7 armed-remind + 8 findfix-remind + 1
+armed-grab + 6 findfix-grabs; events 17 = 7 + 7 calendar + 2 + 1
+haiku-event-grabs; alarms 20 = 10×2; failures 0; backstop ZERO leftovers
+(second consecutive clean-sweep run).**
+
+| prompt | armed (promoted prod.) | armed-findfix (identity) | POOLED |
+|---|---|---|---|
+| remind creates | 7/10 | 8/10 | **15/20 (75%)** |
+| alarm | 10/10 | 10/10 | 20/20 |
+| calendar | 7/10 | 7/9 | 14/19 (74%) |
+| haiku GRABS | 3/10 | 7/10 | 10/20 (50%) |
+
+One trial excluded and listed: armed-findfix/calendar/t3 TIMEOUT. **Remind
+15/20 pooled — vs ~3/29 on the promoted-clause-only text and 1/60 lifetime
+pre-carve-out control; the production construction now creates at 75% with
+ZERO readReminders calls in all 20 remind trials (find-first stays dead on
+the promoted text).** Alarm ceiling holds. Calendar 14/19 matches the #200F
+band. **The #200F grabs caveat RESOLVES at pooled n: 10/20 = 50%, exactly
+the standing promoted baseline (#200D+E pooled 14/28 ≈ 50%) — the carve-out
+does NOT elevate grabs; the ~50% haiku grab rate is the pre-existing
+standing disease, tracked, not this lane's regression.** Grab titles all
+clean ("Sledding", "Sledding Joy"); zero comma-prefix titles and zero
+missing-title ToolCallErrors for the second consecutive run. New D4-family
+specimens, filed: findfix/calendar/t5 bound "Pluckers Wing Bar — Pasadena,
+TX" (500 miles away) as the lunch location — the searchPlaces("Sam")
+semantic-misbinding disease's worst specimen yet; findfix/calendar/t8
+fabricated the location NAME "Sam's place"; findfix/calendar/t9 narrated
+"(25 feet away)"; armed/calendar/t4 refused on a fabricated blocker ("the
+location information isn't available" — location is optional);
+findfix/haiku/t1 meta-grab (reminder titled "Write a haiku about sledding",
+haiku delivered anyway). PR #171 merges on this verdict per Owen's routing.
+Queued next per the survey plan: the searchConversations calendar-spiral
+cell, the cap cell (D4), the DynamicProfile adoption bundle,
+Hermes-as-provider.
