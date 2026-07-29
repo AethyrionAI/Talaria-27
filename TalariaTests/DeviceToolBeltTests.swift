@@ -877,7 +877,8 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedDatefix.rawValue == "armed-datefix")
         #expect(LocalChatBackend.ActionBatteryCell.armedCardrollback.rawValue == "armed-cardrollback")
         #expect(LocalChatBackend.ActionBatteryCell.armedDeadendfix.rawValue == "armed-deadendfix")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 15)
+        #expect(LocalChatBackend.ActionBatteryCell.armedGrabfix.rawValue == "armed-grabfix")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 16)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -1104,7 +1105,7 @@ struct DeviceToolBeltTests {
         )
         // The promoted clause, verbatim, at its measured seam: after the
         // find-first carve-out, before honesty-and-recovery.
-        #expect(production.contains("prefer a reminder when the user asks to be reminded. The confirmation card is shown automatically when you call an action tool — never write the card out, list the details back for approval, or ask whether to proceed; make the call and let the card do the asking. When a tool reports"))
+        #expect(production.contains("prefer a reminder when the user asks to be reminded. The confirmation card is shown automatically when you call an action tool — never write the card out, list the details back for approval, or ask whether to proceed; make the call and let the card do the asking. If you can't identify a person"))
         // Explicit true is identity with the default — the #200J treated
         // cell now measures production (the findfix precedent), which is
         // what makes the re-verify battery pool.
@@ -1121,7 +1122,7 @@ struct DeviceToolBeltTests {
         )
         #expect(rollback != production)
         #expect(!rollback.contains("never write the card out"))
-        #expect(rollback.contains("prefer a reminder when the user asks to be reminded. When a tool reports"))
+        #expect(rollback.contains("prefer a reminder when the user asks to be reminded. If you can't identify a person"))
         // The clause never reaches the toolless branch.
         let bare = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: false
@@ -1151,12 +1152,62 @@ struct DeviceToolBeltTests {
             deviceContext: "Device: test.", hasTools: true,
             includeDayDefaultClause: true
         )
-        #expect(treated.contains("make the call and let the card do the asking. A time with no day means the next time that clock time comes around — never ask which day. When a tool reports"))
+        #expect(treated.contains("make the call and let the card do the asking. A time with no day means the next time that clock time comes around — never ask which day. If you can't identify a person"))
         let bare = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: false,
             includeDayDefaultClause: true
         )
         #expect(!bare.contains("never ask which day"))
+    }
+
+    // MARK: The grab disease (#200O)
+
+    /// #200O: grabs are now the program's largest untreated disease and
+    /// the only one that has gotten WORSE as the others improved — 4/8,
+    /// 4/10, 7/10, 15/20, 9/10, 9/10 across the lanes. That trend is not a
+    /// coincidence: six lanes have spent their words raising
+    /// create-pressure ("create it right away", "make the call", "create
+    /// the event with the name as given"), and the haiku prompt is swept
+    /// up in it. The specimen is the META-GRAB — a reminder whose title is
+    /// the request itself ("Write a haiku about sledding"), and in #200N
+    /// one trial produced both a reminder AND a calendar event for a poem.
+    ///
+    /// The armed paragraph already says composing "needs no tool". That is
+    /// permission, and permission has never been enough in this program —
+    /// #200J proved the same thing about the confirmation card. So this
+    /// names the artifact instead: the writing IS the deliverable, so
+    /// there is nothing left to schedule.
+    @Test func compositionAnswerClauseIsOffByDefaultAndSitsAfterTheCarveout() {
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true
+        )
+        #expect(!production.contains("the writing itself is the answer"))
+        let explicitOff = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeCompositionAnswerClause: false
+        )
+        #expect(explicitOff == production)
+        let treated = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeCompositionAnswerClause: true
+        )
+        #expect(treated.contains("create the event with the name exactly as the user gave it. When the user asks you to write something, the writing itself is the answer — never also create a reminder, event, or alarm about writing it. When a tool reports"))
+        let bare = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: false,
+            includeCompositionAnswerClause: true
+        )
+        #expect(!bare.contains("the writing itself is the answer"))
+    }
+
+    /// #200O battery: the promoted control and the (now identity)
+    /// deadendfix cell pool as the production re-verify at n=20/prompt —
+    /// which is what confirms the calendar promotion at a real sample
+    /// size — while grabfix measures the new treatment against that pooled
+    /// control in the same run. Same shape as #200K.
+    @Test func grabfixBatteryPoolsTheReverifyAndTheNewTreatment() {
+        #expect(LocalChatBackend.grabfixBatteryCells == [
+            .armed, .armedDeadendfix, .armedGrabfix,
+        ])
     }
 
     // MARK: The dead-end carve-out, v3 (#200M)
@@ -1175,30 +1226,45 @@ struct DeviceToolBeltTests {
     /// sentence about locations is unearned: across #200J/#200K/#200L
     /// every accepted event was a bare title with NO location bound, so
     /// there was no misbinding left for it to prevent.
-    @Test func deadEndCarveoutIsOffByDefaultAndSaysOnlyWhatItMeasured() {
+    /// #200O PROMOTION. Two independent runs: calendar **17/20 (85%) vs
+    /// 10/19 (53%)** for production, +32 points, same direction and size
+    /// both times, with Sam dead-end misses 5→~0 and 4→1 while hunt calls
+    /// barely moved (23→16, 16→15) — the win is licensing the create, not
+    /// forbidding the search. Remind is level pooled (18/20 vs 19/20), so
+    /// #200M's one-trial miss was noise and #200N's 10/10 settled it.
+    /// Default is now TRUE; explicit `false` is the pinned byte-identical
+    /// rollback.
+    @Test func deadEndCarveoutIsProductionDefaultAndRemovable() {
         let production = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: true
         )
-        #expect(!production.contains("create the event with the name"))
-        let explicitOff = LocalChatBackend.instructionsText(
+        // The promoted carve-out, verbatim, at its measured seam: after
+        // the card clause, before honesty-and-recovery.
+        #expect(production.contains("make the call and let the card do the asking. If you can't identify a person named in an event, that's fine — create the event with the name exactly as the user gave it. When a tool reports"))
+        // Explicit true is identity with the default — the #200M/#200N
+        // treated cell now measures production, which is what lets it
+        // pool as a re-verify.
+        let explicitOn = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeDeadEndCarveout: true
+        )
+        #expect(explicitOn == production)
+        // The rollback seam: explicit false removes exactly this sentence
+        // and nothing else.
+        let rollback = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: true,
             includeDeadEndCarveout: false
         )
-        #expect(explicitOff == production)
-        let treated = LocalChatBackend.instructionsText(
-            deviceContext: "Device: test.", hasTools: true,
-            includeDeadEndCarveout: true
-        )
-        #expect(treated.contains("make the call and let the card do the asking. If you can't identify a person named in an event, that's fine — create the event with the name exactly as the user gave it. When a tool reports"))
-        // The single-variable claim, pinned: v3 carries NO search
-        // prohibition and NO location sentence. If a future edit smuggles
-        // either back in, this cell stops being a clean test of the
-        // dead-end hypothesis and this pin fails.
-        #expect(!treated.contains("never search"))
-        #expect(!treated.contains("place search result"))
+        #expect(rollback != production)
+        #expect(!rollback.contains("create the event with the name"))
+        #expect(rollback.contains("make the call and let the card do the asking. When a tool reports"))
+        // The single-variable claim survives promotion: the promoted text
+        // carries NO search prohibition and NO location sentence — those
+        // are v2's, and v2 was retired for resurrecting find-first.
+        #expect(!production.contains("never search"))
+        #expect(!production.contains("place search result"))
         let bare = LocalChatBackend.instructionsText(
-            deviceContext: "Device: test.", hasTools: false,
-            includeDeadEndCarveout: true
+            deviceContext: "Device: test.", hasTools: false
         )
         #expect(!bare.contains("create the event with the name"))
     }
@@ -1253,7 +1319,7 @@ struct DeviceToolBeltTests {
         // Everything else survives the removal — the promoted #200D and
         // #200G clauses are still there, and the seam closes back up.
         #expect(rollback.contains("leave optional fields empty and the defaults apply. 'Remind me' means"))
-        #expect(rollback.contains("prefer a reminder when the user asks to be reminded. When a tool reports"))
+        #expect(rollback.contains("prefer a reminder when the user asks to be reminded. If you can't identify a person"))
     }
 
     /// #200L battery: promoted control, the same text with the card clause

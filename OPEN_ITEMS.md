@@ -10385,3 +10385,72 @@ standing framing: production is armed-routed, so a grab requires a router miss
 first. **Alternative if Owen prefers strictness: one more 80-trial A/B settles
 grabs, at the cost of a run that will not change the calendar or remind
 picture.**
+
+**#200O VERDICT FILED, 2026-07-29 — grabfix battery n=10 (120 trials, PR #180
+branch `11303f3`, OTA build 1460 Debug, os 27.0 24A5390f, run sealed
+`reminders=43 events=24 alarms=31 failures=0`). 1 excluded: armed-deadendfix/
+haiku/t9 `ToolCallError(tool: DeviceHealthTool …)` — the argument-decode class
+again, INSTRUMENT.**
+
+**REAP ARITHMETIC: 42 accepted `createReminder` calls counted across ALL trials
+vs 43 swept — a ONE-ARTIFACT GAP, the first in ten runs.** Events (24) and
+alarms (31) match exactly. Every one of the 42 recorded calls carries
+`confirmation=accepted`, so the extra artifact was created by a call that never
+made it into the trial record; the only truncated record in the run is the
+ERROR trial, whose `readHealth` throw cut it short after its own accepted
+create. Reported rather than smoothed over. **The gap is in the SAFE
+direction** — the sweep removed more than we counted, so nothing leaked; the
+dangerous direction would be counted > swept. Watch it next run; if it
+recurs, the trial-record write on the throw path is the suspect.
+
+| prompt | armed | armed-deadendfix | **POOLED production** | armed-grabfix |
+|---|---|---|---|---|
+| remind | 6/10 | 6/10 | **12/20 (60%)** | 6/10 |
+| alarm | 10/10 | 10/10 | **20/20** | 10/10 |
+| calendar | 9/10 | 7/10 | **16/20 (80%)** | 8/10 |
+| haiku grabs | 7/10 | 8/9 | **15/19 (79%)** | 8/10 |
+
+**THE CALENDAR PROMOTION RE-VERIFIES AT n=20: 16/20 (80%)** against the 53%
+pre-promotion baseline, with Sam dead-end misses down to 2 of 20. The
+promotion's own claim holds at a real sample size. Alarm 20/20, untouched as
+ever.
+
+**GRABFIX IS A CLEAN NEGATIVE.** Grabs 8/10 against a pooled control of 15/19
+(79%) — the bar wanted ≤half — and **meta-grabs did not move at all: 7 in the
+treated cell vs 5 and 7 in the two control cells.** Naming the artifact
+("the writing itself is the answer — never also create a reminder, event, or
+alarm about writing it") did nothing. **Note the asymmetry with #200J, where
+naming the artifact DID work (card narration 3 → 0):** that clause fixed a
+behaviour the model chose *instead of* calling a tool, while a grab happens
+when the model has already committed to using the belt. **A grab looks like a
+ROUTING failure, not a licensing one — no instructions clause has moved it in
+seven lanes, and the next attempt should measure the router's haiku miss rate
+instead (the week plan's option (b)), because in production a grab requires a
+router miss first.**
+
+**THE REMIND RE-VERIFY BAR FAILS (12/20 vs ≥17/20) — AND THE FAILURE IS
+RUN-LEVEL, NOT TREATMENT-LEVEL. All three cells landed on EXACTLY 6/10**, on
+three different instruction texts, and all 12 misses across the run are the
+conserved stall — zero-tool list/date interrogation ("which list should I add
+it to?", "should it be today, or a different date?"). A treatment effect cannot
+be identical across treated and untreated arms; a run effect can.
+
+**METHODOLOGICAL FINDING, and it should govern every future verdict: CROSS-RUN
+COMPARISONS ARE NOT TRUSTWORTHY — ONLY WITHIN-RUN ARMS ARE.** Pooling the
+carve-out across runs would say remind 30/40 (75%) with it vs 47/50 (94%)
+without, Fisher p≈0.017 — apparently significant, and an artifact of exactly
+the run-level swing this run demonstrates. The unconfounded within-run
+comparisons are #200M (−2), #200N (+1), #200O (0, all arms equal): **net −1
+over 30 trials, i.e. neutral.** A time-of-day confound was checked and REJECTED
+— remind by run start reads 65%, 87%, 80%, 80%, 95%, 60% with no monotone
+trend. **No rollback recommended; the promotion stands on its within-run
+evidence.**
+
+**Disposition: calendar promotion RE-VERIFIED and standing. Grabfix NOT
+promoted (clean negative, and the disease is relabelled as routing). The
+conserved stall is now the largest remaining disease on the remind path — it
+took 12 of 30 remind trials here, it survived the #200K datefix cell, and
+field-by-field clauses provably relocate it. Recommended next: either the
+router's haiku miss rate (cheap, and re-frames the grab number production
+actually experiences) or a CLASS-level stall treatment ("create with the
+defaults; the confirmation card is where corrections happen"). Owen routes.**

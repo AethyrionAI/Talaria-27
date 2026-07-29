@@ -1401,7 +1401,8 @@ final class LocalChatBackend: HermesClientProtocol {
         includeLookupSpiralCarveout: Bool = false,
         includeCardNarrationClause: Bool = true,
         includeDayDefaultClause: Bool = false,
-        includeDeadEndCarveout: Bool = false
+        includeDeadEndCarveout: Bool = true,
+        includeCompositionAnswerClause: Bool = false
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
         // #196 second battery: the composition-licensing sentence — the
@@ -1472,7 +1473,13 @@ final class LocalChatBackend: HermesClientProtocol {
         // REQUIRED one, so permission doesn't reach it — this names the
         // resolution instead. Measured cell only.
         let dayDefaultClause = " A time with no day means the next time that clock time comes around — never ask which day."
-        // #200M deadendfix cell: the v2 carve-out reduced to the only part
+        // #200M deadendfix cell, PROMOTED #200O (default true) on two
+        // independent runs: calendar 17/20 (85%) vs 10/19 (53%) for
+        // production, +32 points, same direction and size both times,
+        // Sam dead-ends 5→~0 and 4→1, remind level pooled (18/20 vs
+        // 19/20). Explicit `false` is the pinned rollback.
+        //
+        // The v2 carve-out reduced to the only part
         // #200L showed it earns. In that run the treated cell's hunt calls
         // fell just 23 → 16 and one trial still ran away to 20 calls (17
         // consecutive searchConversations) — but the DEAD END went to
@@ -1486,6 +1493,20 @@ final class LocalChatBackend: HermesClientProtocol {
         // location sentence (unearned: every accepted event across
         // #200J/#200K/#200L was a bare title with no location bound).
         let deadEndCarveout = " If you can't identify a person named in an event, that's fine — create the event with the name exactly as the user gave it."
+        // #200O grabfix cell: the grab disease. Grabs are the only number
+        // in this program that moved the WRONG way while everything else
+        // improved (4/8 → 4/10 → 7/10 → 15/20 → 9/10 → 9/10), and that is
+        // not a coincidence — six lanes have spent their words raising
+        // create-pressure, and the haiku prompt is swept up in it. The
+        // specimen is the META-GRAB: a reminder titled with the request
+        // itself ("Write a haiku about sledding"), and in #200N one trial
+        // produced BOTH a reminder and a calendar event for a poem.
+        //
+        // The armed paragraph already says composing "needs no tool" —
+        // but that is permission, and #200J proved permission is not
+        // enough (the model knew the confirmation card existed and
+        // impersonated it anyway). This names the artifact instead.
+        let compositionAnswerClause = " When the user asks you to write something, the writing itself is the answer — never also create a reminder, event, or alarm about writing it."
         let capabilities: String
         if hasTools {
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. "
@@ -1497,6 +1518,7 @@ final class LocalChatBackend: HermesClientProtocol {
                 + (includeCardNarrationClause ? cardNarrationClause : "")
                 + (includeDayDefaultClause ? dayDefaultClause : "")
                 + (includeDeadEndCarveout ? deadEndCarveout : "")
+                + (includeCompositionAnswerClause ? compositionAnswerClause : "")
                 + honestyAndRecovery
         } else if includeToollessLic2Clause {
             // #196 battery 4, toolless-lic2: the licensed bare branch plus
@@ -2482,6 +2504,10 @@ extension LocalChatBackend {
         /// without v2's search prohibition, which is what #200L implicated
         /// in the reminder-path bleed.
         case armedDeadendfix = "armed-deadendfix"
+        /// #200O: full production belt; the instructions gain the
+        /// composition-answer clause (`includeCompositionAnswerClause`)
+        /// against the meta-grab class.
+        case armedGrabfix = "armed-grabfix"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2491,7 +2517,7 @@ extension LocalChatBackend {
         switch cell {
         case .armed, .armedInstrfix, .armedToolmode, .armedScoped, .armedCreateonly,
              .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix,
-             .armedDatefix, .armedCardrollback, .armedDeadendfix:
+             .armedDatefix, .armedCardrollback, .armedDeadendfix, .armedGrabfix:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
             // strikefix treat the tool-calling MODE, and the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
@@ -2649,6 +2675,15 @@ extension LocalChatBackend {
                     hasTools: !base.isEmpty,
                     hasImageTools: false,
                     includeCardNarrationClause: true
+                )
+            case .armedGrabfix:
+                // #200O: grabfix adds the composition-answer clause on
+                // top of promoted production — belt untouched.
+                cellInstructions = Self.instructionsText(
+                    deviceContext: Self.deviceContextLine(),
+                    hasTools: !base.isEmpty,
+                    hasImageTools: false,
+                    includeCompositionAnswerClause: true
                 )
             case .armedDeadendfix:
                 // #200M: v3 adds only the dead-end carve-out on top of
@@ -2917,6 +2952,21 @@ extension LocalChatBackend {
     /// generations.
     func runDeadendVerifyBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.deadendVerifyBatteryCells, includeGrabCanary: true)
+    }
+
+    /// #200O cell list — one run, two jobs (the #200K shape). `.armed`
+    /// and `.armedDeadendfix` are IDENTICAL since the promotion, so they
+    /// pool as the production re-verify at n=20/prompt — confirming the
+    /// calendar promotion at a real sample size — while `.armedGrabfix`
+    /// measures the new treatment against that pooled control. Pinned.
+    nonisolated static let grabfixBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedDeadendfix, .armedGrabfix,
+    ]
+
+    /// #200O one-tap wrapper: 3 cells × four prompts — 12 × trials
+    /// generations.
+    func runGrabfixBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.grabfixBatteryCells, includeGrabCanary: true)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the
