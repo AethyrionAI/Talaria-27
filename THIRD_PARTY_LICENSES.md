@@ -128,6 +128,53 @@ Two things worth stating precisely:
 The `UPSTREAM_TESTED_SHA` convention in this repo was also borrowed from Hermex,
 which pins the upstream server commit it is tested against.
 
+### Foundation-Models-Framework-Lab — `rudrankriyam/Foundation-Models-Framework-Lab` (MIT)
+
+- Source: https://github.com/rudrankriyam/Foundation-Models-Framework-Lab
+- License: MIT
+- Author: Rudrank Riyam
+
+Unlike the entries above, one file from this repo **is vendored verbatim** into
+this repository (not compiled into shipping builds): `fmf.md` — their 9,737-line
+transcription of the Xcode 27 beta FoundationModels swiftinterface including doc
+comments — copied to `docs/reference/fmf-beta4-swiftinterface.md` (2026-07-28,
+upstream `0c8fda2`) as grep-reference for the OPEN_ITEMS #200-family lanes. The
+MIT notice is therefore reproduced in full:
+
+<details>
+<summary>Verbatim MIT license text (rudrankriyam/Foundation-Models-Framework-Lab)</summary>
+
+```
+MIT License
+
+Copyright (c) 2025 Rudrank Riyam
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+</details>
+
+The repo's app code (Foundation Lab) and its `rryam/FoundationModelsKit`
+dependency were additionally reviewed 2026-07-28 as prior art for the #200
+tool-calling lanes (see `planning/FM-SDK-SEAM-SURVEY-2026-07-28.md`); no other
+source from either project is present in this repository.
+
 ---
 
 ## Project lineage
