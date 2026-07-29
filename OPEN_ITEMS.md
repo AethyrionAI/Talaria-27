@@ -9570,3 +9570,45 @@ now" WHILE its accepted createReminder (title `"],"`) went through. AWAITING:
 the true promoted-build run — install the restaged build (the install page now
 shows the build number; the export must show `appBuild` ≠ "1") and rerun
 "Instrfix battery n=10 (80)".
+
+**#200 addendum, 2026-07-28 late — SDK SEAM SURVEY (prior-art list surfaced by Owen
+via Kimi K3; every claim verified independently against the local beta-4 SDK
+swiftinterface — assistant knowledge cutoff predates WWDC26, so the SDK on disk is
+the only ground truth).** VERIFIED REAL in
+`FoundationModels.swiftmodule/arm64e-apple-ios.swiftinterface`:
+(1) **`GenerationOptions.ToolCallingMode`** — `.allowed` / `.required` /
+`.disallowed`, PER-REQUEST (`GenerationOptions(… toolCallingMode:)` and a
+`DynamicProfile.toolCallingMode(_:)` builder). A STRUCTURAL seam aimed at exactly
+the #200 disease: `.required` forces tool engagement at decoding level, upstream
+of the response-planning stall that prose treatments reach only probabilistically.
+Community note (Crosley): the framework may flip the mode back after the first
+call so the model still produces a final response — "at least one call," not a
+loop. → **#200E candidate cell `armed-toolmode`**: production belt + production
+instructions + `.required` on the action prompts. Open questions the battery must
+answer: does remind hit ~10/10 CREATES, or does forced-calling satisfy itself
+with readReminders (read-substitution survives — a read is a call)? And the
+canary is critical: `.required` on a misrouted haiku FORCES a grab, so any
+promotion would have to be router-gated. `.disallowed` is separately interesting
+as a cheaper structural toolless half (vs belt removal). (2) **`public protocol
+LanguageModel` + `LanguageModelExecutor`** — third-party providers can back
+`LanguageModelSession` (capabilities: `.vision/.guidedGeneration/.reasoning/
+.toolCalling`); the architecture item this opens: Hermes as a `LanguageModel`
+behind the SAME session/tool surface as on-device chat — unifying the two paths.
+Big; separate item if pursued. (3) **`DynamicProfile`** per-turn steering surface:
+`historyTransform` (context management — relevant to the 8,583-token
+searchConversations overflow), `transcriptErrorHandlingPolicy` (#197 corruption
+family), `reasoningLevel`, `onPrompt` hooks; plus a typed **`LanguageModelError`**
+taxonomy (`contextSizeExceeded`, `timeout`, `guardrailViolation`,
+`unsupportedTranscriptContent`, …) — we currently diagnose these from raw strings.
+FAILED VERIFICATION (do not build on): `OCRTool`/`BarcodeReaderTool` — absent from
+FoundationModels, Vision, AND VisionKit beta-4 interfaces despite the blog claim
+(the article itself admits Apple's docs are partially elided); no semantic-search
+API in FoundationModels. VALIDATION FROM APPLE'S OWN CORPUS (samhenrigold's iOS 27
+system-prompts gist, PLANNER_* agentic-Siri assets): Apple's tool-invocation
+prompts license calling under uncertainty — "Use this tool if any of the following
+applies, even if you are not certain about all the details" — the same convention
+the #200C clause encodes ("leave optional fields empty and the defaults apply").
+Our measured clause independently converged on Apple's phrasing philosophy.
+Queue position: #200E toolmode cell slots after the #200D re-verify; the
+DynamicProfile/error-taxonomy items are instrument-hardening candidates; the
+provider unification is an architecture discussion for Owen.
