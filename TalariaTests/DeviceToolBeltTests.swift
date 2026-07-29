@@ -880,7 +880,7 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedGrabfix.rawValue == "armed-grabfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedStallfix.rawValue == "armed-stallfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedSchemafix.rawValue == "armed-schemafix")
-        #expect(LocalChatBackend.ActionBatteryCell.armedSchemaquiet.rawValue == "armed-schemaquiet")
+        #expect(LocalChatBackend.ActionBatteryCell.armedSchemarollback.rawValue == "armed-schemarollback")
         #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 19)
     }
 
@@ -1163,94 +1163,79 @@ struct DeviceToolBeltTests {
         #expect(!bare.contains("never ask which day"))
     }
 
-    // MARK: Which half of the schema change did the work? (#200R)
+    // MARK: The optional-field schema, PROMOTED (#200S)
 
-    /// #200R: #200Q passed every bar AND collapsed grabs 10/10 → 1/10, an
-    /// effect nobody predicted, from a cell whose only intended delta was
-    /// two field types. But `includesSchemaInInstructions` is true, so the
-    /// tool renders its schema INTO the instructions — the field types and
-    /// the instructions text moved together, and #200Q cannot separate
-    /// them.
+    /// #200S PROMOTION. Two runs, same direction both times: remind
+    /// **20/20 pooled with ZERO zero-tool stalls** vs control 17/20 with
+    /// three, alarm untouched, calendar within K=3. The mechanism is the
+    /// one the hypothesis named — `due` and `list` were REQUIRED by the
+    /// schema while the promoted #200D clause told the model to leave them
+    /// empty, and asking the user is a rational way to satisfy a required
+    /// field.
     ///
-    /// This cell separates them. The flag governs only whether the schema
-    /// is DESCRIBED in the instructions; the schema still constrains
-    /// decoding either way. So `armed-schemaquiet` is the schemafix tool
-    /// with the description suppressed:
-    ///
-    /// - grabs stay collapsed → the effect is the DECODE constraint, and
-    ///   the instructions text is irrelevant to it
-    /// - grabs rebound toward control → the effect was the instructions
-    ///   TEXT, and "optionality" was never the mechanism
-    ///
-    /// Either answer is worth having before a promotion, because it
-    /// decides whether the follow-on work is schema-shaped or prose-shaped.
-    @Test @MainActor func schemaquietSuppressesOnlyTheReminderSchemaDescription() {
+    /// This pin is the promotion's proof: production `Arguments` accepts
+    /// `nil` for both fields, which compiles ONLY if they are optional.
+    /// #200Q's grab collapse is NOT pinned — it failed to replicate in
+    /// #200R (7/10 vs 8/10) and the claim was withdrawn.
+    @Test func productionReminderArgumentsAcceptOmittedDueAndList() {
+        let omitted = ReminderCreateTool.Arguments(title: "Test Talaria", due: nil, list: nil)
+        #expect(omitted.due == nil)
+        #expect(omitted.list == nil)
+        // Title stays REQUIRED: the schema should demand what the tool
+        // genuinely cannot default.
+        #expect(omitted.title == "Test Talaria")
+    }
+
+    /// #200S: the pinned rollback. A type change cannot ride a Bool flag,
+    /// so the rollback seam is a struct — `ReminderCreateToolRequiredFields`
+    /// is the pre-promotion tool verbatim (non-optional `due`/`list`),
+    /// reachable as a measured cell exactly like #200L's cardrollback.
+    @Test @MainActor func schemarollbackCellRestoresTheRequiredFieldTool() {
         let belt = DeviceToolBelt.makeActionTools(
             relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
             alarmService: AlarmService()
         )
-        let treated = LocalChatBackend.destallBelt(from: belt, cell: .armedSchemaquiet)
-        #expect(treated.map(\.name) == belt.map(\.name))
-        // Same optional-field tool as #200Q — this is that cell plus one
-        // flag, not a third variant.
-        #expect(treated.contains { $0 is ReminderCreateToolSchemafix })
-        let reminder = treated.first { $0.name == "createReminder" }
-        #expect(reminder?.includesSchemaInInstructions == false)
-        // EVERY other tool keeps its schema description: one variable.
-        #expect(treated.filter { $0.name != "createReminder" }.allSatisfy { $0.includesSchemaInInstructions })
-        // And the description seam stays production.
+        let rolled = LocalChatBackend.destallBelt(from: belt, cell: .armedSchemarollback)
+        #expect(rolled.map(\.name) == belt.map(\.name))
+        #expect(rolled.contains { $0 is ReminderCreateToolRequiredFields })
+        #expect(!rolled.contains { $0 is ReminderCreateTool })
+        // Everything else about the tool is production, so the cell
+        // measures the field types and nothing else.
+        let reminder = rolled.first { $0.name == "createReminder" }
         #expect(reminder?.description == ReminderCreateTool.productionDescription)
+        #expect(reminder?.includesSchemaInInstructions == true)
     }
 
-    /// #200R battery: control, #200Q's cell verbatim, and the quiet
-    /// variant — so the run REPLICATES #200Q and answers the mechanism
-    /// question at the same time, all three arms in one run per the #200O
-    /// within-run rule.
-    @Test func schemaMechanismBatteryRunsControlAndBothSchemaArms() {
-        #expect(LocalChatBackend.schemaMechanismBatteryCells == [
-            .armed, .armedSchemafix, .armedSchemaquiet,
-        ])
-    }
-
-    // MARK: The stall's structural seam (#200Q)
-
-    /// #200Q: the conserved stall is 0-for-2 on instruction treatments —
-    /// #200K's datefix relocated it (date question became list question,
-    /// same count) and #200P's stallfix did not reproduce on a rested
-    /// device. Five lanes of wording have not moved it, and there is a
-    /// reason wording cannot: `ReminderCreateTool.Arguments` declares
-    /// `due` and `list` as NON-OPTIONAL `String`, so the generated schema
-    /// marks them REQUIRED. The promoted #200D clause says "leave optional
-    /// fields empty and the defaults apply" while the schema the model is
-    /// decoding against says it must produce a value for both. When
-    /// instructions and schema disagree, the schema is the harder
-    /// constraint — and asking the user is a rational way to obtain a
-    /// required value.
-    ///
-    /// So this cell changes the TYPE and nothing else: `String?` in place
-    /// of `String` on exactly those two fields. The @Guide texts stay
-    /// byte-identical to production (they read "or empty for…" either
-    /// way), `title` stays required, and the tool body reuses
-    /// `ReminderCreateTool.performCreate` unchanged via `?? ""` — so the
-    /// ONLY delta reaching the model is whether the schema demands the
-    /// two optional fields.
-    @Test @MainActor func schemafixSwapsOnlyTheReminderToolAndKeepsTheBeltOrder() {
+    /// #200S: post-promotion the #200Q/#200R treated cell is production
+    /// identity (the findfix/cardfix precedent), which is what lets it pool
+    /// with the control as a re-verify.
+    @Test @MainActor func schemafixCellIsProductionIdentityAfterThePromotion() {
         let belt = DeviceToolBelt.makeActionTools(
             relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
             alarmService: AlarmService()
         )
         let treated = LocalChatBackend.destallBelt(from: belt, cell: .armedSchemafix)
-        // Same tools, same names, same order — one swap, nothing else.
         #expect(treated.map(\.name) == belt.map(\.name))
-        #expect(treated.contains { $0 is ReminderCreateToolSchemafix })
-        #expect(!treated.contains { $0 is ReminderCreateTool })
-        // The description seam is production — this cell is not a
-        // re-run of #200B's toolfix under a new name.
+        #expect(treated.contains { $0 is ReminderCreateTool })
         #expect(treated.first { $0.name == "createReminder" }?.description == ReminderCreateTool.productionDescription)
     }
 
-    /// #200Q battery: production vs the schema swap, both arms in one run
-    /// (the #200O within-run rule).
+    /// #200S battery: the promoted control and the (now identity) treated
+    /// cell pool as the production re-verify at n=20/prompt, while the
+    /// rollback arm measures — within the same run — whether the promotion
+    /// actually earns its place. Same shape as #200K and #200O.
+    @Test func schemaReverifyBatteryPoolsTheReverifyAndTheRollback() {
+        #expect(LocalChatBackend.schemaReverifyBatteryCells == [
+            .armed, .armedSchemafix, .armedSchemarollback,
+        ])
+    }
+
+    // MARK: The stall's structural seam (#200Q)
+
+    /// #200Q battery: was production vs the schema swap; since the #200S
+    /// promotion both arms are production, so it survives only as a
+    /// pooled-production sanity battery. The rollback comparison lives in
+    /// `schemaReverifyBatteryCells`.
     @Test func schemafixBatteryIsProductionVersusTheSchemaSwap() {
         #expect(LocalChatBackend.schemafixBatteryCells == [
             .armed, .armedSchemafix,
@@ -1551,10 +1536,15 @@ struct DeviceToolBeltTests {
     /// reads of REAL artifacts the control cell had created minutes
     /// earlier — the sweep now runs after EVERY trial. The REAP-TRIAL
     /// line is classification vocabulary; pinned byte-for-byte.
+    ///
+    /// #200S adds `alarms=`: the per-trial reap now cancels alarms too,
+    /// because alarms used to wait for end-of-run and every crashed run
+    /// stranded every alarm it had scheduled — 2026-07-29's four jetsam
+    /// kills stranded ~47, and Owen had to sweep by hand to keep working.
     @Test func reapTrialLineGrammarIsStable() {
         #expect(LocalChatBackend.reapTrialLine(
-            reminders: 1, events: 0, failures: 0, tag: "shape=armed p=remind t=3"
-        ) == "battery: REAP-TRIAL reminders=1 events=0 failures=0 shape=armed p=remind t=3 (#200F)")
+            reminders: 1, events: 0, alarms: 1, failures: 0, tag: "shape=armed p=remind t=3"
+        ) == "battery: REAP-TRIAL reminders=1 events=0 alarms=1 failures=0 shape=armed p=remind t=3 (#200F)")
     }
 
     /// The final REAP line keeps its #200 grammar; its counts now FOLD
