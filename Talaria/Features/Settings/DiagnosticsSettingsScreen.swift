@@ -539,6 +539,32 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #200I spiralfix re-measure: promoted control vs the event-scoped
+    // reword of the lookup-spiral carve-out. Strikefix is parked (its
+    // tally instrument is unproven), so this is 2 cells, not 3.
+    @ViewBuilder
+    private func spiralfixBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runSpiralfixBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200 orphan cleanup: the four crashed action batteries stranded
     // their battery alarms (up to ~50 armed for 6:30 AM, ringing through
     // Silent). AlarmKit enumeration carries no label, so this cancels ALL
@@ -668,6 +694,10 @@ struct DiagnosticsSettingsScreen: View {
                 // #200H: control vs spiral carve-out / third-strike demote.
                 HStack(spacing: Design.Spacing.sm) {
                     spiralBatteryButton(trials: 10, label: "Spiral battery n=10 (120)")
+                }
+                // #200I: the same control vs the event-scoped reword only.
+                HStack(spacing: Design.Spacing.sm) {
+                    spiralfixBatteryButton(trials: 10, label: "Spiralfix battery n=10 (80)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton

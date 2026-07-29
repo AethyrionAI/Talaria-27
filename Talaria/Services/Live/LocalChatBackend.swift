@@ -1438,7 +1438,16 @@ final class LocalChatBackend: HermesClientProtocol {
         // location misbind (searchPlaces("Sam") → Sam's Club / Pluckers
         // Wing Bar 500 miles away bound as the lunch location). Measured
         // cell only; never defaults on without a battery verdict.
-        let lookupSpiralCarveout = " A person's name in an event or reminder is just part of the title — never search contacts, conversations, or places to identify them first. Only include an event location the user themselves gave; a place search result is never the location."
+        //
+        // #200I reword, EVENT-SCOPED. v1 said "an event or reminder" and
+        // won the calendar (9/10, best ever, zero casualties) while
+        // bleeding onto intents it never named a treatment for: grabs
+        // doubled, remind sagged to 4/10. Naming reminders made it read as
+        // guidance about reminders. v2 names only the event path it was
+        // measured on, and "before creating the event" states the create
+        // as the destination instead of only forbidding the search — the
+        // shape that made the #200D and #200G clauses work.
+        let lookupSpiralCarveout = " A person's name in an event title is just part of the title — never search contacts, conversations, or places to identify them before creating the event. Only include an event location the user themselves gave; a place search result is never the location."
         let capabilities: String
         if hasTools {
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. "
@@ -2709,6 +2718,21 @@ extension LocalChatBackend {
     /// included) — 12 × trials generations.
     func runSpiralBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.spiralBatteryCells, includeGrabCanary: true)
+    }
+
+    /// #200I cell list — the spiralfix re-measure after the event-scoped
+    /// reword. Strikefix is parked (its tally instrument is unproven and
+    /// no third strike ever came due in #200H), so the trials go to the
+    /// control and the treatment only. Pinned.
+    nonisolated static let spiralfixBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedSpiralfix,
+    ]
+
+    /// #200I one-tap wrapper: 2 cells × four prompts (grab canary
+    /// included — the reword's whole point is that grabs come back to
+    /// control) — 8 × trials generations.
+    func runSpiralfixBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.spiralfixBatteryCells, includeGrabCanary: true)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the
