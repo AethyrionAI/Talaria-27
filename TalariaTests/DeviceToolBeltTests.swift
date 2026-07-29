@@ -876,7 +876,8 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedCardfix.rawValue == "armed-cardfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedDatefix.rawValue == "armed-datefix")
         #expect(LocalChatBackend.ActionBatteryCell.armedCardrollback.rawValue == "armed-cardrollback")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 14)
+        #expect(LocalChatBackend.ActionBatteryCell.armedDeadendfix.rawValue == "armed-deadendfix")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 15)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -1156,6 +1157,60 @@ struct DeviceToolBeltTests {
             includeDayDefaultClause: true
         )
         #expect(!bare.contains("never ask which day"))
+    }
+
+    // MARK: The dead-end carve-out, v3 (#200M)
+
+    /// #200M: #200L showed WHY the v2 carve-out works, and it is narrower
+    /// than the sentence claims. Identity-hunt calls only fell 23 → 16
+    /// (−30%) in the treated cell — the hunting continues, and one trial
+    /// ran away to 20 calls (17 consecutive searchConversations) and timed
+    /// out. What went to ZERO was the DEAD END: 5 "couldn't find Sam, so
+    /// I'm asking instead of creating" misses in production, none in the
+    /// treated cell. The carve-out converts hunt→ask into hunt→create.
+    ///
+    /// So v3 says only that, and pays for nothing else. v2's search
+    /// prohibition is what plausibly moved the reminder path (pooled over
+    /// two runs it cost remind −20 points and grabs −15), and v2's second
+    /// sentence about locations is unearned: across #200J/#200K/#200L
+    /// every accepted event was a bare title with NO location bound, so
+    /// there was no misbinding left for it to prevent.
+    @Test func deadEndCarveoutIsOffByDefaultAndSaysOnlyWhatItMeasured() {
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true
+        )
+        #expect(!production.contains("create the event with the name"))
+        let explicitOff = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeDeadEndCarveout: false
+        )
+        #expect(explicitOff == production)
+        let treated = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeDeadEndCarveout: true
+        )
+        #expect(treated.contains("make the call and let the card do the asking. If you can't identify a person named in an event, that's fine — create the event with the name exactly as the user gave it. When a tool reports"))
+        // The single-variable claim, pinned: v3 carries NO search
+        // prohibition and NO location sentence. If a future edit smuggles
+        // either back in, this cell stops being a clean test of the
+        // dead-end hypothesis and this pin fails.
+        #expect(!treated.contains("never search"))
+        #expect(!treated.contains("place search result"))
+        let bare = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: false,
+            includeDeadEndCarveout: true
+        )
+        #expect(!bare.contains("create the event with the name"))
+    }
+
+    /// #200M battery: production, v3, and v2 in ONE run, so v3 is measured
+    /// against the version it is trying to replace rather than against a
+    /// remembered number from a different run — the #200I lesson about
+    /// between-run control drift, applied to treatments.
+    @Test func deadendBatteryRunsProductionAndBothCarveoutVersions() {
+        #expect(LocalChatBackend.deadendBatteryCells == [
+            .armed, .armedDeadendfix, .armedSpiralfix,
+        ])
     }
 
     // MARK: The calendar lane (#200L)
