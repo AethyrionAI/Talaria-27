@@ -28,11 +28,18 @@ cd "$REPO"
 git fetch origin --quiet
 git worktree add -f "$WORK/src" "origin/$BRANCH" --quiet
 SHA=$(git -C "$WORK/src" rev-parse --short HEAD)
+# #200D lesson: a battery export from a stale install is indistinguishable from
+# the staged build unless the run record can prove its build. CFBundleVersion is
+# $(CURRENT_PROJECT_VERSION) in project.yml, so stamping the commit count here
+# puts a monotonic build id into every staged binary — BatteryRunStore exports
+# it as `appBuild`, closing the loop.
+BUILDNUM=$(git -C "$WORK/src" rev-list --count HEAD)
 
-echo "== archive $BRANCH @ $SHA [$CONFIG] (toolchain: $(xcodebuild -version | tr '\n' ' '))"
+echo "== archive $BRANCH @ $SHA [$CONFIG] build $BUILDNUM (toolchain: $(xcodebuild -version | tr '\n' ' '))"
 xcodebuild archive -project "$WORK/src/Talaria.xcodeproj" -scheme Talaria \
   -configuration "$CONFIG" \
   -destination 'generic/platform=iOS' -archivePath "$WORK/Talaria.xcarchive" \
+  CURRENT_PROJECT_VERSION="$BUILDNUM" \
   -allowProvisioningUpdates -quiet
 
 cat > "$WORK/ExportOptions.plist" << 'EOF'
@@ -80,12 +87,12 @@ cat > "$SERVE/index.html" << EOF
 <!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Talaria OTA</title></head>
 <body style="font-family:-apple-system;padding:2em;background:#111;color:#eee">
-<h2>Talaria 27 — ${BRANCH} @ ${SHA} · ${CONFIG}</h2>
+<h2>Talaria 27 — ${BRANCH} @ ${SHA} · ${CONFIG} · build ${BUILDNUM}</h2>
 <p>Staged $(date '+%Y-%m-%d %H:%M %Z')</p>
 <p><a style="font-size:1.4em;color:#6cf" href="itms-services://?action=download-manifest&amp;url=${HOSTURL}/manifest.plist">Install build</a></p>
 </body></html>
 EOF
 
 git worktree remove --force "$WORK/src" 2>/dev/null || true
-echo "== staged: ${BRANCH} @ ${SHA} (v${VER})"
+echo "== staged: ${BRANCH} @ ${SHA} (v${VER} build ${BUILDNUM})"
 echo "== install from phone Safari: ${HOSTURL}"

@@ -9513,3 +9513,197 @@ byte-identity pin to the new production text, battery re-verify on the promoted
 build); Owen routes. Remaining queue behind it: the multi-turn offer→denial
 instrument; remfix scoping as router insurance; calendar contact de-fixation may be
 moot — this clause largely cured it from upstream.
+
+**#200D PROMOTION SHIPPED, 2026-07-28 night (routed by Owen: "yup, merge and start
+on the next"; PR #167 merged `28551c7`, promotion branch
+`claude/t27-200-promote-clause`): `includeActionDestallClause` defaults TRUE in
+`instructionsText` — the de-stall clause is production.** One edit flips every
+production path by construction (Release call, DEBUG `armedRouted` default shape,
+every structural cell pinned as production-verbatim, the batteries' control cells);
+the toolless branches are `hasTools:false` and never carried it. Explicit `false`
+stays as the pinned ROLLBACK seam — the pre-promotion text, byte-identical, one
+default-flip away. TDD: the #200C off-by-default pin inverted to
+`actionDestallClauseIsProductionDefaultAndRemovable` (clause verbatim at its
+measured seam — after the confirmation-card sentence, before honesty-and-recovery;
+explicit-true identity; explicit-false removes exactly the clause; toolless clean),
+watched RED (3 expectations, the other 51 suite tests green) then GREEN after the
+flip. Full suite **1282/1282 in 111 suites**. The `armed-instrfix` cell is now
+identity with control, which makes the Diagnostics "Instrfix battery n=10 (80)"
+button the RE-VERIFY instrument for free: 2× replication of promoted production,
+20 trials/prompt including the grab canary. AWAITING: Owen installs the promoted
+build and runs it; expected if promotion holds — both cells replicate the #200C
+treated rates (remind ~2/10, alarm ~10/10, calendar ~8/10, grabs ≤3/10 per cell).
+Re-verify verdict files here on classification. Queued behind it: the multi-turn
+offer→denial instrument; remfix scoping as router insurance; the battery
+artifact-contamination fix (per-trial unique titles).
+
+**#200D re-verify attempt 1, 2026-07-28 late — STALE INSTALL (run `98DF19D1`): the
+export came from the PRE-promotion app.** Proof is behavioral and arithmetic:
+post-promotion both cells speak byte-identical instructions, but the run is
+sharply asymmetric — armed remind 0/10, calendar 1/10 (8 contact-fixations),
+grabs 8/10 vs instrfix remind 2/10, calendar 9/10, grabs 2/8 — the exact #200C
+control/treated signatures; reap `reminders=12 events=10 alarms=19 failures=0`
+matches that classification exactly (12 = 0+2 remind creates + 8+2 grabs;
+10 = 1+9 events; 19 = 9+10 alarms). The staged ipa was verified CORRECT (the
+binary contains the promoted clause; staged 17:42 CDT, run started 17:50 CDT) —
+the phone ran the still-installed `6f8da47` app. Instrument hole closed on the
+branch: `ota-stage.sh` now stamps CFBundleVersion with the branch commit count,
+so every future run record proves its build via `appBuild` (previously always
+"1" — a stale install was indistinguishable except by behavioral signature).
+BONUS SCIENCE: as an accidental third replication on fresh trials the #200C
+contrast reproduced — treated calendar 9/10 vs control 1/10 (aggregate on this
+instrument: treated 17/20 vs control 1/19), treated remind 2/10 AGAIN with the
+same read-then-create shape (control 0/10; lifetime control 0/50), grab
+suppression replicated (8/10 → 2/8). TIMEOUT trials excluded and listed:
+instrfix/haiku/t1 (latency 2371s — timedOut recorded, but the wedged respond
+still blocked the loop ~39 min; hung-respond instrument note for later) and
+instrfix/haiku/t9 (578s). New specimens: THREE treated calendar events venued at
+Owen's HOME ADDRESS (currentLocation → "19200 Crestwick St" as the lunch venue);
+one venued "Shelley work @ Memorial Hospital" — a location lifted from an
+unrelated calendar event it had just read (cross-event leakage, no contact
+lookup involved); `searchPlaces("lunch}<ctrl43>")` corruption feeding a created
+event's venue ("Cuandet Rd 43, Gulfport"); armed/calendar/t9 echoing
+`Sam}ctrl43` verbatim in user-facing reply text; armed/remind/t1 fabricating a
+capability denial ("I don't have the ability to create reminders") with
+cross-tool deflection; instrfix/haiku/t7 saying "I can't create reminders right
+now" WHILE its accepted createReminder (title `"],"`) went through. AWAITING:
+the true promoted-build run — install the restaged build (the install page now
+shows the build number; the export must show `appBuild` ≠ "1") and rerun
+"Instrfix battery n=10 (80)".
+
+**#200 addendum, 2026-07-28 late — SDK SEAM SURVEY (prior-art list surfaced by Owen
+via Kimi K3; every claim verified independently against the local beta-4 SDK
+swiftinterface — assistant knowledge cutoff predates WWDC26, so the SDK on disk is
+the only ground truth).** VERIFIED REAL in
+`FoundationModels.swiftmodule/arm64e-apple-ios.swiftinterface`:
+(1) **`GenerationOptions.ToolCallingMode`** — `.allowed` / `.required` /
+`.disallowed`, PER-REQUEST (`GenerationOptions(… toolCallingMode:)` and a
+`DynamicProfile.toolCallingMode(_:)` builder). A STRUCTURAL seam aimed at exactly
+the #200 disease: `.required` forces tool engagement at decoding level, upstream
+of the response-planning stall that prose treatments reach only probabilistically.
+Community note (Crosley): the framework may flip the mode back after the first
+call so the model still produces a final response — "at least one call," not a
+loop. → **#200E candidate cell `armed-toolmode`**: production belt + production
+instructions + `.required` on the action prompts. Open questions the battery must
+answer: does remind hit ~10/10 CREATES, or does forced-calling satisfy itself
+with readReminders (read-substitution survives — a read is a call)? And the
+canary is critical: `.required` on a misrouted haiku FORCES a grab, so any
+promotion would have to be router-gated. `.disallowed` is separately interesting
+as a cheaper structural toolless half (vs belt removal). (2) **`public protocol
+LanguageModel` + `LanguageModelExecutor`** — third-party providers can back
+`LanguageModelSession` (capabilities: `.vision/.guidedGeneration/.reasoning/
+.toolCalling`); the architecture item this opens: Hermes as a `LanguageModel`
+behind the SAME session/tool surface as on-device chat — unifying the two paths.
+Big; separate item if pursued. (3) **`DynamicProfile`** per-turn steering surface:
+`historyTransform` (context management — relevant to the 8,583-token
+searchConversations overflow), `transcriptErrorHandlingPolicy` (#197 corruption
+family), `reasoningLevel`, `onPrompt` hooks; plus a typed **`LanguageModelError`**
+taxonomy (`contextSizeExceeded`, `timeout`, `guardrailViolation`,
+`unsupportedTranscriptContent`, …) — we currently diagnose these from raw strings.
+FAILED VERIFICATION (do not build on): `OCRTool`/`BarcodeReaderTool` — absent from
+FoundationModels, Vision, AND VisionKit beta-4 interfaces despite the blog claim
+(the article itself admits Apple's docs are partially elided); no semantic-search
+API in FoundationModels. VALIDATION FROM APPLE'S OWN CORPUS (samhenrigold's iOS 27
+system-prompts gist, PLANNER_* agentic-Siri assets): Apple's tool-invocation
+prompts license calling under uncertainty — "Use this tool if any of the following
+applies, even if you are not certain about all the details" — the same convention
+the #200C clause encodes ("leave optional fields empty and the defaults apply").
+Our measured clause independently converged on Apple's phrasing philosophy.
+Queue position: #200E toolmode cell slots after the #200D re-verify; the
+DynamicProfile/error-taxonomy items are instrument-hardening candidates; the
+provider unification is an architecture discussion for Owen.
+
+**#200 addendum 2, 2026-07-28 late — 8-agent comb synthesis (workflow, one sonnet
+agent per source; 8/8 returned) + one CORRECTION to addendum 1.**
+**CORRECTION: `OCRTool`/`BarcodeReaderTool` ARE in the beta-4 SDK** — in the
+cross-import overlay `_Vision_FoundationModels.framework` (both conform to
+`FoundationModels.Tool`, `call → some PromptRepresentable`); my "failed
+verification" grepped only the three primary interfaces, and overlay APIs live in
+separate `_A_B.framework` modules. Likewise `SpotlightSearchTool` +
+`Configuration` live in `_CoreSpotlight_FoundationModels` — which RESOLVES the
+"semantic search" claim (it's a Tool over Core Spotlight, not a new API);
+`_FoundationModels_UIKit` / `_FoundationModels_SwiftUI` overlays also exist.
+Kimi K3's original claims were right on this; the false negative was mine.
+SYNTHESIS, in program order:
+(1) **#200E design hardened by three independent sources:** rudrankriyam's
+`fmf.md` (a 9,737-line raw transcription of THIS beta-4 swiftinterface including
+doc comments we don't see) documents that `.required` "will loop until a Tool
+throws an error or this value is changed dynamically"; Apple's WWDC pattern is
+`.toolCallingMode(state.done ? .disallowed : .required)` + `.onToolCall` flag;
+Foundation Lab ships working demote-after-first-call code
+(`ToolCallingModeProfile.swift`). The #200E cell MUST use the DynamicProfile
+demote pattern — raw `.required` in GenerationOptions would spin trials into the
+guillotine. (2) **D4 mechanism candidate from Apple's own docs:** a strict
+`maximumResponseTokens` "can lead to the model producing malformed results" —
+and Talaria caps EVERY on-device chat turn at 1024 (#102 thermal guard,
+deliberate). Candidate measured cell: armed-cap2048 / armed-nocap vs control on
+the corruption rate; do NOT touch #102 without a battery. (3) **Independent
+convergence on the D1 fix class:** rryam/FoundationModelsKit ships production
+instructions "Always execute tool calls directly without asking for confirmation
+… call the RemindersTool immediately" — session-instructions clause, same class
+as our promoted fix. (4) **Planner corpus (190 files, not 128):** Apple runs
+BOTH policies — the on-device ODM planner bakes in "Clarify with user if
+unclear" (a plausible TRAINING-DISTRIBUTION source of our clarify-stall), while
+the big-model CATALOG planner does omit-optional-fields-never-null-fill and a
+find-first-on-ambiguity rule (plausible source of the D2 read-substitution).
+Steal-worthy conventions: anti-loop hard-stop ("calling the same tool with the
+same parameters in succession is a hard failure"), typed tool-error taxonomy
+(interventionRequired/unsupported/retryable/fatal), a `not_supported`
+escape-valve tool (D3 candidate), canonical date-format examples in param
+descriptions (D4 candidate). (5) **Tool count:** Apple's guidance recommends
+3–5 active tools per request; our belt is 10 → per-turn tool-scoping is a
+measured-cell candidate. (6) **Provider surface is production-real:**
+anthropics/ClaudeForFoundationModels exists (Apache-2.0, verified firsthand via
+gh api raw reads); client-side Tool conformances are invoked by the FRAMEWORK
+regardless of the backing model — so Hermes-as-LanguageModel would keep OUR belt
+running locally; PCC model = 32K context, entitlement-gated, free tier under 2M
+users; known provider-side hang (30–48s grammar compile on schema change).
+(7) **Apple ships an "Evaluations" framework** (Swift Testing integration,
+model-judge scoring) — our battery, productized; investigate for instrument
+evolution. And `logFeedbackAttachment(sentiment:issues:desiredOutput:)` is the
+sanctioned channel to file D1–D4 to Apple. (8) **Zero public prior art on D1–D4
+as measured phenomena** — a documented absence across all eight sources; the
+battery results are novel. Low-yield sources for the record: the ECC skill
+(iOS 26 tutorial, no companions), IvanCampos playgrounds (LLM-generated iOS 26
+stubs), Saharshv tutorial (all-required params, uncaught respond errors — a
+useful cautionary example only).
+
+**#200D RE-VERIFY PASSED — PROMOTION VERIFIED, 2026-07-28/29 (run `B468B062`,
+`appBuild:"1387"` — the build stamp worked on its first outing and proves the
+promoted binary). Sealed clean. Both cells speak the promoted text; both
+replicate the treated signature:**
+
+| prompt | armed | armed-instrfix | pooled (promoted production) | pre-promotion control |
+|---|---|---|---|---|
+| remind creates | 0/9 | 2/10 | **2/19** | 0/50 lifetime |
+| alarm | 10/10 | 10/10 | **20/20** | 8–10/10 |
+| calendar creates | 9/9 | 9/9 | **18/18** | 1/19 (this instrument) |
+| haiku GRABS | 2/8 | 6/10 | **8/18 (44%)** | 17/20 (85%) |
+
+Calendar hit CEILING — 18/18 with the contact-fixation dead (three trials had
+lookupContact fail and CREATED ANYWAY, behavior control never showed). Alarm
+ceiling. Remind matches the treated rate (~10%; the list-stall lives on as the
+#200E target). Grabs halved though noisy between cells (2/8 vs 6/10 on
+IDENTICAL text — n=10 variance; creative cant-refusals hold at ~9/18, the known
+collateral). Excluded and listed: TIMEOUTs armed/calendar/t3 (weather spiral)
+and instrfix/calendar/t8; ERRORs — THREE `GeneratedContent does not contain a
+property 'title'` ToolCallErrors (armed remind t3, armed haiku t5+t7 — all
+FAILED creates/grabs, args {list,due} only) — a rising D4 signal, possibly the
+clause's "leave optional fields empty" bleeding into dropping the REQUIRED
+title; plus comma-prefix title corruption in instrfix grabs (`,`, `,Sledding
+Fun`, `,Sledding`). **REAP ARITHMETIC FAILED for the first time in five runs:**
+reminders reaped 15 vs 10 accepted in-run, events 33 vs 18, alarms exactly
+20=20. The surplus pattern fits PRE-EXISTING marker artifacts swept by this
+run's store-query reap (in-run evidence: four already-exists readReminders hits
+on a "Test Talaria July 30" artifact NO recorded run created) — most plausibly
+an ABORTED RUN between exports 98DF19D1 and B468B062 (app killed mid-run:
+creates persist, no reap, no export). CRITICAL ASYMMETRY EXPOSED: the
+reminders/events reap is a marker QUERY (sweeps leftovers, self-healing) but
+the alarm reap cancels only ITS OWN tracked IDs — an aborted run's alarms are
+invisible to every later reap and stay scheduled (the 42-orphan lesson, now
+structural). Owen asked to confirm the aborted run + run the alarm sweep.
+Instrument follow-ups queued: persist tracked alarm IDs per-run to disk for
+cross-run reap (marker-query reap is impossible — AlarmKit exposes no labels on
+enumeration); document reap counts as this-run + leftovers. **PR #168 merges on
+this verdict; the clause is production. #200E (toolmode, demote pattern) is
+next per Owen's routing of the survey plan ("Lets do it").**
