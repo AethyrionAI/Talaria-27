@@ -765,6 +765,31 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #200R: control vs the #200Q schema cell vs the same cell with its
+    // schema description suppressed — replication plus mechanism.
+    @ViewBuilder
+    private func schemaMechanismBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runSchemaMechanismBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200 orphan cleanup: the four crashed action batteries stranded
     // their battery alarms (up to ~50 armed for 6:30 AM, ringing through
     // Silent). AlarmKit enumeration carries no label, so this cancels ALL
@@ -930,6 +955,10 @@ struct DiagnosticsSettingsScreen: View {
                 // #200Q: production vs the schema swap.
                 HStack(spacing: Design.Spacing.sm) {
                     schemafixBatteryButton(trials: 10, label: "Schemafix battery n=10 (80)")
+                }
+                // #200R: replication + mechanism in one run.
+                HStack(spacing: Design.Spacing.sm) {
+                    schemaMechanismBatteryButton(trials: 10, label: "Schema mechanism n=10 (120)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton

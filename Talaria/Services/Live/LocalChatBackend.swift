@@ -2532,6 +2532,13 @@ extension LocalChatBackend {
         /// the model is no longer required to produce a value it was
         /// being told to leave empty. Belt swap; instructions untouched.
         case armedSchemafix = "armed-schemafix"
+        /// #200R: `armedSchemafix` plus ONE flag —
+        /// `includesSchemaInInstructions = false` on the reminder tool, so
+        /// the optional-field schema still governs DECODING but is no
+        /// longer described in the instructions. #200Q could not separate
+        /// "the field types changed" from "the instructions text changed";
+        /// this cell does.
+        case armedSchemaquiet = "armed-schemaquiet"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2548,6 +2555,18 @@ extension LocalChatBackend {
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
             // loop) — none of them swap tool text here.
             return tools
+        case .armedSchemaquiet:
+            // #200R: the #200Q tool with its schema description
+            // suppressed. Same optional-field struct, same production
+            // description — one flag is the whole delta.
+            return tools.map { tool in
+                if let reminder = tool as? ReminderCreateTool {
+                    var quiet = ReminderCreateToolSchemafix(relay: reminder.relay, confirmations: reminder.confirmations)
+                    quiet.includesSchemaInInstructions = false
+                    return quiet
+                }
+                return tool
+            }
         case .armedSchemafix:
             // #200Q: one swap — the reminder tool whose optional fields
             // are optional in the schema. Everything else is production,
@@ -3039,6 +3058,20 @@ extension LocalChatBackend {
     /// generations.
     func runSchemafixBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.schemafixBatteryCells, includeGrabCanary: true)
+    }
+
+    /// #200R cell list — control, #200Q's cell VERBATIM (so its arm is the
+    /// replication), and the quiet variant that answers which half of the
+    /// #200Q change moved the model. All three in one run, per the #200O
+    /// within-run rule. Pinned.
+    nonisolated static let schemaMechanismBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedSchemafix, .armedSchemaquiet,
+    ]
+
+    /// #200R one-tap wrapper: 3 cells × four prompts — 12 × trials
+    /// generations.
+    func runSchemaMechanismBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.schemaMechanismBatteryCells, includeGrabCanary: true)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the
