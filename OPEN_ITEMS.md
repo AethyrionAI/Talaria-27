@@ -10634,3 +10634,78 @@ marker artifact would have been caught by the same run's backstop sweep, which
 ran and found 16. Nothing stranded. Also of note, `armed-schemafix/calendar/t6`
 shows a `confirm=none` call followed by an `accepted` one: the tool bailed
 pre-gate once and then succeeded, which is the honest-failure path working.
+
+**#200R VERDICT FILED, 2026-07-29 — schema-mechanism battery n=10 (120 trials,
+PR #183 branch `e5240e5`, CORDED Xcode build (`appBuild=1`, so unstamped —
+corded builds carry no CURRENT_PROJECT_VERSION), os 27.0 24A5390f, run sealed
+`reminders=33 events=34 alarms=31 failures=0`, ZERO exclusions).**
+
+| prompt | armed | armed-schemafix | armed-schemaquiet |
+|---|---|---|---|
+| remind | 9/10 (1 stall) | **10/10 (0 stalls)** | **0/10** |
+| alarm | **10/10** | **10/10** | **10/10** |
+| calendar | 8/10 | 7/10 | 9/10 |
+| haiku grabs | 8/10 | 7/10 | 0/10 |
+
+**(1) THE REMIND RESULT REPLICATES. Pooled over #200Q + #200R: schemafix
+20/20 with ZERO zero-tool stalls vs control 17/20 with 3.** Both runs hit
+10/10; the ceiling-aware bar passes both times. The schema-contradiction
+hypothesis is now confirmed twice: making `due`/`list` optional in the schema —
+so it no longer demands what the promoted #200D clause tells the model to leave
+empty — removes the interrogation. Alarm untouched, calendar within K=3.
+
+**(2) #200Q's GRAB COLLAPSE DOES NOT REPLICATE. 7/10 vs a control of 8/10 —
+essentially equal, against #200Q's 1/10 vs 10/10.** The grab bar (≤half
+control) FAILS. That nine-trial swing was a one-run fluke, and the
+"reproduction required" rule caught it exactly as intended. Nothing got worse;
+the claim simply evaporates. **Two unexplained large effects have now failed to
+replicate in two days (#200P's perfect stall cell, #200Q's grab collapse) — the
+rule earns its keep and stays.**
+
+**(3) THE MECHANISM ARM IS DEGENERATE, AND WHAT IT REVEALS IS WORSE THAN
+"INCONCLUSIVE": the schema description is load-bearing for tool SELECTION.**
+With the reminder tool's schema suppressed from the instructions (decoding
+unchanged), the model did not merely fail to create reminders — **9 of 10 remind
+trials created a CALENDAR EVENT instead** (one scheduled an alarm) **while
+telling the user a reminder had been set**: "Your reminder to test Talaria has
+been scheduled for July 29, 2026, at 4:30 PM" — on the calendar. Three trials
+bound junk locations ("at Talia", "at Test Talaria"). Its 0/10 grabs are the
+same artifact: no usable reminder tool means no reminder grabs, not restraint.
+**So the #200Q confound cannot be separated by removing the description —
+removing it breaks the tool.** The confound is formally unresolved and now moot:
+what would promote is the optional-field schema WITH its description, which is
+exactly the cell measured twice.
+
+**New specimen for the D4/honesty ledger:** silent wrong-artifact substitution
+with a confident false claim. Production never suppresses schema descriptions,
+so this is a model/SDK finding rather than a live bug — but it is the starkest
+"the reply lies about what it did" case the program has recorded, and it
+independently re-justifies the standing rule that a create is
+`confirm=accepted` + its artifact, NEVER the reply text.
+
+**(4) THE CRASHES WERE JETSAM MEMORY KILLS — instrument, not code.** Four
+consecutive runs died with no in-app error, no timeout, no assertion, healthy
+latencies, and scattered death points (≈105, 26, 17, 49 trials). Re-launching
+with the DEBUGGER ATTACHED — which makes a process jetsam-exempt — the identical
+build completed all 120 trials on the first attempt. Two earlier hypotheses were
+wrong and are recorded as such: device/model degradation (refuted by 2.5-6.4s
+mean latencies in the crashing runs) and an AlarmKit ceiling from orphaned
+alarms (refuted by a death mid-reminder with only 10 alarms live). **Protocol
+addition: run corded batteries with the debugger attached.**
+
+**(5) REAL INSTRUMENT DEFECT FOUND EN ROUTE: the per-trial reap sweeps
+reminders and events but NOT alarms** — alarms are cancelled only at end-of-run,
+so every crashed run strands every alarm it scheduled (~30 for a 3-cell battery;
+today's four crashes stranded ~47, matching the "~50 armed for 6:30 AM" already
+on file from 2026-07-28). Owen had to sweep manually to proceed. **Fix owed:
+cancel each trial's tracked alarm in the per-trial reap so a crash can strand at
+most one.**
+
+**Disposition: the optional-field schema (#200Q's cell) is CONFIRMED on remind
+across two runs — 20/20, zero stalls — with no collateral, and the grab claim is
+withdrawn. Promotion is Owen's call. Recommended: promote it on the
+#200D/#200G/#200K/#200O pattern (production types become optional, the pinned
+rollback is the required-field struct, promoted cell becomes the next pooled
+re-verify) and land the per-trial alarm cancel in the same branch. The
+schemaquiet cell should be RETIRED, not re-measured — it disables the tool it
+was meant to isolate.**
