@@ -10512,3 +10512,66 @@ stalls at zero and calendar lands within K=3 of control, promote on the
 produced, in order, a first-ever reap gap (#200O) and then a resource-error
 cascade (#200P). Both are consistent with accumulated pressure rather than any
 code change. Cool-down between batteries is now part of the protocol.
+
+**#200P RE-RUN + ROUTER PROBE FILED, 2026-07-29 (rested device, build 1466).
+Two results, and they close two different questions.**
+
+**(1) ROUTER PROBE: 200/200 PERFECT — and it retires the grab lane by
+measurement rather than assumption.** n=20 × 10 probes, every one 20/20:
+
+| probe | expected | correct |
+|---|---|---|
+| What's 2+2? | toolless | 20/20 |
+| **Write a haiku about sledding** | **toolless** | **20/20** |
+| write a 50 word summary about Norway | toolless | 20/20 |
+| Tell me a joke about penguins | toolless | 20/20 |
+| Write a poem for my mom's birthday | toolless | 20/20 |
+| Remind me to buy milk tomorrow at 9am | device | 20/20 |
+| What's the weather like right now? | device | 20/20 |
+| Set an alarm for 6:30 | device | 20/20 |
+| How many steps have I taken today? | device | 20/20 |
+| Do I have anything on my calendar Friday? | device | 20/20 |
+
+The grab disease only exists in ARMED construction, and **the router sent the
+grab canary toolless 20 times out of 20** — as it did every other composition
+prompt. So the 79–100% grab rates measured in armed cells all session are NOT
+numbers a production user meets for this prompt class; a grab needs a router
+miss first, and the measured miss rate is **zero**. This is the standing
+framing, finally measured. **The grab lane closes: #200O's clean negative no
+longer matters much, and no further instructions work on grabs is justified
+until a router miss is actually observed.** Honest caveat: this is 5
+composition prompts × 20; the router's behaviour on OTHER phrasings is
+unmeasured, so the claim is "perfect on the measured set", not "perfect".
+
+**(2) STALLFIX DOES NOT REPRODUCE — NOT PROMOTED.** Same two cells, rested
+device, `reminders=33 events=17 alarms=20 failures=0`, reap EXACT, and **ZERO
+exclusions in 80 trials** (which also confirms #200P's 7-error collapse was
+device pressure, not code — same build, same cells, healthy hardware, clean
+run).
+
+| within-run arms | remind | zero-tool stalls |
+|---|---|---|
+| #200P run 1 — control | 8/10 | 2 |
+| #200P run 1 — stallfix | **10/10** | **0** |
+| re-run — control | 8/10 | 2 |
+| re-run — stallfix | **8/10** | **2** |
+
+Pooled: stallfix 18/20 with 2 stalls vs control 16/20 with 4. **+2 over 20
+trials — indistinguishable from a noise floor #200O measured at ±4.** The
+entire apparent effect came from run 1; on a healthy device the treated and
+control arms are identical, and the treated cell's misses are the same
+interrogation as the control's ("Could you specify the date?", "a due date or a
+specific list?").
+
+**This is the protocol working.** #200P's headline was a perfect 10/10 with the
+specimen at zero, filed with a recommendation to re-run rather than promote
+because the collateral arm had collapsed. The re-run says don't promote.
+Without that discipline a run-level fluctuation would now be production text.
+
+**Disposition: nothing promoted. Stallfix stays a flag-off measured cell.** The
+conserved stall remains the largest live disease on the remind path (4 of 20
+control trials here) and is now 0-for-2 on instruction treatments (datefix
+relocated it, stallfix did not reproduce) — the next attempt should change
+KIND, not wording: the promoted destall clause already forbids asking, so a
+structural seam (tool-schema defaults, or a DynamicProfile that demotes on a
+question-shaped output) is the untried direction.
