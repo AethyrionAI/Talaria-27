@@ -1399,7 +1399,8 @@ final class LocalChatBackend: HermesClientProtocol {
         includeActionDestallClause: Bool = true,
         includeFindFirstCarveout: Bool = true,
         includeLookupSpiralCarveout: Bool = false,
-        includeCardNarrationClause: Bool = false
+        includeCardNarrationClause: Bool = true,
+        includeDayDefaultClause: Bool = false
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
         // #196 second battery: the composition-licensing sentence — the
@@ -1449,7 +1450,7 @@ final class LocalChatBackend: HermesClientProtocol {
         // as the destination instead of only forbidding the search — the
         // shape that made the #200D and #200G clauses work.
         let lookupSpiralCarveout = " A person's name in an event title is just part of the title — never search contacts, conversations, or places to identify them before creating the event. Only include an event location the user themselves gave; a place search result is never the location."
-        // #200J cardfix cell: the narrated confirmation card. #200I's
+        // #200J cardfix cell, PROMOTED #200K (default true). #200I's
         // largest failure bucket was 10 zero-tool trials — 9 of the remind
         // misses, in BOTH cells — where the model typed the card out
         // ("**Title:** Test Talaria / **Due:** … / Would you like to
@@ -1457,8 +1458,19 @@ final class LocalChatBackend: HermesClientProtocol {
         // single-turn battery can never give. Production already says a
         // card is shown; that evidently reads as description, not as
         // "so don't do it yourself". This names the impersonation and
-        // points at the call. Measured cell only.
+        // points at the call — and #200J measured it dead: 3 narrations in
+        // control, ZERO in 40 treatment trials, remind 5/10 → 8/10.
+        // Explicit `false` is the pinned rollback, byte-identical to the
+        // pre-promotion text.
         let cardNarrationClause = " The confirmation card is shown automatically when you call an action tool — never write the card out, list the details back for approval, or ask whether to proceed; make the call and let the card do the asking."
+        // #200K datefix cell: the residual remind disease. #200J's two
+        // remaining treatment misses were both zero-tool date
+        // interrogations ("Could you clarify the due date?", "a specific
+        // date or keep it open for today?"). The #200D clause licenses
+        // empty OPTIONAL fields; a bare clock time reads as an AMBIGUOUS
+        // REQUIRED one, so permission doesn't reach it — this names the
+        // resolution instead. Measured cell only.
+        let dayDefaultClause = " A time with no day means the next time that clock time comes around — never ask which day."
         let capabilities: String
         if hasTools {
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. "
@@ -1468,6 +1480,7 @@ final class LocalChatBackend: HermesClientProtocol {
                 + (includeFindFirstCarveout ? findFirstCarveout : "")
                 + (includeLookupSpiralCarveout ? lookupSpiralCarveout : "")
                 + (includeCardNarrationClause ? cardNarrationClause : "")
+                + (includeDayDefaultClause ? dayDefaultClause : "")
                 + honestyAndRecovery
         } else if includeToollessLic2Clause {
             // #196 battery 4, toolless-lic2: the licensed bare branch plus
@@ -2432,8 +2445,15 @@ extension LocalChatBackend {
         /// #200J: full production belt; the instructions gain the
         /// card-narration clause (`includeCardNarrationClause`) against
         /// #200I's largest failure bucket — the model writing the
-        /// confirmation card out in prose and calling nothing.
+        /// confirmation card out in prose and calling nothing. Since the
+        /// #200K promotion the cell passes the promoted flag explicitly,
+        /// so it is identity with production (the findfix precedent) —
+        /// which is what lets it pool with the control as a re-verify.
         case armedCardfix = "armed-cardfix"
+        /// #200K: full production belt; the instructions gain the
+        /// day-default clause (`includeDayDefaultClause`) against #200J's
+        /// residual remind disease — zero-tool date interrogation.
+        case armedDatefix = "armed-datefix"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2442,7 +2462,8 @@ extension LocalChatBackend {
     nonisolated static func destallBelt(from tools: [any Tool], cell: ActionBatteryCell) -> [any Tool] {
         switch cell {
         case .armed, .armedInstrfix, .armedToolmode, .armedScoped, .armedCreateonly,
-             .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix:
+             .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix,
+             .armedDatefix:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
             // strikefix treat the tool-calling MODE, and the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
@@ -2592,13 +2613,23 @@ extension LocalChatBackend {
                     includeLookupSpiralCarveout: true
                 )
             case .armedCardfix:
-                // #200J: cardfix adds the card-narration clause on top of
-                // production — belt untouched.
+                // #200J: cardfix passes the card clause explicitly —
+                // identity with production since the #200K promotion, so
+                // this cell pools with the control as the re-verify.
                 cellInstructions = Self.instructionsText(
                     deviceContext: Self.deviceContextLine(),
                     hasTools: !base.isEmpty,
                     hasImageTools: false,
                     includeCardNarrationClause: true
+                )
+            case .armedDatefix:
+                // #200K: datefix adds the day-default clause on top of
+                // promoted production — belt untouched.
+                cellInstructions = Self.instructionsText(
+                    deviceContext: Self.deviceContextLine(),
+                    hasTools: !base.isEmpty,
+                    hasImageTools: false,
+                    includeDayDefaultClause: true
                 )
             default:
                 cellInstructions = instructions
@@ -2773,6 +2804,23 @@ extension LocalChatBackend {
     /// narration bucket.
     func runCardfixBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.cardfixBatteryCells, includeGrabCanary: true)
+    }
+
+    /// #200K cell list — one run doing two jobs. `.armed` and
+    /// `.armedCardfix` are IDENTICAL since the promotion (the cell passes
+    /// the promoted flag explicitly), so they pool as the production
+    /// re-verify at n=20/prompt — which is what settles #200J's calendar
+    /// guard, whose control read 7/10, 4/10, 10/10 across three runs.
+    /// `.armedDatefix` measures the new treatment against that pooled
+    /// control in the same run. Pinned.
+    nonisolated static let datefixBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedCardfix, .armedDatefix,
+    ]
+
+    /// #200K one-tap wrapper: 3 cells × four prompts — 12 × trials
+    /// generations.
+    func runDatefixBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.datefixBatteryCells, includeGrabCanary: true)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the
