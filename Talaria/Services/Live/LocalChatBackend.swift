@@ -2454,6 +2454,13 @@ extension LocalChatBackend {
         /// day-default clause (`includeDayDefaultClause`) against #200J's
         /// residual remind disease — zero-tool date interrogation.
         case armedDatefix = "armed-datefix"
+        /// #200L: the first cell that measures a PROMOTED clause by
+        /// removing it — production with `includeCardNarrationClause`
+        /// explicitly false, i.e. the pinned rollback text verbatim.
+        /// #200K left open whether the promoted clause costs calendar
+        /// (59% post vs 70% pre, p≈0.4, direction unfavorable); this
+        /// answers it directly instead of on trend lines.
+        case armedCardrollback = "armed-cardrollback"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2463,7 +2470,7 @@ extension LocalChatBackend {
         switch cell {
         case .armed, .armedInstrfix, .armedToolmode, .armedScoped, .armedCreateonly,
              .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix,
-             .armedDatefix:
+             .armedDatefix, .armedCardrollback:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
             // strikefix treat the tool-calling MODE, and the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
@@ -2621,6 +2628,15 @@ extension LocalChatBackend {
                     hasTools: !base.isEmpty,
                     hasImageTools: false,
                     includeCardNarrationClause: true
+                )
+            case .armedCardrollback:
+                // #200L: production MINUS the promoted card clause — the
+                // pinned rollback text, run as a measured cell.
+                cellInstructions = Self.instructionsText(
+                    deviceContext: Self.deviceContextLine(),
+                    hasTools: !base.isEmpty,
+                    hasImageTools: false,
+                    includeCardNarrationClause: false
                 )
             case .armedDatefix:
                 // #200K: datefix adds the day-default clause on top of
@@ -2821,6 +2837,22 @@ extension LocalChatBackend {
     /// generations.
     func runDatefixBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.datefixBatteryCells, includeGrabCanary: true)
+    }
+
+    /// #200L cell list — the calendar lane. Promoted production, the same
+    /// text with the promoted card clause REMOVED (the pinned rollback),
+    /// and the #200I spiral carve-out. One run separates the two live
+    /// hypotheses for #200K's 8/18 calendar: that the promoted clause
+    /// costs calendar, or that the "Sam" identity dead-end owns it —
+    /// which was 14 of 14 classified calendar misses last run. Pinned.
+    nonisolated static let calendarBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedCardrollback, .armedSpiralfix,
+    ]
+
+    /// #200L one-tap wrapper: 3 cells × four prompts — 12 × trials
+    /// generations.
+    func runCalendarBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.calendarBatteryCells, includeGrabCanary: true)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the
