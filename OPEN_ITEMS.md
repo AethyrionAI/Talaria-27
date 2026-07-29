@@ -9612,3 +9612,58 @@ Our measured clause independently converged on Apple's phrasing philosophy.
 Queue position: #200E toolmode cell slots after the #200D re-verify; the
 DynamicProfile/error-taxonomy items are instrument-hardening candidates; the
 provider unification is an architecture discussion for Owen.
+
+**#200 addendum 2, 2026-07-28 late — 8-agent comb synthesis (workflow, one sonnet
+agent per source; 8/8 returned) + one CORRECTION to addendum 1.**
+**CORRECTION: `OCRTool`/`BarcodeReaderTool` ARE in the beta-4 SDK** — in the
+cross-import overlay `_Vision_FoundationModels.framework` (both conform to
+`FoundationModels.Tool`, `call → some PromptRepresentable`); my "failed
+verification" grepped only the three primary interfaces, and overlay APIs live in
+separate `_A_B.framework` modules. Likewise `SpotlightSearchTool` +
+`Configuration` live in `_CoreSpotlight_FoundationModels` — which RESOLVES the
+"semantic search" claim (it's a Tool over Core Spotlight, not a new API);
+`_FoundationModels_UIKit` / `_FoundationModels_SwiftUI` overlays also exist.
+Kimi K3's original claims were right on this; the false negative was mine.
+SYNTHESIS, in program order:
+(1) **#200E design hardened by three independent sources:** rudrankriyam's
+`fmf.md` (a 9,737-line raw transcription of THIS beta-4 swiftinterface including
+doc comments we don't see) documents that `.required` "will loop until a Tool
+throws an error or this value is changed dynamically"; Apple's WWDC pattern is
+`.toolCallingMode(state.done ? .disallowed : .required)` + `.onToolCall` flag;
+Foundation Lab ships working demote-after-first-call code
+(`ToolCallingModeProfile.swift`). The #200E cell MUST use the DynamicProfile
+demote pattern — raw `.required` in GenerationOptions would spin trials into the
+guillotine. (2) **D4 mechanism candidate from Apple's own docs:** a strict
+`maximumResponseTokens` "can lead to the model producing malformed results" —
+and Talaria caps EVERY on-device chat turn at 1024 (#102 thermal guard,
+deliberate). Candidate measured cell: armed-cap2048 / armed-nocap vs control on
+the corruption rate; do NOT touch #102 without a battery. (3) **Independent
+convergence on the D1 fix class:** rryam/FoundationModelsKit ships production
+instructions "Always execute tool calls directly without asking for confirmation
+… call the RemindersTool immediately" — session-instructions clause, same class
+as our promoted fix. (4) **Planner corpus (190 files, not 128):** Apple runs
+BOTH policies — the on-device ODM planner bakes in "Clarify with user if
+unclear" (a plausible TRAINING-DISTRIBUTION source of our clarify-stall), while
+the big-model CATALOG planner does omit-optional-fields-never-null-fill and a
+find-first-on-ambiguity rule (plausible source of the D2 read-substitution).
+Steal-worthy conventions: anti-loop hard-stop ("calling the same tool with the
+same parameters in succession is a hard failure"), typed tool-error taxonomy
+(interventionRequired/unsupported/retryable/fatal), a `not_supported`
+escape-valve tool (D3 candidate), canonical date-format examples in param
+descriptions (D4 candidate). (5) **Tool count:** Apple's guidance recommends
+3–5 active tools per request; our belt is 10 → per-turn tool-scoping is a
+measured-cell candidate. (6) **Provider surface is production-real:**
+anthropics/ClaudeForFoundationModels exists (Apache-2.0, verified firsthand via
+gh api raw reads); client-side Tool conformances are invoked by the FRAMEWORK
+regardless of the backing model — so Hermes-as-LanguageModel would keep OUR belt
+running locally; PCC model = 32K context, entitlement-gated, free tier under 2M
+users; known provider-side hang (30–48s grammar compile on schema change).
+(7) **Apple ships an "Evaluations" framework** (Swift Testing integration,
+model-judge scoring) — our battery, productized; investigate for instrument
+evolution. And `logFeedbackAttachment(sentiment:issues:desiredOutput:)` is the
+sanctioned channel to file D1–D4 to Apple. (8) **Zero public prior art on D1–D4
+as measured phenomena** — a documented absence across all eight sources; the
+battery results are novel. Low-yield sources for the record: the ECC skill
+(iOS 26 tutorial, no companions), IvanCampos playgrounds (LLM-generated iOS 26
+stubs), Saharshv tutorial (all-required params, uncaught respond errors — a
+useful cautionary example only).
