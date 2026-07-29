@@ -868,7 +868,10 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedBothfix.rawValue == "armed-bothfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedInstrfix.rawValue == "armed-instrfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedToolmode.rawValue == "armed-toolmode")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 6)
+        #expect(LocalChatBackend.ActionBatteryCell.armedScoped.rawValue == "armed-scoped")
+        #expect(LocalChatBackend.ActionBatteryCell.armedCreateonly.rawValue == "armed-createonly")
+        #expect(LocalChatBackend.ActionBatteryCell.armedFindfix.rawValue == "armed-findfix")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 9)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -898,6 +901,130 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.toolmodeMode(after: 0) == .required)
         #expect(LocalChatBackend.toolmodeMode(after: 1) == .allowed)
         #expect(LocalChatBackend.toolmodeMode(after: 7) == .allowed)
+    }
+
+    // MARK: Community-destall cells (#200F)
+
+    /// The community battery's cell list — promoted-production control
+    /// plus the three survey-derived treatments, in dispatch order.
+    @Test func communityBatteryRunsTheFourSurveyCells() {
+        #expect(LocalChatBackend.communityBatteryCells == [
+            .armed, .armedScoped, .armedCreateonly, .armedFindfix,
+        ])
+    }
+
+    /// The SHIPPING armed belt as the battery assembles it: the read
+    /// belt (vision-gated off — no image in context) then the action
+    /// belt, matching AppContainer's construction order.
+    @MainActor
+    private func fullArmedBelt() -> [any Tool] {
+        let relay = ToolEventRelay()
+        var belt = DeviceToolBelt.makeReadTools(
+            relay: relay,
+            conversationProvider: { nil },
+            sessionCacheProvider: { [] },
+            spotlightEnabledProvider: { false }
+        )
+        belt += DeviceToolBelt.makeActionTools(
+            relay: relay, confirmations: ToolConfirmationCenter(), alarmService: AlarmService()
+        )
+        return DeviceToolBelt.offeredTools(from: belt, hasImageInContext: false)
+    }
+
+    /// Apple's guidance is 3–5 active tools per request (the armed belt
+    /// is 13). The scoped cell keeps each intent's create tool plus its
+    /// same-domain reads; createonly removes the same-domain read — no
+    /// readReminders to flee into (#200E: the forced first call was
+    /// readReminders 10/10; find-first is model-baked). Alarm has no
+    /// same-domain read, so its two cells coincide. Haiku rides the
+    /// REMIND scope — the worst-case misroute canary. Belt order is
+    /// preserved (filter, never reorder).
+    @Test @MainActor func scopedBeltMatchesTheDispatchPerIntent() {
+        let belt = fullArmedBelt()
+        #expect(belt.map(\.name) == [
+            "readHealth", "currentLocation", "readMotion", "readCalendar",
+            "readReminders", "currentWeather", "searchPlaces", "lookupContact",
+            "deviceStatus", "searchConversations",
+            "createReminder", "createCalendarEvent", "scheduleAlarm",
+        ])
+
+        func names(_ cell: LocalChatBackend.ActionBatteryCell, _ tag: String) -> [String] {
+            LocalChatBackend.scopedBelt(from: belt, cell: cell, promptTag: tag).map(\.name)
+        }
+        // scoped: same-domain reads IN.
+        #expect(names(.armedScoped, "remind") == ["readCalendar", "readReminders", "createReminder"])
+        #expect(names(.armedScoped, "alarm") == ["readCalendar", "scheduleAlarm"])
+        #expect(names(.armedScoped, "calendar") == ["currentLocation", "readCalendar", "createCalendarEvent"])
+        #expect(names(.armedScoped, "haiku") == names(.armedScoped, "remind"))
+        // createonly: the same-domain read is GONE.
+        #expect(names(.armedCreateonly, "remind") == ["readCalendar", "createReminder"])
+        #expect(names(.armedCreateonly, "alarm") == ["readCalendar", "scheduleAlarm"])
+        #expect(names(.armedCreateonly, "calendar") == ["currentLocation", "createCalendarEvent"])
+        #expect(names(.armedCreateonly, "haiku") == names(.armedCreateonly, "remind"))
+    }
+
+    /// Scoping is those two cells' ONLY seam: every other cell passes
+    /// through identity whatever the prompt — findfix keeps the full
+    /// production belt (its treatment is instructions).
+    @Test @MainActor func scopedBeltIsIdentityForEveryOtherCell() {
+        let belt = fullArmedBelt()
+        for cell in LocalChatBackend.ActionBatteryCell.allCases
+        where cell != .armedScoped && cell != .armedCreateonly {
+            for tag in ["remind", "alarm", "calendar", "haiku"] {
+                #expect(LocalChatBackend.scopedBelt(from: belt, cell: cell, promptTag: tag).map(\.name) == belt.map(\.name))
+            }
+        }
+    }
+
+    /// #200F findfix: the two planner-corpus carve-out sentences — the
+    /// find-first carve-out and the reminders-vs-events preference —
+    /// ride a flag that is OFF by default; flag-off is production
+    /// byte-identical. Flag-on adds exactly the two sentences at the
+    /// measured seam: after the promoted de-stall clause, before
+    /// honesty-and-recovery.
+    @Test func findFirstCarveoutIsOffByDefaultAndSitsAfterTheDestallClause() {
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true
+        )
+        #expect(!production.contains("'Remind me'"))
+        let explicitOff = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeFindFirstCarveout: false
+        )
+        #expect(explicitOff == production)
+        let treated = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeFindFirstCarveout: true
+        )
+        #expect(treated.contains("leave optional fields empty and the defaults apply. 'Remind me' means create the reminder — do not search existing reminders first. Reminders and calendar events are different tools — prefer a reminder when the user asks to be reminded. When a tool reports"))
+        // The carve-out rides the armed capabilities paragraph only.
+        let bare = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: false,
+            includeFindFirstCarveout: true
+        )
+        #expect(!bare.contains("'Remind me'"))
+    }
+
+    // MARK: Per-trial reap (#200F Part 0)
+
+    /// #200E lost 4 of 10 treatment remind trials to already-exists
+    /// reads of REAL artifacts the control cell had created minutes
+    /// earlier — the sweep now runs after EVERY trial. The REAP-TRIAL
+    /// line is classification vocabulary; pinned byte-for-byte.
+    @Test func reapTrialLineGrammarIsStable() {
+        #expect(LocalChatBackend.reapTrialLine(
+            reminders: 1, events: 0, failures: 0, tag: "shape=armed p=remind t=3"
+        ) == "battery: REAP-TRIAL reminders=1 events=0 failures=0 shape=armed p=remind t=3 (#200F)")
+    }
+
+    /// The final REAP line keeps its #200 grammar; its counts now FOLD
+    /// IN the per-trial sums, so reap arithmetic stays exact — total
+    /// removed this run = per-trial sums + end-of-run backstop. The
+    /// no-access skip form is unchanged.
+    @Test func reapCountSegmentFoldsPerTrialSumsAndKeepsTheSkipForm() {
+        #expect(LocalChatBackend.reapCountSegment("reminders", backstop: 2, perTrial: 13, hadAccess: true) == "reminders=15")
+        #expect(LocalChatBackend.reapCountSegment("events", backstop: 0, perTrial: 0, hadAccess: true) == "events=0")
+        #expect(LocalChatBackend.reapCountSegment("reminders", backstop: 0, perTrial: 4, hadAccess: false) == "reminders=skipped(no-access)")
     }
 
     // MARK: Instructions-level de-stall (#200C)
