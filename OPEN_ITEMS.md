@@ -10124,3 +10124,78 @@ file: promote behind the default-flip with a pinned byte-identical rollback
 which measures production at n=20/prompt — the best calendar estimate this
 program can buy. The alternative, a second identical A/B first, costs one run
 and answers only the same question with the same n.**
+
+**#200K VERDICT FILED, 2026-07-29 — datefix battery n=10 (120 trials, PR #176
+branch `d2a7aca`, OTA build 1435 Debug, os 27.0 24A5390f, run sealed
+`reminders=49 events=15 alarms=30 failures=0`). SIXTH consecutive exact reap:
+counted accepted creates `createReminder=49 createCalendarEvent=15
+scheduleAlarm=30` == the REAP line. 3 of 120 excluded and listed: armed/
+calendar/t5 ERROR (`Encountered content that cannot be completed into valid
+JSON. Text: {"term":"Sam"Sam"}<ctrl43>` — the D4 malformed-args class, on a
+`searchPlaces("Sam")` hunt), armed/calendar/t6 TIMEOUT, armed-datefix/
+calendar/t10 TIMEOUT. ALL THREE are calendar-prompt "Sam" hunts.**
+
+| prompt | armed | armed-cardfix | **POOLED production** | armed-datefix |
+|---|---|---|---|---|
+| remind | 8/10 | 10/10 | **18/20 (90%)** | 8/10 |
+| alarm | 10/10 | 10/10 | **20/20 (100%)** | 10/10 |
+| calendar | 3/8 | 5/10 | **8/18 (44%)** | 6/9 |
+| haiku grabs | 9/10 | 6/10 | **15/20 (75%)** | 9/10 |
+
+**PROMOTION RE-VERIFIED on its own axis.** `armed` and `armed-cardfix` are
+byte-identical post-promotion, so they pool as production at n=20/prompt:
+**remind 18/20 (90%) — the best remind number in the program's history**
+(lifetime arc 0/50 → 75% at #200G → 90% now), alarm 20/20, and **ZERO card
+narration in all 120 trials** (grep for "would you like to proceed" /
+"confirmation card" / "shall I proceed" returns nothing in any cell). The
+#200K clause holds. Re-verify bars: remind ≥12/20 PASS, alarm 20/20 PASS,
+narration-free PASS, **calendar ≥12/20 FAIL (8/18)**.
+
+**DATEFIX: specimen killed, rate unchanged — the stall is CONSERVED, and this
+is the finding of the run.** The pooled control's 2 remind misses were both
+zero-tool DATE questions ("Could you specify the date?", "today, or a different
+date?"). The datefix cell's 2 remind misses were both zero-tool LIST questions
+("Would you like it on a specific list?", "which list to add this reminder
+to?"). **Same count, different field.** The clause closed the door it named and
+the model found the next one. Datefix bars: date-interrogation ≤half → 2→0
+PASS; remind ≥ pooled+15pts → 80% vs 90% **FAIL**; alarm PASS; calendar/grabs
+within K=3 PASS. **NOT PROMOTED.**
+
+Two readings, both worth carrying: (a) the interrogation is a hydra — naming
+one optional field relocates the stall rather than removing it, so
+field-by-field clauses are a losing shape and the next attempt should treat the
+CLASS ("create with defaults; the card is the correction point"); (b) possible
+instruction crowding — the #200D destall clause ALREADY says "never ask which
+list", and the list-asking appeared only in the cell carrying an extra
+sentence. Adding sentences may dilute existing ones. Untested either way.
+
+**CALENDAR IS NOW THE FIRE, and it is ONE disease.** Pooled 8/18 (44%), the
+worst recorded, plus all 3 exclusions. **Every single classified calendar miss
+in all three cells — 14 of 14 — is the "Sam" identity dead-end**: `lookupContact`
+/`searchConversations`/`searchPlaces` on "Sam", nothing found, then a question
+instead of a create. That is exactly the disease #200I's spiralfix v2 carve-out
+targets, which cut hunt calls 56% and beat its control by +2. Hunt calls this
+run: armed 35, cardfix 25, datefix 34.
+
+**Honest watch item — the card clause may cost calendar, and we cannot yet
+exclude it.** Post-promotion calendar is 22/37 (59%); pre-promotion controls
+were 21/30 (70%). Fisher p≈0.4, so this is NOT significant and the between-run
+control swing (7/10, 4/10, 10/10) dwarfs it — but the direction is unfavorable
+and the #200J A/B (10/10 control vs 8/10 treated) points the same way. The
+rollback is one pinned flag away. **The next battery should settle it directly
+with a card-clause-ROLLBACK cell run alongside spiralfix v2 — one run answers
+both "does the card clause cost calendar" and "does the spiral carve-out fix
+it" against the promoted baseline.**
+
+**Grabs are getting worse as remind gets better: 75% pooled, the highest
+recorded** (4/8 → 4/10 → 7/10 → 15/20). Mechanically coherent — the program has
+spent five lanes teaching prompt, unhesitating creation, and the haiku prompt
+is swept up in it. Production remains armed-routed (a router miss is required
+first), so this is not the user-facing number it looks like, but it is now the
+program's largest untreated disease by rate and it is trending the wrong way.
+Specimens are increasingly meta-grabs ("Write haiku about sledding" as a
+reminder title, 5 of 15).
+
+**Disposition: promotion STANDS (re-verified on remind/alarm/narration).
+Datefix NOT promoted. Recommended next lane on file: the calendar/rollback
+battery described above. Owen routes.**
