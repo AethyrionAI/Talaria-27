@@ -10199,3 +10199,80 @@ reminder title, 5 of 15).
 **Disposition: promotion STANDS (re-verified on remind/alarm/narration).
 Datefix NOT promoted. Recommended next lane on file: the calendar/rollback
 battery described above. Owen routes.**
+
+**#200L VERDICT FILED, 2026-07-29 — calendar battery n=10 (120 trials, PR #177
+branch `84af969`, OTA build 1442 Debug, os 27.0 24A5390f, run sealed
+`reminders=48 events=18 alarms=30 failures=0`). SEVENTH consecutive exact reap:
+counted accepted creates `createReminder=48 createCalendarEvent=18
+scheduleAlarm=30` == the REAP line. 4 of 120 excluded, all listed and
+individually adjudicated below — that adjudication is itself a finding.**
+
+| prompt | armed (promoted production) | armed-cardrollback | armed-spiralfix |
+|---|---|---|---|
+| remind | **10/10** | 7/10 | 7/10 |
+| alarm | **10/10** | **10/10** | **10/10** |
+| calendar | 5/10 | 5/8 | **8/8** (8/10 counting casualties) |
+| haiku grabs | 7/10 | 7/10 | 9/10 |
+
+**HYPOTHESIS 1 — THE CARD CLAUSE IS EXONERATED ON CALENDAR, AND CONFIRMED ON
+REMIND.** Rollback calendar 5/8 (62.5%) vs production 5/10 (50%) — about one
+trial, far inside the K=4 guard, so the promoted clause is NOT what put calendar
+at 44% last run. And removing it reproduced its effect in reverse, which is the
+strongest evidence the program has produced for any promoted seam: **remind fell
+10/10 → 7/10 and card narration CAME BACK** (production remind narrations: 0;
+rollback remind t4 "Here's the confirmation for your reminder… Would you like to
+adjust any details?" and t10 "Here's the confirmation card… Would you like to
+proceed?"). That is now three independent confirmations — #200J's A/B, #200K's
+pooled re-verify at 90%, and #200L's removal. **The promotion stands, and the
+rollback flag is proven live rather than merely pinned.**
+
+**EXCLUSION ADJUDICATION — a rule refinement, recorded because it changes a
+headline number.** The standing rule (ERROR/TIMEOUT excluded and listed) exists
+to drop INSTRUMENT failures. It should not silently drop failures that ARE the
+disease under test, because that flatters the treatment being measured:
+
+- cardrollback/calendar/t3 — `ToolCallError(tool: WeatherTool …)`, the
+  argument-decode class from the tool-throw audit. **Instrument. Excluded.**
+- cardrollback/calendar/t9 — "Insufficient system resources (7)", device-side.
+  **Instrument. Excluded.**
+- spiralfix/calendar/t6 — TIMEOUT after **20 tool calls, 17 of them consecutive
+  `searchConversations`**: the identity spiral in its most extreme form ever
+  recorded here. **DISEASE, not instrument.**
+- spiralfix/calendar/t7 — "Session ended without producing a response" mid-hunt
+  (`readCalendar → searchConversations → lookupContact → searchPlaces →
+  currentLocation → currentWeather`). **Ambiguous; hunt-adjacent.**
+
+So spiralfix calendar is **8/8 by the standing rule and 8/10 counting both
+casualties as failures** — both are reported, and the second is the honest one
+for a treatment whose entire purpose is to stop hunts. The #200H claim of "zero
+spiral casualties" for this cell does NOT generalize: it produced two here, one
+catastrophic.
+
+**HYPOTHESIS 2 — THE CARVE-OUT WORKS ON ITS TARGET, AND THE MECHANISM IS
+NARROWER THAN ADVERTISED.** Sam dead-end misses: production **5** (all five of
+its calendar misses), rollback **3**, spiralfix **ZERO**. Every spiralfix
+calendar trial that produced a response created the event. But identity-hunt
+calls only fell from 23 to 16 (−30%), not to zero. **The carve-out does not stop
+the hunting; it converts "hunt → ask" into "hunt → create".** That is why the
+runaway spiral still happened: nothing in the sentence bounds the search, only
+its conclusion.
+
+**The trade is now measured TWICE and is consistent in direction on all three
+axes** (spiralfix vs its own same-run control, #200I + #200L pooled):
+calendar **14/18 (78%) vs 9/20 (45%)**, remind **12/20 (60%) vs 16/20 (80%)**,
+grabs **14/20 (70%) vs 11/20 (55%)** worse. Calendar +33 points, remind −20,
+grabs −15. Against its pre-set bars this run the cell PASSES everything —
+calendar ≥ production+3, dead-ends ≤half (0), alarm 10/10, remind not worse by
+more than 3 (exactly −3), grabs not worse by more than 3 (−2) — but two of those
+passes sit on the boundary and the pooled picture says the bleed is real, not
+noise.
+
+**Disposition: nothing promoted; the decision is a genuine trade and it is
+Owen's.** Options on file: **(a)** promote the carve-out and accept calendar
+~50%→~78% against remind ~90%→~70% and slightly worse grabs; **(b)** one more
+iteration first — a **v3 scoped to the DEAD END rather than the search**, which
+this run's mechanism directly motivates ("if you can't identify a person named
+in an event, create it with the name as given"), aiming to keep the calendar win
+without moving the reminder path's weight. Recommendation: **(b)** — remind at
+90% is the program's hardest-won number and the v3 hypothesis is a one-sentence
+test, but (a) is defensible if calendar is judged the more valuable surface.

@@ -875,7 +875,8 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedStrikefix.rawValue == "armed-strikefix")
         #expect(LocalChatBackend.ActionBatteryCell.armedCardfix.rawValue == "armed-cardfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedDatefix.rawValue == "armed-datefix")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 13)
+        #expect(LocalChatBackend.ActionBatteryCell.armedCardrollback.rawValue == "armed-cardrollback")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 14)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -1155,6 +1156,45 @@ struct DeviceToolBeltTests {
             includeDayDefaultClause: true
         )
         #expect(!bare.contains("never ask which day"))
+    }
+
+    // MARK: The calendar lane (#200L)
+
+    /// #200L: the first cell in this program that measures a promoted
+    /// clause by REMOVING it. #200K's re-verify put pooled calendar at
+    /// 8/18 (44%) and post-promotion calendar at 22/37 (59%) against
+    /// 21/30 (70%) for pre-promotion controls — not significant (p≈0.4)
+    /// and swamped by a control that has read 7/10, 4/10, 10/10, but the
+    /// direction is unfavorable and #200J's A/B pointed the same way. A
+    /// suspicion this cheap to test should not be carried on trend lines.
+    /// The cell IS the pinned rollback: production with the card clause
+    /// explicitly off, byte-identical to the pre-#200K text.
+    @Test func cardrollbackCellIsExactlyThePinnedRollbackText() {
+        let rollback = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeCardNarrationClause: false
+        )
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true
+        )
+        #expect(rollback != production)
+        #expect(!rollback.contains("never write the card out"))
+        // Everything else survives the removal — the promoted #200D and
+        // #200G clauses are still there, and the seam closes back up.
+        #expect(rollback.contains("leave optional fields empty and the defaults apply. 'Remind me' means"))
+        #expect(rollback.contains("prefer a reminder when the user asks to be reminded. When a tool reports"))
+    }
+
+    /// #200L battery: promoted control, the same text with the card clause
+    /// removed, and the #200I spiral carve-out — one run answers "does the
+    /// promoted clause cost calendar" and "does the carve-out fix the Sam
+    /// dead-end" against the same baseline. All 14 classified calendar
+    /// misses in #200K were that dead-end, so both questions are about the
+    /// same 18 trials.
+    @Test func calendarBatteryRunsTheRollbackAndTheCarveout() {
+        #expect(LocalChatBackend.calendarBatteryCells == [
+            .armed, .armedCardrollback, .armedSpiralfix,
+        ])
     }
 
     /// #200K battery: the promoted control and the (now identity) cardfix
