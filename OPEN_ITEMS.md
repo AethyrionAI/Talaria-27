@@ -9943,3 +9943,81 @@ as a "reminder" (strikefix/haiku/t10, REAP-TRIAL proves the artifact).
 NO cell clears its bar → NOTHING promotes from this battery. Merge
 question (cells are picker-reachable instrument machinery, flag-off
 byte-identical — the #200B/#200E precedent): Owen routes.
+
+**#200I VERDICT FILED, 2026-07-29 — spiralfix battery n=10 (80 trials, PR #174
+branch `04463e3`, OTA build 1421 Debug, os 27.0 24A5390f, run sealed
+`reminders=18 events=12 alarms=20 failures=0`). FIRST RUN IN THE PROGRAM WITH
+ZERO EXCLUSIONS — no ERROR, no TIMEOUT, 80/80 classifiable, and the reap
+arithmetic is EXACT for the fourth consecutive run: counted accepted creates
+`createReminder=18 createCalendarEvent=12 scheduleAlarm=20` == the REAP line,
+zero backstop leftovers, zero marker leaks. Owen ran it OTA from work; the
+verdict was classified from the run-JSON export, no console.**
+
+| prompt | armed (control) | armed-spiralfix (v2) | #200H v1 for reference |
+|---|---|---|---|
+| remind | 6/10 | 5/10 | 4/10 (control 6/10) |
+| alarm | **10/10** | **10/10** | 10/10 (control 10/10) |
+| calendar | 4/10 | **6/10** | 9/10 (control 7/10) |
+| haiku grabs | 4/10 | 5/10 | 8/10 (control 4/8) |
+
+**NOT PROMOTED — the treatment misses every quantitative bar set before the run:**
+calendar 6/10 vs the required ≥8/10; remind 5/10 vs ≥6/10; grabs 5/10 vs
+"≤ control" (4/10). The fourth criterion (misbind-clean > control) is NOT
+DEMONSTRABLE this run: all 12 events in BOTH cells were titled "Lunch with Sam"
+with no location bound at all — zero Sam's Club, zero Pluckers, zero own-address
+misbinds in control either. The #200F/#200G misbind class simply did not recur.
+
+**(1) The control moved more than the treatment does.** Control calendar was
+7/10 in #200H and 4/10 here on byte-identical production instructions — a
+3-trial swing between runs, larger than the effect being chased. In BOTH runs
+spiralfix beat its own same-run control on calendar by exactly +2 (9 v 7, 6 v 4);
+pooled that is treatment 15/20 vs control 11/20, consistent in direction and
+underpowered at n=10. The absolute bar was set from v1's absolute number, which
+a low-baseline run cannot reach no matter what the seam does. **Any future
+calendar bar must be stated as a within-run delta against its own control, not
+as an absolute count.**
+
+**(2) The v1 cross-intent bleed did NOT reproduce.** v2 grabs 5/10 vs control
+4/10 (v1 was 8/10 vs 4/8) and remind 5/10 vs 6/10 (v1 was 4/10 vs 6/10). Either
+the event-scoped reword removed the bleed or the v1 bleed was n=10 noise; this
+data cannot distinguish the two, and honesty says say so.
+
+**(3) The carve-out DOES do what it says — the hunt counts moved even though the
+creates did not clear.** Identity-hunt calls on the calendar prompt
+(`lookupContact`+`searchConversations`+`searchPlaces`): control 18, spiralfix 8
+(−56%). On the haiku prompt: control `searchConversations`×5, spiralfix **zero**.
+`currentLocation` rose 3→5 but bound nothing. The seam is real; it is just not
+worth 2 trials of create rate.
+
+**(4) Residual disease A — the `lookupContact` dead-end, 6 trials, evenly split
+3 control / 3 treatment.** The model calls `lookupContact("Sam")`, finds nothing,
+and ASKS instead of creating ("I couldn't find a contact named 'Sam.' Could you
+provide more details?"). The carve-out halves the hunting but does not stop
+`lookupContact` by name, and when it fires it still kills the create.
+
+**(5) Residual disease B — the NARRATED CONFIRMATION CARD, now the single
+largest failure bucket in the run: 10 zero-tool trials, 9 of them the remind
+misses, cell-independent (4 control / 6 treatment).** The model writes the
+confirmation card out in prose — "**Title:** Test Talaria / **Due:**
+2026-07-30T16:30 / **List:** Default list / Would you like to proceed?" — and
+calls no tool at all. The product already SHOWS a real confirmation card
+automatically, and the production instructions already tell the model so
+("Every action tool shows the user a confirmation card first"), so the model is
+duplicating in text the exact affordance the tool provides and then waiting on
+an answer a single-turn battery can never give. Knowing about the card is not
+the same as being told not to impersonate it. **This is the next treatment
+target, and it is crisper than anything left on the calendar side: one seam, one
+sentence, 9 of 19 non-creates in its blast radius.**
+
+**(6) Clean bills:** alarm ceiling holds 20/20 (never regressed, any cell, any
+run). ZERO `readReminders` find-first anywhere in 80 trials — the #200G
+promoted carve-out is holding perfectly. ZERO tool-throws — `readHealth` did not
+throw once this run, so the #200H tool-throw specimen stays a real but
+low-frequency bug-class (audit still owed, no battery needed). Grab specimens
+shifted shape without shifting rate: control grabs split reminders/events
+("Sledding", "Sledding Joy"), treatment grabs were ALL reminders and three of
+five were meta-grabs titled "Write a haiku about sledding".
+
+**Disposition:** the spiralfix cell stays flag-off and picker-reachable as
+measured instrument machinery (the #200B/#200E/#200H precedent); production is
+untouched by this lane. Merge of PR #174 and the next lane start: Owen routes.
