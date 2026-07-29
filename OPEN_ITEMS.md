@@ -10055,3 +10055,72 @@ changed in this audit; the #200H note's "DeviceHealthTool needs the throw→stri
 audit" line is superseded by this entry. Frequency check from #200I: zero
 tool-throws in 80 trials, so this is real but low-rate — worth a cell, not worth
 jumping the queue.
+
+**#200J VERDICT FILED, 2026-07-29 — cardfix battery n=10 (80 trials, PR #175
+branch `f5cb906`, OTA build 1430 Debug, os 27.0 24A5390f, run sealed
+`reminders=24 events=19 alarms=20 failures=0`). SECOND consecutive
+zero-exclusion run (no ERROR, no TIMEOUT, 80/80 classifiable) and the FIFTH
+consecutive exact reap: counted accepted creates `createReminder=24
+createCalendarEvent=19 scheduleAlarm=20` == the REAP line, zero backstop
+leftovers. Classified from the run-JSON export; Owen ran it OTA from work.**
+
+| prompt | armed (control) | armed-cardfix |
+|---|---|---|
+| remind | 5/10 | **8/10** |
+| alarm | **10/10** | **10/10** |
+| calendar | **10/10** | 8/10 |
+| haiku grabs | 7/10 | **5/10** |
+
+**THE SPECIMEN IS DEAD.** Card narration — the model typing the confirmation
+card out and asking "Would you like to proceed?" — occurred **3 times in
+control (remind t2, t4, t10, all zero-tool) and ZERO times anywhere in the
+treatment cell**, across all 40 of its trials, on any prompt. A grep for
+"would you like to proceed" / "confirmation card" / "shall I proceed" over the
+whole run returns only those three control trials. The clause did exactly what
+it was written to do, and the remind rate moved with it: **5/10 → 8/10, +3,
+the largest single-seam remind gain since the #200D promotion.**
+
+**Bar check (delta-based against the SAME RUN's control, the #200I lesson):**
+remind ≥ control+3 → 8 vs 5, **PASS (exactly at the bar)**. Narration trials ≤
+half of control → 0 vs 3, **PASS**. Alarm 10/10 → **PASS** (ceiling intact,
+never regressed in any cell of any run). Grabs ≤ control+1 → 5 vs 7,
+**PASS (better than control)**. Calendar ≥ control → 8 vs 10, **FAIL**.
+
+**The calendar guard tripped, and the mechanism says the clause is not the
+cause.** Both treatment calendar misses are the untreated "Sam" identity
+hunt — t1 `readCalendar → searchPlaces` → "I couldn't find a location for Sam";
+t7 `readCalendar → searchPlaces → lookupContact` → "the search for 'Sam' nearby
+returned a remote location". That is the #200H/#200I lookup-spiral disease,
+whose carve-out is flag-OFF in this cell; it is not narration and not
+card-related. The control simply dodged it 10/10 this run — and control calendar
+has now read **7/10, 4/10, 10/10 across three consecutive runs on byte-identical
+production text**. At n=10, 8 vs 10 is p≈0.47 by Fisher exact: indistinguishable
+from that noise. **Recording this as a bar-design flaw as much as a result — a
+"≥ control" no-regression guard has no headroom when the control lands on its
+ceiling. Future guards should be stated as "not worse than control by more than
+K" with K set from the observed between-run control variance (which is ±3).**
+
+**Residual diseases, both named and both OTHER than narration:** (1) the
+treatment's 2 remind misses are date-interrogation with zero tools ("Could you
+clarify the due date?", "keep it open for today?") — the optional-field stall
+(#200B/#200D family), untouched by a clause about confirmation cards.
+(2) Haiku zero-tool trials rose 2 → 4, but they are the `cant` disease ("I
+cannot write a haiku…"), not narration; total zero-tool trials therefore only
+moved 7 → 6 even though narration went 3 → 0. **Reporting all three readings
+because they disagree, and the specimen-level one is the one the bar meant.**
+(3) Hunt calls rose slightly (control 27, treatment 32) — the clause says
+nothing about hunting, so this is drift, not treatment.
+
+**Grab note:** treatment grabs fell 7 → 5 and all 5 were reminders, 2 of them
+meta-grabs titled "Write a haiku about sledding"; control's 7 were 6 reminders +
+1 event ("Sledding Joy"). Grab RATE is now the highest-variance number in the
+program (4/8, 4/10, 7/10 control across three runs) and remains armed-routed in
+production.
+
+**Disposition: NOT PROMOTED UNILATERALLY — 4 of 5 bars pass, the one failure has
+a proven different etiology, and promotion is Owen's call. Recommendation on
+file: promote behind the default-flip with a pinned byte-identical rollback
+(the #200D/#200G pattern) and settle calendar with the pooled re-verify battery,
+which measures production at n=20/prompt — the best calendar estimate this
+program can buy. The alternative, a second identical A/B first, costs one run
+and answers only the same question with the same n.**
