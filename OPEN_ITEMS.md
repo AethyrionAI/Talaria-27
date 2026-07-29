@@ -10021,3 +10021,37 @@ five were meta-grabs titled "Write a haiku about sledding".
 **Disposition:** the spiralfix cell stays flag-off and picker-reachable as
 measured instrument machinery (the #200B/#200E/#200H precedent); production is
 untouched by this lane. Merge of PR #174 and the next lane start: Owen routes.
+
+**TOOL-THROW AUDIT DONE, 2026-07-29 (week-plan Lane 2) — the #200H filing was
+half wrong, and the correction matters.** The claim was "DeviceHealthTool has a
+throwing path; convert it to a string." Reading every belt tool says otherwise:
+all six propagating `try` sites in `Talaria/Services/Live/DeviceTools/`
+(`requestAuthorization`, `EKEventStore.save` ×2, `alarmService.schedule`,
+`WeatherService.weather`, `MKLocalSearch.start`) are ALREADY inside `do/catch`
+blocks that return explanatory strings, and there is not one `throw` statement in
+the belt. The tools are honest as designed.
+
+**The throws come from ABOVE `call(arguments:)`, in FoundationModels' argument
+decode.** Every belt `Arguments` struct declares NON-OPTIONAL `@Generable`
+fields (`metric: String`, `title: String`, `startsAt: String`, `daysAhead: Int`,
+`query: String`, …), so the schema marks them required; when the model emits a
+malformed or field-missing tool call — the D4 corruption class already on file
+here (`missing required property 'title'` ToolCallErrors at #200F/#200G, the
+`Sam}<ctrl43>` arg garbage) — the decode fails and FoundationModels throws
+`ToolCallError(tool: …)` BEFORE the tool body runs. `DeviceHealthTool`'s single
+required `metric` is simply the smallest target: a bare `{}` emit is enough.
+Nothing inside the tool can catch this; the tool never executes.
+
+**So the fix is not a throw→string edit, and it is not free.** Making the fields
+decode-total (optional + sane default, tool returns "I need a title…" instead)
+would convert a dead turn into recoverable guidance — but optionality also
+REMOVES the field from the schema's required list, which may make the model omit
+it more often and cost create rate. That is a production tool-schema change with
+a two-sided risk, i.e. exactly the class this program measures rather than
+assumes. **Recommended as a measured cell (read tools first — `metric`/
+`daysAhead`/`query` have obvious safe defaults and no create rate to lose),
+NOT as an unmeasured edit. Owen routes production schema changes.** No code
+changed in this audit; the #200H note's "DeviceHealthTool needs the throw→string
+audit" line is superseded by this entry. Frequency check from #200I: zero
+tool-throws in 80 trials, so this is real but low-rate — worth a cell, not worth
+jumping the queue.
