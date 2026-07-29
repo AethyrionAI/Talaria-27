@@ -1015,7 +1015,7 @@ struct DeviceToolBeltTests {
         #expect(!bare.contains("'Remind me'"))
     }
 
-    // MARK: Calendar-spiral cells (#200H)
+    // MARK: Calendar-spiral cells (#200H, reworded #200I)
 
     /// The spiral battery's cell list — promoted-production control plus
     /// the two treatment seams, in dispatch order.
@@ -1025,16 +1025,35 @@ struct DeviceToolBeltTests {
         ])
     }
 
+    /// #200I: the spiralfix re-measure drops strikefix — that cell is
+    /// parked until its tally instrument is proven (#200H emits were
+    /// anomalous and no third strike ever came due), and re-running it
+    /// would spend a third of the trials on a treatment that cannot
+    /// engage. Control plus the reworded carve-out, nothing else.
+    @Test func spiralfixBatteryRunsTheControlAndTheCarveoutOnly() {
+        #expect(LocalChatBackend.spiralfixBatteryCells == [
+            .armed, .armedSpiralfix,
+        ])
+    }
+
     /// #200H spiralfix: the lookup-spiral carve-out — the identity-hunt
     /// sentence and the location-misbinding sentence — rides a flag that
     /// is OFF by default; flag-off is production byte-identical. Flag-on
     /// adds exactly the two sentences at the measured seam: after the
     /// find-first carve-out, before honesty-and-recovery.
+    ///
+    /// #200I rewords sentence 1 EVENT-SCOPED. The v1 phrasing ("an event
+    /// or reminder") tamed the calendar spiral (9/10, best ever) but bled
+    /// across intents — grabs doubled and remind sagged, because a
+    /// sentence naming reminders reads as guidance about reminders. The
+    /// treatment now names only the event path it was measured on, and
+    /// "before creating the event" states the create as the destination
+    /// rather than merely forbidding the search.
     @Test func lookupSpiralCarveoutIsOffByDefaultAndSitsAfterTheFindFirstCarveout() {
         let production = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: true
         )
-        #expect(!production.contains("identify them first"))
+        #expect(!production.contains("identify them before creating the event"))
         let explicitOff = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: true,
             includeLookupSpiralCarveout: false
@@ -1044,13 +1063,16 @@ struct DeviceToolBeltTests {
             deviceContext: "Device: test.", hasTools: true,
             includeLookupSpiralCarveout: true
         )
-        #expect(treated.contains("prefer a reminder when the user asks to be reminded. A person's name in an event or reminder is just part of the title — never search contacts, conversations, or places to identify them first. Only include an event location the user themselves gave; a place search result is never the location. When a tool reports"))
+        #expect(treated.contains("prefer a reminder when the user asks to be reminded. A person's name in an event title is just part of the title — never search contacts, conversations, or places to identify them before creating the event. Only include an event location the user themselves gave; a place search result is never the location. When a tool reports"))
+        // The v1 cross-intent phrasing is GONE, not merely reordered —
+        // that word is the whole #200I hypothesis.
+        #expect(!treated.contains("event or reminder"))
         // The carve-out rides the armed capabilities paragraph only.
         let bare = LocalChatBackend.instructionsText(
             deviceContext: "Device: test.", hasTools: false,
             includeLookupSpiralCarveout: true
         )
-        #expect(!bare.contains("identify them first"))
+        #expect(!bare.contains("identify them before creating the event"))
     }
 
     /// #200H strikefix: the third-strike demote is data-derived — across
