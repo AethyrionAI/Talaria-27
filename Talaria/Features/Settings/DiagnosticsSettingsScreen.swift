@@ -641,6 +641,30 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #200M: production vs the v3 dead-end carve-out vs v2, same run.
+    @ViewBuilder
+    private func deadendBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runDeadendBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200 orphan cleanup: the four crashed action batteries stranded
     // their battery alarms (up to ~50 armed for 6:30 AM, ringing through
     // Silent). AlarmKit enumeration carries no label, so this cancels ALL
@@ -786,6 +810,10 @@ struct DiagnosticsSettingsScreen: View {
                 // #200L: production vs card-clause rollback vs spiralfix.
                 HStack(spacing: Design.Spacing.sm) {
                     calendarBatteryButton(trials: 10, label: "Calendar battery n=10 (120)")
+                }
+                // #200M: production vs carve-out v3 vs carve-out v2.
+                HStack(spacing: Design.Spacing.sm) {
+                    deadendBatteryButton(trials: 10, label: "Deadend battery n=10 (120)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton

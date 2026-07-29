@@ -10276,3 +10276,59 @@ in an event, create it with the name as given"), aiming to keep the calendar win
 without moving the reminder path's weight. Recommendation: **(b)** — remind at
 90% is the program's hardest-won number and the v3 hypothesis is a one-sentence
 test, but (a) is defensible if calendar is judged the more valuable surface.
+
+**#200M VERDICT FILED, 2026-07-29 — deadend battery n=10 (120 trials, PR #178
+branch `50d5603`, OTA build 1447 Debug, os 27.0 24A5390f, run sealed
+`reminders=49 events=17 alarms=30 failures=0`). EIGHTH consecutive exact reap:
+counted `createReminder=49 createCalendarEvent=17 scheduleAlarm=30` == the REAP
+line. 2 excluded, both adjudicated per the #200L refinement: spiralfix/calendar/
+t10 `ToolCallError(tool: CalendarEventTool …)` = argument-decode, INSTRUMENT,
+excluded; spiralfix/calendar/t7 TIMEOUT after 15 calls with ~11 consecutive
+`searchConversations` = DISEASE, counted as a failure.**
+
+| prompt | armed (production) | **armed-deadendfix (v3)** | armed-spiralfix (v2) |
+|---|---|---|---|
+| remind | **10/10** | 8/10 | 6/10 |
+| alarm | **10/10** | **10/10** | **10/10** |
+| calendar | 5/10 | **8/10** | 4/9 (44%, casualty counted) |
+| haiku grabs | 9/10 | 9/10 | **7/10** |
+
+**v3 BEATS v2 ON EVERY AXIS IT WAS BUILT TO BEAT IT ON, and the mechanism
+reads exactly as designed.** Calendar misses: production **5, all Sam dead
+ends**; v3 **2, and NEITHER is a Sam dead-end** (t2 and t8 both fail on
+Gulfport location/weather lookups — a different, smaller failure); v2 **4, all
+Sam dead ends**. Hunt calls: production 20, v3 16, v2 12. So v2 suppresses the
+searching most (it carries the search prohibition) and still dead-ends most,
+while **v3 barely touches the hunting and nearly eliminates the dead end** —
+which is precisely the hypothesis: the win comes from licensing the create, not
+from forbidding the search.
+
+**NEW AND DECISIVE AGAINST v2: it resurrects a disease #200G already killed.**
+Three of v2's four remind misses called `readReminders` first, including the
+textbook read-for-create substitution — "I can't create a reminder for 'Test
+Talaria' right now — I don't see any existing reminders." Zero `readReminders`
+calls appear in production or v3 remind trials. **v2 is not merely a trade; it
+reopens find-first. It should be retired, not promoted.**
+
+**v3 against its pre-set bars: 5 of 6 PASS, one MISS by a single trial.**
+calendar ≥ production+3 → 8 vs 5 PASS (exactly); Sam dead-ends ≤half → 5 → ~0
+PASS; grabs not worse by >2 → 9 vs 9 PASS; alarm 10/10 PASS; vs v2, remind
+strictly greater → 8 > 6 PASS and calendar no more than 2 below → far above
+PASS. **remind within 1 of production → 8 vs 10, MISS.**
+
+The miss is one trial and its two specimens are the CONSERVED STALL, not a new
+disease: both are zero-tool interrogations ("Should it have a due date?",
+"specific date and time… also a specific list?") — the exact hydra #200K
+documented, where closing one field moves the question to another. Note also
+that 8/10 sits INSIDE production's own historical range (production remind has
+read 8/10, 10/10, 10/10, and 10/10 across the last runs), so the −2 is
+plausibly noise rather than bleed — but the bar was set at "within 1" precisely
+so that this call would not be made by eyeball after the fact, and it missed.
+
+**Disposition: NOT PROMOTED (one bar, one trial). v2 RETIRED — recommend it
+never promotes, on the find-first resurrection.** Recommended next step, cheap
+and decisive: an 80-trial confirmation A/B of `[.armed, .armedDeadendfix]`
+only. If remind lands ≥9 and calendar repeats ≥production+3, promote v3 on two
+independent runs instead of one. Production calendar has now read 5/10 twice
+consecutively, so the baseline is stable for once and a repeat measurement
+actually means something. Owen routes.

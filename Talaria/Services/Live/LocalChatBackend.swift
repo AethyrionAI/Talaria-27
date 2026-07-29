@@ -1400,7 +1400,8 @@ final class LocalChatBackend: HermesClientProtocol {
         includeFindFirstCarveout: Bool = true,
         includeLookupSpiralCarveout: Bool = false,
         includeCardNarrationClause: Bool = true,
-        includeDayDefaultClause: Bool = false
+        includeDayDefaultClause: Bool = false,
+        includeDeadEndCarveout: Bool = false
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
         // #196 second battery: the composition-licensing sentence — the
@@ -1471,6 +1472,20 @@ final class LocalChatBackend: HermesClientProtocol {
         // REQUIRED one, so permission doesn't reach it — this names the
         // resolution instead. Measured cell only.
         let dayDefaultClause = " A time with no day means the next time that clock time comes around — never ask which day."
+        // #200M deadendfix cell: the v2 carve-out reduced to the only part
+        // #200L showed it earns. In that run the treated cell's hunt calls
+        // fell just 23 → 16 and one trial still ran away to 20 calls (17
+        // consecutive searchConversations) — but the DEAD END went to
+        // zero: 5 "couldn't find Sam, so I'm asking" misses in production,
+        // none treated. v2 converts hunt→ask into hunt→create; it never
+        // stopped the hunt. So v3 says that and nothing else.
+        //
+        // Dropped on purpose, and pinned as absent: v2's search
+        // prohibition (the part that plausibly moved the reminder path —
+        // pooled over #200I+#200L it cost remind −20 points) and v2's
+        // location sentence (unearned: every accepted event across
+        // #200J/#200K/#200L was a bare title with no location bound).
+        let deadEndCarveout = " If you can't identify a person named in an event, that's fine — create the event with the name exactly as the user gave it."
         let capabilities: String
         if hasTools {
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. "
@@ -1481,6 +1496,7 @@ final class LocalChatBackend: HermesClientProtocol {
                 + (includeLookupSpiralCarveout ? lookupSpiralCarveout : "")
                 + (includeCardNarrationClause ? cardNarrationClause : "")
                 + (includeDayDefaultClause ? dayDefaultClause : "")
+                + (includeDeadEndCarveout ? deadEndCarveout : "")
                 + honestyAndRecovery
         } else if includeToollessLic2Clause {
             // #196 battery 4, toolless-lic2: the licensed bare branch plus
@@ -2461,6 +2477,11 @@ extension LocalChatBackend {
         /// (59% post vs 70% pre, p≈0.4, direction unfavorable); this
         /// answers it directly instead of on trend lines.
         case armedCardrollback = "armed-cardrollback"
+        /// #200M: full production belt; the instructions gain the v3
+        /// dead-end carve-out (`includeDeadEndCarveout`) — v2's win
+        /// without v2's search prohibition, which is what #200L implicated
+        /// in the reminder-path bleed.
+        case armedDeadendfix = "armed-deadendfix"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2470,7 +2491,7 @@ extension LocalChatBackend {
         switch cell {
         case .armed, .armedInstrfix, .armedToolmode, .armedScoped, .armedCreateonly,
              .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix,
-             .armedDatefix, .armedCardrollback:
+             .armedDatefix, .armedCardrollback, .armedDeadendfix:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
             // strikefix treat the tool-calling MODE, and the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
@@ -2628,6 +2649,15 @@ extension LocalChatBackend {
                     hasTools: !base.isEmpty,
                     hasImageTools: false,
                     includeCardNarrationClause: true
+                )
+            case .armedDeadendfix:
+                // #200M: v3 adds only the dead-end carve-out on top of
+                // promoted production — belt untouched.
+                cellInstructions = Self.instructionsText(
+                    deviceContext: Self.deviceContextLine(),
+                    hasTools: !base.isEmpty,
+                    hasImageTools: false,
+                    includeDeadEndCarveout: true
                 )
             case .armedCardrollback:
                 // #200L: production MINUS the promoted card clause — the
@@ -2853,6 +2883,20 @@ extension LocalChatBackend {
     /// generations.
     func runCalendarBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.calendarBatteryCells, includeGrabCanary: true)
+    }
+
+    /// #200M cell list — production, the v3 dead-end carve-out, and v2 in
+    /// the SAME run, so the two treatment versions are compared against
+    /// each other rather than against remembered numbers from different
+    /// runs (the #200I drift lesson, applied to treatments). Pinned.
+    nonisolated static let deadendBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedDeadendfix, .armedSpiralfix,
+    ]
+
+    /// #200M one-tap wrapper: 3 cells × four prompts — 12 × trials
+    /// generations.
+    func runDeadendBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.deadendBatteryCells, includeGrabCanary: true)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the
