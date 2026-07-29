@@ -9769,3 +9769,87 @@ diagnostic cell, not a promotion path); the remaining pivot queue (B bundle,
 tool-scoping, cap cell) proceeds per the survey plan. **PR #168 merges on
 this verdict; the clause is production. #200E (toolmode, demote pattern) is
 next per Owen's routing of the survey plan ("Lets do it").**
+
+**#200F BUILT, 2026-07-29 — community-destall battery (PR #170, branch
+`claude/t27-200f-community-destall` @ `a656004`; dispatch
+`dispatch/OPUS-T27-200F-community-destall.md`). ROUTING CORRECTION to the
+#200E note's "NEXT": Owen routed NO Apple filing** ("the last time we thought
+we found an apple bug, it was our own oversight") — the `.required` decoder
+crash is treated as an unresolved environmental constraint (possibly our own
+DynamicProfile usage) and routed around; PR #169 merged (`6c22fe5`) on the
+verdict as filed. Part 0 instrument fixes, both TDD-pinned: **(a) per-trial
+reap** — the reminders+events marker sweep now runs after EVERY action-battery
+trial (the #200E contamination cost 4/10 treatment remind trials to
+already-exists reads of real in-run artifacts); one pinned `REAP-TRIAL` line
+per trial; the final `REAP` line keeps its grammar with the per-trial sums
+folded in, so reap arithmetic stays exact; alarms stay end-of-run tracked-ID
+and the full reap stays as backstop. **(b) unmarked-title echo** —
+`ToolConfirmationCenter.strippingBatteryMarker` cleans every create-tool
+success text (the #200E marker leak: a reply carried "[T27-battery] ,"); the
+store writes keep the marker; the alarm echo re-parses the cleaned raw because
+its SCHEDULED label must keep the marker for the teardown. Cells per the
+dispatch: `armed` control / `armed-scoped` (per-intent 3–5 belt, same-domain
+reads in) / `armed-createonly` (per-intent belt without the same-domain read —
+no readReminders to flee into) / `armed-findfix` (full production belt; the
+two planner-corpus carve-out sentences behind `includeFindFirstCarveout`,
+flag-off byte-identical, pinned). Haiku rides the remind scope in the scoping
+cells. Suite 1292/1292 in 111 suites (8 new pins). Corded deploy on
+whoGoesThere @ `a656004`; Owen running 4×4×10 = 160 trials. Success bar:
+remind ≥8/10 in a cell with alarm/calendar holding ceiling, grabs ≤ control,
+no new corruption. Verdict note follows the classified export.
+
+**#200F VERDICT FILED, 2026-07-29 — community battery n=10 (160 trials, corded
+@ `a656004`, classified live from the Xcode console bridge; run sealed clean.
+Per-trial reap arithmetic EXACT: reminders 23 = 5 armed (1 remind + 4 grabs) +
+0 scoped + 5 createonly + 13 findfix (9 remind + 4 grabs); events 30 = 5 + 7 +
+10 + 8 (7 calendar + 1 haiku event-grab); alarms 40 = 10×4; failures 0; the
+end-of-run backstop found ZERO leftovers — the per-trial sweep caught
+everything, and cross-cell artifact contamination is instrument-dead (no
+already-exists reads of in-run artifacts anywhere in 160 trials).**
+
+| prompt | armed (control) | armed-scoped | armed-createonly | armed-findfix |
+|---|---|---|---|---|
+| remind creates | 1/10 | 0/10 | 5/10 | **9/10** |
+| alarm | 10/10 | 10/10 | 10/10 | 10/10 |
+| calendar | 5/8 | 7/10 | **10/10** | 7/9 |
+| haiku GRABS | 4/9 | 0/10 | 0/10 | 5/10 |
+
+ERROR/TIMEOUT excluded (4 of 160, all listed): armed/calendar/t8 ERROR
+(context overflow 8,278 > 8,192 — a searchConversations "Sam" spiral, five
+calls); armed/calendar/t10 TIMEOUT (same spiral shape, four calls);
+armed/haiku/t6 ERROR ("cannot be completed into valid JSON");
+armed-findfix/calendar/t9 TIMEOUT (eight-call spiral incl. currentWeather;
+createCalendarEvent fired but the guillotine landed before the gate — reap 0
+confirms nothing was created). **THE HEADLINE: `armed-findfix` remind 9/10 —
+CLEARS the ≥8/10 bar** (lifetime control 1/60; the two planner-corpus
+sentences killed find-first outright: ZERO readReminders calls in the cell's
+remind trials, 9 straight createReminder-first creates, the one miss an
+ask-date stall). Alarm ceiling holds everywhere; findfix calendar 7/9 beats
+this run's control 5/8 (the #200D 18/18 calendar ceiling did NOT reproduce in
+control — the searchConversations spiral is the new calendar failure mode,
+worth its own cell). **The caveat: findfix grabs 5/10 vs control 4/9 —
+nominally ABOVE control, within n=10 noise but the letter of the bar is not
+met**; grab titles are now clean ("Sledding", never ","), and one grab was a
+calendar EVENT (new specimen: haiku → createCalendarEvent "Sledding at the
+snowy hill"). Scoped/createonly both fail as promotion candidates despite
+createonly's calendar 10/10 CEILING and both cells' 0/10 grabs: the narrow
+belts resurrect the #196 composition-denial disease in force — haiku cant
+10/10 in BOTH cells ("I don't have creative writing tools", "I'm not a poet"),
+half refusing to deliver any haiku at all — and scoped remind is 0/10 (the
+ask-stall in full force; belt narrowing alone does NOT create). The
+createonly-vs-scoped delta isolates the mechanism: removing readReminders
+converts half the stalls to creates (0/10 → 5/10), the other half revert to
+which-list interrogation — the stall has TWO forms (read-flee +
+ask-interrogation) and structural narrowing only kills the first; the findfix
+sentences kill both. New D4-family specimen class, filed: TOOL-RESULT
+SEMANTIC MISBINDING — searchPlaces("Sam") returns Sam's Club and the model
+binds it as the lunch location ("at Sam's Club — 10431 Old Hwy 49", "9.0
+miles away"), pervasive across calendar creates in all cells; plus
+armed/remind/t9 fabricated "I don't have permission to create new reminders"
+(permission granted), and word-salad denials in createonly/haiku ("access to
+the internet access to the model's training data"). No missing-title
+ToolCallErrors and no comma-prefix titles in any treatment cell this run.
+NEXT: promotion decision is Owen's — findfix promotes via the #200D pattern
+(flip `includeFindFirstCarveout` default TRUE, pin flip, re-verify battery)
+with the grab-rate caveat on the table; the searchConversations calendar
+spiral and the cap cell remain queued.

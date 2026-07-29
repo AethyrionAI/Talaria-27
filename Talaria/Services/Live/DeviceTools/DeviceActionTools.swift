@@ -180,7 +180,9 @@ struct ReminderCreateTool: Tool {
             return "Creating the reminder failed: \(error.localizedDescription)"
         }
         let dueLine = finalDue.map { " due \(DeviceActionParsing.displayDate($0))" } ?? ""
-        return "Created reminder \"\(finalTitle)\"\(dueLine) in list \"\(calendarTitle)\"."
+        // #200F: the SAVED title may carry the battery reap marker; the
+        // success text echoes the model-requested form (marker stripped).
+        return "Created reminder \"\(ToolConfirmationCenter.strippingBatteryMarker(finalTitle))\"\(dueLine) in list \"\(calendarTitle)\"."
     }
 
     /// "None"/empty keeps no date; an unchanged display string keeps the
@@ -331,7 +333,9 @@ struct CalendarEventTool: Tool {
         } catch {
             return "Creating the event failed: \(error.localizedDescription)"
         }
-        return "Added \"\(finalTitle)\" on \(DeviceActionParsing.displayDate(finalStart)) for \(finalMinutes) minutes\(finalLocation.isEmpty ? "" : " at \(finalLocation)") to \"\(calendar.title)\"."
+        // #200F: the SAVED title may carry the battery reap marker; the
+        // success text echoes the model-requested form (marker stripped).
+        return "Added \"\(ToolConfirmationCenter.strippingBatteryMarker(finalTitle))\" on \(DeviceActionParsing.displayDate(finalStart)) for \(finalMinutes) minutes\(finalLocation.isEmpty ? "" : " at \(finalLocation)") to \"\(calendar.title)\"."
     }
 }
 
@@ -379,7 +383,12 @@ struct AlarmTool: Tool {
         }
         do {
             try await alarmService.schedule(finalRequest)
-            return "Scheduled \(finalRequest.summary) — it will ring through Silent mode and Focus."
+            // #200F: the SCHEDULED request keeps the battery reap marker in
+            // its label (that is how the teardown finds the alarm) — the
+            // success text re-parses the cleaned raw so the echoed summary
+            // is the model-requested form, marker-free.
+            let echo = AlarmService.parse(ToolConfirmationCenter.strippingBatteryMarker(finalRaw)) ?? finalRequest
+            return "Scheduled \(echo.summary) — it will ring through Silent mode and Focus."
         } catch {
             return "Couldn't schedule the \(finalRequest.kindNoun): \(error.localizedDescription)"
         }

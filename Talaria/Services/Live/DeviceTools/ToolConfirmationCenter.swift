@@ -66,8 +66,36 @@ final class ToolConfirmationCenter {
     /// #200: every artifact created under auto-accept carries this marker —
     /// injected into the "title"/"request" field at approval — so the run
     /// teardown can find and delete everything the battery created.
-    static let batteryArtifactMarker = "[T27-battery]"
+    /// `nonisolated` because the #200F echo cleaner below reads it from
+    /// nonisolated tool code — an immutable String constant is safe from
+    /// any context.
+    nonisolated static let batteryArtifactMarker = "[T27-battery]"
     #endif
+
+    /// #200F: echo cleaner for tool SUCCESS texts. Auto-accept injects the
+    /// reap marker into the approved values so the STORE WRITE is findable —
+    /// but #200E caught the success text carrying it back into the model's
+    /// context (armed/haiku/t5 replied "[T27-battery] ,"), contaminating
+    /// later turns through the transcript. Tools clean every echoed value
+    /// through this before building their result string: the artifact keeps
+    /// the marker, the model never sees it. Identity in release builds and
+    /// on unmarked input, so normal-mode echoes (including user edits) pass
+    /// through byte-for-byte.
+    nonisolated static func strippingBatteryMarker(_ value: String) -> String {
+        #if DEBUG
+        guard value.contains(batteryArtifactMarker) else { return value }
+        // Mirror the injection forms — prefix ("MARKER title"), suffix
+        // ("request MARKER"), and mid-string when a marked label lands
+        // inside a larger echo (the alarm summary) — collapsing the one
+        // adjacent space the injection added.
+        return value
+            .replacingOccurrences(of: "\(batteryArtifactMarker) ", with: "")
+            .replacingOccurrences(of: " \(batteryArtifactMarker)", with: "")
+            .replacingOccurrences(of: batteryArtifactMarker, with: "")
+        #else
+        return value
+        #endif
+    }
 
     /// Stages a confirmation and suspends the calling tool until the user
     /// decides. Tools run serially per session; if a second request somehow

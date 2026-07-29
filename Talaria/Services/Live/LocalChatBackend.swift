@@ -1396,7 +1396,8 @@ final class LocalChatBackend: HermesClientProtocol {
         includeCompositionLicensingSentence: Bool = false,
         includeToollessLicensingClause: Bool = false,
         includeToollessLic2Clause: Bool = false,
-        includeActionDestallClause: Bool = true
+        includeActionDestallClause: Bool = true,
+        includeFindFirstCarveout: Bool = false
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
         // #196 second battery: the composition-licensing sentence — the
@@ -1419,12 +1420,21 @@ final class LocalChatBackend: HermesClientProtocol {
         // licensing in both directions). Explicit `false` is the pinned
         // rollback seam — the pre-promotion text, byte-identical.
         let actionDestall = " When the user asks for a reminder, alarm, or calendar event and says what and when, create it right away — never ask which list, which calendar, or for other optional details first; leave optional fields empty and the defaults apply."
+        // #200F findfix cell: the two planner-corpus carve-outs, one
+        // sentence each. Apple's own CATALOG planner documents
+        // find-first-on-ambiguity (#200E proved it model-baked: the forced
+        // first call was readReminders 10/10) and an explicit
+        // reminders-vs-calendar preference rule — these sentences carve the
+        // "remind me" intent out of both. Measured cell only; never
+        // defaults on without a battery verdict.
+        let findFirstCarveout = " 'Remind me' means create the reminder — do not search existing reminders first. Reminders and calendar events are different tools — prefer a reminder when the user asks to be reminded."
         let capabilities: String
         if hasTools {
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. "
                 + (includeCompositionLicensingSentence ? composition : "")
                 + "Use the tools for the user's own data — their health, location, schedule, reminders, contacts, and past conversations — instead of guessing at it. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully."
                 + (includeActionDestallClause ? actionDestall : "")
+                + (includeFindFirstCarveout ? findFirstCarveout : "")
                 + honestyAndRecovery
         } else if includeToollessLic2Clause {
             // #196 battery 4, toolless-lic2: the licensed bare branch plus
@@ -2365,6 +2375,17 @@ extension LocalChatBackend {
         /// mandatory demote exit (`ToolmodeBatteryProfile`) — the seam at
         /// DECODING level, below everything prose can reach.
         case armedToolmode = "armed-toolmode"
+        /// #200F: Apple's 3–5 active-tools guidance, isolated — per-INTENT
+        /// belt with the same-domain reads kept in (`scopedBelt`).
+        case armedScoped = "armed-scoped"
+        /// #200F: per-intent belt WITHOUT the same-domain read — the
+        /// read-substitution stall killed structurally (no readReminders
+        /// to flee into; #200E measured find-first as model-baked).
+        case armedCreateonly = "armed-createonly"
+        /// #200F: full production belt; the instructions gain the two
+        /// planner-corpus carve-out sentences (`includeFindFirstCarveout`),
+        /// flag-off byte-identical.
+        case armedFindfix = "armed-findfix"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2372,9 +2393,11 @@ extension LocalChatBackend {
     /// both (bothfix). Same instances and order for every other tool.
     nonisolated static func destallBelt(from tools: [any Tool], cell: ActionBatteryCell) -> [any Tool] {
         switch cell {
-        case .armed, .armedInstrfix, .armedToolmode:
-            // instrfix treats INSTRUCTIONS and toolmode treats the request
-            // OPTIONS — never the belt.
+        case .armed, .armedInstrfix, .armedToolmode, .armedScoped, .armedCreateonly, .armedFindfix:
+            // instrfix and findfix treat INSTRUCTIONS, toolmode treats the
+            // request OPTIONS, and the #200F scoping cells narrow per
+            // PROMPT (`scopedBelt`, inside the trial loop) — none of them
+            // swap tool text here.
             return tools
         case .armedGuidefix:
             return tools.map { tool in
@@ -2402,6 +2425,38 @@ extension LocalChatBackend {
                 return tool
             }
         }
+    }
+
+    /// #200F: the per-INTENT belts. Apple's guidance is 3–5 active tools
+    /// per request (the armed belt is 13); the scoped cell keeps each
+    /// intent's create tool plus its same-domain reads, and createonly
+    /// removes the same-domain read — no readReminders to flee into
+    /// (#200E: the forced first call was readReminders 10/10; find-first
+    /// is model-baked). Alarm has no same-domain read, so its two cells
+    /// coincide. Haiku rides the REMIND scope — the worst-case misroute
+    /// canary. Identity for every other cell; filtering preserves belt
+    /// order and instances. Cell machinery only: production scoping would
+    /// be router-driven — a PROMOTION question, not this lane's.
+    nonisolated static func scopedBelt(from tools: [any Tool], cell: ActionBatteryCell,
+                                       promptTag: String) -> [any Tool] {
+        let keep: Set<String>
+        switch cell {
+        case .armedScoped:
+            switch promptTag {
+            case "alarm": keep = ["scheduleAlarm", "readCalendar"]
+            case "calendar": keep = ["createCalendarEvent", "readCalendar", "currentLocation"]
+            default: keep = ["createReminder", "readReminders", "readCalendar"]
+            }
+        case .armedCreateonly:
+            switch promptTag {
+            case "alarm": keep = ["scheduleAlarm", "readCalendar"]
+            case "calendar": keep = ["createCalendarEvent", "currentLocation"]
+            default: keep = ["createReminder", "readCalendar"]
+            }
+        default:
+            return tools
+        }
+        return tools.filter { keep.contains($0.name) }
     }
 
     /// #200 action-path battery: does an APPROPRIATE create go through?
@@ -2452,18 +2507,39 @@ extension LocalChatBackend {
         )
         Self.batteryEmit("battery: START trials=\(trials) cells=\(cells.count) prompts=\(prompts.count) (#200)")
         Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: cells.map(\.rawValue), kind: "action")
+        // #200F Part 0: per-trial reap accumulators — the final REAP line
+        // folds these into its counts so reap arithmetic stays exact.
+        var perTrialReminders = 0
+        var perTrialEvents = 0
+        var perTrialFailures = 0
         for cell in cells {
-            let belt = Self.destallBelt(from: base, cell: cell)
-            // #200C: instrfix swaps INSTRUCTIONS, not the belt.
-            let cellInstructions = cell == .armedInstrfix
-                ? Self.instructionsText(
+            let cellBelt = Self.destallBelt(from: base, cell: cell)
+            let cellInstructions: String
+            switch cell {
+            case .armedInstrfix:
+                // #200C: instrfix swaps INSTRUCTIONS, not the belt.
+                cellInstructions = Self.instructionsText(
                     deviceContext: Self.deviceContextLine(),
                     hasTools: !base.isEmpty,
                     hasImageTools: false,
                     includeActionDestallClause: true
                 )
-                : instructions
+            case .armedFindfix:
+                // #200F: findfix adds the two planner-corpus carve-out
+                // sentences on top of production — belt untouched.
+                cellInstructions = Self.instructionsText(
+                    deviceContext: Self.deviceContextLine(),
+                    hasTools: !base.isEmpty,
+                    hasImageTools: false,
+                    includeFindFirstCarveout: true
+                )
+            default:
+                cellInstructions = instructions
+            }
             for (tag, prompt) in prompts {
+                // #200F: the scoping cells narrow the belt per PROMPT
+                // (per-intent scope); identity for every other cell.
+                let belt = Self.scopedBelt(from: cellBelt, cell: cell, promptTag: tag)
                 for trial in 1...trials {
                     ToolEventRelay.batteryTrialTag = "shape=\(cell.rawValue) p=\(tag) t=\(trial)"
                     // Live-only BEGIN line (never rendered from records): if
@@ -2491,11 +2567,30 @@ extension LocalChatBackend {
                     await executeBatteryTrial(session: session, options: trialOptions,
                                               shape: cell.rawValue, promptTag: tag,
                                               prompt: prompt, trial: trial)
+                    // #200F Part 0: sweep marker reminders/events after
+                    // EVERY trial — #200E's treatment cell lost 4/10
+                    // remind trials to already-exists reads of REAL
+                    // artifacts the control cell created minutes earlier.
+                    // Alarms stay end-of-run (tracked-ID); the full reap
+                    // below remains as backstop.
+                    let sweep = await sweepMarkedRemindersAndEvents(emitSteps: false)
+                    perTrialReminders += sweep.reminders
+                    perTrialEvents += sweep.events
+                    perTrialFailures += sweep.failures
+                    Self.batteryEmit(Self.reapTrialLine(
+                        reminders: sweep.reminders, events: sweep.events,
+                        failures: sweep.failures,
+                        tag: "shape=\(cell.rawValue) p=\(tag) t=\(trial)"
+                    ))
                 }
             }
         }
         ToolEventRelay.batteryTrialTag = nil
-        let reapSummary = await reapBatteryArtifacts()
+        let reapSummary = await reapBatteryArtifacts(
+            perTrialReminders: perTrialReminders,
+            perTrialEvents: perTrialEvents,
+            perTrialFailures: perTrialFailures
+        )
         Self.batteryEmit("battery: REAP \(reapSummary) (#200)")
         Self.batteryRecorder.recordReapSummary(reapSummary)
         Self.batteryEmit("battery: DONE (#200)")
@@ -2533,24 +2628,44 @@ extension LocalChatBackend {
         await runActionBattery(trials: trials, cells: [.armed, .armedToolmode], includeGrabCanary: true)
     }
 
-    /// #200 teardown: delete every [T27-battery]-marked reminder and
-    /// calendar event, and cancel every battery-tracked alarm. Reminders
-    /// and events are found by marker match on their titles (idempotent —
-    /// leftovers from a crashed earlier run get swept too); alarms come
-    /// from `AlarmService.batteryScheduledAlarmIDs`, because AlarmKit's
-    /// `Alarm` carries no label back on enumeration. Returns the REAP
-    /// accounting in the export's words. Missing read access shows up as
-    /// skips, never as a silent zero.
-    private func reapBatteryArtifacts() async -> String {
+    /// #200F cell list — promoted-production control plus the three
+    /// survey-derived treatments, in dispatch order. Pinned.
+    nonisolated static let communityBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedScoped, .armedCreateonly, .armedFindfix,
+    ]
+
+    /// #200F one-tap wrapper: 4 cells × four prompts (grab canary
+    /// included) — 16 × trials generations.
+    func runCommunityBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.communityBatteryCells, includeGrabCanary: true)
+    }
+
+    /// #200F: one marker sweep's accounting. `hadAccess` false means the
+    /// store could not be enumerated — the summary shows a skip, never a
+    /// silent zero.
+    private struct MarkerSweepCounts {
+        var reminders = 0
+        var events = 0
+        var failures = 0
+        var remindersAccess = false
+        var eventsAccess = false
+    }
+
+    /// The [T27-battery] reminders + events sweep — shared by the
+    /// per-trial reap (#200F Part 0, `emitSteps: false` — the REAP-TRIAL
+    /// line is the accounting) and the end-of-run backstop (`emitSteps:
+    /// true`, the #200 REAP-STEP grammar). Alarms are NOT here: they are
+    /// tracked-ID, not marker-matched, and stay end-of-run.
+    private func sweepMarkedRemindersAndEvents(emitSteps: Bool) async -> MarkerSweepCounts {
         let marker = ToolConfirmationCenter.batteryArtifactMarker
         let store = EKEventStore()
-        var failures = 0
+        var counts = MarkerSweepCounts()
 
         // Step markers (live-only): all four 2026-07-28 action-battery
-        // crashes died somewhere in THIS function (records complete
+        // crashes died somewhere in THIS sweep (records complete
         // through the last trial, never sealed) — the capture log's last
         // REAP-STEP line names the killing sub-step.
-        Self.batteryEmit("battery: REAP-STEP reminders begin (#200)")
+        if emitSteps { Self.batteryEmit("battery: REAP-STEP reminders begin (#200)") }
 
         // Reminders: enumeration needs full access. Snapshot Sendable
         // identifiers inside the completion handler (EKReminder must not
@@ -2568,8 +2683,8 @@ extension LocalChatBackend {
         // every device run died. @Sendable severs the actor-context
         // inheritance; ReminderReadTool's twin closure never needed it
         // because Tool.call is nonisolated.
-        var remindersLine = "reminders=skipped(no-access)"
         if EKEventStore.authorizationStatus(for: .reminder) == .fullAccess {
+            counts.remindersAccess = true
             let predicate = store.predicateForIncompleteReminders(
                 withDueDateStarting: nil, ending: nil, calendars: nil
             )
@@ -2581,23 +2696,21 @@ extension LocalChatBackend {
                     continuation.resume(returning: ids)
                 }
             }
-            Self.batteryEmit("battery: REAP-STEP reminders fetched marked=\(markedIDs.count) (#200)")
-            var removed = 0
+            if emitSteps { Self.batteryEmit("battery: REAP-STEP reminders fetched marked=\(markedIDs.count) (#200)") }
             for id in markedIDs {
                 guard let reminder = store.calendarItem(withIdentifier: id) as? EKReminder else {
-                    failures += 1
+                    counts.failures += 1
                     continue
                 }
                 do {
                     try store.remove(reminder, commit: true)
-                    removed += 1
+                    counts.reminders += 1
                 } catch {
-                    failures += 1
+                    counts.failures += 1
                 }
             }
-            remindersLine = "reminders=\(removed)"
         }
-        Self.batteryEmit("battery: REAP-STEP events begin (#200)")
+        if emitSteps { Self.batteryEmit("battery: REAP-STEP events begin (#200)") }
 
         // Events: enumeration also needs full access (write-only can save
         // but never read, so it cannot reap). WRITABLE calendars only, and
@@ -2610,32 +2723,69 @@ extension LocalChatBackend {
         // scope-correctness: it is the minimal honest query for what the
         // reap needs.) events(matching:) here is SYNCHRONOUS on the
         // calling thread — no cross-queue closure, no isolation hazard.
-        var eventsLine = "events=skipped(no-access)"
         if EKEventStore.authorizationStatus(for: .event) == .fullAccess {
+            counts.eventsAccess = true
             let start = Date().addingTimeInterval(-1 * 86_400)
             let end = Date().addingTimeInterval(14 * 86_400)
             let writable = store.calendars(for: .event).filter(\.allowsContentModifications)
             let predicate = store.predicateForEvents(withStart: start, end: end, calendars: writable)
             let marked = store.events(matching: predicate).filter { ($0.title ?? "").contains(marker) }
-            Self.batteryEmit("battery: REAP-STEP events fetched marked=\(marked.count) (#200)")
-            var removed = 0
+            if emitSteps { Self.batteryEmit("battery: REAP-STEP events fetched marked=\(marked.count) (#200)") }
             for event in marked {
                 do {
                     try store.remove(event, span: .thisEvent, commit: true)
-                    removed += 1
+                    counts.events += 1
                 } catch {
-                    failures += 1
+                    counts.failures += 1
                 }
             }
-            eventsLine = "events=\(removed)"
         }
+        return counts
+    }
+
+    /// #200F Part 0: the REAP-TRIAL line — classification vocabulary,
+    /// pinned byte-for-byte by test.
+    nonisolated static func reapTrialLine(reminders: Int, events: Int, failures: Int,
+                                          tag: String) -> String {
+        "battery: REAP-TRIAL reminders=\(reminders) events=\(events) failures=\(failures) \(tag) (#200F)"
+    }
+
+    /// #200F: one count segment of the final REAP line. The counts FOLD
+    /// IN the per-trial sums so reap arithmetic stays exact — total
+    /// removed this run = per-trial sums + end-of-run backstop. The
+    /// no-access skip form is the #200 original, never a silent zero.
+    nonisolated static func reapCountSegment(_ label: String, backstop: Int, perTrial: Int,
+                                             hadAccess: Bool) -> String {
+        hadAccess ? "\(label)=\(backstop + perTrial)" : "\(label)=skipped(no-access)"
+    }
+
+    /// #200 teardown: delete every [T27-battery]-marked reminder and
+    /// calendar event, and cancel every battery-tracked alarm. Reminders
+    /// and events are found by marker match on their titles (idempotent —
+    /// leftovers from a crashed earlier run get swept too); alarms come
+    /// from `AlarmService.batteryScheduledAlarmIDs`, because AlarmKit's
+    /// `Alarm` carries no label back on enumeration. Returns the REAP
+    /// accounting in the export's words, with the run's per-trial reap
+    /// sums (#200F) folded into the counts. Missing read access shows up
+    /// as skips, never as a silent zero.
+    private func reapBatteryArtifacts(perTrialReminders: Int = 0, perTrialEvents: Int = 0,
+                                      perTrialFailures: Int = 0) async -> String {
+        let backstop = await sweepMarkedRemindersAndEvents(emitSteps: true)
         Self.batteryEmit("battery: REAP-STEP alarms begin (#200)")
 
         let alarmReap = AlarmService.reapBatteryAlarms()
-        failures += alarmReap.failed
+        let failures = backstop.failures + perTrialFailures + alarmReap.failed
         Self.batteryEmit("battery: REAP-STEP alarms done cancelled=\(alarmReap.cancelled) failed=\(alarmReap.failed) (#200)")
 
-        return "\(remindersLine) \(eventsLine) alarms=\(alarmReap.cancelled) failures=\(failures)"
+        let remindersSegment = Self.reapCountSegment(
+            "reminders", backstop: backstop.reminders,
+            perTrial: perTrialReminders, hadAccess: backstop.remindersAccess
+        )
+        let eventsSegment = Self.reapCountSegment(
+            "events", backstop: backstop.events,
+            perTrial: perTrialEvents, hadAccess: backstop.eventsAccess
+        )
+        return "\(remindersSegment) \(eventsSegment) alarms=\(alarmReap.cancelled) failures=\(failures)"
     }
 
     /// #196 battery 4: on-device router-accuracy probe — ten probes
