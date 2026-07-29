@@ -9704,6 +9704,12 @@ invisible to every later reap and stay scheduled (the 42-orphan lesson, now
 structural). Owen asked to confirm the aborted run + run the alarm sweep.
 Instrument follow-ups queued: persist tracked alarm IDs per-run to disk for
 cross-run reap (marker-query reap is impossible — AlarmKit exposes no labels on
-enumeration); document reap counts as this-run + leftovers. **PR #168 merges on
+enumeration); document reap counts as this-run + leftovers.
+**2026-07-29 confirmed by Owen: "I picked up my phone from reflex, and it
+killed the run when I backgrounded it."** The aborted-run hypothesis is fact —
+backgrounding kills the battery loop mid-run (foreground-only is a standing
+instrument constraint, now with a measured failure signature: store leftovers +
+orphaned alarms + inflated next-run reap counts). Alarm sweep requested; the
+per-run persisted alarm-ID reap moves up the instrument queue. **PR #168 merges on
 this verdict; the clause is production. #200E (toolmode, demote pattern) is
 next per Owen's routing of the survey plan ("Lets do it").**
