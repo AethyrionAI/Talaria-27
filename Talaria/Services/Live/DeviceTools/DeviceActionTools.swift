@@ -197,6 +197,57 @@ struct ReminderCreateTool: Tool {
 #if DEBUG
 // MARK: - #200B guidefix treatment copy
 
+/// The `armed-schemafix` cell's reminder tool (#200Q): identical to
+/// `ReminderCreateTool` in name, description, @Guide texts, flow, and
+/// engine. The ONLY delta is the TYPE of the two optional fields —
+/// `String?` instead of `String`.
+///
+/// Why that is the whole treatment: `@Generable` derives the tool's schema
+/// from these declarations, so a non-optional `String` makes the field
+/// REQUIRED. Production has therefore been telling the model two
+/// contradictory things — the promoted #200D clause says "leave optional
+/// fields empty and the defaults apply", while the schema it decodes
+/// against demands a value for `due` and `list` both. Asking the user is
+/// a rational way to obtain a required value, which is the likeliest
+/// reason five lanes of wording never moved the stall (#200B guidefix
+/// falsified, #200K datefix relocated it, #200P stallfix did not
+/// reproduce).
+///
+/// `title` stays REQUIRED — the schema should demand what the tool
+/// genuinely cannot default. The @Guide texts are byte-identical to
+/// production ("or empty for…" reads correctly either way), so the only
+/// thing reaching the model is the requiredness of the two fields.
+/// Measurement cell only; production ships this ONLY after a verdict.
+struct ReminderCreateToolSchemafix: Tool {
+    let name = "createReminder"
+    var description: String = ReminderCreateTool.productionDescription
+    var includesSchemaInInstructions: Bool = true
+    let relay: ToolEventRelay
+    let confirmations: ToolConfirmationCenter
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "What to be reminded about, e.g. \"Call Shelley\".")
+        var title: String
+        @Guide(description: "Due date and time like \"2026-07-08T09:00\" (local time), or empty for no due date.")
+        var due: String?
+        @Guide(description: "Reminders list name, or empty for the default list.")
+        var list: String?
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        await relay.started(name, detail: title)
+        defer { Task { await relay.completed(name) } }
+        // An omitted field lands on exactly the path an empty string took,
+        // so the create flow is byte-identical to production's.
+        return await ReminderCreateTool.performCreate(
+            rawTitle: title, rawDue: arguments.due ?? "", rawList: arguments.list ?? "",
+            confirmations: confirmations
+        )
+    }
+}
+
 /// The `armed-guidefix` / `armed-bothfix` cell's reminder tool: identical
 /// to `ReminderCreateTool` in name, flow, and engine — the ONLY deltas are
 /// the `@Guide` texts on the optional fields, de-stalled against the FILED
