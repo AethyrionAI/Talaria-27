@@ -9893,3 +9893,53 @@ haiku delivered anyway). PR #171 merges on this verdict per Owen's routing.
 Queued next per the survey plan: the searchConversations calendar-spiral
 cell, the cap cell (D4), the DynamicProfile adoption bundle,
 Hermes-as-provider.
+
+**#200H VERDICT FILED, 2026-07-29 — spiral battery n=10 (120 trials, PR #172
+branch `f73339c`, corded, classified from the bridge; run sealed clean;
+per-trial reap arithmetic EXACT: reminders 31 = 8 armed + 12 spiralfix + 11
+strikefix, events 27 = 9 + 9 + 9, alarms 30 = 10×3, failures 0, backstop
+ZERO — third consecutive clean sweep).**
+
+| prompt | armed (prod.) | armed-spiralfix | armed-strikefix |
+|---|---|---|---|
+| remind creates | 6/10 | 4/10 | 7/10 |
+| alarm | 10/10 | 10/10 | 10/10 |
+| calendar | 7/10 | **9/10** | 7/10 |
+| haiku GRABS | 4/8 | **8/10** | 6/10 |
+
+Excluded (2 of 120, both listed): armed/haiku t2 + t8 — ERROR
+`ToolCallError(tool: DeviceHealthTool …)`: readHealth THREW on a haiku
+misroute instead of returning an explanatory string. NEW Talaria-side bug
+class filed: a belt tool with a throwing path violates the honesty design
+(tools report failure as their RESULT); DeviceHealthTool needs the
+throw→string audit. **Verdict, mixed: (1) spiralfix hits the target and
+misses the bar** — calendar 9/10 (best calendar cell ever measured), zero
+spiral casualties, hunts that still ran all ENDED IN CREATES, misbinds
+reduced (5/9 clean creates vs ~1/7 control — "Sam's place" and "your
+location" still leak) — BUT the collateral disqualifies promotion as-is:
+remind sagged 6/10 → 4/10 and grabs DOUBLED 4/8 → 8/10, incl. two
+meta-grabs (reminder titled "Write a haiku about sledding"). The sentence's
+"an event or reminder" phrasing bleeds across intents — it licenses
+reminder-making everywhere. Follow-up treatment queued (#200I candidate):
+intent-scope the sentence to events only, re-measure. **(2) strikefix is
+INCONCLUSIVE — the treatment never engaged.** Ground truth (relay tool=
+lines): ZERO same-tool repeats occurred within any strikefix trial, so no
+third strike was ever due (control had repeats in 3/30 trials — bursty).
+AND the strike diagnostics are anomalous: all 132 strike lines are
+DOUBLED-at-#1 (66 calls × 2 identical emits, never a #2) — the
+`@SessionProperty [String: Int]` write appears not to persist across
+onToolCall invocations, unlike #200E's Int counter which visibly
+accumulated (call#1 → call#2). The demote path and the .disallowed
+decoder watch-for are both UNEXERCISED; the cell's numbers read as a
+second production sample. Instrument follow-up REQUIRED before any strike
+re-run: pin down the dictionary-entry persistence (or fall back to the
+proven Int total-call budget). **(3) Control notes:** no casualties in
+control this run either (the spiral fired, 5-call hunts, no overflow) —
+casualty rate is bursty, zero-casualty claims need bigger n; misbinds
+pervasive (own street address bound onto 3 creates, "(your current
+location)"); armed/calendar/t9 created-then-denied again. New corruption
+specimens: a 12-hour event ("2:00 PM to 2:00 AM") and an event narrated
+as a "reminder" (strikefix/haiku/t10, REAP-TRIAL proves the artifact).
+NO cell clears its bar → NOTHING promotes from this battery. Merge
+question (cells are picker-reachable instrument machinery, flag-off
+byte-identical — the #200B/#200E precedent): Owen routes.
