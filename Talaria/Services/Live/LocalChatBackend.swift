@@ -1398,7 +1398,8 @@ final class LocalChatBackend: HermesClientProtocol {
         includeToollessLic2Clause: Bool = false,
         includeActionDestallClause: Bool = true,
         includeFindFirstCarveout: Bool = true,
-        includeLookupSpiralCarveout: Bool = false
+        includeLookupSpiralCarveout: Bool = false,
+        includeCardNarrationClause: Bool = false
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
         // #196 second battery: the composition-licensing sentence — the
@@ -1448,6 +1449,16 @@ final class LocalChatBackend: HermesClientProtocol {
         // as the destination instead of only forbidding the search — the
         // shape that made the #200D and #200G clauses work.
         let lookupSpiralCarveout = " A person's name in an event title is just part of the title — never search contacts, conversations, or places to identify them before creating the event. Only include an event location the user themselves gave; a place search result is never the location."
+        // #200J cardfix cell: the narrated confirmation card. #200I's
+        // largest failure bucket was 10 zero-tool trials — 9 of the remind
+        // misses, in BOTH cells — where the model typed the card out
+        // ("**Title:** Test Talaria / **Due:** … / Would you like to
+        // proceed?") and called nothing, waiting on an answer a
+        // single-turn battery can never give. Production already says a
+        // card is shown; that evidently reads as description, not as
+        // "so don't do it yourself". This names the impersonation and
+        // points at the call. Measured cell only.
+        let cardNarrationClause = " The confirmation card is shown automatically when you call an action tool — never write the card out, list the details back for approval, or ask whether to proceed; make the call and let the card do the asking."
         let capabilities: String
         if hasTools {
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. "
@@ -1456,6 +1467,7 @@ final class LocalChatBackend: HermesClientProtocol {
                 + (includeActionDestallClause ? actionDestall : "")
                 + (includeFindFirstCarveout ? findFirstCarveout : "")
                 + (includeLookupSpiralCarveout ? lookupSpiralCarveout : "")
+                + (includeCardNarrationClause ? cardNarrationClause : "")
                 + honestyAndRecovery
         } else if includeToollessLic2Clause {
             // #196 battery 4, toolless-lic2: the licensed bare branch plus
@@ -2417,6 +2429,11 @@ extension LocalChatBackend {
         /// `.allowed` until any single tool's third call, `.disallowed`
         /// after — the model must answer with what it has.
         case armedStrikefix = "armed-strikefix"
+        /// #200J: full production belt; the instructions gain the
+        /// card-narration clause (`includeCardNarrationClause`) against
+        /// #200I's largest failure bucket — the model writing the
+        /// confirmation card out in prose and calling nothing.
+        case armedCardfix = "armed-cardfix"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2425,7 +2442,7 @@ extension LocalChatBackend {
     nonisolated static func destallBelt(from tools: [any Tool], cell: ActionBatteryCell) -> [any Tool] {
         switch cell {
         case .armed, .armedInstrfix, .armedToolmode, .armedScoped, .armedCreateonly,
-             .armedFindfix, .armedSpiralfix, .armedStrikefix:
+             .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
             // strikefix treat the tool-calling MODE, and the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
@@ -2573,6 +2590,15 @@ extension LocalChatBackend {
                     hasTools: !base.isEmpty,
                     hasImageTools: false,
                     includeLookupSpiralCarveout: true
+                )
+            case .armedCardfix:
+                // #200J: cardfix adds the card-narration clause on top of
+                // production — belt untouched.
+                cellInstructions = Self.instructionsText(
+                    deviceContext: Self.deviceContextLine(),
+                    hasTools: !base.isEmpty,
+                    hasImageTools: false,
+                    includeCardNarrationClause: true
                 )
             default:
                 cellInstructions = instructions
@@ -2733,6 +2759,20 @@ extension LocalChatBackend {
     /// control) — 8 × trials generations.
     func runSpiralfixBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.spiralfixBatteryCells, includeGrabCanary: true)
+    }
+
+    /// #200J cell list — production control vs the card-narration clause.
+    /// Pinned.
+    nonisolated static let cardfixBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedCardfix,
+    ]
+
+    /// #200J one-tap wrapper: 2 cells × four prompts — 8 × trials
+    /// generations. The clause names every action tool, so all four
+    /// prompts run even though the remind path is where #200I found the
+    /// narration bucket.
+    func runCardfixBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.cardfixBatteryCells, includeGrabCanary: true)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the
