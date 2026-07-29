@@ -879,7 +879,8 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedDeadendfix.rawValue == "armed-deadendfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedGrabfix.rawValue == "armed-grabfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedStallfix.rawValue == "armed-stallfix")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 17)
+        #expect(LocalChatBackend.ActionBatteryCell.armedSchemafix.rawValue == "armed-schemafix")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 18)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -1159,6 +1160,51 @@ struct DeviceToolBeltTests {
             includeDayDefaultClause: true
         )
         #expect(!bare.contains("never ask which day"))
+    }
+
+    // MARK: The stall's structural seam (#200Q)
+
+    /// #200Q: the conserved stall is 0-for-2 on instruction treatments —
+    /// #200K's datefix relocated it (date question became list question,
+    /// same count) and #200P's stallfix did not reproduce on a rested
+    /// device. Five lanes of wording have not moved it, and there is a
+    /// reason wording cannot: `ReminderCreateTool.Arguments` declares
+    /// `due` and `list` as NON-OPTIONAL `String`, so the generated schema
+    /// marks them REQUIRED. The promoted #200D clause says "leave optional
+    /// fields empty and the defaults apply" while the schema the model is
+    /// decoding against says it must produce a value for both. When
+    /// instructions and schema disagree, the schema is the harder
+    /// constraint — and asking the user is a rational way to obtain a
+    /// required value.
+    ///
+    /// So this cell changes the TYPE and nothing else: `String?` in place
+    /// of `String` on exactly those two fields. The @Guide texts stay
+    /// byte-identical to production (they read "or empty for…" either
+    /// way), `title` stays required, and the tool body reuses
+    /// `ReminderCreateTool.performCreate` unchanged via `?? ""` — so the
+    /// ONLY delta reaching the model is whether the schema demands the
+    /// two optional fields.
+    @Test @MainActor func schemafixSwapsOnlyTheReminderToolAndKeepsTheBeltOrder() {
+        let belt = DeviceToolBelt.makeActionTools(
+            relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
+            alarmService: AlarmService()
+        )
+        let treated = LocalChatBackend.destallBelt(from: belt, cell: .armedSchemafix)
+        // Same tools, same names, same order — one swap, nothing else.
+        #expect(treated.map(\.name) == belt.map(\.name))
+        #expect(treated.contains { $0 is ReminderCreateToolSchemafix })
+        #expect(!treated.contains { $0 is ReminderCreateTool })
+        // The description seam is production — this cell is not a
+        // re-run of #200B's toolfix under a new name.
+        #expect(treated.first { $0.name == "createReminder" }?.description == ReminderCreateTool.productionDescription)
+    }
+
+    /// #200Q battery: production vs the schema swap, both arms in one run
+    /// (the #200O within-run rule).
+    @Test func schemafixBatteryIsProductionVersusTheSchemaSwap() {
+        #expect(LocalChatBackend.schemafixBatteryCells == [
+            .armed, .armedSchemafix,
+        ])
     }
 
     // MARK: The conserved stall (#200P)

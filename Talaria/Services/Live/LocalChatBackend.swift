@@ -2527,6 +2527,11 @@ extension LocalChatBackend {
         /// card-correction clause (`includeCardCorrectionClause`) against
         /// the conserved zero-tool stall.
         case armedStallfix = "armed-stallfix"
+        /// #200Q: the stall's STRUCTURAL seam — the reminder tool's two
+        /// optional fields become optional in the SCHEMA (`String?`), so
+        /// the model is no longer required to produce a value it was
+        /// being told to leave empty. Belt swap; instructions untouched.
+        case armedSchemafix = "armed-schemafix"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2543,6 +2548,17 @@ extension LocalChatBackend {
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
             // loop) — none of them swap tool text here.
             return tools
+        case .armedSchemafix:
+            // #200Q: one swap — the reminder tool whose optional fields
+            // are optional in the schema. Everything else is production,
+            // including the tool description (this is NOT #200B's toolfix
+            // under a new name).
+            return tools.map { tool in
+                if let reminder = tool as? ReminderCreateTool {
+                    return ReminderCreateToolSchemafix(relay: reminder.relay, confirmations: reminder.confirmations)
+                }
+                return tool
+            }
         case .armedGuidefix:
             return tools.map { tool in
                 if let reminder = tool as? ReminderCreateTool {
@@ -3011,6 +3027,18 @@ extension LocalChatBackend {
     /// generations.
     func runStallfixBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.stallfixBatteryCells, includeGrabCanary: true)
+    }
+
+    /// #200Q cell list — production vs the schema swap, both arms in one
+    /// run (the #200O within-run rule). Pinned.
+    nonisolated static let schemafixBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedSchemafix,
+    ]
+
+    /// #200Q one-tap wrapper: 2 cells × four prompts — 8 × trials
+    /// generations.
+    func runSchemafixBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.schemafixBatteryCells, includeGrabCanary: true)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the

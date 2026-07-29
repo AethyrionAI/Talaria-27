@@ -10575,3 +10575,62 @@ relocated it, stallfix did not reproduce) — the next attempt should change
 KIND, not wording: the promoted destall clause already forbids asking, so a
 structural seam (tool-schema defaults, or a DynamicProfile that demotes on a
 question-shaped output) is the untried direction.
+
+**#200Q VERDICT FILED, 2026-07-29 — schemafix battery n=10 (80 trials, PR #182
+branch `baf5015`, OTA build 1473 Debug, os 27.0 24A5390f, run sealed
+`reminders=29 events=16 alarms=20 failures=0`, ZERO exclusions). Owen's note:
+an accidental Control Center swipe killed a FIRST attempt ~1 minute in; the
+file classified here is the complete retry (80 trials, all eight cell×prompt
+groups populated, `endedCleanly: true`). Per-trial reap means a backgrounding
+kill strands nothing, so the earlier abort leaves no orphans and no
+contamination.**
+
+| prompt | armed (production) | armed-schemafix |
+|---|---|---|
+| remind | 8/10 (2 stalls) | **10/10 (0 stalls)** |
+| alarm | **10/10** | **10/10** |
+| calendar | 9/10 | 8/10 |
+| **haiku grabs** | **10/10** | **1/10** |
+
+**EVERY BAR PASSES, including the primary one on its ceiling-aware form.**
+Remind 10/10 with zero-tool stalls at ZERO against a control that interrogated
+twice ("Could you specify the date for this reminder?", "should it be on a
+default list?"). Stalls ≤half → 0 vs 2. Alarm 10/10. Calendar within K=3 (8 vs
+9). **The hypothesis predicted this exactly: the two fields the model kept
+asking about were the two the schema REQUIRED while the instructions told it to
+leave them empty. Removing the contradiction removed the questions.**
+
+**AND AN EFFECT NOBODY PREDICTED: grabs collapsed 10/10 → 1/10.** Control
+grabbed on all ten haiku trials, every one a reminder, five titled with the
+request itself ("Write a haiku about sledding"). The treated cell grabbed ONCE;
+**seven of its ten trials called no tool at all** and simply wrote the poem.
+That is a nine-trial within-run swing, far outside any noise this program has
+measured, from a cell whose only intended delta was two field types.
+
+**Confound, stated because it cannot be separated in this design:**
+`includesSchemaInInstructions` is true, so the tool renders its schema INTO the
+instructions — changing two field types therefore also changes the instructions
+text the model reads. The grab effect may be optionality itself or may be the
+rendered-schema change. Mechanism is UNEXPLAINED and is not needed for the
+promotion decision, but it should not be written up as understood.
+
+**Disposition: NOT PROMOTED YET — replication required, and this is precisely
+the #200P lesson.** #200P produced a perfect 10/10 cell with its specimen at
+zero and evaporated on re-run; an unpredicted effect this large gets the same
+scepticism, not less. **The confirmation run needs NO new code and no new
+build:** `schemafixBatteryCells` is already `[.armed, .armedSchemafix]` and the
+"Schemafix battery n=10 (80)" button already exists on staged build 1473 — the
+next run is the same button a second time, on a rested device. If remind holds
+at/near 10/10 with stalls at zero AND grabs stay far below control, promote the
+optional-field schema on the #200D/#200G/#200K/#200O pattern, and the obvious
+follow-on is extending optionality to `CalendarEventTool`'s `location` /
+`durationMinutes` (a separate measured cell, not a freebie).
+
+**Instrument note: 17 accepted `createCalendarEvent` calls counted vs 16
+events swept.** The gap is one artifact in the "accepted create that never
+became an artifact" direction, which points at an EventKit save failure (the
+tool returns an explanatory string on that path) rather than a leak — a leaked
+marker artifact would have been caught by the same run's backstop sweep, which
+ran and found 16. Nothing stranded. Also of note, `armed-schemafix/calendar/t6`
+shows a `confirm=none` call followed by an `accepted` one: the tool bailed
+pre-gate once and then succeeded, which is the honest-failure path working.
