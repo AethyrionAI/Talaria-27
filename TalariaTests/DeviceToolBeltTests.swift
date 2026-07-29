@@ -871,7 +871,9 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedScoped.rawValue == "armed-scoped")
         #expect(LocalChatBackend.ActionBatteryCell.armedCreateonly.rawValue == "armed-createonly")
         #expect(LocalChatBackend.ActionBatteryCell.armedFindfix.rawValue == "armed-findfix")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 9)
+        #expect(LocalChatBackend.ActionBatteryCell.armedSpiralfix.rawValue == "armed-spiralfix")
+        #expect(LocalChatBackend.ActionBatteryCell.armedStrikefix.rawValue == "armed-strikefix")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 11)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -1011,6 +1013,74 @@ struct DeviceToolBeltTests {
             deviceContext: "Device: test.", hasTools: false
         )
         #expect(!bare.contains("'Remind me'"))
+    }
+
+    // MARK: Calendar-spiral cells (#200H)
+
+    /// The spiral battery's cell list — promoted-production control plus
+    /// the two treatment seams, in dispatch order.
+    @Test func spiralBatteryRunsTheThreeCells() {
+        #expect(LocalChatBackend.spiralBatteryCells == [
+            .armed, .armedSpiralfix, .armedStrikefix,
+        ])
+    }
+
+    /// #200H spiralfix: the lookup-spiral carve-out — the identity-hunt
+    /// sentence and the location-misbinding sentence — rides a flag that
+    /// is OFF by default; flag-off is production byte-identical. Flag-on
+    /// adds exactly the two sentences at the measured seam: after the
+    /// find-first carve-out, before honesty-and-recovery.
+    @Test func lookupSpiralCarveoutIsOffByDefaultAndSitsAfterTheFindFirstCarveout() {
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true
+        )
+        #expect(!production.contains("identify them first"))
+        let explicitOff = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeLookupSpiralCarveout: false
+        )
+        #expect(explicitOff == production)
+        let treated = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: true,
+            includeLookupSpiralCarveout: true
+        )
+        #expect(treated.contains("prefer a reminder when the user asks to be reminded. A person's name in an event or reminder is just part of the title — never search contacts, conversations, or places to identify them first. Only include an event location the user themselves gave; a place search result is never the location. When a tool reports"))
+        // The carve-out rides the armed capabilities paragraph only.
+        let bare = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", hasTools: false,
+            includeLookupSpiralCarveout: true
+        )
+        #expect(!bare.contains("identify them first"))
+    }
+
+    /// #200H strikefix: the third-strike demote is data-derived — across
+    /// #200F/#200G every healthy create used at most 2 calls of any one
+    /// tool, every spiral casualty had a tool at 3+. `.allowed` until any
+    /// single tool's tally reaches 3, `.disallowed` after (the model must
+    /// answer with what it has). A regression here either re-opens the
+    /// spiral or strangles healthy flows.
+    @Test func spiralBudgetModeStrikesOnAnyToolsThirdCall() {
+        #expect(LocalChatBackend.spiralBudgetMode(tally: [:]) == .allowed)
+        #expect(LocalChatBackend.spiralBudgetMode(tally: ["searchConversations": 2, "readCalendar": 2]) == .allowed)
+        #expect(LocalChatBackend.spiralBudgetMode(tally: ["searchConversations": 3]) == .disallowed)
+        #expect(LocalChatBackend.spiralBudgetMode(tally: ["readCalendar": 1, "searchConversations": 5]) == .disallowed)
+    }
+
+    /// Both #200H cells treat OFF-belt seams — spiralfix the
+    /// instructions, strikefix the tool-calling mode — so their belts are
+    /// production identity (scopedBelt identity is covered for every
+    /// non-scoping cell by `scopedBeltIsIdentityForEveryOtherCell`).
+    @Test @MainActor func spiralCellBeltsAreProductionIdentity() {
+        let belt = DeviceToolBelt.makeActionTools(
+            relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
+            alarmService: AlarmService()
+        )
+        for cell in [LocalChatBackend.ActionBatteryCell.armedSpiralfix, .armedStrikefix] {
+            let treated = LocalChatBackend.destallBelt(from: belt, cell: cell)
+            #expect(treated.map(\.name) == belt.map(\.name))
+            #expect(treated.contains { $0 is ReminderCreateTool })
+            #expect(treated.first { $0.name == "createReminder" }?.description == ReminderCreateTool.productionDescription)
+        }
     }
 
     // MARK: Per-trial reap (#200F Part 0)

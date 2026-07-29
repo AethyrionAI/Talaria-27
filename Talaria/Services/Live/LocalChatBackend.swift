@@ -1397,7 +1397,8 @@ final class LocalChatBackend: HermesClientProtocol {
         includeToollessLicensingClause: Bool = false,
         includeToollessLic2Clause: Bool = false,
         includeActionDestallClause: Bool = true,
-        includeFindFirstCarveout: Bool = true
+        includeFindFirstCarveout: Bool = true,
+        includeLookupSpiralCarveout: Bool = false
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
         // #196 second battery: the composition-licensing sentence — the
@@ -1430,6 +1431,14 @@ final class LocalChatBackend: HermesClientProtocol {
         // 1/60) with ZERO readReminders calls. Explicit `false` is the
         // pinned rollback seam — the pre-promotion text, byte-identical.
         let findFirstCarveout = " 'Remind me' means create the reminder — do not search existing reminders first. Reminders and calendar events are different tools — prefer a reminder when the user asks to be reminded."
+        // #200H spiralfix cell: the lookup-spiral carve-out, one sentence
+        // per disease. The identity hunt (searchConversations/lookupContact/
+        // searchPlaces loops on "Sam" — every excluded trial across
+        // #200F/#200G, incl. an 8,192-token context overflow) and the
+        // location misbind (searchPlaces("Sam") → Sam's Club / Pluckers
+        // Wing Bar 500 miles away bound as the lunch location). Measured
+        // cell only; never defaults on without a battery verdict.
+        let lookupSpiralCarveout = " A person's name in an event or reminder is just part of the title — never search contacts, conversations, or places to identify them first. Only include an event location the user themselves gave; a place search result is never the location."
         let capabilities: String
         if hasTools {
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. "
@@ -1437,6 +1446,7 @@ final class LocalChatBackend: HermesClientProtocol {
                 + "Use the tools for the user's own data — their health, location, schedule, reminders, contacts, and past conversations — instead of guessing at it. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully."
                 + (includeActionDestallClause ? actionDestall : "")
                 + (includeFindFirstCarveout ? findFirstCarveout : "")
+                + (includeLookupSpiralCarveout ? lookupSpiralCarveout : "")
                 + honestyAndRecovery
         } else if includeToollessLic2Clause {
             // #196 battery 4, toolless-lic2: the licensed bare branch plus
@@ -2389,6 +2399,15 @@ extension LocalChatBackend {
         /// promotion that is identity with production — the cell now
         /// measures the promoted text (the instrfix precedent).
         case armedFindfix = "armed-findfix"
+        /// #200H: full production belt; the instructions gain the
+        /// lookup-spiral carve-out (`includeLookupSpiralCarveout`),
+        /// flag-off byte-identical.
+        case armedSpiralfix = "armed-spiralfix"
+        /// #200H: belt AND instructions production verbatim; the sole
+        /// treatment is the third-strike demote (`SpiralBudgetProfile`):
+        /// `.allowed` until any single tool's third call, `.disallowed`
+        /// after — the model must answer with what it has.
+        case armedStrikefix = "armed-strikefix"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2396,11 +2415,12 @@ extension LocalChatBackend {
     /// both (bothfix). Same instances and order for every other tool.
     nonisolated static func destallBelt(from tools: [any Tool], cell: ActionBatteryCell) -> [any Tool] {
         switch cell {
-        case .armed, .armedInstrfix, .armedToolmode, .armedScoped, .armedCreateonly, .armedFindfix:
-            // instrfix and findfix treat INSTRUCTIONS, toolmode treats the
-            // request OPTIONS, and the #200F scoping cells narrow per
-            // PROMPT (`scopedBelt`, inside the trial loop) — none of them
-            // swap tool text here.
+        case .armed, .armedInstrfix, .armedToolmode, .armedScoped, .armedCreateonly,
+             .armedFindfix, .armedSpiralfix, .armedStrikefix:
+            // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
+            // strikefix treat the tool-calling MODE, and the #200F scoping
+            // cells narrow per PROMPT (`scopedBelt`, inside the trial
+            // loop) — none of them swap tool text here.
             return tools
         case .armedGuidefix:
             return tools.map { tool in
@@ -2536,6 +2556,15 @@ extension LocalChatBackend {
                     hasImageTools: false,
                     includeFindFirstCarveout: true
                 )
+            case .armedSpiralfix:
+                // #200H: spiralfix adds the lookup-spiral carve-out on
+                // top of production — belt untouched.
+                cellInstructions = Self.instructionsText(
+                    deviceContext: Self.deviceContextLine(),
+                    hasTools: !base.isEmpty,
+                    hasImageTools: false,
+                    includeLookupSpiralCarveout: true
+                )
             default:
                 cellInstructions = instructions
             }
@@ -2560,6 +2589,14 @@ extension LocalChatBackend {
                         // Generation options ride the profile; respond() gets
                         // none (nil → all-nil options, profile governs).
                         session = LanguageModelSession(profile: ToolmodeBatteryProfile(
+                            model: model, belt: belt,
+                            instructionsText: cellInstructions, options: baseOptions))
+                        trialOptions = nil
+                    } else if cell == .armedStrikefix {
+                        // #200H: the third-strike demote rides the same
+                        // DynamicProfile machinery — `.allowed` until any
+                        // single tool's third call, `.disallowed` after.
+                        session = LanguageModelSession(profile: SpiralBudgetProfile(
                             model: model, belt: belt,
                             instructionsText: cellInstructions, options: baseOptions))
                         trialOptions = nil
@@ -2651,6 +2688,27 @@ extension LocalChatBackend {
     /// gets settled.
     func runFindfixBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: [.armed, .armedFindfix], includeGrabCanary: true)
+    }
+
+    /// #200H cell list — promoted-production control plus the two
+    /// spiral-treatment seams, in dispatch order. Pinned.
+    nonisolated static let spiralBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedSpiralfix, .armedStrikefix,
+    ]
+
+    /// #200H: the third-strike demote — data-derived from #200F/#200G:
+    /// every healthy create used at most 2 calls of any one tool; every
+    /// spiral casualty had a tool at 3+ (searchConversations×5 at the
+    /// 8,192-token overflow). `.disallowed` closes the decode mask so the
+    /// model answers with what it already has.
+    nonisolated static func spiralBudgetMode(tally: [String: Int]) -> GenerationOptions.ToolCallingMode {
+        tally.values.contains { $0 >= 3 } ? .disallowed : .allowed
+    }
+
+    /// #200H one-tap wrapper: 3 cells × four prompts (grab canary
+    /// included) — 12 × trials generations.
+    func runSpiralBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.spiralBatteryCells, includeGrabCanary: true)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the
@@ -2846,6 +2904,13 @@ extension SessionPropertyValues {
     /// turn is `.required`.
     @SessionPropertyEntry
     var batteryToolCallCount: Int = 0
+
+    /// #200H: per-session PER-NAME tool-call tally driving the
+    /// third-strike demote. Fresh session per trial ⇒ empty tally ⇒ every
+    /// trial starts `.allowed`. (A dictionary entry is Apple's own
+    /// SessionPropertyEntry doc example.)
+    @SessionPropertyEntry
+    var batteryToolCallTally: [String: Int] = [:]
 }
 
 extension LocalChatBackend {
@@ -2883,6 +2948,44 @@ extension LocalChatBackend {
                 let n = toolCallCount
                 Task { @MainActor in
                     LocalChatBackend.batteryEmit("battery: toolmode call#\(n) \(ToolEventRelay.batteryTrialTag ?? "")")
+                }
+            }
+        }
+    }
+
+    /// #200H: the strikefix cell's session. Belt and instructions are
+    /// PRODUCTION verbatim (pinned); the single treatment is the
+    /// third-strike demote: tool-calling mode `.allowed` until any single
+    /// tool reaches its third call (`spiralBudgetMode(tally:)`),
+    /// `.disallowed` after — the decode mask closes and the model must
+    /// answer with what it already has. The per-name tally rides the
+    /// NAMED onToolCall overload (`Transcript.ToolCall.toolName`).
+    struct SpiralBudgetProfile: LanguageModelSession.DynamicProfile {
+        let model: SystemLanguageModel
+        let belt: [any Tool]
+        let instructionsText: String
+        let options: GenerationOptions
+
+        @SessionProperty(\.batteryToolCallTally) private var tally
+
+        var body: some LanguageModelSession.DynamicProfile {
+            Profile {
+                Instructions(instructionsText)
+                belt
+            }
+            .model(model)
+            .samplingMode(options.samplingMode)
+            .temperature(options.temperature)
+            .maximumResponseTokens(options.maximumResponseTokens)
+            .toolCallingMode(LocalChatBackend.spiralBudgetMode(tally: tally))
+            .onToolCall { call in
+                tally[call.toolName, default: 0] += 1
+                // The strike count, surfaced on the capture log — same
+                // explicit MainActor hop as the toolmode profile (27b4
+                // device isolation trap in framework callbacks).
+                let n = tally[call.toolName] ?? 0
+                Task { @MainActor in
+                    LocalChatBackend.batteryEmit("battery: strike \(call.toolName)#\(n) \(ToolEventRelay.batteryTrialTag ?? "")")
                 }
             }
         }
