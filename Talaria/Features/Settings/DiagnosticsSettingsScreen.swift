@@ -565,6 +565,32 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #200J: promoted control vs the card-narration clause — the
+    // treatment for #200I's largest failure bucket (zero-tool trials that
+    // type the confirmation card out in prose and call nothing).
+    @ViewBuilder
+    private func cardfixBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runCardfixBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200 orphan cleanup: the four crashed action batteries stranded
     // their battery alarms (up to ~50 armed for 6:30 AM, ringing through
     // Silent). AlarmKit enumeration carries no label, so this cancels ALL
@@ -698,6 +724,10 @@ struct DiagnosticsSettingsScreen: View {
                 // #200I: the same control vs the event-scoped reword only.
                 HStack(spacing: Design.Spacing.sm) {
                     spiralfixBatteryButton(trials: 10, label: "Spiralfix battery n=10 (80)")
+                }
+                // #200J: control vs the card-narration clause.
+                HStack(spacing: Design.Spacing.sm) {
+                    cardfixBatteryButton(trials: 10, label: "Cardfix battery n=10 (80)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
