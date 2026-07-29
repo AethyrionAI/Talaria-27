@@ -9667,3 +9667,43 @@ battery results are novel. Low-yield sources for the record: the ECC skill
 (iOS 26 tutorial, no companions), IvanCampos playgrounds (LLM-generated iOS 26
 stubs), Saharshv tutorial (all-required params, uncaught respond errors — a
 useful cautionary example only).
+
+**#200D RE-VERIFY PASSED — PROMOTION VERIFIED, 2026-07-28/29 (run `B468B062`,
+`appBuild:"1387"` — the build stamp worked on its first outing and proves the
+promoted binary). Sealed clean. Both cells speak the promoted text; both
+replicate the treated signature:**
+
+| prompt | armed | armed-instrfix | pooled (promoted production) | pre-promotion control |
+|---|---|---|---|---|
+| remind creates | 0/9 | 2/10 | **2/19** | 0/50 lifetime |
+| alarm | 10/10 | 10/10 | **20/20** | 8–10/10 |
+| calendar creates | 9/9 | 9/9 | **18/18** | 1/19 (this instrument) |
+| haiku GRABS | 2/8 | 6/10 | **8/18 (44%)** | 17/20 (85%) |
+
+Calendar hit CEILING — 18/18 with the contact-fixation dead (three trials had
+lookupContact fail and CREATED ANYWAY, behavior control never showed). Alarm
+ceiling. Remind matches the treated rate (~10%; the list-stall lives on as the
+#200E target). Grabs halved though noisy between cells (2/8 vs 6/10 on
+IDENTICAL text — n=10 variance; creative cant-refusals hold at ~9/18, the known
+collateral). Excluded and listed: TIMEOUTs armed/calendar/t3 (weather spiral)
+and instrfix/calendar/t8; ERRORs — THREE `GeneratedContent does not contain a
+property 'title'` ToolCallErrors (armed remind t3, armed haiku t5+t7 — all
+FAILED creates/grabs, args {list,due} only) — a rising D4 signal, possibly the
+clause's "leave optional fields empty" bleeding into dropping the REQUIRED
+title; plus comma-prefix title corruption in instrfix grabs (`,`, `,Sledding
+Fun`, `,Sledding`). **REAP ARITHMETIC FAILED for the first time in five runs:**
+reminders reaped 15 vs 10 accepted in-run, events 33 vs 18, alarms exactly
+20=20. The surplus pattern fits PRE-EXISTING marker artifacts swept by this
+run's store-query reap (in-run evidence: four already-exists readReminders hits
+on a "Test Talaria July 30" artifact NO recorded run created) — most plausibly
+an ABORTED RUN between exports 98DF19D1 and B468B062 (app killed mid-run:
+creates persist, no reap, no export). CRITICAL ASYMMETRY EXPOSED: the
+reminders/events reap is a marker QUERY (sweeps leftovers, self-healing) but
+the alarm reap cancels only ITS OWN tracked IDs — an aborted run's alarms are
+invisible to every later reap and stay scheduled (the 42-orphan lesson, now
+structural). Owen asked to confirm the aborted run + run the alarm sweep.
+Instrument follow-ups queued: persist tracked alarm IDs per-run to disk for
+cross-run reap (marker-query reap is impossible — AlarmKit exposes no labels on
+enumeration); document reap counts as this-run + leftovers. **PR #168 merges on
+this verdict; the clause is production. #200E (toolmode, demote pattern) is
+next per Owen's routing of the survey plan ("Lets do it").**
