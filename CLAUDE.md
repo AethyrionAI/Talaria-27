@@ -123,7 +123,17 @@ works against OJAMD.
   `DEVELOPER_DIR` export is still mandatory. Sim runtimes kept: **iOS 27.0 (24A5390f)** and
   **iOS 26.5 (23F77)**; seeds 24A5355p / 24A5380g were deleted the same day. The pinned sim
   UDID survived both the beta-4 runtime rebind and the seed prune — no re-pin needed.
-  Team `DNL25ZFSD2`. DerivedData `Talaria-bkmofmhhchhruzcdudrizbbblrae`.
+  Team `DNL25ZFSD2`. DerivedData for **this** repo is
+  `Talaria-gzpowyfsuofejnbsytskngrskzkm` — corrected 2026-07-30. The long-documented
+  `Talaria-bkmofmhhchhruzcdudrizbbblrae` belongs to the OLD `~/Documents/Claude/Talaria`
+  checkout (verified via each dir's `info.plist` → `WorkspacePath`), so purging it to
+  clear a stale build silently does nothing here. **Every worktree gets its own hash** —
+  resolve it from `info.plist`, never from memory:
+  `plutil -extract WorkspacePath raw ~/Library/Developer/Xcode/DerivedData/Talaria-*/info.plist`.
+  **`test-without-building` will happily re-run a stale `.xctest`** and report a green
+  suite at the OLD test count (this cost a bogus "verified green" on 2026-07-30) — after
+  editing tests, confirm the reported count MOVED, and if it did not, purge
+  `<dd>/Build/Intermediates.noindex` and run plain `test`.
 - **CLI compile check:** `xcodebuild -project Talaria.xcodeproj -scheme Talaria
   -configuration Debug -destination 'generic/platform=iOS Simulator' build
   CODE_SIGNING_ALLOWED=NO`. Long builds exceed the 4-min MCP cap — run backgrounded
