@@ -11000,3 +11000,93 @@ tools relocates the spiral; it does not remove it.
    card narration citing *"Location: Not specified"* — which lines up with
    #200T's exploratory location-spiral finding and makes the calendar
    `location`/`durationMinutes` optionality worth a warm re-run.
+
+**#200W VERDICT FILED, 2026-07-30 — warm-up default + warm calendar re-run, n=10
+(80 counted trials + 4 discarded warm-up, PR #188 branch `3d81dbd`, corded build
+WITH DEBUGGER ATTACHED, os 27.0 24A5390f, run record `endedCleanly: true`, all 80
+trials present). Bars pre-registered in
+`dispatch/OPUS-T27-200W-warm-calendar.md`, with the RATE explicitly excluded as
+a promotion criterion in advance (warm production calendar ~9/10 leaves no
+headroom at n=10).**
+
+**CLASSIFICATION CAVEAT, STATED FIRST BECAUSE IT IS A PROTOCOL DEVIATION.** The
+debug console session EXPIRED mid-run, so the `confirm=accepted` lines, the
+per-trial `REAP-TRIAL` lines and the final `REAP` seal are unavailable for this
+run. Classification therefore comes from the persisted run JSON: a create is
+inferred from the presence of its create TOOL CALL under auto-accept, not from
+`confirm=accepted` + artifact as the standing law requires, and **reap arithmetic
+for this run cannot be sealed.** Per-trial reaps ran throughout (they are
+unconditional), and the record ended cleanly, so stranding risk is confined to
+the final trials. Every number below carries this caveat.
+
+| measure | armed-calfix (treatment, slot 1) | armed (production, slot 2/LAST) |
+|---|---|---|
+| remind | **10/10** | **10/10** |
+| alarm | **10/10** | **10/10** |
+| calendar creates | 9/10 | 8/10 |
+| `currentLocation` on calendar | **0/10** | **7/10** |
+| `searchPlaces` on calendar | **0/10** | 1/10 |
+| **invented location in a create** | **0** | **5** (t1,2,4,5,7) |
+| dead-end texts | 1 (t1) | 2 (t8, t9) |
+| haiku grabs | 8/10 | 5/10 (3 ERR excl) |
+
+**Exclusions (3, all on the ungraded canary):** `armed/haiku` t3, t6, t8 —
+`readHealth` `ToolCallError`, the known framework argument-decode class. **Zero
+exclusions on any graded prompt.**
+
+**PRIMARY 2 — INVENTED LOCATIONS — PASSES DECISIVELY. This is the result that
+matters.** The prompt ("Put lunch with Sam on my calendar Friday at noon") names
+no place. Production invented one in **5 of its 8 creates**, geolocating the user
+to satisfy a required field. The treatment invented **zero**. Bar was treatment
+≤1 and control ≥4: both met.
+
+**PRIMARY 1 — THE SPIRAL — SPLITS.**
+
+- `currentLocation` **PASSES decisively**: treatment 0/10 against control 7/10
+  (bar: ≤3 and ≥6). Fisher exact p≈0.003.
+- `searchPlaces` is **INCONCLUSIVE, not failed**: the treatment met its side
+  (0/10 ≤ 1), but the control fired it only **1/10**, below the pre-registered
+  ≥3/10 floor. Per the dispatch's own clause — a control below floor means "no
+  disease to fix" — that sub-measure could not be evaluated this run. It was
+  6/10 in #200T.
+
+**SO THE PROMOTION GATE, AS WRITTEN, IS NOT CLEANLY MET.** The dispatch says
+PRIMARY 1's two clauses "both must hold". One holds decisively and one is
+unevaluable. **I am not relaxing my own bar after seeing the data** — that is the
+single discipline this program cannot spend. The disposition is therefore
+OWEN'S CALL, with the evidence stated plainly:
+
+- The effect has now been observed **twice, in independent runs, same direction**:
+  #200T (exploratory, post hoc) and #200W (pre-registered, warm, production last
+  — the conservative position).
+- The measure that carries the product harm — **writing the user's home area or
+  street address onto an event he never located** — went **5 → 0**.
+- No guard broke: remind 10/10 and alarm 10/10 in both arms, and calendar creates
+  were 9/10 treatment vs 8/10 control, i.e. the treatment was not worse.
+
+**GUARDS: all hold.** Grabs 8/10 treatment vs 5/10 control (5/7 excluding the
+canary's three errors) — reported, not gated (#200O router probe 200/200), but
+the direction is unfavourable and is the one thing to watch if this promotes.
+
+**THE DEAD-END REAPPEARED WARM, WHICH CORRECTS PART OF #200V.** #200V's warm
+production showed ZERO dead-end texts; here warm production shows **2/10**, and
+the treatment arm's single calendar miss was also a dead-end — at t1, immediately
+after the warm-up. So the "Sam" dead-end is **real but noisy**, not purely a
+cold-start artifact as #200V's single warm arm suggested. #200V's withdrawal of
+#200U still stands on its own terms (#200U's bars were not met and its control
+showed zero dead-ends warm), but the disease is not gone and the #200U fix
+remains unpromoted rather than refuted.
+
+**INSTRUMENT FINDINGS FROM THIS RUN:**
+
+1. **The 35-second guillotine cannot cut a hung TOOL.** `armed/haiku/t5` called
+   `searchConversations` and emitted nothing for 2.5+ minutes; the run later
+   completed, so the wedge eventually cleared. `respondTask.cancel()` is
+   cooperative — a tool blocked inside its own `call()` never observes it. This
+   is the SECOND `searchConversations` wedge in two runs (#200V's excluded
+   TIMEOUT was six repeated calls on one query). **Owed: a timeout on the tool
+   itself, not only on the generation.**
+2. **The console session can expire mid-run and take the seal with it.** The
+   capture-log file copy (`Documents/battery-capture.log`, exportable from the
+   results page) is the surviving path to the REAP lines and should be exported
+   alongside the run JSON from now on, not only when the console fails.
