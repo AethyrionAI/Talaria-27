@@ -11299,9 +11299,15 @@ working tree constantly — it was discarded by hand a dozen times during the
   documented home for dev/ops tooling while `tools/` holds repo-analysis output.
   Recorded as a decision rather than left as an accident.
 
-**#190 re-verified as a legitimate open SHIP BLOCKER** (Hermes checked rather than
-assumed): the 2026-07-26 device-pass FAIL on PR #151 — dead taps in the unified
-drawer — still stands. Nothing about #200's work touches it.
+**~~#190 re-verified as a legitimate open SHIP BLOCKER~~ — WRONG, CORRECTED
+2026-07-30.** I wrote this on 07-29 after the first Hermes audit and it was already
+false when written: **#190's gate CLEARED on 2026-07-27 and PR #151 merged at
+14:58Z** — recorded in this same file at the item itself ("DEVICE PASS 2026-07-27 —
+GATE CLEARED, MERGED", with "THE failed check from 07-26, re-verified passing").
+I cited the 07-26 FAIL without reading the 07-27 addendum ~2,600 lines above.
+**Every reader since has been told a merged blocker is open.** Caught by Hermes's
+second audit. **Lesson: when re-verifying an item, read the item's WHOLE history to
+its latest dated note — a status quoted from one entry is not the item's status.**
 
 **#201 VERDICT FILED, 2026-07-30 — contact dead-end at n=20 (160 counted + 4
 warm-up, PR #189 branch `7f89497`+, corded WITH DEBUGGER ATTACHED, os 27.0, sealed
@@ -11714,6 +11720,92 @@ the same two-turn accept shape, scored on fabrication rate. **The routing fix
 plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
+
+## #205 — Hermes audit of #201/#202 (2026-07-30, second pass): three corrections and two real gaps
+
+**Every claim below was verified against the tree before filing. The night-ending
+external audit is now two-for-two on finding things the author could not see.**
+
+### FIXED IMMEDIATELY (all three were the record lying)
+
+1. **GHOST SHIP-BLOCKER — mine, and the worst of the three.** My 07-29 note claimed
+   #190 "re-verified as a legitimate open SHIP BLOCKER … the 07-26 device-pass FAIL
+   still stands." **#190's gate CLEARED 2026-07-27 and PR #151 merged at 14:58Z** —
+   recorded in this same file at the item ("DEVICE PASS 2026-07-27 — GATE CLEARED,
+   MERGED", "THE failed check from 07-26, re-verified passing"). I quoted one dated
+   entry and never read the item's later history. Corrected in place. **Lesson: an
+   item's status is its LATEST dated note, never a quotable earlier one.**
+2. **Two stale comments contradicting today's promotion** — `RouterVariant.control`
+   and `routeNeedsDeviceTool` both still called `.control` "production" after
+   #202D moved production to `.ctxA`. **The file whose comments are this program's
+   runbook was wrong in two places within hours of the promotion.** Both corrected,
+   plus the enum header, now pointing at `productionRouterVariant` as the single
+   source of truth.
+3. **#52 SOLVED, not just characterised.** Hermes diagnosed it exactly: a
+   two-generator ping-pong. The committed scheme was Xcode's rewrite (`version 1.7`,
+   `BuildableName = "Talaria.app"`); `xcodegen generate` deterministically emits
+   canonical (`version 1.3`, `"Talaria 27.app"` — which is what `PRODUCT_NAME`
+   actually is). **xcodegen's output is the CORRECT one and the committed file named
+   a product that is never built.** Committed the generator's output; routine
+   regeneration no longer dirties the tree. (Xcode may rewrite it again if the scheme
+   editor is opened — that ratchet is not fully preventable — but the daily papercut
+   is gone.)
+
+### THE TWO REAL GAPS, both instrumented here
+
+4. **IMAGE TURNS ARE AN UNMEASURED #202-FAMILY DISARMAMENT.** Verified: the
+   on-device model cannot see images at all — the transcript carries a placeholder
+   ("the on-device model cannot view images… say honestly that you can't see it") —
+   so image capability exists ONLY via `readImageText` / `BarcodeReaderTool`. **The
+   pinned router instructions mention images ZERO times.** A photo plus "what does
+   this say?" therefore depends entirely on the router, and a toolless route is a
+   BLIND turn. Clause v2 keeps it honest, which is exactly the mitigation #202D
+   shipped — but honest-and-useless is still useless. **Two rows added to the
+   baseline probe grid; owed: run them.**
+5. **ctx-a embeds the prior turn UNTRUNCATED and the no-truncation verdict was
+   measured at ~590 chars.** Real assistant turns run to thousands. Added a
+   ~3,500-char row (a long answer with the offer buried at the end — the shape a
+   user actually produces after a broad question) plus its words-only counterpart.
+   **Owed: run before TestFlight.** Low risk given latency was flat from 40→590
+   chars, but "flat over one order of magnitude" is not "flat forever".
+
+### DEBUG FOOTGUN — fixed
+
+6. **A persisted non-production brain shape was invisible.** `activeSessionShape`
+   reads `debug.sessionShape` from UserDefaults deliberately (desk A/B must survive
+   an OTA install), but a **valid** non-production cell name then persists across
+   every later launch: different belt, different instructions, routing off —
+   indistinguishable from a catastrophic brain regression, with one os_log line as
+   the only signal. Retired names fail to parse and fall back to production; valid
+   ones do not. **Now a DEBUG banner on the chat screen whenever the shape is not
+   `.armedRouted`.** Release compiles it out.
+
+### TRACKED, NOT YET ACTED ON
+
+7. **#199's decline half is now CHEAP to instrument.** `autoDeclineForBattery`
+   already exists, and today's `claimsCreation` detector (curly-apostrophe-safe) is
+   exactly the scorer #199 needs — "fabricates a COMPLETED ACTION after a declined
+   confirmation" is the same measurement as #202B's, with the decline path
+   substituted. **This is the cheapest open lane on the board.**
+8. **#197 remains unrouted** — the production catch still yields a rendered failure,
+   and #200's audit established these throws happen ABOVE `call()` (the
+   argument-DECODE class), so #176's recovery clause never engages.
+9. **The ~0.6s router tax is the free tier's latency floor** — pure cost on "what's
+   2+2?" turns, and that tier's pitch is instant. Worth naming in the free-tier UX
+   story rather than discovering it in a review.
+10. **#191/#192 (header not backend-aware, silent badge flip) are the same "UI must
+    not lie" family as #202B's fabrication finding.** They belong together in any
+    future truth-pass lane.
+11. **Snapshot hygiene:** `relay/hermes_mobile.db` is live in the checkout (512KB,
+    written today) and holds the device registry. It IS gitignored and untracked —
+    **but a wholesale directory copy carries it**, which is how it reached Hermes's
+    snapshot. Treat any full-tree snapshot as credential-bearing.
+12. **`scripts/cleanup-stale-users.py` — CHECKED, not a concern.** Flagged only as
+    the last unexplained file in `scripts/`. It has clear provenance (commit
+    `c13051e`, items #9/#13), a docstring citing its issue, `--dry-run`, idempotency,
+    and instructions to stop the relay first. Recorded so it stops being re-flagged.
+13. **Seven unmerged branches want a triage.** `probe/t27-130-halfduplex` is already
+    pruned (SHA recorded at #130).
 
 ## #203 — SHIP BLOCKER: an unbounded CoreLocation wait can spin a production turn forever
 
