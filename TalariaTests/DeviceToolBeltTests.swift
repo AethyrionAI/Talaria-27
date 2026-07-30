@@ -1234,6 +1234,28 @@ struct DeviceToolBeltTests {
         ])
     }
 
+    // MARK: The contact dead-end, reconsidered at n=20 (#201)
+
+    /// #201: #200V withdrew #200U's fix because warm production showed ZERO
+    /// dead-end misses. Three warm samples later that basis is gone — 0/10
+    /// (#200V), 2/10 (#200W), 3/10 (#200Z) — so #200V's zero was itself the
+    /// small-sample artifact it was written to catch.
+    ///
+    /// Two arms, production LAST. Arm B (tool removal) is deliberately absent:
+    /// #200U measured it making the model flee into `searchConversations` six
+    /// times on one query, so it relocates the spiral instead of removing it and
+    /// is not a production candidate.
+    @Test func deadendReconsiderBatteryIsTwoArmsProductionLast() {
+        #expect(LocalChatBackend.deadendReconsiderBatteryCells == [
+            .armedDeadend2, .armed,
+        ])
+        #expect(LocalChatBackend.deadendReconsiderBatteryCells.last == .armed)
+        #expect(!LocalChatBackend.deadendReconsiderBatteryCells.contains(.armedNocontact))
+        // Same treatment seam as #200U, so this is a re-measurement of that
+        // hypothesis and not a new one.
+        #expect(LocalChatBackend.deadendReconsiderBatteryCells.contains(.armedDeadend2))
+    }
+
     // MARK: Per-tool timeout — the guillotine cannot cut a hung tool (#200Y)
 
     /// #200Y: the 35-second generation guillotine calls `respondTask.cancel()`,

@@ -765,6 +765,31 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #201: #200U's contact fix re-measured at n=20, production last — the
+    // primary is a dead-end COUNT, which n=10 could not carry.
+    @ViewBuilder
+    private func deadendReconsiderBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runDeadendReconsiderBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200X: the promoted calendar tool against its OWN pinned rollback,
     // warm, production last — the confidence run the promotion is owed.
     @ViewBuilder
@@ -1105,6 +1130,10 @@ struct DiagnosticsSettingsScreen: View {
                 // #200X: promoted calendar tool vs its pinned rollback.
                 HStack(spacing: Design.Spacing.sm) {
                     calRollbackVerifyBatteryButton(trials: 10, label: "Calendar rollback n=10 (80+4)")
+                }
+                // #201: contact dead-end fix re-measured at n=20.
+                HStack(spacing: Design.Spacing.sm) {
+                    deadendReconsiderBatteryButton(trials: 20, label: "Dead-end reconsider n=20 (160+4)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton

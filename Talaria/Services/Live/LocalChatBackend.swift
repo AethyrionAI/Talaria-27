@@ -3263,6 +3263,27 @@ extension LocalChatBackend {
                                includeGrabCanary: true)
     }
 
+    /// #201 cell list — #200U's fix re-measured at n=20, production LAST.
+    /// #200V withdrew that fix on a single clause: warm production showed ZERO
+    /// dead-end misses. Three warm samples killed that basis — 0/10 (#200V),
+    /// 2/10 (#200W), 3/10 (#200Z) — so #200V's zero was itself the small-sample
+    /// artifact it existed to catch.
+    ///
+    /// The primary here is a COUNT, not a rate, which is why n doubles: at n=10
+    /// a 2-or-3 event count cannot carry a bar. Arm B (tool removal) is
+    /// deliberately absent — #200U measured it relocating the spiral into
+    /// `searchConversations` rather than removing it. Pinned.
+    nonisolated static let deadendReconsiderBatteryCells: [ActionBatteryCell] = [
+        .armedDeadend2, .armed,
+    ]
+
+    /// #201 one-tap wrapper: 2 cells × four prompts — 8 × trials generations
+    /// (160 at n=20), plus the default warm-up pass.
+    func runDeadendReconsiderBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.deadendReconsiderBatteryCells,
+                               includeGrabCanary: true)
+    }
+
     /// #200V one-tap wrapper: 3 cells × four prompts — 12 × trials
     /// generations, PLUS a discarded warm-up pass over the prompt list.
     func runDeadendConfirmBattery(trials: Int) async {
