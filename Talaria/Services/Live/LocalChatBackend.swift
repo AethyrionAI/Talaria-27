@@ -2222,13 +2222,16 @@ extension LocalChatBackend {
         GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 64)
     }
 
-    /// #202A: the router framings under measurement. `control` IS
-    /// production — the live path routes through this enum so the measured
-    /// control can never drift from the shipped router by being a copy of
-    /// it. The two candidates differ from control in ONE seam each.
+    /// #202A: the router framings. The live path routes through this enum,
+    /// so a measured cell can never drift from the shipped router by being
+    /// a copy of it. **Since the #202D promotion `ctxA` IS production and
+    /// `control` is the pinned rollback** — see `productionRouterVariant`,
+    /// which is the single source of truth for which one ships.
     enum RouterVariant: String, CaseIterable {
-        /// Production: raw current turn, no history. Context-blind by
-        /// construction — that blindness is the #202 bug under test.
+        /// PRE-#202D production, and now the PINNED ROLLBACK: raw current
+        /// turn, no history. Context-blind by construction — that blindness
+        /// was the #202 bug, measured at 6/6 misrouted accepts. **Not
+        /// production since the 2026-07-30 promotion**; `.ctxA` is.
         case control
         /// The pinned instructions, unchanged; the prompt envelope gains
         /// one line naming what the assistant just said.
@@ -2328,9 +2331,11 @@ extension LocalChatBackend {
                                    variant: Self.productionRouterVariant)
     }
 
-    /// The variant-parameterized router. Production calls it with
-    /// `.control` and no context, so the live path and the #202A control
-    /// cell are the SAME code, not two copies of one behavior.
+    /// The variant-parameterized router. **Production calls it with
+    /// `productionRouterVariant` (`.ctxA` since the #202D promotion) and the
+    /// previous assistant turn as context** — the live path and every
+    /// measured cell are the SAME code, not copies of one behavior. The
+    /// `.control` variant is the pinned rollback, still probe-reachable.
     func routeNeedsDeviceTool(prompt: String, context: String,
                               variant: RouterVariant) async -> Bool {
         let session = LanguageModelSession(
@@ -3690,6 +3695,14 @@ extension LocalChatBackend {
         ("Set an alarm for 6:30", true),
         ("How many steps have I taken today?", true),
         ("Do I have anything on my calendar Friday?", true),
+        // #205: IMAGE TURNS ARE A #202-FAMILY DISARMAMENT and the pinned
+        // router instructions never mention images. The on-device model
+        // cannot see images at all — the transcript carries a placeholder —
+        // so image capability exists ONLY through `readImageText` /
+        // `BarcodeReaderTool`. A toolless route on a photo turn is a BLIND
+        // turn. These rows are the first measurement of that shape.
+        ("[image attached] what does this say?", true),
+        ("[image attached] read the text in this photo", true),
     ]
 
     func runRouterProbe(trials: Int) async {
@@ -3797,7 +3810,15 @@ extension LocalChatBackend {
         let longOffer = """
         That is a really common one — dentists tend to call during working hours, which is exactly when it is hardest to pick up, and then the callback slips because there is no natural prompt to do it. The trick that usually works is attaching it to something already fixed in your day rather than trusting yourself to remember it cold. Since their office almost certainly opens at nine, first thing in the morning is the moment you are most likely to actually get through to a person. Would you like me to set a reminder to call the dentist tomorrow at 9am?
         """
+        // #205: the no-truncation verdict was measured at ~590 chars, and
+        // real assistant turns run to THOUSANDS. This row is that gap: the
+        // same offer buried at the end of a genuinely long answer, which is
+        // the shape a user actually produces after asking a broad question.
+        let veryLongOffer = String(repeating: longSummary + " ", count: 6) + longOffer
         return [
+            .init(band: .accept, context: veryLongOffer, prompt: "Yes please", expected: true),
+            .init(band: .wordsOnly, context: veryLongOffer, prompt: "Say that again more briefly",
+                  expected: false),
             .init(band: .accept, context: longOffer, prompt: "Yes please", expected: true),
             .init(band: .accept, context: longOffer, prompt: "Sure", expected: true),
             .init(band: .wordsOnly, context: longHaiku, prompt: "Write another one", expected: false),

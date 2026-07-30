@@ -106,8 +106,36 @@ struct ChatScreen: View {
     // Swift type-checker's budget ("unable to type-check this expression in
     // reasonable time"), more readily on slower machines (e.g. CI). The split is
     // behavior-preserving: the grouped modifiers are order-independent.
+    /// #205: DEBUG-only, and empty in the overwhelmingly common case where
+    /// the shape IS production — so it costs a launch-time enum compare and
+    /// nothing else. Release compiles it out entirely.
+    @ViewBuilder
+    private var debugSessionShapeBanner: some View {
+        #if DEBUG
+        if LocalChatBackend.activeSessionShape != .armedRouted {
+            MonoLabel("⚠︎ BRAIN SHAPE OVERRIDE — \(LocalChatBackend.activeSessionShape.rawValue). Not production. Reset in Diagnostics → Local brain.",
+                      size: 9, tracking: Design.Tracking.mono, color: Design.Colors.foregroundBright)
+                .padding(.horizontal, Design.Spacing.md)
+                .padding(.vertical, Design.Spacing.xs)
+                .frame(maxWidth: .infinity)
+                .background(Design.Brand.forge.opacity(0.85))
+        }
+        #endif
+    }
+
     var body: some View {
         observingContent
+            // #205: a persisted non-production brain shape is INVISIBLE. The
+            // Diagnostics picker writes `debug.sessionShape` to UserDefaults
+            // on purpose (desk A/B survives an OTA install), but a VALID
+            // non-production cell name then persists across every later
+            // launch — the whole app runs with a different belt,
+            // instructions and routing, indistinguishable from a
+            // catastrophic brain regression, with one os_log line as the
+            // only signal. Retired names fail to parse and fall back to
+            // production; valid ones do not. This is the banner that stops a
+            // wasted debugging session.
+            .safeAreaInset(edge: .top, spacing: 0) { debugSessionShapeBanner }
             // #193: was a `.confirmationDialog`, whose cancel role does not
             // render on iOS 26/27 — a consent gate needs a visible decline,
             // so it's an alert now.
