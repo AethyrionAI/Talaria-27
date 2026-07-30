@@ -2549,6 +2549,17 @@ extension LocalChatBackend {
         /// the weakest production number (15/20 pooled). Belt swap;
         /// instructions untouched.
         case armedCalfix = "armed-calfix"
+        /// #200U arm A, the promotable one: `ContactsTool`'s not-found RESULT
+        /// gains continuation (`continuesAfterNoMatch`). #200T left the "Sam"
+        /// dead-end owning 4 of 5 calendar misses THROUGH the promoted #200O
+        /// prose carve-out — so this treats the layer prose cannot reach.
+        case armedDeadend2 = "armed-deadend2"
+        /// #200U arm B, the CEILING probe: `lookupContact` removed from the
+        /// belt entirely. If the model cannot call it, it cannot dead-end into
+        /// it. NOT proposed for production — dropping a useful tool globally
+        /// is a product regression; this bounds the achievable win, and if it
+        /// does not beat the control either, the whole seam is falsified.
+        case armedNocontact = "armed-nocontact"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2565,6 +2576,18 @@ extension LocalChatBackend {
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
             // loop) — none of them swap tool text here.
             return tools
+        case .armedDeadend2:
+            // #200U arm A: one seam on one READ tool — the not-found result
+            // carries continuation. Create tools untouched.
+            return tools.map { tool in
+                if let contacts = tool as? ContactsTool {
+                    return ContactsTool(continuesAfterNoMatch: true, relay: contacts.relay)
+                }
+                return tool
+            }
+        case .armedNocontact:
+            // #200U arm B: the ceiling probe — the tool is simply absent.
+            return tools.filter { $0.name != "lookupContact" }
         case .armedCalfix:
             // #200T: one swap — the calendar tool with its two
             // undefaultable-by-the-model fields optional in the schema.
@@ -3108,6 +3131,21 @@ extension LocalChatBackend {
     /// generations.
     func runCalfixBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.calfixBatteryCells, includeGrabCanary: true)
+    }
+
+    /// #200U cell list — control, the promotable result-text fix, and the
+    /// ceiling probe that bounds it, three arms in ONE run. The co-primary
+    /// bar is the dead-end MISS COUNT, not the rate: at n=10 a rate carries
+    /// about ±1.5 trials of noise and the count does not. Bars are
+    /// pre-registered in `dispatch/OPUS-T27-200U-contact-deadend.md`. Pinned.
+    nonisolated static let deadend2BatteryCells: [ActionBatteryCell] = [
+        .armed, .armedDeadend2, .armedNocontact,
+    ]
+
+    /// #200U one-tap wrapper: 3 cells × four prompts — 12 × trials
+    /// generations.
+    func runDeadend2Battery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.deadend2BatteryCells, includeGrabCanary: true)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the

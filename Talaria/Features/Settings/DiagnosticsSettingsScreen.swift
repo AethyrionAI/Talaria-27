@@ -765,6 +765,31 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #200U: control vs the contact not-found RESULT carrying continuation,
+    // plus the ceiling probe with the tool absent.
+    @ViewBuilder
+    private func deadend2BatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runDeadend2Battery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200T: production control vs the calendar tool with its two
     // undefaultable fields optional in the schema.
     @ViewBuilder
@@ -988,6 +1013,10 @@ struct DiagnosticsSettingsScreen: View {
                 // #200T: production vs the calendar schema swap.
                 HStack(spacing: Design.Spacing.sm) {
                     calfixBatteryButton(trials: 10, label: "Calendar schema n=10 (80)")
+                }
+                // #200U: contact dead-end fix + its ceiling probe.
+                HStack(spacing: Design.Spacing.sm) {
+                    deadend2BatteryButton(trials: 10, label: "Contact dead-end n=10 (120)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton

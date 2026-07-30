@@ -882,7 +882,9 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedSchemafix.rawValue == "armed-schemafix")
         #expect(LocalChatBackend.ActionBatteryCell.armedSchemarollback.rawValue == "armed-schemarollback")
         #expect(LocalChatBackend.ActionBatteryCell.armedCalfix.rawValue == "armed-calfix")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 20)
+        #expect(LocalChatBackend.ActionBatteryCell.armedDeadend2.rawValue == "armed-deadend2")
+        #expect(LocalChatBackend.ActionBatteryCell.armedNocontact.rawValue == "armed-nocontact")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 22)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -1296,6 +1298,66 @@ struct DeviceToolBeltTests {
     @Test func calfixBatteryIsProductionVersusTheCalendarSchemaSwap() {
         #expect(LocalChatBackend.calfixBatteryCells == [
             .armed, .armedCalfix,
+        ])
+    }
+
+    // MARK: The contact dead-end, at the tool-RESULT layer (#200U)
+
+    /// #200U: production's not-found text is a bare negative, and the model
+    /// reads it as a blocker — 4 of 5 calendar misses in #200T were this
+    /// dead-end, and they survive the PROMOTED #200O prose carve-out. The
+    /// treatment adds continuation to the tool RESULT, which the model
+    /// consumes as fact rather than weighing as instructions.
+    ///
+    /// Production default is `false`, so the shipping belt is byte-identical
+    /// until a verdict promotes it.
+    @Test @MainActor func contactNotFoundTextCarriesContinuationOnlyWhenTheSeamIsOn() {
+        let bare = ContactsTool.noMatchText(query: "Sam", continuing: false)
+        #expect(bare == "No contact matching \"Sam\" was found.")
+        let continuing = ContactsTool.noMatchText(query: "Sam", continuing: true)
+        #expect(continuing.hasPrefix(bare))
+        #expect(continuing.contains("does not block anything"))
+        #expect(continuing.contains("exactly as the user gave it"))
+        // The production tool ships the bare text until promotion.
+        #expect(ContactsTool(relay: ToolEventRelay()).continuesAfterNoMatch == false)
+    }
+
+    /// #200U arm A: one seam flipped on one tool, everything else identity.
+    @Test @MainActor func deadend2CellFlipsOnlyTheContactContinuationSeam() {
+        let belt = DeviceToolBelt.makeActionTools(
+            relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
+            alarmService: AlarmService()
+        ) + [ContactsTool(relay: ToolEventRelay())]
+        let treated = LocalChatBackend.destallBelt(from: belt, cell: .armedDeadend2)
+        #expect(treated.map(\.name) == belt.map(\.name))
+        #expect((treated.first { $0.name == "lookupContact" } as? ContactsTool)?.continuesAfterNoMatch == true)
+        // The create tools are untouched — this lane measures the read
+        // tool's RESULT text and nothing else.
+        #expect(treated.contains { $0 is ReminderCreateTool })
+        #expect(treated.contains { $0 is CalendarEventTool })
+    }
+
+    /// #200U arm B: the ceiling probe. If the model cannot call the tool it
+    /// cannot dead-end into it — this bounds the win and is NOT proposed for
+    /// production (dropping a useful tool globally is a product regression).
+    @Test @MainActor func nocontactCellRemovesTheContactToolEntirely() {
+        let belt = DeviceToolBelt.makeActionTools(
+            relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
+            alarmService: AlarmService()
+        ) + [ContactsTool(relay: ToolEventRelay())]
+        let probed = LocalChatBackend.destallBelt(from: belt, cell: .armedNocontact)
+        #expect(!probed.contains { $0.name == "lookupContact" })
+        #expect(probed.count == belt.count - 1)
+        // Every other tool survives, same order.
+        #expect(probed.map(\.name) == belt.map(\.name).filter { $0 != "lookupContact" })
+    }
+
+    /// #200U battery: control, the promotable result-text fix, and the
+    /// ceiling probe — three arms in ONE run, since cross-run comparison is
+    /// not admissible (#200O).
+    @Test func deadend2BatteryPairsTheFixWithItsCeilingProbe() {
+        #expect(LocalChatBackend.deadend2BatteryCells == [
+            .armed, .armedDeadend2, .armedNocontact,
         ])
     }
 

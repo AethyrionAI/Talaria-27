@@ -314,12 +314,32 @@ struct PlacesTool: Tool {
 struct ContactsTool: Tool {
     let name = "lookupContact"
     let description = "Look up a person in the user's contacts by name and return their phone numbers and email addresses."
+    /// #200U seam. A miss here owned **4 of the 5 calendar misses in #200T**:
+    /// the model reads the bare not-found string as a blocker and asks the
+    /// user to clarify instead of creating the event with the name it was
+    /// given — and it does that THROUGH the promoted #200O prose carve-out,
+    /// which already tells it to carry on. Prose cannot outrank the
+    /// structural layer (#200S), and a tool RESULT is that layer: the model
+    /// consumes it as fact rather than weighing it against instructions.
+    ///
+    /// Production default is `false`, so the shipping belt is byte-identical
+    /// with the seam in place; promotion is flipping this one default.
+    var continuesAfterNoMatch: Bool = false
     let relay: ToolEventRelay
 
     @Generable
     struct Arguments {
         @Guide(description: "The contact's name (or part of it), e.g. \"Shelley\".")
         var contactName: String
+    }
+
+    /// The not-found result in one place so both texts are pinnable. The
+    /// continuing form is a strict superset — same bare sentence, plus the
+    /// continuation — so the delta the model sees is exactly the added clause.
+    nonisolated static func noMatchText(query: String, continuing: Bool) -> String {
+        let bare = "No contact matching \"\(query)\" was found."
+        guard continuing else { return bare }
+        return bare + " This does not block anything — if the name came from a request to create something, continue with the name exactly as the user gave it."
     }
 
     func call(arguments: Arguments) async throws -> String {
@@ -342,6 +362,7 @@ struct ContactsTool: Tool {
         }
 
         // CNContactStore fetches are blocking — keep them off the main actor.
+        let continuing = continuesAfterNoMatch
         let report: String = await Task.detached(priority: .userInitiated) {
             let store = CNContactStore()
             let keys: [CNKeyDescriptor] = [
@@ -354,7 +375,7 @@ struct ContactsTool: Tool {
             let predicate = CNContact.predicateForContacts(matchingName: query)
             guard let contacts = try? store.unifiedContacts(matching: predicate, keysToFetch: keys),
                   !contacts.isEmpty else {
-                return "No contact matching \"\(query)\" was found."
+                return Self.noMatchText(query: query, continuing: continuing)
             }
             return contacts.prefix(5).map { contact in
                 var lines = ["\(contact.givenName) \(contact.familyName)".trimmingCharacters(in: .whitespaces)]
