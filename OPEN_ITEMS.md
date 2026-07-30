@@ -11721,6 +11721,74 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
+## #204 — the two promoted clauses, warm and within-run
+
+**VERDICT FILED 2026-07-30. Run `E3759EE3`, n=10, 120 counted + 4 warm-up,
+`endedCleanly: true`, sealed `reminders=58 events=31 alarms=31 failures=0`.
+Dispatch: `dispatch/OPUS-T27-204-clause-reverify.md`. BOTH RE-VERIFICATIONS ARE
+INCONCLUSIVE — exactly as pre-registered — and the SCOREBOARD is the best this
+program has ever recorded.**
+
+| prompt | armed (production) | armed-cardrollback | armed-carveoutrollback |
+|---|---|---|---|
+| **remind** | **10/10** | 10/10 | 10/10 |
+| **alarm** | **10/10** | 10/10 | 10/10 |
+| **calendar** | **10/10** | 10/10 | 10/10 |
+| haiku grabs | 9/10 | 9/10 | 8/10 |
+
+**PRODUCTION IS 30/30 ON ALL THREE CREATE INTENTS, WARM.** Lifetime arc for remind:
+**0/50 → 75% (#200G) → 90% (#200K) → 100%.** Calendar: **53% pre-promotion → 80%
+(#200O) → 9/10 (#200W) → 10/10.** Alarm untouched at 100% as ever. Zero spiral
+(`currentLocation` 0/10, `searchPlaces` 0/10 in every cell), zero invented
+locations, zero card narration anywhere.
+
+**BOTH EVALUABILITY GATES FAILED, AND THE PRE-REGISTRATION GOVERNS.** The dispatch
+required `armed-cardrollback` to show ≥1 card narration and
+`armed-carveoutrollback` ≥1 dead-end miss. Both showed **zero** — the rollbacks
+scored 10/10 too. Per the bar as written: **"that clause's re-verification is
+INCONCLUSIVE at this n — not a demotion, and not evidence the clause is
+unnecessary."** It stays inconclusive. **Removing a promoted clause and observing no
+regression at n=10 is not evidence the clause is idle**, and this is precisely the
+reinterpretation the pre-registration existed to forbid.
+
+**What the failure is weak evidence FOR, stated as a hypothesis and not a finding:**
+if the historical rates still held (card narration ~15%, calendar dead-end ~17.5%),
+the chance of seeing zero of both across 10 trials each is **≈2.9%**. That is
+suggestive that the diseases are now rarer than when the clauses were promoted —
+plausibly because the OTHER accumulated promotions (destall, find-first, schema
+optionality on both tools) now carry the load and these two clauses have become
+individually redundant. **That is a hypothesis this run GENERATED, not one it
+tested.** Establishing it needs a powered run; nothing should be removed from
+production on the strength of a failed gate.
+
+**THERMAL FLAG FIRED AND IS MOOT.** `armed` started `nominal`, both rollbacks
+started `serious` — the classifier correctly flags mismatched starts. But **a
+confound can only compromise a DIFFERENCE, and there is no difference**: every cell
+scored 10/10/10. Read the direction before calling it a problem (#201B lesson 1),
+and here there is nothing for it to explain.
+
+**GRABS ARE AN INSTRUMENT PROPERTY, NOT A PRODUCTION NUMBER — 26/30 (87%), the
+highest ever recorded, and it does not mean what it looks like.** The action battery
+does **not route**. In production "Write a haiku about sledding" goes to the
+TOOLLESS path — the router scores 10/10 on that exact prompt in the baseline grid,
+re-confirmed in #202A — so a production haiku turn has **no belt and cannot grab**.
+This is #200O's own conclusion ("in production a grab requires a router miss")
+holding at the highest create-pressure the program has ever run. **Quote this number
+only with that sentence attached.**
+
+**REAP ARITHMETIC EXACT — the seventh consecutive clean seal.** Counted
+`createReminder=56` = 30 (remind, 10×3) + 26 (haiku grabs, 9+9+8);
+`createCalendarEvent=30`; `scheduleAlarm=30`. Reaped 58/31/31. **Residual exactly
+4 = the four discarded warm-up trials** (one remind + one alarm + one calendar + one
+haiku grab, the grab being a reminder — which is why the reminder residual is 2 and
+the others 1). Nothing unaccounted.
+
+**GUARD:** alarm 10/10 in every cell — the instrument did not move.
+
+**Owed:** if either clause's necessity ever matters (e.g. an instruction-crowding
+lane, or trimming the prompt), it needs a run powered from a re-measured base rate,
+not this one. Otherwise both stay promoted and this run stands as the scoreboard.
+
 ## #205 — Hermes audit of #201/#202 (2026-07-30, second pass): three corrections and two real gaps
 
 **Every claim below was verified against the tree before filing. The night-ending
