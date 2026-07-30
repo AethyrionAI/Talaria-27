@@ -264,42 +264,57 @@ struct PlacesTool: Tool {
         defer { Task { await relay.completed(name) } }
         guard !query.isEmpty else { return "No search query was given." }
 
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = query
-
         // "Near me" needs a center; without permission the search still runs,
         // just un-anchored (results may be far away — honest, not fabricated).
-        var origin: CLLocation?
+        // Immutable: these are captured by a @Sendable closure below, so a
+        // `var` would not compile (and would be a data race if it did).
         let status = await location.ensureAuthorization()
-        if status == .authorizedWhenInUse || status == .authorizedAlways,
-           let fix = await location.currentLocation() {
-            origin = fix
-            request.region = MKCoordinateRegion(
-                center: fix.coordinate,
-                latitudinalMeters: 10_000,
-                longitudinalMeters: 10_000
-            )
-        }
+        let fix = (status == .authorizedWhenInUse || status == .authorizedAlways)
+            ? await location.currentLocation()
+            : nil
+        let anchorLat: Double? = fix?.coordinate.latitude
+        let anchorLon: Double? = fix?.coordinate.longitude
+        let anchored = fix != nil
 
+        // #200Y/F6 (Hermes audit): MKLocalSearch is a network round-trip with no
+        // deadline of its own — bounded so a stalled search cannot outlive the
+        // turn. Only SENDABLE values cross the boundary: `MKLocalSearch.Request`,
+        // `.Response` and `CLLocation` are all non-Sendable classes, so the
+        // request is BUILT and consumed inside the closure from plain doubles and
+        // only the formatted lines come back out.
         do {
-            let response = try await MKLocalSearch(request: request).start()
-            guard !response.mapItems.isEmpty else {
+            let lines: [String] = try await DeviceToolTimeout.runThrowing(label: name) {
+                let request = MKLocalSearch.Request()
+                request.naturalLanguageQuery = query
+                if let anchorLat, let anchorLon {
+                    request.region = MKCoordinateRegion(
+                        center: CLLocationCoordinate2D(latitude: anchorLat, longitude: anchorLon),
+                        latitudinalMeters: 10_000,
+                        longitudinalMeters: 10_000
+                    )
+                }
+                let response = try await MKLocalSearch(request: request).start()
+                let origin = (anchorLat != nil && anchorLon != nil)
+                    ? CLLocation(latitude: anchorLat!, longitude: anchorLon!)
+                    : nil
+                return response.mapItems.prefix(5).map { item -> String in
+                    var line = item.name ?? "Unnamed place"
+                    if let address = item.placemark.title, !address.isEmpty {
+                        line += " — \(address)"
+                    }
+                    if let origin, let itemLocation = item.placemark.location {
+                        let meters = origin.distance(from: itemLocation)
+                        let formatter = MKDistanceFormatter()
+                        line += " (\(formatter.string(fromDistance: meters)) away)"
+                    }
+                    return line
+                }
+            }
+            guard !lines.isEmpty else {
                 return "No places found for \"\(query)\"."
             }
-            let lines = response.mapItems.prefix(5).map { item -> String in
-                var line = item.name ?? "Unnamed place"
-                if let address = item.placemark.title, !address.isEmpty {
-                    line += " — \(address)"
-                }
-                if let origin, let itemLocation = item.placemark.location {
-                    let meters = origin.distance(from: itemLocation)
-                    let formatter = MKDistanceFormatter()
-                    line += " (\(formatter.string(fromDistance: meters)) away)"
-                }
-                return line
-            }
             var result = lines.joined(separator: "\n")
-            if origin == nil {
+            if !anchored {
                 result += "\n(Location permission not granted — results are not anchored to the user's position.)"
             }
             return result
@@ -362,8 +377,12 @@ struct ContactsTool: Tool {
         }
 
         // CNContactStore fetches are blocking — keep them off the main actor.
+        // #200Y/F6: bounded, because a blocking framework fetch is exactly the
+        // hop cancellation cannot interrupt. The PERMISSION REQUEST above is
+        // deliberately NOT wrapped — that one waits on a human, and 12s is not
+        // a fair deadline for a person reading a system dialog.
         let continuing = continuesAfterNoMatch
-        let report: String = await Task.detached(priority: .userInitiated) {
+        let report: String = await DeviceToolTimeout.run(label: name) { await Task.detached(priority: .userInitiated) {
             let store = CNContactStore()
             let keys: [CNKeyDescriptor] = [
                 CNContactGivenNameKey as CNKeyDescriptor,
@@ -395,7 +414,7 @@ struct ContactsTool: Tool {
                 }
                 return lines.joined(separator: "\n")
             }.joined(separator: "\n\n")
-        }.value
+        }.value }
         return report
     }
 }

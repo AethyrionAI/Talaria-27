@@ -172,22 +172,36 @@ enum DeviceToolTimeout {
     /// tight enough that a wedge cannot outlive the generation guillotine.
     static let defaultSeconds: Double = 12
 
+    /// Thrown by `runThrowing` so a call site's existing `catch` reports the
+    /// timeout in its own voice (`PlacesTool` already renders failures as
+    /// "Place search failed: …").
+    struct TimedOut: LocalizedError {
+        let label: String
+        let seconds: Double
+        var errorDescription: String? {
+            "the \(label) tool timed out after \(Int(seconds.rounded()))s"
+        }
+    }
+
+    /// First-past-the-post gate: whichever of the two racers finishes first
+    /// resumes the continuation, and the loser is discarded.
+    private final class Gate: @unchecked Sendable {
+        private let lock = NSLock()
+        private var resumed = false
+        func claim() -> Bool {
+            lock.lock(); defer { lock.unlock() }
+            if resumed { return false }
+            resumed = true
+            return true
+        }
+    }
+
     static func timeoutText(label: String, seconds: Double) -> String {
         "The \(label) tool timed out after \(Int(seconds.rounded()))s and returned nothing — answer with what you already have, and do not call it again."
     }
 
     static func run(seconds: Double = defaultSeconds, label: String,
                     _ operation: @escaping @Sendable () async -> String) async -> String {
-        final class Gate: @unchecked Sendable {
-            private let lock = NSLock()
-            private var resumed = false
-            func claim() -> Bool {
-                lock.lock(); defer { lock.unlock() }
-                if resumed { return false }
-                resumed = true
-                return true
-            }
-        }
         let gate = Gate()
         return await withCheckedContinuation { (continuation: CheckedContinuation<String, Never>) in
             Task {
@@ -198,6 +212,32 @@ enum DeviceToolTimeout {
                 try? await Task.sleep(for: .seconds(seconds))
                 if gate.claim() {
                     continuation.resume(returning: timeoutText(label: label, seconds: seconds))
+                }
+            }
+        }
+    }
+
+    /// Throwing variant for tools whose blocking work already reports failure
+    /// through `catch` — the timeout arrives as `TimedOut` and the call site's
+    /// existing error text renders it.
+    static func runThrowing<T: Sendable>(
+        seconds: Double = defaultSeconds, label: String,
+        _ operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        let gate = Gate()
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<T, Error>) in
+            Task {
+                do {
+                    let value = try await operation()
+                    if gate.claim() { continuation.resume(returning: value) }
+                } catch {
+                    if gate.claim() { continuation.resume(throwing: error) }
+                }
+            }
+            Task {
+                try? await Task.sleep(for: .seconds(seconds))
+                if gate.claim() {
+                    continuation.resume(throwing: TimedOut(label: label, seconds: seconds))
                 }
             }
         }
