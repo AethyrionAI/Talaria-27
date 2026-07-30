@@ -1032,6 +1032,32 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #202B two-turn battery: an offer, then a bare affirmative. Auto-ACCEPT
+    // so an appropriate create EXECUTES and is countable as an artifact —
+    // real writes, marker-tagged, reaped per trial.
+    @ViewBuilder
+    private func twoTurnBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runTwoTurnBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     private var localBrainPanel: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             MonoLabel("// Local brain — #102", size: 10, tracking: Design.Tracking.monoXWide,
@@ -1198,6 +1224,11 @@ struct DiagnosticsSettingsScreen: View {
                 // nothing to reap.
                 HStack(spacing: Design.Spacing.sm) {
                     routerContextProbeButton(trials: 15, label: "Router context n=15 (~585)")
+                }
+                // #202B: the two-turn offer→accept shape. Auto-ACCEPT, real
+                // writes, reaped per trial — run with Reminders GRANTED.
+                HStack(spacing: Design.Spacing.sm) {
+                    twoTurnBatteryButton(trials: 12, label: "Two-turn n=12 (24+5+1)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
