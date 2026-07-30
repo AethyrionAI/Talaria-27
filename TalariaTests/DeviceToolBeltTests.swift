@@ -885,7 +885,8 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedDeadend2.rawValue == "armed-deadend2")
         #expect(LocalChatBackend.ActionBatteryCell.armedNocontact.rawValue == "armed-nocontact")
         #expect(LocalChatBackend.ActionBatteryCell.armedCalrollback.rawValue == "armed-calrollback")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 23)
+        #expect(LocalChatBackend.ActionBatteryCell.armedDeadendrollback.rawValue == "armed-deadendrollback")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 24)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -1511,19 +1512,22 @@ struct DeviceToolBeltTests {
     ///
     /// Production default is `false`, so the shipping belt is byte-identical
     /// until a verdict promotes it.
-    @Test @MainActor func contactNotFoundTextCarriesContinuationOnlyWhenTheSeamIsOn() {
+    @Test @MainActor func productionContactNotFoundCarriesContinuationAfterThePromotion() {
         let bare = ContactsTool.noMatchText(query: "Sam", continuing: false)
         #expect(bare == "No contact matching \"Sam\" was found.")
         let continuing = ContactsTool.noMatchText(query: "Sam", continuing: true)
         #expect(continuing.hasPrefix(bare))
         #expect(continuing.contains("does not block anything"))
         #expect(continuing.contains("exactly as the user gave it"))
-        // The production tool ships the bare text until promotion.
-        #expect(ContactsTool(relay: ToolEventRelay()).continuesAfterNoMatch == false)
+        // #201B PROMOTION: production now ships the CONTINUING text. Measured
+        // twice at n=40 in both slot orders — 0/80 dead-ends vs 14/80, Fisher
+        // p≈0.0012 on the confirmation, with the treatment winning from the
+        // thermally-throttled slot.
+        #expect(ContactsTool(relay: ToolEventRelay()).continuesAfterNoMatch == true)
     }
 
     /// #200U arm A: one seam flipped on one tool, everything else identity.
-    @Test @MainActor func deadend2CellFlipsOnlyTheContactContinuationSeam() {
+    @Test @MainActor func deadend2CellIsProductionIdentityAfterThePromotion() {
         let belt = DeviceToolBelt.makeActionTools(
             relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
             alarmService: AlarmService()
@@ -1531,10 +1535,21 @@ struct DeviceToolBeltTests {
         let treated = LocalChatBackend.destallBelt(from: belt, cell: .armedDeadend2)
         #expect(treated.map(\.name) == belt.map(\.name))
         #expect((treated.first { $0.name == "lookupContact" } as? ContactsTool)?.continuesAfterNoMatch == true)
-        // The create tools are untouched — this lane measures the read
-        // tool's RESULT text and nothing else.
-        #expect(treated.contains { $0 is ReminderCreateTool })
-        #expect(treated.contains { $0 is CalendarEventTool })
+    }
+
+    /// #201B: the promotion's pinned ROLLBACK — a flag whose explicit `false`
+    /// restores the bare not-found text verbatim.
+    @Test @MainActor func deadendrollbackCellRestoresTheBareNotFoundText() {
+        let belt = DeviceToolBelt.makeActionTools(
+            relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
+            alarmService: AlarmService()
+        ) + [ContactsTool(relay: ToolEventRelay())]
+        let rolled = LocalChatBackend.destallBelt(from: belt, cell: .armedDeadendrollback)
+        #expect(rolled.map(\.name) == belt.map(\.name))
+        let contacts = rolled.first { $0.name == "lookupContact" } as? ContactsTool
+        #expect(contacts?.continuesAfterNoMatch == false)
+        #expect(ContactsTool.noMatchText(query: "Sam", continuing: false)
+            == "No contact matching \"Sam\" was found.")
     }
 
     /// #200U arm B: the ceiling probe. If the model cannot call the tool it

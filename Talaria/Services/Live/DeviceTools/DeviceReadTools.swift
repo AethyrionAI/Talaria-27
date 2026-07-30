@@ -329,17 +329,25 @@ struct PlacesTool: Tool {
 struct ContactsTool: Tool {
     let name = "lookupContact"
     let description = "Look up a person in the user's contacts by name and return their phone numbers and email addresses."
-    /// #200U seam. A miss here owned **4 of the 5 calendar misses in #200T**:
-    /// the model reads the bare not-found string as a blocker and asks the
-    /// user to clarify instead of creating the event with the name it was
-    /// given — and it does that THROUGH the promoted #200O prose carve-out,
-    /// which already tells it to carry on. Prose cannot outrank the
-    /// structural layer (#200S), and a tool RESULT is that layer: the model
-    /// consumes it as fact rather than weighing it against instructions.
+    /// #201B PROMOTION: production's not-found result CARRIES CONTINUATION.
     ///
-    /// Production default is `false`, so the shipping belt is byte-identical
-    /// with the seam in place; promotion is flipping this one default.
-    var continuesAfterNoMatch: Bool = false
+    /// The bare negative was read by the model as a blocker: it called the tool,
+    /// the lookup missed, and it stopped to ask the user instead of creating with
+    /// the name it was given — THROUGH the promoted #200O prose carve-out that
+    /// already says to carry on. Prose could not reach it because a tool RESULT is
+    /// not instructions the model weighs; it is fact the model consumes.
+    ///
+    /// Measured twice at n=40, in BOTH slot orders, with the confound inverted:
+    /// dead-end misses **0/80 treatment vs 14/80 control** pooled (control 17.5%,
+    /// matching the 16.7% base rate the power calculation assumed), Fisher
+    /// p≈0.0012 on the confirmation run alone. In that run the treatment ran
+    /// SECOND and THERMALLY THROTTLED and still went 40/40 while cool, rested
+    /// production went 31/40 — so heat and slot position are both exonerated, and
+    /// the surviving confound ran AGAINST the winner.
+    ///
+    /// `ContactsToolBareNotFound` — reachable as the `armed-deadendrollback`
+    /// cell, which passes `false` explicitly — is the pinned rollback.
+    var continuesAfterNoMatch: Bool = true
     let relay: ToolEventRelay
 
     @Generable

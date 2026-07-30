@@ -2566,6 +2566,10 @@ extension LocalChatBackend {
         /// them restores the geolocation behaviour: 5 of 8 creates carried an
         /// invented location in #200W, twice the home street address.
         case armedCalrollback = "armed-calrollback"
+        /// #201B: the contact promotion's pinned ROLLBACK — `ContactsTool` with
+        /// `continuesAfterNoMatch` explicitly false, i.e. the bare not-found
+        /// text that produced 14/80 dead-end misses across two n=40 runs.
+        case armedDeadendrollback = "armed-deadendrollback"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2576,18 +2580,18 @@ extension LocalChatBackend {
         case .armed, .armedInstrfix, .armedToolmode, .armedScoped, .armedCreateonly,
              .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix,
              .armedDatefix, .armedCardrollback, .armedDeadendfix, .armedGrabfix,
-             .armedStallfix, .armedSchemafix, .armedCalfix:
+             .armedStallfix, .armedSchemafix, .armedCalfix, .armedDeadend2:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
             // strikefix treat the tool-calling MODE, and the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
             // loop) — none of them swap tool text here.
             return tools
-        case .armedDeadend2:
-            // #200U arm A: one seam on one READ tool — the not-found result
-            // carries continuation. Create tools untouched.
+        case .armedDeadendrollback:
+            // #201B: one swap — the pre-promotion bare not-found text. The
+            // pinned rollback, measurable.
             return tools.map { tool in
                 if let contacts = tool as? ContactsTool {
-                    return ContactsTool(continuesAfterNoMatch: true, relay: contacts.relay)
+                    return ContactsTool(continuesAfterNoMatch: false, relay: contacts.relay)
                 }
                 return tool
             }
