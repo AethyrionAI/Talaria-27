@@ -884,7 +884,8 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedCalfix.rawValue == "armed-calfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedDeadend2.rawValue == "armed-deadend2")
         #expect(LocalChatBackend.ActionBatteryCell.armedNocontact.rawValue == "armed-nocontact")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 22)
+        #expect(LocalChatBackend.ActionBatteryCell.armedCalrollback.rawValue == "armed-calrollback")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 23)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -1241,12 +1242,25 @@ struct DeviceToolBeltTests {
     /// "Optional location, or empty". The battery's calendar prompt ("Put
     /// lunch with Sam on my calendar Friday at noon") supplies neither.
     ///
-    /// This pin compiles ONLY if the treatment struct's two fields are
-    /// optional. `title` and `startsAt` stay required: the schema should
-    /// demand what the tool genuinely cannot default, and an event with no
-    /// start time cannot be created.
-    @Test func calfixCalendarArgumentsAcceptOmittedDurationAndLocation() {
-        let omitted = CalendarEventToolOptionalFields.Arguments(
+    /// #200X PROMOTION. Warm, production-last, pre-registered: production
+    /// invented a location in **5 of its 8 calendar creates** — geolocating
+    /// the user to satisfy a required field on a prompt that named no place,
+    /// twice writing his home street address onto a lunch — while the
+    /// treatment invented ZERO. `currentLocation` went 7/10 → 0/10 (p≈0.003),
+    /// the second independent observation after #200T's exploratory 9/10 → 2/9.
+    ///
+    /// This pin is the promotion's proof: PRODUCTION `Arguments` accepts `nil`
+    /// for both fields, which compiles ONLY if they are optional. `title` and
+    /// `startsAt` stay required: the schema should demand what the tool
+    /// genuinely cannot default, and an event with no start time cannot be
+    /// created.
+    ///
+    /// Honest limit, recorded because the gate was not clean: #200W's
+    /// `searchPlaces` clause was UNEVALUABLE (control 1/10, below its
+    /// pre-registered ≥3/10 floor), so this promotion rests on the
+    /// `currentLocation` and invented-location measures, not on all three.
+    @Test func productionCalendarArgumentsAcceptOmittedDurationAndLocation() {
+        let omitted = CalendarEventTool.Arguments(
             title: "Lunch with Sam", startsAt: "2026-07-31T12:00",
             durationMinutes: nil, location: nil
         )
@@ -1271,25 +1285,52 @@ struct DeviceToolBeltTests {
         #expect(CalendarEventTool.resolveMinutes(5_000) == 24 * 60)
     }
 
-    /// #200T: one swap, everything else identity — the cell measures the
-    /// two field types and nothing else. The reminder tool in particular
-    /// stays production (its own promotion is not up for re-measurement
-    /// here).
-    @Test @MainActor func calfixCellSwapsOnlyTheCalendarTool() {
+    /// #200X: post-promotion the #200T/#200W treated cell is production
+    /// identity (the findfix/cardfix/schemafix precedent), which is what lets
+    /// it pool with the control as a re-verify.
+    @Test @MainActor func calfixCellIsProductionIdentityAfterThePromotion() {
         let belt = DeviceToolBelt.makeActionTools(
             relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
             alarmService: AlarmService()
         )
         let treated = LocalChatBackend.destallBelt(from: belt, cell: .armedCalfix)
         #expect(treated.map(\.name) == belt.map(\.name))
-        #expect(treated.contains { $0 is CalendarEventToolOptionalFields })
-        #expect(!treated.contains { $0 is CalendarEventTool })
-        #expect(treated.contains { $0 is ReminderCreateTool })
-        // Production text and the #196 schema-injection default, so the
-        // only delta reaching the model is the field optionality.
-        let calendar = treated.first { $0.name == "createCalendarEvent" }
+        #expect(treated.contains { $0 is CalendarEventTool })
+        #expect(treated.first { $0.name == "createCalendarEvent" }?.description
+            == CalendarEventTool.productionDescription)
+    }
+
+    /// #200X: the pinned ROLLBACK. A type change cannot ride a Bool flag, so
+    /// the rollback seam is a struct — `CalendarEventToolRequiredFields` is
+    /// the pre-promotion tool verbatim, reachable as a measured cell exactly
+    /// as #200S's reminder rollback is.
+    @Test @MainActor func calrollbackCellRestoresTheRequiredFieldCalendarTool() {
+        let belt = DeviceToolBelt.makeActionTools(
+            relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
+            alarmService: AlarmService()
+        )
+        let rolled = LocalChatBackend.destallBelt(from: belt, cell: .armedCalrollback)
+        #expect(rolled.map(\.name) == belt.map(\.name))
+        #expect(rolled.contains { $0 is CalendarEventToolRequiredFields })
+        #expect(!rolled.contains { $0 is CalendarEventTool })
+        // Everything else is production, so the cell measures the field types
+        // and nothing else.
+        let calendar = rolled.first { $0.name == "createCalendarEvent" }
         #expect(calendar?.description == CalendarEventTool.productionDescription)
         #expect(calendar?.includesSchemaInInstructions == true)
+        #expect(rolled.contains { $0 is ReminderCreateTool })
+    }
+
+    /// #200X: the confidence run this promotion is owed — production against
+    /// its OWN rollback, warm, in one run, with production LAST (the
+    /// conservative slot). Same shape as #200S's re-verify, and the answer to
+    /// "what would raise confidence": a within-run comparison against the
+    /// exact thing we just replaced.
+    @Test func calRollbackVerifyBatteryPutsProductionAgainstItsRollback() {
+        #expect(LocalChatBackend.calRollbackVerifyBatteryCells == [
+            .armedCalrollback, .armed,
+        ])
+        #expect(LocalChatBackend.calRollbackVerifyBatteryCells.last == .armed)
     }
 
     /// #200T battery: production control vs the calendar schema swap, two
