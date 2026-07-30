@@ -10926,3 +10926,77 @@ but it is the ugliest thing in the run.
 order-reversed confirmation run before any promotion.** `continuesAfterNoMatch`
 stays `false` in production until that run clears, so the shipping belt is
 unchanged; promotion is flipping one default and rollback is flipping it back.
+
+**#200V VERDICT FILED, 2026-07-29 — order-reversed confirmation + warm-up, n=10
+(120 counted trials + 4 discarded warm-up, PR #187 branch `a54161b`, corded
+build WITH DEBUGGER ATTACHED, os 27.0, run sealed `reminders=44 events=30
+alarms=31 failures=0`, classified live from the console bridge). Reap arithmetic
+EXACT including the warm-up, stated separately as the dispatch required:
+reminders 1+13+15+15=44, events 1+10+10+9=30, alarms 1+10+10+10=31.**
+
+**THE PRE-REGISTERED WITHDRAWAL TRIGGER FIRED. #200U'S HEADLINE IS WITHDRAWN AND
+THE FIX DOES NOT PROMOTE.**
+
+| slot | cell | remind | alarm | calendar | dead-end misses | haiku grabs |
+|---|---|---|---|---|---|---|
+| 1 | armed-nocontact | **10/10** | **10/10** | 9/9 (1 TIMEOUT excl) | n/a (tool absent) | 4/10 |
+| 2 | armed-deadend2 | **10/10** | **10/10** | **10/10** | **0** | 5/8 (2 ERR excl) |
+| 3 | **armed (production)** | **10/10** | **10/10** | **9/10** | **0** | 5/9 (1 ERR excl) |
+
+**Exclusions, listed and adjudicated (4):** `nocontact/calendar/t5` TIMEOUT —
+guillotined after **six** `searchConversations` calls on the same query; three
+`readHealth` `ToolCallError` argument-decode failures on the haiku canary
+(`deadend2/haiku/t2`, `deadend2/haiku/t6`, `armed/haiku/t1`), the known
+framework-decode class, instrument-side, and all on the ungraded canary.
+
+**THE BARS, APPLIED AS WRITTEN:**
+
+- **DISCRIMINATOR — control-last must show ≥2 dead-end misses: FAILED. It showed
+  ZERO.** Production ran last and warm and its ONLY calendar miss was card
+  narration, not a dead-end: *"Here's the confirmation card for the event: …
+  **Location**: Not specified … Would you like to edit or cancel this event?"*
+- **Therefore the withdrawal clause fires: #200U's control dead-ends were
+  substantially a COLD-START ARTIFACT, not a standing production defect.**
+- **PRIMARY — fix ≥ control + 2: FAILED.** 10/10 vs 9/10 is +1. The count clause
+  fails with it, since the control has no dead-ends to halve.
+- **REPLICATION — fix arm zero dead-end misses: holds** (10/10 creates), but moot.
+- **GUARDS: all hold** — remind 10/10 and alarm 10/10 in all three arms.
+
+**THE MECHANISM EVIDENCE IS UNAMBIGUOUS AND IT KILLS THE HYPOTHESIS, NOT JUST THE
+RATE.** `lookupContact detail=Sam` fired in **all ten** production calendar
+trials, so the tool still ran and still returned the bare "No contact matching
+\"Sam\" was found." — **and warm production created the event anyway, 9 times out
+of 10, with the production string unchanged.** The behaviour #200U attributed to
+the not-found text simply does not occur when the model is warm.
+
+**THE COLD-START ARTIFACT IS REAL, LARGE, AND IT CONTAMINATED THIS INSTRUMENT.**
+Same production configuration, two positions: **7/10 running first and cold
+(#200T and #200U) vs 9/10 running last and warm**, with dead-end misses **3/10 →
+0/10**. And the warm-up flattened the position gradient it was built to remove:
+calendar by slot went **9, 10, 9** here against #200U's **7, 10, 10**.
+
+**Consequence for prior lanes, stated rather than buried: every lane in this
+program ran its control FIRST and cold, so treatment arms were systematically
+favoured.** #200T's +1 and #200U's +3 are both inflated by this. **#200S is NOT
+threatened — its rollback arm ran LAST, warmest, and still did worse on remind
+(7/10 vs 20/20 pooled), i.e. that result ran AGAINST the gradient.** #200K's
+card-narration clause and #200O's dead-end carve-out were both measured with
+control-first and are now owed a warm re-verification before they are cited as
+settled.
+
+**Arm B produced a NEW finding that argues against tool removal on its own
+merits:** with `lookupContact` absent the model fled into `searchConversations`
+**six times on one query** and had to be guillotined — the read-substitution
+disease #200G killed, reappearing the moment a read tool is taken away. Removing
+tools relocates the spiral; it does not remove it.
+
+**Disposition:**
+1. **`ContactsTool.continuesAfterNoMatch` stays `false`. No promotion.** The seam
+   and both cells stay picker-reachable; the fix is harmless (10/10 twice, zero
+   dead-ends) but it is NOT demonstrated as necessary against a warm control.
+2. **The warm-up should become the DEFAULT for every future battery**, and every
+   pre-#200V control number should be read as cold-biased.
+3. **Production calendar's real warm number is ~9/10**, and its residual miss is
+   card narration citing *"Location: Not specified"* — which lines up with
+   #200T's exploratory location-spiral finding and makes the calendar
+   `location`/`durationMinutes` optionality worth a warm re-run.
