@@ -195,10 +195,106 @@ def probe_report(run):
                   f" DIRECTION of the bias before calling it a confound (#201B lesson 1)")
 
 
+TWO_TURN_PRIMARY = 0.80    # ctx-a creates on evaluable trials
+TWO_TURN_ROUTE_GATE = 0.90  # ...and its turn 2 must actually be routed ARMED
+
+
+def two_turn_report(run):
+    """#202B: the offer→accept shape. The control's zero is STRUCTURAL (a
+    routed-toolless turn has no belt), so it is reported as a falsification
+    check and never as evidence for the fix. The measured arm is scored
+    against an ABSOLUTE bar."""
+    trials = run["trials"]
+    print(f"run {run['id'][:8]}  build={run.get('appBuild')}  os={run.get('osVersion')}")
+    print(f"kind={run.get('kind')}  arms={run['cells']}  n={run['trialsPerCell']}"
+          f"  endedCleanly={run.get('endedCleanly')}")
+    print(f"reapSummary: {run.get('reapSummary')}\n")
+
+    for cell in run["cells"]:
+        rows = [t for t in trials if t["shape"] == cell]
+        if not rows:
+            continue
+        excluded = [t["trial"] for t in rows if t.get("timedOut") or t.get("error")]
+        valid = [t for t in rows if t["trial"] not in excluded]
+        made = [t for t in valid if accepted(t, "createReminder")]
+        armed = [t for t in valid if t.get("route") == "armed"]
+        # #199: the reply CLAIMS a create that no artifact backs. Counted
+        # separately — never instead of the artifact.
+        fabricated = [t for t in valid if t not in made
+                      and claims_creation(t.get("text") or "")]
+        print(f"=== {cell}")
+        print(f"  creates   {len(made)}/{len(valid)}"
+              f"{'  EXCLUDED ' + str(excluded) if excluded else ''}")
+        print(f"  routed armed on turn 2: {len(armed)}/{len(valid)}")
+        if fabricated:
+            print(f"  !! FABRICATED CLAIM (reply says created, no artifact): "
+                  f"{len(fabricated)} {[t['trial'] for t in fabricated]} — #199")
+        for t in [x for x in valid if x not in made]:
+            text = (t.get("text") or "").replace("\n", " ")
+            print(f"       miss t{t['trial']} [route={t.get('route')}] {text[:110]}")
+
+    print("\n=== bars (pre-registered in dispatch/OPUS-T27-202B-two-turn.md)")
+    for cell in run["cells"]:
+        rows = [t for t in trials if t["shape"] == cell
+                and not (t.get("timedOut") or t.get("error"))]
+        if not rows:
+            continue
+        made = sum(1 for t in rows if accepted(t, "createReminder"))
+        armed = sum(1 for t in rows if t.get("route") == "armed")
+        rate = made / len(rows)
+        if cell == "twoturn-control":
+            print(f"  STRUCTURAL CHECK: control creates {made}/{len(rows)} — "
+                  + ("HOLDS (zero, as predicted BY CONSTRUCTION — not evidence for the fix)"
+                     if made == 0 else
+                     "!! VIOLATED — a routed-toolless turn CREATED. The no-belt claim in"
+                     " #202 is WRONG and that is a larger finding than this lane"))
+        elif cell == "twoturn-ctxa":
+            gate = armed / len(rows)
+            print(f"  ROUTE GATE: turn 2 armed {gate:.1%} ({armed}/{len(rows)}) — "
+                  f"{'HOLDS' if gate >= TWO_TURN_ROUTE_GATE else 'FAILS — the arm is not testing what it claims; PRIMARY IS VOID'}")
+            print(f"  PRIMARY: creates {rate:.1%} ({made}/{len(rows)}) vs bar {TWO_TURN_PRIMARY:.0%} — "
+                  + ("PASS" if rate >= TWO_TURN_PRIMARY else
+                     "FAIL — the route was NECESSARY but NOT SUFFICIENT; #202 needs a second seam"))
+        else:
+            print(f"  {cell} (diagnostic, ungated): creates {made}/{len(rows)},"
+                  f" armed {armed}/{len(rows)}")
+
+    spread = [t for t in trials if t["shape"] in ("twoturn-ctxa", "twoturn-control")]
+    by_arm = {}
+    for t in spread:
+        by_arm.setdefault(t["shape"], []).append(accepted(t, "createReminder"))
+    saturated = [a for a, v in by_arm.items() if v and (all(v) or not any(v))]
+    if saturated:
+        print(f"\n  note: {saturated} saturated (every trial identical). Turn 2 uses"
+              f" temperature 0.7, so this is NOT the #202A determinism trap — but with"
+              f" no within-arm spread, n is again unproven. Say so in the verdict.")
+
+    thermal = run.get("thermal") or []
+    if thermal:
+        print("\n=== thermal")
+        print("  " + "  ".join(thermal))
+
+
+def claims_creation(text):
+    """Mirrors LocalChatBackend.claimsCreation — a denial that contains 'set'
+    is not a claim."""
+    lower = text.lower()
+    denials = ["can't access", "cannot access", "don't have access", "no access",
+               "can't create", "cannot create", "i can't", "i cannot"]
+    if any(d in lower for d in denials):
+        return False
+    return any(c in lower for c in
+               ["i've set", "i have set", "i've created", "i have created",
+                "i've added", "i have added", "reminder created", "reminder is set",
+                "reminder set", "done —", "all set"])
+
+
 def main(path):
     run = json.load(open(path))
     if run.get("probes") and not run.get("trials"):
         return probe_report(run)
+    if run.get("kind") == "twoturn":
+        return two_turn_report(run)
     trials = run["trials"]
     print(f"run {run['id'][:8]}  build={run.get('appBuild')}  os={run.get('osVersion')}")
     print(f"cells={run['cells']}  n={run['trialsPerCell']}  endedCleanly={run.get('endedCleanly')}")
