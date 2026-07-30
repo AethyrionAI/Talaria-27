@@ -938,7 +938,8 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedNocontact.rawValue == "armed-nocontact")
         #expect(LocalChatBackend.ActionBatteryCell.armedCalrollback.rawValue == "armed-calrollback")
         #expect(LocalChatBackend.ActionBatteryCell.armedDeadendrollback.rawValue == "armed-deadendrollback")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 24)
+        #expect(LocalChatBackend.ActionBatteryCell.armedCarveoutrollback.rawValue == "armed-carveoutrollback")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 25)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -2364,6 +2365,37 @@ struct DeviceToolBeltTests {
         // Same two bands as the short grid, so the comparison is like-for-like.
         #expect(grid.contains { $0.band == .accept })
         #expect(grid.contains { $0.band == .wordsOnly })
+    }
+
+    // MARK: - (#204) warm within-run re-verification of the promoted clauses
+
+    /// The carve-out rollback is production MINUS the dead-end clause — the
+    /// counterpart to `armed-cardrollback`, and the piece that was missing:
+    /// #200O re-verified this promotion against a CROSS-RUN historical
+    /// baseline, never against its own rollback in the same run.
+    @Test func carveoutRollbackIsProductionMinusExactlyTheDeadEndClause() {
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate,
+            hasTools: true, hasImageTools: false
+        )
+        let rollback = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate,
+            hasTools: true, hasImageTools: false, includeDeadEndCarveout: false
+        )
+        #expect(rollback != production)
+        #expect(production.contains(LocalChatBackend.deadEndCarveoutClause))
+        #expect(!rollback.contains(LocalChatBackend.deadEndCarveoutClause))
+        // Removing the clause changes NOTHING else.
+        #expect(production.replacingOccurrences(
+            of: LocalChatBackend.deadEndCarveoutClause, with: "") == rollback)
+    }
+
+    /// Production runs FIRST so the incumbent holds the cool slot, and both
+    /// rollbacks follow — #201B's rule, and here the rollbacks are the arms
+    /// that must show a DISEASE, so penalising them is conservative.
+    @Test func clauseReverifyBatteryPutsProductionInTheCoolSlot() {
+        #expect(LocalChatBackend.clauseReverifyBatteryCells
+                == [.armed, .armedCardrollback, .armedCarveoutrollback])
     }
 
     // MARK: - (#202D) the reworded clause

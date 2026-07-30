@@ -1513,7 +1513,7 @@ final class LocalChatBackend: HermesClientProtocol {
         // pooled over #200I+#200L it cost remind −20 points) and v2's
         // location sentence (unearned: every accepted event across
         // #200J/#200K/#200L was a bare title with no location bound).
-        let deadEndCarveout = " If you can't identify a person named in an event, that's fine — create the event with the name exactly as the user gave it."
+        let deadEndCarveout = Self.deadEndCarveoutClause
         // #200O grabfix cell: the grab disease. Grabs are the only number
         // in this program that moved the WRONG way while everything else
         // improved (4/8 → 4/10 → 7/10 → 15/20 → 9/10 → 9/10), and that is
@@ -2700,6 +2700,11 @@ extension LocalChatBackend {
         /// `continuesAfterNoMatch` explicitly false, i.e. the bare not-found
         /// text that produced 14/80 dead-end misses across two n=40 runs.
         case armedDeadendrollback = "armed-deadendrollback"
+        /// #204: production MINUS the promoted dead-end CARVE-OUT (the
+        /// instructions clause, not #201B's ContactsTool flag). Its
+        /// promotion was only ever re-verified against a cross-run
+        /// historical baseline; this makes it a within-run control.
+        case armedCarveoutrollback = "armed-carveoutrollback"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2710,7 +2715,8 @@ extension LocalChatBackend {
         case .armed, .armedInstrfix, .armedToolmode, .armedScoped, .armedCreateonly,
              .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix,
              .armedDatefix, .armedCardrollback, .armedDeadendfix, .armedGrabfix,
-             .armedStallfix, .armedSchemafix, .armedCalfix, .armedDeadend2:
+             .armedStallfix, .armedSchemafix, .armedCalfix, .armedDeadend2,
+             .armedCarveoutrollback:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
             // strikefix treat the tool-calling MODE, and the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
@@ -2972,6 +2978,14 @@ extension LocalChatBackend {
                     hasTools: !base.isEmpty,
                     hasImageTools: false,
                     includeDeadEndCarveout: true
+                )
+            case .armedCarveoutrollback:
+                // #204: the pinned carve-out rollback, run as a measured cell.
+                cellInstructions = Self.instructionsText(
+                    deviceContext: Self.deviceContextLine(),
+                    hasTools: !base.isEmpty,
+                    hasImageTools: false,
+                    includeDeadEndCarveout: false
                 )
             case .armedCardrollback:
                 // #200L: production MINUS the promoted card clause — the
@@ -3257,6 +3271,27 @@ extension LocalChatBackend {
     /// generations.
     func runGrabfixBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.grabfixBatteryCells, includeGrabCanary: true)
+    }
+
+    /// #204 cell list — the two promoted INSTRUCTIONS clauses, each against
+    /// its own rollback, WARM and WITHIN-RUN. Both promotions were
+    /// re-verified only on a COLD instrument against cross-run historical
+    /// baselines (#200K, #200O), and #200O itself proved cross-run
+    /// comparison worthless here — its three cells landed on exactly 6/10
+    /// remind on three different texts.
+    ///
+    /// Production runs FIRST: the incumbent takes the cool slot, and since
+    /// the rollbacks are the arms that must exhibit a DISEASE, penalising
+    /// them thermally is the conservative direction. Pinned.
+    nonisolated static let clauseReverifyBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedCardrollback, .armedCarveoutrollback,
+    ]
+
+    /// #204 one-tap wrapper: 3 cells × four prompts — 12 × trials
+    /// generations, plus the discarded warm-up.
+    func runClauseReverifyBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.clauseReverifyBatteryCells,
+                               includeGrabCanary: true)
     }
 
     /// #200P cell list — production vs the stall clause, both arms in the
@@ -4196,6 +4231,11 @@ extension LocalChatBackend {
     /// The clause under test, pinned: it targets the CLAIM (not the output
     /// format, which the payload already mandated and #202B violated anyway)
     /// and is SCOPED to action requests so it cannot resurrect #196's tic.
+    /// #204: the promoted dead-end carve-out, hoisted so the rollback cell
+    /// can be pinned as "production MINUS exactly this string". Promoted at
+    /// #200M/#200O; re-verified there only against a CROSS-RUN baseline.
+    nonisolated static let deadEndCarveoutClause = " If you can't identify a person named in an event, that's fine — create the event with the name exactly as the user gave it."
+
     nonisolated static let toollessHonestyClause = " If the user asks you to create, set, add, schedule, or change something on their device — including agreeing to an offer you made earlier — you cannot do it on this turn: say so in one plain sentence and stop. Never say or imply that you have created, set, added, or scheduled anything, and never write out a tool call."
 
     /// #202D: v1 kept. Its claim ban and tool-syntax ban took the disease

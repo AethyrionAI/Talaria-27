@@ -1080,6 +1080,31 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #204: full action battery — auto-ACCEPT, real writes, reaped per
+    // trial. Run with Reminders/Calendar GRANTED.
+    @ViewBuilder
+    private func clauseReverifyBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runClauseReverifyBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #202D: same empty-belt shape as #202C — nothing to grant, nothing to reap.
     @ViewBuilder
     private func honestyV2BatteryButton(trials: Int, label: String) -> some View {
@@ -1301,6 +1326,11 @@ struct DiagnosticsSettingsScreen: View {
                 // #202C companion: ctx-a on realistic LONG contexts, timed.
                 HStack(spacing: Design.Spacing.sm) {
                     longContextProbeButton(trials: 5, label: "Long-context probe n=5 (50)")
+                }
+                // #204: the two promoted instruction clauses vs their own
+                // rollbacks, warm and within-run. Auto-ACCEPT, real writes.
+                HStack(spacing: Design.Spacing.sm) {
+                    clauseReverifyBatteryButton(trials: 10, label: "Clause re-verify n=10 (120+4)")
                 }
                 // #202D: clause v1 vs the reworded v2 — production absent,
                 // its number is settled across two runs.
