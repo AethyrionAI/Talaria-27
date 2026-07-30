@@ -1058,6 +1058,47 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #202C: the honesty lane. Every trial runs with an EMPTY belt, so no
+    // confirmation can fire and nothing can be written — no grants needed
+    // and nothing to reap, same as the probes.
+    @ViewBuilder
+    private func honestyBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runHonestyBattery(trials: trials)
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
+    @ViewBuilder
+    private func longContextProbeButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runLongContextProbe(trials: trials)
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     private var localBrainPanel: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             MonoLabel("// Local brain — #102", size: 10, tracking: Design.Tracking.monoXWide,
@@ -1229,6 +1270,16 @@ struct DiagnosticsSettingsScreen: View {
                 // writes, reaped per trial — run with Reminders GRANTED.
                 HStack(spacing: Design.Spacing.sm) {
                     twoTurnBatteryButton(trials: 12, label: "Two-turn n=12 (24+5+1)")
+                }
+                // #202C: the toolless honesty clause + the #196 tic guard.
+                // NO belt in any trial, so nothing can be created and there
+                // is nothing to grant or reap.
+                HStack(spacing: Design.Spacing.sm) {
+                    honestyBatteryButton(trials: 10, label: "Honesty n=10 (20+24+1)")
+                }
+                // #202C companion: ctx-a on realistic LONG contexts, timed.
+                HStack(spacing: Design.Spacing.sm) {
+                    longContextProbeButton(trials: 5, label: "Long-context probe n=5 (50)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
