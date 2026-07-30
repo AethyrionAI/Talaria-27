@@ -10709,3 +10709,63 @@ rollback is the required-field struct, promoted cell becomes the next pooled
 re-verify) and land the per-trial alarm cancel in the same branch. The
 schemaquiet cell should be RETIRED, not re-measured — it disables the tool it
 was meant to isolate.**
+
+**#200S RE-VERIFY FILED, 2026-07-29 — schema re-verify n=10 (120 trials, PR #184
+branch `c279794`, corded Xcode build WITH DEBUGGER ATTACHED per the new
+protocol, os 27.0 24A5390f, run sealed `reminders=45 events=25 alarms=30
+failures=0`, ZERO exclusions, classified live from the console bridge — no
+export needed). Reap arithmetic EXACT and hand-verified against the console:
+reminders 17+14+14=45, events 8+8+9=25, alarms 10+10+10=30. First run with the
+per-trial alarm cancel live: 30 scheduled, 30 cancelled, nothing stranded.**
+
+| prompt | **POOLED production** (armed + schemafix, n=20) | armed-schemarollback (n=10) |
+|---|---|---|
+| remind | **20/20 (100%)** | 7/10 |
+| alarm | **20/20** | **10/10** |
+| calendar | 15/20 (75%) | 9/10 |
+| haiku grabs | 10/20 (50%) | 7/10 |
+
+**THE PROMOTION IS CONFIRMED AGAINST ITS OWN ROLLBACK, IN THE SAME RUN, AND THE
+CAUSAL CHAIN IS NOW CLOSED.** Pooled production remind is **20/20 with zero
+stalls** — the third independent 10/10 for the optional-field schema (#200Q,
+#200R, and both arms here) — while the rollback arm, which differs ONLY in
+those two field types being required again, drops to **7/10**. And its three
+misses are the exact disease, verbatim from the console:
+
+- t2: "Here's the confirmation card for your reminder … Would you like to proceed?"
+- t8: "Here's the reminder setup … Would you like to proceed?"
+- t9: **"I need to know which list you'd like it added to (e.g. 'Default' or another list)."**
+
+**Restore the required `list` field and the model asks which list; make it
+optional and it creates.** Five lanes of wording (#200B guidefix, #200D destall,
+#200K datefix, #200P stallfix) could not move this because they were arguing
+with a schema constraint prose cannot reach. The card-narration relapse in the
+rollback arm is the same story: with a field it must fill and no value for it,
+narrating the card and asking is the model's rational move.
+
+**Collateral, honestly:** calendar 15/20 (75%) pooled vs the rollback's 9/10,
+i.e. ~1.5 trials/10 worse — inside the K=3 guard and inside calendar's own
+demonstrated between-run swing (7/10, 4/10, 10/10, 8/10, 9/10 across the week),
+but the direction is unfavourable and it is the one number to watch on the next
+run. Grabs pooled 10/20 (50%) vs the rollback's 7/10, i.e. the optional schema
+looks BETTER on grabs — directionally consistent with #200Q's collapse but far
+weaker, and NOT claimed: #200R already withdrew that claim once.
+
+**Protocol note, stated because it is a gap and not a detail: this run had NO
+pre-registered dispatch doc.** The promotion itself was justified by #200Q +
+#200R, both with bars set in advance, and this run is a confirmation — but a
+120-trial run without written bars is a lane run on memory, which is exactly
+what the dispatch discipline exists to prevent. The numbers above are reported
+against the standing #200K-pattern bars (pooled remind ≥17/20, alarm 20/20,
+calendar ≥14/20, rollback arm worse on remind); all four hold. A #200S dispatch
+doc is owed retroactively or the next lane starts one.
+
+**Also confirmed: the jetsam protocol works.** Debugger attached, 120/120 trials,
+zero exclusions, first attempt — against four consecutive kills without it.
+
+**Disposition: the optional-field reminder schema STANDS as production.** The
+rollback cell stays picker-reachable as the pinned revert. Next candidates, in
+order of evidence: (1) extend optionality to `CalendarEventTool`'s `location` /
+`durationMinutes` — the same mechanism, and calendar is now the weakest
+production number at ~75%; (2) the remaining calendar disease is still the "Sam"
+lookup dead-end that #200O's promoted carve-out only partly tames.
