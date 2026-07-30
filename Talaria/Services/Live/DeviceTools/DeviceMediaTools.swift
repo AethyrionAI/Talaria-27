@@ -153,6 +153,57 @@ struct BarcodeReaderTool: Tool, ImageDependentTool {
     }
 }
 
+// MARK: - Per-tool timeout (#200Y)
+
+/// The battery's 35-second guillotine calls `respondTask.cancel()`, and Swift
+/// cancellation is COOPERATIVE — a tool blocked inside its own `call()` never
+/// observes it. Measured twice: #200V's excluded TIMEOUT (six
+/// `searchConversations` calls on one query) and #200W's `armed/haiku/t5`, which
+/// called `searchConversations` and emitted nothing for 2.5+ minutes.
+///
+/// So the timeout belongs at the TOOL, where the blocking happens.
+///
+/// **Honest about what this can and cannot do:** it stops the tool WAITING on a
+/// wedged operation; it cannot kill one. A blocked call is left running and its
+/// result discarded. That is the correct trade — the model gets a usable answer
+/// and the run continues, instead of a wedge that outlives the guillotine.
+enum DeviceToolTimeout {
+    /// Generous enough that a slow-but-working device search still returns,
+    /// tight enough that a wedge cannot outlive the generation guillotine.
+    static let defaultSeconds: Double = 12
+
+    static func timeoutText(label: String, seconds: Double) -> String {
+        "The \(label) tool timed out after \(Int(seconds.rounded()))s and returned nothing — answer with what you already have, and do not call it again."
+    }
+
+    static func run(seconds: Double = defaultSeconds, label: String,
+                    _ operation: @escaping @Sendable () async -> String) async -> String {
+        final class Gate: @unchecked Sendable {
+            private let lock = NSLock()
+            private var resumed = false
+            func claim() -> Bool {
+                lock.lock(); defer { lock.unlock() }
+                if resumed { return false }
+                resumed = true
+                return true
+            }
+        }
+        let gate = Gate()
+        return await withCheckedContinuation { (continuation: CheckedContinuation<String, Never>) in
+            Task {
+                let value = await operation()
+                if gate.claim() { continuation.resume(returning: value) }
+            }
+            Task {
+                try? await Task.sleep(for: .seconds(seconds))
+                if gate.claim() {
+                    continuation.resume(returning: timeoutText(label: label, seconds: seconds))
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Local RAG over conversations (#17 Spotlight cache + live thread)
 
 struct ConversationSearchTool: Tool {
@@ -191,15 +242,21 @@ struct ConversationSearchTool: Tool {
         defer { Task { await relay.completed(name) } }
         guard !term.isEmpty else { return "No search term was given." }
 
-        let conversation = await conversationProvider()
-        let sessions = await sessionCacheProvider()
-        let indexOn = await spotlightEnabledProvider()
-        return Self.report(
-            term: term,
-            conversation: conversation,
-            sessions: sessions,
-            spotlightEnabled: indexOn
-        )
+        // #200Y: the three awaits below are MainActor hops, and a hop onto a
+        // busy main actor is precisely a wait cancellation cannot interrupt —
+        // the wedge measured in #200V and #200W. Bounded here, at the tool.
+        let providers = (conversationProvider, sessionCacheProvider, spotlightEnabledProvider)
+        return await DeviceToolTimeout.run(label: name) {
+            let conversation = await providers.0()
+            let sessions = await providers.1()
+            let indexOn = await providers.2()
+            return Self.report(
+                term: term,
+                conversation: conversation,
+                sessions: sessions,
+                spotlightEnabled: indexOn
+            )
+        }
     }
 
     /// Pure search + report assembly (unit-tested).
