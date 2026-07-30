@@ -11295,3 +11295,51 @@ working tree constantly — it was discarded by hand a dozen times during the
 **#190 re-verified as a legitimate open SHIP BLOCKER** (Hermes checked rather than
 assumed): the 2026-07-26 device-pass FAIL on PR #151 — dead taps in the unified
 drawer — still stands. Nothing about #200's work touches it.
+
+**#201 VERDICT FILED, 2026-07-30 — contact dead-end at n=20 (160 counted + 4
+warm-up, PR #189 branch `7f89497`+, corded WITH DEBUGGER ATTACHED, os 27.0, sealed
+`reminders=77 events=38 alarms=41 failures=0`, `endedCleanly: true`, ZERO
+exclusions). Classified by `scripts/classify-battery-run.py`. Arithmetic EXACT:
+152 accepted creates, 156 reaped, residual 4 = the warm-up's four trials.**
+
+| measure | armed-deadend2 (treatment) | armed (production, LAST) |
+|---|---|---|
+| remind | **20/20** | **20/20** |
+| alarm | **20/20** | **20/20** |
+| calendar | **20/20** | 17/20 |
+| dead-end misses | **0** | **3** (t2, t10, t19 — all three misses) |
+| invented location | 0 | 0 |
+| haiku grabs | 17/20 | 17/20 |
+
+**VERDICT: INCONCLUSIVE by the pre-registered evaluability gate. Nothing
+promotes.** The gate required the control to show **≥4/20** dead-end misses; it
+showed **3**. The treatment satisfied its pass threshold (0 ≤ 2/20, and ≤ half the
+control), but the gate governs.
+
+**THE GATE WAS MIS-SPECIFIED, AND THAT IS MY ERROR, NOT THE DISEASE'S.** Production's
+warm dead-end rate pooled **5/30 ≈ 16.7%** across #200V/#200W/#200Z. Over 20 trials
+that predicts **3.3 events**. Setting the gate at ≥4 therefore required the disease
+to appear **above its own expected rate** — a coin flip on its own arithmetic. So
+the gate's failure is not information about the hypothesis; it is information about
+the bar. **Third floor in three lanes to land exactly one short** (#200Z: invented
+locations 3 vs ≥4; here: dead-ends 3 vs ≥4), and the pattern is thresholds set from
+judgement without doing the power arithmetic first.
+
+**THE STATISTICS AGREE WITH THE GATE'S CAUTION ANYWAY, which is why this is not a
+promotion in disguise:** calendar 20/20 vs 17/20 is **p≈0.23**; dead-ends 0/20 vs
+3/20 is **p≈0.23**. Encouraging direction, not evidence. A 3-event base cannot
+carry a conclusion. **The treatment's calendar 20/20 is nevertheless the best
+calendar number the program has recorded**, and production's 17/20 (85%) warm is
+consistent with its ~9/10 estimate.
+
+**Note on the closing condition.** #201's dispatch said a failed gate CLOSES the
+hypothesis with no third bite "without new evidence". A demonstrably
+mis-calibrated gate is new evidence **about the instrument**, not hypothesis-
+shopping about the disease, so the honest disposition is: this run is
+inconclusive, the seam stays `false`, and a **properly powered** re-run is
+warranted. Owen routed exactly that (#201B, n=40).
+
+**Grabs 17/20 in BOTH arms (85%)** — equal, so no signal, and not user-facing per
+#200O's router probe. Worth noting the absolute number is the highest recorded;
+the grab canary is measured under armed construction, which production reaches only
+on a router miss.
