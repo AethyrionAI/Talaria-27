@@ -1010,6 +1010,28 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #202A: same shape as the #196 router probe — pure classification, so
+    // no confirmation auto-decline and nothing to sweep afterwards. The
+    // idle-timer lock matters here too: ~585 generations is ~10 minutes.
+    @ViewBuilder
+    private func routerContextProbeButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runRouterContextProbe(trials: trials)
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     private var localBrainPanel: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             MonoLabel("// Local brain — #102", size: 10, tracking: Design.Tracking.monoXWide,
@@ -1168,6 +1190,14 @@ struct DiagnosticsSettingsScreen: View {
                 // #201B confirmation: reversed, production in the cool slot.
                 HStack(spacing: Design.Spacing.sm) {
                     deadendReversedBatteryButton(trials: 40, label: "Dead-end REVERSED n=40 (320+4)")
+                }
+                // #202A: the context-blind router probe. 3 generating
+                // variants × 23 rows × n, plus the free deterministic
+                // lenrule column. Pure classification — no tool runs and
+                // nothing is written, so this one needs no grants and has
+                // nothing to reap.
+                HStack(spacing: Design.Spacing.sm) {
+                    routerContextProbeButton(trials: 15, label: "Router context n=15 (~585)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
