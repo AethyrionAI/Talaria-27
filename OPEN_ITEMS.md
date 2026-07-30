@@ -11096,3 +11096,77 @@ remains unpromoted rather than refuted.
    capture-log file copy (`Documents/battery-capture.log`, exportable from the
    results page) is the surviving path to the REAP lines and should be exported
    alongside the run JSON from now on, not only when the console fails.
+
+**#200Z VERDICT FILED, 2026-07-30 — calendar promotion vs its own rollback, n=10
+(80 counted + 4 discarded warm-up, PR #189 branch `3aadf77`, corded WITH DEBUGGER
+ATTACHED, os 27.0, sealed `reminders=34 events=15 alarms=21 failures=0`,
+`endedCleanly: true`). CLASSIFIED BY `scripts/classify-battery-run.py` — the
+first verdict in this program whose counts were generated rather than
+hand-tallied. Bars pre-registered in
+`dispatch/OPUS-T27-200Z-calendar-rollback-verify.md`.**
+
+**Reap arithmetic EXACT, and it closes to the artifact:** 33 + 20 + 14 = 67
+accepted creates across the counted trials; 34 + 15 + 21 = 70 reaped; residual
+**3** = exactly one artifact from each of the warm-up's three create trials
+(remind, calendar, alarm — its haiku trial errored). The one calendar event I
+could not attribute from console sampling was a **haiku grab creating a calendar
+event**, which the classifier found immediately.
+
+| measure | armed-calrollback (required fields) | armed (production, LAST) |
+|---|---|---|
+| remind | **10/10** | **10/10** |
+| alarm | **10/10** | **10/10** |
+| calendar creates | 6/9 (t2 excluded) | 7/10 |
+| `currentLocation` | **6/9** | **0/10** |
+| `searchPlaces` (reported only) | 2/9 | 0/10 |
+| **invented location in a create** | **3** (t4, t6, t9) | **0** |
+| dead-end misses | 2 | 3 |
+| haiku grabs | 7/9 | 7/10 |
+
+**Exclusions (2 counted + 1 warm-up):** `armed-calrollback/calendar/t2` —
+**`ToolCallError(CalendarEventToolRequiredFields)`**, an argument-DECODE failure;
+`armed-calrollback/haiku/t7` and the warm-up haiku — `readHealth` decode, the
+known class.
+
+**PRIMARY 2 PASSES AND REPLICATES:** `currentLocation` 6/9 in the rollback arm
+(bar ≥6) against **0/10** in production (bar ≤3). #200W measured 0 vs 7 with the
+arms in the opposite slots; this is the same effect, warm, with production in the
+conservative last position.
+
+**PRIMARY 1 IS UNMET, BY ONE TRIAL.** Invented locations: production **0/10**
+(bar ≤1, met), rollback **3/9** where the bar was **≥4**. Recorded plainly
+because the temptation to rescue it is exactly what the bars exist to stop: if
+the two location-exposing MISSES were counted (t8 narrating "Current location:
+19200 Crestwick St, Saucier, MS", t10 offering "Saucier, MS … 5.0 miles away"),
+the rollback arm surfaced an invented location in 5 of 9 trials — **but the
+pre-registered measure said CREATES, so the honest number is 3 and the bar is
+not met.** The definition does not get rewritten after the data.
+
+**CORRECTION to my own live reporting:** I read `currentLocation` as **7** from a
+console `totalCount`, which included the excluded t2 trial. The classifier's
+6/9 is the correct figure. This is precisely the hand-tallying error the script
+was written to remove, and it removed it on its first real use.
+
+**THE REVERT CONDITION DID NOT FIRE.** The rollback arm both invented locations
+(3) and spiralled (6/9 `currentLocation`, 2/9 `searchPlaces`), so #200X's premise
+holds. **Disposition: the promotion STANDS; the confirmation is PARTIAL** — one
+primary replicated, one short by a single trial.
+
+**UNREGISTERED FINDING, stronger than the bar it missed:** the rollback arm threw
+`ToolCallError(CalendarEventToolRequiredFields)` — an argument-decode failure the
+promoted tool **structurally cannot produce**, having two fewer required fields.
+Production had zero calendar errors. That is the tool-throw audit's prediction
+(#200H, corrected) confirmed by accident, and it is independent of the location
+behaviour.
+
+**THE "SAM" DEAD-END IS GROWING IN WARM PRODUCTION: 0/10 (#200V) → 2/10 (#200W)
+→ 3/10 (#200Z).** Three warm samples. #200V withdrew #200U's fix because warm
+production showed zero dead-ends; that reading no longer holds, and Owen has
+routed a reconsideration. The `continuesAfterNoMatch` seam is still in the tree,
+defaulting false, with the classifier now labelling dead-end misses
+automatically — so the re-run is cheap and its primary measure is a count, not a
+rate.
+
+**Wedge watch: no wedge occurred, so `DeviceToolTimeout` never fired.** Nothing
+is concluded about it either way; the wedge is intermittent and the timeout stays
+in place as insurance.
