@@ -145,6 +145,9 @@ final class DeviceLocationProvider: NSObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
     private var authorizationContinuations: [CheckedContinuation<CLAuthorizationStatus, Never>] = []
     private var locationContinuations: [CheckedContinuation<CLLocation?, Never>] = []
+    /// #203: bumped every time waiters are resolved, so a fired deadline can
+    /// only ever affect the request it was armed for.
+    private var locationGeneration = 0
 
     override init() {
         super.init()
@@ -162,16 +165,49 @@ final class DeviceLocationProvider: NSObject, CLLocationManagerDelegate {
         }
     }
 
+    /// How long a one-shot fix may take before the tools give up. Apple's
+    /// `requestLocation()` normally delivers a fix or an error well inside
+    /// this; the deadline exists for when it delivers NEITHER.
+    static let fixDeadline: Duration = .seconds(10)
+
     /// One-shot fix. A fix from the last two minutes is fresh enough for
     /// weather/places and skips the radio spin-up.
+    ///
+    /// #203 (SHIP BLOCKER, Hermes audit): this used to park a continuation with
+    /// NO deadline. If CoreLocation delivered neither `didUpdateLocations` nor
+    /// `didFailWithError` — plausible under beta thermal pressure — the waiter
+    /// never resumed, and because a hung TOOL is not cancellable (#200Y) and the
+    /// PRODUCTION stream loop has no guillotine (that is battery-only), the
+    /// user's chat turn spun forever with no recovery. Now bounded: on deadline
+    /// the waiters resume `nil`, which every caller already renders honestly as
+    /// "couldn't get a location fix right now".
+    ///
+    /// `ensureAuthorization()` is deliberately left UNBOUNDED: it waits on a
+    /// human reading a system dialog, and no machine deadline is fair to that.
     func currentLocation() async -> CLLocation? {
         if let cached = manager.location, cached.timestamp.timeIntervalSinceNow > -120 {
             return cached
+        }
+        let generation = locationGeneration
+        Task { [weak self] in
+            try? await Task.sleep(for: Self.fixDeadline)
+            await self?.failLocationWaitersIfStillPending(generation: generation)
         }
         return await withCheckedContinuation { continuation in
             locationContinuations.append(continuation)
             manager.requestLocation()
         }
+    }
+
+    /// Resumes any waiter still parked from `generation` with nil. Generation
+    /// counting is what keeps a late deadline from cancelling a LATER request's
+    /// waiters — the bug a naive timeout would introduce.
+    private func failLocationWaitersIfStillPending(generation: Int) {
+        guard generation == locationGeneration, !locationContinuations.isEmpty else { return }
+        let waiting = locationContinuations
+        locationContinuations = []
+        locationGeneration += 1
+        waiting.forEach { $0.resume(returning: nil) }
     }
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
@@ -187,16 +223,18 @@ final class DeviceLocationProvider: NSObject, CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         let newest = locations.last
         Task { @MainActor in
-            let waiting = locationContinuations
-            locationContinuations = []
+            let waiting = self.locationContinuations
+            self.locationContinuations = []
+            self.locationGeneration += 1
             waiting.forEach { $0.resume(returning: newest) }
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
-            let waiting = locationContinuations
-            locationContinuations = []
+            let waiting = self.locationContinuations
+            self.locationContinuations = []
+            self.locationGeneration += 1
             waiting.forEach { $0.resume(returning: nil) }
         }
     }

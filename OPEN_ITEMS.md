@@ -11000,3 +11000,63 @@ tools relocates the spiral; it does not remove it.
    card narration citing *"Location: Not specified"* — which lines up with
    #200T's exploratory location-spiral finding and makes the calendar
    `location`/`durationMinutes` optionality worth a warm re-run.
+
+## #203 — SHIP BLOCKER: an unbounded CoreLocation wait can spin a production turn forever
+
+**Filed and FIXED 2026-07-30. Found by Hermes's independent night audit, verified
+line-by-line here, and more severe than the audit could see from outside: the
+report noted the unbounded wait; what makes it a blocker is that production has no
+backstop at all.**
+
+**The chain, all confirmed in the tree:**
+
+1. `DeviceLocationProvider.currentLocation()` parked a `withCheckedContinuation`
+   and called `manager.requestLocation()` with **no deadline**. If CoreLocation
+   delivers neither `didUpdateLocations` nor `didFailWithError`, that waiter never
+   resumes.
+2. `LocationTool`, `WeatherTool` and `PlacesTool` all `await` it on the
+   **production** path.
+3. **A hung tool is not cancellable** — `Task.cancel()` is cooperative, and a tool
+   blocked inside its own `call()` never observes it (measured twice in the #200
+   program, on `searchConversations`).
+4. **Production has NO guillotine.** The 35-second cancel exists only in
+   `executeBatteryTrial` (DEBUG battery). The production stream loop is a bare
+   `for try await snapshot in stream` with no deadline anywhere.
+
+**So a wedged location callback = a real chat turn spinning forever, with no
+recovery short of force-quitting the app.** Strictly worse than the battery wedge
+that motivated the per-tool timeout work, because the battery at least had a
+backstop.
+
+**It also exposes a gap in that timeout work:** it bounded the *inner* work of
+tools (`searchConversations`, the Contacts fetch, `MKLocalSearch`) while
+`ensureAuthorization()` / `currentLocation()` — which run BEFORE those wrapped
+closures, and which three tools share — stayed unbounded. Fixing tool bodies while
+leaving the shared provider open was an incomplete fix, and it took an outside
+reader to see it.
+
+**FIX:** `currentLocation()` arms a `fixDeadline` of 10s; on expiry any
+still-parked waiter resumes `nil`, which every caller already renders honestly
+("Couldn't get a location fix right now…"). **Generation counting** guards it —
+waiters are stamped, the delegate bumps the stamp when it resolves them, so a late
+deadline can only ever affect the request it was armed for. That is the bug a
+naive timeout would have introduced.
+
+**`ensureAuthorization()` is deliberately left UNBOUNDED:** it waits on a human
+reading a system dialog, and no machine deadline is fair to that.
+
+**STILL OPEN, and both need a product decision rather than code:**
+
+- **Production has no turn-level deadline of any kind.** This item closes the one
+  hole we can prove; the general cure is a bound on the production stream or a
+  visible "this is taking unusually long" affordance.
+- **`locationManagerDidChangeAuthorization` returns early while status is
+  `.notDetermined`**, so a user who dismisses the permission dialog without
+  deciding parks a waiter indefinitely. What that should do to the turn is
+  undecided.
+
+**Test honesty:** the pin (`locationFixHasABoundedDeadline`) asserts only that a
+bounded, non-zero deadline exists. `DeviceLocationProvider` is a concrete
+`CLLocationManagerDelegate` with no protocol seam, so the generation-counted
+resume path cannot be driven from a test without a refactor. A behavioural test is
+owed.
