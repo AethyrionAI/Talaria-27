@@ -470,19 +470,53 @@ struct DeviceToolBeltTests {
             == (LocalChatBackend.activeSessionShape == .armedRouted))
     }
 
-    @Test func promotedRoutedToollessTurnSpeaksExactlyTheMeasuredLic2Text() {
-        // The promoted production branch calls the lic2 flag directly
-        // (no SessionShape in Release) — it must produce byte-identical
-        // text to the toolless-lic2 cell the battery measured at 60/60.
-        let direct = LocalChatBackend.instructionsText(
-            deviceContext: "Device: test.", date: Self.shapeDate,
-            hasTools: false, hasImageTools: false,
-            includeToollessLic2Clause: true
+    @Test func promotedRoutedToollessTurnSpeaksTheLic2TextPlusTheHonestyClause() {
+        // #202D PROMOTION: production is now the lic2 payload PLUS clause v2.
+        // The lic2 cell remains the pre-#202D text and is the pinned rollback.
+        let production = LocalChatBackend.productionToollessInstructions(
+            deviceContext: "Device: test.", date: Self.shapeDate, hasImageTools: false
         )
-        let cell = LocalChatBackend.instructionsText(
+        let lic2Cell = LocalChatBackend.instructionsText(
             for: .toollessLic2, deviceContext: "Device: test.", date: Self.shapeDate
         )
-        #expect(direct == cell)
+        #expect(production == lic2Cell + LocalChatBackend.toollessHonestyClauseV2)
+        // ...and it is byte-identical to the ARM that was measured (#202D
+        // honesty-fix-v2: 0/10 lies, 0/10 capability claims, tic 12/12).
+        let measuredArm = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate,
+            hasTools: false, hasImageTools: false,
+            includeToollessLic2Clause: true, includeToollessHonestyClauseV2: true
+        )
+        #expect(production == measuredArm)
+    }
+
+    /// #202D PROMOTION: the router now classifies WITH the previous
+    /// assistant turn. `.control` — the context-blind router that misrouted
+    /// 6/6 accepts — is the pinned rollback and stays reachable as a cell.
+    @Test func productionRouterVariantIsCtxAWithControlAsThePinnedRollback() {
+        #expect(LocalChatBackend.productionRouterVariant == .ctxA)
+        #expect(LocalChatBackend.routerInstructions(for: .ctxA)
+                == LocalChatBackend.toolIntentRouterInstructions)
+        // The rollback is a real, measured cell, not an aspiration.
+        #expect(LocalChatBackend.routerProbeVariants.contains(.control))
+    }
+
+    /// After the promotion the `honesty-control` cell is production MINUS the
+    /// clause — the pinned rollback, exactly as `armed-cardrollback` and
+    /// `armed-deadendrollback` became after their promotions.
+    @Test func honestyControlCellIsNowThePinnedRollbackNotProduction() {
+        let rollback = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate,
+            hasTools: false, hasImageTools: false, includeToollessLic2Clause: true
+        )
+        let production = LocalChatBackend.productionToollessInstructions(
+            deviceContext: "Device: test.", date: Self.shapeDate, hasImageTools: false
+        )
+        #expect(rollback != production)
+        #expect(!LocalChatBackend.HonestyCell.honestyControl.includesHonestyClause)
+        // And the v2 cell is now identity with production (the findfix /
+        // cardfix precedent: a promoted cell keeps measuring the shipped text).
+        #expect(LocalChatBackend.HonestyCell.honestyFixV2.usesV2Clause)
     }
 
     @Test func routerConstantsPinTheMeasuredWinningShape() {

@@ -695,8 +695,19 @@ final class LocalChatBackend: HermesClientProtocol {
         // the A/B picker can pin a legacy cell, which disables routing for
         // the launch so every non-routed cell stays pure.
         if Self.turnRoutingEnabled {
-            turnRoutedToolless = !(await routeNeedsDeviceTool(prompt: nextPrompt))
-            Self.logger.notice("router: turn routed \(self.turnRoutedToolless ? "toolless" : "armed", privacy: .public) (#196)")
+            // #202D: classify WITH the previous assistant turn. Drawn from
+            // the same `transcriptTurns` source `rebuildSession` replays, so
+            // the router sees exactly the turn the model will see. Without
+            // it, "Yes please" after an offer is just conversation and routes
+            // toolless — 6/6 in #202A, and the resulting disarmed turn then
+            // LIED about having acted in 10/12 cases (#202B).
+            let priorAssistantTurn = Self.transcriptTurns(
+                from: currentConversation?.messages ?? [],
+                excludingClientMessageID: excludingClientMessageID
+            ).last { $0.role == .assistant }?.text ?? ""
+            turnRoutedToolless = !(await routeNeedsDeviceTool(
+                prompt: nextPrompt, context: priorAssistantTurn))
+            Self.logger.notice("router: turn routed \(self.turnRoutedToolless ? "toolless" : "armed", privacy: .public) ctx=\(priorAssistantTurn.isEmpty ? "none" : "prior-turn", privacy: .public) (#202D)")
         } else {
             turnRoutedToolless = false
         }
@@ -985,11 +996,9 @@ final class LocalChatBackend: HermesClientProtocol {
         // branch — the toolless-lic2 payload, the text that measured 60/60
         // content and clean on device.
         if turnRoutedToolless {
-            return Self.instructionsText(
+            return Self.productionToollessInstructions(
                 deviceContext: Self.deviceContextLine(),
-                hasTools: false,
-                hasImageTools: hasImage,
-                includeToollessLic2Clause: true
+                hasImageTools: hasImage
             )
         }
         #if DEBUG
@@ -2285,10 +2294,38 @@ extension LocalChatBackend {
         return shortAffirmatives.contains(stripped.lowercased())
     }
 
-    /// Classifies one turn. Fail-safe: any error routes to the ARMED
-    /// session — full production behavior, tools available.
-    func routeNeedsDeviceTool(prompt: String) async -> Bool {
-        await routeNeedsDeviceTool(prompt: prompt, context: "", variant: .control)
+    /// #202D PROMOTION (2026-07-30): production routes with the previous
+    /// assistant turn as context. The context-blind `.control` router
+    /// misrouted **6/6** bare affirmatives after an offer (#202A) while
+    /// scoring 17/17 on everything else, and ctx-a fixed 13/13 short rows
+    /// and 10/10 long ones at no latency cost (#202C: 0.560s either way).
+    /// **Rollback: `.control`**, still reachable as a measured probe cell.
+    nonisolated static let productionRouterVariant: RouterVariant = .ctxA
+
+    /// #202D PROMOTION: the toolless branch's shipped text, in ONE place so
+    /// the live path and the measured arm cannot drift apart. Production is
+    /// the promoted `toolless-lic2` payload PLUS clause v2.
+    /// **Rollback: drop `includeToollessHonestyClauseV2`** — that is exactly
+    /// the `honesty-control` cell, measured at 9/10 broken turns.
+    nonisolated static func productionToollessInstructions(
+        deviceContext: String, date: Date = .now, hasImageTools: Bool
+    ) -> String {
+        instructionsText(
+            deviceContext: deviceContext, date: date,
+            hasTools: false, hasImageTools: hasImageTools,
+            includeToollessLic2Clause: true,
+            includeToollessHonestyClauseV2: true
+        )
+    }
+
+    /// Classifies one turn against the PRODUCTION variant. Fail-safe: any
+    /// error routes to the ARMED session — full production behavior, tools
+    /// available. `context` is the previous assistant turn (empty when the
+    /// conversation has none, which makes ctx-a fall back to the bare
+    /// production envelope).
+    func routeNeedsDeviceTool(prompt: String, context: String = "") async -> Bool {
+        await routeNeedsDeviceTool(prompt: prompt, context: context,
+                                   variant: Self.productionRouterVariant)
     }
 
     /// The variant-parameterized router. Production calls it with
@@ -3632,7 +3669,11 @@ extension LocalChatBackend {
         for probe in probes {
             var correct = 0
             for _ in 1...trials {
-                if await routeNeedsDeviceTool(prompt: probe.text) == probe.expected { correct += 1 }
+                // Explicitly .control: this probe's 200/200 history is the
+                // CONTEXT-BLIND router's, and #202D moved production to
+                // ctx-a. Pinning the variant keeps the series comparable.
+                if await routeNeedsDeviceTool(prompt: probe.text, context: "",
+                                              variant: .control) == probe.expected { correct += 1 }
             }
             Self.batteryEmit("router: \(correct)/\(trials) expected=\(probe.expected) probe=\(probe.text)")
             Self.batteryRecorder.recordProbe(probe: probe.text, expected: probe.expected, correct: correct, trials: trials)
@@ -4037,9 +4078,11 @@ extension LocalChatBackend {
             for: .armedRouted, deviceContext: Self.deviceContextLine(),
             hasTools: !fullBelt.isEmpty, hasImageTools: false
         )
-        let toollessInstructions = Self.instructionsText(
-            deviceContext: Self.deviceContextLine(), hasTools: false,
-            hasImageTools: false, includeToollessLic2Clause: true
+        // #202D: production's toolless text now carries clause v2, so the
+        // two-turn instrument speaks it too — an instrument that lags the
+        // shipped payload measures a path no user takes.
+        let toollessInstructions = Self.productionToollessInstructions(
+            deviceContext: Self.deviceContextLine(), hasImageTools: false
         )
         Self.batteryEmit("battery: START kind=twoturn trials=\(trials) cells=\(cells.count) warmup=\(warmup) (#202B)")
 
@@ -4165,9 +4208,10 @@ extension LocalChatBackend {
     nonisolated static let toollessHonestyClauseV2 = " If the user asks you to create, set, add, schedule, or change something on their device — including agreeing to an offer you made earlier — you cannot do it on this turn. Say in one plain sentence that you can't do it right now, and invite them to ask you for it directly. Never suggest that you or this app lack the ability to do it at all — the limit is this turn, not the app. Never say or imply that you have created, set, added, or scheduled anything, and never write out a tool call."
 
     enum HonestyCell: String, CaseIterable {
-        /// Production's promoted `toolless-lic2` payload. Its fabrication
-        /// rate is ALSO a replication of #202B's 10/12 — a control that
-        /// re-measures a known number is a free instrument check.
+        /// PRE-#202D production: the bare `toolless-lic2` payload. Since the
+        /// promotion this is the PINNED ROLLBACK, not production — the
+        /// `armed-cardrollback` / `armed-deadendrollback` precedent. Measured
+        /// at 9/10 broken turns (4 lies + 6 raw syntax, 1 honest).
         case honestyControl = "honesty-control"
         /// Same payload plus the honesty clause. One seam.
         case honestyFix = "honesty-fix"
