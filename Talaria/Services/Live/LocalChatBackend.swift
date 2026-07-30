@@ -3779,6 +3779,246 @@ extension LocalChatBackend {
         Self.batteryEmit("router: CONTEXT PROBE DONE (#202A)")
         Self.batteryRecorder.endRun()
     }
+
+    // MARK: - (#202B) the two-turn offer→accept battery
+
+    /// The conversation shape #200's own filing specimen took, and the one
+    /// every existing instrument is blind to. The offer carries a FULLY
+    /// SPECIFIED time deliberately: an underspecified offer would drag
+    /// #200K's date-interrogation disease into the middle of a routing
+    /// measurement and confound the two.
+    struct TwoTurnSeed {
+        let opener: String
+        let offer: String
+        let accept: String
+        var turns: [TranscriptTurn] {
+            [TranscriptTurn(role: .user, text: opener),
+             TranscriptTurn(role: .assistant, text: offer)]
+        }
+    }
+
+    nonisolated static let twoTurnSeed = TwoTurnSeed(
+        opener: "Ugh, I always forget to call the dentist back.",
+        offer: "Would you like me to set a reminder to call the dentist tomorrow at 9am?",
+        accept: "Yes please"
+    )
+
+    /// Seeds through `transcriptEntries` — the SAME constructor
+    /// `rebuildSession` uses to replay a stored conversation into a fresh
+    /// session. The seeded arm is therefore production's replay path, not a
+    /// bespoke shortcut around it.
+    nonisolated static func twoTurnSeedEntries(instructions: String) -> [Transcript.Entry] {
+        transcriptEntries(instructions: instructions, verbatimTurns: twoTurnSeed.turns)
+    }
+
+    /// The production rule the control arm's zero depends on: a routed-toolless
+    /// turn registers NO belt. Extracted so it is pinned by a test rather than
+    /// only ever verified by reading `effectiveOfferedTools`.
+    nonisolated static func twoTurnBelt(from tools: [any Tool],
+                                        routedToolless: Bool) -> [any Tool] {
+        routedToolless ? [] : tools
+    }
+
+    /// #199 cross-reference: an accept turn can also fail by CLAIMING the
+    /// reminder exists. Detected separately from the artifact and never
+    /// instead of it — the standing law is that reply text lies both ways.
+    nonisolated static let creationClaimPatterns = [
+        "i've set", "i have set", "i've created", "i have created",
+        "i've added", "i have added", "reminder created", "reminder is set",
+        "reminder set", "done —", "all set",
+    ]
+
+    nonisolated static func claimsCreation(_ text: String) -> Bool {
+        let lower = text.lowercased()
+        // A capability denial that happens to contain "set" is not a claim.
+        guard !batteryDenialPatterns.contains(where: { lower.contains($0) }) else { return false }
+        return creationClaimPatterns.contains { lower.contains($0) }
+    }
+
+    enum TwoTurnCell: String, CaseIterable {
+        /// The selected #202A candidate on turn 2. The arm being MEASURED.
+        case twoturnCtxa = "twoturn-ctxa"
+        /// Production's router on turn 2. Its zero is structural — see the
+        /// dispatch: this arm falsifies the no-belt claim, it does not
+        /// provide evidence for the fix.
+        case twoturnControl = "twoturn-control"
+        /// Turn 1 GENERATED rather than seeded, so the seeded offer can be
+        /// checked against the offers the model actually makes. Diagnostic,
+        /// not gated.
+        case twoturnNatural = "twoturn-natural"
+
+        var routerVariant: RouterVariant {
+            switch self {
+            case .twoturnControl: return .control
+            // The natural arm validates the SEED for the selected candidate,
+            // so it must run that candidate or it validates nothing.
+            case .twoturnCtxa, .twoturnNatural: return .ctxA
+            }
+        }
+
+        var generatesFirstTurn: Bool { self == .twoturnNatural }
+    }
+
+    /// PRE-REGISTERED ORDER, deliberately the REVERSE of #201B's rule. That
+    /// rule protects a comparison from a hot control manufacturing a
+    /// treatment win; here the control's zero is structural, so no comparison
+    /// can be inflated. The live risk is the opposite — a throttled treatment
+    /// failing an ABSOLUTE bar — so the measured arm takes the cool slot.
+    nonisolated static let twoTurnBatteryCells: [TwoTurnCell] =
+        [.twoturnCtxa, .twoturnControl, .twoturnNatural]
+
+    /// #202B: turn 1 elicits an offer, turn 2 is a bare affirmative, and the
+    /// score is the ARTIFACT — never the reply text. Routes EVERY turn, which
+    /// is what separates this from the action battery (that one deliberately
+    /// skips per-trial routing because its prompts were already measured as
+    /// correctly routed; here the routing IS the treatment).
+    func runTwoTurnBattery(trials: Int, cells: [TwoTurnCell] = LocalChatBackend.twoTurnBatteryCells,
+                           naturalTrials: Int = 5,
+                           warmup: Bool = LocalChatBackend.batteryWarmupDefault) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
+        let seed = Self.twoTurnSeed
+        let fullBelt = Self.shapedBelt(
+            from: DeviceToolBelt.offeredTools(from: tools, hasImageInContext: false),
+            shape: .armedRouted
+        )
+        let armedInstructions = Self.instructionsText(
+            for: .armedRouted, deviceContext: Self.deviceContextLine(),
+            hasTools: !fullBelt.isEmpty, hasImageTools: false
+        )
+        let toollessInstructions = Self.instructionsText(
+            deviceContext: Self.deviceContextLine(), hasTools: false,
+            hasImageTools: false, includeToollessLic2Clause: true
+        )
+        Self.batteryEmit("battery: START kind=twoturn trials=\(trials) cells=\(cells.count) warmup=\(warmup) (#202B)")
+
+        var perTrialReminders = 0
+        var perTrialEvents = 0
+        var perTrialAlarms = 0
+        var perTrialFailures = 0
+
+        func reap(tag: String) async {
+            let sweep = await sweepMarkedRemindersAndEvents(emitSteps: false)
+            let alarmSweep = AlarmService.reapBatteryAlarms()
+            perTrialReminders += sweep.reminders
+            perTrialEvents += sweep.events
+            perTrialAlarms += alarmSweep.cancelled
+            perTrialFailures += sweep.failures + alarmSweep.failed
+            Self.batteryEmit(Self.reapTrialLine(
+                reminders: sweep.reminders, events: sweep.events,
+                alarms: alarmSweep.cancelled,
+                failures: sweep.failures + alarmSweep.failed, tag: tag
+            ))
+        }
+
+        // #200V: a DISCARDED warm-up, recorder-inert because it runs before
+        // beginRun. One accept turn through the measured arm's belt.
+        if warmup {
+            Self.batteryEmit("battery: WARMUP begin kind=twoturn (#200V)")
+            ToolEventRelay.batteryTrialTag = Self.batteryWarmupTag(prompt: "accept")
+            let session = LanguageModelSession(
+                model: model, tools: fullBelt,
+                transcript: Transcript(entries: Self.twoTurnSeedEntries(
+                    instructions: armedInstructions))
+            )
+            await executeBatteryTrial(
+                session: session,
+                options: Self.chatGenerationOptions(for: activeTier),
+                shape: "warmup", promptTag: "accept", prompt: seed.accept, trial: 0
+            )
+            await reap(tag: Self.batteryWarmupTag(prompt: "accept"))
+            Self.batteryEmit("battery: WARMUP done — discarded, not counted (#200V)")
+        }
+
+        Self.batteryRecorder.beginRun(trialsPerCell: trials,
+                                      cells: cells.map(\.rawValue), kind: "twoturn")
+        for cell in cells {
+            emitThermal(cell: cell.rawValue, at: "start")
+            let cellTrials = cell.generatesFirstTurn ? naturalTrials : trials
+            for trial in 1...cellTrials {
+                ToolEventRelay.batteryTrialTag = "shape=\(cell.rawValue) p=accept t=\(trial)"
+                Self.batteryEmit("battery: BEGIN shape=\(cell.rawValue) p=accept t=\(trial)")
+
+                // TURN 1. Seeded arms replay the pinned offer; the natural
+                // arm generates it and records what the model actually says,
+                // so the seed can be checked rather than assumed.
+                var turns = seed.turns
+                if cell.generatesFirstTurn {
+                    let firstRouted = !(await routeNeedsDeviceTool(
+                        prompt: seed.opener, context: "", variant: cell.routerVariant))
+                    let firstBelt = Self.twoTurnBelt(from: fullBelt, routedToolless: firstRouted)
+                    let firstSession = LanguageModelSession(
+                        model: model, tools: firstBelt,
+                        instructions: Instructions(firstRouted ? toollessInstructions : armedInstructions)
+                    )
+                    let reply = await twoTurnRespond(session: firstSession, prompt: seed.opener)
+                    Self.batteryEmit("battery: turn1 shape=\(cell.rawValue) t=\(trial) route=\(firstRouted ? "toolless" : "armed") text=\(reply.replacingOccurrences(of: "\n", with: " / ").prefix(300))")
+                    // A turn-1 create means the offer→accept shape was never
+                    // reached — reported, and the trial still runs so the
+                    // accept's behaviour after a create is visible too.
+                    turns = [TranscriptTurn(role: .user, text: seed.opener),
+                             TranscriptTurn(role: .assistant, text: reply)]
+                    await reap(tag: "shape=\(cell.rawValue) p=turn1 t=\(trial)")
+                }
+
+                // TURN 2 — the measured turn. Routed with the PRIOR ASSISTANT
+                // TURN as context, which is the whole treatment.
+                Self.batteryRecorder.beginTrial()
+                let context = turns.last?.text ?? seed.offer
+                let armed = await routeNeedsDeviceTool(
+                    prompt: seed.accept, context: context, variant: cell.routerVariant)
+                Self.batteryRecorder.recordRoute(armed ? "armed" : "toolless")
+                Self.batteryEmit("battery: turn2 shape=\(cell.rawValue) t=\(trial) route=\(armed ? "armed" : "toolless")")
+                let belt = Self.twoTurnBelt(from: fullBelt, routedToolless: !armed)
+                let session = LanguageModelSession(
+                    model: model, tools: belt,
+                    transcript: Transcript(entries: Self.transcriptEntries(
+                        instructions: armed ? armedInstructions : toollessInstructions,
+                        verbatimTurns: turns))
+                )
+                await executeBatteryTrial(
+                    session: session,
+                    options: Self.chatGenerationOptions(for: activeTier),
+                    shape: cell.rawValue, promptTag: "accept",
+                    prompt: seed.accept, trial: trial
+                )
+                await reap(tag: "shape=\(cell.rawValue) p=accept t=\(trial)")
+            }
+            emitThermal(cell: cell.rawValue, at: "end")
+        }
+        ToolEventRelay.batteryTrialTag = nil
+        let reapSummary = await reapBatteryArtifacts(
+            perTrialReminders: perTrialReminders, perTrialEvents: perTrialEvents,
+            perTrialAlarms: perTrialAlarms, perTrialFailures: perTrialFailures
+        )
+        Self.batteryEmit("battery: REAP \(reapSummary) (#202B)")
+        Self.batteryRecorder.recordReapSummary(reapSummary)
+        Self.batteryEmit("battery: DONE (#202B)")
+        Self.batteryRecorder.endRun()
+    }
+
+    /// Turn 1 of the natural arm: same 35s guillotine as a counted trial, but
+    /// its text is context for turn 2 rather than a scored result, so it does
+    /// not touch the recorder.
+    private func twoTurnRespond(session: LanguageModelSession, prompt: String) async -> String {
+        let respondTask = Task {
+            try await session.respond(
+                to: Prompt(prompt),
+                options: Self.chatGenerationOptions(for: activeTier)
+            ).content
+        }
+        let timeoutTask = Task { try? await Task.sleep(for: .seconds(35)); respondTask.cancel() }
+        defer { timeoutTask.cancel() }
+        do {
+            return try await respondTask.value
+        } catch {
+            Self.batteryEmit("battery: turn1 FAILED \(String(String(describing: error).prefix(120)))")
+            return Self.twoTurnSeed.offer
+        }
+    }
 }
 
 // MARK: - (#200E) toolmode cell session profile

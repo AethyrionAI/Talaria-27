@@ -2155,6 +2155,84 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.routerProbeVariants == [.control, .ctxA, .ctxB])
     }
 
+    // MARK: - (#202B) two-turn offer→accept battery
+
+    /// The measured turn is turn 2, so the seeded conversation must place the
+    /// OFFER as the last assistant turn — that text is both the transcript's
+    /// tail and the router's context, and they must be the same string or the
+    /// arm is testing a context the model cannot see.
+    @Test func twoTurnSeedEndsOnTheAssistantOfferThatAlsoFeedsTheRouter() {
+        let seed = LocalChatBackend.twoTurnSeed
+        #expect(seed.turns.count == 2)
+        #expect(seed.turns.first?.role == .user)
+        #expect(seed.turns.last?.role == .assistant)
+        #expect(seed.turns.last?.text == seed.offer)
+        #expect(seed.accept == "Yes please")
+        // The offer carries a FULLY SPECIFIED time on purpose: an
+        // underspecified one drags #200K's date interrogation into the middle
+        // of a routing measurement.
+        #expect(seed.offer.contains("9am"))
+        #expect(seed.offer.contains("tomorrow"))
+        // And the accept must be one the lenrule/router work is about.
+        #expect(LocalChatBackend.isShortAffirmative(seed.accept))
+    }
+
+    /// Seeding rides `transcriptEntries` — the same constructor
+    /// `rebuildSession` uses to replay a stored conversation. Pinned so the
+    /// instrument can never quietly become a bespoke path that production
+    /// does not take.
+    @Test func twoTurnSeedBuildsProductionTranscriptEntries() {
+        let entries = LocalChatBackend.twoTurnSeedEntries(instructions: "INSTR")
+        #expect(entries.count == 3)
+        if case .instructions = entries[0] {} else { Issue.record("entry 0 must be instructions") }
+        if case .prompt = entries[1] {} else { Issue.record("entry 1 must be the user turn") }
+        if case .response = entries[2] {} else { Issue.record("entry 2 must be the assistant offer") }
+    }
+
+    /// #202B arms and their run ORDER. The order is deliberately the reverse
+    /// of #201B's rule and the reason is pinned with it: the control's zero is
+    /// structural, so no comparison can be inflated by heat — the risk is a
+    /// throttled TREATMENT failing an absolute bar, so the treatment runs cool.
+    @Test func twoTurnArmsPutTheMeasuredArmInTheCoolSlot() {
+        #expect(LocalChatBackend.twoTurnBatteryCells
+                == [.twoturnCtxa, .twoturnControl, .twoturnNatural])
+    }
+
+    /// Each arm's router variant is what the arm MEANS. A silent swap here
+    /// would make the control and treatment the same cell.
+    @Test func twoTurnArmsBindTheirRouterVariants() {
+        #expect(LocalChatBackend.TwoTurnCell.twoturnControl.routerVariant == .control)
+        #expect(LocalChatBackend.TwoTurnCell.twoturnCtxa.routerVariant == .ctxA)
+        // The natural arm exists to validate the SEED, so it must use the
+        // selected candidate — otherwise it validates nothing about it.
+        #expect(LocalChatBackend.TwoTurnCell.twoturnNatural.routerVariant == .ctxA)
+        // Only the natural arm generates turn 1.
+        #expect(LocalChatBackend.TwoTurnCell.twoturnNatural.generatesFirstTurn)
+        #expect(!LocalChatBackend.TwoTurnCell.twoturnCtxa.generatesFirstTurn)
+        #expect(!LocalChatBackend.TwoTurnCell.twoturnControl.generatesFirstTurn)
+    }
+
+    /// A routed-toolless turn must register NO belt and speak the licensed
+    /// bare branch — the production rule the control arm's structural zero
+    /// depends on. Pinned here because #202B's whole control prediction rests
+    /// on it, and it was previously only ever verified by reading code.
+    @Test @MainActor func twoTurnToollessRouteRegistersNoBeltAtAll() {
+        let belt = decompositionBelt()
+        #expect(LocalChatBackend.twoTurnBelt(from: belt, routedToolless: true).isEmpty)
+        #expect(LocalChatBackend.twoTurnBelt(from: belt, routedToolless: false)
+                .map(\.name) == belt.map(\.name))
+    }
+
+    /// #199 cross-reference: an accept turn can fail by CLAIMING the reminder
+    /// exists. Reply text lies in both directions, so the claim is detected
+    /// and counted separately from the artifact, never instead of it.
+    @Test func fabricationClaimIsDetectedIndependentlyOfTheArtifact() {
+        #expect(LocalChatBackend.claimsCreation("I've set your reminder for 9am tomorrow."))
+        #expect(LocalChatBackend.claimsCreation("Done — reminder created."))
+        #expect(!LocalChatBackend.claimsCreation("Would you like me to set one?"))
+        #expect(!LocalChatBackend.claimsCreation("I can't create reminders."))
+    }
+
     /// Lesson 4 from #201B: if a verdict depends on it, it belongs in the
     /// RECORD. The variant and the context are what distinguish otherwise
     /// identical probe rows.
