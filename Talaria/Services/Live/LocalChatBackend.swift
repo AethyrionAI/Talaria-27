@@ -2261,15 +2261,21 @@ extension LocalChatBackend {
     /// #202A: the prompt envelope per variant. control DISCARDS the context
     /// — pinned, because that discard is exactly the filed defect and a
     /// silent change here would erase the thing being measured.
+    /// `applyContextCap` is TRUE for production and every ordinary call.
+    /// The #206 probe passes FALSE to reproduce the uncapped failure — the
+    /// cap lives inside this function, so without a bypass the instrument
+    /// would truncate away the exact condition it exists to measure, and
+    /// the run would come back clean for the wrong reason.
     nonisolated static func routerPrompt(context: String, prompt: String,
-                                         variant: RouterVariant) -> String {
+                                         variant: RouterVariant,
+                                         applyContextCap: Bool = true) -> String {
         switch variant {
         case .control:
             return "Request: \(prompt)"
         case .ctxA, .ctxB:
             guard !context.isEmpty else { return "Request: \(prompt)" }
             return """
-            Assistant just said: "\(routerContextTail(context))"
+            Assistant just said: "\(applyContextCap ? routerContextTail(context) : context)"
             Request: \(prompt)
             """
         }
@@ -2353,14 +2359,16 @@ extension LocalChatBackend {
     /// measured cell are the SAME code, not copies of one behavior. The
     /// `.control` variant is the pinned rollback, still probe-reachable.
     func routeNeedsDeviceTool(prompt: String, context: String,
-                              variant: RouterVariant) async -> Bool {
+                              variant: RouterVariant,
+                              applyContextCap: Bool = true) async -> Bool {
         let session = LanguageModelSession(
             model: model,
             instructions: Instructions(Self.routerInstructions(for: variant))
         )
         do {
             let route = try await session.respond(
-                to: Prompt(Self.routerPrompt(context: context, prompt: prompt, variant: variant)),
+                to: Prompt(Self.routerPrompt(context: context, prompt: prompt, variant: variant,
+                                             applyContextCap: applyContextCap)),
                 generating: ToolIntentRoute.self,
                 options: Self.toolIntentRouterOptions
             ).content
@@ -3907,25 +3915,36 @@ extension LocalChatBackend {
         Self.batteryEmit("router: LONG-CONTEXT PROBE START trials=\(trials) rows=\(grid.count) (#202C)")
         Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: ["ctx-a-long"],
                                       kind: "router-context")
-        for row in grid {
-            var correct = 0
-            let started = Date()
-            for _ in 1...trials {
-                if await routeNeedsDeviceTool(prompt: row.prompt, context: row.context,
-                                              variant: .ctxA) == row.expected {
-                    correct += 1
+        // #206: every long row runs BOTH ways — uncapped (reproduces the
+        // failure) and capped (tests the cure). Same rows, same trials, one
+        // seam. Without the uncapped arm the cap would silently truncate away
+        // the condition under test and the run would come back clean for the
+        // wrong reason.
+        for capped in [false, true] {
+            let label = capped ? "ctx-a-long-capped" : "ctx-a-long"
+            for row in grid {
+                var correct = 0
+                let started = Date()
+                for _ in 1...trials {
+                    if await routeNeedsDeviceTool(prompt: row.prompt, context: row.context,
+                                                  variant: .ctxA,
+                                                  applyContextCap: capped) == row.expected {
+                        correct += 1
+                    }
                 }
+                let each = Date().timeIntervalSince(started) / Double(trials)
+                let effective = capped ? Self.routerContextTail(row.context).count
+                                       : row.context.count
+                Self.batteryEmit(String(format:
+                    "router: %d/%d expected=%@ variant=%@ band=%@ secs=%.2f ctxchars=%d probe=%@",
+                    correct, trials, String(row.expected), label, row.band.rawValue,
+                    each, effective, row.prompt))
+                Self.batteryRecorder.recordProbe(
+                    probe: row.prompt, expected: row.expected, correct: correct, trials: trials,
+                    variant: label, context: row.context, band: row.band.rawValue,
+                    seconds: each
+                )
             }
-            let each = Date().timeIntervalSince(started) / Double(trials)
-            Self.batteryEmit(String(format:
-                "router: %d/%d expected=%@ variant=ctx-a-long band=%@ secs=%.2f ctxchars=%d probe=%@",
-                correct, trials, String(row.expected), row.band.rawValue,
-                each, row.context.count, row.prompt))
-            Self.batteryRecorder.recordProbe(
-                probe: row.prompt, expected: row.expected, correct: correct, trials: trials,
-                variant: "ctx-a-long", context: row.context, band: row.band.rawValue,
-                seconds: each
-            )
         }
         // The SHORT rows again, same session conditions, as the latency
         // baseline — a long-context number means nothing without it.

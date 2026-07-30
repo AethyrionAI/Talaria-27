@@ -2206,6 +2206,13 @@ struct DeviceToolBeltTests {
                                                      variant: .ctxA)
         #expect(envelope.count < long.count)
         #expect(envelope.contains("call the dentist tomorrow at 9am"))
+        // #206: the probe MUST be able to bypass the cap, or the instrument
+        // truncates away the condition it exists to measure and comes back
+        // clean for the wrong reason. Production defaults to capped.
+        let uncapped = LocalChatBackend.routerPrompt(context: long, prompt: "Yes please",
+                                                     variant: .ctxA, applyContextCap: false)
+        #expect(uncapped.count > envelope.count)
+        #expect(uncapped.contains(long))
     }
 
     /// #205: the #196 baseline series is EXACTLY ten rows. Its 200/200
