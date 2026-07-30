@@ -264,42 +264,57 @@ struct PlacesTool: Tool {
         defer { Task { await relay.completed(name) } }
         guard !query.isEmpty else { return "No search query was given." }
 
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = query
-
         // "Near me" needs a center; without permission the search still runs,
         // just un-anchored (results may be far away — honest, not fabricated).
-        var origin: CLLocation?
+        // Immutable: these are captured by a @Sendable closure below, so a
+        // `var` would not compile (and would be a data race if it did).
         let status = await location.ensureAuthorization()
-        if status == .authorizedWhenInUse || status == .authorizedAlways,
-           let fix = await location.currentLocation() {
-            origin = fix
-            request.region = MKCoordinateRegion(
-                center: fix.coordinate,
-                latitudinalMeters: 10_000,
-                longitudinalMeters: 10_000
-            )
-        }
+        let fix = (status == .authorizedWhenInUse || status == .authorizedAlways)
+            ? await location.currentLocation()
+            : nil
+        let anchorLat: Double? = fix?.coordinate.latitude
+        let anchorLon: Double? = fix?.coordinate.longitude
+        let anchored = fix != nil
 
+        // #200Y/F6 (Hermes audit): MKLocalSearch is a network round-trip with no
+        // deadline of its own — bounded so a stalled search cannot outlive the
+        // turn. Only SENDABLE values cross the boundary: `MKLocalSearch.Request`,
+        // `.Response` and `CLLocation` are all non-Sendable classes, so the
+        // request is BUILT and consumed inside the closure from plain doubles and
+        // only the formatted lines come back out.
         do {
-            let response = try await MKLocalSearch(request: request).start()
-            guard !response.mapItems.isEmpty else {
+            let lines: [String] = try await DeviceToolTimeout.runThrowing(label: name) {
+                let request = MKLocalSearch.Request()
+                request.naturalLanguageQuery = query
+                if let anchorLat, let anchorLon {
+                    request.region = MKCoordinateRegion(
+                        center: CLLocationCoordinate2D(latitude: anchorLat, longitude: anchorLon),
+                        latitudinalMeters: 10_000,
+                        longitudinalMeters: 10_000
+                    )
+                }
+                let response = try await MKLocalSearch(request: request).start()
+                let origin = (anchorLat != nil && anchorLon != nil)
+                    ? CLLocation(latitude: anchorLat!, longitude: anchorLon!)
+                    : nil
+                return response.mapItems.prefix(5).map { item -> String in
+                    var line = item.name ?? "Unnamed place"
+                    if let address = item.placemark.title, !address.isEmpty {
+                        line += " — \(address)"
+                    }
+                    if let origin, let itemLocation = item.placemark.location {
+                        let meters = origin.distance(from: itemLocation)
+                        let formatter = MKDistanceFormatter()
+                        line += " (\(formatter.string(fromDistance: meters)) away)"
+                    }
+                    return line
+                }
+            }
+            guard !lines.isEmpty else {
                 return "No places found for \"\(query)\"."
             }
-            let lines = response.mapItems.prefix(5).map { item -> String in
-                var line = item.name ?? "Unnamed place"
-                if let address = item.placemark.title, !address.isEmpty {
-                    line += " — \(address)"
-                }
-                if let origin, let itemLocation = item.placemark.location {
-                    let meters = origin.distance(from: itemLocation)
-                    let formatter = MKDistanceFormatter()
-                    line += " (\(formatter.string(fromDistance: meters)) away)"
-                }
-                return line
-            }
             var result = lines.joined(separator: "\n")
-            if origin == nil {
+            if !anchored {
                 result += "\n(Location permission not granted — results are not anchored to the user's position.)"
             }
             return result
@@ -314,17 +329,25 @@ struct PlacesTool: Tool {
 struct ContactsTool: Tool {
     let name = "lookupContact"
     let description = "Look up a person in the user's contacts by name and return their phone numbers and email addresses."
-    /// #200U seam. A miss here owned **4 of the 5 calendar misses in #200T**:
-    /// the model reads the bare not-found string as a blocker and asks the
-    /// user to clarify instead of creating the event with the name it was
-    /// given — and it does that THROUGH the promoted #200O prose carve-out,
-    /// which already tells it to carry on. Prose cannot outrank the
-    /// structural layer (#200S), and a tool RESULT is that layer: the model
-    /// consumes it as fact rather than weighing it against instructions.
+    /// #201B PROMOTION: production's not-found result CARRIES CONTINUATION.
     ///
-    /// Production default is `false`, so the shipping belt is byte-identical
-    /// with the seam in place; promotion is flipping this one default.
-    var continuesAfterNoMatch: Bool = false
+    /// The bare negative was read by the model as a blocker: it called the tool,
+    /// the lookup missed, and it stopped to ask the user instead of creating with
+    /// the name it was given — THROUGH the promoted #200O prose carve-out that
+    /// already says to carry on. Prose could not reach it because a tool RESULT is
+    /// not instructions the model weighs; it is fact the model consumes.
+    ///
+    /// Measured twice at n=40, in BOTH slot orders, with the confound inverted:
+    /// dead-end misses **0/80 treatment vs 14/80 control** pooled (control 17.5%,
+    /// matching the 16.7% base rate the power calculation assumed), Fisher
+    /// p≈0.0012 on the confirmation run alone. In that run the treatment ran
+    /// SECOND and THERMALLY THROTTLED and still went 40/40 while cool, rested
+    /// production went 31/40 — so heat and slot position are both exonerated, and
+    /// the surviving confound ran AGAINST the winner.
+    ///
+    /// `ContactsToolBareNotFound` — reachable as the `armed-deadendrollback`
+    /// cell, which passes `false` explicitly — is the pinned rollback.
+    var continuesAfterNoMatch: Bool = true
     let relay: ToolEventRelay
 
     @Generable
@@ -362,8 +385,12 @@ struct ContactsTool: Tool {
         }
 
         // CNContactStore fetches are blocking — keep them off the main actor.
+        // #200Y/F6: bounded, because a blocking framework fetch is exactly the
+        // hop cancellation cannot interrupt. The PERMISSION REQUEST above is
+        // deliberately NOT wrapped — that one waits on a human, and 12s is not
+        // a fair deadline for a person reading a system dialog.
         let continuing = continuesAfterNoMatch
-        let report: String = await Task.detached(priority: .userInitiated) {
+        let report: String = await DeviceToolTimeout.run(label: name) { await Task.detached(priority: .userInitiated) {
             let store = CNContactStore()
             let keys: [CNKeyDescriptor] = [
                 CNContactGivenNameKey as CNKeyDescriptor,
@@ -395,7 +422,7 @@ struct ContactsTool: Tool {
                 }
                 return lines.joined(separator: "\n")
             }.joined(separator: "\n\n")
-        }.value
+        }.value }
         return report
     }
 }

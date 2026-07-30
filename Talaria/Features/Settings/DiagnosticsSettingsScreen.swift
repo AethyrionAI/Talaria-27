@@ -765,6 +765,107 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #201B: the same two arms REVERSED — production first, in the cool slot,
+    // so the run doubles as the thermal control.
+    @ViewBuilder
+    private func deadendReversedBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runDeadendReversedBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
+    // #201: #200U's contact fix re-measured at n=20, production last — the
+    // primary is a dead-end COUNT, which n=10 could not carry.
+    @ViewBuilder
+    private func deadendReconsiderBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runDeadendReconsiderBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
+    // #200X: the promoted calendar tool against its OWN pinned rollback,
+    // warm, production last — the confidence run the promotion is owed.
+    @ViewBuilder
+    private func calRollbackVerifyBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runCalRollbackVerifyBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
+    // #200W: #200T's calendar arms re-run WARM with production last. The
+    // primaries are the location-spiral and invented-location counts, not the
+    // rate — warm production calendar is already ~9/10.
+    @ViewBuilder
+    private func calfixWarmBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runCalfixWarmBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200V: #200U's three arms REVERSED (production last) after a discarded
     // warm-up pass — the confirmation run that tests the cell-order confound.
     @ViewBuilder
@@ -1046,6 +1147,27 @@ struct DiagnosticsSettingsScreen: View {
                 // #200V: the same three arms reversed, warm-up first.
                 HStack(spacing: Design.Spacing.sm) {
                     deadendConfirmBatteryButton(trials: 10, label: "Dead-end confirm n=10 (120+4)")
+                }
+                // #200W: calendar arms warm, production last.
+                HStack(spacing: Design.Spacing.sm) {
+                    calfixWarmBatteryButton(trials: 10, label: "Calendar warm n=10 (80+4)")
+                }
+                // #200X: promoted calendar tool vs its pinned rollback.
+                HStack(spacing: Design.Spacing.sm) {
+                    calRollbackVerifyBatteryButton(trials: 10, label: "Calendar rollback n=10 (80+4)")
+                }
+                // #201: contact dead-end fix re-measured at n=20.
+                HStack(spacing: Design.Spacing.sm) {
+                    deadendReconsiderBatteryButton(trials: 20, label: "Dead-end reconsider n=20 (160+4)")
+                }
+                // #201B: the SAME two arms at n=40 — powered from the 16.7%
+                // base rate so a 0-vs-k comparison can actually conclude.
+                HStack(spacing: Design.Spacing.sm) {
+                    deadendReconsiderBatteryButton(trials: 40, label: "Dead-end POWER n=40 (320+4)")
+                }
+                // #201B confirmation: reversed, production in the cool slot.
+                HStack(spacing: Design.Spacing.sm) {
+                    deadendReversedBatteryButton(trials: 40, label: "Dead-end REVERSED n=40 (320+4)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton

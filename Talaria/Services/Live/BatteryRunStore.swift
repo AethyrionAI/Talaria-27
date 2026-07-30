@@ -76,6 +76,13 @@ struct BatteryRunRecord: Codable, Equatable, Identifiable {
     /// "reminders=20 events=18 alarms=19 failures=1". Nil when the run had
     /// no reap phase. Optional so pre-#200 run JSONs still decode.
     var reapSummary: String? = nil
+    /// #201B: thermal state at every cell boundary, as `cell:moment=state`.
+    /// A verdict condition that lives only in the console is a condition the
+    /// classifier cannot enforce — #201B's thermal comparability check had to be
+    /// read by hand, which is the same lesson as the reap seal: if a verdict
+    /// depends on it, it belongs in the RECORD. Optional so older run JSONs
+    /// still decode.
+    var thermal: [String]? = nil
     /// #200 crash diagnostics: false on the per-trial snapshots the
     /// recorder persists mid-run, true once endRun sealed the record. A
     /// crashed run therefore survives on disk carrying every completed
@@ -363,6 +370,17 @@ final class BatteryRunRecorder {
     func recordReapSummary(_ summary: String) {
         guard run != nil else { return }
         run?.reapSummary = summary
+    }
+
+    /// #201B: one `cell:moment=state` entry per cell boundary.
+    func recordThermal(_ entry: String) {
+        guard run != nil else { return }
+        // Read, mutate, write back through a local: `run?.thermal = run?.thermal
+        // + …` is an overlapping access to `run` and will not compile.
+        var entries = run?.thermal ?? []
+        entries.append(entry)
+        run?.thermal = entries
+        persistSnapshot()
     }
 
     func endTrial(shape: String, prompt: String, trial: Int, text: String, cant: Bool, denial: Bool) {

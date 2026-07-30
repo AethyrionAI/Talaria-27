@@ -902,7 +902,9 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedCalfix.rawValue == "armed-calfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedDeadend2.rawValue == "armed-deadend2")
         #expect(LocalChatBackend.ActionBatteryCell.armedNocontact.rawValue == "armed-nocontact")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 22)
+        #expect(LocalChatBackend.ActionBatteryCell.armedCalrollback.rawValue == "armed-calrollback")
+        #expect(LocalChatBackend.ActionBatteryCell.armedDeadendrollback.rawValue == "armed-deadendrollback")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 24)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -1251,6 +1253,147 @@ struct DeviceToolBeltTests {
         ])
     }
 
+    // MARK: Thermal drift, made measurable (#201B)
+
+    /// #201B: 320 trials is long enough for thermal drift to matter, and because
+    /// production runs LAST a hot device penalises the CONTROL — the opposite
+    /// direction from #200V's cold-start bias, and a confound that could
+    /// manufacture a treatment win. So the state is emitted at every cell
+    /// boundary and the verdict reads it, rather than assuming it away.
+    @Test func thermalLabelsAreStableAndCoverEveryState() {
+        #expect(LocalChatBackend.thermalLabel(.nominal) == "nominal")
+        #expect(LocalChatBackend.thermalLabel(.fair) == "fair")
+        #expect(LocalChatBackend.thermalLabel(.serious) == "serious")
+        #expect(LocalChatBackend.thermalLabel(.critical) == "critical")
+        // The emitted line is grepped when classifying, so its shape is pinned.
+        #expect(LocalChatBackend.thermalLine(cell: "armed", at: "start", state: .fair)
+            == "battery: THERMAL cell=armed at=start state=fair (#201B)")
+    }
+
+    /// #201B: production FIRST, so the arm that ran hot last time now runs in
+    /// the COOL slot — the reversal doubles as the thermal control.
+    @Test func deadendReversedBatteryPutsProductionInTheCoolSlot() {
+        #expect(LocalChatBackend.deadendReversedBatteryCells == [
+            .armed, .armedDeadend2,
+        ])
+        #expect(LocalChatBackend.deadendReversedBatteryCells.first == .armed)
+        // Same SET as the forward run, so only order changed.
+        #expect(Set(LocalChatBackend.deadendReversedBatteryCells)
+            == Set(LocalChatBackend.deadendReconsiderBatteryCells))
+    }
+
+    /// #201B: thermal comparability was a pre-registered verdict condition that
+    /// lived only in the console, so the classifier could not enforce it and it
+    /// was read by hand. Same lesson as the reap seal — if a verdict depends on
+    /// it, it belongs in the RECORD.
+    @Test @MainActor func thermalReadingsLandInTheRunRecord() {
+        let store = WarmupCapturingStore()
+        let recorder = BatteryRunRecorder(store: store)
+        recorder.recordThermal("armed:start=nominal")   // before beginRun: inert
+        recorder.beginRun(trialsPerCell: 1, cells: ["armed"], kind: "action")
+        recorder.recordThermal("armed:start=fair")
+        recorder.recordThermal("armed:end=serious")
+        recorder.beginTrial()
+        recorder.endTrial(shape: "armed", prompt: "calendar", trial: 1,
+                          text: "ok", cant: false, denial: false)
+        recorder.endRun()
+        #expect(store.persisted.last?.thermal == ["armed:start=fair", "armed:end=serious"])
+    }
+
+    @Test func thermalRecordEntryGrammarIsStable() {
+        #expect(LocalChatBackend.thermalRecordEntry(cell: "armed", at: "start", state: .serious)
+            == "armed:start=serious")
+    }
+
+    // MARK: The contact dead-end, reconsidered at n=20 (#201)
+
+    /// #201: #200V withdrew #200U's fix because warm production showed ZERO
+    /// dead-end misses. Three warm samples later that basis is gone — 0/10
+    /// (#200V), 2/10 (#200W), 3/10 (#200Z) — so #200V's zero was itself the
+    /// small-sample artifact it was written to catch.
+    ///
+    /// Two arms, production LAST. Arm B (tool removal) is deliberately absent:
+    /// #200U measured it making the model flee into `searchConversations` six
+    /// times on one query, so it relocates the spiral instead of removing it and
+    /// is not a production candidate.
+    @Test func deadendReconsiderBatteryIsTwoArmsProductionLast() {
+        #expect(LocalChatBackend.deadendReconsiderBatteryCells == [
+            .armedDeadend2, .armed,
+        ])
+        #expect(LocalChatBackend.deadendReconsiderBatteryCells.last == .armed)
+        #expect(!LocalChatBackend.deadendReconsiderBatteryCells.contains(.armedNocontact))
+        // Same treatment seam as #200U, so this is a re-measurement of that
+        // hypothesis and not a new one.
+        #expect(LocalChatBackend.deadendReconsiderBatteryCells.contains(.armedDeadend2))
+    }
+
+    // MARK: Per-tool timeout — the guillotine cannot cut a hung tool (#200Y)
+
+    /// #200Y: the 35-second generation guillotine calls `respondTask.cancel()`,
+    /// and Swift cancellation is COOPERATIVE — a tool blocked inside its own
+    /// `call()` never observes it. Measured twice: #200V's excluded TIMEOUT
+    /// (six `searchConversations` calls on one query) and #200W's
+    /// `armed/haiku/t5`, which called `searchConversations` and emitted nothing
+    /// for 2.5+ minutes against a 35s guillotine.
+    ///
+    /// So the timeout has to live at the TOOL, where the blocking happens.
+    @Test func toolTimeoutReturnsTheSlowToolsOwnFailureText() async {
+        let quick = await DeviceToolTimeout.run(seconds: 5, label: "searchConversations") {
+            "fast result"
+        }
+        #expect(quick == "fast result")
+
+        let slow = await DeviceToolTimeout.run(seconds: 0.05, label: "searchConversations") {
+            try? await Task.sleep(for: .seconds(30))
+            return "never arrives"
+        }
+        // The model gets a usable, non-blocking answer instead of a wedge —
+        // and it names the tool, so a wedge is visible in the transcript.
+        #expect(slow.contains("searchConversations"))
+        #expect(slow.contains("timed out"))
+        #expect(!slow.contains("never arrives"))
+    }
+
+    /// #200Y/F6 (Hermes audit): the throwing variant, for tools whose blocking
+    /// work already reports failure through `catch` — `PlacesTool`'s
+    /// `MKLocalSearch` is a network round-trip with no deadline of its own. A
+    /// real error must still propagate unchanged; only the deadline produces
+    /// `TimedOut`.
+    @Test func toolTimeoutThrowingVariantSurfacesTimedOutAndPassesRealErrors() async {
+        struct Boom: Error {}
+        do {
+            _ = try await DeviceToolTimeout.runThrowing(seconds: 5, label: "searchPlaces") {
+                throw Boom()
+            }
+            #expect(Bool(false), "a real error must propagate, not be swallowed")
+        } catch {
+            #expect(error is Boom)
+        }
+
+        let fast = try? await DeviceToolTimeout.runThrowing(seconds: 5, label: "searchPlaces") { 42 }
+        #expect(fast == 42)
+
+        do {
+            _ = try await DeviceToolTimeout.runThrowing(seconds: 0.05, label: "searchPlaces") {
+                try? await Task.sleep(for: .seconds(30))
+                return 0
+            }
+            #expect(Bool(false), "the deadline must fire")
+        } catch {
+            #expect((error as? DeviceToolTimeout.TimedOut)?.label == "searchPlaces")
+            // The call site renders this through its own failure text, so the
+            // tool's name has to survive into the message.
+            #expect(error.localizedDescription.contains("searchPlaces"))
+        }
+    }
+
+    /// #200Y: the timeout must not swallow a legitimately empty result — an
+    /// empty string is a real answer, not a hang.
+    @Test func toolTimeoutPassesEmptyResultsThrough() async {
+        let empty = await DeviceToolTimeout.run(seconds: 5, label: "searchPlaces") { "" }
+        #expect(empty.isEmpty)
+    }
+
     // MARK: The calendar tool's turn at the same surgery (#200T)
 
     /// #200T: `CalendarEventTool` still carries the defect #200S removed
@@ -1259,12 +1402,25 @@ struct DeviceToolBeltTests {
     /// "Optional location, or empty". The battery's calendar prompt ("Put
     /// lunch with Sam on my calendar Friday at noon") supplies neither.
     ///
-    /// This pin compiles ONLY if the treatment struct's two fields are
-    /// optional. `title` and `startsAt` stay required: the schema should
-    /// demand what the tool genuinely cannot default, and an event with no
-    /// start time cannot be created.
-    @Test func calfixCalendarArgumentsAcceptOmittedDurationAndLocation() {
-        let omitted = CalendarEventToolOptionalFields.Arguments(
+    /// #200X PROMOTION. Warm, production-last, pre-registered: production
+    /// invented a location in **5 of its 8 calendar creates** — geolocating
+    /// the user to satisfy a required field on a prompt that named no place,
+    /// twice writing his home street address onto a lunch — while the
+    /// treatment invented ZERO. `currentLocation` went 7/10 → 0/10 (p≈0.003),
+    /// the second independent observation after #200T's exploratory 9/10 → 2/9.
+    ///
+    /// This pin is the promotion's proof: PRODUCTION `Arguments` accepts `nil`
+    /// for both fields, which compiles ONLY if they are optional. `title` and
+    /// `startsAt` stay required: the schema should demand what the tool
+    /// genuinely cannot default, and an event with no start time cannot be
+    /// created.
+    ///
+    /// Honest limit, recorded because the gate was not clean: #200W's
+    /// `searchPlaces` clause was UNEVALUABLE (control 1/10, below its
+    /// pre-registered ≥3/10 floor), so this promotion rests on the
+    /// `currentLocation` and invented-location measures, not on all three.
+    @Test func productionCalendarArgumentsAcceptOmittedDurationAndLocation() {
+        let omitted = CalendarEventTool.Arguments(
             title: "Lunch with Sam", startsAt: "2026-07-31T12:00",
             durationMinutes: nil, location: nil
         )
@@ -1289,25 +1445,52 @@ struct DeviceToolBeltTests {
         #expect(CalendarEventTool.resolveMinutes(5_000) == 24 * 60)
     }
 
-    /// #200T: one swap, everything else identity — the cell measures the
-    /// two field types and nothing else. The reminder tool in particular
-    /// stays production (its own promotion is not up for re-measurement
-    /// here).
-    @Test @MainActor func calfixCellSwapsOnlyTheCalendarTool() {
+    /// #200X: post-promotion the #200T/#200W treated cell is production
+    /// identity (the findfix/cardfix/schemafix precedent), which is what lets
+    /// it pool with the control as a re-verify.
+    @Test @MainActor func calfixCellIsProductionIdentityAfterThePromotion() {
         let belt = DeviceToolBelt.makeActionTools(
             relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
             alarmService: AlarmService()
         )
         let treated = LocalChatBackend.destallBelt(from: belt, cell: .armedCalfix)
         #expect(treated.map(\.name) == belt.map(\.name))
-        #expect(treated.contains { $0 is CalendarEventToolOptionalFields })
-        #expect(!treated.contains { $0 is CalendarEventTool })
-        #expect(treated.contains { $0 is ReminderCreateTool })
-        // Production text and the #196 schema-injection default, so the
-        // only delta reaching the model is the field optionality.
-        let calendar = treated.first { $0.name == "createCalendarEvent" }
+        #expect(treated.contains { $0 is CalendarEventTool })
+        #expect(treated.first { $0.name == "createCalendarEvent" }?.description
+            == CalendarEventTool.productionDescription)
+    }
+
+    /// #200X: the pinned ROLLBACK. A type change cannot ride a Bool flag, so
+    /// the rollback seam is a struct — `CalendarEventToolRequiredFields` is
+    /// the pre-promotion tool verbatim, reachable as a measured cell exactly
+    /// as #200S's reminder rollback is.
+    @Test @MainActor func calrollbackCellRestoresTheRequiredFieldCalendarTool() {
+        let belt = DeviceToolBelt.makeActionTools(
+            relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
+            alarmService: AlarmService()
+        )
+        let rolled = LocalChatBackend.destallBelt(from: belt, cell: .armedCalrollback)
+        #expect(rolled.map(\.name) == belt.map(\.name))
+        #expect(rolled.contains { $0 is CalendarEventToolRequiredFields })
+        #expect(!rolled.contains { $0 is CalendarEventTool })
+        // Everything else is production, so the cell measures the field types
+        // and nothing else.
+        let calendar = rolled.first { $0.name == "createCalendarEvent" }
         #expect(calendar?.description == CalendarEventTool.productionDescription)
         #expect(calendar?.includesSchemaInInstructions == true)
+        #expect(rolled.contains { $0 is ReminderCreateTool })
+    }
+
+    /// #200X: the confidence run this promotion is owed — production against
+    /// its OWN rollback, warm, in one run, with production LAST (the
+    /// conservative slot). Same shape as #200S's re-verify, and the answer to
+    /// "what would raise confidence": a within-run comparison against the
+    /// exact thing we just replaced.
+    @Test func calRollbackVerifyBatteryPutsProductionAgainstItsRollback() {
+        #expect(LocalChatBackend.calRollbackVerifyBatteryCells == [
+            .armedCalrollback, .armed,
+        ])
+        #expect(LocalChatBackend.calRollbackVerifyBatteryCells.last == .armed)
     }
 
     /// #200T battery: production control vs the calendar schema swap, two
@@ -1329,19 +1512,22 @@ struct DeviceToolBeltTests {
     ///
     /// Production default is `false`, so the shipping belt is byte-identical
     /// until a verdict promotes it.
-    @Test @MainActor func contactNotFoundTextCarriesContinuationOnlyWhenTheSeamIsOn() {
+    @Test @MainActor func productionContactNotFoundCarriesContinuationAfterThePromotion() {
         let bare = ContactsTool.noMatchText(query: "Sam", continuing: false)
         #expect(bare == "No contact matching \"Sam\" was found.")
         let continuing = ContactsTool.noMatchText(query: "Sam", continuing: true)
         #expect(continuing.hasPrefix(bare))
         #expect(continuing.contains("does not block anything"))
         #expect(continuing.contains("exactly as the user gave it"))
-        // The production tool ships the bare text until promotion.
-        #expect(ContactsTool(relay: ToolEventRelay()).continuesAfterNoMatch == false)
+        // #201B PROMOTION: production now ships the CONTINUING text. Measured
+        // twice at n=40 in both slot orders — 0/80 dead-ends vs 14/80, Fisher
+        // p≈0.0012 on the confirmation, with the treatment winning from the
+        // thermally-throttled slot.
+        #expect(ContactsTool(relay: ToolEventRelay()).continuesAfterNoMatch == true)
     }
 
     /// #200U arm A: one seam flipped on one tool, everything else identity.
-    @Test @MainActor func deadend2CellFlipsOnlyTheContactContinuationSeam() {
+    @Test @MainActor func deadend2CellIsProductionIdentityAfterThePromotion() {
         let belt = DeviceToolBelt.makeActionTools(
             relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
             alarmService: AlarmService()
@@ -1349,10 +1535,21 @@ struct DeviceToolBeltTests {
         let treated = LocalChatBackend.destallBelt(from: belt, cell: .armedDeadend2)
         #expect(treated.map(\.name) == belt.map(\.name))
         #expect((treated.first { $0.name == "lookupContact" } as? ContactsTool)?.continuesAfterNoMatch == true)
-        // The create tools are untouched — this lane measures the read
-        // tool's RESULT text and nothing else.
-        #expect(treated.contains { $0 is ReminderCreateTool })
-        #expect(treated.contains { $0 is CalendarEventTool })
+    }
+
+    /// #201B: the promotion's pinned ROLLBACK — a flag whose explicit `false`
+    /// restores the bare not-found text verbatim.
+    @Test @MainActor func deadendrollbackCellRestoresTheBareNotFoundText() {
+        let belt = DeviceToolBelt.makeActionTools(
+            relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
+            alarmService: AlarmService()
+        ) + [ContactsTool(relay: ToolEventRelay())]
+        let rolled = LocalChatBackend.destallBelt(from: belt, cell: .armedDeadendrollback)
+        #expect(rolled.map(\.name) == belt.map(\.name))
+        let contacts = rolled.first { $0.name == "lookupContact" } as? ContactsTool
+        #expect(contacts?.continuesAfterNoMatch == false)
+        #expect(ContactsTool.noMatchText(query: "Sam", continuing: false)
+            == "No contact matching \"Sam\" was found.")
     }
 
     /// #200U arm B: the ceiling probe. If the model cannot call the tool it
@@ -1394,9 +1591,34 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.deadendConfirmBatteryCells.last == .armed)
     }
 
-    /// #200V: the warm-up is OFF by default, so every battery run before this
-    /// lane — and every one after it that doesn't ask — is byte-identical.
-    @Test func warmupIsOptInSoPriorBatteriesAreUnchanged() {
+    /// #200W: the warm-up is now the DEFAULT. #200V measured the cold-start
+    /// artifact within one run — the same production configuration scored
+    /// calendar 7/10 first-and-cold and 9/10 last-and-warm, with the "Sam"
+    /// dead-end going 3/10 → 0/10 — so every future battery pays that cost
+    /// outside its counts. The flag survives so a run can still opt OUT and
+    /// reproduce a pre-#200V measurement exactly.
+    @Test func warmupIsTheDefaultAndStillOptOutable() {
+        #expect(LocalChatBackend.batteryWarmupDefault == true)
+    }
+
+    /// #200W: production runs LAST, which is the conservative direction — any
+    /// residual position advantage surviving the warm-up accrues to the
+    /// CONTROL, making the treatment's job harder, not easier.
+    @Test func calfixWarmBatteryPutsProductionLast() {
+        #expect(LocalChatBackend.calfixWarmBatteryCells == [
+            .armedCalfix, .armed,
+        ])
+        #expect(LocalChatBackend.calfixWarmBatteryCells.last == .armed)
+        // Same two arms as #200T, so the comparison is the same comparison —
+        // only warmth and position changed.
+        #expect(Set(LocalChatBackend.calfixWarmBatteryCells)
+            == Set(LocalChatBackend.calfixBatteryCells))
+    }
+
+    /// #200V: the warm-up tag grammar, and that "warmup" is never a cell
+    /// rawValue — so no classifier or reap line can mistake a discarded
+    /// warm-up trial for a counted one.
+    @Test func warmupTagIsNeverMistakenForACountedTrial() {
         #expect(LocalChatBackend.batteryWarmupTag(prompt: "calendar")
             == "shape=warmup p=calendar t=0")
         // The tag says `warmup`, never a cell rawValue, so no classifier and

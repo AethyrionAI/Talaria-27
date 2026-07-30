@@ -299,6 +299,18 @@ struct CalendarEventTool: Tool {
     let relay: ToolEventRelay
     let confirmations: ToolConfirmationCenter
 
+    // #200X PROMOTION: `durationMinutes` and `location` are OPTIONAL in the
+    // schema. They were required, so the model had to produce values the
+    // request never gave — and it satisfied `location` by GEOLOCATING THE
+    // USER. Warm, production-last, pre-registered (#200W): production invented
+    // a location in 5 of its 8 calendar creates, twice writing the home street
+    // address onto a lunch, while the optional-field arm invented zero;
+    // `currentLocation` went 7/10 → 0/10 (p≈0.003), the second independent
+    // observation after #200T's exploratory 9/10 → 2/9.
+    //
+    // `title`/`startsAt` stay required: the schema should demand what the tool
+    // genuinely cannot default. `CalendarEventToolRequiredFields` is the
+    // pinned rollback.
     @Generable
     struct Arguments {
         @Guide(description: "Event title, e.g. \"Dentist\".")
@@ -306,18 +318,20 @@ struct CalendarEventTool: Tool {
         @Guide(description: "Start date and time like \"2026-07-08T09:00\" (local time).")
         var startsAt: String
         @Guide(description: "Duration in minutes, e.g. 30.")
-        var durationMinutes: Int
+        var durationMinutes: Int?
         @Guide(description: "Optional location, or empty.")
-        var location: String
+        var location: String?
     }
 
     func call(arguments: Arguments) async throws -> String {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
         await relay.started(name, detail: title)
         defer { Task { await relay.completed(name) } }
+        // An omitted location lands on exactly the path an empty string took;
+        // an omitted duration takes the shared engine's hour.
         return await Self.performCreate(
             rawTitle: title, rawStartsAt: arguments.startsAt,
-            rawMinutes: arguments.durationMinutes, rawLocation: arguments.location,
+            rawMinutes: arguments.durationMinutes, rawLocation: arguments.location ?? "",
             confirmations: confirmations
         )
     }
@@ -416,22 +430,20 @@ struct CalendarEventTool: Tool {
 }
 
 #if DEBUG
-/// #200T treatment: `CalendarEventTool` with `durationMinutes` and
-/// `location` OPTIONAL in the schema, i.e. the surgery #200S proved on the
-/// reminder tool applied to the weakest production number (calendar,
-/// 15/20 pooled). Production declares both as required while `location`'s
-/// own `@Guide` text reads "Optional location, or empty" and the promoted
-/// #200D clause says to leave optional fields empty — and the battery's
-/// calendar prompt ("Put lunch with Sam on my calendar Friday at noon")
-/// supplies neither value.
+/// PRE-PROMOTION tool verbatim — `durationMinutes` and `location`
+/// non-optional, so the schema marks them REQUIRED again. A type change
+/// cannot ride a Bool flag, so this struct IS the pinned rollback seam for
+/// the #200X promotion, and it is reachable as a measured cell exactly like
+/// #200S's reminder rollback.
 ///
-/// Everything else is production: same `name`, same description, the same
-/// `@Guide` texts verbatim, and the same create engine
-/// (`CalendarEventTool.performCreate`). `title`/`startsAt` stay REQUIRED —
-/// the schema should demand what the tool genuinely cannot default.
-/// Measurement cell only; production ships this ONLY after a battery
-/// verdict.
-struct CalendarEventToolOptionalFields: Tool {
+/// Everything else is production: same name, same description, same @Guide
+/// texts, same create engine. If the promotion ever needs to come out, this
+/// is what production reverts to.
+///
+/// What it restores, so the cost of reverting is on the record: with
+/// `location` required the model geolocated the user to fill it, inventing a
+/// place for 5 of 8 creates on a prompt that named none (#200W).
+struct CalendarEventToolRequiredFields: Tool {
     let name = "createCalendarEvent"
     let description = CalendarEventTool.productionDescription
     var includesSchemaInInstructions: Bool = true
@@ -445,20 +457,18 @@ struct CalendarEventToolOptionalFields: Tool {
         @Guide(description: "Start date and time like \"2026-07-08T09:00\" (local time).")
         var startsAt: String
         @Guide(description: "Duration in minutes, e.g. 30.")
-        var durationMinutes: Int?
+        var durationMinutes: Int
         @Guide(description: "Optional location, or empty.")
-        var location: String?
+        var location: String
     }
 
     func call(arguments: Arguments) async throws -> String {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
         await relay.started(name, detail: title)
         defer { Task { await relay.completed(name) } }
-        // An omitted location lands on exactly the path an empty string
-        // took; an omitted duration takes the shared engine's hour.
         return await CalendarEventTool.performCreate(
             rawTitle: title, rawStartsAt: arguments.startsAt,
-            rawMinutes: arguments.durationMinutes, rawLocation: arguments.location ?? "",
+            rawMinutes: arguments.durationMinutes, rawLocation: arguments.location,
             confirmations: confirmations
         )
     }

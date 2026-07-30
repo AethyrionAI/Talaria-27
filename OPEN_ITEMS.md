@@ -11001,6 +11001,408 @@ tools relocates the spiral; it does not remove it.
    #200T's exploratory location-spiral finding and makes the calendar
    `location`/`durationMinutes` optionality worth a warm re-run.
 
+**#200W VERDICT FILED, 2026-07-30 — warm-up default + warm calendar re-run, n=10
+(80 counted trials + 4 discarded warm-up, PR #188 branch `3d81dbd`, corded build
+WITH DEBUGGER ATTACHED, os 27.0 24A5390f, run record `endedCleanly: true`, all 80
+trials present). Bars pre-registered in
+`dispatch/OPUS-T27-200W-warm-calendar.md`, with the RATE explicitly excluded as
+a promotion criterion in advance (warm production calendar ~9/10 leaves no
+headroom at n=10).**
+
+**CORRECTED 2026-07-30 — THE CAVEAT THIS NOTE ORIGINALLY CARRIED WAS WRONG.** The
+first filing said the expired console cost us the confirmation outcomes and the
+reap seal, so creates were "inferred" and arithmetic "unsealed". That was my
+error: I did not look for the fields. The persisted run record carries BOTH —
+`reapSummary: reminders=35 events=17 alarms=21 failures=0`, and
+`confirmation: "accepted"` on every create call (`createCalendarEvent` 17,
+`createReminder` 33, `scheduleAlarm` 20). **So this run was classified to the
+standing law after all: a create = confirmation accepted + its artifact.**
+
+**Reap arithmetic, now actually done and EXACT:** 33+17+20 = **70** accepted
+creates across the 80 counted trials; 35+17+21 = **73** artifacts reaped; the
+difference of **3** is precisely the discarded warm-up (its remind trial, its
+alarm trial, and one haiku grab — its calendar trial dead-ended, which is why
+events balance at 17 with none to spare). The console is a convenience, not the
+system of record; the run JSON is.
+
+| measure | armed-calfix (treatment, slot 1) | armed (production, slot 2/LAST) |
+|---|---|---|
+| remind | **10/10** | **10/10** |
+| alarm | **10/10** | **10/10** |
+| calendar creates | 9/10 | 8/10 |
+| `currentLocation` on calendar | **0/10** | **7/10** |
+| `searchPlaces` on calendar | **0/10** | 1/10 |
+| **invented location in a create** | **0** | **5** (t1,2,4,5,7) |
+| dead-end texts | 1 (t1) | 2 (t8, t9) |
+| haiku grabs | 8/10 | 5/10 (3 ERR excl) |
+
+**Exclusions (3, all on the ungraded canary):** `armed/haiku` t3, t6, t8 —
+`readHealth` `ToolCallError`, the known framework argument-decode class. **Zero
+exclusions on any graded prompt.**
+
+**PRIMARY 2 — INVENTED LOCATIONS — PASSES DECISIVELY. This is the result that
+matters.** The prompt ("Put lunch with Sam on my calendar Friday at noon") names
+no place. Production invented one in **5 of its 8 creates**, geolocating the user
+to satisfy a required field. The treatment invented **zero**. Bar was treatment
+≤1 and control ≥4: both met.
+
+**PRIMARY 1 — THE SPIRAL — SPLITS.**
+
+- `currentLocation` **PASSES decisively**: treatment 0/10 against control 7/10
+  (bar: ≤3 and ≥6). Fisher exact p≈0.003.
+- `searchPlaces` is **INCONCLUSIVE, not failed**: the treatment met its side
+  (0/10 ≤ 1), but the control fired it only **1/10**, below the pre-registered
+  ≥3/10 floor. Per the dispatch's own clause — a control below floor means "no
+  disease to fix" — that sub-measure could not be evaluated this run. It was
+  6/10 in #200T.
+
+**SO THE PROMOTION GATE, AS WRITTEN, IS NOT CLEANLY MET.** The dispatch says
+PRIMARY 1's two clauses "both must hold". One holds decisively and one is
+unevaluable. **I am not relaxing my own bar after seeing the data** — that is the
+single discipline this program cannot spend. The disposition is therefore
+OWEN'S CALL, with the evidence stated plainly:
+
+- The effect has now been observed **twice, in independent runs, same direction**:
+  #200T (exploratory, post hoc) and #200W (pre-registered, warm, production last
+  — the conservative position).
+- The measure that carries the product harm — **writing the user's home area or
+  street address onto an event he never located** — went **5 → 0**.
+- No guard broke: remind 10/10 and alarm 10/10 in both arms, and calendar creates
+  were 9/10 treatment vs 8/10 control, i.e. the treatment was not worse.
+
+**GUARDS: all hold.** Grabs 8/10 treatment vs 5/10 control (5/7 excluding the
+canary's three errors) — reported, not gated (#200O router probe 200/200), but
+the direction is unfavourable and is the one thing to watch if this promotes.
+
+**THE DEAD-END REAPPEARED WARM, WHICH CORRECTS PART OF #200V.** #200V's warm
+production showed ZERO dead-end texts; here warm production shows **2/10**, and
+the treatment arm's single calendar miss was also a dead-end — at t1, immediately
+after the warm-up. So the "Sam" dead-end is **real but noisy**, not purely a
+cold-start artifact as #200V's single warm arm suggested. #200V's withdrawal of
+#200U still stands on its own terms (#200U's bars were not met and its control
+showed zero dead-ends warm), but the disease is not gone and the #200U fix
+remains unpromoted rather than refuted.
+
+**INSTRUMENT FINDINGS FROM THIS RUN:**
+
+1. **The 35-second guillotine cannot cut a hung TOOL.** `armed/haiku/t5` called
+   `searchConversations` and emitted nothing for 2.5+ minutes; the run later
+   completed, so the wedge eventually cleared. `respondTask.cancel()` is
+   cooperative — a tool blocked inside its own `call()` never observes it. This
+   is the SECOND `searchConversations` wedge in two runs (#200V's excluded
+   TIMEOUT was six repeated calls on one query). **Owed: a timeout on the tool
+   itself, not only on the generation.**
+2. **The console session can expire mid-run and take the seal with it.** The
+   capture-log file copy (`Documents/battery-capture.log`, exportable from the
+   results page) is the surviving path to the REAP lines and should be exported
+   alongside the run JSON from now on, not only when the console fails.
+
+**#200Z VERDICT FILED, 2026-07-30 — calendar promotion vs its own rollback, n=10
+(80 counted + 4 discarded warm-up, PR #189 branch `3aadf77`, corded WITH DEBUGGER
+ATTACHED, os 27.0, sealed `reminders=34 events=15 alarms=21 failures=0`,
+`endedCleanly: true`). CLASSIFIED BY `scripts/classify-battery-run.py` — the
+first verdict in this program whose counts were generated rather than
+hand-tallied. Bars pre-registered in
+`dispatch/OPUS-T27-200Z-calendar-rollback-verify.md`.**
+
+**Reap arithmetic EXACT, and it closes to the artifact:** 33 + 20 + 14 = 67
+accepted creates across the counted trials; 34 + 15 + 21 = 70 reaped; residual
+**3** = exactly one artifact from each of the warm-up's three create trials
+(remind, calendar, alarm — its haiku trial errored). The one calendar event I
+could not attribute from console sampling was a **haiku grab creating a calendar
+event**, which the classifier found immediately.
+
+| measure | armed-calrollback (required fields) | armed (production, LAST) |
+|---|---|---|
+| remind | **10/10** | **10/10** |
+| alarm | **10/10** | **10/10** |
+| calendar creates | 6/9 (t2 excluded) | 7/10 |
+| `currentLocation` | **6/9** | **0/10** |
+| `searchPlaces` (reported only) | 2/9 | 0/10 |
+| **invented location in a create** | **3** (t4, t6, t9) | **0** |
+| dead-end misses | 2 | 3 |
+| haiku grabs | 7/9 | 7/10 |
+
+**Exclusions (2 counted + 1 warm-up):** `armed-calrollback/calendar/t2` —
+**`ToolCallError(CalendarEventToolRequiredFields)`**, an argument-DECODE failure;
+`armed-calrollback/haiku/t7` and the warm-up haiku — `readHealth` decode, the
+known class.
+
+**PRIMARY 2 PASSES AND REPLICATES:** `currentLocation` 6/9 in the rollback arm
+(bar ≥6) against **0/10** in production (bar ≤3). #200W measured 0 vs 7 with the
+arms in the opposite slots; this is the same effect, warm, with production in the
+conservative last position.
+
+**PRIMARY 1 IS UNMET, BY ONE TRIAL.** Invented locations: production **0/10**
+(bar ≤1, met), rollback **3/9** where the bar was **≥4**. Recorded plainly
+because the temptation to rescue it is exactly what the bars exist to stop: if
+the two location-exposing MISSES were counted (t8 narrating "Current location:
+19200 Crestwick St, Saucier, MS", t10 offering "Saucier, MS … 5.0 miles away"),
+the rollback arm surfaced an invented location in 5 of 9 trials — **but the
+pre-registered measure said CREATES, so the honest number is 3 and the bar is
+not met.** The definition does not get rewritten after the data.
+
+**CORRECTION to my own live reporting:** I read `currentLocation` as **7** from a
+console `totalCount`, which included the excluded t2 trial. The classifier's
+6/9 is the correct figure. This is precisely the hand-tallying error the script
+was written to remove, and it removed it on its first real use.
+
+**THE REVERT CONDITION DID NOT FIRE.** The rollback arm both invented locations
+(3) and spiralled (6/9 `currentLocation`, 2/9 `searchPlaces`), so #200X's premise
+holds. **Disposition: the promotion STANDS; the confirmation is PARTIAL** — one
+primary replicated, one short by a single trial.
+
+**UNREGISTERED FINDING, stronger than the bar it missed:** the rollback arm threw
+`ToolCallError(CalendarEventToolRequiredFields)` — an argument-decode failure the
+promoted tool **structurally cannot produce**, having two fewer required fields.
+Production had zero calendar errors. That is the tool-throw audit's prediction
+(#200H, corrected) confirmed by accident, and it is independent of the location
+behaviour.
+
+**THE "SAM" DEAD-END IS GROWING IN WARM PRODUCTION: 0/10 (#200V) → 2/10 (#200W)
+→ 3/10 (#200Z).** Three warm samples. #200V withdrew #200U's fix because warm
+production showed zero dead-ends; that reading no longer holds, and Owen has
+routed a reconsideration. The `continuesAfterNoMatch` seam is still in the tree,
+defaulting false, with the classifier now labelling dead-end misses
+automatically — so the re-run is cheap and its primary measure is a count, not a
+rate.
+
+**Wedge watch: no wedge occurred, so `DeviceToolTimeout` never fired.** Nothing
+is concluded about it either way; the wedge is intermittent and the timeout stays
+in place as insurance.
+
+## #202 — the turn router is CONTEXT-BLIND: short affirmatives misroute toolless, and that is the original #200 denial
+
+**Filed 2026-07-30 from Hermes's OI-#200 audit (F1), verified line-by-line in the
+tree before filing. This is the mechanism for #200's own filing specimen #2, which
+the program flagged as "the multi-turn absorbing state" and never instrumented
+through #200Z.**
+
+**The chain, all confirmed in `LocalChatBackend.swift` at `0979955`:**
+
+1. `routeNeedsDeviceTool(prompt:)` (L2205) builds a **fresh** `LanguageModelSession`
+   with router instructions only and prompts `Prompt("Request: \(prompt)")` — **the
+   raw current turn, with NO conversation history and no last-assistant-turn
+   context.**
+2. `ToolIntentRoute`'s pinned `@Guide` says the answer is false for "Writing,
+   poems, summaries, math, facts, and **conversation**". **"Yes please" is
+   conversation.**
+3. Every turn: `turnRoutedToolless = !(await routeNeedsDeviceTool(prompt: nextPrompt))`
+   (L698).
+4. `effectiveOfferedTools` (L944): **`if turnRoutedToolless { return [] }`** — a
+   routed-toolless turn registers **NO belt at all** ("the full structural cure,
+   not a call gate"), and L707 recreates the session when the offered set changes.
+
+**So on "Yes please" the turn genuinely has no `createReminder` — and the flat
+capability denial is CORRECT behaviour for a session with no tools.** The denial
+"survives corrections" because every short follow-up re-misroutes the same way.
+That is the absorbing state, and it is a routing bug, not a model refusal.
+
+**Why no existing instrument can see it:** the router probe (200/200) and every
+action battery are **single-turn**. Both measure the first turn of a request that
+states its own intent. The offer→accept shape is never generated.
+
+**Fix directions (unmeasured, one seam each):**
+
+- classify with the **last assistant turn** as context, so an offer followed by
+  "yes" is visible to the router; or
+- **inherit the previous turn's route** for short/affirmative prompts (cheap,
+  no extra generation, and fail-safe in the armed direction); or
+- fail safe to ARMED for prompts under a length threshold — the router already
+  fails safe to armed on error, so this is the same instinct applied to ambiguity.
+
+**Instrument owed FIRST (this is the lane's real cost):** a **two-turn** battery
+cell — turn 1 a prompt that elicits an offer, turn 2 a bare affirmative — scored
+on whether the accept produces the artifact. Everything the program knows about
+single-turn creates says nothing about this shape.
+
+**Priority: HIGH.** Production remind creates are 20/20 on single turns while this
+class is plausibly the most common real-world path to a create ("remind me…" →
+clarifying question → "yes"). The whole #200 scoreboard measures the half of the
+funnel that works.
+
+**#202 NOTE, 2026-07-30 — the router is also production's WARM-UP, and it makes
+every battery number PESSIMISTIC (Hermes audit F2, verified).** Every production
+turn pays one router generation (~0.6s, greedy, 64-token cap) on a fresh session
+BEFORE the real turn runs — same `model` object, so the model-load cost lands on
+the router, not on the answer. Two consequences the #200 record never stated:
+
+1. **Production turns are structurally always warm.** The #200V cold-start
+   artifact — the same production config scoring calendar 7/10 first-and-cold vs
+   9/10 last-and-warm — **cannot occur in production**, because production never
+   runs a first generation without the router's generation ahead of it. Batteries
+   without a warm-up measured a COLDER path than users ever run.
+2. Therefore the warm numbers are the honest production estimate, and every
+   pre-#200V control number understated production. **This strengthens the
+   promotions rather than weakening them** — the treatments were being compared
+   against an unfairly cold control, and they still won.
+
+**#197 / #199 CROSS-REFERENCE, 2026-07-30 (Hermes audit F3).** Both open denial-side
+siblings now interact with #200's wins and are unrouted:
+
+- **#197** (raw-error turn death): #200's tool-throw audit proved these throws
+  happen **above `call()`** — the FoundationModels argument-DECODE class, which no
+  tool can catch — so #176's recovery clause never engages. #200Z added evidence
+  by accident: the calendar ROLLBACK arm threw
+  `ToolCallError(CalendarEventToolRequiredFields)` while the promoted tool, with
+  two fewer required fields, **structurally cannot**. Fewer required fields is a
+  partial cure for #197, and the `readHealth` decode errors that keep costing
+  trials (3 in #200W, 2 in #200Z) are the same class awaiting the same treatment.
+- **#199** (post-decline fabrication of a completed action): every promoted #200
+  clause pushes "create now", so creation pressure is at an all-time high while
+  the decline path's honesty has not been measured since the #196-era auto-decline
+  runs. A **post-decline claim-check cell** is the natural sibling measurement and
+  is now the more urgent of the two.
+
+**#203 (SHIP BLOCKER — unbounded CoreLocation wait) is filed and FIXED on its own
+branch, PR #190**, split out deliberately so a production hang fix is not buried
+inside a measurement PR. Its full write-up, fix rationale and the two hazards it
+leaves open live with that item.
+
+**#51 / #52 NOTE, 2026-07-30 (Hermes audit §7 item 1).** #51 was held open only
+for want of a `build-for-testing` confirmation on beta4. That run has now
+happened many times over — tonight's lanes alone ran it green repeatedly
+(1336/1336 in 111 suites at the latest), and Hermes's independent audit build was
+green too. **By its own stated criterion #51 is satisfied; closure is Owen's
+call.** #52 (xcscheme drift) stays open and is *live*: the drifted
+`Talaria.xcodeproj/xcshareddata/xcschemes/Talaria.xcscheme` reappears in the
+working tree constantly — it was discarded by hand a dozen times during the
+#200T–#201 lanes. It is xcodegen residue and deserves a real fix, not a nightly
+`git checkout --`.
+
+**HYGIENE NOTED, 2026-07-30 (Hermes audit §7 items 3–6), verified:**
+
+- **`tools/orphan-audit.sh` is stale** — last touched `986bc62`, 2026-07-08. The
+  #200 program has added ~1,300 lines of DEBUG battery machinery since, none of it
+  covered by that report. Worth a re-run before any launch pass.
+- **`LocalChatBackend.swift` is 3,498 lines**, of which roughly 1,300 are the
+  DEBUG battery suite plus the two `DynamicProfile` structs. A mechanical
+  `LocalChatBackend+Batteries.swift` extraction would return the production brain
+  to ~2,200 with zero behaviour change. **Caveat on the framing:** Hermes cites
+  "your own ~1,000-line guideline" — I could not find that guideline in
+  `CLAUDE.md`, which only says OPEN_ITEMS stays monolithic. The line count is
+  fact; the threshold is unverified, so the extraction is a judgement call and not
+  a rule violation.
+- **`EKEventStore()` is constructed per tool call** (2 sites in
+  `DeviceActionTools.swift`, 1 in `LocalChatBackend.swift`). Apple documents
+  stores as expensive and meant to be shared, and the per-trial reap loop makes
+  this the hottest allocation path in a battery.
+- **`scripts/` vs `tools/`:** the classifier landed in `scripts/`. Keeping it —
+  `CLAUDE.md` already documents `scripts/mac/ota-stage.sh`, so `scripts/` is the
+  documented home for dev/ops tooling while `tools/` holds repo-analysis output.
+  Recorded as a decision rather than left as an accident.
+
+**#190 re-verified as a legitimate open SHIP BLOCKER** (Hermes checked rather than
+assumed): the 2026-07-26 device-pass FAIL on PR #151 — dead taps in the unified
+drawer — still stands. Nothing about #200's work touches it.
+
+**#201 VERDICT FILED, 2026-07-30 — contact dead-end at n=20 (160 counted + 4
+warm-up, PR #189 branch `7f89497`+, corded WITH DEBUGGER ATTACHED, os 27.0, sealed
+`reminders=77 events=38 alarms=41 failures=0`, `endedCleanly: true`, ZERO
+exclusions). Classified by `scripts/classify-battery-run.py`. Arithmetic EXACT:
+152 accepted creates, 156 reaped, residual 4 = the warm-up's four trials.**
+
+| measure | armed-deadend2 (treatment) | armed (production, LAST) |
+|---|---|---|
+| remind | **20/20** | **20/20** |
+| alarm | **20/20** | **20/20** |
+| calendar | **20/20** | 17/20 |
+| dead-end misses | **0** | **3** (t2, t10, t19 — all three misses) |
+| invented location | 0 | 0 |
+| haiku grabs | 17/20 | 17/20 |
+
+**VERDICT: INCONCLUSIVE by the pre-registered evaluability gate. Nothing
+promotes.** The gate required the control to show **≥4/20** dead-end misses; it
+showed **3**. The treatment satisfied its pass threshold (0 ≤ 2/20, and ≤ half the
+control), but the gate governs.
+
+**THE GATE WAS MIS-SPECIFIED, AND THAT IS MY ERROR, NOT THE DISEASE'S.** Production's
+warm dead-end rate pooled **5/30 ≈ 16.7%** across #200V/#200W/#200Z. Over 20 trials
+that predicts **3.3 events**. Setting the gate at ≥4 therefore required the disease
+to appear **above its own expected rate** — a coin flip on its own arithmetic. So
+the gate's failure is not information about the hypothesis; it is information about
+the bar. **Third floor in three lanes to land exactly one short** (#200Z: invented
+locations 3 vs ≥4; here: dead-ends 3 vs ≥4), and the pattern is thresholds set from
+judgement without doing the power arithmetic first.
+
+**THE STATISTICS AGREE WITH THE GATE'S CAUTION ANYWAY, which is why this is not a
+promotion in disguise:** calendar 20/20 vs 17/20 is **p≈0.23**; dead-ends 0/20 vs
+3/20 is **p≈0.23**. Encouraging direction, not evidence. A 3-event base cannot
+carry a conclusion. **The treatment's calendar 20/20 is nevertheless the best
+calendar number the program has recorded**, and production's 17/20 (85%) warm is
+consistent with its ~9/10 estimate.
+
+**Note on the closing condition.** #201's dispatch said a failed gate CLOSES the
+hypothesis with no third bite "without new evidence". A demonstrably
+mis-calibrated gate is new evidence **about the instrument**, not hypothesis-
+shopping about the disease, so the honest disposition is: this run is
+inconclusive, the seam stays `false`, and a **properly powered** re-run is
+warranted. Owen routed exactly that (#201B, n=40).
+
+**Grabs 17/20 in BOTH arms (85%)** — equal, so no signal, and not user-facing per
+#200O's router probe. Worth noting the absolute number is the highest recorded;
+the grab canary is measured under armed construction, which production reaches only
+on a router miss.
+
+**#201B VERDICT FILED, 2026-07-30 — the contact dead-end fix PROMOTES. Two runs at
+n=40, in BOTH slot orders, 320 counted trials each + 4 warm-up, corded WITH
+DEBUGGER ATTACHED, both `endedCleanly: true`, ZERO exclusions, both classified by
+`scripts/classify-battery-run.py`.**
+
+| run | slot order | production dead-ends | treatment dead-ends | production calendar | treatment calendar |
+|---|---|---|---|---|---|
+| #201B forward | treatment first (cool) → production last (hot) | **5/40** | **0/40** | 35/40 | **40/40** |
+| #201B reversed | **production first (cool)** → treatment last (hot) | **9/40** | **0/40** | 31/40 | **40/40** |
+| **pooled** | — | **14/80 (17.5%)** | **0/80** | 66/80 | **80/80** |
+
+Reap arithmetic exact in both: forward 300 accepted / 304 reaped (residual 4 =
+warm-up); reversed 287 / 290 (residual 3). Guards **40/40 on remind and alarm in
+all four cells of both runs**.
+
+**Fisher one-sided on the confirmation run alone: p≈0.0012.** The pooled control
+rate of 17.5% lands on the 16.7% base rate the power calculation assumed, which is
+the sanity check that the n=40 sizing was honest rather than lucky.
+
+**THE CONFOUNDS ARE EXONERATED BY INVERSION, NOT BY ARGUMENT.**
+
+- **Thermal:** production did **WORSE COOL (9/40 dead-ends) than it did HOT
+  (5/40)**. Heat does not cause the dead-end. And in the confirmation the
+  treatment ran **`serious` throughout** — throttled — and still went 40/40 with
+  zero.
+- **Position:** both arms have now run first and last. The treatment won from
+  both; production lost from both.
+- **The surviving confound runs AGAINST the winner.** The classifier's thermal
+  check correctly flagged mismatched cell starts, and the honest reading is that a
+  bias against the arm that won cannot explain its win. **The tool gives a blunt
+  warning; the verdict has to read the direction.** Recorded because a future
+  reader will meet that flag again.
+
+**DISPOSITION: `ContactsTool.continuesAfterNoMatch` PROMOTES to `true`.** The
+pinned rollback is the flag's explicit `false`, reachable as the
+`armed-deadendrollback` cell, which restores the bare not-found text verbatim.
+
+**What the promotion actually fixes, in the model's own words.** Production's nine
+misses are all the same shape — *"I couldn't find a contact named 'Sam.' Would you
+like me to create the event without the name…"* — the model asking PERMISSION to do
+what the promoted #200O prose already instructs. The fix does not stop the lookup
+or the miss; it stops the miss reading as a blocker. **Five wording lanes could not
+reach this because prose is not the layer.**
+
+**Two honest footnotes.**
+
+1. **Production's true warm calendar number is worse than we thought: 66/80
+   (82.5%)**, and 31/40 in the reversed run is its worst warm figure on record.
+   The 85–90% estimates came from n=10 samples that were flattering it. Measuring
+   at n=40 cost the scoreboard some optimism and bought it accuracy.
+2. **Grabs ran 30/40 treatment vs 26/40 production** — unfavourable direction,
+   ungated per #200O's router probe (200/200, canary routes toolless), but it is
+   the number to watch if the grab lane ever reopens.
+
+**#201's INCONCLUSIVE stands as filed** — its gate was mis-specified (demanding the
+disease exceed its own expected rate), and the fix was to power the run properly
+rather than to reinterpret it. That sequence — inconclusive, re-power, confirm in
+both orders — is the honest path this program should take every time a floor lands
+one short.
 ## #203 — SHIP BLOCKER: an unbounded CoreLocation wait can spin a production turn forever
 
 **Filed and FIXED 2026-07-30. Found by Hermes's independent night audit, verified

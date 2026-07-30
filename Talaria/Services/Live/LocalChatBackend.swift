@@ -2560,6 +2560,16 @@ extension LocalChatBackend {
         /// is a product regression; this bounds the achievable win, and if it
         /// does not beat the control either, the whole seam is falsified.
         case armedNocontact = "armed-nocontact"
+        /// #200X: the calendar promotion's pinned ROLLBACK, as a measured
+        /// cell — `CalendarEventToolRequiredFields`, i.e. the pre-promotion
+        /// tool with `durationMinutes`/`location` required again. Restoring
+        /// them restores the geolocation behaviour: 5 of 8 creates carried an
+        /// invented location in #200W, twice the home street address.
+        case armedCalrollback = "armed-calrollback"
+        /// #201B: the contact promotion's pinned ROLLBACK — `ContactsTool` with
+        /// `continuesAfterNoMatch` explicitly false, i.e. the bare not-found
+        /// text that produced 14/80 dead-end misses across two n=40 runs.
+        case armedDeadendrollback = "armed-deadendrollback"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2570,32 +2580,31 @@ extension LocalChatBackend {
         case .armed, .armedInstrfix, .armedToolmode, .armedScoped, .armedCreateonly,
              .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix,
              .armedDatefix, .armedCardrollback, .armedDeadendfix, .armedGrabfix,
-             .armedStallfix, .armedSchemafix:
+             .armedStallfix, .armedSchemafix, .armedCalfix, .armedDeadend2:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
             // strikefix treat the tool-calling MODE, and the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
             // loop) — none of them swap tool text here.
             return tools
-        case .armedDeadend2:
-            // #200U arm A: one seam on one READ tool — the not-found result
-            // carries continuation. Create tools untouched.
+        case .armedDeadendrollback:
+            // #201B: one swap — the pre-promotion bare not-found text. The
+            // pinned rollback, measurable.
             return tools.map { tool in
                 if let contacts = tool as? ContactsTool {
-                    return ContactsTool(continuesAfterNoMatch: true, relay: contacts.relay)
+                    return ContactsTool(continuesAfterNoMatch: false, relay: contacts.relay)
                 }
                 return tool
             }
         case .armedNocontact:
             // #200U arm B: the ceiling probe — the tool is simply absent.
             return tools.filter { $0.name != "lookupContact" }
-        case .armedCalfix:
-            // #200T: one swap — the calendar tool with its two
-            // undefaultable-by-the-model fields optional in the schema.
-            // The reminder tool stays production: its promotion is not up
-            // for re-measurement in this lane.
+        case .armedCalrollback:
+            // #200X: one swap — the pre-promotion calendar tool, whose two
+            // undefaultable fields are REQUIRED in the schema again. The
+            // pinned rollback, measurable.
             return tools.map { tool in
                 if let calendar = tool as? CalendarEventTool {
-                    return CalendarEventToolOptionalFields(relay: calendar.relay, confirmations: calendar.confirmations)
+                    return CalendarEventToolRequiredFields(relay: calendar.relay, confirmations: calendar.confirmations)
                 }
                 return tool
             }
@@ -2691,7 +2700,7 @@ extension LocalChatBackend {
     /// byte-for-byte.
     func runActionBattery(trials: Int, cells: [ActionBatteryCell] = [.armed],
                           includeGrabCanary: Bool = false,
-                          warmup: Bool = false) async {
+                          warmup: Bool = LocalChatBackend.batteryWarmupDefault) async {
         guard Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
@@ -2767,6 +2776,7 @@ extension LocalChatBackend {
         }
         Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: cells.map(\.rawValue), kind: "action")
         for cell in cells {
+            emitThermal(cell: cell.rawValue, at: "start")
             let cellBelt = Self.destallBelt(from: base, cell: cell)
             let cellInstructions: String
             switch cell {
@@ -2919,6 +2929,7 @@ extension LocalChatBackend {
                     ))
                 }
             }
+            emitThermal(cell: cell.rawValue, at: "end")
         }
         ToolEventRelay.batteryTrialTag = nil
         let reapSummary = await reapBatteryArtifacts(
@@ -3207,11 +3218,144 @@ extension LocalChatBackend {
         "shape=warmup p=\(prompt) t=0"
     }
 
+    /// #201B: thermal state at cell boundaries. 320-trial runs are long enough
+    /// for drift to matter, and since production runs LAST a hot device
+    /// penalises the CONTROL — the opposite direction from #200V's cold-start
+    /// bias, and a confound that could manufacture a treatment win. Emitted so
+    /// the verdict can read it instead of assuming it away.
+    nonisolated static func thermalLabel(_ state: ProcessInfo.ThermalState) -> String {
+        switch state {
+        case .nominal: return "nominal"
+        case .fair: return "fair"
+        case .serious: return "serious"
+        case .critical: return "critical"
+        @unknown default: return "unknown"
+        }
+    }
+
+    nonisolated static func thermalLine(cell: String, at moment: String,
+                                        state: ProcessInfo.ThermalState) -> String {
+        "battery: THERMAL cell=\(cell) at=\(moment) state=\(thermalLabel(state)) (#201B)"
+    }
+
+    /// The RECORD form of the same reading — compact, and what the classifier
+    /// reads so thermal comparability is enforced in code rather than by eye.
+    nonisolated static func thermalRecordEntry(cell: String, at moment: String,
+                                               state: ProcessInfo.ThermalState) -> String {
+        "\(cell):\(moment)=\(thermalLabel(state))"
+    }
+
+    /// Emits a cell-boundary reading to BOTH sinks.
+    func emitThermal(cell: String, at moment: String) {
+        let state = ProcessInfo.processInfo.thermalState
+        Self.batteryEmit(Self.thermalLine(cell: cell, at: moment, state: state))
+        Self.batteryRecorder.recordThermal(
+            Self.thermalRecordEntry(cell: cell, at: moment, state: state))
+    }
+
+    /// #200W: the warm-up is now the DEFAULT. #200V measured the cold-start
+    /// artifact WITHIN one run — the same production configuration scored
+    /// calendar 7/10 running first and cold (#200T, #200U) and 9/10 running
+    /// last and warm, with the "Sam" dead-end going 3/10 → 0/10, and the
+    /// warm-up flattened the gradient (calendar by slot 9, 10, 9 against
+    /// #200U's 7, 10, 10).
+    ///
+    /// Every pre-#200V control number is therefore cold-biased. The flag
+    /// survives so a run can opt OUT and reproduce one of those measurements
+    /// exactly.
+    nonisolated static let batteryWarmupDefault = true
+
+    /// #200W cell list — #200T's two arms re-run WARM, with production LAST.
+    /// Production-last is the conservative direction: any residual position
+    /// advantage that survives the warm-up accrues to the CONTROL, making the
+    /// treatment's job harder. Same two arms as `calfixBatteryCells`, so the
+    /// comparison is the same comparison — only warmth and position changed.
+    ///
+    /// The RATE is not the primary bar here and the dispatch says so in
+    /// advance: warm production calendar is ~9/10, so a +2 bar needs 11/10 and
+    /// the ceiling clause reduces to a +1 delta at n=10. The primaries are the
+    /// location-spiral and invented-location counts, which have large effects
+    /// and no ceiling. Pinned.
+    nonisolated static let calfixWarmBatteryCells: [ActionBatteryCell] = [
+        .armedCalfix, .armed,
+    ]
+
+    /// #200W one-tap wrapper: 2 cells × four prompts — 8 × trials
+    /// generations, plus the now-default warm-up pass.
+    func runCalfixWarmBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.calfixWarmBatteryCells,
+                               includeGrabCanary: true)
+    }
+
+    /// #200X cell list — the promotion judged against its OWN rollback, warm,
+    /// in one run, production LAST. This is the confidence run the promotion is
+    /// owed: #200W's gate was not cleanly met (its `searchPlaces` clause was
+    /// unevaluable at a 1/10 control), so the promoted tool is measured against
+    /// the exact thing it replaced rather than against a remembered number —
+    /// the #200S re-verify shape. Pinned.
+    nonisolated static let calRollbackVerifyBatteryCells: [ActionBatteryCell] = [
+        .armedCalrollback, .armed,
+    ]
+
+    /// #200X one-tap wrapper: 2 cells × four prompts — 8 × trials generations,
+    /// plus the default warm-up pass.
+    func runCalRollbackVerifyBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.calRollbackVerifyBatteryCells,
+                               includeGrabCanary: true)
+    }
+
+    /// #201 cell list — #200U's fix re-measured at n=20, production LAST.
+    /// #200V withdrew that fix on a single clause: warm production showed ZERO
+    /// dead-end misses. Three warm samples killed that basis — 0/10 (#200V),
+    /// 2/10 (#200W), 3/10 (#200Z) — so #200V's zero was itself the small-sample
+    /// artifact it existed to catch.
+    ///
+    /// The primary here is a COUNT, not a rate, which is why n doubles: at n=10
+    /// a 2-or-3 event count cannot carry a bar. Arm B (tool removal) is
+    /// deliberately absent — #200U measured it relocating the spiral into
+    /// `searchConversations` rather than removing it. Pinned.
+    nonisolated static let deadendReconsiderBatteryCells: [ActionBatteryCell] = [
+        .armedDeadend2, .armed,
+    ]
+
+    /// #201B cell list — the SAME two arms with PRODUCTION FIRST. #201B passed
+    /// its bars (dead-ends 0/40 vs 5/40, Fisher p≈0.027) but its thermal states
+    /// were not comparable: production ran its whole cell at `serious` while the
+    /// treatment started at `fair`. Reversing puts production in the COOL slot,
+    /// so this run doubles as the thermal control — if production still shows
+    /// dead-ends when it runs first and cool, thermal is exonerated and the
+    /// effect is real; if they vanish, the effect was thermal and gets withdrawn.
+    /// Pinned.
+    nonisolated static let deadendReversedBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedDeadend2,
+    ]
+
+    /// #201B reversed wrapper.
+    func runDeadendReversedBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.deadendReversedBatteryCells,
+                               includeGrabCanary: true)
+    }
+
+    /// #201 one-tap wrapper: 2 cells × four prompts — 8 × trials generations
+    /// (160 at n=20), plus the default warm-up pass.
+    func runDeadendReconsiderBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.deadendReconsiderBatteryCells,
+                               includeGrabCanary: true)
+    }
+
     /// #200V one-tap wrapper: 3 cells × four prompts — 12 × trials
     /// generations, PLUS a discarded warm-up pass over the prompt list.
     func runDeadendConfirmBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.deadendConfirmBatteryCells,
                                includeGrabCanary: true, warmup: true)
+    }
+
+    /// #200W: the pre-#200V instrument, reachable on purpose — `warmup: false`
+    /// reproduces a cold-first measurement exactly, which is what makes the
+    /// cold-start artifact re-measurable rather than merely asserted.
+    func runColdCalfixBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.calfixWarmBatteryCells,
+                               includeGrabCanary: true, warmup: false)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the
