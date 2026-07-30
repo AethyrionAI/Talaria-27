@@ -3713,20 +3713,29 @@ extension LocalChatBackend {
         // consume the cool slot it would otherwise bias. Recorded as
         // correct/trials like any row so the classifier reads one shape,
         // with trials=1 marking it as decided rather than sampled.
+        // Fix direction 2: a short affirmative INHERITS the previous turn's
+        // route (the accept rows follow an offer to use a tool, so
+        // inheritance yields ARMED). It is a MODIFIER, not a classifier:
+        // on anything else it DEFERS to the control and has no opinion.
+        // Only the rows where it fires are scored — scoring the deferrals
+        // would charge the rule for the control's answers, which is how the
+        // first cut of this column read `device 0/2` for a rule that never
+        // ran (#202A, corrected before the verdict).
+        var deferred = 0
         for row in grid {
-            // Fix direction 2: a short affirmative INHERITS the previous
-            // turn's route. Every grid row's context is an assistant turn
-            // in a conversation that was itself routed; the accept rows
-            // follow an offer to use a tool (armed), so inheritance yields
-            // armed there. Non-affirmatives fall through to the control.
-            let inherited = Self.isShortAffirmative(row.prompt)
+            guard Self.isShortAffirmative(row.prompt) else {
+                deferred += 1
+                Self.batteryEmit("router: lenrule DEFERS (not a bare affirmative) band=\(row.band.rawValue) probe=\(row.prompt)")
+                continue
+            }
             Self.batteryRecorder.recordProbe(
                 probe: row.prompt, expected: row.expected,
-                correct: inherited == row.expected ? 1 : 0, trials: 1,
+                correct: row.expected ? 1 : 0, trials: 1,
                 variant: "lenrule", context: row.context, band: row.band.rawValue
             )
-            Self.batteryEmit("router: lenrule short-affirmative=\(inherited) expected=\(row.expected) band=\(row.band.rawValue) probe=\(row.prompt)")
+            Self.batteryEmit("router: lenrule fires → armed expected=\(row.expected) band=\(row.band.rawValue) probe=\(row.prompt)")
         }
+        Self.batteryEmit("router: lenrule fired on \(grid.count - deferred)/\(grid.count) rows, deferred on \(deferred) (#202A)")
 
         for variant in variants {
             emitThermal(cell: variant.rawValue, at: "start")

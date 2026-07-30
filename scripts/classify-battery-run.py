@@ -155,8 +155,30 @@ def probe_report(run):
     if "lenrule" in totals:
         parts = [f"{b} {totals['lenrule'][b][0]}/{totals['lenrule'][b][1]}"
                  for b in totals["lenrule"]]
-        print(f"  lenrule (REPORTED, NOT GATED — inheritance needs a two-turn run): "
+        print(f"  lenrule (REPORTED, NOT GATED — inheritance needs a two-turn run;"
+              f" scored only where the rule FIRES, deferrals are not its answers): "
               + "  ".join(parts))
+
+    # Greedy decode + an identical prompt is deterministic, so repeats of one
+    # row are NOT independent samples. When every row saturates, the honest n
+    # is the ROW COUNT — say so loudly, because the pooled trial denominators
+    # above will otherwise read as far more evidence than the run contains.
+    generating = [p for p in probes if (p.get("variant") or "") != "lenrule"]
+    split = [p for p in generating if 0 < p["correct"] < p["trials"]]
+    if generating and not split:
+        rows_by = {}
+        for p in generating:
+            key = (p.get("variant"), p.get("band"))
+            slot = rows_by.setdefault(key, [0, 0])
+            slot[0] += 1 if p["correct"] == p["trials"] else 0
+            slot[1] += 1
+        print(f"\n=== !! ZERO within-row variance across all {len(generating)} generating rows")
+        print("  The router decodes GREEDILY, so repeating one prompt re-measures one")
+        print("  sample. The effective n is the number of DISTINCT ROWS, not trials:")
+        for (variant, band), (good, total) in rows_by.items():
+            print(f"    {variant:<9} {band:<11} {good}/{total} rows")
+        print("  Report row counts as the evidence. Future probe runs should spend the")
+        print("  budget on MORE DISTINCT ROWS rather than on repeats.")
 
     thermal = run.get("thermal") or []
     if thermal:
