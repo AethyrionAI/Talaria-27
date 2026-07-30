@@ -74,8 +74,109 @@ def accepted(trial, tool):
     )
 
 
+# #202A pre-registered bars, as RATES so a different n stays comparable.
+# They live here rather than in a reader's head: the dispatch doc wrote them
+# before the run, and encoding them means the verdict is computed, not judged.
+MECHANISM_CONFIRM = 0.75   # control misroutes affirmatives at or above this
+MECHANISM_REFUTE = 0.20    # below this the FILING is wrong and #202 re-derives
+BASELINE_GATE = 0.95       # the #196 grid must still hold on the control
+CAND_ACCEPT = 0.90         # candidate fixes the accepts
+CAND_WORDS_ONLY = 0.95     # ...without routing everything armed
+CAND_DEVICE = 0.95         # ...and without regressing explicit device turns
+
+
+def probe_report(run):
+    """#202A: the context-blind-router probe. Rows carry variant/band/context,
+    so every number below is a summation over the record — nothing is tallied
+    by eye (that mistake has cost this program two corrected verdicts)."""
+    probes = run["probes"]
+    print(f"run {run['id'][:8]}  build={run.get('appBuild')}  os={run.get('osVersion')}")
+    print(f"kind={run.get('kind')}  variants={run['cells']}  n={run['trialsPerCell']}"
+          f"  endedCleanly={run.get('endedCleanly')}\n")
+
+    # variant -> band -> [correct, trials]
+    totals = {}
+    for p in probes:
+        variant = p.get("variant") or "unlabelled"
+        band = p.get("band") or "unlabelled"
+        slot = totals.setdefault(variant, {}).setdefault(band, [0, 0])
+        slot[0] += p["correct"]
+        slot[1] += p["trials"]
+
+    def rate(variant, band):
+        c, t = totals.get(variant, {}).get(band, [0, 0])
+        return (c / t if t else 0.0), c, t
+
+    print("=== rows (correct = routed the way the row says is RIGHT)")
+    for variant in totals:
+        print(f"--- {variant}")
+        for p in [q for q in probes if (q.get("variant") or "unlabelled") == variant]:
+            pct = 100.0 * p["correct"] / p["trials"] if p["trials"] else 0.0
+            ctx = (p.get("context") or "")[:44]
+            print(f"  [{(p.get('band') or '?'):<10}] {p['correct']:>3}/{p['trials']:<3} {pct:5.1f}%"
+                  f"  want={str(p['expected']):<5} {p['probe'][:28]:<28} ctx={ctx}")
+
+    print("\n=== bars (pre-registered in dispatch/OPUS-T27-202A-router-context.md)")
+
+    acc, c, t = rate("control", "accept")
+    misroute = 1.0 - acc
+    if t == 0:
+        print("  !! no control accept rows — the mechanism cannot be read")
+    else:
+        verdict = ("CONFIRMED" if misroute >= MECHANISM_CONFIRM
+                   else "REFUTED — the filing is wrong; re-derive #202 from this run"
+                   if misroute < MECHANISM_REFUTE
+                   else "INCONCLUSIVE — between the confirm and refute bars")
+        print(f"  MECHANISM: control misroutes accepts {misroute:.1%} ({t - c}/{t}) — {verdict}")
+
+    base, c, t = rate("baseline", "baseline")
+    if t == 0:
+        print("  !! no baseline rows — the regression gate cannot be read")
+    else:
+        print(f"  BASELINE GATE: {base:.1%} ({c}/{t}) — "
+              f"{'HOLDS' if base >= BASELINE_GATE else 'DRIFTED — every other number here is SUSPECT'}")
+
+    for variant in [v for v in totals if v.startswith("ctx")]:
+        a, ac, at = rate(variant, "accept")
+        w, wc, wt = rate(variant, "words-only")
+        d, dc, dt = rate(variant, "device")
+        checks = [("accepts", a, CAND_ACCEPT, ac, at),
+                  ("words-only", w, CAND_WORDS_ONLY, wc, wt),
+                  ("device", d, CAND_DEVICE, dc, dt)]
+        parts = [f"{name} {val:.1%} ({cc}/{tt}) {'PASS' if val >= bar else 'FAIL'}"
+                 for name, val, bar, cc, tt in checks]
+        passed = all(val >= bar for _, val, bar, _, _ in checks)
+        print(f"  {variant}: " + " | ".join(parts))
+        if not passed and a >= CAND_ACCEPT and w < CAND_WORDS_ONLY:
+            print(f"    → fixed the accepts by routing words-only turns ARMED. That is the"
+                  f" DEGENERATE named in the dispatch — it re-opens #196. NOT a fix.")
+        print(f"    → {variant} {'PASSES all three' if passed else 'FAILS'}")
+
+    if "lenrule" in totals:
+        parts = [f"{b} {totals['lenrule'][b][0]}/{totals['lenrule'][b][1]}"
+                 for b in totals["lenrule"]]
+        print(f"  lenrule (REPORTED, NOT GATED — inheritance needs a two-turn run): "
+              + "  ".join(parts))
+
+    thermal = run.get("thermal") or []
+    if thermal:
+        print("\n=== thermal")
+        print("  " + "  ".join(thermal))
+        starts = {}
+        for entry in thermal:
+            cell, _, rest = entry.partition(":")
+            moment, _, state = rest.partition("=")
+            if moment == "start":
+                starts[cell] = state
+        if len(set(starts.values())) > 1:
+            print(f"  !! VARIANTS STARTED AT DIFFERENT THERMAL STATES {starts} — read the"
+                  f" DIRECTION of the bias before calling it a confound (#201B lesson 1)")
+
+
 def main(path):
     run = json.load(open(path))
+    if run.get("probes") and not run.get("trials"):
+        return probe_report(run)
     trials = run["trials"]
     print(f"run {run['id'][:8]}  build={run.get('appBuild')}  os={run.get('osVersion')}")
     print(f"cells={run['cells']}  n={run['trialsPerCell']}  endedCleanly={run.get('endedCleanly')}")
