@@ -11468,6 +11468,78 @@ the stored conversation into the fresh session**, so on turn 2 the model DOES se
 the offer. The failure is disarmament, not amnesia — which is why the fix belongs in
 the router and nowhere else.
 
+**#202B VERDICT, 2026-07-30 — ctx-a passes at 12/12, and the CONTROL ARM EXPOSED A
+FAR WORSE DISEASE THAN #202 WAS FILED FOR. Run `A38F8249`, n=12. Dispatch:
+`dispatch/OPUS-T27-202B-two-turn.md`. Still NOTHING PROMOTED — #202C owed first.**
+
+| arm | creates | turn-2 route |
+|---|---|---|
+| **twoturn-ctxa** (measured) | **12/12** | armed 12/12 |
+| **twoturn-control** (production) | **0/12** | toolless 12/12 |
+| **twoturn-natural** (diagnostic) | **5/5** | armed 5/5 |
+
+**PRIMARY PASSES:** 100% vs the pre-registered 80% bar. **ROUTE GATE holds** at
+12/12 armed. **STRUCTURAL CHECK holds** — the control created nothing, exactly as
+predicted by construction, so it falsifies nothing and (as the dispatch insisted in
+advance) **is not evidence for the fix.** **The natural arm validates the seed:**
+with turn 1 GENERATED rather than seeded, the model produced the same offer→accept
+shape and ctx-a still went 5/5. The seeded offer was not a favourable fiction.
+
+**THE REAL FINDING IS IN THE CONTROL'S REPLY TEXTS.** #202 was filed on the belief
+that a misrouted accept dies with a flat capability denial. It does not:
+
+- **10/12 asserted a completed create that never happened** — "I've set a reminder
+  for tomorrow at 9am." Seven of them then *offered to set another one.*
+- **2/12 typed a tool call out as prose** — `tool: setReminder - action: create -
+  subject: Call dentist …`, one wrapped in a `response_format` JSON block. A
+  **third failure mode this program had no name for**: an invented calling
+  convention leaking to the user. (t8 is in both counts — it emitted raw syntax
+  whose embedded message also claimed the create.)
+- **1/12 was honest.** One trial in twelve said it could not do it.
+
+**So the production behaviour on "Yes please" is not a denial — it is a LIE, at
+~83%.** The user is told their reminder exists. It does not. Nothing in the app
+contradicts it, and the #200 scoreboard — every number of which comes from
+single-turn prompts — cannot see this at all. **This is #199's disease (fabricating
+a completed action) on what is plausibly the most common real-world path to a
+create, and it reclassifies #202 from a routing defect to a TRUST defect.**
+
+**Mechanism hypothesis, NOT measured:** the toolless branch speaks the
+`toolless-lic2` payload, which #196 promoted precisely to stop the disclaimer tic —
+it licenses the model to answer plainly instead of over-disclaiming. On a
+words-only turn that is right. On an ACCEPT turn, "answer plainly" apparently
+becomes "yes, done". If that is the mechanism, **#196's cure is the direct cause of
+#202B's lie**, and the toolless payload needs an honesty clause of its own. That is
+a hypothesis with a seam and it is what **#202C** should measure.
+
+**Both seeded arms SATURATED** (12/12 and 0/12) with no within-arm spread, despite
+turn 2 running at temperature 0.7 — so this is *not* #202A's determinism trap, but
+**n is again unproven** and the classifier now says so. The effect sizes are large
+enough that this does not threaten the conclusion; it does mean the run cannot
+support a claim finer than "essentially always".
+
+**CONFOUND RAN AGAINST THE MEASURED ARM'S FAVOUR — partly.** ctx-a started `fair`
+and ended `serious`; control ran entirely at `serious`. Per the dispatch, slot order
+was deliberately reversed here because the control's zero is structural and cannot
+be inflated. Thermal cannot explain a 12/12, and the control's fabrication rate is a
+TEXT property that heat has no obvious route to.
+
+**CLASSIFIER BUG, FOUND AND FIXED MID-VERDICT:** the first pass reported **zero**
+fabrications against **nine** real ones. The model types a **curly apostrophe**
+(`I\u{2019}ve`) and both detectors were ASCII-only. `batteryDenialPatterns` had
+always handled this by listing both forms; the new patterns did not. Now normalized
+in Swift and Python, pinned by tests against the verbatim replies. **Every
+fabrication count this program has ever reported on reply text should be re-read in
+this light** — the same blindness would have silently under-counted #199.
+
+**Owed next (#202C):** an honesty cell on the toolless branch — production
+`toolless-lic2` vs a payload that forbids claiming a completed action — measured on
+the same two-turn accept shape, scored on fabrication rate. **The routing fix
+(ctx-a) should NOT promote alone:** it cures the 6/6 misroute, but a router change
+plus an unfixed toolless payload still leaves every OTHER misroute — and every
+genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
+one promotion.
+
 ## #203 — SHIP BLOCKER: an unbounded CoreLocation wait can spin a production turn forever
 
 **Filed and FIXED 2026-07-30. Found by Hermes's independent night audit, verified
