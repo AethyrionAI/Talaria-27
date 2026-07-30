@@ -10847,3 +10847,82 @@ which are behaviour-identical on every path the pre-promotion tool could reach.
 Next candidates, in order of evidence: (1) the **"Sam" lookup dead-end**, which
 owns 4 of 5 calendar misses and is where the rate actually lives; (2) a
 pre-registered run for the **location-spiral / invented-location** effect above.
+
+**#200U VERDICT FILED, 2026-07-29 — contact dead-end at the tool-RESULT layer,
+n=10 (120 trials, PR #186 branch `d33546a`, corded Xcode build WITH DEBUGGER
+ATTACHED, os 27.0, run sealed `reminders=49 events=29 alarms=30 failures=0`,
+ZERO exclusions — no ERROR, no TIMEOUT, no guillotine — classified live from the
+console bridge). Reap arithmetic EXACT: reminders 16+17+16=49, events 8+11+10=29,
+alarms 10+10+10=30. Bars pre-registered in
+`dispatch/OPUS-T27-200U-contact-deadend.md` before any data existed.**
+
+| prompt | armed (control) | armed-deadend2 (fix) | armed-nocontact (ceiling) |
+|---|---|---|---|
+| remind | **10/10** | **10/10** | **10/10** |
+| alarm | **10/10** | **10/10** | **10/10** |
+| calendar | 7/10 | **10/10** | **10/10** |
+| haiku grabs | 7/10 | 8/10 | 6/10 |
+
+**BOTH CO-PRIMARY BARS PASS, AND THE FIX LANDS EXACTLY ON THE CEILING.** Calendar
+10/10 vs the control's 7/10 clears ≥ control + 2 and the 10/10 clause both. The
+dead-end miss count — the co-primary, and the sharper instrument at n=10 — went
+**3 → 0**. Every guard holds: remind and alarm are 10/10 in all three arms.
+**Calendar 10/10 is the best calendar number in the program.**
+
+**THE CAUSAL CHAIN IS CLOSED, AND IT IS THE ONE THE HYPOTHESIS NAMED.** All three
+control misses are the dead-end, verbatim from the console:
+
+- t6: "I couldn't locate a contact named \"Sam.\" Would you like to choose a
+  different name or location for the lunch?"
+- t8: **"I couldn't find a contact named Sam in your contacts. Would you like me
+  to proceed without the name, or search for it differently?"** — it asks
+  PERMISSION to do exactly what the promoted #200O prose already told it to do.
+- t9: "I couldn't find a contact named \"Sam.\" Would you like to try a different
+  name or provide more details?"
+
+And in the fix arm the lookup **still runs and still misses** — `lookupContact
+detail=Sam` appears in every sampled trial (t1, t2, t3, t10) — and the model
+creates anyway, 10/10. The treatment did not stop the lookup; **it stopped the
+failed lookup from reading as a blocker.** Same tool, same miss, one different
+result string, opposite outcome. Prose could not reach this because prose was
+never the layer: a tool result is consumed as fact.
+
+**Arm B (tool absent) also hit 10/10, which is the useful part of a ceiling
+probe: the promotable one-string fix captures the ENTIRE available win.** No
+production intent-scoping is needed, and that avoids removing a tool the user
+legitimately wants.
+
+**NOT PROMOTED YET — TWO REASONS, BOTH PRE-COMMITTED OR NEWLY VISIBLE.**
+
+1. **Reproduction is mandatory and pre-registered.** #200P produced a perfect
+   10/10 stall cell that evaporated on re-run; #200Q's grab collapse did the
+   same. A perfect cell is exactly the shape that has fooled this program twice.
+2. **CELL-ORDER CONFOUND, named here because it now spans three runs.** Cells
+   execute sequentially, control first. Calendar by run position: #200S armed
+   first (pooled 75%) vs rollback last (9/10); #200T armed 7/10 first vs calfix
+   8/10 second; #200U armed 7/10 first vs 10/10 and 10/10 second and third. **In
+   three consecutive runs the FIRST cell posted the lowest calendar number.**
+   That is consistent with treatment effects AND with a warm-up / thermal /
+   model-load artifact, and the instrument cannot currently tell them apart.
+   Ordering cannot easily explain the qualitative switch — an identical failed
+   lookup producing "may I proceed?" in one arm and a create in another — but it
+   can inflate the size of the win.
+
+**THE CONFIRMATION RUN IS THEREFORE ORDER-REVERSED:** cells
+`[.armedNocontact, .armedDeadend2, .armed]`, same n=10, so production runs LAST.
+If the effect is real the control still posts the lowest number from the last
+slot; if run position was doing the work, the ordering flips the result and the
+promotion is withdrawn. This is a decisive test of the confound rather than
+another repetition of it, and it is owed a dispatch doc with bars BEFORE the run.
+
+**Collateral, honestly:** grabs 7 → 8 in the fix arm and 6 in the probe (reported,
+not gated — the #200O router probe went 200/200 and sends the canary toolless in
+production). Two WRONG-ARTIFACT grabs are worth naming separately from the
+counts: control haiku t10 and fix-arm haiku t6 each created a **calendar event**
+for "write a haiku about sledding". That class is not new and not caused here,
+but it is the ugliest thing in the run.
+
+**Disposition: the fix is a PASS on its pre-registered bars and is held for the
+order-reversed confirmation run before any promotion.** `continuesAfterNoMatch`
+stays `false` in production until that run clears, so the shipping belt is
+unchanged; promotion is flipping one default and rollback is flipping it back.
