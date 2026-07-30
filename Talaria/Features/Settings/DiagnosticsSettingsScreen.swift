@@ -765,6 +765,31 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #200X: the promoted calendar tool against its OWN pinned rollback,
+    // warm, production last — the confidence run the promotion is owed.
+    @ViewBuilder
+    private func calRollbackVerifyBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runCalRollbackVerifyBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200W: #200T's calendar arms re-run WARM with production last. The
     // primaries are the location-spiral and invented-location counts, not the
     // rate — warm production calendar is already ~9/10.
@@ -1076,6 +1101,10 @@ struct DiagnosticsSettingsScreen: View {
                 // #200W: calendar arms warm, production last.
                 HStack(spacing: Design.Spacing.sm) {
                     calfixWarmBatteryButton(trials: 10, label: "Calendar warm n=10 (80+4)")
+                }
+                // #200X: promoted calendar tool vs its pinned rollback.
+                HStack(spacing: Design.Spacing.sm) {
+                    calRollbackVerifyBatteryButton(trials: 10, label: "Calendar rollback n=10 (80+4)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton

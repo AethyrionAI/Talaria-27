@@ -2560,6 +2560,12 @@ extension LocalChatBackend {
         /// is a product regression; this bounds the achievable win, and if it
         /// does not beat the control either, the whole seam is falsified.
         case armedNocontact = "armed-nocontact"
+        /// #200X: the calendar promotion's pinned ROLLBACK, as a measured
+        /// cell — `CalendarEventToolRequiredFields`, i.e. the pre-promotion
+        /// tool with `durationMinutes`/`location` required again. Restoring
+        /// them restores the geolocation behaviour: 5 of 8 creates carried an
+        /// invented location in #200W, twice the home street address.
+        case armedCalrollback = "armed-calrollback"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2570,7 +2576,7 @@ extension LocalChatBackend {
         case .armed, .armedInstrfix, .armedToolmode, .armedScoped, .armedCreateonly,
              .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix,
              .armedDatefix, .armedCardrollback, .armedDeadendfix, .armedGrabfix,
-             .armedStallfix, .armedSchemafix:
+             .armedStallfix, .armedSchemafix, .armedCalfix:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
             // strikefix treat the tool-calling MODE, and the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
@@ -2588,14 +2594,13 @@ extension LocalChatBackend {
         case .armedNocontact:
             // #200U arm B: the ceiling probe — the tool is simply absent.
             return tools.filter { $0.name != "lookupContact" }
-        case .armedCalfix:
-            // #200T: one swap — the calendar tool with its two
-            // undefaultable-by-the-model fields optional in the schema.
-            // The reminder tool stays production: its promotion is not up
-            // for re-measurement in this lane.
+        case .armedCalrollback:
+            // #200X: one swap — the pre-promotion calendar tool, whose two
+            // undefaultable fields are REQUIRED in the schema again. The
+            // pinned rollback, measurable.
             return tools.map { tool in
                 if let calendar = tool as? CalendarEventTool {
-                    return CalendarEventToolOptionalFields(relay: calendar.relay, confirmations: calendar.confirmations)
+                    return CalendarEventToolRequiredFields(relay: calendar.relay, confirmations: calendar.confirmations)
                 }
                 return tool
             }
@@ -3238,6 +3243,23 @@ extension LocalChatBackend {
     /// generations, plus the now-default warm-up pass.
     func runCalfixWarmBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.calfixWarmBatteryCells,
+                               includeGrabCanary: true)
+    }
+
+    /// #200X cell list — the promotion judged against its OWN rollback, warm,
+    /// in one run, production LAST. This is the confidence run the promotion is
+    /// owed: #200W's gate was not cleanly met (its `searchPlaces` clause was
+    /// unevaluable at a 1/10 control), so the promoted tool is measured against
+    /// the exact thing it replaced rather than against a remembered number —
+    /// the #200S re-verify shape. Pinned.
+    nonisolated static let calRollbackVerifyBatteryCells: [ActionBatteryCell] = [
+        .armedCalrollback, .armed,
+    ]
+
+    /// #200X one-tap wrapper: 2 cells × four prompts — 8 × trials generations,
+    /// plus the default warm-up pass.
+    func runCalRollbackVerifyBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.calRollbackVerifyBatteryCells,
                                includeGrabCanary: true)
     }
 
