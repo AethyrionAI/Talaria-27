@@ -11757,9 +11757,46 @@ below the length that broke (4,073), so ordinary turns are untouched. **This is 
 and strictly protective; it does not depend on which explanation wins**, and it is
 pinned by a test asserting the offer survives truncation.
 
-**Owed:** run the four disambiguating rows. If length is the cause, the cap is the
-cure and the story ends. If the prompt is the cause, the cap is harmless and the
-router has a wording weakness worth its own row set.
+**RESOLVED SAME DAY BY RUN `48D4BD4B` — MY PREMISE WAS WRONG. Length does not
+degrade routing accuracy. Retracted below.**
+
+| row | ctx | uncapped | capped |
+|---|---|---|---|
+| accept "Yes please" | 551 → 4,073 | 5/5 → **5/5** | 5/5 |
+| words-only "Summarize that…" | 586 | 5/5 | 5/5 |
+| words-only "Write another one" | 575 | 5/5 | 5/5 |
+| words-only "Write another one" | 4,073 | **0/5** | **0/5** |
+| words-only "Say that again more briefly" | **551** | **0/5** | **0/5** |
+| words-only "Say that again more briefly" | 4,073 | **0/5** | **0/5** |
+
+**"Say that again more briefly" fails at 551 chars, the same length where three
+other rows pass.** Length is falsified as the cause.
+
+**THE ACTUAL VARIABLE, and I built the rows so badly it was invisible: every failing
+context ENDS WITH AN OFFER** — *"…Would you like me to set a reminder to call the
+dentist tomorrow at 9am?"* Every passing words-only context ends in ordinary prose.
+I reused `veryLongOffer` as the context for the words-only rows, so **length and
+ends-in-an-offer were perfectly confounded** — the second time in one day I built
+rows whose labels encoded an assumption I had not justified. Worse, I labelled them
+`expected: false`, which asserts the router *should ignore an explicit offer* — a
+strong claim I never argued for.
+
+**What is actually true:** ctx-a routes ARMED when the prior turn ends in an offer
+to act, largely regardless of what the current turn says. **That is the same
+mechanism that makes accepts work 6/6** — it is the feature, seen from its cost
+side. The cost is real but mild: a non-accept follow-up after an offer ("say that
+again more briefly") also routes armed, carrying #196 tic risk on that turn. Whether
+that is even wrong is debatable; after "shall I set a reminder?", armed is the safe
+read.
+
+**THE CAP SURVIVES, BUT ONLY ON LATENCY — its accuracy justification is withdrawn.**
+It fixed no routing failure (0/5 capped on both failing rows, because there was no
+length problem to fix). What it does do is real: **1.47s → 0.66s at 4,073 chars, a
+2.2× improvement that restores long-context routing to short-context speed.** Kept
+on that basis, honestly re-stated.
+
+**Owed, if it ever matters:** a properly built row set that varies ends-in-an-offer
+independently of length, with `expected` labels argued rather than assumed.
 
 ## #199 — post-decline fabrication: the disease is REAL but confined to GRABS, and the intended-create path is CLEAN
 
@@ -11944,6 +11981,36 @@ external audit is now two-for-two on finding things the author could not see.**
    the only signal. Retired names fail to parse and fall back to production; valid
    ones do not. **Now a DEBUG banner on the chat screen whenever the shape is not
    `.armedRouted`.** Release compiles it out.
+
+### IMAGE TURNS — MEASURED 2026-07-30, run `86A29FD8`. CONFIRMED PRODUCTION DEFECT.
+
+**Both image rows route TOOLLESS, 0/15 and 0/15.**
+
+| probe | routed |
+|---|---|
+| `[image attached] what does this say?` | **0/15 armed** |
+| `[image attached] read the text in this photo` | **0/15 armed** |
+
+**This IS production, not just the control cell.** The rows carry no prior turn, and
+with an empty context ctx-a returns the bare production envelope by construction
+(pinned) — so ctx-a and `.control` are byte-identical here. **A user attaches a photo,
+asks what it says, and gets a turn with no belt** — and the model cannot see images
+at all, so it also has no `readImageText`. **The app HAS the capability and the turn
+cannot reach it.**
+
+Clause v2 means the turn now fails *honestly* rather than fabricating, which is worth
+something — but honest-and-useless is still useless, and this is a capability the
+product advertises.
+
+**One-seam candidate:** the pinned router `@Guide` enumerates device data and device
+actions and **never mentions images or photos**. Adding them is the obvious first
+treatment, and it is exactly the kind of enumeration change #196 measured before
+promoting. **Owed: a lane.** Hermes flagged this from a code read; it is now a
+measurement.
+
+**Rest of the grid re-verified in the same run:** mechanism CONFIRMED 90/90, baseline
+gate **150/150 over exactly ten rows** (the #205 split-out held — the image rows did
+not touch the historical series), ctx-a and ctx-b both 13/13 across all three bands.
 
 ### TRACKED, NOT YET ACTED ON
 
