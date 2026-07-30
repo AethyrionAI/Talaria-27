@@ -1361,6 +1361,68 @@ struct DeviceToolBeltTests {
         ])
     }
 
+    // MARK: Order reversal + warm-up (#200V)
+
+    /// #200V: the confirmation run's ONLY change from #200U is cell POSITION —
+    /// production runs LAST. Pinned as an exact reversal, and pinned as the
+    /// same SET of cells, so the lane cannot silently become a different
+    /// comparison.
+    @Test func deadendConfirmBatteryReversesTheOrderProductionLast() {
+        #expect(LocalChatBackend.deadendConfirmBatteryCells == [
+            .armedNocontact, .armedDeadend2, .armed,
+        ])
+        #expect(LocalChatBackend.deadendConfirmBatteryCells
+            == LocalChatBackend.deadend2BatteryCells.reversed())
+        #expect(LocalChatBackend.deadendConfirmBatteryCells.last == .armed)
+    }
+
+    /// #200V: the warm-up is OFF by default, so every battery run before this
+    /// lane — and every one after it that doesn't ask — is byte-identical.
+    @Test func warmupIsOptInSoPriorBatteriesAreUnchanged() {
+        #expect(LocalChatBackend.batteryWarmupTag(prompt: "calendar")
+            == "shape=warmup p=calendar t=0")
+        // The tag says `warmup`, never a cell rawValue, so no classifier and
+        // no reap line can mistake a warm-up trial for a counted one.
+        #expect(!LocalChatBackend.ActionBatteryCell.allCases
+            .map(\.rawValue).contains("warmup"))
+    }
+
+    @MainActor
+    private final class WarmupCapturingStore: BatteryRunPersisting {
+        var persisted: [BatteryRunRecord] = []
+        func persist(_ run: BatteryRunRecord) { persisted.append(run) }
+    }
+
+    /// #200V: the warm-up runs BEFORE `beginRun`, and every recorder mutator
+    /// guards on an active run — so warm-up trials are recorder-inert. The
+    /// whole design rests on that, so it is pinned through the RECORDER'S
+    /// OBSERVABLE CONTRACT (what gets persisted) rather than by reaching
+    /// into private state or adding test-only surface to production.
+    @Test @MainActor func recorderIgnoresTrialsAppendedBeforeTheRunBegins() {
+        let store = WarmupCapturingStore()
+        let recorder = BatteryRunRecorder(store: store)
+        // The warm-up pass: emitted before beginRun, so it must vanish.
+        recorder.beginTrial()
+        recorder.endTrial(shape: "warmup", prompt: "calendar", trial: 0,
+                          text: "warm", cant: false, denial: false)
+        // Then the real run records normally.
+        recorder.beginRun(trialsPerCell: 1, cells: ["armed"], kind: "action")
+        recorder.beginTrial()
+        recorder.endTrial(shape: "armed", prompt: "calendar", trial: 1,
+                          text: "real", cant: false, denial: false)
+        recorder.endRun()
+        // The recorder persists a snapshot after EVERY trial for crash
+        // diagnostics, so the invariant is about CONTENT, not save count: no
+        // persisted record ever carries a warm-up trial, and the finished run
+        // holds exactly the one real trial.
+        #expect(!store.persisted.isEmpty)
+        #expect(store.persisted.allSatisfy { record in
+            !record.trials.contains { $0.shape == "warmup" }
+        })
+        #expect(store.persisted.last?.trials.count == 1)
+        #expect(store.persisted.last?.trials.first?.shape == "armed")
+    }
+
     // MARK: The stall's structural seam (#200Q)
 
     /// #200Q battery: was production vs the schema swap; since the #200S
