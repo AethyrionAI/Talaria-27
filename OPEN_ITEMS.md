@@ -11581,14 +11581,34 @@ harmful — the user is not told a reminder exists that doesn't — but a user t
 app cannot set reminders may simply stop asking. **The clause needs rewording toward
 the turn-scoped phrasing that 3/10 already produced, and re-measured.**
 
-**LONG-CONTEXT PROBE — ctx-a holds; the LATENCY question is UNANSWERED and that is
-my error.** All 10 rows perfect at ~550–590 chars of context (2/2 accept, 2/2
-words-only) against 6/6 short accept rows — so ctx-a's accuracy does not degrade on
-realistic assistant turns, which was #202A's blind spot. **But the probe existed to
-answer a latency question and I emitted the timing to the CONSOLE ONLY**, so the one
-number it was built for is not in the record. Exactly the lesson #201B's thermal
-readings taught, repeated. `RouterProbeRecord.seconds` now carries it; the probe
-must be re-run to get the answer. **No truncation decision can be made until then.**
+**LONG-CONTEXT PROBE — ctx-a holds on BOTH accuracy and latency. NO TRUNCATION
+NEEDED.** All 10 rows perfect at ~550–590 chars of context (2/2 accept, 2/2
+words-only) against 6/6 short accept rows, so accuracy does not degrade on realistic
+assistant turns — #202A's blind spot, closed.
+
+| | rows | mean s/route | context |
+|---|---|---|---|
+| ctx-a-long | 4 | **0.615s** | 551–586 chars |
+| ctx-a-short | 6 | **0.560s** | 31–47 chars |
+
+**Delta +0.055s, and that is entirely the first row measured (0.78s, cold). Drop the
+first row of each and both sit at 0.560s — identical.** Worst single row 0.78s
+against an informal bar of ~2s. **A ~10× longer context costs the router nothing**,
+which makes sense: the cost is dominated by the fixed generation, not the prompt.
+**So `routerPrompt` can keep embedding the turn untruncated, and truncation is NOT
+part of the ctx-a promotion.**
+
+**Recorded honestly: I first filed this as UNANSWERED because I emitted the timing
+to the CONSOLE ONLY** — the one number the probe was built for was absent from the
+record, repeating exactly the lesson #201B's thermal readings taught. Owen supplied
+the console log and the numbers above come from it. `RouterProbeRecord.seconds` now
+carries it so the next run needs no console.
+
+**Tic guard, read from the raw replies rather than the flags:** the honesty arm
+answered "What's 2+2?" with `4` (×4), produced four ordinary sledding haiku, and
+four ordinary Norway summaries. **The clause did not make it hedge, disclaim, or
+refuse anything it should answer** — the collateral gate holds on inspection, not
+just on the counters.
 
 **Classifier defect found and fixed:** #202A's candidate bars were being applied to
 any run containing a `ctx*` variant, so the long-context companion probe was scored
@@ -11596,9 +11616,9 @@ against bands it never ran and printed a bogus `FAILS`. Now gated on the presenc
 the baseline rows that mark a full #202A grid.
 
 **Owed next (#202D):** re-run the honesty lane with (a) the disease defined as
-**lie OR raw syntax**, pre-registered from this run's 9/10 base rate, (b) a
-**reworded clause** that cannot be read as a capability claim, and (c) the
-long-context probe re-run for latency. **Escalation
+**lie OR raw syntax**, pre-registered from this run's 9/10 base rate, and (b) a
+**reworded clause** that cannot be read as a capability claim. **The long-context
+re-run is NO LONGER owed** — the console answered it. **Escalation
 (`shouldEscalateToArmed`, built and unit-pinned) remains the structural fallback**
 and is now more attractive than it was: it avoids BOTH false statements, because the
 turn is re-run armed and the user gets the actual create instead of any sentence
