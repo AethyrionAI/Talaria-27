@@ -288,7 +288,11 @@ struct ReminderCreateToolGuidefix: Tool {
 
 struct CalendarEventTool: Tool {
     let name = "createCalendarEvent"
-    let description = "Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created."
+    /// Production description text, hoisted to a static so the #200T
+    /// optional-field copy can be pinned as production-identical on
+    /// everything except the two field types.
+    static let productionDescription = "Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created."
+    let description = CalendarEventTool.productionDescription
     /// #196 `armed-noschema` seam — see `ReminderCreateTool`'s twin. The
     /// default matches the framework default; production never passes it.
     var includesSchemaInInstructions: Bool = true
@@ -311,11 +315,37 @@ struct CalendarEventTool: Tool {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
         await relay.started(name, detail: title)
         defer { Task { await relay.completed(name) } }
+        return await Self.performCreate(
+            rawTitle: title, rawStartsAt: arguments.startsAt,
+            rawMinutes: arguments.durationMinutes, rawLocation: arguments.location,
+            confirmations: confirmations
+        )
+    }
+
+    /// Duration resolution in one place: a SUPPLIED value clamps to
+    /// 5…1440 exactly as production always has, and `nil` — reachable only
+    /// from the #200T optional-field copy, since the production schema
+    /// requires the field — takes the humane hour. The confirmation card
+    /// shows Minutes either way, so the user can edit before the save.
+    nonisolated static func resolveMinutes(_ raw: Int?) -> Int {
+        guard let raw else { return 60 }
+        return min(max(raw, 5), 24 * 60)
+    }
+
+    /// The whole create flow from staged-title to EventKit save, shared
+    /// with the #200T optional-field copy so that cell's ONLY delta is the
+    /// two field types — structural-identity discipline: two structs, one
+    /// engine (the #200Q/#200S reminder precedent).
+    nonisolated static func performCreate(
+        rawTitle: String, rawStartsAt: String, rawMinutes: Int?, rawLocation: String,
+        confirmations: ToolConfirmationCenter
+    ) async -> String {
+        let title = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return "No event title was given — nothing staged." }
-        guard let start = DeviceActionParsing.parseDateTime(arguments.startsAt) else {
-            return "Couldn't read \"\(arguments.startsAt)\" as the start time — nothing staged. Use the form 2026-07-08T09:00."
+        guard let start = DeviceActionParsing.parseDateTime(rawStartsAt) else {
+            return "Couldn't read \"\(rawStartsAt)\" as the start time — nothing staged. Use the form 2026-07-08T09:00."
         }
-        let minutes = min(max(arguments.durationMinutes, 5), 24 * 60)
+        let minutes = resolveMinutes(rawMinutes)
 
         let decision = await confirmations.requestConfirmation(
             title: "Add this event to the calendar?",
@@ -324,7 +354,7 @@ struct CalendarEventTool: Tool {
                 .init(key: "title", label: "Title", value: title),
                 .init(key: "startsAt", label: "Starts", value: DeviceActionParsing.displayDate(start)),
                 .init(key: "duration", label: "Minutes", value: String(minutes)),
-                .init(key: "location", label: "Location", value: arguments.location.trimmingCharacters(in: .whitespacesAndNewlines)),
+                .init(key: "location", label: "Location", value: rawLocation.trimmingCharacters(in: .whitespacesAndNewlines)),
             ]
         )
         guard case .approved(let values) = decision else {
@@ -384,6 +414,56 @@ struct CalendarEventTool: Tool {
         return "Added \"\(ToolConfirmationCenter.strippingBatteryMarker(finalTitle))\" on \(DeviceActionParsing.displayDate(finalStart)) for \(finalMinutes) minutes\(finalLocation.isEmpty ? "" : " at \(finalLocation)") to \"\(calendar.title)\"."
     }
 }
+
+#if DEBUG
+/// #200T treatment: `CalendarEventTool` with `durationMinutes` and
+/// `location` OPTIONAL in the schema, i.e. the surgery #200S proved on the
+/// reminder tool applied to the weakest production number (calendar,
+/// 15/20 pooled). Production declares both as required while `location`'s
+/// own `@Guide` text reads "Optional location, or empty" and the promoted
+/// #200D clause says to leave optional fields empty — and the battery's
+/// calendar prompt ("Put lunch with Sam on my calendar Friday at noon")
+/// supplies neither value.
+///
+/// Everything else is production: same `name`, same description, the same
+/// `@Guide` texts verbatim, and the same create engine
+/// (`CalendarEventTool.performCreate`). `title`/`startsAt` stay REQUIRED —
+/// the schema should demand what the tool genuinely cannot default.
+/// Measurement cell only; production ships this ONLY after a battery
+/// verdict.
+struct CalendarEventToolOptionalFields: Tool {
+    let name = "createCalendarEvent"
+    let description = CalendarEventTool.productionDescription
+    var includesSchemaInInstructions: Bool = true
+    let relay: ToolEventRelay
+    let confirmations: ToolConfirmationCenter
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Event title, e.g. \"Dentist\".")
+        var title: String
+        @Guide(description: "Start date and time like \"2026-07-08T09:00\" (local time).")
+        var startsAt: String
+        @Guide(description: "Duration in minutes, e.g. 30.")
+        var durationMinutes: Int?
+        @Guide(description: "Optional location, or empty.")
+        var location: String?
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        await relay.started(name, detail: title)
+        defer { Task { await relay.completed(name) } }
+        // An omitted location lands on exactly the path an empty string
+        // took; an omitted duration takes the shared engine's hour.
+        return await CalendarEventTool.performCreate(
+            rawTitle: title, rawStartsAt: arguments.startsAt,
+            rawMinutes: arguments.durationMinutes, rawLocation: arguments.location ?? "",
+            confirmations: confirmations
+        )
+    }
+}
+#endif
 
 // MARK: - Alarm / timer (AlarmKit via the #16 executor)
 
