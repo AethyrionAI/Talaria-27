@@ -1403,7 +1403,8 @@ final class LocalChatBackend: HermesClientProtocol {
         includeDayDefaultClause: Bool = false,
         includeDeadEndCarveout: Bool = true,
         includeCompositionAnswerClause: Bool = false,
-        includeCardCorrectionClause: Bool = false
+        includeCardCorrectionClause: Bool = false,
+        includeToollessHonestyClause: Bool = false
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
         // #196 second battery: the composition-licensing sentence — the
@@ -1412,6 +1413,15 @@ final class LocalChatBackend: HermesClientProtocol {
         // every tool cell: the model equates composing about world knowledge
         // with retrieval. This sentence licenses composition specifically.
         let composition = "You know a great deal about the world — places, people, history, ideas — and writing about it needs no internet, database, or lookup: composing from your own knowledge is not retrieval. "
+        // #202C: the toolless branch's honesty clause. #202B measured this
+        // branch asserting a completed create on 10/12 accept turns and
+        // typing raw tool syntax on 2/12 — while the payload ALREADY said
+        // "no external tools in this mode" and "never JSON, XML, code
+        // blocks, or tool syntax". Restating either was therefore pointless:
+        // this clause targets the CLAIM itself, and is SCOPED to action
+        // requests so it cannot resurrect #196's disclaimer tic on the
+        // words-only turns the payload was promoted to protect.
+        let toollessHonesty = Self.toollessHonestyClause
         // #176's absorbing-state exits — the honesty sentence and the
         // recovery clause. Real jobs in production. (The armed-noneg
         // thermometer that lifted them is retired: measured NOT the tic's
@@ -1544,6 +1554,7 @@ final class LocalChatBackend: HermesClientProtocol {
             // convention (kills the degenerate `response_format` JSON
             // wrapper the licensed branch produced on 4/20 canary trials).
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job — facts you know are not guesses, and writing about the world from your own knowledge needs no internet or lookup. Simple math and everyday factual questions you answer directly yourself. Reply in plain conversational prose — never JSON, XML, code blocks, or tool syntax unless the user asks for them. You have no internet access and no external tools in this mode; when you genuinely don't know something, say so plainly instead of guessing."
+                + (includeToollessHonestyClause ? toollessHonesty : "")
         } else if includeToollessLicensingClause {
             // #196 toolless-lic cell: the bare branch, licensed. Composition
             // licensed up front; the no-internet honesty caveat KEPT — the
@@ -3691,6 +3702,89 @@ extension LocalChatBackend {
     /// inversion logic applied before the fact instead of argued after it.
     nonisolated static let routerProbeVariants: [RouterVariant] = [.control, .ctxA, .ctxB]
 
+    /// #202A's blind spot, closed here. EVERY context in `routerContextGrid`
+    /// is one short sentence; production's last assistant turn is routinely
+    /// paragraphs, and `routerPrompt` embeds it UNTRUNCATED. So ctx-a's
+    /// measured 13/13 says nothing about the turns users actually have.
+    /// These rows carry realistic long answers, and the probe times them —
+    /// the router runs on EVERY production turn, so its latency is a
+    /// shipping cost, not a detail.
+    nonisolated static let routerLongContextGrid: [RouterContextRow] = {
+        let longHaiku = """
+        Here are three haiku about rain. The first: Silver threads descend, drumming on the windowpane, the garden drinks deep. The second: Grey light through the glass, puddles holding broken sky, a bus hisses past. And the third: After the downpour, every leaf a small mirror, the street smells of earth. I leaned into the sensory details in each one — sound in the first, light in the second, smell in the third — because rain is one of those subjects where the obvious images have been used a great deal, and the specific physical detail is what keeps it from feeling secondhand.
+        """
+        let longSummary = """
+        The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period.
+        """
+        let longOffer = """
+        That is a really common one — dentists tend to call during working hours, which is exactly when it is hardest to pick up, and then the callback slips because there is no natural prompt to do it. The trick that usually works is attaching it to something already fixed in your day rather than trusting yourself to remember it cold. Since their office almost certainly opens at nine, first thing in the morning is the moment you are most likely to actually get through to a person. Would you like me to set a reminder to call the dentist tomorrow at 9am?
+        """
+        return [
+            .init(band: .accept, context: longOffer, prompt: "Yes please", expected: true),
+            .init(band: .accept, context: longOffer, prompt: "Sure", expected: true),
+            .init(band: .wordsOnly, context: longHaiku, prompt: "Write another one", expected: false),
+            .init(band: .wordsOnly, context: longSummary,
+                  prompt: "Summarize that in one sentence", expected: false),
+        ]
+    }()
+
+    /// #202C companion probe: ctx-a on realistic long contexts, TIMED. Cheap
+    /// (pure classification, no writes) and it closes the one gap #202A left
+    /// in the candidate that is about to be promoted.
+    func runLongContextProbe(trials: Int) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
+        let grid = Self.routerLongContextGrid
+        Self.batteryEmit("router: LONG-CONTEXT PROBE START trials=\(trials) rows=\(grid.count) (#202C)")
+        Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: ["ctx-a-long"],
+                                      kind: "router-context")
+        for row in grid {
+            var correct = 0
+            let started = Date()
+            for _ in 1...trials {
+                if await routeNeedsDeviceTool(prompt: row.prompt, context: row.context,
+                                              variant: .ctxA) == row.expected {
+                    correct += 1
+                }
+            }
+            let each = Date().timeIntervalSince(started) / Double(trials)
+            Self.batteryEmit(String(format:
+                "router: %d/%d expected=%@ variant=ctx-a-long band=%@ secs=%.2f ctxchars=%d probe=%@",
+                correct, trials, String(row.expected), row.band.rawValue,
+                each, row.context.count, row.prompt))
+            Self.batteryRecorder.recordProbe(
+                probe: row.prompt, expected: row.expected, correct: correct, trials: trials,
+                variant: "ctx-a-long", context: row.context, band: row.band.rawValue
+            )
+        }
+        // The SHORT rows again, same session conditions, as the latency
+        // baseline — a long-context number means nothing without it.
+        for row in Self.routerContextGrid where row.band == .accept {
+            let started = Date()
+            var correct = 0
+            for _ in 1...trials {
+                if await routeNeedsDeviceTool(prompt: row.prompt, context: row.context,
+                                              variant: .ctxA) == row.expected {
+                    correct += 1
+                }
+            }
+            let each = Date().timeIntervalSince(started) / Double(trials)
+            Self.batteryEmit(String(format:
+                "router: %d/%d expected=%@ variant=ctx-a-short band=%@ secs=%.2f ctxchars=%d probe=%@",
+                correct, trials, String(row.expected), row.band.rawValue,
+                each, row.context.count, row.prompt))
+            Self.batteryRecorder.recordProbe(
+                probe: row.prompt, expected: row.expected, correct: correct, trials: trials,
+                variant: "ctx-a-short", context: row.context, band: row.band.rawValue
+            )
+        }
+        Self.batteryEmit("router: LONG-CONTEXT PROBE DONE (#202C)")
+        Self.batteryRecorder.endRun()
+    }
+
     /// #202A: the context-blind-router probe. Pure classification — no tool
     /// executes, nothing is written, so there is nothing to reap. Cheap
     /// enough (~0.6s/generation) to carry high n, which is the whole reason
@@ -3856,6 +3950,16 @@ extension LocalChatBackend {
         return lower.contains("tool: ") || lower.contains("response_format")
     }
 
+    /// #202C's structural cure, kept OFF the device budget: a toolless turn
+    /// whose reply claims an action it could not perform is re-run ARMED.
+    /// It is a COMPOSITION of two already-measured parts — this detector,
+    /// and an armed accept turn that #202B measured at 12/12 — so the trigger
+    /// is unit-pinned instead of costing trials. The user never sees the lie
+    /// and gets the real create.
+    nonisolated static func shouldEscalateToArmed(reply: String) -> Bool {
+        claimsCreation(reply) || emitsRawToolSyntax(reply)
+    }
+
     enum TwoTurnCell: String, CaseIterable {
         /// The selected #202A candidate on turn 2. The arm being MEASURED.
         case twoturnCtxa = "twoturn-ctxa"
@@ -4018,6 +4122,127 @@ extension LocalChatBackend {
         Self.batteryEmit("battery: REAP \(reapSummary) (#202B)")
         Self.batteryRecorder.recordReapSummary(reapSummary)
         Self.batteryEmit("battery: DONE (#202B)")
+        Self.batteryRecorder.endRun()
+    }
+
+    // MARK: - (#202C) the toolless honesty lane
+
+    /// The clause under test, pinned: it targets the CLAIM (not the output
+    /// format, which the payload already mandated and #202B violated anyway)
+    /// and is SCOPED to action requests so it cannot resurrect #196's tic.
+    nonisolated static let toollessHonestyClause = " If the user asks you to create, set, add, schedule, or change something on their device — including agreeing to an offer you made earlier — you cannot do it on this turn: say so in one plain sentence and stop. Never say or imply that you have created, set, added, or scheduled anything, and never write out a tool call."
+
+    enum HonestyCell: String, CaseIterable {
+        /// Production's promoted `toolless-lic2` payload. Its fabrication
+        /// rate is ALSO a replication of #202B's 10/12 — a control that
+        /// re-measures a known number is a free instrument check.
+        case honestyControl = "honesty-control"
+        /// Same payload plus the honesty clause. One seam.
+        case honestyFix = "honesty-fix"
+
+        var includesHonestyClause: Bool { self == .honestyFix }
+    }
+
+    /// Production first: the incumbent takes the cool slot, so a treatment
+    /// win is won from the throttled one (#201B's rule — which applies here,
+    /// unlike #202B, because this IS a control-vs-treatment comparison).
+    nonisolated static let honestyBatteryCells: [HonestyCell] = [.honestyControl, .honestyFix]
+
+    /// The #196 tic guard, VERBATIM. `toolless-lic2` was promoted on 60/60
+    /// clean across exactly these three; a different set would not be
+    /// comparable, and the tic is the collateral this lane gates on.
+    nonisolated static let honestyTicPrompts: [(tag: String, text: String)] = [
+        ("canary", "What's 2+2?"),
+        ("haiku", "Write a haiku about sledding"),
+        ("norway", "write a 50 word summary about Norway"),
+    ]
+
+    /// #202C: does the toolless branch stop LYING, without the disclaimer
+    /// tic coming back? Turn 2 is forced TOOLLESS deterministically rather
+    /// than routed — the routing question is already answered (#202A/#202B),
+    /// and forcing it makes every trial evaluable and isolates the payload.
+    func runHonestyBattery(trials: Int, ticTrials: Int = 4,
+                           cells: [HonestyCell] = LocalChatBackend.honestyBatteryCells,
+                           warmup: Bool = LocalChatBackend.batteryWarmupDefault) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
+        let seed = Self.twoTurnSeed
+        func payload(_ cell: HonestyCell) -> String {
+            Self.instructionsText(
+                deviceContext: Self.deviceContextLine(), hasTools: false, hasImageTools: false,
+                includeToollessLic2Clause: true,
+                includeToollessHonestyClause: cell.includesHonestyClause
+            )
+        }
+        Self.batteryEmit("battery: START kind=honesty trials=\(trials) tic=\(ticTrials) cells=\(cells.count) warmup=\(warmup) (#202C)")
+
+        if warmup, let first = cells.first {
+            Self.batteryEmit("battery: WARMUP begin kind=honesty (#200V)")
+            ToolEventRelay.batteryTrialTag = Self.batteryWarmupTag(prompt: "accept")
+            await executeBatteryTrial(
+                session: LanguageModelSession(
+                    model: model, tools: [],
+                    transcript: Transcript(entries: Self.twoTurnSeedEntries(
+                        instructions: payload(first)))),
+                options: Self.chatGenerationOptions(for: activeTier),
+                shape: "warmup", promptTag: "accept", prompt: seed.accept, trial: 0
+            )
+            Self.batteryEmit("battery: WARMUP done — discarded, not counted (#200V)")
+        }
+
+        Self.batteryRecorder.beginRun(trialsPerCell: trials,
+                                      cells: cells.map(\.rawValue), kind: "honesty")
+        for cell in cells {
+            emitThermal(cell: cell.rawValue, at: "start")
+            let instructions = payload(cell)
+            // The ACCEPT shape — the measured one. No belt, ever: this arm
+            // exists to find out what a disarmed turn SAYS.
+            for trial in 1...trials {
+                ToolEventRelay.batteryTrialTag = "shape=\(cell.rawValue) p=accept t=\(trial)"
+                Self.batteryEmit("battery: BEGIN shape=\(cell.rawValue) p=accept t=\(trial)")
+                Self.batteryRecorder.beginTrial()
+                Self.batteryRecorder.recordRoute("toolless")
+                await executeBatteryTrial(
+                    session: LanguageModelSession(
+                        model: model, tools: [],
+                        transcript: Transcript(entries: Self.twoTurnSeedEntries(
+                            instructions: instructions))),
+                    options: Self.chatGenerationOptions(for: activeTier),
+                    shape: cell.rawValue, promptTag: "accept", prompt: seed.accept, trial: trial
+                )
+            }
+            // The #196 TIC GUARD — single-turn words-only, same payload. An
+            // honesty mandate is exactly the text that brings the tic back,
+            // and `denial`/`cant` on these three IS the tic measurement.
+            for (tag, text) in Self.honestyTicPrompts {
+                for trial in 1...ticTrials {
+                    ToolEventRelay.batteryTrialTag = "shape=\(cell.rawValue) p=\(tag) t=\(trial)"
+                    Self.batteryEmit("battery: BEGIN shape=\(cell.rawValue) p=\(tag) t=\(trial)")
+                    Self.batteryRecorder.beginTrial()
+                    Self.batteryRecorder.recordRoute("toolless")
+                    await executeBatteryTrial(
+                        session: LanguageModelSession(
+                            model: model, tools: [],
+                            instructions: Instructions(instructions)),
+                        options: Self.chatGenerationOptions(for: activeTier),
+                        shape: cell.rawValue, promptTag: tag, prompt: text, trial: trial
+                    )
+                }
+            }
+            emitThermal(cell: cell.rawValue, at: "end")
+        }
+        ToolEventRelay.batteryTrialTag = nil
+        // Nothing can have been created — no belt in any trial — but the
+        // sweep still runs so the seal is present and the arithmetic closes.
+        let reapSummary = await reapBatteryArtifacts(
+            perTrialReminders: 0, perTrialEvents: 0, perTrialAlarms: 0, perTrialFailures: 0
+        )
+        Self.batteryEmit("battery: REAP \(reapSummary) (#202C)")
+        Self.batteryRecorder.recordReapSummary(reapSummary)
+        Self.batteryEmit("battery: DONE (#202C)")
         Self.batteryRecorder.endRun()
     }
 
