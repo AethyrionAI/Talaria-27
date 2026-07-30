@@ -10769,3 +10769,81 @@ order of evidence: (1) extend optionality to `CalendarEventTool`'s `location` /
 `durationMinutes` — the same mechanism, and calendar is now the weakest
 production number at ~75%; (2) the remaining calendar disease is still the "Sam"
 lookup dead-end that #200O's promoted carve-out only partly tames.
+
+**#200T VERDICT FILED, 2026-07-29 — calendar optional-field schema, n=10 (80
+trials, PR #185 branch `d1aa7ee`, corded Xcode build WITH DEBUGGER ATTACHED, os
+27.0, run sealed `reminders=34 events=15 alarms=20 failures=0`, ZERO exclusions
+— no ERROR, no TIMEOUT, no guillotine anywhere in the run — classified live from
+the console bridge). Reap arithmetic EXACT: reminders 10+6+10+8=34, events
+7+8=15, alarms 10+10=20. Second run with the per-trial alarm cancel live: 20
+scheduled, 20 cancelled, final sweep found `marked=0` — nothing stranded.
+BARS WERE PRE-REGISTERED in `dispatch/OPUS-T27-200T-calendar-schema.md` before
+any data existed, which closes the gap #200S filed against itself.**
+
+| prompt | armed (control) | armed-calfix (treatment) |
+|---|---|---|
+| remind | **10/10** | **10/10** |
+| alarm | **10/10** | **10/10** |
+| calendar | 7/10 | 8/10 |
+| haiku grabs | 6/10 | 8/10 |
+
+**THE PRIMARY BAR FAILED. NO PROMOTION.** It asked for calendar ≥ control + 2
+(9/10 against this control) or 10/10 with the control ≤ 9/10. The treatment
+returned **8/10 against 7/10 — a delta of +1**, inside noise and inside
+calendar's own demonstrated between-run swing. Both guards hold: remind 10/10
+and alarm 10/10 in BOTH arms, so the belt swap cost nothing. Grabs 6/10 → 8/10
+is reported, not gated (the #200O router probe went 200/200 and sends the canary
+toolless in production), but the direction is unfavourable and is noted.
+
+**MECHANISM, ADJUDICATED BEFORE THE DELTA WAS CLAIMED, AS PRE-REGISTERED.** The
+control's three calendar misses, verbatim:
+
+- t1 — after `currentLocation` + `lookupContact` + `searchPlaces` +
+  `searchConversations`: "I couldn't find any details about Sam or a lunch spot
+  nearby. Could you clarify the location or provide more information?"
+- t7 — "I couldn't find a contact named \"Sam.\" Could you provide more details…"
+- t10 — card narration with **every field already filled** (Location, Duration
+  60): "Here's the confirmation card for your calendar event: … Would you like
+  to proceed?"
+
+Only ONE of three is field-flavoured, and it arrived wrapped in a four-tool
+spiral. The treatment's two misses are **both** the Sam dead-end verbatim. So
+**4 of the 5 calendar misses across both arms are the "Sam" lookup dead-end** —
+the disease #200O's promoted carve-out only partly tames. Per the pre-registered
+reading, this null is NOT evidence against the schema mechanism; it is evidence
+that calendar's remaining losses live somewhere else, and it redirects the next
+lane rather than counting against #200S.
+
+**EXPLORATORY FINDING — POST HOC, NOT PRE-REGISTERED, AND LABELLED THAT WAY.**
+The two field types changed the model's TOOL BEHAVIOUR far more than its
+success rate. Control: `currentLocation` in **9 of 10** calendar trials,
+`searchPlaces` in **6 of 10**. Treatment: `currentLocation` in **2** and
+`searchPlaces` in **0** of the 9 trials whose full sequence was read (t1's
+sequence was outside the console window; its reply cites no location).
+
+And it shows up in the ARTIFACTS, not just the latency. The control filled the
+required `location` field by geolocating the user and stamping a place onto a
+lunch event that never mentioned one — "Saucier, MS", and twice the home street
+address **"19200 Crestwick St, Saucier, MS"**. Treatment creates carry no
+location at all. A required field the request cannot fill is being satisfied by
+inventing data about the user, which is a correctness and privacy concern
+independent of any create rate.
+
+This effect is large (9→2 and 6→0 on n=10 within one run) but it was discovered
+AFTER the data and has no pre-registered bar, so it earns **its own lane with
+bars written first** — not a promotion, and not a claim on this run.
+
+**Instrument notes.** `armed-calfix` calendar t9 emitted TWO
+`createCalendarEvent` calls under one `confirm=accepted` with one event reaped
+(the #200H double class, harmless to the arithmetic here). The optional-field
+schema itself behaved: every treatment create resolved duration to the pinned
+60-minute default and the card carried it.
+
+**Disposition: the calendar optional-field schema does NOT promote.** The
+measurement cell (`armed-calfix`) and `CalendarEventToolOptionalFields` stay
+picker-reachable for the confirmation run; production `CalendarEventTool` is
+unchanged apart from the shared `performCreate` engine and `resolveMinutes`,
+which are behaviour-identical on every path the pre-promotion tool could reach.
+Next candidates, in order of evidence: (1) the **"Sam" lookup dead-end**, which
+owns 4 of 5 calendar misses and is where the rate actually lives; (2) a
+pre-registered run for the **location-spiral / invented-location** effect above.

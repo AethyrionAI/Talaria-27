@@ -881,7 +881,8 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedStallfix.rawValue == "armed-stallfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedSchemafix.rawValue == "armed-schemafix")
         #expect(LocalChatBackend.ActionBatteryCell.armedSchemarollback.rawValue == "armed-schemarollback")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 19)
+        #expect(LocalChatBackend.ActionBatteryCell.armedCalfix.rawValue == "armed-calfix")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 20)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -1227,6 +1228,74 @@ struct DeviceToolBeltTests {
     @Test func schemaReverifyBatteryPoolsTheReverifyAndTheRollback() {
         #expect(LocalChatBackend.schemaReverifyBatteryCells == [
             .armed, .armedSchemafix, .armedSchemarollback,
+        ])
+    }
+
+    // MARK: The calendar tool's turn at the same surgery (#200T)
+
+    /// #200T: `CalendarEventTool` still carries the defect #200S removed
+    /// from the reminder tool — `durationMinutes` and `location` are
+    /// REQUIRED by the schema, and `location`'s own `@Guide` text reads
+    /// "Optional location, or empty". The battery's calendar prompt ("Put
+    /// lunch with Sam on my calendar Friday at noon") supplies neither.
+    ///
+    /// This pin compiles ONLY if the treatment struct's two fields are
+    /// optional. `title` and `startsAt` stay required: the schema should
+    /// demand what the tool genuinely cannot default, and an event with no
+    /// start time cannot be created.
+    @Test func calfixCalendarArgumentsAcceptOmittedDurationAndLocation() {
+        let omitted = CalendarEventToolOptionalFields.Arguments(
+            title: "Lunch with Sam", startsAt: "2026-07-31T12:00",
+            durationMinutes: nil, location: nil
+        )
+        #expect(omitted.durationMinutes == nil)
+        #expect(omitted.location == nil)
+        #expect(omitted.title == "Lunch with Sam")
+        #expect(omitted.startsAt == "2026-07-31T12:00")
+    }
+
+    /// #200T: omission was previously IMPOSSIBLE, so the omitted-duration
+    /// default is new behaviour and gets pinned rather than assumed — 60
+    /// minutes, the humane default for an unspecified event, editable on
+    /// the confirmation card. A SUPPLIED value clamps exactly as production
+    /// always has (5…1440), so the shared engine is unchanged for every
+    /// path the pre-promotion tool could reach.
+    @Test func omittedDurationDefaultsToAnHourAndSuppliedDurationStillClamps() {
+        #expect(CalendarEventTool.resolveMinutes(nil) == 60)
+        #expect(CalendarEventTool.resolveMinutes(30) == 30)
+        #expect(CalendarEventTool.resolveMinutes(0) == 5)
+        #expect(CalendarEventTool.resolveMinutes(3) == 5)
+        #expect(CalendarEventTool.resolveMinutes(24 * 60) == 24 * 60)
+        #expect(CalendarEventTool.resolveMinutes(5_000) == 24 * 60)
+    }
+
+    /// #200T: one swap, everything else identity — the cell measures the
+    /// two field types and nothing else. The reminder tool in particular
+    /// stays production (its own promotion is not up for re-measurement
+    /// here).
+    @Test @MainActor func calfixCellSwapsOnlyTheCalendarTool() {
+        let belt = DeviceToolBelt.makeActionTools(
+            relay: ToolEventRelay(), confirmations: ToolConfirmationCenter(),
+            alarmService: AlarmService()
+        )
+        let treated = LocalChatBackend.destallBelt(from: belt, cell: .armedCalfix)
+        #expect(treated.map(\.name) == belt.map(\.name))
+        #expect(treated.contains { $0 is CalendarEventToolOptionalFields })
+        #expect(!treated.contains { $0 is CalendarEventTool })
+        #expect(treated.contains { $0 is ReminderCreateTool })
+        // Production text and the #196 schema-injection default, so the
+        // only delta reaching the model is the field optionality.
+        let calendar = treated.first { $0.name == "createCalendarEvent" }
+        #expect(calendar?.description == CalendarEventTool.productionDescription)
+        #expect(calendar?.includesSchemaInInstructions == true)
+    }
+
+    /// #200T battery: production control vs the calendar schema swap, two
+    /// arms in ONE run — cross-run comparison is not admissible (#200O put
+    /// three cells on exactly 6/10 on three different texts).
+    @Test func calfixBatteryIsProductionVersusTheCalendarSchemaSwap() {
+        #expect(LocalChatBackend.calfixBatteryCells == [
+            .armed, .armedCalfix,
         ])
     }
 
