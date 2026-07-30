@@ -11170,3 +11170,173 @@ rate.
 **Wedge watch: no wedge occurred, so `DeviceToolTimeout` never fired.** Nothing
 is concluded about it either way; the wedge is intermittent and the timeout stays
 in place as insurance.
+
+## #202 — the turn router is CONTEXT-BLIND: short affirmatives misroute toolless, and that is the original #200 denial
+
+**Filed 2026-07-30 from Hermes's OI-#200 audit (F1), verified line-by-line in the
+tree before filing. This is the mechanism for #200's own filing specimen #2, which
+the program flagged as "the multi-turn absorbing state" and never instrumented
+through #200Z.**
+
+**The chain, all confirmed in `LocalChatBackend.swift` at `0979955`:**
+
+1. `routeNeedsDeviceTool(prompt:)` (L2205) builds a **fresh** `LanguageModelSession`
+   with router instructions only and prompts `Prompt("Request: \(prompt)")` — **the
+   raw current turn, with NO conversation history and no last-assistant-turn
+   context.**
+2. `ToolIntentRoute`'s pinned `@Guide` says the answer is false for "Writing,
+   poems, summaries, math, facts, and **conversation**". **"Yes please" is
+   conversation.**
+3. Every turn: `turnRoutedToolless = !(await routeNeedsDeviceTool(prompt: nextPrompt))`
+   (L698).
+4. `effectiveOfferedTools` (L944): **`if turnRoutedToolless { return [] }`** — a
+   routed-toolless turn registers **NO belt at all** ("the full structural cure,
+   not a call gate"), and L707 recreates the session when the offered set changes.
+
+**So on "Yes please" the turn genuinely has no `createReminder` — and the flat
+capability denial is CORRECT behaviour for a session with no tools.** The denial
+"survives corrections" because every short follow-up re-misroutes the same way.
+That is the absorbing state, and it is a routing bug, not a model refusal.
+
+**Why no existing instrument can see it:** the router probe (200/200) and every
+action battery are **single-turn**. Both measure the first turn of a request that
+states its own intent. The offer→accept shape is never generated.
+
+**Fix directions (unmeasured, one seam each):**
+
+- classify with the **last assistant turn** as context, so an offer followed by
+  "yes" is visible to the router; or
+- **inherit the previous turn's route** for short/affirmative prompts (cheap,
+  no extra generation, and fail-safe in the armed direction); or
+- fail safe to ARMED for prompts under a length threshold — the router already
+  fails safe to armed on error, so this is the same instinct applied to ambiguity.
+
+**Instrument owed FIRST (this is the lane's real cost):** a **two-turn** battery
+cell — turn 1 a prompt that elicits an offer, turn 2 a bare affirmative — scored
+on whether the accept produces the artifact. Everything the program knows about
+single-turn creates says nothing about this shape.
+
+**Priority: HIGH.** Production remind creates are 20/20 on single turns while this
+class is plausibly the most common real-world path to a create ("remind me…" →
+clarifying question → "yes"). The whole #200 scoreboard measures the half of the
+funnel that works.
+
+**#202 NOTE, 2026-07-30 — the router is also production's WARM-UP, and it makes
+every battery number PESSIMISTIC (Hermes audit F2, verified).** Every production
+turn pays one router generation (~0.6s, greedy, 64-token cap) on a fresh session
+BEFORE the real turn runs — same `model` object, so the model-load cost lands on
+the router, not on the answer. Two consequences the #200 record never stated:
+
+1. **Production turns are structurally always warm.** The #200V cold-start
+   artifact — the same production config scoring calendar 7/10 first-and-cold vs
+   9/10 last-and-warm — **cannot occur in production**, because production never
+   runs a first generation without the router's generation ahead of it. Batteries
+   without a warm-up measured a COLDER path than users ever run.
+2. Therefore the warm numbers are the honest production estimate, and every
+   pre-#200V control number understated production. **This strengthens the
+   promotions rather than weakening them** — the treatments were being compared
+   against an unfairly cold control, and they still won.
+
+**#197 / #199 CROSS-REFERENCE, 2026-07-30 (Hermes audit F3).** Both open denial-side
+siblings now interact with #200's wins and are unrouted:
+
+- **#197** (raw-error turn death): #200's tool-throw audit proved these throws
+  happen **above `call()`** — the FoundationModels argument-DECODE class, which no
+  tool can catch — so #176's recovery clause never engages. #200Z added evidence
+  by accident: the calendar ROLLBACK arm threw
+  `ToolCallError(CalendarEventToolRequiredFields)` while the promoted tool, with
+  two fewer required fields, **structurally cannot**. Fewer required fields is a
+  partial cure for #197, and the `readHealth` decode errors that keep costing
+  trials (3 in #200W, 2 in #200Z) are the same class awaiting the same treatment.
+- **#199** (post-decline fabrication of a completed action): every promoted #200
+  clause pushes "create now", so creation pressure is at an all-time high while
+  the decline path's honesty has not been measured since the #196-era auto-decline
+  runs. A **post-decline claim-check cell** is the natural sibling measurement and
+  is now the more urgent of the two.
+
+## #203 — SHIP BLOCKER: an unbounded CoreLocation wait can spin a production turn forever
+
+**Filed 2026-07-30 from Hermes's audit §7 item 2, verified line-by-line and FIXED
+in the same commit. Severity is higher than the report states, for a reason the
+report could not see: production has no backstop.**
+
+**The chain, all confirmed in the tree:**
+
+1. `DeviceLocationProvider.currentLocation()` parked a
+   `withCheckedContinuation` and called `manager.requestLocation()` with **no
+   deadline**. If CoreLocation delivers neither `didUpdateLocations` nor
+   `didFailWithError`, that waiter never resumes.
+2. `LocationTool`, `WeatherTool` and `PlacesTool` all `await` it on the
+   **production** path.
+3. **A hung tool is not cancellable** (#200Y: `Task.cancel()` is cooperative and a
+   tool blocked inside `call()` never observes it).
+4. **Production has NO guillotine.** The 35s cancel lives only in
+   `executeBatteryTrial` (DEBUG battery). The production stream loop is a bare
+   `for try await snapshot in stream` with no deadline anywhere.
+
+**So a wedged location callback = a real chat turn spinning forever, with no
+recovery short of force-quitting the app.** That is strictly worse than the
+battery wedge that motivated #200Y, because the battery at least had a backstop.
+
+**My #200Y work missed exactly this.** It bounded `searchConversations`, the
+Contacts fetch and `MKLocalSearch` — the *inner* work of tools — while
+`ensureAuthorization()` / `currentLocation()` run BEFORE those wrapped closures
+and stayed unbounded. Fixing tool bodies while leaving the shared provider open
+was an incomplete fix, and it took an outside reader to see it.
+
+**FIX (this commit):** `currentLocation()` now arms a `fixDeadline` of 10s; on
+expiry any still-parked waiter resumes `nil`, which every caller already renders
+honestly ("Couldn't get a location fix right now…"). **Generation counting**
+guards it — waiters are stamped, the delegate bumps the stamp when it resolves
+them, and a late deadline can only affect the request it was armed for. That is
+the bug a naive timeout would have introduced.
+
+**`ensureAuthorization()` is deliberately left UNBOUNDED**, and the same
+reasoning applies as to the Contacts permission prompt: it waits on a human
+reading a system dialog, and no machine deadline is fair to that. Its own hazard
+is different and remains open — `locationManagerDidChangeAuthorization` returns
+early while status is `.notDetermined`, so a user who dismisses the dialog
+without deciding parks a waiter indefinitely. **Owed: a decision on what a
+never-answered permission prompt should do to the turn.**
+
+**Still owed for the class, not just this instance:** production has no
+turn-level deadline at all. A `#200Y`-style bound on the production stream — or
+an explicit "this is taking unusually long" affordance — is the general cure;
+#203 only closes the one hole we can prove.
+
+**#51 / #52 NOTE, 2026-07-30 (Hermes audit §7 item 1).** #51 was held open only
+for want of a `build-for-testing` confirmation on beta4. That run has now
+happened many times over — tonight's lanes alone ran it green repeatedly
+(1336/1336 in 111 suites at the latest), and Hermes's independent audit build was
+green too. **By its own stated criterion #51 is satisfied; closure is Owen's
+call.** #52 (xcscheme drift) stays open and is *live*: the drifted
+`Talaria.xcodeproj/xcshareddata/xcschemes/Talaria.xcscheme` reappears in the
+working tree constantly — it was discarded by hand a dozen times during the
+#200T–#201 lanes. It is xcodegen residue and deserves a real fix, not a nightly
+`git checkout --`.
+
+**HYGIENE NOTED, 2026-07-30 (Hermes audit §7 items 3–6), verified:**
+
+- **`tools/orphan-audit.sh` is stale** — last touched `986bc62`, 2026-07-08. The
+  #200 program has added ~1,300 lines of DEBUG battery machinery since, none of it
+  covered by that report. Worth a re-run before any launch pass.
+- **`LocalChatBackend.swift` is 3,498 lines**, of which roughly 1,300 are the
+  DEBUG battery suite plus the two `DynamicProfile` structs. A mechanical
+  `LocalChatBackend+Batteries.swift` extraction would return the production brain
+  to ~2,200 with zero behaviour change. **Caveat on the framing:** Hermes cites
+  "your own ~1,000-line guideline" — I could not find that guideline in
+  `CLAUDE.md`, which only says OPEN_ITEMS stays monolithic. The line count is
+  fact; the threshold is unverified, so the extraction is a judgement call and not
+  a rule violation.
+- **`EKEventStore()` is constructed per tool call** (2 sites in
+  `DeviceActionTools.swift`, 1 in `LocalChatBackend.swift`). Apple documents
+  stores as expensive and meant to be shared, and the per-trial reap loop makes
+  this the hottest allocation path in a battery.
+- **`scripts/` vs `tools/`:** the classifier landed in `scripts/`. Keeping it —
+  `CLAUDE.md` already documents `scripts/mac/ota-stage.sh`, so `scripts/` is the
+  documented home for dev/ops tooling while `tools/` holds repo-analysis output.
+  Recorded as a decision rather than left as an accident.
+
+**#190 re-verified as a legitimate open SHIP BLOCKER** (Hermes checked rather than
+assumed): the 2026-07-26 device-pass FAIL on PR #151 — dead taps in the unified
+drawer — still stands. Nothing about #200's work touches it.
