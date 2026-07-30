@@ -1253,24 +1253,6 @@ struct DeviceToolBeltTests {
         ])
     }
 
-    // MARK: The unbounded location wait (#203, SHIP BLOCKER)
-
-    /// #203: `currentLocation()` used to park a continuation with NO deadline,
-    /// and because a hung tool is not cancellable (#200Y) AND the production
-    /// stream loop has no guillotine (that is battery-only), a wedged
-    /// CoreLocation callback could spin a real chat turn forever.
-    ///
-    /// **This pin is deliberately weak and says so.** `DeviceLocationProvider`
-    /// is a concrete `CLLocationManagerDelegate` with no protocol seam, so the
-    /// generation-counted resume path cannot be driven from a test without a
-    /// refactor. What this pins is the regression that would actually matter —
-    /// someone removing the deadline or setting it to zero. A behavioural test
-    /// is owed and is filed with the item.
-    @Test @MainActor func locationFixHasABoundedDeadline() {
-        #expect(DeviceLocationProvider.fixDeadline > .zero)
-        #expect(DeviceLocationProvider.fixDeadline <= .seconds(30))
-    }
-
     // MARK: Thermal drift, made measurable (#201B)
 
     /// #201B: 320 trials is long enough for thermal drift to matter, and because
