@@ -1234,6 +1234,24 @@ struct DeviceToolBeltTests {
         ])
     }
 
+    // MARK: The unbounded location wait (#203, SHIP BLOCKER)
+
+    /// #203: `currentLocation()` used to park a continuation with NO deadline,
+    /// and because a hung tool is not cancellable (#200Y) AND the production
+    /// stream loop has no guillotine (that is battery-only), a wedged
+    /// CoreLocation callback could spin a real chat turn forever.
+    ///
+    /// **This pin is deliberately weak and says so.** `DeviceLocationProvider`
+    /// is a concrete `CLLocationManagerDelegate` with no protocol seam, so the
+    /// generation-counted resume path cannot be driven from a test without a
+    /// refactor. What this pins is the regression that would actually matter —
+    /// someone removing the deadline or setting it to zero. A behavioural test
+    /// is owed and is filed with the item.
+    @Test @MainActor func locationFixHasABoundedDeadline() {
+        #expect(DeviceLocationProvider.fixDeadline > .zero)
+        #expect(DeviceLocationProvider.fixDeadline <= .seconds(30))
+    }
+
     // MARK: The contact dead-end, reconsidered at n=20 (#201)
 
     /// #201: #200V withdrew #200U's fix because warm production showed ZERO
@@ -1281,6 +1299,39 @@ struct DeviceToolBeltTests {
         #expect(slow.contains("searchConversations"))
         #expect(slow.contains("timed out"))
         #expect(!slow.contains("never arrives"))
+    }
+
+    /// #200Y/F6 (Hermes audit): the throwing variant, for tools whose blocking
+    /// work already reports failure through `catch` — `PlacesTool`'s
+    /// `MKLocalSearch` is a network round-trip with no deadline of its own. A
+    /// real error must still propagate unchanged; only the deadline produces
+    /// `TimedOut`.
+    @Test func toolTimeoutThrowingVariantSurfacesTimedOutAndPassesRealErrors() async {
+        struct Boom: Error {}
+        do {
+            _ = try await DeviceToolTimeout.runThrowing(seconds: 5, label: "searchPlaces") {
+                throw Boom()
+            }
+            #expect(Bool(false), "a real error must propagate, not be swallowed")
+        } catch {
+            #expect(error is Boom)
+        }
+
+        let fast = try? await DeviceToolTimeout.runThrowing(seconds: 5, label: "searchPlaces") { 42 }
+        #expect(fast == 42)
+
+        do {
+            _ = try await DeviceToolTimeout.runThrowing(seconds: 0.05, label: "searchPlaces") {
+                try? await Task.sleep(for: .seconds(30))
+                return 0
+            }
+            #expect(Bool(false), "the deadline must fire")
+        } catch {
+            #expect((error as? DeviceToolTimeout.TimedOut)?.label == "searchPlaces")
+            // The call site renders this through its own failure text, so the
+            // tool's name has to survive into the message.
+            #expect(error.localizedDescription.contains("searchPlaces"))
+        }
     }
 
     /// #200Y: the timeout must not swallow a legitimately empty result — an
