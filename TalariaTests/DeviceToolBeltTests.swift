@@ -1234,6 +1234,40 @@ struct DeviceToolBeltTests {
         ])
     }
 
+    // MARK: Per-tool timeout — the guillotine cannot cut a hung tool (#200Y)
+
+    /// #200Y: the 35-second generation guillotine calls `respondTask.cancel()`,
+    /// and Swift cancellation is COOPERATIVE — a tool blocked inside its own
+    /// `call()` never observes it. Measured twice: #200V's excluded TIMEOUT
+    /// (six `searchConversations` calls on one query) and #200W's
+    /// `armed/haiku/t5`, which called `searchConversations` and emitted nothing
+    /// for 2.5+ minutes against a 35s guillotine.
+    ///
+    /// So the timeout has to live at the TOOL, where the blocking happens.
+    @Test func toolTimeoutReturnsTheSlowToolsOwnFailureText() async {
+        let quick = await DeviceToolTimeout.run(seconds: 5, label: "searchConversations") {
+            "fast result"
+        }
+        #expect(quick == "fast result")
+
+        let slow = await DeviceToolTimeout.run(seconds: 0.05, label: "searchConversations") {
+            try? await Task.sleep(for: .seconds(30))
+            return "never arrives"
+        }
+        // The model gets a usable, non-blocking answer instead of a wedge —
+        // and it names the tool, so a wedge is visible in the transcript.
+        #expect(slow.contains("searchConversations"))
+        #expect(slow.contains("timed out"))
+        #expect(!slow.contains("never arrives"))
+    }
+
+    /// #200Y: the timeout must not swallow a legitimately empty result — an
+    /// empty string is a real answer, not a hang.
+    @Test func toolTimeoutPassesEmptyResultsThrough() async {
+        let empty = await DeviceToolTimeout.run(seconds: 5, label: "searchPlaces") { "" }
+        #expect(empty.isEmpty)
+    }
+
     // MARK: The calendar tool's turn at the same surgery (#200T)
 
     /// #200T: `CalendarEventTool` still carries the defect #200S removed
