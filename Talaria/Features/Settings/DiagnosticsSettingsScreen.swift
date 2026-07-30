@@ -765,6 +765,31 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #200T: production control vs the calendar tool with its two
+    // undefaultable fields optional in the schema.
+    @ViewBuilder
+    private func calfixBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runCalfixBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200S: pooled production re-verify (control + the now-identity
     // schemafix cell) vs the pinned pre-promotion rollback.
     @ViewBuilder
@@ -959,6 +984,10 @@ struct DiagnosticsSettingsScreen: View {
                 // #200S: promotion re-verify vs its own rollback.
                 HStack(spacing: Design.Spacing.sm) {
                     schemaReverifyBatteryButton(trials: 10, label: "Schema re-verify n=10 (120)")
+                }
+                // #200T: production vs the calendar schema swap.
+                HStack(spacing: Design.Spacing.sm) {
+                    calfixBatteryButton(trials: 10, label: "Calendar schema n=10 (80)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
