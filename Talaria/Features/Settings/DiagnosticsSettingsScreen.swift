@@ -1080,6 +1080,27 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #202D: same empty-belt shape as #202C — nothing to grant, nothing to reap.
+    @ViewBuilder
+    private func honestyV2BatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runHonestyBattery(
+                    trials: trials, cells: LocalChatBackend.honestyV2BatteryCells)
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     @ViewBuilder
     private func longContextProbeButton(trials: Int, label: String) -> some View {
         Button {
@@ -1280,6 +1301,11 @@ struct DiagnosticsSettingsScreen: View {
                 // #202C companion: ctx-a on realistic LONG contexts, timed.
                 HStack(spacing: Design.Spacing.sm) {
                     longContextProbeButton(trials: 5, label: "Long-context probe n=5 (50)")
+                }
+                // #202D: clause v1 vs the reworded v2 — production absent,
+                // its number is settled across two runs.
+                HStack(spacing: Design.Spacing.sm) {
+                    honestyV2BatteryButton(trials: 10, label: "Honesty v2 n=10 (20+24+1)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
