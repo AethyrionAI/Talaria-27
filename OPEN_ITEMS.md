@@ -5234,6 +5234,13 @@ crash, session keeps running, mic live after; outside a session, full-fidelity p
 > **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-130-halfduplex-probe.md` — SENT (built
 > above; A/B probe branch, DO-NOT-MERGE label; Owen's on-device verdict decides #130).
 
+> **PROBE BRANCH DELETED 2026-07-30** (Owen: "128 is a do not merge probe that can be
+> safely deleted now"). PR #128 closed, `probe/t27-130-halfduplex` removed from origin.
+> **#130 itself stays OPEN**, so the probe is recorded rather than lost — tip
+> `a0bc0595a9fd65f32eb6a07c22430a0345a256b0`, restorable with
+> `git fetch origin a0bc059… && git branch probe/t27-130-halfduplex FETCH_HEAD`.
+> The same pointer is in the PR's closing comment.
+
 Device observation 2026-07-17 (post-#128, conversation working): in-session TTS is noticeably
 less crisp than the settings previews. Cause is structural, not a bug: previews play on a
 `.playback` session (full fidelity); session TTS rides `.playAndRecord` + `.voiceChat`, whose
