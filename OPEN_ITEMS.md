@@ -11343,3 +11343,63 @@ warranted. Owen routed exactly that (#201B, n=40).
 #200O's router probe. Worth noting the absolute number is the highest recorded;
 the grab canary is measured under armed construction, which production reaches only
 on a router miss.
+
+**#201B VERDICT FILED, 2026-07-30 — the contact dead-end fix PROMOTES. Two runs at
+n=40, in BOTH slot orders, 320 counted trials each + 4 warm-up, corded WITH
+DEBUGGER ATTACHED, both `endedCleanly: true`, ZERO exclusions, both classified by
+`scripts/classify-battery-run.py`.**
+
+| run | slot order | production dead-ends | treatment dead-ends | production calendar | treatment calendar |
+|---|---|---|---|---|---|
+| #201B forward | treatment first (cool) → production last (hot) | **5/40** | **0/40** | 35/40 | **40/40** |
+| #201B reversed | **production first (cool)** → treatment last (hot) | **9/40** | **0/40** | 31/40 | **40/40** |
+| **pooled** | — | **14/80 (17.5%)** | **0/80** | 66/80 | **80/80** |
+
+Reap arithmetic exact in both: forward 300 accepted / 304 reaped (residual 4 =
+warm-up); reversed 287 / 290 (residual 3). Guards **40/40 on remind and alarm in
+all four cells of both runs**.
+
+**Fisher one-sided on the confirmation run alone: p≈0.0012.** The pooled control
+rate of 17.5% lands on the 16.7% base rate the power calculation assumed, which is
+the sanity check that the n=40 sizing was honest rather than lucky.
+
+**THE CONFOUNDS ARE EXONERATED BY INVERSION, NOT BY ARGUMENT.**
+
+- **Thermal:** production did **WORSE COOL (9/40 dead-ends) than it did HOT
+  (5/40)**. Heat does not cause the dead-end. And in the confirmation the
+  treatment ran **`serious` throughout** — throttled — and still went 40/40 with
+  zero.
+- **Position:** both arms have now run first and last. The treatment won from
+  both; production lost from both.
+- **The surviving confound runs AGAINST the winner.** The classifier's thermal
+  check correctly flagged mismatched cell starts, and the honest reading is that a
+  bias against the arm that won cannot explain its win. **The tool gives a blunt
+  warning; the verdict has to read the direction.** Recorded because a future
+  reader will meet that flag again.
+
+**DISPOSITION: `ContactsTool.continuesAfterNoMatch` PROMOTES to `true`.** The
+pinned rollback is the flag's explicit `false`, reachable as the
+`armed-deadendrollback` cell, which restores the bare not-found text verbatim.
+
+**What the promotion actually fixes, in the model's own words.** Production's nine
+misses are all the same shape — *"I couldn't find a contact named 'Sam.' Would you
+like me to create the event without the name…"* — the model asking PERMISSION to do
+what the promoted #200O prose already instructs. The fix does not stop the lookup
+or the miss; it stops the miss reading as a blocker. **Five wording lanes could not
+reach this because prose is not the layer.**
+
+**Two honest footnotes.**
+
+1. **Production's true warm calendar number is worse than we thought: 66/80
+   (82.5%)**, and 31/40 in the reversed run is its worst warm figure on record.
+   The 85–90% estimates came from n=10 samples that were flattering it. Measuring
+   at n=40 cost the scoreboard some optimism and bought it accuracy.
+2. **Grabs ran 30/40 treatment vs 26/40 production** — unfavourable direction,
+   ungated per #200O's router probe (200/200, canary routes toolless), but it is
+   the number to watch if the grab lane ever reopens.
+
+**#201's INCONCLUSIVE stands as filed** — its gate was mis-specified (demanding the
+disease exceed its own expected rate), and the fix was to power the run properly
+rather than to reinterpret it. That sequence — inconclusive, re-power, confirm in
+both orders — is the honest path this program should take every time a floor lands
+one short.
