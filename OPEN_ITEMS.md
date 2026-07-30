@@ -11403,6 +11403,71 @@ disease exceed its own expected rate), and the fix was to power the run properly
 rather than to reinterpret it. That sequence — inconclusive, re-power, confirm in
 both orders — is the honest path this program should take every time a floor lands
 one short.
+
+**#202A VERDICT, 2026-07-30 — the context-blind router is CONFIRMED from evidence,
+and BOTH context framings cure it completely. Run `85F6F16F`, n=15, classified by
+`scripts/classify-battery-run.py`. Dispatch + pre-registered bars:
+`dispatch/OPUS-T27-202A-router-context.md`. NOTHING PROMOTED — as pre-registered.**
+
+The filing was a code read. It is now a measurement:
+
+| variant | baseline (#196 grid) | accept | words-only | device |
+|---|---|---|---|---|
+| **control (production)** | **10/10 rows** | **0/6 rows** | 5/5 | 2/2 |
+| **ctx-a** (envelope only) | — | **6/6** | **5/5** | **2/2** |
+| **ctx-b** (envelope + example) | — | **6/6** | **5/5** | **2/2** |
+
+**Every bare affirmative misrouted, all six forms, after six different offers** —
+"Yes please", "Yes", "Sure", "Go ahead", "Please do", "yeah". Meanwhile the same
+router was **17/17 rows correct on everything else** (10 baseline + 5 words-only +
+2 device). Within the control, accepts 0/6 against non-accepts 17/17 is Fisher
+p≈1e-5. The defect is exactly as filed and is not a general accuracy problem.
+
+**ctx-a and ctx-b are INDISTINGUISHABLE — both 13/13.** The added few-shot example
+bought nothing measurable, so **ctx-a is selected for #202B on parsimony**: it
+leaves the pinned instructions untouched and changes only the prompt envelope.
+The dispatch anticipated the other branch (ctxA fails, ctxB rescues it); that
+branch did not occur.
+
+**The degenerate did NOT happen.** The bar that mattered was words-only ≥95%, and
+both candidates held 5/5 — including "No thanks" after an offer, the row designed
+to catch a router that fixes accepts by arming everything. A context router
+discriminates in BOTH directions; it does not simply say yes more.
+
+**CONFOUND RAN AGAINST THE WINNERS.** Thermal: control `nominal→serious`, then both
+candidates entirely at `serious`. The incumbent had the cool slot by design and
+still lost 0/6; the candidates swept from the throttled one. The classifier's
+thermal flag fired, and the direction exonerates the result — #201B's lesson 1
+applied a second time.
+
+**INSTRUMENT DEFECT FOUND BY THIS RUN — the n was ineffective.** All 49 generating
+rows came back **15/15 or 0/15, zero within-row variance.** The router decodes
+**greedily** on a fresh session, so an identical prompt is deterministic and 15
+repeats re-measure ONE sample. **The honest denominator is the 13 distinct rows,
+not 195 trials** — every count above is therefore reported in ROWS, and the
+pre-registered bars (written in trial units) overstated their own evidence by ~15×.
+The conclusion survives easily at row resolution, but the method does not: **~10
+minutes of device time bought what ~40 seconds would have.** The classifier now
+detects saturation and says this out loud, and future probe runs must spend the
+budget on MORE DISTINCT ROWS rather than repeats. This is #201B's "size n to the
+measure" lesson recurring in a new form — sampling noise is not the only thing n
+has to be sized against; **determinism is the other.**
+
+**Correction made before the verdict:** the lenrule column first read `device 0/2`,
+which was my encoding error, not a result — I scored `isShortAffirmative == expected`
+on every row, which charges a MODIFIER for rows where it never fires. The rule
+fires on the 6 accepts (6/6) and defers elsewhere. Fixed in the instrument so the
+record cannot mislead a later reader; the rule stays **ungated** regardless, because
+inheritance can only be judged by a two-turn run.
+
+**Owed next (#202B):** the two-turn end-to-end battery — turn 1 elicits an offer,
+turn 2 is a bare affirmative, scored on the ARTIFACT. #202A measured the mechanism;
+only #202B can show that fixing the route actually produces the create. One further
+fact established while building this and worth recording: **`rebuildSession` replays
+the stored conversation into the fresh session**, so on turn 2 the model DOES see
+the offer. The failure is disarmament, not amnesia — which is why the fix belongs in
+the router and nowhere else.
+
 ## #203 — SHIP BLOCKER: an unbounded CoreLocation wait can spin a production turn forever
 
 **Filed and FIXED 2026-07-30. Found by Hermes's independent night audit, verified
