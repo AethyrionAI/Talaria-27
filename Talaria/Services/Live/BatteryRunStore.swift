@@ -54,6 +54,22 @@ struct RouterProbeRecord: Codable, Equatable {
     var expected: Bool
     var correct: Int
     var trials: Int
+    /// #202A: which router framing produced this row. Optional so #196
+    /// records — which had exactly one framing — still decode.
+    var variant: String? = nil
+    /// #202A: the assistant turn this row was classified against. Two rows
+    /// can share a prompt and differ only here, so without it the record
+    /// cannot distinguish them. (#201B lesson: if a verdict depends on it,
+    /// it belongs in the record.)
+    var context: String? = nil
+    /// #202A: the band the bars are written against.
+    var band: String? = nil
+    /// #202C: mean seconds per classification. The long-context probe exists
+    /// to answer a LATENCY question — the router runs on every production
+    /// turn — and the first run emitted the timing to the console only, so
+    /// the one number the probe was built for could not be read from the
+    /// record. Same lesson #201B's thermal readings taught.
+    var seconds: Double? = nil
 }
 
 /// One battery or probe run. A probe-only run has empty `trials`; a battery
@@ -209,7 +225,11 @@ enum BatteryRunMath {
         if !run.probes.isEmpty {
             lines.append("router: PROBE START trials=\(run.trialsPerCell) probes=\(run.probes.count) (#196)")
             for probe in run.probes {
-                lines.append("router: \(probe.correct)/\(probe.trials) expected=\(probe.expected) probe=\(probe.probe)")
+                // #202A: variant/band render only when present, so a #196
+                // record still round-trips to its original line byte for byte.
+                let variant = probe.variant.map { " variant=\($0)" } ?? ""
+                let band = probe.band.map { " band=\($0)" } ?? ""
+                lines.append("router: \(probe.correct)/\(probe.trials) expected=\(probe.expected)\(variant)\(band) probe=\(probe.probe)")
             }
             if run.endedCleanly == false {
                 lines.append("router: PROBE INCOMPLETE — run died before DONE (#196)")
@@ -417,9 +437,16 @@ final class BatteryRunRecorder {
         persistSnapshot()
     }
 
-    func recordProbe(probe: String, expected: Bool, correct: Int, trials: Int) {
+    /// #202A adds variant/context/band, defaulted so the #196 call site is
+    /// unchanged and its records keep their original shape.
+    func recordProbe(probe: String, expected: Bool, correct: Int, trials: Int,
+                     variant: String? = nil, context: String? = nil, band: String? = nil,
+                     seconds: Double? = nil) {
         guard run != nil else { return }
-        run?.probes.append(RouterProbeRecord(probe: probe, expected: expected, correct: correct, trials: trials))
+        run?.probes.append(RouterProbeRecord(probe: probe, expected: expected,
+                                            correct: correct, trials: trials,
+                                            variant: variant, context: context, band: band,
+                                            seconds: seconds))
         persistSnapshot()
     }
 

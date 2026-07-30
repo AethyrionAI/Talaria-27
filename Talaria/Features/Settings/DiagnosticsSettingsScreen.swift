@@ -1010,6 +1010,116 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #202A: same shape as the #196 router probe — pure classification, so
+    // no confirmation auto-decline and nothing to sweep afterwards. The
+    // idle-timer lock matters here too: ~585 generations is ~10 minutes.
+    @ViewBuilder
+    private func routerContextProbeButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runRouterContextProbe(trials: trials)
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
+    // #202B two-turn battery: an offer, then a bare affirmative. Auto-ACCEPT
+    // so an appropriate create EXECUTES and is countable as an artifact —
+    // real writes, marker-tagged, reaped per trial.
+    @ViewBuilder
+    private func twoTurnBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runTwoTurnBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
+    // #202C: the honesty lane. Every trial runs with an EMPTY belt, so no
+    // confirmation can fire and nothing can be written — no grants needed
+    // and nothing to reap, same as the probes.
+    @ViewBuilder
+    private func honestyBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runHonestyBattery(trials: trials)
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
+    // #202D: same empty-belt shape as #202C — nothing to grant, nothing to reap.
+    @ViewBuilder
+    private func honestyV2BatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runHonestyBattery(
+                    trials: trials, cells: LocalChatBackend.honestyV2BatteryCells)
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
+    @ViewBuilder
+    private func longContextProbeButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runLongContextProbe(trials: trials)
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     private var localBrainPanel: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             MonoLabel("// Local brain — #102", size: 10, tracking: Design.Tracking.monoXWide,
@@ -1168,6 +1278,34 @@ struct DiagnosticsSettingsScreen: View {
                 // #201B confirmation: reversed, production in the cool slot.
                 HStack(spacing: Design.Spacing.sm) {
                     deadendReversedBatteryButton(trials: 40, label: "Dead-end REVERSED n=40 (320+4)")
+                }
+                // #202A: the context-blind router probe. 3 generating
+                // variants × 23 rows × n, plus the free deterministic
+                // lenrule column. Pure classification — no tool runs and
+                // nothing is written, so this one needs no grants and has
+                // nothing to reap.
+                HStack(spacing: Design.Spacing.sm) {
+                    routerContextProbeButton(trials: 15, label: "Router context n=15 (~585)")
+                }
+                // #202B: the two-turn offer→accept shape. Auto-ACCEPT, real
+                // writes, reaped per trial — run with Reminders GRANTED.
+                HStack(spacing: Design.Spacing.sm) {
+                    twoTurnBatteryButton(trials: 12, label: "Two-turn n=12 (24+5+1)")
+                }
+                // #202C: the toolless honesty clause + the #196 tic guard.
+                // NO belt in any trial, so nothing can be created and there
+                // is nothing to grant or reap.
+                HStack(spacing: Design.Spacing.sm) {
+                    honestyBatteryButton(trials: 10, label: "Honesty n=10 (20+24+1)")
+                }
+                // #202C companion: ctx-a on realistic LONG contexts, timed.
+                HStack(spacing: Design.Spacing.sm) {
+                    longContextProbeButton(trials: 5, label: "Long-context probe n=5 (50)")
+                }
+                // #202D: clause v1 vs the reworded v2 — production absent,
+                // its number is settled across two runs.
+                HStack(spacing: Design.Spacing.sm) {
+                    honestyV2BatteryButton(trials: 10, label: "Honesty v2 n=10 (20+24+1)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
