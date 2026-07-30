@@ -2184,6 +2184,30 @@ struct DeviceToolBeltTests {
         #expect(wordsOnly.contains { $0.prompt == "No thanks" })
     }
 
+    /// #206: the router context is capped to its TAIL, because an offer lands
+    /// at the END of an assistant turn — head-truncation would cut off the
+    /// only part the router needs. Short contexts pass through untouched.
+    @Test func routerContextIsCappedToItsTailAndShortContextsAreUntouched() {
+        let short = "Would you like me to set a reminder for that?"
+        #expect(LocalChatBackend.routerContextTail(short) == short)
+        let long = String(repeating: "filler. ", count: 900)
+            + "Would you like me to set a reminder to call the dentist tomorrow at 9am?"
+        let capped = LocalChatBackend.routerContextTail(long)
+        #expect(capped.count <= LocalChatBackend.routerContextLimit + 1)  // +1 for the ellipsis
+        // The OFFER — the whole reason context is supplied — must survive.
+        #expect(capped.contains("Would you like me to set a reminder to call the dentist tomorrow at 9am?"))
+        #expect(capped.hasPrefix("…"))
+        // The cap sits above every context measured clean and below the one
+        // that broke, so ordinary turns are unaffected.
+        #expect(LocalChatBackend.routerContextLimit > 590)
+        #expect(LocalChatBackend.routerContextLimit < 4073)
+        // And it is wired into the envelope, not just available.
+        let envelope = LocalChatBackend.routerPrompt(context: long, prompt: "Yes please",
+                                                     variant: .ctxA)
+        #expect(envelope.count < long.count)
+        #expect(envelope.contains("call the dentist tomorrow at 9am"))
+    }
+
     /// #205: the #196 baseline series is EXACTLY ten rows. Its 200/200
     /// history and #202A's regression denominator both derive from that
     /// count — appending to it silently re-points a long-running series and

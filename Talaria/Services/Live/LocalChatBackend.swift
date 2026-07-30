@@ -2269,10 +2269,26 @@ extension LocalChatBackend {
         case .ctxA, .ctxB:
             guard !context.isEmpty else { return "Request: \(prompt)" }
             return """
-            Assistant just said: "\(context)"
+            Assistant just said: "\(routerContextTail(context))"
             Request: \(prompt)
             """
         }
+    }
+
+    /// #206: the router context is capped to its TAIL. Two reasons, both
+    /// measured: at ~4,000 chars routing latency doubled (0.63s → 1.32s) and
+    /// a words-only row routed ARMED 0/5 — the first ctx-a failure recorded —
+    /// while everything at ≤590 chars was perfect. **The tail, not the head:**
+    /// an offer lands at the END of an assistant turn ("…Would you like me to
+    /// set a reminder?"), which is precisely the part the router must see.
+    ///
+    /// `routerContextLimit` sits above every context measured clean (590) and
+    /// well below the length that broke (4,073). A no-op for ordinary turns.
+    nonisolated static let routerContextLimit = 800
+
+    nonisolated static func routerContextTail(_ context: String) -> String {
+        guard context.count > routerContextLimit else { return context }
+        return "…" + String(context.suffix(routerContextLimit))
     }
 
     /// #202A candidate (fix direction 2): the bare accept forms, exhaustive
@@ -3853,9 +3869,22 @@ extension LocalChatBackend {
         // same offer buried at the end of a genuinely long answer, which is
         // the shape a user actually produces after asking a broad question.
         let veryLongOffer = String(repeating: longSummary + " ", count: 6) + longOffer
+        // #206 DISAMBIGUATION: the first run's failing row differed from the
+        // passing rows in BOTH length and wording, so length was not
+        // isolated — a confound I introduced. These pairs hold the PROMPT
+        // fixed and vary only the context length, which is the only way to
+        // attribute the failure.
+        let shortTail = String(longOffer.suffix(560))
         return [
             .init(band: .accept, context: veryLongOffer, prompt: "Yes please", expected: true),
             .init(band: .wordsOnly, context: veryLongOffer, prompt: "Say that again more briefly",
+                  expected: false),
+            // Same prompt, short context — if THIS passes, length is the cause.
+            .init(band: .wordsOnly, context: shortTail, prompt: "Say that again more briefly",
+                  expected: false),
+            // Same prompt, long context — if this fails while the ~580 row
+            // above passes, the pair localises it to length rather than words.
+            .init(band: .wordsOnly, context: veryLongOffer, prompt: "Write another one",
                   expected: false),
             .init(band: .accept, context: longOffer, prompt: "Yes please", expected: true),
             .init(band: .accept, context: longOffer, prompt: "Sure", expected: true),
