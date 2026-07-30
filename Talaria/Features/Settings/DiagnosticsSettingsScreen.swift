@@ -765,6 +765,32 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #200W: #200T's calendar arms re-run WARM with production last. The
+    // primaries are the location-spiral and invented-location counts, not the
+    // rate — warm production calendar is already ~9/10.
+    @ViewBuilder
+    private func calfixWarmBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runCalfixWarmBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200V: #200U's three arms REVERSED (production last) after a discarded
     // warm-up pass — the confirmation run that tests the cell-order confound.
     @ViewBuilder
@@ -1046,6 +1072,10 @@ struct DiagnosticsSettingsScreen: View {
                 // #200V: the same three arms reversed, warm-up first.
                 HStack(spacing: Design.Spacing.sm) {
                     deadendConfirmBatteryButton(trials: 10, label: "Dead-end confirm n=10 (120+4)")
+                }
+                // #200W: calendar arms warm, production last.
+                HStack(spacing: Design.Spacing.sm) {
+                    calfixWarmBatteryButton(trials: 10, label: "Calendar warm n=10 (80+4)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
