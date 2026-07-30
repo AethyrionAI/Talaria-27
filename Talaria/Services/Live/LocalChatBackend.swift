@@ -2543,6 +2543,12 @@ extension LocalChatBackend {
         /// writes wrong artifacts to a real calendar on the picker is a
         /// hazard, not an archive.)
         case armedSchemarollback = "armed-schemarollback"
+        /// #200T: the same structural surgery, one tool over — the CALENDAR
+        /// tool's `durationMinutes` and `location` become optional in the
+        /// schema (`CalendarEventToolOptionalFields`), against what is now
+        /// the weakest production number (15/20 pooled). Belt swap;
+        /// instructions untouched.
+        case armedCalfix = "armed-calfix"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2559,6 +2565,17 @@ extension LocalChatBackend {
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
             // loop) — none of them swap tool text here.
             return tools
+        case .armedCalfix:
+            // #200T: one swap — the calendar tool with its two
+            // undefaultable-by-the-model fields optional in the schema.
+            // The reminder tool stays production: its promotion is not up
+            // for re-measurement in this lane.
+            return tools.map { tool in
+                if let calendar = tool as? CalendarEventTool {
+                    return CalendarEventToolOptionalFields(relay: calendar.relay, confirmations: calendar.confirmations)
+                }
+                return tool
+            }
         case .armedSchemarollback:
             // #200S: one swap — the pre-promotion reminder tool, whose
             // optional fields are REQUIRED in the schema. The pinned
@@ -3076,6 +3093,21 @@ extension LocalChatBackend {
     /// generations.
     func runSchemaReverifyBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.schemaReverifyBatteryCells, includeGrabCanary: true)
+    }
+
+    /// #200T cell list — production control vs the calendar schema swap,
+    /// two arms in ONE run. Cross-run comparison is not admissible here
+    /// (#200O put three cells on exactly 6/10 on three different texts), so
+    /// the control travels with the treatment. Bars are pre-registered in
+    /// `dispatch/OPUS-T27-200T-calendar-schema.md`. Pinned.
+    nonisolated static let calfixBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedCalfix,
+    ]
+
+    /// #200T one-tap wrapper: 2 cells × four prompts — 8 × trials
+    /// generations.
+    func runCalfixBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.calfixBatteryCells, includeGrabCanary: true)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the
