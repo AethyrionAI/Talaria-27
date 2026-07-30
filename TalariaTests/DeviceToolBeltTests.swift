@@ -1376,9 +1376,34 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.deadendConfirmBatteryCells.last == .armed)
     }
 
-    /// #200V: the warm-up is OFF by default, so every battery run before this
-    /// lane — and every one after it that doesn't ask — is byte-identical.
-    @Test func warmupIsOptInSoPriorBatteriesAreUnchanged() {
+    /// #200W: the warm-up is now the DEFAULT. #200V measured the cold-start
+    /// artifact within one run — the same production configuration scored
+    /// calendar 7/10 first-and-cold and 9/10 last-and-warm, with the "Sam"
+    /// dead-end going 3/10 → 0/10 — so every future battery pays that cost
+    /// outside its counts. The flag survives so a run can still opt OUT and
+    /// reproduce a pre-#200V measurement exactly.
+    @Test func warmupIsTheDefaultAndStillOptOutable() {
+        #expect(LocalChatBackend.batteryWarmupDefault == true)
+    }
+
+    /// #200W: production runs LAST, which is the conservative direction — any
+    /// residual position advantage surviving the warm-up accrues to the
+    /// CONTROL, making the treatment's job harder, not easier.
+    @Test func calfixWarmBatteryPutsProductionLast() {
+        #expect(LocalChatBackend.calfixWarmBatteryCells == [
+            .armedCalfix, .armed,
+        ])
+        #expect(LocalChatBackend.calfixWarmBatteryCells.last == .armed)
+        // Same two arms as #200T, so the comparison is the same comparison —
+        // only warmth and position changed.
+        #expect(Set(LocalChatBackend.calfixWarmBatteryCells)
+            == Set(LocalChatBackend.calfixBatteryCells))
+    }
+
+    /// #200V: the warm-up tag grammar, and that "warmup" is never a cell
+    /// rawValue — so no classifier or reap line can mistake a discarded
+    /// warm-up trial for a counted one.
+    @Test func warmupTagIsNeverMistakenForACountedTrial() {
         #expect(LocalChatBackend.batteryWarmupTag(prompt: "calendar")
             == "shape=warmup p=calendar t=0")
         // The tag says `warmup`, never a cell rawValue, so no classifier and
