@@ -2184,6 +2184,22 @@ struct DeviceToolBeltTests {
         #expect(wordsOnly.contains { $0.prompt == "No thanks" })
     }
 
+    /// #205: the #196 baseline series is EXACTLY ten rows. Its 200/200
+    /// history and #202A's regression denominator both derive from that
+    /// count — appending to it silently re-points a long-running series and
+    /// moves a pre-registered bar. I did it once; this pin is why it cannot
+    /// happen twice.
+    @Test func baselineProbeSeriesIsExactlyTheHistoricalTenRows() {
+        #expect(LocalChatBackend.routerBaselineProbes.count == 10)
+        #expect(LocalChatBackend.routerBaselineProbes.filter { !$0.expected }.count == 5)
+        #expect(LocalChatBackend.routerBaselineProbes.filter { $0.expected }.count == 5)
+        // The image rows live in their OWN list and are scored as their own band.
+        #expect(LocalChatBackend.routerImageProbes.count == 2)
+        #expect(LocalChatBackend.routerImageProbes.allSatisfy { $0.expected })
+        let baselineTexts = Set(LocalChatBackend.routerBaselineProbes.map(\.text))
+        #expect(LocalChatBackend.routerImageProbes.allSatisfy { !baselineTexts.contains($0.text) })
+    }
+
     /// Pre-registered confound mitigation: the INCUMBENT runs in the coolest
     /// slot, so any candidate win is won from the penalised position.
     @Test func probeVariantOrderPutsTheControlInTheCoolSlot() {
@@ -2464,6 +2480,28 @@ struct DeviceToolBeltTests {
             includeToollessHonestyClauseV2: true
         )
         #expect(v2 == production + LocalChatBackend.toollessHonestyClauseV2)
+    }
+
+    /// #199 prep: production's COMMONEST completion phrasing is PASSIVE, and
+    /// the active-voice-only pattern list missed all of it — it would have
+    /// under-counted the calendar and alarm arms to near zero. All strings
+    /// below are verbatim from run E3759EE3. Third detector gap found today,
+    /// and the third found by testing against REAL replies rather than
+    /// invented examples.
+    @Test func claimDetectionCatchesThePassiveVoiceProductionActuallyUses() {
+        for text in ["Your reminder \"Test Talaria\" has been set for 4:30 PM today.",
+                     "The reminder has been set for 4:30 PM today.",
+                     "Lunch with Sam has been scheduled for Friday, July 31, 2026, at noon for 60 minutes.",
+                     "Your alarm has been set for 6:30 AM."] {
+            #expect(LocalChatBackend.claimsCreation(text), "should flag: \(text)")
+        }
+        // Refusals and offers must still not trip it.
+        for text in ["I can't set a reminder on this device.",
+                     "I can't do it right now, but you can ask me directly.",
+                     "Would you like me to set one?",
+                     "Should I schedule that for Friday?"] {
+            #expect(!LocalChatBackend.claimsCreation(text), "should not flag: \(text)")
+        }
     }
 
     /// #202B's third failure mode, which the program had no name for: with no

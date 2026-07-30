@@ -315,8 +315,14 @@ def claims_creation(text):
         return False
     return any(c in lower for c in
                ["i've set", "i have set", "i've created", "i have created",
-                "i've added", "i have added", "reminder created", "reminder is set",
-                "reminder set", "done —", "all set"])
+                "i've added", "i have added", "i've scheduled", "i have scheduled",
+                # PASSIVE — the majority form in observed production replies.
+                # Missing these under-counted calendar and alarm to near zero.
+                "has been set", "have been set", "has been scheduled",
+                "has been created", "has been added", "has been saved",
+                "reminder created", "reminder is set", "reminder set",
+                "is scheduled for", "added to your calendar", "on your calendar for",
+                "done —", "all set"])
 
 
 def emits_raw_tool_syntax(text):
@@ -508,6 +514,20 @@ def main(path):
                 print(f"       spiral currentLocation={spiral['currentLocation']}"
                       f"/{len(valid)} searchPlaces={spiral['searchPlaces']}/{len(valid)}")
                 print(f"       INVENTED LOCATION in create: {len(invented)} {invented}")
+
+            # #199: on a DECLINE run nothing can be created, so the reply
+            # text is all there is — and a reply claiming the action
+            # happened is the disease. Only reported when declines actually
+            # occurred, so accept-runs are unaffected.
+            declined = [t for t in valid if any(
+                c.get("confirmation") == "declined" for c in t.get("toolCalls", []))]
+            if declined:
+                fab = [t for t in declined if claims_creation(t.get("text") or "")]
+                print(f"       DECLINED {len(declined)}/{len(valid)};"
+                      f" FABRICATED after decline {len(fab)}/{len(declined)}"
+                      f" {[t['trial'] for t in fab]} — #199")
+                for t in fab:
+                    print(f"         t{t['trial']} {(t.get('text') or '')[:110]}")
 
             for t in rows:
                 for c in t.get("toolCalls", []):
