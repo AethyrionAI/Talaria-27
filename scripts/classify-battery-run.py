@@ -112,9 +112,19 @@ def probe_report(run):
         print(f"--- {variant}")
         for p in [q for q in probes if (q.get("variant") or "unlabelled") == variant]:
             pct = 100.0 * p["correct"] / p["trials"] if p["trials"] else 0.0
-            ctx = (p.get("context") or "")[:44]
+            ctx = (p.get("context") or "")
+            secs = f" {p['seconds']:.2f}s" if p.get("seconds") is not None else ""
             print(f"  [{(p.get('band') or '?'):<10}] {p['correct']:>3}/{p['trials']:<3} {pct:5.1f}%"
-                  f"  want={str(p['expected']):<5} {p['probe'][:28]:<28} ctx={ctx}")
+                  f"{secs}  want={str(p['expected']):<5} {p['probe'][:28]:<28}"
+                  f" ctxchars={len(ctx)}")
+        # #202C: the long-context probe exists to answer a LATENCY question.
+        timed = [p for p in probes if (p.get("variant") or "") == variant
+                 and p.get("seconds") is not None]
+        if timed:
+            mean = sum(p["seconds"] for p in timed) / len(timed)
+            chars = sum(len(p.get("context") or "") for p in timed) / len(timed)
+            print(f"  → {variant}: mean {mean:.2f}s/route over {len(timed)} rows,"
+                  f" mean context {chars:.0f} chars")
 
     print("\n=== bars (pre-registered in dispatch/OPUS-T27-202A-router-context.md)")
 
@@ -136,7 +146,12 @@ def probe_report(run):
         print(f"  BASELINE GATE: {base:.1%} ({c}/{t}) — "
               f"{'HOLDS' if base >= BASELINE_GATE else 'DRIFTED — every other number here is SUSPECT'}")
 
-    for variant in [v for v in totals if v.startswith("ctx")]:
+    # #202A's candidate bars assume #202A's GRID (all three bands + the
+    # baseline regression rows). A companion probe — e.g. #202C's
+    # long-context run — has neither, and scoring it against those bars
+    # printed a bogus "FAILS" for bands it never ran.
+    full_grid = "baseline" in totals
+    for variant in ([v for v in totals if v.startswith("ctx")] if full_grid else []):
         a, ac, at = rate(variant, "accept")
         w, wc, wt = rate(variant, "words-only")
         d, dc, dt = rate(variant, "device")

@@ -64,6 +64,12 @@ struct RouterProbeRecord: Codable, Equatable {
     var context: String? = nil
     /// #202A: the band the bars are written against.
     var band: String? = nil
+    /// #202C: mean seconds per classification. The long-context probe exists
+    /// to answer a LATENCY question — the router runs on every production
+    /// turn — and the first run emitted the timing to the console only, so
+    /// the one number the probe was built for could not be read from the
+    /// record. Same lesson #201B's thermal readings taught.
+    var seconds: Double? = nil
 }
 
 /// One battery or probe run. A probe-only run has empty `trials`; a battery
@@ -434,11 +440,13 @@ final class BatteryRunRecorder {
     /// #202A adds variant/context/band, defaulted so the #196 call site is
     /// unchanged and its records keep their original shape.
     func recordProbe(probe: String, expected: Bool, correct: Int, trials: Int,
-                     variant: String? = nil, context: String? = nil, band: String? = nil) {
+                     variant: String? = nil, context: String? = nil, band: String? = nil,
+                     seconds: Double? = nil) {
         guard run != nil else { return }
         run?.probes.append(RouterProbeRecord(probe: probe, expected: expected,
                                             correct: correct, trials: trials,
-                                            variant: variant, context: context, band: band))
+                                            variant: variant, context: context, band: band,
+                                            seconds: seconds))
         persistSnapshot()
     }
 

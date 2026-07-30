@@ -3757,7 +3757,8 @@ extension LocalChatBackend {
                 each, row.context.count, row.prompt))
             Self.batteryRecorder.recordProbe(
                 probe: row.prompt, expected: row.expected, correct: correct, trials: trials,
-                variant: "ctx-a-long", context: row.context, band: row.band.rawValue
+                variant: "ctx-a-long", context: row.context, band: row.band.rawValue,
+                seconds: each
             )
         }
         // The SHORT rows again, same session conditions, as the latency
@@ -3778,7 +3779,8 @@ extension LocalChatBackend {
                 each, row.context.count, row.prompt))
             Self.batteryRecorder.recordProbe(
                 probe: row.prompt, expected: row.expected, correct: correct, trials: trials,
-                variant: "ctx-a-short", context: row.context, band: row.band.rawValue
+                variant: "ctx-a-short", context: row.context, band: row.band.rawValue,
+                seconds: each
             )
         }
         Self.batteryEmit("router: LONG-CONTEXT PROBE DONE (#202C)")
