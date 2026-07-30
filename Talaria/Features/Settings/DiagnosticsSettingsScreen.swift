@@ -765,6 +765,31 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #201B: the same two arms REVERSED — production first, in the cool slot,
+    // so the run doubles as the thermal control.
+    @ViewBuilder
+    private func deadendReversedBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runDeadendReversedBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #201: #200U's contact fix re-measured at n=20, production last — the
     // primary is a dead-end COUNT, which n=10 could not carry.
     @ViewBuilder
@@ -1139,6 +1164,10 @@ struct DiagnosticsSettingsScreen: View {
                 // base rate so a 0-vs-k comparison can actually conclude.
                 HStack(spacing: Design.Spacing.sm) {
                     deadendReconsiderBatteryButton(trials: 40, label: "Dead-end POWER n=40 (320+4)")
+                }
+                // #201B confirmation: reversed, production in the cool slot.
+                HStack(spacing: Design.Spacing.sm) {
+                    deadendReversedBatteryButton(trials: 40, label: "Dead-end REVERSED n=40 (320+4)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton

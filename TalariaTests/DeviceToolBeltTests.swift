@@ -1269,6 +1269,41 @@ struct DeviceToolBeltTests {
             == "battery: THERMAL cell=armed at=start state=fair (#201B)")
     }
 
+    /// #201B: production FIRST, so the arm that ran hot last time now runs in
+    /// the COOL slot — the reversal doubles as the thermal control.
+    @Test func deadendReversedBatteryPutsProductionInTheCoolSlot() {
+        #expect(LocalChatBackend.deadendReversedBatteryCells == [
+            .armed, .armedDeadend2,
+        ])
+        #expect(LocalChatBackend.deadendReversedBatteryCells.first == .armed)
+        // Same SET as the forward run, so only order changed.
+        #expect(Set(LocalChatBackend.deadendReversedBatteryCells)
+            == Set(LocalChatBackend.deadendReconsiderBatteryCells))
+    }
+
+    /// #201B: thermal comparability was a pre-registered verdict condition that
+    /// lived only in the console, so the classifier could not enforce it and it
+    /// was read by hand. Same lesson as the reap seal — if a verdict depends on
+    /// it, it belongs in the RECORD.
+    @Test @MainActor func thermalReadingsLandInTheRunRecord() {
+        let store = WarmupCapturingStore()
+        let recorder = BatteryRunRecorder(store: store)
+        recorder.recordThermal("armed:start=nominal")   // before beginRun: inert
+        recorder.beginRun(trialsPerCell: 1, cells: ["armed"], kind: "action")
+        recorder.recordThermal("armed:start=fair")
+        recorder.recordThermal("armed:end=serious")
+        recorder.beginTrial()
+        recorder.endTrial(shape: "armed", prompt: "calendar", trial: 1,
+                          text: "ok", cant: false, denial: false)
+        recorder.endRun()
+        #expect(store.persisted.last?.thermal == ["armed:start=fair", "armed:end=serious"])
+    }
+
+    @Test func thermalRecordEntryGrammarIsStable() {
+        #expect(LocalChatBackend.thermalRecordEntry(cell: "armed", at: "start", state: .serious)
+            == "armed:start=serious")
+    }
+
     // MARK: The contact dead-end, reconsidered at n=20 (#201)
 
     /// #201: #200V withdrew #200U's fix because warm production showed ZERO

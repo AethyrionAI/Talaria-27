@@ -127,6 +127,20 @@ def main(path):
                     if c.get("confirmation") == "accepted" and c["name"] in ACTION_TOOLS:
                         artifacts[c["name"]] += 1
 
+    thermal = run.get("thermal") or []
+    if thermal:
+        print("\n=== thermal (#201B)")
+        print("  " + "  ".join(thermal))
+        starts = {}
+        for entry in thermal:
+            cell, _, rest = entry.partition(":")
+            moment, _, state = rest.partition("=")
+            if moment == "start":
+                starts[cell] = state
+        if len(set(starts.values())) > 1:
+            print(f"  !! CELLS STARTED AT DIFFERENT THERMAL STATES {starts} —"
+                  f" the comparison is COMPROMISED; say so in the verdict")
+
     print("\n=== reap arithmetic")
     counted = dict(artifacts)
     print(f"accepted creates in counted trials: {counted} total={sum(counted.values())}")

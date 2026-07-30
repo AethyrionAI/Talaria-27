@@ -2772,8 +2772,7 @@ extension LocalChatBackend {
         }
         Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: cells.map(\.rawValue), kind: "action")
         for cell in cells {
-            Self.batteryEmit(Self.thermalLine(cell: cell.rawValue, at: "start",
-                                              state: ProcessInfo.processInfo.thermalState))
+            emitThermal(cell: cell.rawValue, at: "start")
             let cellBelt = Self.destallBelt(from: base, cell: cell)
             let cellInstructions: String
             switch cell {
@@ -2926,8 +2925,7 @@ extension LocalChatBackend {
                     ))
                 }
             }
-            Self.batteryEmit(Self.thermalLine(cell: cell.rawValue, at: "end",
-                                              state: ProcessInfo.processInfo.thermalState))
+            emitThermal(cell: cell.rawValue, at: "end")
         }
         ToolEventRelay.batteryTrialTag = nil
         let reapSummary = await reapBatteryArtifacts(
@@ -3236,6 +3234,21 @@ extension LocalChatBackend {
         "battery: THERMAL cell=\(cell) at=\(moment) state=\(thermalLabel(state)) (#201B)"
     }
 
+    /// The RECORD form of the same reading — compact, and what the classifier
+    /// reads so thermal comparability is enforced in code rather than by eye.
+    nonisolated static func thermalRecordEntry(cell: String, at moment: String,
+                                               state: ProcessInfo.ThermalState) -> String {
+        "\(cell):\(moment)=\(thermalLabel(state))"
+    }
+
+    /// Emits a cell-boundary reading to BOTH sinks.
+    func emitThermal(cell: String, at moment: String) {
+        let state = ProcessInfo.processInfo.thermalState
+        Self.batteryEmit(Self.thermalLine(cell: cell, at: moment, state: state))
+        Self.batteryRecorder.recordThermal(
+            Self.thermalRecordEntry(cell: cell, at: moment, state: state))
+    }
+
     /// #200W: the warm-up is now the DEFAULT. #200V measured the cold-start
     /// artifact WITHIN one run — the same production configuration scored
     /// calendar 7/10 running first and cold (#200T, #200U) and 9/10 running
@@ -3300,6 +3313,24 @@ extension LocalChatBackend {
     nonisolated static let deadendReconsiderBatteryCells: [ActionBatteryCell] = [
         .armedDeadend2, .armed,
     ]
+
+    /// #201B cell list — the SAME two arms with PRODUCTION FIRST. #201B passed
+    /// its bars (dead-ends 0/40 vs 5/40, Fisher p≈0.027) but its thermal states
+    /// were not comparable: production ran its whole cell at `serious` while the
+    /// treatment started at `fair`. Reversing puts production in the COOL slot,
+    /// so this run doubles as the thermal control — if production still shows
+    /// dead-ends when it runs first and cool, thermal is exonerated and the
+    /// effect is real; if they vanish, the effect was thermal and gets withdrawn.
+    /// Pinned.
+    nonisolated static let deadendReversedBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedDeadend2,
+    ]
+
+    /// #201B reversed wrapper.
+    func runDeadendReversedBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.deadendReversedBatteryCells,
+                               includeGrabCanary: true)
+    }
 
     /// #201 one-tap wrapper: 2 cells × four prompts — 8 × trials generations
     /// (160 at n=20), plus the default warm-up pass.
