@@ -2059,6 +2059,128 @@ struct DeviceToolBeltTests {
         #expect(Set(names) == DeviceToolBelt.actionToolNames)
         #expect(names.count == DeviceToolBelt.actionToolNames.count)
     }
+
+    // MARK: - (#202A) context-blind router probe
+
+    /// ctxA's ONLY change is the prompt envelope. The instruction text is a
+    /// measured artifact (200/200 twice) — changing it and the envelope
+    /// together would be two seams in one cell, which is what #200H's
+    /// spiralfix died of.
+    @Test func ctxARoutesThroughThePinnedInstructionsAndChangesOnlyTheEnvelope() {
+        #expect(LocalChatBackend.routerInstructions(for: .ctxA)
+                == LocalChatBackend.toolIntentRouterInstructions)
+        let envelope = LocalChatBackend.routerPrompt(
+            context: "Would you like me to set a reminder for that?",
+            prompt: "Yes please", variant: .ctxA
+        )
+        #expect(envelope == """
+        Assistant just said: "Would you like me to set a reminder for that?"
+        Request: Yes please
+        """)
+    }
+
+    /// The control ignores context BY CONSTRUCTION — that is the filed bug,
+    /// so it is pinned rather than left to the call site. A control probe row
+    /// carrying context must produce the bare production prompt.
+    @Test func controlDropsTheContextEntirelyWhichIsTheBugUnderTest() {
+        let withContext = LocalChatBackend.routerPrompt(
+            context: "Would you like me to set a reminder for that?",
+            prompt: "Yes please", variant: .control
+        )
+        #expect(withContext == "Request: Yes please")
+        #expect(LocalChatBackend.routerInstructions(for: .control)
+                == LocalChatBackend.toolIntentRouterInstructions)
+    }
+
+    /// ctxB = ctxA's envelope PLUS exactly one added few-shot example, so a
+    /// ctxA-fails/ctxB-passes split reads as "context needed an example",
+    /// not "context does not work".
+    @Test func ctxBIsThePinnedInstructionsPlusExactlyOneAddedExample() {
+        let base = LocalChatBackend.toolIntentRouterInstructions
+        let ctxB = LocalChatBackend.routerInstructions(for: .ctxB)
+        #expect(ctxB.hasPrefix(base))
+        #expect(ctxB != base)
+        // The added example demonstrates the offer→accept shape and nothing else.
+        #expect(ctxB.contains("needsDeviceTool: true"))
+        let addedLines = ctxB.dropFirst(base.count)
+            .split(separator: "\n", omittingEmptySubsequences: true)
+        #expect(addedLines.count == 2, "one context line + one request line")
+        // ctxB shares ctxA's envelope — the instructions are the only difference.
+        #expect(LocalChatBackend.routerPrompt(context: "C", prompt: "P", variant: .ctxB)
+                == LocalChatBackend.routerPrompt(context: "C", prompt: "P", variant: .ctxA))
+    }
+
+    /// The lenrule classifier is pure code and therefore pinned exhaustively
+    /// here rather than measured on device. It must catch the accept forms
+    /// and must NOT catch anything that states its own intent.
+    @Test func shortAffirmativeCatchesAcceptFormsAndNeverASelfStatingRequest() {
+        for accept in ["Yes please", "yes", "Sure", "go ahead", "Please do",
+                       "yeah", "yep", "ok", "Okay!", "do it", "  Yes.  "] {
+            #expect(LocalChatBackend.isShortAffirmative(accept), "should catch: \(accept)")
+        }
+        for request in ["Remind me to buy milk tomorrow at 9am", "Write a haiku about rain",
+                        "What's the weather?", "No thanks", "yes, but move it to Friday",
+                        "What's 15% of 80?"] {
+            #expect(!LocalChatBackend.isShortAffirmative(request), "should not catch: \(request)")
+        }
+    }
+
+    /// The grid's three bands and their expectations are the bars. Pinning
+    /// the composition stops a later edit from quietly changing what the
+    /// pre-registered denominators (90 / 75 / 30 at n=15) refer to.
+    @Test func routerContextGridPinsTheThreeBandsTheBarsAreWrittenAgainst() {
+        let grid = LocalChatBackend.routerContextGrid
+        #expect(grid.count == 13)
+        let accepts = grid.filter { $0.band == .accept }
+        let wordsOnly = grid.filter { $0.band == .wordsOnly }
+        let device = grid.filter { $0.band == .device }
+        #expect(accepts.count == 6)
+        #expect(wordsOnly.count == 5)
+        #expect(device.count == 2)
+        // Expectations follow the band, with no exceptions to reason about.
+        #expect(accepts.allSatisfy { $0.expected })
+        #expect(wordsOnly.allSatisfy { !$0.expected })
+        #expect(device.allSatisfy { $0.expected })
+        // Every row carries context — a contextless row would silently make
+        // ctxA identical to the control for that row.
+        #expect(grid.allSatisfy { !$0.context.isEmpty })
+        // The decline case is present: it is the row most likely to be
+        // "fixed" into a false-armed by a context router.
+        #expect(wordsOnly.contains { $0.prompt == "No thanks" })
+    }
+
+    /// Pre-registered confound mitigation: the INCUMBENT runs in the coolest
+    /// slot, so any candidate win is won from the penalised position.
+    @Test func probeVariantOrderPutsTheControlInTheCoolSlot() {
+        #expect(LocalChatBackend.routerProbeVariants == [.control, .ctxA, .ctxB])
+    }
+
+    /// Lesson 4 from #201B: if a verdict depends on it, it belongs in the
+    /// RECORD. The variant and the context are what distinguish otherwise
+    /// identical probe rows.
+    @Test @MainActor func probeRecordsCarryTheirVariantAndContext() {
+        // Asserted through the recorder's OBSERVABLE contract (what gets
+        // persisted), per the rule the warm-up pin established — no reaching
+        // into private state, no test-only surface on production.
+        let store = WarmupCapturingStore()
+        let recorder = BatteryRunRecorder(store: store)
+        recorder.beginRun(trialsPerCell: 15, cells: [], kind: "router-context")
+        recorder.recordProbe(probe: "Yes please", expected: true, correct: 0, trials: 15,
+                             variant: "ctx-a", context: "Would you like me to set a reminder?",
+                             band: "accept")
+        // The legacy #196 call site stays valid and records nil, so old
+        // records and new ones share one shape.
+        recorder.recordProbe(probe: "What's 2+2?", expected: false, correct: 15, trials: 15)
+        recorder.endRun()
+        let probes = try! #require(store.persisted.last?.probes)
+        #expect(probes.count == 2)
+        #expect(probes.first?.variant == "ctx-a")
+        #expect(probes.first?.context == "Would you like me to set a reminder?")
+        #expect(probes.first?.band == "accept")
+        #expect(probes.last?.variant == nil)
+        #expect(probes.last?.context == nil)
+        #expect(probes.last?.band == nil)
+    }
 }
 
 // MARK: - (#196) framework-default probe tool

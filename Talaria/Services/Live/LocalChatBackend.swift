@@ -2200,16 +2200,96 @@ extension LocalChatBackend {
         GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 64)
     }
 
+    /// #202A: the router framings under measurement. `control` IS
+    /// production — the live path routes through this enum so the measured
+    /// control can never drift from the shipped router by being a copy of
+    /// it. The two candidates differ from control in ONE seam each.
+    enum RouterVariant: String, CaseIterable {
+        /// Production: raw current turn, no history. Context-blind by
+        /// construction — that blindness is the #202 bug under test.
+        case control
+        /// The pinned instructions, unchanged; the prompt envelope gains
+        /// one line naming what the assistant just said.
+        case ctxA = "ctx-a"
+        /// ctxA's envelope PLUS one added few-shot example showing the
+        /// offer→accept shape, in case the envelope alone is simply
+        /// off-distribution for a few-shot prompt of one-line requests.
+        case ctxB = "ctx-b"
+    }
+
+    /// #202A: the instructions each variant routes under. control and ctxA
+    /// share the PINNED text — ctxA's whole treatment is the envelope, so
+    /// an instructions change here would make it two seams at once.
+    nonisolated static func routerInstructions(for variant: RouterVariant) -> String {
+        switch variant {
+        case .control, .ctxA:
+            return toolIntentRouterInstructions
+        case .ctxB:
+            return toolIntentRouterInstructions + """
+
+            Assistant just said: "Would you like me to set a reminder for that?"
+            "Yes please" -> needsDeviceTool: true
+            """
+        }
+    }
+
+    /// #202A: the prompt envelope per variant. control DISCARDS the context
+    /// — pinned, because that discard is exactly the filed defect and a
+    /// silent change here would erase the thing being measured.
+    nonisolated static func routerPrompt(context: String, prompt: String,
+                                         variant: RouterVariant) -> String {
+        switch variant {
+        case .control:
+            return "Request: \(prompt)"
+        case .ctxA, .ctxB:
+            guard !context.isEmpty else { return "Request: \(prompt)" }
+            return """
+            Assistant just said: "\(context)"
+            Request: \(prompt)
+            """
+        }
+    }
+
+    /// #202A candidate (fix direction 2): the bare accept forms, exhaustive
+    /// and deterministic. Deliberately an exact set rather than a length
+    /// threshold — "yes, but move it to Friday" and "No thanks" are both
+    /// short and neither should inherit an armed route. Costs no generation,
+    /// so it is measured as a REPORTED column, never a gated one: its real
+    /// risk is that a wrong inherited route persists for the whole
+    /// conversation, which only a two-turn run can see.
+    nonisolated static let shortAffirmatives: Set<String> = [
+        "yes", "yes please", "yeah", "yep", "yup", "sure", "ok", "okay",
+        "go ahead", "please do", "do it", "sounds good", "please", "affirmative",
+    ]
+
+    /// Normalizes case, surrounding whitespace and trailing punctuation
+    /// before the set lookup — "  Yes.  " and "Okay!" are the same accept.
+    nonisolated static func isShortAffirmative(_ prompt: String) -> Bool {
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let stripped = trimmed.replacingOccurrences(
+            of: "[\\p{P}\\p{S}]+$", with: "", options: .regularExpression
+        )
+        return shortAffirmatives.contains(stripped.lowercased())
+    }
+
     /// Classifies one turn. Fail-safe: any error routes to the ARMED
     /// session — full production behavior, tools available.
     func routeNeedsDeviceTool(prompt: String) async -> Bool {
+        await routeNeedsDeviceTool(prompt: prompt, context: "", variant: .control)
+    }
+
+    /// The variant-parameterized router. Production calls it with
+    /// `.control` and no context, so the live path and the #202A control
+    /// cell are the SAME code, not two copies of one behavior.
+    func routeNeedsDeviceTool(prompt: String, context: String,
+                              variant: RouterVariant) async -> Bool {
         let session = LanguageModelSession(
             model: model,
-            instructions: Instructions(Self.toolIntentRouterInstructions)
+            instructions: Instructions(Self.routerInstructions(for: variant))
         )
         do {
             let route = try await session.respond(
-                to: Prompt("Request: \(prompt)"),
+                to: Prompt(Self.routerPrompt(context: context, prompt: prompt, variant: variant)),
                 generating: ToolIntentRoute.self,
                 options: Self.toolIntentRouterOptions
             ).content
@@ -3511,24 +3591,29 @@ extension LocalChatBackend {
     /// (five words-only, five device) × `trials`, one `router:` line per
     /// probe. The Mac-host grid measured 200/200; this measures the
     /// 27-beta device model, which is the one that ships.
+    /// The #196 probe grid, extracted so #202A's baseline-regression gate
+    /// runs the SAME ten rows the 200/200 result was measured on — a copy
+    /// could drift and quietly turn a regression into a pass.
+    nonisolated static let routerBaselineProbes: [(text: String, expected: Bool)] = [
+        ("What's 2+2?", false),
+        ("Write a haiku about sledding", false),
+        ("write a 50 word summary about Norway", false),
+        ("Tell me a joke about penguins", false),
+        ("Write a poem for my mom's birthday", false),
+        ("Remind me to buy milk tomorrow at 9am", true),
+        ("What's the weather like right now?", true),
+        ("Set an alarm for 6:30", true),
+        ("How many steps have I taken today?", true),
+        ("Do I have anything on my calendar Friday?", true),
+    ]
+
     func runRouterProbe(trials: Int) async {
         guard Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
         }
         defer { Self.endBatteryRun() }
-        let probes: [(text: String, expected: Bool)] = [
-            ("What's 2+2?", false),
-            ("Write a haiku about sledding", false),
-            ("write a 50 word summary about Norway", false),
-            ("Tell me a joke about penguins", false),
-            ("Write a poem for my mom's birthday", false),
-            ("Remind me to buy milk tomorrow at 9am", true),
-            ("What's the weather like right now?", true),
-            ("Set an alarm for 6:30", true),
-            ("How many steps have I taken today?", true),
-            ("Do I have anything on my calendar Friday?", true),
-        ]
+        let probes = Self.routerBaselineProbes
         Self.batteryEmit("router: PROBE START trials=\(trials) probes=\(probes.count) (#196)")
         Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: [])
         for probe in probes {
@@ -3540,6 +3625,149 @@ extension LocalChatBackend {
             Self.batteryRecorder.recordProbe(probe: probe.text, expected: probe.expected, correct: correct, trials: trials)
         }
         Self.batteryEmit("router: PROBE DONE (#196)")
+        Self.batteryRecorder.endRun()
+    }
+
+    // MARK: - (#202A) context-blind router probe
+
+    /// Which band a grid row belongs to. The bars are written per band, so
+    /// the band is recorded rather than re-derived at classification time.
+    enum RouterContextBand: String {
+        /// The disease: an offer, then a bare accept. Right answer is ARMED.
+        case accept
+        /// The collateral: context present, but the turn genuinely needs
+        /// nothing from the device. Right answer is TOOLLESS — this band is
+        /// what a "route everything armed" degenerate would destroy.
+        case wordsOnly = "words-only"
+        /// Regression: an explicit device request that happens to follow
+        /// context. Right answer is ARMED, as it already is without context.
+        case device
+    }
+
+    struct RouterContextRow {
+        let band: RouterContextBand
+        let context: String
+        let prompt: String
+        let expected: Bool
+    }
+
+    /// #202A's grid. Row 1 of `accept` and row 4 of `wordsOnly` share a
+    /// context and differ only in accept-vs-decline — the tightest pair in
+    /// the grid, and the one a context router is most likely to get wrong
+    /// in the expensive direction.
+    nonisolated static let routerContextGrid: [RouterContextRow] = [
+        .init(band: .accept, context: "Would you like me to set a reminder for that?",
+              prompt: "Yes please", expected: true),
+        .init(band: .accept, context: "Want me to add that to your calendar?",
+              prompt: "Yes", expected: true),
+        .init(band: .accept, context: "Should I set an alarm for 6:30?",
+              prompt: "Sure", expected: true),
+        .init(band: .accept, context: "I can create that reminder — shall I?",
+              prompt: "Go ahead", expected: true),
+        .init(band: .accept, context: "Would you like me to put that on your calendar?",
+              prompt: "Please do", expected: true),
+        .init(band: .accept, context: "Want me to remind you about it?",
+              prompt: "yeah", expected: true),
+
+        .init(band: .wordsOnly, context: "Here's a haiku about rain: Silver threads descend, drumming on the windowpane, the garden drinks deep.",
+              prompt: "Write another one", expected: false),
+        .init(band: .wordsOnly, context: "I've set your reminder for 4:30pm.",
+              prompt: "Thanks!", expected: false),
+        .init(band: .wordsOnly, context: "The French Revolution began in 1789 and ended in 1799.",
+              prompt: "Summarize that in one sentence", expected: false),
+        .init(band: .wordsOnly, context: "Would you like me to set a reminder for that?",
+              prompt: "No thanks", expected: false),
+        .init(band: .wordsOnly, context: "15% of 80 is 12.",
+              prompt: "What about 20%?", expected: false),
+
+        .init(band: .device, context: "Here's a haiku about rain: Silver threads descend.",
+              prompt: "Remind me to buy milk tomorrow at 9am", expected: true),
+        .init(band: .device, context: "Sure, I can help with that.",
+              prompt: "What's the weather like right now?", expected: true),
+    ]
+
+    /// PRE-REGISTERED ORDER: the incumbent runs in the coolest slot, so any
+    /// candidate win is won from the thermally penalised position. #201B's
+    /// inversion logic applied before the fact instead of argued after it.
+    nonisolated static let routerProbeVariants: [RouterVariant] = [.control, .ctxA, .ctxB]
+
+    /// #202A: the context-blind-router probe. Pure classification — no tool
+    /// executes, nothing is written, so there is nothing to reap. Cheap
+    /// enough (~0.6s/generation) to carry high n, which is the whole reason
+    /// the mechanism is measured here and the end-to-end consequence is
+    /// left to #202B's expensive two-turn run.
+    func runRouterContextProbe(trials: Int) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
+        let grid = Self.routerContextGrid
+        let variants = Self.routerProbeVariants
+        Self.batteryEmit("router: CONTEXT PROBE START trials=\(trials) rows=\(grid.count) variants=\(variants.map(\.rawValue).joined(separator: ",")) (#202A)")
+        Self.batteryRecorder.beginRun(trialsPerCell: trials,
+                                      cells: variants.map(\.rawValue),
+                                      kind: "router-context")
+
+        // The deterministic candidate first: no generation, so it cannot
+        // consume the cool slot it would otherwise bias. Recorded as
+        // correct/trials like any row so the classifier reads one shape,
+        // with trials=1 marking it as decided rather than sampled.
+        for row in grid {
+            // Fix direction 2: a short affirmative INHERITS the previous
+            // turn's route. Every grid row's context is an assistant turn
+            // in a conversation that was itself routed; the accept rows
+            // follow an offer to use a tool (armed), so inheritance yields
+            // armed there. Non-affirmatives fall through to the control.
+            let inherited = Self.isShortAffirmative(row.prompt)
+            Self.batteryRecorder.recordProbe(
+                probe: row.prompt, expected: row.expected,
+                correct: inherited == row.expected ? 1 : 0, trials: 1,
+                variant: "lenrule", context: row.context, band: row.band.rawValue
+            )
+            Self.batteryEmit("router: lenrule short-affirmative=\(inherited) expected=\(row.expected) band=\(row.band.rawValue) probe=\(row.prompt)")
+        }
+
+        for variant in variants {
+            emitThermal(cell: variant.rawValue, at: "start")
+            // The baseline-regression gate rides the CONTROL pass: the same
+            // ten #196 rows, contextless, on the shipped router. If 200/200
+            // has drifted, every other number in this run is suspect.
+            if variant == .control {
+                for probe in Self.routerBaselineProbes {
+                    var correct = 0
+                    for _ in 1...trials {
+                        if await routeNeedsDeviceTool(prompt: probe.text, context: "",
+                                                      variant: variant) == probe.expected {
+                            correct += 1
+                        }
+                    }
+                    Self.batteryEmit("router: \(correct)/\(trials) expected=\(probe.expected) variant=baseline band=baseline probe=\(probe.text)")
+                    Self.batteryRecorder.recordProbe(
+                        probe: probe.text, expected: probe.expected,
+                        correct: correct, trials: trials,
+                        variant: "baseline", context: "", band: "baseline"
+                    )
+                }
+            }
+            for row in grid {
+                var correct = 0
+                for _ in 1...trials {
+                    if await routeNeedsDeviceTool(prompt: row.prompt, context: row.context,
+                                                  variant: variant) == row.expected {
+                        correct += 1
+                    }
+                }
+                Self.batteryEmit("router: \(correct)/\(trials) expected=\(row.expected) variant=\(variant.rawValue) band=\(row.band.rawValue) probe=\(row.prompt)")
+                Self.batteryRecorder.recordProbe(
+                    probe: row.prompt, expected: row.expected,
+                    correct: correct, trials: trials,
+                    variant: variant.rawValue, context: row.context, band: row.band.rawValue
+                )
+            }
+            emitThermal(cell: variant.rawValue, at: "end")
+        }
+        Self.batteryEmit("router: CONTEXT PROBE DONE (#202A)")
         Self.batteryRecorder.endRun()
     }
 }
