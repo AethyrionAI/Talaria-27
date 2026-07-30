@@ -11657,7 +11657,29 @@ alarming next to #202C's ~15 minutes; the difference is that #202C's production
 control emitted long JSON blobs while both arms here refuse in one short sentence.
 Zero errors, zero timeouts, `endedCleanly=true`, all 44 trials present.
 
-**RECOMMENDATION — promote ctx-a and clause v2 TOGETHER, as one change.** Neither
+**PROMOTED 2026-07-30 (Owen routed: "Sounds good to me"). Suite 1368/1368 on a
+purged clean build.** Both halves shipped as one change:
+
+1. **`productionRouterVariant = .ctxA`** — `preparedSession` now classifies each
+   turn WITH the previous assistant turn, drawn from the same `transcriptTurns`
+   source `rebuildSession` replays, so the router sees exactly what the model will
+   see. **Rollback: `.control`**, still reachable as a measured probe cell.
+2. **`productionToollessInstructions`** — one function, used by BOTH the live path
+   and the two-turn instrument, returning the promoted `toolless-lic2` payload plus
+   clause v2. **Rollback: drop `includeToollessHonestyClauseV2`**, which is exactly
+   the `honesty-control` cell measured at 9/10 broken.
+
+**Pinned by three tests:** production text is byte-identical to the #202D
+`honesty-fix-v2` arm that was measured; `honesty-control` is now the ROLLBACK, not
+production; and the production router variant is ctx-a with `.control` retained.
+
+**The legacy #196 router probe is pinned to `.control` explicitly** — its 200/200
+history belongs to the context-blind router, and leaving it on "production" would
+have silently re-pointed a long-running series at a different thing the moment
+production moved.
+
+**Original recommendation, kept for the record — promote ctx-a and clause v2
+TOGETHER, as one change.** Neither
 half is sufficient alone: ctx-a stops most wrong-toolless turns but every remaining
 one still lies; v2 stops the lie but leaves the create unmade. Together the accept
 turn either works (ctx-a routes armed, #202B 12/12) or fails honestly with a route
