@@ -1135,6 +1135,11 @@ struct DiagnosticsSettingsScreen: View {
                 HStack(spacing: Design.Spacing.sm) {
                     deadendReconsiderBatteryButton(trials: 20, label: "Dead-end reconsider n=20 (160+4)")
                 }
+                // #201B: the SAME two arms at n=40 — powered from the 16.7%
+                // base rate so a 0-vs-k comparison can actually conclude.
+                HStack(spacing: Design.Spacing.sm) {
+                    deadendReconsiderBatteryButton(trials: 40, label: "Dead-end POWER n=40 (320+4)")
+                }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
                 }

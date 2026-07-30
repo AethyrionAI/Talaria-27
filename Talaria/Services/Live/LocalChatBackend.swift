@@ -2772,6 +2772,8 @@ extension LocalChatBackend {
         }
         Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: cells.map(\.rawValue), kind: "action")
         for cell in cells {
+            Self.batteryEmit(Self.thermalLine(cell: cell.rawValue, at: "start",
+                                              state: ProcessInfo.processInfo.thermalState))
             let cellBelt = Self.destallBelt(from: base, cell: cell)
             let cellInstructions: String
             switch cell {
@@ -2924,6 +2926,8 @@ extension LocalChatBackend {
                     ))
                 }
             }
+            Self.batteryEmit(Self.thermalLine(cell: cell.rawValue, at: "end",
+                                              state: ProcessInfo.processInfo.thermalState))
         }
         ToolEventRelay.batteryTrialTag = nil
         let reapSummary = await reapBatteryArtifacts(
@@ -3210,6 +3214,26 @@ extension LocalChatBackend {
     /// warm-up trial for a counted one.
     nonisolated static func batteryWarmupTag(prompt: String) -> String {
         "shape=warmup p=\(prompt) t=0"
+    }
+
+    /// #201B: thermal state at cell boundaries. 320-trial runs are long enough
+    /// for drift to matter, and since production runs LAST a hot device
+    /// penalises the CONTROL — the opposite direction from #200V's cold-start
+    /// bias, and a confound that could manufacture a treatment win. Emitted so
+    /// the verdict can read it instead of assuming it away.
+    nonisolated static func thermalLabel(_ state: ProcessInfo.ThermalState) -> String {
+        switch state {
+        case .nominal: return "nominal"
+        case .fair: return "fair"
+        case .serious: return "serious"
+        case .critical: return "critical"
+        @unknown default: return "unknown"
+        }
+    }
+
+    nonisolated static func thermalLine(cell: String, at moment: String,
+                                        state: ProcessInfo.ThermalState) -> String {
+        "battery: THERMAL cell=\(cell) at=\(moment) state=\(thermalLabel(state)) (#201B)"
     }
 
     /// #200W: the warm-up is now the DEFAULT. #200V measured the cold-start

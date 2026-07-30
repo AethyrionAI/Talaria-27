@@ -1252,6 +1252,23 @@ struct DeviceToolBeltTests {
         #expect(DeviceLocationProvider.fixDeadline <= .seconds(30))
     }
 
+    // MARK: Thermal drift, made measurable (#201B)
+
+    /// #201B: 320 trials is long enough for thermal drift to matter, and because
+    /// production runs LAST a hot device penalises the CONTROL — the opposite
+    /// direction from #200V's cold-start bias, and a confound that could
+    /// manufacture a treatment win. So the state is emitted at every cell
+    /// boundary and the verdict reads it, rather than assuming it away.
+    @Test func thermalLabelsAreStableAndCoverEveryState() {
+        #expect(LocalChatBackend.thermalLabel(.nominal) == "nominal")
+        #expect(LocalChatBackend.thermalLabel(.fair) == "fair")
+        #expect(LocalChatBackend.thermalLabel(.serious) == "serious")
+        #expect(LocalChatBackend.thermalLabel(.critical) == "critical")
+        // The emitted line is grepped when classifying, so its shape is pinned.
+        #expect(LocalChatBackend.thermalLine(cell: "armed", at: "start", state: .fair)
+            == "battery: THERMAL cell=armed at=start state=fair (#201B)")
+    }
+
     // MARK: The contact dead-end, reconsidered at n=20 (#201)
 
     /// #201: #200V withdrew #200U's fix because warm production showed ZERO
