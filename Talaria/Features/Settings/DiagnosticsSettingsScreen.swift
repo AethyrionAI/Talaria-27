@@ -765,6 +765,31 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #200V: #200U's three arms REVERSED (production last) after a discarded
+    // warm-up pass — the confirmation run that tests the cell-order confound.
+    @ViewBuilder
+    private func deadendConfirmBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runDeadendConfirmBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200U: control vs the contact not-found RESULT carrying continuation,
     // plus the ceiling probe with the tool absent.
     @ViewBuilder
@@ -1017,6 +1042,10 @@ struct DiagnosticsSettingsScreen: View {
                 // #200U: contact dead-end fix + its ceiling probe.
                 HStack(spacing: Design.Spacing.sm) {
                     deadend2BatteryButton(trials: 10, label: "Contact dead-end n=10 (120)")
+                }
+                // #200V: the same three arms reversed, warm-up first.
+                HStack(spacing: Design.Spacing.sm) {
+                    deadendConfirmBatteryButton(trials: 10, label: "Dead-end confirm n=10 (120+4)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
