@@ -2691,7 +2691,7 @@ extension LocalChatBackend {
     /// byte-for-byte.
     func runActionBattery(trials: Int, cells: [ActionBatteryCell] = [.armed],
                           includeGrabCanary: Bool = false,
-                          warmup: Bool = false) async {
+                          warmup: Bool = LocalChatBackend.batteryWarmupDefault) async {
         guard Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
@@ -3207,11 +3207,53 @@ extension LocalChatBackend {
         "shape=warmup p=\(prompt) t=0"
     }
 
+    /// #200W: the warm-up is now the DEFAULT. #200V measured the cold-start
+    /// artifact WITHIN one run — the same production configuration scored
+    /// calendar 7/10 running first and cold (#200T, #200U) and 9/10 running
+    /// last and warm, with the "Sam" dead-end going 3/10 → 0/10, and the
+    /// warm-up flattened the gradient (calendar by slot 9, 10, 9 against
+    /// #200U's 7, 10, 10).
+    ///
+    /// Every pre-#200V control number is therefore cold-biased. The flag
+    /// survives so a run can opt OUT and reproduce one of those measurements
+    /// exactly.
+    nonisolated static let batteryWarmupDefault = true
+
+    /// #200W cell list — #200T's two arms re-run WARM, with production LAST.
+    /// Production-last is the conservative direction: any residual position
+    /// advantage that survives the warm-up accrues to the CONTROL, making the
+    /// treatment's job harder. Same two arms as `calfixBatteryCells`, so the
+    /// comparison is the same comparison — only warmth and position changed.
+    ///
+    /// The RATE is not the primary bar here and the dispatch says so in
+    /// advance: warm production calendar is ~9/10, so a +2 bar needs 11/10 and
+    /// the ceiling clause reduces to a +1 delta at n=10. The primaries are the
+    /// location-spiral and invented-location counts, which have large effects
+    /// and no ceiling. Pinned.
+    nonisolated static let calfixWarmBatteryCells: [ActionBatteryCell] = [
+        .armedCalfix, .armed,
+    ]
+
+    /// #200W one-tap wrapper: 2 cells × four prompts — 8 × trials
+    /// generations, plus the now-default warm-up pass.
+    func runCalfixWarmBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.calfixWarmBatteryCells,
+                               includeGrabCanary: true)
+    }
+
     /// #200V one-tap wrapper: 3 cells × four prompts — 12 × trials
     /// generations, PLUS a discarded warm-up pass over the prompt list.
     func runDeadendConfirmBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.deadendConfirmBatteryCells,
                                includeGrabCanary: true, warmup: true)
+    }
+
+    /// #200W: the pre-#200V instrument, reachable on purpose — `warmup: false`
+    /// reproduces a cold-first measurement exactly, which is what makes the
+    /// cold-start artifact re-measurable rather than merely asserted.
+    func runColdCalfixBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.calfixWarmBatteryCells,
+                               includeGrabCanary: true, warmup: false)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the
