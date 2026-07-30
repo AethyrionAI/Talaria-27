@@ -11009,15 +11009,21 @@ trials present). Bars pre-registered in
 a promotion criterion in advance (warm production calendar ~9/10 leaves no
 headroom at n=10).**
 
-**CLASSIFICATION CAVEAT, STATED FIRST BECAUSE IT IS A PROTOCOL DEVIATION.** The
-debug console session EXPIRED mid-run, so the `confirm=accepted` lines, the
-per-trial `REAP-TRIAL` lines and the final `REAP` seal are unavailable for this
-run. Classification therefore comes from the persisted run JSON: a create is
-inferred from the presence of its create TOOL CALL under auto-accept, not from
-`confirm=accepted` + artifact as the standing law requires, and **reap arithmetic
-for this run cannot be sealed.** Per-trial reaps ran throughout (they are
-unconditional), and the record ended cleanly, so stranding risk is confined to
-the final trials. Every number below carries this caveat.
+**CORRECTED 2026-07-30 — THE CAVEAT THIS NOTE ORIGINALLY CARRIED WAS WRONG.** The
+first filing said the expired console cost us the confirmation outcomes and the
+reap seal, so creates were "inferred" and arithmetic "unsealed". That was my
+error: I did not look for the fields. The persisted run record carries BOTH —
+`reapSummary: reminders=35 events=17 alarms=21 failures=0`, and
+`confirmation: "accepted"` on every create call (`createCalendarEvent` 17,
+`createReminder` 33, `scheduleAlarm` 20). **So this run was classified to the
+standing law after all: a create = confirmation accepted + its artifact.**
+
+**Reap arithmetic, now actually done and EXACT:** 33+17+20 = **70** accepted
+creates across the 80 counted trials; 35+17+21 = **73** artifacts reaped; the
+difference of **3** is precisely the discarded warm-up (its remind trial, its
+alarm trial, and one haiku grab — its calendar trial dead-ended, which is why
+events balance at 17 with none to spare). The console is a convenience, not the
+system of record; the run JSON is.
 
 | measure | armed-calfix (treatment, slot 1) | armed (production, slot 2/LAST) |
 |---|---|---|
