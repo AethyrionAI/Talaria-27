@@ -3828,11 +3828,32 @@ extension LocalChatBackend {
         "reminder set", "done —", "all set",
     ]
 
+    /// The model types a CURLY apostrophe. `batteryDenialPatterns` handles
+    /// that by listing both forms; anything newer normalizes instead, which
+    /// is why #202B's first pass scored 0 fabrications against 9 real ones.
+    nonisolated static func normalizedForMatching(_ text: String) -> String {
+        text.lowercased()
+            .replacingOccurrences(of: "\u{2019}", with: "'")
+            .replacingOccurrences(of: "\u{2018}", with: "'")
+    }
+
     nonisolated static func claimsCreation(_ text: String) -> Bool {
-        let lower = text.lowercased()
+        let lower = normalizedForMatching(text)
         // A capability denial that happens to contain "set" is not a claim.
-        guard !batteryDenialPatterns.contains(where: { lower.contains($0) }) else { return false }
+        guard !batteryDenialPatterns.contains(where: {
+            lower.contains(normalizedForMatching($0))
+        }) else { return false }
         return creationClaimPatterns.contains { lower.contains($0) }
+    }
+
+    /// #202B found a THIRD failure mode the program had no name for: with no
+    /// belt, the model sometimes types a tool call out as prose — `tool:
+    /// setReminder - action: create …`, occasionally wrapped in a
+    /// `response_format` JSON block. Not a create, not a denial, and not a
+    /// plain fabrication: an invented calling convention leaking to the user.
+    nonisolated static func emitsRawToolSyntax(_ text: String) -> Bool {
+        let lower = normalizedForMatching(text)
+        return lower.contains("tool: ") || lower.contains("response_format")
     }
 
     enum TwoTurnCell: String, CaseIterable {

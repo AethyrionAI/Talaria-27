@@ -222,13 +222,22 @@ def two_turn_report(run):
         # separately — never instead of the artifact.
         fabricated = [t for t in valid if t not in made
                       and claims_creation(t.get("text") or "")]
+        rawsyntax = [t for t in valid if emits_raw_tool_syntax(t.get("text") or "")]
+        honest = [t for t in valid if t not in made and t not in fabricated
+                  and t not in rawsyntax]
         print(f"=== {cell}")
         print(f"  creates   {len(made)}/{len(valid)}"
               f"{'  EXCLUDED ' + str(excluded) if excluded else ''}")
         print(f"  routed armed on turn 2: {len(armed)}/{len(valid)}")
         if fabricated:
             print(f"  !! FABRICATED CLAIM (reply says created, no artifact): "
-                  f"{len(fabricated)} {[t['trial'] for t in fabricated]} — #199")
+                  f"{len(fabricated)}/{len(valid)} {[t['trial'] for t in fabricated]} — #199")
+        if rawsyntax:
+            print(f"  !! RAW TOOL SYNTAX typed as prose: "
+                  f"{len(rawsyntax)}/{len(valid)} {[t['trial'] for t in rawsyntax]}")
+        if len(valid) and not made:
+            print(f"  honest non-create replies (neither claim nor raw syntax): "
+                  f"{len(honest)}/{len(valid)} {[t['trial'] for t in honest]}")
         for t in [x for x in valid if x not in made]:
             text = (t.get("text") or "").replace("\n", " ")
             print(f"       miss t{t['trial']} [route={t.get('route')}] {text[:110]}")
@@ -275,18 +284,30 @@ def two_turn_report(run):
         print("  " + "  ".join(thermal))
 
 
+def normalized(text):
+    """The model types a CURLY apostrophe. #202B's first pass scored 0
+    fabrications against 9 real ones for want of this."""
+    return text.lower().replace("’", "'").replace("‘", "'")
+
+
 def claims_creation(text):
     """Mirrors LocalChatBackend.claimsCreation — a denial that contains 'set'
     is not a claim."""
-    lower = text.lower()
+    lower = normalized(text)
     denials = ["can't access", "cannot access", "don't have access", "no access",
-               "can't create", "cannot create", "i can't", "i cannot"]
+               "can't set", "can't create", "cannot create", "i cannot"]
     if any(d in lower for d in denials):
         return False
     return any(c in lower for c in
                ["i've set", "i have set", "i've created", "i have created",
                 "i've added", "i have added", "reminder created", "reminder is set",
                 "reminder set", "done —", "all set"])
+
+
+def emits_raw_tool_syntax(text):
+    """#202B's third failure mode: a tool call typed out as prose."""
+    lower = normalized(text)
+    return "tool: " in lower or "response_format" in lower
 
 
 def main(path):

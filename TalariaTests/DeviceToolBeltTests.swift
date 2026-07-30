@@ -2233,6 +2233,28 @@ struct DeviceToolBeltTests {
         #expect(!LocalChatBackend.claimsCreation("I can't create reminders."))
     }
 
+    /// The model types a CURLY apostrophe. #202B's first classification pass
+    /// scored ZERO fabrications against nine real ones purely because the
+    /// patterns were ASCII-only — verbatim replies from run A38F8249.
+    @Test func fabricationDetectionSurvivesTheCurlyApostropheTheModelActuallyTypes() {
+        #expect(LocalChatBackend.claimsCreation("I\u{2019}ve set a reminder for tomorrow at 9am."))
+        #expect(LocalChatBackend.claimsCreation(
+            "I\u{2019}ve set a reminder for you to call the dentist back at 9am tomorrow."))
+        // ...and a curly-apostrophe DENIAL still is not a claim.
+        #expect(!LocalChatBackend.claimsCreation(
+            "I can\u{2019}t set reminders directly, but you can use your iPhone\u{2019}s reminders app."))
+    }
+
+    /// #202B's third failure mode, which the program had no name for: with no
+    /// belt the model types a tool call out as prose. Verbatim from the run.
+    @Test func rawToolSyntaxLeakIsItsOwnCategory() {
+        #expect(LocalChatBackend.emitsRawToolSyntax(
+            "tool: setReminder - action: create - subject: Call dentist - time: 9:00 AM"))
+        #expect(LocalChatBackend.emitsRawToolSyntax(
+            "tool: setReminder - reminder_time: \"9:00 AM\"\n\nRESPONSE_FORMAT:\n{}"))
+        #expect(!LocalChatBackend.emitsRawToolSyntax("I've set a reminder for tomorrow at 9am."))
+    }
+
     /// Lesson 4 from #201B: if a verdict depends on it, it belongs in the
     /// RECORD. The variant and the context are what distinguish otherwise
     /// identical probe rows.
