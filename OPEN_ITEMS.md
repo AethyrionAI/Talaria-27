@@ -11254,55 +11254,10 @@ siblings now interact with #200's wins and are unrouted:
   runs. A **post-decline claim-check cell** is the natural sibling measurement and
   is now the more urgent of the two.
 
-## #203 — SHIP BLOCKER: an unbounded CoreLocation wait can spin a production turn forever
-
-**Filed 2026-07-30 from Hermes's audit §7 item 2, verified line-by-line and FIXED
-in the same commit. Severity is higher than the report states, for a reason the
-report could not see: production has no backstop.**
-
-**The chain, all confirmed in the tree:**
-
-1. `DeviceLocationProvider.currentLocation()` parked a
-   `withCheckedContinuation` and called `manager.requestLocation()` with **no
-   deadline**. If CoreLocation delivers neither `didUpdateLocations` nor
-   `didFailWithError`, that waiter never resumes.
-2. `LocationTool`, `WeatherTool` and `PlacesTool` all `await` it on the
-   **production** path.
-3. **A hung tool is not cancellable** (#200Y: `Task.cancel()` is cooperative and a
-   tool blocked inside `call()` never observes it).
-4. **Production has NO guillotine.** The 35s cancel lives only in
-   `executeBatteryTrial` (DEBUG battery). The production stream loop is a bare
-   `for try await snapshot in stream` with no deadline anywhere.
-
-**So a wedged location callback = a real chat turn spinning forever, with no
-recovery short of force-quitting the app.** That is strictly worse than the
-battery wedge that motivated #200Y, because the battery at least had a backstop.
-
-**My #200Y work missed exactly this.** It bounded `searchConversations`, the
-Contacts fetch and `MKLocalSearch` — the *inner* work of tools — while
-`ensureAuthorization()` / `currentLocation()` run BEFORE those wrapped closures
-and stayed unbounded. Fixing tool bodies while leaving the shared provider open
-was an incomplete fix, and it took an outside reader to see it.
-
-**FIX (this commit):** `currentLocation()` now arms a `fixDeadline` of 10s; on
-expiry any still-parked waiter resumes `nil`, which every caller already renders
-honestly ("Couldn't get a location fix right now…"). **Generation counting**
-guards it — waiters are stamped, the delegate bumps the stamp when it resolves
-them, and a late deadline can only affect the request it was armed for. That is
-the bug a naive timeout would have introduced.
-
-**`ensureAuthorization()` is deliberately left UNBOUNDED**, and the same
-reasoning applies as to the Contacts permission prompt: it waits on a human
-reading a system dialog, and no machine deadline is fair to that. Its own hazard
-is different and remains open — `locationManagerDidChangeAuthorization` returns
-early while status is `.notDetermined`, so a user who dismisses the dialog
-without deciding parks a waiter indefinitely. **Owed: a decision on what a
-never-answered permission prompt should do to the turn.**
-
-**Still owed for the class, not just this instance:** production has no
-turn-level deadline at all. A `#200Y`-style bound on the production stream — or
-an explicit "this is taking unusually long" affordance — is the general cure;
-#203 only closes the one hole we can prove.
+**#203 (SHIP BLOCKER — unbounded CoreLocation wait) is filed and FIXED on its own
+branch, PR #190**, split out deliberately so a production hang fix is not buried
+inside a measurement PR. Its full write-up, fix rationale and the two hazards it
+leaves open live with that item.
 
 **#51 / #52 NOTE, 2026-07-30 (Hermes audit §7 item 1).** #51 was held open only
 for want of a `build-for-testing` confirmation on beta4. That run has now
