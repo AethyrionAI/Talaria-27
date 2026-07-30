@@ -2690,7 +2690,8 @@ extension LocalChatBackend {
     /// makes it countable). Defaults preserve the FILED #200 protocol
     /// byte-for-byte.
     func runActionBattery(trials: Int, cells: [ActionBatteryCell] = [.armed],
-                          includeGrabCanary: Bool = false) async {
+                          includeGrabCanary: Bool = false,
+                          warmup: Bool = false) async {
         guard Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
@@ -2715,14 +2716,56 @@ extension LocalChatBackend {
             hasTools: !base.isEmpty,
             hasImageTools: false
         )
-        Self.batteryEmit("battery: START trials=\(trials) cells=\(cells.count) prompts=\(prompts.count) (#200)")
-        Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: cells.map(\.rawValue), kind: "action")
+        Self.batteryEmit("battery: START trials=\(trials) cells=\(cells.count) prompts=\(prompts.count) warmup=\(warmup) (#200)")
         // #200F Part 0: per-trial reap accumulators — the final REAP line
         // folds these into its counts so reap arithmetic stays exact.
         var perTrialReminders = 0
         var perTrialEvents = 0
         var perTrialAlarms = 0
         var perTrialFailures = 0
+        // #200V: a DISCARDED warm-up pass over the prompt list, run through
+        // the first cell's belt. In #200S, #200T and #200U the first cell
+        // posted the lowest calendar number, so slot 1 was paying a
+        // cold-start cost the later slots did not — a rival explanation for
+        // every effect this instrument has measured. This pays it up front,
+        // outside the counts.
+        //
+        // It runs BEFORE `beginRun`, and every recorder mutator guards on an
+        // active run, so warm-up trials are RECORDER-INERT: the recorded run
+        // and the results page are byte-identical to a warm-up-free run
+        // (pinned by `recorderIgnoresTrialsAppendedBeforeTheRunBegins`). Its
+        // artifacts ARE reaped per trial like any other, and its reap lines
+        // carry `shape=warmup` so the counted-trial arithmetic still balances.
+        if warmup, let firstCell = cells.first {
+            Self.batteryEmit("battery: WARMUP begin cell=\(firstCell.rawValue) prompts=\(prompts.count) (#200V)")
+            let warmBelt = Self.destallBelt(from: base, cell: firstCell)
+            for (tag, prompt) in prompts {
+                let belt = Self.scopedBelt(from: warmBelt, cell: firstCell, promptTag: tag)
+                ToolEventRelay.batteryTrialTag = Self.batteryWarmupTag(prompt: tag)
+                Self.batteryEmit("battery: BEGIN \(Self.batteryWarmupTag(prompt: tag))")
+                let session = LanguageModelSession(model: model, tools: belt,
+                                                  instructions: Instructions(instructions))
+                await executeBatteryTrial(
+                    session: session,
+                    options: Self.shapedGenerationOptions(Self.chatGenerationOptions(for: activeTier), shape: shape),
+                    shape: "warmup", promptTag: tag, prompt: prompt, trial: 0
+                )
+                let sweep = await sweepMarkedRemindersAndEvents(emitSteps: false)
+                let alarmSweep = AlarmService.reapBatteryAlarms()
+                perTrialReminders += sweep.reminders
+                perTrialEvents += sweep.events
+                perTrialAlarms += alarmSweep.cancelled
+                perTrialFailures += sweep.failures + alarmSweep.failed
+                Self.batteryEmit(Self.reapTrialLine(
+                    reminders: sweep.reminders, events: sweep.events,
+                    alarms: alarmSweep.cancelled,
+                    failures: sweep.failures + alarmSweep.failed,
+                    tag: Self.batteryWarmupTag(prompt: tag)
+                ))
+            }
+            Self.batteryEmit("battery: WARMUP done — discarded, not counted (#200V)")
+        }
+        Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: cells.map(\.rawValue), kind: "action")
         for cell in cells {
             let cellBelt = Self.destallBelt(from: base, cell: cell)
             let cellInstructions: String
@@ -3146,6 +3189,29 @@ extension LocalChatBackend {
     /// generations.
     func runDeadend2Battery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.deadend2BatteryCells, includeGrabCanary: true)
+    }
+
+    /// #200V cell list — #200U's three cells in REVERSED order, so production
+    /// runs LAST. The only change from #200U is position, which is exactly the
+    /// variable under test: in #200S, #200T and #200U the FIRST cell posted
+    /// the lowest calendar number, so a cold-start artifact is a live rival
+    /// explanation for #200U's 7/10 → 10/10. Pinned as an exact reversal.
+    nonisolated static let deadendConfirmBatteryCells: [ActionBatteryCell] = [
+        .armedNocontact, .armedDeadend2, .armed,
+    ]
+
+    /// #200V: the warm-up trial's console tag. It says `warmup`, never a cell
+    /// rawValue, so no classifier and no reap line can mistake a discarded
+    /// warm-up trial for a counted one.
+    nonisolated static func batteryWarmupTag(prompt: String) -> String {
+        "shape=warmup p=\(prompt) t=0"
+    }
+
+    /// #200V one-tap wrapper: 3 cells × four prompts — 12 × trials
+    /// generations, PLUS a discarded warm-up pass over the prompt list.
+    func runDeadendConfirmBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.deadendConfirmBatteryCells,
+                               includeGrabCanary: true, warmup: true)
     }
 
     /// #200F: one marker sweep's accounting. `hadAccess` false means the
