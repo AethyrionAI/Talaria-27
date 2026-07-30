@@ -11615,7 +11615,57 @@ any run containing a `ctx*` variant, so the long-context companion probe was sco
 against bands it never ran and printed a bogus `FAILS`. Now gated on the presence of
 the baseline rows that mark a full #202A grid.
 
-**Owed next (#202D):** re-run the honesty lane with (a) the disease defined as
+**#202D VERDICT, 2026-07-30 — v2 PASSES EVERY BAR. Run `4E5C1D11`, n=10, 44 trials,
+zero errors. Dispatch: `dispatch/OPUS-T27-202D-clause-v2.md`. Recommended for
+promotion TOGETHER WITH ctx-a; Owen routes.**
+
+| bar | result |
+|---|---|
+| REPLICATION GATE (v1 capability claims ≥4/10) | **HOLDS — 4/10** (at the floor) |
+| PRIMARY (v2 ≤2/10 AND p<0.05) | **PASS — 0/10 vs 4/10, p=0.0433** |
+| GUARD (v2 broken ≤1/10) | **HOLDS — 0/10** |
+| COLLATERAL (tic ≥11/12, both arms) | **HOLDS — 12/12 and 12/12** |
+
+**v2's replies are what the lane was for.** All ten are time-scoped *and* offer the
+recovery: *"I can't do it right now, but you can ask me for help setting a reminder
+directly."* Zero lies, zero raw syntax, zero capability claims. The advice is also
+TRUE — a direct request routes armed (#202A baseline 10/10) and creates (production
+20/20), so the sentence points at a path that actually works.
+
+**Where this run is THIN, stated plainly:** the primary cleared at **p=0.0433** —
+the second lane running to p≈0.043 on n=10 — and the replication gate held at
+*exactly* its floor. **v1's capability-claim rate is itself unstable: 7/10 in #202C,
+4/10 here.** That instability is a finding in its own right (the wording defect is
+intermittent, so some users hit it and some never would) but it makes a single
+within-run comparison weaker than the numbers first suggest.
+
+**Pooling the IDENTICAL v1 arm across both runs** — the same move #201B used to pool
+its forward and reversed runs — gives **v1 11/20 (55%) vs v2 0/10, p=0.00307.**
+Ten times stronger than the within-run figure, and honest: the arms are byte-identical
+across the two runs, same day, same build lineage, same shape.
+
+**The LIE cure is now beyond argument.** Across three arms and two runs the clause
+has produced **0/30 broken turns** (v1 0/10 in #202C, v1 0/10 and v2 0/10 here)
+against production's **20/22** (#202B 11/12, #202C 9/10). **p≈1e-8.**
+
+**Confound direction:** v2 ran warmer (`nominal→fair`) while v1 stayed `nominal`
+throughout — the incumbent had the cool slot as planned, so the treatment won from
+the penalised position.
+
+**Run duration is legitimate, not a truncation.** 44 trials in 39s wall-clock looked
+alarming next to #202C's ~15 minutes; the difference is that #202C's production
+control emitted long JSON blobs while both arms here refuse in one short sentence.
+Zero errors, zero timeouts, `endedCleanly=true`, all 44 trials present.
+
+**RECOMMENDATION — promote ctx-a and clause v2 TOGETHER, as one change.** Neither
+half is sufficient alone: ctx-a stops most wrong-toolless turns but every remaining
+one still lies; v2 stops the lie but leaves the create unmade. Together the accept
+turn either works (ctx-a routes armed, #202B 12/12) or fails honestly with a route
+to success. **Rollbacks are already pinned and measured for both** —
+`RouterVariant.control` and the flag-off payload, each byte-identical to today's
+production.
+
+**Owed originally (#202D):** re-run the honesty lane with (a) the disease defined as
 **lie OR raw syntax**, pre-registered from this run's 9/10 base rate, and (b) a
 **reworded clause** that cannot be read as a capability claim. **The long-context
 re-run is NO LONGER owed** — the console answered it. **Escalation
