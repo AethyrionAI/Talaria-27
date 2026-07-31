@@ -11940,10 +11940,34 @@ nobody has ever tested the input ceiling, and the guard meant to handle it is
 looking for the wrong error shape. **A user hitting this sees a dead turn, not a
 condensed retry.**
 
-**Shape of a fix, unbuilt:** widen the predicate to match the failure by content
-(the "maximum allowed" / `exceededContextWindowSize` pair) rather than by a single
-enum case, and pin it with a test built from the verbatim strings above. Cheap. Do
-not touch the condensation budget itself without measurement.
+### FIXED 2026-07-31 — the predicate now matches the shape the device sends
+
+`isContextOverflow` keeps the typed case as its fast path and adds a content
+check requiring **both halves** of the sentence: a token count AND the ceiling
+(`Provided [\d,]+ tokens` … `maximum allowed is`). One half alone is not enough —
+unrelated limits (attachments, list sizes, rate caps) use that phrase and must not
+force a condensation retry.
+
+**The asymmetry justifies the looser match:** a false positive costs ONE forced
+condensation retry, already capped by `didCondenseRetry`. A false negative costs
+the entire turn — which is what has been happening.
+
+**`ContextOverflowGuardTests`, 9 tests, every string VERBATIM from a run record.**
+Both real overflows are recognized; the six neighbours that must NOT trip it are
+pinned individually — bucket A's corrupt JSON, resource pressure, a tool-decode
+failure, #212's weather-auth error, an undifferentiated `LanguageModelError`, and
+half-sentences of each kind.
+
+**Mutation-verified:** restoring the pre-#210 body fails exactly
+`recognizesTheOverflowShapeTheDeviceActuallySends` and
+`recognizesTheSecondRecordedOverflow` — and nothing else, since the old predicate
+returned false for every one of these shapes. That is the discipline that earned
+its place in #203/2A, applied here.
+
+**Still owed:** the condensation budget itself is untouched and unmeasured. The
+guard now FIRES; whether one forced condensation actually gets a real
+long-conversation turn under 8,192 is a separate question and needs a measured
+run, not an assumption. n on the original observation remains 2.
 
 ## #209 — "ERROR" was never one disease: five mechanisms behind one excluded label
 
