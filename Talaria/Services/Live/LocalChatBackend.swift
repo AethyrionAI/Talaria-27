@@ -2812,14 +2812,13 @@ extension LocalChatBackend {
         /// itself in the background — keep it reachable and it will eventually
         /// answer a question nobody thought to ask.
         case armedFieldrollback = "armed-fieldrollback"
-        /// #211: `readMotion`'s description loses its "today's step count"
-        /// claim, so a step question has exactly ONE matching tool. The
-        /// description-var seam, same mechanism as `armed-toolfix`.
-        ///
-        /// **Unlike #209's cell, this one is genuinely evaluable:** the
-        /// disease measured 0/20 step numbers, not 1.4%, so a treatment that
-        /// works will be unmistakable at n=10.
-        case armedMotionscope = "armed-motionscope"
+        /// #211 PROMOTED 2026-07-31 — this is now the pinned ROLLBACK: the
+        /// pre-promotion `readMotion` description, still claiming "today's
+        /// step count" and so still competing with `readHealth` for a step
+        /// question. Run `63C0EF12`: this text answers 0/10, the promoted one
+        /// 10/10 (Fisher two-tailed p = 1.08e-05), motion questions unaffected
+        /// at 9/9.
+        case armedMotionrollback = "armed-motionrollback"
         /// #201B: the contact promotion's pinned ROLLBACK — `ContactsTool` with
         /// `continuesAfterNoMatch` explicitly false, i.e. the bare not-found
         /// text that produced 14/80 dead-end misses across two n=40 runs.
@@ -2868,13 +2867,13 @@ extension LocalChatBackend {
                 }
                 return tool
             }
-        case .armedMotionscope:
-            // #211: one description swap. Behaviour untouched — the tool still
-            // reports steps when the pedometer has them; it just stops
-            // advertising itself as the answer to a step question.
+        case .armedMotionrollback:
+            // #211: one description swap back to the pre-promotion text, which
+            // restores the step claim and with it the misroute. The measured
+            // control, kept reachable.
             return tools.map { tool in
                 if var motion = tool as? MotionTool {
-                    motion.description = MotionTool.scopedDescription211
+                    motion.description = MotionTool.stepClaimingDescription211
                     return motion
                 }
                 return tool
@@ -3351,7 +3350,7 @@ extension LocalChatBackend {
     /// nothing written, reap is a no-op.
     func runMotionScopeBattery(trials: Int) async {
         await runActionBattery(trials: trials,
-                               cells: [.armed, .armedMotionscope],
+                               cells: [.armed, .armedMotionrollback],
                                promptSet: Self.motionScopeBatteryPrompts)
     }
 

@@ -927,37 +927,46 @@ struct DeviceToolBeltTests {
         // #209: the read-tool promotion's pinned rollback.
         #expect(LocalChatBackend.ActionBatteryCell.armedFieldrollback.rawValue == "armed-fieldrollback")
         // #211: the scoped-readMotion treatment.
-        #expect(LocalChatBackend.ActionBatteryCell.armedMotionscope.rawValue == "armed-motionscope")
+        #expect(LocalChatBackend.ActionBatteryCell.armedMotionrollback.rawValue == "armed-motionrollback")
         #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 27)
     }
 
-    /// #211: the treatment is a DESCRIPTION swap and nothing else — the tool's
-    /// behaviour, name and every other tool must be untouched, or the cell
-    /// measures more than one thing.
-    @Test @MainActor func motionscopeSwapsOnlyTheMotionDescription() {
+    /// #211 PROMOTED: production no longer competes with `readHealth` for a
+    /// step question, and the rollback cell restores exactly the text that
+    /// did. Polarity flipped on promotion — the assertions are the same
+    /// claims, pointed the other way.
+    @Test @MainActor func promotedMotionDescriptionMakesNoStepClaim() {
+        // NO mention of steps may survive in production, or the semantic match
+        // that caused the 0/10 misroute is still there. This assertion already
+        // earned its keep pre-promotion: a draft redirect clause ("For step
+        // counts… use readHealth instead") put the phrase straight back AND
+        // confounded the cell with a second treatment.
+        #expect(MotionTool.productionDescription.lowercased().contains("step") == false)
+        // One variable: no redirect either. That is the NEXT lane — motivated
+        // now by the 4/9 extra-tool chaining the promotion run recorded.
+        #expect(MotionTool.productionDescription.contains("readHealth") == false)
+        // The rollback text is the pre-promotion one, claim intact.
+        #expect(MotionTool.stepClaimingDescription211.lowercased().contains("step count"))
+        // readHealth keeps its steps claim — it is the tool that has the data.
+        #expect(DeviceHealthTool.productionDescription.lowercased().contains("steps"))
+    }
+
+    /// #211: the rollback is a DESCRIPTION swap and nothing else — behaviour,
+    /// name and every other tool untouched, or the cell measures more than one
+    /// thing.
+    @Test @MainActor func motionrollbackSwapsOnlyTheMotionDescription() {
         let belt = DeviceToolBelt.makeReadTools(
             relay: ToolEventRelay(),
             conversationProvider: { nil },
             sessionCacheProvider: { [] },
             spotlightEnabledProvider: { false }
         )
-        let scoped = LocalChatBackend.destallBelt(from: belt, cell: .armedMotionscope)
-        #expect(scoped.map(\.name) == belt.map(\.name))
-        let motion = scoped.first { $0.name == "readMotion" } as? MotionTool
-        #expect(motion?.description == MotionTool.scopedDescription211)
-        // The claim that causes the misroute must actually be gone — and NO
-        // mention of steps may survive, or the semantic match this cell exists
-        // to remove is still there. This assertion already earned its keep:
-        // the first draft's redirect clause ("For step counts… use readHealth
-        // instead") put the phrase straight back AND confounded the cell with
-        // a second treatment.
-        #expect(motion?.description.lowercased().contains("step") == false)
-        // One variable: no redirect either. That is the next cell, not this one.
-        #expect(motion?.description.contains("readHealth") == false)
-        // Production still carries the overlapping claim — it is the control.
-        #expect(MotionTool.productionDescription.contains("step count"))
+        let rolled = LocalChatBackend.destallBelt(from: belt, cell: .armedMotionrollback)
+        #expect(rolled.map(\.name) == belt.map(\.name))
+        let motion = rolled.first { $0.name == "readMotion" } as? MotionTool
+        #expect(motion?.description == MotionTool.stepClaimingDescription211)
         // Every other tool identical.
-        let health = scoped.first { $0.name == "readHealth" } as? DeviceHealthTool
+        let health = rolled.first { $0.name == "readHealth" } as? DeviceHealthTool
         #expect(health?.description == DeviceHealthTool.productionDescription)
     }
 

@@ -122,26 +122,24 @@ struct LocationTool: Tool {
 
 struct MotionTool: Tool {
     let name = "readMotion"
-    /// Production text. **It claims "today's step count", and so does
-    /// `readHealth` — two tools advertising one capability (#211).** Asked
-    /// "How many steps have I taken today?", the model picks this one 20/20,
-    /// `CMPedometer` has no samples, and the turn answers "no pedometer data"
-    /// while HealthKit holds 1,889. Kept as the measured CONTROL.
-    static let productionDescription = "Read today's step count and the user's current motion activity (walking, running, driving, stationary) from the phone's motion coprocessor."
-    /// #211 treatment: the step claim REMOVED, and NOTHING ELSE. One variable.
+    /// PROMOTED 2026-07-31 (#211, run `63C0EF12`): the step claim is gone.
     ///
-    /// The first draft also appended "For step counts… use readHealth
-    /// instead" — a redirect. That bundles two treatments (removing the claim,
-    /// AND pointing at the alternative) into one cell, so a win could not be
-    /// attributed; it also put the words "step count" straight back into the
-    /// description this cell exists to purge. The belt test caught both. A
-    /// redirect variant is the NEXT cell if removal alone is not enough.
+    /// The old text claimed "today's step count", and so does `readHealth` —
+    /// two tools advertising one capability. Asked "How many steps have I
+    /// taken today?", the model picked this one 20/20, `CMPedometer` had no
+    /// samples, and the turn answered "no pedometer data" while HealthKit held
+    /// the number. Scoping this description off steps took that from **0/10 to
+    /// 10/10** correct answers (Fisher exact two-tailed p = 1.08e-05), while
+    /// motion questions still reached this tool 9/9.
     ///
-    /// Behaviour is untouched — `call()` still reports steps when the
-    /// pedometer has them; this only stops the tool advertising itself as the
-    /// way to answer a step question. HealthKit is the better source anyway:
-    /// it aggregates phone AND watch, where `CMPedometer` sees only the phone.
-    static let scopedDescription211 = "Read the user's current motion activity (walking, running, driving, stationary) from the phone's motion coprocessor."
+    /// Behaviour is UNCHANGED — `call()` still reports steps when the
+    /// pedometer has them. Only the advertisement moved. HealthKit is the
+    /// better source regardless: it aggregates phone AND watch, where
+    /// `CMPedometer` sees only the phone.
+    static let productionDescription = "Read the user's current motion activity (walking, running, driving, stationary) from the phone's motion coprocessor."
+    /// The pre-#211 text, kept reachable as the measured CONTROL cell
+    /// (`armed-motionrollback`) and as the pinned rollback.
+    static let stepClaimingDescription211 = "Read today's step count and the user's current motion activity (walking, running, driving, stationary) from the phone's motion coprocessor."
     var description: String = MotionTool.productionDescription
     let relay: ToolEventRelay
 
