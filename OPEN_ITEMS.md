@@ -9191,7 +9191,39 @@ Two stacked defects:
    invocation that throws kills the turn upstream, so the model never gets to recover. The
    instruction-level absorbing-state exit has a machinery-level hole.
 
-**Fix direction:** catch tool-invocation errors in the streaming worker; log the full detail
+**DEFECT 1 FIXED 2026-07-31 — and the cause was one line.** `failureMessage` humanized
+`LanguageModelSession.GenerationError` and fell through to `error.localizedDescription`
+for everything else. **A tool throw is a `ToolCallError`, not a `GenerationError`** —
+and `ToolCallError` carries `tool: any Tool`, the **live instance**, so describing it
+reflects the struct's stored properties. That is exactly how the transcript got the
+tool's full description string, `RELAY: TALARIA.TOOLEVENTRELAY`, and
+`<TALARIA.DEVICELOCATIONPROVIDER: 0x108BD0B00>`.
+
+`ToolCallError` is now matched explicitly and **only `tool.name` is surfaced**.
+Pinned by a test that asserts the message contains the tool name and contains none of
+`RELAY`, `TOOLEVENTRELAY`, `0x`, `Talaria.`, the type name, or the underlying error —
+and that it is not the raw description. A third test pins that the `GenerationError`
+mapping #30 relies on is unchanged.
+
+**DEFECT 2 — the message now does the recovering, because nothing else can.** The
+#176 clause operates INSIDE a model turn; this class throws **above `call()`** (the
+argument-DECODE layer), killing the turn upstream, so **no tool can catch it and the
+model never gets to recover**. Feeding a terse failure back to the session — the
+original fix direction — is therefore not reachable for this class. What is reachable
+is the sentence: *"Talaria couldn't read the arguments for X on that turn. Ask again
+and it should go through."* Names what failed, leaks nothing, and gives a path.
+**Same shape as #201B's continuation clause and #202D's clause v2, both of which
+measured well.**
+
+**Verified WITHOUT a device run** — this is pure error-mapping logic, so unlike every
+other lane today it is fully unit-testable. Suite 1382/1382.
+
+**STILL OPEN:** the turn still dies, and the underlying decode failure is unexplained
+— **#208 removed the token cap as its standing suspect**, so the argument-decode layer
+itself is now the only candidate. An automatic single retry is the obvious next
+question and is a product decision, not a code one (same family as #203's residue).
+
+**Original fix direction, for the record:** catch tool-invocation errors in the streaming worker; log the full detail
 (`chatLog`), surface a friendly failure — or better, feed a terse tool-failure result back to
 the session so the model can apply the recovery clause and answer without the tool (which is
 what the instructions already promise). Related but distinct observation for the #196 lane:

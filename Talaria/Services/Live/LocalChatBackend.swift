@@ -1653,6 +1653,23 @@ final class LocalChatBackend: HermesClientProtocol {
     /// Plain-language reasons for `.failed(String)` — never a bare error dump
     /// for the cases the on-device model actually produces.
     nonisolated static func failureMessage(for error: Error) -> String {
+        // #197 FIX: a tool throw must never render internals. `ToolCallError`
+        // carries the LIVE tool instance, and its description reflects that
+        // struct's stored properties — which is how the transcript ended up
+        // showing the tool's full description string, `RELAY:
+        // TALARIA.TOOLEVENTRELAY`, and a live pointer
+        // (`<TALARIA.DEVICELOCATIONPROVIDER: 0x108BD0B00>`) on 2026-07-27.
+        // Only `tool.name` is safe to surface.
+        //
+        // The #176 recovery clause cannot help here: this class throws ABOVE
+        // `call()` (the argument-DECODE layer), so it kills the turn upstream
+        // of the model and no tool can catch it. **The message therefore has
+        // to do the recovering** — name what failed, and name what works.
+        // Same shape as #201B's continuation and #202D's clause v2, both of
+        // which measured well.
+        if let toolError = error as? LanguageModelSession.ToolCallError {
+            return "Talaria couldn't read the arguments for \(toolError.tool.name) on that turn. Ask again and it should go through."
+        }
         guard let generationError = error as? LanguageModelSession.GenerationError else {
             let described = error.localizedDescription
             return described.isEmpty ? "The on-device model failed to respond." : described
