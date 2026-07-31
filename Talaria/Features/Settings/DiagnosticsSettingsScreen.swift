@@ -564,6 +564,26 @@ struct DiagnosticsSettingsScreen: View {
     // #211 motion-scope: control vs the scoped readMotion description. READ
     // tools only — nothing written, no auto-accept needed.
     @ViewBuilder
+    private func motionRedirectBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runMotionRedirectBattery(trials: trials)
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
+    // #211 motion-scope: control vs the scoped readMotion description.
+    @ViewBuilder
     private func motionScopeBatteryButton(trials: Int, label: String) -> some View {
         Button {
             guard !batteryRunning, let backend = container.localChatBackend else { return }
@@ -1305,6 +1325,11 @@ struct DiagnosticsSettingsScreen: View {
                 // step question the app currently answers wrong 20/20.
                 HStack(spacing: Design.Spacing.sm) {
                     motionScopeBatteryButton(trials: 10, label: "Motion-scope battery n=10 (40)")
+                }
+                // #211 follow-on: promoted vs promoted-plus-boundary, against
+                // the extra-tool chaining the promotion cost.
+                HStack(spacing: Design.Spacing.sm) {
+                    motionRedirectBatteryButton(trials: 10, label: "Motion-redirect battery n=10 (40)")
                 }
                 // #200B: 4 treatment cells × 4 prompts (haiku grab canary).
                 HStack(spacing: Design.Spacing.sm) {

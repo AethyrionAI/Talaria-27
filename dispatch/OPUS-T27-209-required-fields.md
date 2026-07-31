@@ -191,3 +191,62 @@ if the tool choice is fixed at the source.
 
 `MotionTool.productionDescription` is the shipped text and stays the control cell.
 Reverting is a one-line description swap.
+
+---
+
+# #211 FOLLOW-ON — the boundary sentence, against the cost the promotion bought
+
+**Written before the run. Targets the RECORDED COST of the #211 promotion, not its win.**
+
+## What this is for
+
+Promoting the scoped `readMotion` description fixed the misroute (0/10 → 10/10,
+p = 1.08e-05) and bought a cost: the promoted arm **chained extra tools on motion
+questions, 4 of 9 vs 0 of 10 in control.** One trial went
+`readMotion → currentLocation → currentWeather → currentWeather` and dragged
+#212's weather failure into an answer about standing still; another appended an
+unasked-for health summary; two volunteered a street address for a question that
+asked neither where nor whether.
+
+**The reading:** removing the step claim also removed the model's sense of what
+this tool is FOR, so it kept reaching. Naming the boundary may restore it.
+
+## The treatment, and the constraint that shapes it
+
+`armed-motionredirect` = the PROMOTED text **plus one sentence**:
+"For health metrics, use readHealth."
+
+**It must not contain the word "step".** Reinstating that phrase would restore the
+semantic match that caused the original 0/10 misroute — exactly the confound the
+belt test caught in the first draft of the scoped text. So the redirect points at
+`readHealth` by DOMAIN, never by naming a metric. Pinned by
+`redirectNamesTheBoundaryWithoutReinstatingTheStepClaim`, which also asserts the
+text is the promoted description *plus* a sentence rather than a third rewording —
+otherwise the cell measures the boundary AND a rewrite at once.
+
+`Motion-redirect battery n=10 (40)`: `[.armed, .armedMotionredirect]` × 2 prompts × 10.
+
+## Pre-registered bars
+
+**Evaluability gate:** the CONTROL arm (current production) must reproduce the
+chaining — **≥2 of 10** `motiondirect` trials calling any tool besides
+`readMotion`. Measured at 4/9 ≈ 44%, so this should clear comfortably. If it does
+not, the chaining is not stable and nothing below is readable. Set UNDER the
+observed effect, per #201's repeated mis-specification.
+
+**Primary:** the treatment arm chains on **≤1 of 10** `motiondirect` trials.
+
+**GUARD — and this one kills the promotion outright:** `stepsdirect` in the
+treatment arm must still return a real step count on **≥8 of 10**. If the boundary
+sentence re-breaks #211's win, the cell does not promote no matter what it does
+for chaining. **A fix that trades a 10/10 answer for a tidier tool trace is a
+regression wearing a win's clothes.**
+
+**Secondary, recorded not barred:** whether the treatment still volunteers a
+street address on a motion question. That is a privacy-shaped behaviour nobody
+asked for, and it should be tracked even though it breaks no bar.
+
+## Rollback
+
+One-line description swap. `MotionTool.productionDescription` is unchanged by this
+cell and remains what ships if the bars do not hold.

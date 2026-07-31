@@ -928,7 +928,40 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedFieldrollback.rawValue == "armed-fieldrollback")
         // #211: the scoped-readMotion treatment.
         #expect(LocalChatBackend.ActionBatteryCell.armedMotionrollback.rawValue == "armed-motionrollback")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 27)
+        // #211 follow-on: promoted text plus a boundary sentence.
+        #expect(LocalChatBackend.ActionBatteryCell.armedMotionredirect.rawValue == "armed-motionredirect")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 28)
+    }
+
+    /// #211 follow-on: the redirect must name the boundary WITHOUT reinstating
+    /// the step claim.
+    ///
+    /// This is the constraint the whole cell turns on. A first draft of the
+    /// SCOPED text said "For step counts… use readHealth instead" — which put
+    /// the phrase straight back into the description whose step claim caused
+    /// the 0/10 misroute, and confounded the cell with a second treatment. The
+    /// redirect therefore points at `readHealth` by DOMAIN, never by metric.
+    @Test @MainActor func redirectNamesTheBoundaryWithoutReinstatingTheStepClaim() {
+        #expect(MotionTool.redirectDescription211B.lowercased().contains("step") == false)
+        #expect(MotionTool.redirectDescription211B.contains("readHealth"))
+        // It is the PROMOTED text plus a sentence — not a third variant, or the
+        // cell would measure the boundary AND a rewording at once.
+        #expect(MotionTool.redirectDescription211B.hasPrefix(MotionTool.productionDescription))
+    }
+
+    @Test @MainActor func motionredirectSwapsOnlyTheMotionDescription() {
+        let belt = DeviceToolBelt.makeReadTools(
+            relay: ToolEventRelay(),
+            conversationProvider: { nil },
+            sessionCacheProvider: { [] },
+            spotlightEnabledProvider: { false }
+        )
+        let redirected = LocalChatBackend.destallBelt(from: belt, cell: .armedMotionredirect)
+        #expect(redirected.map(\.name) == belt.map(\.name))
+        let motion = redirected.first { $0.name == "readMotion" } as? MotionTool
+        #expect(motion?.description == MotionTool.redirectDescription211B)
+        let health = redirected.first { $0.name == "readHealth" } as? DeviceHealthTool
+        #expect(health?.description == DeviceHealthTool.productionDescription)
     }
 
     /// #211 PROMOTED: production no longer competes with `readHealth` for a

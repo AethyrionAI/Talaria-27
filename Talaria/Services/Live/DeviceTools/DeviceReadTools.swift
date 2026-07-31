@@ -140,6 +140,23 @@ struct MotionTool: Tool {
     /// The pre-#211 text, kept reachable as the measured CONTROL cell
     /// (`armed-motionrollback`) and as the pinned rollback.
     static let stepClaimingDescription211 = "Read today's step count and the user's current motion activity (walking, running, driving, stationary) from the phone's motion coprocessor."
+    /// #211 follow-on treatment: the promoted text PLUS a boundary sentence.
+    ///
+    /// **Why:** promoting the scoped description fixed the misroute (0/10 →
+    /// 10/10) but the promoted arm then chained extra tools on motion
+    /// questions — **4 of 9 vs 0 of 10** in control. One trial went
+    /// `readMotion → currentLocation → currentWeather → currentWeather` and
+    /// dragged #212's weather failure into an answer about standing still;
+    /// another volunteered a street address. The reading: removing the step
+    /// claim also removed the model's sense of what this tool is FOR, so it
+    /// kept reaching. Naming the boundary may restore that.
+    ///
+    /// **The wording is constrained, not free.** It must NOT contain "step",
+    /// or the semantic match that caused the original 0/10 misroute comes
+    /// straight back — the exact confound the belt test caught in the first
+    /// draft of the scoped text. So it points at `readHealth` by domain
+    /// ("health metrics"), never by naming the metric.
+    static let redirectDescription211B = "Read the user's current motion activity (walking, running, driving, stationary) from the phone's motion coprocessor. For health metrics, use readHealth."
     var description: String = MotionTool.productionDescription
     let relay: ToolEventRelay
 
