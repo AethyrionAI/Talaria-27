@@ -2812,6 +2812,14 @@ extension LocalChatBackend {
         /// itself in the background — keep it reachable and it will eventually
         /// answer a question nobody thought to ask.
         case armedFieldrollback = "armed-fieldrollback"
+        /// #211: `readMotion`'s description loses its "today's step count"
+        /// claim, so a step question has exactly ONE matching tool. The
+        /// description-var seam, same mechanism as `armed-toolfix`.
+        ///
+        /// **Unlike #209's cell, this one is genuinely evaluable:** the
+        /// disease measured 0/20 step numbers, not 1.4%, so a treatment that
+        /// works will be unmistakable at n=10.
+        case armedMotionscope = "armed-motionscope"
         /// #201B: the contact promotion's pinned ROLLBACK — `ContactsTool` with
         /// `continuesAfterNoMatch` explicitly false, i.e. the bare not-found
         /// text that produced 14/80 dead-end misses across two n=40 runs.
@@ -2857,6 +2865,17 @@ extension LocalChatBackend {
             return tools.map { tool in
                 if let calendar = tool as? CalendarEventTool {
                     return CalendarEventToolRequiredFields(relay: calendar.relay, confirmations: calendar.confirmations)
+                }
+                return tool
+            }
+        case .armedMotionscope:
+            // #211: one description swap. Behaviour untouched — the tool still
+            // reports steps when the pedometer has them; it just stops
+            // advertising itself as the answer to a step question.
+            return tools.map { tool in
+                if var motion = tool as? MotionTool {
+                    motion.description = MotionTool.scopedDescription211
+                    return motion
                 }
                 return tool
             }
@@ -3317,6 +3336,23 @@ extension LocalChatBackend {
         await runActionBattery(trials: trials,
                                cells: [.armed, .armedFieldrollback],
                                promptSet: Self.readToolBatteryPrompts)
+    }
+
+    /// #211: the two step-question prompts, control vs the scoped
+    /// `readMotion` description. `stepsdirect` is the disease (0/20 step
+    /// numbers, 20/20 routed to `readMotion`); `stepsimplicit` checks the fix
+    /// does not simply push every motion question at `readHealth`.
+    nonisolated static let motionScopeBatteryPrompts: [(tag: String, text: String)] = [
+        ("stepsdirect", "How many steps have I taken today?"),
+        ("motiondirect", "Am I walking or sitting still right now?"),
+    ]
+
+    /// #211 one-tap wrapper: 2 cells × 2 prompts × trials. READ tools only —
+    /// nothing written, reap is a no-op.
+    func runMotionScopeBattery(trials: Int) async {
+        await runActionBattery(trials: trials,
+                               cells: [.armed, .armedMotionscope],
+                               promptSet: Self.motionScopeBatteryPrompts)
     }
 
     /// #200H one-tap wrapper: 3 cells × four prompts (grab canary

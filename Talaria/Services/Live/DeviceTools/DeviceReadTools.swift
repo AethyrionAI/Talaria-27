@@ -122,7 +122,27 @@ struct LocationTool: Tool {
 
 struct MotionTool: Tool {
     let name = "readMotion"
-    let description = "Read today's step count and the user's current motion activity (walking, running, driving, stationary) from the phone's motion coprocessor."
+    /// Production text. **It claims "today's step count", and so does
+    /// `readHealth` — two tools advertising one capability (#211).** Asked
+    /// "How many steps have I taken today?", the model picks this one 20/20,
+    /// `CMPedometer` has no samples, and the turn answers "no pedometer data"
+    /// while HealthKit holds 1,889. Kept as the measured CONTROL.
+    static let productionDescription = "Read today's step count and the user's current motion activity (walking, running, driving, stationary) from the phone's motion coprocessor."
+    /// #211 treatment: the step claim REMOVED, and NOTHING ELSE. One variable.
+    ///
+    /// The first draft also appended "For step counts… use readHealth
+    /// instead" — a redirect. That bundles two treatments (removing the claim,
+    /// AND pointing at the alternative) into one cell, so a win could not be
+    /// attributed; it also put the words "step count" straight back into the
+    /// description this cell exists to purge. The belt test caught both. A
+    /// redirect variant is the NEXT cell if removal alone is not enough.
+    ///
+    /// Behaviour is untouched — `call()` still reports steps when the
+    /// pedometer has them; this only stops the tool advertising itself as the
+    /// way to answer a step question. HealthKit is the better source anyway:
+    /// it aggregates phone AND watch, where `CMPedometer` sees only the phone.
+    static let scopedDescription211 = "Read the user's current motion activity (walking, running, driving, stationary) from the phone's motion coprocessor."
+    var description: String = MotionTool.productionDescription
     let relay: ToolEventRelay
 
     @Generable

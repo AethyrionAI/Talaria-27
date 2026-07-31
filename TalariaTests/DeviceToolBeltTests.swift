@@ -926,7 +926,39 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedCarveoutrollback.rawValue == "armed-carveoutrollback")
         // #209: the read-tool promotion's pinned rollback.
         #expect(LocalChatBackend.ActionBatteryCell.armedFieldrollback.rawValue == "armed-fieldrollback")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 26)
+        // #211: the scoped-readMotion treatment.
+        #expect(LocalChatBackend.ActionBatteryCell.armedMotionscope.rawValue == "armed-motionscope")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 27)
+    }
+
+    /// #211: the treatment is a DESCRIPTION swap and nothing else — the tool's
+    /// behaviour, name and every other tool must be untouched, or the cell
+    /// measures more than one thing.
+    @Test @MainActor func motionscopeSwapsOnlyTheMotionDescription() {
+        let belt = DeviceToolBelt.makeReadTools(
+            relay: ToolEventRelay(),
+            conversationProvider: { nil },
+            sessionCacheProvider: { [] },
+            spotlightEnabledProvider: { false }
+        )
+        let scoped = LocalChatBackend.destallBelt(from: belt, cell: .armedMotionscope)
+        #expect(scoped.map(\.name) == belt.map(\.name))
+        let motion = scoped.first { $0.name == "readMotion" } as? MotionTool
+        #expect(motion?.description == MotionTool.scopedDescription211)
+        // The claim that causes the misroute must actually be gone — and NO
+        // mention of steps may survive, or the semantic match this cell exists
+        // to remove is still there. This assertion already earned its keep:
+        // the first draft's redirect clause ("For step counts… use readHealth
+        // instead") put the phrase straight back AND confounded the cell with
+        // a second treatment.
+        #expect(motion?.description.lowercased().contains("step") == false)
+        // One variable: no redirect either. That is the next cell, not this one.
+        #expect(motion?.description.contains("readHealth") == false)
+        // Production still carries the overlapping claim — it is the control.
+        #expect(MotionTool.productionDescription.contains("step count"))
+        // Every other tool identical.
+        let health = scoped.first { $0.name == "readHealth" } as? DeviceHealthTool
+        #expect(health?.description == DeviceHealthTool.productionDescription)
     }
 
     /// #209: a "pinned rollback" that no cell can reach is dead code, not a
