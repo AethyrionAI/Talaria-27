@@ -2215,6 +2215,36 @@ struct DeviceToolBeltTests {
         #expect(uncapped.contains(long))
     }
 
+    // MARK: - (#203 1A) the stall hint
+
+    /// The hint NEVER cancels — #202B measured this model fabricating when
+    /// cut off from a tool it expected, so an automatic deadline risks
+    /// manufacturing the exact lie #202D removed. It only tells the user
+    /// something is quiet, next to the Stop that already exists.
+    @Test func stallHintFiresOnlyWhileStreamingAndOnlyAfterSilence() {
+        let t0 = Date(timeIntervalSince1970: 1_000_000)
+        let past = t0.addingTimeInterval(ChatStore.stallHintAfter + 1)
+        // Streaming and silent past the threshold → hint.
+        #expect(ChatStore.isStalled(isStreaming: true, lastActivityAt: t0, now: past))
+        // Streaming but recently active → no hint.
+        #expect(!ChatStore.isStalled(isStreaming: true, lastActivityAt: t0,
+                                     now: t0.addingTimeInterval(1)))
+        // Not streaming → never, however old the stamp.
+        #expect(!ChatStore.isStalled(isStreaming: false, lastActivityAt: t0, now: past))
+        // No stamp → never (a turn that has not started cannot be stalled).
+        #expect(!ChatStore.isStalled(isStreaming: true, lastActivityAt: nil, now: past))
+        // Exactly at the threshold counts, so the boundary is not a dead zone.
+        #expect(ChatStore.isStalled(isStreaming: true, lastActivityAt: t0,
+                                    now: t0.addingTimeInterval(ChatStore.stallHintAfter)))
+    }
+
+    /// 8s sits past a normal on-device turn and well short of the battery's
+    /// 35s guillotine — the numbers either side are measured, not guessed.
+    @Test func stallThresholdSitsBetweenANormalTurnAndTheBatteryGuillotine() {
+        #expect(ChatStore.stallHintAfter > 5)
+        #expect(ChatStore.stallHintAfter < 35)
+    }
+
     // MARK: - (#197) a tool throw must never render internals
 
     /// #197's specimen put the tool's FULL DESCRIPTION, `RELAY:

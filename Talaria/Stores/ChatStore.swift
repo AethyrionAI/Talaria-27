@@ -19,6 +19,15 @@ final class ChatStore {
     var conversation: Conversation?
     var isLoading = false
     var pendingMessageSentAt: Date?
+    /// #203 (1A): when this turn last showed ANY sign of life — a token, a
+    /// reasoning delta, or a tool event. Production has no turn deadline of
+    /// any kind (the 35s guillotine is battery-only), so a wedged turn spins
+    /// silently until the user force-quits. This drives a visible "still
+    /// working…" hint; it CANCELS NOTHING. #202B measured this model
+    /// fabricating when cut off from a tool it expected, so an automatic
+    /// deadline risks manufacturing the exact lie #202D removed — the user
+    /// decides, via the Stop that already exists.
+    var lastStreamActivityAt: Date?
     var lastTokenUsage: TokenUsage?
 
     /// #48: payload from a `hermes://ask?q=…` deep link, held until ChatScreen
@@ -70,6 +79,21 @@ final class ChatStore {
     private(set) var streamingMessageID: UUID?
 
     var isStreaming: Bool { streamingMessageID != nil }
+
+    /// #203 (1A): how long a streaming turn may go with NO sign of life
+    /// before the UI says so. 8s is comfortably past a normal on-device
+    /// first token (#208 measured whole turns at 35–49 output tokens) and
+    /// well short of the 35s the battery guillotine uses.
+    nonisolated static let stallHintAfter: TimeInterval = 8
+
+    /// True when a turn is streaming and has been silent past the threshold.
+    /// Pure function of two stored values, so it is unit-testable without a
+    /// live stream.
+    nonisolated static func isStalled(isStreaming: Bool, lastActivityAt: Date?,
+                                      now: Date = .now) -> Bool {
+        guard isStreaming, let lastActivityAt else { return false }
+        return now.timeIntervalSince(lastActivityAt) >= stallHintAfter
+    }
 
     /// Dynamic slash command catalog fetched from the connected Hermes host.
     /// Includes gateway commands, installed skills, custom personalities,
@@ -400,6 +424,7 @@ final class ChatStore {
         conversation?.messages.append(optimistic)
         conversation?.lastActivity = optimistic.timestamp
         pendingMessageSentAt = optimistic.timestamp
+        lastStreamActivityAt = optimistic.timestamp
 
         // Persist the optimistic turn NOW, before streaming starts — the next
         // save otherwise only happens after the stream ends, so a process
@@ -480,9 +505,11 @@ final class ChatStore {
                     }
                     continuedSend?.advance(to: .streaming)
                     continuedSend?.tick()
+                    self.lastStreamActivityAt = .now
 
                 case .reasoningDelta(let delta):
                     continuedSend?.tick()
+                    self.lastStreamActivityAt = .now
                     // #4.15: accumulate the `_thinking` channel on the streaming
                     // placeholder — the bubble shows the newest line verbatim
                     // while the model reasons, ahead of any answer text.
@@ -493,6 +520,7 @@ final class ChatStore {
                     }
 
                 case .toolActivity(let event):
+                    self.lastStreamActivityAt = .now
                     if var conv = self.conversation,
                        let idx = conv.messages.firstIndex(where: { $0.id == placeholderID }) {
                         switch event.phase {
@@ -900,6 +928,7 @@ final class ChatStore {
         }
         streamingMessageID = nil
         pendingMessageSentAt = nil
+        lastStreamActivityAt = nil
 
         if let conversation {
             persistence.saveConversationCache(conversation)

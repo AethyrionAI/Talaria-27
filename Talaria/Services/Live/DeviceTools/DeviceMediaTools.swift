@@ -98,18 +98,25 @@ struct ImageTextTool: Tool, ImageDependentTool {
 
         // Extract Sendable [String] inside the detached task — VN observation
         // types are not Sendable and must not cross the concurrency boundary.
-        let lines: [String] = await Task.detached(priority: .userInitiated) {
-            let request = VNRecognizeTextRequest()
-            request.recognitionLevel = .accurate
-            request.usesLanguageCorrection = true
-            let handler = VNImageRequestHandler(cgImage: cgImage)
-            try? handler.perform([request])
-            return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
-        }.value
-        guard !lines.isEmpty else {
-            return "No readable text was found in \"\(fileName)\"."
+        //
+        // #203 (1C): bounded. Vision on a large or awkward image is the one
+        // step here that can hang, and a hung TOOL is not cancellable — the
+        // production stream has no turn deadline, so this is the only place
+        // the wait can end.
+        return await DeviceToolTimeout.run(label: name) {
+            let lines: [String] = await Task.detached(priority: .userInitiated) {
+                let request = VNRecognizeTextRequest()
+                request.recognitionLevel = .accurate
+                request.usesLanguageCorrection = true
+                let handler = VNImageRequestHandler(cgImage: cgImage)
+                try? handler.perform([request])
+                return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+            }.value
+            guard !lines.isEmpty else {
+                return "No readable text was found in \"\(fileName)\"."
+            }
+            return "Text recognized in \"\(fileName)\":\n" + lines.joined(separator: "\n")
         }
-        return "Text recognized in \"\(fileName)\":\n" + lines.joined(separator: "\n")
     }
 }
 

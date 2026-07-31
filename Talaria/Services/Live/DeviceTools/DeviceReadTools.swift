@@ -140,13 +140,24 @@ struct MotionTool: Tool {
         }
 
         var lines: [String] = []
-        let pedometer = CMPedometer()
         let start = Calendar.current.startOfDay(for: Date())
-        let steps: Int? = await withCheckedContinuation { continuation in
-            pedometer.queryPedometerData(from: start, to: Date()) { data, _ in
-                continuation.resume(returning: data.map { $0.numberOfSteps.intValue })
+        // #203 (1C): CoreMotion's completion is not guaranteed to fire, and
+        // an unfired continuation parks the turn forever. `run` returns a
+        // sentinel on expiry rather than throwing, so the tool still answers
+        // with whatever else it gathered.
+        //
+        // CMPedometer is NOT Sendable, so it is built INSIDE the closure and
+        // only the Date crosses — the same constraint that shaped the Places
+        // rewrite in #200Y.
+        let stepsText = await DeviceToolTimeout.run(label: name) {
+            let steps: Int? = await withCheckedContinuation { continuation in
+                CMPedometer().queryPedometerData(from: start, to: Date()) { data, _ in
+                    continuation.resume(returning: data.map { $0.numberOfSteps.intValue })
+                }
             }
+            return steps.map(String.init) ?? ""
         }
+        let steps = Int(stepsText)
         if let steps {
             lines.append("Steps today (pedometer): \(steps)")
         } else {

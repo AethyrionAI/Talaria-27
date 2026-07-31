@@ -2,6 +2,7 @@ import CoreLocation
 import Foundation
 import FoundationModels
 import os
+import UIKit
 
 /// Device tool belt v1 (#28): Swift `Tool` conformances handed to the local
 /// brain's `LanguageModelSession` — the device-side mirror of the Hermes MCP
@@ -148,6 +149,8 @@ final class DeviceLocationProvider: NSObject, CLLocationManagerDelegate {
     /// #203: bumped every time waiters are resolved, so a fired deadline can
     /// only ever affect the request it was armed for.
     private var locationGeneration = 0
+    /// #203 (2A): armed only while an authorization prompt is pending.
+    private var foregroundObserver: NSObjectProtocol?
 
     override init() {
         super.init()
@@ -156,13 +159,53 @@ final class DeviceLocationProvider: NSObject, CLLocationManagerDelegate {
     }
 
     /// Settled authorization status, prompting if not yet determined.
+    ///
+    /// #203 (2A, Owen's call 2026-07-31): still UNBOUNDED by any clock — a
+    /// machine deadline on a human reading a system dialog is unfair, and
+    /// that reasoning stands. What is NOT fair is parking forever when the
+    /// human has visibly walked away: `locationManagerDidChangeAuthorization`
+    /// returns early while the status is `.notDetermined`, so a dialog
+    /// dismissed WITHOUT an answer left the waiter pending with no
+    /// resolution path and the turn spun.
+    ///
+    /// The trigger is the FOREGROUND TRANSITION, not a timer: if the app
+    /// comes back with the status still undetermined, the user dismissed the
+    /// dialog. The waiter resolves `.notDetermined`, every caller already
+    /// renders that honestly as location-unavailable, and the turn finishes
+    /// with a sentence instead of a hang — the shape #202D promoted.
     func ensureAuthorization() async -> CLAuthorizationStatus {
         let status = manager.authorizationStatus
         guard status == .notDetermined else { return status }
         return await withCheckedContinuation { continuation in
             authorizationContinuations.append(continuation)
+            observeForegroundForDismissedDialog()
             manager.requestWhenInUseAuthorization()
         }
+    }
+
+    /// One observer per pending prompt. Resolving is idempotent — the
+    /// delegate may also fire, and whichever lands first empties the queue.
+    private func observeForegroundForDismissedDialog() {
+        guard foregroundObserver == nil else { return }
+        foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.resolveAuthorizationIfDialogWasDismissed() }
+        }
+    }
+
+    func resolveAuthorizationIfDialogWasDismissed() {
+        if let foregroundObserver {
+            NotificationCenter.default.removeObserver(foregroundObserver)
+            self.foregroundObserver = nil
+        }
+        // Only a still-undetermined status means the dialog was dismissed
+        // without an answer. A real decision resolves through the delegate.
+        guard manager.authorizationStatus == .notDetermined else { return }
+        let waiting = authorizationContinuations
+        authorizationContinuations = []
+        waiting.forEach { $0.resume(returning: .notDetermined) }
     }
 
     /// How long a one-shot fix may take before the tools give up. Apple's
@@ -214,6 +257,10 @@ final class DeviceLocationProvider: NSObject, CLLocationManagerDelegate {
         Task { @MainActor in
             let status = self.manager.authorizationStatus
             guard status != .notDetermined else { return }
+            if let observer = self.foregroundObserver {
+                NotificationCenter.default.removeObserver(observer)
+                self.foregroundObserver = nil
+            }
             let waiting = authorizationContinuations
             authorizationContinuations = []
             waiting.forEach { $0.resume(returning: status) }
