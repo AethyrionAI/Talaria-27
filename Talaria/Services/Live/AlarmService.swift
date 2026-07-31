@@ -169,8 +169,12 @@ final class AlarmService {
         // Deep Field hero cyan (ThemePaletteCore) — a static value because the
         // attributes are encoded into the system alarm, not theme-resolved live.
         let tint = Color(hex: 0x54E6F0)
-        let stopButton = AlarmButton(text: "Stop", textColor: .white, systemImageName: "stop.circle")
-        let alert = AlarmPresentation.Alert(title: titleResource, stopButton: stopButton)
+        // #198: the `stopButton:` overload is deprecated in iOS 26.1 — Apple's
+        // own message is "stopButton is deprecated and will no longer be used",
+        // i.e. the system supplies its own stop affordance and the value was
+        // already being ignored. Dropping it is behaviour-neutral by that
+        // statement, and the non-deprecated init is otherwise identical.
+        let alert = AlarmPresentation.Alert(title: titleResource)
         let metadata = TalariaAlarmMetadata(label: request.label)
 
         switch request.kind {
