@@ -11770,11 +11770,29 @@ itself failed, and the replies are the tool's own catch-all
 (`"Weather lookup failed: … WeatherKit needs a network connection and the app's
 WeatherKit capability."`).
 
-**The entitlement IS declared** — `project.yml:56` `com.apple.developer.weatherkit:
-true`, and `Talaria/Talaria.entitlements`. So this is a dev-signed-profile or
-service-auth problem, not a missing capability in source. **One check, not a
-guess:** confirm the exported OTA profile carries the WeatherKit entitlement, and
-that the App ID is WeatherKit-enabled.
+**UPDATE 2026-07-31 — the profile hypothesis is REFUTED, and the record could not
+answer the question.**
+
+Signing is correct at EVERY layer, checked on the shipped artifact rather than the
+source: `project.yml:56`, `Talaria/Talaria.entitlements`, the **signed binary**
+(`codesign -d --entitlements` on `Talaria27.ipa` → `com.apple.developer.weatherkit
+=> true`), and the **embedded provisioning profile**, which is the portal-side
+grant and is valid to 2027-07-27. **So it is not the profile and not the App ID.**
+My filed guess was wrong.
+
+**What blocked the diagnosis: `BatteryToolCallRecord` never recorded what a tool
+RETURNED** — only that it ran and what it was asked. The tool's own catch had
+WeatherKit's `localizedDescription` in hand and the record kept only the model's
+paraphrase. **Same blindness class as #209's buried cause, found twice in one
+day.** Fixed: `ToolEventRelay.completed(_:result:)` records the tool's answer into
+the battery store only — never the transcript, so it cannot leak internals the way
+#197's dump did. Wired on the read tools first; `result == nil` means NOT CAPTURED,
+never "empty".
+
+**Next: one re-run of the read-tool battery on a build carrying the capture, and
+the real error names the cause.** Remaining candidates, none yet distinguishable:
+a WeatherKit service-auth/token failure, a first-use registration delay, or a
+device-side network condition at run time.
 
 **Why it went unnoticed:** no battery has ever called a READ tool (#209), so
 `currentWeather` had never been exercised end-to-end by any instrument. It may have
