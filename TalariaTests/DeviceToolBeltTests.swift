@@ -930,7 +930,9 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedMotionrollback.rawValue == "armed-motionrollback")
         // #211 follow-on: promoted text plus a boundary sentence.
         #expect(LocalChatBackend.ActionBatteryCell.armedMotionredirect.rawValue == "armed-motionredirect")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 28)
+        // #214: the structural cell — per-intent belt plus composition licensing.
+        #expect(LocalChatBackend.ActionBatteryCell.armedScopedv2.rawValue == "armed-scopedv2")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 29)
     }
 
     /// #211 follow-on: the redirect must name the boundary WITHOUT reinstating
@@ -1115,12 +1117,37 @@ struct DeviceToolBeltTests {
     /// production belt (its treatment is instructions).
     @Test @MainActor func scopedBeltIsIdentityForEveryOtherCell() {
         let belt = fullArmedBelt()
-        for cell in LocalChatBackend.ActionBatteryCell.allCases
-        where cell != .armedScoped && cell != .armedCreateonly {
+        // #214 joins the scoping cells: it rides createonly's belt deliberately,
+        // so it must be excluded here for the same reason the other two are.
+        let scoping: Set<LocalChatBackend.ActionBatteryCell> =
+            [.armedScoped, .armedCreateonly, .armedScopedv2]
+        for cell in LocalChatBackend.ActionBatteryCell.allCases where !scoping.contains(cell) {
             for tag in ["remind", "alarm", "calendar", "haiku"] {
                 #expect(LocalChatBackend.scopedBelt(from: belt, cell: cell, promptTag: tag).map(\.name) == belt.map(\.name))
             }
         }
+    }
+
+    /// #214: the structural cell must narrow EXACTLY like `createonly` — the
+    /// belt is held constant against that arm on purpose, so the only things
+    /// differing from #200F's measurement are the instructions (composition
+    /// licensing) and the production baseline underneath. If these two ever
+    /// diverge, the lane silently stops being the comparison it claims to be.
+    @Test @MainActor func scopedv2NarrowsExactlyLikeCreateonly() {
+        let belt = fullArmedBelt()
+        for tag in ["remind", "alarm", "calendar", "haiku"] {
+            let v2 = LocalChatBackend.scopedBelt(from: belt, cell: .armedScopedv2, promptTag: tag)
+            let createonly = LocalChatBackend.scopedBelt(from: belt, cell: .armedCreateonly, promptTag: tag)
+            #expect(v2.map(\.name) == createonly.map(\.name))
+            // And it must genuinely be NARROW — the whole premise is fewer
+            // tools, so a regression that made it identity would quietly turn
+            // the lane into a no-op that still "passes".
+            #expect(v2.count < belt.count)
+        }
+        // The haiku canary rides the remind scope: action tools present,
+        // poetry requested. That adversarial pairing IS the grab measurement.
+        let haiku = LocalChatBackend.scopedBelt(from: belt, cell: .armedScopedv2, promptTag: "haiku")
+        #expect(haiku.contains { $0.name == "createReminder" })
     }
 
     /// #200G (PROMOTED 2026-07-29, #200F verdict, corded run @ a656004):
