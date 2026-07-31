@@ -11789,7 +11789,7 @@ correct-count be reduced before any bar is read.
 the existing 200/200 history — those runs simply do not contain the information,
 and the classifier now says so out loud instead of implying they were clean.
 
-## #212 — WeatherKit returns nothing: 0 forecasts in 40 trials, and no instrument was watching
+## #212 — WeatherKit returns nothing: 0/40. DIAGNOSED 2026-07-31 (JWT auth rejection); fix is ACCOUNT-SIDE, open.
 
 **FILED 2026-07-31 from run `01FA0ECC` (build 1600, OTA Debug). NOT fixed.**
 
@@ -11884,9 +11884,24 @@ motion questions — **4 of 9** valid trials vs **0 of 10** in control. `t9` wen
 street address for a question that asked neither where nor whether. **Answers
 stayed correct, so no bar broke** — but it is slower, chattier, and discloses
 location nobody asked for. **This motivates the redirect cell deliberately NOT
-built here** ("for steps, calories or sleep use readHealth"): naming what the tool
-is *for* may restore the confidence that scoping removed. That is now an
-evidenced next lane, not a guess.
+built here**: naming what the tool is *for* may restore the confidence that
+scoping removed. That is now an evidenced next lane, not a guess.
+
+**FOLLOW-ON BUILT 2026-07-31, unrun.** `armed-motionredirect` = the promoted text
+plus one sentence, "For health metrics, use readHealth." **It deliberately does
+NOT say "step".** The obvious phrasing — "for step counts, use readHealth" —
+would reinstate the exact phrase whose presence caused the 0/10 misroute, which
+is the confound the belt test caught in the first draft of the scoped text. The
+redirect therefore points by DOMAIN, never by metric, and a test pins both that
+constraint and that the text is the promoted description PLUS a sentence rather
+than a third rewording.
+
+Bars pre-registered in the dispatch: gate ≥2/10 chaining in control (measured
+4/9); primary ≤1/10 chaining in treatment; **guard — `stepsdirect` must still
+answer ≥8/10 in the treatment arm, and if the boundary sentence re-breaks #211's
+win the cell does not promote regardless of what it does for chaining.** A fix
+that trades a 10/10 answer for a tidier tool trace is a regression wearing a
+win's clothes.
 
 **Honesty note on the numbers:** all ten treatment replies are byte-identical
 ("You've taken 3,116 steps today."). Control replies varied in wording, so
@@ -11926,7 +11941,7 @@ confirmation gate exists to excuse it.
 **Unlike #209, this IS battery-measurable** — the effect is 0/20, not 1.4%. The fix
 belongs in a measured cell with a real bar.
 
-## #210 — #26's condense-and-retry guard does not fire on the REAL context-overflow error
+## #210 — #26's condense-and-retry guard did not fire on the REAL context-overflow error. FIXED 2026-07-31.
 
 **FILED 2026-07-31 out of #209's pooled error data. Production-facing. NOT fixed —
 this is a finding, and the lane is unrouted.**
