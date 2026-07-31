@@ -2215,6 +2215,55 @@ struct DeviceToolBeltTests {
         #expect(uncapped.contains(long))
     }
 
+    // MARK: - (#197) a tool throw must never render internals
+
+    /// #197's specimen put the tool's FULL DESCRIPTION, `RELAY:
+    /// TALARIA.TOOLEVENTRELAY`, and a live pointer
+    /// (`<TALARIA.DEVICELOCATIONPROVIDER: 0x108BD0B00>`) into the transcript.
+    /// The cause: `ToolCallError` carries the live `tool` INSTANCE, and
+    /// `failureMessage` fell through to `localizedDescription` for anything
+    /// that wasn't a `GenerationError` — which reflects the struct's stored
+    /// properties. Only `tool.name` is safe to show.
+    @Test @MainActor func toolThrowNeverRendersInternalsIntoTheTranscript() {
+        struct Boom: Error {}
+        let leaky = ImageTextTool(relay: ToolEventRelay(), conversationProvider: { nil })
+        let error = LanguageModelSession.ToolCallError(tool: leaky, underlyingError: Boom())
+        let message = LocalChatBackend.failureMessage(for: error)
+        // The tool's NAME is useful and safe.
+        #expect(message.contains("readImageText"))
+        // Nothing internal may appear.
+        for leak in ["RELAY", "TOOLEVENTRELAY", "0x", "Talaria.", "conversationProvider",
+                     "ImageTextTool", "underlyingError", "Boom"] {
+            #expect(!message.contains(leak), "leaked \(leak): \(message)")
+        }
+        // And it must not be the raw description, which is what leaked.
+        #expect(message != error.localizedDescription)
+    }
+
+    /// The #176 recovery clause is unreachable on this failure class — the
+    /// throw kills the turn upstream of the model — so the MESSAGE has to do
+    /// the recovering. Same shape as #201B's continuation and #202D's v2:
+    /// say what happened, and say what works.
+    @Test @MainActor func toolThrowMessageOffersARouteForward() {
+        struct Boom: Error {}
+        let error = LanguageModelSession.ToolCallError(
+            tool: ImageTextTool(relay: ToolEventRelay(), conversationProvider: { nil }),
+            underlyingError: Boom())
+        let message = LocalChatBackend.failureMessage(for: error)
+        #expect(message.lowercased().contains("again"))
+        // One plain sentence or two — not a stack trace.
+        #expect(message.count < 200)
+    }
+
+    /// Non-tool errors keep their existing friendly mapping — this change
+    /// must not swallow the GenerationError cases #30 relies on.
+    @Test func generationErrorMappingIsUnchangedByTheToolThrowFix() {
+        let message = LocalChatBackend.failureMessage(
+            for: LanguageModelSession.GenerationError.rateLimited(
+                LanguageModelSession.GenerationError.Context(debugDescription: "x")))
+        #expect(message.contains("rate-limited"))
+    }
+
     // MARK: - (#207) image-turn routing
 
     /// The signal seam: the router must be TOLD an image is attached.

@@ -1653,6 +1653,23 @@ final class LocalChatBackend: HermesClientProtocol {
     /// Plain-language reasons for `.failed(String)` — never a bare error dump
     /// for the cases the on-device model actually produces.
     nonisolated static func failureMessage(for error: Error) -> String {
+        // #197 FIX: a tool throw must never render internals. `ToolCallError`
+        // carries the LIVE tool instance, and its description reflects that
+        // struct's stored properties — which is how the transcript ended up
+        // showing the tool's full description string, `RELAY:
+        // TALARIA.TOOLEVENTRELAY`, and a live pointer
+        // (`<TALARIA.DEVICELOCATIONPROVIDER: 0x108BD0B00>`) on 2026-07-27.
+        // Only `tool.name` is safe to surface.
+        //
+        // The #176 recovery clause cannot help here: this class throws ABOVE
+        // `call()` (the argument-DECODE layer), so it kills the turn upstream
+        // of the model and no tool can catch it. **The message therefore has
+        // to do the recovering** — name what failed, and name what works.
+        // Same shape as #201B's continuation and #202D's clause v2, both of
+        // which measured well.
+        if let toolError = error as? LanguageModelSession.ToolCallError {
+            return "Talaria couldn't read the arguments for \(toolError.tool.name) on that turn. Ask again and it should go through."
+        }
         guard let generationError = error as? LanguageModelSession.GenerationError else {
             let described = error.localizedDescription
             return described.isEmpty ? "The on-device model failed to respond." : described
@@ -2631,18 +2648,25 @@ extension LocalChatBackend {
         // moves. `options: nil` is the profile-backed path (#200E): an empty
         // GenerationOptions is all-nil fields, so the session profile's
         // modifiers govern the request.
-        let respondTask = Task { try await session.respond(to: Prompt(prompt), options: options ?? GenerationOptions()).content }
+        // #208: keep the whole Response, not just `.content` — `usage`
+        // carries the real output-token count, which is the only way to
+        // answer whether #102's 1024 cap is ever within reach of a turn.
+        let respondTask = Task { try await session.respond(to: Prompt(prompt), options: options ?? GenerationOptions()) }
         let timeoutTask = Task { try? await Task.sleep(for: .seconds(35)); respondTask.cancel() }
         do {
-            let text = try await respondTask.value
+            let response = try await respondTask.value
+            let text = response.content
+            let inTok = response.usage.input.totalTokenCount
+            let outTok = response.usage.output.totalTokenCount
             timeoutTask.cancel()
             let flat = text.replacingOccurrences(of: "\n", with: " / ")
             let lower = text.lowercased()
             let cant = lower.hasPrefix("i can\u{2019}t") || lower.hasPrefix("i cant") || lower.hasPrefix("i cannot") || lower.hasPrefix("i can not") || lower.hasPrefix("i can't")
             let denial = Self.batteryDenialPatterns.contains { lower.contains($0) }
-            Self.batteryEmit("battery: shape=\(shape) p=\(promptTag) t=\(trial) cant=\(cant) denial=\(denial) chars=\(text.count) text=\(String(flat.prefix(500)))")
+            Self.batteryEmit("battery: shape=\(shape) p=\(promptTag) t=\(trial) cant=\(cant) denial=\(denial) chars=\(text.count) inTok=\(inTok) outTok=\(outTok) text=\(String(flat.prefix(500)))")
             Self.batteryRecorder.endTrial(shape: shape, prompt: promptTag, trial: trial,
-                                          text: text, cant: cant, denial: denial)
+                                          text: text, cant: cant, denial: denial,
+                                          inputTokens: inTok, outputTokens: outTok)
         } catch is CancellationError {
             timeoutTask.cancel()
             Self.batteryEmit("battery: shape=\(shape) p=\(promptTag) t=\(trial) TIMEOUT — wedged trial guillotined")
