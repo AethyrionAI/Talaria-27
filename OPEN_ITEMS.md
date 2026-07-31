@@ -12348,8 +12348,25 @@ reading a system dialog, and no machine deadline is fair to that.
   deciding parks a waiter indefinitely. What that should do to the turn is
   undecided.
 
-**Test honesty:** the pin (`locationFixHasABoundedDeadline`) asserts only that a
-bounded, non-zero deadline exists. `DeviceLocationProvider` is a concrete
-`CLLocationManagerDelegate` with no protocol seam, so the generation-counted
-resume path cannot be driven from a test without a refactor. A behavioural test is
-owed.
+**Test honesty — PAID 2026-07-31 (2A seam, Fable):** `DeviceLocationProvider` now
+takes a `Seam` (four MainActor closures over the concrete `CLLocationManager`),
+an injectable `NotificationCenter`, and an injectable `fixDeadline`; the
+production `init()` wires the real manager and is the only line no test reaches.
+`DeviceLocationProviderTests` drives all three waiting policies through the REAL
+delegate/foreground entry points: the deadline resumes a silent fix's waiter
+once with nil; a STALE deadline (armed for an already-resolved request) cannot
+fail a later request — the generation-counter invariant; a dismissed dialog
+resolves `.notDetermined` on foreground exactly once; a foreground that races a
+real decision stands down for the delegate; a real decision resolves once and
+tears the observer down; concurrent waiters all resume (a double resume would
+trap `CheckedContinuation`). The load-bearing tests were mutation-verified — the
+guards were removed one build and the corresponding tests failed — so they are
+known to bite, not decor. The old weak pin's apology is deleted; the constant
+pin survives as `productionFixDeadlineIsBoundedAndSane`.
+
+**Dispatch-wording note (2A):** the dispatch phrased the generation invariant as
+"a late FIX does not resume a later request's waiter." That is not what
+production does or should do: `didUpdateLocations` resolves any current waiter
+with the genuinely fresh fix it just received. The counter exists so a late
+DEADLINE cannot fail a later request — which is what the code comments, this
+item, and now the tests all pin.
