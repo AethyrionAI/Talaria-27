@@ -2863,6 +2863,15 @@ extension LocalChatBackend {
         /// 10/10 (Fisher two-tailed p = 1.08e-05), motion questions unaffected
         /// at 9/9.
         case armedMotionrollback = "armed-motionrollback"
+        /// #211 follow-on: the promoted scoped text PLUS a boundary sentence
+        /// pointing at `readHealth` by DOMAIN, never by naming a metric.
+        ///
+        /// Targets the recorded COST of the #211 promotion, not its win: the
+        /// promoted arm chained extra tools on motion questions 4/9 vs 0/10.
+        /// The guard on this cell is therefore the #211 win itself — if the
+        /// redirect re-breaks the step question, it does not promote no matter
+        /// what it does for chaining.
+        case armedMotionredirect = "armed-motionredirect"
         /// #201B: the contact promotion's pinned ROLLBACK — `ContactsTool` with
         /// `continuesAfterNoMatch` explicitly false, i.e. the bare not-found
         /// text that produced 14/80 dead-end misses across two n=40 runs.
@@ -2908,6 +2917,15 @@ extension LocalChatBackend {
             return tools.map { tool in
                 if let calendar = tool as? CalendarEventTool {
                     return CalendarEventToolRequiredFields(relay: calendar.relay, confirmations: calendar.confirmations)
+                }
+                return tool
+            }
+        case .armedMotionredirect:
+            // #211 follow-on: one description swap, promoted text + boundary.
+            return tools.map { tool in
+                if var motion = tool as? MotionTool {
+                    motion.description = MotionTool.redirectDescription211B
+                    return motion
                 }
                 return tool
             }
@@ -3395,6 +3413,15 @@ extension LocalChatBackend {
     func runMotionScopeBattery(trials: Int) async {
         await runActionBattery(trials: trials,
                                cells: [.armed, .armedMotionrollback],
+                               promptSet: Self.motionScopeBatteryPrompts)
+    }
+
+    /// #211 follow-on: PROMOTED production vs production-plus-boundary, on the
+    /// same two prompts. `motiondirect` carries the effect under test (extra
+    /// tool chaining); `stepsdirect` is the guard — the #211 win must survive.
+    func runMotionRedirectBattery(trials: Int) async {
+        await runActionBattery(trials: trials,
+                               cells: [.armed, .armedMotionredirect],
                                promptSet: Self.motionScopeBatteryPrompts)
     }
 
