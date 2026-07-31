@@ -11789,10 +11789,36 @@ the battery store only — never the transcript, so it cannot leak internals the
 #197's dump did. Wired on the read tools first; `result == nil` means NOT CAPTURED,
 never "empty".
 
-**Next: one re-run of the read-tool battery on a build carrying the capture, and
-the real error names the cause.** Remaining candidates, none yet distinguishable:
-a WeatherKit service-auth/token failure, a first-use registration delay, or a
-device-side network condition at run time.
+### DIAGNOSED 2026-07-31 — run `FA4947E7`, build 1606: the service rejects our token
+
+The capture worked on its first run. **40 of 40 `currentWeather` calls returned the
+identical error:**
+
+```
+Weather lookup failed: The operation couldn't be completed.
+(WeatherDaemon.WDSJWTAuthenticatorServiceListener.Errors error 2.)
+```
+
+**WeatherKit's JWT authenticator rejected the app's token.** Read with the signing
+evidence — entitlement present in the signed binary AND the provisioning profile —
+this is a service-side AUTHORIZATION failure: the token is being rejected, not
+omitted. It is not network (the same runs answered `readHealth` correctly, on a
+build installed over the network minutes earlier) and not a missing capability.
+
+**The remaining question is account-side and belongs to Owen, not the code:**
+WeatherKit service enablement for this App ID, propagation delay after enabling, or
+the account-level WeatherKit agreement. Which of those it is cannot be determined
+from the device, and this item should not guess between them a second time.
+
+**Fixed in code (the honest-failure part, #202D's rule):** the tool's message used
+to blame "a network connection and the app's WeatherKit capability" — **both
+verifiably fine**, sending the reader to check two things that are not broken.
+An authenticator failure is now named as such and marked as not-retryable;
+everything else reports the underlying description without inventing a cause.
+
+**Instrument note:** this is the first question the #212 tool-result capture
+answered, and it answered it on the first run. The cause had been produced 40 times
+already and discarded 40 times.
 
 **Why it went unnoticed:** no battery has ever called a READ tool (#209), so
 `currentWeather` had never been exercised end-to-end by any instrument. It may have
