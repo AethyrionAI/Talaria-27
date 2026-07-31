@@ -616,10 +616,52 @@ def tool_result_report(run):
     print()
 
 
+def probe_error_report(run):
+    """#213: a router probe row can now say the generation THREW.
+
+    It could not before, and the omission was not neutral. `routeNeedsDeviceTool`
+    fails safe to `armed` — right for a live turn — so on an `expected: true`
+    row a CRASHED generation matched the expectation and was scored CORRECT.
+    Five of the ten baseline rows are `expected: true`, so half the 200/200
+    series could not tell a right answer from a fallback.
+
+    `errors: null` means the run predates #213, NOT zero — reported as unknown
+    rather than counted clean."""
+    probes = run.get("probes") or []
+    if not probes:
+        return
+    scored = [p for p in probes if p.get("errors") is not None]
+    if not scored:
+        print("=== router probe errors (#213): NOT RECORDED in this run —"
+              " a crashed generation on an `expected: true` row is scored"
+              " CORRECT and cannot be distinguished here.\n")
+        return
+    total = sum(p["errors"] for p in scored)
+    print(f"=== router probe errors (#213) — {total} across {len(scored)} rows")
+    if not total:
+        print("  none: every row's correct-count is a real classification.\n")
+        return
+    # The rows where a failure was silently rewarded.
+    inflated = [p for p in scored if p["errors"] and p.get("expected") is True]
+    honest = [p for p in scored if p["errors"] and p.get("expected") is False]
+    for p in inflated:
+        print(f"  !! INFLATED  {p['correct']}/{p['trials']} but {p['errors']} were"
+              f" fail-safe crashes — expected=true, so each crash scored CORRECT"
+              f"  [{p.get('band')}] {p['probe'][:60]}")
+    for p in honest:
+        print(f"     counted as misses ({p['errors']}) — expected=false"
+              f"  [{p.get('band')}] {p['probe'][:60]}")
+    if inflated:
+        print("  Any row above with a nonzero count must have its correct-count"
+              " reduced by that many before the bar is read.")
+    print()
+
+
 def main(path):
     run = json.load(open(path))
     error_taxonomy_report(run)
     tool_result_report(run)
+    probe_error_report(run)
     if run.get("probes") and not run.get("trials"):
         return probe_report(run)
     if run.get("kind") == "twoturn":
