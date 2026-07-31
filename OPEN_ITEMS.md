@@ -11760,6 +11760,54 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
+## #210 — #26's condense-and-retry guard does not fire on the REAL context-overflow error
+
+**FILED 2026-07-31 out of #209's pooled error data. Production-facing. NOT fixed —
+this is a finding, and the lane is unrouted.**
+
+`LocalChatBackend.isContextOverflow` (line 1647) returns true for exactly one
+thing:
+
+```swift
+guard let generationError = error as? LanguageModelSession.GenerationError else { return false }
+if case .exceededContextWindowSize = generationError { return true }
+```
+
+Its two callers (lines 349, 512) are the #26 guard: on overflow, rebuild with
+condensation forced and retry once. **The two real overflow failures in the record
+do not match it**, so the guard never fires and the turn simply dies:
+
+```
+Provided 8,583 tokens, but the maximum allowed is 8,192.::Provided 8,583 tokens,
+but the maximum allowed is 8,192.: The operation couldn't be completed.
+(TokenGenerationInference.DecoderModelError error 3.)::inferenceFailed::…
+```
+
+**The evidence that this is not a GenerationError**, and therefore that the cast
+fails: `GenerationError` is declared `: Swift.Error, Foundation.LocalizedError` in
+the beta-4 swiftinterface — **no `CustomStringConvertible`** — so
+`String(describing:)` on it renders the ENUM CASE NAME. Neither recorded string
+carries a case name; both are an NSError-style `::` chain bottoming out in
+`TokenGenerationInference.DecoderModelError error 3` / `inferenceFailed`. The
+overflow surfaces from a lower layer than the case the guard tests for.
+
+**Honest limits.** n=2, both on the `calendar` prompt (`armed` and
+`armed-stallfix`), 07-28 and 07-29. It is possible the SDK sometimes wraps this as
+`.exceededContextWindowSize` and sometimes does not; these two were not wrapped.
+The inference is sound for these two and should be confirmed before any fix.
+
+**Why it matters beyond two trials.** `rebuildSession` replays `transcriptTurns`,
+so ordinary long conversations grow toward the 8,192 INPUT ceiling — this is not a
+battery artifact. #208 falsified the OUTPUT cap (#102's 1024) as the D4 mechanism;
+nobody has ever tested the input ceiling, and the guard meant to handle it is
+looking for the wrong error shape. **A user hitting this sees a dead turn, not a
+condensed retry.**
+
+**Shape of a fix, unbuilt:** widen the predicate to match the failure by content
+(the "maximum allowed" / `exceededContextWindowSize` pair) rather than by a single
+enum case, and pin it with a test built from the verbatim strings above. Cheap. Do
+not touch the condensation budget itself without measurement.
+
 ## #209 — "ERROR" was never one disease: five mechanisms behind one excluded label
 
 **OPENED 2026-07-31. Instrument-only so far; no production change, no device run.**
@@ -11778,14 +11826,17 @@ from pasted classifier output shows **at least five distinct mechanisms**:
 | D | `ToolCallError(tool: Talaria.DeviceHealthTool(…` | cause buried, see below |
 | E | `Error Domain=FoundationModels.LanguageModelError Code=-1` | undifferentiated |
 
+**MEASURED 2026-07-31, and the first retraction below was ITSELF wrong — see the
+"pooled over 48 runs" section further down, which is the authoritative one.**
+
 **Two of my own claims retracted in the course of opening this item.**
 
-1. **The optional-field hypothesis was WRONG and was killed before it was built.**
-   `readHealth`'s `metric: String` is required, the same shape #200S/#200X fixed
-   twice, and the obvious next move was to make it optional. Bucket A shows the
-   actual failure is corrupt generated JSON (`"Sam"Sam"`, a `<ctrl43>` leak) on the
-   CONTACT tool's `term` — an optional field does nothing for it. This is #199's
-   lesson a second time: measure the mechanism before building the obvious fix.
+1. ~~**The optional-field hypothesis was WRONG and was killed before it was
+   built.**~~ **THIS RETRACTION IS RETRACTED.** It rested on bucket A's corrupt
+   JSON, which the pooled data then showed is **1 occurrence in 108**, while
+   bucket D is **13 of 13** missing-required-property. The original hypothesis was
+   right. Generalising from the first sample seen is the same small-n error the
+   batteries exist to prevent — made here in prose, where no bar could catch it.
 2. **"D's cause is structurally absent" was WRONG.** Verified against the beta-4
    swiftinterface: `LanguageModelSession.ToolCallError` is a struct with TWO stored
    properties, `tool` and `underlyingError`, so `String(describing:)` reflects both.
@@ -11813,6 +11864,59 @@ arithmetic and exclusion semantics are unchanged.
   guards context overflow with condense-and-retry-once (#26,
   `LocalChatBackend.swift:514`), yet a run recorded 8,529 tokens escaping it —
   either the battery path bypasses the guard or condensation fell short. Unmeasured.
+
+### POOLED OVER 48 RUNS (2026-07-31) — the authoritative numbers
+
+The phone only retains 10 runs (`BatteryRunStore.maxRuns`), and the error-carrying
+ones had aged out. **The Messages attachment store had all 48 ever sent** — nothing
+needed re-exporting. Owen's question is what recovered the dataset.
+
+**3,578 trials, 108 errors (3.02%), 10 timeouts.** One run (`20260728-194237`)
+errored on **81 of 139** trials, all bucket E — a run where the model service died,
+not a sample of normal failure. Reading composition through it is the cold-start
+mistake again, so both columns are given:
+
+| bucket | all 48 runs | excluding the broken run |
+|---|---|---|
+| **D** missing required property | 12.0% | **48.1%** |
+| E LanguageModelError | 80.6% | 22.2% |
+| F unclassified | 2.8% | 11.1% |
+| B input overflow | 1.9% | 7.4% |
+| C resource pressure | 1.9% | 7.4% |
+| A JSON corruption | 0.9% | 3.7% |
+
+**Every one of the 13 D causes is a missing required property**, and
+`underlyingError` was present on **13 of 13** — the SDK reading is confirmed
+against real data, and the extraction path is no longer unverified:
+
+| property | tool | n | content emitted |
+|---|---|---|---|
+| `metric` | `DeviceHealthTool` | 5 | `{}` |
+| `title` | `ReminderCreateTool` | 4 | `{"due": …, "list": ""}` |
+| `place` | `WeatherTool` | 2 | `{}` |
+| `title` | `CalendarEventTool` | 1 | `{}` |
+| `durationMinutes` | `CalendarEventTool`**`RequiredFields`** | 1 | the pinned ROLLBACK cell |
+
+**That last row is a natural experiment already in the data.** The required-fields
+calendar twin threw the error its promoted counterpart structurally cannot, because
+#200X made exactly that field optional. **#200X is vindicated on a mechanism its
+rate evidence never touched — and a rollback twin turns out to be a control arm,
+not just a revert.** That is now the stated reason to keep building them.
+
+**`currentWeather` was a documented CONTRADICTION.** Its `@Guide` has said
+"Optional… Leave empty for the user's current location" since it shipped, while the
+type said required. The model obeyed the prose, emitted `{}`, and the turn died.
+Week-plan finding 3 in its purest form: when behaviour resists an instruction, look
+for a structural constraint saying the opposite.
+
+**This disease is NOT battery-measurable, and no bar should pretend otherwise.**
+Conditional rates: worst cell `armed/haiku` **5/350 = 1.4%**; pooled by prompt,
+haiku 0.92%, calendar 0.53%, remind 0.13%, alarm/norway/canary 0.00%. At n=30 an
+arm expects 0.4 hits and will read zero either way. Writing an efficacy bar here
+would be the #201 mis-specification a fifth time — a gate above the disease's own
+rate. **The guarantee is structural, so the proof belongs in a test, not a battery:**
+`RequiredPropertyDecodeTests` replays the exact recorded payloads and pins that each
+promoted schema accepts what its rollback twin still refuses.
 
 ## #208 (Lane 4) — the token cap is NOT the D4 mechanism. Hypothesis falsified; #102's cap stays.
 
