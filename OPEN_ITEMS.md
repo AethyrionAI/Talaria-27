@@ -11760,6 +11760,35 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
+## #213 — the router probe could not record an error, and scored the fail-safe as CORRECT
+
+**FILED AND FIXED 2026-07-31. Instrument integrity; no production behaviour change.**
+
+`routeNeedsDeviceTool` catches everything and fails safe to `armed` — **correct for
+a live turn**, and not changed here. But `RouterProbeRecord` had no error field, so
+the probe could not tell that a generation threw. On a row with `expected: true`
+the fail-safe MATCHED the expectation and was counted **correct**.
+
+**Five of the ten baseline rows are `expected: true`.** So half the 200/200 series,
+#202A's 6/6, and the image grid could not distinguish "the router judged right"
+from "the router died and fell back."
+
+**Why no filed verdict is believed wrong.** The other five rows are an accidental
+control: on `expected: false` a failure scores as a MISS, and they sit at 100/100.
+That bounds the real error rate near zero. **Nobody chose that safeguard** — it was
+luck, and luck is not a measurement.
+
+**Fixed:** a DEBUG-only `routerFailureTally`, sampled as a delta around each probe
+row, recorded as `RouterProbeRecord.errors` and emitted in the `router:` grammar.
+`errors == nil` means the run PREDATES #213, not zero — the classifier reports
+pre-#213 runs as "NOT RECORDED" rather than counting them clean, and flags any
+`expected: true` row with a nonzero count as **INFLATED**, instructing that its
+correct-count be reduced before any bar is read.
+
+**Honest scope:** this records failures from now on. It cannot retroactively clean
+the existing 200/200 history — those runs simply do not contain the information,
+and the classifier now says so out loud instead of implying they were clean.
+
 ## #212 — WeatherKit returns nothing: 0 forecasts in 40 trials, and no instrument was watching
 
 **FILED 2026-07-31 from run `01FA0ECC` (build 1600, OTA Debug). NOT fixed.**
