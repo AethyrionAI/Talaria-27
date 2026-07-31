@@ -12308,9 +12308,35 @@ reading a system dialog, and no machine deadline is fair to that.
   renders that honestly as location-unavailable. The observer is armed only while a
   prompt is pending and torn down by whichever of the delegate or the foreground
   lands first.
-- **1C (per-tool deadlines everywhere) NOT decided** — it was in the recommendation
-  but Owen addressed 1A only. Still on the table; `DeviceToolTimeout` already exists
-  and is on Contacts and Places.
+- **1C DECIDED AND SHIPPED 2026-07-31 (Owen: "do 1c too"). The audit found the gap
+  was much smaller than "every tool" — and two tools that must NOT be bounded.**
+
+  **Bounded now (framework waits that could not otherwise end):**
+  - `ImageTextTool` — Vision OCR on a large or awkward image.
+  - `MotionTool` — `CMPedometer.queryPedometerData`, whose completion is not
+    guaranteed to fire. (`CMPedometer` is not Sendable, so it is constructed INSIDE
+    the closure — the same constraint that shaped the Places rewrite in #200Y.)
+
+  **Already bounded, discovered during the audit rather than assumed:**
+  - `LocationTool` / `WeatherTool` / `PlacesTool` route through
+    `currentLocation()`, which #203 already bounds at 10s.
+  - `ContactsTool`, `BarcodeReaderTool`, `ConversationSearchTool` carry
+    `DeviceToolTimeout` from #200Y.
+
+  **Deliberately NOT bounded, and this is the load-bearing part:**
+  - **The three ACTION tools wait on the CONFIRMATION GATE — a human.** Bounding
+    them would cancel a create while the user is reading the card. Same principle as
+    `ensureAuthorization` in 2A: **never put a machine deadline on a person.**
+  - `DeviceHealthTool`'s `requestAuthorization` and the EventKit read tools'
+    `requestFullAccess…` are permission SHEETS. A 12s cap there would fire while the
+    user reads the dialog. **Their post-permission queries remain unbounded and are
+    the honest residue of 1C** — bounding those needs the query separated from the
+    request, which is a refactor, not a wrapper.
+  - `DeviceStatusTool` does no I/O at all.
+
+  **So "per-tool deadlines everywhere" was the wrong frame.** The right one is
+  *bound the framework wait, never the human wait* — and once that line is drawn,
+  most of the belt was already covered and two more tools finish the job.
 
 **Superseded — the original framing:**
 
