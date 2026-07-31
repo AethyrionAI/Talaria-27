@@ -2796,6 +2796,22 @@ extension LocalChatBackend {
         /// them restores the geolocation behaviour: 5 of 8 creates carried an
         /// invented location in #200W, twice the home street address.
         case armedCalrollback = "armed-calrollback"
+        /// #209: the READ-tool promotion's pinned ROLLBACK, as a measured cell
+        /// — `DeviceHealthToolRequiredMetric` + `WeatherToolRequiredPlace`,
+        /// i.e. `metric` and `place` required in the schema again.
+        ///
+        /// **This cell is not expected to move a rate, and that is not what it
+        /// is for.** The disease it restores runs at 1.4% on the worst cell
+        /// (`armed/haiku`, 5/350), far under anything a battery can resolve —
+        /// #209's dispatch pre-registers that no efficacy bar is writable. It
+        /// exists because `CalendarEventToolRequiredFields` proved its own
+        /// worth passively: it threw `does not contain a property
+        /// 'durationMinutes'` in the run records where the promoted tool
+        /// structurally could not, which is what let the error data identify
+        /// the mechanism at all. A rollback twin is a control arm that runs
+        /// itself in the background — keep it reachable and it will eventually
+        /// answer a question nobody thought to ask.
+        case armedFieldrollback = "armed-fieldrollback"
         /// #201B: the contact promotion's pinned ROLLBACK — `ContactsTool` with
         /// `continuesAfterNoMatch` explicitly false, i.e. the bare not-found
         /// text that produced 14/80 dead-end misses across two n=40 runs.
@@ -2841,6 +2857,19 @@ extension LocalChatBackend {
             return tools.map { tool in
                 if let calendar = tool as? CalendarEventTool {
                     return CalendarEventToolRequiredFields(relay: calendar.relay, confirmations: calendar.confirmations)
+                }
+                return tool
+            }
+        case .armedFieldrollback:
+            // #209: two swaps — the pre-promotion READ tools, whose
+            // defaultable fields are REQUIRED in the schema again. Both are
+            // restored together because they are one promotion.
+            return tools.map { tool in
+                if let health = tool as? DeviceHealthTool {
+                    return DeviceHealthToolRequiredMetric(relay: health.relay)
+                }
+                if let weather = tool as? WeatherTool {
+                    return WeatherToolRequiredPlace(relay: weather.relay, location: weather.location)
                 }
                 return tool
             }
@@ -2936,18 +2965,23 @@ extension LocalChatBackend {
     /// byte-for-byte.
     func runActionBattery(trials: Int, cells: [ActionBatteryCell] = [.armed],
                           includeGrabCanary: Bool = false,
+                          promptSet: [(tag: String, text: String)]? = nil,
                           warmup: Bool = LocalChatBackend.batteryWarmupDefault) async {
         guard Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
         }
         defer { Self.endBatteryRun() }
-        var prompts: [(tag: String, text: String)] = [
+        // #209: the three create prompts never call a READ tool, so no battery
+        // has ever exercised `readHealth` or `currentWeather` end to end.
+        // `promptSet` lets a lane supply its own; the default is unchanged, so
+        // every existing button keeps its pinned denominator.
+        var prompts: [(tag: String, text: String)] = promptSet ?? [
             ("remind", "Remind me to test Talaria at 4:30pm"),
             ("alarm", "Set an alarm for 6:30"),
             ("calendar", "Put lunch with Sam on my calendar Friday at noon"),
         ]
-        if includeGrabCanary {
+        if includeGrabCanary, promptSet == nil {
             prompts.append(("haiku", "Write a haiku about sledding"))
         }
         let shape = SessionShape.armedRouted
@@ -3254,6 +3288,35 @@ extension LocalChatBackend {
     /// model answers with what it already has.
     nonisolated static func spiralBudgetMode(tally: [String: Int]) -> GenerationOptions.ToolCallingMode {
         tally.values.contains { $0 >= 3 } ? .disallowed : .allowed
+    }
+
+    /// #209: prompts on which OMITTING the field is the CORRECT answer.
+    ///
+    /// This is the answer to an unevaluable disease: the missing-required-
+    /// property failure runs at 1.4% on existing prompts because it only ever
+    /// happened on SPURIOUS calls, so #209's dispatch pre-registered that no
+    /// efficacy bar was writable. But "What's the weather?" names no place, and
+    /// "How am I doing today?" names no metric — on these, an empty object is
+    /// what a correct model SHOULD produce, and the pre-#209 schema forbade it.
+    /// **Provoke the condition rather than lower the bar.**
+    ///
+    /// The two `-named` rows are the controls: a field IS available to fill, so
+    /// both schemas should behave identically. If the rollback arm fails those
+    /// too, the mechanism is not what this lane thinks it is.
+    nonisolated static let readToolBatteryPrompts: [(tag: String, text: String)] = [
+        ("weatherbare", "What's the weather?"),
+        ("weathernamed", "What's the weather in Biloxi?"),
+        ("healthbare", "How am I doing today?"),
+        ("healthnamed", "How many steps have I taken today?"),
+    ]
+
+    /// #209 one-tap wrapper: production vs the pinned read-tool rollback, on
+    /// prompts where omission is correct — 8 × trials generations. READ tools
+    /// only, so nothing is written and the reap is a no-op.
+    func runReadToolBattery(trials: Int) async {
+        await runActionBattery(trials: trials,
+                               cells: [.armed, .armedFieldrollback],
+                               promptSet: Self.readToolBatteryPrompts)
     }
 
     /// #200H one-tap wrapper: 3 cells × four prompts (grab canary

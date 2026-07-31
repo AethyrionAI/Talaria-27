@@ -539,6 +539,28 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #209 read-tool battery: production vs the pinned read-tool rollback on
+    // prompts where OMITTING the field is correct. READ tools only — nothing
+    // is written, so no auto-accept is needed and the reap is a no-op.
+    @ViewBuilder
+    private func readToolBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runReadToolBattery(trials: trials)
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #200I spiralfix re-measure: promoted control vs the event-scoped
     // reword of the lookup-spiral carve-out. Strikefix is parked (its
     // tally instrument is unproven), so this is 2 cells, not 3.
@@ -1252,6 +1274,11 @@ struct DiagnosticsSettingsScreen: View {
                 HStack(spacing: Design.Spacing.sm) {
                     actionBatteryButton(trials: 5, label: "Action battery n=5 (15)")
                     actionBatteryButton(trials: 20, label: "Action battery n=20 (60)")
+                }
+                // #209: production vs the pinned read-tool rollback, on prompts
+                // where omitting the field is CORRECT. 2 cells × 4 prompts × n.
+                HStack(spacing: Design.Spacing.sm) {
+                    readToolBatteryButton(trials: 10, label: "Read-tool battery n=10 (80)")
                 }
                 // #200B: 4 treatment cells × 4 prompts (haiku grab canary).
                 HStack(spacing: Design.Spacing.sm) {

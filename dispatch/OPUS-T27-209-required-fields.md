@@ -65,6 +65,55 @@ Precedent that this works: `CalendarEventToolRequiredFields` threw
 `does not contain a property 'durationMinutes'` in the records while the promoted
 tool never did. That pair is pinned too, so #200X's guarantee cannot regress.
 
+## ADDENDUM — the read-tool battery, and why a bar IS writable after all
+
+**Written before the run, same as everything above.**
+
+The "no efficacy bar" conclusion was correct for the prompts we HAD, and wrong as
+a general statement. The 1.4% figure comes from failures on **spurious** calls —
+the model grabbing `readHealth` during a haiku, or `currentWeather` during a
+calendar request. On those, the model had no reason to omit the field and mostly
+didn't.
+
+**Turn it around.** "What's the weather?" names no place. "How am I doing today?"
+names no metric. On prompts like these, **emitting `{}` is what a correct model
+should do** — and the pre-#209 schema forbade exactly that. The right response to
+an instrument that cannot see the disease is to provoke the disease, not to lower
+the bar until it fits.
+
+`Read-tool battery n=10 (80)`: `[.armed, .armedFieldrollback]` × 4 prompts × 10.
+Read tools only, so nothing is written and the reap is a no-op.
+
+| tag | prompt | field available to fill? |
+|---|---|---|
+| `weatherbare` | "What's the weather?" | **no** — omission is correct |
+| `weathernamed` | "What's the weather in Biloxi?" | yes — control |
+| `healthbare` | "How am I doing today?" | **no** — omission is correct |
+| `healthnamed` | "How many steps have I taken today?" | yes — control |
+
+### Pre-registered bars
+
+**Evaluability gate (must clear first, or nothing below is readable):** the
+ROLLBACK arm must show **≥3 of 20** missing-required-property errors pooled across
+its two bare prompts. Below that, the mechanism is rarer than this lane believes
+even under direct provocation, the run is **INCONCLUSIVE**, and no comparison is
+reported. Deliberately set UNDER the effect this design is built to elicit rather
+than over it — #201 was mis-specified four times by inverting exactly this.
+
+**Primary:** production shows **0** missing-required-property errors on the bare
+prompts. Any at all falsifies the structural claim that the failure class is now
+impossible, and that outranks every rate in this run.
+
+**Control (guards against the wrong mechanism):** the two `-named` prompts should
+behave the SAME in both arms. If the rollback arm fails those too, the failure is
+not about omission and this lane's story is wrong.
+
+**Answer quality, not just survival:** a production `weatherbare` turn should
+return weather for the current location, and `healthbare` should return the
+summary — not an error sentence. Surviving the decode is not the same as
+answering, and #202D is the standing reminder that a turn can complete and still
+be worthless.
+
 ## The bar that IS pre-registered: NO REGRESSION
 
 On the next battery that runs for any reason, against the standing #200K-pattern

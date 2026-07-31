@@ -924,7 +924,27 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedCalrollback.rawValue == "armed-calrollback")
         #expect(LocalChatBackend.ActionBatteryCell.armedDeadendrollback.rawValue == "armed-deadendrollback")
         #expect(LocalChatBackend.ActionBatteryCell.armedCarveoutrollback.rawValue == "armed-carveoutrollback")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 25)
+        // #209: the read-tool promotion's pinned rollback.
+        #expect(LocalChatBackend.ActionBatteryCell.armedFieldrollback.rawValue == "armed-fieldrollback")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 26)
+    }
+
+    /// #209: a "pinned rollback" that no cell can reach is dead code, not a
+    /// rollback. Both twins must be swapped in TOGETHER — they are one
+    /// promotion — and every other tool left alone.
+    @Test @MainActor func fieldrollbackSwapsBothReadToolsAndNothingElse() {
+        let belt = DeviceToolBelt.makeReadTools(
+            relay: ToolEventRelay(),
+            conversationProvider: { nil },
+            sessionCacheProvider: { [] },
+            spotlightEnabledProvider: { false }
+        )
+        let rolled = LocalChatBackend.destallBelt(from: belt, cell: .armedFieldrollback)
+        #expect(rolled.map(\.name) == belt.map(\.name))
+        #expect(rolled.contains { $0 is DeviceHealthToolRequiredMetric })
+        #expect(rolled.contains { $0 is WeatherToolRequiredPlace })
+        #expect(!rolled.contains { $0 is DeviceHealthTool })
+        #expect(!rolled.contains { $0 is WeatherTool })
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
