@@ -293,9 +293,21 @@ struct WeatherTool: Tool {
             }
             return lines.joined(separator: "\n")
         } catch {
-            // Missing entitlement, no network, or a WeatherKit outage — all
-            // land here; say so instead of inventing a forecast.
-            return "Weather lookup failed: \(error.localizedDescription). (WeatherKit needs a network connection and the app's WeatherKit capability.)"
+            // #212: the old text blamed "a network connection and the app's
+            // WeatherKit capability". Both were verifiably FINE — entitlement
+            // present in the signed binary AND the provisioning profile — and
+            // the real failure was
+            // `WDSJWTAuthenticatorServiceListener.Errors error 2`, 40/40: the
+            // weather service REJECTING the app's token. A message that names
+            // the wrong causes sends the reader to check two things that are
+            // not broken, which is worse than saying less. Auth failures are
+            // now named as such; everything else stays generic rather than
+            // guessing.
+            let described = error.localizedDescription
+            if described.contains("JWTAuthenticator") || described.contains("Authenticator") {
+                return "Weather is unavailable: the weather service rejected this app's credentials. That is an account/service setup issue, not something retrying will fix."
+            }
+            return "Weather lookup failed: \(described)"
         }
     }
 }
