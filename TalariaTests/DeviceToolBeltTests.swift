@@ -2392,12 +2392,44 @@ struct DeviceToolBeltTests {
     }
 
     /// Non-tool errors keep their existing friendly mapping — this change
-    /// must not swallow the GenerationError cases #30 relies on.
-    @Test func generationErrorMappingIsUnchangedByTheToolThrowFix() {
+    /// must not swallow the model-error cases #30 relies on.
+    ///
+    /// #198: asserted against the SUCCESSOR type. `LanguageModelError` (iOS 27)
+    /// replaces `GenerationError`, and #209's pooled data says it is what the
+    /// device actually throws — bucket E was 80.6% of all recorded errors. The
+    /// deprecated path keeps its own pin below.
+    @Test func modelErrorMappingIsUnchangedByTheToolThrowFix() {
+        let message = LocalChatBackend.failureMessage(
+            for: LanguageModelError.rateLimited(
+                LanguageModelError.RateLimited(resetDate: nil, debugDescription: "x")))
+        #expect(message.contains("rate-limited"))
+    }
+
+    /// #198: the deprecated path still maps while the symbol exists. When a
+    /// seed removes `GenerationError`, THIS test and the two quarantined
+    /// helpers are deleted together — and the successor pin above is what
+    /// survives.
+    @available(iOS, deprecated: 27.0, message: "Delete with GenerationError (#198).")
+    @Test func deprecatedGenerationErrorStillMapsWhileItExists() {
         let message = LocalChatBackend.failureMessage(
             for: LanguageModelSession.GenerationError.rateLimited(
                 LanguageModelSession.GenerationError.Context(debugDescription: "x")))
         #expect(message.contains("rate-limited"))
+    }
+
+    /// #198: the overflow guard must recognise the SUCCESSOR type's case.
+    /// #210 fixed this with a string check because the typed cast was failing —
+    /// on the deprecated type. This is the structural arm it was missing.
+    @Test func overflowGuardRecognisesTheSuccessorType() {
+        let err = LanguageModelError.contextSizeExceeded(
+            LanguageModelError.ContextSizeExceeded(
+                contextSize: 8192, tokenCount: 8583,
+                debugDescription: "Provided 8,583 tokens, but the maximum allowed is 8,192."))
+        #expect(LocalChatBackend.isContextOverflow(err))
+        // And a NON-overflow case of the same type must not trip it.
+        #expect(!LocalChatBackend.isContextOverflow(
+            LanguageModelError.rateLimited(
+                LanguageModelError.RateLimited(resetDate: nil, debugDescription: "x"))))
     }
 
     // MARK: - (#207) image-turn routing

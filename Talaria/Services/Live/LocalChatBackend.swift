@@ -1671,8 +1671,19 @@ final class LocalChatBackend: HermesClientProtocol {
     /// `recognizesTheOverflowShapeTheDeviceActuallySends` and
     /// `recognizesTheSecondRecordedOverflow`, and nothing else.
     nonisolated static func isContextOverflow(_ error: Error) -> Bool {
-        if let generationError = error as? LanguageModelSession.GenerationError,
-           case .exceededContextWindowSize = generationError { return true }
+        // #198: the TYPED successor first. `LanguageModelError` (iOS 27)
+        // replaces the deprecated `GenerationError`, and #209's pooled data
+        // says it is what the device actually throws — which is very likely
+        // WHY #210's original cast failed and the guard never fired. Its
+        // payload even carries `contextSize`/`tokenCount` as integers, so this
+        // arm needs no string parsing at all.
+        if let modelError = error as? LanguageModelError,
+           case .contextSizeExceeded = modelError { return true }
+        if legacyIsContextOverflow(error) { return true }
+        // #210's content check stays as the backstop. It is what caught the two
+        // real overflows in the record, and until a device run confirms which
+        // TYPE those arrived as, removing it would be trading a measured
+        // behaviour for an inferred one.
         let described = String(describing: error)
         return described.contains("maximum allowed is")
             && described.range(of: #"[Pp]rovided [\d,]+ tokens"#,
@@ -1699,10 +1710,71 @@ final class LocalChatBackend: HermesClientProtocol {
         if let toolError = error as? LanguageModelSession.ToolCallError {
             return "Talaria couldn't read the arguments for \(toolError.tool.name) on that turn. Ask again and it should go through."
         }
-        guard let generationError = error as? LanguageModelSession.GenerationError else {
-            let described = error.localizedDescription
-            return described.isEmpty ? "The on-device model failed to respond." : described
+        // #198: `LanguageModelError` (iOS 27) is the SUCCESSOR to the now-
+        // deprecated `GenerationError`, and #209's pooled data says it is what
+        // the device actually throws — bucket E, `Error Domain=FoundationModels
+        // .LanguageModelError`, was 80.6% of all recorded errors. It is matched
+        // FIRST; the deprecated type is kept below because it is still declared
+        // in the beta-4 SDK and nothing guarantees which one a given failure
+        // arrives as.
+        if let modelError = error as? LanguageModelError {
+            switch modelError {
+            case .contextSizeExceeded:
+                return "This conversation outgrew the on-device model's memory even after condensing older turns. Start a new chat to continue."
+            case .guardrailViolation:
+                return "Apple's on-device safety guardrails declined this request."
+            case .rateLimited:
+                return "The on-device model is rate-limited right now. Give it a moment and try again."
+            case .refusal:
+                return "The on-device model declined to answer this request."
+            case .unsupportedLanguageOrLocale:
+                return "The on-device model doesn't support this language or locale yet."
+            case .timeout:
+                return "The on-device model timed out on that turn. Ask again and it should go through."
+            // These three have NO counterpart in the deprecated enum — they are
+            // new surface, and saying "unsupported" plainly beats inventing a
+            // cause (#212's lesson: a message naming the wrong reason sends the
+            // reader to check something that is not broken).
+            case .unsupportedCapability, .unsupportedTranscriptContent, .unsupportedGenerationGuide:
+                return "The on-device model couldn't satisfy this request's format or capability."
+            @unknown default:
+                return modelError.localizedDescription
+            }
         }
+        if let legacy = legacyGenerationErrorMessage(for: error) { return legacy }
+        let described = error.localizedDescription
+        return described.isEmpty ? "The on-device model failed to respond." : described
+    }
+
+    /// #198: the DEPRECATED `GenerationError` overflow case, quarantined for
+    /// the same reason as `legacyGenerationErrorMessage` — see its note. Delete
+    /// both together when the symbol goes.
+    @available(iOS, deprecated: 27.0, message: "Delete with GenerationError; LanguageModelError.contextSizeExceeded is the successor (#198).")
+    nonisolated static func legacyIsContextOverflow(_ error: Error) -> Bool {
+        guard let generationError = error as? LanguageModelSession.GenerationError else { return false }
+        if case .exceededContextWindowSize = generationError { return true }
+        return false
+    }
+
+    /// #198: the DEPRECATED `GenerationError` arm, quarantined.
+    ///
+    /// Kept because deprecated is not removed — the beta-4 SDK still declares
+    /// it, and nothing guarantees which type a given failure arrives as. Held
+    /// in its own `@available`-annotated function so the deprecation warning
+    /// stops firing at the call site and the remaining #198 surface stays
+    /// legible; Swift silences deprecation inside a declaration that is itself
+    /// marked deprecated.
+    ///
+    /// **This does NOT remove the beta-5 risk and is not pretending to.** If a
+    /// seed deletes `GenerationError`, this function stops compiling and must
+    /// be deleted — at which point its four unique cases (`concurrentRequests`,
+    /// `assetsUnavailable`, `decodingFailure`, `unsupportedGuide`) become
+    /// unreachable by construction, since the type that carries them no longer
+    /// exists. Deleting it then costs nothing; deleting it NOW would drop
+    /// handling for a throw that is still possible today.
+    @available(iOS, deprecated: 27.0, message: "Delete with GenerationError; LanguageModelError is the successor (#198).")
+    nonisolated static func legacyGenerationErrorMessage(for error: Error) -> String? {
+        guard let generationError = error as? LanguageModelSession.GenerationError else { return nil }
         switch generationError {
         case .exceededContextWindowSize:
             return "This conversation outgrew the on-device model's memory even after condensing older turns. Start a new chat to continue."

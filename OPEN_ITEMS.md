@@ -11760,6 +11760,70 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
+## #198 — beta-4 deprecation sweep. 13 of 17 sites cleared; the remaining 8 are NOT mechanical.
+
+**STARTED 2026-07-31 after the Hermes audit named it the highest-severity unrouted
+item. Clean-build inventory: 17 distinct sites, 10 symbols, 6 files.**
+
+**Cleared (13 sites):**
+
+- **FoundationModels / `GenerationError` → `LanguageModelError`.** Not cosmetic.
+  `LanguageModelError` is the iOS 27 successor, and **#209's pooled data says it
+  is what the device actually throws** — bucket E was 80.6% of all recorded
+  errors. **So #210's typed cast was very likely failing because it tested the
+  DEPRECATED type.** `isContextOverflow` now matches
+  `LanguageModelError.contextSizeExceeded` first, whose payload carries
+  `contextSize`/`tokenCount` as integers — no string parsing. #210's content
+  check stays as the backstop: it caught the two real overflows in the record,
+  and until a device run confirms which TYPE those arrived as, removing it would
+  trade a measured behaviour for an inferred one.
+- **MapKit / `CLGeocoder` + `.placemark` → `MKGeocodingRequest`,
+  `MKReverseGeocodingRequest`, `MKMapItem.location`/`.address`.** Both request
+  types' `mapItems` getter is `NS_SWIFT_UI_ACTOR`, so `MKMapItem` is
+  MainActor-bound and NON-Sendable — the shape that already forced the
+  `CLLocationManager`/`CMPedometer`/`MKLocalSearch` rewrites. Each lookup and its
+  string extraction sit inside one MainActor hop.
+- **AlarmKit `stopButton`** — behaviour-neutral by Apple's own message.
+
+**BEHAVIOURAL DELTA, not buried:** `CLPlacemark` carried a `country` and
+`MKAddressRepresentations` has none. `readLocation` used to answer
+"Name, Locality, State, United States" and now answers "Name, Locality, State".
+This is a READ tool whose output the model consumes, and #200-era work showed
+tool-result phrasing changes behaviour — **small, but not a no-op, and it wants a
+device eyeball rather than an assumption.**
+
+**Two deliberate warnings remain by design:** the deprecated `GenerationError`
+arms are quarantined in `@available`-annotated helpers reading "Delete with
+GenerationError … (#198)". **This does NOT remove the beta-5 risk and is not
+pretending to** — deprecated is not removed, the SDK still declares the type, and
+nothing guarantees which one a failure arrives as. When a seed deletes it, both
+helpers and one test go together and the four cases unique to the old enum become
+unreachable by construction.
+
+### The remaining 8 sites are refactors, not sweep items — the audit's scoping was half right
+
+The audit called #198 "mechanical, file-scoped, safe to route to any executor".
+**True for the 13 above; NOT true for what is left:**
+
+- **`AVAudioSession.InterruptionType`/`InterruptionOptions` (4 sites).** The
+  successor is TWO separate notifications (`DidBecomeInactive` +
+  `ResumptionRecommendation`) replacing one notification with a type payload. The
+  "should resume" decision moves from an option flag to its own notification —
+  a structural rewrite of interruption handling, not a rename.
+- **`installTap(onBus:bufferSize:format:block:)` (2 sites).** Deprecated with **no
+  replacement named**, and it is the core capture tap feeding the speech
+  analyzer. Replacing it blind is not viable.
+- **`BGTaskScheduler.submit` (2 sites).** The successor `submitTaskRequest(_:)`
+  is ASYNC and documented "do not call this method from the main thread" — while
+  `beginLongSend` is MainActor-isolated and returns its handle synchronously,
+  with `nil` signalling submit failure. Migrating changes the signature of a
+  function wired into `ChatStore`'s send path. **That is the most load-bearing
+  path in the app and it has thin coverage.**
+
+**All three want their own lane with a device pass, not a sweep commit.** Filing
+them as such is the point of stopping here rather than pushing a risky refactor
+into a hygiene PR.
+
 ## #214 — THE STRUCTURAL LANE: narrow belt CLOSED. Composition licensing falsified; the disease is partly an instrument property.
 
 **FILED 2026-07-31. Dispatch `dispatch/OPUS-T27-214-scopedv2.md`, bars written
@@ -12019,7 +12083,39 @@ location nobody asked for. **This motivates the redirect cell deliberately NOT
 built here**: naming what the tool is *for* may restore the confidence that
 scoping removed. That is now an evidenced next lane, not a guess.
 
-**FOLLOW-ON BUILT 2026-07-31, unrun.** `armed-motionredirect` = the promoted text
+**FOLLOW-ON VERDICT FILED 2026-07-31 — CLOSED, hypothesis falsified and REPLICATED.
+Runs `6AAA4AC4` (19:29) and `328502AD` (23:20), corded @ whoGoesThere, debugger
+attached; both `endedCleanly`, zero exclusions across 80 trials.**
+
+| bar | pre-registered | run 1 | run 2 | pooled | |
+|---|---|---|---|---|---|
+| Gate — control chains | ≥2/10 | 5/10 | 5/10 | **10/20** | HOLDS |
+| **Primary** — treatment reduces it | ≤1/10 | 4/10 | 5/10 | **9/20** | **FAILS** |
+| **Guard** — `stepsdirect` survives | ≥8/10 | 10/10 | 10/10 | **20/20** | HOLDS |
+
+**Fisher exact two-tailed, pooled: p = 1.000.** Not a small effect — none.
+
+**The hypothesis was wrong.** The reading was that scoping the description removed
+the model's sense of what `readMotion` is FOR, so naming the boundary would confine
+it. The chains say otherwise: they run `readMotion → currentLocation →
+currentWeather` in BOTH arms. **The model is not confused about the tool — it is
+building an unsolicited context report**, and a sentence about which tool owns
+health metrics has no purchase on that.
+
+**What the lane DID establish, and it is worth more than the verdict: #211's
+promotion is robust.** `stepsdirect` answered 10/10 in three independent runs
+across three builds — the promotion run plus both of these. The no-"step" wording
+constraint held every time.
+
+**RECORD-KEEPING FAILURE, logged because it is the point of this file:** run 1 was
+scored on 2026-07-31 at 19:29, announced in conversation, and **never written
+here** — the item still read "unrun" while two runs existed, and the second run was
+launched under the belief that the lane was untouched. That is the #190
+ghost-blocker shape, self-inflicted, four hours after correcting two other stale
+headers. **An unfiled verdict is an unmade measurement.** The accident produced a
+replication, which is luck, not method.
+
+**Superseded note (kept for the record):** `armed-motionredirect` = the promoted text
 plus one sentence, "For health metrics, use readHealth." **It deliberately does
 NOT say "step".** The obvious phrasing — "for step counts, use readHealth" —
 would reinstate the exact phrase whose presence caused the 0/10 misroute, which
