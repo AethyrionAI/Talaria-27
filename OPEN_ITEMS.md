@@ -12083,7 +12083,39 @@ location nobody asked for. **This motivates the redirect cell deliberately NOT
 built here**: naming what the tool is *for* may restore the confidence that
 scoping removed. That is now an evidenced next lane, not a guess.
 
-**FOLLOW-ON BUILT 2026-07-31, unrun.** `armed-motionredirect` = the promoted text
+**FOLLOW-ON VERDICT FILED 2026-07-31 — CLOSED, hypothesis falsified and REPLICATED.
+Runs `6AAA4AC4` (19:29) and `328502AD` (23:20), corded @ whoGoesThere, debugger
+attached; both `endedCleanly`, zero exclusions across 80 trials.**
+
+| bar | pre-registered | run 1 | run 2 | pooled | |
+|---|---|---|---|---|---|
+| Gate — control chains | ≥2/10 | 5/10 | 5/10 | **10/20** | HOLDS |
+| **Primary** — treatment reduces it | ≤1/10 | 4/10 | 5/10 | **9/20** | **FAILS** |
+| **Guard** — `stepsdirect` survives | ≥8/10 | 10/10 | 10/10 | **20/20** | HOLDS |
+
+**Fisher exact two-tailed, pooled: p = 1.000.** Not a small effect — none.
+
+**The hypothesis was wrong.** The reading was that scoping the description removed
+the model's sense of what `readMotion` is FOR, so naming the boundary would confine
+it. The chains say otherwise: they run `readMotion → currentLocation →
+currentWeather` in BOTH arms. **The model is not confused about the tool — it is
+building an unsolicited context report**, and a sentence about which tool owns
+health metrics has no purchase on that.
+
+**What the lane DID establish, and it is worth more than the verdict: #211's
+promotion is robust.** `stepsdirect` answered 10/10 in three independent runs
+across three builds — the promotion run plus both of these. The no-"step" wording
+constraint held every time.
+
+**RECORD-KEEPING FAILURE, logged because it is the point of this file:** run 1 was
+scored on 2026-07-31 at 19:29, announced in conversation, and **never written
+here** — the item still read "unrun" while two runs existed, and the second run was
+launched under the belief that the lane was untouched. That is the #190
+ghost-blocker shape, self-inflicted, four hours after correcting two other stale
+headers. **An unfiled verdict is an unmade measurement.** The accident produced a
+replication, which is luck, not method.
+
+**Superseded note (kept for the record):** `armed-motionredirect` = the promoted text
 plus one sentence, "For health metrics, use readHealth." **It deliberately does
 NOT say "step".** The obvious phrasing — "for step counts, use readHealth" —
 would reinstate the exact phrase whose presence caused the 0/10 misroute, which
