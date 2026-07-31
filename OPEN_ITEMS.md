@@ -11841,6 +11841,28 @@ correct-count be reduced before any bar is read.
 the existing 200/200 history — those runs simply do not contain the information,
 and the classifier now says so out loud instead of implying they were clean.
 
+### COVERAGE GAP FOUND BY EXTERNAL AUDIT, fixed 2026-07-31 (Hermes §3.1)
+
+**The first cut wired ONE of four probe runners, and the commit message claimed
+"each probe row".** That was my overstatement. Three runners still scored a router
+throw as a correct answer on `expected: true` rows — and the worst of them is
+`runRouterProbe`, **the legacy #196 probe whose 200/200 series the program quotes
+as its baseline gate**; also `runImageRoutingProbe` (the instrument #207's
+promotion ran on) and `runLongContextProbe`.
+
+All four runners now sample the tally: **10 of 10 `recordProbe` call sites carry
+`errors:`**. The deterministic lenrule row passes an explicit `errors: 0` — it runs
+no generation and cannot throw, and nil there would have read as "not sampled",
+the one thing it is not.
+
+**The honest limit:** this is a SOURCE-LEVEL invariant that no test reaches. A new
+probe runner added without sampling would silently reintroduce the gap. The
+defence is a stated invariant on `RouterProbeRecord.errors` plus the classifier's
+"NOT RECORDED" line, which reports unsampled rows rather than counting them clean.
+**An external reader found this because the instrument's own claim was wider than
+its wiring — the third consecutive audit to catch something at a boundary the
+author had just worked on.**
+
 ## #212 — WeatherKit returns nothing: 0/40. DIAGNOSED 2026-07-31 (JWT auth rejection); fix is ACCOUNT-SIDE, open.
 
 **FILED 2026-07-31 from run `01FA0ECC` (build 1600, OTA Debug). NOT fixed.**
