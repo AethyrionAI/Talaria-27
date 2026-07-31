@@ -11760,7 +11760,7 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
-## #214 — THE STRUCTURAL LANE: narrow the belt and license composition. Built, unrun.
+## #214 — THE STRUCTURAL LANE: narrow belt CLOSED. Composition licensing falsified; the disease is partly an instrument property.
 
 **FILED 2026-07-31. Dispatch `dispatch/OPUS-T27-214-scopedv2.md`, bars written
 first. No production change — `armed-scopedv2` is a measured cell.**
@@ -11804,6 +11804,64 @@ grabs ≤1/10. **Primary B, the promotion-killer — treatment haiku content cle
 ≥8/10**, the bar that failed at 0/10 last time and the entire reason the lane
 exists. Primary C — remind ≥8/10 and calendar ≥8/10, so the create path is not
 traded away.
+
+### VERDICT FILED 2026-07-31 — run `1835BBF9`, corded @ whoGoesThere, debugger attached
+
+80 trials, `endedCleanly: true`, reap `reminders=30 events=21 alarms=21 failures=0`,
+backstop ZERO leftovers. **Zero ERROR, zero TIMEOUT — no exclusions in 80 trials.**
+(`appBuild: 1` is the corded signature: `ota-stage.sh` stamps the commit count,
+a direct Xcode build uses the project default. The proof of code identity is that
+`armed-scopedv2` appears in `cells` at all.)
+
+| bar | pre-registered | measured | |
+|---|---|---|---|
+| **Gate** — control shows grabs | ≥2/10 | **8/10** | HOLDS |
+| **Primary A** — treatment grabs | ≤1/10 | **0/10** | **HOLDS** |
+| **Primary C** — create path | remind/calendar ≥8/10 | **10/10 / 10/10** (alarm 10/10) | HOLDS |
+| **Primary B** — haiku content clean | ≥8/10 | **0/10** | **FAILS** |
+
+**The narrow belt does NOT promote.** Per pre-registration, B is the
+promotion-killer and it failed at the floor.
+
+**The belt kills grabs outright and kills composition with them.** 8/10 → 0/10
+grabs, and 8/10 → 0/10 poems. Control wrote verse in 8 of 10 (twice while ALSO
+grabbing — "I've set a reminder for you to write a haiku… Here's"). The treatment
+refused all ten, explicitly: *"I do not have the capability to create creative
+content like poetry"*, *"I am an AI model developed by Apple, and I do not create
+creative content"*, *"I cannot write a haiku without external tools"*.
+
+**The licensing hypothesis is falsified with unusual force. The cell carried TWO
+layers of explicit licensing and denied anyway:** production's own capabilities
+line already says *"writing and composing … are your job and need no tool"*, and
+#196's composition sentence was added on top (wiring verified — the case sits
+third in the switch with no earlier catch-all, and the flag reaches the `hasTools`
+branch). **A narrow belt overrides explicit prose licensing completely.** The
+model reads the BELT as its job description, exactly as the #176B/#194 comment
+says — and the clause written to prevent that does not survive belt narrowing.
+
+### The finding that outranks the verdict: the disease is largely an INSTRUMENT property
+
+**The action battery does not route** (`runActionBattery`: "NO per-trial routing").
+Every trial is armed by construction. But **"Write a haiku about sledding" is a
+baseline router row with `expected: false`, on a 200/200 series** — in production
+that turn routes TOOLLESS, gets an EMPTY belt and the licensed bare branch, and
+composes fine.
+
+**So the 8/10 control grab rate measures a configuration production does not
+use.** #204 already filed this caveat — "grabs are an instrument property, the
+action battery does not route" — and **I did not apply it when designing this
+lane.** That is the mistake here: not the wiring, not the bars, but treating a
+known instrument artifact as the disease to be cured.
+
+**What survives as real:** over-serving on turns that are CORRECTLY armed — the
+#211 chaining (4/9 motion questions pulling in location/weather/health) and the
+nine-consecutive-`lookupContact` spiral. Smaller, different, and not addressed by
+belt size.
+
+**Consequence for the program:** the local brain is in better shape than the
+battery scoreboard implies, because the battery deliberately measures the
+un-routed worst case. The router (#202, promoted) is doing the work the narrow
+belt was proposed to do — and doing it without costing composition.
 
 **Falsification, stated in advance.** Clears A and C but fails B ⇒ composition
 licensing is insufficient, the narrow belt is dead as a general shape, and the
