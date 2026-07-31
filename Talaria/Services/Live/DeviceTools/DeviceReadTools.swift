@@ -244,8 +244,17 @@ struct WeatherTool: Tool {
         // nil and "" are the same request: weather here.
         let place = (rawPlace ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         await relay.started(name, detail: place.isEmpty ? nil : place)
-        defer { Task { await relay.completed(name) } }
+        // #212: record what this tool actually RETURNED, not merely that it
+        // finished. 40 of 40 weather trials failed with WeatherKit's real
+        // error in hand and the record kept only the model's paraphrase.
+        // Wrapping the body means every exit is captured without threading a
+        // variable through five returns.
+        let answer = await lookup(place: place, location: location)
+        await relay.completed(name, result: answer)
+        return answer
+    }
 
+    private static func lookup(place: String, location: DeviceLocationProvider) async -> String {
         let target: CLLocation
         let label: String
         if place.isEmpty {

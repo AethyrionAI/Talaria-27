@@ -26,6 +26,20 @@ struct BatteryToolCallRecord: Codable, Equatable {
     /// (read tools always; action tools that bailed before the gate).
     /// Optional so pre-#200 run JSONs still decode.
     var confirmation: String? = nil
+    /// #212: what the tool actually RETURNED.
+    ///
+    /// The record has always carried that a tool ran and what it was asked;
+    /// never what it answered. That blindness is what stalled #212: 40 of 40
+    /// `currentWeather` trials failed, the tool's own catch had WeatherKit's
+    /// `localizedDescription` in hand, and the record kept only the model's
+    /// paraphrase of it. Signing turned out to be correct at every layer —
+    /// entitlements file, signed binary AND provisioning profile — so the real
+    /// error text is the only thing left that can name the cause.
+    ///
+    /// **nil means NOT CAPTURED, not "empty".** Capture is currently wired on
+    /// the READ tools only (weather, health, motion); the rest still record
+    /// nil and are owed.
+    var result: String? = nil
 }
 
 /// One battery trial: the full reply (or its ERROR/TIMEOUT marker), the
@@ -195,6 +209,11 @@ enum BatteryRunMath {
                 }
                 for call in trial.toolCalls {
                     lines.append("battery: tool=\(call.name) \(tag) detail=\(call.detail.replacingOccurrences(of: "\n", with: " / "))")
+                    // #212: the tool's own answer, when captured. Absent for
+                    // tools not yet wired — nil is "not captured", not "empty".
+                    if let result = call.result {
+                        lines.append("battery: toolresult=\(call.name) \(tag) \(result.replacingOccurrences(of: "\n", with: " / "))")
+                    }
                     // A CAPTURED outcome renders on any run kind, matching
                     // the live emit sequence (tool line, then its confirm
                     // line). confirm=none is SYNTHESIZED — only for action
@@ -379,6 +398,16 @@ final class BatteryRunRecorder {
     func recordToolCall(name: String, detail: String) {
         guard run != nil else { return }
         pendingToolCalls.append(BatteryToolCallRecord(name: name, detail: detail))
+    }
+
+    /// #212: attaches what a tool RETURNED to the trial's most recent call of
+    /// that name. Matched by name rather than blindly to the last call, because
+    /// a tool completing can interleave with a later tool's start.
+    func recordToolResult(name: String, result: String) {
+        guard run != nil else { return }
+        guard let i = pendingToolCalls.lastIndex(where: { $0.name == name && $0.result == nil })
+        else { return }
+        pendingToolCalls[i].result = result
     }
 
     /// #200: attaches a confirmation-gate outcome ("accepted"/"declined")

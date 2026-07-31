@@ -130,7 +130,16 @@ final class ToolEventRelay {
         emit?(ToolCallEvent(name: name, phase: .started, detail: detail))
     }
 
-    func completed(_ name: String) {
+    /// #212: `result` is what the tool RETURNED, recorded into the battery
+    /// store only. It never reaches the transcript or the UI — the completed
+    /// event is unchanged — so this cannot leak internals into a reply the way
+    /// #197's tool dump did.
+    func completed(_ name: String, result: String? = nil) {
+        #if DEBUG
+        if Self.batteryTrialTag != nil, let result {
+            LocalChatBackend.batteryRecorder.recordToolResult(name: name, result: result)
+        }
+        #endif
         emit?(ToolCallEvent(name: name, phase: .completed))
     }
 }
