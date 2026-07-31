@@ -11760,6 +11760,58 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
+## #214 — THE STRUCTURAL LANE: narrow the belt and license composition. Built, unrun.
+
+**FILED 2026-07-31. Dispatch `dispatch/OPUS-T27-214-scopedv2.md`, bars written
+first. No production change — `armed-scopedv2` is a measured cell.**
+
+**Why this and not another clause.** Every lane since #200 has treated an
+EXPRESSION of one disease: the model over-serves when handed a full belt. Grabs
+(#199), misroutes (#202), the lookup spiral (#200H), the searchConversations
+spiral that blew the 8,192 ceiling (#200F), and today's chaining — motion question
+→ `currentLocation` → `currentWeather` → `readHealth`, plus one trial spiralling
+into **nine consecutive `lookupContact` calls**. Each fix was real and measured.
+**None touched the cause, which is a ~12-tool belt on every armed turn.**
+
+**The structural fix was already measured and it worked.** #200F, 2026-07-29:
+
+| cell | haiku GRABS | calendar | haiku content |
+|---|---|---|---|
+| `armed` (control) | 4/9 | 5/8 | — |
+| `armed-scoped` | **0/10** | 7/10 | **"cant" 10/10** |
+| `armed-createonly` | **0/10** | **10/10** | **"cant" 10/10** |
+
+Grabs to ZERO, calendar at a ceiling control never reached. Killed as a promotion
+candidate by ONE thing: composition denial.
+
+**What is new.** (1) Composition denial has its own measured cure — #196's
+composition-licensing sentence, never applied to a narrow-belt cell. (2) Those
+cells predate today's production: `createonly`'s remind 5/10 was held down by the
+ask-stall and read-flee, and BOTH were fixed and promoted afterwards (#200S
+optional schema, #200G find-first promoted the same day, #200O, #202, #202D).
+**The combination has never been run.**
+
+**The cell** rides `createonly`'s belt deliberately — #200F's own
+createonly-vs-scoped delta showed removing the same-domain read converts half the
+stalls into creates, and the other half was ask-interrogation, which find-first now
+kills. Belt equality with `createonly` is PINNED
+(`scopedv2NarrowsExactlyLikeCreateonly`) so the lane cannot silently stop being the
+comparison it claims to be, and a regression to identity cannot turn it into a
+no-op that still passes.
+
+**Bars:** gate — control grabs ≥2/10 (lifetime 4/9–5/10). Primary A — treatment
+grabs ≤1/10. **Primary B, the promotion-killer — treatment haiku content clean
+≥8/10**, the bar that failed at 0/10 last time and the entire reason the lane
+exists. Primary C — remind ≥8/10 and calendar ≥8/10, so the create path is not
+traded away.
+
+**Falsification, stated in advance.** Clears A and C but fails B ⇒ composition
+licensing is insufficient, the narrow belt is dead as a general shape, and the
+honest remaining option is a PRODUCT decision to ship fewer tools, not another
+clause. Fails A ⇒ belt size is not the mechanism, #200F's 0/10 was
+baseline-specific, and the over-serving disease needs a different theory entirely.
+**Either outcome closes the question, which is the point of running it.**
+
 ## #213 — the router probe could not record an error, and scored the fail-safe as CORRECT
 
 **FILED AND FIXED 2026-07-31. Instrument integrity; no production behaviour change.**
