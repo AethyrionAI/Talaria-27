@@ -11781,9 +11781,49 @@ that the App ID is WeatherKit-enabled.
 been broken for a long time. The phone had network throughout — the same build
 installed over Tailscale and `readHealth` answered correctly in the same minutes.
 
-## #211 — "How many steps have I taken today?" is answered WRONG, 10/10, because two tools claim steps
+## #211 — "How many steps have I taken today?" was answered WRONG 20/20. PROMOTED, 0/10 → 10/10.
 
-**FILED 2026-07-31 from run `01FA0ECC`. User-facing, deterministic, NOT fixed.**
+**VERDICT FILED 2026-07-31. Run `63C0EF12`, build 1602, `endedCleanly: true`,
+reap `0/0/0` (read tools write nothing). Dispatch:
+`dispatch/OPUS-T27-209-required-fields.md` (#211 addendum, bars written first).
+PROMOTED — `MotionTool.productionDescription` no longer claims steps;
+`armed-motionrollback` is the pinned control.**
+
+| bar | pre-registered | measured | |
+|---|---|---|---|
+| **Gate** — control reproduces the disease | ≤2/10 step numbers | **0/10** | HOLDS |
+| **Primary** — treatment returns a step count | ≥8/10 | **10/10**, all via `readHealth` | HOLDS |
+| **Guard** — motion questions still reach `readMotion` | ≥8/10 | **9/9 valid** | HOLDS |
+
+**Fisher exact two-tailed p = 1.08e-05.** Excluded and listed: 1 trial,
+`armed-motionrollback/motiondirect t3`, TIMEOUT. Zero errors.
+
+**Secondary, unbarred:** the offer-instead-of-act replies vanished — control
+`stepsdirect` offered on **4/10** ("Would you like to check your steps for another
+day?"), treatment **0/10**. Evidence that this instance of the #202-family shape
+was DOWNSTREAM of tool choice, not a separate disease.
+
+**The cost, recorded because it is real:** the treatment arm chained extra tools on
+motion questions — **4 of 9** valid trials vs **0 of 10** in control. `t9` went
+`readMotion → currentLocation → currentWeather → currentWeather` and injected
+#212's weather failure into an answer about standing still; `t10` chained into
+`readHealth` and appended an unasked-for health summary; `t6`/`t8` volunteered a
+street address for a question that asked neither where nor whether. **Answers
+stayed correct, so no bar broke** — but it is slower, chattier, and discloses
+location nobody asked for. **This motivates the redirect cell deliberately NOT
+built here** ("for steps, calories or sleep use readHealth"): naming what the tool
+is *for* may restore the confidence that scoping removed. That is now an
+evidenced next lane, not a guess.
+
+**Honesty note on the numbers:** all ten treatment replies are byte-identical
+("You've taken 3,116 steps today."). Control replies varied in wording, so
+sampling is stochastic — the uniformity is a low-entropy factual answer, not
+determinism. Tool CHOICE is what the bars measure. The step count also coheres
+across runs: 1,889 at 10:33, 3,116 at 17:33 the same day.
+
+### The original filing
+
+**FILED 2026-07-31 from run `01FA0ECC`. User-facing, deterministic.**
 
 The most natural health question the app can be asked returns **no step count at
 all — 0 of 20 trials produced a number** — while `readHealth` reported **1,889
