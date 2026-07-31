@@ -14,7 +14,9 @@ Usage:
 Classification law it enforces (the standing #200 rules):
   * a CREATE is `confirmation == "accepted"` on that intent's create tool —
     never the reply text, which lies in both directions
-  * ERROR and TIMEOUT trials are EXCLUDED from rates and listed explicitly
+  * ERROR and TIMEOUT trials are EXCLUDED from rates and listed explicitly,
+    and since #209 are BUCKETED BY MECHANISM with their cause printed in full —
+    "ERROR" was hiding at least five distinct diseases behind one word
   * reap arithmetic is checked against `reapSummary`, and any residual is
     attributed (discarded warm-up trials are recorder-inert but ARE reaped)
 """
@@ -461,8 +463,124 @@ def honesty_report(run):
         print("  " + "  ".join(thermal))
 
 
+# ------------------------------------------------------------------ #209
+# ERROR was never one disease.
+#
+# Until 2026-07-31 every ERROR trial was excluded from rates under a single
+# undifferentiated label, and its text was never printed AT ALL — only the
+# trial number. The text was in the record the whole time: `endTrialError`
+# stores `String(describing: error)` in full, and only the Console emit line
+# truncates to 200. So four separate mechanisms sat behind one word, and the
+# exclusion lists made them look like one intermittent flake.
+#
+# The buckets below are keyed to strings observed in REAL runs (#200W-era
+# through #200Z), never invented — that is the same discipline that caught
+# the curly apostrophe and the passive voice in the fabrication detector.
+ERROR_BUCKETS = (
+    # `{"term":"Sam"Sam"}<ctrl43>` — a doubled fragment plus a leaked control
+    # token. GENERATION corruption, not a missing field: an optional-field
+    # schema fix (the #200S/#200X shape) does nothing for this.
+    ("A  guided-generation JSON corruption",
+     lambda e: "cannot be completed into valid JSON" in e),
+    # `Provided 8,529 tokens, but the maximum allowed is 8,192.` The INPUT
+    # ceiling — distinct from #102's output cap, which #208 falsified as the
+    # D4 mechanism. Production guards this with condense-and-retry-once (#26);
+    # seeing it here means the guard was bypassed or condensation fell short.
+    ("B  INPUT context overflow (8,192 ceiling)",
+     lambda e: "maximum allowed" in e or "exceededContextWindow" in e),
+    ("C  system resource pressure",
+     lambda e: "Insufficient system resources" in e),
+    # The cause here is NOT missing — it is buried. Verified against the beta-4
+    # swiftinterface: `ToolCallError` is a struct with TWO stored properties,
+    # `tool` and `underlyingError`, so `String(describing:)` reflects both. The
+    # cause sits AFTER a ~500-char dump of the live tool instance (the same dump
+    # that leaked into the transcript in #197), which is why every look at these
+    # records truncated before reaching it. `tool_call_error_cause` digs it out.
+    ("D  ToolCallError — cause buried behind the tool dump",
+     lambda e: "ToolCallError" in e),
+    ("E  LanguageModelError, undifferentiated",
+     lambda e: "LanguageModelError" in e),
+)
+
+
+def error_bucket(text):
+    """Mechanism label for one recorded error string."""
+    for label, matches in ERROR_BUCKETS:
+        if matches(text):
+            return label
+    return "F  unclassified — widen the taxonomy before trusting this run"
+
+
+def tool_call_error_cause(text):
+    """The informative tail of a `ToolCallError` dump, or None.
+
+    `underlyingError` is the second stored property, so it renders LAST — after
+    the tool instance, its full description string, and any live pointers. That
+    ordering is the whole reason this cause went unread: every console emit,
+    grep and eyeball stopped at a couple of hundred characters and never got
+    past the dump."""
+    m = re.search(r"underlyingError:\s*(.+)$", text, re.S)
+    if not m:
+        return None
+    cause = m.group(1).strip()
+    # The dump closes with ToolCallError's OWN paren. Drop only genuinely
+    # unbalanced trailing parens — a bare rstrip(")") mangles causes that end
+    # in one of their own, e.g. `keyNotFound(metric)`.
+    while cause.endswith(")") and cause.count(")") > cause.count("("):
+        cause = cause[:-1].rstrip()
+    return cause or None
+
+
+def error_taxonomy_report(run):
+    """Print WHY each excluded trial failed, before any rate is read.
+
+    Deliberately runs FIRST: a rate whose denominator was cut by exclusions
+    should not be read before you know what the exclusions were."""
+    trials = run.get("trials") or []
+    errored = [t for t in trials if t.get("error")]
+    timed_out = [t for t in trials if t.get("timedOut")]
+    if not errored and not timed_out:
+        return
+    total = len(trials)
+    print(f"=== error taxonomy (#209) — run {run.get('id', '?')[:8]},"
+          f" excluded trials by mechanism")
+    print(f"  {len(errored)} ERROR + {len(timed_out)} TIMEOUT of {total} trials"
+          f"  ({100.0 * (len(errored) + len(timed_out)) / total:.1f}% excluded)")
+    counts = Counter(error_bucket(t["error"]) for t in errored)
+    for label, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])):
+        print(f"    {n:>3}  {label}")
+    if counts:
+        # Full text, never truncated — the truncation is exactly what made
+        # these look opaque for a week.
+        print("  causes:")
+        for t in errored:
+            tag = (f"{t.get('shape')}/{t.get('prompt')} t{t.get('trial')}")
+            cause = tool_call_error_cause(t["error"])
+            if cause:
+                # The buried tail is the whole point — lead with it, and keep
+                # the tool name for grouping. The tool DUMP is dropped: it is
+                # the noise that hid this for a week.
+                tool = re.search(r"ToolCallError\(tool: Talaria\.(\w+)", t["error"])
+                print(f"    [D] {tag}: {tool.group(1) if tool else '?'} -> {cause}")
+            else:
+                print(f"    [{error_bucket(t['error'])[:1]}] {tag}: {t['error']}")
+    d_rows = [t for t in errored if "ToolCallError" in t["error"]]
+    if d_rows:
+        d_tools = Counter(m for t in d_rows
+                          for m in re.findall(r"ToolCallError\(tool: Talaria\.(\w+)", t["error"]))
+        print("  D-bucket tools: "
+              + ", ".join(f"{tool}×{n}" for tool, n in d_tools.most_common()))
+        unread = [t for t in d_rows if not tool_call_error_cause(t["error"])]
+        if unread:
+            print(f"  !! {len(unread)} ToolCallError row(s) carry NO `underlyingError:`"
+                  f" tail — that record was truncated at capture, not by this script."
+                  f" Check the emit path before concluding anything from them.")
+    print()
+
+
 def main(path):
     run = json.load(open(path))
+    error_taxonomy_report(run)
     if run.get("probes") and not run.get("trials"):
         return probe_report(run)
     if run.get("kind") == "twoturn":

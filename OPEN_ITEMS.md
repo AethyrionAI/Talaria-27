@@ -11760,6 +11760,60 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
+## #209 — "ERROR" was never one disease: five mechanisms behind one excluded label
+
+**OPENED 2026-07-31. Instrument-only so far; no production change, no device run.**
+
+Every battery since #196 has excluded ERROR trials from rates under a single
+undifferentiated label, printing only the trial NUMBER and never the text. The text
+was in the record the whole time — `endTrialError` stores `String(describing: error)`
+in full, and only the Console emit truncates to 200 chars. Recovering the strings
+from pasted classifier output shows **at least five distinct mechanisms**:
+
+| bucket | verbatim | note |
+|---|---|---|
+| A | `Encountered content that cannot be completed into valid JSON Text: {"term":"Sam"Sam"}<ctrl43>` | GENERATION corruption — doubled fragment + leaked control token |
+| B | `Provided 8,529 tokens, but the maximum allowed is 8,192.` | the **INPUT** ceiling; #208 falsified the OUTPUT cap, never this |
+| C | `Insufficient system resources (7)` | device pressure |
+| D | `ToolCallError(tool: Talaria.DeviceHealthTool(…` | cause buried, see below |
+| E | `Error Domain=FoundationModels.LanguageModelError Code=-1` | undifferentiated |
+
+**Two of my own claims retracted in the course of opening this item.**
+
+1. **The optional-field hypothesis was WRONG and was killed before it was built.**
+   `readHealth`'s `metric: String` is required, the same shape #200S/#200X fixed
+   twice, and the obvious next move was to make it optional. Bucket A shows the
+   actual failure is corrupt generated JSON (`"Sam"Sam"`, a `<ctrl43>` leak) on the
+   CONTACT tool's `term` — an optional field does nothing for it. This is #199's
+   lesson a second time: measure the mechanism before building the obvious fix.
+2. **"D's cause is structurally absent" was WRONG.** Verified against the beta-4
+   swiftinterface: `LanguageModelSession.ToolCallError` is a struct with TWO stored
+   properties, `tool` and `underlyingError`, so `String(describing:)` reflects both.
+   The cause has been in every record all along — rendered LAST, after a ~500-char
+   dump of the live tool instance (the same dump that leaked in #197). Every console
+   emit, grep and eyeball stopped short of it. **It also conforms to `LocalizedError`
+   with an `errorDescription` we have never used.** No capture change is needed and
+   no device build: this is a printing problem.
+
+**Shipped:** `classify-battery-run.py` buckets every excluded trial by mechanism,
+prints the cause in full, and digs the `underlyingError` tail out of D-bucket dumps
+(discarding the tool noise). Verified against verbatim strings only — never invented
+ones, the rule that caught the curly apostrophe and the passive voice. Rates, reap
+arithmetic and exclusion semantics are unchanged.
+
+**Owed / honest limits.**
+- **The D extraction path is UNVERIFIED against real data.** No complete
+  `ToolCallError` string survives anywhere on this machine — every capture was
+  truncated. The script now says so per-row rather than showing nothing.
+- **n=15 is far too small to rank these.** The recovered counts are a lower bound
+  from pasted output, not a census; the raw run JSONs live on the phone. **Do not
+  prioritise A/B/C/D/E by these numbers.** One battery with the new classifier gives
+  the real frequencies.
+- **Bucket B is the one that names a production-facing mechanism.** Production
+  guards context overflow with condense-and-retry-once (#26,
+  `LocalChatBackend.swift:514`), yet a run recorded 8,529 tokens escaping it —
+  either the battery path bypasses the guard or condensation fell short. Unmeasured.
+
 ## #208 (Lane 4) — the token cap is NOT the D4 mechanism. Hypothesis falsified; #102's cap stays.
 
 **VERDICT FILED 2026-07-31. Run `B6ADBF28`, `endedCleanly: true`, sealed
