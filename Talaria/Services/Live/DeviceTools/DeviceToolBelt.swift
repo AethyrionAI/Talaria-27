@@ -143,19 +143,63 @@ final class ToolEventRelay {
 /// user is asking a location question, never in an up-front wall.
 @MainActor
 final class DeviceLocationProvider: NSObject, CLLocationManagerDelegate {
-    private let manager = CLLocationManager()
+
+    /// #203 (2A): the seam. Everything the waiting policies ask of
+    /// CoreLocation, as MainActor closures — production wires all four to one
+    /// concrete CLLocationManager; tests wire them to a script. The policies
+    /// themselves (the fix deadline + generation counting, the
+    /// dismissed-dialog foreground trigger, the unbounded human wait) sit
+    /// above this line, which is what makes them drivable from a test at
+    /// all. Closures rather than a protocol for the same reason the belt's
+    /// providers are closures — and so the non-Sendable manager stays
+    /// captured inside them, never crossing a concurrency boundary.
+    struct Seam {
+        var authorizationStatus: @MainActor () -> CLAuthorizationStatus
+        var cachedLocation: @MainActor () -> CLLocation?
+        var requestWhenInUseAuthorization: @MainActor () -> Void
+        var requestLocation: @MainActor () -> Void
+    }
+
+    private let seam: Seam
+    private let notificationCenter: NotificationCenter
+    /// The deadline THIS instance arms. Production always gets
+    /// `Self.fixDeadline`; tests shorten it to prove the deadline path fires.
+    private let fixDeadline: Duration
     private var authorizationContinuations: [CheckedContinuation<CLAuthorizationStatus, Never>] = []
     private var locationContinuations: [CheckedContinuation<CLLocation?, Never>] = []
     /// #203: bumped every time waiters are resolved, so a fired deadline can
     /// only ever affect the request it was armed for.
     private var locationGeneration = 0
-    /// #203 (2A): armed only while an authorization prompt is pending.
-    private var foregroundObserver: NSObjectProtocol?
+    /// #203 (2A): armed only while an authorization prompt is pending. Read
+    /// access is internal so the teardown tests can see it; only this class
+    /// writes it.
+    private(set) var foregroundObserver: NSObjectProtocol?
 
-    override init() {
-        super.init()
-        manager.delegate = self
+    /// Production wiring: one concrete CLLocationManager behind the seam,
+    /// this object as its delegate. This initializer is the one line of the
+    /// class no unit test can reach — everything behind it is driven through
+    /// the same entry points CoreLocation uses.
+    override convenience init() {
+        let manager = CLLocationManager()
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        self.init(seam: Seam(
+            authorizationStatus: { manager.authorizationStatus },
+            cachedLocation: { manager.location },
+            requestWhenInUseAuthorization: { manager.requestWhenInUseAuthorization() },
+            requestLocation: { manager.requestLocation() }
+        ))
+        manager.delegate = self
+    }
+
+    init(
+        seam: Seam,
+        notificationCenter: NotificationCenter = .default,
+        fixDeadline: Duration = DeviceLocationProvider.fixDeadline
+    ) {
+        self.seam = seam
+        self.notificationCenter = notificationCenter
+        self.fixDeadline = fixDeadline
+        super.init()
     }
 
     /// Settled authorization status, prompting if not yet determined.
@@ -174,12 +218,12 @@ final class DeviceLocationProvider: NSObject, CLLocationManagerDelegate {
     /// renders that honestly as location-unavailable, and the turn finishes
     /// with a sentence instead of a hang — the shape #202D promoted.
     func ensureAuthorization() async -> CLAuthorizationStatus {
-        let status = manager.authorizationStatus
+        let status = seam.authorizationStatus()
         guard status == .notDetermined else { return status }
         return await withCheckedContinuation { continuation in
             authorizationContinuations.append(continuation)
             observeForegroundForDismissedDialog()
-            manager.requestWhenInUseAuthorization()
+            seam.requestWhenInUseAuthorization()
         }
     }
 
@@ -187,7 +231,7 @@ final class DeviceLocationProvider: NSObject, CLLocationManagerDelegate {
     /// delegate may also fire, and whichever lands first empties the queue.
     private func observeForegroundForDismissedDialog() {
         guard foregroundObserver == nil else { return }
-        foregroundObserver = NotificationCenter.default.addObserver(
+        foregroundObserver = notificationCenter.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil, queue: .main
         ) { [weak self] _ in
@@ -197,12 +241,12 @@ final class DeviceLocationProvider: NSObject, CLLocationManagerDelegate {
 
     func resolveAuthorizationIfDialogWasDismissed() {
         if let foregroundObserver {
-            NotificationCenter.default.removeObserver(foregroundObserver)
+            notificationCenter.removeObserver(foregroundObserver)
             self.foregroundObserver = nil
         }
         // Only a still-undetermined status means the dialog was dismissed
         // without an answer. A real decision resolves through the delegate.
-        guard manager.authorizationStatus == .notDetermined else { return }
+        guard seam.authorizationStatus() == .notDetermined else { return }
         let waiting = authorizationContinuations
         authorizationContinuations = []
         waiting.forEach { $0.resume(returning: .notDetermined) }
@@ -228,24 +272,27 @@ final class DeviceLocationProvider: NSObject, CLLocationManagerDelegate {
     /// `ensureAuthorization()` is deliberately left UNBOUNDED: it waits on a
     /// human reading a system dialog, and no machine deadline is fair to that.
     func currentLocation() async -> CLLocation? {
-        if let cached = manager.location, cached.timestamp.timeIntervalSinceNow > -120 {
+        if let cached = seam.cachedLocation(), cached.timestamp.timeIntervalSinceNow > -120 {
             return cached
         }
         let generation = locationGeneration
+        let deadline = fixDeadline
         Task { [weak self] in
-            try? await Task.sleep(for: Self.fixDeadline)
+            try? await Task.sleep(for: deadline)
             await self?.failLocationWaitersIfStillPending(generation: generation)
         }
         return await withCheckedContinuation { continuation in
             locationContinuations.append(continuation)
-            manager.requestLocation()
+            seam.requestLocation()
         }
     }
 
     /// Resumes any waiter still parked from `generation` with nil. Generation
     /// counting is what keeps a late deadline from cancelling a LATER request's
-    /// waiters — the bug a naive timeout would introduce.
-    private func failLocationWaitersIfStillPending(generation: Int) {
+    /// waiters — the bug a naive timeout would introduce. Internal (not
+    /// private) so tests can fire a STALE deadline deterministically instead
+    /// of racing real timers.
+    func failLocationWaitersIfStillPending(generation: Int) {
         guard generation == locationGeneration, !locationContinuations.isEmpty else { return }
         let waiting = locationContinuations
         locationContinuations = []
@@ -253,37 +300,43 @@ final class DeviceLocationProvider: NSObject, CLLocationManagerDelegate {
         waiting.forEach { $0.resume(returning: nil) }
     }
 
-    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        Task { @MainActor in
-            let status = self.manager.authorizationStatus
-            guard status != .notDetermined else { return }
-            if let observer = self.foregroundObserver {
-                NotificationCenter.default.removeObserver(observer)
-                self.foregroundObserver = nil
-            }
-            let waiting = authorizationContinuations
-            authorizationContinuations = []
-            waiting.forEach { $0.resume(returning: status) }
+    /// The MainActor half of `locationManagerDidChangeAuthorization`, split
+    /// out so tests drive a real decision through the same code CoreLocation
+    /// does. A decided status resolves every waiter and tears down the
+    /// dismissed-dialog observer; `.notDetermined` is not a decision.
+    func handleAuthorizationChange() {
+        let status = seam.authorizationStatus()
+        guard status != .notDetermined else { return }
+        if let observer = foregroundObserver {
+            notificationCenter.removeObserver(observer)
+            foregroundObserver = nil
         }
+        let waiting = authorizationContinuations
+        authorizationContinuations = []
+        waiting.forEach { $0.resume(returning: status) }
+    }
+
+    /// The MainActor half of both fix-delivery callbacks: an answer — a fix,
+    /// or nil for a definitive failure — resolves every parked waiter and
+    /// bumps the generation so any still-armed deadline goes stale.
+    func resolveLocationWaiters(with location: CLLocation?) {
+        let waiting = locationContinuations
+        locationContinuations = []
+        locationGeneration += 1
+        waiting.forEach { $0.resume(returning: location) }
+    }
+
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        Task { @MainActor in self.handleAuthorizationChange() }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         let newest = locations.last
-        Task { @MainActor in
-            let waiting = self.locationContinuations
-            self.locationContinuations = []
-            self.locationGeneration += 1
-            waiting.forEach { $0.resume(returning: newest) }
-        }
+        Task { @MainActor in self.resolveLocationWaiters(with: newest) }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        Task { @MainActor in
-            let waiting = self.locationContinuations
-            self.locationContinuations = []
-            self.locationGeneration += 1
-            waiting.forEach { $0.resume(returning: nil) }
-        }
+        Task { @MainActor in self.resolveLocationWaiters(with: nil) }
     }
 }
 
