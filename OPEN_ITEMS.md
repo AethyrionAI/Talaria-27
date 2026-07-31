@@ -11760,6 +11760,116 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
+## #214 — THE STRUCTURAL LANE: narrow belt CLOSED. Composition licensing falsified; the disease is partly an instrument property.
+
+**FILED 2026-07-31. Dispatch `dispatch/OPUS-T27-214-scopedv2.md`, bars written
+first. No production change — `armed-scopedv2` is a measured cell.**
+
+**Why this and not another clause.** Every lane since #200 has treated an
+EXPRESSION of one disease: the model over-serves when handed a full belt. Grabs
+(#199), misroutes (#202), the lookup spiral (#200H), the searchConversations
+spiral that blew the 8,192 ceiling (#200F), and today's chaining — motion question
+→ `currentLocation` → `currentWeather` → `readHealth`, plus one trial spiralling
+into **nine consecutive `lookupContact` calls**. Each fix was real and measured.
+**None touched the cause, which is a ~12-tool belt on every armed turn.**
+
+**The structural fix was already measured and it worked.** #200F, 2026-07-29:
+
+| cell | haiku GRABS | calendar | haiku content |
+|---|---|---|---|
+| `armed` (control) | 4/9 | 5/8 | — |
+| `armed-scoped` | **0/10** | 7/10 | **"cant" 10/10** |
+| `armed-createonly` | **0/10** | **10/10** | **"cant" 10/10** |
+
+Grabs to ZERO, calendar at a ceiling control never reached. Killed as a promotion
+candidate by ONE thing: composition denial.
+
+**What is new.** (1) Composition denial has its own measured cure — #196's
+composition-licensing sentence, never applied to a narrow-belt cell. (2) Those
+cells predate today's production: `createonly`'s remind 5/10 was held down by the
+ask-stall and read-flee, and BOTH were fixed and promoted afterwards (#200S
+optional schema, #200G find-first promoted the same day, #200O, #202, #202D).
+**The combination has never been run.**
+
+**The cell** rides `createonly`'s belt deliberately — #200F's own
+createonly-vs-scoped delta showed removing the same-domain read converts half the
+stalls into creates, and the other half was ask-interrogation, which find-first now
+kills. Belt equality with `createonly` is PINNED
+(`scopedv2NarrowsExactlyLikeCreateonly`) so the lane cannot silently stop being the
+comparison it claims to be, and a regression to identity cannot turn it into a
+no-op that still passes.
+
+**Bars:** gate — control grabs ≥2/10 (lifetime 4/9–5/10). Primary A — treatment
+grabs ≤1/10. **Primary B, the promotion-killer — treatment haiku content clean
+≥8/10**, the bar that failed at 0/10 last time and the entire reason the lane
+exists. Primary C — remind ≥8/10 and calendar ≥8/10, so the create path is not
+traded away.
+
+### VERDICT FILED 2026-07-31 — run `1835BBF9`, corded @ whoGoesThere, debugger attached
+
+80 trials, `endedCleanly: true`, reap `reminders=30 events=21 alarms=21 failures=0`,
+backstop ZERO leftovers. **Zero ERROR, zero TIMEOUT — no exclusions in 80 trials.**
+(`appBuild: 1` is the corded signature: `ota-stage.sh` stamps the commit count,
+a direct Xcode build uses the project default. The proof of code identity is that
+`armed-scopedv2` appears in `cells` at all.)
+
+| bar | pre-registered | measured | |
+|---|---|---|---|
+| **Gate** — control shows grabs | ≥2/10 | **8/10** | HOLDS |
+| **Primary A** — treatment grabs | ≤1/10 | **0/10** | **HOLDS** |
+| **Primary C** — create path | remind/calendar ≥8/10 | **10/10 / 10/10** (alarm 10/10) | HOLDS |
+| **Primary B** — haiku content clean | ≥8/10 | **0/10** | **FAILS** |
+
+**The narrow belt does NOT promote.** Per pre-registration, B is the
+promotion-killer and it failed at the floor.
+
+**The belt kills grabs outright and kills composition with them.** 8/10 → 0/10
+grabs, and 8/10 → 0/10 poems. Control wrote verse in 8 of 10 (twice while ALSO
+grabbing — "I've set a reminder for you to write a haiku… Here's"). The treatment
+refused all ten, explicitly: *"I do not have the capability to create creative
+content like poetry"*, *"I am an AI model developed by Apple, and I do not create
+creative content"*, *"I cannot write a haiku without external tools"*.
+
+**The licensing hypothesis is falsified with unusual force. The cell carried TWO
+layers of explicit licensing and denied anyway:** production's own capabilities
+line already says *"writing and composing … are your job and need no tool"*, and
+#196's composition sentence was added on top (wiring verified — the case sits
+third in the switch with no earlier catch-all, and the flag reaches the `hasTools`
+branch). **A narrow belt overrides explicit prose licensing completely.** The
+model reads the BELT as its job description, exactly as the #176B/#194 comment
+says — and the clause written to prevent that does not survive belt narrowing.
+
+### The finding that outranks the verdict: the disease is largely an INSTRUMENT property
+
+**The action battery does not route** (`runActionBattery`: "NO per-trial routing").
+Every trial is armed by construction. But **"Write a haiku about sledding" is a
+baseline router row with `expected: false`, on a 200/200 series** — in production
+that turn routes TOOLLESS, gets an EMPTY belt and the licensed bare branch, and
+composes fine.
+
+**So the 8/10 control grab rate measures a configuration production does not
+use.** #204 already filed this caveat — "grabs are an instrument property, the
+action battery does not route" — and **I did not apply it when designing this
+lane.** That is the mistake here: not the wiring, not the bars, but treating a
+known instrument artifact as the disease to be cured.
+
+**What survives as real:** over-serving on turns that are CORRECTLY armed — the
+#211 chaining (4/9 motion questions pulling in location/weather/health) and the
+nine-consecutive-`lookupContact` spiral. Smaller, different, and not addressed by
+belt size.
+
+**Consequence for the program:** the local brain is in better shape than the
+battery scoreboard implies, because the battery deliberately measures the
+un-routed worst case. The router (#202, promoted) is doing the work the narrow
+belt was proposed to do — and doing it without costing composition.
+
+**Falsification, stated in advance.** Clears A and C but fails B ⇒ composition
+licensing is insufficient, the narrow belt is dead as a general shape, and the
+honest remaining option is a PRODUCT decision to ship fewer tools, not another
+clause. Fails A ⇒ belt size is not the mechanism, #200F's 0/10 was
+baseline-specific, and the over-serving disease needs a different theory entirely.
+**Either outcome closes the question, which is the point of running it.**
+
 ## #213 — the router probe could not record an error, and scored the fail-safe as CORRECT
 
 **FILED AND FIXED 2026-07-31. Instrument integrity; no production behaviour change.**
@@ -11788,6 +11898,28 @@ correct-count be reduced before any bar is read.
 **Honest scope:** this records failures from now on. It cannot retroactively clean
 the existing 200/200 history — those runs simply do not contain the information,
 and the classifier now says so out loud instead of implying they were clean.
+
+### COVERAGE GAP FOUND BY EXTERNAL AUDIT, fixed 2026-07-31 (Hermes §3.1)
+
+**The first cut wired ONE of four probe runners, and the commit message claimed
+"each probe row".** That was my overstatement. Three runners still scored a router
+throw as a correct answer on `expected: true` rows — and the worst of them is
+`runRouterProbe`, **the legacy #196 probe whose 200/200 series the program quotes
+as its baseline gate**; also `runImageRoutingProbe` (the instrument #207's
+promotion ran on) and `runLongContextProbe`.
+
+All four runners now sample the tally: **10 of 10 `recordProbe` call sites carry
+`errors:`**. The deterministic lenrule row passes an explicit `errors: 0` — it runs
+no generation and cannot throw, and nil there would have read as "not sampled",
+the one thing it is not.
+
+**The honest limit:** this is a SOURCE-LEVEL invariant that no test reaches. A new
+probe runner added without sampling would silently reintroduce the gap. The
+defence is a stated invariant on `RouterProbeRecord.errors` plus the classifier's
+"NOT RECORDED" line, which reports unsampled rows rather than counting them clean.
+**An external reader found this because the instrument's own claim was wider than
+its wiring — the third consecutive audit to catch something at a boundary the
+author had just worked on.**
 
 ## #212 — WeatherKit returns nothing: 0/40. DIAGNOSED 2026-07-31 (JWT auth rejection); fix is ACCOUNT-SIDE, open.
 

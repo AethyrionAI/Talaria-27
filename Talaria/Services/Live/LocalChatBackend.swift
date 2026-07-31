@@ -2872,6 +2872,33 @@ extension LocalChatBackend {
         /// redirect re-breaks the step question, it does not promote no matter
         /// what it does for chaining.
         case armedMotionredirect = "armed-motionredirect"
+        /// #214: the STRUCTURAL lane — per-intent belt PLUS composition
+        /// licensing. The combination has never been run.
+        ///
+        /// #200F (2026-07-29) measured narrow belts and they killed the grab
+        /// disease outright: `armed-createonly` grabs **0/10** against a
+        /// control at 4/9, with calendar at a **10/10** ceiling control never
+        /// reached. It failed as a promotion candidate on ONE thing —
+        /// composition denial, haiku "cant" **10/10** ("I don't have creative
+        /// writing tools", "I'm not a poet").
+        ///
+        /// Two reasons the combination is now worth a run:
+        /// 1. **Composition denial has its own measured cure.** #196's
+        ///    composition-licensing sentence exists precisely because the
+        ///    model equates composing about world knowledge with retrieval.
+        ///    It was never applied to a narrow-belt cell.
+        /// 2. **Those cells predate today's production.** `createonly`'s
+        ///    remind 5/10 was held down by the ask-stall and read-flee, and
+        ///    BOTH were fixed and promoted afterwards — the optional reminder
+        ///    schema (#200S), find-first (#200G, promoted the same day), the
+        ///    dead-end carve-out, the router (#202) and clause v2 (#202D).
+        ///    The narrow belt has never been measured on top of them.
+        ///
+        /// The belt is `createonly`'s, not `scoped`'s: #200F's own
+        /// createonly-vs-scoped delta showed that removing the same-domain
+        /// read converts half the stalls into creates (0/10 → 5/10), and the
+        /// other half — ask-interrogation — is what find-first now kills.
+        case armedScopedv2 = "armed-scopedv2"
         /// #201B: the contact promotion's pinned ROLLBACK — `ContactsTool` with
         /// `continuesAfterNoMatch` explicitly false, i.e. the bare not-found
         /// text that produced 14/80 dead-end misses across two n=40 runs.
@@ -2892,7 +2919,7 @@ extension LocalChatBackend {
              .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix,
              .armedDatefix, .armedCardrollback, .armedDeadendfix, .armedGrabfix,
              .armedStallfix, .armedSchemafix, .armedCalfix, .armedDeadend2,
-             .armedCarveoutrollback:
+             .armedCarveoutrollback, .armedScopedv2:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
             // strikefix treat the tool-calling MODE, and the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
@@ -3011,7 +3038,13 @@ extension LocalChatBackend {
             case "calendar": keep = ["createCalendarEvent", "readCalendar", "currentLocation"]
             default: keep = ["createReminder", "readReminders", "readCalendar"]
             }
-        case .armedCreateonly:
+        case .armedCreateonly, .armedScopedv2:
+            // #214 rides createonly's belt deliberately: #200F's own
+            // createonly-vs-scoped delta showed removing the same-domain read
+            // converts half the stalls into creates. The other half was
+            // ask-interrogation, which find-first has since been promoted to
+            // kill — so the belt is held constant and only the instructions
+            // and the production baseline differ from that run.
             switch promptTag {
             case "alarm": keep = ["scheduleAlarm", "readCalendar"]
             case "calendar": keep = ["createCalendarEvent", "currentLocation"]
@@ -3146,6 +3179,21 @@ extension LocalChatBackend {
                     hasTools: !base.isEmpty,
                     hasImageTools: false,
                     includeFindFirstCarveout: true
+                )
+            case .armedScopedv2:
+                // #214: production instructions PLUS #196's
+                // composition-licensing sentence. That sentence is the
+                // measured cure for the one thing that killed the narrow-belt
+                // cells — the model equating composing about world knowledge
+                // with retrieval — and it has never been applied to one.
+                // Everything else is production, so the cell differs from the
+                // control in exactly two ways: the belt narrows per intent,
+                // and composition is licensed.
+                cellInstructions = Self.instructionsText(
+                    deviceContext: Self.deviceContextLine(),
+                    hasTools: !base.isEmpty,
+                    hasImageTools: false,
+                    includeCompositionLicensingSentence: true
                 )
             case .armedSpiralfix:
                 // #200H: spiralfix adds the lookup-spiral carve-out on
@@ -3423,6 +3471,16 @@ extension LocalChatBackend {
         await runActionBattery(trials: trials,
                                cells: [.armed, .armedMotionredirect],
                                promptSet: Self.motionScopeBatteryPrompts)
+    }
+
+    /// #214 one-tap wrapper — THE structural lane. Production control vs
+    /// per-intent belt + composition licensing, on all four prompts with the
+    /// grab canary IN: the canary is the primary measurement here, not a
+    /// side-check. 2 cells × 4 prompts × trials.
+    func runScopedV2Battery(trials: Int) async {
+        await runActionBattery(trials: trials,
+                               cells: [.armed, .armedScopedv2],
+                               includeGrabCanary: true)
     }
 
     /// #200H one-tap wrapper: 3 cells × four prompts (grab canary
@@ -4067,6 +4125,7 @@ extension LocalChatBackend {
             emitThermal(cell: arm.rawValue, at: "start")
             for probe in Self.imageProbeGrid {
                 var correct = 0
+                let failuresBefore = Self.routerFailureTally
                 for _ in 1...trials {
                     if await routeNeedsDeviceTool(
                         prompt: probe.text, context: "", variant: Self.productionRouterVariant,
@@ -4079,7 +4138,7 @@ extension LocalChatBackend {
                 Self.batteryRecorder.recordProbe(
                     probe: probe.text, expected: probe.expected, correct: correct, trials: trials,
                     variant: arm.rawValue, context: "", band: "image"
-                )
+                , errors: Self.routerFailureTally - failuresBefore)
             }
             // COLLATERAL 2 (#207 gap): an image attached to a WORDS-ONLY
             // request. These carry the image signal like any other image
@@ -4087,6 +4146,7 @@ extension LocalChatBackend {
             // armed" would over-arm. The band the promotion actually rests on.
             for probe in Self.imageWordsOnlyGrid {
                 var correct = 0
+                let failuresBefore = Self.routerFailureTally
                 for _ in 1...trials {
                     if await routeNeedsDeviceTool(
                         prompt: probe.text, context: "", variant: Self.productionRouterVariant,
@@ -4099,13 +4159,14 @@ extension LocalChatBackend {
                 Self.batteryRecorder.recordProbe(
                     probe: probe.text, expected: probe.expected, correct: correct, trials: trials,
                     variant: arm.rawValue, context: "", band: "image-wordsonly"
-                )
+                , errors: Self.routerFailureTally - failuresBefore)
             }
             // COLLATERAL: the #196 grid on EVERY arm. The guide arm edits a
             // measured artifact; the signal arm changes what every prompt
             // looks like. Both must prove they left the rest alone.
             for probe in Self.routerBaselineProbes {
                 var correct = 0
+                let failuresBefore = Self.routerFailureTally
                 for _ in 1...trials {
                     if await routeNeedsDeviceTool(
                         prompt: probe.text, context: "", variant: Self.productionRouterVariant,
@@ -4118,7 +4179,7 @@ extension LocalChatBackend {
                 Self.batteryRecorder.recordProbe(
                     probe: probe.text, expected: probe.expected, correct: correct, trials: trials,
                     variant: arm.rawValue, context: "", band: "baseline"
-                )
+                , errors: Self.routerFailureTally - failuresBefore)
             }
             emitThermal(cell: arm.rawValue, at: "end")
         }
@@ -4137,6 +4198,7 @@ extension LocalChatBackend {
         Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: [])
         for probe in probes {
             var correct = 0
+            let failuresBefore = Self.routerFailureTally
             for _ in 1...trials {
                 // Explicitly .control: this probe's 200/200 history is the
                 // CONTEXT-BLIND router's, and #202D moved production to
@@ -4145,7 +4207,7 @@ extension LocalChatBackend {
                                               variant: .control) == probe.expected { correct += 1 }
             }
             Self.batteryEmit("router: \(correct)/\(trials) expected=\(probe.expected) probe=\(probe.text)")
-            Self.batteryRecorder.recordProbe(probe: probe.text, expected: probe.expected, correct: correct, trials: trials)
+            Self.batteryRecorder.recordProbe(probe: probe.text, expected: probe.expected, correct: correct, trials: trials, errors: Self.routerFailureTally - failuresBefore)
         }
         Self.batteryEmit("router: PROBE DONE (#196)")
         Self.batteryRecorder.endRun()
@@ -4283,6 +4345,7 @@ extension LocalChatBackend {
             let label = capped ? "ctx-a-long-capped" : "ctx-a-long"
             for row in grid {
                 var correct = 0
+                let failuresBefore = Self.routerFailureTally
                 let started = Date()
                 for _ in 1...trials {
                     if await routeNeedsDeviceTool(prompt: row.prompt, context: row.context,
@@ -4302,7 +4365,7 @@ extension LocalChatBackend {
                     probe: row.prompt, expected: row.expected, correct: correct, trials: trials,
                     variant: label, context: row.context, band: row.band.rawValue,
                     seconds: each
-                )
+                , errors: Self.routerFailureTally - failuresBefore)
             }
         }
         // The SHORT rows again, same session conditions, as the latency
@@ -4310,6 +4373,7 @@ extension LocalChatBackend {
         for row in Self.routerContextGrid where row.band == .accept {
             let started = Date()
             var correct = 0
+            let failuresBefore = Self.routerFailureTally
             for _ in 1...trials {
                 if await routeNeedsDeviceTool(prompt: row.prompt, context: row.context,
                                               variant: .ctxA) == row.expected {
@@ -4325,7 +4389,7 @@ extension LocalChatBackend {
                 probe: row.prompt, expected: row.expected, correct: correct, trials: trials,
                 variant: "ctx-a-short", context: row.context, band: row.band.rawValue,
                 seconds: each
-            )
+            , errors: Self.routerFailureTally - failuresBefore)
         }
         Self.batteryEmit("router: LONG-CONTEXT PROBE DONE (#202C)")
         Self.batteryRecorder.endRun()
@@ -4368,10 +4432,14 @@ extension LocalChatBackend {
                 Self.batteryEmit("router: lenrule DEFERS (not a bare affirmative) band=\(row.band.rawValue) probe=\(row.prompt)")
                 continue
             }
+            // #213: explicitly ZERO, not nil. This row is a deterministic
+            // rule — no generation runs, so it CANNOT throw — and nil would
+            // read as "not sampled", which is the one thing it is not.
             Self.batteryRecorder.recordProbe(
                 probe: row.prompt, expected: row.expected,
                 correct: row.expected ? 1 : 0, trials: 1,
-                variant: "lenrule", context: row.context, band: row.band.rawValue
+                variant: "lenrule", context: row.context, band: row.band.rawValue,
+                errors: 0
             )
             Self.batteryEmit("router: lenrule fires → armed expected=\(row.expected) band=\(row.band.rawValue) probe=\(row.prompt)")
         }

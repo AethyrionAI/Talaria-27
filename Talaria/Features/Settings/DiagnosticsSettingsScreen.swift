@@ -561,8 +561,32 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
-    // #211 motion-scope: control vs the scoped readMotion description. READ
-    // tools only — nothing written, no auto-accept needed.
+    // #214 THE structural lane: production vs per-intent belt + composition
+    // licensing. Creates real artifacts — auto-ACCEPT, reaped before DONE.
+    @ViewBuilder
+    private func scopedV2BatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runScopedV2Battery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
+    // #211 follow-on: promoted vs promoted-plus-boundary. READ tools only.
     @ViewBuilder
     private func motionRedirectBatteryButton(trials: Int, label: String) -> some View {
         Button {
@@ -1325,6 +1349,11 @@ struct DiagnosticsSettingsScreen: View {
                 // step question the app currently answers wrong 20/20.
                 HStack(spacing: Design.Spacing.sm) {
                     motionScopeBatteryButton(trials: 10, label: "Motion-scope battery n=10 (40)")
+                }
+                // #214 THE structural lane — belt narrowing + composition
+                // licensing, the combination never yet run.
+                HStack(spacing: Design.Spacing.sm) {
+                    scopedV2BatteryButton(trials: 10, label: "ScopedV2 battery n=10 (80)")
                 }
                 // #211 follow-on: promoted vs promoted-plus-boundary, against
                 // the extra-tool chaining the promotion cost.
