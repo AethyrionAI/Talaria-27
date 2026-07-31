@@ -2468,9 +2468,24 @@ extension LocalChatBackend {
             return route.needsDeviceTool
         } catch {
             Self.logger.notice("router: classification failed — failing safe to armed (\(String(String(describing: error).prefix(80)), privacy: .public)) (#196)")
+            #if DEBUG
+            // #213: count it so a probe can report it. Production behaviour is
+            // UNCHANGED — failing safe to armed is right for a live turn; what
+            // was wrong was that the probe then scored the fallback as a
+            // correct answer on every `expected: true` row.
+            Self.routerFailureTally += 1
+            #endif
             return true
         }
     }
+
+    #if DEBUG
+    /// #213: router generations that THREW, counted so `runRouterContextProbe`
+    /// can report per-row error counts instead of silently scoring a crash as
+    /// a correct answer. Battery-scoped: the probe samples deltas around each
+    /// row. Never read outside DEBUG, never affects a live turn.
+    nonisolated(unsafe) static var routerFailureTally = 0
+    #endif
 }
 
 /// The route classification for one turn. File scope: the `@Generable`
@@ -4343,17 +4358,19 @@ extension LocalChatBackend {
             if variant == .control {
                 for probe in Self.routerBaselineProbes {
                     var correct = 0
+                    let failuresBefore = Self.routerFailureTally
                     for _ in 1...trials {
                         if await routeNeedsDeviceTool(prompt: probe.text, context: "",
                                                       variant: variant) == probe.expected {
                             correct += 1
                         }
                     }
-                    Self.batteryEmit("router: \(correct)/\(trials) expected=\(probe.expected) variant=baseline band=baseline probe=\(probe.text)")
+                    let failures = Self.routerFailureTally - failuresBefore
+                    Self.batteryEmit("router: \(correct)/\(trials) expected=\(probe.expected) variant=baseline band=baseline errors=\(failures) probe=\(probe.text)")
                     Self.batteryRecorder.recordProbe(
                         probe: probe.text, expected: probe.expected,
                         correct: correct, trials: trials,
-                        variant: "baseline", context: "", band: "baseline"
+                        variant: "baseline", context: "", band: "baseline", errors: failures
                     )
                 }
                 // #205: the image rows, scored as their OWN band so they can
@@ -4362,33 +4379,38 @@ extension LocalChatBackend {
                 // an unmeasured shape should establish.
                 for probe in Self.routerImageProbes {
                     var correct = 0
+                    let failuresBefore = Self.routerFailureTally
                     for _ in 1...trials {
                         if await routeNeedsDeviceTool(prompt: probe.text, context: "",
                                                       variant: variant) == probe.expected {
                             correct += 1
                         }
                     }
-                    Self.batteryEmit("router: \(correct)/\(trials) expected=\(probe.expected) variant=image band=image probe=\(probe.text)")
+                    let failures = Self.routerFailureTally - failuresBefore
+                    Self.batteryEmit("router: \(correct)/\(trials) expected=\(probe.expected) variant=image band=image errors=\(failures) probe=\(probe.text)")
                     Self.batteryRecorder.recordProbe(
                         probe: probe.text, expected: probe.expected,
                         correct: correct, trials: trials,
-                        variant: "image", context: "", band: "image"
+                        variant: "image", context: "", band: "image", errors: failures
                     )
                 }
             }
             for row in grid {
                 var correct = 0
+                let failuresBefore = Self.routerFailureTally
                 for _ in 1...trials {
                     if await routeNeedsDeviceTool(prompt: row.prompt, context: row.context,
                                                   variant: variant) == row.expected {
                         correct += 1
                     }
                 }
-                Self.batteryEmit("router: \(correct)/\(trials) expected=\(row.expected) variant=\(variant.rawValue) band=\(row.band.rawValue) probe=\(row.prompt)")
+                let failures = Self.routerFailureTally - failuresBefore
+                Self.batteryEmit("router: \(correct)/\(trials) expected=\(row.expected) variant=\(variant.rawValue) band=\(row.band.rawValue) errors=\(failures) probe=\(row.prompt)")
                 Self.batteryRecorder.recordProbe(
                     probe: row.prompt, expected: row.expected,
                     correct: correct, trials: trials,
-                    variant: variant.rawValue, context: row.context, band: row.band.rawValue
+                    variant: variant.rawValue, context: row.context, band: row.band.rawValue,
+                    errors: failures
                 )
             }
             emitThermal(cell: variant.rawValue, at: "end")

@@ -90,6 +90,24 @@ struct RouterProbeRecord: Codable, Equatable {
     /// the one number the probe was built for could not be read from the
     /// record. Same lesson #201B's thermal readings taught.
     var seconds: Double? = nil
+    /// #213: how many of `trials` had the router generation THROW.
+    ///
+    /// This record could not represent a failure at all. `routeNeedsDeviceTool`
+    /// catches everything and fails safe to `armed` — correct for production,
+    /// but it means that on a row with `expected: true` a CRASHED generation
+    /// matched the expectation and was counted CORRECT. **Five of the ten
+    /// baseline rows are `expected: true`, so half the 200/200 series could not
+    /// distinguish "the router judged right" from "the router died and fell
+    /// back."**
+    ///
+    /// The other five rows are an accidental control: on `expected: false` a
+    /// failure scores as a MISS, and they sit at 100/100 — which bounds the
+    /// real error rate near zero and is why no filed verdict is believed wrong.
+    /// Nobody chose that safeguard; recording the count replaces luck with
+    /// evidence.
+    ///
+    /// nil = the run predates #213, NOT zero errors.
+    var errors: Int? = nil
 }
 
 /// One battery or probe run. A probe-only run has empty `trials`; a battery
@@ -480,12 +498,12 @@ final class BatteryRunRecorder {
     /// unchanged and its records keep their original shape.
     func recordProbe(probe: String, expected: Bool, correct: Int, trials: Int,
                      variant: String? = nil, context: String? = nil, band: String? = nil,
-                     seconds: Double? = nil) {
+                     seconds: Double? = nil, errors: Int? = nil) {
         guard run != nil else { return }
         run?.probes.append(RouterProbeRecord(probe: probe, expected: expected,
                                             correct: correct, trials: trials,
                                             variant: variant, context: context, band: band,
-                                            seconds: seconds))
+                                            seconds: seconds, errors: errors))
         persistSnapshot()
     }
 

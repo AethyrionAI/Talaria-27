@@ -2779,6 +2779,32 @@ struct DeviceToolBeltTests {
     /// Lesson 4 from #201B: if a verdict depends on it, it belongs in the
     /// RECORD. The variant and the context are what distinguish otherwise
     /// identical probe rows.
+    /// #213: a probe row must be able to say the router THREW.
+    ///
+    /// It could not before. `routeNeedsDeviceTool` fails safe to `armed`, so on
+    /// an `expected: true` row a crashed generation matched the expectation and
+    /// scored CORRECT — and five of the ten baseline rows are `expected: true`.
+    /// nil must stay distinguishable from 0, or a pre-#213 run reads as a run
+    /// with no errors.
+    @Test @MainActor func probeRecordsCanCarryAnErrorCount() {
+        let store = WarmupCapturingStore()
+        let recorder = BatteryRunRecorder(store: store)
+        recorder.beginRun(trialsPerCell: 10, cells: [], kind: "router-context")
+        // A row where the fail-safe would have been scored as correct.
+        recorder.recordProbe(probe: "Set an alarm for 6:30", expected: true,
+                             correct: 10, trials: 10, variant: "baseline",
+                             context: "", band: "baseline", errors: 3)
+        // A pre-#213 call site: errors unspecified, and that must read as
+        // "not recorded", NOT as "zero errors".
+        recorder.recordProbe(probe: "What's 2+2?", expected: false, correct: 10, trials: 10)
+        recorder.endRun()
+        let probes = try! #require(store.persisted.last?.probes)
+        #expect(probes.first?.errors == 3)
+        #expect(probes.last?.errors == nil)
+        // The row that matters: 10/10 "correct" while 3 of those were crashes.
+        #expect(probes.first?.correct == 10)
+    }
+
     @Test @MainActor func probeRecordsCarryTheirVariantAndContext() {
         // Asserted through the recorder's OBSERVABLE contract (what gets
         // persisted), per the rule the warm-up pin established — no reaching
