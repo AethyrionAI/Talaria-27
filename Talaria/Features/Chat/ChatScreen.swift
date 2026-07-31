@@ -77,6 +77,9 @@ struct ChatScreen: View {
     /// #16: a parsed /alarm staged behind the in-app confirm gate — nothing
     /// schedules until the user confirms (decided policy for alarm writes).
     @State private var pendingAlarmConfirm: AlarmService.AlarmRequest?
+    /// #203 (1A): drives re-evaluation of the stall hint. One shared 1s
+    /// tick, not a timer per turn — nothing to start, stop, or leak.
+    @State private var stallTick: Date = .now
     @State private var showStatusCard = false
     @State private var scrollProxy: ScrollViewProxy?
     @FocusState private var isComposerFocused: Bool
@@ -106,6 +109,29 @@ struct ChatScreen: View {
     // Swift type-checker's budget ("unable to type-check this expression in
     // reasonable time"), more readily on slower machines (e.g. CI). The split is
     // behavior-preserving: the grouped modifiers are order-independent.
+    /// #203 (1A): a quiet turn says so. Driven by a 1s tick rather than a
+    /// timer per turn — `isStalled` is a pure comparison of two stored
+    /// values, so re-evaluating it costs nothing and there is no timer to
+    /// leak. The row disappears the moment any token, reasoning delta, or
+    /// tool event lands.
+    @ViewBuilder
+    private var stallHint: some View {
+        if ChatStore.isStalled(isStreaming: chatStore.isStreaming,
+                               lastActivityAt: chatStore.lastStreamActivityAt,
+                               now: stallTick) {
+            HStack(spacing: Design.Spacing.xs) {
+                ProgressView().scaleEffect(0.6)
+                MonoLabel("Still working — tap Stop to cancel.",
+                          size: 9, tracking: Design.Tracking.mono,
+                          color: Design.Colors.mutedForeground)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Design.Spacing.md)
+            .padding(.bottom, Design.Spacing.xs)
+            .transition(.opacity)
+        }
+    }
+
     /// #205: DEBUG-only, and empty in the overwhelmingly common case where
     /// the shape IS production — so it costs a launch-time enum compare and
     /// nothing else. Release compiles it out entirely.
@@ -136,6 +162,15 @@ struct ChatScreen: View {
             // production; valid ones do not. This is the banner that stops a
             // wasted debugging session.
             .safeAreaInset(edge: .top, spacing: 0) { debugSessionShapeBanner }
+            // #203 (1A): re-evaluate the stall hint once a second while a
+            // turn is in flight. Idle chats never tick.
+            .task(id: chatStore.isStreaming) {
+                guard chatStore.isStreaming else { return }
+                while !Task.isCancelled && chatStore.isStreaming {
+                    stallTick = .now
+                    try? await Task.sleep(for: .seconds(1))
+                }
+            }
             // #193: was a `.confirmationDialog`, whose cancel role does not
             // render on iOS 26/27 — a consent gate needs a visible decline,
             // so it's an alert now.
@@ -218,6 +253,11 @@ struct ChatScreen: View {
                     connectionBanner
                 }
                 messageList
+                // #203 (1A): the visible half. The Stop lives in the input
+                // bar directly below, so the hint sits next to its own
+                // remedy. It never cancels — #202B measured this model
+                // fabricating when cut off from a tool it expected.
+                stallHint
                 ChatInputBar(
                     text: $messageText,
                     pendingAttachments: $pendingAttachments,
