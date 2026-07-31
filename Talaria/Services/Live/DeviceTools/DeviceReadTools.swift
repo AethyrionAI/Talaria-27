@@ -122,7 +122,25 @@ struct LocationTool: Tool {
 
 struct MotionTool: Tool {
     let name = "readMotion"
-    let description = "Read today's step count and the user's current motion activity (walking, running, driving, stationary) from the phone's motion coprocessor."
+    /// PROMOTED 2026-07-31 (#211, run `63C0EF12`): the step claim is gone.
+    ///
+    /// The old text claimed "today's step count", and so does `readHealth` —
+    /// two tools advertising one capability. Asked "How many steps have I
+    /// taken today?", the model picked this one 20/20, `CMPedometer` had no
+    /// samples, and the turn answered "no pedometer data" while HealthKit held
+    /// the number. Scoping this description off steps took that from **0/10 to
+    /// 10/10** correct answers (Fisher exact two-tailed p = 1.08e-05), while
+    /// motion questions still reached this tool 9/9.
+    ///
+    /// Behaviour is UNCHANGED — `call()` still reports steps when the
+    /// pedometer has them. Only the advertisement moved. HealthKit is the
+    /// better source regardless: it aggregates phone AND watch, where
+    /// `CMPedometer` sees only the phone.
+    static let productionDescription = "Read the user's current motion activity (walking, running, driving, stationary) from the phone's motion coprocessor."
+    /// The pre-#211 text, kept reachable as the measured CONTROL cell
+    /// (`armed-motionrollback`) and as the pinned rollback.
+    static let stepClaimingDescription211 = "Read today's step count and the user's current motion activity (walking, running, driving, stationary) from the phone's motion coprocessor."
+    var description: String = MotionTool.productionDescription
     let relay: ToolEventRelay
 
     @Generable
@@ -195,21 +213,48 @@ struct MotionTool: Tool {
 
 struct WeatherTool: Tool {
     let name = "currentWeather"
-    let description = "Get live weather conditions and today's forecast from Apple Weather — at the user's current location, or at a named place if one is given."
+    /// Static so the pinned rollback twin ships the SAME description — the two
+    /// cells must differ in exactly one thing, the schema.
+    static let productionDescription = "Get live weather conditions and today's forecast from Apple Weather — at the user's current location, or at a named place if one is given."
+    let description = WeatherTool.productionDescription
     let relay: ToolEventRelay
     let location: DeviceLocationProvider
 
+    // #209: the @Guide has said "Optional… Leave empty" since this tool
+    // shipped, while the TYPE said required — so the model did as it was told,
+    // emitted `{}`, and the turn died on `GeneratedContent does not contain a
+    // property 'place'`. Two trials in the records. This is the week plan's
+    // finding 3 in its purest form: when behaviour resists an instruction,
+    // look for a structural constraint saying the opposite. `call()` already
+    // treats empty as "here", so nil changes nothing for a well-formed call.
+    // `WeatherToolRequiredPlace` is the pinned rollback.
     @Generable
     struct Arguments {
         @Guide(description: "Optional place name to get weather for (city or address). Leave empty for the user's current location.")
-        var place: String
+        var place: String?
     }
 
     func call(arguments: Arguments) async throws -> String {
-        let place = arguments.place.trimmingCharacters(in: .whitespacesAndNewlines)
-        await relay.started(name, detail: place.isEmpty ? nil : place)
-        defer { Task { await relay.completed(name) } }
+        await Self.performLookup(rawPlace: arguments.place, relay: relay,
+                                 location: location, name: name)
+    }
 
+    static func performLookup(rawPlace: String?, relay: ToolEventRelay,
+                              location: DeviceLocationProvider, name: String) async -> String {
+        // nil and "" are the same request: weather here.
+        let place = (rawPlace ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        await relay.started(name, detail: place.isEmpty ? nil : place)
+        // #212: record what this tool actually RETURNED, not merely that it
+        // finished. 40 of 40 weather trials failed with WeatherKit's real
+        // error in hand and the record kept only the model's paraphrase.
+        // Wrapping the body means every exit is captured without threading a
+        // variable through five returns.
+        let answer = await lookup(place: place, location: location)
+        await relay.completed(name, result: answer)
+        return answer
+    }
+
+    private static func lookup(place: String, location: DeviceLocationProvider) async -> String {
         let target: CLLocation
         let label: String
         if place.isEmpty {
@@ -252,6 +297,28 @@ struct WeatherTool: Tool {
             // land here; say so instead of inventing a forecast.
             return "Weather lookup failed: \(error.localizedDescription). (WeatherKit needs a network connection and the app's WeatherKit capability.)"
         }
+    }
+}
+
+/// #209 PINNED ROLLBACK for the optional-`place` schema: identical to
+/// `WeatherTool` in name, description, @Guide text and engine — the ONLY delta
+/// is that `place` is REQUIRED, which is what production shipped until #209
+/// while its own @Guide told the model the field was optional.
+struct WeatherToolRequiredPlace: Tool {
+    let name = "currentWeather"
+    var description: String = WeatherTool.productionDescription
+    let relay: ToolEventRelay
+    let location: DeviceLocationProvider
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Optional place name to get weather for (city or address). Leave empty for the user's current location.")
+        var place: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await WeatherTool.performLookup(rawPlace: arguments.place, relay: relay,
+                                        location: location, name: name)
     }
 }
 

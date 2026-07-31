@@ -7,13 +7,26 @@ import HealthKit
 /// rounding agree everywhere a number is shown.
 struct DeviceHealthTool: Tool {
     let name = "readHealth"
-    let description = "Read the user's health data from Apple Health: steps today, active calories today, latest heart rate, and last night's sleep."
+    /// Static so the pinned rollback twin ships the SAME description — the
+    /// two cells must differ in exactly one thing, the schema.
+    static let productionDescription = "Read the user's health data from Apple Health: steps today, active calories today, latest heart rate, and last night's sleep."
+    let description = DeviceHealthTool.productionDescription
     let relay: ToolEventRelay
 
+    // #209: `metric` is OPTIONAL because the tool can default it, and because
+    // a required one was killing whole turns. Dug out of the run records once
+    // the classifier stopped hiding the cause behind the tool dump: FIVE
+    // trials died on `GeneratedContent does not contain a property 'metric'.
+    // Content: {}` — the model emitting an empty object rather than picking a
+    // metric. `wantsMetric` ALREADY reads empty as "all of them", so nil lands
+    // on exactly the summary path an explicit "summary" takes and no
+    // well-formed call changes behaviour at all. Same shape as #200S/#200X,
+    // and the same rule they set: the schema should demand only what the tool
+    // cannot default. `DeviceHealthToolRequiredMetric` is the pinned rollback.
     @Generable
     struct Arguments {
-        @Guide(description: "Which metric to read: \"steps\", \"calories\", \"heartRate\", \"sleep\", or \"summary\" for all of them.")
-        var metric: String
+        @Guide(description: "Which metric to read: \"steps\", \"calories\", \"heartRate\", \"sleep\", or \"summary\" for all of them. Leave empty for all of them.")
+        var metric: String?
     }
 
     /// Read-only authorization set. Share types deliberately empty — this
@@ -28,7 +41,18 @@ struct DeviceHealthTool: Tool {
     }
 
     func call(arguments: Arguments) async throws -> String {
-        let metric = arguments.metric.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        await Self.performRead(rawMetric: arguments.metric, relay: relay, name: name)
+    }
+
+    /// nil and "" are the SAME request — everything. Shared with the pinned
+    /// rollback so the two cells differ only in their schema, never in engine.
+    static func normalizedMetric(_ raw: String?) -> String {
+        (raw ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    static func performRead(rawMetric: String?, relay: ToolEventRelay, name: String) async -> String {
+        // An omitted metric lands on exactly the path an empty string took.
+        let metric = normalizedMetric(rawMetric)
         await relay.started(name, detail: metric)
         defer { Task { await relay.completed(name) } }
 
@@ -104,5 +128,31 @@ struct DeviceHealthTool: Tool {
             lines.append("(If Health access wasn't granted, denied data is indistinguishable from empty — the user can check Settings → Health → Data Access & Devices → Talaria.)")
         }
         return lines.joined(separator: "\n")
+    }
+}
+
+/// #209 PINNED ROLLBACK for the optional-`metric` schema. Identical to
+/// `DeviceHealthTool` in name, description and engine — the ONLY delta is that
+/// `metric` is REQUIRED, which is what production shipped until #209.
+///
+/// It exists for the same reason `CalendarEventToolRequiredFields` did, and
+/// that reason paid off: the required-fields calendar twin is what let the
+/// error records PROVE the mechanism, by throwing
+/// `does not contain a property 'durationMinutes'` where the promoted tool
+/// structurally could not. A rollback twin is not just a revert — it is the
+/// control arm of a natural experiment that runs itself.
+struct DeviceHealthToolRequiredMetric: Tool {
+    let name = "readHealth"
+    var description: String = DeviceHealthTool.productionDescription
+    let relay: ToolEventRelay
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Which metric to read: \"steps\", \"calories\", \"heartRate\", \"sleep\", or \"summary\" for all of them.")
+        var metric: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await DeviceHealthTool.performRead(rawMetric: arguments.metric, relay: relay, name: name)
     }
 }

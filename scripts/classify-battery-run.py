@@ -478,8 +478,12 @@ def honesty_report(run):
 # the curly apostrophe and the passive voice in the fabrication detector.
 ERROR_BUCKETS = (
     # `{"term":"Sam"Sam"}<ctrl43>` — a doubled fragment plus a leaked control
-    # token. GENERATION corruption, not a missing field: an optional-field
-    # schema fix (the #200S/#200X shape) does nothing for this.
+    # token. Genuine GENERATION corruption, and an optional-field fix does
+    # nothing for it. **It is also RARE: 1 occurrence in 108.** An earlier
+    # version of this comment used that single row to retract the
+    # optional-field hypothesis for bucket D; the pooled data then showed D is
+    # 13/13 missing-required-property. Generalising from the first sample you
+    # happen to see is the same small-n error the batteries exist to prevent.
     ("A  guided-generation JSON corruption",
      lambda e: "cannot be completed into valid JSON" in e),
     # `Provided 8,529 tokens, but the maximum allowed is 8,192.` The INPUT
@@ -578,9 +582,44 @@ def error_taxonomy_report(run):
     print()
 
 
+def tool_result_report(run):
+    """#212: print what TOOLS returned, not just what the model said about it.
+
+    The record has always carried that a tool ran and what it was asked, never
+    what it answered — so 40 of 40 failing `currentWeather` trials left only the
+    model's paraphrase behind, and #212 could not be diagnosed from a run at all.
+    Capture is wired on the READ tools first; `result: null` means NOT CAPTURED,
+    never "empty", and unwired tools are reported as such rather than silently
+    counted as clean."""
+    trials = run.get("trials") or []
+    calls = [(t, c) for t in trials for c in (t.get("toolCalls") or [])]
+    if not calls:
+        return
+    captured = [(t, c) for t, c in calls if c.get("result") is not None]
+    if not captured:
+        return
+    FAIL = re.compile(r"couldn't|couldn’t|could not|failed|not granted|no data|"
+                      r"isn't available|unavailable|no sample", re.I)
+    failing = [(t, c) for t, c in captured if FAIL.search(c["result"])]
+    print(f"=== tool results (#212) — {len(captured)} of {len(calls)} calls captured"
+          f"  ({len(calls) - len(captured)} from tools not yet wired)")
+    by_tool = Counter(c["name"] for _, c in captured)
+    fail_by_tool = Counter(c["name"] for _, c in failing)
+    for name, n in by_tool.most_common():
+        bad = fail_by_tool.get(name, 0)
+        flag = "  !! EVERY CALL FAILED" if bad == n else (f"  {bad} failed" if bad else "")
+        print(f"    {name}: {n} captured{flag}")
+    if failing:
+        print("  distinct failure texts:")
+        for text, n in Counter(c["result"] for _, c in failing).most_common(6):
+            print(f"    {n:>3}x  {text[:220]}")
+    print()
+
+
 def main(path):
     run = json.load(open(path))
     error_taxonomy_report(run)
+    tool_result_report(run)
     if run.get("probes") and not run.get("trials"):
         return probe_report(run)
     if run.get("kind") == "twoturn":

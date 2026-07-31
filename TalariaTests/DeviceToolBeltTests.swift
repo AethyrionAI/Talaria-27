@@ -924,7 +924,68 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedCalrollback.rawValue == "armed-calrollback")
         #expect(LocalChatBackend.ActionBatteryCell.armedDeadendrollback.rawValue == "armed-deadendrollback")
         #expect(LocalChatBackend.ActionBatteryCell.armedCarveoutrollback.rawValue == "armed-carveoutrollback")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 25)
+        // #209: the read-tool promotion's pinned rollback.
+        #expect(LocalChatBackend.ActionBatteryCell.armedFieldrollback.rawValue == "armed-fieldrollback")
+        // #211: the scoped-readMotion treatment.
+        #expect(LocalChatBackend.ActionBatteryCell.armedMotionrollback.rawValue == "armed-motionrollback")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 27)
+    }
+
+    /// #211 PROMOTED: production no longer competes with `readHealth` for a
+    /// step question, and the rollback cell restores exactly the text that
+    /// did. Polarity flipped on promotion — the assertions are the same
+    /// claims, pointed the other way.
+    @Test @MainActor func promotedMotionDescriptionMakesNoStepClaim() {
+        // NO mention of steps may survive in production, or the semantic match
+        // that caused the 0/10 misroute is still there. This assertion already
+        // earned its keep pre-promotion: a draft redirect clause ("For step
+        // counts… use readHealth instead") put the phrase straight back AND
+        // confounded the cell with a second treatment.
+        #expect(MotionTool.productionDescription.lowercased().contains("step") == false)
+        // One variable: no redirect either. That is the NEXT lane — motivated
+        // now by the 4/9 extra-tool chaining the promotion run recorded.
+        #expect(MotionTool.productionDescription.contains("readHealth") == false)
+        // The rollback text is the pre-promotion one, claim intact.
+        #expect(MotionTool.stepClaimingDescription211.lowercased().contains("step count"))
+        // readHealth keeps its steps claim — it is the tool that has the data.
+        #expect(DeviceHealthTool.productionDescription.lowercased().contains("steps"))
+    }
+
+    /// #211: the rollback is a DESCRIPTION swap and nothing else — behaviour,
+    /// name and every other tool untouched, or the cell measures more than one
+    /// thing.
+    @Test @MainActor func motionrollbackSwapsOnlyTheMotionDescription() {
+        let belt = DeviceToolBelt.makeReadTools(
+            relay: ToolEventRelay(),
+            conversationProvider: { nil },
+            sessionCacheProvider: { [] },
+            spotlightEnabledProvider: { false }
+        )
+        let rolled = LocalChatBackend.destallBelt(from: belt, cell: .armedMotionrollback)
+        #expect(rolled.map(\.name) == belt.map(\.name))
+        let motion = rolled.first { $0.name == "readMotion" } as? MotionTool
+        #expect(motion?.description == MotionTool.stepClaimingDescription211)
+        // Every other tool identical.
+        let health = rolled.first { $0.name == "readHealth" } as? DeviceHealthTool
+        #expect(health?.description == DeviceHealthTool.productionDescription)
+    }
+
+    /// #209: a "pinned rollback" that no cell can reach is dead code, not a
+    /// rollback. Both twins must be swapped in TOGETHER — they are one
+    /// promotion — and every other tool left alone.
+    @Test @MainActor func fieldrollbackSwapsBothReadToolsAndNothingElse() {
+        let belt = DeviceToolBelt.makeReadTools(
+            relay: ToolEventRelay(),
+            conversationProvider: { nil },
+            sessionCacheProvider: { [] },
+            spotlightEnabledProvider: { false }
+        )
+        let rolled = LocalChatBackend.destallBelt(from: belt, cell: .armedFieldrollback)
+        #expect(rolled.map(\.name) == belt.map(\.name))
+        #expect(rolled.contains { $0 is DeviceHealthToolRequiredMetric })
+        #expect(rolled.contains { $0 is WeatherToolRequiredPlace })
+        #expect(!rolled.contains { $0 is DeviceHealthTool })
+        #expect(!rolled.contains { $0 is WeatherTool })
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)

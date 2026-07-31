@@ -11760,6 +11760,165 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
+## #212 — WeatherKit returns nothing: 0 forecasts in 40 trials, and no instrument was watching
+
+**FILED 2026-07-31 from run `01FA0ECC` (build 1600, OTA Debug). NOT fixed.**
+
+Every one of 40 `currentWeather` trials — both cells, bare and named place — failed
+to produce a forecast. The tool was CALLED successfully each time; WeatherKit
+itself failed, and the replies are the tool's own catch-all
+(`"Weather lookup failed: … WeatherKit needs a network connection and the app's
+WeatherKit capability."`).
+
+**UPDATE 2026-07-31 — the profile hypothesis is REFUTED, and the record could not
+answer the question.**
+
+Signing is correct at EVERY layer, checked on the shipped artifact rather than the
+source: `project.yml:56`, `Talaria/Talaria.entitlements`, the **signed binary**
+(`codesign -d --entitlements` on `Talaria27.ipa` → `com.apple.developer.weatherkit
+=> true`), and the **embedded provisioning profile**, which is the portal-side
+grant and is valid to 2027-07-27. **So it is not the profile and not the App ID.**
+My filed guess was wrong.
+
+**What blocked the diagnosis: `BatteryToolCallRecord` never recorded what a tool
+RETURNED** — only that it ran and what it was asked. The tool's own catch had
+WeatherKit's `localizedDescription` in hand and the record kept only the model's
+paraphrase. **Same blindness class as #209's buried cause, found twice in one
+day.** Fixed: `ToolEventRelay.completed(_:result:)` records the tool's answer into
+the battery store only — never the transcript, so it cannot leak internals the way
+#197's dump did. Wired on the read tools first; `result == nil` means NOT CAPTURED,
+never "empty".
+
+**Next: one re-run of the read-tool battery on a build carrying the capture, and
+the real error names the cause.** Remaining candidates, none yet distinguishable:
+a WeatherKit service-auth/token failure, a first-use registration delay, or a
+device-side network condition at run time.
+
+**Why it went unnoticed:** no battery has ever called a READ tool (#209), so
+`currentWeather` had never been exercised end-to-end by any instrument. It may have
+been broken for a long time. The phone had network throughout — the same build
+installed over Tailscale and `readHealth` answered correctly in the same minutes.
+
+## #211 — "How many steps have I taken today?" was answered WRONG 20/20. PROMOTED, 0/10 → 10/10.
+
+**VERDICT FILED 2026-07-31. Run `63C0EF12`, build 1602, `endedCleanly: true`,
+reap `0/0/0` (read tools write nothing). Dispatch:
+`dispatch/OPUS-T27-209-required-fields.md` (#211 addendum, bars written first).
+PROMOTED — `MotionTool.productionDescription` no longer claims steps;
+`armed-motionrollback` is the pinned control.**
+
+| bar | pre-registered | measured | |
+|---|---|---|---|
+| **Gate** — control reproduces the disease | ≤2/10 step numbers | **0/10** | HOLDS |
+| **Primary** — treatment returns a step count | ≥8/10 | **10/10**, all via `readHealth` | HOLDS |
+| **Guard** — motion questions still reach `readMotion` | ≥8/10 | **9/9 valid** | HOLDS |
+
+**Fisher exact two-tailed p = 1.08e-05.** Excluded and listed: 1 trial,
+`armed-motionrollback/motiondirect t3`, TIMEOUT. Zero errors.
+
+**Secondary, unbarred:** the offer-instead-of-act replies vanished — control
+`stepsdirect` offered on **4/10** ("Would you like to check your steps for another
+day?"), treatment **0/10**. Evidence that this instance of the #202-family shape
+was DOWNSTREAM of tool choice, not a separate disease.
+
+**The cost, recorded because it is real:** the treatment arm chained extra tools on
+motion questions — **4 of 9** valid trials vs **0 of 10** in control. `t9` went
+`readMotion → currentLocation → currentWeather → currentWeather` and injected
+#212's weather failure into an answer about standing still; `t10` chained into
+`readHealth` and appended an unasked-for health summary; `t6`/`t8` volunteered a
+street address for a question that asked neither where nor whether. **Answers
+stayed correct, so no bar broke** — but it is slower, chattier, and discloses
+location nobody asked for. **This motivates the redirect cell deliberately NOT
+built here** ("for steps, calories or sleep use readHealth"): naming what the tool
+is *for* may restore the confidence that scoping removed. That is now an
+evidenced next lane, not a guess.
+
+**Honesty note on the numbers:** all ten treatment replies are byte-identical
+("You've taken 3,116 steps today."). Control replies varied in wording, so
+sampling is stochastic — the uniformity is a low-entropy factual answer, not
+determinism. Tool CHOICE is what the bars measure. The step count also coheres
+across runs: 1,889 at 10:33, 3,116 at 17:33 the same day.
+
+### The original filing
+
+**FILED 2026-07-31 from run `01FA0ECC`. User-facing, deterministic.**
+
+The most natural health question the app can be asked returns **no step count at
+all — 0 of 20 trials produced a number** — while `readHealth` reported **1,889
+steps in the same minute**.
+
+**Mechanism: two tools advertise the same capability.**
+
+| tool | description | args |
+|---|---|---|
+| `readMotion` | "Read **today's step count** and the user's current motion activity…" | `{}` — none |
+| `readHealth` | "…**steps today**, active calories today, latest heart rate…" | `metric` |
+
+The model picks `readMotion`, `CMPedometer` has no samples, and the turn reports
+"no pedometer data" while HealthKit holds the answer.
+
+**#209 already eliminated the obvious explanation.** If empty-schema friction drove
+the choice, making `metric` optional should have shifted it. It did not move:
+`readMotion` 10/10 in the promoted arm AND 10/10 in the required-field rollback.
+**Description overlap drives the choice, not schema friction** — a measured
+elimination, and the one thing that run established cleanly.
+
+**Second-order finding:** several replies OFFER the right tool without calling it
+("Would you like to check your health data for other metrics?"). That is the
+#202-family offer-instead-of-act shape appearing on a READ path, where no
+confirmation gate exists to excuse it.
+
+**Unlike #209, this IS battery-measurable** — the effect is 0/20, not 1.4%. The fix
+belongs in a measured cell with a real bar.
+
+## #210 — #26's condense-and-retry guard does not fire on the REAL context-overflow error
+
+**FILED 2026-07-31 out of #209's pooled error data. Production-facing. NOT fixed —
+this is a finding, and the lane is unrouted.**
+
+`LocalChatBackend.isContextOverflow` (line 1647) returns true for exactly one
+thing:
+
+```swift
+guard let generationError = error as? LanguageModelSession.GenerationError else { return false }
+if case .exceededContextWindowSize = generationError { return true }
+```
+
+Its two callers (lines 349, 512) are the #26 guard: on overflow, rebuild with
+condensation forced and retry once. **The two real overflow failures in the record
+do not match it**, so the guard never fires and the turn simply dies:
+
+```
+Provided 8,583 tokens, but the maximum allowed is 8,192.::Provided 8,583 tokens,
+but the maximum allowed is 8,192.: The operation couldn't be completed.
+(TokenGenerationInference.DecoderModelError error 3.)::inferenceFailed::…
+```
+
+**The evidence that this is not a GenerationError**, and therefore that the cast
+fails: `GenerationError` is declared `: Swift.Error, Foundation.LocalizedError` in
+the beta-4 swiftinterface — **no `CustomStringConvertible`** — so
+`String(describing:)` on it renders the ENUM CASE NAME. Neither recorded string
+carries a case name; both are an NSError-style `::` chain bottoming out in
+`TokenGenerationInference.DecoderModelError error 3` / `inferenceFailed`. The
+overflow surfaces from a lower layer than the case the guard tests for.
+
+**Honest limits.** n=2, both on the `calendar` prompt (`armed` and
+`armed-stallfix`), 07-28 and 07-29. It is possible the SDK sometimes wraps this as
+`.exceededContextWindowSize` and sometimes does not; these two were not wrapped.
+The inference is sound for these two and should be confirmed before any fix.
+
+**Why it matters beyond two trials.** `rebuildSession` replays `transcriptTurns`,
+so ordinary long conversations grow toward the 8,192 INPUT ceiling — this is not a
+battery artifact. #208 falsified the OUTPUT cap (#102's 1024) as the D4 mechanism;
+nobody has ever tested the input ceiling, and the guard meant to handle it is
+looking for the wrong error shape. **A user hitting this sees a dead turn, not a
+condensed retry.**
+
+**Shape of a fix, unbuilt:** widen the predicate to match the failure by content
+(the "maximum allowed" / `exceededContextWindowSize` pair) rather than by a single
+enum case, and pin it with a test built from the verbatim strings above. Cheap. Do
+not touch the condensation budget itself without measurement.
+
 ## #209 — "ERROR" was never one disease: five mechanisms behind one excluded label
 
 **OPENED 2026-07-31. Instrument-only so far; no production change, no device run.**
@@ -11778,14 +11937,17 @@ from pasted classifier output shows **at least five distinct mechanisms**:
 | D | `ToolCallError(tool: Talaria.DeviceHealthTool(…` | cause buried, see below |
 | E | `Error Domain=FoundationModels.LanguageModelError Code=-1` | undifferentiated |
 
+**MEASURED 2026-07-31, and the first retraction below was ITSELF wrong — see the
+"pooled over 48 runs" section further down, which is the authoritative one.**
+
 **Two of my own claims retracted in the course of opening this item.**
 
-1. **The optional-field hypothesis was WRONG and was killed before it was built.**
-   `readHealth`'s `metric: String` is required, the same shape #200S/#200X fixed
-   twice, and the obvious next move was to make it optional. Bucket A shows the
-   actual failure is corrupt generated JSON (`"Sam"Sam"`, a `<ctrl43>` leak) on the
-   CONTACT tool's `term` — an optional field does nothing for it. This is #199's
-   lesson a second time: measure the mechanism before building the obvious fix.
+1. ~~**The optional-field hypothesis was WRONG and was killed before it was
+   built.**~~ **THIS RETRACTION IS RETRACTED.** It rested on bucket A's corrupt
+   JSON, which the pooled data then showed is **1 occurrence in 108**, while
+   bucket D is **13 of 13** missing-required-property. The original hypothesis was
+   right. Generalising from the first sample seen is the same small-n error the
+   batteries exist to prevent — made here in prose, where no bar could catch it.
 2. **"D's cause is structurally absent" was WRONG.** Verified against the beta-4
    swiftinterface: `LanguageModelSession.ToolCallError` is a struct with TWO stored
    properties, `tool` and `underlyingError`, so `String(describing:)` reflects both.
@@ -11813,6 +11975,87 @@ arithmetic and exclusion semantics are unchanged.
   guards context overflow with condense-and-retry-once (#26,
   `LocalChatBackend.swift:514`), yet a run recorded 8,529 tokens escaping it —
   either the battery path bypasses the guard or condensation fell short. Unmeasured.
+
+### POOLED OVER 48 RUNS (2026-07-31) — the authoritative numbers
+
+The phone only retains 10 runs (`BatteryRunStore.maxRuns`), and the error-carrying
+ones had aged out. **The Messages attachment store had all 48 ever sent** — nothing
+needed re-exporting. Owen's question is what recovered the dataset.
+
+**3,578 trials, 108 errors (3.02%), 10 timeouts.** One run (`20260728-194237`)
+errored on **81 of 139** trials, all bucket E — a run where the model service died,
+not a sample of normal failure. Reading composition through it is the cold-start
+mistake again, so both columns are given:
+
+| bucket | all 48 runs | excluding the broken run |
+|---|---|---|
+| **D** missing required property | 12.0% | **48.1%** |
+| E LanguageModelError | 80.6% | 22.2% |
+| F unclassified | 2.8% | 11.1% |
+| B input overflow | 1.9% | 7.4% |
+| C resource pressure | 1.9% | 7.4% |
+| A JSON corruption | 0.9% | 3.7% |
+
+**Every one of the 13 D causes is a missing required property**, and
+`underlyingError` was present on **13 of 13** — the SDK reading is confirmed
+against real data, and the extraction path is no longer unverified:
+
+| property | tool | n | content emitted |
+|---|---|---|---|
+| `metric` | `DeviceHealthTool` | 5 | `{}` |
+| `title` | `ReminderCreateTool` | 4 | `{"due": …, "list": ""}` |
+| `place` | `WeatherTool` | 2 | `{}` |
+| `title` | `CalendarEventTool` | 1 | `{}` |
+| `durationMinutes` | `CalendarEventTool`**`RequiredFields`** | 1 | the pinned ROLLBACK cell |
+
+**That last row is a natural experiment already in the data.** The required-fields
+calendar twin threw the error its promoted counterpart structurally cannot, because
+#200X made exactly that field optional. **#200X is vindicated on a mechanism its
+rate evidence never touched — and a rollback twin turns out to be a control arm,
+not just a revert.** That is now the stated reason to keep building them.
+
+**`currentWeather` was a documented CONTRADICTION.** Its `@Guide` has said
+"Optional… Leave empty for the user's current location" since it shipped, while the
+type said required. The model obeyed the prose, emitted `{}`, and the turn died.
+Week-plan finding 3 in its purest form: when behaviour resists an instruction, look
+for a structural constraint saying the opposite.
+
+### VERDICT 2026-07-31 — read-tool battery `01FA0ECC`: **INCONCLUSIVE**, gate failed
+
+Run `01FA0ECC`, build **1600**, `endedCleanly: true`, reap `0/0/0` (read tools write
+nothing). 80 trials, `[armed, armed-fieldrollback]` × 4 prompts × 10.
+
+**The pre-registered evaluability gate FAILED: the rollback arm showed 0 of 20
+missing-property errors on the bare prompts, against a gate of ≥3.** Per the
+dispatch, no comparison is reported. The primary bar (production shows zero) held
+but **VACUOUSLY** — the rollback showed zero too, so it evidences nothing.
+
+**Why the provocation design failed, and it is a real correction: a required
+`String` is satisfied by `""`.** The lane assumed a model with no value available
+would emit `{}`. It does not — it emits an empty string, which decodes fine.
+Omitting the KEY is a generation glitch, not a rational response to a bare prompt,
+so **no prompt design provokes it.** "Provoke the condition rather than lower the
+bar" was sound in principle and built on a wrong model of the condition.
+
+**Consequence: this failure class is probably not battery-measurable by ANY prompt
+design, and `RequiredPropertyDecodeTests` is the only honest instrument for it —
+which is what the original no-efficacy-bar reasoning concluded before the addendum
+talked itself out of it.** The change stands on the decode tests and on the
+structural argument, not on a rate.
+
+**What the run DID establish**, and it is not nothing: the promoted and rollback
+arms behaved identically on tool CHOICE, which eliminates schema friction as the
+driver of the #211 misroute. It also surfaced #211 and #212, neither of which any
+instrument had ever been positioned to see.
+
+**This disease is NOT battery-measurable, and no bar should pretend otherwise.**
+Conditional rates: worst cell `armed/haiku` **5/350 = 1.4%**; pooled by prompt,
+haiku 0.92%, calendar 0.53%, remind 0.13%, alarm/norway/canary 0.00%. At n=30 an
+arm expects 0.4 hits and will read zero either way. Writing an efficacy bar here
+would be the #201 mis-specification a fifth time — a gate above the disease's own
+rate. **The guarantee is structural, so the proof belongs in a test, not a battery:**
+`RequiredPropertyDecodeTests` replays the exact recorded payloads and pins that each
+promoted schema accepts what its rollback twin still refuses.
 
 ## #208 (Lane 4) — the token cap is NOT the D4 mechanism. Hypothesis falsified; #102's cap stays.
 
