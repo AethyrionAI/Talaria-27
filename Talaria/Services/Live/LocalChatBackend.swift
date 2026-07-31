@@ -694,6 +694,15 @@ final class LocalChatBackend: HermesClientProtocol {
         // greedy); errors fail safe to armed inside the router. In DEBUG
         // the A/B picker can pin a legacy cell, which disables routing for
         // the launch so every non-routed cell stays pure.
+        // #176: the turn's incoming attachments count. This runs BEFORE the
+        // user message is appended, so the stored conversation doesn't know
+        // about the image being sent right now.
+        //
+        // #207 (PROMOTED): hoisted ABOVE the router. It used to be computed
+        // six lines BELOW the routing call and never passed, so the router
+        // could not tell an image was attached and sent "what does this
+        // say?" toolless — 0/4 reading prompts, measured twice.
+        let hasImage = ConversationImageSource.hasImage(in: currentConversation, incoming: attachments)
         if Self.turnRoutingEnabled {
             // #202D: classify WITH the previous assistant turn. Drawn from
             // the same `transcriptTurns` source `rebuildSession` replays, so
@@ -706,15 +715,11 @@ final class LocalChatBackend: HermesClientProtocol {
                 excludingClientMessageID: excludingClientMessageID
             ).last { $0.role == .assistant }?.text ?? ""
             turnRoutedToolless = !(await routeNeedsDeviceTool(
-                prompt: nextPrompt, context: priorAssistantTurn))
-            Self.logger.notice("router: turn routed \(self.turnRoutedToolless ? "toolless" : "armed", privacy: .public) ctx=\(priorAssistantTurn.isEmpty ? "none" : "prior-turn", privacy: .public) (#202D)")
+                prompt: nextPrompt, context: priorAssistantTurn, hasImage: hasImage))
+            Self.logger.notice("router: turn routed \(self.turnRoutedToolless ? "toolless" : "armed", privacy: .public) ctx=\(priorAssistantTurn.isEmpty ? "none" : "prior-turn", privacy: .public) img=\(hasImage, privacy: .public) (#207)")
         } else {
             turnRoutedToolless = false
         }
-        // #176: the turn's incoming attachments count. This runs BEFORE the
-        // user message is appended, so the stored conversation doesn't know
-        // about the image being sent right now.
-        let hasImage = ConversationImageSource.hasImage(in: currentConversation, incoming: attachments)
         if let session {
             let offered = effectiveOfferedTools(hasImageInContext: hasImage)
             if offered.map(\.name) != sessionToolNames {
@@ -2350,6 +2355,18 @@ extension LocalChatBackend {
     /// **Rollback: `.control`**, still reachable as a measured probe cell.
     nonisolated static let productionRouterVariant: RouterVariant = .ctxA
 
+    /// #207 PROMOTION (2026-07-31): production teaches the router that an
+    /// attached image is a device request. Measured TWICE — image rows
+    /// 1/4 → **4/4**, the #196 baseline untouched at **100/100**, and a photo
+    /// carried alongside an unrelated request still routes TOOLLESS 2/2.
+    ///
+    /// **The signal and the guide are ONE mechanism in two places** — the
+    /// guide teaches `marker → armed`, the signal supplies the marker, and
+    /// the signal alone moved nothing (1/4, identical to production). They
+    /// ship together. **Rollback: `false`**, which restores the pinned
+    /// `@Guide` byte-for-byte and is reachable as the `img-signal` cell.
+    nonisolated static let productionIncludesImageGuide = true
+
     /// #202D PROMOTION: the toolless branch's shipped text, in ONE place so
     /// the live path and the measured arm cannot drift apart. Production is
     /// the promoted `toolless-lic2` payload PLUS clause v2.
@@ -2371,9 +2388,12 @@ extension LocalChatBackend {
     /// available. `context` is the previous assistant turn (empty when the
     /// conversation has none, which makes ctx-a fall back to the bare
     /// production envelope).
-    func routeNeedsDeviceTool(prompt: String, context: String = "") async -> Bool {
+    func routeNeedsDeviceTool(prompt: String, context: String = "",
+                              hasImage: Bool = false) async -> Bool {
         await routeNeedsDeviceTool(prompt: prompt, context: context,
-                                   variant: Self.productionRouterVariant)
+                                   variant: Self.productionRouterVariant,
+                                   hasImage: hasImage,
+                                   includeImageGuide: Self.productionIncludesImageGuide)
     }
 
     /// The variant-parameterized router. **Production calls it with

@@ -11766,8 +11766,40 @@ that cannot see the failure mode the change introduces.**
 The honest denominator is **4 image rows + 10 baseline rows per arm**, not 140
 trials, and the bars were written in rows for that reason.
 
-**Owed:** re-run with the `image-wordsonly` band. If it holds toolless on img-guide,
-the pair promotes with the flags' `false` as the pinned rollback.
+**CONFIRMED AND PROMOTED 2026-07-31 — run `64DC6275`, a strict superset of the
+first (same rows plus the missing band). Suite 1379/1379.**
+
+| band | img-none | img-signal | **img-guide** |
+|---|---|---|---|
+| image (want ARMED) | 1/4 | 1/4 | **4/4** |
+| **image-wordsonly (want TOOLLESS)** | 2/2 | 2/2 | **2/2** |
+| #196 baseline | 100/100 | 100/100 | **100/100** |
+
+**The degenerate did NOT happen.** A photo carried alongside an unrelated request —
+"write a haiku about sledding", "what's 2+2?" — still routes **TOOLLESS 2/2** under
+the fix. That was the band the promotion rested on, and it was missing from the
+first grid.
+
+**Every number replicated exactly** across the two runs: img-none 1/4, img-signal
+1/4, img-guide 4/4, baseline 100/100. **Two clean runs, so the standing "one clean
+run does not promote" rule is satisfied.**
+
+**PROMOTED — the PAIR, because neither half works alone:**
+
+1. **`hasImage` is hoisted ABOVE the router call and passed in.** It used to be
+   computed six lines BELOW and never handed over, which is the whole defect.
+2. **`productionIncludesImageGuide = true`** — one added `@Guide` example teaching
+   that an attached image is a device request.
+
+**Rollback: the flag's `false`**, which restores the pinned `@Guide` byte-for-byte
+and is reachable as the measured `img-signal` cell. Pinned by a test asserting the
+shipped text is exactly what the `img-guide` arm ran, and that a turn with no image
+is untouched.
+
+**Standing note for the next router lane:** "scan this barcode" armed 10/10 in every
+arm including production — **"scan" is a device verb the router already knew.** The
+defect was always specific to reading/vision phrasings, and a grid built only from
+verbs like "scan" would have found nothing.
 
 ## #206 — ctx-a BREAKS at ~4,000 chars of context, and my "no truncation needed" verdict was wrong
 

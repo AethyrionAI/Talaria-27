@@ -2296,6 +2296,31 @@ struct DeviceToolBeltTests {
         #expect(grid.allSatisfy { !imageTexts.contains($0.text) })
     }
 
+    /// #207 PROMOTION: production teaches the router that an attached image
+    /// is a device request. Both seams ship together because neither works
+    /// alone — the signal without the guide moved nothing (1/4, measured
+    /// twice). Rollback is the flag's `false`, which restores the pinned
+    /// `@Guide` byte-for-byte.
+    @Test func productionTeachesTheRouterAboutAttachedImages() {
+        #expect(LocalChatBackend.productionIncludesImageGuide)
+        let shipped = LocalChatBackend.routerInstructions(
+            for: LocalChatBackend.productionRouterVariant,
+            includeImageGuide: LocalChatBackend.productionIncludesImageGuide)
+        #expect(shipped.hasPrefix(LocalChatBackend.toolIntentRouterInstructions))
+        #expect(shipped.lowercased().contains("image"))
+        // ROLLBACK is byte-identical to the pinned pre-#207 text.
+        let rollback = LocalChatBackend.routerInstructions(
+            for: LocalChatBackend.productionRouterVariant, includeImageGuide: false)
+        #expect(rollback == LocalChatBackend.toolIntentRouterInstructions)
+        // The shipped text is exactly what the measured img-guide arm ran.
+        #expect(shipped == LocalChatBackend.toolIntentRouterInstructions
+                + LocalChatBackend.imageGuideExample)
+        // A turn with no image is untouched — the signal only fires on images.
+        #expect(LocalChatBackend.routerPrompt(context: "", prompt: "What's 2+2?",
+                                              variant: .ctxA, hasImage: false)
+                == "Request: What's 2+2?")
+    }
+
     /// #205: the #196 baseline series is EXACTLY ten rows. Its 200/200
     /// history and #202A's regression denominator both derive from that
     /// count — appending to it silently re-points a long-running series and
