@@ -11721,6 +11721,54 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
+## #207 — image turns: the signal alone does NOTHING, the guide fixes it completely
+
+**VERDICT FILED 2026-07-31. Run `C2E03F53`, n=10, `endedCleanly: true`. Dispatch:
+`dispatch/OPUS-T27-207-image-routing.md`. NOT PROMOTED — one collateral band was
+missing and is now built.**
+
+| arm | image rows ARMED | #196 baseline |
+|---|---|---|
+| **img-none** (production) | **1/4** | 100/100 |
+| **img-signal** (marker only) | **1/4** | 100/100 |
+| **img-guide** (marker + guide) | **4/4** | **100/100** |
+
+**REPRODUCTION GATE HOLDS:** production routes 3 of 4 image prompts toolless. The
+one exception is *"scan this barcode"*, armed 10/10 in every arm — **"scan" is a
+device verb the router already knows**, so the defect is specific to the *reading /
+vision* phrasings a user would actually type with a photo.
+
+**PRIMARY FAILS: the signal alone changes NOTHING — 1/4, byte-identical to
+production.** Telling the router `[an image is attached]` moved zero rows. The cheap
+seam I hoped would suffice does not.
+
+**SECONDARY PASSES: img-guide is 4/4 with the #196 baseline untouched at 100/100.**
+
+**THE TWO SEAMS ARE NOT INDEPENDENT — they are one mechanism in two places, and the
+run makes that obvious in hindsight.** The guide example teaches `marker → armed`;
+the signal supplies the marker. Neither works alone: the signal without the guide is
+an unexplained token (1/4, measured), and the guide without the signal would teach a
+pattern that never appears (predicted, untested). **So the promotion candidate is the
+PAIR, which is exactly what `img-guide` is** — but the dispatch's parsimony rule
+("if the signal clears it, the guide is not promoted") turned out to be unreachable
+rather than merely unmet.
+
+**WHY IT IS NOT PROMOTED: a collateral band was missing, and it is the degenerate
+direction.** The fix marks **every** prompt when an image is attached, and the guide
+teaches marker → armed. **Nothing in the grid covered "photo attached, request
+unrelated to it"** — the shape where this would over-arm, which is #196's disease.
+Two rows now added (`write a haiku about sledding`, `what's 2+2?`, both expected
+TOOLLESS, both carrying the image signal) and run on all three arms. **Same class of
+gap as #206's confounded rows and #205's appended baseline: I keep building grids
+that cannot see the failure mode the change introduces.**
+
+**DETERMINISM:** zero within-row variance across all 42 rows — greedy decode again.
+The honest denominator is **4 image rows + 10 baseline rows per arm**, not 140
+trials, and the bars were written in rows for that reason.
+
+**Owed:** re-run with the `image-wordsonly` band. If it holds toolless on img-guide,
+the pair promotes with the flags' `false` as the pinned rollback.
+
 ## #206 — ctx-a BREAKS at ~4,000 chars of context, and my "no truncation needed" verdict was wrong
 
 **Filed 2026-07-30 from run `5BB1C020`. This CORRECTS the #202C verdict filed

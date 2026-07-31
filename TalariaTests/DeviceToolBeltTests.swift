@@ -2280,6 +2280,22 @@ struct DeviceToolBeltTests {
         #expect(grid.contains { $0.text == "scan this barcode" })
     }
 
+    /// #207's post-hoc gap: the fix marks EVERY prompt when an image is
+    /// attached, so a photo carried alongside an unrelated request is where
+    /// it would over-arm. Toolless is right — the image is irrelevant to
+    /// both rows, and arming them is #196's disease.
+    @Test func imageWordsOnlyRowsExpectToollessAndCarryTheImageSignal() {
+        let grid = LocalChatBackend.imageWordsOnlyGrid
+        #expect(grid.count == 2)
+        #expect(grid.allSatisfy { !$0.expected })
+        // They must be prompts that need nothing from the device even with a
+        // photo present — otherwise the band tests the wrong thing.
+        #expect(grid.contains { $0.text == "what's 2+2?" })
+        // And they are distinct from the image band, which expects ARMED.
+        let imageTexts = Set(LocalChatBackend.imageProbeGrid.map(\.text))
+        #expect(grid.allSatisfy { !imageTexts.contains($0.text) })
+    }
+
     /// #205: the #196 baseline series is EXACTLY ten rows. Its 200/200
     /// history and #202A's regression denominator both derive from that
     /// count — appending to it silently re-points a long-running series and

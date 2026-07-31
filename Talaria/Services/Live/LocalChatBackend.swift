@@ -3805,6 +3805,17 @@ extension LocalChatBackend {
         ("scan this barcode", true),
     ]
 
+    /// #207 GAP FOUND AFTER RUN `C2E03F53`, and it is the degenerate
+    /// direction. The fix marks EVERY prompt when an image is attached, and
+    /// the guide teaches marker → armed — so a turn that happens to carry a
+    /// photo while asking something unrelated may now arm for no reason,
+    /// which is #196's disease. **Nothing in the first grid covered this
+    /// shape.** The image is irrelevant to both rows, so TOOLLESS is right.
+    nonisolated static let imageWordsOnlyGrid: [(text: String, expected: Bool)] = [
+        ("write a haiku about sledding", false),
+        ("what's 2+2?", false),
+    ]
+
     /// #207 arms. Two seams, measured SEPARATELY and in this order, because
     /// the signal may be sufficient alone — and if it is, the pinned
     /// `@Guide` (200/200 history) is never touched. The ctx-a-over-ctx-b
@@ -3855,6 +3866,26 @@ extension LocalChatBackend {
                 Self.batteryRecorder.recordProbe(
                     probe: probe.text, expected: probe.expected, correct: correct, trials: trials,
                     variant: arm.rawValue, context: "", band: "image"
+                )
+            }
+            // COLLATERAL 2 (#207 gap): an image attached to a WORDS-ONLY
+            // request. These carry the image signal like any other image
+            // turn, so this is where "mark every prompt and teach marker →
+            // armed" would over-arm. The band the promotion actually rests on.
+            for probe in Self.imageWordsOnlyGrid {
+                var correct = 0
+                for _ in 1...trials {
+                    if await routeNeedsDeviceTool(
+                        prompt: probe.text, context: "", variant: Self.productionRouterVariant,
+                        hasImage: arm.sendsImageSignal,
+                        includeImageGuide: arm.includesImageGuide) == probe.expected {
+                        correct += 1
+                    }
+                }
+                Self.batteryEmit("router: \(correct)/\(trials) expected=\(probe.expected) variant=\(arm.rawValue) band=image-wordsonly probe=\(probe.text)")
+                Self.batteryRecorder.recordProbe(
+                    probe: probe.text, expected: probe.expected, correct: correct, trials: trials,
+                    variant: arm.rawValue, context: "", band: "image-wordsonly"
                 )
             }
             // COLLATERAL: the #196 grid on EVERY arm. The guide arm edits a
