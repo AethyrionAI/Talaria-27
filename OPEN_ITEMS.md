@@ -11760,6 +11760,59 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
+## #212 — WeatherKit returns nothing: 0 forecasts in 40 trials, and no instrument was watching
+
+**FILED 2026-07-31 from run `01FA0ECC` (build 1600, OTA Debug). NOT fixed.**
+
+Every one of 40 `currentWeather` trials — both cells, bare and named place — failed
+to produce a forecast. The tool was CALLED successfully each time; WeatherKit
+itself failed, and the replies are the tool's own catch-all
+(`"Weather lookup failed: … WeatherKit needs a network connection and the app's
+WeatherKit capability."`).
+
+**The entitlement IS declared** — `project.yml:56` `com.apple.developer.weatherkit:
+true`, and `Talaria/Talaria.entitlements`. So this is a dev-signed-profile or
+service-auth problem, not a missing capability in source. **One check, not a
+guess:** confirm the exported OTA profile carries the WeatherKit entitlement, and
+that the App ID is WeatherKit-enabled.
+
+**Why it went unnoticed:** no battery has ever called a READ tool (#209), so
+`currentWeather` had never been exercised end-to-end by any instrument. It may have
+been broken for a long time. The phone had network throughout — the same build
+installed over Tailscale and `readHealth` answered correctly in the same minutes.
+
+## #211 — "How many steps have I taken today?" is answered WRONG, 10/10, because two tools claim steps
+
+**FILED 2026-07-31 from run `01FA0ECC`. User-facing, deterministic, NOT fixed.**
+
+The most natural health question the app can be asked returns **no step count at
+all — 0 of 20 trials produced a number** — while `readHealth` reported **1,889
+steps in the same minute**.
+
+**Mechanism: two tools advertise the same capability.**
+
+| tool | description | args |
+|---|---|---|
+| `readMotion` | "Read **today's step count** and the user's current motion activity…" | `{}` — none |
+| `readHealth` | "…**steps today**, active calories today, latest heart rate…" | `metric` |
+
+The model picks `readMotion`, `CMPedometer` has no samples, and the turn reports
+"no pedometer data" while HealthKit holds the answer.
+
+**#209 already eliminated the obvious explanation.** If empty-schema friction drove
+the choice, making `metric` optional should have shifted it. It did not move:
+`readMotion` 10/10 in the promoted arm AND 10/10 in the required-field rollback.
+**Description overlap drives the choice, not schema friction** — a measured
+elimination, and the one thing that run established cleanly.
+
+**Second-order finding:** several replies OFFER the right tool without calling it
+("Would you like to check your health data for other metrics?"). That is the
+#202-family offer-instead-of-act shape appearing on a READ path, where no
+confirmation gate exists to excuse it.
+
+**Unlike #209, this IS battery-measurable** — the effect is 0/20, not 1.4%. The fix
+belongs in a measured cell with a real bar.
+
 ## #210 — #26's condense-and-retry guard does not fire on the REAL context-overflow error
 
 **FILED 2026-07-31 out of #209's pooled error data. Production-facing. NOT fixed —
@@ -11908,6 +11961,34 @@ not just a revert.** That is now the stated reason to keep building them.
 type said required. The model obeyed the prose, emitted `{}`, and the turn died.
 Week-plan finding 3 in its purest form: when behaviour resists an instruction, look
 for a structural constraint saying the opposite.
+
+### VERDICT 2026-07-31 — read-tool battery `01FA0ECC`: **INCONCLUSIVE**, gate failed
+
+Run `01FA0ECC`, build **1600**, `endedCleanly: true`, reap `0/0/0` (read tools write
+nothing). 80 trials, `[armed, armed-fieldrollback]` × 4 prompts × 10.
+
+**The pre-registered evaluability gate FAILED: the rollback arm showed 0 of 20
+missing-property errors on the bare prompts, against a gate of ≥3.** Per the
+dispatch, no comparison is reported. The primary bar (production shows zero) held
+but **VACUOUSLY** — the rollback showed zero too, so it evidences nothing.
+
+**Why the provocation design failed, and it is a real correction: a required
+`String` is satisfied by `""`.** The lane assumed a model with no value available
+would emit `{}`. It does not — it emits an empty string, which decodes fine.
+Omitting the KEY is a generation glitch, not a rational response to a bare prompt,
+so **no prompt design provokes it.** "Provoke the condition rather than lower the
+bar" was sound in principle and built on a wrong model of the condition.
+
+**Consequence: this failure class is probably not battery-measurable by ANY prompt
+design, and `RequiredPropertyDecodeTests` is the only honest instrument for it —
+which is what the original no-efficacy-bar reasoning concluded before the addendum
+talked itself out of it.** The change stands on the decode tests and on the
+structural argument, not on a rate.
+
+**What the run DID establish**, and it is not nothing: the promoted and rollback
+arms behaved identically on tool CHOICE, which eliminates schema friction as the
+driver of the #211 misroute. It also surfaced #211 and #212, neither of which any
+instrument had ever been positioned to see.
 
 **This disease is NOT battery-measurable, and no bar should pretend otherwise.**
 Conditional rates: worst cell `armed/haiku` **5/350 = 1.4%**; pooled by prompt,
