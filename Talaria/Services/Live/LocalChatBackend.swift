@@ -1644,10 +1644,39 @@ final class LocalChatBackend: HermesClientProtocol {
         }
     }
 
+    /// #210: does this error mean "the prompt did not fit"?
+    ///
+    /// The typed case is the documented shape and stays the fast path. But it
+    /// is NOT the shape the device actually produces: both real overflows in
+    /// the run records arrived as an NSError-style chain with **no enum case
+    /// name** —
+    ///
+    /// ```
+    /// Provided 8,583 tokens, but the maximum allowed is 8,192.::…
+    /// (TokenGenerationInference.DecoderModelError error 3.)::inferenceFailed::…
+    /// ```
+    ///
+    /// — and `GenerationError` declares no `CustomStringConvertible` in the
+    /// beta-4 swiftinterface, so `String(describing:)` on one WOULD print its
+    /// case. The cast therefore failed, **#26's condense-and-retry never fired,
+    /// and the turn died instead of degrading to summarized memory.**
+    ///
+    /// The content check requires BOTH halves of the sentence — a token count
+    /// AND the ceiling — so an unrelated error mentioning "maximum allowed"
+    /// cannot trip it. Being wrong costs one forced-condensation retry, which
+    /// `didCondenseRetry` already caps at one; being wrong the other way costs
+    /// the whole turn, which is what has been happening.
+    ///
+    /// Mutation-verified: restoring the pre-#210 body fails exactly
+    /// `recognizesTheOverflowShapeTheDeviceActuallySends` and
+    /// `recognizesTheSecondRecordedOverflow`, and nothing else.
     nonisolated static func isContextOverflow(_ error: Error) -> Bool {
-        guard let generationError = error as? LanguageModelSession.GenerationError else { return false }
-        if case .exceededContextWindowSize = generationError { return true }
-        return false
+        if let generationError = error as? LanguageModelSession.GenerationError,
+           case .exceededContextWindowSize = generationError { return true }
+        let described = String(describing: error)
+        return described.contains("maximum allowed is")
+            && described.range(of: #"[Pp]rovided [\d,]+ tokens"#,
+                               options: .regularExpression) != nil
     }
 
     /// Plain-language reasons for `.failed(String)` — never a bare error dump

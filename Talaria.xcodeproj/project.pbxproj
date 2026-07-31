@@ -442,6 +442,7 @@
 		E4EE52A039E47EBA8881069D /* Icon-MidnightAquarium@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 8BD8C35FF4AC86391DCCFEC4 /* Icon-MidnightAquarium@2x.png */; };
 		E66E1DCD6DDC6DFDF214ED71 /* SpaceGrotesk-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 57107F3D3770FAA8F93F1E70 /* SpaceGrotesk-Medium.ttf */; };
 		E91BA6F1F84BEBD94CE8DA22 /* HermesStatusWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B9370067BF51189E67CA57 /* HermesStatusWidget.swift */; };
+		E9ADDD5D9D9BD8E28B6D317B /* ContextOverflowGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20BF8A2E3B81ED9F412DFD07 /* ContextOverflowGuardTests.swift */; };
 		E9B07CADC065C3C2336EFB93 /* DeviceRegistrationRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B97713AF7CC8487DD32F1F15 /* DeviceRegistrationRequest.swift */; };
 		E9CC8616807E52B13A4B50D9 /* EntitlementServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18522BB94AC368FD831EA0FF /* EntitlementServiceProtocol.swift */; };
 		EA1059F552C01182EDE5A27B /* Icon-BubblegumMecha@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6C5FDB59E099F96641AB625B /* Icon-BubblegumMecha@2x.png */; };
@@ -589,6 +590,7 @@
 		1FD6C2114903167B61743BB1 /* Icon-ComicVillain@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-ComicVillain@2x.png"; sourceTree = "<group>"; };
 		2006EA74599EF8F60E42BC8A /* GenUIDebugScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenUIDebugScreen.swift; sourceTree = "<group>"; };
 		2036F929007F5D073276076B /* Icon-CosmicBowling@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-CosmicBowling@2x.png"; sourceTree = "<group>"; };
+		20BF8A2E3B81ED9F412DFD07 /* ContextOverflowGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextOverflowGuardTests.swift; sourceTree = "<group>"; };
 		213FC95107A5372F98363C1B /* LocationServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationServiceProtocol.swift; sourceTree = "<group>"; };
 		22896D31C41A825232C1E43B /* AuthTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthTokens.swift; sourceTree = "<group>"; };
 		22C0A3ECA6B5F3701064D4B3 /* LiveActivityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityService.swift; sourceTree = "<group>"; };
@@ -1132,6 +1134,7 @@
 				66A3F10FC503571E4A8BDD8B /* CondenserFidelityTests.swift */,
 				A2D2FA6931E506B70602F582 /* ConnectorOutageAlertTests.swift */,
 				ED38126D414AFCFC2BEF18D5 /* ContextMeterTests.swift */,
+				20BF8A2E3B81ED9F412DFD07 /* ContextOverflowGuardTests.swift */,
 				5431984AC04837DD9C79F3E6 /* ContinuityFabricTests.swift */,
 				7BB968D651FD70A49F1BAA43 /* ControlHandoffTests.swift */,
 				90BCDF65B00448418228EF55 /* ConversationExportTests.swift */,
@@ -2455,6 +2458,7 @@
 				BD49E64C943F4433D97501DE /* CondenserFidelityTests.swift in Sources */,
 				4394805941B21566612E2790 /* ConnectorOutageAlertTests.swift in Sources */,
 				9C6F084E3A16D0D62CD8A630 /* ContextMeterTests.swift in Sources */,
+				E9ADDD5D9D9BD8E28B6D317B /* ContextOverflowGuardTests.swift in Sources */,
 				44E2021F0084C5DC78B04598 /* ContinuityFabricTests.swift in Sources */,
 				93A37D051E277488EC3E019E /* ControlHandoffTests.swift in Sources */,
 				BD34B74F8B0451721CDE70BC /* ConversationExportTests.swift in Sources */,
