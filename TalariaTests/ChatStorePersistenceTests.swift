@@ -16,6 +16,9 @@ struct ChatStorePersistenceTests {
         /// Fired synchronously when sendStreaming is invoked — after the
         /// optimistic save, before any stream event lands.
         var onSendStreaming: (() -> Void)?
+        /// #203 (1A): when non-empty, these are emitted in order instead of
+        /// the single `.finished` — so a test can drive real stream EVENTS.
+        var script: [StreamingUpdate] = []
 
         func connect() async {}
         func disconnect() async {}
@@ -30,6 +33,13 @@ struct ChatStorePersistenceTests {
             clientMessageID: UUID
         ) -> AsyncStream<StreamingUpdate> {
             onSendStreaming?()
+            let script = self.script
+            if !script.isEmpty {
+                return AsyncStream { continuation in
+                    for update in script { continuation.yield(update) }
+                    continuation.finish()
+                }
+            }
             return AsyncStream { continuation in
                 continuation.yield(.finished(
                     Message(sender: .hermes, content: "Done.", status: .delivered),
@@ -294,4 +304,40 @@ struct ChatStorePersistenceTests {
         #expect(chatStore.extractTurnForEditing(history[1]) == nil)
         #expect(chatStore.conversation?.messages.count == 4)
     }
+
+    // MARK: - #203 (1A) the stall hint's WIRING
+
+    /// The predicate is pinned in `DeviceToolBeltTests`; this pins the half
+    /// that actually made 1A ship broken — whether the store's activity stamp
+    /// is refreshed by real stream events.
+    ///
+    /// **The simulator cannot verify this feature end to end:**
+    /// FoundationModels ships no assets there, so an on-device turn fails
+    /// instantly instead of entering the sustained streaming state the hint
+    /// watches for (confirmed on the 27.0 sim, 2026-07-31). A scripted stream
+    /// is not a shortcut here — it is the only deterministic way to drive the
+    /// state machine.
+    @MainActor @Test func streamActivityStampIsRefreshedByRealStreamEvents() async {
+        let client = ImmediateReplyClient()
+        client.script = [
+            .textDelta("Hello"),
+            .finished(Message(sender: .hermes, content: "Hello", status: .delivered), nil, nil),
+        ]
+        let store = ChatStore(hermesClient: client, persistence: makePersistence())
+        await store.loadConversationIfNeeded()
+
+        let before = Date()
+        await store.sendMessage("hi")
+        let stamp = try! #require(store.lastStreamActivityAt)
+        // The delta advanced it, so the stamp tracks ACTIVITY rather than
+        // merely being set once at send time.
+        #expect(stamp >= before)
+        // Fresh stamp → not stalled; past the threshold → stalled. That
+        // transition is exactly what the UI renders.
+        #expect(!ChatStore.isStalled(isStreaming: true, lastActivityAt: stamp, now: stamp))
+        #expect(ChatStore.isStalled(
+            isStreaming: true, lastActivityAt: stamp,
+            now: stamp.addingTimeInterval(ChatStore.stallHintAfter + 1)))
+    }
+
 }
