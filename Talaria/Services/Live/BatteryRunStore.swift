@@ -46,6 +46,12 @@ struct BatteryTrialRecord: Codable, Equatable {
     var error: String?
     var timedOut: Bool
     var latencySeconds: Double
+    /// #208: the turn's real token cost, read from `response.usage`.
+    /// Optional because ERROR and TIMEOUT trials never produce a response —
+    /// the asymmetry the dispatch states in advance: this measures turns
+    /// that SUCCEEDED and is structurally blind to the ones that broke.
+    var inputTokens: Int? = nil
+    var outputTokens: Int? = nil
 }
 
 /// One router-probe aggregate — mirrors the `router:` emit line.
@@ -403,9 +409,11 @@ final class BatteryRunRecorder {
         persistSnapshot()
     }
 
-    func endTrial(shape: String, prompt: String, trial: Int, text: String, cant: Bool, denial: Bool) {
+    func endTrial(shape: String, prompt: String, trial: Int, text: String, cant: Bool, denial: Bool,
+                  inputTokens: Int? = nil, outputTokens: Int? = nil) {
         appendTrial(shape: shape, prompt: prompt, trial: trial,
-                    text: text, cant: cant, denial: denial, error: nil, timedOut: false)
+                    text: text, cant: cant, denial: denial, error: nil, timedOut: false,
+                    inputTokens: inputTokens, outputTokens: outputTokens)
     }
 
     func endTrialTimeout(shape: String, prompt: String, trial: Int) {
@@ -420,7 +428,8 @@ final class BatteryRunRecorder {
 
     private func appendTrial(shape: String, prompt: String, trial: Int,
                              text: String?, cant: Bool, denial: Bool,
-                             error: String?, timedOut: Bool) {
+                             error: String?, timedOut: Bool,
+                             inputTokens: Int? = nil, outputTokens: Int? = nil) {
         guard run != nil else { return }
         let latency = trialStart.map { Double((clock.now - $0).components.seconds)
             + Double((clock.now - $0).components.attoseconds) * 1e-18 } ?? 0
@@ -429,7 +438,8 @@ final class BatteryRunRecorder {
             text: text, cant: cant, denial: denial,
             toolCalls: pendingToolCalls, route: pendingRoute,
             error: error, timedOut: timedOut,
-            latencySeconds: latency
+            latencySeconds: latency,
+            inputTokens: inputTokens, outputTokens: outputTokens
         ))
         trialStart = nil
         pendingToolCalls = []

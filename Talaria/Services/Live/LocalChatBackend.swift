@@ -2631,18 +2631,25 @@ extension LocalChatBackend {
         // moves. `options: nil` is the profile-backed path (#200E): an empty
         // GenerationOptions is all-nil fields, so the session profile's
         // modifiers govern the request.
-        let respondTask = Task { try await session.respond(to: Prompt(prompt), options: options ?? GenerationOptions()).content }
+        // #208: keep the whole Response, not just `.content` — `usage`
+        // carries the real output-token count, which is the only way to
+        // answer whether #102's 1024 cap is ever within reach of a turn.
+        let respondTask = Task { try await session.respond(to: Prompt(prompt), options: options ?? GenerationOptions()) }
         let timeoutTask = Task { try? await Task.sleep(for: .seconds(35)); respondTask.cancel() }
         do {
-            let text = try await respondTask.value
+            let response = try await respondTask.value
+            let text = response.content
+            let inTok = response.usage.input.totalTokenCount
+            let outTok = response.usage.output.totalTokenCount
             timeoutTask.cancel()
             let flat = text.replacingOccurrences(of: "\n", with: " / ")
             let lower = text.lowercased()
             let cant = lower.hasPrefix("i can\u{2019}t") || lower.hasPrefix("i cant") || lower.hasPrefix("i cannot") || lower.hasPrefix("i can not") || lower.hasPrefix("i can't")
             let denial = Self.batteryDenialPatterns.contains { lower.contains($0) }
-            Self.batteryEmit("battery: shape=\(shape) p=\(promptTag) t=\(trial) cant=\(cant) denial=\(denial) chars=\(text.count) text=\(String(flat.prefix(500)))")
+            Self.batteryEmit("battery: shape=\(shape) p=\(promptTag) t=\(trial) cant=\(cant) denial=\(denial) chars=\(text.count) inTok=\(inTok) outTok=\(outTok) text=\(String(flat.prefix(500)))")
             Self.batteryRecorder.endTrial(shape: shape, prompt: promptTag, trial: trial,
-                                          text: text, cant: cant, denial: denial)
+                                          text: text, cant: cant, denial: denial,
+                                          inputTokens: inTok, outputTokens: outTok)
         } catch is CancellationError {
             timeoutTask.cancel()
             Self.batteryEmit("battery: shape=\(shape) p=\(promptTag) t=\(trial) TIMEOUT — wedged trial guillotined")

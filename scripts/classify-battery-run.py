@@ -548,6 +548,51 @@ def main(path):
             print(f"  !! CELLS STARTED AT DIFFERENT THERMAL STATES {starts} —"
                   f" the comparison is COMPROMISED; say so in the verdict")
 
+    # #208 (Lane 4): is #102's 1024-token cap ever within reach of a turn?
+    # Apple documents that a strict maximumResponseTokens "can lead to the
+    # model producing malformed results", which makes it the standing suspect
+    # for the D4 corruption class. A cap that is never approached cannot
+    # corrupt what it never truncates.
+    CAP = 1024
+    toks = [t for t in trials if t.get("outputTokens") is not None]
+    if toks:
+        print("\n=== #208 output tokens vs the 1024 cap")
+        for prompt in ("remind", "alarm", "calendar", "haiku"):
+            rows = sorted(t["outputTokens"] for t in toks if t["prompt"] == prompt)
+            if not rows:
+                continue
+            med = rows[len(rows) // 2]
+            print(f"  {prompt:<10} n={len(rows):<3} median={med:<5} max={rows[-1]:<5}"
+                  f" headroom={CAP - rows[-1]}")
+        allrows = sorted(t["outputTokens"] for t in toks)
+        near = [t for t in toks if t["outputTokens"] >= 0.9 * CAP]
+        print(f"  ALL        n={len(allrows)} median={allrows[len(allrows)//2]}"
+              f" max={allrows[-1]} (cap {CAP})")
+        if allrows[-1] < 512:
+            print("  → NOT BINDING: max is under half the cap. The D4-cap hypothesis is")
+            print("    FALSIFIED for these prompts; #102's cap stays and the readHealth")
+            print("    decode errors need a different explanation. Do NOT run the 3-arm cell.")
+        elif near:
+            print(f"  → REACHABLE: {len(near)} trial(s) within 10% of the cap"
+                  f" {[t['trial'] for t in near]}. The 3-arm cell is justified;"
+                  f" size it from this rate.")
+        else:
+            print("  → headroom is real but not comfortable; report and leave the cell")
+            print("    unjustified for now.")
+        # Tool-heavy turns spend tokens the prose never shows.
+        rich = [t for t in toks if t.get("text")
+                and t["outputTokens"] > 3 * max(1, len(t["text"]) // 4)]
+        if rich:
+            print(f"  note: {len(rich)} trial(s) spent far more output tokens than their"
+                  f" reply length implies — consistent with the cap bounding the WHOLE"
+                  f" turn (tool calls included), which Apple does not document.")
+        excluded_tok = [t["trial"] for t in trials
+                        if t.get("outputTokens") is None and (t.get("error") or t.get("timedOut"))]
+        if excluded_tok:
+            print(f"  !! {len(excluded_tok)} ERROR/TIMEOUT trial(s) {excluded_tok} have NO token"
+                  f" count by construction — and those are the corruption trials. This"
+                  f" instrument bounds the hypothesis; it cannot confirm it.")
+
     print("\n=== reap arithmetic")
     counted = dict(artifacts)
     print(f"accepted creates in counted trials: {counted} total={sum(counted.values())}")
