@@ -938,7 +938,8 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedNocontact.rawValue == "armed-nocontact")
         #expect(LocalChatBackend.ActionBatteryCell.armedCalrollback.rawValue == "armed-calrollback")
         #expect(LocalChatBackend.ActionBatteryCell.armedDeadendrollback.rawValue == "armed-deadendrollback")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 24)
+        #expect(LocalChatBackend.ActionBatteryCell.armedCarveoutrollback.rawValue == "armed-carveoutrollback")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 25)
     }
 
     // MARK: Structural de-stall via tool-calling mode (#200E)
@@ -2183,6 +2184,53 @@ struct DeviceToolBeltTests {
         #expect(wordsOnly.contains { $0.prompt == "No thanks" })
     }
 
+    /// #206: the router context is capped to its TAIL, because an offer lands
+    /// at the END of an assistant turn — head-truncation would cut off the
+    /// only part the router needs. Short contexts pass through untouched.
+    @Test func routerContextIsCappedToItsTailAndShortContextsAreUntouched() {
+        let short = "Would you like me to set a reminder for that?"
+        #expect(LocalChatBackend.routerContextTail(short) == short)
+        let long = String(repeating: "filler. ", count: 900)
+            + "Would you like me to set a reminder to call the dentist tomorrow at 9am?"
+        let capped = LocalChatBackend.routerContextTail(long)
+        #expect(capped.count <= LocalChatBackend.routerContextLimit + 1)  // +1 for the ellipsis
+        // The OFFER — the whole reason context is supplied — must survive.
+        #expect(capped.contains("Would you like me to set a reminder to call the dentist tomorrow at 9am?"))
+        #expect(capped.hasPrefix("…"))
+        // The cap sits above every context measured clean and below the one
+        // that broke, so ordinary turns are unaffected.
+        #expect(LocalChatBackend.routerContextLimit > 590)
+        #expect(LocalChatBackend.routerContextLimit < 4073)
+        // And it is wired into the envelope, not just available.
+        let envelope = LocalChatBackend.routerPrompt(context: long, prompt: "Yes please",
+                                                     variant: .ctxA)
+        #expect(envelope.count < long.count)
+        #expect(envelope.contains("call the dentist tomorrow at 9am"))
+        // #206: the probe MUST be able to bypass the cap, or the instrument
+        // truncates away the condition it exists to measure and comes back
+        // clean for the wrong reason. Production defaults to capped.
+        let uncapped = LocalChatBackend.routerPrompt(context: long, prompt: "Yes please",
+                                                     variant: .ctxA, applyContextCap: false)
+        #expect(uncapped.count > envelope.count)
+        #expect(uncapped.contains(long))
+    }
+
+    /// #205: the #196 baseline series is EXACTLY ten rows. Its 200/200
+    /// history and #202A's regression denominator both derive from that
+    /// count — appending to it silently re-points a long-running series and
+    /// moves a pre-registered bar. I did it once; this pin is why it cannot
+    /// happen twice.
+    @Test func baselineProbeSeriesIsExactlyTheHistoricalTenRows() {
+        #expect(LocalChatBackend.routerBaselineProbes.count == 10)
+        #expect(LocalChatBackend.routerBaselineProbes.filter { !$0.expected }.count == 5)
+        #expect(LocalChatBackend.routerBaselineProbes.filter { $0.expected }.count == 5)
+        // The image rows live in their OWN list and are scored as their own band.
+        #expect(LocalChatBackend.routerImageProbes.count == 2)
+        #expect(LocalChatBackend.routerImageProbes.allSatisfy { $0.expected })
+        let baselineTexts = Set(LocalChatBackend.routerBaselineProbes.map(\.text))
+        #expect(LocalChatBackend.routerImageProbes.allSatisfy { !baselineTexts.contains($0.text) })
+    }
+
     /// Pre-registered confound mitigation: the INCUMBENT runs in the coolest
     /// slot, so any candidate win is won from the penalised position.
     @Test func probeVariantOrderPutsTheControlInTheCoolSlot() {
@@ -2366,6 +2414,37 @@ struct DeviceToolBeltTests {
         #expect(grid.contains { $0.band == .wordsOnly })
     }
 
+    // MARK: - (#204) warm within-run re-verification of the promoted clauses
+
+    /// The carve-out rollback is production MINUS the dead-end clause — the
+    /// counterpart to `armed-cardrollback`, and the piece that was missing:
+    /// #200O re-verified this promotion against a CROSS-RUN historical
+    /// baseline, never against its own rollback in the same run.
+    @Test func carveoutRollbackIsProductionMinusExactlyTheDeadEndClause() {
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate,
+            hasTools: true, hasImageTools: false
+        )
+        let rollback = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate,
+            hasTools: true, hasImageTools: false, includeDeadEndCarveout: false
+        )
+        #expect(rollback != production)
+        #expect(production.contains(LocalChatBackend.deadEndCarveoutClause))
+        #expect(!rollback.contains(LocalChatBackend.deadEndCarveoutClause))
+        // Removing the clause changes NOTHING else.
+        #expect(production.replacingOccurrences(
+            of: LocalChatBackend.deadEndCarveoutClause, with: "") == rollback)
+    }
+
+    /// Production runs FIRST so the incumbent holds the cool slot, and both
+    /// rollbacks follow — #201B's rule, and here the rollbacks are the arms
+    /// that must show a DISEASE, so penalising them is conservative.
+    @Test func clauseReverifyBatteryPutsProductionInTheCoolSlot() {
+        #expect(LocalChatBackend.clauseReverifyBatteryCells
+                == [.armed, .armedCardrollback, .armedCarveoutrollback])
+    }
+
     // MARK: - (#202D) the reworded clause
 
     /// #202C's clause cured the lie and introduced a different false
@@ -2432,6 +2511,28 @@ struct DeviceToolBeltTests {
             includeToollessHonestyClauseV2: true
         )
         #expect(v2 == production + LocalChatBackend.toollessHonestyClauseV2)
+    }
+
+    /// #199 prep: production's COMMONEST completion phrasing is PASSIVE, and
+    /// the active-voice-only pattern list missed all of it — it would have
+    /// under-counted the calendar and alarm arms to near zero. All strings
+    /// below are verbatim from run E3759EE3. Third detector gap found today,
+    /// and the third found by testing against REAL replies rather than
+    /// invented examples.
+    @Test func claimDetectionCatchesThePassiveVoiceProductionActuallyUses() {
+        for text in ["Your reminder \"Test Talaria\" has been set for 4:30 PM today.",
+                     "The reminder has been set for 4:30 PM today.",
+                     "Lunch with Sam has been scheduled for Friday, July 31, 2026, at noon for 60 minutes.",
+                     "Your alarm has been set for 6:30 AM."] {
+            #expect(LocalChatBackend.claimsCreation(text), "should flag: \(text)")
+        }
+        // Refusals and offers must still not trip it.
+        for text in ["I can't set a reminder on this device.",
+                     "I can't do it right now, but you can ask me directly.",
+                     "Would you like me to set one?",
+                     "Should I schedule that for Friday?"] {
+            #expect(!LocalChatBackend.claimsCreation(text), "should not flag: \(text)")
+        }
     }
 
     /// #202B's third failure mode, which the program had no name for: with no

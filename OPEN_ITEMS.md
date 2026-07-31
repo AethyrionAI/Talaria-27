@@ -11299,9 +11299,15 @@ working tree constantly — it was discarded by hand a dozen times during the
   documented home for dev/ops tooling while `tools/` holds repo-analysis output.
   Recorded as a decision rather than left as an accident.
 
-**#190 re-verified as a legitimate open SHIP BLOCKER** (Hermes checked rather than
-assumed): the 2026-07-26 device-pass FAIL on PR #151 — dead taps in the unified
-drawer — still stands. Nothing about #200's work touches it.
+**~~#190 re-verified as a legitimate open SHIP BLOCKER~~ — WRONG, CORRECTED
+2026-07-30.** I wrote this on 07-29 after the first Hermes audit and it was already
+false when written: **#190's gate CLEARED on 2026-07-27 and PR #151 merged at
+14:58Z** — recorded in this same file at the item itself ("DEVICE PASS 2026-07-27 —
+GATE CLEARED, MERGED", with "THE failed check from 07-26, re-verified passing").
+I cited the 07-26 FAIL without reading the 07-27 addendum ~2,600 lines above.
+**Every reader since has been told a merged blocker is open.** Caught by Hermes's
+second audit. **Lesson: when re-verifying an item, read the item's WHOLE history to
+its latest dated note — a status quoted from one entry is not the item's status.**
 
 **#201 VERDICT FILED, 2026-07-30 — contact dead-end at n=20 (160 counted + 4
 warm-up, PR #189 branch `7f89497`+, corded WITH DEBUGGER ATTACHED, os 27.0, sealed
@@ -11714,6 +11720,324 @@ the same two-turn accept shape, scored on fabrication rate. **The routing fix
 plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
+
+## #206 — ctx-a BREAKS at ~4,000 chars of context, and my "no truncation needed" verdict was wrong
+
+**Filed 2026-07-30 from run `5BB1C020`. This CORRECTS the #202C verdict filed
+earlier the same day, which said long context "costs the router nothing" and
+"truncation is NOT part of the ctx-a promotion". That was measured at ~590 chars
+and does not survive contact with a realistic turn.**
+
+| context | latency | accept band | words-only band |
+|---|---|---|---|
+| ~38 chars | 0.63s | 5/5 | — |
+| ~570 chars | 0.64s | 5/5 | 5/5 |
+| **4,073 chars** | **1.32s (2.1×)** | 5/5 | **0/5** |
+
+**The first ctx-a failure ever recorded**, and it is in the DEGENERATE direction —
+a words-only turn routed ARMED, which is the property the #202A words-only bar
+exists to protect and the thing that re-opens #196's disclaimer tic.
+
+**CONFOUND I INTRODUCED, and it blocks a clean attribution.** The failing row differs
+from the passing rows in **both** length and wording — passing rows were "Write
+another one" / "Summarize that in one sentence" at ~580; the failing row was "Say
+that again more briefly" at 4,073. **Length is not isolated.** That row may simply
+be a harder prompt. Four disambiguating rows are now built which hold the PROMPT
+fixed and vary only length; until they run, "long context breaks it" is a hypothesis,
+not a finding.
+
+**Latency is NOT confounded and is a finding on its own: 2.1× at 4k chars.** Still
+inside the informal ~2s bar, but "costs nothing" is now false as stated.
+
+**FIX SHIPPED AHEAD OF THE ATTRIBUTION, deliberately:** `routerContextTail` caps the
+router's context at **800 chars, keeping the TAIL**. The tail because an offer lands
+at the END of an assistant turn ("…Would you like me to set a reminder?") — the only
+part the router needs. 800 sits above every context measured clean (590) and well
+below the length that broke (4,073), so ordinary turns are untouched. **This is cheap
+and strictly protective; it does not depend on which explanation wins**, and it is
+pinned by a test asserting the offer survives truncation.
+
+**RESOLVED SAME DAY BY RUN `48D4BD4B` — MY PREMISE WAS WRONG. Length does not
+degrade routing accuracy. Retracted below.**
+
+| row | ctx | uncapped | capped |
+|---|---|---|---|
+| accept "Yes please" | 551 → 4,073 | 5/5 → **5/5** | 5/5 |
+| words-only "Summarize that…" | 586 | 5/5 | 5/5 |
+| words-only "Write another one" | 575 | 5/5 | 5/5 |
+| words-only "Write another one" | 4,073 | **0/5** | **0/5** |
+| words-only "Say that again more briefly" | **551** | **0/5** | **0/5** |
+| words-only "Say that again more briefly" | 4,073 | **0/5** | **0/5** |
+
+**"Say that again more briefly" fails at 551 chars, the same length where three
+other rows pass.** Length is falsified as the cause.
+
+**THE ACTUAL VARIABLE, and I built the rows so badly it was invisible: every failing
+context ENDS WITH AN OFFER** — *"…Would you like me to set a reminder to call the
+dentist tomorrow at 9am?"* Every passing words-only context ends in ordinary prose.
+I reused `veryLongOffer` as the context for the words-only rows, so **length and
+ends-in-an-offer were perfectly confounded** — the second time in one day I built
+rows whose labels encoded an assumption I had not justified. Worse, I labelled them
+`expected: false`, which asserts the router *should ignore an explicit offer* — a
+strong claim I never argued for.
+
+**What is actually true:** ctx-a routes ARMED when the prior turn ends in an offer
+to act, largely regardless of what the current turn says. **That is the same
+mechanism that makes accepts work 6/6** — it is the feature, seen from its cost
+side. The cost is real but mild: a non-accept follow-up after an offer ("say that
+again more briefly") also routes armed, carrying #196 tic risk on that turn. Whether
+that is even wrong is debatable; after "shall I set a reminder?", armed is the safe
+read.
+
+**THE CAP SURVIVES, BUT ONLY ON LATENCY — its accuracy justification is withdrawn.**
+It fixed no routing failure (0/5 capped on both failing rows, because there was no
+length problem to fix). What it does do is real: **1.47s → 0.66s at 4,073 chars, a
+2.2× improvement that restores long-context routing to short-context speed.** Kept
+on that basis, honestly re-stated.
+
+**Owed, if it ever matters:** a properly built row set that varies ends-in-an-offer
+independently of length, with `expected` labels argued rather than assumed.
+
+## #199 — post-decline fabrication: the disease is REAL but confined to GRABS, and the intended-create path is CLEAN
+
+**VERDICT FILED 2026-07-30. Run `60E08CC1`, n=10 × 4 prompts, auto-DECLINE,
+`endedCleanly: true`, nothing created and nothing reaped (as designed).
+Dispatch: `dispatch/OPUS-T27-199-decline-honesty.md`.**
+
+| prompt | declines reached | fabricated after decline |
+|---|---|---|
+| remind | 10/10 | **0/10** |
+| alarm | 10/10 | **0/10** |
+| calendar | 10/10 | **0/10** |
+| **haiku (grab)** | 7/10 | **1/7** |
+
+**EVALUABILITY GATE PASSES:** 37 of 40 trials reached a decline (bar was ≥30). The
+three haiku trials that didn't simply never grabbed.
+
+**MY HYPOTHESIS WAS FALSIFIED, and cleanly.** The dispatch predicted the intended-create
+rate "should be far higher" than the filed ~3%, reasoning from #202B that the model
+fabricates when it meant to act and could not. **It is ZERO across 30 intended
+creates.** Production handles a declined create honestly and well — *"It seems the
+reminder wasn't set. Would you like to try again?"* — acknowledging the decline and
+offering recovery.
+
+**The disease is specific to GRABS.** Pooled with the original observation: **2
+fabrications in ~42 declined grabs (~5%)** versus **0 in 30 declined intended
+creates**. The mechanism this suggests: when the model declines an action *the user
+asked for*, the decline is salient and attributable; when it declines an action *it
+invented itself* mid-answer, the grab was a side-thought and gets narrated anyway —
+run `60E08CC1` haiku t9 is the original specimen reproduced verbatim ("Here's a haiku
+… I've [set a reminder]").
+
+**PRE-REGISTERED READING APPLIES: <5% ⇒ "say so and do not manufacture a lane out of
+it."** #199 stays filed as rare-but-severe. **No armed-branch honesty clause is
+justified by this evidence** — and note that it would have been the obvious next
+build if I had trusted the hypothesis instead of measuring first.
+
+**NEW FINDING THIS RUN SURFACED — MISATTRIBUTED DECLINE CAUSE, and it is more common
+than the fabrication it was looking for.** The model frequently invents a WRONG
+REASON for the failure:
+
+- **calendar 6/10** blamed a contact lookup — *"the name 'Sam' wasn't found in your
+  contacts"*, *"I couldn't find a contact named 'Sam'"* — when the actual cause was
+  **the user declining the card**.
+- **remind 1/10** blamed the time — *"because the time 4:30 PM didn't work"*.
+- **alarm 0/10** — every trial correctly attributed it to the user.
+
+This is not #199 (no action is claimed) but it is the same family: **a confident,
+false explanation offered to the user.** The calendar concentration suggests the
+model reaches for the Sam-dead-end narrative it already knows to explain any
+calendar failure. **Filed here rather than spun into a lane; it needs its own
+measurement before it earns one.**
+
+**Detector honesty:** this run's numbers can be trusted only because building it
+exposed the passive-voice gap (*"has been set"*, *"has been scheduled"*) that would
+have under-counted calendar and alarm to near zero. Third detector gap of the day,
+third one found by testing against verbatim production replies.
+
+## #204 — the two promoted clauses, warm and within-run
+
+**VERDICT FILED 2026-07-30. Run `E3759EE3`, n=10, 120 counted + 4 warm-up,
+`endedCleanly: true`, sealed `reminders=58 events=31 alarms=31 failures=0`.
+Dispatch: `dispatch/OPUS-T27-204-clause-reverify.md`. BOTH RE-VERIFICATIONS ARE
+INCONCLUSIVE — exactly as pre-registered — and the SCOREBOARD is the best this
+program has ever recorded.**
+
+| prompt | armed (production) | armed-cardrollback | armed-carveoutrollback |
+|---|---|---|---|
+| **remind** | **10/10** | 10/10 | 10/10 |
+| **alarm** | **10/10** | 10/10 | 10/10 |
+| **calendar** | **10/10** | 10/10 | 10/10 |
+| haiku grabs | 9/10 | 9/10 | 8/10 |
+
+**PRODUCTION IS 30/30 ON ALL THREE CREATE INTENTS, WARM.** Lifetime arc for remind:
+**0/50 → 75% (#200G) → 90% (#200K) → 100%.** Calendar: **53% pre-promotion → 80%
+(#200O) → 9/10 (#200W) → 10/10.** Alarm untouched at 100% as ever. Zero spiral
+(`currentLocation` 0/10, `searchPlaces` 0/10 in every cell), zero invented
+locations, zero card narration anywhere.
+
+**BOTH EVALUABILITY GATES FAILED, AND THE PRE-REGISTRATION GOVERNS.** The dispatch
+required `armed-cardrollback` to show ≥1 card narration and
+`armed-carveoutrollback` ≥1 dead-end miss. Both showed **zero** — the rollbacks
+scored 10/10 too. Per the bar as written: **"that clause's re-verification is
+INCONCLUSIVE at this n — not a demotion, and not evidence the clause is
+unnecessary."** It stays inconclusive. **Removing a promoted clause and observing no
+regression at n=10 is not evidence the clause is idle**, and this is precisely the
+reinterpretation the pre-registration existed to forbid.
+
+**What the failure is weak evidence FOR, stated as a hypothesis and not a finding:**
+if the historical rates still held (card narration ~15%, calendar dead-end ~17.5%),
+the chance of seeing zero of both across 10 trials each is **≈2.9%**. That is
+suggestive that the diseases are now rarer than when the clauses were promoted —
+plausibly because the OTHER accumulated promotions (destall, find-first, schema
+optionality on both tools) now carry the load and these two clauses have become
+individually redundant. **That is a hypothesis this run GENERATED, not one it
+tested.** Establishing it needs a powered run; nothing should be removed from
+production on the strength of a failed gate.
+
+**THERMAL FLAG FIRED AND IS MOOT.** `armed` started `nominal`, both rollbacks
+started `serious` — the classifier correctly flags mismatched starts. But **a
+confound can only compromise a DIFFERENCE, and there is no difference**: every cell
+scored 10/10/10. Read the direction before calling it a problem (#201B lesson 1),
+and here there is nothing for it to explain.
+
+**GRABS ARE AN INSTRUMENT PROPERTY, NOT A PRODUCTION NUMBER — 26/30 (87%), the
+highest ever recorded, and it does not mean what it looks like.** The action battery
+does **not route**. In production "Write a haiku about sledding" goes to the
+TOOLLESS path — the router scores 10/10 on that exact prompt in the baseline grid,
+re-confirmed in #202A — so a production haiku turn has **no belt and cannot grab**.
+This is #200O's own conclusion ("in production a grab requires a router miss")
+holding at the highest create-pressure the program has ever run. **Quote this number
+only with that sentence attached.**
+
+**REAP ARITHMETIC EXACT — the seventh consecutive clean seal.** Counted
+`createReminder=56` = 30 (remind, 10×3) + 26 (haiku grabs, 9+9+8);
+`createCalendarEvent=30`; `scheduleAlarm=30`. Reaped 58/31/31. **Residual exactly
+4 = the four discarded warm-up trials** (one remind + one alarm + one calendar + one
+haiku grab, the grab being a reminder — which is why the reminder residual is 2 and
+the others 1). Nothing unaccounted.
+
+**GUARD:** alarm 10/10 in every cell — the instrument did not move.
+
+**Owed:** if either clause's necessity ever matters (e.g. an instruction-crowding
+lane, or trimming the prompt), it needs a run powered from a re-measured base rate,
+not this one. Otherwise both stay promoted and this run stands as the scoreboard.
+
+## #205 — Hermes audit of #201/#202 (2026-07-30, second pass): three corrections and two real gaps
+
+**Every claim below was verified against the tree before filing. The night-ending
+external audit is now two-for-two on finding things the author could not see.**
+
+### FIXED IMMEDIATELY (all three were the record lying)
+
+1. **GHOST SHIP-BLOCKER — mine, and the worst of the three.** My 07-29 note claimed
+   #190 "re-verified as a legitimate open SHIP BLOCKER … the 07-26 device-pass FAIL
+   still stands." **#190's gate CLEARED 2026-07-27 and PR #151 merged at 14:58Z** —
+   recorded in this same file at the item ("DEVICE PASS 2026-07-27 — GATE CLEARED,
+   MERGED", "THE failed check from 07-26, re-verified passing"). I quoted one dated
+   entry and never read the item's later history. Corrected in place. **Lesson: an
+   item's status is its LATEST dated note, never a quotable earlier one.**
+2. **Two stale comments contradicting today's promotion** — `RouterVariant.control`
+   and `routeNeedsDeviceTool` both still called `.control` "production" after
+   #202D moved production to `.ctxA`. **The file whose comments are this program's
+   runbook was wrong in two places within hours of the promotion.** Both corrected,
+   plus the enum header, now pointing at `productionRouterVariant` as the single
+   source of truth.
+3. **#52 SOLVED, not just characterised.** Hermes diagnosed it exactly: a
+   two-generator ping-pong. The committed scheme was Xcode's rewrite (`version 1.7`,
+   `BuildableName = "Talaria.app"`); `xcodegen generate` deterministically emits
+   canonical (`version 1.3`, `"Talaria 27.app"` — which is what `PRODUCT_NAME`
+   actually is). **xcodegen's output is the CORRECT one and the committed file named
+   a product that is never built.** Committed the generator's output; routine
+   regeneration no longer dirties the tree. (Xcode may rewrite it again if the scheme
+   editor is opened — that ratchet is not fully preventable — but the daily papercut
+   is gone.)
+
+### THE TWO REAL GAPS, both instrumented here
+
+4. **IMAGE TURNS ARE AN UNMEASURED #202-FAMILY DISARMAMENT.** Verified: the
+   on-device model cannot see images at all — the transcript carries a placeholder
+   ("the on-device model cannot view images… say honestly that you can't see it") —
+   so image capability exists ONLY via `readImageText` / `BarcodeReaderTool`. **The
+   pinned router instructions mention images ZERO times.** A photo plus "what does
+   this say?" therefore depends entirely on the router, and a toolless route is a
+   BLIND turn. Clause v2 keeps it honest, which is exactly the mitigation #202D
+   shipped — but honest-and-useless is still useless. **Two rows added to the
+   baseline probe grid; owed: run them.**
+5. **ctx-a embeds the prior turn UNTRUNCATED and the no-truncation verdict was
+   measured at ~590 chars.** Real assistant turns run to thousands. Added a
+   ~3,500-char row (a long answer with the offer buried at the end — the shape a
+   user actually produces after a broad question) plus its words-only counterpart.
+   **Owed: run before TestFlight.** Low risk given latency was flat from 40→590
+   chars, but "flat over one order of magnitude" is not "flat forever".
+
+### DEBUG FOOTGUN — fixed
+
+6. **A persisted non-production brain shape was invisible.** `activeSessionShape`
+   reads `debug.sessionShape` from UserDefaults deliberately (desk A/B must survive
+   an OTA install), but a **valid** non-production cell name then persists across
+   every later launch: different belt, different instructions, routing off —
+   indistinguishable from a catastrophic brain regression, with one os_log line as
+   the only signal. Retired names fail to parse and fall back to production; valid
+   ones do not. **Now a DEBUG banner on the chat screen whenever the shape is not
+   `.armedRouted`.** Release compiles it out.
+
+### IMAGE TURNS — MEASURED 2026-07-30, run `86A29FD8`. CONFIRMED PRODUCTION DEFECT.
+
+**Both image rows route TOOLLESS, 0/15 and 0/15.**
+
+| probe | routed |
+|---|---|
+| `[image attached] what does this say?` | **0/15 armed** |
+| `[image attached] read the text in this photo` | **0/15 armed** |
+
+**This IS production, not just the control cell.** The rows carry no prior turn, and
+with an empty context ctx-a returns the bare production envelope by construction
+(pinned) — so ctx-a and `.control` are byte-identical here. **A user attaches a photo,
+asks what it says, and gets a turn with no belt** — and the model cannot see images
+at all, so it also has no `readImageText`. **The app HAS the capability and the turn
+cannot reach it.**
+
+Clause v2 means the turn now fails *honestly* rather than fabricating, which is worth
+something — but honest-and-useless is still useless, and this is a capability the
+product advertises.
+
+**One-seam candidate:** the pinned router `@Guide` enumerates device data and device
+actions and **never mentions images or photos**. Adding them is the obvious first
+treatment, and it is exactly the kind of enumeration change #196 measured before
+promoting. **Owed: a lane.** Hermes flagged this from a code read; it is now a
+measurement.
+
+**Rest of the grid re-verified in the same run:** mechanism CONFIRMED 90/90, baseline
+gate **150/150 over exactly ten rows** (the #205 split-out held — the image rows did
+not touch the historical series), ctx-a and ctx-b both 13/13 across all three bands.
+
+### TRACKED, NOT YET ACTED ON
+
+7. **#199's decline half is now CHEAP to instrument.** `autoDeclineForBattery`
+   already exists, and today's `claimsCreation` detector (curly-apostrophe-safe) is
+   exactly the scorer #199 needs — "fabricates a COMPLETED ACTION after a declined
+   confirmation" is the same measurement as #202B's, with the decline path
+   substituted. **This is the cheapest open lane on the board.**
+8. **#197 remains unrouted** — the production catch still yields a rendered failure,
+   and #200's audit established these throws happen ABOVE `call()` (the
+   argument-DECODE class), so #176's recovery clause never engages.
+9. **The ~0.6s router tax is the free tier's latency floor** — pure cost on "what's
+   2+2?" turns, and that tier's pitch is instant. Worth naming in the free-tier UX
+   story rather than discovering it in a review.
+10. **#191/#192 (header not backend-aware, silent badge flip) are the same "UI must
+    not lie" family as #202B's fabrication finding.** They belong together in any
+    future truth-pass lane.
+11. **Snapshot hygiene:** `relay/hermes_mobile.db` is live in the checkout (512KB,
+    written today) and holds the device registry. It IS gitignored and untracked —
+    **but a wholesale directory copy carries it**, which is how it reached Hermes's
+    snapshot. Treat any full-tree snapshot as credential-bearing.
+12. **`scripts/cleanup-stale-users.py` — CHECKED, not a concern.** Flagged only as
+    the last unexplained file in `scripts/`. It has clear provenance (commit
+    `c13051e`, items #9/#13), a docstring citing its issue, `--dry-run`, idempotency,
+    and instructions to stop the relay first. Recorded so it stops being re-flagged.
+13. **Seven unmerged branches want a triage.** `probe/t27-130-halfduplex` is already
+    pruned (SHA recorded at #130).
 
 ## #203 — SHIP BLOCKER: an unbounded CoreLocation wait can spin a production turn forever
 

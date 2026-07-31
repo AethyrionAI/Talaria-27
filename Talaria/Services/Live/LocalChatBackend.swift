@@ -1513,7 +1513,7 @@ final class LocalChatBackend: HermesClientProtocol {
         // pooled over #200I+#200L it cost remind −20 points) and v2's
         // location sentence (unearned: every accepted event across
         // #200J/#200K/#200L was a bare title with no location bound).
-        let deadEndCarveout = " If you can't identify a person named in an event, that's fine — create the event with the name exactly as the user gave it."
+        let deadEndCarveout = Self.deadEndCarveoutClause
         // #200O grabfix cell: the grab disease. Grabs are the only number
         // in this program that moved the WRONG way while everything else
         // improved (4/8 → 4/10 → 7/10 → 15/20 → 9/10 → 9/10), and that is
@@ -2222,13 +2222,16 @@ extension LocalChatBackend {
         GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 64)
     }
 
-    /// #202A: the router framings under measurement. `control` IS
-    /// production — the live path routes through this enum so the measured
-    /// control can never drift from the shipped router by being a copy of
-    /// it. The two candidates differ from control in ONE seam each.
+    /// #202A: the router framings. The live path routes through this enum,
+    /// so a measured cell can never drift from the shipped router by being
+    /// a copy of it. **Since the #202D promotion `ctxA` IS production and
+    /// `control` is the pinned rollback** — see `productionRouterVariant`,
+    /// which is the single source of truth for which one ships.
     enum RouterVariant: String, CaseIterable {
-        /// Production: raw current turn, no history. Context-blind by
-        /// construction — that blindness is the #202 bug under test.
+        /// PRE-#202D production, and now the PINNED ROLLBACK: raw current
+        /// turn, no history. Context-blind by construction — that blindness
+        /// was the #202 bug, measured at 6/6 misrouted accepts. **Not
+        /// production since the 2026-07-30 promotion**; `.ctxA` is.
         case control
         /// The pinned instructions, unchanged; the prompt envelope gains
         /// one line naming what the assistant just said.
@@ -2258,18 +2261,40 @@ extension LocalChatBackend {
     /// #202A: the prompt envelope per variant. control DISCARDS the context
     /// — pinned, because that discard is exactly the filed defect and a
     /// silent change here would erase the thing being measured.
+    /// `applyContextCap` is TRUE for production and every ordinary call.
+    /// The #206 probe passes FALSE to reproduce the uncapped failure — the
+    /// cap lives inside this function, so without a bypass the instrument
+    /// would truncate away the exact condition it exists to measure, and
+    /// the run would come back clean for the wrong reason.
     nonisolated static func routerPrompt(context: String, prompt: String,
-                                         variant: RouterVariant) -> String {
+                                         variant: RouterVariant,
+                                         applyContextCap: Bool = true) -> String {
         switch variant {
         case .control:
             return "Request: \(prompt)"
         case .ctxA, .ctxB:
             guard !context.isEmpty else { return "Request: \(prompt)" }
             return """
-            Assistant just said: "\(context)"
+            Assistant just said: "\(applyContextCap ? routerContextTail(context) : context)"
             Request: \(prompt)
             """
         }
+    }
+
+    /// #206: the router context is capped to its TAIL. Two reasons, both
+    /// measured: at ~4,000 chars routing latency doubled (0.63s → 1.32s) and
+    /// a words-only row routed ARMED 0/5 — the first ctx-a failure recorded —
+    /// while everything at ≤590 chars was perfect. **The tail, not the head:**
+    /// an offer lands at the END of an assistant turn ("…Would you like me to
+    /// set a reminder?"), which is precisely the part the router must see.
+    ///
+    /// `routerContextLimit` sits above every context measured clean (590) and
+    /// well below the length that broke (4,073). A no-op for ordinary turns.
+    nonisolated static let routerContextLimit = 800
+
+    nonisolated static func routerContextTail(_ context: String) -> String {
+        guard context.count > routerContextLimit else { return context }
+        return "…" + String(context.suffix(routerContextLimit))
     }
 
     /// #202A candidate (fix direction 2): the bare accept forms, exhaustive
@@ -2328,18 +2353,22 @@ extension LocalChatBackend {
                                    variant: Self.productionRouterVariant)
     }
 
-    /// The variant-parameterized router. Production calls it with
-    /// `.control` and no context, so the live path and the #202A control
-    /// cell are the SAME code, not two copies of one behavior.
+    /// The variant-parameterized router. **Production calls it with
+    /// `productionRouterVariant` (`.ctxA` since the #202D promotion) and the
+    /// previous assistant turn as context** — the live path and every
+    /// measured cell are the SAME code, not copies of one behavior. The
+    /// `.control` variant is the pinned rollback, still probe-reachable.
     func routeNeedsDeviceTool(prompt: String, context: String,
-                              variant: RouterVariant) async -> Bool {
+                              variant: RouterVariant,
+                              applyContextCap: Bool = true) async -> Bool {
         let session = LanguageModelSession(
             model: model,
             instructions: Instructions(Self.routerInstructions(for: variant))
         )
         do {
             let route = try await session.respond(
-                to: Prompt(Self.routerPrompt(context: context, prompt: prompt, variant: variant)),
+                to: Prompt(Self.routerPrompt(context: context, prompt: prompt, variant: variant,
+                                             applyContextCap: applyContextCap)),
                 generating: ToolIntentRoute.self,
                 options: Self.toolIntentRouterOptions
             ).content
@@ -2700,6 +2729,11 @@ extension LocalChatBackend {
         /// `continuesAfterNoMatch` explicitly false, i.e. the bare not-found
         /// text that produced 14/80 dead-end misses across two n=40 runs.
         case armedDeadendrollback = "armed-deadendrollback"
+        /// #204: production MINUS the promoted dead-end CARVE-OUT (the
+        /// instructions clause, not #201B's ContactsTool flag). Its
+        /// promotion was only ever re-verified against a cross-run
+        /// historical baseline; this makes it a within-run control.
+        case armedCarveoutrollback = "armed-carveoutrollback"
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -2710,7 +2744,8 @@ extension LocalChatBackend {
         case .armed, .armedInstrfix, .armedToolmode, .armedScoped, .armedCreateonly,
              .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix,
              .armedDatefix, .armedCardrollback, .armedDeadendfix, .armedGrabfix,
-             .armedStallfix, .armedSchemafix, .armedCalfix, .armedDeadend2:
+             .armedStallfix, .armedSchemafix, .armedCalfix, .armedDeadend2,
+             .armedCarveoutrollback:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
             // strikefix treat the tool-calling MODE, and the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
@@ -2972,6 +3007,14 @@ extension LocalChatBackend {
                     hasTools: !base.isEmpty,
                     hasImageTools: false,
                     includeDeadEndCarveout: true
+                )
+            case .armedCarveoutrollback:
+                // #204: the pinned carve-out rollback, run as a measured cell.
+                cellInstructions = Self.instructionsText(
+                    deviceContext: Self.deviceContextLine(),
+                    hasTools: !base.isEmpty,
+                    hasImageTools: false,
+                    includeDeadEndCarveout: false
                 )
             case .armedCardrollback:
                 // #200L: production MINUS the promoted card clause — the
@@ -3257,6 +3300,55 @@ extension LocalChatBackend {
     /// generations.
     func runGrabfixBattery(trials: Int) async {
         await runActionBattery(trials: trials, cells: Self.grabfixBatteryCells, includeGrabCanary: true)
+    }
+
+    /// #204 cell list — the two promoted INSTRUCTIONS clauses, each against
+    /// its own rollback, WARM and WITHIN-RUN. Both promotions were
+    /// re-verified only on a COLD instrument against cross-run historical
+    /// baselines (#200K, #200O), and #200O itself proved cross-run
+    /// comparison worthless here — its three cells landed on exactly 6/10
+    /// remind on three different texts.
+    ///
+    /// Production runs FIRST: the incumbent takes the cool slot, and since
+    /// the rollbacks are the arms that must exhibit a DISEASE, penalising
+    /// them thermally is the conservative direction. Pinned.
+    nonisolated static let clauseReverifyBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedCardrollback, .armedCarveoutrollback,
+    ]
+
+    /// #204 one-tap wrapper: 3 cells × four prompts — 12 × trials
+    /// generations, plus the discarded warm-up.
+    func runClauseReverifyBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.clauseReverifyBatteryCells,
+                               includeGrabCanary: true)
+    }
+
+    /// #199 cell list — ONE cell. This run measures a BASE RATE and tests
+    /// nothing, so a treatment arm would be premature: #199's only recorded
+    /// observation is 1 fabrication in ~35 declined GRABS (~3%), and a grab
+    /// is a decline of an action the model never wanted. **The rate for a
+    /// declined INTENDED create is completely unmeasured**, and #202B's
+    /// finding (the model asserts completion precisely when it meant to act
+    /// and could not) says it should be far higher. Measure first, treat
+    /// second — the #201 sequencing lesson.
+    nonisolated static let declineBatteryCells: [ActionBatteryCell] = [.armed]
+
+    /// #199: what does production SAY after the user declines the card?
+    ///
+    /// The armed branch's honesty clause says "never invent a value" —
+    /// #199's own filing observed that this class "invents an ACTION", which
+    /// that sentence does not cover. **Clause v2 DOES forbid claiming a
+    /// completed action, but it is toolless-only by construction** (pinned:
+    /// the armed instructions are byte-identical with the flag on). So the
+    /// one path where a user explicitly said NO has no clause against
+    /// claiming it happened anyway.
+    ///
+    /// Scored from reply TEXT, which is legitimate here for the same reason
+    /// it was in #202C: auto-DECLINE means no artifact can exist, so text is
+    /// all there is and there is nothing for it to lie against.
+    func runDeclineBattery(trials: Int) async {
+        await runActionBattery(trials: trials, cells: Self.declineBatteryCells,
+                               includeGrabCanary: true)
     }
 
     /// #200P cell list — production vs the stall clause, both arms in the
@@ -3657,6 +3749,24 @@ extension LocalChatBackend {
         ("Do I have anything on my calendar Friday?", true),
     ]
 
+    /// #205: IMAGE TURNS ARE A #202-FAMILY DISARMAMENT and the pinned router
+    /// instructions never mention images. The on-device model cannot see
+    /// images at all — the transcript carries a placeholder — so image
+    /// capability exists ONLY through `readImageText` / `BarcodeReaderTool`.
+    /// A toolless route on a photo turn is a BLIND turn.
+    ///
+    /// **Deliberately a SEPARATE list from `routerBaselineProbes`.** That one
+    /// carries a 200/200 history over exactly TEN rows, and #202A's
+    /// regression gate derives its denominator from it — adding rows there
+    /// silently re-points a long-running series and moves a pre-registered
+    /// bar. I did exactly that when first adding these, and caught it before
+    /// the run: the same drift I had flagged an hour earlier when pinning
+    /// this probe to `.control`. Scored as its own band.
+    nonisolated static let routerImageProbes: [(text: String, expected: Bool)] = [
+        ("[image attached] what does this say?", true),
+        ("[image attached] read the text in this photo", true),
+    ]
+
     func runRouterProbe(trials: Int) async {
         guard Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
@@ -3762,7 +3872,28 @@ extension LocalChatBackend {
         let longOffer = """
         That is a really common one — dentists tend to call during working hours, which is exactly when it is hardest to pick up, and then the callback slips because there is no natural prompt to do it. The trick that usually works is attaching it to something already fixed in your day rather than trusting yourself to remember it cold. Since their office almost certainly opens at nine, first thing in the morning is the moment you are most likely to actually get through to a person. Would you like me to set a reminder to call the dentist tomorrow at 9am?
         """
+        // #205: the no-truncation verdict was measured at ~590 chars, and
+        // real assistant turns run to THOUSANDS. This row is that gap: the
+        // same offer buried at the end of a genuinely long answer, which is
+        // the shape a user actually produces after asking a broad question.
+        let veryLongOffer = String(repeating: longSummary + " ", count: 6) + longOffer
+        // #206 DISAMBIGUATION: the first run's failing row differed from the
+        // passing rows in BOTH length and wording, so length was not
+        // isolated — a confound I introduced. These pairs hold the PROMPT
+        // fixed and vary only the context length, which is the only way to
+        // attribute the failure.
+        let shortTail = String(longOffer.suffix(560))
         return [
+            .init(band: .accept, context: veryLongOffer, prompt: "Yes please", expected: true),
+            .init(band: .wordsOnly, context: veryLongOffer, prompt: "Say that again more briefly",
+                  expected: false),
+            // Same prompt, short context — if THIS passes, length is the cause.
+            .init(band: .wordsOnly, context: shortTail, prompt: "Say that again more briefly",
+                  expected: false),
+            // Same prompt, long context — if this fails while the ~580 row
+            // above passes, the pair localises it to length rather than words.
+            .init(band: .wordsOnly, context: veryLongOffer, prompt: "Write another one",
+                  expected: false),
             .init(band: .accept, context: longOffer, prompt: "Yes please", expected: true),
             .init(band: .accept, context: longOffer, prompt: "Sure", expected: true),
             .init(band: .wordsOnly, context: longHaiku, prompt: "Write another one", expected: false),
@@ -3784,25 +3915,36 @@ extension LocalChatBackend {
         Self.batteryEmit("router: LONG-CONTEXT PROBE START trials=\(trials) rows=\(grid.count) (#202C)")
         Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: ["ctx-a-long"],
                                       kind: "router-context")
-        for row in grid {
-            var correct = 0
-            let started = Date()
-            for _ in 1...trials {
-                if await routeNeedsDeviceTool(prompt: row.prompt, context: row.context,
-                                              variant: .ctxA) == row.expected {
-                    correct += 1
+        // #206: every long row runs BOTH ways — uncapped (reproduces the
+        // failure) and capped (tests the cure). Same rows, same trials, one
+        // seam. Without the uncapped arm the cap would silently truncate away
+        // the condition under test and the run would come back clean for the
+        // wrong reason.
+        for capped in [false, true] {
+            let label = capped ? "ctx-a-long-capped" : "ctx-a-long"
+            for row in grid {
+                var correct = 0
+                let started = Date()
+                for _ in 1...trials {
+                    if await routeNeedsDeviceTool(prompt: row.prompt, context: row.context,
+                                                  variant: .ctxA,
+                                                  applyContextCap: capped) == row.expected {
+                        correct += 1
+                    }
                 }
+                let each = Date().timeIntervalSince(started) / Double(trials)
+                let effective = capped ? Self.routerContextTail(row.context).count
+                                       : row.context.count
+                Self.batteryEmit(String(format:
+                    "router: %d/%d expected=%@ variant=%@ band=%@ secs=%.2f ctxchars=%d probe=%@",
+                    correct, trials, String(row.expected), label, row.band.rawValue,
+                    each, effective, row.prompt))
+                Self.batteryRecorder.recordProbe(
+                    probe: row.prompt, expected: row.expected, correct: correct, trials: trials,
+                    variant: label, context: row.context, band: row.band.rawValue,
+                    seconds: each
+                )
             }
-            let each = Date().timeIntervalSince(started) / Double(trials)
-            Self.batteryEmit(String(format:
-                "router: %d/%d expected=%@ variant=ctx-a-long band=%@ secs=%.2f ctxchars=%d probe=%@",
-                correct, trials, String(row.expected), row.band.rawValue,
-                each, row.context.count, row.prompt))
-            Self.batteryRecorder.recordProbe(
-                probe: row.prompt, expected: row.expected, correct: correct, trials: trials,
-                variant: "ctx-a-long", context: row.context, band: row.band.rawValue,
-                seconds: each
-            )
         }
         // The SHORT rows again, same session conditions, as the latency
         // baseline — a long-context number means nothing without it.
@@ -3897,6 +4039,25 @@ extension LocalChatBackend {
                         variant: "baseline", context: "", band: "baseline"
                     )
                 }
+                // #205: the image rows, scored as their OWN band so they can
+                // never move the baseline gate's denominator. Run on the
+                // control router because that is what a first measurement of
+                // an unmeasured shape should establish.
+                for probe in Self.routerImageProbes {
+                    var correct = 0
+                    for _ in 1...trials {
+                        if await routeNeedsDeviceTool(prompt: probe.text, context: "",
+                                                      variant: variant) == probe.expected {
+                            correct += 1
+                        }
+                    }
+                    Self.batteryEmit("router: \(correct)/\(trials) expected=\(probe.expected) variant=image band=image probe=\(probe.text)")
+                    Self.batteryRecorder.recordProbe(
+                        probe: probe.text, expected: probe.expected,
+                        correct: correct, trials: trials,
+                        variant: "image", context: "", band: "image"
+                    )
+                }
             }
             for row in grid {
                 var correct = 0
@@ -3961,10 +4122,25 @@ extension LocalChatBackend {
     /// #199 cross-reference: an accept turn can also fail by CLAIMING the
     /// reminder exists. Detected separately from the artifact and never
     /// instead of it — the standing law is that reply text lies both ways.
+    /// Calibrated against VERBATIM production replies, not invented examples
+    /// — the only method that has caught anything. Two gaps found that way:
+    /// the curly apostrophe (#202B, nine missed lies), and the PASSIVE VOICE
+    /// below (#199 prep). Production's commonest completion phrasing turns
+    /// out to be "Your reminder … **has been set**" / "Lunch with Sam **has
+    /// been scheduled**", which the original active-voice-only list missed
+    /// entirely — it would have under-counted the calendar and alarm arms to
+    /// near zero.
     nonisolated static let creationClaimPatterns = [
+        // active
         "i've set", "i have set", "i've created", "i have created",
-        "i've added", "i have added", "reminder created", "reminder is set",
-        "reminder set", "done —", "all set",
+        "i've added", "i have added", "i've scheduled", "i have scheduled",
+        // passive — the majority form in the observed replies
+        "has been set", "have been set", "has been scheduled",
+        "has been created", "has been added", "has been saved",
+        // noun-first
+        "reminder created", "reminder is set", "reminder set",
+        "is scheduled for", "added to your calendar", "on your calendar for",
+        "done —", "all set",
     ]
 
     /// The model types a CURLY apostrophe. `batteryDenialPatterns` handles
@@ -4196,6 +4372,11 @@ extension LocalChatBackend {
     /// The clause under test, pinned: it targets the CLAIM (not the output
     /// format, which the payload already mandated and #202B violated anyway)
     /// and is SCOPED to action requests so it cannot resurrect #196's tic.
+    /// #204: the promoted dead-end carve-out, hoisted so the rollback cell
+    /// can be pinned as "production MINUS exactly this string". Promoted at
+    /// #200M/#200O; re-verified there only against a CROSS-RUN baseline.
+    nonisolated static let deadEndCarveoutClause = " If you can't identify a person named in an event, that's fine — create the event with the name exactly as the user gave it."
+
     nonisolated static let toollessHonestyClause = " If the user asks you to create, set, add, schedule, or change something on their device — including agreeing to an offer you made earlier — you cannot do it on this turn: say so in one plain sentence and stop. Never say or imply that you have created, set, added, or scheduled anything, and never write out a tool call."
 
     /// #202D: v1 kept. Its claim ban and tool-syntax ban took the disease
