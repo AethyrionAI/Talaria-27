@@ -2215,6 +2215,71 @@ struct DeviceToolBeltTests {
         #expect(uncapped.contains(long))
     }
 
+    // MARK: - (#207) image-turn routing
+
+    /// The signal seam: the router must be TOLD an image is attached.
+    /// Production hands it the raw prompt while `hasImage` is computed six
+    /// lines below and never passed — so "what does this say?" arrives with
+    /// no indication a photo exists.
+    @Test func imageSignalPrefixesThePromptAndIsOffByDefault() {
+        // Off by default = production today, byte-identical.
+        #expect(LocalChatBackend.routerPrompt(context: "", prompt: "what does this say?",
+                                              variant: .ctxA)
+                == "Request: what does this say?")
+        // On, it names the attachment without describing it — the router
+        // decides routing, not content.
+        let signalled = LocalChatBackend.routerPrompt(
+            context: "", prompt: "what does this say?", variant: .ctxA, hasImage: true)
+        #expect(signalled.contains("what does this say?"))
+        #expect(signalled != "Request: what does this say?")
+        #expect(signalled.lowercased().contains("image"))
+        // The signal composes with context rather than replacing it.
+        let both = LocalChatBackend.routerPrompt(
+            context: "Here's a haiku.", prompt: "what does this say?",
+            variant: .ctxA, hasImage: true)
+        #expect(both.contains("Here's a haiku."))
+        #expect(both.lowercased().contains("image"))
+    }
+
+    /// The TEXT seam, kept separate from the signal so a `@Guide` with a
+    /// 200/200 history is only touched if the cheap change fails. Flag off
+    /// must be byte-identical to the pinned production text.
+    @Test func imageGuideAdditionIsAdditiveAndOffByDefault() {
+        #expect(LocalChatBackend.routerInstructions(for: .ctxA)
+                == LocalChatBackend.toolIntentRouterInstructions)
+        let withImages = LocalChatBackend.routerInstructions(for: .ctxA, includeImageGuide: true)
+        #expect(withImages != LocalChatBackend.toolIntentRouterInstructions)
+        #expect(withImages.hasPrefix(LocalChatBackend.toolIntentRouterInstructions))
+        #expect(withImages.lowercased().contains("image"))
+    }
+
+    /// #207 arms and their order. `img-none` is the production baseline and
+    /// runs FIRST — it is the reproduction gate, and the incumbent takes the
+    /// cool slot per #201B.
+    @Test func imageBatteryArmsRunTheProductionBaselineFirst() {
+        #expect(LocalChatBackend.imageProbeArms == [.imgNone, .imgSignal, .imgGuide])
+        #expect(!LocalChatBackend.ImageProbeArm.imgNone.sendsImageSignal)
+        #expect(LocalChatBackend.ImageProbeArm.imgSignal.sendsImageSignal)
+        #expect(LocalChatBackend.ImageProbeArm.imgGuide.sendsImageSignal)
+        // Only the last arm touches the pinned @Guide.
+        #expect(!LocalChatBackend.ImageProbeArm.imgNone.includesImageGuide)
+        #expect(!LocalChatBackend.ImageProbeArm.imgSignal.includesImageGuide)
+        #expect(LocalChatBackend.ImageProbeArm.imgGuide.includesImageGuide)
+    }
+
+    /// The image grid measures the PRODUCTION shape — bare prompts, no
+    /// `[image attached]` marker, because production never generates one.
+    /// The 0/15 that opened this lane used a marker and was therefore
+    /// generous.
+    @Test func imageGridUsesBarePromptsBecauseProductionHasNoMarker() {
+        let grid = LocalChatBackend.imageProbeGrid
+        #expect(grid.count == 4)
+        #expect(grid.allSatisfy { $0.expected })
+        #expect(grid.allSatisfy { !$0.text.contains("[image") })
+        #expect(grid.contains { $0.text == "what does this say?" })
+        #expect(grid.contains { $0.text == "scan this barcode" })
+    }
+
     /// #205: the #196 baseline series is EXACTLY ten rows. Its 200/200
     /// history and #202A's regression denominator both derive from that
     /// count — appending to it silently re-points a long-running series and

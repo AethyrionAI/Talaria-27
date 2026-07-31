@@ -2245,7 +2245,23 @@ extension LocalChatBackend {
     /// #202A: the instructions each variant routes under. control and ctxA
     /// share the PINNED text — ctxA's whole treatment is the envelope, so
     /// an instructions change here would make it two seams at once.
-    nonisolated static func routerInstructions(for variant: RouterVariant) -> String {
+    /// #207 TEXT seam: one added example teaching that an attached image is
+    /// a device request. **Kept OFF by default and measured only if the
+    /// cheap signal seam fails** — this text has a 200/200 history and #196
+    /// established that guide-only framing misrouted every creative verb, so
+    /// it is not touched on a hunch.
+    nonisolated static let imageGuideExample = """
+
+    "[an image is attached] what does this say?" -> needsDeviceTool: true
+    """
+
+    nonisolated static func routerInstructions(for variant: RouterVariant,
+                                               includeImageGuide: Bool = false) -> String {
+        let base = baseRouterInstructions(for: variant)
+        return includeImageGuide ? base + imageGuideExample : base
+    }
+
+    nonisolated static func baseRouterInstructions(for variant: RouterVariant) -> String {
         switch variant {
         case .control, .ctxA:
             return toolIntentRouterInstructions
@@ -2266,9 +2282,16 @@ extension LocalChatBackend {
     /// cap lives inside this function, so without a bypass the instrument
     /// would truncate away the exact condition it exists to measure, and
     /// the run would come back clean for the wrong reason.
+    /// `hasImage` is the #207 SIGNAL seam. Production hands the router the
+    /// user's raw text while `hasImage` is computed six lines below the call
+    /// and never passed — so "what does this say?" arrives with no
+    /// indication a photo exists, and 0/15 routed toolless. OFF by default,
+    /// so this is byte-identical to production until an arm turns it on.
     nonisolated static func routerPrompt(context: String, prompt: String,
                                          variant: RouterVariant,
-                                         applyContextCap: Bool = true) -> String {
+                                         applyContextCap: Bool = true,
+                                         hasImage: Bool = false) -> String {
+        let prompt = hasImage ? "[an image is attached] \(prompt)" : prompt
         switch variant {
         case .control:
             return "Request: \(prompt)"
@@ -2360,15 +2383,19 @@ extension LocalChatBackend {
     /// `.control` variant is the pinned rollback, still probe-reachable.
     func routeNeedsDeviceTool(prompt: String, context: String,
                               variant: RouterVariant,
-                              applyContextCap: Bool = true) async -> Bool {
+                              applyContextCap: Bool = true,
+                              hasImage: Bool = false,
+                              includeImageGuide: Bool = false) async -> Bool {
         let session = LanguageModelSession(
             model: model,
-            instructions: Instructions(Self.routerInstructions(for: variant))
+            instructions: Instructions(Self.routerInstructions(
+                for: variant, includeImageGuide: includeImageGuide))
         )
         do {
             let route = try await session.respond(
                 to: Prompt(Self.routerPrompt(context: context, prompt: prompt, variant: variant,
-                                             applyContextCap: applyContextCap)),
+                                             applyContextCap: applyContextCap,
+                                             hasImage: hasImage)),
                 generating: ToolIntentRoute.self,
                 options: Self.toolIntentRouterOptions
             ).content
@@ -3766,6 +3793,94 @@ extension LocalChatBackend {
         ("[image attached] what does this say?", true),
         ("[image attached] read the text in this photo", true),
     ]
+
+    /// #207: the PRODUCTION shape. Bare prompts, no marker — because
+    /// production never generates one, and the 0/15 that opened this lane
+    /// used `[image attached]` and was therefore GENEROUS. These are what a
+    /// user actually types with a photo attached.
+    nonisolated static let imageProbeGrid: [(text: String, expected: Bool)] = [
+        ("what does this say?", true),
+        ("read the text in this photo", true),
+        ("what's in this picture?", true),
+        ("scan this barcode", true),
+    ]
+
+    /// #207 arms. Two seams, measured SEPARATELY and in this order, because
+    /// the signal may be sufficient alone — and if it is, the pinned
+    /// `@Guide` (200/200 history) is never touched. The ctx-a-over-ctx-b
+    /// parsimony rule from #202A, applied before the fact.
+    enum ImageProbeArm: String, CaseIterable {
+        /// Production today: raw prompt, no image signal. The reproduction gate.
+        case imgNone = "img-none"
+        /// The signal only — `@Guide` untouched.
+        case imgSignal = "img-signal"
+        /// Signal PLUS the added guide example. Only read if the signal fails.
+        case imgGuide = "img-guide"
+
+        var sendsImageSignal: Bool { self != .imgNone }
+        var includesImageGuide: Bool { self == .imgGuide }
+    }
+
+    /// Production baseline FIRST — it is the reproduction gate, and the
+    /// incumbent takes the cool slot (#201B).
+    nonisolated static let imageProbeArms: [ImageProbeArm] = [.imgNone, .imgSignal, .imgGuide]
+
+    /// #207: can the router be told an image is attached, and is that enough?
+    /// Pure classification — no tool runs, nothing is written, nothing reaped.
+    /// Every arm also re-runs the #196 baseline, because an arm that fixes
+    /// images by arming everything is not a fix and re-opens #196.
+    func runImageRoutingProbe(trials: Int) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
+        let arms = Self.imageProbeArms
+        Self.batteryEmit("router: IMAGE PROBE START trials=\(trials) arms=\(arms.map(\.rawValue).joined(separator: ",")) (#207)")
+        Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: arms.map(\.rawValue),
+                                      kind: "router-context")
+        for arm in arms {
+            emitThermal(cell: arm.rawValue, at: "start")
+            for probe in Self.imageProbeGrid {
+                var correct = 0
+                for _ in 1...trials {
+                    if await routeNeedsDeviceTool(
+                        prompt: probe.text, context: "", variant: Self.productionRouterVariant,
+                        hasImage: arm.sendsImageSignal,
+                        includeImageGuide: arm.includesImageGuide) == probe.expected {
+                        correct += 1
+                    }
+                }
+                Self.batteryEmit("router: \(correct)/\(trials) expected=\(probe.expected) variant=\(arm.rawValue) band=image probe=\(probe.text)")
+                Self.batteryRecorder.recordProbe(
+                    probe: probe.text, expected: probe.expected, correct: correct, trials: trials,
+                    variant: arm.rawValue, context: "", band: "image"
+                )
+            }
+            // COLLATERAL: the #196 grid on EVERY arm. The guide arm edits a
+            // measured artifact; the signal arm changes what every prompt
+            // looks like. Both must prove they left the rest alone.
+            for probe in Self.routerBaselineProbes {
+                var correct = 0
+                for _ in 1...trials {
+                    if await routeNeedsDeviceTool(
+                        prompt: probe.text, context: "", variant: Self.productionRouterVariant,
+                        hasImage: false,
+                        includeImageGuide: arm.includesImageGuide) == probe.expected {
+                        correct += 1
+                    }
+                }
+                Self.batteryEmit("router: \(correct)/\(trials) expected=\(probe.expected) variant=\(arm.rawValue) band=baseline probe=\(probe.text)")
+                Self.batteryRecorder.recordProbe(
+                    probe: probe.text, expected: probe.expected, correct: correct, trials: trials,
+                    variant: arm.rawValue, context: "", band: "baseline"
+                )
+            }
+            emitThermal(cell: arm.rawValue, at: "end")
+        }
+        Self.batteryEmit("router: IMAGE PROBE DONE (#207)")
+        Self.batteryRecorder.endRun()
+    }
 
     func runRouterProbe(trials: Int) async {
         guard Self.beginBatteryRun() else {
