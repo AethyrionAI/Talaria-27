@@ -11796,6 +11796,31 @@ and is reachable as the measured `img-signal` cell. Pinned by a test asserting t
 shipped text is exactly what the `img-guide` arm ran, and that a turn with no image
 is untouched.
 
+**END-TO-END CONFIRMED ON DEVICE 2026-07-31, and it is the cleanest A/B this program
+has produced.** Same prompt, same image, same handset, three minutes apart:
+
+- **19:58, pre-fix build:** no tool chip. *"I can't see the image you've attached, so
+  I can't read what's on it."* — the transcript placeholder's own instruction,
+  followed faithfully. **This is what 0/4 looks like to a user.**
+- **20:01, promoted build:** **`READIMAGETEXT` chip fires**, and the full text comes
+  back accurately — including the struck-through "Moscow Washington", which OCR read
+  faithfully rather than dropping.
+
+**This closes the #202A→#202B gap for this lane.** #202A measured routing and looked
+perfect; #202B then found the outcome was a lie. Here the outcome was verified
+directly, and a thirty-second manual check answered what an instrument would have
+cost a lane to build. **Worth generalising: when the user path is one tap, check the
+user path.**
+
+**Incidental datum:** OCR was accurate on the hard case — small text, dark
+background, a photo of a screen. Vision quality is not a concern for this shape.
+
+**Note on the pre-fix screenshot, because it nearly caused a wrong reading:** the
+build on the handset at 19:58 predated the promotion commit (19:33 deploy vs 19:49
+commit). Had that been read as "the fix failed" rather than "the fix isn't installed",
+the lane would have chased a phantom. **Check what is actually deployed before
+reading a device result** — the same discipline as asserting the compiled path.
+
 **Standing note for the next router lane:** "scan this barcode" armed 10/10 in every
 arm including production — **"scan" is a device verb the router already knew.** The
 defect was always specific to reading/vision phrasings, and a grid built only from
