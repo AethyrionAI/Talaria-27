@@ -11721,6 +11721,111 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
+## #207 — image turns: the signal alone does NOTHING, the guide fixes it completely
+
+**VERDICT FILED 2026-07-31. Run `C2E03F53`, n=10, `endedCleanly: true`. Dispatch:
+`dispatch/OPUS-T27-207-image-routing.md`. NOT PROMOTED — one collateral band was
+missing and is now built.**
+
+| arm | image rows ARMED | #196 baseline |
+|---|---|---|
+| **img-none** (production) | **1/4** | 100/100 |
+| **img-signal** (marker only) | **1/4** | 100/100 |
+| **img-guide** (marker + guide) | **4/4** | **100/100** |
+
+**REPRODUCTION GATE HOLDS:** production routes 3 of 4 image prompts toolless. The
+one exception is *"scan this barcode"*, armed 10/10 in every arm — **"scan" is a
+device verb the router already knows**, so the defect is specific to the *reading /
+vision* phrasings a user would actually type with a photo.
+
+**PRIMARY FAILS: the signal alone changes NOTHING — 1/4, byte-identical to
+production.** Telling the router `[an image is attached]` moved zero rows. The cheap
+seam I hoped would suffice does not.
+
+**SECONDARY PASSES: img-guide is 4/4 with the #196 baseline untouched at 100/100.**
+
+**THE TWO SEAMS ARE NOT INDEPENDENT — they are one mechanism in two places, and the
+run makes that obvious in hindsight.** The guide example teaches `marker → armed`;
+the signal supplies the marker. Neither works alone: the signal without the guide is
+an unexplained token (1/4, measured), and the guide without the signal would teach a
+pattern that never appears (predicted, untested). **So the promotion candidate is the
+PAIR, which is exactly what `img-guide` is** — but the dispatch's parsimony rule
+("if the signal clears it, the guide is not promoted") turned out to be unreachable
+rather than merely unmet.
+
+**WHY IT IS NOT PROMOTED: a collateral band was missing, and it is the degenerate
+direction.** The fix marks **every** prompt when an image is attached, and the guide
+teaches marker → armed. **Nothing in the grid covered "photo attached, request
+unrelated to it"** — the shape where this would over-arm, which is #196's disease.
+Two rows now added (`write a haiku about sledding`, `what's 2+2?`, both expected
+TOOLLESS, both carrying the image signal) and run on all three arms. **Same class of
+gap as #206's confounded rows and #205's appended baseline: I keep building grids
+that cannot see the failure mode the change introduces.**
+
+**DETERMINISM:** zero within-row variance across all 42 rows — greedy decode again.
+The honest denominator is **4 image rows + 10 baseline rows per arm**, not 140
+trials, and the bars were written in rows for that reason.
+
+**CONFIRMED AND PROMOTED 2026-07-31 — run `64DC6275`, a strict superset of the
+first (same rows plus the missing band). Suite 1379/1379.**
+
+| band | img-none | img-signal | **img-guide** |
+|---|---|---|---|
+| image (want ARMED) | 1/4 | 1/4 | **4/4** |
+| **image-wordsonly (want TOOLLESS)** | 2/2 | 2/2 | **2/2** |
+| #196 baseline | 100/100 | 100/100 | **100/100** |
+
+**The degenerate did NOT happen.** A photo carried alongside an unrelated request —
+"write a haiku about sledding", "what's 2+2?" — still routes **TOOLLESS 2/2** under
+the fix. That was the band the promotion rested on, and it was missing from the
+first grid.
+
+**Every number replicated exactly** across the two runs: img-none 1/4, img-signal
+1/4, img-guide 4/4, baseline 100/100. **Two clean runs, so the standing "one clean
+run does not promote" rule is satisfied.**
+
+**PROMOTED — the PAIR, because neither half works alone:**
+
+1. **`hasImage` is hoisted ABOVE the router call and passed in.** It used to be
+   computed six lines BELOW and never handed over, which is the whole defect.
+2. **`productionIncludesImageGuide = true`** — one added `@Guide` example teaching
+   that an attached image is a device request.
+
+**Rollback: the flag's `false`**, which restores the pinned `@Guide` byte-for-byte
+and is reachable as the measured `img-signal` cell. Pinned by a test asserting the
+shipped text is exactly what the `img-guide` arm ran, and that a turn with no image
+is untouched.
+
+**END-TO-END CONFIRMED ON DEVICE 2026-07-31, and it is the cleanest A/B this program
+has produced.** Same prompt, same image, same handset, three minutes apart:
+
+- **19:58, pre-fix build:** no tool chip. *"I can't see the image you've attached, so
+  I can't read what's on it."* — the transcript placeholder's own instruction,
+  followed faithfully. **This is what 0/4 looks like to a user.**
+- **20:01, promoted build:** **`READIMAGETEXT` chip fires**, and the full text comes
+  back accurately — including the struck-through "Moscow Washington", which OCR read
+  faithfully rather than dropping.
+
+**This closes the #202A→#202B gap for this lane.** #202A measured routing and looked
+perfect; #202B then found the outcome was a lie. Here the outcome was verified
+directly, and a thirty-second manual check answered what an instrument would have
+cost a lane to build. **Worth generalising: when the user path is one tap, check the
+user path.**
+
+**Incidental datum:** OCR was accurate on the hard case — small text, dark
+background, a photo of a screen. Vision quality is not a concern for this shape.
+
+**Note on the pre-fix screenshot, because it nearly caused a wrong reading:** the
+build on the handset at 19:58 predated the promotion commit (19:33 deploy vs 19:49
+commit). Had that been read as "the fix failed" rather than "the fix isn't installed",
+the lane would have chased a phantom. **Check what is actually deployed before
+reading a device result** — the same discipline as asserting the compiled path.
+
+**Standing note for the next router lane:** "scan this barcode" armed 10/10 in every
+arm including production — **"scan" is a device verb the router already knew.** The
+defect was always specific to reading/vision phrasings, and a grid built only from
+verbs like "scan" would have found nothing.
+
 ## #206 — ctx-a BREAKS at ~4,000 chars of context, and my "no truncation needed" verdict was wrong
 
 **Filed 2026-07-30 from run `5BB1C020`. This CORRECTS the #202C verdict filed

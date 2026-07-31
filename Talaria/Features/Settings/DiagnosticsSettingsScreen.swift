@@ -1080,6 +1080,26 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #207: same shape as the other probes — classification only.
+    @ViewBuilder
+    private func imageRoutingProbeButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runImageRoutingProbe(trials: trials)
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #199: the DECLINE lane. auto-DECLINE is mutually exclusive with
     // auto-accept — declining is the whole measurement, so no artifact can
     // be created and there is nothing to reap.
@@ -1352,6 +1372,11 @@ struct DiagnosticsSettingsScreen: View {
                 // #202C companion: ctx-a on realistic LONG contexts, timed.
                 HStack(spacing: Design.Spacing.sm) {
                     longContextProbeButton(trials: 5, label: "Long-context probe n=5 (50)")
+                }
+                // #207: can the router be told an image is attached, and is
+                // that enough? Pure classification — no grants, no reap.
+                HStack(spacing: Design.Spacing.sm) {
+                    imageRoutingProbeButton(trials: 10, label: "Image routing n=10 (420)")
                 }
                 // #199: auto-DECLINE. Measures what production SAYS after the
                 // user says no. Nothing is created, so nothing is reaped.
