@@ -5260,6 +5260,11 @@ Options (design decision, prototype before choosing):
 
 Owen's call after an (a) prototype run. Dispatchable as a small probe branch first.
 
+**CLOSED 2026-07-31 (Owen): "drop this, it's fine as is. We can readdress it down the
+road if it surfaces again organically."** Status quo — option (b) — accepted. The
+probe branch is deleted; its SHA is recorded above for restoration if the issue ever
+resurfaces on its own.
+
 Logged 2026-07-17.
 
 ---
@@ -11303,7 +11308,9 @@ for want of a `build-for-testing` confirmation on beta4. That run has now
 happened many times over — tonight's lanes alone ran it green repeatedly
 (1336/1336 in 111 suites at the latest), and Hermes's independent audit build was
 green too. **By its own stated criterion #51 is satisfied; closure is Owen's
-call.** #52 (xcscheme drift) stays open and is *live*: the drifted
+call.** — **CLOSED 2026-07-31 (Owen): "we're working on beta4, if that's the only
+requirement, close it."** The beta4 `build-for-testing` confirmation has run green
+dozens of times since, most recently 1384/1384. #52 (xcscheme drift) stays open and is *live*: the drifted
 `Talaria.xcodeproj/xcshareddata/xcschemes/Talaria.xcscheme` reappears in the
 working tree constantly — it was discarded by hand a dozen times during the
 #200T–#201 lanes. It is xcodegen residue and deserves a real fix, not a nightly
@@ -12216,9 +12223,13 @@ not touch the historical series), ctx-a and ctx-b both 13/13 across all three ba
 8. **#197 remains unrouted** — the production catch still yields a rendered failure,
    and #200's audit established these throws happen ABOVE `call()` (the
    argument-DECODE class), so #176's recovery clause never engages.
-9. **The ~0.6s router tax is the free tier's latency floor** — pure cost on "what's
-   2+2?" turns, and that tier's pitch is instant. Worth naming in the free-tier UX
-   story rather than discovering it in a review.
+9. **~~The ~0.6s router tax is the free tier's latency floor~~ — ACCEPTED, CLOSED
+   2026-07-31 (Owen): "0.6s, that's pretty dang instant for an offline option."**
+   Recorded rather than dropped, because the number will resurface in any perf
+   review: the router adds ~0.6s to every turn, and #202C measured that it does NOT
+   grow with context length (0.56s at 40 chars, 0.56s at 590; #206 saw 1.32s only at
+   4,073 chars, which the 800-char cap now prevents). **It is a flat cost, not a
+   scaling one** — which is what makes it acceptable.
 10. **#191/#192 (header not backend-aware, silent badge flip) are the same "UI must
     not lie" family as #202B's fabrication finding.** They belong together in any
     future truth-pass lane.
@@ -12277,7 +12288,31 @@ naive timeout would have introduced.
 **`ensureAuthorization()` is deliberately left UNBOUNDED:** it waits on a human
 reading a system dialog, and no machine deadline is fair to that.
 
-**STILL OPEN, and both need a product decision rather than code:**
+**BOTH DECIDED 2026-07-31 (Owen) AND IMPLEMENTED:**
+
+- **1A shipped — a visible "still working" plus Stop, and it CANCELS NOTHING.**
+  `ChatStore.lastStreamActivityAt` is refreshed by every sign of life (token,
+  reasoning delta, tool event) and `isStalled(isStreaming:lastActivityAt:now:)` is a
+  pure function of two stored values, so it is unit-testable without a live stream.
+  Threshold **8s**: past a normal on-device turn (#208 measured whole turns at 35–49
+  output tokens) and well short of the battery's 35s guillotine. **The Stop already
+  existed** (`ChatScreen` → `cancelStreaming`), so 1A was only ever the missing half.
+  **Deliberately no automatic cancellation: #202B measured this model FABRICATING
+  when cut off from a tool it expected, so a machine deadline risks manufacturing the
+  exact lie #202D removed.** The user decides.
+- **2A shipped — a dismissed dialog no longer parks the turn.** `ensureAuthorization`
+  stays UNBOUNDED by any clock (a deadline on a human reading a system dialog is
+  unfair, and that reasoning stands). The trigger is the **foreground transition**:
+  if the app returns with the status still `.notDetermined`, the dialog was dismissed
+  without an answer, the waiter resolves `.notDetermined`, and every caller already
+  renders that honestly as location-unavailable. The observer is armed only while a
+  prompt is pending and torn down by whichever of the delegate or the foreground
+  lands first.
+- **1C (per-tool deadlines everywhere) NOT decided** — it was in the recommendation
+  but Owen addressed 1A only. Still on the table; `DeviceToolTimeout` already exists
+  and is on Contacts and Places.
+
+**Superseded — the original framing:**
 
 - **Production has no turn-level deadline of any kind.** This item closes the one
   hole we can prove; the general cure is a bound on the production stream or a
