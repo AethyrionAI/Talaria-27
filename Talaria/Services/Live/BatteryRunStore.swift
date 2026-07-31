@@ -106,7 +106,18 @@ struct RouterProbeRecord: Codable, Equatable {
     /// Nobody chose that safeguard; recording the count replaces luck with
     /// evidence.
     ///
-    /// nil = the run predates #213, NOT zero errors.
+    /// nil = the run predates #213 **or the call site forgot to sample**, NOT
+    /// zero errors.
+    ///
+    /// **INVARIANT for anyone adding a probe runner:** every `recordProbe`
+    /// call that follows a GENERATION must pass `errors:`. The first cut of
+    /// #213 wired only `runRouterContextProbe` and the commit message claimed
+    /// "each probe row" — an external audit found three runners still blind,
+    /// including the legacy #196 probe whose 200/200 series the program quotes
+    /// as its baseline gate. This is a source-level invariant that no test
+    /// reaches; the honest defence is this comment and the classifier's
+    /// "NOT RECORDED" line, which reports unsampled rows rather than counting
+    /// them clean. A deterministic row that cannot throw passes `errors: 0`.
     var errors: Int? = nil
 }
 
