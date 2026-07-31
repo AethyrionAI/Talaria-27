@@ -195,18 +195,36 @@ struct MotionTool: Tool {
 
 struct WeatherTool: Tool {
     let name = "currentWeather"
-    let description = "Get live weather conditions and today's forecast from Apple Weather — at the user's current location, or at a named place if one is given."
+    /// Static so the pinned rollback twin ships the SAME description — the two
+    /// cells must differ in exactly one thing, the schema.
+    static let productionDescription = "Get live weather conditions and today's forecast from Apple Weather — at the user's current location, or at a named place if one is given."
+    let description = WeatherTool.productionDescription
     let relay: ToolEventRelay
     let location: DeviceLocationProvider
 
+    // #209: the @Guide has said "Optional… Leave empty" since this tool
+    // shipped, while the TYPE said required — so the model did as it was told,
+    // emitted `{}`, and the turn died on `GeneratedContent does not contain a
+    // property 'place'`. Two trials in the records. This is the week plan's
+    // finding 3 in its purest form: when behaviour resists an instruction,
+    // look for a structural constraint saying the opposite. `call()` already
+    // treats empty as "here", so nil changes nothing for a well-formed call.
+    // `WeatherToolRequiredPlace` is the pinned rollback.
     @Generable
     struct Arguments {
         @Guide(description: "Optional place name to get weather for (city or address). Leave empty for the user's current location.")
-        var place: String
+        var place: String?
     }
 
     func call(arguments: Arguments) async throws -> String {
-        let place = arguments.place.trimmingCharacters(in: .whitespacesAndNewlines)
+        await Self.performLookup(rawPlace: arguments.place, relay: relay,
+                                 location: location, name: name)
+    }
+
+    static func performLookup(rawPlace: String?, relay: ToolEventRelay,
+                              location: DeviceLocationProvider, name: String) async -> String {
+        // nil and "" are the same request: weather here.
+        let place = (rawPlace ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         await relay.started(name, detail: place.isEmpty ? nil : place)
         defer { Task { await relay.completed(name) } }
 
@@ -252,6 +270,28 @@ struct WeatherTool: Tool {
             // land here; say so instead of inventing a forecast.
             return "Weather lookup failed: \(error.localizedDescription). (WeatherKit needs a network connection and the app's WeatherKit capability.)"
         }
+    }
+}
+
+/// #209 PINNED ROLLBACK for the optional-`place` schema: identical to
+/// `WeatherTool` in name, description, @Guide text and engine — the ONLY delta
+/// is that `place` is REQUIRED, which is what production shipped until #209
+/// while its own @Guide told the model the field was optional.
+struct WeatherToolRequiredPlace: Tool {
+    let name = "currentWeather"
+    var description: String = WeatherTool.productionDescription
+    let relay: ToolEventRelay
+    let location: DeviceLocationProvider
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Optional place name to get weather for (city or address). Leave empty for the user's current location.")
+        var place: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await WeatherTool.performLookup(rawPlace: arguments.place, relay: relay,
+                                        location: location, name: name)
     }
 }
 
