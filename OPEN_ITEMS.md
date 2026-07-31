@@ -11721,6 +11721,63 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
+## #208 (Lane 4) — the token cap is NOT the D4 mechanism. Hypothesis falsified; #102's cap stays.
+
+**VERDICT FILED 2026-07-31. Run `B6ADBF28`, `endedCleanly: true`, sealed
+`reminders=6 events=6 alarms=6 failures=0`. Dispatch:
+`dispatch/OPUS-T27-208-token-cap.md`. LANE CLOSED — no treatment cell will be run.**
+
+| prompt | median out-tokens | max | headroom to the 1024 cap |
+|---|---|---|---|
+| remind | 39 | 47 | 977 |
+| alarm | 25 | 25 | 999 |
+| calendar | 39 | 49 | 975 |
+
+**The cap sits ~20× above anything a turn actually produces.** Apple's documented
+mechanism — a *strict* `maximumResponseTokens` "can lead to the model producing
+malformed results" — **requires the cap to bind**, and it never comes close.
+**A cap that never truncates cannot corrupt what it never truncates.** #102's
+thermal guard is safe and stays untouched.
+
+**The counts INCLUDE the tool-call work**, which is what makes this conclusive
+rather than suggestive. Every counted trial made an accepted create, so its 35–49
+output tokens cover the tool-call arguments *and* the confirmation prose. The
+undocumented question the dispatch raised — whether the cap bounds the whole turn or
+only the final text — **does not matter at this magnitude**: either way the answer is
+under 5% of the budget.
+
+**METHOD NOTE — the reading was pre-registered for 40 trials and this run had 15**
+(the n=5 battery, so no haiku band either). **Recorded rather than glossed.** The
+conclusion survives easily: the falsification threshold was <512 and the observed max
+is **49**, and the longest reply seen anywhere today (#202C's Norway summaries and
+JSON blobs, ~280 chars ≈ 70 tokens) is still 14× under the cap. A larger n could only
+raise the max toward a threshold that is an order of magnitude away.
+
+**WHAT THIS COSTS AND SAVES.** The week plan's cell — 1024/2048/nil × 4 prompts ×
+n=10 — would have been ~2 hours of device time. At the measured ~1–2% corruption
+rate it expects **0.4–1.0 events per arm**, so it could not have concluded anything
+even after those two hours; it would have been #201's mis-specified gate for a fourth
+time. **Asking "is the cap even binding?" first cost four minutes and closed the
+lane.**
+
+**THE INSTRUMENT'S BLIND SPOT, restated because it bounds the claim.** ERROR and
+TIMEOUT trials produce no response and therefore no `usage` — and those are exactly
+the corruption trials. **This run bounds the hypothesis; it cannot fully confirm the
+negative.** What it establishes is that *successful* turns run at ~5% of the cap,
+which leaves no room for the truncation mechanism to be operating on them. If a
+corrupted turn somehow generated 20× the tokens of a clean one before failing, that
+would be invisible here — and would itself be the finding.
+
+**OWED — the D4 corruption class now has NO standing suspect.** The `readHealth`
+argument-decode throws (3 in #200W, 2 in #200Z, 1 in #200O) and the malformed-JSON
+specimen (`{"term":"Sam"Sam"}<ctrl43>`, #200K) need a different explanation. Both are
+**above `call()`** — the FoundationModels argument-decode layer, which no tool can
+catch (#197). That is where the next look belongs, not at the cap.
+
+**Free from now on:** `inputTokens`/`outputTokens` are recorded on **every** battery,
+so this distribution accrues without a dedicated lane. Reap exact again: counted
+5/5/5, reaped 6/6/6, residual **3 = the three warm-up trials**.
+
 ## #207 — image turns: the signal alone does NOTHING, the guide fixes it completely
 
 **VERDICT FILED 2026-07-31. Run `C2E03F53`, n=10, `endedCleanly: true`. Dispatch:
