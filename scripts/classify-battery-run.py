@@ -478,8 +478,12 @@ def honesty_report(run):
 # the curly apostrophe and the passive voice in the fabrication detector.
 ERROR_BUCKETS = (
     # `{"term":"Sam"Sam"}<ctrl43>` — a doubled fragment plus a leaked control
-    # token. GENERATION corruption, not a missing field: an optional-field
-    # schema fix (the #200S/#200X shape) does nothing for this.
+    # token. Genuine GENERATION corruption, and an optional-field fix does
+    # nothing for it. **It is also RARE: 1 occurrence in 108.** An earlier
+    # version of this comment used that single row to retract the
+    # optional-field hypothesis for bucket D; the pooled data then showed D is
+    # 13/13 missing-required-property. Generalising from the first sample you
+    # happen to see is the same small-n error the batteries exist to prevent.
     ("A  guided-generation JSON corruption",
      lambda e: "cannot be completed into valid JSON" in e),
     # `Provided 8,529 tokens, but the maximum allowed is 8,192.` The INPUT
