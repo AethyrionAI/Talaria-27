@@ -100,21 +100,42 @@ struct LocationTool: Tool {
             return "Couldn't get a location fix right now (no GPS signal, or location is temporarily unavailable)."
         }
         // Answer with place names, not raw coordinates (#28).
-        let geocoder = CLGeocoder()
-        guard let placemark = try? await geocoder.reverseGeocodeLocation(fix).first else {
+        // #198: `CLGeocoder` is deprecated; `MKReverseGeocodingRequest` is the
+        // successor. Its `mapItems` getter is NS_SWIFT_UI_ACTOR, so the
+        // MKMapItem is MainActor-bound and NON-Sendable — the same shape that
+        // forced the CLLocationManager / CMPedometer / MKLocalSearch rewrites.
+        // The whole lookup AND the string extraction therefore happen inside
+        // one MainActor hop, and only a [String] crosses back out.
+        guard let parts = await Self.reverseGeocodedParts(for: fix) else {
             return "Got a location fix, but reverse geocoding failed (this usually needs a network connection). Accuracy ±\(Int(fix.horizontalAccuracy))m."
         }
-        let parts = [
-            placemark.name,
-            placemark.locality,
-            placemark.administrativeArea,
-            placemark.country,
-        ].compactMap { $0 }
         var uniqueParts: [String] = []
         for part in parts where !uniqueParts.contains(part) {
             uniqueParts.append(part)
         }
         return "Current location: \(uniqueParts.joined(separator: ", "))"
+    }
+
+    /// #198: the MapKit reverse geocode, kept whole inside one MainActor hop so
+    /// the non-Sendable `MKMapItem` never crosses a boundary. Returns only
+    /// Sendable strings.
+    ///
+    /// **Behavioural delta, stated rather than buried:** the deprecated
+    /// `CLPlacemark` carried a `country`, and `MKAddressRepresentations` has no
+    /// country property (it exposes `cityName`, `cityWithContext`, `regionName`,
+    /// `regionCode`). So a fix that used to read
+    /// "Name, Locality, State, United States" now reads "Name, Locality, State".
+    /// This is a READ tool whose output the model consumes, and #200-era work
+    /// showed tool-result phrasing changes behaviour — so this is a real, if
+    /// small, delta and NOT a mechanical no-op. `cityWithContext` is
+    /// deliberately not used: it reformats the city itself, which would change
+    /// more of the string than dropping the country does.
+    @MainActor
+    private static func reverseGeocodedParts(for fix: CLLocation) async -> [String]? {
+        guard let request = MKReverseGeocodingRequest(location: fix),
+              let item = try? await request.mapItems.first else { return nil }
+        let address = item.addressRepresentations
+        return [item.name, address?.cityName, address?.regionName].compactMap { $0 }
     }
 }
 
@@ -256,6 +277,15 @@ struct WeatherTool: Tool {
                                  location: location, name: name)
     }
 
+    /// #198: forward geocode inside one MainActor hop — `MKMapItem` is
+    /// non-Sendable, so only a `CLLocation` and a `String` cross back.
+    @MainActor
+    private static func geocodedTarget(for place: String) async -> (location: CLLocation, name: String?)? {
+        guard let request = MKGeocodingRequest(addressString: place),
+              let item = try? await request.mapItems.first else { return nil }
+        return (item.location, item.name)
+    }
+
     static func performLookup(rawPlace: String?, relay: ToolEventRelay,
                               location: DeviceLocationProvider, name: String) async -> String {
         // nil and "" are the same request: weather here.
@@ -285,12 +315,16 @@ struct WeatherTool: Tool {
             target = fix
             label = "current location"
         } else {
-            guard let match = try? await CLGeocoder().geocodeAddressString(place).first,
-                  let found = match.location else {
+            // #198: `MKGeocodingRequest` replaces the deprecated
+            // `geocodeAddressString`. This site maps near-identically — it only
+            // ever used `location` and `name`, and `MKMapItem` has both — so
+            // unlike the reverse-geocode site there is no output delta. Same
+            // MainActor/non-Sendable constraint, same containment.
+            guard let found = await Self.geocodedTarget(for: place) else {
                 return "Couldn't find a place called \"\(place)\" to look up weather for."
             }
-            target = found
-            label = match.name ?? place
+            target = found.location
+            label = found.name ?? place
         }
 
         do {
@@ -404,12 +438,20 @@ struct PlacesTool: Tool {
                 let origin = (anchorLat != nil && anchorLon != nil)
                     ? CLLocation(latitude: anchorLat!, longitude: anchorLon!)
                     : nil
+                // #198: `MKMapItem.placemark` is deprecated in favour of
+                // `location` / `address` / `addressRepresentations`. The address
+                // line moves from `placemark.title` to `address?.fullAddress` —
+                // both are a single formatted address string, so the shape of
+                // the reply is unchanged even though the exact formatting is
+                // Apple's to decide. `location` is now non-optional, which
+                // removes a branch rather than adding one.
                 return response.mapItems.prefix(5).map { item -> String in
                     var line = item.name ?? "Unnamed place"
-                    if let address = item.placemark.title, !address.isEmpty {
+                    if let address = item.address?.fullAddress, !address.isEmpty {
                         line += " — \(address)"
                     }
-                    if let origin, let itemLocation = item.placemark.location {
+                    if let origin {
+                        let itemLocation = item.location
                         let meters = origin.distance(from: itemLocation)
                         let formatter = MKDistanceFormatter()
                         line += " (\(formatter.string(fromDistance: meters)) away)"
