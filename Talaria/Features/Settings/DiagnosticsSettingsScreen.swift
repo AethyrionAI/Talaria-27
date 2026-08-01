@@ -586,6 +586,31 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #215 THE missing denominator: unrouted control vs production's routed
+    // configuration. Creates real artifacts — auto-ACCEPT, reaped before DONE.
+    @ViewBuilder
+    private func routedBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runRoutedActionBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #211 follow-on: promoted vs promoted-plus-boundary. READ tools only.
     @ViewBuilder
     private func motionRedirectBatteryButton(trials: Int, label: String) -> some View {
@@ -1401,6 +1426,13 @@ struct DiagnosticsSettingsScreen: View {
                 // licensing, the combination never yet run.
                 HStack(spacing: Design.Spacing.sm) {
                     scopedV2BatteryButton(trials: 10, label: "ScopedV2 battery n=10 (80)")
+                }
+                // #215 THE missing denominator — the same four prompts, but
+                // the routed cell classifies each turn first, the way every
+                // shipped turn does. 2 cells × 4 prompts × n, plus one router
+                // generation per routed trial.
+                HStack(spacing: Design.Spacing.sm) {
+                    routedBatteryButton(trials: 10, label: "Routed battery n=10 (80+40)")
                 }
                 // #211 follow-on: promoted vs promoted-plus-boundary, against
                 // the extra-tool chaining the promotion cost.
