@@ -11995,21 +11995,71 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
-## #198A — ✅ THE REAL-INTERRUPTION TEST PASSED. #198's last open question is closed 2026-08-01.
+## #198B — 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
 
-**Two real phone calls, corded whoGoesThere, PID 14087. Both engines.**
+**FILED 2026-08-01**, found in the A1 device log while checking something else.
 
-The 2026-08-01 device pass proved there were no false POSITIVES and said so
-explicitly — *"it says nothing about false NEGATIVES, and a missed interruption
-leaves a dead capture chain that still looks alive."* **That half is now closed.**
+```
+17:55:51.682 [AVAudioSession Hang Risk] AVAudioSession_iOS.mm:978
+  This method can lead to UI unresponsiveness if called on the main thread.
+  Consider using the asynchronous activate/deactivate API instead.
+```
+
+**`fault` is the highest severity iOS emits** — above `error` — and it fired in
+the **resumption** path, a fraction of a millisecond before
+`audio resumption recommendation: resume`.
+
+`AudioSessionOffMain` exists in this codebase precisely to keep activate/deactivate
+off the main actor, so **some call site is bypassing it.** Source work; no device
+time needed. Find the synchronous site in the resumption handling and route it
+through `AudioSessionOffMain`.
+
+**Why it was invisible until now:** every prior console read filtered
+`oslogSeverity: ["default"]` — the documented workaround for `GetConsoleOutput`'s
+broken `pattern:` argument. `fault` is not `default`, so **the noise-reduction
+filter was also hiding the highest-severity line in the log.** Read `all` at least
+once per device session.
+
+## #198A — ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
+
+**Two real phone calls, corded whoGoesThere, PID 14087, 2026-08-01.**
+
+> **CORRECTED within the hour.** This entry first read *"PASSED … both engines"*.
+> **Owen asked whether the session was truly the local engine or the OpenAI
+> realtime path, and the question broke the claim.** Both services register their
+> observers in `init()` — `LiveVoiceSessionService.swift:154`,
+> `NativeVoicePipelineService.swift:132` — so **both observers fire on every
+> notification regardless of which engine is capturing.** Two log lines proved two
+> OBSERVERS classified correctly. They never proved two ENGINES ran.
+>
+> **The instrument gap is the real finding: nothing logs which voice engine is
+> active.** `VoiceEngineRouter` decides and says nothing. The low-level trace does
+> not disambiguate either — `aurioc AURemoteIO … enable 3` failing across the
+> interruption window proves a real full-duplex capture chain existed and was torn
+> away, but **both** paths capture locally; realtime only streams the result on.
+>
+> **We spent the scarcest resource we have — a second person making real calls —
+> and the record cannot say which configuration it exercised.** Same disease as
+> everything else this week: the instrument did not record the thing that mattered.
+> Fix the log line BEFORE re-running (device-list §A1b), or the next run buys the
+> same non-answer.
+
+**What IS established, and it is worth having:** the 2026-08-01 pass proved no
+false POSITIVES and said explicitly that it could not speak to missed
+interruptions. **A real call WAS seen** — classified `source == .system` — in both
+runs and both orderings. **The false-negative question is answered for the engine
+that ran.** What is NOT established is which engine that was, or that the other
+one behaves the same. Both share `AudioInterruptionRule`, so the residual risk is
+low; **low risk is not verification**, which is the lesson of this entire week.
 
 | run | action | interruption seen |
 |---|---|---|
 | 1 | ring → **decline** | ✅ `17:53:30.815`, **567ms BEFORE** #118's teardown |
 | 2 | **answer**, speak, hang up | ✅ `17:55:47.418`, **167ms AFTER** #118's teardown |
 
-Both runs logged `audio interrupted — system deactivation` on **both**
-`NativeVoicePipeline` and `LiveVoiceSessionService`, while the app's own
+Both runs logged `audio interrupted — system deactivation` from **both
+OBSERVERS** (`NativeVoicePipeline` and `LiveVoiceSessionService` — see the
+correction above; that is two observers, not two engines), while the app's own
 deactivations in the same traces logged `audio deactivated by app — not an
 interruption`. **True positive and true negatives in one trace: the filter
 discriminates rather than merely permits.**

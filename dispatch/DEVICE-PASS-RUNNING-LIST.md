@@ -290,9 +290,31 @@ carry these into a device sitting.**
 
 ## Recorded verdicts
 
-### A1 — **PASS**, 2026-08-01, corded whoGoesThere, PID 14087, two real calls
+### A1 — **PARTIAL**, 2026-08-01, corded whoGoesThere, PID 14087, two real calls
 
-**Both engines, both orderings. #198's last open question is closed.**
+> **⚠️ CORRECTED within the hour, after Owen asked whether this was truly the
+> local engine or the OpenAI realtime path.** The first write-up of this verdict
+> said **"both engines"**. That is WRONG and the correction matters more than the
+> verdict: **both services register their observers in `init()`**
+> (`LiveVoiceSessionService.swift:154`, `NativeVoicePipelineService.swift:132`),
+> so **both observers fire on every notification regardless of which engine is
+> capturing.** Two log lines proved two OBSERVERS classified correctly — never
+> that two ENGINES ran.
+>
+> **And the log cannot say which engine it was.** Nothing logs the active voice
+> engine at session start; `VoiceEngineRouter` is silent. The low-level evidence
+> does not disambiguate either — `aurioc AURemoteIO … enable 3` (full-duplex
+> capture) failing across the interruption window proves a real capture chain
+> existed and was torn away, but **both** paths capture locally; realtime merely
+> streams the result onward.
+>
+> **So A1 is verified for ONE engine and we do not know which.** The shared
+> decision core (`AudioInterruptionRule`) is identical for both, so the residual
+> risk is low — but low risk is not verification, which is the lesson this whole
+> day has been about. **A1 stays open until re-run with the engine pinned and
+> logged.** See §A1b.
+
+**What IS established: both orderings, correct classification, no false negative.**
 
 | run | what Owen did | interruption detected |
 |---|---|---|
@@ -325,6 +347,32 @@ carry these into a device sitting.**
 5. **No call audio reached the transcript.** The chat turn that completes a few
    seconds after each interruption is the PRE-call utterance being submitted as
    the session tears down — confirmed with Owen, expected behavior.
+
+### A1b · RE-RUN with the engine PINNED · **[BLOCKED ON AN INSTRUMENT FIX FIRST]**
+
+**Do not re-run A1 until the app logs which voice engine is active.** Repeating it
+blind would produce another verdict that cannot say what it tested — the entire
+problem with the first attempt.
+
+**Instrument fix (mine, no device needed):** log the selected engine at voice
+session start, at `.notice` so Console shows it without verbose. `VoiceEngineRouter`
+already decides; it just never says so.
+
+**Then:** one call per engine, engine named in the log each time. Cheap once the
+line exists — the expensive part is Shelley's time, and this is two more calls.
+
+### The `AVAudioSession` hang-risk FAULT — found in the same log, unrelated to A1
+
+```
+17:55:51.682 [AVAudioSession Hang Risk] AVAudioSession_iOS.mm:978
+  This method can lead to UI unresponsiveness if called on the main thread.
+  Consider using the asynchronous activate/deactivate API instead.
+```
+
+**Severity `fault`** — the highest iOS emits, and it fired in the **resumption**
+path. We are making a synchronous `AVAudioSession` activate/deactivate call on the
+main thread. `AudioSessionOffMain` exists precisely to avoid this, so some site is
+bypassing it. Filed as OPEN_ITEMS **#198B**; source work, no device time.
 
 ### A2 — **PARTIAL**, 2026-08-01. Scheduling half CONFIRMED; execution half still owed.
 
