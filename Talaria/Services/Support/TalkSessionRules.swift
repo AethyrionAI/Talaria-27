@@ -63,6 +63,55 @@ enum RealtimeErrorRule {
     }
 }
 
+/// #198: the iOS 27 interruption model, reduced to two pure decisions.
+///
+/// `AVAudioSession.interruptionNotification` carried a `.began`/`.ended` type
+/// plus a `.shouldResume` option. Its successors are two SEPARATE
+/// notifications, and the swap is **not** a rename:
+///
+/// - `didBecomeInactiveNotification` fires for deactivations the old `.began`
+///   **never reported, including our own.**
+/// - `resumptionRecommendationNotification` carries the resume decision that
+///   used to ride `.ended` as an option flag.
+///
+/// The context objects delivered in those notifications
+/// (`DeactivationContext`, `ResumptionContext`) declare `init` as
+/// `NS_UNAVAILABLE`, so **no test can synthesize either notification.** That is
+/// precisely why the decisions live here as pure functions over the plain
+/// enums — those *are* constructible — and the notification handlers are kept
+/// down to extract-and-delegate.
+enum AudioInterruptionRule {
+
+    /// Whether a `didBecomeInactive` deactivation is an interruption to react
+    /// to, or merely us switching the session off.
+    ///
+    /// **This filter is the whole migration.** The app deactivates its own
+    /// session at **ten** call sites across seven files — voice-session
+    /// teardown, read-aloud finishing, voice-memo record and playback stop —
+    /// and every one now emits `didBecomeInactive` with `source == .app`. The
+    /// old `.began` fired for none of them, so without this a normal "stop
+    /// talking" tap would report "Audio interrupted." to the user.
+    ///
+    /// Deliberately keyed on `source` alone and NOT on
+    /// `DeactivationContext.interruptionContext`, which the header populates
+    /// "only when the session was interrupted by another application" — that
+    /// would silently drop the non-app interruptions the old code did handle
+    /// (route disconnected, built-in mic muted, device locked). Between the two
+    /// error directions, over-reporting is the safe one: an unwarranted
+    /// `.interrupted` is recovered by the route-change handler, while a missed
+    /// interruption leaves a dead capture chain that looks live.
+    static func isInterruption(source: AVAudioSession.DeactivationSource) -> Bool {
+        source == .system
+    }
+
+    /// Whether a resumption recommendation should resume capture. Replaces
+    /// `InterruptionOptions.contains(.shouldResume)`; the system now states the
+    /// recommendation outright instead of implying it by an absent flag.
+    static func shouldResume(_ recommendation: AVAudioSession.ResumptionRecommendation) -> Bool {
+        recommendation == .shouldResume
+    }
+}
+
 /// Moves AVAudioSession calls off the main thread. `Task.detached` is
 /// deliberate — a nonisolated async function can inherit the caller's actor
 /// under `NonisolatedNonsendingByDefault`, which would put the call right
