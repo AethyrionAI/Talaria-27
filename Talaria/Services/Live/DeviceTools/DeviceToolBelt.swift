@@ -286,9 +286,13 @@ final class DeviceLocationProvider: NSObject, CLLocationManagerDelegate {
         }
         let generation = locationGeneration
         let deadline = fixDeadline
+        // #198: no `await` on the resolve call. This class is @MainActor, so
+        // the unstructured Task inherits that isolation and the hop the `await`
+        // implied never happens — the compiler flags it, and leaving it in
+        // misdescribes the concurrency model to the next reader.
         Task { [weak self] in
             try? await Task.sleep(for: deadline)
-            await self?.failLocationWaitersIfStillPending(generation: generation)
+            self?.failLocationWaitersIfStillPending(generation: generation)
         }
         return await withCheckedContinuation { continuation in
             locationContinuations.append(continuation)

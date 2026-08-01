@@ -139,15 +139,17 @@ enum ConversationSearch {
     }
 
     // DateFormatter is documented thread-safe on modern OS releases;
-    // nonisolated(unsafe) satisfies Swift 6.2 strict concurrency (the
-    // MarkdownParser / ChatStore regex precedent).
-    nonisolated(unsafe) private static let timeFormatter: DateFormatter = {
+    // #198: `nonisolated(unsafe)` is no longer needed — `DateFormatter` is
+    // Sendable in the beta-4 SDK, and the compiler now flags the annotation as
+    // unnecessary. Dropping it is strictly safer: the escape hatch was
+    // suppressing a check that now passes on its own.
+    private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter(); formatter.dateFormat = "HH:mm"; return formatter
     }()
-    nonisolated(unsafe) private static let weekdayFormatter: DateFormatter = {
+    private static let weekdayFormatter: DateFormatter = {
         let formatter = DateFormatter(); formatter.dateFormat = "EEE"; return formatter
     }()
-    nonisolated(unsafe) private static let dateFormatter: DateFormatter = {
+    private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter(); formatter.dateFormat = "M/d"; return formatter
     }()
 }
