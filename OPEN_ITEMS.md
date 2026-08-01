@@ -11832,27 +11832,43 @@ to deprecations instead of new API. Corrected by grepping the headers and by
 compile-probing with `swiftc -typecheck`, which settles a signature question in
 seconds without a full build.
 
-**1. `installTap` — "no replacement named" is FALSE. One is named.**
+**1. `installTap` — "no replacement named" is FALSE, and so was my first
+correction of it.**
 
 `AVAudioNode.h:117` carries
 `API_DEPRECATED_WITH_REPLACEMENT("installTapOnBus:bufferSize:format:error:block")`,
-and `:160` declares it. **The practical verdict nonetheless STANDS, for a
-completely different reason:** the successor is `NS_REFINED_FOR_SWIFT` and
-**AVFAudio's Swift overlay does not wrap it in beta 4** — `installTap` appears
-nowhere in `AVFAudio.swiftinterface`. Probed:
+and `:160` declares it. I then probed twice, failed twice, and concluded there
+was **"no supported Swift spelling — blocked on Apple."** Owen pushed back:
+*"lets not jump to its apple. twice we've done that, twice we've been wrong."*
+He was right, and it was the third time.
 
-- `try node.installTap(onBus:bufferSize:format:block:)` compiles but resolves to
-  the OLD method ("no calls to throwing functions occur within 'try'").
-- The only declared successor is `__installTap(onBus:bufferSize:format:error:block:)`,
-  and the obvious call does not type-check.
+**Asking the compiler for the signature instead of guessing at it settled it in
+one step.** Assigning the method to a deliberately wrong type prints the real
+imported form:
 
-So there is **no supported Swift spelling yet**, and `__`-prefixed refined-for-Swift
-symbols are exactly what Apple reserves for an overlay that has not landed —
-calling one in shipping code invites a break in the next beta.
+```
+(AVAudioNodeBus, AVAudioFrameCount, AVAudioFormat?, (), @escaping AVAudioNodeTapBlock) throws -> ()
+```
 
-**Status: BLOCKED ON APPLE, not on our understanding.** Concrete re-check: after
-any SDK bump, `grep installTap` in `AVFAudio.swiftinterface`; when it appears,
-the migration is a one-line `try`. (No Apple filing, per standing rule.)
+It **is** throwing, and the importer left a vestigial `()` where the `NSError**`
+was. So it is callable today, and this **compiles clean with no deprecation
+warning**:
+
+```swift
+try node.__installTap(onBus: 0, bufferSize: 1024, format: f, error: (), block: { _, _ in })
+```
+
+**So the migration is available and the decision is OURS, not Apple's.** The
+genuine trade-off, which is a judgement call and not a blocker: the symbol is
+`__`-prefixed (refined-for-Swift, awaiting an overlay AVFAudio does not yet
+ship) and takes a meaningless `()` argument. Both say a later beta will change
+this call site. Migrating now silences two warnings and buys brittleness;
+holding keeps two harmless warnings. **Recommend holding, and re-probing after
+any SDK bump** — but as a choice we made, recorded as such.
+
+**The lesson, which outranks the finding:** two probes failing is not evidence of
+absence. `let x: Int = someMethod` makes the compiler print the exact signature,
+and that should be the FIRST move on any import question, not the last.
 
 **2. `BGTaskScheduler.submit` — "the successor is async, so the signature must
 change" is FALSE.**
