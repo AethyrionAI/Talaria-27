@@ -11899,6 +11899,93 @@ wrong home for a lane's primary metric. It also reports same-tool repeats
 explicitly — #215 saw zero in 80 trials, and "none" must be distinguishable from
 "not measured".
 
+### VERDICT FILED 2026-08-01 — run `5EE6ADBD`, corded @ whoGoesThere. **PRIMARY A FAILS. The lane succeeds anyway, and the failure is why.**
+
+80 trials, `endedCleanly: true`, **zero ERROR, zero TIMEOUT.** Reap 60 recorded +
+3 warm-up = 63, **exact.** All **80** routed trials carry `routeFailed: false` —
+every route a real classification.
+
+| bar | pre-registered | measured | |
+|---|---|---|---|
+| Gate | control calendar calls median ≥3 | **3** | PASS |
+| **A** | **treatment calendar calls median ≤1** | **2** | **FAIL** |
+| B | treatment calendar creates ≥8/10 | **10/10** | PASS |
+| C | treatment remind + alarm ≥9/10 | **10/10, 10/10** | PASS |
+| D | treatment haiku clean ≥8/10 | **10/10** (and 10/10 in the control) | PASS |
+
+**Bar A failed as written and is not being redefined.** It said calls median ≤1.
+It measured 2. The filing pre-registered what an A failure would mean —
+"something other than tool availability drives the lookups, which would be a more
+interesting finding than the lane" — and that is exactly what happened.
+
+### The finding: the hunting DISPLACED. It did not disappear.
+
+| calendar tool | control | treatment | |
+|---|---|---|---|
+| `readCalendar` | 7/10 | **0/10** | p = 0.0031 |
+| `lookupContact` | 8/10 | **0/10** | p = 0.000714 |
+| `currentLocation` | 1/10 | **10/10** | **p = 0.000119** |
+
+**The belt did precisely what it was built to do** — both targeted tools went to
+absolute zero. And the model then reached for the one hunting tool still on the
+belt, going from **10% to 100%** usage. The "check something before creating"
+impulse is not a preference for those two tools; it is a habit that **redirects
+onto whatever remains.**
+
+**That reframes every belt-narrowing result in the series.** #200F's 0/10 grabs
+and #214's 0/10 grabs were read as the impulse being suppressed. On this
+evidence it was being *rerouted* — and those cells only looked clean because
+what it rerouted onto was not being counted. **Narrowing a belt does not remove
+the behaviour; it chooses the behaviour's target.**
+
+### The objective was achieved anyway, and by a wide margin
+
+| calendar | control | treatment | |
+|---|---|---|---|
+| median latency | 6.1s | **3.5s** | **−43%** |
+| worst case | 10.1s | **3.7s** | |
+| median input tokens | 2,269 | **976** | **−57%** |
+| gap to its own `remind` | +2.8s (#215) | **+0.5s** | |
+
+**Nine of ten control trials are slower than the treatment's WORST trial**, and
+the treatment is faster in **98 of 100** pairwise comparisons. The distributions
+barely touch. The substitution costs one call, but `currentLocation` is a cheap
+local read where `readCalendar` and `lookupContact` are EventKit and Contacts
+queries — **so the count fell by one and the time fell by nearly half.**
+
+Creates held at **10/10** (B) and composition was untouched at **10/10 clean in
+both arms** (D), with the haiku routing toolless 10/10 in both — **#214's
+objection measured, not argued, and absent.** `INVENTED LOCATION` stayed 0/10
+even with `currentLocation` firing on every trial, so the substituted call binds
+nothing into the event.
+
+**Thermal, and it matters more here than in #215.** Control started `nominal` and
+ended `fair`; the treatment ran entirely at `fair`. #215's win was a rate, where
+thermal is a weak confound; **this win is a LATENCY claim, where thermal is a
+direct one** — and it runs against the treatment, which ran hotter and was still
+faster in 98/100 pairs. It cannot have manufactured this result. Matched-thermal
+replication is owed before these seconds are quoted as lifetime numbers.
+
+### NOT PROMOTABLE AS-IS — and the blocker is structural, not statistical
+
+**`scopedBelt` keys on `promptTag`. Production has no `promptTag`.** The battery
+knows each trial's intent because the harness told it; a live turn does not.
+`routeNeedsDeviceTool` returns a **Bool**, so production can decide *whether* to
+arm but not *what to arm with*.
+
+**Shipping this needs the router to return an INTENT, not a Bool** — and #200F's
+own comment said so a week ago ("production scoping would be router-driven — a
+PROMOTION question, not this lane's"). This run's contribution is that the prize
+is now priced: **−43% latency and −57% input tokens on calendar turns, at no cost
+to creates or composition.** That is worth an intent-router lane; it was not
+worth one on speculation.
+
+**Owed:** an intent-returning router as its own lane, measured on route accuracy
+before any belt rides it — a router that misclassifies intent would arm the wrong
+belt, which is strictly worse than today's full belt. Matched-thermal replication
+of these latencies. And a re-read of #200F/#214's grab results in light of the
+substitution finding.
+
 ## #215 — THE MISSING DENOMINATOR: the action battery has never routed, so no number it has ever produced describes the shipped app.
 
 **FILED 2026-07-31, bars written first. No production change — `routed-production`
