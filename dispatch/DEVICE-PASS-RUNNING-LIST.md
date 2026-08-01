@@ -290,5 +290,49 @@ carry these into a device sitting.**
 
 ## Recorded verdicts
 
-*(Nothing yet — this list was created 2026-08-01. Append here with date, run ID
-where applicable, and PASS/FAIL/PARTIAL/UNRUNNABLE.)*
+### A1 — **PASS**, 2026-08-01, corded whoGoesThere, PID 14087, two real calls
+
+**Both engines, both orderings. #198's last open question is closed.**
+
+| run | what Owen did | interruption detected |
+|---|---|---|
+| **1** | let it ring, **declined** | ✅ `17:53:30.815` — 567ms **before** #118's teardown |
+| **2** | **answered**, spoke, hung up | ✅ `17:55:47.418` — 167ms **after** #118's teardown |
+
+```
+[NativeVoicePipeline]     audio interrupted — system deactivation, reason: …rawValue: 0 (#198)
+[LiveVoiceSessionService] audio interrupted — system deactivation, reason: …rawValue: 0 (#198)
+[AppContainer] #118: app backgrounded with a live voice session — ending it
+[both] audio deactivated by app — not an interruption (#198)
+[both] audio resumption recommendation: resume (#198)
+```
+
+**What this proves, and it is more than "it passed":**
+
+1. **The false-NEGATIVE half is closed.** The 2026-08-01 pass proved no false
+   positives and explicitly could not speak to missed interruptions. A real call
+   was **seen**, classified `source == .system`, on both engines.
+2. **True positive and true negatives in the SAME trace.** The real interruption
+   classified as one; the app's own teardown deactivations classified as
+   `not an interruption`. The filter discriminates — it is not merely permissive.
+3. **Order-independence, measured rather than designed.** #118's background
+   teardown and the interruption notification **race, and the winner varies** —
+   run 1 the interruption arrived first, run 2 the teardown did. Classification
+   was correct either way. Nobody designed that; it held, and now it is recorded.
+4. **Corroboration from the negative side:** Owen began speaking again *as the
+   call arrived* and that speech was **not captured**. A missed interruption
+   would have left the mic live. The absence is evidence.
+5. **No call audio reached the transcript.** The chat turn that completes a few
+   seconds after each interruption is the PRE-call utterance being submitted as
+   the session tears down — confirmed with Owen, expected behavior.
+
+### A2 — **PARTIAL**, 2026-08-01. Scheduling half CONFIRMED; execution half still owed.
+
+`[BackgroundTasks] app-refresh scheduled (earliest +15m)` fired **three times**
+(17:39:34, 17:53:31, 17:55:46) with **no `submit failed:` line**. This is the
+first time the migrated `submitTaskRequest` **completion path** has actually run
+on device — it had never executed before today, and the deprecation reason for
+the old API was that the throwing form *under-reported*.
+
+**Still owed:** evidence the refresh actually EXECUTES. Needs the overnight
+backgrounding; the system decides when, and it cannot be forced.

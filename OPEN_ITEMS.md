@@ -11995,6 +11995,55 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
+## #198A — ✅ THE REAL-INTERRUPTION TEST PASSED. #198's last open question is closed 2026-08-01.
+
+**Two real phone calls, corded whoGoesThere, PID 14087. Both engines.**
+
+The 2026-08-01 device pass proved there were no false POSITIVES and said so
+explicitly — *"it says nothing about false NEGATIVES, and a missed interruption
+leaves a dead capture chain that still looks alive."* **That half is now closed.**
+
+| run | action | interruption seen |
+|---|---|---|
+| 1 | ring → **decline** | ✅ `17:53:30.815`, **567ms BEFORE** #118's teardown |
+| 2 | **answer**, speak, hang up | ✅ `17:55:47.418`, **167ms AFTER** #118's teardown |
+
+Both runs logged `audio interrupted — system deactivation` on **both**
+`NativeVoicePipeline` and `LiveVoiceSessionService`, while the app's own
+deactivations in the same traces logged `audio deactivated by app — not an
+interruption`. **True positive and true negatives in one trace: the filter
+discriminates rather than merely permits.**
+
+**The finding that outranks the pass: the ordering is a RACE and it is not
+deterministic.** #118's "app backgrounded with a live voice session — ending it"
+and the interruption notification arrive in whichever order they arrive — run 1
+the interruption won, run 2 the teardown did. `AudioInterruptionRule` classified
+correctly either way. **That order-independence was never designed for; it held,
+and it is now measured rather than assumed.** Anything that later reorders this
+teardown must re-run A1.
+
+**Corroboration from the negative side:** Owen began speaking again *as the call
+arrived* and that speech was **not captured**. A missed interruption would have
+left the mic live. The absence is the evidence.
+
+**No call audio reached the transcript.** The turn completing a few seconds after
+each interruption is the PRE-call utterance being submitted as the session tears
+down — confirmed with Owen, expected.
+
+### The residual this found: `shouldResume` is unreachable for phone calls
+
+`resumptionRecommendationNotification` returned **`resume`** in both runs — at
+**+1.5s** (run 1) and **+4.3s** (run 2) after the interruption. In both cases
+**#118 had already ended the session.** An incoming call always backgrounds the
+app, so #118 always fires, so the resume branch **cannot execute on device for a
+phone call**.
+
+**Not a bug — but it is dead code wearing the clothes of a safety net**, which is
+the more dangerous kind. Options, none taken yet: reach it via a non-backgrounding
+interruption (another app grabbing audio), narrow #118 so a *system* interruption
+does not tear down, or delete the branch and say plainly that interruptions end
+sessions. **Do not simply trust it** — it has now been observed never to run.
+
 ## #219 — 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
 
 **FILED 2026-08-01.** *(OPEN_ITEMS #219. **Not** GitHub PR #219 — separate
