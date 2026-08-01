@@ -28,6 +28,53 @@ verdicts.
 
 ---
 
+## ⚑ OWEN-SIDE — read this before scheduling a sitting
+
+Two kinds of thing here: **decisions** (no phone needed, answer any time) and
+**prerequisites** (things that must exist before a check can run). Added
+2026-08-01 because both were scattered inside the sections below, where they only
+surface once you are already holding the phone.
+
+### Prerequisites — the sitting does not work without these
+
+| for | you need | why it bites |
+|---|---|---|
+| **A1** (the top item) | **a second phone, or someone who will call you** | A1 is a real incoming call mid-session. There is no software substitute — the whole point is the OS interrupting us for real. **This is the single prerequisite most likely to end a sitting early.** |
+| **A2** | to background the app **overnight** | the system decides when `BGAppRefreshTask` runs; it cannot be forced. Start it before bed on a sitting day, read the log the next morning. |
+| **F3** | to **DELETE the app** | ⚠️ **destructive — local sessions and the Keychain stamp go with it.** Export anything you want from Battery Results FIRST. Run F3 **last** in any sitting for this reason. |
+| **F5** | a **> 25 minute** induced connector outage | the window IS the check — the original close scored a false PASS on a short one. Do not squeeze this between other checks. |
+| **B1 / F6** | the `probe/t27-130-halfduplex` branch **built to the phone** | say the word and I will stage it (OTA or corded). It is a separate build from `main`, so B1 cannot share a sitting with the `main` checks unless we reinstall between. |
+| **C1–C4** | phone **foregrounded and on power** | backgrounding kills a battery run outright. |
+
+### Decisions owed by you — no phone, no build, unblock other work
+
+| # | the question | what it unblocks |
+|---|---|---|
+| **D2** | **Should LAN-hosted backends work at all?** `http://192.168.x` and MagicDNS names are ATS-blocked app-wide today; only the Tailscale CGNAT range is excepted. | If yes, it needs its own measured arm — and note `NSAllowsLocalNetworking` was only ever tested against a **CGNAT** host, never a `192.168.x` one, so do not assume the key does what its name says. If no, we close the ATS thread. |
+| **#152** | **Pick the pairing-surface label** — "Pairing & Devices" / "Manage Pairing" / "Paired Devices". | It is a rename, then code. Nothing else is blocking it. |
+| **#164** | **Close the old UI flake, or formally quarantine it?** | Its own bar is *three consecutive green runs*; we have **one** (2026-08-01, 8/8). I did not close it on your behalf — meeting a bar is not the same as being tired of it. Your call whether the bar still earns its cost. |
+| **#170** | **Run #148's discriminator, or close as answered-for-the-world-that-exists?** | Neither shape is reachable on OJAMD — every real job carries a null `model_snapshot`. The discriminator is one read of the Mac's `cron/jobs.json`; I can do it if you want the answer. |
+| **#47** | **Does the billing cap still matter?** | #47 is otherwise closed and in daily use. This residual is currently filed **nowhere** — it dies unless you say to keep it. |
+| **tracker** | **Retire the old-style `## N.` headers?** | #198 and #199 each have two entries because the numbering convention changed mid-project. I documented rather than merged them — collapsing duplicates in a 14k-line file is a bigger call than a nit sweep should make alone. |
+
+### Decisions owed by you — not blocking this list, but open
+
+- **#99** — WKContentRuleList: accept the current behaviour, or fix it? Pre-launch.
+- **#116** — no route to an empty token slot; needs a spec/decision before its DoD
+  is even runnable.
+- **#132** — host-side image attachments: your model-vision/config question, plus
+  two placeholder strings.
+- **#166c** — a Tailscale-only host is **structurally unreviewable** by App Review.
+  A reviewer-reachable server decision is a launch gate, not a nicety.
+
+### What needs nothing from you
+
+I can run these solo whenever: **§G**'s source-confirms (#151/#153), **#128**'s
+archaeology, **#216A**'s re-read, **E1**'s isolated build, and staging B1's branch.
+Say go and they happen without a sitting.
+
+---
+
 ## A · #198 — the last open question, and the only user-facing risk here
 
 ### A1 · Real interruption, both engines · **[OWEN + PHONE, CLAUDE READS LOG]**
