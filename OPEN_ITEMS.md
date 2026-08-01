@@ -12757,6 +12757,27 @@ layers, plan provisioned with a 500k quota, **0 calls ever used**, and a
 ALREADY-RUNNING build with no rebuild.** The grant is server-side, so the profile
 and binary were never the problem and never needed regenerating.
 
+### CLOSED END TO END 2026-07-31 — 40/40 real forecasts (addendum filed 2026-08-01)
+
+**The read-tool battery that the "Still owed" paragraph below asks for was run,
+and it returned `40/40` real forecasts** — the exact inverse of the 0/40 that
+opened this item. Recorded in PR #206's body, which also banked two free
+confirmations from the same run: #198's MapKit `MKGeocodingRequest` migration
+exercised on device, and #209's optional-`place` path working.
+
+That closes the gap the paragraph below correctly identified: the raw probe only
+proved WeatherKit works *for this app*, not that `currentWeather` works through
+the location provider + geocode + optional-`place` schema. It now has.
+
+**Why this addendum exists, and it is the more useful half:** the 40/40 was
+recorded in a PR body and **never written back here**, so from 2026-07-31 until
+the 2026-08-01 external audit (§3) caught it, the system of record said an
+end-to-end proof was outstanding that had already been obtained. A PR body is not
+the tracker. **A result that closes an item closes it HERE, in the same session
+it lands** — otherwise the next reader inherits a false open question, which is
+the same class of failure as #209's buried cause and this item's own erased
+diagnostic, just displaced into the documentation layer.
+
 ### The process failures this item cost, recorded because they are the point
 
 **1. I found it four hours earlier and talked myself out of it.** The first DOM
@@ -12780,10 +12801,11 @@ setup error is a failure of curiosity, not of evidence.
 **3. The honest-failure message erased the diagnostic** (recorded above) — the
 fifth instance that day of a fix disabling its own instrument.
 
-**Still owed:** the raw probe proves WeatherKit works for this app. It does NOT
-prove `currentWeather` works end to end — the tool path adds the location
-provider, the #198 MapKit geocode, and the optional-`place` schema. A read-tool
-battery run is what closes that.
+**Still owed** — **NO LONGER OWED; see "CLOSED END TO END" above. Kept verbatim
+because the gap it names was real and correctly scoped.** The raw probe proves
+WeatherKit works for this app. It does NOT prove `currentWeather` works end to
+end — the tool path adds the location provider, the #198 MapKit geocode, and the
+optional-`place` schema. A read-tool battery run is what closes that.
 
 ### DIAGNOSED 2026-07-31 — run `FA4947E7`, build 1606: the service rejects our token
 
