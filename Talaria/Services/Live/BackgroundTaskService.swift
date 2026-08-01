@@ -64,12 +64,23 @@ enum BackgroundRefreshScheduler {
     static func schedule() {
         let request = BGAppRefreshTaskRequest(identifier: taskIdentifier)
         request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
-        do {
-            try BGTaskScheduler.shared.submit(request)
-            bgLog.notice("app-refresh scheduled (earliest +15m)")
-        } catch {
-            // Expected on Simulator (scheduler unavailable) — never fatal.
-            bgLog.notice("app-refresh submit failed: \(error.localizedDescription, privacy: .public)")
+        // #198: `submit` is deprecated in iOS 27 because it "cannot capture
+        // all error conditions" — the throwing form under-reports. The
+        // successor hands the outcome to a @Sendable completion on an
+        // ARBITRARY queue, so this log line is now the only consumer and it
+        // reports the real result rather than the absence of a throw.
+        //
+        // Accepted, and worth knowing on a device pass: this site fires on
+        // background entry, so if the app suspends before the daemon answers,
+        // the LOG is lost. The submission itself is already with the daemon —
+        // what goes missing is our record of it, not the scheduled wake.
+        BGTaskScheduler.shared.submitTaskRequest(request) { error in
+            if let error {
+                // Expected on Simulator (scheduler unavailable) — never fatal.
+                bgLog.notice("app-refresh submit failed: \(error.localizedDescription, privacy: .public)")
+            } else {
+                bgLog.notice("app-refresh scheduled (earliest +15m)")
+            }
         }
     }
 
@@ -144,8 +155,14 @@ final class ContinuedProcessingHandle {
     }
 
     func advance(to milestone: Milestone) {
-        completedUnits = max(completedUnits, milestone.rawValue)
+        // Guard BEFORE the mutation, matching `tick`. Behaviour-neutral today
+        // — `finish` nils the box, so a post-seal bump could never reach a
+        // task — but it left the counter drifting after the handle was sealed,
+        // and the invariant is what protects the next edit: were `finish` ever
+        // to keep its box (re-adoption, a retry path), the old order would
+        // publish progress onto an already-completed task.
         guard !finished else { return }
+        completedUnits = max(completedUnits, milestone.rawValue)
         box?.task.progress.completedUnitCount = completedUnits
     }
 
@@ -162,12 +179,31 @@ final class ContinuedProcessingHandle {
     func finish(success: Bool) {
         guard !finished else { return }
         finished = true
+        #if DEBUG
+        debugFinishSuccess = success
+        #endif
         if let box {
             box.task.progress.completedUnitCount = 100
             box.task.setTaskCompleted(success: success)
         }
         box = nil
     }
+
+    #if DEBUG
+    /// Test observation only. The state below is what the send path actually
+    /// drives, and it is private — without a reader the whole #14 lifecycle is
+    /// verifiable on device and nowhere else, which is how it reached #198
+    /// with no coverage at all.
+    var debugCompletedUnits: Int64 { completedUnits }
+    var debugFinished: Bool { finished }
+    /// Whether the system ever handed this handle a real task. False is the
+    /// steady state in tests, on Simulator, and whenever submission fails.
+    var debugHasTask: Bool { box != nil }
+    /// Which terminal the send path claimed. With no task adopted `finish`
+    /// otherwise DISCARDS this flag, so the deliberate per-terminal choices
+    /// (#14: `.interrupted` completes SUCCESSFULLY) would be unpinnable.
+    private(set) var debugFinishSuccess: Bool?
+    #endif
 }
 
 enum ContinuedProcessing {
@@ -216,11 +252,25 @@ enum ContinuedProcessing {
         // .fail rather than .queue: a send starts immediately or not at all —
         // never a stale queued progress card.
         request.strategy = .fail
-        do {
-            try BGTaskScheduler.shared.submit(request)
-        } catch {
-            bgLog.notice("continued-processing submit failed: \(error.localizedDescription, privacy: .public)")
-            return nil
+        // #198: the deprecated `submit` threw SYNCHRONOUSLY, which is what let
+        // this function answer nil on a failed submission. Its successor
+        // reports the failure to a completion handler AFTER we have returned,
+        // so that nil can no longer be produced in time — the caller now gets
+        // a live handle that simply never adopts a task.
+        //
+        // That is safe because the two are indistinguishable to the send:
+        // every `ContinuedProcessingHandle` method no-ops without a task, and
+        // `ChatStore` only ever optional-chains into it, so nil and
+        // never-adopted drive an identical turn. Pinned by
+        // `ContinuedProcessingTests.anUnadoptedHandleLeavesTheTurnIdenticalToNoHandleAtAll`
+        // rather than left as an argument.
+        //
+        // The register-refusal above still returns nil — that failure IS
+        // synchronous and keeps its signal.
+        BGTaskScheduler.shared.submitTaskRequest(request) { error in
+            if let error {
+                bgLog.notice("continued-processing submit failed: \(error.localizedDescription, privacy: .public)")
+            }
         }
         return handle
     }

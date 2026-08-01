@@ -13796,3 +13796,118 @@ production does or should do: `didUpdateLocations` resolves any current waiter
 with the genuinely fresh fix it just received. The counter exists so a late
 DEADLINE cannot fail a later request — which is what the code comments, this
 item, and now the tests all pin.
+
+## #198 — `BGTaskScheduler.submit` MIGRATED 2026-08-01. Both sites cleared, and the send path finally has coverage.
+
+**Run in the order the 2026-08-01 re-scope asked for: coverage FIRST, then the
+migration.** The re-scope had already killed the frightening version of this item
+("the successor is async, so the most load-bearing path in the app must change
+signature"). What survived was one real question — the failure semantics — and
+one real gap: **the path had zero tests.**
+
+### What the compiler said, before anything was written
+
+Per the standing rule, the signature question was asked rather than guessed:
+
+```
+(BGTaskRequest, @escaping @Sendable ((any Error)?) -> Void) -> Void
+```
+
+and `BGTaskScheduler.shared.submitTaskRequest(request) { … }` **compiles clean,
+with no warning, from a `@MainActor` synchronous function.** The deployment
+target is **iOS 27.0** and the successor lands at exactly iOS 27.0, so **no
+`#available` gate is needed** — the migration is unconditional.
+
+Two facts from `BGTaskScheduler.h` that were not in the earlier note and that
+shaped the outcome:
+
+- The deprecation reason is **"to capture all error conditions."** The throwing
+  form does not merely have an awkward shape — it **under-reports**. A `submit`
+  that did not throw was never proof the request landed. The migration is
+  therefore a small *gain* in truthfulness, not just hygiene.
+- The completion handler **"is called on an arbitrary queue"** after "an
+  arbitrary amount of delay", and the header adds **"Do not call this method
+  from the main thread or performance-critical contexts."**
+
+### The failure-semantics decision, and why it is safe
+
+`beginLongSend` answered **nil** when submission failed. The successor reports
+failure AFTER the function returns, so that nil cannot be produced in time.
+
+**Decision: return the live handle, log the async failure, keep the signature.**
+
+This is safe because **the nil was never load-bearing** — and that is now pinned
+rather than argued. A handle whose submission fails never adopts a task; every
+`ContinuedProcessingHandle` method no-ops without one; and `ChatStore` only ever
+optional-chains into it. `anUnadoptedHandleLeavesTheTurnIdenticalToNoHandleAtAll`
+drives the same scripted stream both ways and compares the resulting
+conversation, so the equivalence is measured, not asserted.
+
+**The register-refusal nil survives.** That failure IS synchronous and keeps its
+signal — only the submit-failure nil was lost.
+
+### Coverage: zero tests before this, and the first run bit
+
+`ContinuedProcessingTests` — **13 tests, suite 1445 → 1458.** (Count confirmed to
+have MOVED, per the stale-`.xctest` rule.) Handle lifecycle with no task adopted,
+plus the send path driven through `ChatStore` with a scripted stream: the
+`attachments.isEmpty` gate, the subtitle, the accepted/streaming milestones, and
+**each terminal's success flag** — including the deliberate #14 choice that
+`.interrupted` completes **successfully**, which reads like a bug until pinned.
+
+`BGContinuedProcessingTask` has **no public initializer**, so no test can hand a
+handle a real task. That is not a gap here: a handle whose submission fails never
+adopts one either, so "no task adopted" **is** the state the migration turns on.
+
+**The pins found something on their first run.** `advance` mutated
+`completedUnits` BEFORE its `finished` guard while `tick` guarded first, so a
+sealed handle kept climbing. **Harmless as the code stood** — `finish` nils the
+box, so a post-seal bump could never reach a task — **which is exactly why it
+survived: nothing observable was wrong, so nothing caught it.** Guard moved
+first; behaviour-neutral today, and the invariant is what protects the next edit
+(were `finish` ever to keep its box for a retry or re-adoption path, the old
+order would publish progress onto an already-completed task).
+
+### Risks ACCEPTED, stated rather than buried
+
+1. **Submission is no longer confirmed before the function returns.** The XPC
+   request is handed to the daemon either way, but `submitTaskRequest` returning
+   is not proof it was received. No mitigation is available in the new API; this
+   is the shape Apple chose.
+2. **`BackgroundRefreshScheduler.schedule()` fires on background entry**, so if
+   the app suspends before the daemon answers, **the log line is lost** — the
+   scheduled wake is not. What goes missing is our record, not the behaviour.
+   Worth an eyeball on the next device pass; nothing to fix pre-emptively.
+3. **The header's "do not call this method from the main thread" is knowingly not
+   honoured** at `beginLongSend`, which stays `@MainActor`. The deprecated form
+   was an equally XPC-bound call already made on main, so this is not a
+   regression — but it is now an explicit Apple advisory rather than an unknown.
+   Moving it off-main would mean sending a non-`Sendable` `BGTaskRequest` across
+   an isolation boundary under `SWIFT_STRICT_CONCURRENCY: complete`; not worth it
+   without evidence of a real main-thread stall. **If a send-tap hitch ever shows
+   up on device, this is the first suspect.**
+
+### Spotted while writing coverage — NOT fixed, filed
+
+**`ContinuedProcessingHandle.adopt` reports `setTaskCompleted(success: true)`
+unconditionally** when the send finished before the system started the task —
+even if that send **failed**. Real but minor (the flag feeds system scheduling
+heuristics and the progress card, not correctness), and **untestable from the
+suite** for the same reason as above: no public initializer, so the late-adoption
+path cannot be driven without a device. The fix is to store the terminal outcome
+in `finish` and publish it here. **Deliberately out of scope for a deprecation
+lane** — filed so the next device pass can take it with evidence.
+
+### Verification
+
+Full `TalariaTests` **1458/1458 in 117 suites**, Xcode-beta4, iPhone 17 Pro Max
+sim iOS 27.0. Three runs, one variable each: pins-only (caught the `advance`
+asymmetry), `advance` fix alone (green baseline), migration (green, unchanged).
+`BackgroundTaskService.swift` **was recompiled** in the final run and emitted
+**zero** warnings — so its two deprecations are genuinely cleared. **The
+project-wide warning count was NOT re-measured**: `LocalChatBackend.swift` did
+not recompile that run, so its zero is an incremental-build artifact. The two
+quarantined `GenerationError` warnings remain **by design**.
+
+**#198 remaining after this: `AVAudioSession` interruption (4 sites, structural)
+and `installTap` (2 sites, holding by choice pending an SDK bump).**
