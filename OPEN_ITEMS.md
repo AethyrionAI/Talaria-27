@@ -11985,7 +11985,7 @@ defence is a stated invariant on `RouterProbeRecord.errors` plus the classifier'
 its wiring — the third consecutive audit to catch something at a boundary the
 author had just worked on.**
 
-## #212 — WeatherKit returns nothing: 0/40. DIAGNOSED 2026-07-31 (JWT auth rejection); fix is ACCOUNT-SIDE, open.
+## #212 — WeatherKit returned nothing, 0/40. ROOT CAUSE FOUND AND FIXED 2026-07-31: the App SERVICE was never enabled.
 
 **FILED 2026-07-31 from run `01FA0ECC` (build 1600, OTA Debug). NOT fixed.**
 
@@ -12013,6 +12013,51 @@ day.** Fixed: `ToolEventRelay.completed(_:result:)` records the tool's answer in
 the battery store only — never the transcript, so it cannot leak internals the way
 #197's dump did. Wired on the read tools first; `result == nil` means NOT CAPTURED,
 never "empty".
+
+### RESOLVED 2026-07-31 — the WeatherKit **App Service** was never enabled
+
+**Root cause: `Capabilities` and `App Services` are two separate lists on the App
+ID, and WeatherKit appears in BOTH.** The Capabilities entry was ticked — that is
+what puts `com.apple.developer.weatherkit` into the provisioning profile and the
+signed binary, which is why every entitlement check passed. The **App Services**
+entry ("Access the Apple Weather service") was **unticked**, so the app was never
+authorized against the service and the JWT authenticator refused every token.
+
+It explains the entire evidence set at once: entitlement present at all four
+layers, plan provisioned with a 500k quota, **0 calls ever used**, and a
+`WDSJWTAuthenticatorServiceListener.Errors Code=2` with a NULL description.
+
+**Owen ticked it; the raw probe returned `OK — Partly Cloudy, 88.66°F` on the
+ALREADY-RUNNING build with no rebuild.** The grant is server-side, so the profile
+and binary were never the problem and never needed regenerating.
+
+### The process failures this item cost, recorded because they are the point
+
+**1. I found it four hours earlier and talked myself out of it.** The first DOM
+query on the App ID page returned exactly this row — `checked: false`, text
+"WeatherKit … Access the Apple Weather service." I re-queried more precisely, got
+the *Capabilities* row at `checked: true`, and announced the first query had been
+"a bad DOM selector." **It was not.** It had found the App Services row on a
+hidden tab pane. Two queries, two different rows, both correct — and I retracted
+the true one because the second felt more authoritative. **I never asked whether
+they were looking at the same thing.**
+
+**2. I stopped at "not our code" instead of searching.** After the raw probe
+exonerated Talaria I concluded the search space was exhausted and recommended
+support channels. Owen pushed back — *"that seems like a copout"* — and a single
+web search returned the answer in the first result: the App Service is enabled
+separately from the capability. **Thirty seconds of search after four hours of
+inference.** "I have ruled out everything I can inspect" is not the same as "this
+is unknowable", and treating a symptom as unique when it is a common, documented
+setup error is a failure of curiosity, not of evidence.
+
+**3. The honest-failure message erased the diagnostic** (recorded above) — the
+fifth instance that day of a fix disabling its own instrument.
+
+**Still owed:** the raw probe proves WeatherKit works for this app. It does NOT
+prove `currentWeather` works end to end — the tool path adds the location
+provider, the #198 MapKit geocode, and the optional-`place` schema. A read-tool
+battery run is what closes that.
 
 ### DIAGNOSED 2026-07-31 — run `FA4947E7`, build 1606: the service rejects our token
 
