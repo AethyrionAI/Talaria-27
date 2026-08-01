@@ -11824,6 +11824,73 @@ The audit called #198 "mechanical, file-scoped, safe to route to any executor".
 them as such is the point of stopping here rather than pushing a risky refactor
 into a hygiene PR.
 
+## #215 — THE MISSING DENOMINATOR: the action battery has never routed, so no number it has ever produced describes the shipped app.
+
+**FILED 2026-07-31, bars written first. No production change — `routed-production`
+is a measured cell. Owen routes the run and any promotion.**
+
+**This is #214's own verdict, acted on.** That lane closed with a finding bigger
+than its result: `runActionBattery` does not route, every trial is armed by
+construction, and "Write a haiku about sledding" is a baseline router row sitting
+at **200/200 on `expected: false`**. In production that turn routes TOOLLESS, gets
+an empty belt, and composes. **So the 8/10 control grab rate — the number that
+justified days of lanes — measures a configuration we do not ship.** #204 had
+filed this caveat a day earlier and it was not applied. Fixing the instrument is
+the only way to know which of the remaining diseases are real.
+
+**The cell.** `routed-production` is belt-and-instruction identity with `.armed`,
+and differs in exactly one thing: `routeNeedsDeviceTool` runs first, and a turn
+routed toolless gets no belt plus production's toolless text. Routing is a CELL,
+not a run-level flag, so the contrast is WITHIN a run — same thermal state, same
+slot rotation, per #200V. It is **not a treatment**: routing changes the belt, so
+the two arms are two configurations, one of which we ship, not an A/B of any text.
+
+**A defect found while building it, before it could produce a number.** The #196
+rate battery's `armed-routed` cell built its toolless turn from
+`instructionsText(for: .toollessLic2, …)`. On 2026-07-30 the #202D promotion added
+clause v2 to production's toolless branch and created
+`productionToollessInstructions` — whose doc comment says it exists "in ONE place
+so the live path and the measured arm cannot drift apart." **Nothing re-pointed
+the battery.** From that promotion until this lane, every routed-toolless trial in
+the #196 instrument spoke a text production had stopped speaking — specifically
+the `honesty-control` payload, measured at 9/10 BROKEN turns. Both batteries now
+go through one seam (`routedTrialShape`), pinned by `RoutedTrialShapeTests`
+including a directional assertion that production's text is a strict superset of
+the stale one, so "agrees with production" cannot be satisfied by pointing both
+sides at the stale text.
+
+**And #213's disease, pre-empted in the new instrument.** `routeNeedsDeviceTool`
+fails SAFE — a thrown generation returns `armed`. Recorded naively that is
+indistinguishable from the router having looked at the prompt and decided, which
+is exactly how #213's probe scored a crash as a correct answer. `routeFailed` is
+sampled from `routerFailureTally` deltas around every route call and reported by
+the classifier before any rate is read. Optional, so the 48 archived runs still
+decode — pinned by a verbatim legacy-JSON test.
+
+**Bars, pre-registered:**
+
+- **Gate** — control (`armed`) haiku grabs **≥2/10**. Below that the disease is not
+  present in this run and the routed arm has nothing to be compared against.
+  Lifetime control range is 4/9–8/10.
+- **Primary A** — the three create prompts route ARMED **≥9/10 each**. If the
+  router does not arm an explicit create, nothing downstream is interpretable.
+- **Primary B, the headline** — routed haiku grabs **0/10**, and it should be 0 *by
+  construction*: a turn with no belt cannot call a tool.
+- **Primary C** — routed create rates within **±2** of the control's, so routing is
+  shown to cost nothing on the turns it correctly arms.
+
+**What would falsify the reframing this lane rests on:** a routed haiku grab rate
+that is NOT ~0. That would mean either the router misroutes composition far more
+often than 200/200 says, or a belt-less turn can still emit a grab — and #214's
+"the disease is largely an instrument property" conclusion, the reason this lane
+exists at all, would be wrong. **Stated here so the result cannot be read
+backwards.**
+
+**Owed regardless of outcome:** every other battery wrapper is still unrouted, so
+their numbers carry the same caveat. This lane fixes the action battery only; the
+read-tool, motion, and destall wrappers each need the same treatment before their
+rates can be called production rates.
+
 ## #214 — THE STRUCTURAL LANE: narrow belt CLOSED. Composition licensing falsified; the disease is partly an instrument property.
 
 **FILED 2026-07-31. Dispatch `dispatch/OPUS-T27-214-scopedv2.md`, bars written
