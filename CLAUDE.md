@@ -109,7 +109,7 @@ works against OJAMD.
   in-memory device registry, and the registry survives restarts (verified across 4+ relay
   restarts). The live transport concern is **#54** (connector WS reconnect / nonce).
 - **ATS is already scoped, and `NSAllowsLocalNetworking` is a FALSIFIED "fix".**
-  `NSAllowsArbitraryLoads` was removed by **#166b (PR #138, 2026-07-23)** and replaced with
+  `NSAllowsArbitraryLoads` was removed by **#166b (PR #138, commit `d3c962d`, 2026-07-22)** and replaced with
   a range-scoped `NSExceptionDomains` entry keyed by the Tailscale CGNAT CIDR
   `100.64.0.0/10` (`project.yml`). The CIDR-as-domain-key form looks invalid but was
   adopted only after a four-arm controlled experiment (`OPEN_ITEMS.md` #166b, 2026-07-22)
@@ -122,9 +122,12 @@ works against OJAMD.
   tested and it breaks every tailnet connection the app makes.** Nothing here is owed
   before submission. Consequence to know: hosts outside `100.64.0.0/10` — LAN IPs,
   MagicDNS names — have **no** exception and are ATS-blocked app-wide. `README.md` and
-  `SECURITY.md` carry the same evidence; this line was wrong from 2026-07-23 until
+  `SECURITY.md` carry the same evidence; this line was wrong from 2026-07-22 until
   2026-08-01 and its bad advice propagated into a device-pass note before an external
-  audit caught it. **Read `project.yml`, not a summary of it.**
+  audit caught it. **Read `project.yml`, not a summary of it** — and note that writing
+  *this* correction still produced two wrong borrowed facts (a sim experiment called
+  "on-device", and 07-23 for a change git dates 07-22), both caught only by going back to
+  the artifact a second time. Dates come from `git log`, not from a tracker header.
 
 ## Build / tooling
 

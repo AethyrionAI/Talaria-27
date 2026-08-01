@@ -14211,7 +14211,7 @@ rejection against the Mac Mini backend profile. ~~Odd given `project.yml` sets
 
 **PREMISE CORRECTED 2026-08-01 (external audit §6A) — and the rejection is
 fully explained, not odd.** `project.yml` has NOT set `NSAllowsArbitraryLoads`
-since **#166b (PR #138, 2026-07-23)**; it sets a range-scoped `NSExceptionDomains`
+since **#166b (PR #138, commit `d3c962d`, 2026-07-22)**; it sets a range-scoped `NSExceptionDomains`
 entry keyed by the CGNAT CIDR `100.64.0.0/10`. Hosts **outside** that range get no
 exception at all, so a Mac Mini profile resolving to a LAN IP or a MagicDNS name
 is blocked by design. The follow-on suggestion — narrow to
@@ -14229,12 +14229,19 @@ artifact, and `project.yml` was one grep away.** Same family as this repo's
 standing "verify OJAMD against live state, never by text-matching a snapshot"
 rule; that rule just never got applied to our own config files.
 
-**And it recurred inside this very correction.** The first draft of this note and
-of the CLAUDE.md fix both said #166b's experiment was run "on device" — taken from
-the audit's phrasing. `project.yml`'s own comment says sim/test host. So the
-correction for trusting a summary was itself written from a summary, caught only
-by grepping the file a second time. **The rule has to fire on the sentence you are
-writing right now, not just on the one you are fixing.**
+**And it recurred TWICE inside this very correction.** The first draft of this
+note and of the CLAUDE.md fix said #166b's experiment ran "on device" — taken from
+the audit's phrasing; `project.yml`'s own comment says sim/app test host. Both
+also dated #166b **2026-07-23**, lifted from the tracker section header at
+`OPEN_ITEMS.md:7300` — but that header is when the *note* was written; `git log`
+dates commit `d3c962d` and the PR #138 merge both **2026-07-22**. Neither error
+changes a conclusion, and that is precisely why they survived: nothing downstream
+broke. **The correction for trusting a summary was itself written from summaries,
+twice, and both were caught only by returning to the artifact a second time.**
+
+**Rule:** the check has to fire on the sentence being written, not just the one
+being fixed. Dates come from `git log`, not from a tracker header — a dated
+heading records when someone wrote a note, which is not when the change landed.
 
 **The real open question this note was actually reporting — needs a decision, not
 a fix:** LAN-hosted backends (`http://192.168.x`, MagicDNS names) are ATS-blocked
