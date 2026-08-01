@@ -341,10 +341,21 @@ extension LocalChatBackend {
         }
     }
 
-    /// #213: router generations that THREW, counted so `runRouterContextProbe`
+    /// #213: router generations that THREW, counted so **every probe runner**
     /// can report per-row error counts instead of silently scoring a crash as
-    /// a correct answer. Battery-scoped: the probe samples deltas around each
+    /// a correct answer. Battery-scoped: each runner samples deltas around each
     /// row. Never read outside DEBUG, never affects a live turn.
+    ///
+    /// **The invariant, and it is source-level — no test can reach it:** a new
+    /// `recordProbe` call site MUST pass `errors:`. Omitting it decodes as nil,
+    /// which means "not sampled", NOT "zero errors" — and the classifier prints
+    /// NOT RECORDED for such a run rather than scoring it. This comment named
+    /// only `runRouterContextProbe` until 2026-08-01, which was the original
+    /// §3.1 bug restated as documentation: the first #213 cut wired one runner
+    /// while claiming all of them. All runners sample now (13/13 call sites
+    /// carry `errors:`), and the invariant has held across every probe runner
+    /// added since — which is the only evidence available for a rule the
+    /// compiler cannot enforce.
     nonisolated(unsafe) static var routerFailureTally = 0
     #endif
 }
@@ -358,6 +369,17 @@ struct ToolIntentRoute {
     @Guide(description: "True only when the request needs the user's device data (health, location, weather, calendar, reminders, contacts, past chats) or a device action (create a reminder, calendar event, or alarm). Writing, poems, summaries, math, facts, and conversation are false — they need nothing from the device.")
     var needsDeviceTool: Bool
 }
+
+#if DEBUG
+// Everything below is a #217/#217B MEASURED ARTIFACT and is DEBUG-only.
+// Production's router returns the `ToolIntentRoute` Bool above and never reads
+// any of it. `RouterIntent` shipped UNGATED until 2026-08-01 — harmless (every
+// consumer was already inside a DEBUG region, so it was unreachable) but it
+// contradicted the tracker's "DEBUG-only measured artifacts" claim and put dead
+// weight in Release. Gate found by the 2026-08-01 external audit, §6D.
+//
+// NOTE for whoever edits this boundary: the suite builds DEBUG, so a green
+// suite proves NOTHING about this gate. Verify with a Release build.
 
 /// #217: which DOMAIN a turn wants, when it wants one.
 ///
@@ -435,7 +457,6 @@ enum RouterIntent: String, CaseIterable, Sendable {
     var scopesTheBelt: Bool { self != .other }
 }
 
-#if DEBUG
 /// #217/#217B: the probe's route types. **All four are deliberately separate
 /// from `ToolIntentRoute`, which production uses and which no lane in this
 /// family touches.**
