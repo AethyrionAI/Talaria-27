@@ -657,11 +657,60 @@ def probe_error_report(run):
     print()
 
 
+def route_report(run):
+    """#215: what the ROUTER did, before any rate below is read.
+
+    The action battery never routed — every trial was armed by construction —
+    so its grab rate described a configuration production does not ship. The
+    `routed-production` cell fixes that, and this reports the routing itself,
+    because the routed rates downstream are conditional on it: a haiku that
+    routes ARMED is not measuring the same thing as a haiku that routes
+    toolless, and pooling them hides exactly the effect the cell exists for.
+
+    `routeFailed: null` on a routed trial means the run predates the field —
+    reported as UNKNOWN, never as zero. A fail-safe is `routeNeedsDeviceTool`
+    throwing and returning `armed` anyway; it is not a classification, and an
+    armed count that includes one is inflated. Same disease as #213, caught in
+    a sibling instrument before it produced a number."""
+    trials = run.get("trials") or []
+    routed = [t for t in trials if t.get("route")]
+    if not routed:
+        return
+    print("=== routes (#215) — every rate below the routed cell is conditional on these")
+    unknown = [t for t in routed if t.get("routeFailed") is None]
+    for cell in run.get("cells", []):
+        cell_rows = [t for t in routed if t["shape"] == cell]
+        if not cell_rows:
+            continue
+        print(f"  {cell}")
+        for prompt in ("remind", "alarm", "calendar", "haiku"):
+            rows = [t for t in cell_rows if t["prompt"] == prompt]
+            if not rows:
+                continue
+            armed = [t for t in rows if t["route"] == "armed"]
+            failed = [t["trial"] for t in rows if t.get("routeFailed")]
+            print(f"    {prompt:<10} armed {len(armed)}/{len(rows)}"
+                  f"   toolless {len(rows) - len(armed)}/{len(rows)}"
+                  f"{'   FAIL-SAFE ' + str(failed) if failed else ''}")
+    if unknown:
+        print(f"  !! {len(unknown)} routed trials predate the fail-safe field"
+              " (#215): an `armed` route here may be a crashed generation and"
+              " cannot be distinguished.")
+    all_failed = [t for t in routed if t.get("routeFailed")]
+    if all_failed:
+        n = len(all_failed)
+        print(f"  !! {n} route{'s were' if n != 1 else ' was a'} FAIL-SAFE, not a"
+              " classification. That is an `armed` route the router never actually"
+              " chose — subtract it from the armed counts before reading any bar.")
+    print()
+
+
 def main(path):
     run = json.load(open(path))
     error_taxonomy_report(run)
     tool_result_report(run)
     probe_error_report(run)
+    route_report(run)
     if run.get("probes") and not run.get("trials"):
         return probe_report(run)
     if run.get("kind") == "twoturn":
