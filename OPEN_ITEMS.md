@@ -12757,6 +12757,27 @@ layers, plan provisioned with a 500k quota, **0 calls ever used**, and a
 ALREADY-RUNNING build with no rebuild.** The grant is server-side, so the profile
 and binary were never the problem and never needed regenerating.
 
+### CLOSED END TO END 2026-07-31 — 40/40 real forecasts (addendum filed 2026-08-01)
+
+**The read-tool battery that the "Still owed" paragraph below asks for was run,
+and it returned `40/40` real forecasts** — the exact inverse of the 0/40 that
+opened this item. Recorded in PR #206's body, which also banked two free
+confirmations from the same run: #198's MapKit `MKGeocodingRequest` migration
+exercised on device, and #209's optional-`place` path working.
+
+That closes the gap the paragraph below correctly identified: the raw probe only
+proved WeatherKit works *for this app*, not that `currentWeather` works through
+the location provider + geocode + optional-`place` schema. It now has.
+
+**Why this addendum exists, and it is the more useful half:** the 40/40 was
+recorded in a PR body and **never written back here**, so from 2026-07-31 until
+the 2026-08-01 external audit (§3) caught it, the system of record said an
+end-to-end proof was outstanding that had already been obtained. A PR body is not
+the tracker. **A result that closes an item closes it HERE, in the same session
+it lands** — otherwise the next reader inherits a false open question, which is
+the same class of failure as #209's buried cause and this item's own erased
+diagnostic, just displaced into the documentation layer.
+
 ### The process failures this item cost, recorded because they are the point
 
 **1. I found it four hours earlier and talked myself out of it.** The first DOM
@@ -12780,10 +12801,11 @@ setup error is a failure of curiosity, not of evidence.
 **3. The honest-failure message erased the diagnostic** (recorded above) — the
 fifth instance that day of a fix disabling its own instrument.
 
-**Still owed:** the raw probe proves WeatherKit works for this app. It does NOT
-prove `currentWeather` works end to end — the tool path adds the location
-provider, the #198 MapKit geocode, and the optional-`place` schema. A read-tool
-battery run is what closes that.
+**Still owed** — **NO LONGER OWED; see "CLOSED END TO END" above. Kept verbatim
+because the gap it names was real and correctly scoped.** The raw probe proves
+WeatherKit works for this app. It does NOT prove `currentWeather` works end to
+end — the tool path adds the location provider, the #198 MapKit geocode, and the
+optional-`place` schema. A read-tool battery run is what closes that.
 
 ### DIAGNOSED 2026-07-31 — run `FA4947E7`, build 1606: the service rejects our token
 
@@ -14184,10 +14206,51 @@ looks alive.
 
 `[SessionsHermesClient] listSessions: 'Mac Mini' unreachable — the App
 Transport Security policy requires the use of a secure connection.` An ATS
-rejection against the Mac Mini backend profile, which is odd given
-`project.yml` sets `NSAllowsArbitraryLoads`. Unrelated to any lane tonight and
-not chased. Possibly interacts with the standing note that ATS wants narrowing
-to `NSAllowsLocalNetworking` before submission.
+rejection against the Mac Mini backend profile. ~~Odd given `project.yml` sets
+`NSAllowsArbitraryLoads`.~~
+
+**PREMISE CORRECTED 2026-08-01 (external audit §6A) — and the rejection is
+fully explained, not odd.** `project.yml` has NOT set `NSAllowsArbitraryLoads`
+since **#166b (PR #138, commit `d3c962d`, 2026-07-22)**; it sets a range-scoped `NSExceptionDomains`
+entry keyed by the CGNAT CIDR `100.64.0.0/10`. Hosts **outside** that range get no
+exception at all, so a Mac Mini profile resolving to a LAN IP or a MagicDNS name
+is blocked by design. The follow-on suggestion — narrow to
+`NSAllowsLocalNetworking` — was **arm 2 of #166b's own four-arm experiment and it
+BLOCKED tailnet traffic** (CGNAT is not "local" to ATS). It is falsified, not
+pending. (That experiment ran 2026-07-22 in the **app test host on the sim**, not
+on device — `URLSession` inside the host obeys the real plist, which is the whole
+reason the result carries weight; `curl` would not have exercised ATS at all.)
+
+**Where the wrong premise came from, which matters more than the note:** it was
+copied out of `CLAUDE.md`, which had carried the stale claim since #166b landed
+and is loaded into every session. Corrected there 2026-08-01. **The lesson is
+narrower than "verify claims" — it is that a summary of an artifact is not the
+artifact, and `project.yml` was one grep away.** Same family as this repo's
+standing "verify OJAMD against live state, never by text-matching a snapshot"
+rule; that rule just never got applied to our own config files.
+
+**And it recurred TWICE inside this very correction.** The first draft of this
+note and of the CLAUDE.md fix said #166b's experiment ran "on device" — taken from
+the audit's phrasing; `project.yml`'s own comment says sim/app test host. Both
+also dated #166b **2026-07-23**, lifted from the tracker section header at
+`OPEN_ITEMS.md:7300` — but that header is when the *note* was written; `git log`
+dates commit `d3c962d` and the PR #138 merge both **2026-07-22**. Neither error
+changes a conclusion, and that is precisely why they survived: nothing downstream
+broke. **The correction for trusting a summary was itself written from summaries,
+twice, and both were caught only by returning to the artifact a second time.**
+
+**Rule:** the check has to fire on the sentence being written, not just the one
+being fixed. Dates come from `git log`, not from a tracker header — a dated
+heading records when someone wrote a note, which is not when the change landed.
+
+**The real open question this note was actually reporting — needs a decision, not
+a fix:** LAN-hosted backends (`http://192.168.x`, MagicDNS names) are ATS-blocked
+app-wide right now. Whether that is intended is Owen's call. If LAN backends
+should work, it needs its own exception and its own measured arm in the same
+harness #166b used — **not** `NSAllowsLocalNetworking` by assumption; #166b showed
+that key does not behave the way its name suggests, and note it was tested there
+against a CGNAT host, so it has never actually been tried against a `192.168.x`
+one. That is the arm to run.
 
 Also seen at launch: `:8765/models` and `:8000/v1/commands` timed out while
 push/register to the same relay succeeded four seconds later — reads like a
