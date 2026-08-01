@@ -14009,3 +14009,106 @@ either userInfo key survives anywhere in the app or tests.
 
 **#198 after this: only `installTap` (2 sites), held deliberately pending an
 SDK bump. The deprecation sweep is otherwise CLOSED.**
+
+## #198 — `installTap` MIGRATED 2026-08-01. The "hold" recommendation was REVERSED, and the reason was already in our own source.
+
+**#198 IS NOW CLOSED** — all three "not mechanical" clusters are cleared:
+`BGTaskScheduler.submit` (2), `AVAudioSession` interruption (4), `installTap`
+(2). The only deprecation warnings left in the app are the **two quarantined
+`GenerationError` helpers, which remain deliberately** (see the sweep entry).
+
+**A number NOT to repeat from the original entry:** it opened with "17 distinct
+sites", then listed 13 cleared and 8 remaining. 13 + 8 = 21. The cluster counts
+above are the ones verified against build output; the "17" never reconciled and
+should not be quoted.
+
+### The earlier recommendation was reasoned from the wrong ledger
+
+The 2026-08-01 re-scope recommended **holding**: two deprecation warnings on
+one side, a brittle `__`-prefixed spelling on the other, and on that ledger
+holding is obviously right. **It weighed the wrong thing.** The question is not
+what the deprecation costs us — it is what the OLD call does when it fails:
+
+> **`installTap` reports failure by RAISING an Objective-C exception, which
+> Swift cannot catch.** The successor returns an error instead.
+
+And this codebase already carries **two independent hand-rolled mitigations
+that exist only because of that** — both written before this lane, neither
+cited in the note that recommended holding:
+
+- **#82** (`LiveSpeechService`) — a preflight refusing a degenerate capture
+  format, whose comment reads *"uncatchable NSException otherwise"*.
+- **#128** (`NativeVoicePipelineService`) — `removeTap` kept **immediately
+  adjacent** to the install because two interleaved capture starts
+  double-installed and **crashed a device on 2026-07-17**
+  (`CreateRecordingTap: nullptr == Tap()`, mid-session voice change). That
+  adjacency invariant is currently enforced by **nothing but a comment** — any
+  future edit inserting an `await` between them re-opens the crash.
+
+So the real trade is **not** "two warnings vs brittleness." It is **a known
+crash class in the app's most crash-prone path becoming catchable, vs
+brittleness.** On that ledger the answer inverts.
+
+**Both preflights STAY.** They prevent the failure; the migration only makes
+the residue survivable. Removing a working mitigation because a backstop
+appeared would be the wrong lesson.
+
+### The brittleness is real, and is confined rather than denied
+
+`installTapOnBus:bufferSize:format:error:block:` is `NS_REFINED_FOR_SWIFT` and
+AVFAudio ships **no overlay** for it in beta 4 (re-probed today, not recalled).
+The only callable spelling is the `__`-prefixed import:
+
+```
+(AVAudioNodeBus, AVAudioFrameCount, AVAudioFormat?, (), @escaping AVAudioNodeTapBlock) throws -> ()
+```
+
+— the `error:` parameter surviving as a meaningless `()`. **That spelling will
+change when the overlay lands.** So it lives in exactly one function,
+`AudioNodeTap.install` in `TalkSessionRules.swift`: the overlay day edits one
+line instead of two call sites, and the failure is a **compile error**, loud
+and immediate, that cannot reach a user. Owen chose this shape over inlining
+at both sites.
+
+Also re-verified today rather than assumed: no plain (non-`__`) throwing
+spelling exists yet — probing `installTap(onBus:bufferSize:format:block:)`
+still resolves to the deprecated non-throwing overload.
+
+### NOT tested, deliberately — and this one is worth reading
+
+The obvious test is a **double install**, which would pin the #128 crash class
+becoming catchable. **It was not written.** If the successor still raises
+rather than returns on that particular condition, the test would take down the
+whole test host rather than fail — and an uncatchable ObjC exception cannot be
+contained from Swift. A test whose failure mode is "the suite dies" is not a
+test.
+
+The successor's own header documents `outError` as "if an error occurs, a
+description of the error" and `@return YES for success`, so the reading is
+well-founded — but **well-founded is not verified**, and it is recorded here as
+inference.
+
+**OWED (device, cheap):** in an isolated build, force a double install and
+confirm it THROWS rather than crashes. That single observation converts the
+whole rationale above from inference to fact. Until then, the migration is
+safe either way — the new call cannot be *worse* than one that raises
+unconditionally.
+
+### Verification
+
+Full `TalariaTests` **1461/1461 in 117 suites**. `LiveSpeechService`,
+`NativeVoicePipelineService` and `TalkSessionRules` were **all force-recompiled
+in one run** and emit **zero** deprecation warnings — so the two `installTap`
+warnings are genuinely cleared, not merely un-re-emitted.
+
+**The app-wide zero in that run is an incremental artifact and is NOT a
+claim**: `LocalChatBackend.swift` did not recompile, so its two quarantined
+`GenerationError` warnings simply did not re-print. They still exist, by
+design. (Third time this shape has bitten in two days — check what recompiled
+before reading a warning count as progress.)
+
+Both call sites already sat inside `throws` functions, so the thrown error
+propagates into each caller's existing failure path with **no signature
+change**. No live reference to the deprecated `installTap` remains anywhere.
+
+**#198 CLOSED. The beta-4 deprecation sweep is done.**

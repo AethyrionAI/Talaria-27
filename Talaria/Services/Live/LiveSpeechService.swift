@@ -276,7 +276,11 @@ private actor DictationController {
         }
 
         Self.logger.verbose("Installing audio tap")
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { buffer, _ in
+        // #198: the iOS 27 installer reports failure instead of raising, so
+        // the #82 preflight above is no longer the only thing between a bad
+        // capture format and a crash. The preflight STAYS — it prevents the
+        // failure; this makes whatever it doesn't catch survivable.
+        try AudioNodeTap.install(on: inputNode, bufferSize: 1024, format: inputFormat) { buffer, _ in
             if let convertedBuffer = Self.convertBuffer(buffer, using: converter, outputFormat: analyzerFormat) {
                 localInputContinuation?.yield(AnalyzerInput(buffer: convertedBuffer))
             }

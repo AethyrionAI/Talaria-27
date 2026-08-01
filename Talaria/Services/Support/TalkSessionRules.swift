@@ -138,3 +138,53 @@ enum AudioSessionOffMain {
         }.value
     }
 }
+
+/// #198: the one place that knows how iOS 27 spells the tap installer.
+///
+/// **Why migrate at all**, when the deprecated `installTap` still works: it
+/// reports failure by RAISING an Objective-C exception, which Swift cannot
+/// catch. This codebase carries **two** hand-rolled mitigations that exist
+/// only because of that:
+///
+/// - **#82** (`LiveSpeechService`) — a preflight refusing a degenerate capture
+///   format, commented "uncatchable NSException otherwise".
+/// - **#128** (`NativeVoicePipelineService`) — `removeTap` kept immediately
+///   adjacent to the install because two interleaved capture starts
+///   double-installed and crashed a device on 2026-07-17
+///   (`CreateRecordingTap: nullptr == Tap()`), an invariant currently held by
+///   nothing but a comment.
+///
+/// The successor returns an error instead of raising, so the same conditions
+/// become recoverable. **Both preflights stay** — they prevent the failure,
+/// this only makes the residue survivable.
+///
+/// **Why a wrapper.** `installTapOnBus:bufferSize:format:error:block:` is
+/// `NS_REFINED_FOR_SWIFT` and AVFAudio ships no overlay for it in beta 4, so
+/// the only callable spelling is the `__`-prefixed import — whose `error:`
+/// parameter survives as a meaningless `()` where the `NSError**` was. That
+/// spelling WILL change when the overlay lands. Confining it here means that
+/// day edits one function instead of every call site, and the break is a
+/// compile error rather than anything that reaches a user.
+enum AudioNodeTap {
+    /// Installs a capture tap, throwing instead of raising on failure.
+    static func install(
+        on node: AVAudioNode,
+        bus: AVAudioNodeBus = 0,
+        bufferSize: AVAudioFrameCount,
+        format: AVAudioFormat?,
+        block: @escaping AVAudioNodeTapBlock
+    ) throws {
+        // `error: ()` is the importer's placeholder for the consumed
+        // `NSError**` — it carries no value. Verified against the beta-4
+        // signature, which imports as
+        // `(AVAudioNodeBus, AVAudioFrameCount, AVAudioFormat?, (),
+        //   @escaping AVAudioNodeTapBlock) throws -> ()`.
+        try node.__installTap(
+            onBus: bus,
+            bufferSize: bufferSize,
+            format: format,
+            error: (),
+            block: block
+        )
+    }
+}

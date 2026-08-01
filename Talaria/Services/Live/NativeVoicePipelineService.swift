@@ -1087,7 +1087,11 @@ private actor NativeVoiceCaptureController {
         // mid-session voice change). Remove-then-install in the same
         // synchronous stretch makes the last writer win cleanly instead.
         inputNode.removeTap(onBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { buffer, _ in
+        // #198: the iOS 27 installer REPORTS the failure this comment
+        // describes instead of raising it, so a double-install that slips past
+        // the adjacency invariant above now throws out of here — the caller's
+        // existing failure path — rather than crashing the app.
+        try AudioNodeTap.install(on: inputNode, bufferSize: 1024, format: inputFormat) { buffer, _ in
             if muteState.withLock({ $0 }) { return }
             if let converted = Self.convertBuffer(buffer, using: converter, outputFormat: capturedFormat) {
                 localInputContinuation?.yield(AnalyzerInput(buffer: converted))
