@@ -11824,6 +11824,58 @@ The audit called #198 "mechanical, file-scoped, safe to route to any executor".
 them as such is the point of stopping here rather than pushing a risky refactor
 into a hygiene PR.
 
+### RE-SCOPED 2026-08-01 — TWO of the three notes above were WRONG, verified against the beta-4 SDK
+
+Both errors came from reading the compiler's summary rather than the interface —
+the failure mode the standing rule on WWDC26 surfaces exists to prevent, applied
+to deprecations instead of new API. Corrected by grepping the headers and by
+compile-probing with `swiftc -typecheck`, which settles a signature question in
+seconds without a full build.
+
+**1. `installTap` — "no replacement named" is FALSE. One is named.**
+
+`AVAudioNode.h:117` carries
+`API_DEPRECATED_WITH_REPLACEMENT("installTapOnBus:bufferSize:format:error:block")`,
+and `:160` declares it. **The practical verdict nonetheless STANDS, for a
+completely different reason:** the successor is `NS_REFINED_FOR_SWIFT` and
+**AVFAudio's Swift overlay does not wrap it in beta 4** — `installTap` appears
+nowhere in `AVFAudio.swiftinterface`. Probed:
+
+- `try node.installTap(onBus:bufferSize:format:block:)` compiles but resolves to
+  the OLD method ("no calls to throwing functions occur within 'try'").
+- The only declared successor is `__installTap(onBus:bufferSize:format:error:block:)`,
+  and the obvious call does not type-check.
+
+So there is **no supported Swift spelling yet**, and `__`-prefixed refined-for-Swift
+symbols are exactly what Apple reserves for an overlay that has not landed —
+calling one in shipping code invites a break in the next beta.
+
+**Status: BLOCKED ON APPLE, not on our understanding.** Concrete re-check: after
+any SDK bump, `grep installTap` in `AVFAudio.swiftinterface`; when it appears,
+the migration is a one-line `try`. (No Apple filing, per standing rule.)
+
+**2. `BGTaskScheduler.submit` — "the successor is async, so the signature must
+change" is FALSE.**
+
+`BGTaskScheduler.h:140` declares a **completion-handler** form; the
+`NS_SWIFT_ASYNC_NAME(submitTaskRequest(_:))` on it names only the ASYNC
+PROJECTION. The completion form remains callable, and **compile-probed from a
+`@MainActor` SYNCHRONOUS function it type-checks clean.** `beginLongSend` does
+not have to become async, and `ChatStore`'s send path does not have to change
+shape.
+
+**What does NOT dissolve, stated so this is not overclaimed:** `submit` throws
+SYNCHRONOUSLY and `beginLongSend` returns `nil` on that failure. The
+completion handler delivers the error AFTER the function has returned, so the
+synchronous nil-on-failure signal cannot survive as-is. **The signature is safe;
+the failure semantics still need a decision.** That is a smaller and much
+better-defined problem than "the most load-bearing path in the app must change
+signature", and it is now a tractable lane rather than a hazard.
+
+**3. `AVAudioSession` interruption — the note holds.**
+`AVAudioSessionResumptionRecommendation` exists at `AVAudioSession.h:612` as
+described. Not disproven; still a structural rewrite.
+
 ## #217 — CAN this model classify intent safely enough to drive a belt? A probe, not a belt lane.
 
 **FILED 2026-08-01, bars written first. NO production change — `ToolIntentRoute`
