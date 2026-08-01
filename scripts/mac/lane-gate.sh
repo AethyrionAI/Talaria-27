@@ -24,6 +24,24 @@
 # branch gone that was never gone: an empty result and a negative result are
 # the same bytes, so never infer one from the other.
 #
+# ...AND THE FIRST VERSION OF THIS SCRIPT BROKE ITS OWN RULE. On its first real
+# run against main it printed GATE: PASS while four UI tests had failed and
+# xcodebuild had exited 65. Three separate mistakes, all worth keeping in view:
+#
+#   1. The XCUITest marker was `Executed N tests, with 0 failures` — and **zero
+#      is a number**. An empty sub-suite prints "Executed 0 tests, with 0
+#      failures", which matched. A "positive marker" that a no-op satisfies is
+#      not a positive marker. Counts are now required to be > 0.
+#   2. It grepped for a marker that appears MANY times in a test log and passed
+#      on any one of them, instead of the single authoritative verdict line
+#      (`** TEST SUCCEEDED **` / `** TEST FAILED **`).
+#   3. It recorded xcodebuild's exit status and deliberately did not act on it.
+#      "Do not trust exit status ALONE" is right; "ignore it" is not. A nonzero
+#      exit is now disqualifying on its own.
+#
+# So: success requires the authoritative marker AND a zero exit AND a nonzero
+# count, and any explicit failure marker fails the check outright.
+#
 # Usage:
 #   scripts/mac/lane-gate.sh              suite + Release build (the gate)
 #   scripts/mac/lane-gate.sh --release    Release build only (fast re-check)
@@ -73,6 +91,48 @@ require() {   # require <logfile> <pattern> <label>
     return 1
 }
 
+# FAIL if an explicit failure marker is present, whatever else the log says.
+# Success markers and failure markers both appear in a test log; the failure
+# one wins.
+refute() {   # refute <logfile> <pattern> <label>
+    local log="$1" pat="$2" label="$3"
+    if grep -qE "$pat" "$log"; then
+        bad "$label"
+        return 1
+    fi
+    return 0
+}
+
+# A count that must be greater than zero. `Executed 0 tests, with 0 failures`
+# is why this exists — see the header.
+require_count() {   # require_count <logfile> <extract-regex> <label>
+    local log="$1" pat="$2" label="$3" n
+    # MAX, not first: a log legitimately contains an empty sub-suite line
+    # ("Executed 0 tests") alongside the real one, and taking the first would
+    # false-FAIL a good run. Safe because the pattern itself requires
+    # "with 0 failures" — a run with failures matches nothing here and falls
+    # through to the no-count-line FAIL below.
+    n="$(grep -oE "$pat" "$log" | grep -oE '[0-9]+' | sort -rn | head -1)"
+    if [[ -z "$n" ]]; then
+        bad "$label — no count line found in $log"
+        return 1
+    fi
+    if (( n > 0 )); then
+        ok "$label — $n"
+        return 0
+    fi
+    bad "$label — count is ZERO, which is not a pass"
+    return 1
+}
+
+# Non-zero xcodebuild exit is disqualifying. Not sufficient on its own to
+# declare success, but sufficient to declare failure.
+require_exit0() {   # require_exit0 <status> <label>
+    if (( $1 == 0 )); then return 0; fi
+    bad "$2 — xcodebuild exited $1"
+    return 1
+}
+
 echo "== Talaria lane gate =="
 echo "   repo:      $REPO_ROOT  ($(git rev-parse --abbrev-ref HEAD) @ $(git rev-parse --short HEAD))"
 echo "   toolchain: $DEVELOPER_DIR"
@@ -116,18 +176,41 @@ if (( RUN_SUITE )); then
         -project Talaria.xcodeproj -scheme Talaria \
         -destination "platform=iOS Simulator,id=$SIM_UDID" \
         > "$SUITE_LOG" 2>&1
-    # NOTE: exit status is recorded but NOT trusted on its own — see require().
-    echo "   xcodebuild exit=$?"
+    SUITE_STATUS=$?
+    echo "   xcodebuild exit=$SUITE_STATUS"
 
-    require "$SUITE_LOG" 'Test run with [0-9]+ tests in [0-9]+ suites passed' \
-            "Swift Testing suite passed" \
-        && echo "        $(grep -oE 'Test run with [0-9]+ tests in [0-9]+ suites passed' "$SUITE_LOG" | tail -1)"
+    # The authoritative verdict, and the one that overrides everything else in
+    # the log. Both directions are checked explicitly.
+    require_exit0 "$SUITE_STATUS" "Test run"
+    refute  "$SUITE_LOG" '\*\* TEST FAILED \*\*|\*\* TEST BUILD FAILED \*\*' \
+            "Test run reported ** TEST FAILED **"
+    require "$SUITE_LOG" '\*\* TEST SUCCEEDED \*\*' "Test run reported TEST SUCCEEDED"
 
-    # XCUITest reports separately; reading only one line badly undercounts.
-    if grep -qE 'Executed [0-9]+ tests?, with 0 failures' "$SUITE_LOG"; then
-        ok "XCUITest passed — $(grep -oE 'Executed [0-9]+ tests?, with 0 failures' "$SUITE_LOG" | tail -1)"
-    else
-        bad "XCUITest — no 'Executed N tests, with 0 failures' line in $SUITE_LOG"
+    # Swift Testing and XCUITest report separately; reading either alone
+    # undercounts. Both counts must be greater than zero.
+    require_count "$SUITE_LOG" 'Test run with [0-9]+ tests in [0-9]+ suites passed' \
+                  "Swift Testing tests run"
+    require_count "$SUITE_LOG" 'Executed [0-9]+ tests?, with 0 failures' \
+                  "XCUITest tests run"
+
+    # Name names when something failed — the whole point is not making the
+    # reader go log-diving.
+    if grep -q "^Failing tests:" "$SUITE_LOG"; then
+        echo "   failing tests:"
+        sed -n '/^Failing tests:/,/^$/p' "$SUITE_LOG" | sed '1d;/^$/d' | sed 's/^/        /'
+        # Distinguish a product failure from a harness hiccup. A real failure
+        # names an assertion and a file:line; the XCUITest runner dying or
+        # restarting marks every UI test failed with NO assertion text at all
+        # (observed 2026-08-01: testLaunch passed, restarted, then the suite
+        # reported zero tests and four failures).
+        if grep -qE '\.swift:[0-9]+: error:' "$SUITE_LOG"; then
+            echo "        ^ assertion text present — treat as a REAL failure."
+        else
+            echo "        ^ NO assertion text — likely an XCUITest harness flake"
+            echo "          (runner lost/restarted). Re-run ONCE and RECORD both"
+            echo "          runs in OPEN_ITEMS #164. Do not re-run until green"
+            echo "          and report only the green one."
+        fi
     fi
 
     # A test count that did not move after editing tests is the stale-binary
@@ -146,9 +229,12 @@ if (( RUN_RELEASE )); then
         -configuration Release -destination 'generic/platform=iOS Simulator' \
         build CODE_SIGNING_ALLOWED=NO \
         > "$REL_LOG" 2>&1
-    echo "   xcodebuild exit=$?"
+    REL_STATUS=$?
+    echo "   xcodebuild exit=$REL_STATUS"
 
-    require "$REL_LOG" '\*\* BUILD SUCCEEDED \*\*|BUILD SUCCEEDED' "Release build succeeded"
+    require_exit0 "$REL_STATUS" "Release build"
+    refute  "$REL_LOG" '\*\* BUILD FAILED \*\*' "Release build reported ** BUILD FAILED **"
+    require "$REL_LOG" '\*\* BUILD SUCCEEDED \*\*' "Release build succeeded"
 
     # Report compile errors explicitly rather than leaving them to be inferred.
     ERRS="$(grep -cE '\.swift:[0-9]+:[0-9]+: error:' "$REL_LOG")"
