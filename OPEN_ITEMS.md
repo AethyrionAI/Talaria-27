@@ -11970,6 +11970,63 @@ guide — scored against THIS run as control, with at least two armed rows kept
 deliberately outside whatever the new vocabulary is, or the bar becomes
 unfalsifiable. **No belt rides an intent until B passes.**
 
+### #217B FILED 2026-08-01 — a 2×2, because the two candidates must be separated, not confounded
+
+**No production change. Owen routes the run.**
+
+| | v1 guide (#217's) | v2 guide |
+|---|---|---|
+| **narrow vocabulary** | `narrow-v1` — **#217's exact cell, the control** | `narrow-v2` — guide effect |
+| **full vocabulary** | `full-v1` — vocabulary effect | `full-v2` — the candidate |
+
+Running the control **within this run** also fixes something #217 could not:
+its 12.5% was a single-run number, and a cross-run comparison would have carried
+the same thermal problem #215 and #216 both had to caveat.
+
+**Why v2 is a different TACTIC and not a longer exclusion list.** #217's guide
+*already named* contacts, past chats, places and device status as `other` cases,
+and already said in as many words that guessing is worse. **The model ignored all
+of it and answered `reminder` 10/10.** Listing exclusions is a measured failure
+on this model, so v2 changes the frame instead: `other` becomes the DEFAULT
+rather than the fallback, every category gets a positive test it must meet
+("`health` only for the user's own body data…"), and the instruction is a rule
+about certainty rather than an enumeration of exceptions.
+
+**v2 deliberately does not mention messages, battery, music, navigation or
+photos** — naming #217's two failures would teach to the test. Pinned by
+`theSecondGuideIsADifferentTacticNotALongerList`, which fails if any of those
+words appears.
+
+**Three rows are out of vocabulary in EVERY cell** — "Play some music", "How long
+will it take me to drive to the airport?", "Read the label on this bottle for
+me". Armed device requests with no belt tool and no vocabulary entry in either
+arm. **This is the trap the last verdict named:** without them, a full-vocabulary
+cell could pass simply because the grid no longer contains a near miss, which
+would measure the grid rather than the model.
+
+**Scoring is per cell against the expectation that cell could express.** The four
+added domains collapse to `other` under the narrow vocabulary
+(`underNarrowVocabulary`), so the control is a faithful replication of #217
+rather than a harsher re-scoring of it — pinned by
+`addedDomainsCollapseToOtherUnderTheNarrowVocabulary`.
+
+**n=5, down from 10, and the reason is a finding rather than a budget.** #217
+produced **zero variance in 160 classifications** — all 16 rows single-valued
+10/10. At that determinism n=10 bought nothing; n=5 still detects a split if the
+larger schema introduces one, and pays for four cells instead of one. With
+16 rows × 5, a single deterministic bad row scores 5/80 = 6.25% and **fails bar B
+on its own** — which is correct, because a deterministic bad row fires on 100% of
+those requests in production.
+
+**Bars unchanged from #217, applied per cell:** gate ≥95%, A ≥90%, **B ≤2%**,
+C ≥90%. **Promotion requires `full-v2` to clear all four** — and the main
+effects then say whether the vocabulary, the guide, or only the pair did it.
+
+**What would falsify the remedy:** `full-v2` still above 2% dangerous. That would
+mean the escape hatch cannot be made to work by vocabulary or wording on this
+model, and **intent-driven belt scoping should be abandoned** rather than
+iterated — #216's 2.6 seconds are not worth a disarmed turn.
+
 ## #216 — the narrow belt, re-tried where it cannot lose. #214's closure was right about the evidence and wrong about the world.
 
 **FILED 2026-08-01, bars written first. No production change — `routed-scoped` is

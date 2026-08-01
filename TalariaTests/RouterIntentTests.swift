@@ -30,18 +30,70 @@ struct RouterIntentTests {
     /// code can parse must be the same set. If a value is offered to the model
     /// that the parser does not know, the model can answer it and be scored
     /// wrong for a reason that has nothing to do with the model.
-    @Test func theGuideVocabularyIsExactlyTheParseableCases() {
-        let guided = Set(RouterIntent.guideVocabulary)
-        let parseable = Set(RouterIntent.allCases.map(\.rawValue))
-        #expect(guided == parseable)
+    @Test func theFullVocabularyIsExactlyTheParseableCases() {
+        #expect(Set(RouterIntent.fullVocabulary)
+                == Set(RouterIntent.allCases.map(\.rawValue)))
     }
 
-    /// `.other` must be offered too. Without it the model has no way to say "I
-    /// don't know" and is pushed into guessing one of the scoped intents —
-    /// converting safe misses into dangerous wrong answers, which is the exact
-    /// failure mode this design is built around.
-    @Test func theModelIsGivenAWayToSayItDoesNotKnow() {
-        #expect(RouterIntent.guideVocabulary.contains(RouterIntent.other.rawValue))
+    /// #217B: the narrow vocabulary is #217's, PINNED. It is the control arm,
+    /// and a control that drifts is not one — this run's replication of #217's
+    /// 12.5% depends on the model being offered the identical six words.
+    @Test func theNarrowVocabularyIsPinnedToWhat217WasScoredAgainst() {
+        #expect(RouterIntent.narrowVocabulary
+                == ["reminder", "alarm", "calendar", "weather", "health", "other"])
+        // And it must be a strict SUBSET of what the parser knows, or a control
+        // trial could answer a word this build cannot read.
+        #expect(Set(RouterIntent.narrowVocabulary)
+                .isSubset(of: Set(RouterIntent.allCases.map(\.rawValue))))
+    }
+
+    /// `.other` must be offered in BOTH vocabularies. Without it the model has
+    /// no way to say "I don't know" and is pushed into guessing a scoped intent
+    /// — converting safe misses into dangerous wrong answers, which is the
+    /// exact failure #217 measured at 12.5%.
+    @Test func theModelIsGivenAWayToSayItDoesNotKnowInBothArms() {
+        #expect(RouterIntent.narrowVocabulary.contains(RouterIntent.other.rawValue))
+        #expect(RouterIntent.fullVocabulary.contains(RouterIntent.other.rawValue))
+    }
+
+    /// #217B scores each row against the expectation its CELL could express.
+    /// The four added domains collapse to `other` under the narrow vocabulary,
+    /// which is what makes the control a byte-faithful replication of #217
+    /// rather than a harsher re-scoring of it.
+    @Test func addedDomainsCollapseToOtherUnderTheNarrowVocabulary() {
+        for added in [RouterIntent.conversations, .device, .contacts, .places] {
+            #expect(added.underNarrowVocabulary == .other)
+        }
+        // ...and the original five are untouched, or the control arm would be
+        // scored against a different grid than #217 was.
+        for kept in [RouterIntent.reminder, .alarm, .calendar, .weather, .health, .other] {
+            #expect(kept.underNarrowVocabulary == kept)
+        }
+    }
+
+    /// #217B: the 2x2 must actually be a 2x2 — two cells offering the full
+    /// vocabulary and two the narrow one. A miswired cell would silently make
+    /// the vocabulary main effect unmeasurable while every other test passed.
+    @Test func theCellsFormATwoByTwo() {
+        let full = LocalChatBackend.IntentProbeCell.allCases.filter(\.usesFullVocabulary)
+        #expect(Set(full) == [.fullGuideV1, .fullGuideV2])
+        #expect(LocalChatBackend.IntentProbeCell.allCases.count == 4)
+    }
+
+    /// The two guides must genuinely differ, and v2 must not be v1-plus-a-list.
+    /// #217's guide ALREADY named contacts, past chats, places and device
+    /// status as `other` cases and was ignored 10/10, so "add more exclusions"
+    /// is a known-failed tactic. v2's distinguishing move is that it makes
+    /// `other` the default, which is checkable.
+    @Test func theSecondGuideIsADifferentTacticNotALongerList() {
+        #expect(IntentRouterGuide.intentGuideV1 != IntentRouterGuide.intentGuideV2)
+        #expect(IntentRouterGuide.intentGuideV2.hasPrefix("Answer \"other\" unless"))
+        // It must NOT name #217's two failures, or the bar is unfalsifiable —
+        // the grid's out-of-vocabulary rows exist to catch exactly that.
+        for taught in ["battery", "text", "message", "music", "navigation", "photo"] {
+            #expect(!IntentRouterGuide.intentGuideV2.lowercased().contains(taught),
+                    "v2 must not teach to the test: found \(taught)")
+        }
     }
 
     // MARK: The parse is TOTAL — every unrecognised answer is safe

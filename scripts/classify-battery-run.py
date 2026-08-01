@@ -787,57 +787,53 @@ def intent_report(run):
         return
     print("=== intent router (#217)")
 
-    base = [p for p in probes if p.get("band") == "baseline"]
-    if base:
-        c = sum(p["correct"] for p in base)
-        t = sum(p["trials"] for p in base)
-        acc = c / t if t else 0.0
-        ok = acc >= INTENT_BASELINE_GATE
-        print(f"  GATE  Bool accuracy on the pinned ten: {acc:.1%} ({c}/{t}) — "
-              f"{'HOLDS' if ok else 'DEGRADED — the second field cost the Bool; STOP, nothing below matters'}")
+    # #217B: four cells. Everything below is computed PER CELL, because the
+    # whole point of the 2x2 is separating the vocabulary main effect from the
+    # guide main effect — pooling them would answer neither question.
+    cells = [c for c in (run.get("cells") or []) if any(p.get("variant") == c for p in probes)]
+    if not cells:
+        cells = sorted({p.get("variant") or "?" for p in probes})
 
-    grid = [p for p in probes if p.get("band") == "intent"]
-    if not grid:
-        print()
-        return
+    for cell in cells:
+        cp = [p for p in probes if p.get("variant") == cell]
+        base = [p for p in cp if p.get("band") == "baseline"]
+        grid = [p for p in cp if p.get("band") == "intent"]
+        print(f"  --- {cell}")
+        if base:
+            c = sum(p["correct"] for p in base)
+            t = sum(p["trials"] for p in base)
+            acc = c / t if t else 0.0
+            print(f"    GATE  Bool accuracy on the pinned ten: {acc:.1%} ({c}/{t}) — "
+                  f"{'HOLDS' if acc >= INTENT_BASELINE_GATE else 'DEGRADED — this cell is unreadable'}")
+        if not grid:
+            continue
 
-    scoped_rows = [p for p in grid if p.get("expectedIntent") != "other"]
-    other_rows = [p for p in grid if p.get("expectedIntent") == "other"]
+        scoped_rows = [p for p in grid if p.get("expectedIntent") != "other"]
+        other_rows = [p for p in grid if p.get("expectedIntent") == "other"]
+        dangerous = misses = 0
+        for p in grid:
+            want = p.get("expectedIntent")
+            tally = p["intentTally"]
+            d = sum(n for k, n in tally.items() if k != want and k != "other")
+            dangerous += d
+            if want != "other":
+                misses += tally.get("other", 0)
+            if d:
+                print(f"      !! DANGEROUS [{want}] {tally}  {p['probe'][:44]}")
 
-    hits = dangerous = misses = 0
-    print("  rows (want / answered)")
-    for p in sorted(grid, key=lambda q: q.get("expectedIntent") or ""):
-        want = p.get("expectedIntent")
-        tally = p["intentTally"]
-        h = tally.get(want, 0)
-        # Dangerous = any SCOPED answer that is not the wanted one.
-        d = sum(n for k, n in tally.items() if k != want and k != "other")
-        m = tally.get("other", 0) if want != "other" else 0
-        hits += h
-        dangerous += d
-        misses += m
-        flag = "  !! DANGEROUS" if d else ""
-        print(f"    [{want:<8}] {h}/{p['trials']}  {tally}{flag}  {p['probe'][:44]}")
-
-    total = sum(p["trials"] for p in grid)
-    scoped_total = sum(p["trials"] for p in scoped_rows)
-    scoped_hits = sum(p["intentTally"].get(p["expectedIntent"], 0) for p in scoped_rows)
-    other_total = sum(p["trials"] for p in other_rows)
-    other_hits = sum(p["intentTally"].get("other", 0) for p in other_rows)
-
-    print("\n  bars (pre-registered in OPEN_ITEMS #217)")
-    a = scoped_hits / scoped_total if scoped_total else 0.0
-    print(f"    A  scoped-intent accuracy {a:.1%} ({scoped_hits}/{scoped_total})"
-          f" — {'PASS' if a >= INTENT_ACCURACY else 'FAIL'} (bar {INTENT_ACCURACY:.0%})")
-    dr = dangerous / total if total else 0.0
-    print(f"    B  DANGEROUS answers {dr:.1%} ({dangerous}/{total})"
-          f" — {'PASS' if dr <= INTENT_DANGEROUS_MAX else 'FAIL — the design does not survive this'}"
-          f" (bar <={INTENT_DANGEROUS_MAX:.0%})")
-    o = other_hits / other_total if other_total else 0.0
-    print(f"    C  out-of-vocabulary rows answered `other` {o:.1%} ({other_hits}/{other_total})"
-          f" — {'PASS' if o >= INTENT_OTHER_ACCURACY else 'FAIL'} (bar {INTENT_OTHER_ACCURACY:.0%})")
-    print(f"    (safe misses — `other` where a scoped intent was right: {misses}."
-          f" These cost the prize, not correctness.)")
+        total = sum(p["trials"] for p in grid)
+        st = sum(p["trials"] for p in scoped_rows)
+        sh = sum(p["intentTally"].get(p["expectedIntent"], 0) for p in scoped_rows)
+        ot = sum(p["trials"] for p in other_rows)
+        oh = sum(p["intentTally"].get("other", 0) for p in other_rows)
+        a = sh / st if st else 0.0
+        dr = dangerous / total if total else 0.0
+        o = oh / ot if ot else 0.0
+        print(f"    A  scoped accuracy {a:.1%} ({sh}/{st}) — {'PASS' if a >= INTENT_ACCURACY else 'FAIL'}")
+        print(f"    B  DANGEROUS {dr:.1%} ({dangerous}/{total}) — "
+              f"{'PASS' if dr <= INTENT_DANGEROUS_MAX else 'FAIL'}  (bar <={INTENT_DANGEROUS_MAX:.0%})")
+        print(f"    C  `other` rows answered other {o:.1%} ({oh}/{ot}) — {'PASS' if o >= INTENT_OTHER_ACCURACY else 'FAIL'}")
+        print(f"       safe misses: {misses} (cost the prize, not correctness)")
     print()
 
 

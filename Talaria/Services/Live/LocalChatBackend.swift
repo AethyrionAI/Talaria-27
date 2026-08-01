@@ -2565,6 +2565,7 @@ extension LocalChatBackend {
     /// generation returns `(true, .other)` — armed, full belt, today's exact
     /// behaviour.
     func routeIntent(prompt: String, context: String = "",
+                     cell: IntentProbeCell = .narrowGuideV1,
                      hasImage: Bool = false) async -> (needsDeviceTool: Bool, intent: RouterIntent) {
         let session = LanguageModelSession(
             model: model,
@@ -2572,19 +2573,57 @@ extension LocalChatBackend {
                 for: Self.productionRouterVariant,
                 includeImageGuide: Self.productionIncludesImageGuide))
         )
+        let prompt = Prompt(Self.routerPrompt(context: context, prompt: prompt,
+                                              variant: Self.productionRouterVariant,
+                                              hasImage: hasImage))
+        let options = Self.toolIntentRouterOptions
         do {
-            let route = try await session.respond(
-                to: Prompt(Self.routerPrompt(context: context, prompt: prompt,
-                                             variant: Self.productionRouterVariant,
-                                             hasImage: hasImage)),
-                generating: ToolIntentRouteV2.self,
-                options: Self.toolIntentRouterOptions
-            ).content
-            return (route.needsDeviceTool, RouterIntent(lenient: route.intent))
+            // The four cells differ ONLY in the @Generable type, because
+            // `@Guide(.anyOf:)` is macro-expanded and cannot vary at runtime.
+            // Session, prompt, instructions and options are identical across
+            // all four, so the 2x2 is genuinely a 2x2.
+            let raw: (Bool, String)
+            switch cell {
+            case .narrowGuideV1:
+                let r = try await session.respond(to: prompt, generating: ToolIntentRouteV2.self, options: options).content
+                raw = (r.needsDeviceTool, r.intent)
+            case .narrowGuideV2:
+                let r = try await session.respond(to: prompt, generating: ToolIntentRouteNarrowGuideV2.self, options: options).content
+                raw = (r.needsDeviceTool, r.intent)
+            case .fullGuideV1:
+                let r = try await session.respond(to: prompt, generating: ToolIntentRouteFullGuideV1.self, options: options).content
+                raw = (r.needsDeviceTool, r.intent)
+            case .fullGuideV2:
+                let r = try await session.respond(to: prompt, generating: ToolIntentRouteFullGuideV2.self, options: options).content
+                raw = (r.needsDeviceTool, r.intent)
+            }
+            return (raw.0, RouterIntent(lenient: raw.1))
         } catch {
             Self.logger.notice("routeIntent: classification failed — failing safe to armed + .other (\(String(String(describing: error).prefix(80)), privacy: .public)) (#217)")
             Self.routerFailureTally += 1
             return (true, .other)
+        }
+    }
+
+    /// #217B: the 2x2. Two candidate causes for #217's 12.5% dangerous rate —
+    /// an incomplete vocabulary and a too-weak `other` guide — measured as
+    /// MAIN EFFECTS rather than confounded into one candidate arm.
+    enum IntentProbeCell: String, CaseIterable, Sendable {
+        /// #217's exact cell. Control, and a WITHIN-run replication of a
+        /// verdict that until now was only a cross-run number.
+        case narrowGuideV1 = "narrow-v1"
+        /// Guide effect, vocabulary held at #217's.
+        case narrowGuideV2 = "narrow-v2"
+        /// Vocabulary effect, guide held at #217's.
+        case fullGuideV1 = "full-v1"
+        /// Both — the candidate.
+        case fullGuideV2 = "full-v2"
+
+        /// Whether this cell offered the model the four added domains. Drives
+        /// which expectation each grid row is scored against, so a row is never
+        /// marked wrong for failing to say a word the cell never offered.
+        var usesFullVocabulary: Bool {
+            self == .fullGuideV1 || self == .fullGuideV2
         }
     }
 
@@ -2634,15 +2673,39 @@ enum RouterIntent: String, CaseIterable, Sendable {
     case calendar
     case weather
     case health
+    /// #217B: the four domains #217 left out. Their absence was one of two
+    /// candidate causes for that run's failure — on "when did I last text Sam"
+    /// and "how much battery do I have left" the model had **no correct scoped
+    /// answer available**, and substituted the nearest one it did have
+    /// (`reminder` and `health`, both 10/10 deterministic).
+    case conversations
+    case device
+    case contacts
+    case places
     /// Everything else, and every failure. **Means the FULL belt** — exactly
     /// what production arms today.
     case other
 
-    /// The closed vocabulary handed to the model. Pinned equal to
-    /// `allCases` by `theGuideVocabularyIsExactlyTheParseableCases`: offering a
-    /// value the parser cannot read would score the model wrong for a reason
-    /// that has nothing to do with the model.
-    nonisolated static var guideVocabulary: [String] { allCases.map(\.rawValue) }
+    /// #217's vocabulary, **PINNED** — the six values that run was scored
+    /// against. It is the control arm of #217B and must never drift, or the
+    /// replication stops being one.
+    nonisolated static let narrowVocabulary: [String] = [
+        "reminder", "alarm", "calendar", "weather", "health", "other",
+    ]
+
+    /// #217B: every domain the belt actually has. Pinned equal to `allCases` by
+    /// `theFullVocabularyIsExactlyTheParseableCases` — offering the model a
+    /// value the parser cannot read would score it wrong for a reason that has
+    /// nothing to do with the model.
+    nonisolated static var fullVocabulary: [String] { allCases.map(\.rawValue) }
+
+    /// What a row's answer SHOULD be under the narrow vocabulary: itself if it
+    /// was on offer, `other` if it was not. Derived rather than hand-authored
+    /// per cell, so a row cannot be scored against an expectation the cell
+    /// never gave the model a way to express.
+    var underNarrowVocabulary: RouterIntent {
+        Self.narrowVocabulary.contains(rawValue) ? self : .other
+    }
 
     /// Total by construction. Case and surrounding whitespace are forgiven —
     /// a model answering `"Calendar"` means calendar, and scoring that `.other`
@@ -2659,18 +2722,81 @@ enum RouterIntent: String, CaseIterable, Sendable {
 }
 
 #if DEBUG
-/// #217: the probe's route type. **Deliberately separate from
-/// `ToolIntentRoute`, which production uses and which is NOT touched by this
-/// lane.** The whole question is whether adding a second field degrades the
-/// Bool's 200/200 accuracy; measuring that requires the production type to stay
-/// exactly as it is, as the control.
+/// #217/#217B: the probe's route types. **All four are deliberately separate
+/// from `ToolIntentRoute`, which production uses and which no lane in this
+/// family touches.**
+///
+/// Four types rather than one parameterized type because `@Guide(.anyOf:)` is
+/// macro-expanded and static — a vocabulary and a guide text cannot vary at
+/// runtime. Verbose, but each becomes a PINNED artifact, which is what a
+/// measured cell needs to be anyway.
+///
+/// The `needsDeviceTool` guide is **byte-identical across all four** so the
+/// regression gate compares like with like.
+enum IntentRouterGuide {
+    /// The Bool guide, verbatim from production's `ToolIntentRoute`. Shared by
+    /// every cell so the gate measures the intent field's cost and nothing else.
+    static let boolGuide = "True only when the request needs the user's device data (health, location, weather, calendar, reminders, contacts, past chats) or a device action (create a reminder, calendar event, or alarm). Writing, poems, summaries, math, facts, and conversation are false — they need nothing from the device."
+
+    /// **v1 — #217's guide, PINNED.** It already NAMED contacts, past chats,
+    /// places and device status as `other` cases, and already said in as many
+    /// words that guessing is worse. The model ignored all of it and answered
+    /// `reminder` for "when did I last text Sam" 10/10. **That is why v2 is not
+    /// simply a longer exclusion list** — listing exclusions demonstrably does
+    /// not work on this model.
+    static let intentGuideV1 = "Which kind of device information or action the request needs. Use \"other\" whenever the request needs no device data at all, or when it needs something outside this list — contacts, past chats, places, the device's own status, or anything you are unsure about. Guessing is worse than answering \"other\"."
+
+    /// **v2 — a different TACTIC, not a longer list.** Three changes:
+    /// `other` is framed as the DEFAULT rather than the fallback; each category
+    /// gets a positive test it must meet ("only for…"); and the instruction is
+    /// a rule about certainty rather than an enumeration of exceptions.
+    ///
+    /// It deliberately does NOT name messages, battery, music or navigation.
+    /// Naming #217's two failures would teach to the test and make the bar
+    /// unfalsifiable — the out-of-vocabulary rows in the grid are chosen to be
+    /// things this text never mentions.
+    static let intentGuideV2 = "Answer \"other\" unless the request is unmistakably one of the named categories. A category is correct ONLY if the request asks for that exact thing: \"reminder\" only for the user's reminder or to-do list, \"alarm\" only for a clock alarm, \"calendar\" only for calendar events, \"weather\" only for forecast or conditions, \"health\" only for the user's own body data such as steps, sleep or heart rate. If the request is merely RELATED to a category, or needs anything not named here, the answer is \"other\". \"other\" is always safe; a wrong category is not."
+}
+
+/// narrow vocabulary + v1 guide — **#217's exact cell, byte-for-byte.** The
+/// control arm, and a within-run replication of a verdict that was previously
+/// only a cross-run number.
 @Generable
 struct ToolIntentRouteV2 {
-    @Guide(description: "True only when the request needs the user's device data (health, location, weather, calendar, reminders, contacts, past chats) or a device action (create a reminder, calendar event, or alarm). Writing, poems, summaries, math, facts, and conversation are false — they need nothing from the device.")
+    @Guide(description: IntentRouterGuide.boolGuide)
     var needsDeviceTool: Bool
 
-    @Guide(description: "Which kind of device information or action the request needs. Use \"other\" whenever the request needs no device data at all, or when it needs something outside this list — contacts, past chats, places, the device's own status, or anything you are unsure about. Guessing is worse than answering \"other\".",
-           .anyOf(RouterIntent.guideVocabulary))
+    @Guide(description: IntentRouterGuide.intentGuideV1, .anyOf(RouterIntent.narrowVocabulary))
+    var intent: String
+}
+
+/// narrow vocabulary + v2 guide — isolates the GUIDE effect.
+@Generable
+struct ToolIntentRouteNarrowGuideV2 {
+    @Guide(description: IntentRouterGuide.boolGuide)
+    var needsDeviceTool: Bool
+
+    @Guide(description: IntentRouterGuide.intentGuideV2, .anyOf(RouterIntent.narrowVocabulary))
+    var intent: String
+}
+
+/// full vocabulary + v1 guide — isolates the VOCABULARY effect.
+@Generable
+struct ToolIntentRouteFullGuideV1 {
+    @Guide(description: IntentRouterGuide.boolGuide)
+    var needsDeviceTool: Bool
+
+    @Guide(description: IntentRouterGuide.intentGuideV1, .anyOf(RouterIntent.fullVocabulary))
+    var intent: String
+}
+
+/// full vocabulary + v2 guide — the candidate.
+@Generable
+struct ToolIntentRouteFullGuideV2 {
+    @Guide(description: IntentRouterGuide.boolGuide)
+    var needsDeviceTool: Bool
+
+    @Guide(description: IntentRouterGuide.intentGuideV2, .anyOf(RouterIntent.fullVocabulary))
     var intent: String
 }
 #endif
@@ -4457,15 +4583,25 @@ extension LocalChatBackend {
         ("Is it going to rain this afternoon?", true, .weather),
         ("How many steps have I taken today?", true, .health),
         ("How did I sleep last night?", true, .health),
-        // Armed, but OUTSIDE the vocabulary — `other` is the correct answer and
-        // any scoped answer here is a dangerous miss, not a near miss.
-        ("What's Sam's phone number?", true, .other),
-        ("When did I last text Sam about the boat?", true, .other),
-        ("Find a coffee shop near me", true, .other),
-        ("How much battery do I have left?", true, .other),
-        // Toolless. Intent is irrelevant when nothing is armed, but a model
-        // answering `calendar` here would reveal it is pattern-matching words
-        // rather than classifying need.
+        // #217's two DANGEROUS rows. Under the narrow vocabulary these are
+        // still `other` (derived by `underNarrowVocabulary`), so the control
+        // arm replicates #217 exactly; under the full vocabulary they have a
+        // correct scoped answer for the first time.
+        ("When did I last text Sam about the boat?", true, .conversations),
+        ("How much battery do I have left?", true, .device),
+        ("What's Sam's phone number?", true, .contacts),
+        ("Find a coffee shop near me", true, .places),
+        // OUT OF VOCABULARY IN EVERY CELL — armed device requests with no belt
+        // tool and no vocabulary entry, in either arm. **These keep the bar
+        // falsifiable.** #217B's whole risk is a run that passes because the
+        // grid stopped containing a near miss, which would measure the grid
+        // rather than the model. The v2 guide deliberately never mentions
+        // music, navigation or photos.
+        ("Play some music", true, .other),
+        ("How long will it take me to drive to the airport?", true, .other),
+        ("Read the label on this bottle for me", true, .other),
+        // Toolless. Intent is irrelevant when nothing is armed, but a scoped
+        // answer here would reveal word-matching rather than need-classifying.
         ("Write a haiku about sledding", false, .other),
         ("What's 2+2?", false, .other),
     ]
@@ -4679,50 +4815,59 @@ extension LocalChatBackend {
         defer { Self.endBatteryRun() }
         let baseline = Self.routerBaselineProbes
         let grid = Self.intentProbeGrid
-        Self.batteryEmit("router: INTENT PROBE START trials=\(trials) baseline=\(baseline.count) grid=\(grid.count) (#217)")
-        Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: ["intent-v2"], kind: "intent")
+        let cells = IntentProbeCell.allCases
+        Self.batteryEmit("router: INTENT PROBE START trials=\(trials) cells=\(cells.count) baseline=\(baseline.count) grid=\(grid.count) (#217B)")
+        Self.batteryRecorder.beginRun(trialsPerCell: trials,
+                                      cells: cells.map(\.rawValue), kind: "intent")
 
-        // 1. The regression gate: the pinned ten, through the V2 schema.
-        for probe in baseline {
-            var correct = 0
-            var tally: [String: Int] = [:]
-            let failuresBefore = Self.routerFailureTally
-            for _ in 1...trials {
-                let route = await routeIntent(prompt: probe.text)
-                if route.needsDeviceTool == probe.expected { correct += 1 }
-                tally[route.intent.rawValue, default: 0] += 1
+        for cell in cells {
+            // 1. The regression gate, per cell: the pinned ten through this
+            // cell's schema. Run per cell because a bigger vocabulary is a
+            // bigger schema, and the Bool's cost is exactly what the gate is
+            // for — measuring it once would leave three cells ungated.
+            for probe in baseline {
+                var correct = 0
+                var tally: [String: Int] = [:]
+                let failuresBefore = Self.routerFailureTally
+                for _ in 1...trials {
+                    let route = await routeIntent(prompt: probe.text, cell: cell)
+                    if route.needsDeviceTool == probe.expected { correct += 1 }
+                    tally[route.intent.rawValue, default: 0] += 1
+                }
+                Self.batteryEmit("router: [\(cell.rawValue)] baseline \(correct)/\(trials) expected=\(probe.expected) tally=\(tally) probe=\(probe.text)")
+                Self.batteryRecorder.recordProbe(
+                    probe: probe.text, expected: probe.expected, correct: correct, trials: trials,
+                    variant: cell.rawValue, band: "baseline",
+                    errors: Self.routerFailureTally - failuresBefore,
+                    intentTally: tally)
             }
-            Self.batteryEmit("router: baseline \(correct)/\(trials) expected=\(probe.expected) tally=\(tally) probe=\(probe.text)")
-            Self.batteryRecorder.recordProbe(
-                probe: probe.text, expected: probe.expected, correct: correct, trials: trials,
-                variant: "v2", band: "baseline",
-                errors: Self.routerFailureTally - failuresBefore,
-                intentTally: tally)
-        }
 
-        // 2. The intent grid, scored on the INTENT. `correct` counts the Bool
-        // so the record's shape stays uniform with every other probe row; the
-        // intent verdict is computed from `intentTally`, which carries the
-        // whole distribution rather than a ratio that cannot distinguish a
-        // safe miss from a dangerous one.
-        for row in grid {
-            var boolCorrect = 0
-            var tally: [String: Int] = [:]
-            let failuresBefore = Self.routerFailureTally
-            for _ in 1...trials {
-                let route = await routeIntent(prompt: row.text)
-                if route.needsDeviceTool == row.expectedArmed { boolCorrect += 1 }
-                tally[route.intent.rawValue, default: 0] += 1
+            // 2. The intent grid. Each row is scored against the expectation
+            // THIS cell could actually express: the narrow cells collapse the
+            // four added domains to `other` via `underNarrowVocabulary`, so a
+            // row is never marked wrong for failing to say a word the cell
+            // never offered.
+            for row in grid {
+                let want = cell.usesFullVocabulary ? row.expectedIntent
+                                                   : row.expectedIntent.underNarrowVocabulary
+                var boolCorrect = 0
+                var tally: [String: Int] = [:]
+                let failuresBefore = Self.routerFailureTally
+                for _ in 1...trials {
+                    let route = await routeIntent(prompt: row.text, cell: cell)
+                    if route.needsDeviceTool == row.expectedArmed { boolCorrect += 1 }
+                    tally[route.intent.rawValue, default: 0] += 1
+                }
+                let hits = tally[want.rawValue] ?? 0
+                Self.batteryEmit("router: [\(cell.rawValue)] intent \(hits)/\(trials) want=\(want.rawValue) armed=\(boolCorrect)/\(trials) tally=\(tally) probe=\(row.text)")
+                Self.batteryRecorder.recordProbe(
+                    probe: row.text, expected: row.expectedArmed, correct: boolCorrect, trials: trials,
+                    variant: cell.rawValue, band: "intent",
+                    errors: Self.routerFailureTally - failuresBefore,
+                    expectedIntent: want.rawValue, intentTally: tally)
             }
-            let hits = tally[row.expectedIntent.rawValue] ?? 0
-            Self.batteryEmit("router: intent \(hits)/\(trials) want=\(row.expectedIntent.rawValue) armed=\(boolCorrect)/\(trials) tally=\(tally) probe=\(row.text)")
-            Self.batteryRecorder.recordProbe(
-                probe: row.text, expected: row.expectedArmed, correct: boolCorrect, trials: trials,
-                variant: "v2", band: "intent",
-                errors: Self.routerFailureTally - failuresBefore,
-                expectedIntent: row.expectedIntent.rawValue, intentTally: tally)
         }
-        Self.batteryEmit("router: INTENT PROBE DONE (#217)")
+        Self.batteryEmit("router: INTENT PROBE DONE (#217B)")
         Self.batteryRecorder.endRun()
     }
 
