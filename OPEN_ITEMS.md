@@ -11893,6 +11893,54 @@ confirmed recompiled rather than assumed.
 consumer already sat in a DEBUG region, and it was verified with a Release build
 for that reason. That check is what found this.
 
+### THE GATE SHIPPED WITH A FALSE PASS, caught on its FIRST real run 2026-08-01
+
+Run against `main` immediately after merge, it printed **`GATE: PASS` while four
+UI tests had failed and `xcodebuild` had exited 65.**
+
+```
+MessageIdentityUITests.testTranscriptNeverRendersDuplicateMessageIDs()
+TalariaUITests.testDisconnectReturnsToStandaloneChat()
+TalariaUITests.testPairedRelaunchSkipsPairingEntry()
+TalariaUITestsLaunchTests.testLaunch()
+** TEST FAILED **
+```
+
+Three defects, and the first is the one worth remembering:
+
+1. **The "positive marker" was satisfiable by a no-op.** The XCUITest check
+   matched `Executed N tests, with 0 failures` — and **zero is a number.** An
+   empty sub-suite prints `Executed 0 tests, with 0 failures`, which matched.
+   **A success marker that nothing-happening satisfies is not a success marker.**
+2. It matched a string that occurs many times in a test log and passed on any one
+   of them, rather than the single authoritative verdict (`** TEST SUCCEEDED **`).
+3. It captured `xcodebuild`'s exit status and deliberately did not act on it.
+   "Do not trust exit status ALONE" is correct; "ignore it" is not.
+
+**The script was written to prevent absence-read-as-success and then committed the
+same error one level up.** The reason is specific and worth naming: it was tested
+against the failure I *expected* — the #218 Release break, which it caught — and
+not against a failure I had not imagined. **Testing a checker against the bug that
+motivated it proves only that it catches that bug.**
+
+**Fixed:** success now requires the authoritative marker **AND** exit 0 **AND** a
+count > 0; any explicit failure marker fails outright; failing test names print.
+Verified by replaying the exact log that produced the false PASS — the new logic
+rejects it four independent ways where the old logic passed it.
+
+**The four failures were a harness flake, not a product bug** — the same tree
+passed on re-run (1461 + 8, TEST SUCCEEDED, Release SUCCEEDED). Distinguishing
+feature, now taught by the script itself: the failing run had **no assertion text
+and no `.swift:NN: error:` line anywhere** — `testLaunch` passed, restarted, and
+the suite then reported zero tests. A real failure names an assertion; a dead
+runner marks everything failed silently. **This is NOT #164's mechanism** (that
+one is a bare `.exists` at `AppTemplateUITests.swift:209`), so it is not
+occurrence 5 of that item — it is a separate, less-characterised harness flake.
+
+**Standing instruction on a flake:** re-run ONCE and record BOTH runs. Do not
+re-run until green and report only the green one — that is how a real
+intermittent regression gets laundered into "passes on my machine."
+
 ### CLOSED 2026-08-01 — `scripts/mac/lane-gate.sh`
 
 One command, run before opening any PR: Debug suite (units + XCUITest) **plus a
