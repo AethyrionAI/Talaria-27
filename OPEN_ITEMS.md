@@ -11893,8 +11893,36 @@ confirmed recompiled rather than assumed.
 consumer already sat in a DEBUG region, and it was verified with a Release build
 for that reason. That check is what found this.
 
-**Still owed:** wire a Release build into the pre-merge gate. Until then it is a
-manual step and will be forgotten.
+### CLOSED 2026-08-01 — `scripts/mac/lane-gate.sh`
+
+One command, run before opening any PR: Debug suite (units + XCUITest) **plus a
+Release build**. Documented in `CLAUDE.md` (Build / tooling) and `CONTRIBUTING.md`.
+
+**It is verified to FAIL, which is the only interesting property of a gate.** The
+#218 bug was re-injected — the three promoted clauses wrapped back in `#if DEBUG` —
+and the gate returned `GATE: FAIL` with all three compile errors printed. Reverted,
+then `GATE: PASS` on the real tree (1461 tests / 117 suites, 8 UI, Release
+SUCCEEDED). A gate that has only ever been seen to pass is not known to work.
+
+**The design constraint, and it is this session's lesson made executable: every
+check passes only on a POSITIVE marker.** Absence of `BUILD FAILED` is not success
+— a build that dies early, a missing toolchain, or a log that never got written all
+produce a log containing no failure marker. The `require()` helper greps for the
+success string and treats an empty or missing log as FAIL. Do not "simplify" it
+into `! grep FAILED`; that is exactly the bug it was written against, the same
+shape as `ls-remote | grep || echo absent` reporting a branch gone that was never
+gone.
+
+**Not wired to CI, deliberately:** there is no CI in this repo, and the toolchain
+is a beta Xcode on one Mac. A hosted runner has no iOS 27 SDK. So the honest
+mechanism is a script a human or agent runs, named in the two files anyone reads
+before submitting — **not** a green badge that would have to lie about which
+toolchain it used. If a self-hosted runner ever exists, this script is what it
+should invoke.
+
+**Residual risk, stated rather than papered over:** nothing *forces* the gate to
+run. It is one command in the two documents that govern submissions, which is a
+large improvement on a rule that lived nowhere, but it is not enforcement.
 
 ## #198 — beta-4 deprecation sweep. 13 of 17 sites cleared; the remaining 8 are NOT mechanical.
 
