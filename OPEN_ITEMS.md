@@ -12045,6 +12045,42 @@ everything else reports the underlying description without inventing a cause.
 answered, and it answered it on the first run. The cause had been produced 40 times
 already and discarded 40 times.
 
+### BILLING HYPOTHESIS FALSIFIED 2026-07-31 — run `3E53397E`, card updated first
+
+Owen updated the expired card; the app was redeployed corded from `main`; the
+read-tool battery re-ran. **Still 40/40 failures.** The expired payment method was
+the only anomaly on an otherwise clean account — agreements both accepted (DPLA
+July 5 2026), WeatherKit capability enabled on `org.aethyrion.talaria27`, plan
+present with 500k quota and 0 used — and it was **not** the cause.
+
+**Remaining candidates, none yet distinguishable:** propagation delay from the card
+change, a service-side registration that never completed despite the capability
+being set, or something account-wide that a Talaria-only test cannot separate.
+**Next honest step is a minimal WeatherKit probe OUTSIDE Talaria** — if it fails
+there too, it is the account, not the app, and no amount of Talaria work will move
+it.
+
+### AND MY FIX BLINDED THE INSTRUMENT THAT DIAGNOSED IT
+
+The honest-failure rewrite made `currentWeather` return *"the weather service
+rejected this app's credentials"*. That string is what `relay.completed(result:)`
+captured — so the raw `WDSJWTAuthenticatorServiceListener` text went from **40
+occurrences in run `FA4947E7` to ZERO in run `3E53397E`**. The verification run
+could not have confirmed or refuted anything about the underlying error, because
+the fix for the USER had erased the record for the INSTRUMENT.
+
+**This is the fifth instance of today's recurring failure — something built
+quietly disabled the thing meant to check it — and the first one I committed
+AFTER cataloguing the other four.** Cataloguing a failure mode is not the same as
+being immune to it.
+
+**Fixed:** `lookup` now returns `(answer, diagnostic)`. The reply stays sanitised;
+`relay.completed(result:)` always carries the raw text. That divergence is correct
+by construction — the battery store is not a transcript (#197), so the constraint
+that forbids leaking internals to the user is exactly what LICENSES recording them
+here. **Any tool that sanitises its output must pass the unsanitised text to the
+recorder, or it silently unmakes #212.**
+
 **Why it went unnoticed:** no battery has ever called a READ tool (#209), so
 `currentWeather` had never been exercised end-to-end by any instrument. It may have
 been broken for a long time. The phone had network throughout — the same build
