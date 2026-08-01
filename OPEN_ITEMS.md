@@ -14206,10 +14206,33 @@ looks alive.
 
 `[SessionsHermesClient] listSessions: 'Mac Mini' unreachable — the App
 Transport Security policy requires the use of a secure connection.` An ATS
-rejection against the Mac Mini backend profile, which is odd given
-`project.yml` sets `NSAllowsArbitraryLoads`. Unrelated to any lane tonight and
-not chased. Possibly interacts with the standing note that ATS wants narrowing
-to `NSAllowsLocalNetworking` before submission.
+rejection against the Mac Mini backend profile. ~~Odd given `project.yml` sets
+`NSAllowsArbitraryLoads`.~~
+
+**PREMISE CORRECTED 2026-08-01 (external audit §6A) — and the rejection is
+fully explained, not odd.** `project.yml` has NOT set `NSAllowsArbitraryLoads`
+since **#166b (PR #138, 2026-07-23)**; it sets a range-scoped `NSExceptionDomains`
+entry keyed by the CGNAT CIDR `100.64.0.0/10`. Hosts **outside** that range get no
+exception at all, so a Mac Mini profile resolving to a LAN IP or a MagicDNS name
+is blocked by design. The follow-on suggestion — narrow to
+`NSAllowsLocalNetworking` — was **arm 2 of #166b's own four-arm on-device
+experiment and it BLOCKED tailnet traffic** (CGNAT is not "local" to ATS). It is
+falsified, not pending.
+
+**Where the wrong premise came from, which matters more than the note:** it was
+copied out of `CLAUDE.md`, which had carried the stale claim since #166b landed
+and is loaded into every session. Corrected there 2026-08-01. **The lesson is
+narrower than "verify claims" — it is that a summary of an artifact is not the
+artifact, and `project.yml` was one grep away.** Same family as this repo's
+standing "verify OJAMD against live state, never by text-matching a snapshot"
+rule; that rule just never got applied to our own config files.
+
+**The real open question this note was actually reporting — needs a decision, not
+a fix:** LAN-hosted backends (`http://192.168.x`, MagicDNS names) are ATS-blocked
+app-wide right now. Whether that is intended is Owen's call. If LAN backends
+should work, it needs its own exception and its own on-device arm — **not**
+`NSAllowsLocalNetworking` by assumption; #166b showed that key does not behave the
+way its name suggests, and the same experiment shape should decide this.
 
 Also seen at launch: `:8765/models` and `:8000/v1/commands` timed out while
 push/register to the same relay succeeded four seconds later — reads like a
