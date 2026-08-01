@@ -636,6 +636,27 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #217 intent-router probe: READ-ONLY, no tools registered, nothing
+    // created or reaped. Just classifications.
+    @ViewBuilder
+    private func intentRouterProbeButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runIntentRouterProbe(trials: trials)
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #211 follow-on: promoted vs promoted-plus-boundary. READ tools only.
     @ViewBuilder
     private func motionRedirectBatteryButton(trials: Int, label: String) -> some View {
@@ -1464,6 +1485,12 @@ struct DiagnosticsSettingsScreen: View {
                 // sends those turns toolless. 2 cells x 4 prompts x n + routes.
                 HStack(spacing: Design.Spacing.sm) {
                     routedScopedBatteryButton(trials: 10, label: "Routed-scoped n=10 (80+40)")
+                }
+                // #217 CAN the model classify intent safely enough to drive a
+                // belt? 10 baseline rows (regression gate) + 16 intent rows.
+                // No tools, no artifacts — classifications only.
+                HStack(spacing: Design.Spacing.sm) {
+                    intentRouterProbeButton(trials: 10, label: "Intent router n=10 (260)")
                 }
                 // #211 follow-on: promoted vs promoted-plus-boundary, against
                 // the extra-tool chaining the promotion cost.

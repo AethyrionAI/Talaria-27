@@ -759,9 +759,92 @@ def call_economy_report(run):
     print()
 
 
+# #217 pre-registered bars.
+INTENT_BASELINE_GATE = 0.95   # V2's Bool must not cost the 200/200 history
+INTENT_ACCURACY = 0.90        # scoped intents answered correctly
+INTENT_DANGEROUS_MAX = 0.02   # the bar the design lives or dies on
+INTENT_OTHER_ACCURACY = 0.90  # out-of-vocabulary rows must answer `other`
+
+
+def intent_report(run):
+    """#217: can the model classify intent safely enough to drive a belt?
+
+    The load-bearing distinction, and the reason a correct/trials ratio cannot
+    answer this lane: a wrong answer is not one thing.
+
+      * `other` where a scoped intent was right is a MISS. It arms the FULL
+        belt — exactly what production does today — so it costs the scoping
+        prize and nothing else.
+      * a scoped intent that is the WRONG scoped intent, or any scoped intent on
+        a row whose right answer is `other`, is DANGEROUS. It arms a belt
+        missing the tool the turn needs, which is strictly worse than arming
+        everything.
+
+    Those two produce identical `correct/trials` numbers and opposite verdicts,
+    which is why `intentTally` records the whole distribution."""
+    probes = [p for p in (run.get("probes") or []) if p.get("intentTally")]
+    if not probes:
+        return
+    print("=== intent router (#217)")
+
+    base = [p for p in probes if p.get("band") == "baseline"]
+    if base:
+        c = sum(p["correct"] for p in base)
+        t = sum(p["trials"] for p in base)
+        acc = c / t if t else 0.0
+        ok = acc >= INTENT_BASELINE_GATE
+        print(f"  GATE  Bool accuracy on the pinned ten: {acc:.1%} ({c}/{t}) — "
+              f"{'HOLDS' if ok else 'DEGRADED — the second field cost the Bool; STOP, nothing below matters'}")
+
+    grid = [p for p in probes if p.get("band") == "intent"]
+    if not grid:
+        print()
+        return
+
+    scoped_rows = [p for p in grid if p.get("expectedIntent") != "other"]
+    other_rows = [p for p in grid if p.get("expectedIntent") == "other"]
+
+    hits = dangerous = misses = 0
+    print("  rows (want / answered)")
+    for p in sorted(grid, key=lambda q: q.get("expectedIntent") or ""):
+        want = p.get("expectedIntent")
+        tally = p["intentTally"]
+        h = tally.get(want, 0)
+        # Dangerous = any SCOPED answer that is not the wanted one.
+        d = sum(n for k, n in tally.items() if k != want and k != "other")
+        m = tally.get("other", 0) if want != "other" else 0
+        hits += h
+        dangerous += d
+        misses += m
+        flag = "  !! DANGEROUS" if d else ""
+        print(f"    [{want:<8}] {h}/{p['trials']}  {tally}{flag}  {p['probe'][:44]}")
+
+    total = sum(p["trials"] for p in grid)
+    scoped_total = sum(p["trials"] for p in scoped_rows)
+    scoped_hits = sum(p["intentTally"].get(p["expectedIntent"], 0) for p in scoped_rows)
+    other_total = sum(p["trials"] for p in other_rows)
+    other_hits = sum(p["intentTally"].get("other", 0) for p in other_rows)
+
+    print("\n  bars (pre-registered in OPEN_ITEMS #217)")
+    a = scoped_hits / scoped_total if scoped_total else 0.0
+    print(f"    A  scoped-intent accuracy {a:.1%} ({scoped_hits}/{scoped_total})"
+          f" — {'PASS' if a >= INTENT_ACCURACY else 'FAIL'} (bar {INTENT_ACCURACY:.0%})")
+    dr = dangerous / total if total else 0.0
+    print(f"    B  DANGEROUS answers {dr:.1%} ({dangerous}/{total})"
+          f" — {'PASS' if dr <= INTENT_DANGEROUS_MAX else 'FAIL — the design does not survive this'}"
+          f" (bar <={INTENT_DANGEROUS_MAX:.0%})")
+    o = other_hits / other_total if other_total else 0.0
+    print(f"    C  out-of-vocabulary rows answered `other` {o:.1%} ({other_hits}/{other_total})"
+          f" — {'PASS' if o >= INTENT_OTHER_ACCURACY else 'FAIL'} (bar {INTENT_OTHER_ACCURACY:.0%})")
+    print(f"    (safe misses — `other` where a scoped intent was right: {misses}."
+          f" These cost the prize, not correctness.)")
+    print()
+
+
 def main(path):
     run = json.load(open(path))
     call_economy_report(run)
+    intent_report(run)
     error_taxonomy_report(run)
     tool_result_report(run)
     probe_error_report(run)
