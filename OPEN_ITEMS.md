@@ -1025,7 +1025,9 @@ purely cosmetic and non-interactive — tapping them did nothing. Removed from
 
 Fixed 2026-06-25.
 
-## 27. 📝 Developer screen flags — keep Verbose Logging, drop Mock Responses
+## 27. ✅ Developer screen flags — keep Verbose Logging, drop Mock Responses
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Resolved 2026-06-27 — Verbose Logging shipped and wired; Mock Responses dropped.
 
 From the Claude Design DEVELOPER (12) mockup `// FLAGS` panel. Decision (Owen, 2026-06-26):
 
@@ -1608,7 +1610,9 @@ Discovered 07-02, bit us immediately. After delete+reinstall the app came back a
 
 ---
 
-## 47. ⏸️ Configure OpenAI Realtime talk on the Hermes host — key/config deployed + confirmed minting on OJAMD 2026-07-08, then PARKED behind the unrelated #82 audio-capture wedge
+## 47. ✅ Configure OpenAI Realtime talk on the Hermes host — key/config deployed + confirmed minting on OJAMD 2026-07-08, then PARKED behind the unrelated #82 audio-capture wedge
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Core ask DONE and in daily use — #82's wedge cleared (PR #106, device-confirmed 2026-07-16); realtime live on OJAMD since 07-20. **Residual UNFILED and needs Owen: the billing-cap decision.** CarPlay E2E lives at #45/#74.
 
 > **Audit 2026-07-13:** Re-verified independently. The connector fix code described in the 2026-07-05 note (tolerant state/secrets deserialization, `realtime_talk.enabled` flat/nested/dotted resolution, API-key fallback secrets→env→`.env`, stale-error auto-clear) is confirmed present in `connector/src/hermes_mobile_connector/state.py` (~L150-167) and `client.py` (~L517-593) on current main. Item #82's OJAMD relay-log evidence (2026-07-08, 00:55-01:04 UTC) shows `talk/readiness` 200 → `POST /v1/talk/session` 200 → a minted realtime session (`sess_…`, `last_error: None`) — per `client.py:_rpc_talk_session_create`, a mint is only reachable when both `realtime_talk_enabled` and a resolved API key are true, so this is direct proof the configure-ask was deployed and working on OJAMD. Item #85 (also OJAMD-log-sourced, 2026-07-08: "every voice session logged mcp_list_tools.failed") independently corroborates that Realtime sessions were minting in volume around that date. Voice then failed end-to-end for the unrelated device-level audio-capture-stack wedge (item #82), and Owen explicitly **PARKED voice 2026-07-09** ("voice is optional; CarPlay voice inherits this when resumed"), which also shelves this item's two remaining sub-tasks (billing cap: moot while parked; CarPlay E2E: independently gated on Apple's discretionary entitlement per item #45). Correction to the record: this item's own citation of connector fixes on branch `claude/issue-7-hermes-config-08bsbm` traces to commit `8ca7741` ("PR #71" in the old pre-fork `ChronoRixun/Talaria` tracker, not this repo's current PR numbering) — that exact SHA is **not** an ancestor of current `origin/main` (main was re-rooted at orphan commit `9964f02` on 2026-07-10, which already carries the fix forward as part of a full-repo snapshot). The fix's presence on main is established by working-tree file content, not commit ancestry.
 
@@ -1660,7 +1664,9 @@ Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully rep
 
 **Acceptance:** Appearance shows no `// Accent` row while Terminal is selected; selecting Terminal always renders Phosphor Green regardless of the stored slot; switching away restores the prior accent; `DesignThemeTests` still green (Deep Field × cyan pixel-identity untouched). Small follow-up to #49; lives on the same theming branch.
 
-## 51. 🔧 CLI `build-for-testing` can't resolve TalariaTests' test host — blocks CLI test-compilation validation
+## 51. ✅ CLI `build-for-testing` can't resolve TalariaTests' test host — blocks CLI test-compilation validation
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Commit `450ed1e`; `project.yml` carries explicit TEST_HOST/BUNDLE_LOADER; build-for-testing + test-without-building green 2026-08-01.
 
 > **Audit 2026-07-13:** Downgraded from a first-pass 'RESOLVED' flip to stale-wording after adversarial re-check. `project.yml:305-311` on main DOES now carry an explicit `TEST_HOST`/`BUNDLE_LOADER` override with a comment naming the exact PRODUCT_NAME-has-a-space bug this item diagnosed — but no one has re-run `xcodebuild build-for-testing` to confirm the 'could not find test host' error is actually gone (no PR/issue/commit/dated note records it), and sibling #52 scheme-drift is still open. Stays 🔧, not ✅. The 'Next:' paragraph is stale — `project.yml` no longer relies on xcodegen auto-derivation; it has an explicit override to verify against a real Mac `build-for-testing` run.
 
@@ -1670,7 +1676,9 @@ Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully rep
 
 **Next:** inspect the generated `TalariaTests` build settings (actual TEST_HOST/BUNDLE_LOADER values) and whether the app target is built as a dependency of the test action; compare against a known-good xcodegen unit-test setup. Until fixed, PR reviews use the app-build + diff bar and Owen runs the suite in Xcode.
 
-## 52. 🔧 Committed `Talaria.xcscheme` is stale vs `xcodegen generate`
+## 52. ✅ Committed `Talaria.xcscheme` is stale vs `xcodegen generate`
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Commit `3090c00` committed xcodegen's canonical scheme; later regens commit it as practice (`8902d2e`).
 
 **Found 2026-07-04** (Mac). On clean `main`, `xcodegen generate` rewrites `Talaria.xcodeproj/xcshareddata/xcschemes/Talaria.xcscheme` (the pbxproj itself was already current), so the committed scheme has drifted from `project.yml`. Minor hygiene; did not resolve #51. **Fix:** regenerate and commit the scheme (or fold into the standing post-checkout xcodegen step), file-scoped.
 
@@ -2400,7 +2408,9 @@ collapses to a generated one-liner on AI hardware, last raw line otherwise.
   skipped when `utf8.count <= budget` (every token ≥ 1 byte); fallback card computed
   lazily off the happy path.
 
-## 62. 🔧 Wave 4 — stale test expectations fixed (GitHub #13 → PR #20)
+## 62. ✅ Wave 4 — stale test expectations fixed (GitHub #13 → PR #20)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** PR #20 merged. Suite has moved 163 → 1463 tests since.
 
 Test-only surgical pass, per the issue: `permissionTypeHasDistinctColorsAndIcons`
 now asserts icon uniqueness against `PermissionType.allCases.count` (the enum
@@ -2555,7 +2565,9 @@ routing doesn't need it (same as the #7 controls); external openers would.
 Fast-follow (own issue): View Annotations on `MessageBubble`/`ChatScreen` +
 entity ids on the finished-notification.
 
-## 67. 🔧 Wave 4.5 — LocalChatBackend: on-device chat brain (GitHub #26)
+## 67. ✅ Wave 4.5 — LocalChatBackend: on-device chat brain (GitHub #26)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** PR #32 merged — the brain it built IS the production brain, exercised by months of device batteries.
 
 > **Audit 2026-07-13:** PR #32 merged (PR_INDEX; LocalChatBackend.swift + LocalChatBackendTests.swift present on main), and the router it was gated behind (#27) also merged as PR #33 — so the 'compile-check against the installed 27-beta SDK' clause is stale and the 'after #27 lands' gate is already satisfied. Remaining work is only the device checklist (airplane-mode local answer, kill/relaunch context continuity, Apple Intelligence off state, no SessionsHermesClient regression); keep 🔧.
 
@@ -2590,7 +2602,9 @@ configured → streamed answer in MessageBubble + read-aloud; kill/relaunch →
 conversation continues with context; Apple Intelligence off → honest
 unavailable state; no SessionsHermesClient regression.
 
-## 68. 🔧 Wave 4.5 — ChatBackendRouter: two brains, one seam (GitHub #27)
+## 68. ✅ Wave 4.5 — ChatBackendRouter: two brains, one seam (GitHub #27)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** PR #33 merged; routing truth is covered by the #190–#192 arc.
 
 > **Audit 2026-07-13:** PR #33 (GitHub #27) confirmed merged to main; ChatBackendRouter.swift + ChatBackendRouterTests.swift present at HEAD cca1345. Per MAIN_LOG (373f65d backlog listing, f35edb9 verification results) item #68 was NOT among the #69/#70/#92 items verified on 2026-07-11, so 🔧 and the device checklist / Questions for Owen correctly stand open. Correction: 'Needs Mac: compile + device' is stale on the compile half — the merge already required a successful build; only the device-verification pass and the two open product decisions remain owed.
 
@@ -2790,7 +2804,9 @@ the offer; accepting continues with condensed handover; forced rate limit
 degrades on-device with notice, no crash, no fabrication; add the
 entitlement to project.yml (surgical commit) only once Apple grants it.
 
-## 73. 🔧 Wave 5 — native fallback voice mode: SpeechAnalyzer → active backend → AVSpeechSynthesizer (GitHub #18)
+## 73. ✅ Wave 5 — native fallback voice mode: SpeechAnalyzer → active backend → AVSpeechSynthesizer (GitHub #18)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** PR #39 merged; echo/barge-in residuals live at #130 and #138.
 
 > **Audit 2026-07-13:** PR #39 (`claude/w5-18-native-voice`→main, merged) and GitHub #18 (closed) confirm this landed; `Talaria/Services/Live/NativeVoicePipelineService.swift`, `Talaria/Services/Support/VoiceEngineRouter.swift`, and `TalariaTests/NativeVoicePipelineTests.swift` are present on main. The 'BUILT IN CLOUD, not compiled or device-verified' and 'Needs Mac: xcodegen generate...' wording is stale (merge already implies xcodegen+build+test); the real remaining work is the on-device checklist (mic→transcription→chat brain→TTS loop, echo cancellation, relay-down/airplane-mode path) — keep emoji 🔧 as merged-unverified.
 
@@ -3504,7 +3520,9 @@ Logged 2026-07-09.
 
 ---
 
-## 86. 🔧 Relay QueuePool exhaustion — session-across-await audit + pool hygiene — DEPLOYED on OJAMD (verified 2026-07-25); pool ceiling untouched
+## 86. ✅ Relay QueuePool exhaustion — session-across-await audit + pool hygiene — DEPLOYED on OJAMD (verified 2026-07-25); pool ceiling untouched
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** DEPLOYED on OJAMD, verified 2026-07-25. Pool ceiling deliberately untouched.
 
 > **CORRECTION 2026-07-25 (OJAMD server pass).** "OJAMD deploy owed" was stale.
 > `pool_pre_ping` and `pool_recycle` are deployed and live, verified the same way
@@ -3820,7 +3838,9 @@ Logged 2026-07-10.
 
 Logged 2026-07-11.
 
-## 95. 👀 WATCH — credential-staleness fix set, verify across future reboots
+## 95. ✅ WATCH — credential-staleness fix set, verify across future reboots
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** WATCH silent across three weeks and multiple reboots — closed by time, per the audit's recommendation.
 
 The 2026-07-10/11 "random unpair" saga resolved into three fixed defects + one edge (#94): BGTask handler isolation trap (PR #67), keychain `WhenUnlocked` accessibility (PR #68), voice restart race/lockup (PR #68), pre-first-unlock zombie-process staleness (PR #69 — reload on `protectedDataDidBecomeAvailable` + `didBecomeActive`, gates on `isProtectedDataAvailable`). Verified 2026-07-11: reboot → unlock → open app WITHOUT force-quit → pairing + API key + relay URL all present. Watch the next several organic reboots (and the next Apple seed) for any recurrence; if credentials ever vanish again, pull the launch story via the protected-data log lines before touching anything.
 
@@ -3996,7 +4016,9 @@ Observed on device 2026-07-11: health uploads constantly failing, ~2,000 pending
 
 Logged 2026-07-11.
 
-## 104. 🔧 Sensor outbox persistence churn — full rewrite on every tick, main actor, unbounded backlog
+## 104. ✅ Sensor outbox persistence churn — full rewrite on every tick, main actor, unbounded backlog
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** PR #85 merged; the DRAINING follow-up it waited on is #117's PR #103, merged.
 
 > **MERGED 2026-07-13 as PR #85 (`93e0222`)** + xcodegen registration `e903cb2` — discovered 2026-07-16 via the same dead-dispatch incident as #110. **Follow-up in flight (2026-07-16):** Fable, re-reviewing against this spec, found a real bug in the DRAINING path and is building the fix now — PR expected; loop it on arrival. Device verify owed for both.
 
@@ -4177,7 +4199,9 @@ cross-references (spec, runbook, env template, scripts, CLAUDE.md) were renumber
 
 Logged 2026-07-12.
 
-## 108. 🔧 iPad support — universal foundation + native split view (Lane J)
+## 108. ✅ iPad support — universal foundation + native split view (Lane J)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Lane J PRs 1+2 merged. The iPad pass's failure was PAIRING, not Lane J; multi-window lives at #109.
 
 > **iPad pass 2026-07-13 (eve): NOT a Lane J defect.** The M3 iPad ran the local brain (on-device AI, no network) but could NOT switch to Hermes. Root cause: pairing configures the RELAY plane, but the Hermes switch is gated on `isHermesConfigured` — the Sessions-API key, a separate plane the pairing QR doesn't carry — so the picker offered Hermes yet the switch silently stayed on-device. Fix: enter the API key on the iPad (Settings → Uplink), plus a UX nudge on `claude/t27-hermes-switch-nudge` (ef5dbd9) that surfaces 'paired — add your key in Uplink' instead of a silent lock. Lane J UI matrix (resize / keyboard / Stage Manager / column transparency) still owed.
 
@@ -4232,7 +4256,9 @@ Only reachable when a breaker trip and auto read-aloud coincide, so low urgency 
 
 Logged 2026-07-13 (Mac session, Lane H merge train).
 
-## 111. 🐛 PCC availability check churns doomed ModelManager sessions on every UI tick (#30 follow-up)
+## 111. ✅ PCC availability check churns doomed ModelManager sessions on every UI tick (#30 follow-up)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Closed by the #72 stopgap (PR #104, 2026-07-16) — `pccGrantConfirmed` short-circuits all four PCC surfaces.
 
 > **MERGED 2026-07-16 as PR #104 (`bf36d29`).** The `pccGrantConfirmed` master gate short-circuits all four PCC surfaces before `PrivateCloudComputeLanguageModel` is ever constructed — no construction, no XPC churn. Branch-base suite 582/49 green; post-merge full-suite validation on main run same day. → ✅ on the next device build (verify the ModelManager flood is gone from the console). The memoize fix stays deferred until the PCC entitlement lands — when it does, flip the gate and re-verify.
 
@@ -5979,7 +6005,9 @@ deserves a full sweep — other rows likely stale too.
 
 ---
 
-## 141. 👀 iOS 27 beta 4 seed — released 2026-07-20; whoGoesThere updating tonight (watch list)
+## 141. ✅ iOS 27 beta 4 seed — released 2026-07-20; whoGoesThere updating tonight (watch list)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Transition COMPLETE 2026-07-20. Beta 4 is now the standing toolchain; the watch served its purpose.
 
 **Environmental event, logged for attribution discipline.** Owen updates the device tonight;
 remaining launch-pass sweep sessions (C, S, D, J circle-backs) will run on b4, so the OS delta
@@ -6371,7 +6399,9 @@ the simulator.
 
 Logged 2026-07-20.
 
-## 146. 🐛 Diagnostics push row stuck on TOKEN HELD · AWAITING RELAY — CONFIRMED display desync 2026-07-20 (push delivered while row stuck); fix = kill the dual bookkeeping
+## 146. ✅ Diagnostics push row stuck on TOKEN HELD · AWAITING RELAY — CONFIRMED display desync 2026-07-20 (push delivered while row stuck); fix = kill the dual bookkeeping
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Bundle B Part A fixed on merged PR #144 — `pushTokenRegistered` is derived. Device check queued as device-list §F1.
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
@@ -6969,7 +6999,9 @@ Source-confirm owed (next Mac shell): how are hosts stored today — single host
 
 Logged 2026-07-20.
 
-## 154. 🧹 Dead `#available(iOS …)` guards after the deployment-floor bump to 27.0
+## 154. ✅ Dead `#available(iOS …)` guards after the deployment-floor bump to 27.0
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Bundle B Part D done (PR #144). Verified in tree: ZERO live non-27 `#available` guards remain.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`** (bundled with #146, #174, #175 — PART D, CONFIRM-FIRST, and note the masked-test trap). Do not re-spec; check merge state before sending.
 
@@ -7457,7 +7489,9 @@ Process note: this lane was landed end-to-end without Desktop Commander (mid-ses
 
 Logged 2026-07-22.
 
-## 168. 🐛 Skills picker "EDIT AS TEXT" is a one-way door + the picker never recovers after a cold-offline launch (device-found 2026-07-22)
+## 168. ✅ Skills picker "EDIT AS TEXT" is a one-way door + the picker never recovers after a cold-offline launch (device-found 2026-07-22)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Device checks 2026-07-23 — ALL THREE PASS.
 
 **Device re-checks 2026-07-23: ALL THREE PASS** (whoGoesThere, build off `324689b`).
 1. **PASS — and this closes #171's stranded assertion.** EDIT LIST AS TEXT -> typed value ->
@@ -7510,7 +7544,9 @@ Logged 2026-07-22.
 
 **Device re-checks owed:** (1) tap EDIT LIST AS TEXT → type an unknown value → USE PICKER → confirm it is pinned at the top as a `(custom)` row **(this is #171's owed #163 assertion — re-run it here)**; (2) with no host list, confirm no USE PICKER appears; (3) airplane-mode open the sheet, restore connectivity, tap RETRY, confirm the field becomes a picker without dismissing.
 
-## 169. 🎨 Insights EST COST caveat reads as scoping the whole totals card (device-found 2026-07-22)
+## 169. ✅ Insights EST COST caveat reads as scoping the whole totals card (device-found 2026-07-22)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Device check 2026-07-23 — PASS.
 
 **Device check 2026-07-23: PASS.** EST COST renders as its own card, clearly separate from the
 totals card, and the caveat now reads as scoping cost alone — token and session totals no longer
@@ -7679,7 +7715,9 @@ Two process notes worth keeping: (1) verifying host-side rather than trusting th
 
 Logged 2026-07-22.
 
-## 172. 🐛 The DELIVER picker has #168a's one-way door too — found while fixing #168, deliberately NOT fixed there
+## 172. ✅ The DELIVER picker has #168a's one-way door too — found while fixing #168, deliberately NOT fixed there
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Fixed on merged Bundle A; third-instance audit clean — `useFreeText` has zero live hits.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-A-178a-172-61-137.md`** (bundled with #178a, #61, #137). Do not re-spec; check merge state before sending.
 
@@ -7735,7 +7773,9 @@ it cannot verify.
 
 Logged 2026-07-23.
 
-## 174. 🔧 Attachment payloads inline at full size — 233-472 KB of base64 in one JSON body, no downscaling
+## 174. ✅ Attachment payloads inline at full size — 233-472 KB of base64 in one JSON body, no downscaling
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Bundle B Part B fixed — 1.77× payload reduction, `AttachmentDownscaleTests`. Chunking declared out of scope by the item itself.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`** (bundled with #146, #175, #154 — PART B, payload size only; chunking and progress affordance explicitly OUT). Do not re-spec; check merge state before sending.
 
@@ -7766,7 +7806,9 @@ vision models gain nothing from full-resolution phone camera output.
 
 Logged 2026-07-23.
 
-## 175. 🧹 Idle chattiness — `/v1/models` polled 6x and the session list 3x inside ~1 minute of idle
+## 175. ✅ Idle chattiness — `/v1/models` polled 6x and the session list 3x inside ~1 minute of idle
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Bundle B Part C fixed (PR #144) — `ChatHealthPollPolicy` relaxes 10s→30s.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`** (bundled with #146, #174, #154 — PART C, CONFIRM-FIRST: mechanism is not yet established). Do not re-spec; check merge state before sending.
 
@@ -7794,7 +7836,9 @@ observer firing per view-appearance. Not yet investigated — logged from wire e
 Logged 2026-07-23.
 
 
-## 176. 🐛 On-device model fires `readImageText` on a text-only prompt with no image present
+## 176. ✅ On-device model fires `readImageText` on a text-only prompt with no image present
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Became the entire #194/#196/#200 measurement program. Production is armed-routed (#215: 10/10 clean, 0 grabs). **Live over-serving work continues at #200.**
 
 > **WIDENED 2026-07-25/26 — the reflex is unconditional, not vision-specific.**
 > On-device, **every** turn routes to a tool, including turns no tool can serve:
@@ -7948,7 +7992,9 @@ as broken even though the app is behaving correctly.
 Logged 2026-07-23.
 
 
-## 178. 🧹 Build-warning inventory — 21 warnings, one of which FAILS App Store validation
+## 178. ✅ Build-warning inventory — 21 warnings, one of which FAILS App Store validation
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Both halves covered — 178a fixed in Bundle A; the deprecation debt is what #198's sweep cleared.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-A-178a-172-61-137.md`** (bundled with #172, #61, #137 — this item's PART A is the CFBundleShortVersionString launch blocker only; the deprecation debt is NOT in scope). Do not re-spec; check merge state before sending.
 
@@ -8613,7 +8659,9 @@ Logged 2026-07-25.
 
 ---
 
-## 189. 🐛 SHIP BLOCKER — notifications are never authorized on a fresh install, and the panel reports a false green
+## 189. 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152); fresh-install device verification owed *(was filed as SHIP BLOCKER)*
+
+> **RE-FRAMED 2026-08-01 (Hermes audit Part 1B).** Priming fires on every dispatched send (`e1aa70a`) and the panel reads real `UNAuthorizationStatus` (`4fb4abe`, `02d1b51`) — all on main. What remains is the fresh-install device check, queued as device-list §F3. It is the last blocker-SHAPED verification, which is not the same thing as a blocker.
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F3**, written as a
@@ -8665,7 +8713,9 @@ Logged 2026-07-25.
 
 ---
 
-## 190. 🐛 SHIP BLOCKER — standalone sessions are a single slot at every layer; "New" destroys all prior local history
+## 190. 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151); two unexercised checks owed *(was filed as SHIP BLOCKER)*
+
+> **RE-FRAMED 2026-08-01 (Hermes audit Part 1B).** The gate CLEARED 2026-07-27 and the 07-26 FAIL was re-verified passing; the header outlived the fix. Exactly two checks were never exercised — read-aloud stop on session switch, and the failure banner. Both queued as device-list §F2.
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F2**, written as a
@@ -9006,7 +9056,9 @@ Logged 2026-07-25.
 > choice for something that re-homes the app). Zero `confirmationDialog` uses remain in
 > app code. Device verification owed.
 
-## 194. 🐛 On-device brain refuses creative generation, reciting its tool belt — tool fixation
+## 194. ✅ On-device brain refuses creative generation, reciting its tool belt — tool fixation
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Commit `7bbcd4b` — enumeration convicted; PR #157 merged; production armed IS noprose. Residual tic re-filed as #196.
 
 **Observed 2026-07-27, whoGoesThere, AIRPLANE MODE (ground truth: genuinely local).**
 Reproduced 4×: "Write a poem about spring", "Write a sonnet about spring", bare "Write me a
@@ -9110,7 +9162,9 @@ green at 1235/109 (delta exactly the 4 new tests).
 
 Logged 2026-07-27.
 
-## 195. 🔧 MessageIdentityUITests — typeText keyboard race renders the test flaky
+## 195. ✅ MessageIdentityUITests — typeText keyboard race renders the test flaky
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** FIXED 2026-07-27, 3/3 iterations green.
 
 **Observed 2026-07-27, Mac Mini, pinned sim, during PR #156 verification.** The suite failed
 twice (full run + isolated re-run) on `testTranscriptNeverRendersDuplicateMessageIDs`:
@@ -9136,7 +9190,9 @@ evidence not applicable (sim-only UI test). CLOSED.
 
 Logged 2026-07-27.
 
-## 196. 🐛 On-device disclaimer tic — replies open "I can't do X, but…" then do X in full
+## 196. ✅ On-device disclaimer tic — replies open "I can't do X, but…" then do X in full
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Commit `b644bf4` (2026-07-28) titled '#196 CLOSED — stack merged'; all four PRs merged.
 
 **Observed 2026-07-27 device A/B (armed-noprose cell, now production armed post-#157).** With
 #194's suppressor removed and content delivery fully restored, every creative/factual reply
@@ -9410,7 +9466,9 @@ score a THIRD axis (tool chip present on a non-tool ask) alongside content/prefa
 
 Logged 2026-07-27.
 
-## 198. 🧹 Beta-4 SDK deprecation sweep — ~20 warnings, 6 clusters
+## 198. ✅ Beta-4 SDK deprecation sweep — ~20 warnings, 6 clusters
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** The beta-4 deprecation sweep is DONE — all three structural clusters migrated and the 2026-08-01 device pass PASSED. **Residual probes are device-list A1/A2/E1.** The header's '~20 warnings, 6 clusters' count is superseded by the per-cluster counts inside.
 
 Filed from the 2026-07-27 evening sweep (cluster enumeration lives in
 `planning/HANDOFF-2026-07-27-EVENING.md`; representative: the
@@ -9422,7 +9480,9 @@ unrouted.
 
 Logged 2026-07-28.
 
-## 199. 🐛 On-device brain fabricates a COMPLETED ACTION after a declined confirmation
+## 199. ✅ On-device brain fabricates a COMPLETED ACTION after a declined confirmation
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Verdict filed — disease confined to grabs, intended-create path clean. **The false-attribution family it surfaced is now lane #199A.**
 
 Observed battery 2 (2026-07-27, build `686d2e2`, cell `armed`, haiku t=11): the
 confirmation gate auto-declined `createReminder`, and the reply then claimed Ive
@@ -11388,7 +11448,9 @@ rate.
 is concluded about it either way; the wedge is intermittent and the timeout stays
 in place as insurance.
 
-## #202 — the turn router is CONTEXT-BLIND: short affirmatives misroute toolless, and that is the original #200 denial
+## #202 — ✅ the turn router is CONTEXT-BLIND: short affirmatives misroute toolless, and that is the original #200 denial
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Route + honesty shipped together (PR #192, merged 07-30). Residuals: device-list C2 and lane #205E.
 
 **Filed 2026-07-30 from Hermes's OI-#200 audit (F1), verified line-by-line in the
 tree before filing. This is the mechanism for #200's own filing specimen #2, which
@@ -12064,7 +12126,9 @@ and record whether any conclusion changes. **A conclusion that survives the
 re-read is stronger than one that was never re-read** — and if one does not
 survive, it is better found here than in a promotion.
 
-## #218 — `main` DID NOT BUILD IN RELEASE for two days, and every check we run is blind to it. FIXED 2026-08-01.
+## #218 — ✅ `main` DID NOT BUILD IN RELEASE for two days, and every check we run is blind to it. FIXED 2026-08-01.
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** FIXED 2026-08-01 and closed out — `scripts/mac/lane-gate.sh`, verified to FAIL as well as pass.
 
 *(OPEN_ITEMS #218. **Not** GitHub PR #218, which was the same day's documentation
 lane — the sequences are separate and collided here.)*
@@ -12228,7 +12292,9 @@ should invoke.
 run. It is one command in the two documents that govern submissions, which is a
 large improvement on a rule that lived nowhere, but it is not enforcement.
 
-## #198 — beta-4 deprecation sweep. 13 of 17 sites cleared; the remaining 8 are NOT mechanical.
+## #198 — ✅ beta-4 deprecation sweep. 13 of 17 sites cleared; the remaining 8 are NOT mechanical.
+
+> **CLOSED 2026-08-01** — duplicate entry for this item; the evidence is on the other `## 198` header. Two headers exist because the file's numbering convention changed mid-project (`## N.` → `## #N —`) and this item has one of each.
 
 **STARTED 2026-07-31 after the Hermes audit named it the highest-severity unrouted
 item. Clean-build inventory: 17 distinct sites, 10 symbols, 6 files.**
@@ -12360,7 +12426,9 @@ signature", and it is now a tractable lane rather than a hazard.
 `AVAudioSessionResumptionRecommendation` exists at `AVAudioSession.h:612` as
 described. Not disproven; still a structural rewrite.
 
-## #217 — CAN this model classify intent safely enough to drive a belt? A probe, not a belt lane.
+## #217 — ✅ CAN this model classify intent safely enough to drive a belt? A probe, not a belt lane.
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** ABANDONED per pre-registration; single-Bool follow-up PARKED at Owen's direction. Owed: nothing.
 
 **FILED 2026-08-01, bars written first. NO production change — `ToolIntentRoute`
 is untouched and nothing narrows any belt. Owen routes the run.**
@@ -12652,7 +12720,9 @@ reads as a live blocker.
 grid stay as DEBUG-only measured artifacts — the record of a falsified approach,
 which is worth more than a deletion.
 
-## #216 — the narrow belt, re-tried where it cannot lose. #214's closure was right about the evidence and wrong about the world.
+## #216 — ✅ the narrow belt, re-tried where it cannot lose. #214's closure was right about the evidence and wrong about the world.
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Verdict filed 2026-08-01. Intent-router lane ran and was abandoned (#217). **Owed re-read is now lane #216A.**
 
 **FILED 2026-08-01, bars written first. No production change — `routed-scoped` is
 a measured cell. Owen routes the run and any promotion.**
@@ -12814,7 +12884,9 @@ belt, which is strictly worse than today's full belt. Matched-thermal replicatio
 of these latencies. And a re-read of #200F/#214's grab results in light of the
 substitution finding.
 
-## #215 — THE MISSING DENOMINATOR: the action battery has never routed, so no number it has ever produced describes the shipped app.
+## #215 — ✅ THE MISSING DENOMINATOR: the action battery has never routed, so no number it has ever produced describes the shipped app.
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Verdict filed 2026-08-01, all four bars pass. Matched-thermal replication is device-list C4.
 
 **FILED 2026-07-31, bars written first. No production change — `routed-production`
 is a measured cell. Owen routes the run and any promotion.**
@@ -13018,7 +13090,9 @@ carry. **Those canary rows are the ones whose rates are not production rates** �
 not the wrappers wholesale. The standing rule is in `CLAUDE.md` under
 "Measurement discipline."
 
-## #214 — THE STRUCTURAL LANE: narrow belt CLOSED. Composition licensing falsified; the disease is partly an instrument property.
+## #214 — ✅ THE STRUCTURAL LANE: narrow belt CLOSED. Composition licensing falsified; the disease is partly an instrument property.
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** VERDICT FILED 2026-07-31 — narrow belt CLOSED, answered in both directions.
 
 **FILED 2026-07-31. Dispatch `dispatch/OPUS-T27-214-scopedv2.md`, bars written
 first. No production change — `armed-scopedv2` is a measured cell.**
@@ -13128,7 +13202,9 @@ clause. Fails A ⇒ belt size is not the mechanism, #200F's 0/10 was
 baseline-specific, and the over-serving disease needs a different theory entirely.
 **Either outcome closes the question, which is the point of running it.**
 
-## #213 — the router probe could not record an error, and scored the fail-safe as CORRECT
+## #213 — ✅ the router probe could not record an error, and scored the fail-safe as CORRECT
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** FILED AND FIXED 2026-07-31; instrument re-verified 2026-08-01 (13/13 sites carry `errors:`).
 
 **FILED AND FIXED 2026-07-31. Instrument integrity; no production behaviour change.**
 
@@ -13190,7 +13266,9 @@ defence is a stated invariant on `RouterProbeRecord.errors` plus the classifier'
 its wiring — the third consecutive audit to catch something at a boundary the
 author had just worked on.**
 
-## #212 — WeatherKit returned nothing, 0/40. ROOT CAUSE FOUND AND FIXED 2026-07-31: the App SERVICE was never enabled.
+## #212 — ✅ WeatherKit returned nothing, 0/40. ROOT CAUSE FOUND AND FIXED 2026-07-31: the App SERVICE was never enabled.
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** CLOSED END TO END 2026-07-31 — 40/40 real forecasts.
 
 **FILED 2026-07-31 from run `01FA0ECC` (build 1600, OTA Debug). NOT fixed.**
 
@@ -13358,7 +13436,9 @@ recorder, or it silently unmakes #212.**
 been broken for a long time. The phone had network throughout — the same build
 installed over Tailscale and `readHealth` answered correctly in the same minutes.
 
-## #211 — "How many steps have I taken today?" was answered WRONG 20/20. PROMOTED, 0/10 → 10/10.
+## #211 — ✅ "How many steps have I taken today?" was answered WRONG 20/20. PROMOTED, 0/10 → 10/10.
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** PROMOTED 0/10 → 10/10; follow-on CLOSED 2026-07-31. **Read-path offer shape is now lane #211A.**
 
 **VERDICT FILED 2026-07-31. Run `63C0EF12`, build 1602, `endedCleanly: true`,
 reap `0/0/0` (read tools write nothing). Dispatch:
@@ -13549,7 +13629,9 @@ guard now FIRES; whether one forced condensation actually gets a real
 long-conversation turn under 8,192 is a separate question and needs a measured
 run, not an assumption. n on the original observation remains 2.
 
-## #209 — "ERROR" was never one disease: five mechanisms behind one excluded label
+## #209 — ✅ "ERROR" was never one disease: five mechanisms behind one excluded label
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** PR #199 — '#209 measured and closed'. `RequiredPropertyDecodeTests.swift` verified in tree.
 
 **OPENED 2026-07-31. Instrument-only so far; no production change, no device run.**
 
@@ -13744,7 +13826,9 @@ catch (#197). That is where the next look belongs, not at the cap.
 so this distribution accrues without a dedicated lane. Reap exact again: counted
 5/5/5, reaped 6/6/6, residual **3 = the three warm-up trials**.
 
-## #207 — image turns: the signal alone does NOTHING, the guide fixes it completely
+## #207 — ✅ image turns: the signal alone does NOTHING, the guide fixes it completely
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** CONFIRMED AND PROMOTED 2026-07-31.
 
 **VERDICT FILED 2026-07-31. Run `C2E03F53`, n=10, `endedCleanly: true`. Dispatch:
 `dispatch/OPUS-T27-207-image-routing.md`. NOT PROMOTED — one collateral band was
@@ -13849,7 +13933,9 @@ arm including production — **"scan" is a device verb the router already knew.*
 defect was always specific to reading/vision phrasings, and a grid built only from
 verbs like "scan" would have found nothing.
 
-## #206 — ctx-a BREAKS at ~4,000 chars of context, and my "no truncation needed" verdict was wrong
+## #206 — ✅ ctx-a BREAKS at ~4,000 chars of context, and my "no truncation needed" verdict was wrong
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Verdict corrected and re-stated, kept on the latency basis. Residual row set is device-list C2.
 
 **Filed 2026-07-30 from run `5BB1C020`. This CORRECTS the #202C verdict filed
 earlier the same day, which said long context "costs the router nothing" and
@@ -13926,7 +14012,9 @@ on that basis, honestly re-stated.
 **Owed, if it ever matters:** a properly built row set that varies ends-in-an-offer
 independently of length, with `expected` labels argued rather than assumed.
 
-## #199 — post-decline fabrication: the disease is REAL but confined to GRABS, and the intended-create path is CLEAN
+## #199 — ✅ post-decline fabrication: the disease is REAL but confined to GRABS, and the intended-create path is CLEAN
+
+> **CLOSED 2026-08-01** — duplicate entry for this item; the evidence is on the other `## 199` header. Two headers exist because the file's numbering convention changed mid-project (`## N.` → `## #N —`) and this item has one of each.
 
 **VERDICT FILED 2026-07-30. Run `60E08CC1`, n=10 × 4 prompts, auto-DECLINE,
 `endedCleanly: true`, nothing created and nothing reaped (as designed).
@@ -13983,7 +14071,9 @@ exposed the passive-voice gap (*"has been set"*, *"has been scheduled"*) that wo
 have under-counted calendar and alarm to near zero. Third detector gap of the day,
 third one found by testing against verbatim production replies.
 
-## #204 — the two promoted clauses, warm and within-run
+## #204 — ✅ the two promoted clauses, warm and within-run
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** This run stands as the scoreboard; the owed clause is conditional-only.
 
 **VERDICT FILED 2026-07-30. Run `E3759EE3`, n=10, 120 counted + 4 warm-up,
 `endedCleanly: true`, sealed `reminders=58 events=31 alarms=31 failures=0`.
@@ -14051,7 +14141,9 @@ the others 1). Nothing unaccounted.
 lane, or trimming the prompt), it needs a run powered from a re-measured base rate,
 not this one. Otherwise both stay promoted and this run stands as the scoreboard.
 
-## #205 — Hermes audit of #201/#202 (2026-07-30, second pass): three corrections and two real gaps
+## #205 — ✅ Hermes audit of #201/#202 (2026-07-30, second pass): three corrections and two real gaps
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** An audit record whose actionable findings were dispatched or fixed the same night. **Its item-5 residual is now lane #205E.**
 
 **Every claim below was verified against the tree before filing. The night-ending
 external audit is now two-for-two on finding things the author could not see.**
@@ -14171,7 +14263,9 @@ not touch the historical series), ctx-a and ctx-b both 13/13 across all three ba
 13. **Seven unmerged branches want a triage.** `probe/t27-130-halfduplex` is already
     pruned (SHA recorded at #130).
 
-## #203 — SHIP BLOCKER: an unbounded CoreLocation wait can spin a production turn forever
+## #203 — ✅ SHIP BLOCKER: an unbounded CoreLocation wait can spin a production turn forever
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Filed and FIXED 2026-07-30 — PRs #190/#196/#197 merged; `productionFixDeadlineIsBoundedAndSane` pins the guard.
 
 **Filed and FIXED 2026-07-30. Found by Hermes's independent night audit, verified
 line-by-line here, and more severe than the audit could see from outside: the
@@ -14298,7 +14392,7 @@ with the genuinely fresh fix it just received. The counter exists so a late
 DEADLINE cannot fail a later request — which is what the code comments, this
 item, and now the tests all pin.
 
-## #198 — `BGTaskScheduler.submit` MIGRATED 2026-08-01. Both sites cleared, and the send path finally has coverage.
+### #198 — `BGTaskScheduler.submit` MIGRATED 2026-08-01. Both sites cleared, and the send path finally has coverage.
 
 **Run in the order the 2026-08-01 re-scope asked for: coverage FIRST, then the
 migration.** The re-scope had already killed the frightening version of this item
@@ -14413,7 +14507,7 @@ quarantined `GenerationError` warnings remain **by design**.
 **#198 remaining after this: `AVAudioSession` interruption (4 sites, structural)
 and `installTap` (2 sites, holding by choice pending an SDK bump).**
 
-## #198 — `AVAudioSession` interruption MIGRATED 2026-08-01. The last structural cluster, and the one note that HELD.
+### #198 — `AVAudioSession` interruption MIGRATED 2026-08-01. The last structural cluster, and the one note that HELD.
 
 **Three notes were filed as "not mechanical." Two were wrong. This is the
 third, and it was right** — it is a genuine structural rewrite, and the reason
@@ -14517,7 +14611,7 @@ either userInfo key survives anywhere in the app or tests.
 **#198 after this: only `installTap` (2 sites), held deliberately pending an
 SDK bump. The deprecation sweep is otherwise CLOSED.**
 
-## #198 — `installTap` MIGRATED 2026-08-01. The "hold" recommendation was REVERSED, and the reason was already in our own source.
+### #198 — `installTap` MIGRATED 2026-08-01. The "hold" recommendation was REVERSED, and the reason was already in our own source.
 
 **#198 IS NOW CLOSED** — all three "not mechanical" clusters are cleared:
 `BGTaskScheduler.submit` (2), `AVAudioSession` interruption (4), `installTap`
@@ -14620,7 +14714,13 @@ change**. No live reference to the deprecated `installTap` remains anywhere.
 
 **#198 CLOSED. The beta-4 deprecation sweep is done.**
 
-## #198 / #216 — DEVICE PASS 2026-08-01. The AVAudioSession regression check PASSED with positive evidence.
+### DEVICE PASS 2026-08-01 (OPEN_ITEMS #198 + **PR** #216, the LocalChatBackend split). The AVAudioSession regression check PASSED with positive evidence.
+
+*(Heading corrected 2026-08-01, Hermes audit Part 1D: it previously read
+"#198 / #216", where the second number meant **PR** #216 — but OPEN_ITEMS #216 is
+the narrow-belt lane, a completely different thing that this pass did not touch.
+The sequences are separate and this heading silently mixed them. Disambiguate or
+do not use a bare number.)*
 
 Corded build on whoGoesThere (PID 12212, debugger attached, iOS 27.0), run
 immediately after the three #198 lanes and the #216 extraction. Owen drove;
