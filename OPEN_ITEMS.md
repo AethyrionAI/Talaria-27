@@ -13911,3 +13911,101 @@ quarantined `GenerationError` warnings remain **by design**.
 
 **#198 remaining after this: `AVAudioSession` interruption (4 sites, structural)
 and `installTap` (2 sites, holding by choice pending an SDK bump).**
+
+## #198 — `AVAudioSession` interruption MIGRATED 2026-08-01. The last structural cluster, and the one note that HELD.
+
+**Three notes were filed as "not mechanical." Two were wrong. This is the
+third, and it was right** — it is a genuine structural rewrite, and the reason
+is one sentence of header.
+
+### Why it is not a rename
+
+`AVAudioSession.interruptionNotification` carried a `.began`/`.ended` type plus
+a `.shouldResume` option. It is replaced by **two** notifications:
+
+| old | new |
+|---|---|
+| `.began` | `didBecomeInactiveNotification` → `DeactivationContext` (`source`, nullable `interruptionContext`) |
+| `.ended` + `.shouldResume` | `resumptionRecommendationNotification` → `ResumptionContext` (`recommendation`) |
+
+**The trap: `didBecomeInactive` fires for OUR OWN deactivations.** The old
+`.began` fired only for interruptions. This app calls `setActive(false)` at
+**ten call sites across seven files** — voice-session teardown, read-aloud
+finishing, voice-memo record and playback stop — and every one of them now
+emits `didBecomeInactive` with `source == .app`. A migration without a filter
+would have told the user **"Audio interrupted." every time they stopped
+talking or a read-aloud ended.**
+
+**So the filter IS the migration.** `AudioInterruptionRule.isInterruption`
+keys on `source == .system`.
+
+**Deliberately NOT keyed on `interruptionContext != nil`,** which the header
+populates "only when the session was interrupted by another application" —
+that would silently drop the non-app interruptions the old code did handle
+(route disconnected, built-in mic muted, device locked). Between the two error
+directions, over-reporting is the safe one: a spurious `.interrupted` is
+recovered by the route-change handler, while a MISSED interruption leaves a
+dead capture chain that still looks live.
+
+### Coverage, given that neither notification can be synthesized
+
+`DeactivationContext` and `ResumptionContext` both declare `init` as
+`NS_UNAVAILABLE` — the same wall as `BGContinuedProcessingTask` in the sibling
+lane. **No test can post either notification.**
+
+So the decisions were extracted into `AudioInterruptionRule` in
+`TalkSessionRules.swift` — the file whose header already reads "decision cores,
+pure so they're testable without a device" — and the notification handlers were
+reduced to extract-and-delegate. The plain enums (`DeactivationSource`,
+`ResumptionRecommendation`) ARE constructible, so the policy is fully pinned
+(3 tests) even though the adapter is not. `handleAudioInterruptionBegan` /
+`Ended(shouldResume:)` were left untouched, so the existing `AppStoresTests`
+coverage of them still applies.
+
+### Diagnostics, because the real verification is a device
+
+Both engines now log at `.notice` when they treat a deactivation as an
+interruption (rare by construction), including the interruption reason, and at
+verbose when they filter one out as our own (common — read-aloud deactivates
+after every utterance). **This turns the device pass from an inference into a
+Console read.**
+
+Incidental fix: both services' `static let logger` had to become
+`nonisolated`. The notification handlers run off the main actor, and the
+classes' `@MainActor` isolated the statics along with everything else — an
+error in one service, a Swift-6 warning in the other. Safe: `Logger` is
+Sendable and both are `let`.
+
+### OWED — the device pass. Two questions the simulator cannot answer.
+
+**Do the regression check FIRST; it takes 30 seconds and it is the one that
+would be user-visible.**
+
+1. **Regression:** start a voice session → stop it normally. The status must
+   **not** read "Audio interrupted." Repeat for a finished read-aloud and a
+   stopped voice memo. Any interrupted state there means `source == .app` is
+   getting through and the lane should be reverted on the spot.
+2. **Real interruption:** voice session live → incoming call → answer → hang
+   up. Console (`#198`) should show `audio interrupted — system deactivation`
+   then `audio resumption recommendation: resume`, and the session should
+   return to listening. **Both engines need this** — realtime
+   (`LiveVoiceSessionService`) and local voice (`NativeVoicePipelineService`).
+3. **Open question A:** does `resumptionRecommendationNotification` fire at
+   EVERY interruption end, or only when the system recommends resuming? If the
+   interruption line appears with no recommendation line after hang-up, the
+   `.shouldNotResume` branch is unreachable and wants a fallback.
+4. **Open question B:** is `source == .system` broader than the old `.began`?
+   With verbose on, any `audio interrupted` line during ordinary use (route
+   change, backgrounding, lock) means it over-fires. Benign but visible.
+
+### Verification
+
+Full `TalariaTests` **1461/1461 in 117 suites** (1458 → 1461, count confirmed
+to have MOVED). Both voice services **recompiled** and emit **zero**
+interruption deprecations; `NativeVoicePipelineService`'s remaining warning is
+the `installTap` we are holding by choice. No live reference to
+`interruptionNotification`, `InterruptionType`, `InterruptionOptions`, or
+either userInfo key survives anywhere in the app or tests.
+
+**#198 after this: only `installTap` (2 sites), held deliberately pending an
+SDK bump. The deprecation sweep is otherwise CLOSED.**
