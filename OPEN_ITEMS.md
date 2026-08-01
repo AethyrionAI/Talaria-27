@@ -1877,6 +1877,11 @@ Logged 2026-07-06.
 
 ## 58. 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 (cloud, NOT compiled); controls DEAD on device 2026-07-25
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F6**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 > **2026-07-27 — `.main` EXECUTION BUILT on `claude/opus-t27-58-controls-eopguj`. Cloud
 > session, Linux container: NOT compiled on 27A5228h (no Xcode of any build), suite NOT
 > run, baseline green count NOT confirmable. First Mac step is `xcodegen generate`
@@ -2270,6 +2275,11 @@ with genuine CoT, so the merged adoption path (#94/#95) is unaffected on 0.19. T
 remains wait-for-upstream via `hermes update`; re-check each update.
 
 ## 61. 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device re-verify owed
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F2**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-A-178a-172-61-137.md`** (bundled with #178a, #172, #137). Do not re-spec; check merge state before sending.
 
@@ -3191,6 +3201,11 @@ Console names the skipped one.
 ---
 
 ## 81. 🔧 Lock-screen reply to Hermes — UNTextInputNotificationAction (GitHub #47)
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F4**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 > **MERGED (branch `claude/t27-47-lockscreen-reply` is an ancestor of main — verified 2026-07-16).** Device checklist owed (long-press push → Reply → headless post → next push carries Reply). Note for the checklist: with #114 profiles, verify the headless reply posts to the push's SESSION birth profile.
 
@@ -4241,6 +4256,11 @@ Logged 2026-07-13 (device pass finding).
 
 ## 112. ✨ Midnight Marquee collection — 7 themes / 8 palettes, first adaptive theme, +13 app icons (Lane L)
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 Claude-Design drop landed 2026-07-12: the **Midnight Marquee** collection becomes the gallery's fifth section. Handoffs committed to `design/themes/` (`midnight-marquee-final-lineup.html` is authoritative; both `*-options.html` files are provenance/rejected alternatives). Lane spec: `dispatch/FABLE-LANE-L-midnight-marquee.md`.
 
 **Scope:**
@@ -4601,6 +4621,11 @@ or rides the next Settings lane. Logged 2026-07-16.
 
 ## 117. 🔧 Health-drain give-up paths hammered the connector — no-backoff loop (PR #85 follow-up) — MERGED PR #103; backoff DECAYS under sustained outage (2026-07-25); cross-cycle backoff BUILT 2026-07-27 (Mac run + >25-min device verify owed)
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F5**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 > **UPDATE 2026-07-27 — cross-cycle backoff BUILT** (spec
 > `dispatch/OPUS-T27-117-cross-cycle-backoff.md`, branch
 > `claude/opus-t27-117-cross-cycle-backoff-r6lo00`). Cloud-written, **NOT compiled** —
@@ -4780,6 +4805,11 @@ Logged 2026-07-16.
 
 ## 121. ✨ Reasoning on resume — restore thinking panes from stored messages — MERGED (PR #120) 2026-07-19
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 The #25 wire probe (2026-07-16) found `GET /api/sessions/{id}/messages` carries `reasoning` +
 `reasoning_content` per row — fetched on every resume, currently discarded. Live turns restore
 reasoning via `run.completed` (#60 / PRs #94+#95); resumed sessions render permanently empty
@@ -4803,6 +4833,11 @@ Logged 2026-07-17.
 
 ## 122. ✨ Session cost & usage surface — MERGED (PR #121) 2026-07-19
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 The #25 probe proved session-level `input_tokens` / `output_tokens` / `cache_*` /
 `reasoning_tokens` / `estimated_cost_usd` / `actual_cost_usd` / `api_call_count` are served on
 the sessions list + detail endpoints — cumulative billing figures, banned as a context meter,
@@ -4825,6 +4860,11 @@ Logged 2026-07-17.
 ---
 
 ## 123. ✨ Share extension — send anything into a Hermes session (free tier)
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F2**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 Inbound share sheet: URL/image/PDF/text from any app → app-group envelope → drained into the
 composer as `PendingAttachment`s on next activation. New `TalariaShare` target modeled on
@@ -4871,6 +4911,11 @@ Logged 2026-07-17.
 ---
 
 ## 124. ✨ Face ID app lock (free tier)
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F2**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 `.deviceOwnerAuthentication` (passcode fallback, never biometry-only), scene-root overlay on
 launch + return-to-foreground with grace-period setting, obscured app-switcher snapshot, Siri
@@ -5126,6 +5171,10 @@ Logged 2026-07-17.
 
 ## 128. 🔧 Voice capture crash — double installTap via actor reentrancy — FIXED (2026-07-17); documented repro path unreachable (2026-07-25)
 
+> **Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
+> work is NOT a device check — see `dispatch/DEVICE-PASS-RUNNING-LIST.md` §G for what it
+> actually needs. Do not carry it into a device sitting.
+
 > **2026-07-25.** The documented reproduction path for this crash has been
 > structurally impossible since April. Either the fix is dead defensive code, or
 > the original reproduction used a route that was never recorded. Do not close on
@@ -5159,6 +5208,11 @@ Logged 2026-07-17.
 ---
 
 ## 129. 🔧 Voice preview mid-session — MERGED (PR #127, merge `175261b`, 2026-07-20); device pass owed. Known accepted behavior: native-engine sessions share the assistant TTS instance, so mid-reply preview drops that reply's un-spoken audio tail (transcript intact) and the next chunk cuts the preview short; realtime engine (primary case) previews play over the session. Third dedicated preview instance (~4 lines) CANCELLED — Owen accepted the behaviour 2026-07-23.
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F6**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 > **NAMING COLLISION — read carefully (2026-07-25).** GitHub **PR #129** is the
 > merge of the #147 `@MainActor` delegate fix (`20b46fc`) and has nothing to do
@@ -5655,6 +5709,11 @@ Logged 2026-07-19.
 ---
 
 ## 137. 🔧 Sensor opt-in redesign — MERGED (PR #125, `db52a22`, 2026-07-20); prior device check was UNRUNNABLE, guarantee still untested (2026-07-25)
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F3**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 > **DEVICE PASS 2026-07-25 — UNRUNNABLE, not passed.** The check that scored this
 > used an input on which no code path could have changed the health/location
@@ -6314,6 +6373,11 @@ Logged 2026-07-20.
 
 ## 146. 🐛 Diagnostics push row stuck on TOKEN HELD · AWAITING RELAY — CONFIRMED display desync 2026-07-20 (push delivered while row stuck); fix = kill the dual bookkeeping
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`** (bundled with #174, #175, #154 — PART A, fix shape known). Do not re-spec; check merge state before sending.
 
 **2026-07-24 — FIXED on `claude/t27-bundle-b-hygiene` (PART A, preferred fix taken).** The parallel Bool is dead: `AppSessionState.pushTokenRegistered` is now DERIVED (`registeredPushToken != nil`) and the token string is the only stored record. `pushTokenPipelineState` became a COMPARISON — the token iOS handed us against the token the relay acked — via a new pure `AppContainer.pushTokenPipelineState(heldToken:recordedToken:)`. Two records of one fact cannot drift when there is one record.
@@ -6383,6 +6447,11 @@ same Console session), #143/#144 (same notification plane), #145 (same host-flux
 Logged 2026-07-20.
 
 ## 147. 🐛 Tapping an inbox-alert notification CRASHES the app — REOPENED 2026-07-25; the 2026-07-21 fix has been inert since it merged
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 > **FIX ON BRANCH 2026-07-27** (`claude/opus-t27-notifications-e2e-upxqau`, with #189). The
 > `nonisolated` on the async `didReceive` overload is removed, so it actually inherits the
@@ -6791,6 +6860,10 @@ Logged 2026-07-20.
 
 ## 151. 🔧 Settings → Hermes Host: "Test Connection" gives NO pass/fail feedback
 
+> **Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
+> work is NOT a device check — see `dispatch/DEVICE-PASS-RUNNING-LIST.md` §G for what it
+> actually needs. Do not carry it into a device sitting.
+
 **Spec written 2026-07-24: `dispatch/OPUS-T27-SETTINGS-151-152-153.md`** — PHASE 0 CONFIRM IS MANDATORY (all three carry source-confirm-owed; Bundle B had 2 of 4 premises wrong). #153 is gated: if hosts are a single record it is a data-model lane and gets split out. Do not re-spec.
 
 **2026-07-24 — DONE on `claude/t27-settings-host-surface`. Premise CONFIRMED, and the timing assumption in this item was wrong in the dangerous direction.** `UplinkSettingsScreen.testConnection()` did probe — `hostStore.refresh()` (relay plane) plus `chatStore.refreshDirectHealth()` (chat plane) — and read neither result. Precise correction to "no visible result": the link panel at the TOP of the screen does recompute from those probes, but the button is at the bottom, there is no acknowledgement, no latency, no reason, and `hostStore.lastErrorMessage` is never rendered on this screen at all.
@@ -6812,6 +6885,10 @@ Logged 2026-07-20.
 ---
 
 ## 152. 🎨 Settings host disconnect/revoke is buried under "Pair Device" — rename the pairing surface
+
+> **Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
+> work is NOT a device check — see `dispatch/DEVICE-PASS-RUNNING-LIST.md` §G for what it
+> actually needs. Do not carry it into a device sitting.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-SETTINGS-151-152-153.md`** — PHASE 0 CONFIRM IS MANDATORY (all three carry source-confirm-owed; Bundle B had 2 of 4 premises wrong). #153 is gated: if hosts are a single record it is a data-model lane and gets split out. Do not re-spec.
 
@@ -6848,6 +6925,10 @@ Logged 2026-07-20.
 ---
 
 ## 153. 🔧 Settings → Server: multi-host management — delete profile (distinct from revoke), active-host selection, list semantics
+
+> **Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
+> work is NOT a device check — see `dispatch/DEVICE-PASS-RUNNING-LIST.md` §G for what it
+> actually needs. Do not carry it into a device sitting.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-SETTINGS-151-152-153.md`** — PHASE 0 CONFIRM IS MANDATORY (all three carry source-confirm-owed; Bundle B had 2 of 4 premises wrong). #153 is gated: if hosts are a single record it is a data-model lane and gets split out. Do not re-spec.
 
@@ -7464,6 +7545,10 @@ Belt-and-braces on top of the structural fix: the caveat string moved into `Insi
 
 ## 170. ⚠️ Task detail presents `model_snapshot` as if it were the job's model — and the phone cannot pin a model at all (device-found 2026-07-22)
 
+> **Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
+> work is NOT a device check — see `dispatch/DEVICE-PASS-RUNNING-LIST.md` §G for what it
+> actually needs. Do not carry it into a device sitting.
+
 **Device check 2026-07-23: PARTIAL — the `.unknown` branch is verified; the branch this item was
 FILED about is not.**
 
@@ -7915,6 +8000,11 @@ Logged 2026-07-23.
 
 ## 179. 🐛 First Control Center tap is swallowed — action reports success before the widget extension exists — likely SUBSUMED by #58 (2026-07-25)
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F6**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 > **2026-07-27 — decision point moves to the #58 device pass.** Under the `.main`
 > execution target built for #58, the tap's action no longer dispatches to the widget
 > process at all — `perform()` runs in the app process — so this item's mechanism
@@ -8229,6 +8319,11 @@ Logged 2026-07-24.
 
 ## 184. 🐛 ChatStore has three teardown paths and each clears a different subset
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 Found by ultrareview Pass A (2026-07-25), verified against source. Full write-up:
 `dispatch/RESULTS-T27-ULTRAREVIEW-2026-07-25.md`.
 
@@ -8300,6 +8395,11 @@ alone. One deliberate small delta: the primitive nils `pendingMessageSentAt` up 
 it). NOT device-verified — sim suite only.
 
 ## 185. 🐛 `mergeAttachments` points every duplicate-filename attachment at the first local match
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 Found by ultrareview Pass A (2026-07-25), verified against source.
 
@@ -8515,6 +8615,11 @@ Logged 2026-07-25.
 
 ## 189. 🐛 SHIP BLOCKER — notifications are never authorized on a fresh install, and the panel reports a false green
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F3**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 > **FIX ON BRANCH 2026-07-27** (`claude/opus-t27-notifications-e2e-upxqau`, with the #147 fix —
 > shared surface, shipped together per `dispatch/OPUS-T27-189-147-notifications-end-to-end.md`).
 > Cloud-written; Mac build gate + full-suite run + device verification owed (see PR body).
@@ -8561,6 +8666,11 @@ Logged 2026-07-25.
 ---
 
 ## 190. 🐛 SHIP BLOCKER — standalone sessions are a single slot at every layer; "New" destroys all prior local history
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F2**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 > **DEVICE PASS 2026-07-26 — FAIL; PR #151 held open with requested changes.**
 > What held: sessions list, survive kill/relaunch, and the SIGTRAP workaround
@@ -8725,6 +8835,11 @@ from a work desk over the Tailscale OTA path. Airplane mode as ground truth for 
 
 ## 191. 🐛 Chat header is not backend-aware — title and model pill keep reporting the Hermes session
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 **Observed 2026-07-25 on whoGoesThere, ON-DEVICE active, phone in airplane mode.** The header read
 `HERMES` with a model pill of `KIMI-K3` — a model that runs on OJAMD and was unreachable at the
 time. Only the ON-DEVICE badge told the truth.
@@ -8760,6 +8875,11 @@ Logged 2026-07-25.
 ---
 
 ## 192. 🐛 The app SWITCHES ITSELF away from on-device; the refused manual switch is the residue
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 > **RE-DIAGNOSED 2026-07-26 (device, with screenshots).** The original report —
 > "switching to on-device doesn't take" — was the *symptom of recovery*, not the
@@ -8860,6 +8980,11 @@ Logged 2026-07-25.
 ---
 
 ## 193. 🔧 `confirmationDialog` Cancel button does not render on iOS 27
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 **Observed 2026-07-25 device pass.** Destructive-action confirmations built with
 `.confirmationDialog` present with no visible Cancel affordance — an iOS 26/27 presentation change.
