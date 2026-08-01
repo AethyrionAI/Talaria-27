@@ -264,6 +264,29 @@ members those files reach are now `internal` and tagged **`// harness-visible`**
 — that tag means "private in spirit, widened only for the harness"; grep it
 before assuming a member is part of any real interface.
 
+**Where the BARS live (convention change, recorded 2026-08-01):** lanes through
+#214 pre-registered their bars in a `dispatch/` doc; `dispatch/OPUS-T27-214-scopedv2.md`
+(2026-07-31) is the last one. Since then — #215, #216, #217, #217B — bars are
+pre-registered **inside the OPEN_ITEMS entry**, before the run, and each of those
+entries says "bars written first" in so many words. **The rule did not change; the
+vehicle did.** Bars still go in writing before the run and a missed bar is still a
+falsification, not a redefinition. Write them in the OPEN_ITEMS entry; a dispatch
+doc is optional and mostly useful when handing a lane to another agent. Flagged by
+the 2026-08-01 external audit (§4) as undocumented drift — not a discipline lapse,
+just a convention the next lane could not have inferred.
+
+**A promoted clause is PRODUCTION CODE (#218, 2026-08-01).** When a lane promotes
+a string, it moves out of the harness file in the same commit. Three promoted
+instruction clauses stayed declared inside `#if DEBUG` while production read them
+every turn, and **`main` could not build in Release for two days** — invisible
+because the suite, corded device installs and the CLI compile check are all Debug.
+Corollary, and it applies to any `#if DEBUG` or gating edit: **verify with a
+Release build**, because a green Debug suite cannot see a mis-set gate.
+
+  ```bash
+  DEVELOPER_DIR=/Applications/Xcode-beta4.app/Contents/Developer xcodebuild -project Talaria.xcodeproj -scheme Talaria -configuration Release -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
+  ```
+
 ## Project history
 
 Dated per-item history — every wave, lane, and PR previously transcribed here — lives in
