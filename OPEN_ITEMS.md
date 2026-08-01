@@ -11824,6 +11824,74 @@ The audit called #198 "mechanical, file-scoped, safe to route to any executor".
 them as such is the point of stopping here rather than pushing a risky refactor
 into a hygiene PR.
 
+### RE-SCOPED 2026-08-01 — TWO of the three notes above were WRONG, verified against the beta-4 SDK
+
+Both errors came from reading the compiler's summary rather than the interface —
+the failure mode the standing rule on WWDC26 surfaces exists to prevent, applied
+to deprecations instead of new API. Corrected by grepping the headers and by
+compile-probing with `swiftc -typecheck`, which settles a signature question in
+seconds without a full build.
+
+**1. `installTap` — "no replacement named" is FALSE, and so was my first
+correction of it.**
+
+`AVAudioNode.h:117` carries
+`API_DEPRECATED_WITH_REPLACEMENT("installTapOnBus:bufferSize:format:error:block")`,
+and `:160` declares it. I then probed twice, failed twice, and concluded there
+was **"no supported Swift spelling — blocked on Apple."** Owen pushed back:
+*"lets not jump to its apple. twice we've done that, twice we've been wrong."*
+He was right, and it was the third time.
+
+**Asking the compiler for the signature instead of guessing at it settled it in
+one step.** Assigning the method to a deliberately wrong type prints the real
+imported form:
+
+```
+(AVAudioNodeBus, AVAudioFrameCount, AVAudioFormat?, (), @escaping AVAudioNodeTapBlock) throws -> ()
+```
+
+It **is** throwing, and the importer left a vestigial `()` where the `NSError**`
+was. So it is callable today, and this **compiles clean with no deprecation
+warning**:
+
+```swift
+try node.__installTap(onBus: 0, bufferSize: 1024, format: f, error: (), block: { _, _ in })
+```
+
+**So the migration is available and the decision is OURS, not Apple's.** The
+genuine trade-off, which is a judgement call and not a blocker: the symbol is
+`__`-prefixed (refined-for-Swift, awaiting an overlay AVFAudio does not yet
+ship) and takes a meaningless `()` argument. Both say a later beta will change
+this call site. Migrating now silences two warnings and buys brittleness;
+holding keeps two harmless warnings. **Recommend holding, and re-probing after
+any SDK bump** — but as a choice we made, recorded as such.
+
+**The lesson, which outranks the finding:** two probes failing is not evidence of
+absence. `let x: Int = someMethod` makes the compiler print the exact signature,
+and that should be the FIRST move on any import question, not the last.
+
+**2. `BGTaskScheduler.submit` — "the successor is async, so the signature must
+change" is FALSE.**
+
+`BGTaskScheduler.h:140` declares a **completion-handler** form; the
+`NS_SWIFT_ASYNC_NAME(submitTaskRequest(_:))` on it names only the ASYNC
+PROJECTION. The completion form remains callable, and **compile-probed from a
+`@MainActor` SYNCHRONOUS function it type-checks clean.** `beginLongSend` does
+not have to become async, and `ChatStore`'s send path does not have to change
+shape.
+
+**What does NOT dissolve, stated so this is not overclaimed:** `submit` throws
+SYNCHRONOUSLY and `beginLongSend` returns `nil` on that failure. The
+completion handler delivers the error AFTER the function has returned, so the
+synchronous nil-on-failure signal cannot survive as-is. **The signature is safe;
+the failure semantics still need a decision.** That is a smaller and much
+better-defined problem than "the most load-bearing path in the app must change
+signature", and it is now a tractable lane rather than a hazard.
+
+**3. `AVAudioSession` interruption — the note holds.**
+`AVAudioSessionResumptionRecommendation` exists at `AVAudioSession.h:612` as
+described. Not disproven; still a structural rewrite.
+
 ## #217 — CAN this model classify intent safely enough to drive a belt? A probe, not a belt lane.
 
 **FILED 2026-08-01, bars written first. NO production change — `ToolIntentRoute`
