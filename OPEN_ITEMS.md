@@ -3277,6 +3277,11 @@ ordering, with the minor side effect that the tap path now awaits `handleNotific
 
 ## 82. 🔧 Voice capture wedge — root cause was OUR read-aloud session hijack, NOT the OS seed — fix merged (PR #106) + device CONFIRMED 2026-07-16; residuals spun out to #118/#119
 
+> **⚠️ ENGINE-AMBIGUOUS — flagged 2026-08-01 by the #220 audit.** This item's device
+> verdict was recorded while NOTHING logged which voice engine was active, and the engine
+> varied run-to-run with OJAMD's health. Specifically: the fix spans `LiveSpeechService` + `LiveVoiceSessionService` + `NativeVoicePipelineService`; whichever engine ran on 2026-07-16, **the other engine's half is unverified**.
+> **See #220 before trusting or re-running this.**
+
 **2026-07-23 — the wedge excuse for the Talk control is RETIRED.** The "Talk to Hermes" Control
 Center button had been excused under this item since 2026-07-11. It is now attributed to two
 defects of its own: **#58** (`OpenURLIntent` resolves to a nil URL in the widget-extension process,
@@ -4242,6 +4247,11 @@ Logged 2026-07-12.
 
 ## 110. ✅ Read-aloud retracts the collapsed loop — DEVICE-VERIFIED 2026-07-18
 
+> **⚠️ ENGINE-AMBIGUOUS — flagged 2026-08-01 by the #220 audit.** This item's device
+> verdict was recorded while NOTHING logged which voice engine was active, and the engine
+> varied run-to-run with OJAMD's health. Specifically: the fix is in `SpeechOutputService`, which serves BOTH read-aloud (engine-independent) and native voice sessions. Safe if exercised via read-aloud, engine-dependent if via a voice session — **the record does not say which**.
+> **See #220 before trusting or re-running this.**
+
 > **DEVICE-VERIFIED 2026-07-18 (Owen's device, via the #134 forced-trip harness):** with read-aloud ON, the trip spoke ONLY the single collapsed on-screen line — the repeated loop tail was NOT droned. #110 retraction (`shouldRetractSpeech` / `finishStream(finishedContent:)`, PR #86) confirmed on device.
 
 > **MERGED 2026-07-13 as PR #86 (`a62dc8c`)** — discovered 2026-07-16 when a fresh dispatch found the work shipped (Fable audit branch `claude/fable-t27-110-readaloud-wbsvmy` @ 3c15f1d verifies every acceptance line against the tree; implementation seam: `shouldRetractSpeech` static + `finishStream(finishedContent:)`, five decision tests + suite green via PR #94's Mac run 618/51). Remaining: organic-only device verify (deterministic repro defeated by base-model guardrails per #102). **Ledger lesson: this entry sat 🔧 with no merge note for 3 days and caused a dead dispatch** — merge notes are not optional.
@@ -5197,6 +5207,11 @@ Logged 2026-07-17.
 
 ## 128. 🔧 Voice capture crash — double installTap via actor reentrancy — FIXED (2026-07-17); documented repro path unreachable (2026-07-25)
 
+> **⚠️ ENGINE-AMBIGUOUS — flagged 2026-08-01 by the #220 audit.** This item's device
+> verdict was recorded while NOTHING logged which voice engine was active, and the engine
+> varied run-to-run with OJAMD's health. Specifically: **the 'repro path unreachable 2026-07-25' likely has a third explanation: the native engine was not in the path.** The 07-17 crash was native by construction; a paired device with healthy realtime never runs `NativeVoicePipelineService`'s tap code. Cheap to settle with the engine pinned.
+> **See #220 before trusting or re-running this.**
+
 > **Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
 > work is NOT a device check — see `dispatch/DEVICE-PASS-RUNNING-LIST.md` §G for what it
 > actually needs. Do not carry it into a device sitting.
@@ -5234,6 +5249,11 @@ Logged 2026-07-17.
 ---
 
 ## 129. 🔧 Voice preview mid-session — MERGED (PR #127, merge `175261b`, 2026-07-20); device pass owed. Known accepted behavior: native-engine sessions share the assistant TTS instance, so mid-reply preview drops that reply's un-spoken audio tail (transcript intact) and the next chunk cuts the preview short; realtime engine (primary case) previews play over the session. Third dedicated preview instance (~4 lines) CANCELLED — Owen accepted the behaviour 2026-07-23.
+
+> **⚠️ ENGINE-AMBIGUOUS — flagged 2026-08-01 by the #220 audit.** This item's device
+> verdict was recorded while NOTHING logged which voice engine was active, and the engine
+> varied run-to-run with OJAMD's health. Specifically: its 'known accepted behavior — **native-engine** sessions share the assistant TTS instance' is an explicit native claim **never verified on the native engine**.
+> **See #220 before trusting or re-running this.**
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F6**, written as a
@@ -11994,6 +12014,75 @@ the same two-turn accept shape, scored on fabrication rate. **The routing fix
 plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
+
+## #220 — 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. One mystery probably solved; three verdicts need re-checking.
+
+*(OPEN_ITEMS #220. **Not** a GitHub PR number.)* **FILED 2026-08-01** after #198A
+established that nothing logged which voice engine was active.
+
+### The window, and why it is worse than a fixed confound
+
+| date | state |
+|---|---|
+| **before 2026-07-07** | **one engine existed.** `NativeVoicePipelineService` and `VoiceEngineRouter` both arrive in `0709ba2`. **Every voice verdict before this date is unambiguous.** |
+| **2026-07-08 onward** | realtime "deployed + confirmed minting on OJAMD" (#47). A paired device now defaults to `.realtime` via `isRelayPaired() ? .realtime : .native`. |
+
+**But the engine was not FIXED in that window — it VARIED.** `refreshReadiness`
+probes realtime and falls back to native whenever the probe fails
+(`shouldRouteNative`), and `startSession` falls back again on a failed start. So
+the active engine tracked **OJAMD's health, run to run**, and **nothing logged
+it.** Proof that native really was sometimes live: #128's crash on 2026-07-17 is
+a `CreateRecordingTap` failure inside `NativeVoicePipelineService`, which cannot
+happen unless the native engine is capturing.
+
+**A nondeterministic, unlogged confound is worse than a constant one.** A constant
+one biases every result the same way and can be corrected after the fact. This one
+means two runs of the same test may have measured different engines, and nothing
+in the record distinguishes them.
+
+### SAFE — no re-check needed
+
+- **Everything before 2026-07-07.** One engine.
+- **#118** (background teardown, device-verified 07-20). The fix lives in
+  `AppContainer` and is engine-agnostic — and it was watched firing on the
+  realtime path during A1 tonight.
+- **#138** (realtime self-barge-in). Names its engine, and is the one item that
+  caught this organically: *"Scope broadened 2026-07-20 (Owen): NOT
+  realtime-only"* — found by observing the same symptom elsewhere, not by any log.
+
+### THE LIKELY PAYOFF — #128's "unreachable repro" probably has its answer
+
+#128 is filed as *"FIXED (2026-07-17); documented repro path unreachable
+(2026-07-25)"*, and the standing question (restated by the Hermes audit) is
+**"is the fix dead defensive code, or was the repro route never recorded?"**
+
+**There is a third answer, and it fits every fact: the repro was unreachable
+because the NATIVE ENGINE WAS NOT IN THE PATH on 07-25.** The crash on 07-17 was
+native by construction. By 07-25 a paired device with healthy realtime routes to
+`.realtime`, and `NativeVoicePipelineService`'s tap code — where the entire fix
+lives (`NativeVoicePipelineService.swift:1081`) — never executes.
+
+**This is now cheap to settle** (device-list §G, no phone): re-attempt the repro
+with the engine pinned to native and the new `voice session starting on engine …`
+line quoted. If it reproduces pre-fix and not post-fix, the fix is load-bearing
+and #128 closes properly instead of on an absence.
+
+### AMBIGUOUS — re-check before trusting
+
+| item | verified | why it is in doubt |
+|---|---|---|
+| **#82** | device CONFIRMED 07-16 | the fix spans `LiveSpeechService` + `LiveVoiceSessionService` + `NativeVoicePipelineService`. Whichever engine ran that day, **the other engine's half of the fix is unverified.** |
+| **#110** | device-verified 07-18 | fix is in `SpeechOutputService`, which has **two** consumers: read-aloud (engine-independent) and native voice sessions. **If it was exercised via read-aloud the verdict is safe; via a voice session it is engine-dependent.** The record does not say which. |
+| **#129** | device pass never ran | its stated "known accepted behavior — **native-engine** sessions share the assistant TTS instance" is an explicit native-engine claim **never verified on the native engine.** |
+| **#130 / B1** | parked | already parked for exactly this reason. Its gate is in `NativeVoicePipelineService`; a comparison run on realtime would find it does nothing **because it was never in the path** — a null result wearing the clothes of evidence. |
+| **#198A / A1** | 2026-08-01 | established realtime. **The local engine has no interruption verification at all.** |
+
+### The rule
+
+**A device verdict about voice must quote the engine line.** As of 2026-08-01
+`VoiceEngineRouter` logs the initial selection and names the engine at every
+`startSession()`. **A verdict that cannot name its configuration is not a
+verdict** — it is a measurement of something, and you do not know what.
 
 ## #198B — 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
 
