@@ -296,21 +296,32 @@ struct WeatherTool: Tool {
         // error in hand and the record kept only the model's paraphrase.
         // Wrapping the body means every exit is captured without threading a
         // variable through five returns.
-        let answer = await lookup(place: place, location: location)
-        await relay.completed(name, result: answer)
+        // #212: the RECORD gets the diagnostic, the USER gets the reply.
+        //
+        // These diverged and it cost a run. The honest-failure rewrite made
+        // `currentWeather` return "the weather service rejected this app's
+        // credentials" — good for a reader, and it replaced the captured
+        // result, so the raw `WDSJWTAuthenticatorServiceListener` text went
+        // from 40 occurrences in the previous run's JSON to ZERO in the next.
+        // **A fix for the user blinded the instrument that had just diagnosed
+        // the thing being fixed.** `relay.completed(result:)` is battery-store
+        // only and never reaches a transcript (#197), so the raw text belongs
+        // there and the sanitised sentence belongs in the reply.
+        let (answer, diagnostic) = await lookup(place: place, location: location)
+        await relay.completed(name, result: diagnostic ?? answer)
         return answer
     }
 
-    private static func lookup(place: String, location: DeviceLocationProvider) async -> String {
+    private static func lookup(place: String, location: DeviceLocationProvider) async -> (answer: String, diagnostic: String?) {
         let target: CLLocation
         let label: String
         if place.isEmpty {
             let status = await location.ensureAuthorization()
             guard status == .authorizedWhenInUse || status == .authorizedAlways else {
-                return "Location permission is not granted, so weather for the current location can't be looked up. Ask for a specific place instead, or enable Location in Settings → Privacy & Security → Location Services → Talaria."
+                return ("Location permission is not granted, so weather for the current location can't be looked up. Ask for a specific place instead, or enable Location in Settings → Privacy & Security → Location Services → Talaria.", nil)
             }
             guard let fix = await location.currentLocation() else {
-                return "Couldn't get a location fix for the weather lookup."
+                return ("Couldn't get a location fix for the weather lookup.", nil)
             }
             target = fix
             label = "current location"
@@ -321,7 +332,7 @@ struct WeatherTool: Tool {
             // unlike the reverse-geocode site there is no output delta. Same
             // MainActor/non-Sendable constraint, same containment.
             guard let found = await Self.geocodedTarget(for: place) else {
-                return "Couldn't find a place called \"\(place)\" to look up weather for."
+                return ("Couldn't find a place called \"\(place)\" to look up weather for.", nil)
             }
             target = found.location
             label = found.name ?? place
@@ -342,7 +353,7 @@ struct WeatherTool: Tool {
                 let precip = Int(today.precipitationChance * 100)
                 lines.append("Today: high \(formatter.string(from: today.highTemperature)), low \(formatter.string(from: today.lowTemperature)), \(precip)% chance of precipitation")
             }
-            return lines.joined(separator: "\n")
+            return (lines.joined(separator: "\n"), nil)
         } catch {
             // #212: the old text blamed "a network connection and the app's
             // WeatherKit capability". Both were verifiably FINE — entitlement
@@ -355,10 +366,16 @@ struct WeatherTool: Tool {
             // now named as such; everything else stays generic rather than
             // guessing.
             let described = error.localizedDescription
+            // The diagnostic ALWAYS carries the raw text, even when the reply
+            // does not. That divergence is the whole point (#212): the battery
+            // record is not a transcript, and sanitising both is what erased
+            // `WDSJWTAuthenticatorServiceListener` from a run that existed to
+            // capture it.
             if described.contains("JWTAuthenticator") || described.contains("Authenticator") {
-                return "Weather is unavailable: the weather service rejected this app's credentials. That is an account/service setup issue, not something retrying will fix."
+                return ("Weather is unavailable: the weather service rejected this app's credentials. That is an account/service setup issue, not something retrying will fix.",
+                        "AUTH-REJECTED raw=\(described)")
             }
-            return "Weather lookup failed: \(described)"
+            return ("Weather lookup failed: \(described)", "FAILED raw=\(described)")
         }
     }
 }

@@ -1059,6 +1059,48 @@ struct DiagnosticsSettingsScreen: View {
     // Talaria alarms — real /alarm ones included. User-invoked only.
     @State private var alarmSweepResult: String?
 
+    // #212: the raw WeatherKit probe. Nothing between the app and the service —
+    // no model, no tool belt, no location provider, no geocode, hardcoded
+    // coordinate. If this fails identically to `currentWeather`, Talaria's code
+    // is exonerated and the fault is identity/account/service.
+    @State private var weatherProbeResult: String?
+    @State private var weatherProbeRunning = false
+
+    @ViewBuilder
+    private var weatherKitProbeButton: some View {
+        Button {
+            guard !weatherProbeRunning else { return }
+            weatherProbeRunning = true
+            weatherProbeResult = nil
+            Task {
+                let result = await WeatherKitProbe.run()
+                // Emit to the battery sinks too, so the raw text survives in the
+                // container log even if the screen is dismissed — #212's whole
+                // lesson is that a result you can only read on screen is a
+                // result you can lose.
+                LocalChatBackend.batteryEmit("probe: weatherkit \(result.detail)")
+                weatherProbeResult = result.detail
+                weatherProbeRunning = false
+            }
+        } label: {
+            MonoLabel(weatherProbeRunning ? "Probing WeatherKit…" : "WeatherKit raw probe (#212)",
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: weatherProbeRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(weatherProbeRunning)
+    }
+
+    @ViewBuilder
+    private var weatherKitProbeResultRow: some View {
+        if let weatherProbeResult {
+            MonoLabel(weatherProbeResult, size: 9, tracking: Design.Tracking.mono,
+                      color: weatherProbeResult.hasPrefix("OK")
+                          ? Design.Colors.foregroundBright : Design.Colors.danger)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     @ViewBuilder
     private var alarmSweepButton: some View {
         Button {
@@ -1342,6 +1384,11 @@ struct DiagnosticsSettingsScreen: View {
                 }
                 // #209: production vs the pinned read-tool rollback, on prompts
                 // where omitting the field is CORRECT. 2 cells × 4 prompts × n.
+                // #212: raw WeatherKit call, everything else stripped out.
+                HStack(spacing: Design.Spacing.sm) {
+                    weatherKitProbeButton
+                }
+                weatherKitProbeResultRow
                 HStack(spacing: Design.Spacing.sm) {
                     readToolBatteryButton(trials: 10, label: "Read-tool battery n=10 (80)")
                 }
