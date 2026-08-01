@@ -5241,27 +5241,30 @@ crash, session keeps running, mic live after; outside a session, full-fidelity p
 > `git fetch origin a0bc059… && git branch probe/t27-130-halfduplex FETCH_HEAD`.
 > The same pointer is in the PR's closing comment.
 >
-> **⚠️ CORRECTION 2026-08-01 — THAT RESTORE COMMAND NO LONGER WORKS, and the
-> local branch is now the only copy.** `git ls-remote origin` has no
-> `130-halfduplex` ref, and `git branch -a --contains a0bc059` returns exactly one
-> branch: the local `probe/t27-130-halfduplex` on the Mac Mini. Deleting the ref
-> from origin left the object unreferenced there, and a fetch by bare SHA is
-> refused by default (`uploadpack.allowReachableSHA1InWant` is off) — so the
-> recorded SHA is a *label*, not a backup, and the instruction above reads like
-> insurance that does not exist.
+> **VERIFIED 2026-08-01 — the branch IS on origin and the restore instruction
+> above WORKS.** `git ls-remote --heads origin refs/heads/probe/t27-130-halfduplex`
+> returns `a0bc0595…`, the exact SHA recorded above; it fetches both by name and
+> by bare SHA. The "removed from origin" line in the 2026-07-30 note is the part
+> that is inaccurate — whatever happened, the ref is there now. **Two independent
+> copies exist** (origin + the Mac Mini local branch).
 >
-> **DO NOT DELETE the local `probe/t27-130-halfduplex`.** #130 is open, the
-> on-device A/B verdict is still owed and per the #105/#141 note below "carries
-> double weight" (the realtime engine may need the identical gate), and the branch
-> carries the only copy of `shouldDiscardTranscription` + its 6 tests.
+> **DO NOT DELETE IT ANYWAY** — for the reason that actually applies: **#130 is
+> open and its on-device A/B verdict is still owed**, and per the #105/#141 note
+> below that verdict now "carries double weight" because the realtime engine may
+> need the identical gate. The branch holds `shouldDiscardTranscription` + its 6
+> tests. Survived a 2026-08-01 branch cleanup on those grounds.
 >
-> **If it should survive independently of one machine, push it back to origin** —
-> that is the only real fix; a SHA in a document is not a backup:
-> `git push origin probe/t27-130-halfduplex`.
->
-> Caught 2026-08-01 during a branch cleanup that was about to delete it on the
-> strength of this very note. **General rule: recording a SHA preserves nothing
-> once the last ref is gone.**
+> **A first pass at this correction claimed the opposite** — that origin had no
+> such ref and the local branch was the last copy. That was wrong, and the way it
+> went wrong is worth more than the fact: the check was
+> `git ls-remote origin | grep -i 130-halfduplex || echo "NOT on origin"`. When
+> `ls-remote` produces no output for any reason, `grep` matches nothing and the
+> `||` branch fires — **an empty result is indistinguishable from a negative
+> result.** Same family as `grep -c "error:"` counting sim runtime noise and the
+> difflib pass that reported 2,892 phantom differences. **Assert absence only from
+> a command whose exit status you checked**: `git ls-remote --heads origin <ref>`
+> exits 0 with output, or 0 with none — so test the output explicitly, and prefer
+> proving presence (fetch it) over inferring absence.
 
 Device observation 2026-07-17 (post-#128, conversation working): in-session TTS is noticeably
 less crisp than the settings previews. Cause is structural, not a bug: previews play on a
