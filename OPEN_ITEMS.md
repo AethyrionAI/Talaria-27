@@ -5240,6 +5240,28 @@ crash, session keeps running, mic live after; outside a session, full-fidelity p
 > `a0bc0595a9fd65f32eb6a07c22430a0345a256b0`, restorable with
 > `git fetch origin a0bc059… && git branch probe/t27-130-halfduplex FETCH_HEAD`.
 > The same pointer is in the PR's closing comment.
+>
+> **⚠️ CORRECTION 2026-08-01 — THAT RESTORE COMMAND NO LONGER WORKS, and the
+> local branch is now the only copy.** `git ls-remote origin` has no
+> `130-halfduplex` ref, and `git branch -a --contains a0bc059` returns exactly one
+> branch: the local `probe/t27-130-halfduplex` on the Mac Mini. Deleting the ref
+> from origin left the object unreferenced there, and a fetch by bare SHA is
+> refused by default (`uploadpack.allowReachableSHA1InWant` is off) — so the
+> recorded SHA is a *label*, not a backup, and the instruction above reads like
+> insurance that does not exist.
+>
+> **DO NOT DELETE the local `probe/t27-130-halfduplex`.** #130 is open, the
+> on-device A/B verdict is still owed and per the #105/#141 note below "carries
+> double weight" (the realtime engine may need the identical gate), and the branch
+> carries the only copy of `shouldDiscardTranscription` + its 6 tests.
+>
+> **If it should survive independently of one machine, push it back to origin** —
+> that is the only real fix; a SHA in a document is not a backup:
+> `git push origin probe/t27-130-halfduplex`.
+>
+> Caught 2026-08-01 during a branch cleanup that was about to delete it on the
+> strength of this very note. **General rule: recording a SHA preserves nothing
+> once the last ref is gone.**
 
 Device observation 2026-07-17 (post-#128, conversation working): in-session TTS is noticeably
 less crisp than the settings previews. Cause is structural, not a bug: previews play on a
