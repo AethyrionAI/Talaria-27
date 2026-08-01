@@ -12027,6 +12027,91 @@ mean the escape hatch cannot be made to work by vocabulary or wording on this
 model, and **intent-driven belt scoping should be abandoned** rather than
 iterated — #216's 2.6 seconds are not worth a disarmed turn.
 
+### #217B VERDICT FILED 2026-08-01 — run `8D724EC5`. **ALL FOUR CELLS FAIL. The pre-registered response is ABANDON, not iterate — and I am taking it.**
+
+380 classifications, zero router errors across all 116 rows, gate **100% in every
+cell** (50/50 ×4). Every row in every cell single-valued again: **zero variance in
+380 classifications.**
+
+| cell | dangerous (bar ≤2%) | `other` accuracy | scoped accuracy |
+|---|---|---|---|
+| `narrow-v1` (#217 control) | **10.5%** | 77.8% | 100% |
+| `narrow-v2` (guide only) | **5.3%** | 88.9% | 100% |
+| `full-v1` (vocab only) | **21.1%** | 40.0% | 92.9% |
+| `full-v2` (candidate) | **15.8%** | 60.0% | 92.9% |
+
+**The control replicated.** `narrow-v1` at 10.5% against #217's 12.5% — the same
+two rows failing the same deterministic way (`reminder` for the Sam text,
+`health` for battery). The rate moved only because the grid grew from 16 rows to
+19; the behaviour is identical. **#217's verdict is now thermally controlled and
+within-run.**
+
+### The main effects, and one of them is backwards
+
+**Guide v2 HELPS, consistently: 10.5% → 5.3% narrow, 21.1% → 15.8% full.** It
+fixed the Sam-text row outright (`reminder` → `other`). Real, reproducible, and
+**not enough** — the best cell in the entire 2×2 is still 2.6× the bar.
+
+**Completing the vocabulary HURTS, and badly: 10.5% → 21.1%, and 5.3% → 15.8%.**
+The hypothesis that #217 failed for want of vocabulary is not merely unsupported;
+it is **falsified in the opposite direction.**
+
+**The mechanism is `device`, and it is visible in one line:** answered **0/95** in
+both narrow cells and **25/95 and 20/95** in the full ones. Adding it created a
+new ATTRACTOR — a catch-all the model reaches for *instead of* `other`. It
+swallowed "Play some music", "drive to the airport", "Read the label on this
+bottle", and in `full-v1` even "How many steps have I taken today?", which is the
+only reason scoped accuracy fell from 100% to 92.9%.
+
+**So every word added to the vocabulary is a new wrong answer the model can
+give.** That is the generalisable finding, and it inverts the intuition the lane
+was built on.
+
+### The bias underneath all of it
+
+**Zero safe misses. In all four cells. Across 380 classifications, the model NEVER
+once answered `other` where a scoped intent was right.** Every failure was a
+commitment to a wrong category; not one was a retreat to safety.
+
+This model does not decline on a multiway choice. It **always commits** — and the
+`other` escape hatch that the entire safety argument rests on is therefore not
+something wording or vocabulary can install. v2's guide made `other` the
+explicit default and moved the rate by half, never toward abstention on a row it
+had an opinion about.
+
+### VERDICT: intent-driven belt scoping is ABANDONED
+
+Pre-registered: *"`full-v2` still above 2% → abandoned rather than iterated."*
+`full-v2` is **15.8%**. **Taking it.** The tempting read — "`narrow-v2` is one
+row from zero" — is exactly the reasoning to distrust: a 19-row grid that finds
+one deterministic bad row predicts many in unbounded user phrasing, and the
+zero-safe-miss bias means every one of them disarms a turn rather than falling
+back. **#216's 2.6 seconds do not buy that.**
+
+### What survives, and one narrow path that is NOT this one
+
+- **A second field costs the Bool nothing: 100% gate in all four cells, four
+  different schemas.** Reusable by anything wanting more from one router
+  generation.
+- **In-vocabulary classification is excellent** (100% narrow, 92.9% full). The
+  model can classify. It cannot abstain.
+- **The Bool router CAN decline** — 200/200 lifetime, 100% here on toolless rows.
+  Declining is available on a binary and not on a multiway choice.
+
+**That last contrast suggests one surviving option, stated as a NEW hypothesis
+and not a rescue of this one:** a single extra **Bool** — "does this turn want a
+calendar event?" — rather than a multiway intent. It is the shape the model
+demonstrably handles, it costs nothing extra (the gate proved the second field is
+free), and #216's entire measured prize was on the calendar prompt. **It is
+unmeasured, it needs its own probe with its own pre-registered bars, and it is
+not what this lane tested.** Owen routes whether it is worth a lane at all —
+against the fact that the honest baseline is now "production is fine and 2.6
+seconds is the whole prize."
+
+**Owed:** nothing from this lane. `RouterIntent`, the four probe types and the
+grid stay as DEBUG-only measured artifacts — the record of a falsified approach,
+which is worth more than a deletion.
+
 ## #216 — the narrow belt, re-tried where it cannot lose. #214's closure was right about the evidence and wrong about the world.
 
 **FILED 2026-08-01, bars written first. No production change — `routed-scoped` is
