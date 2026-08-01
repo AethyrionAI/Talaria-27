@@ -11972,8 +11972,22 @@ the nine-`lookupContact` spiral, the single `currentLocation` above. Those turns
 route armed in production, so their numbers were never inflated by this defect
 and remain real.
 
-**Owed:** replicate at matched thermal state; route the read-tool, motion, and
-destall wrappers before quoting any of their rates as production rates.
+**Owed:** replicate at matched thermal state.
+
+**CORRECTION to this item's own owed list, made the same night.** It first read
+"route the read-tool, motion, and destall wrappers before quoting any of their
+rates as production rates." **That is wrong and would have cost device runs.**
+This run's own data says routing is a **no-op on device-request prompts** —
+creates were 10/10 in BOTH arms, because the router arms those turns anyway. The
+read-tool and motion wrappers pass `promptSet`s that are entirely device
+requests, so routing them cannot move a single number.
+
+Routing matters for exactly one thing: a row the router would send TOOLLESS.
+Today that is the **grab canary** (`includeGrabCanary: true`), which the spiral,
+spiralfix, cardfix, datefix, calendar, deadend, grabfix and scopedv2 wrappers all
+carry. **Those canary rows are the ones whose rates are not production rates** —
+not the wrappers wholesale. The standing rule is in `CLAUDE.md` under
+"Measurement discipline."
 
 ## #214 — THE STRUCTURAL LANE: narrow belt CLOSED. Composition licensing falsified; the disease is partly an instrument property.
 
