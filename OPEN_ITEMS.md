@@ -13981,10 +13981,8 @@ Sendable and both are `let`.
 **Do the regression check FIRST; it takes 30 seconds and it is the one that
 would be user-visible.**
 
-1. **Regression:** start a voice session → stop it normally. The status must
-   **not** read "Audio interrupted." Repeat for a finished read-aloud and a
-   stopped voice memo. Any interrupted state there means `source == .app` is
-   getting through and the lane should be reverted on the spot.
+1. ~~**Regression:** start a voice session → stop it normally.~~ **PASSED
+   2026-08-01** — see the device-pass section below.
 2. **Real interruption:** voice session live → incoming call → answer → hang
    up. Console (`#198`) should show `audio interrupted — system deactivation`
    then `audio resumption recommendation: resume`, and the session should
@@ -14112,3 +14110,85 @@ propagates into each caller's existing failure path with **no signature
 change**. No live reference to the deprecated `installTap` remains anywhere.
 
 **#198 CLOSED. The beta-4 deprecation sweep is done.**
+
+## #198 / #216 — DEVICE PASS 2026-08-01. The AVAudioSession regression check PASSED with positive evidence.
+
+Corded build on whoGoesThere (PID 12212, debugger attached, iOS 27.0), run
+immediately after the three #198 lanes and the #216 extraction. Owen drove;
+verbose logging enabled mid-run.
+
+### PASSED — the `.app` filter, and it is positive evidence rather than silence
+
+The worry was that `didBecomeInactiveNotification` fires for our OWN
+deactivations, so a missing filter would report "Audio interrupted." on a
+normal stop. Console, on ending a local voice session:
+
+```
+[NativeVoicePipeline]      audio deactivated by app — not an interruption (#198)
+[LiveVoiceSessionService]  audio deactivated by app — not an interruption (#198)
+   … 6 lines total …
+```
+
+Three facts, all of which had to hold:
+
+1. **The new notification is actually delivered.** It fired and both migrated
+   observers received it — the migration is live, not silently dead. (A dead
+   observer would have looked identical to a working filter, which is why
+   the verbose-gated `.app` line was worth adding.)
+2. **Every deactivation classified `source == .app` and was filtered.**
+3. **ZERO `audio interrupted — system deactivation` lines.** Without the
+   filter all six would have set `voiceState = .interrupted`.
+
+Six lines for three deactivations because **both services observe globally**,
+so each sees every deactivation. Pre-existing shape — the old
+`interruptionNotification` observers did the same — not something the
+migration introduced. Three `setActive(false)` calls in one teardown is
+consistent with the ten call sites.
+
+### PASSED — `installTap` at BOTH sites, at runtime
+
+The real risk of that lane was a `__`-prefixed, refined-for-Swift symbol with
+a vestigial `()`: compiling is not running. Both sites are now exercised:
+
+- **`LiveSpeechService`** — dictation reached `dictation listening`, which
+  cannot happen unless the tap installed and the engine started.
+- **`NativeVoicePipelineService`** — a local voice session transcribed a turn
+  that ran to completion on the on-device brain, which requires the capture tap.
+
+**This does NOT retire that lane's owed item.** What is verified is the HAPPY
+path. The owed experiment is the double install — whether a failure is
+REPORTED rather than raised — and that is still inference.
+
+### PASSED — the #216 extraction, twice
+
+`[LocalChatBackend] restored 2 cached message(s)` at launch, then two full
+turns through the extracted router (`router: turn routed toolless` →
+`session shape: armed-routed` → `run finished on on-device`). Both
+`+IntentRouting.swift` and the trimmed production file work on device.
+
+### STILL OWED — the false-negative half
+
+**Tonight proved no false POSITIVES** (our own deactivations correctly
+ignored). It did **not** prove a real interruption is caught. That asymmetry
+matters: an unwarranted `.interrupted` is recovered by the route-change
+handler, but a MISSED interruption leaves a dead capture chain that still
+looks alive.
+
+- **Real interruption** — incoming call during a live session, both engines.
+  Open questions A and B ride on the same test.
+- **`BGTaskScheduler` app-refresh** — unverified; it only arms on background
+  entry, and the run never backgrounded.
+- **`installTap` double-install** — as above.
+
+### Spotted in passing, NOT investigated
+
+`[SessionsHermesClient] listSessions: 'Mac Mini' unreachable — the App
+Transport Security policy requires the use of a secure connection.` An ATS
+rejection against the Mac Mini backend profile, which is odd given
+`project.yml` sets `NSAllowsArbitraryLoads`. Unrelated to any lane tonight and
+not chased. Possibly interacts with the standing note that ATS wants narrowing
+to `NSAllowsLocalNetworking` before submission.
+
+Also seen at launch: `:8765/models` and `:8000/v1/commands` timed out while
+push/register to the same relay succeeded four seconds later — reads like a
+cold Tailscale route rather than a service being down. Not diagnosed.
