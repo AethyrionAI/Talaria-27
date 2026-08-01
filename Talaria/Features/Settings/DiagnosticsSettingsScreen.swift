@@ -1490,7 +1490,7 @@ struct DiagnosticsSettingsScreen: View {
                 // belt? 10 baseline rows (regression gate) + 16 intent rows.
                 // No tools, no artifacts — classifications only.
                 HStack(spacing: Design.Spacing.sm) {
-                    intentRouterProbeButton(trials: 10, label: "Intent router n=10 (260)")
+                    intentRouterProbeButton(trials: 5, label: "Intent 2x2 n=5 (520)")
                 }
                 // #211 follow-on: promoted vs promoted-plus-boundary, against
                 // the extra-tool chaining the promotion cost.
