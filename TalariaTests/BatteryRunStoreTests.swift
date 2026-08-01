@@ -98,6 +98,43 @@ struct BatteryRunStoreTests {
         #expect(!survivingStarts.contains(all[1].startedAt))
     }
 
+    /// A battery run IS the evidence a promotion rests on, and it leaves the
+    /// device one file at a time through a share sheet. A multi-cell lane can
+    /// therefore evict a run before anyone exported it. Bounding is still
+    /// right — this is a phone — but the deletion must be ANNOUNCED, so the
+    /// record shows that evidence was destroyed rather than never existing.
+    @Test func prunedRunsAreAnnouncedRatherThanVanishingSilently() {
+        let store = makeTempStore()
+        var pruned: [String] = []
+        store.onPrune = { pruned.append($0) }
+
+        let base = Date(timeIntervalSince1970: 1_753_700_000)
+        var all: [BatteryRunRecord] = []
+        for i in 0 ..< (BatteryRunStore.maxRuns + 2) {
+            var run = makeRun(startedAt: base.addingTimeInterval(Double(i) * 60))
+            run.id = UUID()
+            all.append(run)
+            store.persist(run)
+        }
+
+        #expect(pruned.count == 2)
+        // Named specifically, so the announcement identifies WHICH evidence went.
+        #expect(pruned.contains(store.fileURL(for: all[0]).lastPathComponent))
+        #expect(pruned.contains(store.fileURL(for: all[1]).lastPathComponent))
+    }
+
+    @Test func aStoreUnderItsBoundAnnouncesNothing() {
+        let store = makeTempStore()
+        var pruned: [String] = []
+        store.onPrune = { pruned.append($0) }
+        for i in 0 ..< 3 {
+            var run = makeRun(startedAt: Date(timeIntervalSince1970: 1_753_700_000 + Double(i) * 60))
+            run.id = UUID()
+            store.persist(run)
+        }
+        #expect(pruned.isEmpty)
+    }
+
     // MARK: Recorder — one record per trial, via the injectable seam
 
     @Test func recorderWritesOneRecordPerTrial() throws {

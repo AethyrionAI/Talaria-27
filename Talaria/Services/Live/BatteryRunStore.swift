@@ -1,5 +1,6 @@
 #if DEBUG
 import Foundation
+import os
 
 // MARK: - #196 battery run store (results-page lane)
 //
@@ -331,7 +332,28 @@ protocol BatteryRunPersisting: AnyObject {
 /// emit sinks still carry every line.
 @MainActor
 final class BatteryRunStore: BatteryRunPersisting {
-    static let maxRuns = 10
+    /// Raised from 10 to 50 on 2026-08-01. A run leaves the device ONE FILE AT
+    /// A TIME through a share sheet, and the #200-series routinely ran
+    /// multi-cell lanes, so a bound of 10 could evict a cell before anyone had
+    /// exported it. These are JSON files on a phone with tens of gigabytes; the
+    /// bound exists to stop unbounded growth, not to be tight.
+    static let maxRuns = 50
+
+    /// `nonisolated` so `enforceBound` can log without hopping actors, and
+    /// `.notice` because Console.app's default view suppresses `.info` — a
+    /// diagnostic nobody can see is not a diagnostic.
+    private nonisolated static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "BatteryRunStore")
+
+    /// Called with the filename of every run this store deletes.
+    ///
+    /// **A battery run IS the evidence a promotion argument rests on**, so a
+    /// deletion is not the same class of event as this file's other silent
+    /// failures. Failing to WRITE a run loses a record that was never used;
+    /// deleting one destroys a record that may already have been cited. The
+    /// announcement means the trail shows evidence was destroyed rather than
+    /// never existing — the same reason `RouterProbeRecord.errors` distinguishes
+    /// "not sampled" from "zero".
+    var onPrune: ((String) -> Void)?
 
     private let directory: URL
 
@@ -378,6 +400,10 @@ final class BatteryRunStore: BatteryRunPersisting {
         guard runs.count > Self.maxRuns else { return }
         for stale in runs.prefix(runs.count - Self.maxRuns) {
             try? FileManager.default.removeItem(at: directory.appendingPathComponent(stale))
+            // Announced, never silent — see `onPrune`. The log line is the
+            // production channel; the closure is how tests see it.
+            Self.logger.notice("battery run pruned at the \(Self.maxRuns, privacy: .public)-run bound: \(stale, privacy: .public)")
+            onPrune?(stale)
         }
     }
 
