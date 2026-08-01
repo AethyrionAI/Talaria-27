@@ -2676,24 +2676,18 @@ extension LocalChatBackend {
 
     // MARK: - (#202C) the toolless honesty lane
 
-    /// The clause under test, pinned: it targets the CLAIM (not the output
-    /// format, which the payload already mandated and #202B violated anyway)
-    /// and is SCOPED to action requests so it cannot resurrect #196's tic.
-    /// #204: the promoted dead-end carve-out, hoisted so the rollback cell
-    /// can be pinned as "production MINUS exactly this string". Promoted at
-    /// #200M/#200O; re-verified there only against a CROSS-RUN baseline.
-    nonisolated static let deadEndCarveoutClause = " If you can't identify a person named in an event, that's fine — create the event with the name exactly as the user gave it."
-
-    nonisolated static let toollessHonestyClause = " If the user asks you to create, set, add, schedule, or change something on their device — including agreeing to an offer you made earlier — you cannot do it on this turn: say so in one plain sentence and stop. Never say or imply that you have created, set, added, or scheduled anything, and never write out a tool call."
-
-    /// #202D: v1 kept. Its claim ban and tool-syntax ban took the disease
-    /// from 9/10 to 0/10 and are carried over verbatim in spirit. What v2
-    /// adds is the fix for v1's OWN defect: "on this turn" was rendered as
-    /// "on this device" 7/10 times, so v2 names the accurate phrasing that
-    /// 3/10 of v1's refusals found unaided ("right now"), bans the
-    /// capability reading outright, and points at the path that actually
-    /// works — a direct request routes ARMED and creates (production 20/20).
-    nonisolated static let toollessHonestyClauseV2 = " If the user asks you to create, set, add, schedule, or change something on their device — including agreeing to an offer you made earlier — you cannot do it on this turn. Say in one plain sentence that you can't do it right now, and invite them to ask you for it directly. Never suggest that you or this app lack the ability to do it at all — the limit is this turn, not the app. Never say or imply that you have created, set, added, or scheduled anything, and never write out a tool call."
+    // `deadEndCarveoutClause`, `toollessHonestyClause` and
+    // `toollessHonestyClauseV2` were declared HERE until 2026-08-01 and are now
+    // in `LocalChatBackend.swift`, unconditionally compiled.
+    //
+    // They are PROMOTED — `instructionsText` reads them on every production
+    // turn — so declaring them inside this `#if DEBUG` file meant production
+    // referenced a symbol that does not exist in Release. `main` failed to
+    // archive from #202C (2026-07-30) until it was caught, invisibly, because
+    // every build anyone ran was Debug. **Do not move them back.** The battery
+    // reads them from production precisely so a rollback cell can be pinned as
+    // "production MINUS exactly this string" — which only works if the string
+    // production uses is the one being subtracted.
 
     enum HonestyCell: String, CaseIterable {
         /// PRE-#202D production: the bare `toolless-lic2` payload. Since the
