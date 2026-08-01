@@ -5240,6 +5240,31 @@ crash, session keeps running, mic live after; outside a session, full-fidelity p
 > `a0bc0595a9fd65f32eb6a07c22430a0345a256b0`, restorable with
 > `git fetch origin a0bc059… && git branch probe/t27-130-halfduplex FETCH_HEAD`.
 > The same pointer is in the PR's closing comment.
+>
+> **VERIFIED 2026-08-01 — the branch IS on origin and the restore instruction
+> above WORKS.** `git ls-remote --heads origin refs/heads/probe/t27-130-halfduplex`
+> returns `a0bc0595…`, the exact SHA recorded above; it fetches both by name and
+> by bare SHA. The "removed from origin" line in the 2026-07-30 note is the part
+> that is inaccurate — whatever happened, the ref is there now. **Two independent
+> copies exist** (origin + the Mac Mini local branch).
+>
+> **DO NOT DELETE IT ANYWAY** — for the reason that actually applies: **#130 is
+> open and its on-device A/B verdict is still owed**, and per the #105/#141 note
+> below that verdict now "carries double weight" because the realtime engine may
+> need the identical gate. The branch holds `shouldDiscardTranscription` + its 6
+> tests. Survived a 2026-08-01 branch cleanup on those grounds.
+>
+> **A first pass at this correction claimed the opposite** — that origin had no
+> such ref and the local branch was the last copy. That was wrong, and the way it
+> went wrong is worth more than the fact: the check was
+> `git ls-remote origin | grep -i 130-halfduplex || echo "NOT on origin"`. When
+> `ls-remote` produces no output for any reason, `grep` matches nothing and the
+> `||` branch fires — **an empty result is indistinguishable from a negative
+> result.** Same family as `grep -c "error:"` counting sim runtime noise and the
+> difflib pass that reported 2,892 phantom differences. **Assert absence only from
+> a command whose exit status you checked**: `git ls-remote --heads origin <ref>`
+> exits 0 with output, or 0 with none — so test the output explicitly, and prefer
+> proving presence (fetch it) over inferring absence.
 
 Device observation 2026-07-17 (post-#128, conversation working): in-session TTS is noticeably
 less crisp than the settings previews. Cause is structural, not a bug: previews play on a
@@ -5331,6 +5356,29 @@ Logged 2026-07-17.
 ---
 
 ## 133. 🐛 Dormant-relay push registration idempotency — MERGED (PR #123, `0bc2e0c`, 2026-07-20); DEFEATED by app-side churn + insert race (2026-07-25)
+
+> **LANDED 2026-08-01, eight days late: #133 cannot be captured from the Mac CLI.**
+> `idevicesyslog` carries the legacy syslog stream — **system daemons only**. The app
+> logs via `Logger(subsystem:)`, which writes to unified logging, a pipe
+> `idevicesyslog` does not surface and `log stream --device` cannot reach on this
+> macOS build. Proven on hardware 2026-07-24, not assumed: a cold launch inside a
+> **1.47M-line capture contained zero app-process lines.** #133 has no visual
+> substitute, so it was CUT from the device pass rather than restructured. Use the
+> Xcode bridge's `GetConsoleOutput` for app log lines.
+>
+> **The finding was correct on 2026-07-24 and still cost something, because it lived
+> on an unmerged branch.** For eight days `dispatch/OPUS-T27-DEVICE-PASS-2026-07-25.md`
+> told the next session to run this check and "read the rest from Console" — an
+> instruction already disproven on hardware, sitting in the document that governs
+> device passes. The branch was found during a branch cleanup that was about to
+> delete it.
+>
+> **Rule: a finding recorded on a branch that never merges is not recorded.** It is
+> worse than unrecorded — the disproven instruction stays live and authoritative
+> while the disproof sits somewhere nobody reads. Three instances surfaced on
+> 2026-08-01 alone (this, the ATS rule in `CLAUDE.md`, and #130's restore command),
+> all correct when written, all turned into traps by not landing. **A negative
+> result is a deliverable and merges like any other.**
 
 > **DEVICE PASS 2026-07-25 — idempotency is defeated by app-side identity churn.**
 > One handset produced **36 device rows / 36 active push registrations / 4 distinct
@@ -11760,6 +11808,94 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
+## #218 — `main` DID NOT BUILD IN RELEASE for two days, and every check we run is blind to it. FIXED 2026-08-01.
+
+*(OPEN_ITEMS #218. **Not** GitHub PR #218, which was the same day's documentation
+lane — the sequences are separate and collided here.)*
+
+**FOUND 2026-08-01 while sweeping the external audit's nits — not by the audit,
+and not by anything that was looking for it.**
+
+```
+LocalChatBackend.swift:1444: error: type 'Self' has no member 'toollessHonestyClause'
+LocalChatBackend.swift:1526: error: type 'Self' has no member 'deadEndCarveoutClause'
+LocalChatBackend.swift:1578: error: type 'Self' has no member 'toollessHonestyClauseV2'
+```
+
+**Root cause: three PROMOTED instruction clauses were declared inside the
+`#if DEBUG` harness region while production read them on every turn.**
+`instructionsText` — production instruction assembly — referenced all three. A
+production reference to a DEBUG-only declaration compiles fine in Debug and not
+at all in Release.
+
+Introduced by **#202C (`7b3bf09`, 2026-07-30)**, extended by **#202D (`eea6683`)**
+and **#204 (`7c3bf37`)**. Each lane promoted a clause into production and left the
+`let` where the lane happened to be working.
+
+**Confirmed on a clean worktree of `main` with no local edits** — identical three
+errors. This was not an artifact of the branch that found it.
+
+### Why nothing caught it, which is the actual finding
+
+**Every build this project runs is Debug.**
+
+| check | configuration | would it have caught this? |
+|---|---|---|
+| full unit + UI suite | **Debug** | no |
+| corded device install (`RunProject`) | **Debug** | no |
+| CLI compile check in `CLAUDE.md` | **Debug** | no |
+| the 2026-08-01 external audit's independent `build-for-testing` | **Debug** | no |
+| `scripts/mac/ota-stage.sh` | **Release** (default) | **yes — and it would have failed at archive** |
+
+So the app could not be archived, OTA-deployed, or submitted for two days, and
+**1461 green tests said nothing about it.** The audit rebuilt the project from a
+fresh clone and ran the whole suite independently — and still could not see it,
+because it ran the same configuration everything else runs.
+
+**This is a blind spot in the verification stack, not a slip in one commit.** No
+amount of care inside the Debug configuration would have surfaced it.
+
+### NOT caused by #216, checked specifically
+
+The extraction was the obvious suspect and it is innocent. The declarations were
+inside `#if DEBUG` **both before and after** the split; the call sites were
+production **both before and after**. #216 remains pure motion and the audit's
+verdict on it stands.
+
+**But it exposes a limit in how #216 was verified.** The multiset line-diff proved
+every line survived the move — it cannot see a line's **compilation condition**.
+"Pure motion" as measured meant "same lines", not "same lines, compiled under the
+same conditions". For this defect the two differ, and the technique would have
+reported clean either way.
+
+### Fix
+
+The three clauses moved into `LocalChatBackend.swift`, unconditionally compiled,
+with a do-not-move-back pointer left in `+Battery.swift`. Release **BUILD
+SUCCEEDED**; suite **1461/1461 in 117 suites** + 8 UI tests, every edited file
+confirmed recompiled rather than assumed.
+
+### Rules this earns
+
+1. **A promoted string is production code and moves out of the harness in the
+   same commit that promotes it.** The measurement program's whole value is that
+   promoted text is exactly what shipped — that guarantee is void if the text
+   cannot compile in the shipping configuration.
+2. **Any lane that changes what compiles under which configuration is verified
+   with a Release build.** `#if DEBUG` edits, harness extractions, gating changes.
+   A green Debug suite is structurally incapable of catching a mis-set gate.
+3. **A Release build belongs in the pre-merge gate**, not just before a release.
+   Two days is how long it took to notice with an external auditor actively
+   rebuilding the project. Without one it would have been found by a failed OTA.
+
+**Related, same day and same shape:** gating `RouterIntent` (audit §6D) is
+*exactly* this bug in the other direction — it was safe only because every
+consumer already sat in a DEBUG region, and it was verified with a Release build
+for that reason. That check is what found this.
+
+**Still owed:** wire a Release build into the pre-merge gate. Until then it is a
+manual step and will be forgotten.
+
 ## #198 — beta-4 deprecation sweep. 13 of 17 sites cleared; the remaining 8 are NOT mechanical.
 
 **STARTED 2026-07-31 after the Hermes audit named it the highest-severity unrouted
@@ -12702,6 +12838,17 @@ All four runners now sample the tally: **10 of 10 `recordProbe` call sites carry
 `errors:`**. The deterministic lenrule row passes an explicit `errors: 0` — it runs
 no generation and cannot throw, and nil there would have read as "not sampled",
 the one thing it is not.
+
+**COUNT UPDATE 2026-08-01 — now 13 of 13, and that is the evidence that matters.**
+The "10 of 10" above was true when written; the number has moved twice since as
+new probe runners landed (`runIntentRouterProbe` in the #217 lane, then the
+#217B cells), **and every new call site carried `errors:` without being told to.**
+For a source-level invariant no test can reach, holding across the next runners
+added is the only evidence obtainable — a fixed count would just mean nobody had
+tested it. Do not re-quote a bare number from this entry; count it:
+`grep -rn "recordProbe" Talaria --include="*.swift"`. The two test-only sites in
+`DeviceToolBeltTests` deliberately omit `errors:` — they pin nil = "not recorded"
+decode semantics for legacy runs, and are not part of this count.
 
 **The honest limit:** this is a SOURCE-LEVEL invariant that no test reaches. A new
 probe runner added without sampling would silently reintroduce the gap. The
@@ -13952,7 +14099,7 @@ a `.shouldResume` option. It is replaced by **two** notifications:
 
 **The trap: `didBecomeInactive` fires for OUR OWN deactivations.** The old
 `.began` fired only for interruptions. This app calls `setActive(false)` at
-**ten call sites across seven files** — voice-session teardown, read-aloud
+**ten call sites across six files** — voice-session teardown, read-aloud
 finishing, voice-memo record and playback stop — and every one of them now
 emits `didBecomeInactive` with `source == .app`. A migration without a filter
 would have told the user **"Audio interrupted." every time they stopped
@@ -13960,6 +14107,14 @@ talking or a read-aloud ended.**
 
 **So the filter IS the migration.** `AudioInterruptionRule.isInterruption`
 keys on `source == .system`.
+
+*(Count corrected 2026-08-01 by the external audit, §6F: **six** files, not seven
+— the seventh grep hit is prose in `AppContainer.swift:1190`, not a call. The ten
+call sites are right. Third time this one number has been restated — it went
+"eight" → "ten across seven" → "ten across six" — and each restatement came from
+re-grepping rather than from anything failing, which is the tell: the migration
+keys on `source`, never on a site count, so nothing downstream would ever have
+caught it.)*
 
 **Deliberately NOT keyed on `interruptionContext != nil`,** which the header
 populates "only when the session was interrupted by another application" —

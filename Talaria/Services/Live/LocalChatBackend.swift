@@ -1407,6 +1407,45 @@ final class LocalChatBackend: HermesClientProtocol {
     /// `includeDirectnessSentence` (measured loser) and
     /// `includeHonestyAndRecoveryClauses` thermometer (measured NOT the
     /// source: 10/10 reminder grabs with the clauses gone) are retired.
+    // MARK: - Promoted instruction clauses (#202C, #202D, #204)
+    //
+    // **These ship. They are read by `instructionsText` below on every
+    // production turn** — the battery only re-reads them so a rollback cell can
+    // be pinned as "production MINUS exactly this string".
+    //
+    // They lived in the `#if DEBUG` harness region from #202C (2026-07-30) until
+    // 2026-08-01, because that is where the lane that measured them was working
+    // when they were promoted. **That combination — a production reference to a
+    // DEBUG-only declaration — does not compile in Release, so `main` could not
+    // be archived for two days and nobody saw it:** the suite builds Debug,
+    // corded device installs build Debug, and the external audit's independent
+    // verification was `build-for-testing`, also Debug. `ota-stage.sh` defaults
+    // to Release and would have failed at archive on the next OTA.
+    //
+    // **The rule this earns: a promoted string is production code and moves out
+    // of the harness in the same commit that promotes it.** And a lane that
+    // changes what compiles under which configuration is verified with a
+    // Release build, because a green Debug suite cannot see it.
+
+    /// #204: the promoted dead-end carve-out, hoisted so the rollback cell can
+    /// be pinned as "production MINUS exactly this string". Promoted at
+    /// #200M/#200O; re-verified there only against a CROSS-RUN baseline.
+    nonisolated static let deadEndCarveoutClause = " If you can't identify a person named in an event, that's fine — create the event with the name exactly as the user gave it."
+
+    /// #202C: targets the CLAIM (not the output format, which the payload
+    /// already mandated and #202B violated anyway) and is SCOPED to action
+    /// requests so it cannot resurrect #196's tic.
+    nonisolated static let toollessHonestyClause = " If the user asks you to create, set, add, schedule, or change something on their device — including agreeing to an offer you made earlier — you cannot do it on this turn: say so in one plain sentence and stop. Never say or imply that you have created, set, added, or scheduled anything, and never write out a tool call."
+
+    /// #202D: v1 kept. Its claim ban and tool-syntax ban took the disease
+    /// from 9/10 to 0/10 and are carried over verbatim in spirit. What v2
+    /// adds is the fix for v1's OWN defect: "on this turn" was rendered as
+    /// "on this device" 7/10 times, so v2 names the accurate phrasing that
+    /// 3/10 of v1's refusals found unaided ("right now"), bans the
+    /// capability reading outright, and points at the path that actually
+    /// works — a direct request routes ARMED and creates (production 20/20).
+    nonisolated static let toollessHonestyClauseV2 = " If the user asks you to create, set, add, schedule, or change something on their device — including agreeing to an offer you made earlier — you cannot do it on this turn. Say in one plain sentence that you can't do it right now, and invite them to ask you for it directly. Never suggest that you or this app lack the ability to do it at all — the limit is this turn, not the app. Never say or imply that you have created, set, added, or scheduled anything, and never write out a tool call."
+
     nonisolated static func instructionsText(
         deviceContext: String,
         date: Date = .now,

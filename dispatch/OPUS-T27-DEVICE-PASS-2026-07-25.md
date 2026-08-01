@@ -33,7 +33,21 @@ on; do not improvise a substitute check and record its result as a pass.
   connector are up on both hosts. Check port OWNER, not service name — the OJAMD gateway is a user
   `pythonw` process, not an NSSM service.
 - **Console setup for the [CLAUDE CAPTURES] checks:** phone attached by cable, `idevicesyslog`
-  running on the Mac, filtered to the app's subsystem. Claude drives this; Owen just taps.
+  running on the Mac. Claude drives this; Owen just taps.
+  **CORRECTED 2026-08-01 — this used to say "filtered to the app's subsystem", which is not
+  possible and is what A12 below was cut for.** `idevicesyslog` carries the legacy syslog
+  stream: **system daemons only**. The app's `Logger(subsystem:)` writes to unified logging,
+  a separate pipe `idevicesyslog` does not surface, and `log stream --device` cannot reach it
+  on this macOS build. Proven on hardware — a cold launch inside a 1.47M-line capture
+  contained **zero** app-process lines.
+  - **Works here:** system processes — `chronod`, `AppIntents`, `runningboardd` (A1's tap
+    signature, 248 `chronod` lines in a 30s test).
+  - **For the app's OWN log lines, use the Xcode MCP bridge's `GetConsoleOutput`**, not this
+    pipeline. Note its `pattern:` filter silently returns zero units for text that IS present
+    — filter with `oslogSeverity: ["default"]` and scan the result yourself.
+  - `scripts/device-pass-capture.sh` drives the syslog capture: it records EVERYTHING to a
+    timestamped file and greps afterwards, deliberately, because a live filter that is even
+    slightly off destroys evidence that then costs another device run to recreate.
 
 **Record for each check: PASS / FAIL / PARTIAL / UNRUNNABLE.** PARTIAL and UNRUNNABLE are real
 outcomes. Do not round a partial up.
@@ -60,8 +74,9 @@ Control Center.
   screen** instead of the intended destination. That is #179's cold-start swallow combined with
   `openAppWhenRun`. Documented in #58. Tap again — the second tap is the real test.
 
-**[CLAUDE CAPTURES]** the `AppIntents` / `chronod` lines for both taps, to confirm whether the
-first-tap swallow still shows the 21 ms no-`PerformAction` signature.
+**[CLAUDE CAPTURES] — VERIFIED WORKING.** `chronod` and `AppIntents` are system processes and DO
+appear in the syslog stream (248 chronod lines captured in a 30s test). Claude reads the tap
+signature. This is the one capture check confirmed against real hardware.
 
 ## A2 · #151 — Test Connection
 
@@ -191,21 +206,22 @@ relay DB, not the screen.
 **Claude:** restart relay + connector on the Mini before this. The OJAMD half rides the
 `ojamd-deploy` rebase — Owen's manual gate, ask first.
 
-## A12 · #133 — push registration idempotency · **[CLAUDE CAPTURES]**
+## A12 · #133 — CUT from this pass (2026-07-24)
 
-**This is not a phone check.** It reads a log Owen cannot see on the device — the earlier attempt
-failed for exactly this reason.
+**Removed after the capture pipeline was tested on real hardware and failed.** `idevicesyslog`
+carries the legacy syslog stream — system daemons only. The app logs via `Logger(subsystem:)`,
+which writes to **unified logging**, a separate pipe that `idevicesyslog` does not surface and
+that `log stream --device` cannot reach on this macOS build.
 
-**Owen's part, ~20 seconds:** force-quit → cold launch → let it settle → background it once.
-Claude reads the rest from Console.
+Proven, not assumed: a cold launch was captured (runningboardd shows the terminate/restart at
+19:45:51-19:46:03) inside a 1.47M-line capture containing **zero** `registerPushToken` lines and
+**zero** lines from the app process.
 
-- **PASS:** at most ONE registration line per profile (2 max), and exactly one background app-state
-  report per backgrounding.
-- **FAIL:** 3+ registration lines, or a doubled background report.
-- **NOT a fail:** zero registrations on a healthy launch (#146). Also **NOT** this item: ×4 push
-  delivery — that is #143, relay-side, different repo.
+**#133 has no on-screen surface** — registration counts exist only in the log — so unlike #61 it
+cannot be restructured into a visual check. It needs Console.app or Xcode's device console, driven
+by Owen, and that is a different session.
 
----
+**Do not attempt it tomorrow.** #133 remains OPEN and unverified.
 
 # GROUP B — disconnect both hosts
 
@@ -223,8 +239,9 @@ short opening line — a haiku request is the known case.
 - **FAIL:** the title is still a verbatim prefix of the preview — e.g. title "I can't create a
   haiku" over preview "I can't create a haiku directly, but here's a simple one:".
 
-**[CLAUDE CAPTURES]** which guard tripped — the log names it, and should now name the new
-exact-prefix branch.
+**The screen is the check** — title and preview differing is the pass condition, and it is fully
+visible. The log line naming which guard tripped is app-side `Logger` output and is therefore NOT
+capturable from the Mac (see A12). Nice-to-have, not required. Do not block B1 on it.
 
 ## B2 · #172 negative case
 

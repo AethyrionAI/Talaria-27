@@ -562,7 +562,12 @@ struct MessageBubble: View {
     /// fallback afterwards. Scans backward without splitting: this runs on
     /// every render of a streaming bubble whose reasoning grows per delta, so
     /// an O(whole-string) split here would be O(N²) across a long think.
-    static func lastReasoningLine(_ reasoning: String) -> String? {
+    /// `nonisolated` because it is pure — a `String` in, a `String?` out, no
+    /// view state touched. It only ever read as MainActor-isolated because
+    /// `View` conformance isolates the whole type, which made every call from a
+    /// synchronous test context a strict-concurrency warning for no reason. The
+    /// production callers below are already on the main actor and are unaffected.
+    nonisolated static func lastReasoningLine(_ reasoning: String) -> String? {
         var searchEnd = reasoning.endIndex
         while searchEnd > reasoning.startIndex {
             let lineStart: String.Index
