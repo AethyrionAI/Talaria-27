@@ -89,4 +89,25 @@ struct TalkSessionRulesTests {
             message: "Realtime talk failed."
         ) == .surface)
     }
+
+    // MARK: - AudioInterruptionRule (#198)
+
+    /// A system deactivation is what the old `.began` reported: something
+    /// outside the app took the session.
+    @Test func systemDeactivationIsAnInterruption() {
+        #expect(AudioInterruptionRule.isInterruption(source: .system))
+    }
+
+    /// **The test the migration exists for.** `didBecomeInactive` fires on our
+    /// OWN deactivations too — voice teardown, TTS finishing, voice-memo stop —
+    /// which the old `.began` never did. Treating those as interruptions would
+    /// tell the user "Audio interrupted." every time they stopped talking.
+    @Test func ourOwnDeactivationIsNotAnInterruption() {
+        #expect(!AudioInterruptionRule.isInterruption(source: .app))
+    }
+
+    @Test func recommendationDrivesResumption() {
+        #expect(AudioInterruptionRule.shouldResume(.shouldResume))
+        #expect(!AudioInterruptionRule.shouldResume(.shouldNotResume))
+    }
 }
