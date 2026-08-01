@@ -900,6 +900,15 @@ struct DeviceToolBeltTests {
     /// grammar's vocabulary. Pinned.
     @Test func destallCellLabelsMatchTheDispatch() {
         #expect(LocalChatBackend.ActionBatteryCell.armed.rawValue == "armed")
+        // #215: deliberately NOT "armed-routed" — that string is the #196
+        // rate battery's SessionShape, a different instrument on a different
+        // prompt set. Two cells sharing a label would pool silently in any
+        // cross-run analysis, which is the failure mode this whole lane is
+        // about.
+        #expect(LocalChatBackend.ActionBatteryCell.routedProduction.rawValue == "routed-production")
+        #expect(LocalChatBackend.SessionShape.armedRouted.rawValue == "armed-routed")
+        #expect(LocalChatBackend.ActionBatteryCell.routedProduction.rawValue
+                != LocalChatBackend.SessionShape.armedRouted.rawValue)
         #expect(LocalChatBackend.ActionBatteryCell.armedGuidefix.rawValue == "armed-guidefix")
         #expect(LocalChatBackend.ActionBatteryCell.armedToolfix.rawValue == "armed-toolfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedBothfix.rawValue == "armed-bothfix")
@@ -932,7 +941,8 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedMotionredirect.rawValue == "armed-motionredirect")
         // #214: the structural cell — per-intent belt plus composition licensing.
         #expect(LocalChatBackend.ActionBatteryCell.armedScopedv2.rawValue == "armed-scopedv2")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 29)
+        // #215 adds `routed-production`, asserted at the top of this test.
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 30)
     }
 
     /// #211 follow-on: the redirect must name the boundary WITHOUT reinstating

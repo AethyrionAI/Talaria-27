@@ -145,6 +145,102 @@ struct BatteryRunStoreTests {
         #expect(run.trials.allSatisfy { $0.latencySeconds >= 0 })
     }
 
+    // MARK: Recorder — a fail-safe route is not a classification (#215)
+
+    /// `routeNeedsDeviceTool` fails SAFE: any thrown generation returns
+    /// `true`, so the turn gets tools. That is right for a live turn and
+    /// ruinous for a record — the trial would read `route: "armed"`, which is
+    /// indistinguishable from the router having looked at the prompt and
+    /// decided. #213 was exactly this bug in the router probe, where the
+    /// fail-safe was scored as a CORRECT answer on every `expected: true` row.
+    ///
+    /// Filed before the instrument could produce a number, not after.
+    @Test func recorderDistinguishesAFailSafeRouteFromAClassification() throws {
+        let captured = CapturingStore()
+        let recorder = BatteryRunRecorder(store: captured)
+        recorder.beginRun(trialsPerCell: 2, cells: ["armed-routed"], kind: "action")
+
+        recorder.beginTrial()
+        recorder.recordRoute("armed")
+        recorder.endTrial(shape: "armed-routed", prompt: "remind", trial: 1,
+                          text: "Done.", cant: false, denial: false)
+
+        recorder.beginTrial()
+        recorder.recordRoute("armed", failed: true)
+        recorder.endTrial(shape: "armed-routed", prompt: "remind", trial: 2,
+                          text: "Done.", cant: false, denial: false)
+
+        recorder.endRun()
+        let run = try #require(captured.persisted.last)
+
+        // Both say "armed". Only the record can tell them apart.
+        #expect(run.trials[0].route == "armed")
+        #expect(run.trials[1].route == "armed")
+        #expect(run.trials[0].routeFailed == false)
+        #expect(run.trials[1].routeFailed == true)
+    }
+
+    /// Pending route state resets with every other pending field. Without
+    /// this, one thrown router generation would mark every LATER trial in the
+    /// run as a fail-safe and destroy the run's denominator.
+    @Test func recorderResetsTheFailSafeFlagBetweenTrials() throws {
+        let captured = CapturingStore()
+        let recorder = BatteryRunRecorder(store: captured)
+        recorder.beginRun(trialsPerCell: 2, cells: ["armed-routed"], kind: "action")
+
+        recorder.beginTrial()
+        recorder.recordRoute("armed", failed: true)
+        recorder.endTrial(shape: "armed-routed", prompt: "remind", trial: 1,
+                          text: "Done.", cant: false, denial: false)
+
+        recorder.beginTrial()
+        recorder.recordRoute("toolless")
+        recorder.endTrial(shape: "armed-routed", prompt: "haiku", trial: 2,
+                          text: "a haiku", cant: false, denial: false)
+
+        recorder.endRun()
+        let run = try #require(captured.persisted.last)
+        #expect(run.trials[0].routeFailed == true)
+        #expect(run.trials[1].routeFailed == false)
+    }
+
+    /// An unrouted trial never called the router, so it did not fail safe —
+    /// it has no route at all. `nil` and `false` are different claims and the
+    /// classifier reads them differently.
+    @Test func anUnroutedTrialCarriesNoFailSafeVerdict() throws {
+        let captured = CapturingStore()
+        let recorder = BatteryRunRecorder(store: captured)
+        recorder.beginRun(trialsPerCell: 1, cells: ["armed"], kind: "action")
+
+        recorder.beginTrial()
+        recorder.endTrial(shape: "armed", prompt: "remind", trial: 1,
+                          text: "Done.", cant: false, denial: false)
+
+        recorder.endRun()
+        let run = try #require(captured.persisted.last)
+        #expect(run.trials[0].route == nil)
+        #expect(run.trials[0].routeFailed == nil)
+    }
+
+    /// #215 back-compat. The archive is the asset: #209's whole pooled
+    /// analysis survived only because 48 older runs were still readable. A new
+    /// field that makes them undecodable would destroy more evidence than this
+    /// lane can generate.
+    @Test func recordsWrittenBeforeTheFailSafeFieldStillDecode() throws {
+        let legacy = """
+        {
+          "shape": "armed-routed", "prompt": "haiku", "trial": 1,
+          "text": "a haiku", "cant": false, "denial": false,
+          "toolCalls": [], "route": "toolless",
+          "timedOut": false, "latencySeconds": 3.5
+        }
+        """
+        let decoded = try JSONDecoder().decode(
+            BatteryTrialRecord.self, from: Data(legacy.utf8))
+        #expect(decoded.route == "toolless")
+        #expect(decoded.routeFailed == nil)
+    }
+
     // MARK: Recorder — confirmation capture (#200)
 
     @Test func recorderAttachesConfirmationToTheMostRecentToolCall() throws {

@@ -11824,6 +11824,157 @@ The audit called #198 "mechanical, file-scoped, safe to route to any executor".
 them as such is the point of stopping here rather than pushing a risky refactor
 into a hygiene PR.
 
+## #215 — THE MISSING DENOMINATOR: the action battery has never routed, so no number it has ever produced describes the shipped app.
+
+**FILED 2026-07-31, bars written first. No production change — `routed-production`
+is a measured cell. Owen routes the run and any promotion.**
+
+**This is #214's own verdict, acted on.** That lane closed with a finding bigger
+than its result: `runActionBattery` does not route, every trial is armed by
+construction, and "Write a haiku about sledding" is a baseline router row sitting
+at **200/200 on `expected: false`**. In production that turn routes TOOLLESS, gets
+an empty belt, and composes. **So the 8/10 control grab rate — the number that
+justified days of lanes — measures a configuration we do not ship.** #204 had
+filed this caveat a day earlier and it was not applied. Fixing the instrument is
+the only way to know which of the remaining diseases are real.
+
+**The cell.** `routed-production` is belt-and-instruction identity with `.armed`,
+and differs in exactly one thing: `routeNeedsDeviceTool` runs first, and a turn
+routed toolless gets no belt plus production's toolless text. Routing is a CELL,
+not a run-level flag, so the contrast is WITHIN a run — same thermal state, same
+slot rotation, per #200V. It is **not a treatment**: routing changes the belt, so
+the two arms are two configurations, one of which we ship, not an A/B of any text.
+
+**A defect found while building it, before it could produce a number.** The #196
+rate battery's `armed-routed` cell built its toolless turn from
+`instructionsText(for: .toollessLic2, …)`. On 2026-07-30 the #202D promotion added
+clause v2 to production's toolless branch and created
+`productionToollessInstructions` — whose doc comment says it exists "in ONE place
+so the live path and the measured arm cannot drift apart." **Nothing re-pointed
+the battery.** From that promotion until this lane, every routed-toolless trial in
+the #196 instrument spoke a text production had stopped speaking — specifically
+the `honesty-control` payload, measured at 9/10 BROKEN turns. Both batteries now
+go through one seam (`routedTrialShape`), pinned by `RoutedTrialShapeTests`
+including a directional assertion that production's text is a strict superset of
+the stale one, so "agrees with production" cannot be satisfied by pointing both
+sides at the stale text.
+
+**And #213's disease, pre-empted in the new instrument.** `routeNeedsDeviceTool`
+fails SAFE — a thrown generation returns `armed`. Recorded naively that is
+indistinguishable from the router having looked at the prompt and decided, which
+is exactly how #213's probe scored a crash as a correct answer. `routeFailed` is
+sampled from `routerFailureTally` deltas around every route call and reported by
+the classifier before any rate is read. Optional, so the 48 archived runs still
+decode — pinned by a verbatim legacy-JSON test.
+
+**Bars, pre-registered:**
+
+- **Gate** — control (`armed`) haiku grabs **≥2/10**. Below that the disease is not
+  present in this run and the routed arm has nothing to be compared against.
+  Lifetime control range is 4/9–8/10.
+- **Primary A** — the three create prompts route ARMED **≥9/10 each**. If the
+  router does not arm an explicit create, nothing downstream is interpretable.
+- **Primary B, the headline** — routed haiku grabs **0/10**, and it should be 0 *by
+  construction*: a turn with no belt cannot call a tool.
+- **Primary C** — routed create rates within **±2** of the control's, so routing is
+  shown to cost nothing on the turns it correctly arms.
+
+**What would falsify the reframing this lane rests on:** a routed haiku grab rate
+that is NOT ~0. That would mean either the router misroutes composition far more
+often than 200/200 says, or a belt-less turn can still emit a grab — and #214's
+"the disease is largely an instrument property" conclusion, the reason this lane
+exists at all, would be wrong. **Stated here so the result cannot be read
+backwards.**
+
+**Owed regardless of outcome:** every other battery wrapper is still unrouted, so
+their numbers carry the same caveat. This lane fixes the action battery only; the
+read-tool, motion, and destall wrappers each need the same treatment before their
+rates can be called production rates.
+
+### VERDICT FILED 2026-08-01 — run `F486F103`, corded @ whoGoesThere, debugger attached
+
+80 trials, `endedCleanly: true`, **zero ERROR and zero TIMEOUT — no exclusions in
+80 trials.** Reap `reminders=28 events=21 alarms=21 failures=0`; recorded creates
+66 + 4 discarded warm-up artifacts = 70 reaped, **arithmetic exact.** `appBuild: 1`
+is the corded signature; the proof of code identity is that `routed-production`
+appears in `cells` at all.
+
+**Instrument integrity first, since this lane is about the instrument:** all 40
+routed trials carry `routeFailed: false` — not one `null` (which would mean the
+field never landed) and not one `true`. **Every route below is a real
+classification, not a fail-safe.** The hole #213 fell through was open here and
+is now provably closed.
+
+| bar | pre-registered | measured | |
+|---|---|---|---|
+| Gate | control haiku grabs ≥2/10 | **6/10** | PASS |
+| Primary A | creates route ARMED ≥9/10 each | **10/10, 10/10, 10/10** | PASS |
+| Primary B | routed haiku grabs **0/10** | **0/10** (p = 0.0108) | PASS |
+| Primary C | routed creates within ±2 of control | **10/10 vs 10/10, delta 0** | PASS |
+
+**All four bars pass. The falsification did not fire: #214's reframing is
+CONFIRMED.**
+
+**And the unregistered result is the bigger one.** #214 died on composition
+content — the narrow belt took grabs to 0/10 and took clean haiku turns to 0/10
+with it. Routing does not make that trade:
+
+| | grabs | "I cannot write a haiku directly" | CLEAN haiku turns |
+|---|---|---|---|
+| `armed` (control) | 6/10 | 4/10 | **0/10** |
+| `routed-production` | **0/10** | **0/10** | **10/10** |
+
+**p = 1.08e-05** on clean turns. The control's ten haiku turns are six grabs plus
+four disclaimer tics — **not one clean turn in ten.** The routed cell is ten
+clean haikus, no tool calls, `cant=false` and `denial=false` on every one. The
+belt was EMPTY on all ten, because the router classified them toolless 10/10.
+
+**Why the 0/10 grab rate is not a behavioural claim:** a routed-toolless session
+is constructed with no tools. A grab is a tool call. **It is arithmetically
+impossible, not merely unlikely** — which is exactly what the pre-registration
+said ("0/10 by construction") and why that bar was never the interesting one. The
+interesting one was whether production pays for it in composition. It does not;
+it is paid the other way.
+
+**The thermal confound, and why it cannot explain this away.** The classifier
+flags it correctly: control started `nominal` and ended `fair`; the routed cell
+ran entirely at `fair`. That compromises any behavioural comparison — **but the
+confound runs AGAINST the winner.** The routed cell ran in the hotter state and
+still posted 10/10 clean against the control's 0/10 from the cooler one. A
+confound that disfavours the arm that won cannot have manufactured the win.
+Primary C is at ceiling in both arms (10/10 vs 10/10), so thermal has no room to
+act there either. Replication at matched thermal state is still owed before this
+is treated as a lifetime number.
+
+**One thing routing did not fix:** the routed calendar cell shows
+`currentLocation=1/10` against the control's 0/10 — a single spiral call on a
+correctly-armed turn. n=1, inside noise, and precisely the residue #214 predicted
+would survive: over-serving on turns the router CORRECTLY arms.
+
+### What this means for the program — read this before starting another #200-series lane
+
+**Production is already right on all four of these prompts: 40/40.** Three creates
+at 10/10 and ten clean composition turns. The scoreboard that said "8/10 grabs,
+composition broken" was reporting a configuration the app does not enter.
+
+**So the grab disease and the disclaimer tic are BOTH instrument properties on
+composition prompts** — not merely the grabs, which is all #214 claimed. Every
+lane that treated either symptom on an unrouted battery was measuring a turn
+production reaches only when the router says a device tool is needed.
+
+**No promotion exists here, and that is the point.** `routed-production` IS
+production; the cell measures what already ships. The finding is not "a fix
+works," it is **"the instrument was wrong and the app was fine."**
+
+**What is genuinely left** is unchanged from #214's prediction and is now the
+whole of it: over-serving on turns that are CORRECTLY armed — #211's chaining,
+the nine-`lookupContact` spiral, the single `currentLocation` above. Those turns
+route armed in production, so their numbers were never inflated by this defect
+and remain real.
+
+**Owed:** replicate at matched thermal state; route the read-tool, motion, and
+destall wrappers before quoting any of their rates as production rates.
+
 ## #214 — THE STRUCTURAL LANE: narrow belt CLOSED. Composition licensing falsified; the disease is partly an instrument property.
 
 **FILED 2026-07-31. Dispatch `dispatch/OPUS-T27-214-scopedv2.md`, bars written

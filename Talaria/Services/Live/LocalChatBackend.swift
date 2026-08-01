@@ -2574,6 +2574,45 @@ struct ToolIntentRoute {
 // MARK: - #196 rate battery (Diagnostics-triggered, DEBUG builds only)
 
 extension LocalChatBackend {
+    /// #215: what ROUTING does to a turn, for the instruments.
+    ///
+    /// This is NOT production's implementation — the live path applies the
+    /// transformation inline in two private gates (`effectiveOfferedTools`
+    /// drops the belt, `effectiveInstructionsText` swaps the text). It is the
+    /// instruments' BINDING to production's authority: the toolless text comes
+    /// from `productionToollessInstructions` and nowhere else, and
+    /// `RoutedTrialShapeTests` pins the two equal.
+    ///
+    /// **That binding is the point, because the drift already happened once.**
+    /// The #196 rate battery built its routed-toolless turn from
+    /// `instructionsText(for: .toollessLic2, …)`. On 2026-07-30 the #202D
+    /// promotion added clause v2 to production's toolless branch and created
+    /// `productionToollessInstructions` — whose doc comment says it exists "in
+    /// ONE place so the live path and the measured arm cannot drift apart."
+    /// Nothing re-pointed the battery, so from that promotion until this lane
+    /// every routed-toolless trial spoke a text production had stopped
+    /// speaking. Both batteries now come through here.
+    ///
+    /// Armed is IDENTITY on both halves. A routed-armed trial IS production's
+    /// armed trial; the routing seam must never be the thing a measurement
+    /// sees.
+    nonisolated static func routedTrialShape(
+        needsTool: Bool,
+        armedBelt: [any Tool],
+        armedInstructions: String,
+        deviceContext: String,
+        date: Date = .now,
+        hasImageTools: Bool = false
+    ) -> (belt: [any Tool], instructions: String) {
+        guard !needsTool else { return (armedBelt, armedInstructions) }
+        // #196 (PROMOTED): the cure is STRUCTURAL — a routed-toolless turn
+        // registers no belt at all. `armed-nocall` established that leaving
+        // schemas in context and gating the call sustains the disclaimer tic
+        // on its own, so an empty belt is the thing to reproduce, not a gate.
+        return ([], productionToollessInstructions(
+            deviceContext: deviceContext, date: date, hasImageTools: hasImageTools))
+    }
+
     /// The fourth battery's cell list (#196 cure lane): control, the two
     /// payload candidates, and the routed production candidate. Battery-3's
     /// decomposition cells and battery-2's treatment cells stay in the enum
@@ -2704,18 +2743,28 @@ extension LocalChatBackend {
                     var trialBelt = belt
                     var trialInstructions = instructions
                     if shape == .armedRouted {
+                        // #215: sample the failure tally across the routing
+                        // call. `routeNeedsDeviceTool` fails SAFE — a thrown
+                        // generation returns `armed` — so without this the
+                        // record cannot tell a classification from a crash.
+                        // That is #213's bug, and this is the instrument it
+                        // was found in the sibling of.
+                        let failuresBefore = Self.routerFailureTally
                         let needsTool = await routeNeedsDeviceTool(prompt: prompt)
-                        Self.batteryEmit("battery: route=\(needsTool ? "armed" : "toolless") shape=\(shape.rawValue) p=\(tag) t=\(trial)")
-                        Self.batteryRecorder.recordRoute(needsTool ? "armed" : "toolless")
-                        if !needsTool {
-                            trialBelt = []
-                            trialInstructions = Self.instructionsText(
-                                for: .toollessLic2,
-                                deviceContext: Self.deviceContextLine(),
-                                hasTools: false,
-                                hasImageTools: false
-                            )
-                        }
+                        let routeFailed = Self.routerFailureTally > failuresBefore
+                        Self.batteryEmit("battery: route=\(needsTool ? "armed" : "toolless") failed=\(routeFailed) shape=\(shape.rawValue) p=\(tag) t=\(trial)")
+                        Self.batteryRecorder.recordRoute(needsTool ? "armed" : "toolless", failed: routeFailed)
+                        // #215: through the shared seam. This used to build the
+                        // toolless turn from `.toollessLic2` directly, and went
+                        // stale the day #202D promoted clause v2 — see
+                        // `routedTrialShape`.
+                        let shaped = Self.routedTrialShape(
+                            needsTool: needsTool, armedBelt: belt,
+                            armedInstructions: instructions,
+                            deviceContext: Self.deviceContextLine()
+                        )
+                        trialBelt = shaped.belt
+                        trialInstructions = shaped.instructions
                     }
                     // The `-noinstr` cells omit the `instructions:` argument
                     // entirely — the SDK's `Instructions? = nil` designated
@@ -2802,6 +2851,20 @@ extension LocalChatBackend {
     enum ActionBatteryCell: String, CaseIterable {
         /// Production control — belt identity.
         case armed
+        /// #215: production's ACTUAL configuration — the router classifies the
+        /// turn first, and a turn it routes toolless gets no belt and
+        /// production's toolless text (`routedTrialShape`).
+        ///
+        /// Belt and instructions are identity with `.armed`, so this cell
+        /// differs from the control in exactly one way: the router runs. That
+        /// makes the `armed` → `routed-production` delta the price (or the
+        /// dividend) of routing, and makes this cell — not the control — the
+        /// number that describes the shipped app.
+        ///
+        /// It is NOT a treatment. Routing changes the belt, so the two arms
+        /// are not a fair A/B of any instruction or tool text; they are two
+        /// configurations, one of which we ship.
+        case routedProduction = "routed-production"
         /// `ReminderCreateToolGuidefix` copy: de-stalled @Guide texts on
         /// the optional fields, production description.
         case armedGuidefix = "armed-guidefix"
@@ -2991,11 +3054,12 @@ extension LocalChatBackend {
              .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix,
              .armedDatefix, .armedCardrollback, .armedDeadendfix, .armedGrabfix,
              .armedStallfix, .armedSchemafix, .armedCalfix, .armedDeadend2,
-             .armedCarveoutrollback, .armedScopedv2:
+             .armedCarveoutrollback, .armedScopedv2, .routedProduction:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
-            // strikefix treat the tool-calling MODE, and the #200F scoping
+            // strikefix treat the tool-calling MODE, the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
-            // loop) — none of them swap tool text here.
+            // loop), and #215's routed cell decides its belt per TRIAL from
+            // the route — none of them swap tool text here.
             return tools
         case .armedDeadendrollback:
             // #201B: one swap — the pre-promotion bare not-found text. The
@@ -3148,6 +3212,16 @@ extension LocalChatBackend {
     /// reminder under auto-accept; the reap deletes it; the confirm line
     /// makes it countable). Defaults preserve the FILED #200 protocol
     /// byte-for-byte.
+    ///
+    /// #215: the `routed-production` CELL puts the router in front of every
+    /// trial, which is the one thing this instrument has never done. Its
+    /// absence is not a detail — #204 filed it as a caveat and #214's verdict
+    /// made it the headline: an unrouted battery reports the grab rate of a
+    /// configuration production does not ship, because in production the
+    /// composition prompt routes toolless and never sees a belt at all.
+    /// Routing is a cell rather than a run-level flag so the contrast is
+    /// WITHIN a run — same thermal state, same slot rotation, the design
+    /// #200V's warm-up work established.
     func runActionBattery(trials: Int, cells: [ActionBatteryCell] = [.armed],
                           includeGrabCanary: Bool = false,
                           promptSet: [(tag: String, text: String)]? = nil,
@@ -3207,6 +3281,17 @@ extension LocalChatBackend {
                 let belt = Self.scopedBelt(from: warmBelt, cell: firstCell, promptTag: tag)
                 ToolEventRelay.batteryTrialTag = Self.batteryWarmupTag(prompt: tag)
                 Self.batteryEmit("battery: BEGIN \(Self.batteryWarmupTag(prompt: tag))")
+                // #215: if ANY cell in this run routes, warm the ROUTER too —
+                // it is a second, separate `LanguageModelSession`, and without
+                // this the routed cell's slot-1 trial pays a cold start the
+                // control never pays. That asymmetry is precisely the rival
+                // explanation #200V's warm-up was built to remove, and it
+                // would land on the one cell whose numbers this lane is for.
+                // Discarded like everything else here: the result is unused,
+                // and the recorder is inert before `beginRun`.
+                if cells.contains(.routedProduction) {
+                    _ = await routeNeedsDeviceTool(prompt: prompt)
+                }
                 let session = LanguageModelSession(model: model, tools: belt,
                                                   instructions: Instructions(instructions))
                 await executeBatteryTrial(
@@ -3353,6 +3438,29 @@ extension LocalChatBackend {
                     // BEGIN names it exactly.
                     Self.batteryEmit("battery: BEGIN shape=\(cell.rawValue) p=\(tag) t=\(trial)")
                     Self.batteryRecorder.beginTrial()
+                    // #215: the routed variant. The trial clock is already
+                    // running, so a routed trial's latency includes its router
+                    // generation — the real cost of a production turn, not the
+                    // armed half of one.
+                    var trialBelt = belt
+                    var trialInstructions = cellInstructions
+                    if cell == .routedProduction {
+                        // Empty context: these are single-turn prompts, which
+                        // is exactly what production passes when a
+                        // conversation has no prior assistant turn.
+                        let failuresBefore = Self.routerFailureTally
+                        let needsTool = await routeNeedsDeviceTool(prompt: prompt)
+                        let routeFailed = Self.routerFailureTally > failuresBefore
+                        Self.batteryEmit("battery: route=\(needsTool ? "armed" : "toolless") failed=\(routeFailed) shape=\(cell.rawValue) p=\(tag) t=\(trial)")
+                        Self.batteryRecorder.recordRoute(needsTool ? "armed" : "toolless", failed: routeFailed)
+                        let shaped = Self.routedTrialShape(
+                            needsTool: needsTool, armedBelt: belt,
+                            armedInstructions: cellInstructions,
+                            deviceContext: Self.deviceContextLine()
+                        )
+                        trialBelt = shaped.belt
+                        trialInstructions = shaped.instructions
+                    }
                     let baseOptions = Self.shapedGenerationOptions(Self.chatGenerationOptions(for: activeTier), shape: shape)
                     let session: LanguageModelSession
                     let trialOptions: GenerationOptions?
@@ -3363,19 +3471,19 @@ extension LocalChatBackend {
                         // Generation options ride the profile; respond() gets
                         // none (nil → all-nil options, profile governs).
                         session = LanguageModelSession(profile: ToolmodeBatteryProfile(
-                            model: model, belt: belt,
-                            instructionsText: cellInstructions, options: baseOptions))
+                            model: model, belt: trialBelt,
+                            instructionsText: trialInstructions, options: baseOptions))
                         trialOptions = nil
                     } else if cell == .armedStrikefix {
                         // #200H: the third-strike demote rides the same
                         // DynamicProfile machinery — `.allowed` until any
                         // single tool's third call, `.disallowed` after.
                         session = LanguageModelSession(profile: SpiralBudgetProfile(
-                            model: model, belt: belt,
-                            instructionsText: cellInstructions, options: baseOptions))
+                            model: model, belt: trialBelt,
+                            instructionsText: trialInstructions, options: baseOptions))
                         trialOptions = nil
                     } else {
-                        session = LanguageModelSession(model: model, tools: belt, instructions: Instructions(cellInstructions))
+                        session = LanguageModelSession(model: model, tools: trialBelt, instructions: Instructions(trialInstructions))
                         trialOptions = baseOptions
                     }
                     await executeBatteryTrial(session: session, options: trialOptions,
@@ -3552,6 +3660,34 @@ extension LocalChatBackend {
     func runScopedV2Battery(trials: Int) async {
         await runActionBattery(trials: trials,
                                cells: [.armed, .armedScopedv2],
+                               includeGrabCanary: true)
+    }
+
+    /// #215 one-tap wrapper — THE missing denominator. Unrouted control vs
+    /// production's routed configuration, on all four prompts with the grab
+    /// canary IN, because the canary is the primary measurement: 2 cells × 4
+    /// prompts × trials, plus one router generation per routed trial.
+    ///
+    /// **Stated before the run, so the result cannot be read backwards:**
+    ///
+    /// - The three CREATE prompts should route ARMED ~100% (the router probe
+    ///   has them at 200/200 on `expected: true` rows). If they do, the
+    ///   routed create rate should land on the control's, and the delta is the
+    ///   router's latency and nothing else.
+    /// - The HAIKU canary should route TOOLLESS ~100%, so its grab rate
+    ///   should be **0/n by construction** — a turn with no belt cannot grab.
+    ///   #214 measured 8/10 grabs on the unrouted control. If the routed arm
+    ///   is not ~0, either the router misroutes composition prompts far more
+    ///   than the probe says, or a no-belt turn can still emit a grab — and
+    ///   either of those is a bigger finding than the lane was built for.
+    ///
+    /// **What would falsify the reframing**: a routed haiku grab rate that is
+    /// not ~0. That would mean #214's "the disease is an instrument property"
+    /// conclusion — which is the reason this lane exists — is wrong, and the
+    /// grab disease survives into production after all.
+    func runRoutedActionBattery(trials: Int) async {
+        await runActionBattery(trials: trials,
+                               cells: [.armed, .routedProduction],
                                includeGrabCanary: true)
     }
 

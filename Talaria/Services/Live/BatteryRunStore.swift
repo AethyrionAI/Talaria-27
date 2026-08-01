@@ -57,6 +57,17 @@ struct BatteryTrialRecord: Codable, Equatable {
     var toolCalls: [BatteryToolCallRecord]
     /// armed-routed only: "armed" or "toolless".
     var route: String?
+    /// #215: true when that route was a FAIL-SAFE rather than a
+    /// classification. `routeNeedsDeviceTool` returns `armed` on any thrown
+    /// generation — right for a live turn, ruinous for a record, because
+    /// `route: "armed"` then reads exactly like the router having looked at
+    /// the prompt and decided. #213 was this same bug in the router probe,
+    /// where the fallback was scored as a CORRECT answer.
+    ///
+    /// `nil` on trials that never routed — a claim distinct from `false`, and
+    /// the reason this is optional rather than defaulted at the decoder: the
+    /// 48 archived runs predate the field and must keep decoding.
+    var routeFailed: Bool? = nil
     var error: String?
     var timedOut: Bool
     var latencySeconds: Double
@@ -391,6 +402,9 @@ final class BatteryRunRecorder {
     private var trialStart: ContinuousClock.Instant?
     private var pendingToolCalls: [BatteryToolCallRecord] = []
     private var pendingRoute: String?
+    /// #215: nil until a route is recorded, so an unrouted trial's record says
+    /// nil rather than claiming the router succeeded.
+    private var pendingRouteFailed: Bool?
     private let clock = ContinuousClock()
 
     init(store: BatteryRunPersisting) {
@@ -417,11 +431,16 @@ final class BatteryRunRecorder {
         trialStart = clock.now
         pendingToolCalls = []
         pendingRoute = nil
+        pendingRouteFailed = nil
     }
 
-    func recordRoute(_ route: String) {
+    /// #215: `failed` says the route was the fail-safe, not a classification.
+    /// Defaulted so the existing call sites are unchanged; every caller that
+    /// CAN observe a router throw is expected to pass it.
+    func recordRoute(_ route: String, failed: Bool = false) {
         guard run != nil else { return }
         pendingRoute = route
+        pendingRouteFailed = failed
     }
 
     func recordToolCall(name: String, detail: String) {
@@ -495,6 +514,7 @@ final class BatteryRunRecorder {
             shape: shape, prompt: prompt, trial: trial,
             text: text, cant: cant, denial: denial,
             toolCalls: pendingToolCalls, route: pendingRoute,
+            routeFailed: pendingRouteFailed,
             error: error, timedOut: timedOut,
             latencySeconds: latency,
             inputTokens: inputTokens, outputTokens: outputTokens
@@ -502,6 +522,7 @@ final class BatteryRunRecorder {
         trialStart = nil
         pendingToolCalls = []
         pendingRoute = nil
+        pendingRouteFailed = nil
         persistSnapshot()
     }
 
