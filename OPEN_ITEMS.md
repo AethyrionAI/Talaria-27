@@ -11933,6 +11933,137 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
+## #219 — 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
+
+**FILED 2026-08-01.** *(OPEN_ITEMS #219. **Not** GitHub PR #219 — separate
+sequences. The five lanes below use sub-letters precisely to stop minting more
+collisions; `#217B` is the precedent.)*
+
+**Occurrence 1.** During the first real `lane-gate.sh` run against `main`:
+
+```
+MessageIdentityUITests.testTranscriptNeverRendersDuplicateMessageIDs()
+TalariaUITests.testDisconnectReturnsToStandaloneChat()
+TalariaUITests.testPairedRelaunchSkipsPairingEntry()
+TalariaUITestsLaunchTests.testLaunch()
+** TEST FAILED **   (xcodebuild exit 65)
+```
+
+Same tree passed on re-run — 1461 + 8, `TEST SUCCEEDED`. **Not a product bug.**
+
+**Signature, and it is what makes this diagnosable:** **no assertion text and no
+`.swift:NN: error:` line anywhere in the log.** `testLaunch` PASSED, then
+*started again*, then the suite reported zero tests and four failures. That is
+the runner being lost or restarted — a real failure names an assertion.
+
+**Explicitly NOT #164**, whose fix (`waitForNonExistence`, `AppTemplateUITests.swift:220`)
+is on main and working, and whose mechanism is a bare `.exists` racing a
+dismissal animation with captured 50ms timings. **Filed separately rather than
+folded into an existing item it does not match** — merging two flakes with
+different mechanisms into one counter is how both become unfixable.
+
+**Also not #195** (`typeText` keyboard race), despite `MessageIdentityUITests`
+appearing in the list: #195 is one test with an assertion, this took all four
+with none.
+
+**Standing instruction, encoded in `lane-gate.sh`:** on a flake, re-run **once**
+and record **BOTH** runs. Never re-run until green and report only the green one
+— that is how a real intermittent regression gets laundered into "passes on my
+machine." The gate now prints which kind of failure it is looking at.
+
+**Owed:** nothing yet — this is a WATCH at occurrence 1. Two is a pattern (the
+standing rule that promoted #164). If it recurs, capture the `.xcresult`, not
+just the log.
+
+## #199A — false decline-attribution: the model blames a CONTACT for the USER's decline
+
+**FILED 2026-08-01** from the Hermes audit's Part 1C (unfiled lanes). Surfaced
+inside #199's verdict and never given a lane of its own, which is why it has sat.
+
+#199 established the headline — post-decline fabrication is real but confined to
+grabs, and the intended-create path is clean. **This is the residue it found on
+the way, and it is a different disease:** when the user declines, the model
+reports a *false cause*.
+
+| prompt | misattributed | to what |
+|---|---|---|
+| **calendar** | **6/10** | a contact lookup — *"the name 'Sam' wasn't found in your contacts"* |
+| **remind** | 1/10 | the time — *"because the time 4:30 PM didn't work"* |
+| **alarm** | 0/10 | — correctly attributed to the user |
+
+**Why it matters more than a phrasing nit:** the user declined, and the app told
+them their *contacts* were the problem. That sends them to fix something that was
+never broken, and it is a trust failure rather than a capability one. Alarm's
+0/10 proves the model CAN attribute correctly, so this is not a ceiling.
+
+**Owed:** a battery lane with a bar written first. Candidate primary: calendar
+misattribution ≤ 1/10 with declines still reached 10/10 (a fix that stops
+reaching the decline is not a fix).
+
+## #205E — ctx-a embeds the prior turn UNTRUNCATED, verdict measured at ~590 chars
+
+**FILED 2026-08-01** from the audit's unfiled-lanes list. Rows already exist; only
+the run is owed.
+
+The no-truncation verdict was measured on prior turns of **~590 characters**.
+**Real assistant turns run to thousands.** A ~3,500-char row (a long answer with
+the offer buried at the end — the shape a user actually produces after a broad
+question) plus its words-only counterpart are already in the baseline probe grid.
+
+**Owed: run them before TestFlight.** Low risk — latency was flat from 40 → 590
+chars — but **"flat over one order of magnitude" is not "flat forever"**, and
+this is the cheapest possible check against a context blow-up in production.
+
+## #210A — does one forced condensation actually fit 8,192?
+
+**FILED 2026-08-01** from the audit's unfiled-lanes list.
+
+#210 fixed the guard: the condense-and-retry path now FIRES on a real
+context-overflow error (it previously did not, because the typed cast was against
+the deprecated `GenerationError`). **The guard firing and the guard WORKING are
+different claims.**
+
+**Unmeasured:** whether one forced condensation actually gets a real
+long-conversation turn under the 8,192 budget. If it does not, the retry burns a
+generation and fails anyway — the user-visible outcome is identical to having no
+guard, at twice the latency.
+
+**Owed:** a measured run, not an assumption. Note `n` on the original observation
+is **2** — the smallest number in the program that anything rests on.
+
+## #211A — offer-instead-of-act on READ paths, where no confirmation gate excuses it
+
+**FILED 2026-08-01** from the audit's unfiled-lanes list.
+
+Several replies **offer** the right tool without calling it — *"Would you like me
+to check your health data for other metrics?"* On a **create** path an offer is
+at least adjacent to the confirmation gate. **On a read path there is no gate to
+excuse it**: the user asked a question the model could have answered outright.
+
+**Unlike #209's residual, this IS battery-measurable — the effect is 0/20, not
+1.4%.** That is the whole reason it deserves a lane: it is big enough to see.
+
+Corroborating evidence already banked in #211: on `stepsdirect`, control offered
+on **4/10** and the promoted treatment on **0/10**, which is evidence this shape
+is **downstream of tool choice** rather than a separate disease. A lane should
+test that directly before assuming it needs its own words.
+
+## #216A — re-read #200F and #214's grab results in light of the substitution finding
+
+**FILED 2026-08-01** from the audit's unfiled-lanes list. **Analysis, not a device
+run** — cheap, and it may retire other work.
+
+#216 established that narrowing a belt **redirects** over-serving rather than
+removing it (`readCalendar` 7→0 and `lookupContact` 8→0 while `currentLocation`
+went 1/10 → 10/10). If substitution is the mechanism, then **grab counts recorded
+before that was understood may have been measuring displacement, not disease** —
+a tool going to zero reads as a win when the pressure simply moved.
+
+**Owed:** re-read #200F's and #214's grab tables against the substitution model
+and record whether any conclusion changes. **A conclusion that survives the
+re-read is stronger than one that was never re-read** — and if one does not
+survive, it is better found here than in a promotion.
+
 ## #218 — `main` DID NOT BUILD IN RELEASE for two days, and every check we run is blind to it. FIXED 2026-08-01.
 
 *(OPEN_ITEMS #218. **Not** GitHub PR #218, which was the same day's documentation
