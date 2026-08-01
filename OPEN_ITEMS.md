@@ -11824,6 +11824,81 @@ The audit called #198 "mechanical, file-scoped, safe to route to any executor".
 them as such is the point of stopping here rather than pushing a risky refactor
 into a hygiene PR.
 
+## #216 — the narrow belt, re-tried where it cannot lose. #214's closure was right about the evidence and wrong about the world.
+
+**FILED 2026-08-01, bars written first. No production change — `routed-scoped` is
+a measured cell. Owen routes the run and any promotion.**
+
+**Why reopen a cell that was correctly closed.** #214 killed `armed-scopedv2`
+because narrowing the belt took haiku grabs 8/10 → 0/10 and took clean
+composition **8/10 → 0/10** with them. That verdict was right on its evidence. It
+was measured on an UNROUTED battery, where the composition prompt is armed by
+construction and therefore sees the narrow belt.
+
+**#215 then measured what production actually does with that prompt: it routes
+TOOLLESS 10/10.** A routed-toolless turn registers no belt at all. **So the
+composition failure that closed #214 is unreachable once the router is in
+front** — not mitigated, not traded against: structurally absent, because the
+belt under test is never constructed on that turn.
+
+**The target is measured, not assumed.** #215 priced production's residue and it
+is one prompt:
+
+| prompt | calls/trial | median | tools |
+|---|---|---|---|
+| remind | 1 | 3.7s | `createReminder` 10/10 |
+| alarm | 1 | 3.3s | `scheduleAlarm` 10/10 |
+| calendar | **3** | **6.4s** | create 10/10, `readCalendar` 7/10, `lookupContact` 7/10 |
+
+**A +2.8s tax on every calendar turn for two lookups whose results change
+nothing** — creates are 10/10 with or without them. `routed-scoped`'s belt
+contains neither tool, so the mechanism is removal, not persuasion. **This is the
+first lane in the series aimed at a LATENCY defect rather than a correctness
+one**, because #215 showed the correctness defects on these prompts were the
+instrument's.
+
+**The cell.** Rides createonly's belt EXACTLY — the same belt scopedv2 rode, so
+the lineage back through #214 and #200F is intact and this is a re-evaluation,
+not a new unmeasured narrowing (pinned by `routedScopedNarrowsExactlyLikeCreateonly`).
+It deliberately does NOT carry scopedv2's composition-licensing sentence: that
+clause existed to repair the denial the belt caused, routing already repairs it,
+and carrying it would make the cell differ from its control in two ways instead
+of one. **Both arms route**, so the single variable is the belt an ARMED turn
+sees. `routedProductionKeepsTheFullBelt` pins that the control is not narrowed
+too — a `scopedBelt` regression that narrowed both would erase the contrast while
+leaving every other assertion green.
+
+**Bars, pre-registered:**
+
+- **Gate** — control calendar calls/trial median **≥3**. #215 measured exactly 3;
+  below that the overhead is absent tonight and the treatment has nothing to
+  remove.
+- **Primary A, the point** — treatment calendar calls/trial median **≤1**.
+  Should hold by construction; failing it means something other than tool
+  availability drives the lookups, which would be a more interesting finding
+  than the lane.
+- **Primary B, the promotion-killer** — treatment calendar creates **≥8/10**. A
+  latency win must not buy the create rate.
+- **Primary C** — treatment remind and alarm creates **≥9/10 each**. Both sit at
+  10/10 with one call apiece; narrowing must not disturb a ceiling it was not
+  aimed at.
+- **Primary D, #214's objection measured rather than argued** — treatment haiku
+  clean turns **≥8/10**. Composition should be untouched because the router sends
+  it toolless in BOTH arms. Carrying the canary costs 20 generations to turn
+  "unreachable by argument" into "unreachable, measured", and **#214 died on
+  exactly this**, so a lane reopening it without measuring composition would
+  deserve to be distrusted.
+
+**What would falsify the premise:** haiku clean turns below 8/10, or ANY haiku
+trial routing armed. Either means the composition objection reaches production
+after all and #214's closure stands.
+
+**Instrument added with the lane:** `call_economy_report` in the classifier.
+#215's headline residue was computed by hand from the run record, which is the
+wrong home for a lane's primary metric. It also reports same-tool repeats
+explicitly — #215 saw zero in 80 trials, and "none" must be distinguishable from
+"not measured".
+
 ## #215 — THE MISSING DENOMINATOR: the action battery has never routed, so no number it has ever produced describes the shipped app.
 
 **FILED 2026-07-31, bars written first. No production change — `routed-production`
