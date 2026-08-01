@@ -12104,9 +12104,13 @@ calendar event?" — rather than a multiway intent. It is the shape the model
 demonstrably handles, it costs nothing extra (the gate proved the second field is
 free), and #216's entire measured prize was on the calendar prompt. **It is
 unmeasured, it needs its own probe with its own pre-registered bars, and it is
-not what this lane tested.** Owen routes whether it is worth a lane at all —
-against the fact that the honest baseline is now "production is fine and 2.6
-seconds is the whole prize."
+not what this lane tested.**
+
+**PARKED 2026-08-01 at Owen's direction — recorded, NOT owed.** A notation so the
+reasoning is not lost, not a queued lane. The honest baseline is that production
+is fine and 2.6 seconds on one prompt is the entire prize. **Nothing should read
+this as pending work** — that is the #190 failure mode, where an unclosed note
+reads as a live blocker.
 
 **Owed:** nothing from this lane. `RouterIntent`, the four probe types and the
 grid stay as DEBUG-only measured artifacts — the record of a falsified approach,
