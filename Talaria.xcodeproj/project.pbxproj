@@ -82,6 +82,7 @@
 		1D37AEBCF3A802E72DF6706D /* SessionUsageIndexStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 712CB7E063819A3CB9521687 /* SessionUsageIndexStore.swift */; };
 		1D65E5AB7B2A5160256979EE /* TalariaLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6968AE7D731EB530E8784AAB /* TalariaLog.swift */; };
 		1D7CCB0E442AE322296D4680 /* PermissionType.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A60186C884A91C050A0E77 /* PermissionType.swift */; };
+		20A1ED6E62216A11AC9486BC /* RoutedTrialShapeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E8EF024C3134EA534CFABD /* RoutedTrialShapeTests.swift */; };
 		20C96A75186B18743C7F200A /* ChakraPetch-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 80EF15B79F03C0BF47DAB3C2 /* ChakraPetch-SemiBold.ttf */; };
 		21ABBB6BEBC4263724B61735 /* HermesHostStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDA88A494348CA2669EA79C /* HermesHostStore.swift */; };
 		21E9A22A97CE3C9866ACFCE2 /* Icon-MoltenForge@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 0F52C49687672CA223A85A7A /* Icon-MoltenForge@2x.png */; };
@@ -847,6 +848,7 @@
 		A4D59C9D8D1A4E48B49CA305 /* ConversationListState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationListState.swift; sourceTree = "<group>"; };
 		A5044B1A58F14C67ED49975C /* AttachmentPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentPickerSheet.swift; sourceTree = "<group>"; };
 		A59F115068928742EE2EB119 /* Icon-MidnightAquarium@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-MidnightAquarium@3x.png"; sourceTree = "<group>"; };
+		A5E8EF024C3134EA534CFABD /* RoutedTrialShapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutedTrialShapeTests.swift; sourceTree = "<group>"; };
 		A60B419A4FBED58CCA577635 /* AskHermesIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskHermesIntent.swift; sourceTree = "<group>"; };
 		A6454C18539C7CF76928BBA5 /* IconPreview-LunarDiner.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-LunarDiner.png"; sourceTree = "<group>"; };
 		A6DABD8EE1467EE669FF3FD2 /* SessionStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStats.swift; sourceTree = "<group>"; };
@@ -1179,6 +1181,7 @@
 				74C7E0C846FCAADF95AB0977 /* PushRegistrationRecordTests.swift */,
 				6BB71CCECAE06823EA97EEDA /* ReasoningChannelTests.swift */,
 				928B03CEA5240B87D4B99D7A /* RequiredPropertyDecodeTests.swift */,
+				A5E8EF024C3134EA534CFABD /* RoutedTrialShapeTests.swift */,
 				4E908DCC59357802D176E212 /* SensorOptInTests.swift */,
 				BEBD81AC0A5839FA111D423E /* SensorOutboxChurnTests.swift */,
 				C0533895BE78322F481C2946 /* ServerSettingsTests.swift */,
@@ -2504,6 +2507,7 @@
 				0D36A7E72F916D802D9C1207 /* PushRegistrationRecordTests.swift in Sources */,
 				542E125ADE6CFAD3AADC94AF /* ReasoningChannelTests.swift in Sources */,
 				7ED6B37BFBA2622B436E0881 /* RequiredPropertyDecodeTests.swift in Sources */,
+				20A1ED6E62216A11AC9486BC /* RoutedTrialShapeTests.swift in Sources */,
 				D8035EB463C86F3BF4A57174 /* SensorOptInTests.swift in Sources */,
 				39126650E0C3D4914B75988C /* SensorOutboxChurnTests.swift in Sources */,
 				FDDBDDD0DF3E665FD2E6BCE1 /* ServerSettingsTests.swift in Sources */,
