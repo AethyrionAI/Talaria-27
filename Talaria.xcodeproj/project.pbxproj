@@ -74,6 +74,7 @@
 		1A35C21F5B8D36B6AF411E1F /* LiveLocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C033B79367C600767758EB0 /* LiveLocationService.swift */; };
 		1AC5431689C6E653C516C975 /* FilePreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6874BCC08D52FEC22B4949DF /* FilePreviewTests.swift */; };
 		1ACF900EA56F6A1AABD3CED0 /* LiveNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9317395F2FB6F1E6C58527E /* LiveNotificationService.swift */; };
+		1B25B1CE93578B1F8C63CB7E /* WeatherKitProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCDC5F8E067043439DC24E5 /* WeatherKitProbe.swift */; };
 		1B6374CD593C44F6329C4F32 /* CodeBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A750F66E6CC7CE70AFEE190 /* CodeBlockView.swift */; };
 		1BFB922912C8BAFE42941E7E /* ChartSegmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1DAB0AF363C52116231C439 /* ChartSegmentView.swift */; };
 		1C07AEBA1620620D11964D9A /* Icon-LuchaLibre@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 18D266B207E1D16C45A7C236 /* Icon-LuchaLibre@2x.png */; };
@@ -863,6 +864,7 @@
 		AB2D09CCD9B4464AAADCD11A /* SessionBootstrapResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionBootstrapResponse.swift; sourceTree = "<group>"; };
 		ABEA0742AA139362CA26B832 /* SensorUploadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SensorUploadService.swift; sourceTree = "<group>"; };
 		AC5589A3109A1F1544E674F6 /* MockSyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockSyncCoordinator.swift; sourceTree = "<group>"; };
+		ACCDC5F8E067043439DC24E5 /* WeatherKitProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherKitProbe.swift; sourceTree = "<group>"; };
 		AE66ED7A7F3BD4888CCACAF2 /* Icon-CasinoLucky7s@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-CasinoLucky7s@2x.png"; sourceTree = "<group>"; };
 		B00AB5FA1BE69387B3F2AB6D /* AppPersistenceStoreProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPersistenceStoreProtocol.swift; sourceTree = "<group>"; };
 		B101F84B43323E854C1B5F28 /* BriefingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingTests.swift; sourceTree = "<group>"; };
@@ -1071,6 +1073,7 @@
 				B2CCE55977727DE21D3DB5C5 /* VoiceMemoPlayer.swift */,
 				301C5906499EE7579DB26285 /* VoiceMemoRecorder.swift */,
 				49FFDC553B63DC1D09E83DF6 /* VoiceMemoTranscriber.swift */,
+				ACCDC5F8E067043439DC24E5 /* WeatherKitProbe.swift */,
 			);
 			path = Live;
 			sourceTree = "<group>";
@@ -2419,6 +2422,7 @@
 				BFD8F7CBAA18CF64CB5CEA50 /* VoiceSessionServiceProtocol.swift in Sources */,
 				966A9E29D71DD8D4BA519C19 /* VoiceSettingsScreen.swift in Sources */,
 				10199A455BCE13B63B0B82D2 /* VoiceState.swift in Sources */,
+				1B25B1CE93578B1F8C63CB7E /* WeatherKitProbe.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
