@@ -64,7 +64,15 @@ python shim.py
 
 ## Testing
 
-**iOS app** — there is a substantial automated suite (Swift Testing for units, XCUITest for launch/UI). Run it before submitting app changes:
+**iOS app** — there is a substantial automated suite (Swift Testing for units, XCUITest for launch/UI). One script runs everything a change must pass before submission:
+
+```bash
+scripts/mac/lane-gate.sh
+```
+
+It runs the Debug suite **and a Release build**, and reports PASS/FAIL per check. Release is not optional: the suite, device installs and the plain CLI compile check are all Debug, so a symbol that exists only under `#if DEBUG` and is referenced by production compiles green everywhere except the configuration you ship. That happened, and it went unnoticed for two days behind a fully green suite.
+
+To run the suite alone:
 
 ```bash
 export DEVELOPER_DIR=/Applications/Xcode-beta4.app/Contents/Developer

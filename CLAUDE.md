@@ -154,10 +154,17 @@ works against OJAMD.
   suite at the OLD test count (this cost a bogus "verified green" on 2026-07-30) — after
   editing tests, confirm the reported count MOVED, and if it did not, purge
   `<dd>/Build/Intermediates.noindex` and run plain `test`.
+- **THE GATE — run `scripts/mac/lane-gate.sh` before opening any PR.** One command;
+  runs the Debug suite (units + XCUITest) **and a Release build**, and requires a
+  POSITIVE success marker from each. `--release` / `--suite` narrow it. Release is in
+  there because #218: `main` could not build in Release for two days and every check
+  we had was Debug, so 1461 green tests proved nothing. **The gate is verified to
+  fail** — the #218 bug was re-injected and it caught all three errors.
 - **CLI compile check:** `xcodebuild -project Talaria.xcodeproj -scheme Talaria
   -configuration Debug -destination 'generic/platform=iOS Simulator' build
   CODE_SIGNING_ALLOWED=NO`. Long builds exceed the 4-min MCP cap — run backgrounded
-  (`nohup … &`) and poll the log.
+  (`nohup … &`) and poll the log. The gate script is the same trap: it takes minutes,
+  so background it and poll rather than blocking a tool call on it.
 - **Device deploy:** Xcode MCP bridge `RunProject(tabIdentifier:"windowtab1")` builds +
   installs + launches on **whoGoesThere** (iPhone, iOS 27 beta). `GetConsoleOutput` reads
   device logs. The bridge can't drive physical-device UI. After `xcodegen` regen, RunProject
