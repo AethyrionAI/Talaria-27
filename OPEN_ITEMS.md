@@ -14215,9 +14215,11 @@ since **#166b (PR #138, 2026-07-23)**; it sets a range-scoped `NSExceptionDomain
 entry keyed by the CGNAT CIDR `100.64.0.0/10`. Hosts **outside** that range get no
 exception at all, so a Mac Mini profile resolving to a LAN IP or a MagicDNS name
 is blocked by design. The follow-on suggestion — narrow to
-`NSAllowsLocalNetworking` — was **arm 2 of #166b's own four-arm on-device
-experiment and it BLOCKED tailnet traffic** (CGNAT is not "local" to ATS). It is
-falsified, not pending.
+`NSAllowsLocalNetworking` — was **arm 2 of #166b's own four-arm experiment and it
+BLOCKED tailnet traffic** (CGNAT is not "local" to ATS). It is falsified, not
+pending. (That experiment ran 2026-07-22 in the **app test host on the sim**, not
+on device — `URLSession` inside the host obeys the real plist, which is the whole
+reason the result carries weight; `curl` would not have exercised ATS at all.)
 
 **Where the wrong premise came from, which matters more than the note:** it was
 copied out of `CLAUDE.md`, which had carried the stale claim since #166b landed
@@ -14227,12 +14229,21 @@ artifact, and `project.yml` was one grep away.** Same family as this repo's
 standing "verify OJAMD against live state, never by text-matching a snapshot"
 rule; that rule just never got applied to our own config files.
 
+**And it recurred inside this very correction.** The first draft of this note and
+of the CLAUDE.md fix both said #166b's experiment was run "on device" — taken from
+the audit's phrasing. `project.yml`'s own comment says sim/test host. So the
+correction for trusting a summary was itself written from a summary, caught only
+by grepping the file a second time. **The rule has to fire on the sentence you are
+writing right now, not just on the one you are fixing.**
+
 **The real open question this note was actually reporting — needs a decision, not
 a fix:** LAN-hosted backends (`http://192.168.x`, MagicDNS names) are ATS-blocked
 app-wide right now. Whether that is intended is Owen's call. If LAN backends
-should work, it needs its own exception and its own on-device arm — **not**
-`NSAllowsLocalNetworking` by assumption; #166b showed that key does not behave the
-way its name suggests, and the same experiment shape should decide this.
+should work, it needs its own exception and its own measured arm in the same
+harness #166b used — **not** `NSAllowsLocalNetworking` by assumption; #166b showed
+that key does not behave the way its name suggests, and note it was tested there
+against a CGNAT host, so it has never actually been tried against a `192.168.x`
+one. That is the arm to run.
 
 Also seen at launch: `:8765/models` and `:8000/v1/commands` timed out while
 push/register to the same relay succeeded four seconds later — reads like a

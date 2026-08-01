@@ -112,10 +112,13 @@ works against OJAMD.
   `NSAllowsArbitraryLoads` was removed by **#166b (PR #138, 2026-07-23)** and replaced with
   a range-scoped `NSExceptionDomains` entry keyed by the Tailscale CGNAT CIDR
   `100.64.0.0/10` (`project.yml`). The CIDR-as-domain-key form looks invalid but was
-  adopted only after a four-arm on-device experiment (`OPEN_ITEMS.md` #166b): no exception
-  → tailnet HTTP blocked −1022; **`NSAllowsLocalNetworking` → still blocked, CGNAT is not
-  "local" to ATS**; the CIDR form → both gateways allowed; an outside-range negative
-  control → still blocked. **So do not "narrow to `NSAllowsLocalNetworking`" — that arm was
+  adopted only after a four-arm controlled experiment (`OPEN_ITEMS.md` #166b, 2026-07-22)
+  run **inside the app test host on the shipping toolchain — sim, not device**, which is
+  what makes it trustworthy: `URLSession` there obeys the real plist, whereas `curl` does
+  not exercise ATS at all. Arms: no exception → tailnet HTTP blocked −1022;
+  **`NSAllowsLocalNetworking` → still blocked, CGNAT is not "local" to ATS**; the CIDR
+  form → both gateways allowed; an outside-range negative control (`1.1.1.1`) → still
+  blocked, so the exception does not leak globally. **So do not "narrow to `NSAllowsLocalNetworking`" — that arm was
   tested and it breaks every tailnet connection the app makes.** Nothing here is owed
   before submission. Consequence to know: hosts outside `100.64.0.0/10` — LAN IPs,
   MagicDNS names — have **no** exception and are ATS-blocked app-wide. `README.md` and
