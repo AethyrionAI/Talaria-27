@@ -208,6 +208,34 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
 - Issues tracked in `OPEN_ITEMS.md` (dated update notes); session continuity in
   the local `handoffs/` notes (gitignored) + `CLEAN_CHAT_PATH.md`.
 
+## Measurement discipline (#215 — the rule that cost the most to learn)
+
+**A battery rate is a PRODUCTION rate only if the row was ROUTED.** Production
+classifies every turn first (`routeNeedsDeviceTool`), and a turn routed toolless
+gets **no belt at all**. An unrouted cell arms every trial by construction, so on
+any prompt the router would send toolless it is measuring a configuration the app
+never enters.
+
+- The dozens of **grab rates and "I cannot…" rates across the #200-series are
+  valid CELL CONTRASTS and are not production facts.** They are left un-annotated
+  on purpose — the contrasts still hold, and rewriting them would obscure what was
+  actually measured. Read them as "cell A vs cell B, armed," never as "the app
+  does this."
+- Measured 2026-08-01, run `F486F103`, same four prompts, same build: the unrouted
+  control posted **6/10 grabs plus 4/10 disclaimer tics — zero clean composition
+  turns.** The routed cell posted **10/10 clean, 0 grabs** (p = 1.08e-05). Creates
+  were **10/10 in both** arms.
+- **So routing is a no-op on device-request prompts and decisive on composition
+  prompts.** Adding routing to a battery whose prompts are all device requests
+  (read-tool, motion) will not move its numbers — don't spend a device run
+  expecting it to.
+- What routing does NOT excuse: **over-serving on turns it CORRECTLY arms**
+  (tool chaining, the `lookupContact` spiral). Those numbers were never inflated
+  by this and are the real remaining work.
+
+`runActionBattery`'s `routed-production` cell is the routed arm. Every other
+wrapper is still unrouted.
+
 ## Project history
 
 Dated per-item history — every wave, lane, and PR previously transcribed here — lives in

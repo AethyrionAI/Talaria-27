@@ -11972,8 +11972,61 @@ the nine-`lookupContact` spiral, the single `currentLocation` above. Those turns
 route armed in production, so their numbers were never inflated by this defect
 and remain real.
 
-**Owed:** replicate at matched thermal state; route the read-tool, motion, and
-destall wrappers before quoting any of their rates as production rates.
+### The same run also prices routing, and prices the residue — both unfiled until now
+
+**What routing COSTS and what it BUYS,** median seconds and median input tokens
+per turn, same run:
+
+| prompt | unrouted | routed | delta |
+|---|---|---|---|
+| remind | 2.7s | 3.7s | **+1.0s** |
+| alarm | 2.3s | 3.3s | **+1.0s** |
+| calendar | 5.3s | 6.4s | **+1.1s** |
+| haiku | 4.0s / 1,914 tok | **1.8s / 503 tok** | **−2.2s, −1,411 tok** |
+
+**The router costs ~1s on a turn it arms and saves 2.2s plus 1,400 input tokens
+on one it does not.** It pays for itself on composition and is cheap everywhere
+else — the first time that trade has been measured rather than assumed.
+
+**The residue, measured in production configuration:**
+
+| prompt | calls/trial | tools called |
+|---|---|---|
+| remind | **1** | `createReminder` 10/10 |
+| alarm | **1** | `scheduleAlarm` 10/10 |
+| calendar | **3** | `createCalendarEvent` 10/10, `readCalendar` 7/10, `lookupContact` 7/10, `currentLocation` 1/10 |
+| haiku (routed) | **0** | — |
+
+**Remind and alarm are perfect: one call, one action.** The whole residue lives on
+the calendar prompt, which spends **3 calls and 6.4s to do one thing** — a **+2.8s
+tax** over remind, for two lookups whose results change nothing (creates are 10/10
+with or without them).
+
+**The nine-`lookupContact` spiral did NOT reproduce: zero same-tool repeats in 80
+trials.** It is not "cured" on this evidence — one run cannot establish that — but
+it is not the live problem, and a lane aimed at it would be aimed at a ghost. The
+live problem is a fixed 2-call overhead, not a runaway.
+
+**So the residual disease is a LATENCY defect, not a correctness one.** That is a
+different lane from the one #214 anticipated, and it is worth saying plainly: the
+creates were the thing we spent days on, and they are at ceiling.
+
+**Owed:** replicate at matched thermal state.
+
+**CORRECTION to this item's own owed list, made the same night.** It first read
+"route the read-tool, motion, and destall wrappers before quoting any of their
+rates as production rates." **That is wrong and would have cost device runs.**
+This run's own data says routing is a **no-op on device-request prompts** —
+creates were 10/10 in BOTH arms, because the router arms those turns anyway. The
+read-tool and motion wrappers pass `promptSet`s that are entirely device
+requests, so routing them cannot move a single number.
+
+Routing matters for exactly one thing: a row the router would send TOOLLESS.
+Today that is the **grab canary** (`includeGrabCanary: true`), which the spiral,
+spiralfix, cardfix, datefix, calendar, deadend, grabfix and scopedv2 wrappers all
+carry. **Those canary rows are the ones whose rates are not production rates** —
+not the wrappers wholesale. The standing rule is in `CLAUDE.md` under
+"Measurement discipline."
 
 ## #214 — THE STRUCTURAL LANE: narrow belt CLOSED. Composition licensing falsified; the disease is partly an instrument property.
 
