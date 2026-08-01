@@ -25,6 +25,7 @@ import json
 import re
 import sys
 from collections import Counter
+from statistics import median
 
 CREATOR = {
     "remind": "createReminder",
@@ -705,8 +706,62 @@ def route_report(run):
     print()
 
 
+def call_economy_report(run):
+    """#216: how many tool calls a turn spends, and how long it spends them.
+
+    #215 found the residual disease is a LATENCY defect, not a correctness one:
+    remind and alarm cost 1 call and ~3.7s, while calendar cost 3 calls and 6.4s
+    for a `readCalendar` and a `lookupContact` whose results changed nothing —
+    creates were 10/10 with or without them. That number was computed by hand
+    from the run record, which is the wrong place for a lane's PRIMARY metric to
+    live, so it lives here now.
+
+    Repeats are called out separately because they are a different disease. A
+    fixed 2-call overhead is waste; the same tool called nine times in one trial
+    is a spiral. #215 saw zero repeats in 80 trials — reported explicitly rather
+    than by absence, so a future run can tell 'none' from 'not measured'."""
+    trials = [t for t in (run.get("trials") or []) if not t.get("error") and not t.get("timedOut")]
+    if not trials:
+        return
+    print("=== call economy (#216) — calls per turn, and what they cost")
+    for cell in run.get("cells", []):
+        rows = [t for t in trials if t["shape"] == cell]
+        if not rows:
+            continue
+        print(f"  {cell}")
+        for prompt in ("remind", "alarm", "calendar", "haiku"):
+            pr = [t for t in rows if t["prompt"] == prompt]
+            if not pr:
+                continue
+            counts = sorted(len(t.get("toolCalls") or []) for t in pr)
+            lat = [t.get("latencySeconds") or 0 for t in pr]
+            names = Counter(c["name"] for t in pr for c in (t.get("toolCalls") or []))
+            # statistics.median, not the upper-middle shortcut: these numbers
+            # gate a bar, and two defensible conventions disagreeing by one
+            # trial is not a thing a verdict should turn on.
+            med = median(counts)
+            print(f"    {prompt:<10} calls median={med:g} max={counts[-1]}"
+                  f"   {median(lat):.1f}s median"
+                  f"   {dict(names) if names else '{}'}")
+    # Repeats: same tool more than once inside ONE trial.
+    spirals = []
+    for t in trials:
+        c = Counter(x["name"] for x in (t.get("toolCalls") or []))
+        for name, n in c.items():
+            if n > 1:
+                spirals.append((t["shape"], t["prompt"], t["trial"], name, n))
+    if spirals:
+        print(f"  !! {len(spirals)} SPIRAL(s) — same tool repeated within one trial:")
+        for s in sorted(spirals, key=lambda x: -x[4]):
+            print(f"       {s[0]}/{s[1]} t{s[2]}: {s[3]} x{s[4]}")
+    else:
+        print(f"  no repeats: zero same-tool spirals across {len(trials)} counted trials.")
+    print()
+
+
 def main(path):
     run = json.load(open(path))
+    call_economy_report(run)
     error_taxonomy_report(run)
     tool_result_report(run)
     probe_error_report(run)

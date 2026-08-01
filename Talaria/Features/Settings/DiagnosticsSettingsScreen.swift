@@ -611,6 +611,31 @@ struct DiagnosticsSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #216 the narrow belt re-tried where it cannot lose: both arms routed,
+    // only the armed belt differs. Creates real artifacts — auto-ACCEPT, reaped.
+    @ViewBuilder
+    private func routedScopedBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            container.toolConfirmationCenter.autoDeclineForBattery = false
+            container.toolConfirmationCenter.autoAcceptForBattery = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runRoutedScopedBattery(trials: trials)
+                container.toolConfirmationCenter.autoAcceptForBattery = false
+                container.toolConfirmationCenter.autoDeclineForBattery = false
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #211 follow-on: promoted vs promoted-plus-boundary. READ tools only.
     @ViewBuilder
     private func motionRedirectBatteryButton(trials: Int, label: String) -> some View {
@@ -1433,6 +1458,12 @@ struct DiagnosticsSettingsScreen: View {
                 // generation per routed trial.
                 HStack(spacing: Design.Spacing.sm) {
                     routedBatteryButton(trials: 10, label: "Routed battery n=10 (80+40)")
+                }
+                // #216 the narrow belt re-tried under routing — the composition
+                // objection that closed #214 is unreachable once the router
+                // sends those turns toolless. 2 cells x 4 prompts x n + routes.
+                HStack(spacing: Design.Spacing.sm) {
+                    routedScopedBatteryButton(trials: 10, label: "Routed-scoped n=10 (80+40)")
                 }
                 // #211 follow-on: promoted vs promoted-plus-boundary, against
                 // the extra-tool chaining the promotion cost.
