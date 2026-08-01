@@ -236,6 +236,14 @@ never enters.
 `runActionBattery`'s `routed-production` cell is the routed arm. Every other
 wrapper is still unrouted.
 
+**Where it lives (#216, 2026-08-01):** the battery and the DEBUG instruments were
+split out of `LocalChatBackend.swift` (5,727 → 1,826 lines) into
+`LocalChatBackend+Battery.swift`, `+Harnesses.swift` and `+IntentRouting.swift`.
+Pure code motion. Because Swift's `private` is FILE-scoped, the production
+members those files reach are now `internal` and tagged **`// harness-visible`**
+— that tag means "private in spirit, widened only for the harness"; grep it
+before assuming a member is part of any real interface.
+
 ## Project history
 
 Dated per-item history — every wave, lane, and PR previously transcribed here — lives in
