@@ -95,6 +95,16 @@ struct RouterProbeRecord: Codable, Equatable {
     var context: String? = nil
     /// #202A: the band the bars are written against.
     var band: String? = nil
+    /// #217: the intent this row should have produced, and the FULL tally of
+    /// what it actually answered — every value, not just the matches.
+    ///
+    /// `correct/trials` cannot answer this lane's safety question. A row that
+    /// scores 7/10 is harmless if the other three said `other` (full belt,
+    /// today's behaviour) and dangerous if they said `health` on a calendar
+    /// turn. Those are the same number and opposite verdicts, so the
+    /// distribution is the record and the ratio is a summary of it.
+    var expectedIntent: String? = nil
+    var intentTally: [String: Int]? = nil
     /// #202C: mean seconds per classification. The long-context probe exists
     /// to answer a LATENCY question — the router runs on every production
     /// turn — and the first run emitted the timing to the console only, so
@@ -530,11 +540,14 @@ final class BatteryRunRecorder {
     /// unchanged and its records keep their original shape.
     func recordProbe(probe: String, expected: Bool, correct: Int, trials: Int,
                      variant: String? = nil, context: String? = nil, band: String? = nil,
-                     seconds: Double? = nil, errors: Int? = nil) {
+                     seconds: Double? = nil, errors: Int? = nil,
+                     expectedIntent: String? = nil, intentTally: [String: Int]? = nil) {
         guard run != nil else { return }
         run?.probes.append(RouterProbeRecord(probe: probe, expected: expected,
                                             correct: correct, trials: trials,
                                             variant: variant, context: context, band: band,
+                                            expectedIntent: expectedIntent,
+                                            intentTally: intentTally,
                                             seconds: seconds, errors: errors))
         persistSnapshot()
     }

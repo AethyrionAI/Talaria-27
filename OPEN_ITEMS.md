@@ -11824,6 +11824,152 @@ The audit called #198 "mechanical, file-scoped, safe to route to any executor".
 them as such is the point of stopping here rather than pushing a risky refactor
 into a hygiene PR.
 
+## #217 — CAN this model classify intent safely enough to drive a belt? A probe, not a belt lane.
+
+**FILED 2026-08-01, bars written first. NO production change — `ToolIntentRoute`
+is untouched and nothing narrows any belt. Owen routes the run.**
+
+**Why a probe first.** #216 priced the prize (calendar 6.1s → 3.5s, 2,269 → 976
+input tokens, creates and composition untouched) and named the blocker:
+`scopedBelt` keys on `promptTag`, which exists only inside the harness.
+Production's router returns a **Bool**, so it can decide *whether* to arm and
+never *what to arm with*. Fixing that means the router returns an intent — and
+before any belt rides an intent, the intent has to be shown safe.
+
+**The asymmetry that shapes the whole design.** A Bool router that is wrong
+falls back to the full belt: today's behaviour, failure free. **An intent router
+that is wrong arms the WRONG belt** — a turn needing `createCalendarEvent` while
+holding only health tools is *strictly worse than arming everything*. So every
+failure path lands on `.other`, and `.other` means the full belt. Pinned by
+`RouterIntentTests`, including a total lenient parse (empty string, junk,
+unknown future vocabulary → `.other`) and an assertion that `.other` is the
+**only** non-scoping case, so no intent can be silently inert and score as a win
+it did not earn.
+
+**Design choices worth recording:**
+
+- **A `String` with `@Guide(.anyOf:)`, not a `@Generable` enum.**
+  `GenerationGuide.anyOf(_:)` was **verified present in the beta-4
+  `swiftinterface`**, per the standing rule against trusting recall on WWDC26
+  surfaces. And #209 already established how a required `String` misbehaves — a
+  model with nothing to say emits `""` rather than omitting the key — so that
+  case is handled rather than discovered.
+- **ONE generation, not two.** #215 measured the router at ~1s on a turn it
+  arms; a second generation would spend #216's entire latency prize before any
+  belt narrowed. The cost is that the extra field might degrade the Bool, which
+  is not something to argue about — it is the gate below.
+- **`ToolIntentRouteV2` is a separate type.** Production's `ToolIntentRoute`
+  stays exactly as it is, as the control, because the question is whether adding
+  a field costs the Bool its 200/200.
+- **The grid is a SEPARATE list from `routerBaselineProbes`** — #205's lesson,
+  recorded in that file in as many words: adding rows to the pinned ten silently
+  re-points a long-running series and moves a pre-registered bar.
+
+**The grid deliberately includes four ARMED rows outside the vocabulary** —
+contacts, past chats, places, device status. They are real device requests whose
+correct answer is `other`, and they are where over-eager pattern-matching would
+surface. A model that answers `calendar` to "when did I last text Sam about the
+boat" is the failure this design exists to prevent.
+
+**Bars, pre-registered (encoded in `classify-battery-run.py`, so the verdict is
+computed rather than judged):**
+
+- **Gate** — V2's Bool accuracy on the pinned ten **≥95%** (#202A's
+  `BASELINE_GATE`, against a 200/200 history). Below it nothing else is worth
+  reading: the Bool is load-bearing on every turn and worth more than the
+  scoping.
+- **Primary A** — scoped-intent accuracy **≥90%**.
+- **Primary B, the bar the design lives or dies on** — **DANGEROUS answers
+  ≤2%.** A *dangerous* answer is a scoped intent that is the wrong scoped
+  intent, or any scoped intent on an `other` row. Answering `other` when a
+  scoped intent was right is a **MISS, not a danger** — it arms the full belt,
+  which is exactly today. Those two produce identical `correct/trials` and
+  opposite verdicts, which is why `intentTally` records the whole distribution
+  instead of a ratio.
+- **Primary C** — out-of-vocabulary armed rows answer `other` **≥90%**.
+
+**What would falsify the approach:** dangerous answers above 2%. The entire case
+for an intent router is that its failures are free. A model that guesses a scoped
+intent rather than saying `other` turns every misclassification into a disarmed
+turn — worse than the belt we ship today, and **not worth 2.6 seconds.**
+
+### VERDICT FILED 2026-08-01 — run `3CB9E45D`. **PRIMARY B FAILS at 12.5% against a 2% bar. The approach as specified is FALSIFIED.**
+
+260 classifications, `endedCleanly: true`, **zero router errors across all 26
+rows** — every number below is a real classification.
+
+| bar | pre-registered | measured | |
+|---|---|---|---|
+| Gate | V2 Bool accuracy ≥95% | **100%** (100/100) | PASS |
+| A | scoped-intent accuracy ≥90% | **100%** (100/100) | PASS |
+| **B** | **dangerous ≤2%** | **12.5%** (20/160) | **FAIL — 6× the bar** |
+| C | out-of-vocabulary `other` ≥90% | **66.7%** (40/60) | FAIL |
+
+**The falsification I wrote in advance fired. I am recording that as the
+verdict**, not as a surprise to be explained away.
+
+**Two rows carry the entire failure, and both are DETERMINISTIC:**
+
+| prompt | wanted | answered |
+|---|---|---|
+| "When did I last text Sam about the boat?" | `other` | **`reminder` 10/10** |
+| "How much battery do I have left?" | `other` | **`health` 10/10** |
+
+**Every one of the 16 grid rows answered the same value 10 times out of 10. Zero
+variance in 160 classifications.** This is not a model that sometimes guesses
+wrong — it is a **fixed mapping**. "Text Sam about the boat" *is* `reminder` to
+this model; "battery" *is* `health`. A deterministic error is worse in that it
+fires 100% of the time on those requests, and better in that it is addressable
+rather than stochastic. It also means n=10 per row bought nothing here; n=1 would
+have produced this table.
+
+**The mechanism: nearest-neighbour substitution, not random guessing.** The model
+answers `other` reliably when a request is FAR from every vocabulary entry —
+phone number, coffee shop, haiku, arithmetic all 10/10 `other` — and substitutes
+the closest entry when the request is NEAR one. Restricted to the four ARMED
+out-of-vocabulary rows, `other` accuracy is **20/40 = 50%**: a coin flip.
+
+**And it never erred in the safe direction. Zero safe misses** — not once did it
+answer `other` where a scoped intent was right. The guide says in as many words
+that *"Guessing is worse than answering other"*, and it guessed anyway. The bias
+against `other` is strong and one-directional.
+
+### What survives, and it is not nothing
+
+- **Adding a second field cost the Bool NOTHING: 100/100 against its 200/200
+  history.** The schema is safe to extend, and that is reusable by any future
+  lane that wants more out of one router generation.
+- **In-vocabulary classification is PERFECT: 100/100 across all five intents**,
+  20/20 on each. The model can absolutely classify intent. It cannot decline to.
+
+**So the defect is precisely located: the `other` escape hatch does not work when
+the request is near a vocabulary entry.** That is a narrower and more tractable
+problem than "the model can't classify intent" — which this run rules out.
+
+### Two candidate causes, both cheap to test, and one honest caveat
+
+1. **The vocabulary was INCOMPLETE.** `searchConversations` and `deviceStatus`
+   are real belt domains I deliberately left out, so on those two rows the model
+   had no correct scoped answer available. Completing the vocabulary
+   (`conversations`, `device`, `contacts`, `places`) may make both rows correct.
+2. **The `other` guide is too weak.** Guide wording has a strong measured history
+   of moving routing behaviour — #207's image guide took reading prompts from 1/4
+   to 4/4, and the signal without the guide moved nothing. A harder prohibition
+   on guessing is a one-cell measurement.
+
+**The caveat that neither fixes:** a vocabulary can never be complete. Any belt
+has domains and any request can fall between them, so completing the list shrinks
+the near-miss zone rather than closing it. **The escape hatch has to work on its
+own merits**, which makes candidate 2 the load-bearing one and candidate 1 the
+cheap confound to remove first. Testing 1 without 2 risks a run that passes
+because the grid no longer contains a near miss — measuring the grid rather than
+the model.
+
+**Owed:** a #217B cell pair — completed vocabulary, and a strengthened `other`
+guide — scored against THIS run as control, with at least two armed rows kept
+deliberately outside whatever the new vocabulary is, or the bar becomes
+unfalsifiable. **No belt rides an intent until B passes.**
+
 ## #216 — the narrow belt, re-tried where it cannot lose. #214's closure was right about the evidence and wrong about the world.
 
 **FILED 2026-08-01, bars written first. No production change — `routed-scoped` is

@@ -197,6 +197,7 @@
 		6008464302CE8502ACE28E8E /* BackendProfileRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6091A184A425BA9DD460418 /* BackendProfileRoutingTests.swift */; };
 		602E8B613EC5D0DC26659EFF /* PrivacySettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76E7696B16B5568AE4666F1 /* PrivacySettingsScreen.swift */; };
 		606EC3F0849F85094C905D2C /* IconPreview-RetroSciFi.png in Resources */ = {isa = PBXBuildFile; fileRef = F823A3D71CE9B62362059CE9 /* IconPreview-RetroSciFi.png */; };
+		60E1156EC7FD9723A78E84BB /* RouterIntentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5D2D9D3E685C1D98187926 /* RouterIntentTests.swift */; };
 		60E9DA3F07F16F99DB09E971 /* Icon-WinterFrost@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = BC3A6DB863992287B1727373 /* Icon-WinterFrost@3x.png */; };
 		6126DBB0E0148673E6593ABB /* Icon-KaijuAttack@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = C32A11AF1CE6C397C5269445 /* Icon-KaijuAttack@2x.png */; };
 		617D380F053A5F30A1384FA6 /* LocalSessionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D74D8A7E231F48BD446FB12 /* LocalSessionStoreTests.swift */; };
@@ -776,6 +777,7 @@
 		7C636630DCFDBC1D6F9985D2 /* ConversationJournalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationJournalStore.swift; sourceTree = "<group>"; };
 		7D3DC3DD1F39850425CE2160 /* DeviceToolBelt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceToolBelt.swift; sourceTree = "<group>"; };
 		7DF70134F698ABE4575D7784 /* CarPlayVoiceStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlayVoiceStateTests.swift; sourceTree = "<group>"; };
+		7E5D2D9D3E685C1D98187926 /* RouterIntentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouterIntentTests.swift; sourceTree = "<group>"; };
 		7E6312F5D7D7A4DEABE995FB /* IconPreview-CyberCactus.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-CyberCactus.png"; sourceTree = "<group>"; };
 		7EC64740ACEB2CBFC10CB13C /* DeviceCalendarTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceCalendarTools.swift; sourceTree = "<group>"; };
 		7F94F97659D571FFFA930600 /* InsightsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsService.swift; sourceTree = "<group>"; };
@@ -1182,6 +1184,7 @@
 				6BB71CCECAE06823EA97EEDA /* ReasoningChannelTests.swift */,
 				928B03CEA5240B87D4B99D7A /* RequiredPropertyDecodeTests.swift */,
 				A5E8EF024C3134EA534CFABD /* RoutedTrialShapeTests.swift */,
+				7E5D2D9D3E685C1D98187926 /* RouterIntentTests.swift */,
 				4E908DCC59357802D176E212 /* SensorOptInTests.swift */,
 				BEBD81AC0A5839FA111D423E /* SensorOutboxChurnTests.swift */,
 				C0533895BE78322F481C2946 /* ServerSettingsTests.swift */,
@@ -2508,6 +2511,7 @@
 				542E125ADE6CFAD3AADC94AF /* ReasoningChannelTests.swift in Sources */,
 				7ED6B37BFBA2622B436E0881 /* RequiredPropertyDecodeTests.swift in Sources */,
 				20A1ED6E62216A11AC9486BC /* RoutedTrialShapeTests.swift in Sources */,
+				60E1156EC7FD9723A78E84BB /* RouterIntentTests.swift in Sources */,
 				D8035EB463C86F3BF4A57174 /* SensorOptInTests.swift in Sources */,
 				39126650E0C3D4914B75988C /* SensorOutboxChurnTests.swift in Sources */,
 				FDDBDDD0DF3E665FD2E6BCE1 /* ServerSettingsTests.swift in Sources */,
