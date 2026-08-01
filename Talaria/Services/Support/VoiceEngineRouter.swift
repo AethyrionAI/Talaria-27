@@ -41,7 +41,21 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
         self.realtime = realtime
         self.native = native
         self.isRelayPaired = isRelayPaired
-        self.activeEngine = isRelayPaired() ? .realtime : .native
+        let initial: VoiceEngine = isRelayPaired() ? .realtime : .native
+        self.activeEngine = initial
+        // #198A: log the INITIAL selection, not just changes.
+        //
+        // `setActive` guards on `activeEngine != engine`, so a session that
+        // never switches engines produced NO line at all — and this default is
+        // assigned here, outside it. The consequence was not theoretical: the
+        // 2026-08-01 real-interruption test (A1) ran two live phone calls with a
+        // second person's time, and afterwards **the log could not say which
+        // engine had been tested.** It was reconstructed only by noticing the
+        // ABSENCE of any router line and back-inferring from pairing state.
+        //
+        // A device verdict that cannot name its own configuration is not a
+        // verdict. Say it once, up front, always.
+        Self.logger.notice("active voice engine → \(initial.rawValue, privacy: .public) (initial; relayPaired=\(isRelayPaired(), privacy: .public))")
         forward(from: realtime, engine: .realtime)
         forward(from: native, engine: .native)
     }
@@ -129,6 +143,15 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
     }
 
     func startSession() async {
+        // #198A: name the engine at the START of every session, unconditionally.
+        //
+        // This is the line a device verdict quotes. `setActive` fires only on a
+        // CHANGE and the init default is assigned outside it, so a session that
+        // simply used the default engine start-to-finish left NO trace of which
+        // engine that was. Two real phone calls were spent before anyone noticed
+        // the record could not answer "local or realtime?".
+        // `self.` is required: os_log interpolations are autoclosures.
+        Self.logger.notice("voice session starting on engine \(self.activeEngine.rawValue, privacy: .public) (relayPaired=\(self.isRelayPaired(), privacy: .public))")
         if activeEngine == .realtime, isRelayPaired() {
             await realtime.startSession()
             let attempted = realtime.snapshot
