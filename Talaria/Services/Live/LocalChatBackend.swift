@@ -2552,6 +2552,42 @@ extension LocalChatBackend {
     }
 
     #if DEBUG
+    /// #217: one turn classified against the V2 schema — the Bool AND the
+    /// intent from a SINGLE generation.
+    ///
+    /// One generation rather than two on purpose. #215 measured the router at
+    /// ~1s on a turn it arms; a second generation would double that and spend
+    /// the entire #216 latency prize before any belt narrowed. The cost of
+    /// doing it in one is that the extra field could degrade the Bool — which
+    /// is not a risk to be argued about, it is this lane's regression gate.
+    ///
+    /// Fails safe the same way production does, and then some: a thrown
+    /// generation returns `(true, .other)` — armed, full belt, today's exact
+    /// behaviour.
+    func routeIntent(prompt: String, context: String = "",
+                     hasImage: Bool = false) async -> (needsDeviceTool: Bool, intent: RouterIntent) {
+        let session = LanguageModelSession(
+            model: model,
+            instructions: Instructions(Self.routerInstructions(
+                for: Self.productionRouterVariant,
+                includeImageGuide: Self.productionIncludesImageGuide))
+        )
+        do {
+            let route = try await session.respond(
+                to: Prompt(Self.routerPrompt(context: context, prompt: prompt,
+                                             variant: Self.productionRouterVariant,
+                                             hasImage: hasImage)),
+                generating: ToolIntentRouteV2.self,
+                options: Self.toolIntentRouterOptions
+            ).content
+            return (route.needsDeviceTool, RouterIntent(lenient: route.intent))
+        } catch {
+            Self.logger.notice("routeIntent: classification failed — failing safe to armed + .other (\(String(String(describing: error).prefix(80)), privacy: .public)) (#217)")
+            Self.routerFailureTally += 1
+            return (true, .other)
+        }
+    }
+
     /// #213: router generations that THREW, counted so `runRouterContextProbe`
     /// can report per-row error counts instead of silently scoring a crash as
     /// a correct answer. Battery-scoped: the probe samples deltas around each
@@ -2569,6 +2605,75 @@ struct ToolIntentRoute {
     @Guide(description: "True only when the request needs the user's device data (health, location, weather, calendar, reminders, contacts, past chats) or a device action (create a reminder, calendar event, or alarm). Writing, poems, summaries, math, facts, and conversation are false — they need nothing from the device.")
     var needsDeviceTool: Bool
 }
+
+/// #217: which DOMAIN a turn wants, when it wants one.
+///
+/// #216 priced the prize — scoping the calendar turn's belt took it from 6.1s
+/// to 3.5s and from 2,269 input tokens to 976, with creates and composition
+/// untouched — and named the blocker: `scopedBelt` keys on `promptTag`, which
+/// exists only inside the battery harness. Production's router returns a Bool,
+/// so it can decide WHETHER to arm and never WHAT to arm with.
+///
+/// **The asymmetry that shapes this type.** A Bool router that is wrong falls
+/// back to the full belt, which is today's behaviour — the failure costs
+/// nothing. An intent router that is wrong arms the WRONG belt, and a turn
+/// needing `createCalendarEvent` while holding only health tools is **strictly
+/// worse than arming everything**. So every failure path — an unparseable
+/// answer, a thrown generation, a value from a vocabulary this build does not
+/// know — must land on `.other`, and `.other` must mean the full belt.
+///
+/// A `String` constrained by `@Guide(.anyOf:)` rather than a `@Generable` enum:
+/// `GenerationGuide.anyOf(_:)` is verified present in the beta-4
+/// `swiftinterface`, and #209 already established exactly how a required
+/// `String` misbehaves (a model with nothing to say emits `""`, it does not
+/// omit the key). `init(lenient:)` is total, so that case is handled rather
+/// than discovered.
+enum RouterIntent: String, CaseIterable, Sendable {
+    case reminder
+    case alarm
+    case calendar
+    case weather
+    case health
+    /// Everything else, and every failure. **Means the FULL belt** — exactly
+    /// what production arms today.
+    case other
+
+    /// The closed vocabulary handed to the model. Pinned equal to
+    /// `allCases` by `theGuideVocabularyIsExactlyTheParseableCases`: offering a
+    /// value the parser cannot read would score the model wrong for a reason
+    /// that has nothing to do with the model.
+    nonisolated static var guideVocabulary: [String] { allCases.map(\.rawValue) }
+
+    /// Total by construction. Case and surrounding whitespace are forgiven —
+    /// a model answering `"Calendar"` means calendar, and scoring that `.other`
+    /// would understate accuracy for a formatting reason.
+    init(lenient raw: String) {
+        let key = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        self = RouterIntent(rawValue: key) ?? .other
+    }
+
+    /// Whether this intent would narrow the belt. `.other` is the only one that
+    /// does not — pinned, so a case can never become silently inert and be
+    /// scored as a win it did not earn.
+    var scopesTheBelt: Bool { self != .other }
+}
+
+#if DEBUG
+/// #217: the probe's route type. **Deliberately separate from
+/// `ToolIntentRoute`, which production uses and which is NOT touched by this
+/// lane.** The whole question is whether adding a second field degrades the
+/// Bool's 200/200 accuracy; measuring that requires the production type to stay
+/// exactly as it is, as the control.
+@Generable
+struct ToolIntentRouteV2 {
+    @Guide(description: "True only when the request needs the user's device data (health, location, weather, calendar, reminders, contacts, past chats) or a device action (create a reminder, calendar event, or alarm). Writing, poems, summaries, math, facts, and conversation are false — they need nothing from the device.")
+    var needsDeviceTool: Bool
+
+    @Guide(description: "Which kind of device information or action the request needs. Use \"other\" whenever the request needs no device data at all, or when it needs something outside this list — contacts, past chats, places, the device's own status, or anything you are unsure about. Guessing is worse than answering \"other\".",
+           .anyOf(RouterIntent.guideVocabulary))
+    var intent: String
+}
+#endif
 
 #if DEBUG
 // MARK: - #196 rate battery (Diagnostics-triggered, DEBUG builds only)
@@ -4327,6 +4432,44 @@ extension LocalChatBackend {
         ("Do I have anything on my calendar Friday?", true),
     ]
 
+    /// #217: the intent grid. **A SEPARATE list from `routerBaselineProbes`**,
+    /// which carries a 200/200 history over exactly ten rows and from which
+    /// #202A's regression gate derives its denominator — the #205 lesson,
+    /// recorded there in as many words: adding rows to that list silently
+    /// re-points a long-running series and moves a pre-registered bar.
+    ///
+    /// Two prompts per scoped intent, so a single unlucky phrasing cannot carry
+    /// an intent's whole score, plus `other` rows that are the ones that matter
+    /// most: contacts, past chats, places and device status are all real device
+    /// requests **deliberately left OUT of the vocabulary**, and the model has
+    /// to route them armed while answering `other` — arming the full belt. A
+    /// model that guesses `calendar` for "when did I last text Sam" is the
+    /// failure this whole design is built to avoid, and these rows are where it
+    /// would show up.
+    nonisolated static let intentProbeGrid: [(text: String, expectedArmed: Bool, expectedIntent: RouterIntent)] = [
+        ("Remind me to buy milk tomorrow at 9am", true, .reminder),
+        ("Add pick up dry cleaning to my reminders", true, .reminder),
+        ("Set an alarm for 6:30", true, .alarm),
+        ("Wake me up at 7 tomorrow", true, .alarm),
+        ("Put lunch with Sam on my calendar Friday at noon", true, .calendar),
+        ("Do I have anything on my calendar Friday?", true, .calendar),
+        ("What's the weather like right now?", true, .weather),
+        ("Is it going to rain this afternoon?", true, .weather),
+        ("How many steps have I taken today?", true, .health),
+        ("How did I sleep last night?", true, .health),
+        // Armed, but OUTSIDE the vocabulary — `other` is the correct answer and
+        // any scoped answer here is a dangerous miss, not a near miss.
+        ("What's Sam's phone number?", true, .other),
+        ("When did I last text Sam about the boat?", true, .other),
+        ("Find a coffee shop near me", true, .other),
+        ("How much battery do I have left?", true, .other),
+        // Toolless. Intent is irrelevant when nothing is armed, but a model
+        // answering `calendar` here would reveal it is pattern-matching words
+        // rather than classifying need.
+        ("Write a haiku about sledding", false, .other),
+        ("What's 2+2?", false, .other),
+    ]
+
     /// #205: IMAGE TURNS ARE A #202-FAMILY DISARMAMENT and the pinned router
     /// instructions never mention images. The on-device model cannot see
     /// images at all — the transcript carries a placeholder — so image
@@ -4490,6 +4633,96 @@ extension LocalChatBackend {
             Self.batteryRecorder.recordProbe(probe: probe.text, expected: probe.expected, correct: correct, trials: trials, errors: Self.routerFailureTally - failuresBefore)
         }
         Self.batteryEmit("router: PROBE DONE (#196)")
+        Self.batteryRecorder.endRun()
+    }
+
+    /// #217 — CAN this model classify intent at all, safely enough to drive a
+    /// belt? A probe, not a belt lane: nothing here narrows anything, and
+    /// production's `ToolIntentRoute` is untouched.
+    ///
+    /// Two row sets, scored separately and for different reasons:
+    ///
+    /// 1. **The pinned ten baseline rows, run through V2.** This is the
+    ///    REGRESSION GATE. Those rows sit at 200/200 against the one-field
+    ///    schema; if adding the intent field costs Bool accuracy, the lane
+    ///    stops there, because the Bool is load-bearing for every turn and the
+    ///    scoping prize is worth less than it.
+    /// 2. **The intent grid**, scored on the intent.
+    ///
+    /// **Bars, stated before the run:**
+    ///
+    /// - **Gate** — V2's Bool accuracy on the ten baseline rows **≥95%**
+    ///   (#202A's pre-registered `BASELINE_GATE`, unchanged, against a 200/200
+    ///   history). Below it, nothing else here is worth reading.
+    /// - **Primary A** — intent accuracy on the five scoped intents **≥90%**.
+    /// - **Primary B, the safety bar and the one that decides the design** —
+    ///   **DANGEROUS answers ≤2%.** A dangerous answer is a scoped intent that
+    ///   is the WRONG scoped intent, or a scoped intent on a row whose right
+    ///   answer is `other`; both arm a belt missing the tool the turn needs.
+    ///   Answering `other` when a scoped intent was right is a MISS, not a
+    ///   danger — it arms the full belt, which is exactly today.
+    /// - **Primary C** — the four out-of-vocabulary armed rows (contacts, past
+    ///   chats, places, device status) answer `other` **≥90%**. They are real
+    ///   device requests deliberately outside the vocabulary, and they are
+    ///   where over-eager pattern-matching would surface.
+    ///
+    /// **What would falsify the approach:** dangerous answers above 2%. The
+    /// whole case for an intent router rests on its failures being free, and a
+    /// model that guesses a scoped intent rather than saying `other` converts
+    /// every misclassification into a disarmed turn — strictly worse than the
+    /// full belt we ship today, and not worth 2.6 seconds.
+    func runIntentRouterProbe(trials: Int) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
+        let baseline = Self.routerBaselineProbes
+        let grid = Self.intentProbeGrid
+        Self.batteryEmit("router: INTENT PROBE START trials=\(trials) baseline=\(baseline.count) grid=\(grid.count) (#217)")
+        Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: ["intent-v2"], kind: "intent")
+
+        // 1. The regression gate: the pinned ten, through the V2 schema.
+        for probe in baseline {
+            var correct = 0
+            var tally: [String: Int] = [:]
+            let failuresBefore = Self.routerFailureTally
+            for _ in 1...trials {
+                let route = await routeIntent(prompt: probe.text)
+                if route.needsDeviceTool == probe.expected { correct += 1 }
+                tally[route.intent.rawValue, default: 0] += 1
+            }
+            Self.batteryEmit("router: baseline \(correct)/\(trials) expected=\(probe.expected) tally=\(tally) probe=\(probe.text)")
+            Self.batteryRecorder.recordProbe(
+                probe: probe.text, expected: probe.expected, correct: correct, trials: trials,
+                variant: "v2", band: "baseline",
+                errors: Self.routerFailureTally - failuresBefore,
+                intentTally: tally)
+        }
+
+        // 2. The intent grid, scored on the INTENT. `correct` counts the Bool
+        // so the record's shape stays uniform with every other probe row; the
+        // intent verdict is computed from `intentTally`, which carries the
+        // whole distribution rather than a ratio that cannot distinguish a
+        // safe miss from a dangerous one.
+        for row in grid {
+            var boolCorrect = 0
+            var tally: [String: Int] = [:]
+            let failuresBefore = Self.routerFailureTally
+            for _ in 1...trials {
+                let route = await routeIntent(prompt: row.text)
+                if route.needsDeviceTool == row.expectedArmed { boolCorrect += 1 }
+                tally[route.intent.rawValue, default: 0] += 1
+            }
+            let hits = tally[row.expectedIntent.rawValue] ?? 0
+            Self.batteryEmit("router: intent \(hits)/\(trials) want=\(row.expectedIntent.rawValue) armed=\(boolCorrect)/\(trials) tally=\(tally) probe=\(row.text)")
+            Self.batteryRecorder.recordProbe(
+                probe: row.text, expected: row.expectedArmed, correct: boolCorrect, trials: trials,
+                variant: "v2", band: "intent",
+                errors: Self.routerFailureTally - failuresBefore,
+                expectedIntent: row.expectedIntent.rawValue, intentTally: tally)
+        }
+        Self.batteryEmit("router: INTENT PROBE DONE (#217)")
         Self.batteryRecorder.endRun()
     }
 
