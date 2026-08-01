@@ -5354,6 +5354,29 @@ Logged 2026-07-17.
 
 ## 133. 🐛 Dormant-relay push registration idempotency — MERGED (PR #123, `0bc2e0c`, 2026-07-20); DEFEATED by app-side churn + insert race (2026-07-25)
 
+> **LANDED 2026-08-01, eight days late: #133 cannot be captured from the Mac CLI.**
+> `idevicesyslog` carries the legacy syslog stream — **system daemons only**. The app
+> logs via `Logger(subsystem:)`, which writes to unified logging, a pipe
+> `idevicesyslog` does not surface and `log stream --device` cannot reach on this
+> macOS build. Proven on hardware 2026-07-24, not assumed: a cold launch inside a
+> **1.47M-line capture contained zero app-process lines.** #133 has no visual
+> substitute, so it was CUT from the device pass rather than restructured. Use the
+> Xcode bridge's `GetConsoleOutput` for app log lines.
+>
+> **The finding was correct on 2026-07-24 and still cost something, because it lived
+> on an unmerged branch.** For eight days `dispatch/OPUS-T27-DEVICE-PASS-2026-07-25.md`
+> told the next session to run this check and "read the rest from Console" — an
+> instruction already disproven on hardware, sitting in the document that governs
+> device passes. The branch was found during a branch cleanup that was about to
+> delete it.
+>
+> **Rule: a finding recorded on a branch that never merges is not recorded.** It is
+> worse than unrecorded — the disproven instruction stays live and authoritative
+> while the disproof sits somewhere nobody reads. Three instances surfaced on
+> 2026-08-01 alone (this, the ATS rule in `CLAUDE.md`, and #130's restore command),
+> all correct when written, all turned into traps by not landing. **A negative
+> result is a deliverable and merges like any other.**
+
 > **DEVICE PASS 2026-07-25 — idempotency is defeated by app-side identity churn.**
 > One handset produced **36 device rows / 36 active push registrations / 4 distinct
 > tokens** on the Mac Mini (OJAMD: 15 registrations / 9 tokens across 14 rows). Two
