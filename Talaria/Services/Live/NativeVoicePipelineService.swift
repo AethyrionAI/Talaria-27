@@ -22,7 +22,13 @@ import os
 ///   path — this is a distinct "Local voice" mode with different latency.
 @MainActor
 final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
-    private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "NativeVoicePipeline")
+    /// #198: `nonisolated` so the audio-session notification observers can
+    /// reach it — those closures are `@Sendable` (the system delivers off the
+    /// main actor), and the class's global actor would otherwise isolate this
+    /// static along with everything else. Safe: `Logger` is Sendable, this is
+    /// a `let`.
+    private nonisolated static let logger = Logger(
+        subsystem: "org.aethyrion.talaria", category: "NativeVoicePipeline")
 
     /// Fallback endpointer: commit the pending volatile utterance as a turn
     /// when transcription output has been quiet this long. Primary endpointing
@@ -726,25 +732,45 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
 
     private func registerAudioSessionObservers() {
         let center = NotificationCenter.default
+        // #198: one interruption notification became two. Extract-and-delegate
+        // only — the decisions live in `AudioInterruptionRule`, since neither
+        // notification can be synthesized in a test (both context types declare
+        // `init` as `NS_UNAVAILABLE`).
         center.addObserver(
-            forName: AVAudioSession.interruptionNotification,
+            forName: AVAudioSession.didBecomeInactiveNotification,
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            let rawType = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
-            let rawOptions = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
-            Task { @MainActor [weak self] in
-                guard let self, let rawType,
-                      let type = AVAudioSession.InterruptionType(rawValue: rawType) else { return }
-                switch type {
-                case .began:
-                    self.handleInterruptionBegan()
-                case .ended:
-                    let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
-                    await self.handleInterruptionEnded(shouldResume: options.contains(.shouldResume))
-                @unknown default:
-                    break
+            guard let context = notification.userInfo?[AVAudioSession.deactivationContextKey]
+                    as? AVAudioSession.DeactivationContext
+            else { return }
+            guard AudioInterruptionRule.isInterruption(source: context.source) else {
+                // Our own teardown — the common arm, so verbose-gated.
+                if TalariaLog.isVerbose {
+                    Self.logger.notice("audio deactivated by app — not an interruption (#198)")
                 }
+                return
+            }
+            // .notice so the #198 device pass can read the filter working.
+            let reason = context.interruptionContext.map { String(describing: $0.reason) } ?? "none"
+            Self.logger.notice("audio interrupted — system deactivation, reason: \(reason, privacy: .public) (#198)")
+            Task { @MainActor [weak self] in
+                self?.handleInterruptionBegan()
+            }
+        }
+        center.addObserver(
+            forName: AVAudioSession.resumptionRecommendationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let context = notification.userInfo?[AVAudioSession.resumptionContextKey]
+                    as? AVAudioSession.ResumptionContext
+            else { return }
+            let shouldResume = AudioInterruptionRule.shouldResume(context.recommendation)
+            Self.logger.notice(
+                "audio resumption recommendation: \(shouldResume ? "resume" : "do not resume", privacy: .public) (#198)")
+            Task { @MainActor [weak self] in
+                await self?.handleInterruptionEnded(shouldResume: shouldResume)
             }
         }
         center.addObserver(

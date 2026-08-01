@@ -8,7 +8,12 @@ import os
 
 @MainActor
 final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
-    private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "LiveVoiceSessionService")
+    /// #198: `nonisolated` so the audio-session notification handlers can reach
+    /// it — the system delivers those off the main actor, and the class's
+    /// global actor would otherwise isolate this static along with everything
+    /// else. Safe: `Logger` is Sendable and this is a `let`.
+    private nonisolated static let logger = Logger(
+        subsystem: "org.aethyrion.talaria", category: "LiveVoiceSessionService")
     private struct EmptyBody: Encodable {}
 
     private struct EmptyRelayResponse: Decodable {}
@@ -434,10 +439,19 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
 
     private func registerAudioSessionObservers() {
         let center = NotificationCenter.default
+        // #198: the single interruption notification became two. See
+        // `AudioInterruptionRule` — this is not a rename, and the
+        // did-become-inactive half now also fires for our OWN deactivations.
         center.addObserver(
             self,
-            selector: #selector(handleAudioSessionInterruptionNotification(_:)),
-            name: AVAudioSession.interruptionNotification,
+            selector: #selector(handleAudioSessionDidBecomeInactiveNotification(_:)),
+            name: AVAudioSession.didBecomeInactiveNotification,
+            object: nil
+        )
+        center.addObserver(
+            self,
+            selector: #selector(handleAudioSessionResumptionRecommendationNotification(_:)),
+            name: AVAudioSession.resumptionRecommendationNotification,
             object: nil
         )
         center.addObserver(
@@ -519,28 +533,45 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         audioRouteSummary = TalkAudioRoute.currentSummary()
     }
 
+    /// #198: extract-and-delegate only. The decision lives in
+    /// `AudioInterruptionRule` because this notification cannot be synthesized
+    /// in a test — `DeactivationContext.init` is `NS_UNAVAILABLE`.
     @objc
-    private nonisolated func handleAudioSessionInterruptionNotification(_ notification: Notification) {
-        let rawType = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
-        let rawOptions = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+    private nonisolated func handleAudioSessionDidBecomeInactiveNotification(_ notification: Notification) {
+        guard let context = notification.userInfo?[AVAudioSession.deactivationContextKey]
+                as? AVAudioSession.DeactivationContext
+        else { return }
+        guard AudioInterruptionRule.isInterruption(source: context.source) else {
+            // Our own teardown. Verbose-gated because read-aloud deactivates
+            // the session after every utterance — this arm is the common one.
+            if TalariaLog.isVerbose {
+                Self.logger.notice("audio deactivated by app — not an interruption (#198)")
+            }
+            return
+        }
+        // .notice so the #198 device pass can read the filter working in
+        // Console without enabling verbose: rare by construction.
+        let reason = context.interruptionContext.map { String(describing: $0.reason) } ?? "none"
+        Self.logger.notice("audio interrupted — system deactivation, reason: \(reason, privacy: .public) (#198)")
 
         Task { @MainActor [weak self] in
-            guard let self,
-                  let rawType,
-                  let interruptionType = AVAudioSession.InterruptionType(rawValue: rawType)
-            else {
-                return
-            }
+            self?.handleAudioInterruptionBegan()
+        }
+    }
 
-            switch interruptionType {
-            case .began:
-                self.handleAudioInterruptionBegan()
-            case .ended:
-                let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
-                await self.handleAudioInterruptionEnded(shouldResume: options.contains(.shouldResume))
-            @unknown default:
-                break
-            }
+    /// #198: replaces the `.ended` arm. The resume decision used to ride the
+    /// same notification as an option flag; it is now its own event.
+    @objc
+    private nonisolated func handleAudioSessionResumptionRecommendationNotification(_ notification: Notification) {
+        guard let context = notification.userInfo?[AVAudioSession.resumptionContextKey]
+                as? AVAudioSession.ResumptionContext
+        else { return }
+        let shouldResume = AudioInterruptionRule.shouldResume(context.recommendation)
+        Self.logger.notice(
+            "audio resumption recommendation: \(shouldResume ? "resume" : "do not resume", privacy: .public) (#198)")
+
+        Task { @MainActor [weak self] in
+            await self?.handleAudioInterruptionEnded(shouldResume: shouldResume)
         }
     }
 
