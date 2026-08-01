@@ -100,7 +100,12 @@ struct PrivateCloudRoutingTests {
     @Test func recoveredPCCClearsTheNoticeOnNextResolution() {
         let hermes = ChatBackendRouterTests.StubBackend(replyContent: "h")
         let local = ChatBackendRouterTests.StubBackend(replyContent: "l")
-        var usable = false
+        // A box rather than a captured `var`: `isPrivateCloudUsable` is an
+        // escaping @Sendable closure, so mutating a captured local after the
+        // capture is a strict-concurrency warning (and a Swift 6 error). Same
+        // `MutableBox` shape the rest of the suite uses. The flip below is the
+        // point of the test — it must stay observable through the closure.
+        let usable = MutableBox(false)
         let router = ChatBackendRouter(
             hermes: hermes,
             local: local,
@@ -109,13 +114,13 @@ struct PrivateCloudRoutingTests {
             defaults: makeDefaults()
         )
         router.isPrivateCloudSelectable = { true }
-        router.isPrivateCloudUsable = { usable }
+        router.isPrivateCloudUsable = { usable.value }
         router.setPreferredBrain(.privateCloud, forConversation: nil)
 
         #expect(router.resolvedBrainForNextTurn() == .onDevice)
         #expect(router.privateCloudFallbackNotice != nil)
 
-        usable = true
+        usable.value = true
         #expect(router.resolvedBrainForNextTurn() == .privateCloud)
         #expect(router.privateCloudFallbackNotice == nil)
     }
@@ -137,5 +142,17 @@ struct PrivateCloudRoutingTests {
         #expect(appliedTiers == [.onDevice, .privateCloud])
         // The finished PCC message carries the beta-labeled brain tag.
         #expect(ChatBackendRouter.transcriptTag(forMessageBrain: ChatBackendRouter.Brain.privateCloud.rawValue) == "PCC β")
+    }
+
+    /// Reference cell for state a test flips *after* handing a closure to the
+    /// router. Same shape as the copies in `AppStoresTests` and
+    /// `SensorOutboxChurnTests`; `@unchecked` is honest here because every test
+    /// using it is synchronous and single-threaded.
+    private final class MutableBox<T>: @unchecked Sendable {
+        var value: T
+
+        init(_ value: T) {
+            self.value = value
+        }
     }
 }
