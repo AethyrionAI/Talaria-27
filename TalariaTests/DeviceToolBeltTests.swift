@@ -941,8 +941,63 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedMotionredirect.rawValue == "armed-motionredirect")
         // #214: the structural cell — per-intent belt plus composition licensing.
         #expect(LocalChatBackend.ActionBatteryCell.armedScopedv2.rawValue == "armed-scopedv2")
+        // #216: the narrow belt, evaluated where its only known cost cannot occur.
+        #expect(LocalChatBackend.ActionBatteryCell.routedScoped.rawValue == "routed-scoped")
         // #215 adds `routed-production`, asserted at the top of this test.
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 30)
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 31)
+    }
+
+    /// #216: routing is a property of the CELL, and exactly two cells have it.
+    ///
+    /// The trial loop asks `cell.isRouted`, so a new cell that forgets to opt in
+    /// silently becomes an unrouted arm — which, after #215, is the single
+    /// easiest way to produce a number that does not describe the shipped app.
+    /// Pinned as a whole-enum partition rather than two positive assertions, so
+    /// adding a cell cannot quietly widen it.
+    @Test func exactlyTheRoutedCellsRoute() {
+        let routed = LocalChatBackend.ActionBatteryCell.allCases.filter(\.isRouted)
+        #expect(Set(routed) == [.routedProduction, .routedScoped])
+        #expect(!LocalChatBackend.ActionBatteryCell.armed.isRouted)
+        #expect(!LocalChatBackend.ActionBatteryCell.armedScopedv2.isRouted)
+    }
+
+    /// #216: `routed-scoped` rides createonly's belt EXACTLY — the same belt
+    /// `armed-scopedv2` rode in #214, so this lane keeps that lineage and is a
+    /// re-evaluation rather than a new unmeasured narrowing.
+    ///
+    /// What it deliberately does NOT inherit is scopedv2's composition-licensing
+    /// sentence. That clause existed to repair the composition denial the narrow
+    /// belt caused — and #215 measured composition turns routing TOOLLESS 10/10,
+    /// where no belt of any width is registered. Carrying the clause would make
+    /// this cell differ from its control in two ways instead of one.
+    @Test @MainActor func routedScopedNarrowsExactlyLikeCreateonly() {
+        let belt = fullArmedBelt()
+        for tag in ["remind", "alarm", "calendar", "haiku"] {
+            let routed = LocalChatBackend.scopedBelt(from: belt, cell: .routedScoped, promptTag: tag)
+            let createonly = LocalChatBackend.scopedBelt(from: belt, cell: .armedCreateonly, promptTag: tag)
+            #expect(routed.map(\.name) == createonly.map(\.name))
+            #expect(routed.count < belt.count)
+        }
+        // The measured disease is here: #215 priced the calendar prompt at 3
+        // calls and 6.4s, the extra two being `readCalendar` 7/10 and
+        // `lookupContact` 7/10. Neither survives this belt — which is the whole
+        // mechanism this lane tests.
+        let calendar = LocalChatBackend.scopedBelt(from: belt, cell: .routedScoped, promptTag: "calendar")
+        #expect(!calendar.contains { $0.name == "lookupContact" })
+        #expect(!calendar.contains { $0.name == "readCalendar" })
+        #expect(calendar.contains { $0.name == "createCalendarEvent" })
+    }
+
+    /// #216: the control's belt is NOT narrowed. Stated separately because the
+    /// lane's entire claim is a one-variable contrast, and a `scopedBelt` that
+    /// accidentally narrowed `routed-production` too would erase the contrast
+    /// while leaving every other assertion here green.
+    @Test @MainActor func routedProductionKeepsTheFullBelt() {
+        let belt = fullArmedBelt()
+        for tag in ["remind", "alarm", "calendar", "haiku"] {
+            let control = LocalChatBackend.scopedBelt(from: belt, cell: .routedProduction, promptTag: tag)
+            #expect(control.map(\.name) == belt.map(\.name))
+        }
     }
 
     /// #211 follow-on: the redirect must name the boundary WITHOUT reinstating
@@ -1129,8 +1184,11 @@ struct DeviceToolBeltTests {
         let belt = fullArmedBelt()
         // #214 joins the scoping cells: it rides createonly's belt deliberately,
         // so it must be excluded here for the same reason the other two are.
+        // #216 joins for the same reason — and note that `routedProduction` is
+        // NOT excluded: routing decides its belt per TRIAL from the route, so
+        // `scopedBelt` must still hand it the full belt like any other cell.
         let scoping: Set<LocalChatBackend.ActionBatteryCell> =
-            [.armedScoped, .armedCreateonly, .armedScopedv2]
+            [.armedScoped, .armedCreateonly, .armedScopedv2, .routedScoped]
         for cell in LocalChatBackend.ActionBatteryCell.allCases where !scoping.contains(cell) {
             for tag in ["remind", "alarm", "calendar", "haiku"] {
                 #expect(LocalChatBackend.scopedBelt(from: belt, cell: cell, promptTag: tag).map(\.name) == belt.map(\.name))

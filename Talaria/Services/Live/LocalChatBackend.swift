@@ -2865,6 +2865,28 @@ extension LocalChatBackend {
         /// are not a fair A/B of any instruction or tool text; they are two
         /// configurations, one of which we ship.
         case routedProduction = "routed-production"
+        /// #216: the narrow belt, re-evaluated where its only known cost
+        /// cannot occur.
+        ///
+        /// #214 closed `armed-scopedv2` because narrowing took haiku grabs to
+        /// 0/10 and took clean composition to 0/10 with them. **#215 then
+        /// measured composition turns routing TOOLLESS 10/10** — they register
+        /// no belt at all, so a narrow armed belt is unreachable from them.
+        /// The objection that killed the cell is structurally void once the
+        /// router is in front.
+        ///
+        /// Rides createonly's belt EXACTLY, the same one scopedv2 rode, so this
+        /// is a re-evaluation with intact lineage rather than a new narrowing.
+        /// It does NOT carry scopedv2's composition-licensing sentence: that
+        /// clause repaired the denial the belt caused, routing already repairs
+        /// it, and carrying it would make this cell differ from its control in
+        /// two ways instead of one.
+        ///
+        /// The target is measured, not assumed: #215 priced the calendar prompt
+        /// at 3 calls and 6.4s against remind's 1 call and 3.7s, the extra two
+        /// being `readCalendar` 7/10 and `lookupContact` 7/10 — lookups whose
+        /// results change nothing, since creates are 10/10 with or without them.
+        case routedScoped = "routed-scoped"
         /// `ReminderCreateToolGuidefix` copy: de-stalled @Guide texts on
         /// the optional fields, production description.
         case armedGuidefix = "armed-guidefix"
@@ -3043,6 +3065,20 @@ extension LocalChatBackend {
         /// promotion was only ever re-verified against a cross-run
         /// historical baseline; this makes it a within-run control.
         case armedCarveoutrollback = "armed-carveoutrollback"
+
+        /// #216: whether this cell puts the ROUTER in front of every trial.
+        ///
+        /// A property rather than a comparison at the call site, because after
+        /// #215 an unrouted arm is the single easiest way to produce a number
+        /// that does not describe the shipped app — and a new cell that forgets
+        /// to opt in would do exactly that, silently. Pinned as a whole-enum
+        /// partition by `exactlyTheRoutedCellsRoute`.
+        var isRouted: Bool {
+            switch self {
+            case .routedProduction, .routedScoped: return true
+            default: return false
+            }
+        }
     }
 
     /// The belt each treatment cell registers: identity except the
@@ -3054,7 +3090,7 @@ extension LocalChatBackend {
              .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix,
              .armedDatefix, .armedCardrollback, .armedDeadendfix, .armedGrabfix,
              .armedStallfix, .armedSchemafix, .armedCalfix, .armedDeadend2,
-             .armedCarveoutrollback, .armedScopedv2, .routedProduction:
+             .armedCarveoutrollback, .armedScopedv2, .routedProduction, .routedScoped:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
             // strikefix treat the tool-calling MODE, the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
@@ -3174,7 +3210,7 @@ extension LocalChatBackend {
             case "calendar": keep = ["createCalendarEvent", "readCalendar", "currentLocation"]
             default: keep = ["createReminder", "readReminders", "readCalendar"]
             }
-        case .armedCreateonly, .armedScopedv2:
+        case .armedCreateonly, .armedScopedv2, .routedScoped:
             // #214 rides createonly's belt deliberately: #200F's own
             // createonly-vs-scoped delta showed removing the same-domain read
             // converts half the stalls into creates. The other half was
@@ -3289,7 +3325,7 @@ extension LocalChatBackend {
                 // would land on the one cell whose numbers this lane is for.
                 // Discarded like everything else here: the result is unused,
                 // and the recorder is inert before `beginRun`.
-                if cells.contains(.routedProduction) {
+                if cells.contains(where: \.isRouted) {
                     _ = await routeNeedsDeviceTool(prompt: prompt)
                 }
                 let session = LanguageModelSession(model: model, tools: belt,
@@ -3444,7 +3480,7 @@ extension LocalChatBackend {
                     // armed half of one.
                     var trialBelt = belt
                     var trialInstructions = cellInstructions
-                    if cell == .routedProduction {
+                    if cell.isRouted {
                         // Empty context: these are single-turn prompts, which
                         // is exactly what production passes when a
                         // conversation has no prior assistant turn.
@@ -3688,6 +3724,42 @@ extension LocalChatBackend {
     func runRoutedActionBattery(trials: Int) async {
         await runActionBattery(trials: trials,
                                cells: [.armed, .routedProduction],
+                               includeGrabCanary: true)
+    }
+
+    /// #216 one-tap wrapper — the narrow belt, re-tried where it cannot lose.
+    /// Both arms ROUTED, so the only difference is the belt an armed turn sees:
+    /// 2 cells × 4 prompts × trials, plus one router generation per trial.
+    ///
+    /// **Bars, stated before the run:**
+    ///
+    /// - **Gate** — control calendar calls/trial median **≥3**. #215 measured
+    ///   exactly 3; below that the overhead this lane targets is not present
+    ///   tonight and the treatment has nothing to remove.
+    /// - **Primary A, the point** — treatment calendar calls/trial median
+    ///   **≤1**. The belt has no `lookupContact` and no `readCalendar`, so this
+    ///   should hold by construction, and failing it means something other than
+    ///   tool availability is driving the lookups.
+    /// - **Primary B, the promotion-killer** — treatment calendar creates
+    ///   **≥8/10**. #200F's narrow-belt run put calendar at a 10/10 ceiling, but
+    ///   the create rate is what a latency win must not buy.
+    /// - **Primary C** — treatment remind and alarm creates **≥9/10 each**.
+    ///   Those are at 10/10 with one call apiece; narrowing must not disturb a
+    ///   ceiling it was not aimed at.
+    /// - **Primary D, the #214 objection, measured rather than argued** —
+    ///   treatment haiku clean turns **≥8/10**. Composition should be untouched
+    ///   because the router sends it toolless in BOTH arms, so neither belt is
+    ///   ever registered. Carrying the canary costs 20 generations to turn
+    ///   "unreachable by argument" into "unreachable, measured" — and #214 died
+    ///   on exactly this, so a lane reopening it without measuring composition
+    ///   would deserve to be distrusted.
+    ///
+    /// **What would falsify the premise:** haiku clean turns below 8/10, or any
+    /// haiku trial routing ARMED. Either means the composition objection reaches
+    /// production after all and #214's closure was right.
+    func runRoutedScopedBattery(trials: Int) async {
+        await runActionBattery(trials: trials,
+                               cells: [.routedProduction, .routedScoped],
                                includeGrabCanary: true)
     }
 
