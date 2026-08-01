@@ -124,7 +124,27 @@ the first time we see the real answer.
 
 ## B · #130 — the half-duplex A/B, owed since 2026-07-20
 
-### B1 · Half-duplex gate vs talk-over barge-in · **[OWEN — SUBJECTIVE VERDICT]**
+### B1 · Half-duplex gate vs talk-over barge-in · **PARKED 2026-08-01 — kept as a REMINDER**
+
+> **Owen 2026-08-01: the original trigger for #130 is no longer a concern, but
+> keep this parked — "we need to get to the bottom of it."** The *it* is the
+> engine-identification gap below, and B1 is the sharpest illustration of why it
+> matters.
+>
+> **B1's design assumes we know which engine is running, and until today we did
+> not.** #130's gate lives in `NativeVoicePipelineService`. If a comparison run
+> silently used the **realtime** engine — which is what happened to A1 — then
+> B1 would compare probe-branch-realtime against main-realtime and conclude the
+> gate does nothing, **because the gate was never in the path.** A null result
+> that looks like evidence.
+>
+> That is not hypothetical any more: A1 spent two real phone calls and a second
+> person's time before anyone could say which engine had been tested.
+>
+> **Do not run B1 until the engine is named in the log** (fixed 2026-08-01 —
+> `voice session starting on engine …`) **and the run quotes that line.** The
+> same caution applies retroactively: **any past voice verdict that did not name
+> its engine may have measured the other one.**
 
 Branch `probe/t27-130-halfduplex` (on origin **and** local; DO NOT DELETE — #130
 is open). It is `.default` session mode, no `setVoiceProcessingEnabled`, and a

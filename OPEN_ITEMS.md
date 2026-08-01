@@ -12041,8 +12041,35 @@ once per device session.
 > **We spent the scarcest resource we have — a second person making real calls —
 > and the record cannot say which configuration it exercised.** Same disease as
 > everything else this week: the instrument did not record the thing that mattered.
-> Fix the log line BEFORE re-running (device-list §A1b), or the next run buys the
-> same non-answer.
+>
+> ### ANSWERED, same evening: it was the REALTIME engine. The local one is unverified.
+>
+> `VoiceEngineRouter` assigns its default **in `init`**
+> (`activeEngine = isRelayPaired() ? .realtime : .native`) **without logging**,
+> and `setActive` logs only on a **change** (`guard activeEngine != engine`).
+> All three of its log calls are `.notice` → `default` severity, and the
+> `default`-severity read for this session returned `totalCount: 42` — **all of
+> which were inspected, with no `VoiceEngineRouter` line among them.** No engine
+> change, no `readiness routed voice to the native engine`, no
+> `Realtime start failed`.
+>
+> The device was paired (`relay accepted push registration`,
+> `handleAppDidBecomeActive: paired + token OK`), so `isRelayPaired()` was true
+> and the engine stayed at its init value: **`.realtime`.**
+>
+> **So A1 exercised the OpenAI realtime path through Hermes. The local/native
+> engine has NO interruption verification at all.** Owen suspected exactly this
+> — *"I'd almost want to investigate whether or not this was TRULY local device"*
+> — and he was right for a reason the log actively concealed: **the one line that
+> would have said so is emitted only on a change that never happened.**
+>
+> **A verdict reconstructed from the ABSENCE of a log line is not a verdict.** It
+> is a lucky inference, and it only happened because someone asked the awkward
+> question after the fact.
+>
+> **Fixed the same evening** — `VoiceEngineRouter` now logs the initial selection
+> in `init` AND names the engine at every `startSession()`. Re-run is device-list
+> §A1b, and it must QUOTE the engine line.
 
 **What IS established, and it is worth having:** the 2026-08-01 pass proved no
 false POSITIVES and said explicitly that it could not speak to missed
