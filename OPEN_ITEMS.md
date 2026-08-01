@@ -11893,6 +11893,83 @@ for an intent router is that its failures are free. A model that guesses a scope
 intent rather than saying `other` turns every misclassification into a disarmed
 turn — worse than the belt we ship today, and **not worth 2.6 seconds.**
 
+### VERDICT FILED 2026-08-01 — run `3CB9E45D`. **PRIMARY B FAILS at 12.5% against a 2% bar. The approach as specified is FALSIFIED.**
+
+260 classifications, `endedCleanly: true`, **zero router errors across all 26
+rows** — every number below is a real classification.
+
+| bar | pre-registered | measured | |
+|---|---|---|---|
+| Gate | V2 Bool accuracy ≥95% | **100%** (100/100) | PASS |
+| A | scoped-intent accuracy ≥90% | **100%** (100/100) | PASS |
+| **B** | **dangerous ≤2%** | **12.5%** (20/160) | **FAIL — 6× the bar** |
+| C | out-of-vocabulary `other` ≥90% | **66.7%** (40/60) | FAIL |
+
+**The falsification I wrote in advance fired. I am recording that as the
+verdict**, not as a surprise to be explained away.
+
+**Two rows carry the entire failure, and both are DETERMINISTIC:**
+
+| prompt | wanted | answered |
+|---|---|---|
+| "When did I last text Sam about the boat?" | `other` | **`reminder` 10/10** |
+| "How much battery do I have left?" | `other` | **`health` 10/10** |
+
+**Every one of the 16 grid rows answered the same value 10 times out of 10. Zero
+variance in 160 classifications.** This is not a model that sometimes guesses
+wrong — it is a **fixed mapping**. "Text Sam about the boat" *is* `reminder` to
+this model; "battery" *is* `health`. A deterministic error is worse in that it
+fires 100% of the time on those requests, and better in that it is addressable
+rather than stochastic. It also means n=10 per row bought nothing here; n=1 would
+have produced this table.
+
+**The mechanism: nearest-neighbour substitution, not random guessing.** The model
+answers `other` reliably when a request is FAR from every vocabulary entry —
+phone number, coffee shop, haiku, arithmetic all 10/10 `other` — and substitutes
+the closest entry when the request is NEAR one. Restricted to the four ARMED
+out-of-vocabulary rows, `other` accuracy is **20/40 = 50%**: a coin flip.
+
+**And it never erred in the safe direction. Zero safe misses** — not once did it
+answer `other` where a scoped intent was right. The guide says in as many words
+that *"Guessing is worse than answering other"*, and it guessed anyway. The bias
+against `other` is strong and one-directional.
+
+### What survives, and it is not nothing
+
+- **Adding a second field cost the Bool NOTHING: 100/100 against its 200/200
+  history.** The schema is safe to extend, and that is reusable by any future
+  lane that wants more out of one router generation.
+- **In-vocabulary classification is PERFECT: 100/100 across all five intents**,
+  20/20 on each. The model can absolutely classify intent. It cannot decline to.
+
+**So the defect is precisely located: the `other` escape hatch does not work when
+the request is near a vocabulary entry.** That is a narrower and more tractable
+problem than "the model can't classify intent" — which this run rules out.
+
+### Two candidate causes, both cheap to test, and one honest caveat
+
+1. **The vocabulary was INCOMPLETE.** `searchConversations` and `deviceStatus`
+   are real belt domains I deliberately left out, so on those two rows the model
+   had no correct scoped answer available. Completing the vocabulary
+   (`conversations`, `device`, `contacts`, `places`) may make both rows correct.
+2. **The `other` guide is too weak.** Guide wording has a strong measured history
+   of moving routing behaviour — #207's image guide took reading prompts from 1/4
+   to 4/4, and the signal without the guide moved nothing. A harder prohibition
+   on guessing is a one-cell measurement.
+
+**The caveat that neither fixes:** a vocabulary can never be complete. Any belt
+has domains and any request can fall between them, so completing the list shrinks
+the near-miss zone rather than closing it. **The escape hatch has to work on its
+own merits**, which makes candidate 2 the load-bearing one and candidate 1 the
+cheap confound to remove first. Testing 1 without 2 risks a run that passes
+because the grid no longer contains a near miss — measuring the grid rather than
+the model.
+
+**Owed:** a #217B cell pair — completed vocabulary, and a strengthened `other`
+guide — scored against THIS run as control, with at least two armed rows kept
+deliberately outside whatever the new vocabulary is, or the bar becomes
+unfalsifiable. **No belt rides an intent until B passes.**
+
 ## #216 — the narrow belt, re-tried where it cannot lose. #214's closure was right about the evidence and wrong about the world.
 
 **FILED 2026-08-01, bars written first. No production change — `routed-scoped` is
