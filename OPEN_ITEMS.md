@@ -12015,7 +12015,39 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
-## #221 — 🐛 SHIP BLOCKER (proposed): voice IGNORES the brain selection and bills OpenAI Realtime while the app says "on-device"
+## #221 — ✅ FIXED 2026-08-01: voice ignored the brain selection and billed OpenAI Realtime while the app said "on-device"
+
+> **RULE SET BY OWEN 2026-08-01, and it is broader than this bug:**
+> *"on device should signify everything on device. Local. When hermes is
+> selected, it switches to using hermes' resources."*
+>
+> **The brain selection governs EVERY modality, not just chat.** That is the
+> principle; this item was one violation of it. Anything added later that reaches
+> off-device — a new tool, a new media path, an upload — answers to the same rule
+> and should be checked against it rather than shipped and discovered.
+>
+> **FIXED same day.** `VoiceEngineRouter.realtimeIsPermitted(for:)` gates on
+> `.hermes` only, wired at **three** points: `init` (before pairing is
+> consulted), `refreshReadiness` (before the probe — a forbidden brain must not
+> reach OpenAI *at all*, not merely avoid speaking to it), and `startSession`
+> (re-checked rather than trusting `activeEngine`, since the original defect was
+> a stale routing decision nobody re-evaluated).
+>
+> **`.privateCloud` is forbidden too.** PCC is Apple's compute, not Hermes', so
+> "when hermes is selected" does not cover it — and the architecture already
+> agreed: `Brain.privateCloud` is documented as routed to the local backend that
+> owns the PCC session. Voice follows chat onto the local side.
+>
+> **Six tests, TDD.** Two go through the router rather than the pure function and
+> reproduce the exact bug: paired + healthy realtime + on-device brain must never
+> start realtime *and must never probe it*; and a brain switched mid-session
+> forces native on the next start. Gate PASS, 1469 + 8, Release clean.
+>
+> **STILL OPEN — a product question, not code:** should a voice session running on
+> realtime show a **visible indicator**? The audio leaves the device; silence
+> seems like the wrong default. Not built, awaiting Owen.
+
+## The original filing
 
 **FOUND BY OWEN 2026-08-01**, immediately after the airplane-mode test made the
 engine visible: *"the other voice, with airplane mode off, was firing over
