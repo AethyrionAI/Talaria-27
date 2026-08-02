@@ -368,6 +368,47 @@ carry these into a device sitting.**
    seconds after each interruption is the PRE-call utterance being submitted as
    the session tears down — confirmed with Owen, expected behavior.
 
+### ⚑ AIRPLANE MODE IS A FREE ENGINE PIN (found 2026-08-01)
+
+**Turning on airplane mode forces the NATIVE engine**, no build and no unpair
+required: the realtime readiness probe fails, `shouldRouteNative` fires, and the
+router logs it. Verified 2026-08-01:
+
+```
+18:57:09  readiness routed voice to the native engine (configured=nil, state=failed)
+18:57:09  active voice engine → native
+18:57:10  voice session starting on engine native (relayPaired=true)
+```
+
+**Note `relayPaired=true` alongside `engine native`.** Pairing does NOT determine
+the engine — the probe result does. That is precisely the case that was invisible
+before the log line existed, and it is why the engine varied run to run.
+
+**Also established, and previously unrecorded: native voice + the on-device brain
+works FULLY OFFLINE** — four complete turns with `sendStreaming routed to
+on-device`, no network at all.
+
+**Interruptions still reachable in airplane mode:** a **timer or alarm** firing is
+a genuine `.system` audio interruption; phone calls are not (no cellular).
+
+### A1c · Timer interruption on the NATIVE engine · **[WEAKER SUBSTITUTE — not a replacement for A1]**
+
+**Owen 2026-08-01: "a timer isn't the same as a phone call."** Correct, and the
+difference is not cosmetic:
+
+- a **call** hands audio to another process, backgrounds the app, and holds the
+  route for minutes — it is what real users hit
+- a **timer** is a short local interruption that never takes the foreground the
+  same way
+
+So a timer exercises `AudioInterruptionRule` on the native engine — worth having,
+since that engine has **no** interruption verification — but **passing it does NOT
+close A1.** A1 needs a real call on the native engine, which needs the engine
+pinned some other way than airplane mode (unpair, or a debug override), because
+airplane mode is precisely what prevents the call.
+
+**Queued, not scheduled.** Circle back.
+
 ### A1b · RE-RUN with the engine PINNED · **[BLOCKED ON AN INSTRUMENT FIX FIRST]**
 
 **Do not re-run A1 until the app logs which voice engine is active.** Repeating it

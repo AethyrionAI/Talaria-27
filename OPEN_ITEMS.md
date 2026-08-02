@@ -12015,6 +12015,76 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
+## #221 — 🐛 SHIP BLOCKER (proposed): voice IGNORES the brain selection and bills OpenAI Realtime while the app says "on-device"
+
+**FOUND BY OWEN 2026-08-01**, immediately after the airplane-mode test made the
+engine visible: *"the other voice, with airplane mode off, was firing over
+realtime, when the model brain selection is set to local. That was using tokens
+that I didn't intend to use."*
+
+**Confirmed in source, and it is unambiguous: `VoiceEngineRouter` contains ZERO
+references to brain selection.** It keys on exactly one input:
+
+```swift
+// AppContainer.swift:691
+isRelayPaired: { activePairingStore?.isPaired == true }
+```
+
+So the two routers disagree by construction, and tonight's log shows both halves
+of the contradiction in one session:
+
+```
+[VoiceEngineRouter] active voice engine → realtime (initial; relayPaired=true)
+[ChatBackendRouter] sendStreaming routed to on-device
+```
+
+**The user picked on-device. Chat obeyed. Voice went to OpenAI.**
+
+### Why this is worse than a routing inconsistency
+
+1. **Unintended spend.** OpenAI's Realtime API bills **audio** tokens, which are
+   the expensive kind. A user who selects on-device has, by any reasonable
+   reading, declined to spend — and gets billed anyway, silently, for the one
+   modality where sessions run long.
+2. **The privacy claim is not honored where it matters MOST.** Selecting
+   on-device is a statement of intent about where data goes. **Voice is the most
+   sensitive input the app takes** — it is ambient microphone audio, it can catch
+   people who never consented, and it is exactly what a privacy-motivated user is
+   choosing on-device to protect. The setting is silently ignored there.
+3. **The app's own UI asserts something false.** It reports on-device while
+   streaming audio to a third party. Same family as **#191** (header not
+   backend-aware) and **#192** (the app switches itself away from on-device) —
+   *the brain the UI claims is not the brain in use* — but this instance moves
+   money and microphone audio, not just a label.
+
+### Why nobody caught it for weeks
+
+**Until 2026-08-01 nothing logged which voice engine was running** (#198A/#220).
+The realtime path is silent, fast and good — it *sounds* like a well-behaved
+local session. Owen only found it by holding one conversation in airplane mode
+and hearing a different voice. **A cost and privacy defect was audible but not
+observable**, and it took a human noticing a timbre change.
+
+### Fix shape (not yet routed)
+
+`ChatBackendRouter` already owns the answer — `resolvedBrainForNextTurn()`,
+`setPreferredBrain(_:forConversation:)`. `VoiceEngineRouter` needs the same input
+its sibling has: a brain provider alongside `isRelayPaired`, and
+`.onDevice` must force `.native` regardless of pairing or probe result.
+
+**Open questions for Owen, because they are product calls, not code:**
+
+- Should on-device **hard-forbid** realtime voice, or offer it with an explicit,
+  per-session opt-in ("this will use the cloud")?
+- What should the **Private Cloud** brain select? PCC has no realtime voice, so
+  it presumably behaves like on-device here.
+- Should there be a **visible indicator** while a voice session is on realtime?
+  Given the audio goes off-device, silence seems like the wrong default.
+
+**Severity is proposed, not assigned** — Owen classifies. The argument for ship
+blocker: it spends the user's money against an explicit setting and sends
+microphone audio somewhere the UI says it is not going.
+
 ## #220 — 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. One mystery probably solved; three verdicts need re-checking.
 
 *(OPEN_ITEMS #220. **Not** a GitHub PR number.)* **FILED 2026-08-01** after #198A
