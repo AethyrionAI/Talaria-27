@@ -357,11 +357,21 @@ final class AppContainer {
         let syncCoordinator = MockSyncCoordinator()
         let notificationService = LiveNotificationService()
         let allowMockFallbacks = AppEnvironmentPolicy.currentBuild.allowsEnvironmentOverrides
-        let usesMockPairingService = processEnvironment["UITEST_PAIRING_MODE"] == "mock"
+        // #144: a test run must never enrol as a LIVE device. This used to read
+        // `UITEST_PAIRING_MODE == "mock"` alone, which relied on every test
+        // author remembering to set it — five of nine UI-test launches did not,
+        // and the Mac relay accumulated 97 junk device rows with live push
+        // registrations. The guard now DETECTS the test run instead, so the safe
+        // path is the default and the live path has to be earned.
+        let usesMockPairingService = TestRunGuard.mustUseMockPairing(
+            environment: processEnvironment,
+            explicitMockRequested: processEnvironment["UITEST_PAIRING_MODE"] == "mock",
+            allowsEnvironmentOverrides: allowMockFallbacks
+        )
         let pairingService: any PairingServiceProtocol
         var activePairingStore: PairingStore?
 
-        if processEnvironment["UITEST_PAIRING_MODE"] == "mock" {
+        if usesMockPairingService {
             pairingService = MockPairingService()
         } else {
             pairingService = LivePairingService()
@@ -383,8 +393,20 @@ final class AppContainer {
             session: RelayAPIClient.makeBootstrapProbeSession()
         )
 
+        // #144: the PRIMARY must be the mock under test, not just the fallback.
+        //
+        // `ResilientSessionBootstrapService` tries `primary` FIRST and falls back
+        // only on a thrown error. The relay is up during a test run, so the live
+        // call SUCCEEDS — which means `allowsFallback` never fires and the device
+        // row is created regardless. Routing the guard through `allowsFallback`
+        // alone looks like a fix and does nothing; the live registration has to
+        // not be attempted at all.
+        let sessionBootstrapPrimary: any SessionBootstrapServiceProtocol =
+            usesMockPairingService
+                ? MockSessionBootstrapService()
+                : LiveSessionBootstrapService(apiClient: bootstrapProbeClient)
         let sessionBootstrapService = ResilientSessionBootstrapService(
-            primary: LiveSessionBootstrapService(apiClient: bootstrapProbeClient),
+            primary: sessionBootstrapPrimary,
             fallback: MockSessionBootstrapService(),
             allowsFallback: { allowMockFallbacks && (activePairingStore?.isPaired != true || usesMockPairingService) }
         )
