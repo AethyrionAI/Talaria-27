@@ -597,6 +597,19 @@ dropdown, no popover, no "Start New Session" — straight to the shim-backed lis
 
 ## 21. 🔧 Present/download agent-generated files — Tier 1 ✅; Tier 2 relay route ✅; Tier 2 app-side fetch MERGED (PR #99, 2026-07-16) — dual-host device pass owed
 
+> **SUPERSEDE WATCH 2026-08-02 (found probing #173, source-read + live probe):** this item's
+> founding fact — "there is no built-in file/download endpoint (`/openapi.json`, `/v1/files`,
+> `/api/files`, `/files` all 404)" — **is no longer true of Hermes's shipped code.** The
+> installed 0.19.1 `hermes_cli/web_server.py` defines `GET /api/files`, `/api/files/read`,
+> `/api/files/download`, upload + upload-stream + mkdir + delete, a whole `/api/fs/*` family,
+> `/api/media`, and `POST /api/chat/image-upload` (129 routes total). The Mac's RUNNING
+> gateway process predates them (`GET /api/files` → 404 live, while `/api/model/options` →
+> 200 — the process sits between versions), so the 404s were true when probed and are
+> version-conditional now. **Consequence: before any further Tier 2 relay file-serving work,
+> re-probe `/api/files` on a current gateway process — the relay sidecar route may be
+> superseded by core.** CLAUDE.md's #21 paragraph carries the stale "all 404" claim and
+> needs the same dated correction once verified on OJAMD.
+
 **Session D launch sweep 2026-07-20 — Mac PASS (for what is built), two findings, OJAMD
 test INVALID:**
 - **Mac:** chip appeared, preview sheet presented, ShareLink sheet worked. “PDF preview not
@@ -8339,6 +8352,24 @@ it cannot verify.
 >   probe doesn't re-derive them.
 > Decision queued for Owen: enrich the shim and build option (a) on it, or take the lighter
 > never-claim path. Probe run from the #180 lane (PR #237).
+>
+> **AMENDED same day — capability surfacing is NOT shim-gated after all.** Owen flagged
+> that shim enrichment would hard-gate keeping a shim slated for retirement; probing for
+> alternatives found the retirement path already built upstream: **the gateway serves a
+> native model API on `:8642`** — `GET /api/model/info` / `/api/model/options` /
+> `/api/model/recommended-default` / `/api/model/auxiliary` and `POST /api/model/set`.
+> `/api/model/options` answered **HTTP 200 on the live Mac gateway**, same Bearer auth as
+> chat, and its payload carries the SAME per-model `capabilities` map (verified on the
+> wire: `{fast, reasoning}`, 35 nous entries) — both it and the shim ride
+> `build_models_payload(capabilities=True)`. So the missing `vision` key is upstream in
+> `_apply_capabilities` and an upstream fix reaches shim and gateway alike; nothing about
+> option (a) requires the shim to live. **Path: (i)** contribute/request the two-line
+> `supports_vision` forward upstream (the meta object is already in hand there); **(ii)**
+> the never-claim wording ships as the floor regardless; **(iii)** the relay sidecar
+> serving capabilities stays the fallback only if upstream stalls. Verify
+> `/api/model/options` answers on OJAMD (0.19.1, restarted since update — the Mac's
+> RUNNING process is older and has these routes, so 0.19.1 certainly does) before any
+> app lane reads it.
 
 Logged 2026-07-23.
 
@@ -9206,6 +9237,12 @@ is the escape hatch, in Settings → Sessions → Shelf.
 `min_messages=1` **stays on the request** — deliberately. It is harmless, and dropping
 it belongs to option (2) below, which is still open: the gateway should either honor
 the parameter or the client should stop implying a contract that is not kept.
+
+> **DECIDED 2026-08-02 (Owen): "Keep, annotated."** The param stays on the request as a
+> standing bid — Hermes updates constantly, and if a release starts honoring it the
+> server-side filter arrives free with the client-side filter demoted to belt. The
+> gateway half of this item is now a **watch**, not work: re-probe after notable gateway
+> updates, close when a release honors it. No code change in either direction.
 
 **Update 2026-07-26 — the empties have a single source, and it is not Talaria.**
 
