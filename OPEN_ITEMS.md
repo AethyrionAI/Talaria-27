@@ -5205,21 +5205,81 @@ Logged 2026-07-17.
 
 ---
 
-## 128. 🔧 Voice capture crash — double installTap via actor reentrancy — FIXED (2026-07-17); documented repro path unreachable (2026-07-25)
+## 128. 🔧 Voice capture crash — double installTap via actor reentrancy — FIXED (2026-07-17); **repro DECOUPLED, not unreachable — source archaeology settled 2026-08-01. QUESTION FOR OWEN: close it, or hold for §E1?**
 
-> **⚠️ ENGINE-AMBIGUOUS — flagged 2026-08-01 by the #220 audit.** This item's device
-> verdict was recorded while NOTHING logged which voice engine was active, and the engine
-> varied run-to-run with OJAMD's health. Specifically: **the 'repro path unreachable 2026-07-25' likely has a third explanation: the native engine was not in the path.** The 07-17 crash was native by construction; a paired device with healthy realtime never runs `NativeVoicePipelineService`'s tap code. Cheap to settle with the engine pinned.
-> **See #220 before trusting or re-running this.**
+> **✅ ARCHAEOLOGY DONE 2026-08-01 (§G, no device time).** The 2026-07-25 note asked
+> "dead defensive code, or an unrecorded repro route?" **The answer is neither, and the
+> premise was stale when it was written.** Four findings, each checkable from the tree:
+>
+> **1. "Structurally impossible since April" was stale by five days at the moment it was
+> written.** It describes #129's *base* commit, where mid-session preview was
+> double-blocked. **PR #127 (`175261b`, 2026-07-20) removed the `.disabled(isSessionActive)`
+> stopgap** — #129's own entry says so — and the current tree confirms it:
+> `VoiceSettingsScreen.swift:189` has **no `.disabled` modifier at all**. The button is
+> reachable mid-session and has been since 07-20; the note is dated 07-25.
+>
+> **2. The button was re-enabled and the MECHANISM was removed in the SAME PR.** #128's
+> trigger was never "audition a voice" — it was the **chat** instance re-categorizing the
+> shared session `.playAndRecord → .playback` under a live capture engine. PR #127 routed
+> mid-session previews to the session-less native instance
+> (`SpeechOutputService.swift:159-165` says this outright). So the documented repro is now
+> **a button that no longer produces the category flip that raced the restarts.**
+> **The repro is DECOUPLED from the defect, not unreachable** — running it proves nothing
+> about #128 in either direction. That distinction is the whole finding: an unreachable
+> repro is a gap in coverage; a decoupled one is a test that will always pass.
+>
+> **3. #220's engine hypothesis HOLDS — and it is stronger than it was filed.** The
+> realtime engine is **WebRTC** (`LiveVoiceSessionService.swift:5-6,136-138`), which owns
+> its own audio unit: **zero** matches for `installTap`/`AudioNodeTap`/`AVAudioEngine` in
+> that file, against 5 tap sites in `NativeVoicePipelineService`. So on a paired phone with
+> healthy realtime the #128 invariant is not "exercised by different code" — **no
+> tap-install code is in the process's path at all.** The 07-25 attempt could not have
+> reached it whatever Owen did in Settings. This is the third independent reason that
+> attempt came back empty, and the only one that was invisible before #198A's logging.
+>
+> **4. The fix is NOT dead code — it is the innermost of four guards.** See the table
+> below. **And it has a demonstrated bypass history:** the 07-10 serialization whose commit
+> message names this exact failure was already in the tree on 07-17 (verified:
+> `git merge-base --is-ancestor 67cf879 d8b9ad7`), and the crash happened anyway.
+>
+> **Owed after this:** nothing on the device queue. The physical re-verify is still
+> #129's test (§F6) and closes #129, not this. **If a future lane wants real evidence for
+> the #128 invariant it must construct the race deliberately** — §E1's `installTap`
+> double-install probe is that lane, and it is deliberately not a unit test.
+
+**Defence in depth as it now stands — the #128 fix is layer 3 of 4:**
+
+| date | commit | guard | what it stops |
+|---|---|---|---|
+| 2026-07-10 | `67cf879` | `restartTask` coalesce + >3/30s breaker | restart-vs-restart racing |
+| 2026-07-16 | `54824a3` | `isConfiguringAudioSession` + `.categoryChange` carve-out | self-inflicted category churn restarting capture |
+| **2026-07-17** | **`d8b9ad7`** | **#128: remove adjacent to install** | **a race that slips both → last writer wins cleanly** |
+| 2026-08-01 | `f636297` | #198 `AudioNodeTap.install` | a double-install **throws** instead of raising an uncatchable NSException |
+
+**The loose end, recorded rather than smoothed over.** Layer 1 landed **seven days before**
+the crash it was built to prevent, and its commit message names the failure verbatim —
+*"racing restarts (double tap-install NSException)"*. It was in the tree on 07-17 and the
+crash still occurred. The uncovered path is visible in the source: `restartTask` serializes
+`restartCapture` against itself, but **`startSession() → beginCapture()` is not guarded by
+it** — only by `isConfiguringAudioSession`, which landed 2026-07-16, *one day* before the
+crash. So either the crash came in through that window, or the coalescing had a hole since
+closed. **Not settled here, and it does not need to be to close the archaeology question** —
+but it is why layer 3 should not be deleted as redundant, and it is a standing caution
+that a guard naming the right failure is not proof the failure is covered.
 
 > **Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
 > work is NOT a device check — see `dispatch/DEVICE-PASS-RUNNING-LIST.md` §G for what it
 > actually needs. Do not carry it into a device sitting.
 
-> **2026-07-25.** The documented reproduction path for this crash has been
-> structurally impossible since April. Either the fix is dead defensive code, or
-> the original reproduction used a route that was never recorded. Do not close on
-> the existing note — establish which before spending device time.
+> **2026-07-25 — SUPERSEDED, and preserved because how it was wrong is the lesson.**
+> Original text: *"The documented reproduction path for this crash has been structurally
+> impossible since April. Either the fix is dead defensive code, or the original
+> reproduction used a route that was never recorded."*
+> **Both halves of the dichotomy were false and the premise was already out of date.**
+> "Since April" was read off #129's *base* commit five days after PR #127 changed it — the
+> same shape as the eight stale records of 2026-08-01: **true when the underlying text was
+> written, false when it was cited.** It cost nothing here only because the item was
+> correctly kept OFF the device queue. See the ARCHAEOLOGY block above.
 
 **Session V sweep 2026-07-20: DoD NOT closed — the exact repro never cleanly ran.** The attempt
 tangled with a different failure: cycling several auditions in Voice Settings then starting the
@@ -12117,7 +12177,7 @@ its sibling has: a brain provider alongside `isRelayPaired`, and
 blocker: it spends the user's money against an explicit setting and sends
 microphone audio somewhere the UI says it is not going.
 
-## #220 — 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. One mystery probably solved; three verdicts need re-checking.
+## #220 — 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. **#128's mystery SOLVED from source 2026-08-01 (and this entry's own proposed test for it was invalid — see below);** three verdicts still need re-checking.
 
 *(OPEN_ITEMS #220. **Not** a GitHub PR number.)* **FILED 2026-08-01** after #198A
 established that nothing logged which voice engine was active.
@@ -12152,7 +12212,34 @@ in the record distinguishes them.
   caught this organically: *"Scope broadened 2026-07-20 (Owen): NOT
   realtime-only"* — found by observing the same symptom elsewhere, not by any log.
 
-### THE LIKELY PAYOFF — #128's "unreachable repro" probably has its answer
+### THE PAYOFF — ✅ **CONFIRMED 2026-08-01, and the settlement method below was WRONG**
+
+> **RESOLVED the same day it was filed, by source archaeology (see #128).** The
+> hypothesis **holds, and is stronger than stated here**: realtime is **WebRTC**
+> (`LiveVoiceSessionService.swift:5-6,136-138`) with **zero** matches for
+> `installTap`/`AudioNodeTap`/`AVAudioEngine`, against 5 tap sites in
+> `NativeVoicePipelineService`. So it is not that the native tap code "never executes"
+> — **no tap-install code of any kind is in the process's path** on a paired
+> healthy-realtime phone.
+>
+> **But the settlement method prescribed below does not work, and this correction is
+> the more useful half.** It says: re-attempt the repro with the engine pinned to
+> native. **That test cannot answer the question**, because PR #127 (2026-07-20)
+> removed the mid-session category flip that was the actual trigger — the repro is
+> **decoupled from the defect**, so it comes back clean on a pinned native engine
+> whether the fix is load-bearing or not.
+>
+> **That is precisely the failure this very entry names one table down for #130** —
+> *"a null result wearing the clothes of evidence."* I wrote that warning and then
+> prescribed an instance of it in the section above it, in the same document, on the
+> same day. **Pinning the engine was necessary and not sufficient**, and the
+> difference was invisible until someone read the trigger's source rather than the
+> repro's description. A real test of the invariant has to construct the race
+> deliberately — that is §E1, not this.
+
+*(Original text preserved below as filed.)*
+
+#### THE LIKELY PAYOFF — #128's "unreachable repro" probably has its answer
 
 #128 is filed as *"FIXED (2026-07-17); documented repro path unreachable
 (2026-07-25)"*, and the standing question (restated by the Hermes audit) is
