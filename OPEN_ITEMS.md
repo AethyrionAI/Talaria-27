@@ -12447,6 +12447,179 @@ its sibling has: a brain provider alongside `isRelayPaired`, and
 blocker: it spends the user's money against an explicit setting and sends
 microphone audio somewhere the UI says it is not going.
 
+## #222 — 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK, unused. The in-source comment describes a CHOICE as a limitation.
+
+> ## ⚠️ THIS ENTRY WAS OVERSTATED WHEN FIRST FILED, AND OWEN CORRECTED IT WITH A SCREENSHOT
+>
+> **Filed 2026-08-02 as "'the on-device model cannot see images at all' is FALSE."
+> That headline was too strong and the code does not support it.** Corrected the
+> same day. What follows is the accurate version; the original framing is preserved
+> below because the way it was wrong is instructive.
+>
+> ### What Owen demonstrated — and it is the first evidence of this on file
+>
+> Device screenshot, **ON-DEVICE brain, AIRPLANE MODE**, a screenshotted
+> neighbourhood-watch post + *"what's this say?"*: the **`READIMAGETEXT` chip fired**
+> and the model returned the post's full text. **The OCR path works end to end,
+> offline, with no network of any kind.** Nothing in the tracker recorded that.
+>
+> **And his account of why is confirmed in the code.** *"It had to be called with
+> other things"* — `ImageTextTool` and `BarcodeReaderTool` conform to our own
+> `ImageDependentTool` marker (`DeviceMediaTools.swift:75,125`;
+> `DeviceToolBelt.swift:95`), the belt gates them on `hasImageInContext`
+> (`DeviceToolBelt.swift:84-86`), and the tool reaches the image through
+> `ConversationImageSource.latestImage(...)`. **The capability is real and it is
+> the surrounding machinery that makes it fire.** That was a genuine breakthrough
+> and it is why the "blind turn" language reads as stale.
+>
+> ### What I got wrong, precisely
+>
+> I claimed the SDK falsifies *"the model cannot see images."* **It does not.** Our
+> tools run `VNRecognizeTextRequest` themselves and return a **`String`**; the model
+> receives text and **never receives image bytes**. The comment is an accurate
+> description of our implementation.
+>
+> **The real defect is narrower and worth keeping:** the comment states a
+> **design choice** as if it were a **property of the model**. "Cannot see images at
+> all" reads as a permanent limit. It is our integration, and the SDK offers the
+> other path.
+>
+> **A detail I first read as a symptom, and Owen corrected — the correction is the
+> better note.** The returned list includes `"7:40"` and `"92"`, the status bar of
+> the screenshotted phone, and I cited that as "OCR-reads-everything, not
+> understanding." **Owen, 2026-08-02:** *"I also asked vaguely. What's this say. Not
+> what's the comment in the message bubble. It gave me what I asked for, honestly;
+> I'd say that's awesome."*
+>
+> **He is right and the framing was unfair.** A vague whole-image question got
+> **every piece of text in the image, accurately, with nothing invented and nothing
+> omitted.** That is a correct, honest answer — and given how much of the #200
+> series is about this model over-serving or inventing, a complete literal answer to
+> a literal question is a **good result**, not a symptom. **I turned a success into
+> evidence for a distinction I had already decided on**, which is the same
+> confirmation-shaped error the battery lanes exist to prevent.
+>
+> **What would ACTUALLY probe the text-vs-image distinction** is a question OCR
+> cannot answer from a transcript of strings — *"who posted this?"*, *"is this the
+> Safe Harbor group?"*, or anything about layout, colour, or what is depicted.
+> **That test has not been run**, and until it is, this entry's distinction is a
+> reasoned architectural claim, not a measured one.
+>
+> ### What remains genuinely new and unused
+>
+> `Transcript.Segment.image` / `Transcript.ImageAttachment` / `ImageReference` are in
+> the beta4 SDK (details below) and **Talaria uses none of them** — 0 hits against 5
+> files using `LanguageModelSession` as a positive control. **A model that receives
+> the image could answer "is this the right screenshot" or "what is happening here";
+> OCR cannot.** That is an unexplored capability, not a missing one — and it is a
+> question for Owen, not a promotion.
+>
+> **Note on naming:** our `BarcodeReaderTool` (`DeviceMediaTools.swift:125`) is
+> **ours, Vision-direct** — distinct from Apple's `BarcodeReaderTool` in the
+> `_Vision_FoundationModels` overlay. Same name, different type. Say which.
+
+*(Original filing, preserved — the overlay finding and blast radius below still
+stand; only the "FALSE" headline and its first section were wrong.)*
+
+## #222 (original filing) — "The on-device model cannot see images at all"
+
+**FILED 2026-08-02. Found by OWEN, from memory, against a stale note of mine.**
+
+> *"There IS a vision model, but it has to work alongside another to function and
+> not by itself, and your OG grep missed it."* — Owen, 2026-08-02
+
+**He was right on all three counts.** Verified against the beta4 SDK interface, not
+recalled.
+
+### The falsified premise, and where it lives
+
+`LocalChatBackend+Battery.swift:1823-1828` states, as the justification for how
+image turns are routed:
+
+> *"The on-device model **cannot see images at all** — the transcript carries a
+> placeholder — so image capability exists ONLY through `readImageText` /
+> `BarcodeReaderTool`. A toolless route on a photo turn is a BLIND turn."*
+
+**The SDK contradicts the first clause.** In `FoundationModels` itself (beta4,
+`arm64e-apple-ios.swiftinterface`):
+
+- **`Transcript.Segment.image(Transcript.ImageAttachment)`** — the transcript
+  carries a real image segment, not only a placeholder.
+- **`Transcript.ImageAttachment`** — inits from `CGImage`, `CIImage`,
+  `CVPixelBuffer`, `imageURL`, with `orientation`.
+- **`ImageAttachmentContent`** + `extension Attachment where Content == ImageAttachmentContent`.
+- **`ImageReference`** (iOS 27+) — holds only `attachmentLabel: String`, is
+  `ConvertibleFromGeneratedContent`, so **the model can emit one as structured
+  output**, and `resolved(in: transcript)` turns the label back into the image.
+
+**Precisely stated: the limitation is OURS, not the model's.** The comment
+describes our integration and presents it as a property of the on-device model.
+Both halves may be individually defensible; together they license a design
+decision on a capability claim that is not true.
+
+### Why the original grep missed it, and it is structural
+
+`OCRTool` and `BarcodeReaderTool` live in **`_Vision_FoundationModels.framework`
+— a CROSS-IMPORT OVERLAY**, which exists only when *both* Vision and
+FoundationModels are imported. **A grep of either framework's own interface can
+never see it.** That is exactly Owen's "has to work alongside another to function
+and not by itself", and it is the same shape as `ImageReference` being inert
+without its transcript.
+
+### What we already have, so the gap is stated honestly
+
+The app is **not** blind to images today: `readImageText`
+(`DeviceMediaTools.swift:76`, `VNRecognizeTextRequest`), `DocumentTextExtractor`,
+and VisionKit scanning all ship. **The distinction that matters is narrower and
+sharper:**
+
+| today | available and unused |
+|---|---|
+| the model receives **text extracted from an image** | the model receives **the image** |
+
+An OCR pass answers "what does this say". It cannot answer "is this the right
+screenshot", "what is happening in this photo", or anything about layout, colour,
+or objects. **Talaria uses none of the image surface** — 0 hits for
+`ImageAttachment`/`ImageReference` against 5 files using `LanguageModelSession` as
+a positive control (2026-08-02).
+
+### Blast radius — this premise is load-bearing in more than one place
+
+- **#205 / #207 (image-turn routing).** The router's whole treatment of photo
+  turns rests on "a toolless route on a photo turn is a BLIND turn." If the model
+  can be handed the image, that sentence needs re-deriving, and #207's verdict
+  ("the signal alone does NOTHING, the guide fixes it completely") was measured
+  under the old premise.
+- **#176** — on-device model fires `readImageText` on a text-only prompt. If images
+  ride the transcript, the tool may not need to be on the belt at all for image
+  turns, which changes the over-serving surface.
+- **#132 / #173** — image attachments dropped host-side, and the app answering
+  confidently about attachments the host cannot see. **These are HERMES-side items
+  and remain so** — but an on-device path that genuinely sees the image is a
+  possible answer nobody has costed, and it would be the honest one: no attachment
+  leaves the phone.
+
+### Owed — cheap, no phone, and NOT a promotion
+
+1. **Correct the comment first.** It is wrong in the tree right now and it is being
+   read as a premise. That is a standalone fix regardless of what follows.
+2. **Prove the model actually sees an attached image** — attach one, ask something
+   only a viewer could answer (dominant colour, object count), on device. Until
+   that runs, "the SDK has the type" is availability, not capability. **Do not
+   re-derive router design on an unexercised API** — that is the mistake this
+   entry exists to correct, and repeating it in the other direction would be worse.
+3. Only then: re-open #205/#207's routing question.
+
+### The process note, because it is the third instance today
+
+**My memory file already recorded the overlay correction on 2026-07-28. The
+one-line INDEX above it still said "OCRTool/BarcodeReaderTool NOT in SDK" until
+today** — and the index is what loads first. **Owen caught from memory what my own
+notes would have had me repeat as a false negative.** Both are fixed. A summary
+line above corrected content is the highest-risk text anywhere, and this is the
+third example in two days (`CLAUDE.md`'s ATS rule, the device list's solo queue,
+and now this).
+
 ## #220 — 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. **#128's mystery SOLVED from source 2026-08-01 (and this entry's own proposed test for it was invalid — see below);** three verdicts still need re-checking.
 
 *(OPEN_ITEMS #220. **Not** a GitHub PR number.)* **FILED 2026-08-01** after #198A
