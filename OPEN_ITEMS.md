@@ -12484,10 +12484,26 @@ microphone audio somewhere the UI says it is not going.
 > all" reads as a permanent limit. It is our integration, and the SDK offers the
 > other path.
 >
-> **Corroborating detail from the screenshot itself:** the returned list includes
-> `"7:40"` and `"92"` — the *status bar* of the screenshotted phone. That is
-> OCR-reads-everything, not visual understanding, which is exactly the distinction
-> this entry turns on.
+> **A detail I first read as a symptom, and Owen corrected — the correction is the
+> better note.** The returned list includes `"7:40"` and `"92"`, the status bar of
+> the screenshotted phone, and I cited that as "OCR-reads-everything, not
+> understanding." **Owen, 2026-08-02:** *"I also asked vaguely. What's this say. Not
+> what's the comment in the message bubble. It gave me what I asked for, honestly;
+> I'd say that's awesome."*
+>
+> **He is right and the framing was unfair.** A vague whole-image question got
+> **every piece of text in the image, accurately, with nothing invented and nothing
+> omitted.** That is a correct, honest answer — and given how much of the #200
+> series is about this model over-serving or inventing, a complete literal answer to
+> a literal question is a **good result**, not a symptom. **I turned a success into
+> evidence for a distinction I had already decided on**, which is the same
+> confirmation-shaped error the battery lanes exist to prevent.
+>
+> **What would ACTUALLY probe the text-vs-image distinction** is a question OCR
+> cannot answer from a transcript of strings — *"who posted this?"*, *"is this the
+> Safe Harbor group?"*, or anything about layout, colour, or what is depicted.
+> **That test has not been run**, and until it is, this entry's distinction is a
+> reasoned architectural claim, not a measured one.
 >
 > ### What remains genuinely new and unused
 >
