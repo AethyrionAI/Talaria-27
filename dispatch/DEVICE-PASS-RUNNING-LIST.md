@@ -93,20 +93,40 @@ surface once you are already holding the phone.
 
 ### What needs nothing from you
 
-I can run these solo whenever: **E1**'s isolated build and staging B1's branch.
-Say go and they happen without a sitting.
+**NOTHING — the solo queue is EMPTY as of 2026-08-01.** All four lanes ran, and
+the one remaining candidate is ruled out (see below). **The next real work needs
+Owen and the phone, starting with §C5.**
 
 > ⏳ **ONE THING IS TIME-SENSITIVE — §C5.** #216A's re-read landed on a question
 > only two saved battery runs can answer, and the store prunes. Two minutes on the
 > phone, no battery run needed, and it is the only item here that gets *harder* by
-> waiting. Do it at the start of any sitting, before anything else.
+> waiting. **See the ordering rule above — it goes first, ahead of everything.**
 
-**Two are already ✅ done (2026-08-01), and both SHRANK the board:**
+**All four solo lanes are ✅ done (2026-08-01), and every one of them SHRANK the
+board:**
 - **#128's archaeology** — confirmed #220's engine hypothesis from source and
   removed #128 from the queue entirely.
 - **§G's #151/#153 source-confirms** — the confirms had **already been done
   2026-07-24 and merged as PR #146**. #153 closed; #151 and #152 moved *into*
   §F1/§F5 as ordinary device checks; one decision withdrawn off Owen's plate.
+- **#216A's re-read** — could not be settled by analysis, which IS the finding.
+  It created §C5 and the ordering rule above.
+- **§E1's double-install probe** — **CONFIRMED, it throws.** #198's migration
+  rationale is no longer inference, and #82's half was settled for free. Left one
+  zero-setup residual in §F6.
+
+**The remaining candidate is NOT available:** staging B1's branch is ruled out
+twice — B1 is parked by Owen's instruction, and staging is a reinstall that must
+not precede §C5's export. See the `B1 / F6` prerequisite row.
+
+> **This paragraph was itself stale for an hour and that is worth recording.**
+> It advertised "E1's isolated build" as available **after** E1 had run and its
+> verdict was filed three sections below, in the same commit. **A summary line
+> above a section it summarises is the highest-risk text in any document** — it is
+> read first, trusted most, and updated last. It is the exact failure this session
+> catalogued four times in other people's entries before producing a fifth of my
+> own. **When a section changes, grep the document for anything that describes
+> it.**
 
 ---
 
@@ -492,7 +512,12 @@ carry these into a device sitting.**
   tap-install code at all. **Nothing is owed on the device queue for #128** — the
   physical re-verify is #129's test (§F6) and closes #129. Full write-up in the
   tracker; the deliberate-race probe, if anyone wants real evidence for the
-  invariant, is §E1.
+  invariant, is §E1. **§E1 has since RUN (2026-08-01) — and be precise about what
+  it did and did not settle.** It proved the double-install now **throws** rather
+  than raising, so #128's failure mode is recoverable if the race ever occurs.
+  **It did NOT test the adjacency invariant itself** — it priced the residue, which
+  is exactly what that item said it would do. #128's close is *strengthened*, not
+  independently verified.
 - **#170 — probably unanswerable as filed.** Neither shape is reachable on OJAMD:
   every real job carries a null `model_snapshot`, and #148 suspects 0.19 stopped
   writing `*_snapshot` at all. **Either run #148's cheap discriminator (read the
