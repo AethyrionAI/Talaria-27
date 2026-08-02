@@ -37,13 +37,37 @@ surface once you are already holding the phone.
 
 ### Prerequisites — the sitting does not work without these
 
+> ## ⛔ ORDERING RULE — **§C5 GOES FIRST, ahead of everything on this page.**
+>
+> **§C5 exports the ONLY copies of two irreplaceable battery runs**, and they are
+> exposed to two different erasers that most of this list triggers:
+>
+> 1. **Every battery run prunes.** §C1–C4 and any promotion lane push those two
+>    records one step closer to eviction. The bound was 10 until 2026-08-01 and
+>    **pruning was silent** — so a lost record leaves no trace that it existed.
+> 2. **Every reinstall touches the container that holds them.** B1's probe branch,
+>    F3's delete, any OTA or corded install. An upgrade-install *should* preserve
+>    app data (same bundle id — that is how `ota-stage.sh` is designed), but
+>    "should" is a bad bet on a **unique asset when the export takes two minutes.**
+>
+> **This is not a warning about a risky check — it is an ordering rule about a
+> cheap one.** §C5 costs two minutes and needs nothing. If it is skipped and a
+> record is gone, the question it answers (are the #200-series' 0/10 grab results
+> real or an artifact?) costs a **full battery sitting** to re-ask, and the answer
+> would be a fresh measurement rather than the original evidence.
+>
+> The `F3` row below has said "export from Battery Results FIRST" since it was
+> written. **That instinct was right and scoped too narrowly** — it named the one
+> check that deletes the app, when the exposure is any reinstall and every run.
+
 | for | you need | why it bites |
 |---|---|---|
+| **§C5** | **nothing — two minutes, do it first** | ⛔ see the ordering rule above. It is the only item here that gets **harder by waiting**, and the only one guarding evidence that cannot be regenerated. |
 | **A1** (the top item) | **a second phone, or someone who will call you** | A1 is a real incoming call mid-session. There is no software substitute — the whole point is the OS interrupting us for real. **This is the single prerequisite most likely to end a sitting early.** |
 | **A2** | to background the app **overnight** | the system decides when `BGAppRefreshTask` runs; it cannot be forced. Start it before bed on a sitting day, read the log the next morning. |
 | **F3** | to **DELETE the app** | ⚠️ **destructive — local sessions and the Keychain stamp go with it.** Export anything you want from Battery Results FIRST. Run F3 **last** in any sitting for this reason. |
 | **F5** | a **> 25 minute** induced connector outage | the window IS the check — the original close scored a false PASS on a short one. Do not squeeze this between other checks. |
-| **B1 / F6** | the `probe/t27-130-halfduplex` branch **built to the phone** | say the word and I will stage it (OTA or corded). It is a separate build from `main`, so B1 cannot share a sitting with the `main` checks unless we reinstall between. |
+| **B1 / F6** | the `probe/t27-130-halfduplex` branch **built to the phone** — **but B1 is PARKED, so do not stage it yet** | ⛔ **§C5 must be exported BEFORE this branch goes anywhere near the phone** (ordering rule above). And B1 is parked by Owen's own instruction — *"leave it parked as a reminder"* — so its blocker was never OTA-vs-corded. **Staging a build for a parked item, onto the phone holding §C5's only evidence, is the wrong move twice over.** It is a separate build from `main`, so it cannot share a sitting with the `main` checks either. |
 | **C1–C4** | phone **foregrounded and on power** | backgrounding kills a battery run outright. |
 
 ### Decisions owed by you — no phone, no build, unblock other work
