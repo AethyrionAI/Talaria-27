@@ -13143,11 +13143,38 @@ conversation. Owen routes each lane.
 >
 > ### PUSH VERDICT — the menu re-ordered by evidence, and the CloudKit premise fell
 >
-> **Near-term winner: a direct-APNs sender script** in `HERMES_HOME/scripts/`, fired
-> two ways over time: **(now)** a `no_agent` cron job polling
-> `127.0.0.1:8642/api/sessions/{id}/messages` — the relay's exact watch predicate,
-> in-host — adding 0–60 s over the relay's 3–10 s poll; **(later)** the `agent:end`
-> hook once the upstream emission lands — instant, poll-free. It reuses **#38's
+> **Near-term winner — REVISED 2026-08-02 (same day, Owen's challenge: cron scripts
+> "constantly flicker… starting and stopping" on a non-headless host): a RESIDENT
+> IN-PROCESS WATCHER installed as a `gateway:startup` hook.** Verified in source:
+> that emit is UNCONDITIONAL at gateway boot (`gateway/run.py` ~10933, fires with
+> whatever platforms are enabled — api_server included), handlers are plain awaited
+> callables with per-handler exception capture, so a `handler.py` that does
+> `asyncio.create_task(watch_loop())` and returns immediately parks a watcher on
+> the gateway's own event loop — the exact pattern run.py itself uses five lines up
+> (`loop_heartbeat_forever`). The watcher polls the session store every **3–5 s
+> (relay-parity latency, not cron's 0–60 s)** and sends the APNs ping in-process.
+> **No subprocess is ever spawned — zero window flicker, zero process churn, by
+> construction** (the OJAMD gateway is already a windowless `pythonw`). No watch
+> registration needed: broadcast pings for freshly-completed api_server-source
+> sessions to whatever tokens are deposited under `HERMES_HOME/talaria/`; the app
+> filters on receipt. **OFF switch gets STRONGER here:** no token file → the
+> watcher has no recipients and skips polling entirely — zero outbound and
+> near-zero cost, host-side for free. Two honest caveats, stated up front: (i) the
+> watcher is OUR code resident in the gateway process — it must be strictly
+> non-blocking (aiohttp + `asyncio.sleep`, file IO via `to_thread`) or it stalls
+> the gateway's loop, and crash isolation is weaker than a separate process (an
+> internal supervisor loop + backoff is mandatory); (ii) if the task dies despite
+> that, nothing restarts it until the next gateway restart. ~100 lines,
+> single-purpose, works TODAY on 0.19.1 — no upstream change needed.
+> **Cron poll DEMOTED to fallback** (if the resident-watcher pattern misbehaves in
+> practice): for the record, Hermes cron scripts would NOT actually flash windows —
+> `_run_job_script` passes `creationflags: windows_hide_flags()` on win32
+> (`cron/scheduler.py` ~2290), so the flicker Owen has seen is the schtasks/
+> PowerShell pattern (e.g. the connector watchdog), not Hermes cron — but the
+> per-minute process churn and 0–60 s latency stand, and the watcher beats it on
+> every axis. The upstream `agent:end` emission is thereby demoted from
+> prerequisite to nice-to-have (it would make the watcher event-driven instead of
+> a 3–5 s poll). It reuses **#38's
 > proven APNs credentials already in the relay `.env` on OJAMD**, the proven
 > `session_id` ping-only payload, and the app's existing receive scaffolding
 > (`aps-environment` declared in project.yml; token surfaced in Diagnostics). Zero
@@ -13214,11 +13241,12 @@ conversation. Owen routes each lane.
 > - **Phase 1 — shim retirement** (this entry's original lane 2): picker onto
 >   `/api/model/options` — verified live 200 on OJAMD 0.19.1 today. Blocker: none.
 >   (#173's missing `vision` key is unchanged — upstream forward.)
-> - **Phase 2 — push sender v1:** APNs script + cron `no_agent` job on OJAMD
->   (installed by us directly first; bootstrap-turn install is Phase 5 polish), app
->   moves watch posts off the relay behind a flag, measure delivery end-to-end.
->   Blocker: none technical. **Bars go in THIS entry before the measured run**, per
->   the standing convention.
+> - **Phase 2 — push sender v1 (REVISED same day):** the resident-watcher
+>   `gateway:startup` hook + APNs sender on OJAMD (installed by us directly first;
+>   bootstrap-turn install is Phase 5 polish), app moves watch posts off the relay
+>   behind a flag, measure delivery end-to-end. Cron `no_agent` job is the named
+>   fallback only. Blocker: none technical. **Bars go in THIS entry before the
+>   measured run**, per the standing convention.
 > - **Phase 3 — the upstream conversation:** one contribution (or two): api_server
 >   hook emission + a managed-files mount under `API_SERVER_KEY`. Blocker: upstream
 >   acceptance; fallbacks are explicit (cron poll stays for push; relay keeps
@@ -13233,7 +13261,10 @@ conversation. Owen routes each lane.
 >
 > ### TRADES FOR OWEN (accept/decline, recorded here when decided)
 >
-> 1. Push latency until the hook ships: **+0–60 s** over the relay's 3–10 s. 2. Sensor
+> 1. ~~Push latency until the hook ships: +0–60 s over the relay's 3–10 s~~ —
+> **trade DISSOLVED by the same-day revision:** the resident watcher polls at
+> 3–5 s, relay parity; the residual trade is only "our async code lives inside the
+> gateway process" (caveats above). 2. Sensor
 > semantics: snapshot aggregates (app-chosen cadence) replace near-live time-series —
 > against a pipeline currently delivering nothing. 3. Trust envelope: APNs `.p8` on
 > the host = same class as `API_SERVER_KEY` (single-owner fine; multi-user needs the
