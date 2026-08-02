@@ -5205,7 +5205,28 @@ Logged 2026-07-17.
 
 ---
 
-## 128. 🔧 Voice capture crash — double installTap via actor reentrancy — FIXED (2026-07-17); **repro DECOUPLED, not unreachable — source archaeology settled 2026-08-01. QUESTION FOR OWEN: close it, or hold for §E1?**
+## 128. ✅ Voice capture crash — double installTap via actor reentrancy — FIXED (2026-07-17); repro DECOUPLED (not unreachable) — source archaeology 2026-08-01; **CLOSED by Owen 2026-08-01**
+
+> **⚠️ NAMING COLLISION — the same one #129 documents, and it has now actually
+> misfired once. GitHub #128 is `probe(#130) DO-NOT-MERGE: half-duplex + .default
+> mode`, closed unmerged 2026-07-30 — it is a DIFFERENT THING from this item.**
+> Owen closed this item citing *"it looks closed to me on github"*; that was the
+> probe PR, not this. **The close still stands on the archaeology below** (the fix
+> is live, and the DoD as written cannot verify anything), so the outcome was right
+> and the premise was not. Recorded because the collision is no longer hypothetical:
+> **`probe/t27-130-halfduplex` is deliberately KEPT and #130's A/B is still owed**,
+> so reading GitHub #128's closed state as "we're done here" is wrong twice over.
+> **Tracker numbers and GitHub numbers are independent sequences — always say which.**
+
+> **CLOSING BASIS, stated so it can be reversed if it turns out thin.** This item is
+> ✅ because its fix is in the tree and load-bearing (layer 3 of 4), **not** because
+> its Definition of Done was met. **The DoD as written — "repeat the exact repro" —
+> is now known to be unable to verify anything**, since PR #127 removed the trigger
+> while re-enabling the button. **No test has ever exercised the #128 invariant and
+> none is planned.** The only lane that would produce real evidence is §E1's
+> deliberate double-install probe, which stays open on its own merits. If §E1 ever
+> runs and the invariant fails, **reopen this** — closing it does not make the
+> comment-as-guard any stronger than it was.
 
 > **✅ ARCHAEOLOGY DONE 2026-08-01 (§G, no device time).** The 2026-07-25 note asked
 > "dead defensive code, or an unrecorded repro route?" **The answer is neither, and the
