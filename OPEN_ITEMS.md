@@ -7,10 +7,26 @@ picker), T2 (regex + copy fixes), shim cache-bust. See the merge commit for deta
 Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · 📝 note / decision ·
 **❌ cut / won't-do (terminal)** · ✅ done.
 
-> ## HOW TO COUNT THIS FILE — added 2026-08-01 (Phase 0)
+> ## HOW TO COUNT THIS FILE — added 2026-08-01 (Phase 0), made mechanical 2026-08-02
+>
+> > **CANONICAL HEADER FORM — `## N.` or `## NL.` for letter-suffixed lanes
+> > (`## 216A.`). There is exactly one form; `## #N` no longer exists.** Canonicalised
+> > 2026-08-02 after the external audit's recount returned **200 against a claimed 229**,
+> > purely because two forms were in use. `#N` was retired rather than kept because a
+> > header reading `#223` looks like a **GitHub** reference, and that collision has
+> > misfired twice (see #128). Prose still says "#223" — only headings are constrained.
+> >
+> > **The count is now one line, and it counts UNIQUE ITEMS, not headings:**
+> > ```
+> > grep -oE '^## [0-9]+[A-Z]?\.' OPEN_ITEMS.md | sort -u | wc -l
+> > ```
+> > **Unique matters:** items **198** and **199** each have two headings (the numbering
+> > convention changed mid-project; both are ✅ and each points at the other). Counting
+> > headings instead of items reports **232** and inflates ✅ to **136**. The true
+> > figures are **230 items / 134 ✅** — the old 136 was this exact double-count.
 >
 > **"Open" is NOT "not ✅", and counting it that way overstates the backlog.**
-> `grep -c '^## ' | grep -v ✅` returns **93**, but that figure sweeps in three
+> Subtracting ✅ from the item count leaves **96**, but that figure sweeps in three
 > terminal states that are not work:
 >
 > - **📝 (9)** — mixed, and the only marker that needs reading rather than counting.
@@ -21,9 +37,14 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 >   VIABLE, recommend closing" and the close was never actioned — Owen's call.**
 > - **💤 (2)** — #4, #55. Parked, not done. Count as open-but-not-scheduled.
 >
-> **The honest figure as of 2026-08-01: 229 items · 136 ✅ · 6 terminal-not-✅
-> (4 record 📝 + 2 completed ❌) · ~87 genuinely open**, of which 2 are dormant and
-> 1 awaits Owen.
+> **The honest figure as of 2026-08-02 (recomputed on UNIQUE items after
+> canonicalisation): 230 items · 134 ✅ · 6 terminal-not-✅ (4 record 📝 + 2 completed
+> ❌) · 90 genuinely open**, of which 2 are dormant and 1 awaits Owen.
+>
+> *Was "229 · 136 ✅ · ~87 open" on 2026-08-01. The board did not grow by three: **✅
+> fell by 2 because #198/#199 were double-counted**, and #223/#224 were filed on
+> 08-02. The marker tallies above (📝 9, ❌ 3, 💤 2) are unchanged and were verified
+> against unique items, not headings.*
 >
 > **Do not read a header and stop.** Every header-only judgement made during this
 > phase was wrong. #162/#163/#165 read "BUILT on branch" and the code is on `main`
@@ -54,7 +75,8 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 > deliberate no-live-opt-in, the gate's MAX-over-all-numbers, the 20s false-failure
 > trade) are annotated where they live. Counting-form fragility (`## N.` vs `## #N`,
 > duplicate-number headers) is confirmed real and remains **Owen's call** — it is the
-> "retire the old-style headers?" decision, now with a measured cost: the auditor's
+> "retire the old-style headers?" decision — **RESOLVED the same day, see the canonical-form
+> box at the top of this file** — with a measured cost that made the call easy: the auditor's
 > first recount returned 200 against a claimed 229 purely from the two forms.
 
 > **Accuracy audit — 2026-07-13.** All 112 items were re-checked against `origin/main` (tip `cca1345`), merged-PR/closed-issue state, and on-disk code. Corrections are flagged inline as `> **Audit 2026-07-13:**` blockquotes. Summary: 65 items accurate as-was; 13 status-flips (3 shown ✅ but actually open — #17/#18/#31; 7 shown open but actually done — #37/#47/#48/#49/#55/#76/#94; 3 header-vs-body contradictions — #25/#79/#102); 34 'merged-unverified' items whose 'built in cloud / not compiled / needs merge' wording was stale (PRs since merged — device-verify is the only work left). Full write-up: `design/OPEN_ITEMS_AUDIT_2026-07-13.md`.
@@ -12242,7 +12264,7 @@ rate.
 is concluded about it either way; the wedge is intermittent and the timeout stays
 in place as insurance.
 
-## #202 — ✅ the turn router is CONTEXT-BLIND: short affirmatives misroute toolless, and that is the original #200 denial
+## 202. ✅ the turn router is CONTEXT-BLIND: short affirmatives misroute toolless, and that is the original #200 denial
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Route + honesty shipped together (PR #192, merged 07-30). Residuals: device-list C2 and lane #205E.
 
@@ -12789,7 +12811,7 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
-## #221 — ✅ FIXED 2026-08-01: voice ignored the brain selection and billed OpenAI Realtime while the app said "on-device"
+## 221. ✅ FIXED 2026-08-01: voice ignored the brain selection and billed OpenAI Realtime while the app said "on-device"
 
 > **RULE SET BY OWEN 2026-08-01, and it is broader than this bug:**
 > *"on device should signify everything on device. Local. When hermes is
@@ -12891,7 +12913,7 @@ its sibling has: a brain provider alongside `isRelayPaired`, and
 blocker: it spends the user's money against an explicit setting and sends
 microphone audio somewhere the UI says it is not going.
 
-## #224 — 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and it is a gateway config key
+## 224. 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and it is a gateway config key
 
 **Filed 2026-08-02 from Owen's screenshot + direction ("Probably need to mirror the hermes
 side, just a thought").** Source-confirmed the same evening, so this is not filed on a
@@ -12963,7 +12985,7 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
-## #223 — 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the gateway can carry
+## 223. 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the gateway can carry
 
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
 Couple that with ending the shim, and we won't have very much running anymore separately."*
@@ -13287,7 +13309,7 @@ conversation. Owen routes each lane.
 > the plan and get copied INTO this entry, dated, before the first measured run. Not
 > started — Owen routes each lane.
 
-## #222 — 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK, unused. The in-source comment describes a CHOICE as a limitation.
+## 222. 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK, unused. The in-source comment describes a CHOICE as a limitation.
 
 > ## ⚠️ THIS ENTRY WAS OVERSTATED WHEN FIRST FILED, AND OWEN CORRECTED IT WITH A SCREENSHOT
 >
@@ -13361,7 +13383,7 @@ conversation. Owen routes each lane.
 *(Original filing, preserved — the overlay finding and blast radius below still
 stand; only the "FALSE" headline and its first section were wrong.)*
 
-## #222 (original filing) — "The on-device model cannot see images at all"
+### 222 (original filing) — "The on-device model cannot see images at all"
 
 **FILED 2026-08-02. Found by OWEN, from memory, against a stale note of mine.**
 
@@ -13460,7 +13482,7 @@ line above corrected content is the highest-risk text anywhere, and this is the
 third example in two days (`CLAUDE.md`'s ATS rule, the device list's solo queue,
 and now this).
 
-## #220 — 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. **#128's mystery SOLVED from source 2026-08-01 (and this entry's own proposed test for it was invalid — see below);** three verdicts still need re-checking.
+## 220. 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. **#128's mystery SOLVED from source 2026-08-01 (and this entry's own proposed test for it was invalid — see below);** three verdicts still need re-checking.
 
 *(OPEN_ITEMS #220. **Not** a GitHub PR number.)* **FILED 2026-08-01** after #198A
 established that nothing logged which voice engine was active.
@@ -13556,7 +13578,7 @@ and #128 closes properly instead of on an absence.
 `startSession()`. **A verdict that cannot name its configuration is not a
 verdict** — it is a measurement of something, and you do not know what.
 
-## #198B — 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
+## 198B. 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
 
 **FILED 2026-08-01**, found in the A1 device log while checking something else.
 
@@ -13581,7 +13603,7 @@ broken `pattern:` argument. `fault` is not `default`, so **the noise-reduction
 filter was also hiding the highest-severity line in the log.** Read `all` at least
 once per device session.
 
-## #198A — ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
+## 198A. ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 
 **Two real phone calls, corded whoGoesThere, PID 14087, 2026-08-01.**
 
@@ -13682,7 +13704,7 @@ interruption (another app grabbing audio), narrow #118 so a *system* interruptio
 does not tear down, or delete the branch and say plainly that interruptions end
 sessions. **Do not simply trust it** — it has now been observed never to run.
 
-## #219 — 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
+## 219. 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
 
 **FILED 2026-08-01.** *(OPEN_ITEMS #219. **Not** GitHub PR #219 — separate
 sequences. The five lanes below use sub-letters precisely to stop minting more
@@ -13724,7 +13746,7 @@ machine." The gate now prints which kind of failure it is looking at.
 standing rule that promoted #164). If it recurs, capture the `.xcresult`, not
 just the log.
 
-## #199A — false decline-attribution: the model blames a CONTACT for the USER's decline
+## 199A. false decline-attribution: the model blames a CONTACT for the USER's decline
 
 **FILED 2026-08-01** from the Hermes audit's Part 1C (unfiled lanes). Surfaced
 inside #199's verdict and never given a lane of its own, which is why it has sat.
@@ -13749,7 +13771,7 @@ never broken, and it is a trust failure rather than a capability one. Alarm's
 misattribution ≤ 1/10 with declines still reached 10/10 (a fix that stops
 reaching the decline is not a fix).
 
-## #205E — ctx-a embeds the prior turn UNTRUNCATED, verdict measured at ~590 chars
+## 205E. ctx-a embeds the prior turn UNTRUNCATED, verdict measured at ~590 chars
 
 **FILED 2026-08-01** from the audit's unfiled-lanes list. Rows already exist; only
 the run is owed.
@@ -13763,7 +13785,7 @@ question) plus its words-only counterpart are already in the baseline probe grid
 chars — but **"flat over one order of magnitude" is not "flat forever"**, and
 this is the cheapest possible check against a context blow-up in production.
 
-## #210A — does one forced condensation actually fit 8,192?
+## 210A. does one forced condensation actually fit 8,192?
 
 **FILED 2026-08-01** from the audit's unfiled-lanes list.
 
@@ -13780,7 +13802,7 @@ guard, at twice the latency.
 **Owed:** a measured run, not an assumption. Note `n` on the original observation
 is **2** — the smallest number in the program that anything rests on.
 
-## #211A — offer-instead-of-act on READ paths, where no confirmation gate excuses it
+## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it
 
 **FILED 2026-08-01** from the audit's unfiled-lanes list.
 
@@ -13797,7 +13819,7 @@ on **4/10** and the promoted treatment on **0/10**, which is evidence this shape
 is **downstream of tool choice** rather than a separate disease. A lane should
 test that directly before assuming it needs its own words.
 
-## #216A — re-read #200F and #214's grab results in light of the substitution finding
+## 216A. re-read #200F and #214's grab results in light of the substitution finding
 
 **FILED 2026-08-01** from the audit's unfiled-lanes list. **Analysis, not a device
 run** — cheap, and it may retire other work.
@@ -13886,7 +13908,7 @@ UNRESOLVED — neither confirmed nor retracted.** They are not being called wron
 They are being called **unverified in a way nobody had noticed**, which is the
 outcome #216A was filed to produce.
 
-## #218 — ✅ `main` DID NOT BUILD IN RELEASE for two days, and every check we run is blind to it. FIXED 2026-08-01.
+## 218. ✅ `main` DID NOT BUILD IN RELEASE for two days, and every check we run is blind to it. FIXED 2026-08-01.
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** FIXED 2026-08-01 and closed out — `scripts/mac/lane-gate.sh`, verified to FAIL as well as pass.
 
@@ -14052,7 +14074,7 @@ should invoke.
 run. It is one command in the two documents that govern submissions, which is a
 large improvement on a rule that lived nowhere, but it is not enforcement.
 
-## #198 — ✅ beta-4 deprecation sweep. 13 of 17 sites cleared; the remaining 8 are NOT mechanical.
+## 198. ✅ beta-4 deprecation sweep. 13 of 17 sites cleared; the remaining 8 are NOT mechanical.
 
 > **CLOSED 2026-08-01** — duplicate entry for this item; the evidence is on the other `## 198` header. Two headers exist because the file's numbering convention changed mid-project (`## N.` → `## #N —`) and this item has one of each.
 
@@ -14186,7 +14208,7 @@ signature", and it is now a tractable lane rather than a hazard.
 `AVAudioSessionResumptionRecommendation` exists at `AVAudioSession.h:612` as
 described. Not disproven; still a structural rewrite.
 
-## #217 — ✅ CAN this model classify intent safely enough to drive a belt? A probe, not a belt lane.
+## 217. ✅ CAN this model classify intent safely enough to drive a belt? A probe, not a belt lane.
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** ABANDONED per pre-registration; single-Bool follow-up PARKED at Owen's direction. Owed: nothing.
 
@@ -14480,7 +14502,7 @@ reads as a live blocker.
 grid stay as DEBUG-only measured artifacts — the record of a falsified approach,
 which is worth more than a deletion.
 
-## #216 — ✅ the narrow belt, re-tried where it cannot lose. #214's closure was right about the evidence and wrong about the world.
+## 216. ✅ the narrow belt, re-tried where it cannot lose. #214's closure was right about the evidence and wrong about the world.
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Verdict filed 2026-08-01. Intent-router lane ran and was abandoned (#217). **Owed re-read is now lane #216A.**
 
@@ -14644,7 +14666,7 @@ belt, which is strictly worse than today's full belt. Matched-thermal replicatio
 of these latencies. And a re-read of #200F/#214's grab results in light of the
 substitution finding.
 
-## #215 — ✅ THE MISSING DENOMINATOR: the action battery has never routed, so no number it has ever produced describes the shipped app.
+## 215. ✅ THE MISSING DENOMINATOR: the action battery has never routed, so no number it has ever produced describes the shipped app.
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Verdict filed 2026-08-01, all four bars pass. Matched-thermal replication is device-list C4.
 
@@ -14850,7 +14872,7 @@ carry. **Those canary rows are the ones whose rates are not production rates** �
 not the wrappers wholesale. The standing rule is in `CLAUDE.md` under
 "Measurement discipline."
 
-## #214 — ✅ THE STRUCTURAL LANE: narrow belt CLOSED. Composition licensing falsified; the disease is partly an instrument property.
+## 214. ✅ THE STRUCTURAL LANE: narrow belt CLOSED. Composition licensing falsified; the disease is partly an instrument property.
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** VERDICT FILED 2026-07-31 — narrow belt CLOSED, answered in both directions.
 
@@ -14962,7 +14984,7 @@ clause. Fails A ⇒ belt size is not the mechanism, #200F's 0/10 was
 baseline-specific, and the over-serving disease needs a different theory entirely.
 **Either outcome closes the question, which is the point of running it.**
 
-## #213 — ✅ the router probe could not record an error, and scored the fail-safe as CORRECT
+## 213. ✅ the router probe could not record an error, and scored the fail-safe as CORRECT
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** FILED AND FIXED 2026-07-31; instrument re-verified 2026-08-01 (13/13 sites carry `errors:`).
 
@@ -15026,7 +15048,7 @@ defence is a stated invariant on `RouterProbeRecord.errors` plus the classifier'
 its wiring — the third consecutive audit to catch something at a boundary the
 author had just worked on.**
 
-## #212 — ✅ WeatherKit returned nothing, 0/40. ROOT CAUSE FOUND AND FIXED 2026-07-31: the App SERVICE was never enabled.
+## 212. ✅ WeatherKit returned nothing, 0/40. ROOT CAUSE FOUND AND FIXED 2026-07-31: the App SERVICE was never enabled.
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** CLOSED END TO END 2026-07-31 — 40/40 real forecasts.
 
@@ -15196,7 +15218,7 @@ recorder, or it silently unmakes #212.**
 been broken for a long time. The phone had network throughout — the same build
 installed over Tailscale and `readHealth` answered correctly in the same minutes.
 
-## #211 — ✅ "How many steps have I taken today?" was answered WRONG 20/20. PROMOTED, 0/10 → 10/10.
+## 211. ✅ "How many steps have I taken today?" was answered WRONG 20/20. PROMOTED, 0/10 → 10/10.
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** PROMOTED 0/10 → 10/10; follow-on CLOSED 2026-07-31. **Read-path offer shape is now lane #211A.**
 
@@ -15317,7 +15339,7 @@ confirmation gate exists to excuse it.
 **Unlike #209, this IS battery-measurable** — the effect is 0/20, not 1.4%. The fix
 belongs in a measured cell with a real bar.
 
-## #210 — #26's condense-and-retry guard did not fire on the REAL context-overflow error. FIXED 2026-07-31.
+## 210. #26's condense-and-retry guard did not fire on the REAL context-overflow error. FIXED 2026-07-31.
 
 **FILED 2026-07-31 out of #209's pooled error data. Production-facing. NOT fixed —
 this is a finding, and the lane is unrouted.**
@@ -15389,7 +15411,7 @@ guard now FIRES; whether one forced condensation actually gets a real
 long-conversation turn under 8,192 is a separate question and needs a measured
 run, not an assumption. n on the original observation remains 2.
 
-## #209 — ✅ "ERROR" was never one disease: five mechanisms behind one excluded label
+## 209. ✅ "ERROR" was never one disease: five mechanisms behind one excluded label
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** PR #199 — '#209 measured and closed'. `RequiredPropertyDecodeTests.swift` verified in tree.
 
@@ -15529,7 +15551,7 @@ rate. **The guarantee is structural, so the proof belongs in a test, not a batte
 `RequiredPropertyDecodeTests` replays the exact recorded payloads and pins that each
 promoted schema accepts what its rollback twin still refuses.
 
-## #208 (Lane 4) — the token cap is NOT the D4 mechanism. Hypothesis falsified; #102's cap stays.
+## 208. (Lane 4) — the token cap is NOT the D4 mechanism. Hypothesis falsified; #102's cap stays.
 
 **VERDICT FILED 2026-07-31. Run `B6ADBF28`, `endedCleanly: true`, sealed
 `reminders=6 events=6 alarms=6 failures=0`. Dispatch:
@@ -15586,7 +15608,7 @@ catch (#197). That is where the next look belongs, not at the cap.
 so this distribution accrues without a dedicated lane. Reap exact again: counted
 5/5/5, reaped 6/6/6, residual **3 = the three warm-up trials**.
 
-## #207 — ✅ image turns: the signal alone does NOTHING, the guide fixes it completely
+## 207. ✅ image turns: the signal alone does NOTHING, the guide fixes it completely
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** CONFIRMED AND PROMOTED 2026-07-31.
 
@@ -15693,7 +15715,7 @@ arm including production — **"scan" is a device verb the router already knew.*
 defect was always specific to reading/vision phrasings, and a grid built only from
 verbs like "scan" would have found nothing.
 
-## #206 — ✅ ctx-a BREAKS at ~4,000 chars of context, and my "no truncation needed" verdict was wrong
+## 206. ✅ ctx-a BREAKS at ~4,000 chars of context, and my "no truncation needed" verdict was wrong
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Verdict corrected and re-stated, kept on the latency basis. Residual row set is device-list C2.
 
@@ -15772,7 +15794,7 @@ on that basis, honestly re-stated.
 **Owed, if it ever matters:** a properly built row set that varies ends-in-an-offer
 independently of length, with `expected` labels argued rather than assumed.
 
-## #199 — ✅ post-decline fabrication: the disease is REAL but confined to GRABS, and the intended-create path is CLEAN
+## 199. ✅ post-decline fabrication: the disease is REAL but confined to GRABS, and the intended-create path is CLEAN
 
 > **CLOSED 2026-08-01** — duplicate entry for this item; the evidence is on the other `## 199` header. Two headers exist because the file's numbering convention changed mid-project (`## N.` → `## #N —`) and this item has one of each.
 
@@ -15831,7 +15853,7 @@ exposed the passive-voice gap (*"has been set"*, *"has been scheduled"*) that wo
 have under-counted calendar and alarm to near zero. Third detector gap of the day,
 third one found by testing against verbatim production replies.
 
-## #204 — ✅ the two promoted clauses, warm and within-run
+## 204. ✅ the two promoted clauses, warm and within-run
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** This run stands as the scoreboard; the owed clause is conditional-only.
 
@@ -15901,7 +15923,7 @@ the others 1). Nothing unaccounted.
 lane, or trimming the prompt), it needs a run powered from a re-measured base rate,
 not this one. Otherwise both stay promoted and this run stands as the scoreboard.
 
-## #205 — ✅ Hermes audit of #201/#202 (2026-07-30, second pass): three corrections and two real gaps
+## 205. ✅ Hermes audit of #201/#202 (2026-07-30, second pass): three corrections and two real gaps
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** An audit record whose actionable findings were dispatched or fixed the same night. **Its item-5 residual is now lane #205E.**
 
@@ -16023,7 +16045,7 @@ not touch the historical series), ctx-a and ctx-b both 13/13 across all three ba
 13. **Seven unmerged branches want a triage.** `probe/t27-130-halfduplex` is already
     pruned (SHA recorded at #130).
 
-## #203 — ✅ SHIP BLOCKER: an unbounded CoreLocation wait can spin a production turn forever
+## 203. ✅ SHIP BLOCKER: an unbounded CoreLocation wait can spin a production turn forever
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Filed and FIXED 2026-07-30 — PRs #190/#196/#197 merged; `productionFixDeadlineIsBoundedAndSane` pins the guard.
 
