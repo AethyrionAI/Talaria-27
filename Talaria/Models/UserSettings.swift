@@ -118,6 +118,54 @@ struct RelayConfiguration: Codable, Hashable, Sendable {
     }
 }
 
+/// #144 — a test run must never enrol as a LIVE device.
+///
+/// **The pollution was real, ongoing, and measurable.** The Mac relay's `devices`
+/// table held **92 `iPhone 17 Pro Max` + 5 `CC-M4a-Baseline` rows against 2 real
+/// `iPhone` rows** on 2026-08-02 — and **five of them were created that same day
+/// by this project's own suite and gate runs.** Each carries an ACTIVE push
+/// registration, so the relay fans real pushes out to dead simulator tokens.
+///
+/// **Mechanism:** UI tests launch the app with a fresh `UITEST_DEFAULTS_SUITE`, so
+/// `state.deviceRegistered` is false and `bootstrap` registers a brand-new device
+/// with a fresh `installationID` (`AppSessionStore.swift:88-99`). Of the nine
+/// `.launch()` sites in the UI test target, only four set
+/// `UITEST_PAIRING_MODE = "mock"` — **including the auto-generated `testLaunch`,
+/// which runs on every gate.** The other five got `LivePairingService`.
+///
+/// **Why detection and not "remember to set the env var":** the env var already
+/// existed and was the mechanism — it just relied on every test author
+/// remembering. **A guard that depends on being remembered is the thing that
+/// failed.** This makes the safe path the default and the live path the one that
+/// has to be earned.
+///
+/// **Gated on `allowsEnvironmentOverrides` deliberately.** Without that, setting
+/// an environment variable on a SHIPPED build would silently disable real
+/// pairing. A diagnostic convenience must never become a production off-switch.
+enum TestRunGuard {
+    /// XCTest sets `XCTestConfigurationFilePath` in the process it hosts, which
+    /// covers unit tests. A UI test runs the app as a SEPARATE process that never
+    /// sees it — so the `UITEST_` prefix the target already uses is the signal
+    /// there. Any key with that prefix counts: a launch that configures itself
+    /// for testing at all is a test.
+    nonisolated static func isRunningUnderTest(_ environment: [String: String]) -> Bool {
+        if environment["XCTestConfigurationFilePath"] != nil { return true }
+        return environment.keys.contains { $0.hasPrefix("UITEST_") }
+    }
+
+    /// The decision the container actually makes. `explicitMockRequested` keeps
+    /// the existing `UITEST_PAIRING_MODE == "mock"` contract working unchanged.
+    nonisolated static func mustUseMockPairing(
+        environment: [String: String],
+        explicitMockRequested: Bool,
+        allowsEnvironmentOverrides: Bool
+    ) -> Bool {
+        if explicitMockRequested { return true }
+        guard allowsEnvironmentOverrides else { return false }
+        return isRunningUnderTest(environment)
+    }
+}
+
 struct AppEnvironmentPolicy: Equatable, Sendable {
     let allowsEnvironmentOverrides: Bool
 

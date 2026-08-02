@@ -6363,7 +6363,105 @@ Logged 2026-07-20.
 
 ---
 
-## 144. 🐛 Test-harness runs enroll as LIVE devices on the Mac relay — baseline/sim runs pollute the production DB with device rows + push registrations
+## 144. 🐛 Test-harness runs enroll as LIVE devices on the Mac relay — **PREVENTION BUILT 2026-08-02** (verified by row count, two runs); cleanup of the 99 existing rows owed
+
+> ## PREVENTION BUILT 2026-08-02 — and the verification is a ROW COUNT, not a suite
+>
+> **The premise was re-checked before any code, and it had grown.** 2026-07-23
+> recorded 15 pollution rows against 1 real device. **2026-08-02: 92
+> `iPhone 17 Pro Max` + 5 `CC-M4a-Baseline` against 2 real `iPhone` — 99 total —
+> and FIVE were created that same day by this project's own suite and gate runs**
+> (00:11, 05:49, 06:03, 06:15, 06:58). Not a stale entry: reproduced live, by us.
+>
+> **Mechanism confirmed in source:** `AppSessionStore.swift:88-99` registers
+> whenever `!state.deviceRegistered`, and test launches use a fresh
+> `UITEST_DEFAULTS_SUITE`, so every run looks like a brand-new device — matching
+> the original note's "each with a FRESH `installation_id`".
+>
+> ### The fix that would NOT have worked, recorded because it read perfectly
+>
+> The first version routed the guard through `usesMockPairingService` →
+> `allowsFallback`. **`ResilientSessionBootstrapService` tries `primary` FIRST and
+> falls back only on a thrown error.** The relay is UP during a test run, so the
+> live call **succeeds**, `allowsFallback` never fires, and the row is created
+> regardless. **A guard consulted only on a path the bug does not take** — the same
+> shape as #145 Part D's cooperative-cancellation trap found the same day. The
+> primary itself must be the mock.
+>
+> ### Detection, not "remember to set the env var"
+>
+> `UITEST_PAIRING_MODE` already existed and **was** the mechanism — it just relied
+> on every test author remembering. **A guard that depends on being remembered is
+> precisely what failed.** `TestRunGuard` now detects the run
+> (`XCTestConfigurationFilePath` for the in-process host, the `UITEST_` prefix for
+> the separate XCUITest app process), so the safe path is the default.
+>
+> **Gated on `allowsEnvironmentOverrides`** — otherwise an environment variable
+> would silently disable real pairing on a SHIPPED build. Pinned.
+>
+> ### A hypothesis of mine that measurement KILLED
+>
+> I identified `AppTemplateUITestsLaunchTests.testLaunch` — the auto-generated
+> bare `XCUIApplication()` that runs on every gate — as "THE polluter", and wrote
+> that into the source. **A control run carrying `TestRunGuard` but NOT the
+> `testLaunch` marker added ZERO rows.** If that launch were enrolling, it would
+> have added one. **The likelier culprit is the unit-test HOST process**, caught by
+> the guard's other branch. The marker is kept as belt (a bare launch is a standing
+> hazard) but its comment now states it is **not** the proven cause.
+>
+> ### Evidence
+>
+> | run | rows before → after |
+> |---|---|
+> | full suite + XCUITest (guard only) | **99 → 99** |
+> | full gate incl. Release (guard + marker) | **99 → 99** |
+>
+> **Every other check run this session measured the CODE. This one measured the
+> DEFECT** — and it is the only one that could have shown the fix working while
+> the story about it was wrong. GATE: PASS, 1477 + 8, Release green.
+>
+### ✅ MAC CLEANUP DONE 2026-08-02 (Owen approved) — 84 deactivated, nothing deleted
+
+**Deactivated, not deleted**, per the original note's preference for keeping audit
+history. Ran against the live relay (it stayed healthy — `/v1/health` 200 after).
+
+| | before | after |
+|---|---|---|
+| ACTIVE registrations, sim (`iPhone 17 Pro Max`) | 79 | **0** |
+| ACTIVE registrations, `CC-M4a-Baseline` | 5 | **0** |
+| ACTIVE registrations, real `iPhone` | 2 | **2** ✅ |
+
+**Integrity confirmed after:** `push_registrations` total unchanged at **86**,
+`devices` total unchanged at **99** — nothing was deleted, only flagged. Both real
+devices remain active.
+
+**Reversible two ways**, and both were captured BEFORE the write:
+- the 84 affected registration ids → `/tmp/t27-144-rollback-ids.txt`
+- a full DB copy → `/tmp/t27-144-relay-backup.db`
+
+The id list matters more than the predicate: **re-running the discriminator later
+would not reproduce the same set** once new rows exist, so a predicate is not a
+rollback.
+
+**⚠️ The discriminator is a TRIAGE RULE, not an invariant.** It keys on
+`device_name != 'iPhone'`. Both real devices are iPhones today, so it is correct
+now — **but an iPad, or any real device reporting a different name, would look
+like junk to it.** Do not automate on this.
+
+### STILL OWED — OJAMD's relay has NEVER been measured
+
+This item has only ever looked at the **Mac's** relay. **OJAMD is the host the
+phone actually talks to**, so junk registrations there fan out against real device
+traffic and matter more. It cannot be read from the Mac: the relay exposes no
+admin or device-listing route (all 20 routes enumerated 2026-08-02), and the DB is
+a file on the Windows box. **Owen, in PowerShell — read-only:**
+
+```
+python -c "import sqlite3;c=sqlite3.connect(r'O:\Hermes\Talaria\relay\hermes_mobile.db');print(c.execute('SELECT COALESCE(device_name,\"(null)\"),COUNT(*) FROM devices GROUP BY 1 ORDER BY 2 DESC').fetchall())"
+```
+
+Python rather than a `sqlite3` CLI because Hermes brings Python and the CLI may
+not be installed there.
 
 **2026-07-23 — DISCRIMINATOR FOUND, no repro needed.** Real devices report
 `UIDevice.current.name` REDACTED as the generic "iPhone"; simulators report their actual
