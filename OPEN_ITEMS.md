@@ -12794,6 +12794,44 @@ its sibling has: a brain provider alongside `isRelayPaired`, and
 blocker: it spends the user's money against an explicit setting and sends
 microphone audio somewhere the UI says it is not going.
 
+## #223 — 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the gateway can carry
+
+**Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
+Couple that with ending the shim, and we won't have very much running anymore separately."*
+Recorded so the target architecture lives in the tracker, with each piece's blocker named —
+not as a single lane.
+
+**What the gateway can already absorb (verified in 0.19.1 code; `/api/model/options`
+verified LIVE on the Mac gateway, HTTP 200, chat-plane Bearer auth):**
+1. **Models → kills the shim.** Native `/api/model/info` / `/options` /
+   `/recommended-default` / `/auxiliary` + `POST /api/model/set`. The app's picker
+   (`ModelsSettingsModel`) moves onto these and `TalariaModelsShim` retires. This also
+   collapses **#9's** dual-write (shim POST + hanging gateway `/model` session pin) into one
+   documented endpoint, and the #173 vision-capability question rides whatever
+   `_apply_capabilities` forwards upstream — one consumer surface instead of two.
+2. **Agent files → kills the relay file route.** `/api/files/download` (see #21's
+   2026-08-02 supersede watch + handler source read). App-side fetch moves from
+   relay + device bearer to gateway + chat-plane key.
+
+**What still needs the relay, named so "end the relay dependency" stays honest:**
+- **#38 run-completion push watch** — the relay owns the APNs credentials and the poll
+  loop; core Hermes sends no push. Would need a new home or an upstream feature.
+- **Sensor ingestion** — relay + connector + `hermes_mobile` MCP; core has no sensor
+  path at all. The dylan-buck shell exists for this.
+- **Pairing / device-bearer auth plane** — the app's relay-minted tokens and #15/#94
+  recovery ladders live against the relay.
+- (#113's connector supervision gap rides wherever the connector lands.)
+
+**End state:** the phone speaks gateway (`:8642`, one key) for chat + models + files;
+the relay shrinks to sensors + push. Windows box then runs the gateway process, the
+relay (smaller), and the connector — no shim.
+
+**Sequencing:** (1) verify the routes on a CURRENT gateway process (OJAMD post-update, or
+the Mac gateway after its next restart — its running process is mid-version); (2) the
+shim-retirement lane (picker onto `/api/model/*`); (3) the file-fetch migration lane
+(#21); (4) then the relay is what remains, and its remaining tenants are a separate
+conversation. Owen routes each lane.
+
 ## #222 — 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK, unused. The in-source comment describes a CHOICE as a limitation.
 
 > ## ⚠️ THIS ENTRY WAS OVERSTATED WHEN FIRST FILED, AND OWEN CORRECTED IT WITH A SCREENSHOT
