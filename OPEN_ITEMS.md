@@ -6420,14 +6420,48 @@ Logged 2026-07-20.
 > DEFECT** — and it is the only one that could have shown the fix working while
 > the story about it was wrong. GATE: PASS, 1477 + 8, Release green.
 >
-> ### STILL OWED — cleanup of the 99 existing rows
->
-> Not done, and **deliberately not done unprompted**: it mutates Owen's relay DB.
-> The original note says **deactivate rather than delete if audit history matters**
-> — that judgement is his. Rows are separable by the 2026-07-23 discriminator
-> (real devices report the redacted generic `iPhone`; sims report their configured
-> name), which still holds: 97 non-`iPhone` rows vs 2 real.
-> **Check OJAMD's relay too** — this entry only ever measured the Mac's.
+### ✅ MAC CLEANUP DONE 2026-08-02 (Owen approved) — 84 deactivated, nothing deleted
+
+**Deactivated, not deleted**, per the original note's preference for keeping audit
+history. Ran against the live relay (it stayed healthy — `/v1/health` 200 after).
+
+| | before | after |
+|---|---|---|
+| ACTIVE registrations, sim (`iPhone 17 Pro Max`) | 79 | **0** |
+| ACTIVE registrations, `CC-M4a-Baseline` | 5 | **0** |
+| ACTIVE registrations, real `iPhone` | 2 | **2** ✅ |
+
+**Integrity confirmed after:** `push_registrations` total unchanged at **86**,
+`devices` total unchanged at **99** — nothing was deleted, only flagged. Both real
+devices remain active.
+
+**Reversible two ways**, and both were captured BEFORE the write:
+- the 84 affected registration ids → `/tmp/t27-144-rollback-ids.txt`
+- a full DB copy → `/tmp/t27-144-relay-backup.db`
+
+The id list matters more than the predicate: **re-running the discriminator later
+would not reproduce the same set** once new rows exist, so a predicate is not a
+rollback.
+
+**⚠️ The discriminator is a TRIAGE RULE, not an invariant.** It keys on
+`device_name != 'iPhone'`. Both real devices are iPhones today, so it is correct
+now — **but an iPad, or any real device reporting a different name, would look
+like junk to it.** Do not automate on this.
+
+### STILL OWED — OJAMD's relay has NEVER been measured
+
+This item has only ever looked at the **Mac's** relay. **OJAMD is the host the
+phone actually talks to**, so junk registrations there fan out against real device
+traffic and matter more. It cannot be read from the Mac: the relay exposes no
+admin or device-listing route (all 20 routes enumerated 2026-08-02), and the DB is
+a file on the Windows box. **Owen, in PowerShell — read-only:**
+
+```
+python -c "import sqlite3;c=sqlite3.connect(r'O:\Hermes\Talaria\relay\hermes_mobile.db');print(c.execute('SELECT COALESCE(device_name,\"(null)\"),COUNT(*) FROM devices GROUP BY 1 ORDER BY 2 DESC').fetchall())"
+```
+
+Python rather than a `sqlite3` CLI because Hermes brings Python and the CLI may
+not be installed there.
 
 **2026-07-23 — DISCRIMINATOR FOUND, no repro needed.** Real devices report
 `UIDevice.current.name` REDACTED as the generic "iPhone"; simulators report their actual
