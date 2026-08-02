@@ -9,6 +9,13 @@ protocol AppPersistenceStoreProtocol {
     func loadSessionState(profileScope: UUID?) -> AppSessionState?
     func saveSessionState(_ state: AppSessionState, profileScope: UUID?)
     func clearSessionState(profileScope: UUID?)
+    // #133/#143: the installation identity. App-wide (NOT profile-scoped) and
+    // never cleared by unpair — it names this install, not a session. It rode
+    // inside the profile-scoped session state until 2026-08-02, so every
+    // unpair + cold launch minted a new one and the relay minted a new device
+    // row per identity: 99 rows / 99 identities measured on the Mac relay.
+    func loadInstallationID() -> UUID?
+    func saveInstallationID(_ id: UUID)
     func loadInboxState() -> InboxLocalState
     func saveInboxState(_ state: InboxLocalState)
     func clearInboxState()

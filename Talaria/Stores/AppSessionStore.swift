@@ -73,7 +73,31 @@ final class AppSessionStore {
         self.notificationService = notificationService
         self.environmentProvider = environmentProvider
         self.credentialScopeProvider = credentialScopeProvider
-        self.state = persistence.loadSessionState(profileScope: credentialScopeProvider()) ?? AppSessionState()
+        // #133/#143 — resolve the DURABLE installation identity first, then
+        // stamp it onto whatever session state we load.
+        //
+        // This used to be `?? AppSessionState()`, and that fallback minted a
+        // fresh `UUID()`. Because the id rode inside the PROFILE-SCOPED
+        // session state that `clearSession` deletes, the sequence
+        // unpair → cold launch → re-pair produced a new identity every time,
+        // and the relay — correctly upserting on installation — created a new
+        // device row for each. Measured on the Mac relay 2026-08-02:
+        // **99 device rows against 99 distinct installation ids**, including
+        // two for the one real handset a week apart. Each extra row carries
+        // its own active push registration for the SAME APNs token, and the
+        // relay's fan-out is per registration: that is #143's duplicate
+        // notifications, from #133's root.
+        let durableID = persistence.loadInstallationID()
+        let resolvedID = durableID ?? UUID()
+        if durableID == nil {
+            persistence.saveInstallationID(resolvedID)
+        }
+        var loaded = persistence.loadSessionState(profileScope: credentialScopeProvider()) ?? AppSessionState()
+        // A state persisted before this fix carries its own (churned) id —
+        // the durable one wins, so an upgrade converges on ONE identity
+        // instead of grandfathering whichever it last minted.
+        loaded.installationID = resolvedID
+        self.state = loaded
     }
 
     func bootstrap(forceRegistration: Bool = false) async {
@@ -242,7 +266,15 @@ final class AppSessionStore {
         lastErrorMessage = nil
         isBootstrapping = false
         if let persisted = persistence.loadSessionState(profileScope: credentialScope) {
-            state = persisted
+            // #133/#143: STAMP, do not adopt. A state persisted before the
+            // durable-identity fix — or under a different scope — carries its
+            // own churned installation id, and `state = persisted` would
+            // re-identify this device on the next profile switch and mint
+            // another relay device row. Fixing only `init` left exactly this
+            // door open; pinned by
+            // `aProfileSwitchDoesNotAdoptAPersistedStatesStaleIdentity`,
+            // which failed here before this line changed.
+            state = mergeInstallationID(into: persisted, from: state.installationID)
         } else {
             state = AppSessionState(installationID: state.installationID)
         }

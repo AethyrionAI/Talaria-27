@@ -19,6 +19,14 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         // install as never-migrated and re-fired the migration on all of
         // them — the defect, shipped wider.
         static let sensorStreamingMigrated = "talaria.sensorStreamingMigrated"
+        // #133/#143: the installation id is deliberately NOT profile-scoped
+        // and is never cleared by unpair. It identifies this app INSTALL, not
+        // a session or a relay — it used to ride inside the profile-scoped
+        // `AppSessionState`, which `clearSession` deletes, so every
+        // unpair + cold launch minted a fresh identity and the relay
+        // (correctly) minted a fresh device row. Measured 2026-08-02 on the
+        // Mac relay: 99 device rows against 99 distinct installation ids.
+        static let installationID = "talaria.installationID"
         // Session state + pairing config are profile-scoped (Lane M): keys
         // derive from BackendProfileScopedKeys, where a nil scope yields the
         // pre-profile strings ("hermes.sessionState" /
@@ -77,7 +85,20 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         save(state, key: BackendProfileScopedKeys.sessionState(profileScope))
     }
 
+    /// #133/#143 — app-wide, scope-free, and NOT cleared by unpair. See the
+    /// note on `Keys.installationID`.
+    func loadInstallationID() -> UUID? {
+        guard let raw = defaults.string(forKey: Keys.installationID) else { return nil }
+        return UUID(uuidString: raw)
+    }
+
+    func saveInstallationID(_ id: UUID) {
+        defaults.set(id.uuidString, forKey: Keys.installationID)
+    }
+
     func clearSessionState(profileScope: UUID?) {
+        // NOTE: deliberately does NOT touch Keys.installationID — that
+        // coupling was the #133/#143 root cause.
         defaults.removeObject(forKey: BackendProfileScopedKeys.sessionState(profileScope))
     }
 
