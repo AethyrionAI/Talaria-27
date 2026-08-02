@@ -6449,12 +6449,42 @@ Logged 2026-07-20.
 > `fetchCallCount > 0` assertion so a build where the fetch returns instantly fails
 > loudly instead of proving nothing.
 >
-> ### STILL OWED — do not read this as "#145 fixed"
+> ### PART A BUILT 2026-08-02 — and it corrects this item's own numbers
 >
-> - **Part A — chat-plane timeouts.** The trap is real and is in the spec:
->   **streaming SSE runs legitimately last minutes**, so a blanket short
->   `timeoutIntervalForResource` would kill live runs and look like a network bug.
->   **Two configurations, not one.** Part C is not sufficient without this.
+> **The chat plane was worse than the investigation recorded.** That block says
+> `URLSession.shared`'s 60s request default. **It is not 60s:
+> `SessionsHermesClient.makeRequest` stamped `timeoutInterval = 300` on EVERY
+> request** — five minutes each, over `.shared`'s **7-day** resource ceiling.
+> (#151's entry had this right in July; #145's did not, and the two were never
+> reconciled.) So the "8+ minutes per activation" estimate above understates it:
+> eight serial calls at 300s is **most of an hour.**
+>
+> | path | budget | why |
+> |---|---|---|
+> | streaming (`text/event-stream`) | **300s** | for a stream this is an **idle gap**, not a total duration — bounds a *silent* stream without capping a long one |
+> | interactive (everything else) | **20s** | a user is watching, and eight run serially |
+> | unknown `Accept` | **20s** | **fail safe, not fail open** — a call site that forgets the header gets bounded, not silently granted the streaming allowance |
+>
+> **Resource ceiling: one hour, not seven days.** That is the knob that made a
+> wedge effectively permanent.
+>
+> **The split keys off the `Accept` header — a distinction the code ALREADY
+> makes** (`text/event-stream` on the two streaming call sites,
+> `application/json` on the other four), rather than new plumbing that could
+> drift out of sync with the call sites it describes.
+>
+> **This is what makes Part C sufficient.** Part C's deadline is only tested
+> between attempts, so without a bounded call one hung fetch outlived it.
+>
+> **Deliberately NOT `RelayAPIClient.makeBootstrapProbeSession()`** — its own
+> comment says it must never serve the chat path or SSE streams, and its 10s
+> resource timeout would break exactly the runs Part A preserves.
+>
+> **Discipline note:** the pins were written before the implementation but **run
+> after it**, so they passed on first execution. That is weaker than a watched
+> red-then-green and is recorded as such rather than presented as clean TDD.
+>
+> ### STILL OWED — do not read this as "#145 fixed"
 > - **Part D — activations must not stack.** Every scene activation queues another
 >   full chain; nothing coalesces or supersedes.
 > - **Part E — deliberately SKIPPED.** Parallelising the twelve awaits is the
