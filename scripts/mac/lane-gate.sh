@@ -200,6 +200,31 @@ if (( RUN_SUITE )); then
     require_count "$SUITE_LOG" 'Executed [0-9]+ tests?, with 0 failures' \
                   "XCUITest tests run"
 
+    # SKIPS — #183. A skipped test is not a passing test, and until now this
+    # gate could not see one. Measured 2026-08-02: `CondenserFidelityTests`
+    # printed "✔ Suite … passed" while BOTH of its model-path tests were
+    # skipped for want of Apple Intelligence hardware, and the gate reported
+    # only "Swift Testing tests run — 1497" with no hint that two of its
+    # subjects were never exercised. That is the #218 lesson one level up:
+    # a positive marker that a no-op satisfies is not a positive marker, and
+    # "passed" over an empty suite is exactly that no-op.
+    #
+    # Deliberately a REPORT, not a FAIL: these particular skips are honest
+    # (the hardware genuinely is absent on a sim run) and #93 owns making
+    # them run. What was wrong was that they were INVISIBLE. A number the
+    # reader can see is the fix; if it ever moves, that is a finding.
+    SKIPPED=$(grep -cE '➜ Test .* skipped' "$SUITE_LOG" 2>/dev/null || true)
+    SKIPPED=${SKIPPED:-0}
+    if (( SKIPPED > 0 )); then
+        echo "  NOTE  $SKIPPED test(s) SKIPPED — not run, not passed:"
+        grep -oE '➜ Test "[^"]+" skipped: "[^"]+"' "$SUITE_LOG" \
+            | sed 's/➜ Test /        /' | sort -u
+        echo "        A skip is not a pass (#183). Expected: 2 (CondenserFidelityTests,"
+        echo "        needs Apple Intelligence hardware — #93 owns the device gate)."
+    else
+        ok "no skipped tests"
+    fi
+
     # Name names when something failed — the whole point is not making the
     # reader go log-diving.
     if grep -q "^Failing tests:" "$SUITE_LOG"; then
