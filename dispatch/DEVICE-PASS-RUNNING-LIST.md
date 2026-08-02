@@ -492,7 +492,12 @@ four times total.
 > carry it to the Mac**, where a stopped gateway refuses and would quietly test the
 > wrong thing.
 >
-> **All four parts are BUILT (PRs #233–#235): expect CLEAN, not merely better.**
+> **All four parts PLUS E(a) are BUILT (PRs #233–#235 + the E(a) lane): expect
+> CLEAN, not merely better.** E(a) adds ONE shared deadline around the whole
+> foreground chain (45s), so even a degraded-but-answering host cannot hold an
+> activation indefinitely. **If the app is ever cut short during this check it
+> is recorded, not silent** — `foregroundActivationsCutShort` counts it, and a
+> non-zero value here is a real finding worth reporting.
 > B repaints visible state before any network call, C budgets the reconcile loop
 > on wall time, A gives every client a real timeout (20s interactive / 300s
 > streaming idle), D stops activations stacking. Record what you actually see —

@@ -6691,7 +6691,7 @@ Deactivate rather than delete if audit history matters.
 
 Logged 2026-07-20.
 
-## 145. 🐛 App hard-locks when entered during an OJAMD gateway outage — **Parts A–D ALL BUILT 2026-08-02** (PRs #233/#234/#235); Part E(a) is its own lane and E(b) is tabled behind written triggers; **device pass owed (§F5)**
+## 145. 🐛 App hard-locks when entered during an OJAMD gateway outage — **Parts A–D + E(a) ALL BUILT 2026-08-02**; only E(b) remains, tabled behind written triggers; **device pass owed (§F5)**
 
 > **Header corrected 2026-08-02 — it was STALE, and the way it went stale is the point.**
 > It read *"Parts B + C BUILT; Parts A + D owed"* while the body of this same entry
@@ -6807,10 +6807,31 @@ Logged 2026-07-20.
 > - **Part E — SPLIT, and only half of it is tabled.** Owen asked 2026-08-02
 >   whether E gets addressed or permanently tabled. **The honest answer is that
 >   the spec bundled two different changes under one letter:**
->   - **(a) ONE SHARED DEADLINE around the whole chain — worth doing, and SAFE.**
->     It needs **no dependency map**, because nothing is reordered; you are only
->     capping the total. This was never the risky part and should be its own
->     small lane.
+>   - **(a) ONE SHARED DEADLINE around the whole chain — ✅ BUILT 2026-08-02.**
+>     It needed **no dependency map**, because nothing is reordered; only the
+>     total is capped. **`foregroundActivationBudget` = 45s** (harness-visible),
+>     with **`foregroundActivationsCutShort`** counting every cut — *a silent
+>     cut is indistinguishable from a fast success*, and that counter is what
+>     tells them apart in the field and in §F5.
+>     **Cancellation, not a race:** the deadline cancels **Part D's existing
+>     activation `Task`**, whose per-step `if Task.isCancelled` guards are what
+>     make a cancel actually stop work — so E(a) rides machinery already built
+>     and tested rather than inventing one. Racing `task.value` in a `TaskGroup`
+>     was rejected outright: a non-throwing `Task<Void, Never>.value` cannot be
+>     timeout-raced without stranding the loser's waiter.
+>     **45s is generous on purpose.** A deadline that fired on healthy-but-slow
+>     refreshes would silently truncate real work — a worse and far less visible
+>     bug than the slow chain it replaces. Pinned from both sides: one test
+>     proves it FIRES against a dead dependency, one proves it does NOT fire on
+>     a healthy run.
+>     **RED witnessed behaviourally:** with only the `task.cancel()` disabled,
+>     the suite reported **79 tests, 1 failure** — the deadline test burned its
+>     full poll without settling (the chain really never returns) while the
+>     healthy-path test and the other 77 stayed green. *(The first attempt at
+>     that RED used an `-only-testing` NAME filter and reported
+>     `Test run with 0 tests … TEST SUCCEEDED` — matched nothing, proved
+>     nothing. Second time this session. **Filter at SUITE level and read the
+>     count before the marker.**)*
 >   - **(b) PARALLELISE the twelve awaits — TABLED, behind triggers.**
 >     **Part A destroyed its value proposition.** E was written when a call cost
 >     **300s**, so parallelising 12 × 300s was worth real risk. With calls bounded
