@@ -2459,6 +2459,88 @@ struct DeviceToolBeltTests {
         #expect(message.count < 200)
     }
 
+    // MARK: - (#197) retry-once on tool-argument decode failure
+
+    /// #197 GO (Owen, 2026-08-02): the decode class throws ABOVE `call()`,
+    /// so the FAILING tool never executed — a retry cannot double-fire its
+    /// side effect. The observed specimen ("Write a 50 word summary about
+    /// Norway" → spurious WeatherTool grab → parse failure → dead turn) is
+    /// exactly this shape: first action of the turn, nothing shown yet.
+    @Test @MainActor func decodeFailureRetriesWhenTheTurnShowedNothing() {
+        let error = LanguageModelSession.ToolCallError(
+            tool: ImageTextTool(relay: ToolEventRelay(), conversationProvider: { nil }),
+            underlyingError: Self.decodingFailureSpecimen())
+        #expect(LocalChatBackend.shouldRetryToolDecodeFailure(
+            error, turnHadObservableActivity: false, didAlreadyRetry: false))
+    }
+
+    /// THE side-effect guard, half 1: an error a tool threw from INSIDE
+    /// `call()` means the tool may have completed its work before dying —
+    /// retrying could create the reminder twice. Unknown provenance never
+    /// retries. (#200H's readHealth throw proved tools DO throw.)
+    @Test @MainActor func aToolThrownErrorNeverRetries() {
+        struct ToolBlewUp: Error {}
+        let error = LanguageModelSession.ToolCallError(
+            tool: ImageTextTool(relay: ToolEventRelay(), conversationProvider: { nil }),
+            underlyingError: ToolBlewUp())
+        #expect(!LocalChatBackend.shouldRetryToolDecodeFailure(
+            error, turnHadObservableActivity: false, didAlreadyRetry: false))
+    }
+
+    /// THE side-effect guard, half 2: the failing tool never ran, but a
+    /// DIFFERENT tool that already completed this turn would run AGAIN on a
+    /// retried turn. Any observable activity — text, reasoning, a tool
+    /// event — kills the retry. (This also keeps a stream that already
+    /// painted text from restarting mid-bubble.)
+    @Test @MainActor func aTurnWithObservableActivityNeverRetries() {
+        let error = LanguageModelSession.ToolCallError(
+            tool: ImageTextTool(relay: ToolEventRelay(), conversationProvider: { nil }),
+            underlyingError: Self.decodingFailureSpecimen())
+        #expect(!LocalChatBackend.shouldRetryToolDecodeFailure(
+            error, turnHadObservableActivity: true, didAlreadyRetry: false))
+    }
+
+    /// Exactly once — the second decode failure surfaces the #197 message.
+    @Test @MainActor func theRetryHappensExactlyOnce() {
+        let error = LanguageModelSession.ToolCallError(
+            tool: ImageTextTool(relay: ToolEventRelay(), conversationProvider: { nil }),
+            underlyingError: Self.decodingFailureSpecimen())
+        #expect(!LocalChatBackend.shouldRetryToolDecodeFailure(
+            error, turnHadObservableActivity: false, didAlreadyRetry: true))
+    }
+
+    /// Non-tool errors are other paths' business — overflow has the #26
+    /// condense arm, rate limits and timeouts have their messages.
+    @Test func nonToolErrorsAreNotThisPathsBusiness() {
+        let timeout = LanguageModelError.timeout(
+            LanguageModelError.Timeout(debugDescription: "x"))
+        #expect(!LocalChatBackend.shouldRetryToolDecodeFailure(
+            timeout, turnHadObservableActivity: false, didAlreadyRetry: false))
+    }
+
+    /// #210's lesson applied here from day one: nothing guarantees which
+    /// TYPE the parse failure arrives as on device, so the typed check gets
+    /// a narrow content backstop on the underlying error's text.
+    @Test @MainActor func theContentBackstopCatchesAnUntypedParseFailure() {
+        struct OpaqueParse: Error, CustomStringConvertible {
+            var description: String { "Failed to parse generated content ::inferenceFailed" }
+        }
+        let error = LanguageModelSession.ToolCallError(
+            tool: ImageTextTool(relay: ToolEventRelay(), conversationProvider: { nil }),
+            underlyingError: OpaqueParse())
+        #expect(LocalChatBackend.shouldRetryToolDecodeFailure(
+            error, turnHadObservableActivity: false, didAlreadyRetry: false))
+    }
+
+    /// #198's quarantine pattern: this helper constructs the DEPRECATED
+    /// `GenerationError.decodingFailure` and is deleted with the symbol.
+    @available(iOS, deprecated: 27.0, message: "Delete with GenerationError (#198).")
+    private static func decodingFailureSpecimen() -> any Error {
+        LanguageModelSession.GenerationError.decodingFailure(
+            LanguageModelSession.GenerationError.Context(
+                debugDescription: "Failed to parse generated content"))
+    }
+
     /// Non-tool errors keep their existing friendly mapping — this change
     /// must not swallow the model-error cases #30 relies on.
     ///

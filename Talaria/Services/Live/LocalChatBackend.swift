@@ -95,6 +95,12 @@ final class LocalChatBackend: HermesClientProtocol {
     static let condensedMemoryTokens = 1024
 
     var connectionStatus: ConnectionStatus = .disconnected
+    /// #197 — how many turns this backend silently re-ran after a
+    /// tool-argument decode failure. The retry must never HIDE the defect:
+    /// the underlying decode failure is still unexplained (#208 cleared the
+    /// token cap), so every recovery logs a notice and lands here where
+    /// Diagnostics can read it.
+    private(set) var toolDecodeRetryCount = 0
     var currentConversation: Conversation?
 
     var model: SystemLanguageModel { SystemLanguageModel.default }  // harness-visible
@@ -329,7 +335,20 @@ final class LocalChatBackend: HermesClientProtocol {
         var liveSession = await preparedSession(nextPrompt: prompt, attachments: attachments, excludingClientMessageID: clientMessageID)
         appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
 
+        // #197: the sync path has no visible stream, but a tool that ran
+        // this turn is still observable activity — retrying would run it
+        // again. Chained (not replaced) so a harness's observer survives.
+        // Locked because tools may emit off the main actor.
+        let sawToolActivity = OSAllocatedUnfairLock(initialState: false)
+        let previousEmit = toolRelay?.emit
+        toolRelay?.emit = { event in
+            sawToolActivity.withLock { $0 = true }
+            previousEmit?(event)
+        }
+        defer { toolRelay?.emit = previousEmit }
+
         var didCondenseRetry = false
+        var didToolDecodeRetry = false
         while true {
             do {
                 let response = try await liveSession.respond(to: Prompt(prompt), options: effectiveGenerationOptions())
@@ -356,6 +375,21 @@ final class LocalChatBackend: HermesClientProtocol {
                     // rebuild with condensation forced and retry exactly once.
                     didCondenseRetry = true
                     liveSession = await rebuildSession(attachments: attachments, excludingClientMessageID: clientMessageID, forceCondense: true)
+                    continue
+                }
+                if Self.shouldRetryToolDecodeFailure(
+                    error,
+                    turnHadObservableActivity: sawToolActivity.withLock { $0 },
+                    didAlreadyRetry: didToolDecodeRetry
+                ) {
+                    didToolDecodeRetry = true
+                    toolDecodeRetryCount += 1
+                    let toolName = (error as? LanguageModelSession.ToolCallError)?.tool.name ?? "unknown"
+                    Self.logger.notice("send: \(toolName, privacy: .public) argument decode failed before anything ran — retrying the turn once (#197)")
+                    // Mid-turn throw → the live session's transcript state
+                    // is unknowable (#102's rule) — rebuild from our history.
+                    session = nil
+                    liveSession = await rebuildSession(attachments: attachments, excludingClientMessageID: clientMessageID, forceCondense: false)
                     continue
                 }
                 connectionStatus = .error
@@ -447,12 +481,23 @@ final class LocalChatBackend: HermesClientProtocol {
         var liveSession = await preparedSession(nextPrompt: prompt, attachments: attachments, excludingClientMessageID: clientMessageID)
         appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
 
+        // #197: any observable activity — a tool event, a text delta, a
+        // reasoning delta — makes the turn non-retryable: a tool that
+        // completed would run AGAIN on a retried turn, and painted text
+        // would restart mid-bubble. Locked because tools may emit off the
+        // main actor.
+        let sawObservableActivity = OSAllocatedUnfairLock(initialState: false)
+
         // #28: tool invocations surface on the existing toolActivity channel
         // for the duration of this turn — the tool-chip UI renders them free.
-        toolRelay?.emit = { event in continuation.yield(.toolActivity(event)) }
+        toolRelay?.emit = { event in
+            sawObservableActivity.withLock { $0 = true }
+            continuation.yield(.toolActivity(event))
+        }
         defer { toolRelay?.emit = nil }
 
         var didCondenseRetry = false
+        var didToolDecodeRetry = false
         while true {
             do {
                 // FM snapshots are cumulative — diff against what has already
@@ -472,12 +517,14 @@ final class LocalChatBackend: HermesClientProtocol {
                     latestFull = snapshot.content
                     if let delta = Self.streamDelta(from: emitted, to: latestFull) {
                         emitted += delta
+                        sawObservableActivity.withLock { $0 = true }
                         continuation.yield(.textDelta(delta))
                     }
                     if activeTier == .privateCloud {
                         let reasoningFull = Self.reasoningText(from: Array(snapshot.transcriptEntries))
                         if let delta = Self.streamDelta(from: emittedReasoning, to: reasoningFull) {
                             emittedReasoning += delta
+                            sawObservableActivity.withLock { $0 = true }
                             continuation.yield(.reasoningDelta(delta))
                         }
                     }
@@ -518,6 +565,21 @@ final class LocalChatBackend: HermesClientProtocol {
                     didCondenseRetry = true
                     Self.logger.notice("streamTurn: context window exceeded — condensing older turns and retrying once (#26)")
                     liveSession = await rebuildSession(attachments: attachments, excludingClientMessageID: clientMessageID, forceCondense: true)
+                    continue
+                }
+                if Self.shouldRetryToolDecodeFailure(
+                    error,
+                    turnHadObservableActivity: sawObservableActivity.withLock { $0 },
+                    didAlreadyRetry: didToolDecodeRetry
+                ) {
+                    didToolDecodeRetry = true
+                    toolDecodeRetryCount += 1
+                    let toolName = (error as? LanguageModelSession.ToolCallError)?.tool.name ?? "unknown"
+                    Self.logger.notice("streamTurn: \(toolName, privacy: .public) argument decode failed before anything ran — retrying the turn once (#197)")
+                    // Mid-turn throw → the live session's transcript state
+                    // is unknowable (#102's rule) — rebuild from our history.
+                    session = nil
+                    liveSession = await rebuildSession(attachments: attachments, excludingClientMessageID: clientMessageID, forceCondense: false)
                     continue
                 }
                 connectionStatus = .error
@@ -1788,6 +1850,58 @@ final class LocalChatBackend: HermesClientProtocol {
         if let legacy = legacyGenerationErrorMessage(for: error) { return legacy }
         let described = error.localizedDescription
         return described.isEmpty ? "The on-device model failed to respond." : described
+    }
+
+    // MARK: - #197: retry-once on tool-argument decode failure
+
+    /// #197 (GO, Owen 2026-08-02) — whether a failed turn is re-run, once,
+    /// silently. TRUE only when ALL THREE hold:
+    ///
+    /// 1. The error is the argument-DECODE class: `ToolCallError` whose
+    ///    underlying error is the generation layer's parse failure. That
+    ///    class throws ABOVE `call()`, so the failing tool NEVER EXECUTED —
+    ///    a retry cannot double-fire its side effect. An error a tool threw
+    ///    from inside `call()` (#200H's readHealth proved tools do throw)
+    ///    may have completed its work first, so unknown provenance never
+    ///    retries.
+    /// 2. The turn produced NO observable activity — no text delta, no
+    ///    reasoning delta, no tool event. A DIFFERENT tool that already
+    ///    completed this turn would run AGAIN on the retried turn; visible
+    ///    text would restart mid-bubble. The observed specimen (spurious
+    ///    WeatherTool grab as the turn's first action) is exactly the
+    ///    nothing-shown shape, so this constraint costs almost no coverage.
+    /// 3. It has not retried already — the second failure surfaces the
+    ///    #197 message ("Ask again and it should go through").
+    nonisolated static func shouldRetryToolDecodeFailure(
+        _ error: Error,
+        turnHadObservableActivity: Bool,
+        didAlreadyRetry: Bool
+    ) -> Bool {
+        !didAlreadyRetry
+            && !turnHadObservableActivity
+            && isToolArgumentDecodeFailure(error)
+    }
+
+    /// The decode class: typed check first, then #210's lesson applied from
+    /// day one — nothing guarantees which TYPE the parse failure arrives as
+    /// on device, so a narrow content backstop matches the recorded phrase.
+    nonisolated static func isToolArgumentDecodeFailure(_ error: Error) -> Bool {
+        guard let toolError = error as? LanguageModelSession.ToolCallError else { return false }
+        let underlying = toolError.underlyingError
+        if legacyIsDecodingFailure(underlying) { return true }
+        return String(describing: underlying).contains("Failed to parse generated content")
+            || underlying.localizedDescription.contains("Failed to parse generated content")
+    }
+
+    /// #198's quarantine pattern: the DEPRECATED enum's arm, deleted with
+    /// the symbol. `LanguageModelError` declares NO decode counterpart
+    /// (verified against the beta-4 swiftinterface, 2026-08-02), so this
+    /// deprecated case plus the content backstop above are the whole class.
+    @available(iOS, deprecated: 27.0, message: "Delete with GenerationError (#198).")
+    nonisolated static func legacyIsDecodingFailure(_ error: Error) -> Bool {
+        guard let generationError = error as? LanguageModelSession.GenerationError else { return false }
+        if case .decodingFailure = generationError { return true }
+        return false
     }
 
     /// #198: the DEPRECATED `GenerationError` overflow case, quarantined for
