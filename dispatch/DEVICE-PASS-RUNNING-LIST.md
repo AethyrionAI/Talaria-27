@@ -69,9 +69,11 @@ surface once you are already holding the phone.
 
 ### What needs nothing from you
 
-I can run these solo whenever: **§G**'s source-confirms (#151/#153), **#128**'s
-archaeology, **#216A**'s re-read, **E1**'s isolated build, and staging B1's branch.
-Say go and they happen without a sitting.
+I can run these solo whenever: **§G**'s source-confirms (#151/#153), **#216A**'s
+re-read, **E1**'s isolated build, and staging B1's branch. Say go and they happen
+without a sitting. — **#128's archaeology is ✅ DONE (2026-08-01)**; it removed an
+item from the board rather than adding one, and confirmed #220's engine hypothesis
+from source.
 
 ---
 
@@ -348,9 +350,16 @@ carry these into a device sitting.**
   runnable after that.
 - **#152 — a naming decision, not a check.** Needs Owen to pick a label
   ("Pairing & Devices" / "Manage Pairing" / "Paired Devices"), then it is code.
-- **#128 — source archaeology.** Is the `removeTap` fix dead defensive code, or
-  was the repro route never recorded? Answerable from the tree; costs no device
-  time. (Its physical re-verify is the same test as #129 above.)
+- **#128 — source archaeology. ✅ DONE 2026-08-01, no device time.** Neither horn of
+  the dichotomy: the fix is **live** (layer 3 of 4 guards) and the repro is
+  **decoupled, not unreachable** — PR #127 re-enabled the mid-session preview button
+  and removed the session-category flip that was the actual trigger, in the same
+  commit. **#220's engine hypothesis confirmed and strengthened:** realtime is
+  WebRTC with *zero* tap sites, so a paired healthy-realtime phone runs no
+  tap-install code at all. **Nothing is owed on the device queue for #128** — the
+  physical re-verify is #129's test (§F6) and closes #129. Full write-up in the
+  tracker; the deliberate-race probe, if anyone wants real evidence for the
+  invariant, is §E1.
 - **#170 — probably unanswerable as filed.** Neither shape is reachable on OJAMD:
   every real job carries a null `model_snapshot`, and #148 suspects 0.19 stopped
   writing `*_snapshot` at all. **Either run #148's cheap discriminator (read the
