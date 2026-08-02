@@ -631,12 +631,13 @@ dropdown, no popover, no "Start New Session" — straight to the shim-backed lis
 > real (PID 28104 from Jul 29 under a 0.19.1 install) and repeated by the external audit as
 > its Bad #2. Owen force-restarted the gateway; a **68-second-old 0.19.1 process returned
 > identical 404s**, falsifying that theory outright. The restart was the audit's own
-> recommended experiment. **(2)** `CLAUDE.md`'s #21 paragraph already warned *"don't
-> mistake dashboard routes for chat-plane routes,"* and a saved memory named
-> `_http_route_table()` as the check — **the watch was filed without consulting either.**
-> Kept rather than deleted because the way it was wrong is the lesson: a route existing
-> **in the repo** says nothing about which **app** serves it. Full post-mortem in **#223's
-> retraction block**.
+> recommended experiment. **(2)** The timeline, checked against `git log` rather than
+> recalled: the watch was filed **03:35**; the investigation session falsified it and wrote
+> both `CLAUDE.md`'s dashboard-vs-chat-plane warning and the two-web-apps memory at
+> **04:22**. **So no rule was ignored — the rules are the OUTPUT of this mistake**, and a
+> second independent session caught it inside 47 minutes. Kept rather than deleted because
+> the way it was wrong is the lesson: a route existing **in the repo** says nothing about
+> which **app** serves it. Full post-mortem in **#223's retraction block**.
 >
 > ~~**SUPERSEDE WATCH 2026-08-02 (found probing #173, source-read + live probe):** this item's
 > founding fact — "there is no built-in file/download endpoint (`/openapi.json`, `/v1/files`,
@@ -12987,9 +12988,18 @@ verified LIVE on the Mac gateway, HTTP 200, chat-plane Bearer auth):**
 > **How they were wrong:** the routes were read out of the DASHBOARD app
 > (`hermes_cli/web_server.py`, **:9119**, dashboard auth) and claimed for the chat plane
 > (**:8642**, `gateway/platforms/api_server.py`). Two sessions falsified this independently
-> the same day, from different hosts and different methods. **`CLAUDE.md`'s #21 paragraph
-> already warned about exactly this, and a saved memory named `_http_route_table()` as the
-> check; neither was consulted before filing.**
+> the same day, from different hosts and different methods.
+>
+> **A correction to this correction, because the first draft of it was also wrong.** It
+> said `CLAUDE.md` and a saved memory had both warned about this and neither was consulted.
+> **`git log` says otherwise:** the bad claim was filed at **03:35** (`86df14c`), and both
+> the `CLAUDE.md` warning and the two-web-apps memory were written at **04:22**
+> (`98eae83`) by the investigation session that caught it. They are the OUTPUT of this
+> mistake, not an ignored input. The error in that draft is *itself* the session's running
+> theme: **I read the CURRENT `CLAUDE.md`, saw the warning, and assumed it had always been
+> there** — the same "current state ≠ state when written" trap as #145's stale header and
+> every one of Phase 0's six wrong header judgements. **Dates come from `git log`. That
+> includes dates about your own errors.**
 >
 > **(1) The "stale process" theory was also wrong, and it was settled by experiment.**
 > The first Mac probe showed `/api/model/options` → 200 and the rest → 404, which I

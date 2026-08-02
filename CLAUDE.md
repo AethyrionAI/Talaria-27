@@ -100,10 +100,11 @@ works against OJAMD.
   listings, not synchronized folder groups).
 - **NEVER claim a `:8642` route from a `web_server.py` grep — read
   `gateway/platforms/api_server.py`'s `_http_route_table()`, which is the whole list.**
-  This file already said so in the #21 paragraph, and a saved memory said so naming the
-  exact function, and on **2026-08-02 it was violated anyway**: an `/api/files` +
-  `/api/model/*` "discovery" was filed into three tracker items, a dispatch brief, and an
-  external audit before a live probe killed it. The dashboard app (`hermes_cli/web_server.py`,
+  **This rule exists because it was learned the hard way on 2026-08-02** (the #21
+  paragraph above and the two-web-apps memory were both written that day, at 04:22, by the
+  investigation session that caught it — they did *not* predate the mistake): an
+  `/api/files` + `/api/model/*` "discovery" was filed into three tracker items, a dispatch
+  brief, and an external audit before live probes killed it. The dashboard app (`hermes_cli/web_server.py`,
   **:9119**, dashboard auth) and the api_server the phone speaks (**:8642**) are different
   apps with different route tables; the dashboard's 129 routes are not the gateway's.
   **The complete `:8642` table, verified 2026-08-02 against a fresh 0.19.1 process:**
