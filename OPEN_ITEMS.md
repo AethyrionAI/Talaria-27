@@ -13276,6 +13276,16 @@ conversation. Owen routes each lane.
 > (install + cleanup), `api_1785662001_…` (natural arm), `api_1785662084_…`
 > (directed arm). Mac probe session `api_1785661608_…` (500'd — the import-torn
 > process, which is how Phase 0(i) was found).
+>
+> **EXECUTION PLAN WRITTEN 2026-08-02 (Owen: "create a plan for us to execute this…
+> I'd hate to set that bar as we approach the app store conversation"):**
+> `dispatch/FABLE-T27-223-zero-setup-execution-plan.md`. Lanes 0–3 (resident-watcher
+> hook, app pilot flag, measured pilot) are fully tasked with code + tests; Lanes 4–8
+> are scoped with triggers and get their own plans when routed; the App-Store push-tier
+> decision (vendor sender vs BGTask-only free tier — third-party hosts must never hold
+> the developer `.p8`) is parked as an explicit gate. Lane 3's bar TEMPLATES live in
+> the plan and get copied INTO this entry, dated, before the first measured run. Not
+> started — Owen routes each lane.
 
 ## #222 — 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK, unused. The in-source comment describes a CHOICE as a limitation.
 
