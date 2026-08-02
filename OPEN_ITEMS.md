@@ -10118,6 +10118,38 @@ other lane today it is fully unit-testable. Suite 1382/1382.
 itself is now the only candidate. An automatic single retry is the obvious next
 question and is a product decision, not a code one (same family as #203's residue).
 
+> **RETRY DECIDED AND BUILT 2026-08-02 (Owen: "go") — `claude/t27-197-decode-retry`.**
+> The turn no longer dies on the observed shape. `shouldRetryToolDecodeFailure` re-runs
+> the turn **exactly once**, gated on ALL of:
+> 1. **Decode class only** — `ToolCallError` whose underlying error is
+>    `GenerationError.decodingFailure` (typed) or carries "Failed to parse generated
+>    content" (#210's content-backstop pattern, applied from day one). **The successor
+>    `LanguageModelError` declares NO decode case** — verified against the beta-4
+>    swiftinterface — so the deprecated case + backstop are the whole class. This class
+>    throws ABOVE `call()`: the failing tool never executed, so the retry cannot
+>    double-fire it. An error a tool threw from inside `call()` (#200H's readHealth)
+>    never retries — the tool may have completed its side effect first.
+> 2. **Zero observable activity** — no text delta, no reasoning delta, no tool event
+>    this turn. A DIFFERENT tool that already completed would run AGAIN on the retried
+>    turn, and painted text would restart mid-bubble. The observed specimen (spurious
+>    WeatherTool grab as the turn's first action) is the nothing-shown shape, so the
+>    constraint costs almost no coverage. Tracked via an `OSAllocatedUnfairLock` flag
+>    fed by both yields and the tool-relay emit hook (chained in the sync path so a
+>    harness observer survives).
+> 3. **Once** — the second failure surfaces the existing #197 message.
+>
+> Both paths (sync `send` + `streamTurn`), each mirroring the adjacent #26 condense
+> arm; the session is rebuilt from our history on retry (#102's transcript-unknowable
+> rule). **The recovery never hides the defect:** every retry logs a notice and bumps
+> `toolDecodeRetryCount` — because the decode failure's CAUSE is still open, above.
+>
+> **Honest limits:** the policy is pure-tested (six truth-table rows, REDs witnessed);
+> the WIRING cannot be exercised by the suite — a real FM turn doesn't run in sim
+> tests — so it rests on mirroring the proven condense arm plus review. Device
+> verification is opportunistic by nature (the failure is spurious): the next natural
+> occurrence should produce a silent recovery + the notice + a counter bump instead of
+> a dead turn, and a SECOND consecutive failure still shows the message.
+
 **Original fix direction, for the record:** catch tool-invocation errors in the streaming worker; log the full detail
 (`chatLog`), surface a friendly failure — or better, feed a terse tool-failure result back to
 the session so the model can apply the recovery clause and answer without the tool (which is
