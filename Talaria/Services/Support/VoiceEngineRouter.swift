@@ -28,6 +28,9 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
     /// Relay pairing is the Realtime engine's existence signal — without it
     /// there is no `talk/session` bootstrap to attempt.
     private let isRelayPaired: @MainActor () -> Bool
+    /// #221: the user's brain selection, read live. Voice must honour the same
+    /// choice chat does — see `realtimeIsPermitted(for:)`.
+    private let activeBrain: @MainActor () -> ChatBackendRouter.Brain
     private let eventHub = TalkSessionEventHub()
     private var forwardTasks: [Task<Void, Never>] = []
 
@@ -36,12 +39,16 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
     init(
         realtime: any VoiceSessionServiceProtocol,
         native: any VoiceSessionServiceProtocol,
-        isRelayPaired: @escaping @MainActor () -> Bool
+        isRelayPaired: @escaping @MainActor () -> Bool,
+        activeBrain: @escaping @MainActor () -> ChatBackendRouter.Brain
     ) {
         self.realtime = realtime
         self.native = native
         self.isRelayPaired = isRelayPaired
-        let initial: VoiceEngine = isRelayPaired() ? .realtime : .native
+        self.activeBrain = activeBrain
+        // #221: the brain gates realtime BEFORE pairing is consulted.
+        let initial: VoiceEngine = (Self.realtimeIsPermitted(for: activeBrain()) && isRelayPaired())
+            ? .realtime : .native
         self.activeEngine = initial
         // #198A: log the INITIAL selection, not just changes.
         //
@@ -72,6 +79,30 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
 
     /// After a readiness probe on the Realtime engine: route local when the
     /// relay says talk isn't configured, or the probe couldn't reach it.
+    /// #221: **the brain selection governs voice, not just chat.**
+    ///
+    /// Owen, 2026-08-01: *"on device should signify everything on device. Local.
+    /// When hermes is selected, it switches to using hermes' resources."*
+    ///
+    /// Until this existed, `VoiceEngineRouter` keyed on relay pairing alone and
+    /// had **no reference to the brain at all**, so a user who had chosen the
+    /// on-device brain had their microphone audio streamed to OpenAI Realtime
+    /// and was billed for it — silently, because nothing logged the engine
+    /// either (#198A). Chat obeyed the setting; voice did not.
+    ///
+    /// `.privateCloud` is forbidden too: PCC is Apple's compute, not Hermes',
+    /// so "when hermes is selected" does not cover it — and the architecture
+    /// already agrees, since `Brain.privateCloud` is routed to the local backend
+    /// which owns the PCC session.
+    ///
+    /// **This is a HARD gate, deliberately.** Pairing state and a healthy
+    /// readiness probe must not be able to re-admit realtime once the brain has
+    /// forbidden it: pairing is precisely the input that used to decide alone,
+    /// and it must no longer be able to win.
+    nonisolated static func realtimeIsPermitted(for brain: ChatBackendRouter.Brain) -> Bool {
+        brain == .hermes
+    }
+
     nonisolated static func shouldRouteNative(
         configured: Bool?,
         connectionState: TalkConnectionState
@@ -123,6 +154,17 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
             await active.refreshReadiness()
             return
         }
+        // #221: the brain gate comes FIRST — before pairing, before the probe.
+        // A forbidden brain must not be able to reach the realtime probe at all,
+        // because a healthy probe is exactly what used to select realtime.
+        guard Self.realtimeIsPermitted(for: activeBrain()) else {
+            if activeEngine != .native {
+                Self.logger.notice("brain \(self.activeBrain().rawValue, privacy: .public) forbids realtime voice — routing native (#221)")
+            }
+            setActive(.native)
+            await native.refreshReadiness()
+            return
+        }
         guard isRelayPaired() else {
             setActive(.native)
             await native.refreshReadiness()
@@ -152,6 +194,16 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
         // the record could not answer "local or realtime?".
         // `self.` is required: os_log interpolations are autoclosures.
         Self.logger.notice("voice session starting on engine \(self.activeEngine.rawValue, privacy: .public) (relayPaired=\(self.isRelayPaired(), privacy: .public))")
+        // #221: last line of defence. `refreshReadiness` may not have run since
+        // the user changed brain, so re-check here rather than trusting
+        // `activeEngine` — the whole defect was a stale routing decision nobody
+        // re-evaluated.
+        if activeEngine == .realtime, !Self.realtimeIsPermitted(for: activeBrain()) {
+            Self.logger.notice("brain \(self.activeBrain().rawValue, privacy: .public) forbids realtime voice — starting native instead (#221)")
+            setActive(.native)
+            await native.startSession()
+            return
+        }
         if activeEngine == .realtime, isRelayPaired() {
             await realtime.startSession()
             let attempted = realtime.snapshot
