@@ -68,7 +68,8 @@ final class SessionsHermesClient: HermesClientProtocol {
         apiKeyProvider: @escaping @MainActor () -> String?,
         journal: ConversationJournalStore,
         transplanter: ContextTransplanter,
-        session: URLSession = .shared,
+        // #145 Part A: NOT `.shared` — its `timeoutIntervalForResource` is 7 days.
+        session: URLSession = SessionsHermesClient.makeChatPlaneSession(),
         activeProfileIDProvider: @escaping @MainActor () -> UUID? = { nil },
         profileIndex: SessionProfileIndexStore? = nil,
         usageIndex: SessionUsageIndexStore? = nil,
@@ -950,8 +951,64 @@ final class SessionsHermesClient: HermesClientProtocol {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(accept, forHTTPHeaderField: "Accept")
         request.httpBody = body
-        request.timeoutInterval = 300
+        request.timeoutInterval = Self.requestTimeout(forAccept: accept)
         return request
+    }
+
+    // MARK: - #145 Part A — the chat plane's timeout budget
+
+    /// SSE turns legitimately run for minutes. For a stream
+    /// `timeoutIntervalForRequest` is an IDLE gap (time since the last bytes
+    /// arrived), not a total duration, so this bounds a *silent* stream without
+    /// capping a long one.
+    nonisolated static let streamingRequestTimeout: TimeInterval = 300
+
+    /// Everything that is not a stream. A user is watching the foreground
+    /// refresh, and eight of these run serially in `handleAppDidBecomeActive` —
+    /// at the old 300s each that is most of an hour against a black-holed host.
+    nonisolated static let interactiveRequestTimeout: TimeInterval = 20
+
+    /// #145 Part A — which budget a request gets.
+    ///
+    /// `makeRequest` stamped **`timeoutInterval = 300` on EVERY request**, so a
+    /// single foreground refresh could hang five minutes and the serial chain
+    /// far longer. Part C bounded the reconcile LOOP; **this bounds the CALL,
+    /// which is what makes Part C sufficient** — Part C's deadline is only tested
+    /// between attempts, so without this one hung fetch outlived it.
+    ///
+    /// **The trap, and why the split keys off `Accept`:** shortening the
+    /// streaming budget would kill live turns and present as a network bug. The
+    /// code already distinguishes the two — `text/event-stream` on the two
+    /// streaming call sites, `application/json` on the other four — so this reads
+    /// a distinction that exists rather than inventing new plumbing that could
+    /// drift out of sync with it.
+    ///
+    /// **Unknown values fall to the SHORT budget deliberately: fail safe, not
+    /// fail open.** A future call site that forgets the header gets bounded
+    /// rather than silently granted the streaming allowance.
+    nonisolated static func requestTimeout(forAccept accept: String) -> TimeInterval {
+        accept == "text/event-stream" ? streamingRequestTimeout : interactiveRequestTimeout
+    }
+
+    /// #145 Part A — the chat plane's own session.
+    ///
+    /// The default was `URLSession.shared`, whose `timeoutIntervalForResource` is
+    /// **SEVEN DAYS**. That is the knob that makes a wedge effectively permanent:
+    /// a request can outlive the outage, the app's patience, and any reasonable
+    /// idea of "this failed."
+    ///
+    /// One session serves both paths because the per-request budget above is the
+    /// real discriminator; the resource ceiling here only has to be generous
+    /// enough for the longest legitimate SSE run. **One hour, not seven days.**
+    ///
+    /// Deliberately NOT `RelayAPIClient.makeBootstrapProbeSession()` — that one's
+    /// own comment says it must never serve the chat path or SSE streams, and a
+    /// 10s resource timeout there would break exactly the runs this preserves.
+    static func makeChatPlaneSession() -> URLSession {
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = interactiveRequestTimeout
+        configuration.timeoutIntervalForResource = 3600
+        return URLSession(configuration: configuration)
     }
 
     /// Resolves the gateway a request should hit (M-5). nil = the ACTIVE
