@@ -74,13 +74,19 @@ private struct TasksContent: View {
                 // Scrollable so pull-to-refresh works from every empty
                 // state, not just the list.
                 ScrollView {
+                    // #180: the branch decision is shared with Skills and
+                    // Insights — a failure is visible even after a
+                    // successful empty load ("host did not answer" is
+                    // never "host has no jobs").
                     Group {
-                        if store.isLoading, !store.hasLoaded {
-                            loadingState
-                        } else if let message = store.lastErrorMessage, !store.hasLoaded {
-                            errorState(message)
-                        } else {
-                            emptyState
+                        switch HostFedListPresentation.emptyBranchState(
+                            isLoading: store.isLoading,
+                            hasLoaded: store.hasLoaded,
+                            errorMessage: store.lastErrorMessage
+                        ) {
+                        case .loading: loadingState
+                        case .error(let message): errorState(message)
+                        case .empty: emptyState
                         }
                     }
                     .containerRelativeFrame([.horizontal, .vertical])
