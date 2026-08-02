@@ -12600,6 +12600,79 @@ and record whether any conclusion changes. **A conclusion that survives the
 re-read is stronger than one that was never re-read** — and if one does not
 survive, it is better found here than in a promotion.
 
+### RE-READ DONE 2026-08-01 — the analysis CANNOT settle it, and why it cannot IS the finding
+
+**Result: #216's reframing is BETTER supported than the argument it was made
+with — and every 0/10 haiku grab in the series is now a live suspect, not a
+cleared one.** One command settles it; the data may or may not still exist.
+
+**I set out to defend those 0/10s and the source refused.** The reasoning I
+started with was: substitution needs somewhere to go, #214's treatment rode a
+**create-only** belt, so on the haiku prompt there was no hunting tool left to
+displace onto and the 0/10 must be real. **That is wrong, and `scopedBelt`
+says so in its own doc comment (`LocalChatBackend+Battery.swift:645`):**
+
+> *"Haiku rides the REMIND scope — the worst-case misroute canary."*
+
+| cell | haiku belt (`scopedBelt`) | hunting tools left to displace onto |
+|---|---|---|
+| `armed-scoped` (#200F) | `createReminder`, **`readReminders`**, **`readCalendar`** | **two** |
+| `armed-createonly` (#200F) | `createReminder`, **`readCalendar`** | **one** |
+| `armed-scopedv2` (#214) | `createReminder`, **`readCalendar`** | **one** |
+
+**All three cells reported haiku grabs 0/10. All three had at least one hunting
+tool on the belt — and it is `readCalendar`, one of the exact two tools #216
+measured the impulse displacing OFF of on the calendar prompt** (`readCalendar`
+7/10 → 0/10, `lookupContact` 8/10 → 0/10, `currentLocation` 1/10 → **10/10**).
+
+So the structural opening #216 found on calendar was present on haiku too. **If a
+grab was scored from the response TEXT** — and #214's control grabs are quoted as
+text (*"I've set a reminder for you to write a haiku… Here's"*) — **then a haiku
+trial that silently called `readCalendar` and then answered would have scored as
+NO GRAB.** That is the artifact, and it is exactly what #216A was filed to look
+for.
+
+**Why #216 could not have caught this in its own run, and this is not a criticism
+of it:** under routing the haiku prompt goes **toolless 10/10 in both arms**, so
+#216's haiku trials had no belt at all. Its reframing had to be extrapolated from
+calendar to haiku — and **the only cells that can test it are the old UNROUTED
+ones, #200F and #214.** A lane cannot falsify itself on a prompt its own design
+routes away from the belt.
+
+**Evidence pointing the other way, recorded so this is not one-sided:** #214's
+treatment refused all ten *explicitly* — *"I cannot write a haiku **without
+external tools**"*. A model saying that is reporting an unusable belt, not
+narrating a successful hunt. That is real but soft: it is consistent both with
+"did not call anything" and with "called `readCalendar`, got nothing useful,
+gave up." **The two are distinguishable only in the record.**
+
+### It is settleable in ONE command — if the runs survive
+
+`call_economy_report` (`scripts/classify-battery-run.py:709`) already prints the
+per-prompt tool-name `Counter` for every cell, haiku included. **And `toolCalls`
+recording landed 2026-07-28 (`801e872`), BEFORE both runs** — #200F 07-29,
+#214 07-31 (`1835BBF9`). So the runs, if present, contain the answer.
+
+**The risk is that they are gone, and the timing is painful.** `BatteryRunStore.maxRuns`
+was **10** until `7bf206e` (2026-08-01) raised it to 50 — and **pruning was
+SILENT until that same commit** added the `.notice` and the `onPrune` seam. #200F
+ran 07-29 with a dozen-plus runs after it. **The bound was raised one day after
+the runs this lane needs were most at risk, and nothing recorded whether they
+were evicted.**
+
+That is the #219/`BatteryRunStore` argument arriving in the concrete: *"a battery
+run IS the evidence a promotion rests on."* Here it is the evidence a
+**retraction** rests on, which is the same thing pointed backwards.
+
+**Owed — one cheap device read, now queued as §C5:** open the Battery Results
+screen, check whether runs `1835BBF9` (#214) and #200F's are still in the store,
+and export them. Then `call_economy_report` gives the verdict directly.
+
+**Until that runs, the honest status of every 0/10 haiku grab in the series is
+UNRESOLVED — neither confirmed nor retracted.** They are not being called wrong.
+They are being called **unverified in a way nobody had noticed**, which is the
+outcome #216A was filed to produce.
+
 ## #218 — ✅ `main` DID NOT BUILD IN RELEASE for two days, and every check we run is blind to it. FIXED 2026-08-01.
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** FIXED 2026-08-01 and closed out — `scripts/mac/lane-gate.sh`, verified to FAIL as well as pass.
