@@ -48,7 +48,44 @@ reviewer-reachable-host question comes back.** Until then it does not exist.
 
 ---
 
-## Phase 0 — Make the board true · **[SOLO, NO PHONE, DO FIRST]**
+## Phase 0 — Make the board true · ✅ **RAN 2026-08-01. The answer was the opposite of the estimate below.**
+
+> ## ✅ PHASE 0 RESULT — the board is MORE open than this plan claimed, not less
+>
+> | | this plan estimated | actual |
+> |---|---|---|
+> | phantom items | **~20** | **6** |
+> | genuinely open | ~74 | **~87** |
+>
+> **229 items · 136 ✅ · 6 terminal-not-✅ · ~87 open** (2 dormant, 1 awaiting Owen).
+> The counting rule now lives at the top of `OPEN_ITEMS.md` so this is reproducible.
+>
+> ### Every header-only judgement in the estimate below was wrong. Six for six.
+>
+> - **#162 / #163 / #165** — listed below as "confirmed stale, shipped." The code
+>   *is* on `main`, but **all three carry an "Owed — device checklist" line further
+>   down.** Shipped with verification owed — **headers corrected, items stay open.**
+> - **#112 / #121 / #122 / #123 / #124** — listed below as "merged, probably
+>   closable." **All five carry queued device debt** in §F1/§F2.
+> - **#210 / #208** — read as concluded ("FIXED 2026-07-31", "hypothesis
+>   falsified"). Both carry explicit **"Still owed" / "OWED"** lines. A shallow
+>   grep of their first ten lines returned nothing and would have closed both.
+>
+> **I wrote this plan's Phase 0 by reading headers, which is the exact failure the
+> plan was written to fix.** I saw "BUILT on branch `claude/…`", confirmed the code
+> was on `main`, and concluded "phantom" — without scrolling four paragraphs to the
+> owed line. The rule I had just written into three tracker entries that morning
+> was *read the whole item, not its oldest line*.
+>
+> **What actually shipped from Phase 0:** three corrected headers, one stray `##`
+> heading demoted to `###` (it was not an item and was inflating the count — the
+> same defect as #198's five headers), **❌ added to the legend** (used three times,
+> never documented), and a counting rule with the real number.
+>
+> **The estimate below is left unedited as filed.** It is the more useful artifact
+> now — it shows what the board looks like from its headers versus what it is.
+
+### The original estimate, as filed *(preserved — see the correction above)*
 
 **Every estimate below depends on a number we do not actually have.** 94 items read
 as open. A significant fraction are not work.
