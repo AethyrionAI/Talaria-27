@@ -89,6 +89,7 @@ surface once you are already holding the phone.
 | **F5** | a **> 25 minute** induced connector outage | the window IS the check — the original close scored a false PASS on a short one. Do not squeeze this between other checks. |
 | **B1 / F6** | the `probe/t27-130-halfduplex` branch **built to the phone** — **but B1 is PARKED, so do not stage it yet** | ⛔ **§C5 must be exported BEFORE this branch goes anywhere near the phone** (ordering rule above). And B1 is parked by Owen's own instruction — *"leave it parked as a reminder"* — so its blocker was never OTA-vs-corded. **Staging a build for a parked item, onto the phone holding §C5's only evidence, is the wrong move twice over.** It is a separate build from `main`, so it cannot share a sitting with the `main` checks either. |
 | **C1–C4** | phone **foregrounded and on power** | backgrounding kills a battery run outright. |
+| **⭐ SITTING 2, and most of §F1** | **a build carrying PRs #237–#242** — i.e. `main` at **`578df8c`** or later | ⛔ **EXPORT §C5 FIRST — an install is exactly what the ordering rule guards against.** Then: **remote** → `scripts/mac/ota-stage.sh main` on the Mac Mini, install from Safari at `https://owens-mac-mini.tail5663a6.ts.net`; **at the desk** → Xcode bridge `RunProject(tabIdentifier:"windowtab1")`. Both are **upgrade-installs** — same bundle id, app data (and Battery Results) persists. **Checks that NEED this build:** #145's outage rows (Part E(a) shipped in #242), #133/#143's row count (#241), #180's rejudgement (#237). Running them on an older build measures the OLD app and produces a verdict that reads as a pass. |
 | **F7d** | **host-side access to turn Hermes YOLO/auto-approve OFF**, and the discipline to restore it after | The other three F7 rows (**F7a–c**, the on-device confirm gate) need **nothing** — run them in any sitting. Only F7d touches the host. It is a **discovery probe, not a pass/fail**: Talaria handles no approval event at all, so the expected outcome is a stalled turn. Bounded by #145 Part A's timeouts now, which is itself worth confirming. |
 
 ### Decisions owed by you — no phone, no build, unblock other work
@@ -791,15 +792,26 @@ airplane mode is precisely what prevents the call.
 
 **Queued, not scheduled.** Circle back.
 
-### A1b · RE-RUN with the engine PINNED · **[BLOCKED ON AN INSTRUMENT FIX FIRST]**
+### A1b · RE-RUN with the engine PINNED · ✅ **UNBLOCKED — the instrument SHIPPED 2026-08-01**
 
-**Do not re-run A1 until the app logs which voice engine is active.** Repeating it
-blind would produce another verdict that cannot say what it tested — the entire
-problem with the first attempt.
+> **Header corrected 2026-08-02.** This read **[BLOCKED ON AN INSTRUMENT FIX
+> FIRST]** for a blocker that was cleared the previous day. **The instrument is on
+> `main`:** `VoiceEngineRouter.swift:196` logs
+> `voice session starting on engine <name> (relayPaired=<bool>)` at **`.notice`
+> with `privacy: .public`** — visible in Console without verbose logging, exactly
+> as specced — merged in `7ec8908` with #221's fix.
+>
+> **A1b is RUNNABLE.** Its only remaining prerequisite is the one it always had:
+> **a second person who will call you.** Caught by auditing this document rather
+> than trusting it — the same stale-header failure the external audit found on
+> #145 the same day, and the reason the standing rule now says a lane re-reads an
+> entry's HEADER before committing to it.
 
-**Instrument fix (mine, no device needed):** log the selected engine at voice
-session start, at `.notice` so Console shows it without verbose. `VoiceEngineRouter`
-already decides; it just never says so.
+**Do not re-run A1 without confirming the engine line appears.** Repeating it blind
+would produce another verdict that cannot say what it tested — the entire problem
+with the first attempt. The line now exists; **read it in the log before counting
+the call**, because a verdict that cannot name its own configuration is what cost
+two real phone calls the first time.
 
 **Then:** one call per engine, engine named in the log each time. Cheap once the
 line exists — the expensive part is Shelley's time, and this is two more calls.
