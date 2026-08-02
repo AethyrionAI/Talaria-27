@@ -7,6 +7,26 @@ never "finished" — it is the queue that fills up between sittings.
 **Started 2026-08-01.** Owen drives the phone; Claude reads logs and records
 verdicts.
 
+> ### 🗓 SITTING PLAN — the shortest path through this list (written 2026-08-02)
+>
+> The list is long because it is a queue, not a session. **Three sittings clear
+> almost all of it**, and the order matters more than the total:
+>
+> | # | sitting | what it covers | needs |
+> |---|---|---|---|
+> | **1** | **Two minutes, right now, standalone** | **§C5 only** — export `1835BBF9` and #200F's run | nothing. ⛔ **Do this before ANY reinstall or battery run** |
+> | **2** | **The big one — an evening** | **§F5's outage** and everything riding it: **#151** (3 shapes), **#145** (all of A–E(a)), **#180's instance-4 rejudgement**, **#117**. Then §F1's cheap rows (**#133/#143 row count**, **#222** image, **#193**, **#121**, **#122**, **#191**, **#192**) and **§F7a–c** (approvals — no setup) | > 25 min outage window; a build carrying #237–#242 |
+> | **3** | **Voice + calls — needs a second person** | **§A1b** (real incoming call), **§A2b** (#221 brain-governs-voice), **§F6** (#129, #58/#179, E1 residual) | someone who will call you |
+>
+> **Not in a sitting:** **A2's overnight half** (start before bed, free), the
+> **OJAMD counts** (any time you are at that box — two read-only lines), **§F7d/e**
+> (host-side `approvals.mode`), and **F3 (fresh install) which deletes the app and
+> goes LAST, ever.**
+>
+> **Sitting 2 is the high-value one** — it closes or advances seven items at once
+> because they all need the same fixture. Sitting 1 protects evidence that sitting
+> 2 could destroy, which is the only hard ordering on this page.
+
 ---
 
 ## How to use this
@@ -94,9 +114,39 @@ surface once you are already holding the phone.
 
 ### What needs nothing from you
 
-**NOTHING — the solo queue is EMPTY as of 2026-08-01.** All four lanes ran, and
-the one remaining candidate is ruled out (see below). **The next real work needs
-Owen and the phone, starting with §C5.**
+> ## 🔄 REFRESHED 2026-08-02 (evening) — the solo queue emptied a SECOND time.
+>
+> Six more PRs landed (**#237–#242**), suite **1477 → 1505**, `main` gated green
+> after the three-way merge at exactly the predicted count. **The board is again
+> waiting on the phone, and it is now waiting harder** — see the four NEW checks
+> below.
+>
+> **Why there is nothing left to pick up solo:** #183's Phase 2 (mutation — the
+> only check that PROVES a test works) is gated on your device-pass condition;
+> **#188 was DECLINED** under your no-hardening rule, which removed the last
+> Phase-5 lane; #223 belongs to the investigation session. What remains in Phase 6
+> is verification-shaped (needs the phone) or decisions.
+>
+> **The one exception, startable any time:** Phase 7's carve-out — a public
+> **privacy-policy URL** and the App Store Connect records. Their latency is
+> external, so app work can never invalidate them. Ask if you want the draft.
+>
+> **NEW this evening, all already written into the sections below — do not
+> re-derive them:**
+> 1. **§F1 — #133/#143's row count.** The honest close for both items; unpair →
+>    relaunch → re-pair must add **no** device row. **OJAMD has never been
+>    measured** and is where the ×5 actually happened.
+> 2. **§F5 — #145 now includes E(a).** A shared 45s deadline caps the whole
+>    foreground chain, and any cut is COUNTED — report a non-zero
+>    `foregroundActivationsCutShort` as a finding.
+> 3. **§F5 — #180's instance-4 rejudgement** rides the same sitting.
+> 4. **§F7 — approvals**, the never-exercised path, incl. the discovery of
+>    `POST /v1/runs/{id}/approval` on `:8642`.
+
+**Superseded 2026-08-02 — kept for the arc.** *"NOTHING — the solo queue is EMPTY
+as of 2026-08-01."* All four lanes ran, and the one remaining candidate is ruled
+out (see below). **The next real work needs Owen and the phone, starting with
+§C5.**
 
 > ⏳ **ONE THING IS TIME-SENSITIVE — §C5.** #216A's re-read landed on a question
 > only two saved battery runs can answer, and the store prunes. Two minutes on the
