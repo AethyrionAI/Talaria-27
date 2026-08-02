@@ -76,6 +76,17 @@ queries match the quality of today's `hermes_mobile` MCP tools.
    not what Apple carries. Privacy notice discloses iCloud as the notification trigger;
    no airplane-mode caveat needed beyond the universal one (remote push fails without a
    radio for every app; APNs queues and delivers on reconnect).
+
+   **REQUIRED CONTROL (Owen, 2026-08-02): an app-level notifications OFF switch in
+   Settings, and OFF means the app NEVER CALLS OUT** — not a display preference. OFF
+   disables the entire push path: no CloudKit subscription or record traffic, no watch
+   registrations, no push-token enrollment for this purpose (and for coherence, no
+   relay watch posts while that path still exists). This is distinct from — and
+   stronger than — the iOS notification permission, which only governs display. Owen
+   would run OFF himself; the switch is a first-class privacy feature, not an edge
+   case. Degrade per #180's conventions: with it OFF, the app states plainly that
+   replies arrive on next open. Open product choices for the lane: default state
+   (presumably ON with the switch prominent) and whether onboarding surfaces it.
 2. **BGTask polling (zero setup, degraded).** The app already has #198's BGTask
    machinery. Measure real-world wake cadence on whoGoesThere before judging it —
    minutes-to-hours, iOS decides.

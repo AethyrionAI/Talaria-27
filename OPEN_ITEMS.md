@@ -12844,8 +12844,11 @@ conversation. Owen routes each lane.
 > irreducible sender; the menu is in the brief, with **CloudKit subscriptions as
 > Owen's provisional pick pending the spike** (Apple runs the sender; the host makes
 > one signed HTTPS call; ping-only payloads keep the privacy notice to a sentence —
-> same disclosure class as today's APNs relay push). The brief's checklist is the
-> investigation's work; its deliverable lands back in this entry.
+> same disclosure class as today's APNs relay push). **Required control (Owen):** an
+> app-level notifications OFF switch in Settings where OFF kills the whole outbound
+> push path — no CloudKit traffic, no watch posts, no token enrollment — not merely
+> display; a first-class privacy feature he would use himself. The brief's checklist
+> is the investigation's work; its deliverable lands back in this entry.
 
 ## #222 — 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK, unused. The in-source comment describes a CHOICE as a limitation.
 
