@@ -299,17 +299,69 @@ the key does what its name suggests, because for CGNAT it did not.
 
 ## E · Probes that are deliberately NOT tests
 
-### E1 · `installTap` double-install · **[ISOLATED BUILD, NOT THE SUITE]**
+### E1 · `installTap` double-install · ✅ **RAN 2026-08-01 — CONFIRMED. It throws.**
+
 Does the migrated `AudioNodeTap.install` THROW on a double-install where the old
 API raised an uncatchable ObjC exception?
 
-**Deliberately not written as a test:** if the successor still raises, it takes
-down the test host rather than failing, which would cost a green suite and teach
-nothing. Wants a throwaway build with one deliberate double-install.
-
-**Until it runs, the migration's rationale is well-founded INFERENCE and is
-labelled as such in #198.** The preflights (#82's format check, #128's `removeTap`
-adjacency) prevent the failure; this probe only prices the residue.
+> ## ✅ VERDICT: **IT THROWS.** #198's migration rationale is CONFIRMED, not inferred.
+>
+> **Two identical runs, iOS 27.0 simulator (`24A5390f`), standalone binary under
+> `simctl spawn`. Process exit 0 both times — it was never raised out of.**
+>
+> ```
+> E1: mainMixer first install OK
+> E1: mainMixer attempting SECOND install (no removeTap) ...
+> E1: mainMixer THREW — Error Domain=com.apple.coreaudio.avfaudio Code=-10863
+>                       UserInfo={false condition=nullptr == Tap()}
+> ```
+>
+> **`nullptr == Tap()` is the EXACT condition string from #128's device crash**
+> (`AVAEGraphNode CreateRecordingTap: nullptr == Tap()`, whoGoesThere,
+> 2026-07-17). Same failure, same assertion — **now delivered as a catchable
+> Swift error instead of an uncatchable NSException.**
+>
+> ### It also answered a question it was not aimed at — #82's, for free
+>
+> The simulator's `inputNode` reports a **degenerate format (rate=0.0, ch=2)** —
+> which is precisely **#82's wedge shape** — and the install threw there too:
+>
+> ```
+> E1: inputNode INCONCLUSIVE — first install threw: Code=-10868
+>     UserInfo={false condition=IsFormatSampleRateAndChannelCountValid(format)}
+> ```
+>
+> **So BOTH hand-rolled mitigations now guard failures the API REPORTS rather
+> than raises** — #82's format preflight and #128's adjacency invariant. Neither
+> was written knowing that; both were written because the old API raised.
+>
+> **Both preflights STAY**, exactly as #198 said. They prevent the failure; this
+> only prices the residue. A recoverable throw is a better floor than a crash,
+> not a reason to remove the thing that stops you reaching the floor.
+>
+> ### Limits, stated because the result is favourable
+>
+> - **Simulator, not device.** The error domain and codes are CoreAudio's and the
+>   runtime is the same iOS 27.0 family, but hardware is not proven here.
+> - **The double-install was on `mainMixerNode`, not `inputNode`** — the sim's
+>   `inputNode` cannot complete a *first* install (degenerate format), so it
+>   cannot host a second. The identical condition string is strong evidence it is
+>   the same `AVAEGraphNode` path, but it is not the same node #128 crashed on.
+> - **Therefore `inputNode` double-install on real hardware is UNMEASURED.** It is
+>   the one residual, and it is cheap to fold into any voice sitting — see §F6.
+>
+> **Probe source is committed — `scripts/e1-doubleinstall-probe.swift`** — so this
+> is re-runnable after any SDK bump, which is exactly when it should be re-run
+> (`__installTap`'s `__` spelling is awaiting an AVFAudio overlay and WILL change).
+> It is outside `project.yml`'s source paths, so it needs no `xcodegen generate`.
+>
+> ```bash
+> DEVELOPER_DIR=/Applications/Xcode-beta4.app/Contents/Developer xcrun -sdk iphonesimulator swiftc -target arm64-apple-ios27.0-simulator scripts/e1-doubleinstall-probe.swift -o /tmp/e1probe && DEVELOPER_DIR=/Applications/Xcode-beta4.app/Contents/Developer xcrun simctl spawn 47F68496-24F9-45D9-93D3-1C778DB6B557 /tmp/e1probe
+> ```
+>
+> Deliberately a standalone binary, not an XCTest: had it raised, the process
+> dying **is** the answer and costs nothing, where a test host dying costs a green
+> suite and teaches nothing.
 
 ---
 
@@ -377,6 +429,7 @@ four times total.
 |---|---|---|
 | **#129** | Audition a voice mid-session | no crash, session survives, mic live afterwards. Owed since 2026-07-24. Known-and-accepted: native-engine sessions share the assistant TTS instance |
 | **#58 / #179** | First Control Center tap from cold | action does not report success before the widget extension exists. **One check closes both** — #179 is chained to #58's pass by its own decision point |
+| **E1 residual** | Start a native voice session; confirm the log shows a REAL capture format (not rate=0.0) and no `nullptr == Tap()` **crash** | **Zero extra setup — it rides any native voice session you are already running.** §E1 proved the double-install THROWS on the simulator, but on `mainMixerNode`; the sim's `inputNode` has a degenerate format and cannot host the test. This is the only unmeasured leg: `inputNode` on real hardware. **A crash here would falsify §E1's verdict on the node that actually matters** |
 
 ---
 
