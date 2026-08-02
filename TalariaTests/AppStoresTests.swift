@@ -3274,6 +3274,43 @@ struct AppStoresTests {
         await activation.value
     }
 
+    @Test
+    func testRunsAreDetectedFromEitherFlavourOfTestEnvironment() {
+        // #144. XCTest sets `XCTestConfigurationFilePath` in the process it
+        // HOSTS — that covers unit tests. A UI test runs the app as a SEPARATE
+        // process which never sees it, so the `UITEST_` prefix the target
+        // already uses is the only signal available there.
+        #expect(TestRunGuard.isRunningUnderTest(["XCTestConfigurationFilePath": "/tmp/x.xctestconfiguration"]))
+        #expect(TestRunGuard.isRunningUnderTest(["UITEST_DEFAULTS_SUITE": "suite-1"]))
+        #expect(TestRunGuard.isRunningUnderTest(["UITEST_ANYTHING_AT_ALL": "1"]))
+        #expect(TestRunGuard.isRunningUnderTest(["HOME": "/Users/owen"]) == false)
+        #expect(TestRunGuard.isRunningUnderTest([:]) == false)
+    }
+
+    @Test
+    func aShippedBuildCannotBeTalkedOutOfLivePairingByAnEnvironmentVariable() {
+        // #144's safety property. Detecting a test run is a DIAGNOSTIC
+        // convenience; it must never become a production off-switch. With
+        // environment overrides disallowed — a shipped build — the detection is
+        // ignored outright.
+        let testish = ["XCTestConfigurationFilePath": "/tmp/x", "UITEST_DEFAULTS_SUITE": "s"]
+
+        #expect(TestRunGuard.mustUseMockPairing(
+            environment: testish, explicitMockRequested: false, allowsEnvironmentOverrides: false) == false)
+
+        #expect(TestRunGuard.mustUseMockPairing(
+            environment: testish, explicitMockRequested: false, allowsEnvironmentOverrides: true))
+
+        // The pre-existing UITEST_PAIRING_MODE contract keeps working unchanged.
+        #expect(TestRunGuard.mustUseMockPairing(
+            environment: [:], explicitMockRequested: true, allowsEnvironmentOverrides: true))
+
+        // A clean environment on a dev build still gets the LIVE service —
+        // otherwise this guard would break real pairing on the simulator.
+        #expect(TestRunGuard.mustUseMockPairing(
+            environment: ["HOME": "/Users/owen"], explicitMockRequested: false, allowsEnvironmentOverrides: true) == false)
+    }
+
     @Test @MainActor
     func foregroundActivationsSupersedeRatherThanStack() async throws {
         // #145 Part D. Every scene activation queued another full twelve-await
