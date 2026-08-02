@@ -143,7 +143,10 @@ final class CronJobService: CronJobServiceProtocol {
     init(
         baseURLProvider: @escaping @MainActor () -> String?,
         apiKeyProvider: @escaping @MainActor () -> String?,
-        session: URLSession = .shared
+        // #145 Part A: NOT `.shared` — its `timeoutIntervalForResource` is 7 days,
+        // and this client sits on the foreground path. No streaming here, so the
+        // stricter non-streaming budget applies.
+        session: URLSession = SessionsHermesClient.makeInteractiveHermesPlaneSession()
     ) {
         self.baseURLProvider = baseURLProvider
         self.apiKeyProvider = apiKeyProvider

@@ -1004,10 +1004,35 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// Deliberately NOT `RelayAPIClient.makeBootstrapProbeSession()` — that one's
     /// own comment says it must never serve the chat path or SSE streams, and a
     /// 10s resource timeout there would break exactly the runs this preserves.
-    static func makeChatPlaneSession() -> URLSession {
+    nonisolated static func makeChatPlaneSession() -> URLSession {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = interactiveRequestTimeout
         configuration.timeoutIntervalForResource = 3600
+        return URLSession(configuration: configuration)
+    }
+
+    /// #145 Part A — for the Hermes-plane clients that **never stream**:
+    /// `ModelsShimClient` (`:8765`), `CronJobService`, `SkillsService`,
+    /// `InsightsService`. All four defaulted to `URLSession.shared` — 60s
+    /// request over a **7-day** resource ceiling — and
+    /// `seedActiveModelFromShim()` puts one of them directly in
+    /// `handleAppDidBecomeActive`'s chain, so #145's wedge reached them too.
+    ///
+    /// **Stricter than `makeChatPlaneSession()` on purpose.** That one carries a
+    /// one-hour resource ceiling only because an SSE turn legitimately runs for
+    /// minutes. **These four have zero streaming call sites** (verified: no
+    /// `text/event-stream`, no `session.bytes(…)` in any of them), so nothing
+    /// justifies letting one of their requests live past a minute.
+    ///
+    /// **One factory, not four copies.** Five clients with five hand-tuned
+    /// configs is how a timeout policy drifts until nobody can say what the
+    /// budget is. It lives beside `makeChatPlaneSession()` because this file
+    /// already owns the plane's timeout policy; if it ever wants its own home
+    /// that is a move, not a rewrite.
+    nonisolated static func makeInteractiveHermesPlaneSession() -> URLSession {
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = interactiveRequestTimeout
+        configuration.timeoutIntervalForResource = 60
         return URLSession(configuration: configuration)
     }
 
