@@ -25,6 +25,11 @@ private final class SpyPersistenceStore: AppPersistenceStoreProtocol {
     func loadSessionState(profileScope: UUID?) -> AppSessionState? { nil }
     func saveSessionState(_ state: AppSessionState, profileScope: UUID?) {}
     func clearSessionState(profileScope: UUID?) {}
+    // #133/#143: in-memory, but REAL — a double that discards the id
+    // would let the durability tests pass against nothing.
+    var storedInstallationID: UUID?
+    func loadInstallationID() -> UUID? { storedInstallationID }
+    func saveInstallationID(_ id: UUID) { storedInstallationID = id }
     func loadInboxState() -> InboxLocalState { InboxLocalState() }
     func saveInboxState(_ state: InboxLocalState) {}
     func clearInboxState() {}

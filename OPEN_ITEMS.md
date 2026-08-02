@@ -5675,7 +5675,64 @@ Logged 2026-07-17.
 
 ---
 
-## 133. 🐛 Dormant-relay push registration idempotency — MERGED (PR #123, `0bc2e0c`, 2026-07-20); DEFEATED by app-side churn + insert race (2026-07-25)
+## 133. 🐛 Dormant-relay push registration idempotency — ROOT CAUSE FOUND AND FIXED 2026-08-02: the installation identity was stored inside profile-scoped session state that unpair deletes. Device pass owed.
+
+> ## ✅ ROOT CAUSE 2026-08-02 — measured, not argued. **99 device rows / 99 distinct
+> ## `installation_id`s.** The relay was right all along; the app minted every identity.
+>
+> **The measurement first** (Mac relay `devices` table, direct read):
+>
+> | | |
+> |---|---|
+> | device rows | **99** |
+> | distinct `installation_id` | **99** — a perfect 1:1 |
+> | the ONE real handset | **two** rows, `install=3b6f41e8` (born 07-16) and `install=c718cc64` (born 07-23) |
+>
+> A 1:1 ratio means the relay's `upsert_push_registration` was doing exactly what it
+> should — one row per installation identity it was handed. **It was handed 99.**
+>
+> **Mechanism, source-confirmed:** `AppSessionStore.init` read
+> `persistence.loadSessionState(profileScope:) ?? AppSessionState()`, and
+> `AppSessionState()` mints a fresh `UUID()`. The installation id lived **inside the
+> profile-scoped session state**, which `clearSession` deletes. So:
+> **unpair → cold launch (nothing persisted) → NEW identity → re-pair → new device row →
+> its own active push registration carrying the SAME APNs token → the relay fans out per
+> registration → #143's duplicate notifications.** One root, two symptoms, exactly as
+> #143's 2026-07-25 re-root-cause said — and **the 2026-07-23 "mechanism is RELAY-side"
+> note below is wrong**; no relay change is needed for this.
+>
+> **Fix:** the identity moves to a durable, **non-profile-scoped** persistence key
+> (`talaria.installationID`) that `clearSessionState` never touches — it names the app
+> INSTALL, not a session or a relay. Upgrade behaviour is deliberate: the durable id is
+> stamped onto whatever session state loads, so a pre-fix install **converges on one
+> identity** rather than grandfathering whichever it last minted.
+>
+> **A partial fix would have left the defect reachable, and the test caught it.** Fixing
+> `init` alone left `rebindToCurrentScope()` doing `state = persisted` — adopting a
+> persisted (pre-fix or foreign-scope) state's own churned id, re-identifying the device
+> on the next **profile switch**. Now it stamps instead of adopts.
+> `aProfileSwitchDoesNotAdoptAPersistedStatesStaleIdentity` **failed behaviourally
+> against the partial fix** (1 of 6 red, five green) before that line changed — a real
+> red, not just a compile error.
+>
+> Six tests: unpair+cold-launch, ordinary relaunch, cross-scope sharing, minted-once,
+> `clearSessionState` leaves it alone, and the rebind case. All six audited every write
+> to `state` in the store (lines 100/269/271/318/356/361) — the other five already
+> retained or merged.
+>
+> **Still owed — device pass.** These are unit-level guarantees; the row count is the
+> real check, and the honest one (#144's lesson: verify by row count, not by suite).
+> After a build with this fix: unpair, relaunch, re-pair, and confirm the relay gains
+> **no new device row**. **OJAMD has never been measured at all** — its relay is where
+> #143's ×5 was actually observed, and the 92 junk `iPhone 17 Pro Max` rows on the Mac
+> are test pollution (#144), now prevented but not deleted.
+>
+> **What this does NOT fix, kept because the entry below is right about it:** the
+> **insert race** (two rows 53 ms apart, same device AND same token) is a check-then-act
+> race that a stable identity makes far rarer but does not make impossible, and
+> `send_push` still has no per-token dedup. **The partial unique index on active
+> `apns_token` remains the relay-side backstop** — recorded as still-open below, and
+> unaffected by this lane.
 
 > **LANDED 2026-08-01, eight days late: #133 cannot be captured from the Mac CLI.**
 > `idevicesyslog` carries the legacy syslog stream — **system daemons only**. The app
@@ -6374,7 +6431,33 @@ likely the guilty branch. Then a Fable micro-lane with a fail-first test per cas
 
 Logged 2026-07-20.
 
-## 143. 🐛 Siri-ask completion notifications arrive ×5 — RE-ROOT-CAUSED 2026-07-25: app-side device-identity churn (same root as #133), NOT relay-side
+## 143. 🐛 Siri-ask completion notifications arrive ×5 — ROOT FIXED 2026-08-02 with #133 (one cause, two symptoms); device pass owed
+
+> ## ✅ THE 2026-07-25 RE-ROOT-CAUSE WAS RIGHT, and the fix landed 2026-08-02 in #133.
+>
+> **Confirmed by measurement, not inference: 99 relay device rows against 99 distinct
+> `installation_id`s** — the relay upserts one row per identity it is handed, correctly,
+> and the app handed it 99. The fan-out is arithmetic from there: each extra device row
+> carries its own ACTIVE `push_registrations` row for the **same APNs token**, and
+> `active_push_registrations_for_user` returns them all → N identical notifications for
+> one ask. Four active rows produced the ×4 that #146 screenshotted; five produced ×5.
+>
+> **The cause was in `AppSessionStore`, not the relay:** the installation id rode inside
+> profile-scoped session state that unpair deletes, so unpair → cold launch → re-pair
+> minted a fresh identity. **Full mechanism, fix, and the six tests are in #133** — do
+> not duplicate them here; one root gets one write-up.
+>
+> **Owed:** the device check (unpair → relaunch → re-pair adds **no** new device row) and
+> — the one that matters for THIS item — **re-count OJAMD**, where the ×5 was observed and
+> which has never been measured. If OJAMD still holds N active registrations for one
+> token, those pre-existing rows are historical debris the app cannot clean: the fix stops
+> new ones, it does not deactivate old ones. **Deactivating them is a relay-side chore**
+> (the same shape as #144's Mac cleanup: deactivate, never delete, keep a rollback).
+>
+> **Separate and still open — the `push_environment` contradiction** recorded below
+> (registrations say `development`, devices say `production`, same handsets). Untouched by
+> this fix and still worth an answer: if real, every OJAMD-originated push is addressed to
+> the APNs sandbox.
 
 > **RE-ROOT-CAUSED 2026-07-25 (device pass).** The relay-side framing below is
 > wrong. The relay behaves correctly — it fans out to the active registrations it
