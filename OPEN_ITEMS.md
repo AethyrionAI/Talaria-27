@@ -6485,8 +6485,20 @@ Logged 2026-07-20.
 > red-then-green and is recorded as such rather than presented as clean TDD.
 >
 > ### STILL OWED — do not read this as "#145 fixed"
-> - **Part D — activations must not stack.** Every scene activation queues another
->   full chain; nothing coalesces or supersedes.
+> - ~~**Part D — activations must not stack.**~~ **BUILT 2026-08-02.** Activations
+>   now supersede: cancel the in-flight chain, **await its unwinding** (following
+>   `cancelBackgroundBootstrap`'s precedent — without the wait, teardown overlaps
+>   the new chain's start and both are briefly live, which is the very thing being
+>   fixed), then run. **The wait is bounded BECAUSE OF PART A** — an interactive
+>   call is 20s now, not 300s.
+>   **Swift cancellation is COOPERATIVE**, so `Task.isCancelled` guards sit between
+>   the network steps; without them a superseded chain keeps walking its remaining
+>   eight awaits and the supersede is **cosmetic** — the counter reads right while
+>   the wedge keeps running. The trailing UI writes are deliberately unguarded
+>   (local, idempotent, and a chain that got that far may as well publish).
+>   **Pin is PEAK CONCURRENCY, not a call count:** both activations legitimately
+>   touch the host, so a count rises whether they superseded or stacked — it moves
+>   for the right and wrong reasons equally, which measures nothing.
 > - **Part E — deliberately SKIPPED.** Parallelising the twelve awaits is the
 >   riskiest change in the lane; a wrong parallelisation yields intermittent
 >   foreground auth failures, which is worse than the bug. Only attempt it with a
