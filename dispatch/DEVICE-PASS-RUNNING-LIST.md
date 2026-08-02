@@ -69,8 +69,13 @@ surface once you are already holding the phone.
 
 ### What needs nothing from you
 
-I can run these solo whenever: **#216A**'s re-read, **E1**'s isolated build, and
-staging B1's branch. Say go and they happen without a sitting.
+I can run these solo whenever: **E1**'s isolated build and staging B1's branch.
+Say go and they happen without a sitting.
+
+> ⏳ **ONE THING IS TIME-SENSITIVE — §C5.** #216A's re-read landed on a question
+> only two saved battery runs can answer, and the store prunes. Two minutes on the
+> phone, no battery run needed, and it is the only item here that gets *harder* by
+> waiting. Do it at the start of any sitting, before anything else.
 
 **Two are already ✅ done (2026-08-01), and both SHRANK the board:**
 - **#128's archaeology** — confirmed #220's engine hypothesis from source and
@@ -237,6 +242,36 @@ measured on device.
 Both verdicts carried a stated thermal confound running AGAINST the winner, so a
 matched-thermal re-run would strengthen conclusions that are currently honest but
 qualified. Long; only worth a dedicated sitting.
+
+### C5 · Rescue two battery run records before they are pruned · **[DO THIS FIRST — IT IS A RACE, AND THE ONLY ONE ON THIS LIST]**
+
+**Two minutes, no battery run, and it can only get harder.** Everything else here
+waits patiently; **this one degrades every time a battery runs.**
+
+Open **Diagnostics → Battery Results** and check whether these are still in the
+store, then **export both**:
+
+| run | lane | date |
+|---|---|---|
+| `1835BBF9` | **#214** — narrow belt, haiku grabs 0/10 | 2026-07-31 |
+| *(#200F's run id — read it off the screen)* | **#200F** — `scoped` + `createonly`, haiku grabs 0/10 | 2026-07-29 |
+
+**Why it matters:** #216A found that the haiku canary rides the **REMIND scope**,
+so every "grabs 0/10" cell in the series still had **`readCalendar`** on its belt
+— the exact tool #216 measured the over-serving impulse displacing off of. If a
+grab was scored from response text, a silent `readCalendar` call would have gone
+uncounted. **`call_economy_report` reads the answer straight out of these two
+records** (`toolCalls` recording predates both runs, `801e872` 2026-07-28).
+
+**Why it is a race:** `maxRuns` was **10** until 2026-08-01, and pruning was
+**silent** until the same commit that raised it to 50. #200F may already be gone
+and nothing would have said so. **If a run is missing, record that as the
+result** — "evicted, unrecoverable" is a finding, not a failed check, and it is
+the concrete cost of the bound that #219 argued about in the abstract.
+
+**If both are gone:** the 0/10 haiku grabs across #200F/#214 stay permanently
+UNRESOLVED unless someone re-runs those cells — which is a real battery sitting,
+not a two-minute read. That asymmetry is the whole reason this is first.
 
 ---
 
