@@ -12832,6 +12832,21 @@ shim-retirement lane (picker onto `/api/model/*`); (3) the file-fetch migration 
 (#21); (4) then the relay is what remains, and its remaining tenants are a separate
 conversation. Owen routes each lane.
 
+> **REFRAMED 2026-08-02, same day — the target hardened from "fewer processes" to
+> ZERO-SETUP** (Owen: eliminating additional setup "really takes the scary part out of it
+> for non power users" — i.e. "install Hermes, paste one key" is a PRODUCT requirement,
+> the user-side twin of #166c's reviewer-needs-no-tailnet). A dedicated investigation
+> session owns it: **brief at `dispatch/OPUS-T27-223-ZERO-SETUP-INVESTIGATION.md`.**
+> The architecture hypothesis: the phone can never HOST (iOS suspends backgrounded
+> apps) but it can DEPOSIT — sensors become app-owned data uploaded via the gateway
+> file API and queried through a Hermes SKILL (data, not a process; survives
+> `hermes update`), eliminating relay AND connector for sensors. Push is the one
+> irreducible sender; the menu is in the brief, with **CloudKit subscriptions as
+> Owen's provisional pick pending the spike** (Apple runs the sender; the host makes
+> one signed HTTPS call; ping-only payloads keep the privacy notice to a sentence —
+> same disclosure class as today's APNs relay push). The brief's checklist is the
+> investigation's work; its deliverable lands back in this entry.
+
 ## #222 — 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK, unused. The in-source comment describes a CHOICE as a limitation.
 
 > ## ⚠️ THIS ENTRY WAS OVERSTATED WHEN FIRST FILED, AND OWEN CORRECTED IT WITH A SCREENSHOT
