@@ -33,6 +33,25 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 > owed" / "OWED"**. The five ✨ merged features all carry queued device debt.
 > **Six items looked closable from their headers; zero were.**
 
+> **Work audit — 2026-08-02 (Hermes, independent session): PRs #218–#238, `70c8536..d869af1`.**
+> Method was **re-execution, not re-reading** — fresh clone, its own `lane-gate.sh` run
+> (**PASS**, 1497 + 8, Release green), the §E1 probe recompiled and re-run on the sim
+> (**reproduced byte-for-byte**), the board recount, the range totals, and live HTTP
+> probes of the gateway. Verdict: *"the strongest two-day stretch the project has
+> produced"*; no reverts owed. **Three things came back that we did not know:**
+> **(1)** #145's header was **stale** — it survived the two PRs that edited its own body
+> (fixed, and the standing consequence is written into that entry). **(2)** The Mac
+> gateway's listening process is **0.19.0 code under a 0.19.1 install**, so four of the
+> routes #223 depends on 404 *today* — recorded in #223 as a live route map so no lane
+> mistakes a version gap for a missing endpoint. **(3)** The `ChatStore` poll loop's
+> comment was wrong by ~11× *after* #145 Part A changed its arithmetic — corrected in
+> source; the loop itself stays filed, not fixed. Addendum nits (TestRunGuard's
+> deliberate no-live-opt-in, the gate's MAX-over-all-numbers, the 20s false-failure
+> trade) are annotated where they live. Counting-form fragility (`## N.` vs `## #N`,
+> duplicate-number headers) is confirmed real and remains **Owen's call** — it is the
+> "retire the old-style headers?" decision, now with a measured cost: the auditor's
+> first recount returned 200 against a claimed 229 purely from the two forms.
+
 > **Accuracy audit — 2026-07-13.** All 112 items were re-checked against `origin/main` (tip `cca1345`), merged-PR/closed-issue state, and on-disk code. Corrections are flagged inline as `> **Audit 2026-07-13:**` blockquotes. Summary: 65 items accurate as-was; 13 status-flips (3 shown ✅ but actually open — #17/#18/#31; 7 shown open but actually done — #37/#47/#48/#49/#55/#76/#94; 3 header-vs-body contradictions — #25/#79/#102); 34 'merged-unverified' items whose 'built in cloud / not compiled / needs merge' wording was stale (PRs since merged — device-verify is the only work left). Full write-up: `design/OPEN_ITEMS_AUDIT_2026-07-13.md`.
 >
 > **Eve session 2026-07-13.** Device+sim pass: #18/#50/#53/#63/#64/#65/#71 device-verified → ✅; #66 FAILED → 🐛; #61 fail root-caused + fixed (branch); PCC send-crash (#72) + churn (#111) closed by a `pccGrantConfirmed` stopgap (branch); iPad Hermes-switch diagnosed (provisioning + nudge branch); #93 fidelity gate still owed (sim skips it). New cloud dispatches: #104, #110. Build ✅ at cf5609f (iOS 27 sim), suite 582/582.
@@ -6533,7 +6552,18 @@ Deactivate rather than delete if audit history matters.
 
 Logged 2026-07-20.
 
-## 145. 🐛 App hard-locks when entered during an OJAMD gateway outage — **Parts B + C BUILT 2026-08-02** (the two that made it outlive the outage); Parts A + D owed; device pass owed
+## 145. 🐛 App hard-locks when entered during an OJAMD gateway outage — **Parts A–D ALL BUILT 2026-08-02** (PRs #233/#234/#235); Part E(a) is its own lane and E(b) is tabled behind written triggers; **device pass owed (§F5)**
+
+> **Header corrected 2026-08-02 — it was STALE, and the way it went stale is the point.**
+> It read *"Parts B + C BUILT; Parts A + D owed"* while the body of this same entry
+> recorded A and D built and merged. **The header survived two PRs that edited this very
+> entry** (#234, #235) — nobody re-read the top of an entry they were appending to.
+> That is precisely the header-only-judgement failure **#230 (Phase 0)** indicted, filed
+> the same weekend, committed by the same author who wrote the indictment. Caught by the
+> external Hermes audit of #218–#238, not by us. **Standing consequence: when a lane
+> appends to an entry, it re-reads that entry's HEADER before it commits** — the header is
+> what the next reader judges from, and Phase 0 measured six of six header judgements
+> wrong.
 
 > ## PARTS B + C BUILT 2026-08-02 — the phone-restart property is what these two address
 >
@@ -12904,6 +12934,25 @@ verified LIVE on the Mac gateway, HTTP 200, chat-plane Bearer auth):**
 2. **Agent files → kills the relay file route.** `/api/files/download` (see #21's
    2026-08-02 supersede watch + handler source read). App-side fetch moves from
    relay + device bearer to gateway + chat-plane key.
+
+> **⛔ LIVE ROUTE MAP, 2026-08-02 (Hermes audit, independent probe of the Mac gateway) —
+> READ THIS BEFORE STARTING EITHER MIGRATION LANE.** The audit probed all of the above
+> against the running `:8642` and found the process is **mid-version**: installed Hermes is
+> **0.19.1**, but the listening process **started Jul 29 on 0.19.0 code.** Live results:
+>
+> | route | live on the Mac gateway today |
+> |---|---|
+> | `/api/model/options` | **200** ✓ (the one I verified 2026-08-02) |
+> | `/api/model/info`, `/recommended-default`, `/auxiliary` | **404** |
+> | `/api/files/download` | **404** |
+>
+> **This is not a tracker error — it is this entry's own caveat coming true**, and the
+> audit says so. But the practical consequence is sharp: **the shim-retirement and
+> file-fetch lanes cannot verify their founding routes until the Mac gateway is restarted
+> (~15–20s to answer after start) or OJAMD is probed on a current process.** Do not read
+> these 404s as "the route does not exist" — they are 0.19.0-vs-0.19.1, which is exactly
+> the confusion the audit flagged to save the next lane an hour. **Restart-then-reprobe is
+> step 0 of both lanes.**
 
 **What still needs the relay, named so "end the relay dependency" stays honest:**
 - **#38 run-completion push watch** — the relay owns the APNs credentials and the poll

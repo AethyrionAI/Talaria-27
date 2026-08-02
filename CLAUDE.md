@@ -98,6 +98,19 @@ works against OJAMD.
 
 - **`xcodegen generate` is mandatory** after adding/removing Swift files (explicit source
   listings, not synchronized folder groups).
+- **Updating Hermes does NOT restart the gateway — the running process keeps serving the
+  OLD code, and `--version` on disk will lie to you about what is answering.** A long-lived
+  `hermes gateway run` imports its modules at start; replacing the files underneath it
+  changes nothing until the process is restarted. Measured on the Mac 2026-08-02: disk
+  `hermes_cli` = **0.19.1**, listener on `:8642` = PID 28104 started **Jul 29** on 0.19.0,
+  uptime 3d 14h — so `/api/model/options` (0.19.0) answered **200** while
+  `/api/model/info`, `/recommended-default`, `/auxiliary` and the whole `/api/files` family
+  (0.19.1) all **404'd**. **A 404 from this box is not evidence a route does not exist.**
+  This has now been rediscovered three times independently (twice in-session, once by the
+  external audit), which is why it is here. **Check the PROCESS, not the package:**
+  `ps -p $(lsof -nP -iTCP:8642 -sTCP:LISTEN -t) -o lstart=,etime=` — if its start time
+  predates the update, the update is not live. Same rule as the OJAMD diagnostic
+  discipline below: verify against the listener, never against an install.
 - `os_log` interpolations need `privacy:.public` or they redact in Console.app; emoji can
   also trigger redaction. Console.app's default view suppresses `.info` — use `.notice`+ for
   diagnostics that must be visible. `TalariaLog` gates verbose diagnostics behind
