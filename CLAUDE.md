@@ -83,6 +83,29 @@ failure. **The gateway pin can hang ~37s+ or indefinitely** — do not block UI 
   login-only task).
 - **Diagnostic discipline:** verify OJAMD against live state — port listeners, DB rows,
   relay logs — never by text-matching a project-knowledge snapshot, which lags.
+- **⛔ DO NOT HARDEN THE RELAY OR THE CONNECTOR (Owen, standing, 2026-08-02).**
+  *"Every time we harden something on the connectors, it makes a new hoop to jump
+  through to make it update. I beg not to harden, and it gets more and more every
+  time. I would like to not harden additional things on the relay. We're trying to
+  get rid of those extra things after all."* **Every hardening buys reliability in a
+  component with a planned end-of-life (#223) and pays for it in permanent update
+  friction** — the friction compounds and the benefit expires. The direction is
+  DELETION, not robustness.
+  - **Fix app-side instead, and this is not a consolation prize** — #133/#143's
+    duplicate-push root cause was fixed entirely in the app (durable installation
+    identity) with **zero relay change**, and the relay turned out never to have been
+    at fault. That is the shape to reach for.
+  - **Declined under this rule:** #188's watchdog half (per-component liveness
+    probes), #133's partial unique index on active `apns_token`, and anything of that
+    family. They stay FILED as findings — a declined fix is not a refuted one — but
+    do not build them.
+  - **Still allowed, because they are not hardening:** one-time data chores
+    (deactivating junk rows, #144's shape — deactivate, never delete, keep a
+    rollback), read-only measurement, and DELETING relay surface once the gateway
+    or the app absorbs it.
+  - **If a relay change ever looks unavoidable, raise it with Owen as a decision
+    rather than building it** — the bar is "the user is harmed now and no app-side
+    fix exists," not "this would be more correct."
 - `HERMES_HOME` = `C:\Users\Owen\AppData\Local\hermes`; shim token at
   `C:\Users\Owen\.hermes\talaria_shim_token`; gateway launchers at
   `C:\Users\Owen\.hermes\scripts\`. Owen runs box-side commands in **PowerShell** (`curl`

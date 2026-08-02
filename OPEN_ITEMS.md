@@ -5710,6 +5710,17 @@ Logged 2026-07-17.
 > check-then-act that just lost this race. **The partial unique index is
 > load-bearing, not polish.**
 >
+> > **⛔ SUPERSEDED 2026-08-02 — the index is NOT being built, and the app-side fix is
+> > why that is safe rather than merely a decision.** Declined under Owen's standing
+> > no-hardening rule (`CLAUDE.md`). **The race needed churn to matter:** two rows land
+> > 53 ms apart only when registration is racing itself during the identity churn this
+> > item's root cause produced. With the installation identity now durable, a re-pair
+> > re-registers the SAME identity, so the upsert has one row to find instead of
+> > minting a rival. **The index guarded a window the app no longer opens.**
+> > It stays filed, unbuilt. `send_push`'s missing per-token dedup and the unreachable
+> > `TOKEN_INVALID` reaper (below) are likewise findings, not lanes — both are relay
+> > hardening, and both stop mattering when one handset stops producing many rows.
+>
 > Also established: `send_push` has no per-token dedup, and the `TOKEN_INVALID`
 > reaper can never fire — `apns.py:173` deactivates only on HTTP 410, and
 > duplicate rows carry a *valid* token, so APNs returns 200 for all of them. The
@@ -9405,6 +9416,31 @@ first** — without it, no watchdog change can be verified.
 
 Logged 2026-07-25.
 
+> ## ⛔ NOT BEING BUILT — declined 2026-08-02 under Owen's standing no-hardening rule.
+>
+> *"Every time we harden something on the connectors, it makes a new hoop to jump through
+> to make it update… we're trying to get rid of those extra things after all."* See
+> `CLAUDE.md`. **This item is a finding, not a queued lane** — the analysis above stands
+> and is worth keeping; the fix is what is declined.
+>
+> **Why the decline is sound rather than merely obedient:** every cost here is
+> DIAGNOSTIC, not user-facing. The watchdog's failure mode is restarting a healthy
+> connector alongside a sick relay — a few seconds of sensor downtime, no data loss, no
+> wrong answer reaching the user. Hardening it would buy sharper post-mortems on a
+> component **#223 intends to delete**, and would pay for it in permanent update friction
+> that compounds with every future Hermes release.
+>
+> **The 493 MB unrotated, timestamp-free `relay.log` is real and is NOT an argument for
+> hardening — it is an argument for deleting the relay sooner.** If disk pressure ever
+> bites before that lands, the answer is to truncate the file, which is a one-time chore
+> and explicitly still allowed. Rotation machinery is not.
+>
+> **What would reopen this:** the relay outliving the #223 migration by enough that a
+> real outage goes undiagnosable and a USER-visible failure follows — Owen's call, not a
+> lane's. Until then, prefer app-side robustness: the app already treats a dead host as a
+> first-class state (#145 A–E(a), #180's honest degradation), which is where resilience
+> belongs when the server is scheduled for removal.
+
 ---
 
 ## 189. 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152); fresh-install device verification owed *(was filed as SHIP BLOCKER)*
@@ -13073,6 +13109,17 @@ verified LIVE on the Mac gateway, HTTP 200, chat-plane Bearer auth):**
 **End state:** the phone speaks gateway (`:8642`, one key) for chat + models + files;
 the relay shrinks to sensors + push. Windows box then runs the gateway process, the
 relay (smaller), and the connector — no shim.
+
+> **GOVERNING PRINCIPLE, added 2026-08-02 (Owen, standing — see `CLAUDE.md`): DO NOT
+> HARDEN THE RELAY OR CONNECTOR while this migration is pending.** *"Every time we
+> harden something on the connectors, it makes a new hoop to jump through to make it
+> update… we're trying to get rid of those extra things after all."* Hardening buys
+> reliability in a component with a planned end-of-life and pays permanent update
+> friction for it. **This sharpens #223 from a tidiness project into the thing that
+> unblocks the backlog:** #188's watchdog and #133's unique index are both declined
+> *because* this migration exists, so every month it slips is a month those findings
+> sit unfixed by design. Resilience goes in the APP (#145, #180); the relay gets
+> deletions and one-time chores only.
 
 **Sequencing:** (1) verify the routes on a CURRENT gateway process (OJAMD post-update, or
 the Mac gateway after its next restart — its running process is mid-version); (2) the
