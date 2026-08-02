@@ -69,6 +69,7 @@ surface once you are already holding the phone.
 | **F5** | a **> 25 minute** induced connector outage | the window IS the check — the original close scored a false PASS on a short one. Do not squeeze this between other checks. |
 | **B1 / F6** | the `probe/t27-130-halfduplex` branch **built to the phone** — **but B1 is PARKED, so do not stage it yet** | ⛔ **§C5 must be exported BEFORE this branch goes anywhere near the phone** (ordering rule above). And B1 is parked by Owen's own instruction — *"leave it parked as a reminder"* — so its blocker was never OTA-vs-corded. **Staging a build for a parked item, onto the phone holding §C5's only evidence, is the wrong move twice over.** It is a separate build from `main`, so it cannot share a sitting with the `main` checks either. |
 | **C1–C4** | phone **foregrounded and on power** | backgrounding kills a battery run outright. |
+| **F7d** | **host-side access to turn Hermes YOLO/auto-approve OFF**, and the discipline to restore it after | The other three F7 rows (**F7a–c**, the on-device confirm gate) need **nothing** — run them in any sitting. Only F7d touches the host. It is a **discovery probe, not a pass/fail**: Talaria handles no approval event at all, so the expected outcome is a stalled turn. Bounded by #145 Part A's timeouts now, which is itself worth confirming. |
 
 ### Decisions owed by you — no phone, no build, unblock other work
 
@@ -524,6 +525,45 @@ four times total.
 | **#129** | Audition a voice mid-session | no crash, session survives, mic live afterwards. Owed since 2026-07-24. Known-and-accepted: native-engine sessions share the assistant TTS instance |
 | **#58 / #179** | First Control Center tap from cold | action does not report success before the widget extension exists. **One check closes both** — #179 is chained to #58's pass by its own decision point |
 | **E1 residual** | Start a native voice session; confirm the log shows a REAL capture format (not rate=0.0) and no `nullptr == Tap()` **crash** | **Zero extra setup — it rides any native voice session you are already running.** §E1 proved the double-install THROWS on the simulator, but on `mainMixerNode`; the sim's `inputNode` has a degenerate format and cannot host the test. This is the only unmeasured leg: `inputNode` on real hardware. **A crash here would falsify §E1's verdict on the node that actually matters** |
+
+### F7 · APPROVALS with auto-mode OFF · **[NEW 2026-08-02, Owen: "one thing I haven't done"]**
+
+**There are TWO separate approval systems and only one of them has ever been
+exercised.** Source-checked 2026-08-02 before writing this section — read the
+finding before running it, because half of this is a discovery probe, not a
+pass/fail check.
+
+**System 1 — the on-device confirm gate (#29, `ToolConfirmationCenter`).** The
+local brain's side-effecting tools (create reminder, create calendar event)
+suspend on it; the card renders inline at the chat tail with EDITABLE fields.
+There is no user-facing auto-approve — `autoAcceptForBattery` exists but is
+harness-only, set by the Diagnostics battery buttons and cleared in their
+`defer`. So this gate is always live in ordinary use, and the whole #200-series
+ran through it.
+
+**System 2 — HOST-side approvals (Hermes YOLO mode).** Hermes has a
+session-scoped auto-approve (`enable_session_yolo`, "all commands
+auto-approved. Use with caution" — `cli.py`). **If that is the "auto mode" being
+turned off, expect trouble: Talaria handles NO approval event.** Its SSE
+taxonomy is `run.started` / `assistant.delta` / `tool.started` /
+`tool.completed` / `tool.progress` / `assistant.completed` / `run.completed` /
+`done` — there is no approval or input-required case anywhere in
+`SessionsHermesClient`. `InboxItemType.approval` exists with an "Approve"
+action, but the only producers in this repo are `DemoData` — whether the relay
+ever emits a real one is **unverified**.
+
+| # | check | what to record |
+|---|---|---|
+| **F7a** | **On-device brain**, ask for a reminder/calendar create. **Tap Cancel, not Approve.** | The decline path. Does the model relay the decline honestly, or fabricate a completed action (#199's shape)? Does the chat stay usable, or enter #176's absorbing state? |
+| **F7b** | Same, but **edit a field in the card before approving** | The written record matches the EDITED values, not the staged ones. This is the card's headline feature and has never been checked on device |
+| **F7c** | Same, and **background the phone while the card is waiting** | The gate survives suspension — card still there on return, still answerable, tool not silently resolved |
+| **F7d** | **Turn Hermes YOLO/auto-approve OFF host-side**, then ask the connected tier for something that needs approval (a shell/file write) | ⚠️ **DISCOVERY, and the likely outcome is a STALL.** Record what the app shows: a hung run, a silent stop, an inbox item, or nothing at all. **#145 Part A now bounds it** — the turn should FAIL on a real timeout (20s interactive / 300s streaming idle) rather than hang forever. If it hangs past those, that is a #145 finding too. Whatever happens, note whether the host is left waiting on an approval nobody can answer |
+
+**Why F7d matters beyond the check:** if the connected tier can be put into a
+state Talaria cannot answer, that is a shipping-relevant gap in the same family
+as #180 (the app hides its own degradation) — the user would see a dead turn
+with no way to learn an approval is pending. **Do not leave YOLO off**
+afterwards unless you mean to; restore whatever state you started in.
 
 ---
 
