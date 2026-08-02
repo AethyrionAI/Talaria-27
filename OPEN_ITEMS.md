@@ -8314,6 +8314,32 @@ single "honest degradation" lane rather than three separate fixes.
 the active model advertise vision?), or a lighter approach that simply never claims a success
 it cannot verify.
 
+> **PROBED 2026-08-02 (Mac dev gateway + shim, live) — capability surfacing is ONE FIELD away,
+> not dead and not built.**
+> - **Gateway `/v1/models` is a dead end:** it returns ONE synthetic model (`hermes-agent`)
+>   with the bare OpenAI-compat keys — no capability metadata and not even the real model list.
+> - **The shim's `/models` already carries a per-model `capabilities` map** — today
+>   `{fast, reasoning}` only. No vision key on any surface the app talks to.
+> - **But Hermes's own catalog has the data.** `agent/models_dev.py` carries
+>   `ModelCapabilities.supports_vision`, an `attachment` flag, and `input_modalities`
+>   (`"image"`, `"pdf"`, `"audio"`). `hermes_cli/inventory.py`'s `_apply_capabilities` already
+>   calls `get_model_capabilities(slug, model)` per model, reads `supports_reasoning` off the
+>   result, and drops `supports_vision` from the same object.
+> - **The no-core-edit path exists:** `tools/models-shim/shim.py` is OUR code (this repo) and
+>   already imports from the hermes venv; `_build()` can enrich each row's `capabilities` with
+>   `vision` post-hoc. Survives `hermes update` — same posture as its existing
+>   `_apply_model_assignment_sync` import.
+> - **Caveat to decide WITH the feature, not after:** the catalog default is
+>   `supports_vision: False`, so an uncatalogued model reads as no-vision. Claiming vision
+>   falsely reproduces this item; denying it falsely blocks a working feature — the surfaced
+>   language should say "not known to support images," never a hard block.
+> - Mac shim note: it rejected `API_SERVER_KEY` (dual-token #14 was verified against OJAMD;
+>   the Mac instance took only its dedicated `~/.hermes/talaria_shim_token`), and it listens
+>   on the tailnet interface, not loopback. Neither affects the verdict; recorded so the next
+>   probe doesn't re-derive them.
+> Decision queued for Owen: enrich the shim and build option (a) on it, or take the lighter
+> never-claim path. Probe run from the #180 lane (PR #237).
+
 Logged 2026-07-23.
 
 ## 174. ✅ Attachment payloads inline at full size — 233-472 KB of base64 in one JSON body, no downscaling
