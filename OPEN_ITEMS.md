@@ -7351,7 +7351,47 @@ Dispatched to K3 on OJAMD (session `api_1784723772_f27fa635`, clone at `O:\Herme
 
 Logged 2026-07-22.
 
-## 161. ❌ 156e Projects — NOT VIABLE, recommend closing. And a no-new-services constraint for the whole #156 arc.
+## 161. ❌ 156e Projects — NOT VIABLE. **Re-checked against LIVE Hermes 0.19.0 on 2026-08-01 — the verdict HOLDS.** And a no-new-services constraint for the whole #156 arc.
+
+> ## RE-CHECK 2026-08-01 — verdict unchanged, and the question was the right one to ask
+>
+> **Owen, 2026-08-01:** *"unless something has changed, we couldn't do it then.
+> However, hermes updates **constantly** and has its own projects that can be
+> created."*
+>
+> **Exactly the right challenge:** this verdict was written 2026-07-22 against a
+> fast-moving upstream, and its fatal finding is *mechanical* — a missing request
+> parameter — which is precisely the kind of thing a release can change. **The
+> entry's own revisit condition says "revisit only if upstream…".** So it was
+> re-checked against the live host rather than re-argued.
+>
+> **Method (read-only, re-runnable, ~2 minutes, no phone):**
+>
+> | check | result |
+> |---|---|
+> | Gateway version (`hermes_gateway_health`, Mac) | **0.19.0** — the "Quicksilver" line #148 tracks |
+> | `GET /api/projects`, `/v1/projects`, `/api/sessions/projects`, `/projects` | **all 404** |
+> | Auth controls — with key / without | **200 / 401**, so those 404s are real routing 404s, not auth failures |
+> | `cwd` in `gateway/platforms/api_server.py` (6,955 lines) | **zero occurrences** |
+> | `workdir`, `project` in the same file | **zero, zero** |
+> | `_handle_create_session` (line 3108) accepted body keys | `id`/`session_id`, `model`, `system_prompt`, **`source`**, `provider`, `model_options` — **still no `cwd`** |
+>
+> **Where `cwd` DOES live is the point:** `gateway/session_context.py:212` and
+> `agent.runtime_cwd.set_session_cwd` — a **server-side** concept pinned per
+> context. It is not absent, it is **not client-settable**, which is the same wall
+> #161 hit in July.
+>
+> **So finding 2 — "we cannot fix that from the client" — is confirmed on 0.19.0,
+> and findings 1 and 3 follow from it unchanged. The recommendation stands.**
+>
+> **The create surface HAS grown, just not in the direction Projects needs.** July's
+> recorded parameter list was `id`/`session_id`, `model`, `system_prompt`, `title`.
+> 0.19.0 adds `source` and a runtime/model-lock request. **That drift is real and it
+> is why this re-check was worth running even though the answer was "no" —** a
+> verdict that survives a re-check against a moving target is worth more than one
+> that was never re-run, and this one now carries the version it survived.
+>
+> **⚠️ But the re-check found something for a DIFFERENT item — see #170 below.**
 
 Owen 2026-07-22: Projects do not exist in Talaria at all today (host-only), and **no new shims** — the Models Shim is being phased out and adding another installable service is a cost we are not paying.
 
@@ -7766,7 +7806,39 @@ Belt-and-braces on top of the structural fix: the caveat string moved into `Insi
 
 **NOT device-verified.** Owed on device: confirm the two cards read as two things at a glance, and that the caveat wraps acceptably at the trailing edge on a phone (it is a MonoLabel at size 8 with `.multilineTextAlignment(.trailing)` and no line limit, so it wraps rather than truncating).
 
-## 170. ⚠️ Task detail presents `model_snapshot` as if it were the job's model — and the phone cannot pin a model at all (device-found 2026-07-22)
+## 170. ⚠️ Task detail presents `model_snapshot` as if it were the job's model — and the phone cannot pin a model at all (device-found 2026-07-22). **LEAD 2026-08-01: 0.19.0 may have made the second half solvable.**
+
+> ## 🔎 LEAD — found while re-checking #161, not while working this item
+>
+> **This item's second clause is "the phone cannot pin a model at all."** That was
+> true when filed against the then-current gateway. **Hermes 0.19.0's
+> `POST /api/sessions` now takes a per-session model lock**, verified in the live
+> source on 2026-08-01:
+>
+> - `_session_runtime_request_from_body` (`api_server.py:2098`) reads
+>   **`model`/`model_id`**, **`provider`/`provider_id`**, and **`model_options`**,
+>   resolves an alias route, and returns a `requested` + `route` pair.
+> - `_handle_create_session` (`:3108`) builds a **`browser_model_lock`**
+>   (`provider`, `model`, `model_options`) from it, guarded by `_runtime_lock_error`.
+>
+> **What is verified: the SURFACE exists and takes what a model pin needs.**
+>
+> **What is NOT verified, and must be before anyone builds on it:** whether the app
+> currently sends any of it, and — the part that actually decides the item —
+> **whether the lock GOVERNS the run or is only recorded on the row.** #170 exists
+> because `model_snapshot` was *presented as* the job's model without being it;
+> **adopting a second field with the same unverified relationship would reproduce
+> this exact bug rather than fix it.** Prove the lock changes which model answers
+> before trusting it.
+>
+> **Cheap to settle and needs no phone:** create a session with a `provider`/`model`
+> lock, send one turn, read back which model actually replied.
+>
+> **Two notes on provenance.** This was found by re-checking a *different* item on
+> Owen's challenge that "hermes updates constantly" — the same instinct that made
+> the #161 re-check worth running. And it belongs to **#148**, the 0.19 impact
+> umbrella, which is the item that should own systematic version-drift sweeps
+> instead of them arriving by luck.
 
 > **Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
 > work is NOT a device check — see `dispatch/DEVICE-PASS-RUNNING-LIST.md` §G for what it
