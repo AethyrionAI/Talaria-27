@@ -9620,6 +9620,42 @@ Logged 2026-07-27.
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** The beta-4 deprecation sweep is DONE — all three structural clusters migrated and the 2026-08-01 device pass PASSED. **Residual probes are device-list A1/A2/E1.** The header's '~20 warnings, 6 clusters' count is superseded by the per-cluster counts inside.
 
+> ## ✅ **E1 RAN 2026-08-01 — the `installTap` migration's rationale is CONFIRMED, no longer inference.**
+>
+> This entry's `installTap` cluster was migrated on the reasoning that *"the
+> successor returns an error instead of raising"* — and that sentence was
+> **reasoning from a header comment, never executed.** It has now been executed.
+>
+> **iOS 27.0 simulator (`24A5390f`), standalone binary under `simctl spawn`, two
+> identical runs, process exit 0 both times:**
+>
+> ```
+> mainMixer THREW — Error Domain=com.apple.coreaudio.avfaudio Code=-10863
+>                   UserInfo={false condition=nullptr == Tap()}
+> ```
+>
+> **`nullptr == Tap()` is the exact condition string from #128's 2026-07-17
+> device crash.** Same assertion, now a catchable Swift error rather than an
+> uncatchable Objective-C exception.
+>
+> **It also settled #82's half for free, which nobody asked it to.** The
+> simulator's `inputNode` reports a degenerate format (rate=0.0) — *#82's own
+> wedge shape* — and that install threw too (`Code=-10868`,
+> `IsFormatSampleRateAndChannelCountValid(format)`). **Both hand-rolled
+> mitigations in this codebase — #82's format preflight and #128's `removeTap`
+> adjacency — now guard failures the API reports rather than raises.** Neither
+> was written knowing that.
+>
+> **Both preflights STAY.** They prevent the failure; E1 only prices the residue.
+> A recoverable throw is a better floor, not a reason to remove what stops you
+> reaching it.
+>
+> **Limits, stated because the result is favourable:** simulator not hardware; the
+> double-install ran on `mainMixerNode` because the sim's `inputNode` cannot
+> complete a *first* install. **`inputNode` double-install on real hardware stays
+> unmeasured** — queued as a zero-setup rider on any native voice session
+> (device-list §F6). Full verdict and the probe's provenance: device-list §E1.
+
 Filed from the 2026-07-27 evening sweep (cluster enumeration lives in
 `planning/HANDOFF-2026-07-27-EVENING.md`; representative: the
 `LanguageModelSession.GenerationError` family around `isContextOverflow` /
