@@ -541,23 +541,32 @@ harness-only, set by the Diagnostics battery buttons and cleared in their
 `defer`. So this gate is always live in ordinary use, and the whole #200-series
 ran through it.
 
-**System 2 — HOST-side approvals (Hermes YOLO mode).** Hermes has a
-session-scoped auto-approve (`enable_session_yolo`, "all commands
-auto-approved. Use with caution" — `cli.py`). **If that is the "auto mode" being
-turned off, expect trouble: Talaria handles NO approval event.** Its SSE
-taxonomy is `run.started` / `assistant.delta` / `tool.started` /
-`tool.completed` / `tool.progress` / `assistant.completed` / `run.completed` /
-`done` — there is no approval or input-required case anywhere in
-`SessionsHermesClient`. `InboxItemType.approval` exists with an "Approve"
-action, but the only producers in this repo are `DemoData` — whether the relay
-ever emits a real one is **unverified**.
+**System 2 — HOST-side approvals: a THREE-mode config key, not a binary.**
+*(Corrected 2026-08-02 from Owen's screenshot + a source check — this section
+first said "YOLO on/off", which is the session mechanism, not the model.)*
+`hermes_cli/web_server.py:933` declares **`approvals.mode`**, "Dangerous command
+approval mode", options **`["manual", "smart", "off"]`** — Owen's host currently
+reads **Off**. It is a schema'd config key: readable via `GET /api/config`,
+writable via `PUT /api/config`, on `:8642` under the key the app already holds.
+**So F7d means switching it to `manual` (or `smart`), not flipping a session
+flag** — and it can be set from the dashboard, or by hand, or eventually from
+Talaria (see **OPEN_ITEMS #224**, filed off this).
+
+**Expect trouble, because Talaria handles NO approval event.** Its SSE taxonomy
+is `run.started` / `assistant.delta` / `tool.started` / `tool.completed` /
+`tool.progress` / `assistant.completed` / `run.completed` / `done` — there is no
+approval or input-required case anywhere in `SessionsHermesClient`.
+`InboxItemType.approval` exists with an "Approve" action, but the only producers
+in this repo are `DemoData` — whether the relay ever emits a real one is
+**unverified**.
 
 | # | check | what to record |
 |---|---|---|
 | **F7a** | **On-device brain**, ask for a reminder/calendar create. **Tap Cancel, not Approve.** | The decline path. Does the model relay the decline honestly, or fabricate a completed action (#199's shape)? Does the chat stay usable, or enter #176's absorbing state? |
 | **F7b** | Same, but **edit a field in the card before approving** | The written record matches the EDITED values, not the staged ones. This is the card's headline feature and has never been checked on device |
 | **F7c** | Same, and **background the phone while the card is waiting** | The gate survives suspension — card still there on return, still answerable, tool not silently resolved |
-| **F7d** | **Turn Hermes YOLO/auto-approve OFF host-side**, then ask the connected tier for something that needs approval (a shell/file write) | ⚠️ **DISCOVERY, and the likely outcome is a STALL.** Record what the app shows: a hung run, a silent stop, an inbox item, or nothing at all. **#145 Part A now bounds it** — the turn should FAIL on a real timeout (20s interactive / 300s streaming idle) rather than hang forever. If it hangs past those, that is a #145 finding too. Whatever happens, note whether the host is left waiting on an approval nobody can answer |
+| **F7d** | Set the host's **`approvals.mode` to `manual`** (dashboard, or `PUT /api/config`) — it is on **`off`** today — then ask the connected tier for something that needs approval (a shell/file write). **Restore `off` after.** | ⚠️ **DISCOVERY, and the likely outcome is a STALL.** Record what the app shows: a hung run, a silent stop, an inbox item, or nothing at all. **#145 Part A now bounds it** — the turn should FAIL on a real timeout (20s interactive / 300s streaming idle) rather than hang forever. If it hangs past those, that is a #145 finding too. Whatever happens, note whether the host is left waiting on an approval nobody can answer |
+| **F7e** | *(optional, same sitting)* Repeat F7d with **`smart`** instead of `manual` | Whether "automatically assess" prompts at all for ordinary agent work. If Smart rarely asks, it may be the honest default for a phone client that cannot answer prompts — an input to **#224** |
 
 **Why F7d matters beyond the check:** if the connected tier can be put into a
 state Talaria cannot answer, that is a shipping-relevant gap in the same family

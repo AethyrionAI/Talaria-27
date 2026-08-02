@@ -12826,6 +12826,54 @@ its sibling has: a brain provider alongside `isRelayPaired`, and
 blocker: it spends the user's money against an explicit setting and sends
 microphone audio somewhere the UI says it is not going.
 
+## #224 — 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and it is a gateway config key
+
+**Filed 2026-08-02 from Owen's screenshot + direction ("Probably need to mirror the hermes
+side, just a thought").** Source-confirmed the same evening, so this is not filed on a
+screenshot alone.
+
+**What Hermes has.** `hermes_cli/web_server.py:933` declares the config key
+**`approvals.mode`**, `"Dangerous command approval mode"`, options
+**`["manual", "smart", "off"]`** — matching the screenshot's *Manual* ("ask before actions
+that require approval") / *Smart* ("automatically assess actions and ask when needed") /
+*Off* ("run without approval prompts"). It is a first-class **config key with a schema**,
+not a hidden flag: readable via `GET /api/config` + `/api/config/schema`, writable via
+`PUT /api/config`, all on `:8642` under the chat-plane key the app already holds.
+(My 2026-08-02 §F7 note called this "YOLO on/off" from `cli.py`'s
+`enable_session_yolo` — that is the session-scoped mechanism, **not the whole model**.
+Corrected here and in the device list.)
+
+**What we have.** One always-on **Manual** gate: `ToolConfirmationCenter` (#29) suspends
+every side-effecting on-device tool on an editable card. There is no user-facing mode at
+all — `autoAcceptForBattery` is harness-only. So the local brain can never be told "stop
+asking," and can never be told "use judgement."
+
+**Two distinct things this could mean, and they are separable — Owen has endorsed the
+direction, not a design:**
+1. **Mirror the MODEL for our own gate.** Talaria's confirm gate grows the same three
+   modes for on-device tools. *Manual* = today. *Off* = never prompt (needs a written
+   blast-radius rule: our tools write calendars, reminders, contacts — "dangerous" is a
+   different set than Hermes's shell commands). *Smart* is the hard one — it implies a
+   classifier, and **the #200-series is a long record of this model mis-assessing which
+   action a turn needs**, so "automatically assess" cannot be handed to the same model
+   that produced the grabs without a measured bar. Suggest Manual/Off first, Smart only
+   behind a battery.
+2. **Mirror the CONTROL of the host's mode.** Surface `approvals.mode` in Settings so
+   the phone can see and set what the host will do — the same read/write the dashboard
+   does. Cheap, no classifier, and it makes §F7d's "the host is waiting on an approval
+   nobody can answer" state *visible and fixable from the phone*.
+
+**Why (2) is likely the higher-value half.** §F7's source check found Talaria handles
+**no approval event at all** — no SSE case, no producer for `InboxItemType.approval`
+outside `DemoData`. So today, a host in *manual* mode plus a phone that cannot answer =
+a dead turn. Being able to READ the mode at least lets the app say *why*. Answering
+host-side approvals in-app is a third, bigger piece — file it only if §F7d shows the
+stall is real.
+
+**Ordering:** §F7d (device list) measures the actual failure first. Then (2) as a small
+lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
+direction — one more thing the gateway already carries.
+
 ## #223 — 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the gateway can carry
 
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
