@@ -6363,7 +6363,71 @@ Logged 2026-07-20.
 
 ---
 
-## 144. 🐛 Test-harness runs enroll as LIVE devices on the Mac relay — baseline/sim runs pollute the production DB with device rows + push registrations
+## 144. 🐛 Test-harness runs enroll as LIVE devices on the Mac relay — **PREVENTION BUILT 2026-08-02** (verified by row count, two runs); cleanup of the 99 existing rows owed
+
+> ## PREVENTION BUILT 2026-08-02 — and the verification is a ROW COUNT, not a suite
+>
+> **The premise was re-checked before any code, and it had grown.** 2026-07-23
+> recorded 15 pollution rows against 1 real device. **2026-08-02: 92
+> `iPhone 17 Pro Max` + 5 `CC-M4a-Baseline` against 2 real `iPhone` — 99 total —
+> and FIVE were created that same day by this project's own suite and gate runs**
+> (00:11, 05:49, 06:03, 06:15, 06:58). Not a stale entry: reproduced live, by us.
+>
+> **Mechanism confirmed in source:** `AppSessionStore.swift:88-99` registers
+> whenever `!state.deviceRegistered`, and test launches use a fresh
+> `UITEST_DEFAULTS_SUITE`, so every run looks like a brand-new device — matching
+> the original note's "each with a FRESH `installation_id`".
+>
+> ### The fix that would NOT have worked, recorded because it read perfectly
+>
+> The first version routed the guard through `usesMockPairingService` →
+> `allowsFallback`. **`ResilientSessionBootstrapService` tries `primary` FIRST and
+> falls back only on a thrown error.** The relay is UP during a test run, so the
+> live call **succeeds**, `allowsFallback` never fires, and the row is created
+> regardless. **A guard consulted only on a path the bug does not take** — the same
+> shape as #145 Part D's cooperative-cancellation trap found the same day. The
+> primary itself must be the mock.
+>
+> ### Detection, not "remember to set the env var"
+>
+> `UITEST_PAIRING_MODE` already existed and **was** the mechanism — it just relied
+> on every test author remembering. **A guard that depends on being remembered is
+> precisely what failed.** `TestRunGuard` now detects the run
+> (`XCTestConfigurationFilePath` for the in-process host, the `UITEST_` prefix for
+> the separate XCUITest app process), so the safe path is the default.
+>
+> **Gated on `allowsEnvironmentOverrides`** — otherwise an environment variable
+> would silently disable real pairing on a SHIPPED build. Pinned.
+>
+> ### A hypothesis of mine that measurement KILLED
+>
+> I identified `AppTemplateUITestsLaunchTests.testLaunch` — the auto-generated
+> bare `XCUIApplication()` that runs on every gate — as "THE polluter", and wrote
+> that into the source. **A control run carrying `TestRunGuard` but NOT the
+> `testLaunch` marker added ZERO rows.** If that launch were enrolling, it would
+> have added one. **The likelier culprit is the unit-test HOST process**, caught by
+> the guard's other branch. The marker is kept as belt (a bare launch is a standing
+> hazard) but its comment now states it is **not** the proven cause.
+>
+> ### Evidence
+>
+> | run | rows before → after |
+> |---|---|
+> | full suite + XCUITest (guard only) | **99 → 99** |
+> | full gate incl. Release (guard + marker) | **99 → 99** |
+>
+> **Every other check run this session measured the CODE. This one measured the
+> DEFECT** — and it is the only one that could have shown the fix working while
+> the story about it was wrong. GATE: PASS, 1477 + 8, Release green.
+>
+> ### STILL OWED — cleanup of the 99 existing rows
+>
+> Not done, and **deliberately not done unprompted**: it mutates Owen's relay DB.
+> The original note says **deactivate rather than delete if audit history matters**
+> — that judgement is his. Rows are separable by the 2026-07-23 discriminator
+> (real devices report the redacted generic `iPhone`; sims report their configured
+> name), which still holds: 97 non-`iPhone` rows vs 2 real.
+> **Check OJAMD's relay too** — this entry only ever measured the Mac's.
 
 **2026-07-23 — DISCRIMINATOR FOUND, no repro needed.** Real devices report
 `UIDevice.current.name` REDACTED as the generic "iPhone"; simulators report their actual
