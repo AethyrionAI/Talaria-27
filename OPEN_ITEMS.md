@@ -1025,7 +1025,9 @@ purely cosmetic and non-interactive — tapping them did nothing. Removed from
 
 Fixed 2026-06-25.
 
-## 27. 📝 Developer screen flags — keep Verbose Logging, drop Mock Responses
+## 27. ✅ Developer screen flags — keep Verbose Logging, drop Mock Responses
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Resolved 2026-06-27 — Verbose Logging shipped and wired; Mock Responses dropped.
 
 From the Claude Design DEVELOPER (12) mockup `// FLAGS` panel. Decision (Owen, 2026-06-26):
 
@@ -1608,7 +1610,9 @@ Discovered 07-02, bit us immediately. After delete+reinstall the app came back a
 
 ---
 
-## 47. ⏸️ Configure OpenAI Realtime talk on the Hermes host — key/config deployed + confirmed minting on OJAMD 2026-07-08, then PARKED behind the unrelated #82 audio-capture wedge
+## 47. ✅ Configure OpenAI Realtime talk on the Hermes host — key/config deployed + confirmed minting on OJAMD 2026-07-08, then PARKED behind the unrelated #82 audio-capture wedge
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Core ask DONE and in daily use — #82's wedge cleared (PR #106, device-confirmed 2026-07-16); realtime live on OJAMD since 07-20. **Residual UNFILED and needs Owen: the billing-cap decision.** CarPlay E2E lives at #45/#74.
 
 > **Audit 2026-07-13:** Re-verified independently. The connector fix code described in the 2026-07-05 note (tolerant state/secrets deserialization, `realtime_talk.enabled` flat/nested/dotted resolution, API-key fallback secrets→env→`.env`, stale-error auto-clear) is confirmed present in `connector/src/hermes_mobile_connector/state.py` (~L150-167) and `client.py` (~L517-593) on current main. Item #82's OJAMD relay-log evidence (2026-07-08, 00:55-01:04 UTC) shows `talk/readiness` 200 → `POST /v1/talk/session` 200 → a minted realtime session (`sess_…`, `last_error: None`) — per `client.py:_rpc_talk_session_create`, a mint is only reachable when both `realtime_talk_enabled` and a resolved API key are true, so this is direct proof the configure-ask was deployed and working on OJAMD. Item #85 (also OJAMD-log-sourced, 2026-07-08: "every voice session logged mcp_list_tools.failed") independently corroborates that Realtime sessions were minting in volume around that date. Voice then failed end-to-end for the unrelated device-level audio-capture-stack wedge (item #82), and Owen explicitly **PARKED voice 2026-07-09** ("voice is optional; CarPlay voice inherits this when resumed"), which also shelves this item's two remaining sub-tasks (billing cap: moot while parked; CarPlay E2E: independently gated on Apple's discretionary entitlement per item #45). Correction to the record: this item's own citation of connector fixes on branch `claude/issue-7-hermes-config-08bsbm` traces to commit `8ca7741` ("PR #71" in the old pre-fork `ChronoRixun/Talaria` tracker, not this repo's current PR numbering) — that exact SHA is **not** an ancestor of current `origin/main` (main was re-rooted at orphan commit `9964f02` on 2026-07-10, which already carries the fix forward as part of a full-repo snapshot). The fix's presence on main is established by working-tree file content, not commit ancestry.
 
@@ -1660,7 +1664,9 @@ Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully rep
 
 **Acceptance:** Appearance shows no `// Accent` row while Terminal is selected; selecting Terminal always renders Phosphor Green regardless of the stored slot; switching away restores the prior accent; `DesignThemeTests` still green (Deep Field × cyan pixel-identity untouched). Small follow-up to #49; lives on the same theming branch.
 
-## 51. 🔧 CLI `build-for-testing` can't resolve TalariaTests' test host — blocks CLI test-compilation validation
+## 51. ✅ CLI `build-for-testing` can't resolve TalariaTests' test host — blocks CLI test-compilation validation
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Commit `450ed1e`; `project.yml` carries explicit TEST_HOST/BUNDLE_LOADER; build-for-testing + test-without-building green 2026-08-01.
 
 > **Audit 2026-07-13:** Downgraded from a first-pass 'RESOLVED' flip to stale-wording after adversarial re-check. `project.yml:305-311` on main DOES now carry an explicit `TEST_HOST`/`BUNDLE_LOADER` override with a comment naming the exact PRODUCT_NAME-has-a-space bug this item diagnosed — but no one has re-run `xcodebuild build-for-testing` to confirm the 'could not find test host' error is actually gone (no PR/issue/commit/dated note records it), and sibling #52 scheme-drift is still open. Stays 🔧, not ✅. The 'Next:' paragraph is stale — `project.yml` no longer relies on xcodegen auto-derivation; it has an explicit override to verify against a real Mac `build-for-testing` run.
 
@@ -1670,7 +1676,9 @@ Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully rep
 
 **Next:** inspect the generated `TalariaTests` build settings (actual TEST_HOST/BUNDLE_LOADER values) and whether the app target is built as a dependency of the test action; compare against a known-good xcodegen unit-test setup. Until fixed, PR reviews use the app-build + diff bar and Owen runs the suite in Xcode.
 
-## 52. 🔧 Committed `Talaria.xcscheme` is stale vs `xcodegen generate`
+## 52. ✅ Committed `Talaria.xcscheme` is stale vs `xcodegen generate`
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Commit `3090c00` committed xcodegen's canonical scheme; later regens commit it as practice (`8902d2e`).
 
 **Found 2026-07-04** (Mac). On clean `main`, `xcodegen generate` rewrites `Talaria.xcodeproj/xcshareddata/xcschemes/Talaria.xcscheme` (the pbxproj itself was already current), so the committed scheme has drifted from `project.yml`. Minor hygiene; did not resolve #51. **Fix:** regenerate and commit the scheme (or fold into the standing post-checkout xcodegen step), file-scoped.
 
@@ -1876,6 +1884,11 @@ Logged 2026-07-06.
 ---
 
 ## 58. 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 (cloud, NOT compiled); controls DEAD on device 2026-07-25
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F6**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 > **2026-07-27 — `.main` EXECUTION BUILT on `claude/opus-t27-58-controls-eopguj`. Cloud
 > session, Linux container: NOT compiled on 27A5228h (no Xcode of any build), suite NOT
@@ -2271,6 +2284,11 @@ remains wait-for-upstream via `hermes update`; re-check each update.
 
 ## 61. 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device re-verify owed
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F2**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-A-178a-172-61-137.md`** (bundled with #178a, #172, #137). Do not re-spec; check merge state before sending.
 
 **2026-07-24 — THE COVERAGE GAP IS FIXED on `claude/t27-bundle-a-four-fixes`; the standalone device re-verify is still owed.**
@@ -2390,7 +2408,9 @@ collapses to a generated one-liner on AI hardware, last raw line otherwise.
   skipped when `utf8.count <= budget` (every token ≥ 1 byte); fallback card computed
   lazily off the happy path.
 
-## 62. 🔧 Wave 4 — stale test expectations fixed (GitHub #13 → PR #20)
+## 62. ✅ Wave 4 — stale test expectations fixed (GitHub #13 → PR #20)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** PR #20 merged. Suite has moved 163 → 1463 tests since.
 
 Test-only surgical pass, per the issue: `permissionTypeHasDistinctColorsAndIcons`
 now asserts icon uniqueness against `PermissionType.allCases.count` (the enum
@@ -2545,7 +2565,9 @@ routing doesn't need it (same as the #7 controls); external openers would.
 Fast-follow (own issue): View Annotations on `MessageBubble`/`ChatScreen` +
 entity ids on the finished-notification.
 
-## 67. 🔧 Wave 4.5 — LocalChatBackend: on-device chat brain (GitHub #26)
+## 67. ✅ Wave 4.5 — LocalChatBackend: on-device chat brain (GitHub #26)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** PR #32 merged — the brain it built IS the production brain, exercised by months of device batteries.
 
 > **Audit 2026-07-13:** PR #32 merged (PR_INDEX; LocalChatBackend.swift + LocalChatBackendTests.swift present on main), and the router it was gated behind (#27) also merged as PR #33 — so the 'compile-check against the installed 27-beta SDK' clause is stale and the 'after #27 lands' gate is already satisfied. Remaining work is only the device checklist (airplane-mode local answer, kill/relaunch context continuity, Apple Intelligence off state, no SessionsHermesClient regression); keep 🔧.
 
@@ -2580,7 +2602,9 @@ configured → streamed answer in MessageBubble + read-aloud; kill/relaunch →
 conversation continues with context; Apple Intelligence off → honest
 unavailable state; no SessionsHermesClient regression.
 
-## 68. 🔧 Wave 4.5 — ChatBackendRouter: two brains, one seam (GitHub #27)
+## 68. ✅ Wave 4.5 — ChatBackendRouter: two brains, one seam (GitHub #27)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** PR #33 merged; routing truth is covered by the #190–#192 arc.
 
 > **Audit 2026-07-13:** PR #33 (GitHub #27) confirmed merged to main; ChatBackendRouter.swift + ChatBackendRouterTests.swift present at HEAD cca1345. Per MAIN_LOG (373f65d backlog listing, f35edb9 verification results) item #68 was NOT among the #69/#70/#92 items verified on 2026-07-11, so 🔧 and the device checklist / Questions for Owen correctly stand open. Correction: 'Needs Mac: compile + device' is stale on the compile half — the merge already required a successful build; only the device-verification pass and the two open product decisions remain owed.
 
@@ -2780,7 +2804,9 @@ the offer; accepting continues with condensed handover; forced rate limit
 degrades on-device with notice, no crash, no fabrication; add the
 entitlement to project.yml (surgical commit) only once Apple grants it.
 
-## 73. 🔧 Wave 5 — native fallback voice mode: SpeechAnalyzer → active backend → AVSpeechSynthesizer (GitHub #18)
+## 73. ✅ Wave 5 — native fallback voice mode: SpeechAnalyzer → active backend → AVSpeechSynthesizer (GitHub #18)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** PR #39 merged; echo/barge-in residuals live at #130 and #138.
 
 > **Audit 2026-07-13:** PR #39 (`claude/w5-18-native-voice`→main, merged) and GitHub #18 (closed) confirm this landed; `Talaria/Services/Live/NativeVoicePipelineService.swift`, `Talaria/Services/Support/VoiceEngineRouter.swift`, and `TalariaTests/NativeVoicePipelineTests.swift` are present on main. The 'BUILT IN CLOUD, not compiled or device-verified' and 'Needs Mac: xcodegen generate...' wording is stale (merge already implies xcodegen+build+test); the real remaining work is the on-device checklist (mic→transcription→chat brain→TTS loop, echo cancellation, relay-down/airplane-mode path) — keep emoji 🔧 as merged-unverified.
 
@@ -3192,6 +3218,11 @@ Console names the skipped one.
 
 ## 81. 🔧 Lock-screen reply to Hermes — UNTextInputNotificationAction (GitHub #47)
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F4**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 > **MERGED (branch `claude/t27-47-lockscreen-reply` is an ancestor of main — verified 2026-07-16).** Device checklist owed (long-press push → Reply → headless post → next push carries Reply). Note for the checklist: with #114 profiles, verify the headless reply posts to the push's SESSION birth profile.
 
 **Update 2026-07-08 (cloud session, branch `claude/t27-47-lockscreen-reply`):**
@@ -3245,6 +3276,11 @@ ordering, with the minor side effect that the tap path now awaits `handleNotific
 ---
 
 ## 82. 🔧 Voice capture wedge — root cause was OUR read-aloud session hijack, NOT the OS seed — fix merged (PR #106) + device CONFIRMED 2026-07-16; residuals spun out to #118/#119
+
+> **⚠️ ENGINE-AMBIGUOUS — flagged 2026-08-01 by the #220 audit.** This item's device
+> verdict was recorded while NOTHING logged which voice engine was active, and the engine
+> varied run-to-run with OJAMD's health. Specifically: the fix spans `LiveSpeechService` + `LiveVoiceSessionService` + `NativeVoicePipelineService`; whichever engine ran on 2026-07-16, **the other engine's half is unverified**.
+> **See #220 before trusting or re-running this.**
 
 **2026-07-23 — the wedge excuse for the Talk control is RETIRED.** The "Talk to Hermes" Control
 Center button had been excused under this item since 2026-07-11. It is now attributed to two
@@ -3489,7 +3525,9 @@ Logged 2026-07-09.
 
 ---
 
-## 86. 🔧 Relay QueuePool exhaustion — session-across-await audit + pool hygiene — DEPLOYED on OJAMD (verified 2026-07-25); pool ceiling untouched
+## 86. ✅ Relay QueuePool exhaustion — session-across-await audit + pool hygiene — DEPLOYED on OJAMD (verified 2026-07-25); pool ceiling untouched
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** DEPLOYED on OJAMD, verified 2026-07-25. Pool ceiling deliberately untouched.
 
 > **CORRECTION 2026-07-25 (OJAMD server pass).** "OJAMD deploy owed" was stale.
 > `pool_pre_ping` and `pool_recycle` are deployed and live, verified the same way
@@ -3805,7 +3843,9 @@ Logged 2026-07-10.
 
 Logged 2026-07-11.
 
-## 95. 👀 WATCH — credential-staleness fix set, verify across future reboots
+## 95. ✅ WATCH — credential-staleness fix set, verify across future reboots
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** WATCH silent across three weeks and multiple reboots — closed by time, per the audit's recommendation.
 
 The 2026-07-10/11 "random unpair" saga resolved into three fixed defects + one edge (#94): BGTask handler isolation trap (PR #67), keychain `WhenUnlocked` accessibility (PR #68), voice restart race/lockup (PR #68), pre-first-unlock zombie-process staleness (PR #69 — reload on `protectedDataDidBecomeAvailable` + `didBecomeActive`, gates on `isProtectedDataAvailable`). Verified 2026-07-11: reboot → unlock → open app WITHOUT force-quit → pairing + API key + relay URL all present. Watch the next several organic reboots (and the next Apple seed) for any recurrence; if credentials ever vanish again, pull the launch story via the protected-data log lines before touching anything.
 
@@ -3981,7 +4021,9 @@ Observed on device 2026-07-11: health uploads constantly failing, ~2,000 pending
 
 Logged 2026-07-11.
 
-## 104. 🔧 Sensor outbox persistence churn — full rewrite on every tick, main actor, unbounded backlog
+## 104. ✅ Sensor outbox persistence churn — full rewrite on every tick, main actor, unbounded backlog
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** PR #85 merged; the DRAINING follow-up it waited on is #117's PR #103, merged.
 
 > **MERGED 2026-07-13 as PR #85 (`93e0222`)** + xcodegen registration `e903cb2` — discovered 2026-07-16 via the same dead-dispatch incident as #110. **Follow-up in flight (2026-07-16):** Fable, re-reviewing against this spec, found a real bug in the DRAINING path and is building the fix now — PR expected; loop it on arrival. Device verify owed for both.
 
@@ -4162,7 +4204,9 @@ cross-references (spec, runbook, env template, scripts, CLAUDE.md) were renumber
 
 Logged 2026-07-12.
 
-## 108. 🔧 iPad support — universal foundation + native split view (Lane J)
+## 108. ✅ iPad support — universal foundation + native split view (Lane J)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Lane J PRs 1+2 merged. The iPad pass's failure was PAIRING, not Lane J; multi-window lives at #109.
 
 > **iPad pass 2026-07-13 (eve): NOT a Lane J defect.** The M3 iPad ran the local brain (on-device AI, no network) but could NOT switch to Hermes. Root cause: pairing configures the RELAY plane, but the Hermes switch is gated on `isHermesConfigured` — the Sessions-API key, a separate plane the pairing QR doesn't carry — so the picker offered Hermes yet the switch silently stayed on-device. Fix: enter the API key on the iPad (Settings → Uplink), plus a UX nudge on `claude/t27-hermes-switch-nudge` (ef5dbd9) that surfaces 'paired — add your key in Uplink' instead of a silent lock. Lane J UI matrix (resize / keyboard / Stage Manager / column transparency) still owed.
 
@@ -4203,6 +4247,11 @@ Logged 2026-07-12.
 
 ## 110. ✅ Read-aloud retracts the collapsed loop — DEVICE-VERIFIED 2026-07-18
 
+> **⚠️ ENGINE-AMBIGUOUS — flagged 2026-08-01 by the #220 audit.** This item's device
+> verdict was recorded while NOTHING logged which voice engine was active, and the engine
+> varied run-to-run with OJAMD's health. Specifically: the fix is in `SpeechOutputService`, which serves BOTH read-aloud (engine-independent) and native voice sessions. Safe if exercised via read-aloud, engine-dependent if via a voice session — **the record does not say which**.
+> **See #220 before trusting or re-running this.**
+
 > **DEVICE-VERIFIED 2026-07-18 (Owen's device, via the #134 forced-trip harness):** with read-aloud ON, the trip spoke ONLY the single collapsed on-screen line — the repeated loop tail was NOT droned. #110 retraction (`shouldRetractSpeech` / `finishStream(finishedContent:)`, PR #86) confirmed on device.
 
 > **MERGED 2026-07-13 as PR #86 (`a62dc8c`)** — discovered 2026-07-16 when a fresh dispatch found the work shipped (Fable audit branch `claude/fable-t27-110-readaloud-wbsvmy` @ 3c15f1d verifies every acceptance line against the tree; implementation seam: `shouldRetractSpeech` static + `finishStream(finishedContent:)`, five decision tests + suite green via PR #94's Mac run 618/51). Remaining: organic-only device verify (deterministic repro defeated by base-model guardrails per #102). **Ledger lesson: this entry sat 🔧 with no merge note for 3 days and caused a dead dispatch** — merge notes are not optional.
@@ -4217,7 +4266,9 @@ Only reachable when a breaker trip and auto read-aloud coincide, so low urgency 
 
 Logged 2026-07-13 (Mac session, Lane H merge train).
 
-## 111. 🐛 PCC availability check churns doomed ModelManager sessions on every UI tick (#30 follow-up)
+## 111. ✅ PCC availability check churns doomed ModelManager sessions on every UI tick (#30 follow-up)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Closed by the #72 stopgap (PR #104, 2026-07-16) — `pccGrantConfirmed` short-circuits all four PCC surfaces.
 
 > **MERGED 2026-07-16 as PR #104 (`bf36d29`).** The `pccGrantConfirmed` master gate short-circuits all four PCC surfaces before `PrivateCloudComputeLanguageModel` is ever constructed — no construction, no XPC churn. Branch-base suite 582/49 green; post-merge full-suite validation on main run same day. → ✅ on the next device build (verify the ModelManager flood is gone from the console). The memoize fix stays deferred until the PCC entitlement lands — when it does, flip the gate and re-verify.
 
@@ -4240,6 +4291,11 @@ When the PCC entitlement is eventually granted (SBP → capability request pipel
 Logged 2026-07-13 (device pass finding).
 
 ## 112. ✨ Midnight Marquee collection — 7 themes / 8 palettes, first adaptive theme, +13 app icons (Lane L)
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 Claude-Design drop landed 2026-07-12: the **Midnight Marquee** collection becomes the gallery's fifth section. Handoffs committed to `design/themes/` (`midnight-marquee-final-lineup.html` is authoritative; both `*-options.html` files are provenance/rejected alternatives). Lane spec: `dispatch/FABLE-LANE-L-midnight-marquee.md`.
 
@@ -4601,6 +4657,11 @@ or rides the next Settings lane. Logged 2026-07-16.
 
 ## 117. 🔧 Health-drain give-up paths hammered the connector — no-backoff loop (PR #85 follow-up) — MERGED PR #103; backoff DECAYS under sustained outage (2026-07-25); cross-cycle backoff BUILT 2026-07-27 (Mac run + >25-min device verify owed)
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F5**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 > **UPDATE 2026-07-27 — cross-cycle backoff BUILT** (spec
 > `dispatch/OPUS-T27-117-cross-cycle-backoff.md`, branch
 > `claude/opus-t27-117-cross-cycle-backoff-r6lo00`). Cloud-written, **NOT compiled** —
@@ -4780,6 +4841,11 @@ Logged 2026-07-16.
 
 ## 121. ✨ Reasoning on resume — restore thinking panes from stored messages — MERGED (PR #120) 2026-07-19
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 The #25 wire probe (2026-07-16) found `GET /api/sessions/{id}/messages` carries `reasoning` +
 `reasoning_content` per row — fetched on every resume, currently discarded. Live turns restore
 reasoning via `run.completed` (#60 / PRs #94+#95); resumed sessions render permanently empty
@@ -4803,6 +4869,11 @@ Logged 2026-07-17.
 
 ## 122. ✨ Session cost & usage surface — MERGED (PR #121) 2026-07-19
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 The #25 probe proved session-level `input_tokens` / `output_tokens` / `cache_*` /
 `reasoning_tokens` / `estimated_cost_usd` / `actual_cost_usd` / `api_call_count` are served on
 the sessions list + detail endpoints — cumulative billing figures, banned as a context meter,
@@ -4825,6 +4896,11 @@ Logged 2026-07-17.
 ---
 
 ## 123. ✨ Share extension — send anything into a Hermes session (free tier)
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F2**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 Inbound share sheet: URL/image/PDF/text from any app → app-group envelope → drained into the
 composer as `PendingAttachment`s on next activation. New `TalariaShare` target modeled on
@@ -4871,6 +4947,11 @@ Logged 2026-07-17.
 ---
 
 ## 124. ✨ Face ID app lock (free tier)
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F2**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 `.deviceOwnerAuthentication` (passcode fallback, never biometry-only), scene-root overlay on
 launch + return-to-foreground with grace-period setting, obscured app-switcher snapshot, Siri
@@ -5126,6 +5207,15 @@ Logged 2026-07-17.
 
 ## 128. 🔧 Voice capture crash — double installTap via actor reentrancy — FIXED (2026-07-17); documented repro path unreachable (2026-07-25)
 
+> **⚠️ ENGINE-AMBIGUOUS — flagged 2026-08-01 by the #220 audit.** This item's device
+> verdict was recorded while NOTHING logged which voice engine was active, and the engine
+> varied run-to-run with OJAMD's health. Specifically: **the 'repro path unreachable 2026-07-25' likely has a third explanation: the native engine was not in the path.** The 07-17 crash was native by construction; a paired device with healthy realtime never runs `NativeVoicePipelineService`'s tap code. Cheap to settle with the engine pinned.
+> **See #220 before trusting or re-running this.**
+
+> **Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
+> work is NOT a device check — see `dispatch/DEVICE-PASS-RUNNING-LIST.md` §G for what it
+> actually needs. Do not carry it into a device sitting.
+
 > **2026-07-25.** The documented reproduction path for this crash has been
 > structurally impossible since April. Either the fix is dead defensive code, or
 > the original reproduction used a route that was never recorded. Do not close on
@@ -5159,6 +5249,16 @@ Logged 2026-07-17.
 ---
 
 ## 129. 🔧 Voice preview mid-session — MERGED (PR #127, merge `175261b`, 2026-07-20); device pass owed. Known accepted behavior: native-engine sessions share the assistant TTS instance, so mid-reply preview drops that reply's un-spoken audio tail (transcript intact) and the next chunk cuts the preview short; realtime engine (primary case) previews play over the session. Third dedicated preview instance (~4 lines) CANCELLED — Owen accepted the behaviour 2026-07-23.
+
+> **⚠️ ENGINE-AMBIGUOUS — flagged 2026-08-01 by the #220 audit.** This item's device
+> verdict was recorded while NOTHING logged which voice engine was active, and the engine
+> varied run-to-run with OJAMD's health. Specifically: its 'known accepted behavior — **native-engine** sessions share the assistant TTS instance' is an explicit native claim **never verified on the native engine**.
+> **See #220 before trusting or re-running this.**
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F6**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 > **NAMING COLLISION — read carefully (2026-07-25).** GitHub **PR #129** is the
 > merge of the #147 `@MainActor` delegate fix (`20b46fc`) and has nothing to do
@@ -5656,6 +5756,11 @@ Logged 2026-07-19.
 
 ## 137. 🔧 Sensor opt-in redesign — MERGED (PR #125, `db52a22`, 2026-07-20); prior device check was UNRUNNABLE, guarantee still untested (2026-07-25)
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F3**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 > **DEVICE PASS 2026-07-25 — UNRUNNABLE, not passed.** The check that scored this
 > used an input on which no code path could have changed the health/location
 > posture, so an unchanged posture was recorded as evidence that the guarantee
@@ -5920,7 +6025,9 @@ deserves a full sweep — other rows likely stale too.
 
 ---
 
-## 141. 👀 iOS 27 beta 4 seed — released 2026-07-20; whoGoesThere updating tonight (watch list)
+## 141. ✅ iOS 27 beta 4 seed — released 2026-07-20; whoGoesThere updating tonight (watch list)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Transition COMPLETE 2026-07-20. Beta 4 is now the standing toolchain; the watch served its purpose.
 
 **Environmental event, logged for attribution discipline.** Owen updates the device tonight;
 remaining launch-pass sweep sessions (C, S, D, J circle-backs) will run on b4, so the OS delta
@@ -6312,7 +6419,14 @@ the simulator.
 
 Logged 2026-07-20.
 
-## 146. 🐛 Diagnostics push row stuck on TOKEN HELD · AWAITING RELAY — CONFIRMED display desync 2026-07-20 (push delivered while row stuck); fix = kill the dual bookkeeping
+## 146. ✅ Diagnostics push row stuck on TOKEN HELD · AWAITING RELAY — CONFIRMED display desync 2026-07-20 (push delivered while row stuck); fix = kill the dual bookkeeping
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Bundle B Part A fixed on merged PR #144 — `pushTokenRegistered` is derived. Device check queued as device-list §F1.
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`** (bundled with #174, #175, #154 — PART A, fix shape known). Do not re-spec; check merge state before sending.
 
@@ -6383,6 +6497,11 @@ same Console session), #143/#144 (same notification plane), #145 (same host-flux
 Logged 2026-07-20.
 
 ## 147. 🐛 Tapping an inbox-alert notification CRASHES the app — REOPENED 2026-07-25; the 2026-07-21 fix has been inert since it merged
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 > **FIX ON BRANCH 2026-07-27** (`claude/opus-t27-notifications-e2e-upxqau`, with #189). The
 > `nonisolated` on the async `didReceive` overload is removed, so it actually inherits the
@@ -6791,6 +6910,10 @@ Logged 2026-07-20.
 
 ## 151. 🔧 Settings → Hermes Host: "Test Connection" gives NO pass/fail feedback
 
+> **Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
+> work is NOT a device check — see `dispatch/DEVICE-PASS-RUNNING-LIST.md` §G for what it
+> actually needs. Do not carry it into a device sitting.
+
 **Spec written 2026-07-24: `dispatch/OPUS-T27-SETTINGS-151-152-153.md`** — PHASE 0 CONFIRM IS MANDATORY (all three carry source-confirm-owed; Bundle B had 2 of 4 premises wrong). #153 is gated: if hosts are a single record it is a data-model lane and gets split out. Do not re-spec.
 
 **2026-07-24 — DONE on `claude/t27-settings-host-surface`. Premise CONFIRMED, and the timing assumption in this item was wrong in the dangerous direction.** `UplinkSettingsScreen.testConnection()` did probe — `hostStore.refresh()` (relay plane) plus `chatStore.refreshDirectHealth()` (chat plane) — and read neither result. Precise correction to "no visible result": the link panel at the TOP of the screen does recompute from those probes, but the button is at the bottom, there is no acknowledgement, no latency, no reason, and `hostStore.lastErrorMessage` is never rendered on this screen at all.
@@ -6812,6 +6935,10 @@ Logged 2026-07-20.
 ---
 
 ## 152. 🎨 Settings host disconnect/revoke is buried under "Pair Device" — rename the pairing surface
+
+> **Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
+> work is NOT a device check — see `dispatch/DEVICE-PASS-RUNNING-LIST.md` §G for what it
+> actually needs. Do not carry it into a device sitting.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-SETTINGS-151-152-153.md`** — PHASE 0 CONFIRM IS MANDATORY (all three carry source-confirm-owed; Bundle B had 2 of 4 premises wrong). #153 is gated: if hosts are a single record it is a data-model lane and gets split out. Do not re-spec.
 
@@ -6848,6 +6975,10 @@ Logged 2026-07-20.
 ---
 
 ## 153. 🔧 Settings → Server: multi-host management — delete profile (distinct from revoke), active-host selection, list semantics
+
+> **Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
+> work is NOT a device check — see `dispatch/DEVICE-PASS-RUNNING-LIST.md` §G for what it
+> actually needs. Do not carry it into a device sitting.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-SETTINGS-151-152-153.md`** — PHASE 0 CONFIRM IS MANDATORY (all three carry source-confirm-owed; Bundle B had 2 of 4 premises wrong). #153 is gated: if hosts are a single record it is a data-model lane and gets split out. Do not re-spec.
 
@@ -6888,7 +7019,9 @@ Source-confirm owed (next Mac shell): how are hosts stored today — single host
 
 Logged 2026-07-20.
 
-## 154. 🧹 Dead `#available(iOS …)` guards after the deployment-floor bump to 27.0
+## 154. ✅ Dead `#available(iOS …)` guards after the deployment-floor bump to 27.0
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Bundle B Part D done (PR #144). Verified in tree: ZERO live non-27 `#available` guards remain.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`** (bundled with #146, #174, #175 — PART D, CONFIRM-FIRST, and note the masked-test trap). Do not re-spec; check merge state before sending.
 
@@ -7376,7 +7509,9 @@ Process note: this lane was landed end-to-end without Desktop Commander (mid-ses
 
 Logged 2026-07-22.
 
-## 168. 🐛 Skills picker "EDIT AS TEXT" is a one-way door + the picker never recovers after a cold-offline launch (device-found 2026-07-22)
+## 168. ✅ Skills picker "EDIT AS TEXT" is a one-way door + the picker never recovers after a cold-offline launch (device-found 2026-07-22)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Device checks 2026-07-23 — ALL THREE PASS.
 
 **Device re-checks 2026-07-23: ALL THREE PASS** (whoGoesThere, build off `324689b`).
 1. **PASS — and this closes #171's stranded assertion.** EDIT LIST AS TEXT -> typed value ->
@@ -7429,7 +7564,9 @@ Logged 2026-07-22.
 
 **Device re-checks owed:** (1) tap EDIT LIST AS TEXT → type an unknown value → USE PICKER → confirm it is pinned at the top as a `(custom)` row **(this is #171's owed #163 assertion — re-run it here)**; (2) with no host list, confirm no USE PICKER appears; (3) airplane-mode open the sheet, restore connectivity, tap RETRY, confirm the field becomes a picker without dismissing.
 
-## 169. 🎨 Insights EST COST caveat reads as scoping the whole totals card (device-found 2026-07-22)
+## 169. ✅ Insights EST COST caveat reads as scoping the whole totals card (device-found 2026-07-22)
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Device check 2026-07-23 — PASS.
 
 **Device check 2026-07-23: PASS.** EST COST renders as its own card, clearly separate from the
 totals card, and the caveat now reads as scoping cost alone — token and session totals no longer
@@ -7463,6 +7600,10 @@ Belt-and-braces on top of the structural fix: the caveat string moved into `Insi
 **NOT device-verified.** Owed on device: confirm the two cards read as two things at a glance, and that the caveat wraps acceptably at the trailing edge on a phone (it is a MonoLabel at size 8 with `.multilineTextAlignment(.trailing)` and no line limit, so it wraps rather than truncating).
 
 ## 170. ⚠️ Task detail presents `model_snapshot` as if it were the job's model — and the phone cannot pin a model at all (device-found 2026-07-22)
+
+> **Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
+> work is NOT a device check — see `dispatch/DEVICE-PASS-RUNNING-LIST.md` §G for what it
+> actually needs. Do not carry it into a device sitting.
 
 **Device check 2026-07-23: PARTIAL — the `.unknown` branch is verified; the branch this item was
 FILED about is not.**
@@ -7594,7 +7735,9 @@ Two process notes worth keeping: (1) verifying host-side rather than trusting th
 
 Logged 2026-07-22.
 
-## 172. 🐛 The DELIVER picker has #168a's one-way door too — found while fixing #168, deliberately NOT fixed there
+## 172. ✅ The DELIVER picker has #168a's one-way door too — found while fixing #168, deliberately NOT fixed there
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Fixed on merged Bundle A; third-instance audit clean — `useFreeText` has zero live hits.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-A-178a-172-61-137.md`** (bundled with #178a, #61, #137). Do not re-spec; check merge state before sending.
 
@@ -7650,7 +7793,9 @@ it cannot verify.
 
 Logged 2026-07-23.
 
-## 174. 🔧 Attachment payloads inline at full size — 233-472 KB of base64 in one JSON body, no downscaling
+## 174. ✅ Attachment payloads inline at full size — 233-472 KB of base64 in one JSON body, no downscaling
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Bundle B Part B fixed — 1.77× payload reduction, `AttachmentDownscaleTests`. Chunking declared out of scope by the item itself.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`** (bundled with #146, #175, #154 — PART B, payload size only; chunking and progress affordance explicitly OUT). Do not re-spec; check merge state before sending.
 
@@ -7681,7 +7826,9 @@ vision models gain nothing from full-resolution phone camera output.
 
 Logged 2026-07-23.
 
-## 175. 🧹 Idle chattiness — `/v1/models` polled 6x and the session list 3x inside ~1 minute of idle
+## 175. ✅ Idle chattiness — `/v1/models` polled 6x and the session list 3x inside ~1 minute of idle
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Bundle B Part C fixed (PR #144) — `ChatHealthPollPolicy` relaxes 10s→30s.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-B-146-174-175-154.md`** (bundled with #146, #174, #154 — PART C, CONFIRM-FIRST: mechanism is not yet established). Do not re-spec; check merge state before sending.
 
@@ -7709,7 +7856,9 @@ observer firing per view-appearance. Not yet investigated — logged from wire e
 Logged 2026-07-23.
 
 
-## 176. 🐛 On-device model fires `readImageText` on a text-only prompt with no image present
+## 176. ✅ On-device model fires `readImageText` on a text-only prompt with no image present
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Became the entire #194/#196/#200 measurement program. Production is armed-routed (#215: 10/10 clean, 0 grabs). **Live over-serving work continues at #200.**
 
 > **WIDENED 2026-07-25/26 — the reflex is unconditional, not vision-specific.**
 > On-device, **every** turn routes to a tool, including turns no tool can serve:
@@ -7863,7 +8012,9 @@ as broken even though the app is behaving correctly.
 Logged 2026-07-23.
 
 
-## 178. 🧹 Build-warning inventory — 21 warnings, one of which FAILS App Store validation
+## 178. ✅ Build-warning inventory — 21 warnings, one of which FAILS App Store validation
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Both halves covered — 178a fixed in Bundle A; the deprecation debt is what #198's sweep cleared.
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-A-178a-172-61-137.md`** (bundled with #172, #61, #137 — this item's PART A is the CFBundleShortVersionString launch blocker only; the deprecation debt is NOT in scope). Do not re-spec; check merge state before sending.
 
@@ -7914,6 +8065,11 @@ Logged 2026-07-23.
 
 
 ## 179. 🐛 First Control Center tap is swallowed — action reports success before the widget extension exists — likely SUBSUMED by #58 (2026-07-25)
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F6**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 > **2026-07-27 — decision point moves to the #58 device pass.** Under the `.main`
 > execution target built for #58, the tap's action no longer dispatches to the widget
@@ -8229,6 +8385,11 @@ Logged 2026-07-24.
 
 ## 184. 🐛 ChatStore has three teardown paths and each clears a different subset
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 Found by ultrareview Pass A (2026-07-25), verified against source. Full write-up:
 `dispatch/RESULTS-T27-ULTRAREVIEW-2026-07-25.md`.
 
@@ -8300,6 +8461,11 @@ alone. One deliberate small delta: the primitive nils `pendingMessageSentAt` up 
 it). NOT device-verified — sim suite only.
 
 ## 185. 🐛 `mergeAttachments` points every duplicate-filename attachment at the first local match
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 Found by ultrareview Pass A (2026-07-25), verified against source.
 
@@ -8513,7 +8679,14 @@ Logged 2026-07-25.
 
 ---
 
-## 189. 🐛 SHIP BLOCKER — notifications are never authorized on a fresh install, and the panel reports a false green
+## 189. 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152); fresh-install device verification owed *(was filed as SHIP BLOCKER)*
+
+> **RE-FRAMED 2026-08-01 (Hermes audit Part 1B).** Priming fires on every dispatched send (`e1aa70a`) and the panel reads real `UNAuthorizationStatus` (`4fb4abe`, `02d1b51`) — all on main. What remains is the fresh-install device check, queued as device-list §F3. It is the last blocker-SHAPED verification, which is not the same thing as a blocker.
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F3**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 > **FIX ON BRANCH 2026-07-27** (`claude/opus-t27-notifications-e2e-upxqau`, with the #147 fix —
 > shared surface, shipped together per `dispatch/OPUS-T27-189-147-notifications-end-to-end.md`).
@@ -8560,7 +8733,14 @@ Logged 2026-07-25.
 
 ---
 
-## 190. 🐛 SHIP BLOCKER — standalone sessions are a single slot at every layer; "New" destroys all prior local history
+## 190. 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151); two unexercised checks owed *(was filed as SHIP BLOCKER)*
+
+> **RE-FRAMED 2026-08-01 (Hermes audit Part 1B).** The gate CLEARED 2026-07-27 and the 07-26 FAIL was re-verified passing; the header outlived the fix. Exactly two checks were never exercised — read-aloud stop on session switch, and the failure banner. Both queued as device-list §F2.
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F2**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 > **DEVICE PASS 2026-07-26 — FAIL; PR #151 held open with requested changes.**
 > What held: sessions list, survive kill/relaunch, and the SIGTRAP workaround
@@ -8725,6 +8905,11 @@ from a work desk over the Tailscale OTA path. Airplane mode as ground truth for 
 
 ## 191. 🐛 Chat header is not backend-aware — title and model pill keep reporting the Hermes session
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 **Observed 2026-07-25 on whoGoesThere, ON-DEVICE active, phone in airplane mode.** The header read
 `HERMES` with a model pill of `KIMI-K3` — a model that runs on OJAMD and was unreachable at the
 time. Only the ON-DEVICE badge told the truth.
@@ -8760,6 +8945,11 @@ Logged 2026-07-25.
 ---
 
 ## 192. 🐛 The app SWITCHES ITSELF away from on-device; the refused manual switch is the residue
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
 
 > **RE-DIAGNOSED 2026-07-26 (device, with screenshots).** The original report —
 > "switching to on-device doesn't take" — was the *symptom of recovery*, not the
@@ -8861,6 +9051,11 @@ Logged 2026-07-25.
 
 ## 193. 🔧 `confirmationDialog` Cancel button does not render on iOS 27
 
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
 **Observed 2026-07-25 device pass.** Destructive-action confirmations built with
 `.confirmationDialog` present with no visible Cancel affordance — an iOS 26/27 presentation change.
 The cancel role is declared in code, so this is dead code rather than an omission.
@@ -8881,7 +9076,9 @@ Logged 2026-07-25.
 > choice for something that re-homes the app). Zero `confirmationDialog` uses remain in
 > app code. Device verification owed.
 
-## 194. 🐛 On-device brain refuses creative generation, reciting its tool belt — tool fixation
+## 194. ✅ On-device brain refuses creative generation, reciting its tool belt — tool fixation
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Commit `7bbcd4b` — enumeration convicted; PR #157 merged; production armed IS noprose. Residual tic re-filed as #196.
 
 **Observed 2026-07-27, whoGoesThere, AIRPLANE MODE (ground truth: genuinely local).**
 Reproduced 4×: "Write a poem about spring", "Write a sonnet about spring", bare "Write me a
@@ -8985,7 +9182,9 @@ green at 1235/109 (delta exactly the 4 new tests).
 
 Logged 2026-07-27.
 
-## 195. 🔧 MessageIdentityUITests — typeText keyboard race renders the test flaky
+## 195. ✅ MessageIdentityUITests — typeText keyboard race renders the test flaky
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** FIXED 2026-07-27, 3/3 iterations green.
 
 **Observed 2026-07-27, Mac Mini, pinned sim, during PR #156 verification.** The suite failed
 twice (full run + isolated re-run) on `testTranscriptNeverRendersDuplicateMessageIDs`:
@@ -9011,7 +9210,9 @@ evidence not applicable (sim-only UI test). CLOSED.
 
 Logged 2026-07-27.
 
-## 196. 🐛 On-device disclaimer tic — replies open "I can't do X, but…" then do X in full
+## 196. ✅ On-device disclaimer tic — replies open "I can't do X, but…" then do X in full
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Commit `b644bf4` (2026-07-28) titled '#196 CLOSED — stack merged'; all four PRs merged.
 
 **Observed 2026-07-27 device A/B (armed-noprose cell, now production armed post-#157).** With
 #194's suppressor removed and content delivery fully restored, every creative/factual reply
@@ -9285,7 +9486,9 @@ score a THIRD axis (tool chip present on a non-tool ask) alongside content/prefa
 
 Logged 2026-07-27.
 
-## 198. 🧹 Beta-4 SDK deprecation sweep — ~20 warnings, 6 clusters
+## 198. ✅ Beta-4 SDK deprecation sweep — ~20 warnings, 6 clusters
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** The beta-4 deprecation sweep is DONE — all three structural clusters migrated and the 2026-08-01 device pass PASSED. **Residual probes are device-list A1/A2/E1.** The header's '~20 warnings, 6 clusters' count is superseded by the per-cluster counts inside.
 
 Filed from the 2026-07-27 evening sweep (cluster enumeration lives in
 `planning/HANDOFF-2026-07-27-EVENING.md`; representative: the
@@ -9297,7 +9500,9 @@ unrouted.
 
 Logged 2026-07-28.
 
-## 199. 🐛 On-device brain fabricates a COMPLETED ACTION after a declined confirmation
+## 199. ✅ On-device brain fabricates a COMPLETED ACTION after a declined confirmation
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Verdict filed — disease confined to grabs, intended-create path clean. **The false-attribution family it surfaced is now lane #199A.**
 
 Observed battery 2 (2026-07-27, build `686d2e2`, cell `armed`, haiku t=11): the
 confirmation gate auto-declined `createReminder`, and the reply then claimed Ive
@@ -11263,7 +11468,9 @@ rate.
 is concluded about it either way; the wedge is intermittent and the timeout stays
 in place as insurance.
 
-## #202 — the turn router is CONTEXT-BLIND: short affirmatives misroute toolless, and that is the original #200 denial
+## #202 — ✅ the turn router is CONTEXT-BLIND: short affirmatives misroute toolless, and that is the original #200 denial
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Route + honesty shipped together (PR #192, merged 07-30). Residuals: device-list C2 and lane #205E.
 
 **Filed 2026-07-30 from Hermes's OI-#200 audit (F1), verified line-by-line in the
 tree before filing. This is the mechanism for #200's own filing specimen #2, which
@@ -11808,7 +12015,437 @@ plus an unfixed toolless payload still leaves every OTHER misroute — and every
 genuinely toolless turn the user asks to act on — free to lie. Route and honesty are
 one promotion.
 
-## #218 — `main` DID NOT BUILD IN RELEASE for two days, and every check we run is blind to it. FIXED 2026-08-01.
+## #221 — ✅ FIXED 2026-08-01: voice ignored the brain selection and billed OpenAI Realtime while the app said "on-device"
+
+> **RULE SET BY OWEN 2026-08-01, and it is broader than this bug:**
+> *"on device should signify everything on device. Local. When hermes is
+> selected, it switches to using hermes' resources."*
+>
+> **The brain selection governs EVERY modality, not just chat.** That is the
+> principle; this item was one violation of it. Anything added later that reaches
+> off-device — a new tool, a new media path, an upload — answers to the same rule
+> and should be checked against it rather than shipped and discovered.
+>
+> **FIXED same day.** `VoiceEngineRouter.realtimeIsPermitted(for:)` gates on
+> `.hermes` only, wired at **three** points: `init` (before pairing is
+> consulted), `refreshReadiness` (before the probe — a forbidden brain must not
+> reach OpenAI *at all*, not merely avoid speaking to it), and `startSession`
+> (re-checked rather than trusting `activeEngine`, since the original defect was
+> a stale routing decision nobody re-evaluated).
+>
+> **`.privateCloud` is forbidden too.** PCC is Apple's compute, not Hermes', so
+> "when hermes is selected" does not cover it — and the architecture already
+> agreed: `Brain.privateCloud` is documented as routed to the local backend that
+> owns the PCC session. Voice follows chat onto the local side.
+>
+> **Six tests, TDD.** Two go through the router rather than the pure function and
+> reproduce the exact bug: paired + healthy realtime + on-device brain must never
+> start realtime *and must never probe it*; and a brain switched mid-session
+> forces native on the next start. Gate PASS, 1469 + 8, Release clean.
+>
+> **STILL OPEN — a product question, not code:** should a voice session running on
+> realtime show a **visible indicator**? The audio leaves the device; silence
+> seems like the wrong default. Not built, awaiting Owen.
+
+## The original filing
+
+**FOUND BY OWEN 2026-08-01**, immediately after the airplane-mode test made the
+engine visible: *"the other voice, with airplane mode off, was firing over
+realtime, when the model brain selection is set to local. That was using tokens
+that I didn't intend to use."*
+
+**Confirmed in source, and it is unambiguous: `VoiceEngineRouter` contains ZERO
+references to brain selection.** It keys on exactly one input:
+
+```swift
+// AppContainer.swift:691
+isRelayPaired: { activePairingStore?.isPaired == true }
+```
+
+So the two routers disagree by construction, and tonight's log shows both halves
+of the contradiction in one session:
+
+```
+[VoiceEngineRouter] active voice engine → realtime (initial; relayPaired=true)
+[ChatBackendRouter] sendStreaming routed to on-device
+```
+
+**The user picked on-device. Chat obeyed. Voice went to OpenAI.**
+
+### Why this is worse than a routing inconsistency
+
+1. **Unintended spend.** OpenAI's Realtime API bills **audio** tokens, which are
+   the expensive kind. A user who selects on-device has, by any reasonable
+   reading, declined to spend — and gets billed anyway, silently, for the one
+   modality where sessions run long.
+2. **The privacy claim is not honored where it matters MOST.** Selecting
+   on-device is a statement of intent about where data goes. **Voice is the most
+   sensitive input the app takes** — it is ambient microphone audio, it can catch
+   people who never consented, and it is exactly what a privacy-motivated user is
+   choosing on-device to protect. The setting is silently ignored there.
+3. **The app's own UI asserts something false.** It reports on-device while
+   streaming audio to a third party. Same family as **#191** (header not
+   backend-aware) and **#192** (the app switches itself away from on-device) —
+   *the brain the UI claims is not the brain in use* — but this instance moves
+   money and microphone audio, not just a label.
+
+### Why nobody caught it for weeks
+
+**Until 2026-08-01 nothing logged which voice engine was running** (#198A/#220).
+The realtime path is silent, fast and good — it *sounds* like a well-behaved
+local session. Owen only found it by holding one conversation in airplane mode
+and hearing a different voice. **A cost and privacy defect was audible but not
+observable**, and it took a human noticing a timbre change.
+
+### Fix shape (not yet routed)
+
+`ChatBackendRouter` already owns the answer — `resolvedBrainForNextTurn()`,
+`setPreferredBrain(_:forConversation:)`. `VoiceEngineRouter` needs the same input
+its sibling has: a brain provider alongside `isRelayPaired`, and
+`.onDevice` must force `.native` regardless of pairing or probe result.
+
+**Open questions for Owen, because they are product calls, not code:**
+
+- Should on-device **hard-forbid** realtime voice, or offer it with an explicit,
+  per-session opt-in ("this will use the cloud")?
+- What should the **Private Cloud** brain select? PCC has no realtime voice, so
+  it presumably behaves like on-device here.
+- Should there be a **visible indicator** while a voice session is on realtime?
+  Given the audio goes off-device, silence seems like the wrong default.
+
+**Severity is proposed, not assigned** — Owen classifies. The argument for ship
+blocker: it spends the user's money against an explicit setting and sends
+microphone audio somewhere the UI says it is not going.
+
+## #220 — 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. One mystery probably solved; three verdicts need re-checking.
+
+*(OPEN_ITEMS #220. **Not** a GitHub PR number.)* **FILED 2026-08-01** after #198A
+established that nothing logged which voice engine was active.
+
+### The window, and why it is worse than a fixed confound
+
+| date | state |
+|---|---|
+| **before 2026-07-07** | **one engine existed.** `NativeVoicePipelineService` and `VoiceEngineRouter` both arrive in `0709ba2`. **Every voice verdict before this date is unambiguous.** |
+| **2026-07-08 onward** | realtime "deployed + confirmed minting on OJAMD" (#47). A paired device now defaults to `.realtime` via `isRelayPaired() ? .realtime : .native`. |
+
+**But the engine was not FIXED in that window — it VARIED.** `refreshReadiness`
+probes realtime and falls back to native whenever the probe fails
+(`shouldRouteNative`), and `startSession` falls back again on a failed start. So
+the active engine tracked **OJAMD's health, run to run**, and **nothing logged
+it.** Proof that native really was sometimes live: #128's crash on 2026-07-17 is
+a `CreateRecordingTap` failure inside `NativeVoicePipelineService`, which cannot
+happen unless the native engine is capturing.
+
+**A nondeterministic, unlogged confound is worse than a constant one.** A constant
+one biases every result the same way and can be corrected after the fact. This one
+means two runs of the same test may have measured different engines, and nothing
+in the record distinguishes them.
+
+### SAFE — no re-check needed
+
+- **Everything before 2026-07-07.** One engine.
+- **#118** (background teardown, device-verified 07-20). The fix lives in
+  `AppContainer` and is engine-agnostic — and it was watched firing on the
+  realtime path during A1 tonight.
+- **#138** (realtime self-barge-in). Names its engine, and is the one item that
+  caught this organically: *"Scope broadened 2026-07-20 (Owen): NOT
+  realtime-only"* — found by observing the same symptom elsewhere, not by any log.
+
+### THE LIKELY PAYOFF — #128's "unreachable repro" probably has its answer
+
+#128 is filed as *"FIXED (2026-07-17); documented repro path unreachable
+(2026-07-25)"*, and the standing question (restated by the Hermes audit) is
+**"is the fix dead defensive code, or was the repro route never recorded?"**
+
+**There is a third answer, and it fits every fact: the repro was unreachable
+because the NATIVE ENGINE WAS NOT IN THE PATH on 07-25.** The crash on 07-17 was
+native by construction. By 07-25 a paired device with healthy realtime routes to
+`.realtime`, and `NativeVoicePipelineService`'s tap code — where the entire fix
+lives (`NativeVoicePipelineService.swift:1081`) — never executes.
+
+**This is now cheap to settle** (device-list §G, no phone): re-attempt the repro
+with the engine pinned to native and the new `voice session starting on engine …`
+line quoted. If it reproduces pre-fix and not post-fix, the fix is load-bearing
+and #128 closes properly instead of on an absence.
+
+### AMBIGUOUS — re-check before trusting
+
+| item | verified | why it is in doubt |
+|---|---|---|
+| **#82** | device CONFIRMED 07-16 | the fix spans `LiveSpeechService` + `LiveVoiceSessionService` + `NativeVoicePipelineService`. Whichever engine ran that day, **the other engine's half of the fix is unverified.** |
+| **#110** | device-verified 07-18 | fix is in `SpeechOutputService`, which has **two** consumers: read-aloud (engine-independent) and native voice sessions. **If it was exercised via read-aloud the verdict is safe; via a voice session it is engine-dependent.** The record does not say which. |
+| **#129** | device pass never ran | its stated "known accepted behavior — **native-engine** sessions share the assistant TTS instance" is an explicit native-engine claim **never verified on the native engine.** |
+| **#130 / B1** | parked | already parked for exactly this reason. Its gate is in `NativeVoicePipelineService`; a comparison run on realtime would find it does nothing **because it was never in the path** — a null result wearing the clothes of evidence. |
+| **#198A / A1** | 2026-08-01 | established realtime. **The local engine has no interruption verification at all.** |
+
+### The rule
+
+**A device verdict about voice must quote the engine line.** As of 2026-08-01
+`VoiceEngineRouter` logs the initial selection and names the engine at every
+`startSession()`. **A verdict that cannot name its configuration is not a
+verdict** — it is a measurement of something, and you do not know what.
+
+## #198B — 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
+
+**FILED 2026-08-01**, found in the A1 device log while checking something else.
+
+```
+17:55:51.682 [AVAudioSession Hang Risk] AVAudioSession_iOS.mm:978
+  This method can lead to UI unresponsiveness if called on the main thread.
+  Consider using the asynchronous activate/deactivate API instead.
+```
+
+**`fault` is the highest severity iOS emits** — above `error` — and it fired in
+the **resumption** path, a fraction of a millisecond before
+`audio resumption recommendation: resume`.
+
+`AudioSessionOffMain` exists in this codebase precisely to keep activate/deactivate
+off the main actor, so **some call site is bypassing it.** Source work; no device
+time needed. Find the synchronous site in the resumption handling and route it
+through `AudioSessionOffMain`.
+
+**Why it was invisible until now:** every prior console read filtered
+`oslogSeverity: ["default"]` — the documented workaround for `GetConsoleOutput`'s
+broken `pattern:` argument. `fault` is not `default`, so **the noise-reduction
+filter was also hiding the highest-severity line in the log.** Read `all` at least
+once per device session.
+
+## #198A — ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
+
+**Two real phone calls, corded whoGoesThere, PID 14087, 2026-08-01.**
+
+> **CORRECTED within the hour.** This entry first read *"PASSED … both engines"*.
+> **Owen asked whether the session was truly the local engine or the OpenAI
+> realtime path, and the question broke the claim.** Both services register their
+> observers in `init()` — `LiveVoiceSessionService.swift:154`,
+> `NativeVoicePipelineService.swift:132` — so **both observers fire on every
+> notification regardless of which engine is capturing.** Two log lines proved two
+> OBSERVERS classified correctly. They never proved two ENGINES ran.
+>
+> **The instrument gap is the real finding: nothing logs which voice engine is
+> active.** `VoiceEngineRouter` decides and says nothing. The low-level trace does
+> not disambiguate either — `aurioc AURemoteIO … enable 3` failing across the
+> interruption window proves a real full-duplex capture chain existed and was torn
+> away, but **both** paths capture locally; realtime only streams the result on.
+>
+> **We spent the scarcest resource we have — a second person making real calls —
+> and the record cannot say which configuration it exercised.** Same disease as
+> everything else this week: the instrument did not record the thing that mattered.
+>
+> ### ANSWERED, same evening: it was the REALTIME engine. The local one is unverified.
+>
+> `VoiceEngineRouter` assigns its default **in `init`**
+> (`activeEngine = isRelayPaired() ? .realtime : .native`) **without logging**,
+> and `setActive` logs only on a **change** (`guard activeEngine != engine`).
+> All three of its log calls are `.notice` → `default` severity, and the
+> `default`-severity read for this session returned `totalCount: 42` — **all of
+> which were inspected, with no `VoiceEngineRouter` line among them.** No engine
+> change, no `readiness routed voice to the native engine`, no
+> `Realtime start failed`.
+>
+> The device was paired (`relay accepted push registration`,
+> `handleAppDidBecomeActive: paired + token OK`), so `isRelayPaired()` was true
+> and the engine stayed at its init value: **`.realtime`.**
+>
+> **So A1 exercised the OpenAI realtime path through Hermes. The local/native
+> engine has NO interruption verification at all.** Owen suspected exactly this
+> — *"I'd almost want to investigate whether or not this was TRULY local device"*
+> — and he was right for a reason the log actively concealed: **the one line that
+> would have said so is emitted only on a change that never happened.**
+>
+> **A verdict reconstructed from the ABSENCE of a log line is not a verdict.** It
+> is a lucky inference, and it only happened because someone asked the awkward
+> question after the fact.
+>
+> **Fixed the same evening** — `VoiceEngineRouter` now logs the initial selection
+> in `init` AND names the engine at every `startSession()`. Re-run is device-list
+> §A1b, and it must QUOTE the engine line.
+
+**What IS established, and it is worth having:** the 2026-08-01 pass proved no
+false POSITIVES and said explicitly that it could not speak to missed
+interruptions. **A real call WAS seen** — classified `source == .system` — in both
+runs and both orderings. **The false-negative question is answered for the engine
+that ran.** What is NOT established is which engine that was, or that the other
+one behaves the same. Both share `AudioInterruptionRule`, so the residual risk is
+low; **low risk is not verification**, which is the lesson of this entire week.
+
+| run | action | interruption seen |
+|---|---|---|
+| 1 | ring → **decline** | ✅ `17:53:30.815`, **567ms BEFORE** #118's teardown |
+| 2 | **answer**, speak, hang up | ✅ `17:55:47.418`, **167ms AFTER** #118's teardown |
+
+Both runs logged `audio interrupted — system deactivation` from **both
+OBSERVERS** (`NativeVoicePipeline` and `LiveVoiceSessionService` — see the
+correction above; that is two observers, not two engines), while the app's own
+deactivations in the same traces logged `audio deactivated by app — not an
+interruption`. **True positive and true negatives in one trace: the filter
+discriminates rather than merely permits.**
+
+**The finding that outranks the pass: the ordering is a RACE and it is not
+deterministic.** #118's "app backgrounded with a live voice session — ending it"
+and the interruption notification arrive in whichever order they arrive — run 1
+the interruption won, run 2 the teardown did. `AudioInterruptionRule` classified
+correctly either way. **That order-independence was never designed for; it held,
+and it is now measured rather than assumed.** Anything that later reorders this
+teardown must re-run A1.
+
+**Corroboration from the negative side:** Owen began speaking again *as the call
+arrived* and that speech was **not captured**. A missed interruption would have
+left the mic live. The absence is the evidence.
+
+**No call audio reached the transcript.** The turn completing a few seconds after
+each interruption is the PRE-call utterance being submitted as the session tears
+down — confirmed with Owen, expected.
+
+### The residual this found: `shouldResume` is unreachable for phone calls
+
+`resumptionRecommendationNotification` returned **`resume`** in both runs — at
+**+1.5s** (run 1) and **+4.3s** (run 2) after the interruption. In both cases
+**#118 had already ended the session.** An incoming call always backgrounds the
+app, so #118 always fires, so the resume branch **cannot execute on device for a
+phone call**.
+
+**Not a bug — but it is dead code wearing the clothes of a safety net**, which is
+the more dangerous kind. Options, none taken yet: reach it via a non-backgrounding
+interruption (another app grabbing audio), narrow #118 so a *system* interruption
+does not tear down, or delete the branch and say plainly that interruptions end
+sessions. **Do not simply trust it** — it has now been observed never to run.
+
+## #219 — 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
+
+**FILED 2026-08-01.** *(OPEN_ITEMS #219. **Not** GitHub PR #219 — separate
+sequences. The five lanes below use sub-letters precisely to stop minting more
+collisions; `#217B` is the precedent.)*
+
+**Occurrence 1.** During the first real `lane-gate.sh` run against `main`:
+
+```
+MessageIdentityUITests.testTranscriptNeverRendersDuplicateMessageIDs()
+TalariaUITests.testDisconnectReturnsToStandaloneChat()
+TalariaUITests.testPairedRelaunchSkipsPairingEntry()
+TalariaUITestsLaunchTests.testLaunch()
+** TEST FAILED **   (xcodebuild exit 65)
+```
+
+Same tree passed on re-run — 1461 + 8, `TEST SUCCEEDED`. **Not a product bug.**
+
+**Signature, and it is what makes this diagnosable:** **no assertion text and no
+`.swift:NN: error:` line anywhere in the log.** `testLaunch` PASSED, then
+*started again*, then the suite reported zero tests and four failures. That is
+the runner being lost or restarted — a real failure names an assertion.
+
+**Explicitly NOT #164**, whose fix (`waitForNonExistence`, `AppTemplateUITests.swift:220`)
+is on main and working, and whose mechanism is a bare `.exists` racing a
+dismissal animation with captured 50ms timings. **Filed separately rather than
+folded into an existing item it does not match** — merging two flakes with
+different mechanisms into one counter is how both become unfixable.
+
+**Also not #195** (`typeText` keyboard race), despite `MessageIdentityUITests`
+appearing in the list: #195 is one test with an assertion, this took all four
+with none.
+
+**Standing instruction, encoded in `lane-gate.sh`:** on a flake, re-run **once**
+and record **BOTH** runs. Never re-run until green and report only the green one
+— that is how a real intermittent regression gets laundered into "passes on my
+machine." The gate now prints which kind of failure it is looking at.
+
+**Owed:** nothing yet — this is a WATCH at occurrence 1. Two is a pattern (the
+standing rule that promoted #164). If it recurs, capture the `.xcresult`, not
+just the log.
+
+## #199A — false decline-attribution: the model blames a CONTACT for the USER's decline
+
+**FILED 2026-08-01** from the Hermes audit's Part 1C (unfiled lanes). Surfaced
+inside #199's verdict and never given a lane of its own, which is why it has sat.
+
+#199 established the headline — post-decline fabrication is real but confined to
+grabs, and the intended-create path is clean. **This is the residue it found on
+the way, and it is a different disease:** when the user declines, the model
+reports a *false cause*.
+
+| prompt | misattributed | to what |
+|---|---|---|
+| **calendar** | **6/10** | a contact lookup — *"the name 'Sam' wasn't found in your contacts"* |
+| **remind** | 1/10 | the time — *"because the time 4:30 PM didn't work"* |
+| **alarm** | 0/10 | — correctly attributed to the user |
+
+**Why it matters more than a phrasing nit:** the user declined, and the app told
+them their *contacts* were the problem. That sends them to fix something that was
+never broken, and it is a trust failure rather than a capability one. Alarm's
+0/10 proves the model CAN attribute correctly, so this is not a ceiling.
+
+**Owed:** a battery lane with a bar written first. Candidate primary: calendar
+misattribution ≤ 1/10 with declines still reached 10/10 (a fix that stops
+reaching the decline is not a fix).
+
+## #205E — ctx-a embeds the prior turn UNTRUNCATED, verdict measured at ~590 chars
+
+**FILED 2026-08-01** from the audit's unfiled-lanes list. Rows already exist; only
+the run is owed.
+
+The no-truncation verdict was measured on prior turns of **~590 characters**.
+**Real assistant turns run to thousands.** A ~3,500-char row (a long answer with
+the offer buried at the end — the shape a user actually produces after a broad
+question) plus its words-only counterpart are already in the baseline probe grid.
+
+**Owed: run them before TestFlight.** Low risk — latency was flat from 40 → 590
+chars — but **"flat over one order of magnitude" is not "flat forever"**, and
+this is the cheapest possible check against a context blow-up in production.
+
+## #210A — does one forced condensation actually fit 8,192?
+
+**FILED 2026-08-01** from the audit's unfiled-lanes list.
+
+#210 fixed the guard: the condense-and-retry path now FIRES on a real
+context-overflow error (it previously did not, because the typed cast was against
+the deprecated `GenerationError`). **The guard firing and the guard WORKING are
+different claims.**
+
+**Unmeasured:** whether one forced condensation actually gets a real
+long-conversation turn under the 8,192 budget. If it does not, the retry burns a
+generation and fails anyway — the user-visible outcome is identical to having no
+guard, at twice the latency.
+
+**Owed:** a measured run, not an assumption. Note `n` on the original observation
+is **2** — the smallest number in the program that anything rests on.
+
+## #211A — offer-instead-of-act on READ paths, where no confirmation gate excuses it
+
+**FILED 2026-08-01** from the audit's unfiled-lanes list.
+
+Several replies **offer** the right tool without calling it — *"Would you like me
+to check your health data for other metrics?"* On a **create** path an offer is
+at least adjacent to the confirmation gate. **On a read path there is no gate to
+excuse it**: the user asked a question the model could have answered outright.
+
+**Unlike #209's residual, this IS battery-measurable — the effect is 0/20, not
+1.4%.** That is the whole reason it deserves a lane: it is big enough to see.
+
+Corroborating evidence already banked in #211: on `stepsdirect`, control offered
+on **4/10** and the promoted treatment on **0/10**, which is evidence this shape
+is **downstream of tool choice** rather than a separate disease. A lane should
+test that directly before assuming it needs its own words.
+
+## #216A — re-read #200F and #214's grab results in light of the substitution finding
+
+**FILED 2026-08-01** from the audit's unfiled-lanes list. **Analysis, not a device
+run** — cheap, and it may retire other work.
+
+#216 established that narrowing a belt **redirects** over-serving rather than
+removing it (`readCalendar` 7→0 and `lookupContact` 8→0 while `currentLocation`
+went 1/10 → 10/10). If substitution is the mechanism, then **grab counts recorded
+before that was understood may have been measuring displacement, not disease** —
+a tool going to zero reads as a win when the pressure simply moved.
+
+**Owed:** re-read #200F's and #214's grab tables against the substitution model
+and record whether any conclusion changes. **A conclusion that survives the
+re-read is stronger than one that was never re-read** — and if one does not
+survive, it is better found here than in a promotion.
+
+## #218 — ✅ `main` DID NOT BUILD IN RELEASE for two days, and every check we run is blind to it. FIXED 2026-08-01.
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** FIXED 2026-08-01 and closed out — `scripts/mac/lane-gate.sh`, verified to FAIL as well as pass.
 
 *(OPEN_ITEMS #218. **Not** GitHub PR #218, which was the same day's documentation
 lane — the sequences are separate and collided here.)*
@@ -11972,7 +12609,9 @@ should invoke.
 run. It is one command in the two documents that govern submissions, which is a
 large improvement on a rule that lived nowhere, but it is not enforcement.
 
-## #198 — beta-4 deprecation sweep. 13 of 17 sites cleared; the remaining 8 are NOT mechanical.
+## #198 — ✅ beta-4 deprecation sweep. 13 of 17 sites cleared; the remaining 8 are NOT mechanical.
+
+> **CLOSED 2026-08-01** — duplicate entry for this item; the evidence is on the other `## 198` header. Two headers exist because the file's numbering convention changed mid-project (`## N.` → `## #N —`) and this item has one of each.
 
 **STARTED 2026-07-31 after the Hermes audit named it the highest-severity unrouted
 item. Clean-build inventory: 17 distinct sites, 10 symbols, 6 files.**
@@ -12104,7 +12743,9 @@ signature", and it is now a tractable lane rather than a hazard.
 `AVAudioSessionResumptionRecommendation` exists at `AVAudioSession.h:612` as
 described. Not disproven; still a structural rewrite.
 
-## #217 — CAN this model classify intent safely enough to drive a belt? A probe, not a belt lane.
+## #217 — ✅ CAN this model classify intent safely enough to drive a belt? A probe, not a belt lane.
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** ABANDONED per pre-registration; single-Bool follow-up PARKED at Owen's direction. Owed: nothing.
 
 **FILED 2026-08-01, bars written first. NO production change — `ToolIntentRoute`
 is untouched and nothing narrows any belt. Owen routes the run.**
@@ -12396,7 +13037,9 @@ reads as a live blocker.
 grid stay as DEBUG-only measured artifacts — the record of a falsified approach,
 which is worth more than a deletion.
 
-## #216 — the narrow belt, re-tried where it cannot lose. #214's closure was right about the evidence and wrong about the world.
+## #216 — ✅ the narrow belt, re-tried where it cannot lose. #214's closure was right about the evidence and wrong about the world.
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Verdict filed 2026-08-01. Intent-router lane ran and was abandoned (#217). **Owed re-read is now lane #216A.**
 
 **FILED 2026-08-01, bars written first. No production change — `routed-scoped` is
 a measured cell. Owen routes the run and any promotion.**
@@ -12558,7 +13201,9 @@ belt, which is strictly worse than today's full belt. Matched-thermal replicatio
 of these latencies. And a re-read of #200F/#214's grab results in light of the
 substitution finding.
 
-## #215 — THE MISSING DENOMINATOR: the action battery has never routed, so no number it has ever produced describes the shipped app.
+## #215 — ✅ THE MISSING DENOMINATOR: the action battery has never routed, so no number it has ever produced describes the shipped app.
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Verdict filed 2026-08-01, all four bars pass. Matched-thermal replication is device-list C4.
 
 **FILED 2026-07-31, bars written first. No production change — `routed-production`
 is a measured cell. Owen routes the run and any promotion.**
@@ -12762,7 +13407,9 @@ carry. **Those canary rows are the ones whose rates are not production rates** �
 not the wrappers wholesale. The standing rule is in `CLAUDE.md` under
 "Measurement discipline."
 
-## #214 — THE STRUCTURAL LANE: narrow belt CLOSED. Composition licensing falsified; the disease is partly an instrument property.
+## #214 — ✅ THE STRUCTURAL LANE: narrow belt CLOSED. Composition licensing falsified; the disease is partly an instrument property.
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** VERDICT FILED 2026-07-31 — narrow belt CLOSED, answered in both directions.
 
 **FILED 2026-07-31. Dispatch `dispatch/OPUS-T27-214-scopedv2.md`, bars written
 first. No production change — `armed-scopedv2` is a measured cell.**
@@ -12872,7 +13519,9 @@ clause. Fails A ⇒ belt size is not the mechanism, #200F's 0/10 was
 baseline-specific, and the over-serving disease needs a different theory entirely.
 **Either outcome closes the question, which is the point of running it.**
 
-## #213 — the router probe could not record an error, and scored the fail-safe as CORRECT
+## #213 — ✅ the router probe could not record an error, and scored the fail-safe as CORRECT
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** FILED AND FIXED 2026-07-31; instrument re-verified 2026-08-01 (13/13 sites carry `errors:`).
 
 **FILED AND FIXED 2026-07-31. Instrument integrity; no production behaviour change.**
 
@@ -12934,7 +13583,9 @@ defence is a stated invariant on `RouterProbeRecord.errors` plus the classifier'
 its wiring — the third consecutive audit to catch something at a boundary the
 author had just worked on.**
 
-## #212 — WeatherKit returned nothing, 0/40. ROOT CAUSE FOUND AND FIXED 2026-07-31: the App SERVICE was never enabled.
+## #212 — ✅ WeatherKit returned nothing, 0/40. ROOT CAUSE FOUND AND FIXED 2026-07-31: the App SERVICE was never enabled.
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** CLOSED END TO END 2026-07-31 — 40/40 real forecasts.
 
 **FILED 2026-07-31 from run `01FA0ECC` (build 1600, OTA Debug). NOT fixed.**
 
@@ -13102,7 +13753,9 @@ recorder, or it silently unmakes #212.**
 been broken for a long time. The phone had network throughout — the same build
 installed over Tailscale and `readHealth` answered correctly in the same minutes.
 
-## #211 — "How many steps have I taken today?" was answered WRONG 20/20. PROMOTED, 0/10 → 10/10.
+## #211 — ✅ "How many steps have I taken today?" was answered WRONG 20/20. PROMOTED, 0/10 → 10/10.
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** PROMOTED 0/10 → 10/10; follow-on CLOSED 2026-07-31. **Read-path offer shape is now lane #211A.**
 
 **VERDICT FILED 2026-07-31. Run `63C0EF12`, build 1602, `endedCleanly: true`,
 reap `0/0/0` (read tools write nothing). Dispatch:
@@ -13293,7 +13946,9 @@ guard now FIRES; whether one forced condensation actually gets a real
 long-conversation turn under 8,192 is a separate question and needs a measured
 run, not an assumption. n on the original observation remains 2.
 
-## #209 — "ERROR" was never one disease: five mechanisms behind one excluded label
+## #209 — ✅ "ERROR" was never one disease: five mechanisms behind one excluded label
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** PR #199 — '#209 measured and closed'. `RequiredPropertyDecodeTests.swift` verified in tree.
 
 **OPENED 2026-07-31. Instrument-only so far; no production change, no device run.**
 
@@ -13488,7 +14143,9 @@ catch (#197). That is where the next look belongs, not at the cap.
 so this distribution accrues without a dedicated lane. Reap exact again: counted
 5/5/5, reaped 6/6/6, residual **3 = the three warm-up trials**.
 
-## #207 — image turns: the signal alone does NOTHING, the guide fixes it completely
+## #207 — ✅ image turns: the signal alone does NOTHING, the guide fixes it completely
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** CONFIRMED AND PROMOTED 2026-07-31.
 
 **VERDICT FILED 2026-07-31. Run `C2E03F53`, n=10, `endedCleanly: true`. Dispatch:
 `dispatch/OPUS-T27-207-image-routing.md`. NOT PROMOTED — one collateral band was
@@ -13593,7 +14250,9 @@ arm including production — **"scan" is a device verb the router already knew.*
 defect was always specific to reading/vision phrasings, and a grid built only from
 verbs like "scan" would have found nothing.
 
-## #206 — ctx-a BREAKS at ~4,000 chars of context, and my "no truncation needed" verdict was wrong
+## #206 — ✅ ctx-a BREAKS at ~4,000 chars of context, and my "no truncation needed" verdict was wrong
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Verdict corrected and re-stated, kept on the latency basis. Residual row set is device-list C2.
 
 **Filed 2026-07-30 from run `5BB1C020`. This CORRECTS the #202C verdict filed
 earlier the same day, which said long context "costs the router nothing" and
@@ -13670,7 +14329,9 @@ on that basis, honestly re-stated.
 **Owed, if it ever matters:** a properly built row set that varies ends-in-an-offer
 independently of length, with `expected` labels argued rather than assumed.
 
-## #199 — post-decline fabrication: the disease is REAL but confined to GRABS, and the intended-create path is CLEAN
+## #199 — ✅ post-decline fabrication: the disease is REAL but confined to GRABS, and the intended-create path is CLEAN
+
+> **CLOSED 2026-08-01** — duplicate entry for this item; the evidence is on the other `## 199` header. Two headers exist because the file's numbering convention changed mid-project (`## N.` → `## #N —`) and this item has one of each.
 
 **VERDICT FILED 2026-07-30. Run `60E08CC1`, n=10 × 4 prompts, auto-DECLINE,
 `endedCleanly: true`, nothing created and nothing reaped (as designed).
@@ -13727,7 +14388,9 @@ exposed the passive-voice gap (*"has been set"*, *"has been scheduled"*) that wo
 have under-counted calendar and alarm to near zero. Third detector gap of the day,
 third one found by testing against verbatim production replies.
 
-## #204 — the two promoted clauses, warm and within-run
+## #204 — ✅ the two promoted clauses, warm and within-run
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** This run stands as the scoreboard; the owed clause is conditional-only.
 
 **VERDICT FILED 2026-07-30. Run `E3759EE3`, n=10, 120 counted + 4 warm-up,
 `endedCleanly: true`, sealed `reminders=58 events=31 alarms=31 failures=0`.
@@ -13795,7 +14458,9 @@ the others 1). Nothing unaccounted.
 lane, or trimming the prompt), it needs a run powered from a re-measured base rate,
 not this one. Otherwise both stay promoted and this run stands as the scoreboard.
 
-## #205 — Hermes audit of #201/#202 (2026-07-30, second pass): three corrections and two real gaps
+## #205 — ✅ Hermes audit of #201/#202 (2026-07-30, second pass): three corrections and two real gaps
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** An audit record whose actionable findings were dispatched or fixed the same night. **Its item-5 residual is now lane #205E.**
 
 **Every claim below was verified against the tree before filing. The night-ending
 external audit is now two-for-two on finding things the author could not see.**
@@ -13915,7 +14580,9 @@ not touch the historical series), ctx-a and ctx-b both 13/13 across all three ba
 13. **Seven unmerged branches want a triage.** `probe/t27-130-halfduplex` is already
     pruned (SHA recorded at #130).
 
-## #203 — SHIP BLOCKER: an unbounded CoreLocation wait can spin a production turn forever
+## #203 — ✅ SHIP BLOCKER: an unbounded CoreLocation wait can spin a production turn forever
+
+> **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Filed and FIXED 2026-07-30 — PRs #190/#196/#197 merged; `productionFixDeadlineIsBoundedAndSane` pins the guard.
 
 **Filed and FIXED 2026-07-30. Found by Hermes's independent night audit, verified
 line-by-line here, and more severe than the audit could see from outside: the
@@ -14042,7 +14709,7 @@ with the genuinely fresh fix it just received. The counter exists so a late
 DEADLINE cannot fail a later request — which is what the code comments, this
 item, and now the tests all pin.
 
-## #198 — `BGTaskScheduler.submit` MIGRATED 2026-08-01. Both sites cleared, and the send path finally has coverage.
+### #198 — `BGTaskScheduler.submit` MIGRATED 2026-08-01. Both sites cleared, and the send path finally has coverage.
 
 **Run in the order the 2026-08-01 re-scope asked for: coverage FIRST, then the
 migration.** The re-scope had already killed the frightening version of this item
@@ -14157,7 +14824,7 @@ quarantined `GenerationError` warnings remain **by design**.
 **#198 remaining after this: `AVAudioSession` interruption (4 sites, structural)
 and `installTap` (2 sites, holding by choice pending an SDK bump).**
 
-## #198 — `AVAudioSession` interruption MIGRATED 2026-08-01. The last structural cluster, and the one note that HELD.
+### #198 — `AVAudioSession` interruption MIGRATED 2026-08-01. The last structural cluster, and the one note that HELD.
 
 **Three notes were filed as "not mechanical." Two were wrong. This is the
 third, and it was right** — it is a genuine structural rewrite, and the reason
@@ -14261,7 +14928,7 @@ either userInfo key survives anywhere in the app or tests.
 **#198 after this: only `installTap` (2 sites), held deliberately pending an
 SDK bump. The deprecation sweep is otherwise CLOSED.**
 
-## #198 — `installTap` MIGRATED 2026-08-01. The "hold" recommendation was REVERSED, and the reason was already in our own source.
+### #198 — `installTap` MIGRATED 2026-08-01. The "hold" recommendation was REVERSED, and the reason was already in our own source.
 
 **#198 IS NOW CLOSED** — all three "not mechanical" clusters are cleared:
 `BGTaskScheduler.submit` (2), `AVAudioSession` interruption (4), `installTap`
@@ -14364,7 +15031,13 @@ change**. No live reference to the deprecated `installTap` remains anywhere.
 
 **#198 CLOSED. The beta-4 deprecation sweep is done.**
 
-## #198 / #216 — DEVICE PASS 2026-08-01. The AVAudioSession regression check PASSED with positive evidence.
+### DEVICE PASS 2026-08-01 (OPEN_ITEMS #198 + **PR** #216, the LocalChatBackend split). The AVAudioSession regression check PASSED with positive evidence.
+
+*(Heading corrected 2026-08-01, Hermes audit Part 1D: it previously read
+"#198 / #216", where the second number meant **PR** #216 — but OPEN_ITEMS #216 is
+the narrow-belt lane, a completely different thing that this pass did not touch.
+The sequences are separate and this heading silently mixed them. Disambiguate or
+do not use a bare number.)*
 
 Corded build on whoGoesThere (PID 12212, debugger attached, iOS 27.0), run
 immediately after the three #198 lanes and the #216 extraction. Owen drove;

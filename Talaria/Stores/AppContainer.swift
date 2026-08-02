@@ -688,7 +688,12 @@ final class AppContainer {
                     accessTokenRefresher: relayAccessTokenRefresher
                 ),
                 native: nativeVoice,
-                isRelayPaired: { activePairingStore?.isPaired == true }
+                isRelayPaired: { activePairingStore?.isPaired == true },
+                // #221: voice honours the SAME brain selection chat does. Read
+                // live from the router that owns it — never cached, because the
+                // user can change brain mid-session and the old code's whole
+                // defect was a routing decision nobody re-evaluated.
+                activeBrain: { chatBackendRouter.resolvedBrainForNextTurn() }
             )
         }
 
