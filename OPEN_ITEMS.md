@@ -5245,6 +5245,16 @@ Logged 2026-07-17.
 > so reading GitHub #128's closed state as "we're done here" is wrong twice over.
 > **Tracker numbers and GitHub numbers are independent sequences — always say which.**
 
+> **§E1 RAN 2026-08-01 — and be precise about what it settled.** It proved the
+> migrated installer **THROWS** on a double-install (`Code=-10863`,
+> `{false condition=nullptr == Tap()}` — *this item's exact crash assertion*)
+> rather than raising an uncatchable exception. **So if this race ever occurs
+> again it is recoverable, not a hard kill.** But it did **NOT** test the adjacency
+> invariant itself; it priced the residue, exactly as it always said it would.
+> **This close is STRENGTHENED, not independently verified** — the distinction
+> matters, because "the crash became a throw" and "the race cannot happen" are
+> different claims and only the first is measured.
+
 > **CLOSING BASIS, stated so it can be reversed if it turns out thin.** This item is
 > ✅ because its fix is in the tree and load-bearing (layer 3 of 4), **not** because
 > its Definition of Done was met. **The DoD as written — "repeat the exact repro" —
