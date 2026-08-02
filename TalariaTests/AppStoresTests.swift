@@ -3372,6 +3372,63 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
+    func aForegroundActivationCannotOutliveItsSharedDeadline() async throws {
+        // #145 Part E(a) — ONE shared deadline around the whole chain.
+        //
+        // Part A bounded each CALL (20s interactive). It did not bound the
+        // SUM: ten guarded awaits plus `refreshDormantProfileTokensIfNeeded`'s
+        // serial N-loop, so a degraded host could still hold an activation for
+        // minutes while every individual call behaved. E(a) caps the total.
+        //
+        // Deliberately NOT a stopwatch assertion (the spec forbids it, and
+        // #183 is what that lands in). The pin is BEHAVIOURAL: against a
+        // dependency that never answers, the activation RETURNS and says it
+        // was cut short. Without the deadline it never returns at all — so
+        // this is written with a settle box and a bounded poll, which FAILS
+        // cleanly rather than hanging the suite.
+        let harness = await makeLaunchHarness(
+            suiteName: "foreground-deadline-\(UUID().uuidString)",
+            sessionUserMatchesPairedUser: true
+        )
+        let container = harness.container
+        container.foregroundActivationBudget = .milliseconds(150)
+
+        // Gates CLOSED — the chain parks on the host fetch and cannot finish.
+        let returned = MutableBox(false)
+        let activation = Task { @MainActor in
+            await container.handleAppDidBecomeActive()
+            returned.value = true
+        }
+
+        let settled = await pollUntil(timeout: .seconds(5)) { returned.value }
+        #expect(settled, "the activation never returned — the shared deadline did not bound the chain")
+        #expect(container.foregroundActivationsCutShort == 1,
+                "the deadline fired but was not recorded — a silent cut is indistinguishable from a fast success")
+
+        harness.openAllGates()
+        await activation.value
+    }
+
+    @Test @MainActor
+    func aHealthyActivationIsNeverCutShort() async throws {
+        // The other half of the pin, and the one that stops the deadline from
+        // becoming a bug of its own: a chain that completes normally must
+        // finish on its own terms and record NO cut. A deadline that fires on
+        // healthy runs would silently truncate real refreshes — worse than the
+        // slow chain it replaced.
+        let harness = await makeLaunchHarness(
+            suiteName: "foreground-deadline-healthy-\(UUID().uuidString)",
+            sessionUserMatchesPairedUser: true
+        )
+        let container = harness.container
+        harness.openAllGates()
+
+        await container.handleAppDidBecomeActive()
+
+        #expect(container.foregroundActivationsCutShort == 0)
+    }
+
+    @Test @MainActor
     func foregroundActivationsSupersedeRatherThanStack() async throws {
         // #145 Part D. Every scene activation queued another full twelve-await
         // chain, and nothing coalesced or superseded. Under an outage that
