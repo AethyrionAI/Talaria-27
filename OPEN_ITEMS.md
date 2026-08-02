@@ -40,10 +40,15 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 > probes of the gateway. Verdict: *"the strongest two-day stretch the project has
 > produced"*; no reverts owed. **Three things came back that we did not know:**
 > **(1)** #145's header was **stale** — it survived the two PRs that edited its own body
-> (fixed, and the standing consequence is written into that entry). **(2)** The Mac
-> gateway's listening process is **0.19.0 code under a 0.19.1 install**, so four of the
-> routes #223 depends on 404 *today* — recorded in #223 as a live route map so no lane
-> mistakes a version gap for a missing endpoint. **(3)** The `ChatStore` poll loop's
+> (fixed, and the standing consequence is written into that entry). **(2)** Four of #223's
+> routes 404 — **right observation, wrong cause on both sides.** The audit blamed a
+> mid-version process (*"0.19.0 code under a 0.19.1 install"*), which was real (PID 28104
+> from Jul 29) and which I had recorded the same way. Owen force-restarted the gateway and a
+> **68-second-old 0.19.1 process returned identical 404s**: those routes are
+> **dashboard-app-only (`:9119`)** and were never on the plane the phone speaks. **Running
+> the audit's own recommended experiment is what falsified both of us** — and the #223
+> investigation session reached the same verdict independently from OJAMD. See #223's
+> retraction. **(3)** The `ChatStore` poll loop's
 > comment was wrong by ~11× *after* #145 Part A changed its arithmetic — corrected in
 > source; the loop itself stays filed, not fixed. Addendum nits (TestRunGuard's
 > deliberate no-live-opt-in, the gate's MAX-over-all-numbers, the 20s false-failure
@@ -616,7 +621,24 @@ dropdown, no popover, no "Start New Session" — straight to the shim-backed lis
 
 ## 21. 🔧 Present/download agent-generated files — Tier 1 ✅; Tier 2 relay route ✅; Tier 2 app-side fetch MERGED (PR #99, 2026-07-16) — dual-host device pass owed
 
-> **SUPERSEDE WATCH 2026-08-02 (found probing #173, source-read + live probe):** this item's
+> # ❌ THE SUPERSEDE WATCH BELOW IS RETRACTED. See the CORRECTED block after it.
+> **Two sessions reached that retraction independently the same day** — the #223
+> investigation (live on **OJAMD's current 0.19.1**, the authoritative one below) and this
+> session (live on the **Mac**, before and after a forced gateway restart). Same verdict
+> from different hosts and different methods: **the founding fact STANDS.**
+>
+> Two things the Mac path adds. **(1)** The 404s were first blamed on a *stale process* —
+> real (PID 28104 from Jul 29 under a 0.19.1 install) and repeated by the external audit as
+> its Bad #2. Owen force-restarted the gateway; a **68-second-old 0.19.1 process returned
+> identical 404s**, falsifying that theory outright. The restart was the audit's own
+> recommended experiment. **(2)** `CLAUDE.md`'s #21 paragraph already warned *"don't
+> mistake dashboard routes for chat-plane routes,"* and a saved memory named
+> `_http_route_table()` as the check — **the watch was filed without consulting either.**
+> Kept rather than deleted because the way it was wrong is the lesson: a route existing
+> **in the repo** says nothing about which **app** serves it. Full post-mortem in **#223's
+> retraction block**.
+>
+> ~~**SUPERSEDE WATCH 2026-08-02 (found probing #173, source-read + live probe):** this item's
 > founding fact — "there is no built-in file/download endpoint (`/openapi.json`, `/v1/files`,
 > `/api/files`, `/files` all 404)" — **is no longer true of Hermes's shipped code.** The
 > installed 0.19.1 `hermes_cli/web_server.py` defines `GET /api/files`, `/api/files/read`,
@@ -12879,11 +12901,35 @@ screenshot alone.
 **`["manual", "smart", "off"]`** — matching the screenshot's *Manual* ("ask before actions
 that require approval") / *Smart* ("automatically assess actions and ask when needed") /
 *Off* ("run without approval prompts"). It is a first-class **config key with a schema**,
-not a hidden flag: readable via `GET /api/config` + `/api/config/schema`, writable via
-`PUT /api/config`, all on `:8642` under the chat-plane key the app already holds.
-(My 2026-08-02 §F7 note called this "YOLO on/off" from `cli.py`'s
+not a hidden flag. (My 2026-08-02 §F7 note called this "YOLO on/off" from `cli.py`'s
 `enable_session_yolo` — that is the session-scoped mechanism, **not the whole model**.
 Corrected here and in the device list.)
+
+> **⛔ CORRECTED 2026-08-02, hours after filing — the transport claim below was wrong, and
+> the replacement is BETTER.** This entry said `approvals.mode` was "readable via
+> `GET /api/config` + `/api/config/schema`, writable via `PUT /api/config`, all on `:8642`
+> under the chat-plane key." **`/api/config` is DASHBOARD-only (`:9119`) and 404s on
+> `:8642`** — verified live against a fresh 0.19.1 gateway. Same root cause as #223's
+> retraction: dashboard routes read as chat-plane routes. So **half (2), "mirror the
+> CONTROL," cannot be built as described** — it would mean a second port and a second auth
+> scheme, against the zero-setup goal.
+>
+> **But `_http_route_table()` turned up something the config key never offered:
+> `POST /v1/runs/{run_id}/approval` IS on `:8642`**, beside `POST /v1/runs`,
+> `GET /v1/runs/{id}`, `GET /v1/runs/{id}/events`, and `POST /v1/runs/{id}/stop`. That is a
+> purpose-built **answer** channel on the plane the phone already authenticates to —
+> strictly more useful than reading a mode, because it lets the phone *resolve* a pending
+> approval rather than merely observe the policy. **Revised shape for half (2):** not
+> "surface the host's setting," but "answer the host's approval requests."
+>
+> **The probe that decides it, and it is cheap:** Talaria drives
+> `POST /api/sessions/{id}/chat/stream`; the approval endpoint hangs off `/v1/runs`. So the
+> open question is whether a Sessions-API run is reachable as a run id — i.e. whether
+> `run.started`'s id (already in our SSE taxonomy) is a `/v1/runs` id. If it is, the phone
+> can answer approvals today with no new infrastructure. If it isn't, the two planes are
+> disjoint and §F7d's stall is structural. **Run this before any #224 design work.**
+> *(Related, from the #223 investigation session: hooks do NOT fire for Sessions-API runs —
+> evidence that the Sessions plane is thinner than the runs plane, so do not assume.)*
 
 **What we have.** One always-on **Manual** gate: `ToolConfirmationCenter` (#29) suspends
 every side-effecting on-device tool on an editable card. There is no user-facing mode at
@@ -12935,24 +12981,53 @@ verified LIVE on the Mac gateway, HTTP 200, chat-plane Bearer auth):**
    2026-08-02 supersede watch + handler source read). App-side fetch moves from
    relay + device bearer to gateway + chat-plane key.
 
-> **⛔ LIVE ROUTE MAP, 2026-08-02 (Hermes audit, independent probe of the Mac gateway) —
-> READ THIS BEFORE STARTING EITHER MIGRATION LANE.** The audit probed all of the above
-> against the running `:8642` and found the process is **mid-version**: installed Hermes is
-> **0.19.1**, but the listening process **started Jul 29 on 0.19.0 code.** Live results:
+> # ⛔ §1 AND §2 ABOVE ARE WRONG — see the INVESTIGATION RUN block below for the authoritative
+> # falsification (live on OJAMD 0.19.1). This block adds THREE things that one does not.
 >
-> | route | live on the Mac gateway today |
+> **How they were wrong:** the routes were read out of the DASHBOARD app
+> (`hermes_cli/web_server.py`, **:9119**, dashboard auth) and claimed for the chat plane
+> (**:8642**, `gateway/platforms/api_server.py`). Two sessions falsified this independently
+> the same day, from different hosts and different methods. **`CLAUDE.md`'s #21 paragraph
+> already warned about exactly this, and a saved memory named `_http_route_table()` as the
+> check; neither was consulted before filing.**
+>
+> **(1) The "stale process" theory was also wrong, and it was settled by experiment.**
+> The first Mac probe showed `/api/model/options` → 200 and the rest → 404, which I
+> attributed to a mid-version process — real (PID 28104 from **Jul 29** under a 0.19.1
+> install, 3d 14h uptime) and repeated by the **external audit as its Bad #2**. Owen
+> force-restarted the gateway; a **68-second-old 0.19.1 process returned identical 404s**,
+> falsifying both of us. Running the audit's own recommended experiment is what produced
+> the truth. *(The stale-process hazard is still real and is now a `CLAUDE.md` gotcha — it
+> just was not this.)*
+>
+> **(2) ⚠️ "Phase 1 — shim retirement … Blocker: none" is INCOMPLETE. The shim's WRITE side
+> has no `:8642` equivalent.** `_http_route_table()` contains **zero** `model/set` routes
+> (grep-verified). The picker does two things, and only one migrates:
+>
+> | shim call | gateway equivalent |
 > |---|---|
-> | `/api/model/options` | **200** ✓ (the one I verified 2026-08-02) |
-> | `/api/model/info`, `/recommended-default`, `/auxiliary` | **404** |
-> | `/api/files/download` | **404** |
+> | `GET /models` (list + capabilities) | ✅ `GET /api/model/options` — verified 200 on both hosts |
+> | **`POST /models/default`** (persistent default, new-session scope — `ModelsShimClient.swift:9`) | ❌ **none.** `POST /api/model/set` is dashboard-only |
 >
-> **This is not a tracker error — it is this entry's own caveat coming true**, and the
-> audit says so. But the practical consequence is sharp: **the shim-retirement and
-> file-fetch lanes cannot verify their founding routes until the Mac gateway is restarted
-> (~15–20s to answer after start) or OJAMD is probed on a current process.** Do not read
-> these 404s as "the route does not exist" — they are 0.19.0-vs-0.19.1, which is exactly
-> the confusion the audit flagged to save the next lane an hour. **Restart-then-reprobe is
-> step 0 of both lanes.**
+> The only model WRITE on `:8642` is `POST /api/sessions/{id}/model` — the **session pin**,
+> which **#9** records as able to hang ~37s+ and which is already the slow half of today's
+> dual-write. **So shim retirement is a read-migration plus an unsolved persistent-default
+> write, not one clean lane.** Options for that lane: accept session-scope-only defaults,
+> reach the dashboard's `/api/model/set` on `:9119` (different port AND different auth —
+> against the zero-setup goal), or ask upstream to mount it on api_server (the same
+> upstream-mount shape #223 Phase 3 already tracks for files).
+>
+> **(3) ✅ `POST /v1/runs/{run_id}/approval` IS on `:8642`** — alongside `POST /v1/runs`,
+> `GET /v1/runs/{id}`, `GET /v1/runs/{id}/events`, and `POST /v1/runs/{id}/stop`. Hermes
+> ships a runs API with **purpose-built approval and stop endpoints on the plane the phone
+> already authenticates to.** That is a live answer to §F7d/**#224**'s "the host waits on an
+> approval nobody can answer" — with the catch that Talaria drives
+> `/api/sessions/{id}/chat/stream`, not `/v1/runs`, so **which plane a run travels decides
+> whether its approval is answerable.** Probe owed; see #224.
+>
+> **Method note, earned expensively:** `/api/model/options` answering 200 is *why* this
+> went undetected — one true observation was generalized to a family. **Probe every route
+> you intend to use, individually, before designing on it.**
 
 **What still needs the relay, named so "end the relay dependency" stays honest:**
 - **#38 run-completion push watch** — the relay owns the APNs credentials and the poll
