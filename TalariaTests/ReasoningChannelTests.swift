@@ -775,4 +775,43 @@ struct ReasoningChannelTests {
             #expect(messages.last?.reasoning == nil)
         }
     }
+
+    // MARK: - #145 Part A — request timeout policy
+
+    /// #145 Part A. The chat plane had NO timeout budget: `makeRequest` stamped
+    /// `timeoutInterval = 300` on EVERY request, and the session was
+    /// `URLSession.shared` whose `timeoutIntervalForResource` is **7 DAYS**.
+    ///
+    /// Under an outage that means a single foreground refresh call can hang for
+    /// FIVE MINUTES, and eight of them serially is most of an hour. #145's
+    /// Part C bounded the reconcile LOOP; this bounds the CALL, which is what
+    /// makes Part C sufficient.
+    ///
+    /// **The trap this test exists to hold shut:** an SSE run legitimately lasts
+    /// minutes, so a blanket short timeout would kill live streaming turns and
+    /// present as a network bug. The `Accept` header already separates the two
+    /// — `text/event-stream` on both streaming call sites, `application/json` on
+    /// the other four — so the policy keys off a distinction the code already
+    /// makes rather than inventing new plumbing.
+    @Test
+    func interactiveRequestsGetAShortTimeoutAndStreamingKeepsALongOne() {
+        let streaming = SessionsHermesClient.requestTimeout(forAccept: "text/event-stream")
+        let interactive = SessionsHermesClient.requestTimeout(forAccept: "application/json")
+
+        #expect(interactive < streaming,
+                "an interactive refresh must not wait as long as a live stream")
+        #expect(interactive <= 30,
+                "interactive calls sit on the foreground path — a user is watching")
+        #expect(streaming >= 120,
+                "SSE runs last minutes; shortening this kills live turns (the Part A trap)")
+    }
+
+    /// An unrecognised Accept must fall to the SHORT budget. A future call site
+    /// that forgets the header should be bounded, not silently granted the
+    /// streaming allowance — fail safe, not fail open.
+    @Test
+    func unknownAcceptFallsToTheInteractiveBudget() {
+        #expect(SessionsHermesClient.requestTimeout(forAccept: "text/plain")
+                == SessionsHermesClient.requestTimeout(forAccept: "application/json"))
+    }
 }
