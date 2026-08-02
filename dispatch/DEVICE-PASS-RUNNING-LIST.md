@@ -122,6 +122,57 @@ the first time we see the real answer.
 
 ---
 
+## A2b · #221 — brain-governs-voice A/B · **[HIGH — verifies a spend + privacy fix]**
+
+**Fixed 2026-08-01, unverified on device.** The bug: `VoiceEngineRouter` keyed on
+relay pairing alone, so the **on-device** brain still ran voice over **OpenAI
+Realtime** — billing audio tokens and sending microphone audio off-device while
+the UI said on-device. Found by Owen hearing a different voice in airplane mode.
+
+**This is a two-arm A/B with an audible check AND a logged check**, which is the
+point: the ear is what caught it originally, and the log is what makes it a
+record. Run both arms in one sitting, network ON, phone paired — the failing
+configuration is *paired and healthy*, so do **not** use airplane mode here.
+Airplane mode would pass trivially and prove nothing.
+
+### Arm 1 — brain = **On-Device**  (the arm that used to fail)
+
+**DO:** Settings → brain → **On-Device**. Start a voice session. Say a couple of
+things.
+
+- **PASS:** log reads `voice session starting on engine native (relayPaired=true)`
+  — note **`relayPaired=true`**, that is the whole point — and the voice is
+  **Apple TTS**, audibly different from the OpenAI voice.
+- **FAIL:** `engine realtime`, or the OpenAI voice. That is the original bug alive.
+
+### Arm 2 — brain = **Hermes**  (must still work)
+
+**DO:** switch to **Hermes**, start a voice session.
+
+- **PASS:** `voice session starting on engine realtime`, OpenAI voice.
+- **FAIL:** stuck on native — the fix over-corrected and broke the paid path.
+
+### Arm 3 — does it STICK?  ← Owen's explicit ask
+
+The fix re-checks the brain at three points, but nothing has proven the *setting*
+survives real usage. Check all four:
+
+1. **Mid-session switch.** On-Device → start voice → end → switch to Hermes →
+   start voice. Second session must be `realtime`. Then reverse it.
+2. **Cold relaunch.** Set On-Device, force-quit, relaunch, start voice.
+   Must be `native` — a brain that resets to Hermes on launch would silently
+   restore the billing.
+3. **After a re-pair.** Pairing is what used to decide; confirm re-pairing does
+   not re-admit realtime under On-Device.
+4. **After network flap.** Airplane on → off → start voice under On-Device.
+   Must stay `native`; the readiness probe recovering must not override the brain.
+
+### Also capture while you are here
+
+`#221`'s open product question: **should a realtime voice session show a visible
+indicator?** Arm 2 is the moment to judge it — you will be on realtime with audio
+leaving the device. Note whether the absence of any indicator feels wrong.
+
 ## B · #130 — the half-duplex A/B, owed since 2026-07-20
 
 ### B1 · Half-duplex gate vs talk-over barge-in · **PARKED 2026-08-01 — kept as a REMINDER**
