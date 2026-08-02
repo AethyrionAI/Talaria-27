@@ -1406,6 +1406,37 @@ final class AppContainer {
     // harness-visible
     private(set) var peakConcurrentForegroundActivations = 0
 
+    /// #145 Part E(a) — ONE shared deadline around the whole foreground chain.
+    ///
+    /// **Part A bounded each CALL; it did not bound the SUM.** Ten guarded
+    /// network awaits plus `refreshDormantProfileTokensIfNeeded`'s serial
+    /// per-profile loop means a degraded-but-answering host can still hold an
+    /// activation for minutes while every individual call behaves correctly.
+    /// This caps the total.
+    ///
+    /// **45s is chosen to be generous, not tight, and that is deliberate.** A
+    /// deadline that fires on healthy-but-slow refreshes would silently
+    /// truncate real work — a worse bug than the slow chain it replaced, and
+    /// an invisible one. A normal activation is seconds; this only bites the
+    /// pathological case Part A cannot reach.
+    ///
+    /// **Cancellation, not a race.** The deadline cancels Part D's existing
+    /// activation `Task`, and Part D already placed `if Task.isCancelled`
+    /// between every network step — so the chain stops at the next boundary
+    /// using machinery that is already proven. Racing `task.value` in a
+    /// `TaskGroup` was rejected: `Task<Void, Never>.value` cannot be
+    /// timeout-raced without stranding the loser's waiter.
+    ///
+    /// harness-visible: tests shrink this so the suite pays milliseconds.
+    var foregroundActivationBudget: Duration = .seconds(45)
+
+    /// How many activations the deadline cut short. **A silent cut is
+    /// indistinguishable from a fast success**, and this is the number that
+    /// tells the two apart — if it is ever non-zero in the field, the chain
+    /// is hitting the pathological case and §F5's device check has something
+    /// real to look at. harness-visible.
+    private(set) var foregroundActivationsCutShort = 0
+
     /// #145 Part D — every scene activation used to queue another full
     /// twelve-await chain, with nothing coalescing or superseding.
     ///
@@ -1441,7 +1472,36 @@ final class AppContainer {
             await self.runForegroundActivation()
         }
         foregroundActivationTask = task
+
+        // #145 Part E(a): the shared deadline. Cancels the chain rather than
+        // racing it — Part D's per-step `Task.isCancelled` guards are what
+        // make the cancel actually stop work, so this rides machinery that is
+        // already built and tested. The watchdog is itself cancelled on the
+        // normal path, so a healthy activation costs one suspended task and
+        // nothing else.
+        let budget = foregroundActivationBudget
+        let watchdog = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: budget)
+            } catch {
+                return // cancelled: the chain finished first, which is the norm
+            }
+            // Whole body on the MainActor deliberately. A first draft slept
+            // off-actor and hopped in via `MainActor.run` — but `return`
+            // inside that closure exits only the CLOSURE, so the cancel below
+            // still ran on the superseded path. Harmless (cancelling a
+            // finished task is a no-op) and wrong to read, which is how a
+            // later edit turns it into a real bug.
+            guard let self, self.foregroundActivationTask == task else { return }
+            self.foregroundActivationsCutShort += 1
+            containerLog.notice(
+                "handleAppDidBecomeActive: chain exceeded its foreground budget — cutting it short (#145 Part E(a))"
+            )
+            task.cancel()
+        }
+
         await task.value
+        watchdog.cancel()
         if foregroundActivationTask == task {
             foregroundActivationTask = nil
         }
