@@ -51,7 +51,7 @@ surface once you are already holding the phone.
 | # | the question | what it unblocks |
 |---|---|---|
 | **D2** | **Should LAN-hosted backends work at all?** `http://192.168.x` and MagicDNS names are ATS-blocked app-wide today; only the Tailscale CGNAT range is excepted. | If yes, it needs its own measured arm — and note `NSAllowsLocalNetworking` was only ever tested against a **CGNAT** host, never a `192.168.x` one, so do not assume the key does what its name says. If no, we close the ATS thread. |
-| **#152** | **Pick the pairing-surface label** — "Pairing & Devices" / "Manage Pairing" / "Paired Devices". | It is a rename, then code. Nothing else is blocking it. |
+| ~~**#152**~~ | ~~Pick the pairing-surface label~~ — **WITHDRAWN 2026-08-01. This was not owed; it SHIPPED 2026-07-24.** The row reads **"Pairing & Devices"** in the tree today (`UplinkSettingsScreen.swift:357`, `ConnectHermesHostScreen.swift:38`), merged in **PR #146**. I put it on your plate as an open decision, and repeated it to you verbally — both wrong. If you want a different label it is now a change, not a decision. | Nothing. The device check it left behind is in **§F1**. |
 | **#164** | **Close the old UI flake, or formally quarantine it?** | Its own bar is *three consecutive green runs*; we have **one** (2026-08-01, 8/8). I did not close it on your behalf — meeting a bar is not the same as being tired of it. Your call whether the bar still earns its cost. |
 | **#170** | **Run #148's discriminator, or close as answered-for-the-world-that-exists?** | Neither shape is reachable on OJAMD — every real job carries a null `model_snapshot`. The discriminator is one read of the Mac's `cron/jobs.json`; I can do it if you want the answer. |
 | **#47** | **Does the billing cap still matter?** | #47 is otherwise closed and in daily use. This residual is currently filed **nowhere** — it dies unless you say to keep it. |
@@ -69,11 +69,15 @@ surface once you are already holding the phone.
 
 ### What needs nothing from you
 
-I can run these solo whenever: **§G**'s source-confirms (#151/#153), **#216A**'s
-re-read, **E1**'s isolated build, and staging B1's branch. Say go and they happen
-without a sitting. — **#128's archaeology is ✅ DONE (2026-08-01)**; it removed an
-item from the board rather than adding one, and confirmed #220's engine hypothesis
-from source.
+I can run these solo whenever: **#216A**'s re-read, **E1**'s isolated build, and
+staging B1's branch. Say go and they happen without a sitting.
+
+**Two are already ✅ done (2026-08-01), and both SHRANK the board:**
+- **#128's archaeology** — confirmed #220's engine hypothesis from source and
+  removed #128 from the queue entirely.
+- **§G's #151/#153 source-confirms** — the confirms had **already been done
+  2026-07-24 and merged as PR #146**. #153 closed; #151 and #152 moved *into*
+  §F1/§F5 as ordinary device checks; one decision withdrawn off Owen's plate.
 
 ---
 
@@ -299,6 +303,8 @@ four times total.
 | **#146** | Diagnostics push row after a healthy launch | row is NOT stuck on `TOKEN HELD · AWAITING RELAY`. Note: seeing the push arrive ×4 does **not** falsify this — that count is #143, relay-side |
 | **#112** | Settings → toggle system appearance while foregrounded | Comic Book re-skins villain↔funnies **without relaunch** |
 | **#184/#185** | Exercise all three ChatStore teardown paths; send two attachments with the **same filename** | teardown clears consistently; each attachment resolves to its OWN local file. Sim-only today |
+| **#151** | Settings → Hermes Host → **Test Connection** against the LIVE host | verdict appears **within ~5s** with a latency figure. Shape 1 of 3 — the other two are in **§F5**. Pre-#146 this button was silent and, on a black-holed host, would have hung **five minutes** (the shared client stamps `timeoutInterval = 300`) |
+| **#152** | Settings → Hermes Host → **"Pairing & Devices"** → reach Revoke | the renamed row lands on the revoke/disconnect surface, and **Pair New Device (QR)** is present so the screen is not destructive-only. Sim-verified 8/8 already; this is the device leg |
 
 ### F2 · STANDALONE / UNPAIRED
 
@@ -327,6 +333,8 @@ four times total.
 | # | check | pass |
 |---|---|---|
 | **#117** | Induce a connector outage and hold it **> 25 minutes** | drains back off and STAY backed off; outage rate < 50% of healthy. **The window is the check** — the original close scored a false PASS on a short window, and the 27-minute run showed decay |
+| **#151** | Test Connection against a **STOPPED** host (gateway down, port closed) | **REFUSED**, fast — not OFFLINE, not a spinner. Shape 2 of 3 |
+| **#151** | Test Connection against a **BLACK-HOLED** host (packets dropped, e.g. an offline tailnet IP) | **NO ANSWER** at **~5s**. Shape 3 of 3, and the one that matters most — this is the case that used to hang for five minutes. **Cheapest setup on the board: point the base URL at an offline tailnet IP; no service needs stopping** |
 
 ### F6 · Voice — same physical sitting as B1
 
@@ -342,14 +350,27 @@ four times total.
 Filed here only so the audit's Part 1C list is fully accounted for. **Do not
 carry these into a device sitting.**
 
-- **#151 / #153 — source-confirm, not device.** Both need a Mac shell read before
-  any device check is meaningful (`grep testConnection`; determine whether hosts
-  are stored as one record or already an array). Their spec makes PHASE 0 CONFIRM
-  mandatory precisely because Bundle B shipped with 2 of 4 premises wrong.
-  #151's three device shapes (live / stopped / black-holed host) only become
-  runnable after that.
-- **#152 — a naming decision, not a check.** Needs Owen to pick a label
-  ("Pairing & Devices" / "Manage Pairing" / "Paired Devices"), then it is code.
+- **~~#151 / #152 / #153~~ — ✅ ALL THREE RESOLVED OUT OF §G, 2026-08-01. This
+  section's premise for them was stale by a week.** The source-confirms it calls
+  "owed" were **done 2026-07-24**, the work was **built**, and it **merged as
+  PR #146** (`git merge-base --is-ancestor claude/t27-settings-host-surface main`
+  → ancestor). Verified in the tree, not taken from the tracker:
+  - **#151** — `probeTimeout = 5`, a dedicated probe deliberately off the shared
+    300s client path, `testState` bound to the UI, and the three new honest
+    verdicts **REFUSED / NO ANSWER / NO HOST** at `UplinkSettingsScreen.swift:38-40`.
+  - **#152** — row and destination both read **"Pairing & Devices"**
+    (`UplinkSettingsScreen.swift:357`, `ConnectHermesHostScreen.swift:38`).
+  - **#153** — the scope gate came back the good way: hosts were **already an
+    array** (`BackendProfile.swift:100`), so never a data-model lane;
+    `deleteProfile(id:)` ships with `profileIsActive` / `profileIsSensorDestination`.
+  **#151 and #152 are now ordinary device checks and have moved to §F1 / §F5** —
+  the opposite direction from where the audit routed them, because the confirm
+  they were waiting on had already happened. **#153 needs nothing and is ✅.**
+  **The lesson is the one this week keeps re-teaching:** §G was written from the
+  tracker's *"Source-confirm owed (next Mac shell)"* lines, which were true when
+  logged 2026-07-20 and dead four days later — and each entry carried its own
+  answer in a **later** paragraph of the same entry. Read the whole item, not its
+  oldest line.
 - **#128 — source archaeology. ✅ DONE 2026-08-01, no device time.** Neither horn of
   the dichotomy: the fix is **live** (layer 3 of 4 guards) and the repro is
   **decoupled, not unreachable** — PR #127 re-enabled the mid-session preview button
