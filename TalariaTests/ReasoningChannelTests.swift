@@ -814,4 +814,28 @@ struct ReasoningChannelTests {
         #expect(SessionsHermesClient.requestTimeout(forAccept: "text/plain")
                 == SessionsHermesClient.requestTimeout(forAccept: "application/json"))
     }
+
+    /// #145 Part A, completing the lane. The FIVE Hermes-plane clients all
+    /// defaulted to `URLSession.shared` — 60s request over a **7-day** resource
+    /// ceiling — and `seedActiveModelFromShim()` puts `ModelsShimClient`
+    /// directly in `handleAppDidBecomeActive`'s chain, so #145's wedge reached
+    /// them too. The first Part A PR bounded only `SessionsHermesClient`.
+    ///
+    /// This pins the RELATIONSHIP rather than two magic numbers, because the
+    /// relationship is what silently drifts: the chat plane tolerates a long
+    /// ceiling only to accommodate a live SSE turn, and the four non-streaming
+    /// clients have no such claim on it.
+    @Test
+    func nonStreamingClientsGetAStricterCeilingThanTheStreamingChatPlane() {
+        let chat = SessionsHermesClient.makeChatPlaneSession().configuration
+        let interactive = SessionsHermesClient.makeInteractiveHermesPlaneSession().configuration
+
+        // Neither may inherit URLSession.shared's SEVEN DAY resource ceiling —
+        // the knob that made a wedge effectively permanent.
+        #expect(chat.timeoutIntervalForResource <= 3600)
+        #expect(interactive.timeoutIntervalForResource <= 60)
+
+        #expect(interactive.timeoutIntervalForResource < chat.timeoutIntervalForResource,
+                "a client with zero streaming call sites must not carry the SSE allowance")
+    }
 }
