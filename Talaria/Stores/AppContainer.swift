@@ -1372,7 +1372,64 @@ final class AppContainer {
         router.selectedTab = .chat
     }
 
+    // MARK: - #145 Part D — activations supersede, they do not stack
+
+    /// The chain currently in flight, if any. Cancellation is the mechanism the
+    /// chain previously had none of.
+    private var foregroundActivationTask: Task<Void, Never>?
+    // harness-visible: #145 Part D's pin is peak CONCURRENCY. A call count
+    // cannot distinguish "superseded" from "stacked" — both activations
+    // legitimately touch the host, so the count rises either way.
+    private(set) var liveForegroundActivations = 0
+    // harness-visible
+    private(set) var peakConcurrentForegroundActivations = 0
+
+    /// #145 Part D — every scene activation used to queue another full
+    /// twelve-await chain, with nothing coalescing or superseding.
+    ///
+    /// Under an outage that multiplies the wedge by however many times the user
+    /// tried to wake the app — **which is exactly what a person does when an app
+    /// looks frozen.** The bug got worse the more the user fought it, which is
+    /// the property that turns a slow refresh into "I restarted my phone."
+    ///
+    /// **Supersede, not coalesce:** a chain parked on a dead host has nothing
+    /// useful left to deliver, and the newest activation carries the freshest
+    /// intent. Two things already make discarding it safe — Part B's UI writes
+    /// run FIRST, so a superseded chain has already painted last-known-good
+    /// state; and the steps are independent refreshes, so the replacing chain
+    /// simply redoes them.
+    ///
+    /// **The cancel is awaited, following `cancelBackgroundBootstrap`'s
+    /// precedent of waiting out the unwinding task rather than racing it.**
+    /// Without that wait the old chain's teardown overlaps the new chain's
+    /// start and both are briefly live — which is the very thing this fixes, and
+    /// it would still read as "stacked" to the pin. The wait is bounded because
+    /// `URLSession`'s async API is cancellation-aware and Part A capped an
+    /// interactive call at 20s.
     func handleAppDidBecomeActive() async {
+        if let inFlight = foregroundActivationTask {
+            containerLog.notice("handleAppDidBecomeActive: superseding an in-flight activation (#145 Part D)")
+            inFlight.cancel()
+            await inFlight.value
+        }
+        // `guard let`, not `self?.` — optional chaining would make this a
+        // `Task<()?, Never>` and it must match `foregroundActivationTask`.
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.runForegroundActivation()
+        }
+        foregroundActivationTask = task
+        await task.value
+        if foregroundActivationTask == task {
+            foregroundActivationTask = nil
+        }
+    }
+
+    private func runForegroundActivation() async {
+        liveForegroundActivations += 1
+        peakConcurrentForegroundActivations = max(peakConcurrentForegroundActivations, liveForegroundActivations)
+        defer { liveForegroundActivations -= 1 }
+
         guard pairingStore.isPaired else {
             containerLog.warning("handleAppDidBecomeActive: BLOCKED — not paired")
             return
@@ -1405,25 +1462,44 @@ final class AppContainer {
         reconcileLiveActivities()
         updateWidgetData()
 
+        // #145 Part D: a superseded chain must actually STOP. Swift cancellation
+        // is cooperative — cancelling a Task does not unwind code that never
+        // checks, so without these guards a "cancelled" activation would keep
+        // walking its remaining awaits and the supersede would be cosmetic.
+        // Each network step gets one, so the chain gives up at the first
+        // opportunity after a newer activation arrives.
         await permissionsStore.reloadCapabilities()
+        if Task.isCancelled { return }
         await hostStore.refresh()
+        if Task.isCancelled { return }
         lastKnownHostOnline = hostStore.isHostOnline
         await refreshCommandCatalog(force: true)
+        if Task.isCancelled { return }
         // Seed the model chip from the shim if the catalog didn't provide one
         // (e.g. relay offline). This path runs even when initialize() aborts.
         if chatStore.activeModelName == nil {
             await seedActiveModelFromShim()
+            if Task.isCancelled { return }
         }
         await registerStoredPushTokenIfNeeded()
+        if Task.isCancelled { return }
         await sensorUploadService?.handleAppDidBecomeActive()
+        if Task.isCancelled { return }
         talkStore.handleAppDidBecomeActive()
         await talkStore.refreshReadiness()
+        if Task.isCancelled { return }
         await chatStore.reconcilePendingRuns()
+        if Task.isCancelled { return }
         // #4.15: a turn that finished while backgrounded skipped reasoning
         // condensation (foreground-only work) — catch it up now.
         await chatStore.condensePendingReasoning()
+        if Task.isCancelled { return }
         // M-9: keep dormant profiles' relay tokens alive.
         await refreshDormantProfileTokensIfNeeded()
+        // The trailing UI writes are NOT guarded: they are local, synchronous
+        // and idempotent, and a superseded chain that has already reached here
+        // may as well publish what it learned. Guarding them would throw away
+        // fetched state for no benefit (#145 Part B).
         reconcileLiveActivities()
         await reportAppStateIfNeeded("foreground")
         updateWidgetData()
