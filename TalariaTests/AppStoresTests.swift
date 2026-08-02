@@ -3228,6 +3228,53 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
+    func foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes() async throws {
+        // #145 Part B — THE regression pin for the property that forced a phone
+        // restart. `reconcileLiveActivities()` and `updateWidgetData()` were
+        // sequenced LAST in `handleAppDidBecomeActive`, behind ~8 network awaits.
+        // So the app could not refresh its visible state until the whole chain
+        // drained, and sat frozen on stale content for MINUTES after the host was
+        // healthy again. That is the difference between "the app is slow" and
+        // "the app is broken and I restarted my phone."
+        //
+        // Both writes are synchronous, local and idempotent (verified: they read
+        // store state into SharedWidgetDataStore / LiveActivityService and touch
+        // no network), so hoisting them costs nothing and gates nothing.
+        let harness = await makeLaunchHarness(
+            suiteName: "foreground-uiwrite-\(UUID().uuidString)",
+            sessionUserMatchesPairedUser: true
+        )
+        let container = harness.container
+
+        // A marker no other suite can produce. SharedWidgetDataStore is REAL
+        // app-group UserDefaults shared process-wide, so asserting on a bare
+        // "did it write" would pass on another test's write — #183's shape.
+        let marker = "t27-145-partB-\(UUID().uuidString)"
+        container.chatStore.conversation = Conversation(
+            title: "Hermes",
+            messages: [Message(sender: .hermes, content: marker, status: .delivered)]
+        )
+
+        // Gates stay CLOSED. `hostStore.refresh()` is step 2 of the chain and
+        // never returns — the black-holed-host shape from #136.
+        let activation = Task { @MainActor in await container.handleAppDidBecomeActive() }
+
+        let wroteWhileBlocked = await pollUntil {
+            (SharedWidgetDataStore.read().lastMessagePreview ?? "").contains(marker)
+        }
+        #expect(wroteWhileBlocked,
+                "the widget snapshot must be written without waiting for the network chain to drain")
+
+        // Proves the chain really was blocked — otherwise this test would pass
+        // for the wrong reason on a build where the fetch returned instantly.
+        #expect(harness.hostService.fetchCallCount > 0,
+                "the activation never reached the host fetch, so nothing was actually blocked")
+
+        harness.openAllGates()
+        await activation.value
+    }
+
+    @Test @MainActor
     func blackHoledRelayDoesNotHoldTheLaunchSplash() async throws {
         let harness = await makeLaunchHarness(
             suiteName: "launch-blackhole-\(UUID().uuidString)",
