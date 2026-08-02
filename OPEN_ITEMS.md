@@ -4,7 +4,34 @@
 **Landed this session (on `main`, merge `98a9a89`):** T1 (Settings→Models dual-write
 picker), T2 (regex + copy fixes), shim cache-bust. See the merge commit for detail.
 
-Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · 📝 note / decision · ✅ done.
+Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · 📝 note / decision ·
+**❌ cut / won't-do (terminal)** · ✅ done.
+
+> ## HOW TO COUNT THIS FILE — added 2026-08-01 (Phase 0)
+>
+> **"Open" is NOT "not ✅", and counting it that way overstates the backlog.**
+> `grep -c '^## ' | grep -v ✅` returns **93**, but that figure sweeps in three
+> terminal states that are not work:
+>
+> - **📝 (9)** — mixed, and the only marker that needs reading rather than counting.
+>   **#3, #6, #7, #83 are pure records** (a standing rule, a cosmetic thing left
+>   as-is per Owen, an informational seam, a resolved investigation) — terminal.
+>   **#8, #90, #101, #109, #155 are real future work** wearing a 📝.
+> - **❌ (3)** — #125 and #126 are completed cuts, terminal. **#161 says "NOT
+>   VIABLE, recommend closing" and the close was never actioned — Owen's call.**
+> - **💤 (2)** — #4, #55. Parked, not done. Count as open-but-not-scheduled.
+>
+> **The honest figure as of 2026-08-01: 229 items · 136 ✅ · 6 terminal-not-✅
+> (4 record 📝 + 2 completed ❌) · ~87 genuinely open**, of which 2 are dormant and
+> 1 awaits Owen.
+>
+> **Do not read a header and stop.** Every header-only judgement made during this
+> phase was wrong. #162/#163/#165 read "BUILT on branch" and the code is on `main`
+> — but all three carry an **"Owed — device checklist"** line further down, so they
+> are *shipped with verification owed*, **not** closable. #210 and #208 read as
+> concluded ("FIXED", "hypothesis falsified") and both carry explicit **"Still
+> owed" / "OWED"**. The five ✨ merged features all carry queued device debt.
+> **Six items looked closable from their headers; zero were.**
 
 > **Accuracy audit — 2026-07-13.** All 112 items were re-checked against `origin/main` (tip `cca1345`), merged-PR/closed-issue state, and on-disk code. Corrections are flagged inline as `> **Audit 2026-07-13:**` blockquotes. Summary: 65 items accurate as-was; 13 status-flips (3 shown ✅ but actually open — #17/#18/#31; 7 shown open but actually done — #37/#47/#48/#49/#55/#76/#94; 3 header-vs-body contradictions — #25/#79/#102); 34 'merged-unverified' items whose 'built in cloud / not compiled / needs merge' wording was stale (PRs since merged — device-verify is the only work left). Full write-up: `design/OPEN_ITEMS_AUDIT_2026-07-13.md`.
 >
@@ -7341,7 +7368,7 @@ But it turns out we barely need even that. Re-checked against #158:
 
 Logged 2026-07-22.
 
-## 162. 🛠 156a Tasks lane BUILT — cron browse/create/edit/control on branch `claude/t27-156a-tasks-cron`
+## 162. 🛠 156a Tasks lane — **SHIPPED, on `main`** (`Talaria/Features/Tasks/`, reachable at `ContentView.swift:246`); **device checklist still owed** — header corrected 2026-08-01
 
 Dispatch `dispatch/FABLE-T27-156A-tasks-cron.md` executed 2026-07-22 on the Mac Mini
 (Xcode-beta4 toolchain, upstream re-verified against the local hermes-agent 0.19.0
@@ -7408,7 +7435,7 @@ comments document, in a flow this lane does not touch. Not chased here.
 
 Logged 2026-07-22.
 
-## 163. 🧩 156b Skills lane BUILT — read-only skills browser + cron skills picker on branch `claude/t27-156b-skills-browser`
+## 163. 🧩 156b Skills lane — **SHIPPED, on `main`** (`Talaria/Features/Skills/`, reachable at `ContentView.swift:250`); **device checklist still owed** — header corrected 2026-08-01
 
 Dispatch `dispatch/FABLE-T27-156B-skills-browser.md` executed 2026-07-22 on the Mac Mini
 (Xcode-beta4 toolchain). All six deliverables, one PR, zero new infrastructure (#161
@@ -7514,7 +7541,7 @@ Not urgent; it costs minutes per lane, not correctness — but it should not sur
 
 Logged 2026-07-22.
 
-## 165. 🧩 156d Insights lane BUILT — session usage/cost panel on branch `claude/t27-156d-insights`
+## 165. 🧩 156d Insights lane — **SHIPPED, on `main`** (`Talaria/Features/Insights/`, reachable at `ContentView.swift:252`); **device checklist still owed** — header corrected 2026-08-01
 
 Dispatch `dispatch/FABLE-T27-156D-insights.md` executed 2026-07-22 on the Mac Mini
 (Xcode-beta4 toolchain). All five deliverables, one PR, zero new infrastructure (#161
@@ -12213,7 +12240,7 @@ one promotion.
 > realtime show a **visible indicator**? The audio leaves the device; silence
 > seems like the wrong default. Not built, awaiting Owen.
 
-## The original filing
+### The original filing
 
 **FOUND BY OWEN 2026-08-01**, immediately after the airplane-mode test made the
 engine visible: *"the other voice, with airplane mode off, was firing over
