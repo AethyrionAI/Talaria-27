@@ -7808,6 +7808,61 @@ Belt-and-braces on top of the structural fix: the caveat string moved into `Insi
 
 ## 170. ⚠️ Task detail presents `model_snapshot` as if it were the job's model — and the phone cannot pin a model at all (device-found 2026-07-22). **LEAD 2026-08-01: 0.19.0 may have made the second half solvable.**
 
+> ## ❌ LEAD TESTED 2026-08-02 — **the lock does NOT govern. Do not adopt it.** The second clause of this item STANDS.
+>
+> **Tested live against OJAMD (production, 0.19.1), three arms, all sessions
+> deleted afterwards (verified 404).** The flag below said "prove the lock changes
+> which model answers before trusting it." It does not.
+>
+> | arm | sent | `runtime.provider` | `runtime.model` | `route_source` | `requested` |
+> |---|---|---|---|---|---|
+> | **control** | nothing | — | row records `hermes-agent`, `has_model_config:false` | — | — |
+> | **create-time lock** | `provider: nonexistent-provider-zz`<br>`model: nonexistent-model-xyz` | **`kimi-coding`** (the default) | **`nonexistent-model-xyz`** ← the fiction | `global` | **empty** |
+> | **per-turn request** | same, in the chat body | **`kimi-coding`** (the default) | `hermes-agent` | `raw_request` | correctly captured |
+>
+> **Both turns SUCCEEDED** — "PING" and "PONG", answered correctly by the default
+> model. A provider and model that **do not exist** were accepted at HTTP 201 with
+> no validation, silently ignored, and the default answered.
+>
+> ### The create-time path is actively misleading, and it is THIS ITEM'S BUG in a new field
+>
+> `runtime.model` came back as **`nonexistent-model-xyz`** — a name I invented, for
+> a model that cannot exist, reported as the model that ran. **That is precisely
+> what #170 was filed about:** *"presents `model_snapshot` as if it were the job's
+> model."* The same disease, one API layer over.
+>
+> **The per-turn path is better but still does not pin:** it honestly separates
+> `requested` (what you asked) from `runtime` (what ran), and `route_source` flips
+> to `raw_request` — but the run still fell back to `kimi-coding` and reported the
+> generic `hermes-agent`.
+>
+> **So the surface exists and is INERT.** Adopting it would ship a model picker
+> that changes a label and nothing else — **strictly worse than today**, because
+> today the phone at least does not claim to pin.
+>
+> ### Limit of this test, stated plainly
+>
+> **I tested with a NONEXISTENT provider/model.** Only one provider is configured
+> (`kimi-coding` / `kimi-k3`), so I could not test whether a **valid** alternative
+> would govern. It is possible valid pins work and only unresolvable ones fall
+> back silently. **That does not rescue the finding**, for two independent reasons:
+> the create-time path misreports the runtime model regardless, and a silent
+> fallback with **no error on a nonexistent model** is its own defect.
+>
+> **What would settle the remaining half:** a second configured provider, then the
+> same three arms. Cheap, no phone, worth doing before anyone builds a picker.
+>
+> ### This is a HERMES-side bug, not ours — and #148 should own it
+>
+> Owen runs the host. Two things worth fixing upstream: **validate provider/model
+> at session create** (or return an error rather than 201), and **never report a
+> requested model as `runtime.model`** — the per-turn path already models this
+> correctly with its `requested` / `runtime` split, so the fix is to make create
+> behave like chat.
+>
+> *(Original lead, as filed 2026-08-01, preserved below — it named the exact trap
+> this test then confirmed.)*
+>
 > ## 🔎 LEAD — found while re-checking #161, not while working this item
 >
 > **This item's second clause is "the phone cannot pin a model at all."** That was
