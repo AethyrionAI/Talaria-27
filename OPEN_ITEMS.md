@@ -609,6 +609,19 @@ dropdown, no popover, no "Start New Session" — straight to the shim-backed lis
 > re-probe `/api/files` on a current gateway process — the relay sidecar route may be
 > superseded by core.** CLAUDE.md's #21 paragraph carries the stale "all 404" claim and
 > needs the same dated correction once verified on OJAMD.
+>
+> **Handler source read (2026-08-02, same probe):** `/api/files/download` is auth-gated by
+> the standard middleware (plus a `?token=` query-param variant for browser-opened
+> downloads), path-policied via `_resolve_managed_path` (`locked_root` + a sensitive-path
+> blocklist), size-capped (`_MANAGED_FILE_MAX_BYTES`), and its docstring names exactly our
+> use case: "Remote clients … open agent-written files that live on *this* gateway's
+> disk." **Migration candidate once verified live: app-side agent-file fetch moves from
+> relay + device bearer to gateway + chat-plane key, and the relay file route becomes
+> deletable.** To verify on a current process: the path policy's `locked_root` must cover
+> the agent working dir (`O:\Hermes\` on OJAMD), Windows paths must round-trip, and the
+> size cap must fit real agent outputs. `/api/chat/image-upload` was checked and is NOT an
+> attachment channel — it stages browser clipboard bytes into `HERMES_HOME/images/` for
+> the dashboard's embedded TUI `/image` command; inline chat attachments are untouched.
 
 **Session D launch sweep 2026-07-20 — Mac PASS (for what is built), two findings, OJAMD
 test INVALID:**
