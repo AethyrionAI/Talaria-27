@@ -9116,6 +9116,78 @@ Recorded here in advance so nobody preserves a meaningless test to protect the n
 
 Logged 2026-07-24.
 
+> ## PHASE 1 RAN 2026-08-02 — the suite is clean by all four static criteria, and the real
+> ## finding is that THE GATE COULD NOT SEE SKIPS. Item stays OPEN (Phase 2 unrun).
+>
+> **Counts, per the spec's four categories, over 1,504 parsed test functions:**
+>
+> | category | candidates | real |
+> |---|---|---|
+> | **A. vacuous** (no assertion anywhere in body) | 1 | **1** — `testLaunch`, the auto-generated XCUITest template. Already annotated (#144). It is a launch smoke test: it fails if the app crashes on launch, which is a real if narrow subject. **Kept, not deleted.** |
+> | **B. silent early-return** (`guard … else { return }`, nothing recorded) | 0 | 0 |
+> | **C. `withKnownIssue`** (passes even when FAILING) | 0 | 0 |
+> | **D. constant assertions** (`#expect(true)`, `x == x`) | 0 | 0 |
+>
+> **The dominant idiom here is already the honest one:** `guard case … else { Issue.record(…); return }`.
+> That is a real assertion in the failure path, and it is why category B is empty.
+>
+> ### The finding: a skipped test was indistinguishable from a passing one
+>
+> `CondenserFidelityTests` — **instance 3 of this item** — gates its two model-path tests on
+> `.enabled(…)` with a live Apple-Intelligence probe. On the sim it skips. The gate's own log
+> from 2026-08-02:
+>
+> ```
+> ➜ Test "Condensed priming: latest corrected values…" skipped: "Requires the on-device …"
+> ➜ Test "Condensed priming stays in budget on a long journal" skipped: "Requires …"
+> ✔ Suite CondenserFidelityTests passed after 0.455 seconds.
+> ```
+>
+> **The suite prints `passed` having run nothing, and `lane-gate.sh` never mentioned the word
+> "skip".** Its headline read `Swift Testing tests run — 1497`, with no signal that two
+> subjects went unexercised. That is #218's lesson one level up: *a positive marker that a
+> no-op satisfies is not a positive marker* — and "passed" over an all-skipped suite is
+> exactly that no-op.
+>
+> **Fixed in `scripts/mac/lane-gate.sh`:** the gate now counts skips, prints each skipped
+> test with its reason, and prints `no skipped tests` when there are none. **Deliberately a
+> REPORT, not a FAIL** — these two skips are honest (the hardware genuinely is absent on a
+> sim run) and **#93 owns making them run**; what was wrong was that they were invisible.
+> Expected steady state is **2**. If that number moves, it is a finding.
+>
+> ### The other finding, and it is the one worth carrying
+>
+> **The sweep tool needed FOUR corrections before its output could be trusted, and every
+> prior version returned a confident, wrong answer** — 22 candidates, then 6, then 3, then 1:
+>
+> 1. `@Test func x()` on ONE line — the dominant style here. The parser treated `@Test` as
+>    always standalone and silently found **357 of ~1,500** tests. Caught only because that
+>    count was checkable against the gate's.
+> 2. `Issue.record` missing from the assertion regex — made **4 honest tests** read as vacuous.
+> 3. Brace-matching counted braces **inside string literals**, truncating bodies early: a test
+>    building the fixture `"struct A {\n…"` lost its three real `#expect`s.
+> 4. Same again for **raw strings** (`#"…"#`), which this suite uses for JSON fixtures.
+> 5. `@MainActor @Test func` — attribute ORDER — left **14 tests unparsed**, i.e. unswept.
+>
+> **A masked masked-test detector.** The only thing that caught any of it was refusing to
+> accept a count that did not reconcile (357 ≠ 1497; 1420 ≠ 1497; 1486 ≠ 1497). **Read the
+> count first** — the same rule that caught the stale `.xctest` on 2026-07-30 and
+> `Executed 0 tests` under `** TEST SUCCEEDED **`. Tooling written to find masked tests is not
+> exempt from being one.
+>
+> **Instances 1 and 2 re-verified against the tree, not the entry:** #1
+> (`ConversationManagementTests`) carries `force: true` at
+> `ConversationManagementTests.swift:247` — fixed, confirmed. #2 (#154's unreachable-fallback
+> trap) was a one-off caught by review, with nothing structural to sweep for; Phase 2's
+> mutation check is the only thing that would catch its shape.
+>
+> **THE ITEM STAYS OPEN.** Per the spec's own close criteria, a Phase 1 report is not a closed
+> sweep: **a static pass cannot prove any test actually works.** Phase 2 (mutation) remains
+> unrun — see the deferral note above, and the question raised with Owen 2026-08-02: its
+> stated reason ("mutating code Bundle B is simultaneously moving") has expired, but the
+> condition Owen set ("after the device pass") has not been met, so it was not restarted
+> unilaterally.
+
 ## 184. 🐛 ChatStore has three teardown paths and each clears a different subset
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
