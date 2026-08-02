@@ -3275,6 +3275,44 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
+    func foregroundActivationsSupersedeRatherThanStack() async throws {
+        // #145 Part D. Every scene activation queued another full twelve-await
+        // chain, and nothing coalesced or superseded. Under an outage that
+        // multiplies the wedge by however many times the user tried to wake the
+        // app — which is exactly what a person does when an app looks frozen.
+        // The bug got WORSE the more the user fought it.
+        //
+        // The pin is peak concurrency, not a call count: two activations both
+        // legitimately touch the host, so counting fetches cannot tell
+        // "superseded" from "stacked". Peak can.
+        let harness = await makeLaunchHarness(
+            suiteName: "foreground-supersede-\(UUID().uuidString)",
+            sessionUserMatchesPairedUser: true
+        )
+        let container = harness.container
+
+        // Gates CLOSED — chain one parks on the host fetch and cannot finish.
+        let first = Task { @MainActor in await container.handleAppDidBecomeActive() }
+        let firstEntered = await pollUntil { container.liveForegroundActivations >= 1 }
+        #expect(firstEntered, "the first activation never started")
+
+        // Second activation arrives while the first is still parked.
+        let second = Task { @MainActor in await container.handleAppDidBecomeActive() }
+        _ = await pollUntil { container.peakConcurrentForegroundActivations > 1 }
+
+        #expect(container.peakConcurrentForegroundActivations == 1,
+                "two foreground chains ran at once — activations are stacking (\(container.peakConcurrentForegroundActivations) live at peak)")
+
+        harness.openAllGates()
+        await first.value
+        await second.value
+
+        // Nothing is left running once both callers return.
+        let settled = await pollUntil { container.liveForegroundActivations == 0 }
+        #expect(settled, "an activation chain outlived its caller")
+    }
+
+    @Test @MainActor
     func blackHoledRelayDoesNotHoldTheLaunchSplash() async throws {
         let harness = await makeLaunchHarness(
             suiteName: "launch-blackhole-\(UUID().uuidString)",

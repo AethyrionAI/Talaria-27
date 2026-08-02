@@ -6485,12 +6485,40 @@ Logged 2026-07-20.
 > red-then-green and is recorded as such rather than presented as clean TDD.
 >
 > ### STILL OWED — do not read this as "#145 fixed"
-> - **Part D — activations must not stack.** Every scene activation queues another
->   full chain; nothing coalesces or supersedes.
-> - **Part E — deliberately SKIPPED.** Parallelising the twelve awaits is the
->   riskiest change in the lane; a wrong parallelisation yields intermittent
->   foreground auth failures, which is worse than the bug. Only attempt it with a
->   dependency map established from source.
+> - ~~**Part D — activations must not stack.**~~ **BUILT 2026-08-02.** Activations
+>   now supersede: cancel the in-flight chain, **await its unwinding** (following
+>   `cancelBackgroundBootstrap`'s precedent — without the wait, teardown overlaps
+>   the new chain's start and both are briefly live, which is the very thing being
+>   fixed), then run. **The wait is bounded BECAUSE OF PART A** — an interactive
+>   call is 20s now, not 300s.
+>   **Swift cancellation is COOPERATIVE**, so `Task.isCancelled` guards sit between
+>   the network steps; without them a superseded chain keeps walking its remaining
+>   eight awaits and the supersede is **cosmetic** — the counter reads right while
+>   the wedge keeps running. The trailing UI writes are deliberately unguarded
+>   (local, idempotent, and a chain that got that far may as well publish).
+>   **Pin is PEAK CONCURRENCY, not a call count:** both activations legitimately
+>   touch the host, so a count rises whether they superseded or stacked — it moves
+>   for the right and wrong reasons equally, which measures nothing.
+> - **Part E — SPLIT, and only half of it is tabled.** Owen asked 2026-08-02
+>   whether E gets addressed or permanently tabled. **The honest answer is that
+>   the spec bundled two different changes under one letter:**
+>   - **(a) ONE SHARED DEADLINE around the whole chain — worth doing, and SAFE.**
+>     It needs **no dependency map**, because nothing is reordered; you are only
+>     capping the total. This was never the risky part and should be its own
+>     small lane.
+>   - **(b) PARALLELISE the twelve awaits — TABLED, behind triggers.**
+>     **Part A destroyed its value proposition.** E was written when a call cost
+>     **300s**, so parallelising 12 × 300s was worth real risk. With calls bounded
+>     at 20s the worst case is ~160s plus N×20s for dormant profiles — and the app
+>     is **responsive throughout** (Part B painted first, Part D prevents pile-up).
+>     **Trading a diagnosable slow refresh for undiagnosable intermittent
+>     foreground auth failures is a bad trade at that size.**
+>   - **Triggers that should REOPEN (b):** the device pass shows the refresh
+>     window is genuinely painful, **or** the profile count grows until
+>     `refreshDormantProfileTokensIfNeeded`'s serial N-loop
+>     (`AppContainer.swift:2497`, still serial) dominates the chain.
+>   - **Do not reopen (b) on the grounds that "E was never finished."** It was
+>     evaluated and priced, and the price changed because Part A landed.
 > - **DEVICE PASS — none of this is provable in the simulator.** The check is
 >   Owen's original scenario: enter the app during a host outage, confirm it stays
 >   responsive, and confirm it recovers on its own **without a phone restart**.
