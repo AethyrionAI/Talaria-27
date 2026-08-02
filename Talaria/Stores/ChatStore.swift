@@ -1579,7 +1579,19 @@ final class ChatStore {
         }) == true
     }
 
-    private static let maxPollAttempts = 30 // 30 × 2s = 60 seconds max
+    // ⚠️ #145's sibling defect — FILED, NOT FIXED. The comment here used to read
+    // "30 × 2s = 60 seconds max" and was wrong by more than an order of magnitude:
+    // the 2s is the SLEEP, and each attempt also makes a network call the arithmetic
+    // ignored. Against a black-holed host that call used to run to the shared 300s
+    // ceiling, putting the real bound near 2.5 HOURS. #145 Part A now caps
+    // interactive requests at 20s, so today's true ceiling is 30 × (2s + ≤20s) ≈
+    // 11 minutes — still not 60 seconds, and still the attempt-counter shape Part C
+    // replaced with a wall-clock budget in the reconcile loop.
+    //
+    // Left in place deliberately (scope: #145 Part E's residue), and the number is
+    // NOT the fix — `reconcileWallClockBudget`'s shape is. Do not add a third loop
+    // of this shape; convert this one when it is routed.
+    private static let maxPollAttempts = 30
 
     private func restartPendingPollingIfNeeded() {
         guard isPollingEnabled, hasPendingMessages else {

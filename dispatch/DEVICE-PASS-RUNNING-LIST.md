@@ -552,6 +552,15 @@ writable via `PUT /api/config`, on `:8642` under the key the app already holds.
 flag** — and it can be set from the dashboard, or by hand, or eventually from
 Talaria (see **OPEN_ITEMS #224**, filed off this).
 
+> **UPDATE 2026-08-02 — an ANSWER channel exists, and the `/api/config` claim above is
+> wrong.** `approvals.mode` is real but lives on the dashboard app (`:9119`), **not** the
+> `:8642` the phone speaks — so setting it from Talaria as described is not possible
+> (see #224's correction). Set it from the dashboard or by hand for this check. **What IS
+> on `:8642`: `POST /v1/runs/{run_id}/approval`** (plus `/v1/runs`, `/{id}`, `/{id}/events`,
+> `/{id}/stop`). So F7d is no longer only "watch it stall" — it is also **"find out whether
+> our runs are reachable as `/v1/runs` ids,"** which decides whether the phone could answer
+> approvals at all. Note the run id from `run.started` when you run F7d.
+
 **Expect trouble, because Talaria handles NO approval event.** Its SSE taxonomy
 is `run.started` / `assistant.delta` / `tool.started` / `tool.completed` /
 `tool.progress` / `assistant.completed` / `run.completed` / `done` — there is no

@@ -112,6 +112,13 @@ require_count() {   # require_count <logfile> <extract-regex> <label>
     # false-FAIL a good run. Safe because the pattern itself requires
     # "with 0 failures" — a run with failures matches nothing here and falls
     # through to the no-count-line FAIL below.
+    #
+    # MAX is taken over EVERY number on the matched line, not just the test
+    # count — so for "N tests in M suites" it can return the suite count when
+    # suites > tests. That is harmless because the value is only ever used for
+    # a >0 check and is reported, never compared to an expected total; if a
+    # future caller compares it to a number, extract the capture group first.
+    # (Noted by the external audit, 2026-08-02.)
     n="$(grep -oE "$pat" "$log" | grep -oE '[0-9]+' | sort -rn | head -1)"
     if [[ -z "$n" ]]; then
         bad "$label — no count line found in $log"

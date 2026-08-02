@@ -155,6 +155,16 @@ enum TestRunGuard {
 
     /// The decision the container actually makes. `explicitMockRequested` keeps
     /// the existing `UITEST_PAIRING_MODE == "mock"` contract working unchanged.
+    ///
+    /// **There is deliberately no opt-IN to LIVE pairing under test** — only an
+    /// opt-in to mock. The asymmetry is the point: the safe path is the default
+    /// and the live path has to be earned, because #144 was caused by a guard
+    /// that depended on every test author remembering to set a variable. The
+    /// cost, noted so it is not discovered mid-lane (external audit, 2026-08-02):
+    /// a future UI lane that genuinely needs real pairing against a staging relay
+    /// will need a CODE change here, not an environment variable. That is the
+    /// intended friction — an env var that re-enables live enrolment is exactly
+    /// what a shipped build must never honour.
     nonisolated static func mustUseMockPairing(
         environment: [String: String],
         explicitMockRequested: Bool,

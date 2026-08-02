@@ -42,7 +42,11 @@ Files the agent produces land in its **host working dir** (`O:\Hermes\` on OJAMD
 write as `tool.started` `{tool_name:"write_file", args:{path, content}, preview:path}`
 (`tool.completed` is empty). So **text files can be reconstructed client-side from
 `args.content`** with no server change (#21 Tier 1). There is **no built-in file/download
-endpoint** (`/openapi.json`, `/v1/files`, `/api/files`, `/files` all 404). Durable host-side
+endpoint** (`/openapi.json`, `/v1/files`, `/api/files`, `/files` all 404 — re-verified
+2026-08-02 on a CURRENT 0.19.1 process; Hermes DOES ship an `/api/files` family but it lives
+in the **dashboard app**, `web_server.py` :9119, dashboard auth — a separate app from the
+`:8642` api_server the phone speaks; don't mistake dashboard routes for chat-plane routes,
+see #21/#223). Durable host-side
 serving for binaries / other tools (#21 Tier 2) must live in **our relay sidecar**
 (`O:\Hermes\Talaria\relay`) — **never a patch to Hermes core**: `curl install.sh | bash`
 replaces `~/.hermes/hermes-agent` and wipes core edits, while `config.yaml`/`.env`/skills/
@@ -94,6 +98,33 @@ works against OJAMD.
 
 - **`xcodegen generate` is mandatory** after adding/removing Swift files (explicit source
   listings, not synchronized folder groups).
+- **NEVER claim a `:8642` route from a `web_server.py` grep — read
+  `gateway/platforms/api_server.py`'s `_http_route_table()`, which is the whole list.**
+  **This rule exists because it was learned the hard way on 2026-08-02** (the #21
+  paragraph above and the two-web-apps memory were both written that day, at 04:22, by the
+  investigation session that caught it — they did *not* predate the mistake): an
+  `/api/files` + `/api/model/*` "discovery" was filed into three tracker items, a dispatch
+  brief, and an external audit before live probes killed it. The dashboard app (`hermes_cli/web_server.py`,
+  **:9119**, dashboard auth) and the api_server the phone speaks (**:8642**) are different
+  apps with different route tables; the dashboard's 129 routes are not the gateway's.
+  **The complete `:8642` table, verified 2026-08-02 against a fresh 0.19.1 process:**
+  `/health{,/detailed}` · `/v1/health` · `/v1/models` · **`/api/model/options` (the ONLY
+  `/api/model/*` route — there is no `/info`, `/recommended-default`, `/auxiliary`, or
+  `POST /api/model/set`)** · `/v1/capabilities` · `/v1/skills` · `/v1/toolsets` ·
+  `/api/sessions*` (incl. `chat`, `chat/stream`, `fork`, `messages`, and
+  `POST /api/sessions/{id}/model` = the session pin) · `/v1/chat/completions` ·
+  `/v1/responses*` · `/api/jobs*` · **`/v1/runs*` incl. `POST /v1/runs/{id}/approval`
+  and `/stop`** · `/api/platforms/{p}/events` · `/api/cron/fire`. **No `/api/files`, no
+  `/api/fs`, no `/api/config`, no `/api/chat/image-upload` — those are dashboard-only.**
+- **A stale gateway process is a REAL hazard, but it was NOT the cause of those 404s.**
+  A long-lived `hermes gateway run` imports its modules at start, so updating Hermes leaves
+  the old code serving until a restart — on 2026-08-02 the Mac listener was PID 28104 from
+  **Jul 29** under a **0.19.1** install, 3d 14h uptime, which is worth knowing on its own.
+  **But restarting it changed nothing**: the same routes 404'd from a 68-second-old 0.19.1
+  process, because they were never on this plane. **Check the process when versions are in
+  question — `ps -p $(lsof -nP -iTCP:8642 -sTCP:LISTEN -t) -o lstart=,etime=` — and check
+  the route TABLE when routes are in question. Reaching for the first explanation that fit
+  is what cost a day here.**
 - `os_log` interpolations need `privacy:.public` or they redact in Console.app; emoji can
   also trigger redaction. Console.app's default view suppresses `.info` — use `.notice`+ for
   diagnostics that must be visible. `TalariaLog` gates verbose diagnostics behind
