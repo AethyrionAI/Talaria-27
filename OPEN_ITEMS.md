@@ -6397,7 +6397,80 @@ Deactivate rather than delete if audit history matters.
 
 Logged 2026-07-20.
 
-## 145. 🐛 App hard-locks when entered during an OJAMD gateway outage (Hermes update window) — no recovery after the host returns; phone restart required
+## 145. 🐛 App hard-locks when entered during an OJAMD gateway outage — **Parts B + C BUILT 2026-08-02** (the two that made it outlive the outage); Parts A + D owed; device pass owed
+
+> ## PARTS B + C BUILT 2026-08-02 — the phone-restart property is what these two address
+>
+> **The 2026-07-24 investigation was re-verified against today's tree before any
+> code was written** (it was nine days old, and this file's own lesson is that an
+> entry is not evidence). **All three load-bearing claims still held:**
+>
+> | claim | verified 2026-08-02 |
+> |---|---|
+> | chat plane has NO timeout config | ✅ zero matches across all five clients — still `URLSession.shared`, **60s request / 7 DAYS resource** |
+> | `handleAppDidBecomeActive` = 12 serial awaits, UI writes last | ✅ intact (now `AppContainer.swift:1375`; no `async let`, no task group) |
+> | reconcile budget wrong by ~30× | ✅ `ChatStore.swift:1628` |
+>
+> ### PART C — the reconcile loop now budgets WALL TIME, not attempts
+>
+> `maxAttempts = 60 // 60 x 2s = ~2 min` budgeted only the `Task.sleep`. Each
+> attempt is an unbounded gateway fetch, so the real ceiling was **60 × (2s + 60s)
+> ≈ 62 minutes.** **An attempt counter cannot bound a loop whose per-attempt cost
+> is unbounded.**
+>
+> **Written into the source, because it is the part most likely to be misread:
+> this bounds the LOOP, not a single call.** The deadline is only tested between
+> attempts, so one hung fetch still outlives it. **Bounding the call is Part A.
+> Neither part alone closes #145.**
+>
+> ### PART B — the visible state now refreshes BEFORE any network call
+>
+> The spec's highest-value part. `reconcileLiveActivities()` / `updateWidgetData()`
+> sat behind ~8 network awaits, so the app could not repaint until the chain
+> drained — minutes, continuing after the host recovered. **That is the difference
+> between "slow right now" and "broken, and I restarted my phone."**
+>
+> **The spec's open question — do the UI writes depend on the network steps above
+> them? — was answered from source: NO.** Both are synchronous, purely local and
+> idempotent. They are now called **early AND late**, deliberately: the early pass
+> is the anti-freeze, the late pass is the freshness. **Removing either is a
+> regression** and the source says so.
+>
+> ### Evidence
+>
+> TDD, red first, both parts. **Part B's red was behavioural, not a compile
+> error — the pin waited its full 5.031s timeout and the widget was never
+> written**, which is #145's core property reproduced in a test. After the fix:
+> **0.017s.** Suite **1471/1471**, zero failures, count moved 1469 → 1471.
+>
+> **Two guards so the pins cannot pass for the wrong reason:** a unique UUID marker
+> (`SharedWidgetDataStore` is real app-group `UserDefaults` shared process-wide, so
+> "something got written" would pass on another test's write — #183's shape), and a
+> `fetchCallCount > 0` assertion so a build where the fetch returns instantly fails
+> loudly instead of proving nothing.
+>
+> ### STILL OWED — do not read this as "#145 fixed"
+>
+> - **Part A — chat-plane timeouts.** The trap is real and is in the spec:
+>   **streaming SSE runs legitimately last minutes**, so a blanket short
+>   `timeoutIntervalForResource` would kill live runs and look like a network bug.
+>   **Two configurations, not one.** Part C is not sufficient without this.
+> - **Part D — activations must not stack.** Every scene activation queues another
+>   full chain; nothing coalesces or supersedes.
+> - **Part E — deliberately SKIPPED.** Parallelising the twelve awaits is the
+>   riskiest change in the lane; a wrong parallelisation yields intermittent
+>   foreground auth failures, which is worse than the bug. Only attempt it with a
+>   dependency map established from source.
+> - **DEVICE PASS — none of this is provable in the simulator.** The check is
+>   Owen's original scenario: enter the app during a host outage, confirm it stays
+>   responsive, and confirm it recovers on its own **without a phone restart**.
+>   Staging an outage on OJAMD is out of scope.
+>
+> **Also spotted, NOT fixed, out of this lane's scope:** `ChatStore.swift:1549`
+> carries `maxPollAttempts = 30 // 30 × 2s = 60 seconds max` — **the same
+> attempt-counter-with-an-unbounded-call shape as Part C.** Likely the same defect.
+> Filed here rather than fixed silently, because a drive-by change to a second
+> polling loop is how a scoped lane becomes an unreviewable one.
 
 **FIX SPEC WRITTEN 2026-07-24: `dispatch/OPUS-T27-145-foreground-deadlines.md`** — five parts, independently revertable. A: dedicated timeouts on the chat plane (streaming path MUST be distinguished from polling, or live SSE runs get killed). B: UI-state writes moved out from behind the network chain — highest value, this is what makes it outlive the outage. C: reconcile loop budget bounded by wall clock, not attempt count. D: activations supersede rather than stack. E: parallelisation, OPTIONAL and explicitly risky — skip unless the dependency map is certain. Verification is injected-hanging-client only; staging an outage is out of scope. Do not re-spec.
 

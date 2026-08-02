@@ -1383,6 +1383,28 @@ final class AppContainer {
         }
         containerLog.verbose("handleAppDidBecomeActive: paired + token OK, proceeding")
 
+        // #145 Part B — REFRESH THE VISIBLE STATE BEFORE TOUCHING THE NETWORK.
+        //
+        // These two used to sit at the END of this function, behind ~8 network
+        // awaits. So the app could not update what the user sees until the whole
+        // chain drained — and under an outage (#136: packets DROPPED, so every
+        // request eats the full 60s timeout) that is MINUTES, continuing well
+        // after the host is healthy again. **That is the difference between "the
+        // app is slow right now" and "the app is broken and I restarted my
+        // phone."** It is the property that made #145 outlive its own outage.
+        //
+        // Safe to run first, and this was checked rather than assumed: both are
+        // synchronous, purely local, and idempotent — they read store state into
+        // `SharedWidgetDataStore` / `LiveActivityService` and make no network
+        // call of any kind. Running them twice costs one dictionary write.
+        //
+        // They are ALSO still called at the end, deliberately: this pass paints
+        // the last-known-good state immediately, the trailing pass lands whatever
+        // the refreshes actually fetched. Removing either one is a regression —
+        // the early call is the anti-freeze, the late call is the freshness.
+        reconcileLiveActivities()
+        updateWidgetData()
+
         await permissionsStore.reloadCapabilities()
         await hostStore.refresh()
         lastKnownHostOnline = hostStore.isHostOnline

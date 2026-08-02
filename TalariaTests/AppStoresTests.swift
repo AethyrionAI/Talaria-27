@@ -1034,6 +1034,94 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
+    func reconcileLoopStopsAtItsWallClockBudgetNotItsAttemptCount() async throws {
+        // #145 Part C. The loop budgeted ATTEMPTS — `maxAttempts = 60 // 60 x 2s
+        // = ~2 min` — while each attempt makes an UNBOUNDED gateway fetch. On a
+        // black-holed host (#136: DROP, so every request eats the full 60s
+        // URLSession timeout) the real ceiling was 60 × (2s + 60s) ≈ 62 MINUTES,
+        // not 2. The loop is armed from the foreground chain and keeps grinding
+        // long after the outage ends — one of the three reasons #145 outlives
+        // the outage that caused it.
+        //
+        // The pin: with a client that NEVER resolves and is slower than the poll
+        // interval, the loop must stop on elapsed WALL TIME. An attempt counter
+        // cannot bound a loop whose per-attempt cost is unbounded.
+        //
+        // Asserts on ATTEMPTS OBSERVED, never on a stopwatch reading — a timing
+        // assertion here would be flaky on a loaded machine and land straight in
+        // #183's territory.
+        final class NeverResolvingClient: HermesClientProtocol {
+            var connectionStatus: ConnectionStatus = .connected
+            var currentConversation: Conversation?
+            var reconcileFromServerCallCount = 0
+            let jobID = UUID()
+
+            func connect() async {}
+            func disconnect() async {}
+
+            func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
+                Message(sender: .hermes, content: "unused", status: .delivered)
+            }
+
+            func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+                currentConversation = Conversation(
+                    title: "Hermes",
+                    messages: [Message(clientMessageID: clientMessageID, sender: .user, content: message, status: .sent)]
+                )
+                return AsyncStream { continuation in
+                    Task { @MainActor in
+                        continuation.yield(.messageSent(jobID: jobID))
+                        continuation.yield(.interrupted(sessionId: "wedge-session", runId: nil))
+                        continuation.finish()
+                    }
+                }
+            }
+
+            func loadConversation() async -> Conversation { currentConversation ?? Conversation(title: "Hermes") }
+            func clearConversation() async throws -> Conversation { Conversation(title: "Hermes") }
+
+            /// Stands in for the black-holed host: slower than the poll interval
+            /// and never resolving, so an attempt-counted loop would run its full
+            /// count and a wall-clock loop must not.
+            func reconcileFromServer() async -> Conversation? {
+                reconcileFromServerCallCount += 1
+                try? await Task.sleep(for: .milliseconds(40))
+                return nil
+            }
+        }
+
+        let suiteName = "chat-store-reconcile-budget-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = NeverResolvingClient()
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        // Shrink the real budget rather than simulate it: same code path, same
+        // arithmetic, ~300ms instead of ~2 minutes.
+        chatStore.reconcileWallClockBudget = .milliseconds(300)
+        chatStore.reconcilePollInterval = .milliseconds(50)
+
+        await chatStore.sendMessage("wedge me")
+
+        // Bounded pump — wait for the loop to retire itself rather than sleeping
+        // a fixed duration. Cap is generous; the assertion is on attempts.
+        var pumps = 0
+        while chatStore.hasActiveReconcileLoop, pumps < 200 {
+            pumps += 1
+            try? await Task.sleep(for: .milliseconds(25))
+        }
+
+        #expect(chatStore.hasActiveReconcileLoop == false, "the reconcile loop never retired inside its wall-clock budget")
+        // 300ms budget ÷ (50ms sleep + 40ms fetch) ≈ 3 attempts. The old
+        // attempt-counted loop would have run all 60 regardless of elapsed time.
+        #expect(hermesClient.reconcileFromServerCallCount < 60,
+                "loop ran \(hermesClient.reconcileFromServerCallCount) attempts — it is still counting attempts, not wall time")
+        #expect(hermesClient.reconcileFromServerCallCount >= 1,
+                "loop never attempted a reconcile — the test proved nothing")
+    }
+
+    @Test @MainActor
     func openSessionAbandonsPendingRunFromPreviousSession() async throws {
         // #184: `reconcileFromServer()` takes no session argument — once
         // openSession has switched the client's internal session, a pendingRun
@@ -3137,6 +3225,53 @@ struct AppStoresTests {
         let partitioned = AppContainer.LaunchInitStep.criticalPath + background
         #expect(partitioned.count == AppContainer.LaunchInitStep.allCases.count)
         #expect(Set(partitioned) == Set(AppContainer.LaunchInitStep.allCases))
+    }
+
+    @Test @MainActor
+    func foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes() async throws {
+        // #145 Part B — THE regression pin for the property that forced a phone
+        // restart. `reconcileLiveActivities()` and `updateWidgetData()` were
+        // sequenced LAST in `handleAppDidBecomeActive`, behind ~8 network awaits.
+        // So the app could not refresh its visible state until the whole chain
+        // drained, and sat frozen on stale content for MINUTES after the host was
+        // healthy again. That is the difference between "the app is slow" and
+        // "the app is broken and I restarted my phone."
+        //
+        // Both writes are synchronous, local and idempotent (verified: they read
+        // store state into SharedWidgetDataStore / LiveActivityService and touch
+        // no network), so hoisting them costs nothing and gates nothing.
+        let harness = await makeLaunchHarness(
+            suiteName: "foreground-uiwrite-\(UUID().uuidString)",
+            sessionUserMatchesPairedUser: true
+        )
+        let container = harness.container
+
+        // A marker no other suite can produce. SharedWidgetDataStore is REAL
+        // app-group UserDefaults shared process-wide, so asserting on a bare
+        // "did it write" would pass on another test's write — #183's shape.
+        let marker = "t27-145-partB-\(UUID().uuidString)"
+        container.chatStore.conversation = Conversation(
+            title: "Hermes",
+            messages: [Message(sender: .hermes, content: marker, status: .delivered)]
+        )
+
+        // Gates stay CLOSED. `hostStore.refresh()` is step 2 of the chain and
+        // never returns — the black-holed-host shape from #136.
+        let activation = Task { @MainActor in await container.handleAppDidBecomeActive() }
+
+        let wroteWhileBlocked = await pollUntil {
+            (SharedWidgetDataStore.read().lastMessagePreview ?? "").contains(marker)
+        }
+        #expect(wroteWhileBlocked,
+                "the widget snapshot must be written without waiting for the network chain to drain")
+
+        // Proves the chain really was blocked — otherwise this test would pass
+        // for the wrong reason on a build where the fetch returned instantly.
+        #expect(harness.hostService.fetchCallCount > 0,
+                "the activation never reached the host fetch, so nothing was actually blocked")
+
+        harness.openAllGates()
+        await activation.value
     }
 
     @Test @MainActor

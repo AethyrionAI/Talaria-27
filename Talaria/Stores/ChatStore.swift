@@ -257,6 +257,39 @@ final class ChatStore {
     private var pendingRun: PendingRun?
     private var reconcileTask: Task<Void, Never>?
 
+    /// #145 Part C — the reconcile loop's budget is WALL CLOCK, not an attempt
+    /// count.
+    ///
+    /// It used to read `maxAttempts = 60 // 60 x 2s = ~2 min`. **That comment
+    /// budgeted only the `Task.sleep` and ignored the network call.** Every
+    /// attempt runs `attemptReconcile` → `reconcileFromServer()`, an unbounded
+    /// gateway fetch, so against a black-holed host (#136: packets DROPPED, so
+    /// each request eats the full 60s `URLSession` timeout) the real ceiling was
+    /// 60 × (2s + 60s) ≈ **62 minutes, not 2.** The loop is armed from the
+    /// foreground chain and kept grinding long after the outage ended — one of
+    /// the three reasons #145 outlives the outage that caused it.
+    ///
+    /// **An attempt counter cannot bound a loop whose per-attempt cost is
+    /// unbounded.** A comment asserting a budget the code does not enforce is
+    /// how this survived review, so the budget is now the thing the loop
+    /// actually checks.
+    ///
+    /// **This bounds the LOOP, not a single call.** The deadline is only tested
+    /// between attempts, so one hung fetch can still outlive it. Bounding the
+    /// CALL is #145 Part A (a real `timeoutIntervalForResource` on the chat
+    /// plane, which today defaults to `URLSession.shared`'s **7 days**). The two
+    /// are complementary and **neither alone closes #145** — do not read this
+    /// fix as making the chat plane safe on its own.
+    // harness-visible: tests shrink these so the suite pays ~300ms, not ~2min.
+    var reconcileWallClockBudget: Duration = .seconds(120)
+    // harness-visible
+    var reconcilePollInterval: Duration = .seconds(2)
+    /// #145 Part C: lets a test watch the loop retire itself instead of sleeping
+    /// a fixed duration and asserting on a stopwatch (which would be flaky under
+    /// load — #183's territory).
+    // harness-visible
+    var hasActiveReconcileLoop: Bool { reconcileTask != nil }
+
     /// Session id of the run awaiting reconcile, if any — what the relay's
     /// completion watcher needs to be told about (#38).
     var pendingRunSessionId: String? { pendingRun?.sessionId }
@@ -1622,13 +1655,16 @@ final class ChatStore {
 
     private func startReconcileLoopIfNeeded() {
         guard reconcileTask == nil, pendingRun != nil else { return }
+        let budget = reconcileWallClockBudget
+        let interval = reconcilePollInterval
         reconcileTask = Task { [weak self] in
             guard let self else { return }
-            var attempts = 0
-            let maxAttempts = 60 // 60 x 2s = ~2 min, the background-run ceiling
-            while !Task.isCancelled, attempts < maxAttempts {
-                attempts += 1
-                try? await Task.sleep(for: .seconds(2))
+            // #145 Part C: elapsed WALL TIME is the budget. See
+            // `reconcileWallClockBudget` for why the old attempt counter was
+            // wrong by ~30× and why this still needs Part A to be sufficient.
+            let deadline = ContinuousClock.now + budget
+            while !Task.isCancelled, ContinuousClock.now < deadline {
+                try? await Task.sleep(for: interval)
                 guard !Task.isCancelled, let pending = self.pendingRun else { break }
                 if await self.attemptReconcile(pending) { break }
             }
