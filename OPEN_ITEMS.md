@@ -12447,7 +12447,65 @@ its sibling has: a brain provider alongside `isRelayPaired`, and
 blocker: it spends the user's money against an explicit setting and sends
 microphone audio somewhere the UI says it is not going.
 
-## #222 — 🐛 "The on-device model cannot see images at all" is FALSE, and it is written into our design reasoning as fact
+## #222 — 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK, unused. The in-source comment describes a CHOICE as a limitation.
+
+> ## ⚠️ THIS ENTRY WAS OVERSTATED WHEN FIRST FILED, AND OWEN CORRECTED IT WITH A SCREENSHOT
+>
+> **Filed 2026-08-02 as "'the on-device model cannot see images at all' is FALSE."
+> That headline was too strong and the code does not support it.** Corrected the
+> same day. What follows is the accurate version; the original framing is preserved
+> below because the way it was wrong is instructive.
+>
+> ### What Owen demonstrated — and it is the first evidence of this on file
+>
+> Device screenshot, **ON-DEVICE brain, AIRPLANE MODE**, a screenshotted
+> neighbourhood-watch post + *"what's this say?"*: the **`READIMAGETEXT` chip fired**
+> and the model returned the post's full text. **The OCR path works end to end,
+> offline, with no network of any kind.** Nothing in the tracker recorded that.
+>
+> **And his account of why is confirmed in the code.** *"It had to be called with
+> other things"* — `ImageTextTool` and `BarcodeReaderTool` conform to our own
+> `ImageDependentTool` marker (`DeviceMediaTools.swift:75,125`;
+> `DeviceToolBelt.swift:95`), the belt gates them on `hasImageInContext`
+> (`DeviceToolBelt.swift:84-86`), and the tool reaches the image through
+> `ConversationImageSource.latestImage(...)`. **The capability is real and it is
+> the surrounding machinery that makes it fire.** That was a genuine breakthrough
+> and it is why the "blind turn" language reads as stale.
+>
+> ### What I got wrong, precisely
+>
+> I claimed the SDK falsifies *"the model cannot see images."* **It does not.** Our
+> tools run `VNRecognizeTextRequest` themselves and return a **`String`**; the model
+> receives text and **never receives image bytes**. The comment is an accurate
+> description of our implementation.
+>
+> **The real defect is narrower and worth keeping:** the comment states a
+> **design choice** as if it were a **property of the model**. "Cannot see images at
+> all" reads as a permanent limit. It is our integration, and the SDK offers the
+> other path.
+>
+> **Corroborating detail from the screenshot itself:** the returned list includes
+> `"7:40"` and `"92"` — the *status bar* of the screenshotted phone. That is
+> OCR-reads-everything, not visual understanding, which is exactly the distinction
+> this entry turns on.
+>
+> ### What remains genuinely new and unused
+>
+> `Transcript.Segment.image` / `Transcript.ImageAttachment` / `ImageReference` are in
+> the beta4 SDK (details below) and **Talaria uses none of them** — 0 hits against 5
+> files using `LanguageModelSession` as a positive control. **A model that receives
+> the image could answer "is this the right screenshot" or "what is happening here";
+> OCR cannot.** That is an unexplored capability, not a missing one — and it is a
+> question for Owen, not a promotion.
+>
+> **Note on naming:** our `BarcodeReaderTool` (`DeviceMediaTools.swift:125`) is
+> **ours, Vision-direct** — distinct from Apple's `BarcodeReaderTool` in the
+> `_Vision_FoundationModels` overlay. Same name, different type. Say which.
+
+*(Original filing, preserved — the overlay finding and blast radius below still
+stand; only the "FALSE" headline and its first section were wrong.)*
+
+## #222 (original filing) — "The on-device model cannot see images at all"
 
 **FILED 2026-08-02. Found by OWEN, from memory, against a stale note of mine.**
 
