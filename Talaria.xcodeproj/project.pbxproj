@@ -305,6 +305,7 @@
 		98DA61FB7F3A7EE097879610 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68053F9AC1107B6078C0A52D /* Message.swift */; };
 		99217338156EA94A3D96BD72 /* StatusIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17A9783DF0DB78DE9E409FD1 /* StatusIndicator.swift */; };
 		9A11D07F54BD6937C3109961 /* MockSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5589A3109A1F1544E674F6 /* MockSyncCoordinator.swift */; };
+		9A9158E7F28613FD647CB469 /* InstallationIdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31368FFAF120A3F1A9FA2510 /* InstallationIdentityTests.swift */; };
 		9B5AE2A8D1A093106533F2C2 /* HermesClientProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 158695134A208F419A6A9E49 /* HermesClientProtocol.swift */; };
 		9B6730A87263CACA6CBE568F /* MarkdownBlockQuoteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69438F0D38B60455035902BC /* MarkdownBlockQuoteTests.swift */; };
 		9BCE98D87695BBFA82A6BB29 /* HostFedListPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88D53E5BA48BFBDA5A4B9A57 /* HostFedListPresentationTests.swift */; };
@@ -630,6 +631,7 @@
 		2FCFD4453C03C7D785D0E384 /* InsightsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsStoreTests.swift; sourceTree = "<group>"; };
 		301C5906499EE7579DB26285 /* VoiceMemoRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMemoRecorder.swift; sourceTree = "<group>"; };
 		30EF1B0C497FA891F651E8BF /* Icon-CasinoLucky7s@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-CasinoLucky7s@3x.png"; sourceTree = "<group>"; };
+		31368FFAF120A3F1A9FA2510 /* InstallationIdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallationIdentityTests.swift; sourceTree = "<group>"; };
 		31568D2667BC2033E06EB960 /* BackendProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendProfile.swift; sourceTree = "<group>"; };
 		3194941F65631630D4A808A7 /* IconPreview-DiscoInferno.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-DiscoInferno.png"; sourceTree = "<group>"; };
 		31AF84E49DFBC89FAE4AD725 /* Icon-DeepField@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-DeepField@3x.png"; sourceTree = "<group>"; };
@@ -1180,6 +1182,7 @@
 				520B8194AEA8B671E7A43451 /* InsightsAggregationTests.swift */,
 				FF17BA389F0A775916C4A56F /* InsightsFetchTests.swift */,
 				2FCFD4453C03C7D785D0E384 /* InsightsStoreTests.swift */,
+				31368FFAF120A3F1A9FA2510 /* InstallationIdentityTests.swift */,
 				F2D99D44859390A04BE71DF5 /* IPadAdaptationTests.swift */,
 				F827381E8387C71D8135EFB3 /* LocalChatBackendTests.swift */,
 				5225896A0381DF9CEFD84EF9 /* LocalIntelligenceTests.swift */,
@@ -2515,6 +2518,7 @@
 				0905D7E4B1534BB7DCF1B0FA /* InsightsAggregationTests.swift in Sources */,
 				0BDC2115ACF591B1B9C6E8F0 /* InsightsFetchTests.swift in Sources */,
 				DC1CAAAC4A530C71DEC09311 /* InsightsStoreTests.swift in Sources */,
+				9A9158E7F28613FD647CB469 /* InstallationIdentityTests.swift in Sources */,
 				33F0CFB46E7013D2212311C0 /* LocalChatBackendTests.swift in Sources */,
 				CE06D7642092F56AD5B43D20 /* LocalIntelligenceTests.swift in Sources */,
 				FB1882D00D708B61E19B7A37 /* LocalSessionHistoryTests.swift in Sources */,
