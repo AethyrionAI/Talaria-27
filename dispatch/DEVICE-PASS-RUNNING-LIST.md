@@ -436,6 +436,7 @@ four times total.
 | **#184/#185** | Exercise all three ChatStore teardown paths; send two attachments with the **same filename** | teardown clears consistently; each attachment resolves to its OWN local file. Sim-only today |
 | **#151** | Settings → Hermes Host → **Test Connection** against the LIVE host | verdict appears **within ~5s** with a latency figure. Shape 1 of 3 — the other two are in **§F5**. Pre-#146 this button was silent and, on a black-holed host, would have hung **five minutes** (the shared client stamps `timeoutInterval = 300`) |
 | **#152** | Settings → Hermes Host → **"Pairing & Devices"** → reach Revoke | the renamed row lands on the revoke/disconnect surface, and **Pair New Device (QR)** is present so the screen is not destructive-only. Sim-verified 8/8 already; this is the device leg |
+| **#222** | **On-device brain**, attach an image, then ask something OCR **cannot** answer from a list of strings — *"who posted this?"*, *"is this the Safe Harbor group?"*, or anything about layout/colour/what is depicted | **Either answer is informative.** A correct answer ⇒ the model genuinely sees the image and #222's premise falls. A wrong/hedged answer, or a `readImageText` chip firing and it reasoning only over extracted text, ⇒ the transcript really is text-only and the SDK's `ImageAttachment` is an unused capability. **Works in any state — Owen already ran the OCR half on-device in airplane mode.** Do NOT re-run "what's this say" — that already passed and answers the wrong question |
 
 ### F2 · STANDALONE / UNPAIRED
 
@@ -466,6 +467,43 @@ four times total.
 | **#117** | Induce a connector outage and hold it **> 25 minutes** | drains back off and STAY backed off; outage rate < 50% of healthy. **The window is the check** — the original close scored a false PASS on a short window, and the 27-minute run showed decay |
 | **#151** | Test Connection against a **STOPPED** host (gateway down, port closed) | **REFUSED**, fast — not OFFLINE, not a spinner. Shape 2 of 3 |
 | **#151** | Test Connection against a **BLACK-HOLED** host (packets dropped, e.g. an offline tailnet IP) | **NO ANSWER** at **~5s**. Shape 3 of 3, and the one that matters most — this is the case that used to hang for five minutes. **Cheapest setup on the board: point the base URL at an offline tailnet IP; no service needs stopping** |
+| **#145** ⭐ | **RIDES #151's BLACK-HOLE FIXTURE — same setup, do them together.** With the base URL pointed at an offline tailnet IP: background the app, then **foreground it**. Then point the URL back at the live host and foreground again. | **(1)** the app stays **responsive** while blocked — you can scroll, open Settings, switch brains. **(2)** the visible state (widget/Live Activity) reflects last-known-good **immediately**, not after minutes. **(3)** when the URL is restored it **recovers on its own — NO phone restart.** ← the whole item |
+
+> **⭐ #145 — the fixture, and the now-authorised alternative.**
+>
+> **Owen, 2026-08-02: *"you can stage whatever outage you want. Production is just
+> my windows box, and I'm not actively using the app right now."*** That lifts the
+> fix spec's *"staging an outage on OJAMD is out of scope"* constraint — **recorded
+> here so the permission is not lost, and so nobody re-derives the old limit from
+> the spec.**
+>
+> **The offline-tailnet-IP fixture is still the better default**, and not for
+> caution: it needs no coordination, restores by editing a text field, and is the
+> same setup #151 needs one row up, so the two share a sitting.
+>
+> **But know which network SHAPE you are producing — they are not equivalent.**
+> #145 needs packets **DROPPED** (every request eats its full timeout, #136's
+> shape). A stopped process normally gives connection **REFUSED**, which fails fast
+> and would NOT reproduce this bug. **On OJAMD they coincide:** #136 established
+> that Windows Firewall silently drops packets to listener-less ports, so stopping
+> the gateway there does produce DROP. **That coincidence is host-specific — do not
+> carry it to the Mac**, where a stopped gateway refuses and would quietly test the
+> wrong thing.
+>
+> **What is already built (PR #233, Parts B + C):** the visible state now repaints
+> BEFORE any network call, and the reconcile loop budgets wall time instead of
+> attempts (it used to be able to grind for ~62 minutes). **Parts A and D are NOT
+> built yet** — A gives the chat plane a real timeout, D stops activations
+> stacking. **So expect this check to be BETTER, not clean**, until those land, and
+> record what you actually see rather than pass/fail against a fix that is half in.
+>
+> **The original 2026-07-20 report said "hard-lock, phone restart."** The
+> investigation's honest limit still stands: serial `await`s suspend, they do not
+> block the main thread, so the mechanism explains *wedged and stale* but not a
+> literal frozen touch UI. **If input genuinely freezes, that is a separate and
+> bigger finding** — grab the iOS hang report (Settings → Privacy → Analytics) and
+> say so, because it would mean something blocks the main thread that we have not
+> found.
 
 ### F6 · Voice — same physical sitting as B1
 
