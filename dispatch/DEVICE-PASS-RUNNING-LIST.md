@@ -37,13 +37,37 @@ surface once you are already holding the phone.
 
 ### Prerequisites — the sitting does not work without these
 
+> ## ⛔ ORDERING RULE — **§C5 GOES FIRST, ahead of everything on this page.**
+>
+> **§C5 exports the ONLY copies of two irreplaceable battery runs**, and they are
+> exposed to two different erasers that most of this list triggers:
+>
+> 1. **Every battery run prunes.** §C1–C4 and any promotion lane push those two
+>    records one step closer to eviction. The bound was 10 until 2026-08-01 and
+>    **pruning was silent** — so a lost record leaves no trace that it existed.
+> 2. **Every reinstall touches the container that holds them.** B1's probe branch,
+>    F3's delete, any OTA or corded install. An upgrade-install *should* preserve
+>    app data (same bundle id — that is how `ota-stage.sh` is designed), but
+>    "should" is a bad bet on a **unique asset when the export takes two minutes.**
+>
+> **This is not a warning about a risky check — it is an ordering rule about a
+> cheap one.** §C5 costs two minutes and needs nothing. If it is skipped and a
+> record is gone, the question it answers (are the #200-series' 0/10 grab results
+> real or an artifact?) costs a **full battery sitting** to re-ask, and the answer
+> would be a fresh measurement rather than the original evidence.
+>
+> The `F3` row below has said "export from Battery Results FIRST" since it was
+> written. **That instinct was right and scoped too narrowly** — it named the one
+> check that deletes the app, when the exposure is any reinstall and every run.
+
 | for | you need | why it bites |
 |---|---|---|
+| **§C5** | **nothing — two minutes, do it first** | ⛔ see the ordering rule above. It is the only item here that gets **harder by waiting**, and the only one guarding evidence that cannot be regenerated. |
 | **A1** (the top item) | **a second phone, or someone who will call you** | A1 is a real incoming call mid-session. There is no software substitute — the whole point is the OS interrupting us for real. **This is the single prerequisite most likely to end a sitting early.** |
 | **A2** | to background the app **overnight** | the system decides when `BGAppRefreshTask` runs; it cannot be forced. Start it before bed on a sitting day, read the log the next morning. |
 | **F3** | to **DELETE the app** | ⚠️ **destructive — local sessions and the Keychain stamp go with it.** Export anything you want from Battery Results FIRST. Run F3 **last** in any sitting for this reason. |
 | **F5** | a **> 25 minute** induced connector outage | the window IS the check — the original close scored a false PASS on a short one. Do not squeeze this between other checks. |
-| **B1 / F6** | the `probe/t27-130-halfduplex` branch **built to the phone** | say the word and I will stage it (OTA or corded). It is a separate build from `main`, so B1 cannot share a sitting with the `main` checks unless we reinstall between. |
+| **B1 / F6** | the `probe/t27-130-halfduplex` branch **built to the phone** — **but B1 is PARKED, so do not stage it yet** | ⛔ **§C5 must be exported BEFORE this branch goes anywhere near the phone** (ordering rule above). And B1 is parked by Owen's own instruction — *"leave it parked as a reminder"* — so its blocker was never OTA-vs-corded. **Staging a build for a parked item, onto the phone holding §C5's only evidence, is the wrong move twice over.** It is a separate build from `main`, so it cannot share a sitting with the `main` checks either. |
 | **C1–C4** | phone **foregrounded and on power** | backgrounding kills a battery run outright. |
 
 ### Decisions owed by you — no phone, no build, unblock other work
@@ -69,20 +93,40 @@ surface once you are already holding the phone.
 
 ### What needs nothing from you
 
-I can run these solo whenever: **E1**'s isolated build and staging B1's branch.
-Say go and they happen without a sitting.
+**NOTHING — the solo queue is EMPTY as of 2026-08-01.** All four lanes ran, and
+the one remaining candidate is ruled out (see below). **The next real work needs
+Owen and the phone, starting with §C5.**
 
 > ⏳ **ONE THING IS TIME-SENSITIVE — §C5.** #216A's re-read landed on a question
 > only two saved battery runs can answer, and the store prunes. Two minutes on the
 > phone, no battery run needed, and it is the only item here that gets *harder* by
-> waiting. Do it at the start of any sitting, before anything else.
+> waiting. **See the ordering rule above — it goes first, ahead of everything.**
 
-**Two are already ✅ done (2026-08-01), and both SHRANK the board:**
+**All four solo lanes are ✅ done (2026-08-01), and every one of them SHRANK the
+board:**
 - **#128's archaeology** — confirmed #220's engine hypothesis from source and
   removed #128 from the queue entirely.
 - **§G's #151/#153 source-confirms** — the confirms had **already been done
   2026-07-24 and merged as PR #146**. #153 closed; #151 and #152 moved *into*
   §F1/§F5 as ordinary device checks; one decision withdrawn off Owen's plate.
+- **#216A's re-read** — could not be settled by analysis, which IS the finding.
+  It created §C5 and the ordering rule above.
+- **§E1's double-install probe** — **CONFIRMED, it throws.** #198's migration
+  rationale is no longer inference, and #82's half was settled for free. Left one
+  zero-setup residual in §F6.
+
+**The remaining candidate is NOT available:** staging B1's branch is ruled out
+twice — B1 is parked by Owen's instruction, and staging is a reinstall that must
+not precede §C5's export. See the `B1 / F6` prerequisite row.
+
+> **This paragraph was itself stale for an hour and that is worth recording.**
+> It advertised "E1's isolated build" as available **after** E1 had run and its
+> verdict was filed three sections below, in the same commit. **A summary line
+> above a section it summarises is the highest-risk text in any document** — it is
+> read first, trusted most, and updated last. It is the exact failure this session
+> catalogued four times in other people's entries before producing a fifth of my
+> own. **When a section changes, grep the document for anything that describes
+> it.**
 
 ---
 
@@ -468,7 +512,12 @@ carry these into a device sitting.**
   tap-install code at all. **Nothing is owed on the device queue for #128** — the
   physical re-verify is #129's test (§F6) and closes #129. Full write-up in the
   tracker; the deliberate-race probe, if anyone wants real evidence for the
-  invariant, is §E1.
+  invariant, is §E1. **§E1 has since RUN (2026-08-01) — and be precise about what
+  it did and did not settle.** It proved the double-install now **throws** rather
+  than raising, so #128's failure mode is recoverable if the race ever occurs.
+  **It did NOT test the adjacency invariant itself** — it priced the residue, which
+  is exactly what that item said it would do. #128's close is *strengthened*, not
+  independently verified.
 - **#170 — probably unanswerable as filed.** Neither shape is reachable on OJAMD:
   every real job carries a null `model_snapshot`, and #148 suspects 0.19 stopped
   writing `*_snapshot` at all. **Either run #148's cheap discriminator (read the
