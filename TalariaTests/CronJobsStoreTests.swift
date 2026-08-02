@@ -294,4 +294,82 @@ struct CronJobsStoreTests {
         await store.refreshDeliverPlatforms()
         #expect(store.deliverPlatforms == nil) // degrade signal for the picker
     }
+
+    // MARK: - #180: profile-scoped reset
+
+    /// #180 — the store is host-fed and therefore profile-scoped: a profile
+    /// switch must return it to never-loaded. `deliverPlatforms` is host
+    /// data too — Host A's connected platforms are not Host B's.
+    @Test func resetReturnsTheStoreToNeverLoaded() async throws {
+        let service = FixtureCronJobService()
+        service.listResult = .success([try job(id: "aaa111aaa111")])
+        service.platforms = ["telegram"]
+        let store = makeStore(service)
+        await store.refresh()
+        await store.refreshDeliverPlatforms()
+        #expect(store.hasLoaded)
+        #expect(store.deliverPlatforms == ["telegram"])
+
+        store.reset()
+
+        #expect(store.jobs.isEmpty)
+        #expect(!store.hasLoaded)
+        #expect(store.lastErrorMessage == nil)
+        #expect(store.lastRefreshedAt == nil)
+        #expect(store.deliverPlatforms == nil)
+    }
+
+    /// #180, the racy variant — a fetch already in flight against the OLD
+    /// host when reset() lands must not deliver the old host's jobs into
+    /// the reset store (same supersede family as #136's bootstrap cancel).
+    @Test func resetDiscardsAnInFlightFetchFromTheOldHost() async throws {
+        let service = GatedCronJobService()
+        service.listResult = .success([try job(id: "aaa111aaa111")])
+        let store = CronJobsStore(service: service)
+
+        let fetch = Task { await store.refresh() }
+        var spins = 0
+        while service.pendingCount == 0, spins < 10_000 {
+            await Task.yield()
+            spins += 1
+        }
+        #expect(service.pendingCount == 1)
+
+        store.reset()
+        service.release()
+        await fetch.value
+
+        #expect(store.jobs.isEmpty)
+        #expect(!store.hasLoaded)
+        #expect(store.lastRefreshedAt == nil)
+    }
+
+    /// Parks each list fetch on a continuation until released, so a test can
+    /// order reset() against an in-flight fetch deterministically.
+    @MainActor
+    final class GatedCronJobService: CronJobServiceProtocol {
+        var listResult: Result<[CronJob], Error> = .success([])
+        private var continuations: [CheckedContinuation<Void, Never>] = []
+        var pendingCount: Int { continuations.count }
+
+        func release() {
+            let held = continuations
+            continuations = []
+            for continuation in held { continuation.resume() }
+        }
+
+        func listJobs() async throws -> [CronJob] {
+            await withCheckedContinuation { continuations.append($0) }
+            return try listResult.get()
+        }
+
+        func job(id: String) async throws -> CronJob { throw CronJobServiceError.notFound }
+        func createJob(_ body: CronJobCreateBody) async throws -> CronJob { throw CronJobServiceError.notFound }
+        func updateJob(id: String, patch: CronJobPatchBody) async throws -> CronJob { throw CronJobServiceError.notFound }
+        func deleteJob(id: String) async throws {}
+        func pauseJob(id: String) async throws -> CronJob { throw CronJobServiceError.notFound }
+        func resumeJob(id: String) async throws -> CronJob { throw CronJobServiceError.notFound }
+        func runJob(id: String) async throws -> CronJob { throw CronJobServiceError.notFound }
+        func deliverPlatforms() async -> [String]? { nil }
+    }
 }
