@@ -42,7 +42,11 @@ Files the agent produces land in its **host working dir** (`O:\Hermes\` on OJAMD
 write as `tool.started` `{tool_name:"write_file", args:{path, content}, preview:path}`
 (`tool.completed` is empty). So **text files can be reconstructed client-side from
 `args.content`** with no server change (#21 Tier 1). There is **no built-in file/download
-endpoint** (`/openapi.json`, `/v1/files`, `/api/files`, `/files` all 404). Durable host-side
+endpoint** (`/openapi.json`, `/v1/files`, `/api/files`, `/files` all 404 — re-verified
+2026-08-02 on a CURRENT 0.19.1 process; Hermes DOES ship an `/api/files` family but it lives
+in the **dashboard app**, `web_server.py` :9119, dashboard auth — a separate app from the
+`:8642` api_server the phone speaks; don't mistake dashboard routes for chat-plane routes,
+see #21/#223). Durable host-side
 serving for binaries / other tools (#21 Tier 2) must live in **our relay sidecar**
 (`O:\Hermes\Talaria\relay`) — **never a patch to Hermes core**: `curl install.sh | bash`
 replaces `~/.hermes/hermes-agent` and wipes core edits, while `config.yaml`/`.env`/skills/

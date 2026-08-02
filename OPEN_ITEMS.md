@@ -623,6 +623,18 @@ dropdown, no popover, no "Start New Session" — straight to the shim-backed lis
 > attachment channel — it stages browser clipboard bytes into `HERMES_HOME/images/` for
 > the dashboard's embedded TUI `/image` command; inline chat attachments are untouched.
 
+> **CORRECTED 2026-08-02, same day (the #223 zero-setup investigation, source + live on
+> OJAMD 0.19.1):** the watch's inference was wrong. **The `/api/files` family lives in the
+> DASHBOARD app (`web_server.py`, port 9119, dashboard auth — NOT `API_SERVER_KEY`); the
+> `:8642` api_server platform is a separate app whose route table has no file routes in
+> 0.19.1 at all.** The 404s were never version skew — OJAMD's CURRENT 0.19.1 process
+> serves `/api/model/options` 200 and `/api/files` 404, exactly as the source says it
+> must. So the founding "no built-in file/download endpoint" fact **stands for the plane
+> the phone speaks**, CLAUDE.md's #21 paragraph needs no correction beyond a nuance note,
+> and "migration candidate once verified live" is DEAD until an upstream mount of the
+> managed-files routes onto api_server exists (tracked as #223 Phase 3). The relay file
+> route remains the only live Tier-2 path.
+
 **Session D launch sweep 2026-07-20 — Mac PASS (for what is built), two findings, OJAMD
 test INVALID:**
 - **Mac:** chip appeared, preview sheet presented, ShareLink sheet worked. “PDF preview not
@@ -12929,6 +12941,176 @@ conversation. Owen routes each lane.
 > push path — no CloudKit traffic, no watch posts, no token enrollment — not merely
 > display; a first-class privacy feature he would use himself. The brief's checklist
 > is the investigation's work; its deliverable lands back in this entry.
+
+> ## ✅ INVESTIGATION RUN 2026-08-02 (dedicated session, per the brief) — verdict: ZERO-SETUP IS REACHABLE, but through different doors than the brief assumed. Two founding premises FALSIFIED, both with working replacements verified live the same session.
+>
+> All source claims are from the installed 0.19.1 tree on the Mac Mini
+> (`~/.hermes/hermes-agent`, git `840fb55a8`, 2026-08-02); all live probes ran against
+> **OJAMD's gateway, health-verified `0.19.1`** — a CURRENT process, which is what makes
+> the falsifications trustworthy.
+>
+> ### FALSIFICATION 1 — there is no "gateway file API" on the plane the phone speaks, and there never was
+>
+> The `/api/files` family lives in **`hermes_cli/web_server.py` — the DASHBOARD app**
+> (default port 9119, loopback-bound; auth = session cookie / OAuth gate / registered
+> token routes — **`API_SERVER_KEY` is not among them**). The phone's `:8642` is a
+> **different FastAPI/aiohttp app entirely**: `gateway/platforms/api_server.py`, whose
+> complete `_http_route_table()` (line ~1808) carries sessions/chat/models/jobs/runs —
+> **no file route of any kind**. Live confirmation on OJAMD 0.19.1: `/api/model/options`
+> → 200, `/api/files` → 404 with the identical default not-found body as a nonsense
+> route. **So #21's 2026-08-02 supersede watch drew the wrong inference**: the 404s were
+> never version skew ("the process sits between versions" — wrong); they are what current
+> code serves on `:8642`. CLAUDE.md's original "no built-in file endpoint" claim was
+> RIGHT for the chat plane all along. Correction filed in #21.
+> The dashboard-side managed-files contract, read for the would-be upstream mount:
+> `locked_root=None` on a normal self-hosted install (whole home browsable — covers
+> `O:\Hermes\`), cap `_MANAGED_FILE_MAX_BYTES` = **100 MB**, upload/upload-stream/mkdir/
+> delete, `?token=` download variant. An upstream PR mounting a subset of this on
+> api_server under `API_SERVER_KEY` is the clean deposit channel.
+>
+> ### FALSIFICATION 2 — Hermes HAS a first-class hook system, and it does not fire for the phone's runs
+>
+> `gateway/hooks.py`: hooks discovered from `~/.hermes/hooks/<name>/` (HOOK.yaml +
+> async `handler.py`), `agent:end` carries `session_id`, errors never block the
+> pipeline, and the directory is HERMES_HOME data — **survives `hermes update`**.
+> Exactly the process-free run-completion sender the brief hoped for. **But every
+> `emit()` lives in `gateway/run.py`'s platform-event pipeline** (agent:end at
+> ~16958); **`api_server._run_agent` (line ~5757) constructs its own `AIAgent` and
+> calls `run_conversation` directly — Sessions-API runs emit NOTHING.** The upstream
+> ask (emit `agent:start`/`agent:end` — or a dedicated event — around api_server's
+> runs) is small, well-shaped, and the same conversation as the file-API mount.
+>
+> ### What DOES exist today, measured live
+>
+> - **Cron inside the gateway** (no daemon): `TICKER_INTERVAL_SECONDS = 60`;
+>   `no_agent: true` **script jobs** (`HERMES_HOME/scripts/`, bash or venv python,
+>   sanitized env — read secrets from files, not env) — zero LLM cost per tick. The
+>   agent's own `cronjob` tool can create them; `/api/jobs` POST cannot (prompt jobs
+>   only — no `script`/`no_agent` fields).
+> - **Bootstrap-turn install: MEASURED PASS.** One OJAMD chat turn wrote a 1,901-byte
+>   JSON fixture **byte-identically** (SHA-256 `4a6a920b…` matched the local canonical
+>   exactly), created directories, and reported size+hash on request. A chat turn is a
+>   viable install vehicle, and the hash report is the app-side verification step.
+> - **Skill-mediated sensor queries: MEASURED PASS (directed arm).** Throwaway
+>   `talaria-sensors` skill + deposited daily-aggregate fixture on OJAMD; "what was my
+>   heart rate yesterday, and did I work out?" → every number exact (resting 58 / avg
+>   71 / max 142 / 4,211 samples; the 17:05 run, 38 min, 5.6 km), correct local-date
+>   "yesterday" resolution, no invention. **Natural arm (no steer): the agent chose
+>   the live `hermes_mobile` MCP tools over the skill** — its own memory had flagged
+>   the fixture as synthetic, so as a pure preference test the arm is contaminated,
+>   but the transition-state lesson stands: **while MCP sensor tools are on the belt,
+>   an ambient skill will not be chosen.** The end state (relay gone, MCP gone) rides
+>   the directed-arm mechanics. All probe artifacts deleted from both hosts same
+>   session (fake health data must not linger near real queries — the #173 shape);
+>   agent memory checked clean.
+> - **ES256 signing is already on the host:** the hermes venv carries `cryptography`
+>   48.0.1 + `pyjwt`. Both an APNs JWT sender and a CloudKit Web-Services sender are
+>   implementable in a `HERMES_HOME/scripts/` file with **zero new dependencies**.
+>
+> ### PUSH VERDICT — the menu re-ordered by evidence, and the CloudKit premise fell
+>
+> **Near-term winner: a direct-APNs sender script** in `HERMES_HOME/scripts/`, fired
+> two ways over time: **(now)** a `no_agent` cron job polling
+> `127.0.0.1:8642/api/sessions/{id}/messages` — the relay's exact watch predicate,
+> in-host — adding 0–60 s over the relay's 3–10 s poll; **(later)** the `agent:end`
+> hook once the upstream emission lands — instant, poll-free. It reuses **#38's
+> proven APNs credentials already in the relay `.env` on OJAMD**, the proven
+> `session_id` ping-only payload, and the app's existing receive scaffolding
+> (`aps-environment` declared in project.yml; token surfaced in Diagnostics). Zero
+> NEW setup for this deployment, and the relay's push role dies.
+> **CloudKit subscriptions — Owen's provisional pick — LOSES on its own terms.** The
+> CloudKit Web Services server-to-server key is a **container-scoped developer
+> secret** that can only touch the **public** database (server keys cannot reach
+> users' private DBs). On a third party's host it is exactly the trust shape of
+> handing out the APNs `.p8` — so CloudKit does NOT solve multi-user zero-setup, and
+> for the single-owner deployment it is strictly MORE setup (entitlement + container
+> + console key) for the same ping. **The honest multi-user answer, if Talaria ever
+> has non-Owen users, is a tiny vendor-run sender** (that is how commercial apps do
+> push) — the brief's option 4, relocated from user-host to vendor-cloud. Bonus:
+> **no iCloud in the privacy notice at all.**
+> **Token routing & the REQUIRED OFF SWITCH:** the app deposits its push token via a
+> bootstrap turn (a file under `HERMES_HOME/talaria/`); OFF = the app never deposits
+> the token (and sends a removal turn if it was on) — outbound-kill is enforced
+> app-side by construction, no host cooperation needed. Degrade per #180: OFF states
+> plainly that replies arrive on next open.
+> **BGTask stays the floor:** #198's machinery already logs every wake
+> (`bgLog.notice("app-refresh pass completed")`, +15 min re-arm per pass) — the
+> latency baseline needs no new code, just a corded `log show` pull over subsystem
+> `org.aethyrion.talaria` after a day of normal use. Platform delivery (Discord)
+> remains the free-but-foreign option; cron jobs already carry a `deliver` field.
+>
+> ### SENSORS VERDICT — the deposit model is HALF-GO
+>
+> **Query half: GO, measured** (above). **Deposit half: NO CHANNEL exists today** on
+> the chat plane (Falsification 1). Options, in preference order: **(a)** the
+> upstream file-API mount (clean, zero-setup once shipped — same upstream
+> conversation as the hook emission); **(b)** the bootstrap-turn bridge: the app
+> deposits a DAILY aggregate via one hidden chat turn — byte-fidelity is proven, cost
+> is ~1 cheap LLM turn/day + a dedicated session to keep the list clean; wrong for
+> hourly cadence, plausible for daily; **(c)** interim status quo: the relay keeps
+> ONLY sensor ingestion (push role removed by the sender script) and shrinks.
+> **Operational finding that recalibrates the trade:** the live `hermes_mobile`
+> probe showed **every OJAMD sensor metric stale since 2026-07-26** (`stale: true`,
+> age ≈ 604 k s, all 11 metrics; latest HR 72 bpm @ 07-26 09:27 UTC). Production
+> sensors have been dark for a week — undiagnosed this session (phone-side upload
+> vs relay-side; #113/#188 family) — so the bar the deposit model must clear is
+> **currently zero**. Needs its own lane regardless of this migration.
+>
+> ### PAIRING VERDICT — the model is already shaped for the collapse
+>
+> `BackendProfile` carries `shimBaseURL` as **optional** ("a profile without a shim
+> simply exposes no model picker") — `relayBaseURL` becomes optional the same way,
+> and a gateway-only profile is **one endpoint + one key** (`gatewayBaseURL` +
+> `gatewayAPIKey`): the product target literally. Tolerant decode means additive
+> fields cost existing installs nothing; scoped credential keys mean relay-paired
+> profiles keep their tokens and #15/#94 ladders for as long as a relay plane
+> exists; capability-detect per profile drives visible, stamped degradation (#180)
+> during the years both shapes coexist. Onboarding collapses to URL + key (or a QR
+> carrying both); push enrollment and sensor setup become first-connect bootstrap
+> turns.
+>
+> ### THE PHASED PLAN (Owen routes each; blockers named)
+>
+> - **Phase 0 — repairs, not this migration:** (i) the Mac gateway is running 0.19.0
+>   with the 0.19.1 tree updated underneath it — every agent creation now dies on an
+>   import mismatch (`CHECK_FN_CACHE_BYPASS`), so Mac chat is DOWN until
+>   `gateway run --replace` is rerun (the session's restart attempt was blocked by
+>   the permission classifier; command in the session report). (ii) Diagnose the
+>   sensor-staleness outage (its own lane).
+> - **Phase 1 — shim retirement** (this entry's original lane 2): picker onto
+>   `/api/model/options` — verified live 200 on OJAMD 0.19.1 today. Blocker: none.
+>   (#173's missing `vision` key is unchanged — upstream forward.)
+> - **Phase 2 — push sender v1:** APNs script + cron `no_agent` job on OJAMD
+>   (installed by us directly first; bootstrap-turn install is Phase 5 polish), app
+>   moves watch posts off the relay behind a flag, measure delivery end-to-end.
+>   Blocker: none technical. **Bars go in THIS entry before the measured run**, per
+>   the standing convention.
+> - **Phase 3 — the upstream conversation:** one contribution (or two): api_server
+>   hook emission + a managed-files mount under `API_SERVER_KEY`. Blocker: upstream
+>   acceptance; fallbacks are explicit (cron poll stays for push; relay keeps
+>   sensors for deposits).
+> - **Phase 4 — sensors to deposit model** (after Phase 3's file API, or earlier via
+>   the daily bootstrap-turn bridge if Owen accepts ~1 turn/day): app-side aggregate
+>   builder + the proven skill shape; connector + relay sensor role retire;
+>   #113/#188 dissolve rather than get fixed.
+> - **Phase 5 — relay retirement + pairing collapse:** gateway-only onboarding;
+>   relay-paired profiles keep working by capability detection until the relay is
+>   actually turned off.
+>
+> ### TRADES FOR OWEN (accept/decline, recorded here when decided)
+>
+> 1. Push latency until the hook ships: **+0–60 s** over the relay's 3–10 s. 2. Sensor
+> semantics: snapshot aggregates (app-chosen cadence) replace near-live time-series —
+> against a pipeline currently delivering nothing. 3. Trust envelope: APNs `.p8` on
+> the host = same class as `API_SERVER_KEY` (single-owner fine; multi-user needs the
+> vendor sender). 4. **iCloud: not needed after all** — the CloudKit line item and its
+> privacy-notice sentence drop. 5. Bootstrap turns are agent-mediated config mutation
+> — powerful, and each use must verify by hash/read-back (the probe's pattern).
+>
+> Probe sessions on OJAMD (named "delete me" where creatable): `api_1785661846_…`
+> (install + cleanup), `api_1785662001_…` (natural arm), `api_1785662084_…`
+> (directed arm). Mac probe session `api_1785661608_…` (500'd — the import-torn
+> process, which is how Phase 0(i) was found).
 
 ## #222 — 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK, unused. The in-source comment describes a CHOICE as a limitation.
 
