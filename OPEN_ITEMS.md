@@ -6989,11 +6989,25 @@ Logged 2026-07-20.
 
 ---
 
-## 151. 🔧 Settings → Hermes Host: "Test Connection" gives NO pass/fail feedback
+## 151. 🔧 Settings → Hermes Host: "Test Connection" gives NO pass/fail feedback — **built + merged (PR #146, 2026-07-24); three device shapes owed**
 
-> **Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
+> **⚠️ ROUTING CORRECTED 2026-08-01 — the note below was WRONG, and it was mine.**
+> It said this item's owed work is "NOT a device check" and sent it to §G pending a
+> source-confirm. **That confirm was already done 2026-07-24 and the fix merged as
+> PR #146** — verified in the tree, not from this file: `probeTimeout = 5`, a
+> dedicated probe deliberately off the shared 300s client path, `testState` bound to
+> the UI, and **REFUSED / NO ANSWER / NO HOST** at `UplinkSettingsScreen.swift:38-40`.
+> **What is left IS a device check**, and it is now in the queue as
+> **§F1** (live host) and **§F5** (stopped, black-holed). Carry it into a sitting.
+>
+> **How it went wrong:** §G was written from this entry's *"Source-confirm owed (next
+> Mac shell)"* line — true when logged 2026-07-20, dead four days later — while the
+> answer sat in a **later paragraph of this same entry**. Read the whole item, not
+> its oldest line.
+
+> ~~**Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
 > work is NOT a device check — see `dispatch/DEVICE-PASS-RUNNING-LIST.md` §G for what it
-> actually needs. Do not carry it into a device sitting.
+> actually needs. Do not carry it into a device sitting.~~ *(struck 2026-08-01, same day, see above)*
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-SETTINGS-151-152-153.md`** — PHASE 0 CONFIRM IS MANDATORY (all three carry source-confirm-owed; Bundle B had 2 of 4 premises wrong). #153 is gated: if hosts are a single record it is a data-model lane and gets split out. Do not re-spec.
 
@@ -7015,11 +7029,27 @@ Logged 2026-07-20.
 
 ---
 
-## 152. 🎨 Settings host disconnect/revoke is buried under "Pair Device" — rename the pairing surface
+## 152. 🎨 Settings host disconnect/revoke is buried under "Pair Device" — **RENAMED + merged (PR #146, 2026-07-24); one device check owed**
 
-> **Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
+> **⚠️ ROUTING CORRECTED 2026-08-01, and a decision withdrawn off Owen's plate.**
+> §G called this "a naming decision, not a check" and the device list asked Owen to
+> **pick a label**. He does not need to — **the label shipped 2026-07-24.** The row
+> and the destination screen both read **"Pairing & Devices"**
+> (`UplinkSettingsScreen.swift:357`, `ConnectHermesHostScreen.swift:38`), merged in
+> PR #146. The decision row is withdrawn. **If Owen wants a different label that is
+> now a change, not a decision.**
+>
+> **This was live on Owen's plate for a week and I restated it to him verbally on
+> 2026-08-01 as still-outstanding.** A stale decision costs more than a stale fact:
+> a fact gets re-checked when someone uses it, whereas a decision sits and blocks
+> until someone answers a question that no longer exists.
+>
+> **What is actually left is a device check** — the renamed row reaching revoke —
+> and it is now **§F1**.
+
+> ~~**Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
 > work is NOT a device check — see `dispatch/DEVICE-PASS-RUNNING-LIST.md` §G for what it
-> actually needs. Do not carry it into a device sitting.
+> actually needs. Do not carry it into a device sitting.~~ *(struck 2026-08-01, same day, see above)*
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-SETTINGS-151-152-153.md`** — PHASE 0 CONFIRM IS MANDATORY (all three carry source-confirm-owed; Bundle B had 2 of 4 premises wrong). #153 is gated: if hosts are a single record it is a data-model lane and gets split out. Do not re-spec.
 
@@ -7055,11 +7085,30 @@ Logged 2026-07-20.
 
 ---
 
-## 153. 🔧 Settings → Server: multi-host management — delete profile (distinct from revoke), active-host selection, list semantics
+## 153. ✅ Settings → Server: multi-host management — delete profile, active-host selection, list semantics — **CLOSED 2026-08-01 (header caught up to a body written 2026-07-24)**
 
-> **Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
+> **✅ CLOSED 2026-08-01.** Nothing was done today to close this — **the work merged
+> 2026-07-24 in PR #146 and this entry's own body has said so since.** Its last
+> substantive line reads *"Still open under this number: nothing from the original
+> ask."* The header stayed 🔧 for eight days and §G kept it queued as owing a
+> source-confirm that had already come back.
+>
+> **This is the largest category the 2026-08-01 Hermes audit named** — *items whose
+> fix merged but whose header never changed* — caught here by the routine act of
+> going to do the work and finding it done. **Verified in the tree before flipping**,
+> not taken from the body: hosts were **already an array**
+> (`BackendProfile.swift:100`), so it was never a data-model lane; and
+> `deleteProfile(id:)` ships with both house rules — `profileIsActive` and
+> `profileIsSensorDestination` (`BackendProfilesStore.swift:35,37`).
+>
+> **Reverse if:** an empty-list → standalone path is ever wanted. That means allowing
+> the last profile to be deleted, which is a **new decision**, not a completion of
+> this one — the current design makes the last profile necessarily active, so there
+> is no empty-list path to wedge.
+
+> ~~**Routed out of the device queue 2026-08-01 (Hermes audit Part 1C):** this item's owed
 > work is NOT a device check — see `dispatch/DEVICE-PASS-RUNNING-LIST.md` §G for what it
-> actually needs. Do not carry it into a device sitting.
+> actually needs. Do not carry it into a device sitting.~~ *(struck 2026-08-01, same day, see above)*
 
 **Spec written 2026-07-24: `dispatch/OPUS-T27-SETTINGS-151-152-153.md`** — PHASE 0 CONFIRM IS MANDATORY (all three carry source-confirm-owed; Bundle B had 2 of 4 premises wrong). #153 is gated: if hosts are a single record it is a data-model lane and gets split out. Do not re-spec.
 
