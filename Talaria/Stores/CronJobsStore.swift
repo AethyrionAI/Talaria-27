@@ -36,6 +36,9 @@ final class CronJobsStore {
     /// Connected platform names for the deliver picker; nil = the fetch
     /// failed and the picker degrades to free text (D5).
     private(set) var deliverPlatforms: [String]?
+    /// #180 — bumped by `reset()` so a fetch that was already in flight
+    /// against the OLD host cannot land its rows in the reset store.
+    private var loadGeneration = 0
 
     init(service: any CronJobServiceProtocol) {
         self.service = service
@@ -47,15 +50,32 @@ final class CronJobsStore {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
+        let generation = loadGeneration
         do {
-            jobs = try await service.listJobs()
+            let fetched = try await service.listJobs()
+            guard generation == loadGeneration else { return }
+            jobs = fetched
             hasLoaded = true
             lastRefreshedAt = Date()
             lastErrorMessage = nil
         } catch {
+            guard generation == loadGeneration else { return }
             // Existing rows stay on screen; only the message updates.
             lastErrorMessage = Self.message(for: error)
         }
+    }
+
+    /// #180 — the store is host-fed and therefore profile-scoped: a profile
+    /// switch returns it to never-loaded so no surface can present the old
+    /// host's jobs (or its `deliverPlatforms`) as the new host's. Wired
+    /// from `AppContainer.handleActiveProfileChanged`.
+    func reset() {
+        loadGeneration += 1
+        jobs = []
+        hasLoaded = false
+        lastErrorMessage = nil
+        lastRefreshedAt = nil
+        deliverPlatforms = nil
     }
 
     /// Best-effort, refreshed alongside the sheet opening; failure only

@@ -490,12 +490,24 @@ four times total.
 > carry it to the Mac**, where a stopped gateway refuses and would quietly test the
 > wrong thing.
 >
-> **What is already built (PR #233, Parts B + C):** the visible state now repaints
-> BEFORE any network call, and the reconcile loop budgets wall time instead of
-> attempts (it used to be able to grind for ~62 minutes). **Parts A and D are NOT
-> built yet** — A gives the chat plane a real timeout, D stops activations
-> stacking. **So expect this check to be BETTER, not clean**, until those land, and
-> record what you actually see rather than pass/fail against a fix that is half in.
+> **All four parts are BUILT (PRs #233–#235): expect CLEAN, not merely better.**
+> B repaints visible state before any network call, C budgets the reconcile loop
+> on wall time, A gives every client a real timeout (20s interactive / 300s
+> streaming idle), D stops activations stacking. Record what you actually see —
+> a non-clean result is now a finding, not a known gap. *(This block previously
+> said "Parts A and D are NOT built yet" — that was true when written, mid-lane;
+> corrected 2026-08-02.)*
+>
+> **RIDER — #180 instance 4, the disconnection-indicator rejudgement (Owen,
+> 2026-08-02: "yes, lets rejudge").** While the outage fixture is up, on a build
+> that includes **PR #237**: walk the surfaces you actually use — chat, the
+> sessions shelf, Skills, Tasks, Insights, the cron editor — and JUDGE whether
+> the reactive convention (failure strips, "as of HH:mm" stamps, the honest
+> empty-branch, profile-scoped resets) is enough, or whether you still want one
+> proactive app-wide "disconnected" signal and where it should live. The
+> original complaint (2026-07-23) predates every one of those mechanisms — this
+> is a taste call on today's build, not a repro. Outcome feeds #180's remaining
+> scope; "the strips are enough" closes instance 4 outright.
 >
 > **The original 2026-07-20 report said "hard-lock, phone restart."** The
 > investigation's honest limit still stands: serial `await`s suspend, they do not

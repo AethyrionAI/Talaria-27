@@ -21,6 +21,9 @@ final class SkillsStore {
     /// When the on-screen list was last actually fetched — rendered as
     /// "as of HH:mm" so a load-time snapshot is never presented as live.
     private(set) var lastRefreshedAt: Date?
+    /// #180 — bumped by `reset()` so a fetch that was already in flight
+    /// against the OLD host cannot land its rows in the reset store.
+    private var loadGeneration = 0
 
     init(service: any SkillsServiceProtocol) {
         self.service = service
@@ -30,15 +33,31 @@ final class SkillsStore {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
+        let generation = loadGeneration
         do {
-            skills = try await service.listSkills()
+            let fetched = try await service.listSkills()
+            guard generation == loadGeneration else { return }
+            skills = fetched
             hasLoaded = true
             lastRefreshedAt = Date()
             lastErrorMessage = nil
         } catch {
+            guard generation == loadGeneration else { return }
             // Existing rows stay on screen; only the message updates.
             lastErrorMessage = Self.message(for: error)
         }
+    }
+
+    /// #180 — the store is host-fed and therefore profile-scoped: a profile
+    /// switch returns it to never-loaded so no surface (screen, cron
+    /// editor's skills picker) can present the old host's rows as the new
+    /// host's. Wired from `AppContainer.handleActiveProfileChanged`.
+    func reset() {
+        loadGeneration += 1
+        skills = []
+        hasLoaded = false
+        lastErrorMessage = nil
+        lastRefreshedAt = nil
     }
 
     private nonisolated static func message(for error: Error) -> String {

@@ -27,6 +27,10 @@ final class InsightsStore {
     /// "as of HH:mm" so a load-time snapshot is never presented as live.
     private(set) var lastRefreshedAt: Date?
 
+    /// #180 — bumped by `reset()` so a fetch that was already in flight
+    /// against the OLD host cannot land its rows in the reset store.
+    private var loadGeneration = 0
+
     init(service: any InsightsServiceProtocol) {
         self.service = service
     }
@@ -35,8 +39,10 @@ final class InsightsStore {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
+        let generation = loadGeneration
         do {
             let fetch = try await service.fetchRecentSessions()
+            guard generation == loadGeneration else { return }
             rows = fetch.rows
             summary = InsightsSummary.summarize(fetch.rows)
             isTruncated = fetch.isTruncated
@@ -44,9 +50,25 @@ final class InsightsStore {
             lastRefreshedAt = Date()
             lastErrorMessage = nil
         } catch {
+            guard generation == loadGeneration else { return }
             // Existing numbers stay on screen; only the message updates.
             lastErrorMessage = Self.message(for: error)
         }
+    }
+
+    /// #180 — the store is host-fed and therefore profile-scoped: a profile
+    /// switch returns it to never-loaded so no surface can present the old
+    /// host's numbers as the new host's. The summary and truncation flag
+    /// are derived from host rows and die with them. Wired from
+    /// `AppContainer.handleActiveProfileChanged`.
+    func reset() {
+        loadGeneration += 1
+        rows = []
+        summary = nil
+        isTruncated = false
+        hasLoaded = false
+        lastErrorMessage = nil
+        lastRefreshedAt = nil
     }
 
     private nonisolated static func message(for error: Error) -> String {

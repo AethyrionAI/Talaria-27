@@ -72,15 +72,15 @@ final class AppContainer {
     /// #156a: the Tasks (scheduled cron jobs) store — rides the ACTIVE
     /// profile's gateway endpoint, same auth as the Sessions chat client.
     /// Nil in bare test containers that construct stores directly.
-    private(set) var cronJobsStore: CronJobsStore?
+    var cronJobsStore: CronJobsStore? // harness-visible setter (#180 wiring test)
     /// #156b: the installed-skills browser store — same gateway endpoint +
     /// auth plane as the cron jobs store; read-only (`GET /v1/skills` is the
     /// only skill route). Nil in bare test containers.
-    private(set) var skillsStore: SkillsStore?
+    var skillsStore: SkillsStore? // harness-visible setter (#180 wiring test)
     /// #156d: the Insights (session usage/cost) store — same gateway
     /// endpoint + auth plane as Tasks and Skills; read-only over
     /// `GET /api/sessions`. Nil in bare test containers.
-    private(set) var insightsStore: InsightsStore?
+    var insightsStore: InsightsStore? // harness-visible setter (#180 wiring test)
     /// #116: post-pair provisioning bundle — auto-fills a profile's shim
     /// URL/token (+ empty gateway URL) from the relay after a successful
     /// pair, and backs the Server screen's "Refresh Provisioning" action.
@@ -2491,6 +2491,15 @@ final class AppContainer {
         // and journal are deliberately untouched.
         inboxStore.reset()
         hostStore.reset()
+        // #180: the host-fed gateway stores are profile-scoped — their
+        // cached rows are the OLD host's and must not survive into the new
+        // one (the cron editor's skills picker would otherwise offer Host
+        // A's skills for a job created on Host B). Each reset() also bumps
+        // a generation so an in-flight fetch against the old host cannot
+        // land after this line.
+        skillsStore?.reset()
+        cronJobsStore?.reset()
+        insightsStore?.reset()
         lastKnownHostOnline = false
         lastCommandCatalogRefreshAt = nil
         chatStore.resetCommandCatalog()

@@ -3187,6 +3187,66 @@ struct AppStoresTests {
         return condition()
     }
 
+    // MARK: - #180: profile switch resets host-fed stores
+
+    /// #180 — the defect was the WIRING, not the stores. Each host-fed
+    /// store (skills, cron jobs, insights) resolves its URL per-fetch, but
+    /// its cached rows survived `handleActiveProfileChanged`, so the cron
+    /// editor's picker could offer Host A's skills for a job created on
+    /// Host B. The store-level `reset()` is pinned in each store's own
+    /// tests; THIS test pins the call path — a reset() nobody calls is a
+    /// control on a path the defect does not take.
+    @Test @MainActor
+    func profileSwitchResetsHostFedStores() async throws {
+        let harness = await makeLaunchHarness(
+            suiteName: "profile-switch-resets-host-fed-stores",
+            sessionUserMatchesPairedUser: true
+        )
+        harness.openAllGates()
+        let container = harness.container
+
+        let skillsService = SkillsStoreTests.FixtureSkillsService()
+        skillsService.listResult = .success([Skill(name: "old-host-skill", description: nil, category: nil)])
+        let skillsStore = SkillsStore(service: skillsService)
+        await skillsStore.refresh()
+
+        let cronService = CronJobsStoreTests.FixtureCronJobService()
+        cronService.listResult = .success([try JSONDecoder().decode(CronJob.self, from: Data("""
+        {"id": "aaa111aaa111", "name": "Old host job", "state": "scheduled",
+         "schedule": {"kind": "interval", "minutes": 30}}
+        """.utf8))])
+        let cronStore = CronJobsStore(service: cronService)
+        await cronStore.refresh()
+
+        let insightsService = InsightsStoreTests.FixtureInsightsService()
+        insightsService.fetchResult = .success(SessionStatsFetch(
+            rows: [SessionStatsRow(id: "old-host-session", usage: SessionUsage(inputTokens: 1, outputTokens: 1))],
+            isTruncated: false
+        ))
+        let insightsStore = InsightsStore(service: insightsService)
+        await insightsStore.refresh()
+
+        container.skillsStore = skillsStore
+        container.cronJobsStore = cronStore
+        container.insightsStore = insightsStore
+        #expect(skillsStore.hasLoaded)
+        #expect(cronStore.hasLoaded)
+        #expect(insightsStore.hasLoaded)
+
+        await container.handleActiveProfileChanged(to: BackendProfile(
+            name: "New Host",
+            gatewayBaseURL: "http://new-host:8642",
+            relayBaseURL: "http://new-host:8000/v1"
+        ))
+
+        #expect(skillsStore.skills.isEmpty)
+        #expect(!skillsStore.hasLoaded)
+        #expect(cronStore.jobs.isEmpty)
+        #expect(!cronStore.hasLoaded)
+        #expect(insightsStore.rows.isEmpty)
+        #expect(!insightsStore.hasLoaded)
+    }
+
     @Test @MainActor
     func bootstrapProbeSessionUsesShortTimeouts() {
         // #136 non-negotiable 4: launch/bootstrap probes must converge in

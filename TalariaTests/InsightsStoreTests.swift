@@ -121,4 +121,73 @@ struct InsightsStoreTests {
         #expect(store.summary?.totals.sessionCount == 0)
         #expect(store.lastErrorMessage == nil)
     }
+
+    // MARK: - #180: profile-scoped reset
+
+    /// #180 — the store is host-fed and therefore profile-scoped: a profile
+    /// switch must return it to never-loaded. The summary and truncation
+    /// flag are derived from host rows and reset with them.
+    @Test func resetReturnsTheStoreToNeverLoaded() async {
+        let service = FixtureInsightsService()
+        service.fetchResult = .success(fetch(["a"], truncated: true))
+        let store = InsightsStore(service: service)
+        await store.refresh()
+        #expect(store.hasLoaded)
+        #expect(store.isTruncated)
+
+        store.reset()
+
+        #expect(store.rows.isEmpty)
+        #expect(store.summary == nil)
+        #expect(!store.isTruncated)
+        #expect(!store.hasLoaded)
+        #expect(store.lastErrorMessage == nil)
+        #expect(store.lastRefreshedAt == nil)
+    }
+
+    /// #180, the racy variant — a fetch already in flight against the OLD
+    /// host when reset() lands must not deliver the old host's rows into
+    /// the reset store (same supersede family as #136's bootstrap cancel).
+    @Test func resetDiscardsAnInFlightFetchFromTheOldHost() async {
+        let service = GatedInsightsService()
+        service.fetchResult = .success(fetch(["old-host-session"]))
+        let store = InsightsStore(service: service)
+
+        let fetchTask = Task { await store.refresh() }
+        var spins = 0
+        while service.pendingCount == 0, spins < 10_000 {
+            await Task.yield()
+            spins += 1
+        }
+        #expect(service.pendingCount == 1)
+
+        store.reset()
+        service.release()
+        await fetchTask.value
+
+        #expect(store.rows.isEmpty)
+        #expect(store.summary == nil)
+        #expect(!store.hasLoaded)
+        #expect(store.lastRefreshedAt == nil)
+    }
+
+    /// Parks each fetch on a continuation until released, so a test can
+    /// order reset() against an in-flight fetch deterministically.
+    @MainActor
+    final class GatedInsightsService: InsightsServiceProtocol {
+        var fetchResult: Result<SessionStatsFetch, Error> = .success(SessionStatsFetch(rows: [], isTruncated: false))
+        private var continuations: [CheckedContinuation<Void, Never>] = []
+        var pendingCount: Int { continuations.count }
+
+        func release() {
+            let held = continuations
+            continuations = []
+            for continuation in held { continuation.resume() }
+        }
+
+        func fetchRecentSessions() async throws -> SessionStatsFetch {
+            await withCheckedContinuation { continuations.append($0) }
+            return try fetchResult.get()
+        }
+    }
 }
