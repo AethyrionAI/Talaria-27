@@ -13305,11 +13305,15 @@ Mac talaria-push hook disarmed at merge time (device-file OFF switch);
 **Counted delta, recorded BEFORE the verification run:** −11 (`PushRegistrationRecordTests`
 deleted) −8 (`RunCompletionWatchTests` deleted) −2 (AppStoresTests priming pair) −2
 (BackendProfileRoutingTests dormant-idempotency pair) +1 (the decode-tolerance pin) =
-**−22.** The 1565 baseline is a FULL-SCHEME (gate) count, so the bar binds to the gate
-run: **expected 1544** (1565 − 22 + the 238-A UI test). The T8 unit-scoped run checks
-compile + green only. Any other gate number is a falsification, not a redefinition.
-(Amended pre-result: the first wording bound 1543 to the unit-scoped T8 run, which
-measures a different scope than the baseline.)
+**−22.** ✅ **DELTA VERIFIED EXACTLY: 1548 observed** (T8 run, green, 120 suites).
+Anchor correction recorded with it: the entry's first two wordings mis-derived the
+absolute number (1543/1544) from a STALE baseline — 1565 was pre-#251-merge; tonight's
+merge took main to 1570 — and from counter-scope confusion (the 238-A UI test is
+XCTest-based, so it never rides the swift-testing "Test run with N tests" line; XCUITest
+results live in the `Executed N` counters). The pre-registered claim that survives
+untouched is the **−22 delta**, and 1570 − 22 = 1548 landed on the number. The two
+wrong absolute pins stay recorded above as what they are: mis-anchored, caught at
+verification.
 
 ## 237. 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can resolve twice for one run — **FIX BUILT same day; 237-A/B/C/D green in suite; 237-E (device heal + the unparked 235-F) owed to the OTA**
 
