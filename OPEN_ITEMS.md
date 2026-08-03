@@ -14143,6 +14143,24 @@ lane runs, per the standing rule.
 > (the OJAMD-only relay never faced this). NOT a pilot blocker: Task 1.7
 > puts the hook on OJAMD, whose pushes resolve on the active profile.
 >
+> **🔬 RE-ATTACH PROBE 2026-08-03 (~3:30 PM), Owen-routed, constraint
+> reiterated: gateway-native only, zero PC extras beyond Hermes.** The
+> chat plane HAS a run event stream — `GET /v1/runs/{run_id}/events`, SSE,
+> live-attach, 30s keepalives (the CLAUDE.md route table's "`/v1/runs*`
+> incl." elided it) — **but session-chat runs never register in it**:
+> probed live mid-run, `/v1/runs/{id}` and `/events` both 404 for a
+> `/api/sessions/{id}/chat/stream` run's id. The queue is created only in
+> the `POST /v1/runs` handler. **Possibility map, recorded for Lane 6:**
+> (1) UPSTREAM PR — register session-chat runs in `_run_streams` (the
+> callback plumbing already exists; also raise the single-subscriber
+> destroy-on-disconnect semantics for mobile re-attach) — the clean path,
+> Hermes-native, falls back cleanly; (2) moving the app's send path onto
+> `POST /v1/runs` (has `session_id`) — parity UNKNOWN (memory, session
+> store, taxonomy), research question only; (3) app-only interim: the
+> transcript grows mid-run (verified), so a foreground-during-run tail
+> poll could render chip progress at ~2s cadence with no server change.
+> Nothing built; Owen routes.
+
 > **Ops findings, recorded not hardened:** (a) `hermes gateway restart` can
 > RACE ITS OWN DRAIN — the old process still held `:8642` when the new one
 > bound 22s later (`Errno 48`), and the api_server platform does NOT retry a
