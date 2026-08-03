@@ -13349,6 +13349,39 @@ time** — which is the entire point of #38.
 N should equal this token's active `push_registrations` rows **+ 1 local**. If it does
 not, there is a fourth source.
 
+> ## ✅ ALL THREE LEGS BUILT 2026-08-02 — device verification owed, and it must be UNCORDED.
+>
+> | leg | what changed | pinned by |
+> |---|---|---|
+> | **(a)** | `ChatStore.watchableSessionId` — a stream in flight is watchable via `activeSessionID` when no `PendingRun` exists. `watchPendingRunIfNeeded` consults it. **A pending run still wins** (it names the session actually orphaned); idle, or streaming with no server session, still watches nothing | 4 truth-table rows |
+> | **(b)** | `LocalNotificationService.runCompletedIdentifier(runId:)` — `notifyRunCompleted` now takes the run id, so the relay's insta-push and the local notify **REPLACE** instead of stacking | 3 rows |
+> | **(c)** | `reconcilePendingRuns()` single-flighted onto one in-flight `Task`; concurrent callers await it. **#227 instance 3** | 1 concurrency test |
+>
+> **Leg (b)'s nil case is deliberate and is the non-obvious half.** An unidentifiable
+> run falls back to a **unique** id, not a stable constant — a constant would collapse
+> every such run onto one banner, so a second run would silently replace a first the
+> user had not read. **That trades three banners for a MISSING one: the same defect
+> wearing the opposite sign.**
+>
+> **Leg (c) was written as a `Task`, never an `isReconciling` Bool** — every concurrent
+> caller clears a Bool check before any of them sets it, which is precisely the
+> non-guard #227 exists to name. Same shape as
+> `AppSessionStore.refreshAccessTokenIfNeeded` and #145 Part D.
+>
+> **RED witnessed behaviourally for (c):** with only the coalescing disabled, the suite
+> reported **8 tests / 1 failure** — the single-flight test alone, legs (a) and (b)
+> untouched. The test parks the first reconcile *inside* the client before releasing the
+> second, so it cannot pass by mere sequencing; counting calls against an instant client
+> would have let a store with no guard at all pass.
+>
+> **⚠️ DEVICE VERIFICATION MUST BE UNCORDED — see the instrumentation trap above.** A
+> live Xcode launch session never suspends, so the `.interrupted` branch is unreachable
+> corded and "no banner" is the correct outcome there for ANY run length. Launch by
+> hand, phone off the cable, recover the log afterwards. **What to expect after this
+> lane: exactly ONE banner** — leg (a) arms the watch so a short run is no longer
+> silent, and leg (b) collapses the duplicates. If it is still >1, the ×N decomposition
+> (above) says where the extra came from.
+
 ## 225. 🐛 UNBOUNDED tool-call spiral in production: 64 calls on "weather in Gulfport tomorrow," user-terminated, no cap anywhere in the loop
 
 **FILED 2026-08-02 from the device pass (running list §D5, which holds the full
