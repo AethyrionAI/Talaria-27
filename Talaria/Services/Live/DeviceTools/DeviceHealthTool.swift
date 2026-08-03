@@ -41,7 +41,7 @@ struct DeviceHealthTool: Tool {
     }
 
     func call(arguments: Arguments) async throws -> String {
-        await Self.performRead(rawMetric: arguments.metric, relay: relay, name: name)
+        try await Self.performRead(rawMetric: arguments.metric, relay: relay, name: name)
     }
 
     /// nil and "" are the SAME request — everything. Shared with the pinned
@@ -50,10 +50,10 @@ struct DeviceHealthTool: Tool {
         (raw ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
-    static func performRead(rawMetric: String?, relay: ToolEventRelay, name: String) async -> String {
+    static func performRead(rawMetric: String?, relay: ToolEventRelay, name: String) async throws -> String {
         // An omitted metric lands on exactly the path an empty string took.
         let metric = normalizedMetric(rawMetric)
-        if case .refused(let refusal) = await relay.started(name, detail: metric) { return refusal }
+        if case .refused(let refusal) = try await relay.started(name, detail: metric) { return refusal }
         defer { Task { await relay.completed(name) } }
 
         guard HKHealthStore.isHealthDataAvailable() else {
@@ -153,6 +153,6 @@ struct DeviceHealthToolRequiredMetric: Tool {
     }
 
     func call(arguments: Arguments) async throws -> String {
-        await DeviceHealthTool.performRead(rawMetric: arguments.metric, relay: relay, name: name)
+        try await DeviceHealthTool.performRead(rawMetric: arguments.metric, relay: relay, name: name)
     }
 }

@@ -21,7 +21,7 @@ struct CalendarReadTool: Tool {
 
     func call(arguments: Arguments) async throws -> String {
         let days = min(max(arguments.daysAhead, 1), 14)
-        if case .refused(let refusal) = await relay.started(name, detail: "next \(days) day\(days == 1 ? "" : "s")") { return refusal }
+        if case .refused(let refusal) = try await relay.started(name, detail: "next \(days) day\(days == 1 ? "" : "s")") { return refusal }
         defer { Task { await relay.completed(name) } }
 
         let store = EKEventStore()
@@ -92,7 +92,7 @@ struct ReminderReadTool: Tool {
     struct Arguments {}
 
     func call(arguments: Arguments) async throws -> String {
-        if case .refused(let refusal) = await relay.started(name) { return refusal }
+        if case .refused(let refusal) = try await relay.started(name) { return refusal }
         defer { Task { await relay.completed(name) } }
 
         let store = EKEventStore()

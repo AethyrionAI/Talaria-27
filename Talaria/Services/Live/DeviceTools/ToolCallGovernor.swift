@@ -1,5 +1,26 @@
 import Foundation
 
+/// OPEN_ITEMS #232 — the refusal grind's structural end.
+///
+/// Refusal STRINGS keep the model in tool-calling mode: instrumented on
+/// device 2026-08-02, one turn burned 57 refusal→re-infer cycles (~2.4s
+/// each) after the #225 cap correctly stopped execution. Refusals 1–3 stay
+/// strings (the model gets real chances to course-correct); the FOURTH
+/// attempted call in a turn throws this instead. The Tool protocol is
+/// already `throws`, the error surfaces as `ToolCallError.underlyingError`,
+/// and both send loops catch it and retry ONCE as a routed-toolless turn —
+/// the 486-token shape measured clean 10/10 the same night. **This is the
+/// one sanctioned tool-path throw; #197's never-throw rule still governs
+/// refusals themselves.**
+struct ToolPhaseCutError: Error {
+    /// Refusals that stay strings before the cut. Pre-registered in #232
+    /// with tonight's evidence: healthy turns showed zero refusals, and no
+    /// observed case exists where refusal ≥4 led anywhere but the grind.
+    /// A legitimate turn hitting the cut falsifies the NUMBER, not the
+    /// mechanism.
+    static let refusalThreshold = 3
+}
+
 /// OPEN_ITEMS #225 — the bound that did not exist.
 ///
 /// **Production, 2026-08-02:** "what's the weather gonna be in Gulfport tomorrow"

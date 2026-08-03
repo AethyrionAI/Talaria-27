@@ -13312,6 +13312,34 @@ any fix lane runs.** Baseline for judgement: this trial — 12 executed / 57 ref
 the window class is #229; the trigger fix is #230. Same-tool cap held (4 executed
 max per tool); the grind is a REFUSAL loop, a distinct third mechanism.
 
+> ## 📋 BARS — PRE-REGISTERED 2026-08-02 (night), BEFORE THE FIX LANE. Written first.
+>
+> **Design chosen: the cut-and-toolless-retry.** At the FOURTH refusal in one turn
+> (threshold 3 — every healthy trial tonight had zero refusals; trial 1's refusals
+> 4–57 were pure waste, and no observed case exists where refusal ≥4 led anywhere),
+> `ToolEventRelay.started` THROWS `ToolPhaseCutError` instead of returning a string.
+> The tool protocol is already `throws`; the error surfaces as
+> `ToolCallError.underlyingError`; both send loops catch it exactly like #26/#197
+> and retry ONCE as a **routed-toolless turn** (`turnRoutedToolless = true` → empty
+> belt + the 486-token instruction set — the shape that went 10/10 tonight).
+> Deliberate scope: the retry loses this turn's tool results (mid-turn transcripts
+> are unknowable, #102) — for grind-shaped turns those results are noise by
+> definition. **The transcript-preserving deeper fix (DynamicProfile
+> `.toolCallingMode` demote, session-init-attached, re-evaluation semantics
+> unverified) is recorded as its own future spike, not attempted blind.**
+>
+> - **232-A (mechanical, sim):** refusals 1–3 return strings unchanged; the 4th
+>   attempted call in a turn throws; `beginTurn()` resets the count; a healthy turn
+>   (0 refusals) can never reach the throw. Pinned by tests written first.
+> - **232-B (mechanical, sim):** the cut error is detected both bare and wrapped in
+>   `ToolCallError`, and triggers exactly ONE toolless retry per turn.
+> - **232-C (device):** the Gulfport prompt produces reply text in **< 30s** with
+>   **≤ 3 refusals** in the log (baseline: ~2.5min / 57).
+> - **232-D (device):** healthy turns unchanged — a trial-2-shaped prompt still
+>   answers in seconds with 0 refusals and no cut line.
+> - **232-E:** the cut logs an always-on `.notice` (same convention as #26's
+>   condense line), so a cut turn is visible without verbose.
+
 ## 231. 🐛 RELEASE-ONLY: the chat screen scrambles — transcript collapses, identity strip lands on the input bar. Debug is fine, so every check we run was blind to it (#218's family, for UI)
 
 **FILED 2026-08-02, found by Owen ~60 seconds into the first Release install anyone
