@@ -13314,6 +13314,15 @@ re-entry surface (two triggers + tail-move) is new — treat the fix lane as
 > client id deterministically from the server row id — the root #120-family
 > fix) + reconcile idempotence (a resolved run id never resolves twice).
 
+> **DISCRIMINATOR ANSWERED (Owen, same sitting): the duplicates SURVIVE a
+> drawer-reopen — the healing prediction was WRONG.** The reopen/cache path
+> preserves the unioned transcript rather than replacing it from the
+> server, so the defect is one layer deeper and NO self-healing path
+> exists. Priority raised again. **Consequence applied immediately: 235-F's
+> device bar is PARKED until this fix lands** — deliberately staging a
+> recovery quadruples another thread (the bar's logic stays sim-pinned by
+> the four placement tests; its device half rides the #237 fix's OTA).
+
 ## 236. 🔧 MessageIdentityUITests flaked AGAIN — the #195 family's second variant: reply rendered a hair past the 20s wait on a hot sim
 
 **FILED 2026-08-03 (midday) from the #235 lane's first gate run.**
@@ -13607,6 +13616,16 @@ time rendering unmissable. Bars pre-register HERE before any fix lane.
 > was created. …ask the user whether they meant AM or PM…"), keep the
 > display time AFTER the ask instruction, and pin the new wording in the
 > 233-A tests. 233-D verdict still pending (midday/evening sends).
+
+> **✅ 233-E MET ON DEVICE — 2026-08-03 ~1 PM, build 1874 (the hardened
+> string, Owen routed the re-fix same hour).** Full chain observed: the
+> model CLARIFIED AM vs PM; the confirm card appeared **with the
+> early-morning notice** (that banks 233-C's device half too); the reminder
+> was **actually scheduled in the Reminders store** — Owen verified the row
+> this time. Falsify → harden → pass, all in one sitting. The re-fix went
+> beyond the entry's candidate wording: the hardened string carries NO
+> formatted date at all (nothing mineable), pinned by prefix + no-date
+> assertions in the bounce test. 233-D remains tonight's evening send.
 
 ## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes — **CUT BUILT 2026-08-03 (AM); 232-C/D experiential halves MET on device same morning; log halves owed to the corded coda**
 
