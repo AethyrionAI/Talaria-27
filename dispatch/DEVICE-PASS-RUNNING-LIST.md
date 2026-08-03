@@ -18,6 +18,13 @@ verdicts.
 > | **2** | **The big one — an evening** | **§F5's outage** and everything riding it: **#151** (3 shapes), **#145** (all of A–E(a)), **#180's instance-4 rejudgement**, **#117**. Then §F1's cheap rows (**#133/#143 row count**, **#222** image, **#193**, **#121**, **#122**, **#191**, **#192**) and **§F7a–c** (approvals — no setup) | > 25 min outage window; a build carrying #237–#242 |
 > | **3** | **Voice + calls — SCHEDULED TUESDAY 2026-08-04, Shelley confirmed** | **§A1b** (real incoming call), **§A2b** (#221 brain-governs-voice), **§F6** (#129, #58/#179, E1 residual) | someone who will call you ✓ |
 >
+> | **4** | **⛔ UNCORDED — phone OFF the cable, launched by hand** | **§F8** — **#226** (one banner, not zero and not three) and **#81** (locked-device Reply) | a build with PR #243; **no Xcode session**, log recovered afterwards |
+>
+> **Sitting 4 is short but cannot share a rig with anything else.** A live Xcode
+> launch session never suspends, so every check in §F8 measures the wrong thing
+> from the cable — and reads as a PASS while doing it. It is the one sitting where
+> the *absence* of instrumentation is the fixture.
+>
 > **Not in a sitting:** **A2's overnight half** (start before bed, free), the
 > **OJAMD counts** (any time you are at that box — two read-only lines), **§F7d/e**
 > (host-side `approvals.mode`), and **F3 (fresh install) which deletes the app and
@@ -733,7 +740,7 @@ four times total.
 
 | # | check | pass |
 |---|---|---|
-| **#81** | Let a run finish while the phone is locked | push carries **Reply**; long-press → Reply → headless post lands; the NEXT push also carries Reply |
+| **#81** | Let a run finish while the phone is locked | push carries **Reply**; long-press → Reply → headless post lands; the NEXT push also carries Reply. **⛔ MUST BE UNCORDED — see §F8**, which is where this runs; a live Xcode session never suspends, so a kept-alive rig measures nothing real here |
 
 ### F5 · INDUCED OUTAGE (longest — run last, or on its own)
 
@@ -880,6 +887,32 @@ state Talaria cannot answer, that is a shipping-relevant gap in the same family
 as #180 (the app hides its own degradation) — the user would see a dead turn
 with no way to learn an approval is pending. **Do not leave YOLO off**
 afterwards unless you mean to; restore whatever state you started in.
+
+### F8 · UNCORDED — **phone OFF the cable, app launched BY HAND, no Xcode session** · **[NEW 2026-08-02]**
+
+> ## ⛔ THE CONSTRAINT IS THE SECTION. Read this before running either row.
+>
+> **A process with a live Xcode launch session NEVER SUSPENDS** (corded, on power).
+> Owen proved it as §D4 attempt 5: an instrumented run survived **2m42s** of
+> home-screen backgrounding, so the `.interrupted` branch is **unreachable** on the
+> instrumented rig and **"no banner" is the CORRECT outcome there for any run
+> length.** These two checks measure what happens when iOS actually suspends the
+> app — which the cable prevents by construction.
+>
+> **Grouped by the constraint, not the gesture.** One is backgrounding and one is
+> locking, but both are un-runnable the same way and both need the same setup, so
+> they share a sitting. **Recover the log AFTERWARDS** — Console.app on the Mac
+> with the phone attached post-hoc, or a sysdiagnose. Do not attach first.
+>
+> **This section exists because the corded rig produced a wrong-looking-right
+> result once already.** Attempts 3–5 in §D4 all read "no banner" and all were
+> correct-but-meaningless. A pass recorded from the cable here would be a false
+> PASS in exactly #117's shape.
+
+| # | check | pass |
+|---|---|---|
+| **#226** ⭐ | **On a build carrying PR #243:** start a run, background to the home screen, wait for it to finish, then foreground. Do it twice — once with a SHORT run (finishes inside iOS's grace) and once with a LONG one (outlives it, e.g. ask for a 500-word summary) | **EXACTLY ONE banner, in both cases.** Before this lane: short run → **nothing ever**; long run → **×3**. Leg (a) arms the watch so a short run is no longer silent; leg (b) makes duplicates replace. **If >1: the ×N decomposition owed with #133/#143's OJAMD recount says where the extra came from** (N should be that token's active `push_registrations` rows + 1 local). If 0 on the short run, leg (a) did not arm — capture the log |
+| **#81** | Let a run finish while the phone is **locked** | push carries **Reply**; long-press → Reply → headless post lands; the NEXT push also carries Reply. **Same constraint — see the block above.** Duplicated from §F4 deliberately: it is listed there by state (locked) and here by what makes it runnable |
 
 ---
 
