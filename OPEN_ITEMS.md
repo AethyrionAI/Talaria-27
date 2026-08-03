@@ -14125,6 +14125,32 @@ lane runs, per the standing rule.
 > Diagnostics. Then the Task 1.6 Step 5 smoke: one phone chat run against
 > the Mac gateway, backgrounded, watch for `ping … status=200` + the banner.
 
+> **🔔 SMOKE PASSED 2026-08-03 ~12:15 — the relay-free push path is PROVEN
+> end-to-end.** Owen placed the `.p8`; the Key ID (`ALB34NY384`) turned out
+> to live in the Mac's dev relay checkout (`relay/.env`) — no paste needed;
+> token enrolled as `whoGoesThere.json`. Self-driven smoke (two `/chat`
+> turns against the LOCAL Mac gateway): the watcher pinged BOTH completions,
+> `status=200` each (`12:14:49 msg=9046`, `12:15:17 msg=9048`, session
+> `api_1785777275_a8a351ca`), and **Owen confirmed the "Reply Ready" banner
+> on whoGoesThere.** Two pings not one is correct: the watcher came up
+> mid-turn-1, and a LIVE turn completing after first sight is a new
+> completion — the silent-prime guard covers only already-completed history
+> (pinned by test). **Tap-routing probe in flight:** the smoke session lives
+> on the MAC while the app's active profile is OJAMD — the tap either proves
+> cross-host routing or surfaces a Lane 4 finding (payload may need a
+> host/profile hint; the OJAMD-only relay never faced this).
+>
+> **Ops findings, recorded not hardened:** (a) `hermes gateway restart` can
+> RACE ITS OWN DRAIN — the old process still held `:8642` when the new one
+> bound 22s later (`Errno 48`), and the api_server platform does NOT retry a
+> failed bind, so the gateway ran chat-plane-less until a second restart.
+> Check `✓ api_server connected` after any restart, not just `/health`…
+> which cannot answer when the plane never bound. (b) The watcher's first
+> poll can race the api_server bind at boot (ConnectError) — the supervisor
+> caught it, backed off, recovered on its own; working as designed, one
+> traceback of noise per unlucky boot. Task 1.6 Step 6 (idle/OFF check) and
+> Task 1.7 (OJAMD deploy) remain.
+
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
 Couple that with ending the shim, and we won't have very much running anymore separately."*
 Recorded so the target architecture lives in the tracker, with each piece's blocker named —
