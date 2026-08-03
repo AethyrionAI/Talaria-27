@@ -13278,7 +13278,7 @@ for 1–11 unless context says otherwise — what Siri does), or the create tool
 REFUSING bare hours back to the model with "ask AM or PM," plus making the card's
 time rendering unmissable. Bars pre-register HERE before any fix lane.
 
-## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes — **CUT BUILT 2026-08-03 (AM); device bars 232-C/D owed**
+## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes — **CUT BUILT 2026-08-03 (AM); 232-C/D experiential halves MET on device same morning; log halves owed to the corded coda**
 
 > **✅ MECHANISM BUILT overnight, same session** (branch `claude/t27-232-refusal-cut`,
 > tests first): refusals 1–3 stay strings; the 4th attempted call throws
@@ -13286,6 +13286,23 @@ time rendering unmissable. Bars pre-register HERE before any fix lane.
 > `relay.started` is now `throws` (compiler-enforced sweep). Mechanical bars
 > 232-A/B/E green in suite; **232-C/D are DEVICE bars, not claimed** — OTA or
 > corded verify per the 2026-08-03 handoff.
+
+> **📱 DEVICE RESULTS 2026-08-03, ~7:38 AM — Owen's at-work test, OTA install of
+> the fix branch, fresh chats, screenshots in hand:**
+> - **232-C, experiential half MET:** the Gulfport control prompt — the exact turn
+>   that ground 57 refusals / ~2.5 min on build 1843 — replied **within the same
+>   clock minute** (2 tool calls, receipt IN 5.8K · OUT 84). Note the mechanism:
+>   with #230 aboard the same branch, the trigger is gone and this prompt now ends
+>   at call 2 — it no longer *reaches* the cut. The ≤3-refusals log half still
+>   needs the corded coda (trivially expected 0 on this prompt now; a grind-shaped
+>   prompt is the one that would show the cut itself firing).
+> - **232-D, experiential half MET:** "What's the weather right now" (fresh chat)
+>   → `currentLocation` + `currentWeather`, answer within the same clock minute
+>   (IN 5.8K · OUT 107), behavior unchanged from the healthy trials. The
+>   0-refusals / no-cut-line log half is the coda's.
+> - **The formal close remains the corded coda** (~10 min: verbose ON +
+>   `idevicesyslog`) — exact refusal counts for 232-C, and the cut's `.notice`
+>   line (232-E's device half) on a prompt that actually grinds.
 
 **FILED 2026-08-02 from the first fully instrumented device turn (#228's instrument,
 Release build 1843, verbose ON, the Gulfport control prompt).** The turn executed its
@@ -13387,7 +13404,18 @@ code, identical fresh state.** So: not the phone, not the data, not #228's diff
 >   Verbose Logging there produces the #228 lines in a captured device log.
 > - **231-D:** the DEBUG banner behavior (#205) is unchanged in Debug builds.
 
-## 230. 🎨 `currentWeather` is today-only, and "tomorrow" was the trigger: extend it to WeatherKit's daily forecast — **BUILT 2026-08-03 (AM), after the run banked the control; Bar 3.1 owed on device**
+## 230. 🎨 `currentWeather` is today-only, and "tomorrow" was the trigger: extend it to WeatherKit's daily forecast — **BUILT 2026-08-03 (AM); Bar 3.1 MET ON DEVICE same morning**
+
+> **✅ Bar 3.1 MET ON DEVICE — 2026-08-03, ~7:38 AM, Owen's at-work test (OTA
+> install of the fix branch, fresh chat, screenshot in hand).** "What's the
+> weather going to be like in Gulfport, MS, tomorrow" → **2 tool calls** (chip),
+> a **real tomorrow forecast** — mostly clear, high 91°F / low 77°F, 38% chance
+> of precipitation — answered within the same clock minute (sent 7:38 AM, reply
+> stamped 7:38 AM; receipt IN 5.8K · OUT 84). The relabel check passes on the
+> numbers alone: the same phone's "right now" turn, same minute, reported today
+> at high 87°F / low 76°F / 79% precip — tomorrow's row is **different data**,
+> not today's re-dated (the #199-suspect shape ruled out on evidence). The prompt
+> that filed #225, #229, and #232 now ends at call 2.
 
 **FILED 2026-08-02, Lane 3 of `dispatch/FABLE-T27-LOCAL-BRAIN-DEVICE-RUN.md`.**
 (OPEN_ITEMS #230 — not PR #230; the two sequences collide here, per the standing
