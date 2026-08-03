@@ -448,8 +448,10 @@ not a two-minute read. That asymmetry is the whole reason this is first.
 > **User-visible harm: none found — the catalog ARRIVED.** The −1001s are noise
 > from requests the app never needed to make. **Candidate app-side fix (fits the
 > no-hardening rule — zero relay change): single-flight `refreshCommandCatalog`**
-> so concurrent callers await one in-flight fetch. Not filed as a tracker item
-> yet — Owen to say if wanted.
+> so concurrent callers await one in-flight fetch. **FILED 2026-08-02 as instance 1
+> of the #227 umbrella** (no single-flight on launch/foreground fan-out) — the same
+> sitting found two more: `registerPushToken` ×2 at launch, and #226's reconcile leg,
+> which is the one that is user-visible.
 >
 > **Residual, honestly stated:** the original sighting also had `:8765/models`
 > timing out; today's launch showed **no shim timeout**, so that half is
@@ -498,7 +500,7 @@ activation`), and **#192's router instruments** fired on a real brain flip
 (`brain preference → hermes [pick+default]`, `activeBrain on-device → hermes`,
 `run finished on hermes [stream-ended] — routing lock released`).
 
-### D4 · Run-completion notifications: the #38 background watch is structurally a NO-OP for home-screen backgrounding · **[FOUND 2026-08-02 — four live attempts + source, mechanism complete]**
+### D4 · Run-completion notifications: the #38 background watch is structurally a NO-OP for home-screen backgrounding · **[FOUND 2026-08-02 — four live attempts + source, mechanism complete. FILED as OPEN_ITEMS #226; leg (c) is instance 3 of the #227 umbrella]**
 
 **User-visible truth today: background the app mid-run and you either get NOTHING
 (short run) or THREE identical banners at foreground (long run). Never one

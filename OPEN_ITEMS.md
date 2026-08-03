@@ -37,14 +37,21 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 >   VIABLE, recommend closing" and the close was never actioned — Owen's call.**
 > - **💤 (2)** — #4, #55. Parked, not done. Count as open-but-not-scheduled.
 >
-> **The honest figure as of 2026-08-02 (recomputed on UNIQUE items after
-> canonicalisation): 230 items · 134 ✅ · 6 terminal-not-✅ (4 record 📝 + 2 completed
-> ❌) · 90 genuinely open**, of which 2 are dormant and 1 awaits Owen.
+> **The honest figure as of 2026-08-02 (post device pass, recomputed on UNIQUE items):
+> 233 items · 141 ✅ · 6 terminal-not-✅ (4 record 📝 + 2 completed ❌) · 86 genuinely
+> open**, of which 2 are dormant and 1 awaits Owen.
 >
-> *Was "229 · 136 ✅ · ~87 open" on 2026-08-01. The board did not grow by three: **✅
-> fell by 2 because #198/#199 were double-counted**, and #223/#224 were filed on
-> 08-02. The marker tallies above (📝 9, ❌ 3, 💤 2) are unchanged and were verified
-> against unique items, not headings.*
+> *Movement on 2026-08-02, and it is worth reading as two opposite forces:* the day's
+> lanes and the evening device pass closed **seven** items (134 → 141 ✅ — #144, #145,
+> #151, #146, and the F1 verdicts), while the pass itself **filed three new ones**
+> (#225 the 64-call spiral, #226 the push-watch no-op, #227 the single-flight umbrella).
+> **Net: 90 → 86 open.** A device pass that closes seven and opens three is the system
+> working — the new items are defects that were always there and are now NAMED, which
+> is strictly better than a smaller board with the same bugs in it.
+>
+> *Earlier the same day: "229 · 136 ✅ · ~87" (08-01) → "230 · 134 · 90" after
+> canonicalisation, where **✅ fell by 2 because #198/#199 were double-counted**.
+> Marker tallies (📝 9, ❌ 3, 💤 2) verified against unique items, not headings.*
 >
 > **Do not read a header and stop.** Every header-only judgement made during this
 > phase was wrong. #162/#163/#165 read "BUILT on branch" and the code is on `main`
@@ -13255,6 +13262,92 @@ stall is real.
 **Ordering:** §F7d (device list) measures the actual failure first. Then (2) as a small
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
+
+## 227. 🎨 UMBRELLA — no single-flight on launch/foreground fan-out: THREE instances found in ONE sitting
+
+**Filed 2026-08-02 from the device pass.** Three independent findings the same evening
+share one shape: **several callers invoke the same refresh concurrently, nothing
+coalesces them, and the duplicates are pure waste — or worse, user-visible.** Filed as
+an umbrella because fixing them one at a time reproduces the default that created them,
+which is exactly what #180 established.
+
+| # | instance | where | cost |
+|---|---|---|---|
+| 1 | **command-catalog fetch** — a cold launch fires ~3 concurrent `/v1/commands`; one wins, the extras starve on the connector leg and burn their 5s as `−1001` | `AppContainer.swift:1363,1558,2575` + `:1234`, all `force: true`; `lastCommandCatalogRefreshAt` stamped only on success (`:2379`) | **no user-visible harm** — the catalog arrives. Log noise that cost a real diagnosis (§D1's "cold route" theory died here) |
+| 2 | **`registerPushToken` ×2** at launch — 17:29:45.478 / .496, 18 ms apart | launch path | duplicate relay writes; feeds #133/#143's row problem from the other end |
+| 3 | **run-completion reconcile** — the third leg of **#226**'s ×3 banners | `ChatStore.swift:1743` | **USER-VISIBLE.** This is the one that stacks a duplicate notification |
+
+**The shape, stated once so each fix does not re-derive it:** a `force:`-style flag that
+bypasses a throttle is not a single-flight; a timestamp stamped **only on success** is
+not a guard (every concurrent caller reads it unstamped and proceeds); and an
+`isLoading` bool set inside the call is not one either (all callers pass the check
+before any of them sets it). **The fix is one in-flight `Task` per refresh that
+concurrent callers `await`** — the pattern `AppSessionStore.refreshAccessTokenIfNeeded`
+already uses (`tokenRefreshTasks`, keyed by credential scope) and
+`AppContainer.handleAppDidBecomeActive` got in #145 Part D. **Copy those; do not invent
+a third shape.**
+
+**Ordering:** instance 3 rides **#226** because it is one of that item's three legs and
+is the only user-visible one. Instances 1 and 2 are cheap and independent — they can go
+in one small lane, or ride any lane that already touches those call sites. **All three
+are app-side; zero relay change**, which is what the no-hardening rule asks for.
+
+**Not a lane yet — Owen routes.** Recorded here rather than fixed in passing because
+three drive-by single-flight patches across launch, push, and chat would be an
+unreviewable diff, and #180's lesson is that the convention is the deliverable.
+
+## 226. 🐛 The #38 run-completion push watch is a STRUCTURAL NO-OP for home-screen backgrounding — nothing, or THREE identical banners
+
+**FILED 2026-08-02 from the device pass (running list §D4, which holds the attempt table
+and the full source trace).** Four live attempts plus source; **all four explained
+without residue.**
+
+**User-visible truth today: background the app mid-run and you get NOTHING (short run)
+or THREE identical banners at foreground (long run). Never one banner at the right
+time** — which is the entire point of #38.
+
+**Mechanism, source-confirmed:**
+1. `PendingRun` is created **only on `.interrupted`** (stream drop), never during
+   healthy streaming (`ChatStore.swift:716`).
+2. So the scene-phase hook `watchPendingRunIfNeeded()` (`AppEntry.swift:311` →
+   `AppContainer.swift:2178`) **silently no-ops at the home-screen transition** — inside
+   iOS's background grace the stream is still healthy, so there is no pending run to
+   watch. **The hook's own comment describes exactly the case its guard excludes.**
+3. **Short run** ⇒ finishes in-process during grace ⇒ no orphan, no watch, **no
+   notification at all**; the reply just waits silently.
+4. **Long run** ⇒ stream dies at suspension, but `.interrupted` → `onRunDetached` →
+   `postPushWatch` runs **only on foreground** ⇒ the watch arms against an
+   already-finished run ⇒ the relay **insta-pushes by design**, once per active
+   `push_registrations` row, **plus** the reconcile's local notify fired while the
+   activation chain is still `.inactive` (`ChatStore.swift:1743`) — each with a
+   **unique UUID identifier** (`LocalNotificationService.swift:58`), so nothing
+   coalesces ⇒ **×3 identical banners over the app you just opened.**
+
+**Fix shape — all app-side, ZERO relay change (fits the no-hardening rule):**
+- **(a)** arm the watch on the background transition whenever a **stream is in flight**,
+  not only when a `PendingRun` exists. The relay watcher is positional and the code
+  comment already blesses insta-fire as correct.
+- **(b)** a **stable** notification identifier (`hermes.run.completed.<runId>`) so
+  duplicates REPLACE instead of stack.
+- **(c)** single-flight the reconcile path — **this is instance 3 of #227**.
+
+> **⚠️ THE INSTRUMENTATION TRAP, and it generalises — read before attempting to verify
+> this.** Attempt 5 (instrumented, `sleep 150`, 18:43) showed the stream **surviving
+> 2m42s of home-screen backgrounding**. **A process with a live Xcode launch session
+> (corded, on power) NEVER SUSPENDS**, so the `.interrupted` branch is unreachable on
+> the instrumented rig and "no banner" is the correct outcome for ANY run length there.
+> That is not a weakness in the finding — it **explains the attempt table's split**:
+> attempts 1–2 (the ×3 banners) ran under an EXPIRED launch session, i.e. normal
+> suspension; every live-session attempt rode a process that never sleeps.
+> **The ×3 branch cannot be instrumented with the corded console at all.**
+> **Consequence for this item AND for #81 (§F4):** verification must be **uncorded and
+> un-attached** — launch by hand, phone off the cable, recover the log afterwards via
+> Console.app or a sysdiagnose. A lock-mid-stream or background-mid-stream check on the
+> kept-alive rig measures nothing real.
+
+**Still owed:** the **×N decomposition** arrives free with #133/#143's OJAMD recount —
+N should equal this token's active `push_registrations` rows **+ 1 local**. If it does
+not, there is a fourth source.
 
 ## 225. 🐛 UNBOUNDED tool-call spiral in production: 64 calls on "weather in Gulfport tomorrow," user-terminated, no cap anywhere in the loop
 
