@@ -13263,7 +13263,35 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
-## 237. 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can resolve twice for one run
+## 237. 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can resolve twice for one run — **FIX BUILT same day; 237-A/B/C/D green in suite; 237-E (device heal + the unparked 235-F) owed to the OTA**
+
+> **✅ FIX BUILT 2026-08-03 (afternoon), the day's third same-day lane.**
+> Three parts, TDD, RED watched (T3's first fixture HUNG by holding its
+> stream open — rebuilt with finishing streams; the watched RED then failed
+> on exactly the production defect, resolvedCount 2):
+> **F1** `stableMessageID` — SHA-256-derived RFC-4122-shaped UUID from
+> `sessionId:serverRowID` in `mapStoredMessage` (+ tolerant `id` decode on
+> `StoredMessage`) — re-fetches reproduce identities, so the merge's
+> unconfirmed-locals preserve recognizes prior adoptions (237-A).
+> **F3** `Conversation.dedupingAdoptedEchoes` — triple-keyed first-wins
+> sweep (sender, trimmed content, timestamp; empty shells also key on
+> activity labels), applied at merge exit AND cache restore, healing
+> pre-fix corruption on load (237-D).
+> **F2** `resolvedRunIDs` — adoptive resolutions record their run id;
+> a late duplicate `.interrupted` for a resolved run tears down quietly,
+> never re-arms (237-B/C via the corpse-echo fixture).
+> **Device (237-E) NOT claimed:** Owen's quadrupled plex thread should
+> render single copies on first load under the fix build; then 235-F
+> unparks — a staged recovery produces ONE marked reply, no growth.
+> **Build 1886 (`09bfef7`) staged 2026-08-03 ~3 PM; gate PASS (1570 exact,
+> XCUITest 8/8); PR #251 open, Owen routes the merge.**
+>
+> **✅ 237-E MET — 2026-08-03 ~3:45 PM, Owen on 1886:** the quadrupled plex
+> thread healed on first load, **128 → 48 rendered messages, one prompt
+> copy, one answer** ("Only one question, and one answer now!!!"). The
+> restore-boundary sweep did its job on real corruption. 235-F remains the
+> last device bar on this build (staged recovery: one marked reply, no
+> growth).
 
 **FILED 2026-08-03 (~1 PM) from Owen's 235-E test, minutes after the bar was
 met** — the recovery WORKED, then over-delivered: the plex-run answer appeared
@@ -13339,6 +13367,24 @@ re-entry surface (two triggers + tail-move) is new — treat the fix lane as
 > twice); (3) a one-time dedupe sweep for already-corrupted cached threads
 > (Owen's plex thread is 4× — the fix must also clean, not just stop).
 > Bars pre-register HERE at routing.
+>
+> **ROUTED 2026-08-03 ~2 PM ("merge and go"); spec at
+> `docs/superpowers/specs/2026-08-03-237-stable-identity-design.md`.**
+>
+> ## 📋 BARS — PRE-REGISTERED 2026-08-03, BEFORE THE FIX LANE. Written first.
+> - **237-A (sim):** `stableMessageID` deterministic across calls, distinct
+>   across rows/sessions; two decodes of one fixture → identical id
+>   sequences; rowless messages still unique.
+> - **237-B (sim):** two successive adoptions of the same server transcript
+>   leave the count UNCHANGED; a genuinely-unconfirmed local send still
+>   survives (the preserve's designed purpose, pinned).
+> - **237-C (sim):** a late `.interrupted` with an already-resolved runId →
+>   no second adoption, `onRunResolved` count == 1.
+> - **237-D (sim):** the sweep collapses a synthetically quadrupled thread,
+>   is idempotent, preserves distinct-timestamp repeats.
+> - **237-E (device):** Owen's plex thread heals to single copies under the
+>   fix build; the parked 235-F bar then runs: ONE marked recovered reply,
+>   no thread growth.
 
 > **DISCRIMINATOR ANSWERED (Owen, same sitting): the duplicates SURVIVE a
 > drawer-reopen — the healing prediction was WRONG.** The reopen/cache path

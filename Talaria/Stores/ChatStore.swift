@@ -295,6 +295,14 @@ final class ChatStore {
     // harness-visible
     var hasActiveReconcileLoop: Bool { reconcileTask != nil }
 
+    /// #237: run ids whose reconcile ALREADY ADOPTED a reply. A dying
+    /// stream's late duplicate `.interrupted` must not re-arm one — that was
+    /// the observed double-adoption (two notifications, thread quadrupled).
+    /// Records only adoptive resolutions (never abandons); run ids are
+    /// globally unique, so the set needs no clearing — a resolved run must
+    /// never re-arm, even across thread switches. App-session lifetime.
+    private var resolvedRunIDs: Set<String> = []
+
     /// Session id of the run awaiting reconcile, if any — what the relay's
     /// completion watcher needs to be told about (#38).
     var pendingRunSessionId: String? { pendingRun?.sessionId }
@@ -396,6 +404,13 @@ final class ChatStore {
     func loadConversationIfNeeded() async {
         if conversation == nil {
             conversation = persistence.loadConversationCache()
+            // #237: heal pre-fix adopted-echo corruption at the restore
+            // boundary — Owen's quadrupled thread renders single copies on
+            // first load under the fix (bar 237-E's sim-reachable half).
+            if var restored = conversation {
+                restored.messages = Conversation.dedupingAdoptedEchoes(restored.messages)
+                conversation = restored
+            }
             if let cachedUsage = conversation?.latestUsage {
                 lastTokenUsage = cachedUsage
             }
@@ -762,6 +777,19 @@ final class ChatStore {
                     continuedSend?.finish(success: true)
 
                 case .interrupted(let sessionId, let runId):
+                    // #237: a late duplicate from a dying stream must not
+                    // re-arm a run whose reconcile already adopted — that was
+                    // the double-adoption. Tear the turn down quietly instead.
+                    if let runId, self.resolvedRunIDs.contains(runId) {
+                        if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
+                            self.conversation?.messages.remove(at: idx)
+                        }
+                        self.streamingMessageID = nil
+                        self.chatLiveActivity.endActivity()
+                        self.speechOutput?.cancelStream(messageID: placeholderID)
+                        continuedSend?.finish(success: true)
+                        break
+                    }
                     // Run committed server-side but the stream dropped (lock /
                     // background). Not a failure: mark the turn working and let the
                     // reconcile loop pick up the reply when it lands.
@@ -1846,6 +1874,11 @@ final class ChatStore {
             conv.messages = Self.placingRecoveredReply(reply.id, prompt: promptText, in: conv.messages)
             conversation = conv
         }
+        // #237: this run has adopted — a late duplicate interrupt for it is
+        // noise from here on, never a re-arm.
+        if let runId = pending.runId {
+            resolvedRunIDs.insert(runId)
+        }
         pendingRun = nil
         pendingMessageSentAt = nil
         onRunResolved?(pending.sessionId)
@@ -2097,6 +2130,10 @@ final class ChatStore {
             )
         }
 
+        // #237: every adoption pass exits through the sweep, so even a
+        // pre-fix-corrupted local (or an unforeseen union path) converges to
+        // single copies instead of compounding.
+        refreshedConversation.messages = Conversation.dedupingAdoptedEchoes(refreshedConversation.messages)
         return refreshedConversation
     }
 

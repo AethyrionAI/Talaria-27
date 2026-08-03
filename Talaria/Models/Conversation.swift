@@ -39,4 +39,23 @@ struct Conversation: Codable, Identifiable, Hashable, Sendable {
     var previewText: String {
         lastMessage?.content ?? "No messages yet"
     }
+
+    /// #237: heal adopted-echo corruption. Pre-fix reconciles unioned whole
+    /// transcripts with fresh identities (32 → 128 on the observed thread),
+    /// so identity alone cannot find the copies — first occurrence wins for
+    /// rows sharing (sender, trimmed content, timestamp), with empty-content
+    /// tool-shell rows additionally keyed on their activity labels so two
+    /// DIFFERENT shells at one timestamp both survive. A genuinely repeated
+    /// user message differs in timestamp and is untouched. Idempotent.
+    static func dedupingAdoptedEchoes(_ messages: [Message]) -> [Message] {
+        var seen = Set<String>()
+        return messages.filter { message in
+            let content = message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            var key = "\(message.sender)|\(content)|\(message.timestamp.timeIntervalSince1970)"
+            if content.isEmpty {
+                key += "|\(message.toolActivities.map(\.label).joined(separator: ","))"
+            }
+            return seen.insert(key).inserted
+        }
+    }
 }
