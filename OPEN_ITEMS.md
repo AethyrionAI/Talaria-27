@@ -13323,6 +13323,22 @@ re-entry surface (two triggers + tail-move) is new — treat the fix lane as
 > concatenation therefore happens DOWNSTREAM — journal sync, cache
 > restore, or openSession adoption — and locating the true union site is
 > the fix lane's Phase 1, before any design hardens.
+>
+> **UNION SITE FOUND (same day, ~1:40 PM, read-only): the "unconfirmed
+> locals" preserve at the END of `mergeConversationMetadata`** (ChatStore
+> ~2076–2081). Designed to keep 1–2 in-flight sends alive across a refresh,
+> it confirms rows by UUID or `clientMessageID` — and server-adopted rows
+> from a PREVIOUS adoption have neither (fresh-minted UUIDs, no client id),
+> so every later pass appends the entire prior transcript as "unconfirmed."
+> Explains the seams, the per-pass compounding, AND the reopen non-healing
+> (same merge on reopen). **The fix is now fully designed:** (1) stable
+> identity — `Message.id` derived deterministically (UUIDv5 of
+> `sessionId:serverRowId`) in `mapStoredMessage`, making re-fetches
+> recognizable so the preserve filter drops them, app-side only; (2) run-id
+> idempotence in `attemptReconcile` (a resolved run id never resolves
+> twice); (3) a one-time dedupe sweep for already-corrupted cached threads
+> (Owen's plex thread is 4× — the fix must also clean, not just stop).
+> Bars pre-register HERE at routing.
 
 > **DISCRIMINATOR ANSWERED (Owen, same sitting): the duplicates SURVIVE a
 > drawer-reopen — the healing prediction was WRONG.** The reopen/cache path
