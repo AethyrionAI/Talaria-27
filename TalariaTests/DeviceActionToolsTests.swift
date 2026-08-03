@@ -98,8 +98,14 @@ struct DeviceActionToolsTests {
 
         let first = try await tool.call(arguments: .init(
             title: "Call Shelley", due: "2026-08-05T04:00", list: nil))
+        // 233-E device falsification (2026-08-03): the model mined the old
+        // bounce string's displayDate for a FABRICATED "has been set" claim.
+        // The hardened wording leads with the negative and carries NO
+        // formatted date — nothing mineable before or after the instruction.
+        #expect(first.hasPrefix("No reminder was created"))
         #expect(first.contains("Ask the user whether they meant AM or PM"))
         #expect(first.contains("early morning"))
+        #expect(!first.contains("2026"))   // no mineable date string, any format
 
         let second = try await tool.call(arguments: .init(
             title: "Call Shelley", due: "2026-08-05T04:00", list: nil))

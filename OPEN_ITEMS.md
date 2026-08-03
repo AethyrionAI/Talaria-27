@@ -13263,6 +13263,92 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+## 237. 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can resolve twice for one run
+
+**FILED 2026-08-03 (~1 PM) from Owen's 235-E test, minutes after the bar was
+met** — the recovery WORKED, then over-delivered: the plex-run answer appeared
+twice at the tail, **both copies wearing the ↩ RECOVERED REPLY marker**, and
+**two local completion notifications** fired when Owen entered the app. Two
+notifications = `attemptReconcile` ran to full resolution twice for ONE run
+(each resolution posts one notify when the app is not active).
+
+**Candidate mechanisms (evidence will discriminate):**
+- **(a) Late `.interrupted` re-arm:** the dying stream delivers a trailing
+  `.interrupted` after the first resolution cleared `pendingRun` → a second
+  PendingRun for the same run → second reconcile → second adoption + second
+  tail-move. The two triggers themselves are single-flighted; a NEW pending
+  run between passes defeats that by design.
+- **(b) Fetch-minted message IDs defeat the merge:** if
+  `fetchSessionConversation` mints fresh `Message` UUIDs per fetch, the
+  second adoption cannot recognize the first pass's tail-moved copy by id —
+  `mergeConversationMetadata` keeps both. (#120's family, one level up — the
+  dupIDProbe guards same-ID duplicates; different-ID content duplicates pass
+  it.)
+
+**Discriminator requested from Owen:** leave/re-open the chat (or relaunch) —
+both copies persisting = the duplicate reached the store/cache (adoption
+path); one vanishing = render/merge-level. Screenshot owed for the record.
+
+**Severity:** moderate — the OPPOSITE failure class from #235's answer-loss
+(over-delivery, honestly labeled). The reconcile core predates today; the
+re-entry surface (two triggers + tail-move) is new — treat the fix lane as
+#235's follow-on, bars pre-registered HERE before it runs.
+
+> **EVIDENCE UPGRADE, same sitting (Owen's 12:58 screenshots): the WHOLE
+> THREAD duplicated, not just the reply — header 32 → 128 messages, two
+> exact DOUBLINGS matching the two notifications.** The seams are visible
+> in-transcript: [12:48 chips] → [the 12:36 prompt again] → [12:36 chips
+> again], repeated; one prompt copy still carries ⏱ (the pre-adoption
+> local) while others carry ✓ (adopted); the two marked recovered replies
+> sit back-to-back. **Mechanism (b) effectively confirmed: message identity
+> does not survive re-fetch** — each adoption unions a full fresh-identity
+> copy of the transcript into the local one (#120's class at conversation
+> scale). (a) remains the explanation for the second pass running.
+> **Severity raised:** store-level and persistent (14 min later, same
+> count), and every future stream-loss recovery on this thread doubles it
+> again. Discriminator STILL owed: drawer-reopen of the chat — prediction:
+> the openSession path replaces wholesale from the server transcript and
+> HEALS the thread to single copies; if it does not, cache adoption unions
+> too and the defect is one layer deeper. **Fix-lane scope sketch (route
+> before building):** stable message identity across fetches (derive the
+> client id deterministically from the server row id — the root #120-family
+> fix) + reconcile idempotence (a resolved run id never resolves twice).
+
+> **Code-reading refinement (same day, pre-lane):** the union site is NOT
+> `mergeConversationMetadata` — it REPLACES with the server view and even
+> dedupes internal same-UUID rows. What IS confirmed in code:
+> `mapStoredMessage` mints a fresh Message per fetched row, deriving
+> nothing from the server row id (only clientMessageID/jobID fallbacks
+> rescue some rows), so re-fetches are unrecognizable by identity. The
+> concatenation therefore happens DOWNSTREAM — journal sync, cache
+> restore, or openSession adoption — and locating the true union site is
+> the fix lane's Phase 1, before any design hardens.
+>
+> **UNION SITE FOUND (same day, ~1:40 PM, read-only): the "unconfirmed
+> locals" preserve at the END of `mergeConversationMetadata`** (ChatStore
+> ~2076–2081). Designed to keep 1–2 in-flight sends alive across a refresh,
+> it confirms rows by UUID or `clientMessageID` — and server-adopted rows
+> from a PREVIOUS adoption have neither (fresh-minted UUIDs, no client id),
+> so every later pass appends the entire prior transcript as "unconfirmed."
+> Explains the seams, the per-pass compounding, AND the reopen non-healing
+> (same merge on reopen). **The fix is now fully designed:** (1) stable
+> identity — `Message.id` derived deterministically (UUIDv5 of
+> `sessionId:serverRowId`) in `mapStoredMessage`, making re-fetches
+> recognizable so the preserve filter drops them, app-side only; (2) run-id
+> idempotence in `attemptReconcile` (a resolved run id never resolves
+> twice); (3) a one-time dedupe sweep for already-corrupted cached threads
+> (Owen's plex thread is 4× — the fix must also clean, not just stop).
+> Bars pre-register HERE at routing.
+
+> **DISCRIMINATOR ANSWERED (Owen, same sitting): the duplicates SURVIVE a
+> drawer-reopen — the healing prediction was WRONG.** The reopen/cache path
+> preserves the unioned transcript rather than replacing it from the
+> server, so the defect is one layer deeper and NO self-healing path
+> exists. Priority raised again. **Consequence applied immediately: 235-F's
+> device bar is PARKED until this fix lands** — deliberately staging a
+> recovery quadruples another thread (the bar's logic stays sim-pinned by
+> the four placement tests; its device half rides the #237 fix's OTA).
+
 ## 236. 🔧 MessageIdentityUITests flaked AGAIN — the #195 family's second variant: reply rendered a hair past the 20s wait on a hot sim
 
 **FILED 2026-08-03 (midday) from the #235 lane's first gate run.**
@@ -13316,6 +13402,24 @@ re-run recorded there.
 > 3a41757`, 2026-08-03 midday): Owen's reproduction (long turn → background
 > to RDP → return → answer at the tail, ⏱ clears) and the displaced-recovery
 > marker.
+
+> **✅ 235-E MET ON DEVICE — 2026-08-03 ~12:55 PM, build 1870, Owen's
+> at-work test, the morning's exact failure inverted.** Long plex-mcp
+> investigation on OJAMD (85+ store rows, ~17 min), phone backgrounded
+> mid-run, stream dead; on foreground the unstarved reconcile adopted the
+> 4,361-char answer (store row 25103) at the transcript tail, ⏱ cleared, no
+> session reopen. Owen: "Recovered reply worked! I see the response at the
+> bottom!!" Mid-test false alarm recorded honestly: at 12:44 Owen called it
+> failed while the run was still RUNNING server-side (live reasoning chips
+> at 12:43 were the tell); a Monitor on the session store timed the real
+> check to completion. **Observation, #38-adjacent:** no remote push
+> arrived while backgrounded (the relay watch stayed silent — the same
+> relay that needed an agent restart this morning); the banner that popped
+> on open was the app's LOCAL completion notice in the foreground
+> transition. Remedy is #223 Task 1.7 (OJAMD watcher deploy), not relay
+> repair — deletion doctrine. **235-F still owed** (needs later messages
+> stacked on a stranded turn; this run's reply was newest → no marker is
+> correct behavior).
 
 **FILED 2026-08-03 mid-morning from Owen's at-work report** (OJAMD session
 `api_1785768068_885aa3ad`, KIMI-K3 global default, heavy multi-tool turns while
@@ -13538,6 +13642,16 @@ time rendering unmissable. Bars pre-register HERE before any fix lane.
 > was created. …ask the user whether they meant AM or PM…"), keep the
 > display time AFTER the ask instruction, and pin the new wording in the
 > 233-A tests. 233-D verdict still pending (midday/evening sends).
+
+> **✅ 233-E MET ON DEVICE — 2026-08-03 ~1 PM, build 1874 (the hardened
+> string, Owen routed the re-fix same hour).** Full chain observed: the
+> model CLARIFIED AM vs PM; the confirm card appeared **with the
+> early-morning notice** (that banks 233-C's device half too); the reminder
+> was **actually scheduled in the Reminders store** — Owen verified the row
+> this time. Falsify → harden → pass, all in one sitting. The re-fix went
+> beyond the entry's candidate wording: the hardened string carries NO
+> formatted date at all (nothing mineable), pinned by prefix + no-date
+> assertions in the bounce test. 233-D remains tonight's evening send.
 
 ## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes — **CUT BUILT 2026-08-03 (AM); 232-C/D experiential halves MET on device same morning; log halves owed to the corded coda**
 

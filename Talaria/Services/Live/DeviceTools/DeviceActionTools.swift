@@ -157,7 +157,13 @@ struct ReminderCreateTool: Tool {
         // user-confirmed "yes, 4 AM" cannot loop.
         if let parsedDue, DeviceActionParsing.isEarlyMorning(parsedDue),
            await relay.claimEarlyMorningAsk() {
-            return "The due time reads as \(DeviceActionParsing.displayDate(parsedDue)) — early morning. Ask the user whether they meant AM or PM, then create the reminder with the time they confirm."
+            // 233-E device falsification (2026-08-03, build 1870): the model
+            // mined the old wording's displayDate into a FABRICATED "has been
+            // set for Aug 4, 2026 at 5:00 AM" reply. The hardened form leads
+            // with the negative and carries NO formatted date — nothing to
+            // mine into a success claim; the user's own message already names
+            // the hour the ask refers to.
+            return "No reminder was created. The requested due time falls in the early morning (midnight to 7 AM). Ask the user whether they meant AM or PM, then create the reminder with the time they confirm."
         }
         let decision = await confirmations.requestConfirmation(
             title: "Create this reminder?",
