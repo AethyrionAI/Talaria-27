@@ -13285,6 +13285,13 @@ direction — one more thing the gateway already carries.
 > unparks — a staged recovery produces ONE marked reply, no growth.
 > **Build 1886 (`09bfef7`) staged 2026-08-03 ~3 PM; gate PASS (1570 exact,
 > XCUITest 8/8); PR #251 open, Owen routes the merge.**
+>
+> **✅ 237-E MET — 2026-08-03 ~3:45 PM, Owen on 1886:** the quadrupled plex
+> thread healed on first load, **128 → 48 rendered messages, one prompt
+> copy, one answer** ("Only one question, and one answer now!!!"). The
+> restore-boundary sweep did its job on real corruption. 235-F remains the
+> last device bar on this build (staged recovery: one marked reply, no
+> growth).
 
 **FILED 2026-08-03 (~1 PM) from Owen's 235-E test, minutes after the bar was
 met** — the recovery WORKED, then over-delivered: the plex-run answer appeared
