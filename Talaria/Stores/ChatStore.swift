@@ -323,6 +323,22 @@ final class ChatStore {
         )
     }
 
+    /// #235 F3 — Owen's placement rule, pure so it truth-tables: a recovered
+    /// reply below later exchanges is where nobody is looking; move it to the
+    /// tail and stamp WHICH question it answers so it cannot masquerade as a
+    /// reply to the newest one. Undisplaced → identity, byte-identical.
+    nonisolated static func placingRecoveredReply(
+        _ replyID: UUID, prompt: String?, in messages: [Message]
+    ) -> [Message] {
+        guard let idx = messages.firstIndex(where: { $0.id == replyID }),
+              idx != messages.indices.last else { return messages }
+        var result = messages
+        var reply = result.remove(at: idx)
+        reply.recoveredForPrompt = prompt.map { String($0.prefix(60)) } ?? "an earlier question"
+        result.append(reply)
+        return result
+    }
+
     /// Pure so the decision is truth-table testable rather than only reachable
     /// through a live stream (this project's standing shape — cf.
     /// `ChatHealthPollPolicy`, `HostFedListPresentation`).
@@ -1786,6 +1802,11 @@ final class ChatStore {
         })
         guard let reply else { return false }
 
+        // #235 F3: the prompt text lives in the PRE-adoption conversation
+        // (server rows have different ids) — capture it before replacing.
+        let promptText = conversation?.messages
+            .first(where: { $0.id == pending.userMessageID })?.content
+
         conversation = mergeConversationMetadata(from: conversation, into: serverConvo)
         // #4.15: the server transcript filters `_thinking`, so the reasoning
         // that streamed before the drop survives only in the pending run —
@@ -1818,6 +1839,12 @@ final class ChatStore {
         }
         if let latestUsage = conversation?.latestUsage {
             lastTokenUsage = latestUsage
+        }
+        // #235 F3: Owen's placement rule — a recovered reply displaced by
+        // later exchanges lands at the TAIL, where the user is looking.
+        if var conv = conversation {
+            conv.messages = Self.placingRecoveredReply(reply.id, prompt: promptText, in: conv.messages)
+            conversation = conv
         }
         pendingRun = nil
         pendingMessageSentAt = nil

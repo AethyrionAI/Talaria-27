@@ -405,7 +405,18 @@ final class SessionsHermesClient: HermesClientProtocol {
             // Flush any pending event the server didn't terminate with a blank line.
             if !currentData.isEmpty { dispatchEvent() }
 
-            if !finalMessageDelivered {
+            if !finalMessageDelivered,
+               Self.cleanCloseArmsRecovery(
+                   runStarted: runStarted,
+                   effectiveContent: (pendingFinalMessage?.content.isEmpty == false)
+                       ? pendingFinalMessage!.content : assembledContent
+               ) {
+                // #235 F1: a clean close on a started run with NO answer text
+                // is the 9:47 shape — delivering it as .finished produced an
+                // empty bubble and suppressed all recovery. Same path as a
+                // thrown error; the reconcile machinery owns it from here.
+                continuation.yield(.interrupted(sessionId: capturedSessionId, runId: runId))
+            } else if !finalMessageDelivered {
                 var fallbackMessage = pendingFinalMessage ?? Message(
                     sender: .hermes,
                     content: assembledContent,
@@ -953,6 +964,18 @@ final class SessionsHermesClient: HermesClientProtocol {
         request.httpBody = body
         request.timeoutInterval = Self.requestTimeout(forAccept: accept)
         return request
+    }
+
+    // MARK: - #235 F1 — the empty clean-close decision
+
+    /// #235 F1: a stream that ends CLEANLY (no thrown error) without
+    /// run.completed, on a run that started, with no answer text assembled —
+    /// the 9:47 shape. Delivering it as `.finished` produced an empty bubble
+    /// and suppressed all recovery; it must arm the same `.interrupted` path
+    /// a thrown error takes. Non-empty content keeps the fallback: a partial
+    /// streamed answer beats store adoption, which would drop it.
+    nonisolated static func cleanCloseArmsRecovery(runStarted: Bool, effectiveContent: String) -> Bool {
+        runStarted && effectiveContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     // MARK: - #145 Part A — the chat plane's timeout budget

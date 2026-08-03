@@ -45,6 +45,20 @@ struct ReasoningChannelTests {
         #expect(SessionsHermesClient.thinkingDelta(fromToolProgress: "not json") == nil)
     }
 
+    // MARK: #235 F1 — the empty clean-close decision
+
+    /// A started run whose stream closes with NO answer text must arm
+    /// recovery, not deliver an empty bubble. Non-empty content keeps the
+    /// partial-answer fallback (streamed text beats store adoption). A run
+    /// that never started has nothing to reconcile.
+    @Test func emptyCleanCloseArmsRecoveryOnlyForStartedRuns() {
+        #expect(SessionsHermesClient.cleanCloseArmsRecovery(runStarted: true, effectiveContent: ""))
+        #expect(SessionsHermesClient.cleanCloseArmsRecovery(runStarted: true, effectiveContent: "  \n\t"))
+        #expect(!SessionsHermesClient.cleanCloseArmsRecovery(runStarted: true, effectiveContent: "partial answer"))
+        #expect(!SessionsHermesClient.cleanCloseArmsRecovery(runStarted: false, effectiveContent: ""))
+        #expect(!SessionsHermesClient.cleanCloseArmsRecovery(runStarted: false, effectiveContent: "text"))
+    }
+
     // MARK: Wire-mode hedge (increments vs cumulative snapshots)
 
     @Test func incrementalDeltaPassesThroughIncrementMode() {

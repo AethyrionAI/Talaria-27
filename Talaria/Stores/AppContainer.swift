@@ -1550,6 +1550,14 @@ final class AppContainer {
         // walking its remaining awaits and the supersede would be cosmetic.
         // Each network step gets one, so the chain gives up at the first
         // opportunity after a newer activation arrives.
+        // #235 F2: a pending run is the user's stranded ANSWER — reconcile
+        // FIRST, before the cancellable network ladder. At the old position
+        // (end of chain) rapid app-switching superseded the chain before it
+        // ever got here — Owen's device, 2026-08-03: answers sat in the store
+        // while the chain restarted five fetches ahead of them. Instant no-op
+        // when nothing is pending.
+        await chatStore.reconcilePendingRuns()
+        if Task.isCancelled { return }
         await permissionsStore.reloadCapabilities()
         if Task.isCancelled { return }
         await hostStore.refresh()
@@ -1569,8 +1577,6 @@ final class AppContainer {
         if Task.isCancelled { return }
         talkStore.handleAppDidBecomeActive()
         await talkStore.refreshReadiness()
-        if Task.isCancelled { return }
-        await chatStore.reconcilePendingRuns()
         if Task.isCancelled { return }
         // #4.15: a turn that finished while backgrounded skipped reasoning
         // condensation (foreground-only work) — catch it up now.

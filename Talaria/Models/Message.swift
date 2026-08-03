@@ -82,6 +82,11 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
     /// Generated after the turn completes while the app is foregrounded; nil
     /// until then — the UI falls back to the last raw reasoning line.
     var reasoningSummary: String?
+    /// #235 F3: set ONLY when this reply was recovered after its stream died
+    /// AND later exchanges had displaced it — carries a clipped prefix of the
+    /// user prompt it answers. Local-only (a later openSession refetch shows
+    /// server order); absent on every normal reply, so old caches decode fine.
+    var recoveredForPrompt: String?
     /// Which brain produced this assistant message (#27) —
     /// `ChatBackendRouter.Brain` raw value ("hermes" / "on-device" /
     /// "private-cloud-beta"). Stamped by the router at `.finished` so the

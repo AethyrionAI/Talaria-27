@@ -1121,6 +1121,119 @@ struct AppStoresTests {
                 "loop never attempted a reconcile — the test proved nothing")
     }
 
+    // MARK: #235 F3 — tail placement for recovered replies
+
+    /// Owen's placement rule: a recovered reply DISPLACED by later exchanges
+    /// moves to the tail and is stamped with the prompt it answers; an
+    /// undisplaced reply is untouched — byte-identical adoption.
+    @Test func displacedRecoveredReplyMovesToTailWithMarker() {
+        let reply = Message(sender: .hermes, content: "the late answer", status: .delivered)
+        let later1 = Message(sender: .user, content: "next question", status: .delivered)
+        let later2 = Message(sender: .hermes, content: "next answer", status: .delivered)
+        let placed = ChatStore.placingRecoveredReply(
+            reply.id, prompt: "So what's the holdup?", in: [reply, later1, later2])
+        #expect(placed.last?.id == reply.id)
+        #expect(placed.last?.recoveredForPrompt == "So what's the holdup?")
+        #expect(placed.map(\.id) == [later1.id, later2.id, reply.id])
+    }
+
+    @Test func undisplacedRecoveredReplyIsUntouched() {
+        let q = Message(sender: .user, content: "question", status: .delivered)
+        let reply = Message(sender: .hermes, content: "answer", status: .delivered)
+        let placed = ChatStore.placingRecoveredReply(reply.id, prompt: "question", in: [q, reply])
+        #expect(placed.map(\.id) == [q.id, reply.id])
+        #expect(placed.last?.recoveredForPrompt == nil)
+    }
+
+    @Test func placementWithUnknownReplyIDIsIdentity() {
+        let q = Message(sender: .user, content: "question", status: .delivered)
+        let placed = ChatStore.placingRecoveredReply(UUID(), prompt: nil, in: [q])
+        #expect(placed.map(\.id) == [q.id])
+    }
+
+    /// Prompt text is clipped to 60 chars for the marker.
+    @Test func markerPromptIsClipped() {
+        let reply = Message(sender: .hermes, content: "late", status: .delivered)
+        let later = Message(sender: .user, content: "x", status: .delivered)
+        let long = String(repeating: "p", count: 200)
+        let placed = ChatStore.placingRecoveredReply(reply.id, prompt: long, in: [reply, later])
+        #expect(placed.last?.recoveredForPrompt?.count == 60)
+    }
+
+    @Test @MainActor
+    func budgetExpiryKeepsPendingRunAndSingleShotResolves() async throws {
+        // #235 F2: the loop's budget expiring must NOT orphan the run —
+        // pendingRun survives retirement, and ONE reconcilePendingRuns() call
+        // (the unstarved foreground / chat-appear single-shot) resolves it
+        // once the reply exists server-side. Owen's 9:50 shape: the run
+        // outlived the 120s budget, the answer landed later, nothing looked.
+        final class LateReplyClient: HermesClientProtocol {
+            var connectionStatus: ConnectionStatus = .connected
+            var currentConversation: Conversation?
+            var replyAvailable = false
+            var reconcileFromServerCallCount = 0
+            let jobID = UUID()
+
+            func connect() async {}
+            func disconnect() async {}
+
+            func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
+                Message(sender: .hermes, content: "unused", status: .delivered)
+            }
+
+            func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+                currentConversation = Conversation(
+                    title: "Hermes",
+                    messages: [Message(clientMessageID: clientMessageID, sender: .user, content: message, status: .sent)]
+                )
+                return AsyncStream { continuation in
+                    Task { @MainActor in
+                        continuation.yield(.messageSent(jobID: jobID))
+                        continuation.yield(.interrupted(sessionId: "late-session", runId: nil))
+                        continuation.finish()
+                    }
+                }
+            }
+
+            func loadConversation() async -> Conversation { currentConversation ?? Conversation(title: "Hermes") }
+            func clearConversation() async throws -> Conversation { Conversation(title: "Hermes") }
+
+            /// Nil until the flag flips — the run is still going server-side.
+            func reconcileFromServer() async -> Conversation? {
+                reconcileFromServerCallCount += 1
+                guard replyAvailable else { return nil }
+                var convo = currentConversation ?? Conversation(title: "Hermes")
+                convo.messages.append(Message(sender: .hermes, content: "Late but real answer", status: .delivered))
+                currentConversation = convo
+                return convo
+            }
+        }
+
+        let suiteName = "chat-store-late-reply-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = LateReplyClient()
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+        chatStore.reconcileWallClockBudget = .milliseconds(120)
+        chatStore.reconcilePollInterval = .milliseconds(30)
+
+        await chatStore.sendMessage("long turn")
+        var pumps = 0
+        while chatStore.hasActiveReconcileLoop, pumps < 200 {
+            pumps += 1
+            try? await Task.sleep(for: .milliseconds(25))
+        }
+        #expect(chatStore.hasActiveReconcileLoop == false)
+        #expect(chatStore.pendingRunSessionId == "late-session",
+                "budget expiry must keep the pending run, not orphan it")
+
+        hermesClient.replyAvailable = true
+        await chatStore.reconcilePendingRuns()
+        #expect(chatStore.pendingRunSessionId == nil, "the single-shot must resolve once the reply exists")
+        #expect(chatStore.conversation?.messages.last?.content == "Late but real answer")
+    }
+
     @Test @MainActor
     func openSessionAbandonsPendingRunFromPreviousSession() async throws {
         // #184: `reconcileFromServer()` takes no session argument — once

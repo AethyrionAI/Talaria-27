@@ -13263,7 +13263,58 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
-## 235. 🐛 CRITICAL (Owen, 2026-08-03): remote chats DROP THE FINAL ANSWER when the stream dies mid-turn — chips render, the answer lands in the server store, the app never fetches it
+## 236. 🔧 MessageIdentityUITests flaked AGAIN — the #195 family's second variant: reply rendered a hair past the 20s wait on a hot sim
+
+**FILED 2026-08-03 (midday) from the #235 lane's first gate run.**
+`testTranscriptNeverRendersDuplicateMessageIDs` failed "the on-device reply for
+'firs' should render" — and the failure-time AX snapshot **proves the app
+innocent, same as #195's original**: "Acknowledged firs" WAS rendered, exactly
+once (charter never violated), keyed correctly to the settled composer text.
+The element simply landed after `waitForExistence(timeout: 20)` expired — the
+debug snapshot 40ms later caught it. Context: the gate runs XCUITest after the
+full unit suite on a hot machine; the automation session alone took ~21s to
+set up on the isolated re-run, which **passed 3/3 cycles on the same binary**.
+Diff audit: the #235 branch touches nothing in the on-device synthetic path.
+
+**Candidate fix (small, test-hygiene):** lengthen the reply wait (20 → 40s) or
+key it to a polling loop like `waitForComposer` — the test's real charter is
+the duplicate-ID probe, not render latency. Same class as #195; its fix keyed
+the TEXT, this one is the TIME. Not built in the #235 lane — filed, one gate
+re-run recorded there.
+
+## 235. 🐛 CRITICAL (Owen, 2026-08-03): remote chats DROP THE FINAL ANSWER when the stream dies mid-turn — chips render, the answer lands in the server store, the app never fetches it — **FIX BUILT same day; 235-A/B/C green in suite; 235-D verdict: request stamp wins, no timeout change; device bars 235-E/F owed to the next OTA**
+
+> **✅ FIX BUILT 2026-08-03 (midday), same-day turnaround on Owen's routing**
+> (branch `claude/t27-235-stream-reconcile`; spec + plan under
+> `docs/superpowers/`; TDD, RED watched where a RED existed). What landed:
+> - **F1 (D1's fix):** `cleanCloseArmsRecovery` — a clean close on a started
+>   run with no answer text yields `.interrupted`, never an empty
+>   `.finished`. Pinned by `emptyCleanCloseArmsRecoveryOnlyForStartedRuns`.
+> - **F2 (D2's fix) — MECHANISM REVISION found at plan time:** the foreground
+>   trigger EXISTED (AppContainer's activation chain) but sat at the END of
+>   the cancellable #145 Part D network ladder — rapid app-switching
+>   superseded the chain before it ever reached the reconcile. **Starvation,
+>   not absence.** Fix: the call moved to the FRONT of the chain + a
+>   chat-appear single-shot in `ChatScreen`. Budget-expiry survival pinned by
+>   `budgetExpiryKeepsPendingRunAndSingleShotResolves` (green first run — a
+>   PIN: the survival already existed; the defect was positional). Noted
+>   deviation from the spec's letter, favorable direction: a failed
+>   single-shot restarts the BOUNDED reconcile loop (existing behavior) —
+>   the user watching an unfinished run keeps a 120s poll, #145-protected.
+> - **F3 (Owen's placement rule):** `placingRecoveredReply` — a recovered
+>   reply displaced by later exchanges moves to the transcript TAIL with
+>   `Message.recoveredForPrompt` naming its question; the bubble renders
+>   "↩ RECOVERED REPLY — …" muted (#180 stamped). Undisplaced = identity.
+>   Four placement tests pin the truth table.
+> - **235-D VERDICT: THE REQUEST STAMP WINS.** Stalling-URLProtocol probe,
+>   sim, config `timeoutIntervalForRequest=20` vs request stamp 300: the
+>   stream survived the 20s and 35s marks and died only to the probe's own
+>   40s guard-cancel. #145 Part A's assumption CONFIRMED; the split-session
+>   change was NOT built (evidence-gated, gate not met). Probe deleted
+>   uncommitted per plan.
+> **Device bars 235-E/F NOT claimed** — next OTA: Owen's reproduction (long
+> turn → background to RDP → return → answer at the tail, ⏱ clears) and the
+> displaced-recovery marker.
 
 **FILED 2026-08-03 mid-morning from Owen's at-work report** (OJAMD session
 `api_1785768068_885aa3ad`, KIMI-K3 global default, heavy multi-tool turns while
@@ -13320,6 +13371,41 @@ test BEFORE touching either number; foreground-return reconcile for the open
 thread. **Cosmetic sibling, observed same session, note-only:** Kimi's
 `_thinking` channel mirrors raw JSON envelopes (`{"toolCalls": …`) into the
 REASONING rows — upstream shape, display-only.
+
+> **DIRECTION DECIDED 2026-08-03 (late morning) with Owen — design doc
+> `docs/superpowers/specs/2026-08-03-235-stream-loss-reconcile-design.md`.**
+> Deeper reading found the recovery machinery EXISTS and is correct
+> (`.interrupted` → `PendingRun` → reconcile loop → `attemptReconcile`);
+> the filing's "no recovery" was wrong in detail — there are two HOLES in
+> front of it, one per screenshot shape: **D1** a clean close without
+> `run.completed` and with empty assembled content yields an empty
+> `.finished` (the reasoning-chips-no-text groups) and never arms recovery;
+> **D2** the reconcile loop's 120s budget expires on agent-length turns and
+> nothing ever re-arms. Fix: route D1 to `.interrupted`; keep `pendingRun`
+> on expiry with two single-shot re-arm triggers (app-active, chat-appear);
+> **Owen's placement rule** — a recovered reply displaced by later exchanges
+> moves to the transcript TAIL with a marker naming its prompt, never
+> spliced above; the 20-vs-300 timeout precedence gets one experiment and a
+> split stream-session ONLY on a config-wins verdict.
+>
+> ## 📋 BARS — PRE-REGISTERED 2026-08-03, BEFORE THE FIX LANE. Written first.
+> - **235-A (sim):** started-run stream ending cleanly, no `run.completed`,
+>   empty assembled content → `.interrupted`, not `.finished`; the same close
+>   with non-empty content keeps today's partial-answer fallback.
+> - **235-B (sim):** budget expiry leaves `pendingRun` set; app-active or
+>   chat-appear fires exactly ONE `attemptReconcile` (single-flight
+>   coalesced); resolution clears the pending run.
+> - **235-C (sim):** a recovered reply displaced by later exchanges lands at
+>   the tail carrying `recoveredForPrompt`; undisplaced adoption is
+>   byte-identical to today's.
+> - **235-D (experiment, recorded):** the 20-vs-300 verdict with harness
+>   transcript; split-session change lands only on config-wins, with a
+>   structural test.
+> - **235-E (device, Owen's reproduction):** long agent turn → background
+>   into another app → return after server-side completion → the answer
+>   APPEARS at the tail with a receipt, no session reopen; ⏱ clears.
+> - **235-F (device):** a dead-stream turn followed by later messages shows
+>   the recovered reply at the BOTTOM with the marker naming its prompt.
 
 ## 234. 🐛 "Day after tomorrow" received TOMORROW'S forecast — the model collapses an unsupported day into the nearest supported one, and #230's honest refusal never reaches the user — **MECHANISM CONFIRMED same morning: argument-time nearest-fit, trial-7 severity family**
 
