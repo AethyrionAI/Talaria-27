@@ -13263,6 +13263,21 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+## 233. 🐛 "Tomorrow at 4" became a 4:00 AM reminder — half-day defaulting on `createReminder`, and the confirm card did not save it
+
+**FILED 2026-08-02, Lane 1 trial 3 (run results doc).** "Remind me to call Shelley
+tomorrow at 4," sent at 23:05, produced a REAL reminder due **Aug 3, 4:00 AM** —
+verified in the store by trial 7's `readReminders`. Mechanically flawless (1 call,
+~1 min including confirmation, B4's shape); semantically wrong: a human saying "at 4"
+in the evening means 4 PM. The model even hedged ("let me know if you'd like to
+adjust"), and the #29 confirm card was approved without the AM registering — a card
+that makes AM/PM easy to miss is part of the finding.
+
+**Candidate directions (none decided):** a bare-hour disambiguation default (afternoon
+for 1–11 unless context says otherwise — what Siri does), or the create tool
+REFUSING bare hours back to the model with "ask AM or PM," plus making the card's
+time rendering unmissable. Bars pre-register HERE before any fix lane.
+
 ## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes
 
 **FILED 2026-08-02 from the first fully instrumented device turn (#228's instrument,
@@ -13585,6 +13600,16 @@ not, there is a fourth source.
 > (above) says where the extra came from.
 
 ## 225. 🐛 UNBOUNDED tool-call spiral in production: 64 calls on "weather in Gulfport tomorrow," user-terminated, no cap anywhere in the loop — **BOUND BUILT 2026-08-02; the four behavioural bars are owed on device**
+
+> ## ✅ THE RUN RAN, SAME NIGHT — full verdict in
+> ## `dispatch/FABLE-T27-LOCAL-BRAIN-RUN-RESULTS-2026-08-02.md`.
+> **L1-A PASS 10/10 · L1-B FAIL (median ~4s, but trial 1 >90s) · L1-C PASS 0
+> overflows · L1-D PASS no fabrication · L1-E PASS cap held.** Stop condition not
+> approached. New findings #232 (the refusal grind) and #233 (4 AM reminder);
+> Lane 2.1 answered (armed turns start 40% deep); Lane 2.3 unrunnable (nothing
+> overflowed on Release — open under #229). **Headline: the brain answers ordinary
+> questions in ~4s; the unmeetable-demand class costs minutes and blocks the tier
+> until #232+#230 run. Owen's verdict.**
 
 > ## 📋 LANE 1 BARS — PRE-REGISTERED 2026-08-02, BEFORE THE DEVICE RUN
 > ## (`dispatch/FABLE-T27-LOCAL-BRAIN-DEVICE-RUN.md`). Written first, per the standing rule.
