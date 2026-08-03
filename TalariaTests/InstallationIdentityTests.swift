@@ -38,7 +38,6 @@ struct InstallationIdentityTests {
             syncCoordinator: MockSyncCoordinator(),
             secureStore: MockSecureStore(),
             persistence: persistence,
-            notificationService: MockNotificationService(),
             environmentProvider: { .development }
         )
     }
@@ -83,7 +82,6 @@ struct InstallationIdentityTests {
             syncCoordinator: MockSyncCoordinator(),
             secureStore: MockSecureStore(),
             persistence: persistence,
-            notificationService: MockNotificationService(),
             environmentProvider: { .development },
             credentialScopeProvider: { scopeA }
         )
@@ -92,7 +90,6 @@ struct InstallationIdentityTests {
             syncCoordinator: MockSyncCoordinator(),
             secureStore: MockSecureStore(),
             persistence: persistence,
-            notificationService: MockNotificationService(),
             environmentProvider: { .development },
             credentialScopeProvider: { scopeB }
         )
@@ -130,7 +127,6 @@ struct InstallationIdentityTests {
             syncCoordinator: MockSyncCoordinator(),
             secureStore: MockSecureStore(),
             persistence: persistence,
-            notificationService: MockNotificationService(),
             environmentProvider: { .development },
             credentialScopeProvider: { scope }
         )

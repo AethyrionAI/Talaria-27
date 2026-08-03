@@ -153,7 +153,6 @@ nonisolated enum DemoData {
             statusDetail: "While Using • Full Accuracy"
         ),
         DeviceCapability(permissionType: .health, status: .notDetermined),
-        DeviceCapability(permissionType: .notifications, status: .authorized),
         DeviceCapability(permissionType: .camera, status: .notDetermined),
         DeviceCapability(permissionType: .photos, status: .denied),
     ]
@@ -163,7 +162,6 @@ nonisolated enum DemoData {
     static let sampleUserSettings = UserSettings(
         userName: "Alex",
         avatarInitials: "A",
-        notificationsEnabled: true,
         hapticFeedbackEnabled: true,
         environment: AppEnvironmentPolicy.currentBuild.defaultEnvironment,
         autoConnectOnLaunch: true

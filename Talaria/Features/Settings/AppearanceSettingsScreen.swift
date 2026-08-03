@@ -457,6 +457,26 @@ struct AppearanceSettingsScreen: View {
                 .frame(height: 1)
                 .padding(.horizontal, Design.Spacing.md)
 
+            // #238: relocated from the retired Notifications settings screen —
+            // haptics is experience feedback, so it lives with the other
+            // feel toggles.
+            HStack {
+                Text("Haptic Feedback")
+                    .font(Design.Typography.callout)
+                    .foregroundStyle(Design.Colors.foreground)
+                Spacer()
+                Toggle("", isOn: hapticsBinding)
+                    .labelsHidden()
+                    .tint(palette.base)
+            }
+            .padding(.horizontal, Design.Spacing.md)
+            .padding(.vertical, Design.Spacing.sm)
+
+            Rectangle()
+                .fill(Design.Colors.hairline)
+                .frame(height: 1)
+                .padding(.horizontal, Design.Spacing.md)
+
             HStack {
                 Text("Theme")
                     .font(Design.Typography.callout)
@@ -537,6 +557,13 @@ struct AppearanceSettingsScreen: View {
         Binding(
             get: { settingsStore.settings.reduceMotion },
             set: { settingsStore.settings.reduceMotion = $0 }
+        )
+    }
+
+    private var hapticsBinding: Binding<Bool> {
+        Binding(
+            get: { settingsStore.settings.hapticFeedbackEnabled },
+            set: { settingsStore.settings.hapticFeedbackEnabled = $0 }
         )
     }
 }

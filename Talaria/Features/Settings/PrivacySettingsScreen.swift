@@ -24,14 +24,13 @@ struct PrivacySettingsScreen: View {
     /// Permission whose revoke confirmation dialog is showing.
     @State private var pendingRevoke: RevocablePermission?
 
-    private let shownPermissions: [PermissionType] = [.location, .health, .motion, .notifications, .microphone]
+    private let shownPermissions: [PermissionType] = [.location, .health, .motion, .microphone]
 
-    /// The three grants Talaria can genuinely stop using in-app (#6).
+    /// The grants Talaria can genuinely stop using in-app (#6).
     /// Camera/Photos are intentionally absent — deep-link-only.
     private enum RevocablePermission: String, Identifiable, CaseIterable {
         case health
         case location
-        case notifications
 
         var id: String { rawValue }
 
@@ -39,7 +38,6 @@ struct PrivacySettingsScreen: View {
             switch self {
             case .health: "Health Collection"
             case .location: "Location Sync"
-            case .notifications: "Push Notifications"
             }
         }
 
@@ -47,7 +45,6 @@ struct PrivacySettingsScreen: View {
             switch self {
             case .health: "Stops health observers and background delivery, and drops queued samples."
             case .location: "Stops location monitoring and drops the queued fix. Sync resets to foreground-only."
-            case .notifications: "Deactivates this device's push registration on the relay."
             }
         }
     }
@@ -574,7 +571,6 @@ struct PrivacySettingsScreen: View {
         switch permission {
         case .health: settingsStore.settings.healthCollectionEnabled
         case .location: settingsStore.settings.locationCollectionEnabled
-        case .notifications: settingsStore.settings.notificationsEnabled
         }
     }
 
@@ -584,7 +580,6 @@ struct PrivacySettingsScreen: View {
             switch permission {
             case .health: await container.setHealthCollectionEnabled(false)
             case .location: await container.setLocationCollectionEnabled(false)
-            case .notifications: await container.setNotificationsEnabled(false)
             }
         }
     }
@@ -594,7 +589,6 @@ struct PrivacySettingsScreen: View {
             switch permission {
             case .health: await container.setHealthCollectionEnabled(true)
             case .location: await container.setLocationCollectionEnabled(true)
-            case .notifications: await container.setNotificationsEnabled(true)
             }
         }
     }

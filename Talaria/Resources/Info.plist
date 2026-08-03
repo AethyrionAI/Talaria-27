@@ -701,7 +701,6 @@
 		<string>fetch</string>
 		<string>processing</string>
 		<string>location</string>
-		<string>remote-notification</string>
 		<string>audio</string>
 	</array>
 	<key>UILaunchScreen</key>

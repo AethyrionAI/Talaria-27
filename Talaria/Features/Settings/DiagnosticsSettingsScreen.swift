@@ -6,7 +6,7 @@ import UIKit
 //
 // System-health readout. Mirrors design/Settings.dc.html screen 08, real-data-only:
 //   • Status rows reflect live state — Hermes API (direct probe), Relay link
-//     (relay session), Push token (registration), Location (authorization).
+//     (relay session), Location (authorization).
 //   • App version + device identifier are real. HOST VERSION and UPTIME have no
 //     client-reachable source yet, so they render "—" (deferred).
 //   • There is no in-app log ring buffer yet, so the LOGS panel is an honest
@@ -61,8 +61,6 @@ struct DiagnosticsSettingsScreen: View {
 
     // MARK: Status panel
 
-    @State private var tokenCopied = false
-
     private var statusPanel: some View {
         VStack(spacing: 0) {
             statusRow("Hermes API", hermesAPIStatus)
@@ -70,14 +68,6 @@ struct DiagnosticsSettingsScreen: View {
             statusRow("Relay Link", relayStatus)
             rowDivider
             statusRow("Relay Identity", identityStatus)
-            rowDivider
-            statusRow("Push Token", tokenCopied
-                ? RowStatus(text: "COPIED", color: Design.Brand.accent, blinks: false)
-                : pushStatus)
-                .contentShape(Rectangle())
-                .onTapGesture { copyPushToken() }
-            rowDivider
-            statusRow("Notifications", notificationAuthStatus)
             rowDivider
             statusRow("Location", locationStatus)
         }
@@ -87,20 +77,6 @@ struct DiagnosticsSettingsScreen: View {
             fill: Design.Colors.background.opacity(0.5),
             innerGlow: false
         )
-    }
-
-    /// Tap the Push Token row to copy the full APNs device token to the
-    /// clipboard (the row otherwise only shows the pipeline state, so there
-    /// was nothing to read for host-side push testing).
-    private func copyPushToken() {
-        guard let token = container.cachedAPNsDeviceToken else { return }
-        UIPasteboard.general.string = token
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        withAnimation { tokenCopied = true }
-        Task {
-            try? await Task.sleep(for: .seconds(1.5))
-            withAnimation { tokenCopied = false }
-        }
     }
 
     private func statusRow(_ label: String, _ status: RowStatus) -> some View {
@@ -161,60 +137,6 @@ struct DiagnosticsSettingsScreen: View {
             return RowStatus(text: "USER \(short) · UNVERIFIED", color: Design.Brand.forge, blinks: false)
         }
         return RowStatus(text: "USER \(short)", color: Design.Brand.accent, blinks: false)
-    }
-
-    // Same three-state source of truth the Notifications screen renders
-    // (AppContainer.pushTokenPipelineState). A locally cached APNs token alone
-    // is NOT "registered" — the relay handshake is a separate stage, and
-    // claiming otherwise made this row contradict Settings → Notifications.
-    private var pushStatus: RowStatus {
-        switch container.pushTokenPipelineState {
-        case .registered:
-            return RowStatus(text: "RELAY REGISTERED", color: Design.Brand.accent, blinks: false)
-        case .awaitingRelay:
-            return RowStatus(text: "TOKEN HELD · AWAITING RELAY", color: Design.Brand.forge, blinks: true)
-        case .notIssued:
-            return RowStatus(text: "NO APNS TOKEN", color: Design.Colors.mutedForeground, blinks: false)
-        }
-    }
-
-    // #189: OS notification authorization as its own row. An APNs token and a
-    // relay registration are both obtainable while authorization is
-    // NotDetermined, so the Push Token row alone read as a false green — this
-    // panel previously consulted UNAuthorizationStatus nowhere. "Registered"
-    // and "authorized" are different facts and render as different rows.
-    private var notificationAuthStatus: RowStatus {
-        let status = permissionsStore.capabilities
-            .first { $0.permissionType == .notifications }?.status ?? .notDetermined
-        return RowStatus(
-            text: Self.notificationAuthorizationText(status),
-            color: notificationAuthorizationColor(status),
-            blinks: false
-        )
-    }
-
-    /// Pure label rule (the #146 precedent — assertable without a container):
-    /// `NotDetermined` must never render as anything green or active.
-    /// `.limited` is how LiveNotificationService maps the provisional and
-    /// ephemeral UNAuthorizationStatus cases.
-    static func notificationAuthorizationText(_ status: PermissionStatus) -> String {
-        switch status {
-        case .notDetermined: "NOT REQUESTED"
-        case .authorized, .authorizedAlways, .authorizedWhenInUse: "AUTHORIZED"
-        case .limited: "PROVISIONAL"
-        case .denied: "DENIED"
-        case .restricted: "RESTRICTED"
-        case .unsupported: "—"
-        }
-    }
-
-    private func notificationAuthorizationColor(_ status: PermissionStatus) -> Color {
-        switch status {
-        case .authorized, .authorizedAlways, .authorizedWhenInUse: Design.Brand.accent
-        case .limited: Design.Brand.forge
-        case .denied, .restricted: Design.Colors.danger
-        case .notDetermined, .unsupported: Design.Colors.mutedForeground
-        }
     }
 
     private var locationStatus: RowStatus {

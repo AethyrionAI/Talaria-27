@@ -121,6 +121,43 @@ final class TalariaUITests: XCTestCase {
                       "the synthetic on-device reply should render")
     }
 
+    /// 238-A (#238): a fresh install must NEVER present the iOS notification
+    /// permission dialog — the notification surface is gone, so there is
+    /// nothing left to ask for. Walks the exact trigger points the retired
+    /// priming rode: first launch, then a dispatched send (#189 primed on
+    /// EVERY send), asserting the springboard shows no alert at each settle.
+    @MainActor
+    func testFreshInstallNeverPresentsNotificationPermissionDialog() throws {
+        let context = UITestLaunchContext()
+        let app = makeApp(context: context)
+        app.launch()
+
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+
+        guard let composer = waitForComposer(in: app, timeout: 15) else {
+            XCTFail("chat composer should be the first-launch landing state")
+            return
+        }
+        XCTAssertEqual(springboard.alerts.count, 0,
+                       "no permission dialog may appear at first launch (238-A)")
+
+        let message = "fresh install permission probe"
+        composer.tap()
+        composer.typeText(message)
+        let send = app.buttons["Send message"]
+        XCTAssertTrue(send.waitForExistence(timeout: 5))
+        send.tap()
+
+        XCTAssertTrue(app.staticTexts[message].waitForExistence(timeout: 10),
+                      "the sent message should render in the transcript")
+        // The retired priming fired here, on the dispatched send. A deliberate
+        // bounded negative probe: give an alert 3 seconds to surface, then
+        // require zero.
+        _ = springboard.alerts.firstMatch.waitForExistence(timeout: 3)
+        XCTAssertEqual(springboard.alerts.count, 0,
+                       "no permission dialog may appear on a dispatched send (238-A)")
+    }
+
     /// The paired skip-path: a relaunch on the same defaults suite + keychain
     /// service restores the pairing — straight to chat, no repeated
     /// permissions onboarding, and Settings no longer offers the unpaired

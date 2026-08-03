@@ -72,7 +72,6 @@ struct ServerSettingsTests {
             syncCoordinator: MockSyncCoordinator(),
             secureStore: secureStore,
             persistence: persistence,
-            notificationService: MockNotificationService(),
             environmentProvider: { .production },
             credentialScopeProvider: { profilesStore.activeProfile?.credentialScopeID }
         )

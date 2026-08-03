@@ -29,12 +29,11 @@ private final class CompletionGate: @unchecked Sendable {
 
 // MARK: - BGAppRefreshTask (#14)
 
-/// Native background wake — the safety net complementing relay APNs (which
-/// stays the real-time path, #24f caveats and all). One refresh pass drains
-/// the sensor outbox, runs one reconcile fetch, and rewrites widget data, so
-/// background work survives app exit even when push is degraded or the
-/// desktop connection is down. Discretionary by design: iOS decides when a
-/// pass runs (can be hours) — this is a safety net, not real-time delivery.
+/// Native background wake — the app's only background catch-up path since
+/// notification removal (#238): one refresh pass drains the sensor outbox,
+/// runs one reconcile fetch, and rewrites widget data. Discretionary by
+/// design: iOS decides when a pass runs (can be hours) — a safety net, not
+/// real-time delivery. Foreground reconcile (#235) is the primary surface.
 enum BackgroundRefreshScheduler {
 
     /// Must match the entry in BGTaskSchedulerPermittedIdentifiers (project.yml).

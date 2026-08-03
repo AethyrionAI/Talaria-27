@@ -103,8 +103,7 @@ final class LivePairingService: PairingServiceProtocol {
                 syncStatus: .synced,
                 isMockMode: response.session.isMockMode,
                 backendEndpoint: resolvedEndpoint,
-                lastSyncAt: response.session.lastSyncAt,
-                registeredPushToken: nil
+                lastSyncAt: response.session.lastSyncAt
             ),
             tokens: AuthTokens(
                 accessToken: response.auth.accessToken,

@@ -44,7 +44,6 @@ final class AppSessionStore {
     private let syncCoordinator: any SyncCoordinatorProtocol
     private let secureStore: any SecureStoreProtocol
     private let persistence: any AppPersistenceStoreProtocol
-    private let notificationService: any NotificationServiceProtocol
     private let environmentProvider: @MainActor () -> AppEnvironment
     /// Which backend profile's credential slot this store reads/writes
     /// (Lane M): the ACTIVE profile's `credentialScopeID`. The default (nil)
@@ -62,7 +61,6 @@ final class AppSessionStore {
         syncCoordinator: any SyncCoordinatorProtocol,
         secureStore: any SecureStoreProtocol,
         persistence: any AppPersistenceStoreProtocol,
-        notificationService: any NotificationServiceProtocol,
         environmentProvider: @escaping @MainActor () -> AppEnvironment,
         credentialScopeProvider: @escaping @MainActor () -> UUID? = { nil }
     ) {
@@ -70,7 +68,6 @@ final class AppSessionStore {
         self.syncCoordinator = syncCoordinator
         self.secureStore = secureStore
         self.persistence = persistence
-        self.notificationService = notificationService
         self.environmentProvider = environmentProvider
         self.credentialScopeProvider = credentialScopeProvider
         // #133/#143 — resolve the DURABLE installation identity first, then
@@ -348,19 +345,6 @@ final class AppSessionStore {
         loadedState = mergeInstallationID(into: loadedState, from: installationID)
         loadedState.syncStatus = .synced
         loadedState.lastSyncAt = .now
-        // The relay's /session response is authoritative for whether it holds an
-        // active push registration for this device; the in-memory flag only adds
-        // a registration that succeeded after this load (it starts false every
-        // launch, so overwriting with it hid live server registrations).
-        //
-        // #146: `loadSession` builds a FRESH state, so this merge is also what
-        // keeps the token record from being wiped by a reload that lands after
-        // a successful registration — the divergence that let the two old
-        // fields disagree in the first place.
-        if !loadedState.pushTokenRegistered, notificationService.isPushTokenRegistered {
-            loadedState.registeredPushToken =
-                state.registeredPushToken ?? notificationService.currentPushToken
-        }
         state = loadedState
     }
 

@@ -217,7 +217,6 @@ struct InboxStoreMarkReadTests {
             syncCoordinator: MockSyncCoordinator(),
             secureStore: MockSecureStore(),
             persistence: persistence,
-            notificationService: MockNotificationService(),
             environmentProvider: { .development }
         )
         await sessionStore.bootstrap()
