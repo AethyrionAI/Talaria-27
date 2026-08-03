@@ -390,6 +390,13 @@ struct ChatScreen: View {
             }
             .task { await startChatSession() }
             .task { await monitorConnectionStatus() }
+            .task {
+                // #235 F2: opening the chat is the user looking at the
+                // transcript — one single-shot reconcile; the store's
+                // single-flight coalesces with any in-flight pass; instant
+                // no-op when nothing is pending.
+                await chatStore.reconcilePendingRuns()
+            }
             .onDisappear { chatStore.setPollingEnabled(false) }
     }
 
