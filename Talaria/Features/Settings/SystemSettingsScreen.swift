@@ -173,11 +173,6 @@ struct SystemSettingsScreen: View {
                     VoiceSettingsScreen()
                 }
                 rowDivider
-                navRow(icon: "bell", title: "Notifications", value: notificationsValue,
-                       valueColor: notificationsColor) {
-                    NotificationsSettingsScreen()
-                }
-                rowDivider
                 navRow(icon: "lock.shield", title: "Privacy", value: "MANAGE",
                        valueColor: Design.Colors.secondaryForeground) {
                     PrivacySettingsScreen()
@@ -357,14 +352,6 @@ struct SystemSettingsScreen: View {
 
     private var serverColor: Color {
         pairingStore.isPaired ? Design.Brand.accent : Design.Colors.mutedForeground
-    }
-
-    private var notificationsValue: String {
-        settingsStore.settings.notificationsEnabled ? "ON" : "OFF"
-    }
-
-    private var notificationsColor: Color {
-        settingsStore.settings.notificationsEnabled ? Design.Brand.accent : Design.Colors.mutedForeground
     }
 
     // #231: un-gated with developerGroup (its only consumer). The environment
