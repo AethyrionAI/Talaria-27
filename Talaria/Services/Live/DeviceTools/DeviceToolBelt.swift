@@ -120,6 +120,42 @@ final class ToolEventRelay {
     /// bare test belts and any caller that never sets one get.
     var governor: ToolCallGovernor?
 
+    /// #228 (Lane 0.1): the production instrument's data source. Admitted
+    /// starts and governor refusals, counted per turn — the numbers the
+    /// verbose log lines carry, and what replaces counting chips by eye.
+    private(set) var executedCallsThisTurn = 0
+    private(set) var refusalsThisTurn = 0
+
+    /// #228: NOT `#if DEBUG` — #218's lesson is that an all-Debug stack is
+    /// blind to what Release does, and Release is what a user runs. Same
+    /// subsystem/category as the battery lines so one Console filter
+    /// (`org.aethyrion.talaria`, LocalChatBackend) captures a whole turn.
+    private static let instrumentLogger = Logger(subsystem: "org.aethyrion.talaria", category: "LocalChatBackend")
+
+    /// The single turn-boundary call (#225 + #228): resets the instrument's
+    /// counters and the governor's budget together, so the log's running index
+    /// and the admission decisions can never describe different turns.
+    func beginTurn() {
+        executedCallsThisTurn = 0
+        refusalsThisTurn = 0
+        governor?.beginTurn()
+    }
+
+    /// #228 log-line shapes — pure and pinned by test, because they are the
+    /// grep keys a device-run log gets read by. `.notice`, never `.debug`:
+    /// Console.app's default view suppresses `.info` and below.
+    nonisolated static func callLogLine(sequence: Int, name: String, detail: String?) -> String {
+        var line = "tool-call #\(sequence) \(name)"
+        if let detail, !detail.isEmpty {
+            line += " — \(detail.prefix(80))\(detail.count > 80 ? "…" : "")"
+        }
+        return line + " (#228)"
+    }
+
+    nonisolated static func refusalLogLine(name: String, executedThisTurn: Int, refusalsThisTurn: Int) -> String {
+        "tool-call REFUSED \(name) — \(executedThisTurn) executed, \(refusalsThisTurn) refusal(s) this turn (#225/#228)"
+    }
+
     /// Announces a tool call AND decides whether it may proceed (#225).
     ///
     /// **The admission check runs FIRST, before any event is emitted.** A
@@ -135,7 +171,19 @@ final class ToolEventRelay {
     func started(_ name: String, detail: String? = nil) -> ToolCallGovernor.Admission {
         if let governor {
             let admission = governor.admit(tool: name)
-            if case .refused = admission { return admission }
+            if case .refused = admission {
+                // #228 (L0-B): the refusal deliberately emits no chip, so this
+                // line is the ONLY place a refused call is visible at all.
+                refusalsThisTurn += 1
+                if TalariaLog.isVerbose {
+                    Self.instrumentLogger.notice("\(Self.refusalLogLine(name: name, executedThisTurn: self.executedCallsThisTurn, refusalsThisTurn: self.refusalsThisTurn), privacy: .public)")
+                }
+                return admission
+            }
+        }
+        executedCallsThisTurn += 1
+        if TalariaLog.isVerbose {
+            Self.instrumentLogger.notice("\(Self.callLogLine(sequence: self.executedCallsThisTurn, name: name, detail: detail), privacy: .public)")
         }
         #if DEBUG
         if let tag = Self.batteryTrialTag {

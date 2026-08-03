@@ -13313,7 +13313,16 @@ per call.
 >   retry produced an overflow. If met, that is a one-line change to #26's guard with a
 >   measured justification.
 
-## 228. 🔍 Lane 0 of the local-brain run: NO production tool-call instrument, and the belt's token cost has never been measured
+## 228. 🔍 Lane 0 of the local-brain run: NO production tool-call instrument, and the belt's token cost has never been measured — **BUILT 2026-08-02; the on-device halves of L0-A/L0-C are owed to the run itself**
+
+> **✅ BUILT 2026-08-02, same session that filed it.** 11 tests, written first and
+> watched fail (15 missing-member errors — the API not existing was the failure).
+> Suite **1523 → 1534**, Release green, gate PASS. The counters and both line shapes
+> are pinned; **what is NOT claimed:** L0-A/L0-C's "readable on a verbose RELEASE
+> build on DEVICE" halves — that is the run's first act, not a sim claim (the sim has
+> no model; its budget line correctly renders "—", which the L0-C test pins).
+> One find while building: `TalariaLog.verbose()` emits at `.debug`, which Console.app
+> suppresses — the instrument logs `.notice` directly for exactly that reason.
 
 **FILED 2026-08-02 from `dispatch/FABLE-T27-LOCAL-BRAIN-DEVICE-RUN.md` Lane 0, the hard
 prerequisite for the whole run.** On the night of #225's device falsification, Owen

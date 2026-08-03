@@ -344,6 +344,7 @@
 		AB98DC243A23D5394D76E615 /* CronJobStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5DB1DBA36899DDAC5EF1E20 /* CronJobStatusTests.swift */; };
 		ABB8CA49BE895A22CCC3AA3F /* PairingRedeemResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 620742C177DDD76042D01179 /* PairingRedeemResult.swift */; };
 		AC32A3AC52203CA44AA2A20B /* InboxItemPriority.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DF933619662DB426B20E614 /* InboxItemPriority.swift */; };
+		AC54D663F0192299A6088A95 /* ToolCallInstrumentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B08258B28CCCCD6837DDA488 /* ToolCallInstrumentTests.swift */; };
 		AC7DDBB7536D12E2AE0E363F /* AlarmService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 099915A255DC3C5BBF05F29E /* AlarmService.swift */; };
 		AD24318EBA5C8CAB18FD0942 /* DeviceActionTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E6487FFA0217D2BC5B6C9C5 /* DeviceActionTools.swift */; };
 		ADD98A47506EE94460779B36 /* RelayAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 059AC4BF9B2C0C3522E078C3 /* RelayAPIClient.swift */; };
@@ -886,6 +887,7 @@
 		ACCDC5F8E067043439DC24E5 /* WeatherKitProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherKitProbe.swift; sourceTree = "<group>"; };
 		AE66ED7A7F3BD4888CCACAF2 /* Icon-CasinoLucky7s@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-CasinoLucky7s@2x.png"; sourceTree = "<group>"; };
 		B00AB5FA1BE69387B3F2AB6D /* AppPersistenceStoreProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPersistenceStoreProtocol.swift; sourceTree = "<group>"; };
+		B08258B28CCCCD6837DDA488 /* ToolCallInstrumentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCallInstrumentTests.swift; sourceTree = "<group>"; };
 		B101F84B43323E854C1B5F28 /* BriefingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingTests.swift; sourceTree = "<group>"; };
 		B16ADAB41ACEF34717525A7B /* Icon-StickerBombToybox@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-StickerBombToybox@3x.png"; sourceTree = "<group>"; };
 		B2A60186C884A91C050A0E77 /* PermissionType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionType.swift; sourceTree = "<group>"; };
@@ -1233,6 +1235,7 @@
 				F51C80FDDAEBBFCAA3904612 /* ThemeArtDirectionTests.swift */,
 				1C4B0DE180CF1E349DE0C137 /* ThemeCatalogTests.swift */,
 				6A48706B93FBAD7CE6804E50 /* ToolCallGovernorTests.swift */,
+				B08258B28CCCCD6837DDA488 /* ToolCallInstrumentTests.swift */,
 				8064CC89E452AB4576D02AAB /* TurnReceiptsTests.swift */,
 				A42B2B8FA97D4011C00D59F8 /* VoiceMemoAttachmentTests.swift */,
 				5F28E7FA18E6D1C83E907BC0 /* VoiceTranscriptTests.swift */,
@@ -2572,6 +2575,7 @@
 				8BCF79F4CA1B51BD1DEED39F /* ThemeArtDirectionTests.swift in Sources */,
 				85DCD6F8A6E00520C5246486 /* ThemeCatalogTests.swift in Sources */,
 				E720D0212714D677520D0169 /* ToolCallGovernorTests.swift in Sources */,
+				AC54D663F0192299A6088A95 /* ToolCallInstrumentTests.swift in Sources */,
 				57E2B573942BCA2EC78C8550 /* TurnReceiptsTests.swift in Sources */,
 				FD9C24D0167C5C2B57A089E8 /* VoiceMemoAttachmentTests.swift in Sources */,
 				B3C557575E129EB751B4C5EF /* VoiceTranscriptTests.swift in Sources */,

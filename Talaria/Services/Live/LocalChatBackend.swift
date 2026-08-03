@@ -193,7 +193,9 @@ final class LocalChatBackend: HermesClientProtocol {
     /// toolless, which is a worse and far less visible bug than the spiral this
     /// bounds. Pinned by `theBudgetResetsForEachTurn`.
     private func beginToolTurn() {
-        toolRelay?.governor?.beginTurn()
+        // #228: one call resets the governor's budget AND the instrument's
+        // per-turn counters — split resets could describe different turns.
+        toolRelay?.beginTurn()
     }
 
     /// Honest explanation for the CURRENT unavailability, nil when the model
@@ -850,12 +852,63 @@ final class LocalChatBackend: HermesClientProtocol {
             forceCondense: forceCondense
         )
         condensedMemory = blueprint.condensedMemory
-        let fresh = makeSession(
-            from: blueprint,
-            offering: effectiveOfferedTools(hasImageInContext: hasImage)
-        )
+        let offered = effectiveOfferedTools(hasImageInContext: hasImage)
+        let fresh = makeSession(from: blueprint, offering: offered)
         session = fresh
+        logSessionBudgetIfVerbose(offered: offered, transcript: fresh.transcript)
         return fresh
+    }
+
+    /// #228 (Lane 0.2): the number nobody had ever seen on the night #225's
+    /// cap was falsified — what the armed belt itself costs in tokens against
+    /// the window, before the user's first word. One line per session BUILD,
+    /// which includes #26's mid-turn condense-and-rebuild — the 21:19:07
+    /// rebuild that re-armed 13 tools into 8,192 is exactly the event this
+    /// makes readable.
+    ///
+    /// Fire-and-forget (L0-D): the tokenizer round-trips must not add latency
+    /// to the turn they are measuring. Counts come from the model's OWN
+    /// tokenizer (`SystemLanguageModel.tokenCount(for:)`, verified against the
+    /// beta4 swiftinterface); where it is unavailable — the sim has no model —
+    /// the line shows "—" and never invents (real-data-only).
+    private func logSessionBudgetIfVerbose(offered: [any Tool], transcript: Transcript) {
+        guard TalariaLog.isVerbose else { return }
+        Task { [model] in
+            // An empty belt (a routed-toolless turn) costs 0 by definition —
+            // knowable without a tokenizer, so never rendered "—".
+            let toolTokens: Int?
+            if offered.isEmpty {
+                toolTokens = 0
+            } else {
+                toolTokens = try? await model.tokenCount(for: offered)
+            }
+            let transcriptTokens = try? await model.tokenCount(for: transcript)
+            let line = Self.sessionBudgetLogLine(
+                toolCount: offered.count,
+                toolTokens: toolTokens,
+                transcriptTokens: transcriptTokens,
+                window: await self.activeContextSize()
+            )
+            Self.logger.notice("\(line, privacy: .public)")
+        }
+    }
+
+    /// Pure and pinned by test — the grep key a device-run log gets read by.
+    nonisolated static func sessionBudgetLogLine(
+        toolCount: Int,
+        toolTokens: Int?,
+        transcriptTokens: Int?,
+        window: Int
+    ) -> String {
+        let tools = toolTokens.map(String.init) ?? "—"
+        let transcript = transcriptTokens.map(String.init) ?? "—"
+        let free: String
+        if let toolTokens, let transcriptTokens {
+            free = "~\(window - toolTokens - transcriptTokens) free"
+        } else {
+            free = "free —"
+        }
+        return "session budget: \(toolCount) tool(s) ~\(tools) tok + transcript ~\(transcript) tok of window \(window) — \(free) (#228)"
     }
 
     /// What a recreated session should contain: instructions (base persona,
