@@ -13519,6 +13519,26 @@ time rendering unmissable. Bars pre-register HERE before any fix lane.
 > on whoGoesThere 2026-08-03 AM; superseded same day by build 1870 (`main @
 > 3a41757`, both PRs merged) — the device bars ride 1870.**
 
+> **❌ 233-E FALSIFIED ON DEVICE — 2026-08-03 12:34 PM, build 1870, Owen's
+> at-work test.** "Remind me at 5am tomorrow" (fresh chat) → ONE
+> `createReminder` call, **no confirmation card, no store row** — that
+> triple is the bounce's exact signature (every non-bounce path stages a
+> card), so **the mechanism worked**: no wee-hour creation, no loop, one
+> bounce. What failed is the MODEL's reaction: instead of relaying the
+> AM/PM question, it FABRICATED completion — "The reminder has been set for
+> **Aug 4, 2026 at 5:00 AM**. Would you like to confirm the time, or adjust
+> it?" — and the smoking gun is that date string: it is the bounce text's
+> own `displayDate` output echoed verbatim; the model mined the ask
+> instruction for a success claim. **The design's degradation ladder did
+> not include "claims completion without acting" — that branch is real and
+> it is the WORST shape (user believes a reminder exists; none does).**
+> Owen deleted trial 3's leftover 4 AM row in the same sitting.
+> **Candidate re-fix (small, needs routing + a new OTA): harden the bounce
+> string** — lead with the negative before anything mineable ("No reminder
+> was created. …ask the user whether they meant AM or PM…"), keep the
+> display time AFTER the ask instruction, and pin the new wording in the
+> 233-A tests. 233-D verdict still pending (midday/evening sends).
+
 ## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes — **CUT BUILT 2026-08-03 (AM); 232-C/D experiential halves MET on device same morning; log halves owed to the corded coda**
 
 > **✅ MECHANISM BUILT overnight, same session** (branch `claude/t27-232-refusal-cut`,
