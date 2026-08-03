@@ -5683,9 +5683,10 @@ Logged 2026-07-17.
 > one-time legacy→durable convergence, NOT the bug: the old row's id predated the fix →
 > re-pair #2: **ZERO growth, same row upserted in place** (`913f0656…` stable). The churn
 > equality is broken. **A single-cycle read would have mis-scored the migration step as
-> FAIL — the two-cycle protocol is the honest close.** Residual filed, not fixed: stale-row
-> deactivation chore (#144 shape) — the table still holds a 5-active and a 3-active token
-> fan-out; awaiting Owen's go since it writes to the relay DB.
+> FAIL — the two-cycle protocol is the honest close.** Residual RESOLVED same night:
+> Owen approved the #144-shape chore and it ran on OJAMD — 21 stale devices + 11
+> stale/duplicate registrations deactivated (never deleted; backup + rollback next to
+> the DB), leaving 2 devices + 2 registrations active and zero duplicate tokens.
 
 > ## ✅ ROOT CAUSE 2026-08-02 — measured, not argued. **99 device rows / 99 distinct
 > ## `installation_id`s.** The relay was right all along; the app minted every identity.
@@ -6577,7 +6578,18 @@ Logged 2026-07-20.
 
 ---
 
-## 144. 🐛 Test-harness runs enroll as LIVE devices on the Mac relay — **PREVENTION BUILT 2026-08-02** (verified by row count, two runs); cleanup of the 99 existing rows owed
+## 144. ✅ Test-harness runs enroll as LIVE devices on the Mac relay — **PREVENTION BUILT 2026-08-02**; registrations cleaned 2026-08-02; **device rows cleaned 2026-08-03 — DONE**
+
+> **CLOSED 2026-08-03 — the device-row half ran (Owen approved, device-pass sitting):
+> 97 harness device rows (`iPhone 17 Pro Max` ×92, `CC-M4a-Baseline` ×5) deactivated on
+> the Mac relay DB; the 2 real `iPhone` rows stay active; totals preserved at 99 —
+> deactivate, never delete.** Backup + rollback ids:
+> `handoffs/evidence/t27-144-mac-relay-backup-20260803.db` / `t27-144-device-rollback-20260803.json`.
+> **The same shape also ran on OJAMD production the same night** (first time ever):
+> 21 stale devices + 11 stale/duplicate registrations deactivated, leaving 2+2 active
+> and **zero duplicate active APNs tokens** — this, plus #133's root fix, is the full
+> end of #143's duplicate pushes. OJAMD backup + rollback sit next to that DB
+> (`hermes_mobile.backup-20260803.db`, `deactivation-rollback-20260803.json`).
 
 > ## PREVENTION BUILT 2026-08-02 — and the verification is a ROW COUNT, not a suite
 >
