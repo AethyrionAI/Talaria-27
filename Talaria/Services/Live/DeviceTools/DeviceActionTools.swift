@@ -43,6 +43,22 @@ enum DeviceActionParsing {
         return formatter.string(from: date)
     }
 
+    /// #233: the wee-hour window — hours 0–6 (00:00–06:59 local). A due
+    /// time here is at least as likely the model's half-day default as the
+    /// user's actual ask ("tomorrow at 4" arrived as T04:00), so the create
+    /// tool treats the first one per conversation as a question.
+    nonisolated static func isEarlyMorning(_ date: Date) -> Bool {
+        Calendar.current.component(.hour, from: date) <= 6
+    }
+
+    /// Time-only display form for the card's caution row.
+    nonisolated static func timeOnly(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
     /// Duration-in-minutes from a card field: plain integers, clamped to a
     /// sane meeting range. Nil for unparseable input.
     nonisolated static func parseDurationMinutes(_ raw: String) -> Int? {
@@ -116,7 +132,7 @@ struct ReminderCreateTool: Tool {
         // so the create flow is unchanged from the pre-promotion tool.
         return await Self.performCreate(
             rawTitle: title, rawDue: arguments.due ?? "", rawList: arguments.list ?? "",
-            confirmations: confirmations
+            relay: relay, confirmations: confirmations
         )
     }
 
@@ -125,15 +141,28 @@ struct ReminderCreateTool: Tool {
     /// text — structural-identity discipline: two structs, one engine.
     nonisolated static func performCreate(
         rawTitle: String, rawDue: String, rawList: String,
+        relay: ToolEventRelay,
         confirmations: ToolConfirmationCenter
     ) async -> String {
         let title = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return "No reminder title was given — nothing staged." }
 
         let parsedDue = DeviceActionParsing.parseDateTime(rawDue)
+        // #233: the model qualifies bare hours before the tool ever runs
+        // ("tomorrow at 4" arrived here as T04:00), so the ambiguity is
+        // invisible by now — the first wee-hour due per conversation is
+        // treated as a question, not an order. Ordinary tool OUTPUT, never
+        // a throw (#197); an EXECUTED call, not a governor refusal (#232's
+        // counter must not move). The latch admits the re-call, so a
+        // user-confirmed "yes, 4 AM" cannot loop.
+        if let parsedDue, DeviceActionParsing.isEarlyMorning(parsedDue),
+           await relay.claimEarlyMorningAsk() {
+            return "The due time reads as \(DeviceActionParsing.displayDate(parsedDue)) — early morning. Ask the user whether they meant AM or PM, then create the reminder with the time they confirm."
+        }
         let decision = await confirmations.requestConfirmation(
             title: "Create this reminder?",
             detail: nil,
+            caution: Self.earlyMorningCaution(for: parsedDue),
             fields: [
                 .init(key: "title", label: "Title", value: title),
                 .init(key: "due", label: "Due", value: parsedDue.map { DeviceActionParsing.displayDate($0) } ?? ""),
@@ -194,6 +223,14 @@ struct ReminderCreateTool: Tool {
         return "Created reminder \"\(ToolConfirmationCenter.strippingBatteryMarker(finalTitle))\"\(dueLine) in list \"\(calendarTitle)\"."
     }
 
+    /// #233: the card's last line of defense for a wee-hour due — the case
+    /// where the model ignored the bounce, or the user confirmed AM. Nil
+    /// for daytime dues so normal cards render byte-identically to today.
+    nonisolated static func earlyMorningCaution(for date: Date?) -> String? {
+        guard let date, DeviceActionParsing.isEarlyMorning(date) else { return nil }
+        return "EARLY MORNING — \(DeviceActionParsing.timeOnly(date))"
+    }
+
     /// "None"/empty keeps no date; an unchanged display string keeps the
     /// original parse; anything else must re-parse.
     nonisolated static func resolveEditedDate(edited: String, original: Date?) -> Date? {
@@ -238,7 +275,7 @@ struct ReminderCreateToolRequiredFields: Tool {
         defer { Task { await relay.completed(name) } }
         return await ReminderCreateTool.performCreate(
             rawTitle: title, rawDue: arguments.due, rawList: arguments.list,
-            confirmations: confirmations
+            relay: relay, confirmations: confirmations
         )
     }
 }
@@ -278,7 +315,7 @@ struct ReminderCreateToolGuidefix: Tool {
         defer { Task { await relay.completed(name) } }
         return await ReminderCreateTool.performCreate(
             rawTitle: title, rawDue: arguments.due, rawList: arguments.list,
-            confirmations: confirmations
+            relay: relay, confirmations: confirmations
         )
     }
 }

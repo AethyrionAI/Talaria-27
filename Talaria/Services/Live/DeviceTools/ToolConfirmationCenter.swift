@@ -31,6 +31,9 @@ final class ToolConfirmationCenter {
         let title: String
         /// One-line consequence statement, e.g. "It will ring through Silent mode."
         let detail: String?
+        /// #233: forge-amber warning line, e.g. "EARLY MORNING — 4:00 AM".
+        /// Nil on every card that stages nothing unusual.
+        let caution: String?
         var fields: [Field]
     }
 
@@ -101,7 +104,7 @@ final class ToolConfirmationCenter {
     /// decides. Tools run serially per session; if a second request somehow
     /// arrives while one is pending, it auto-declines (defensive — the gate
     /// never queues silently).
-    func requestConfirmation(title: String, detail: String? = nil, fields: [Field]) async -> Decision {
+    func requestConfirmation(title: String, detail: String? = nil, caution: String? = nil, fields: [Field]) async -> Decision {
         #if DEBUG
         // Decline is checked FIRST: if both battery flags are ever set the
         // fail-safe direction is never-create.
@@ -134,7 +137,7 @@ final class ToolConfirmationCenter {
         }
         return await withCheckedContinuation { newContinuation in
             continuation = newContinuation
-            pending = PendingConfirmation(title: title, detail: detail, fields: fields)
+            pending = PendingConfirmation(title: title, detail: detail, caution: caution, fields: fields)
             Self.logger.notice("confirmation staged: \(title, privacy: .public)")
         }
     }

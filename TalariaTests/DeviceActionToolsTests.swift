@@ -32,6 +32,27 @@ struct DeviceActionToolsTests {
         #expect(components.minute == 0)
     }
 
+    // MARK: #233 wee-hour window
+
+    @Test func isEarlyMorningCoversMidnightThroughSixFiftyNine() {
+        #expect(DeviceActionParsing.isEarlyMorning(DeviceActionParsing.parseDateTime("2026-08-05T00:00")!))
+        #expect(DeviceActionParsing.isEarlyMorning(DeviceActionParsing.parseDateTime("2026-08-05T04:00")!))
+        #expect(DeviceActionParsing.isEarlyMorning(DeviceActionParsing.parseDateTime("2026-08-05T06:59")!))
+        #expect(!DeviceActionParsing.isEarlyMorning(DeviceActionParsing.parseDateTime("2026-08-05T07:00")!))
+        #expect(!DeviceActionParsing.isEarlyMorning(DeviceActionParsing.parseDateTime("2026-08-05T16:00")!))
+        #expect(!DeviceActionParsing.isEarlyMorning(DeviceActionParsing.parseDateTime("2026-08-05T23:00")!))
+    }
+
+    @Test func timeOnlyRendersJustTheClockTime() {
+        let four = DeviceActionParsing.parseDateTime("2026-08-05T04:00")!
+        let rendered = DeviceActionParsing.timeOnly(four)
+        // Locale-safe: no hardcoded "4:00 AM" — assert it is short (no date
+        // parts) and that the full display form ends with it.
+        #expect(!rendered.isEmpty)
+        #expect(rendered.count < 12)
+        #expect(DeviceActionParsing.displayDate(four).hasSuffix(rendered))
+    }
+
     // MARK: Duration parsing
 
     @Test func parseDurationMinutesReadsIntegersAndSuffixes() {
@@ -63,6 +84,99 @@ struct DeviceActionToolsTests {
         #expect(ReminderCreateTool.resolveEditedDate(edited: "", original: original) == nil)
         // Unreadable edits resolve nil — the tool then refuses to create.
         #expect(ReminderCreateTool.resolveEditedDate(edited: "whenever", original: original) == nil)
+    }
+
+    // MARK: #233 the wee-hour bounce
+
+    @Test func weeHourDueBouncesOnceThenProceeds() async throws {
+        let relay = ToolEventRelay()
+        relay.governor = ToolCallGovernor()
+        let center = ToolConfirmationCenter()
+        center.autoDeclineForBattery = true   // resolves the gate instantly: no card, no EventKit, no hang
+        let tool = ReminderCreateTool(relay: relay, confirmations: center)
+        relay.beginTurn()
+
+        let first = try await tool.call(arguments: .init(
+            title: "Call Shelley", due: "2026-08-05T04:00", list: nil))
+        #expect(first.contains("Ask the user whether they meant AM or PM"))
+        #expect(first.contains("early morning"))
+
+        let second = try await tool.call(arguments: .init(
+            title: "Call Shelley", due: "2026-08-05T04:00", list: nil))
+        #expect(second == "The user declined — no reminder was created.")
+
+        // 233-B: both attempts were EXECUTED calls — the bounce is tool
+        // output, never a governor refusal, so #232's counter must not move.
+        #expect(relay.executedCallsThisTurn == 2)
+        #expect(relay.refusalsThisTurn == 0)
+    }
+
+    @Test func daytimeDueNeverBounces() async throws {
+        let relay = ToolEventRelay()
+        let center = ToolConfirmationCenter()
+        center.autoDeclineForBattery = true
+        let tool = ReminderCreateTool(relay: relay, confirmations: center)
+        relay.beginTurn()
+        let result = try await tool.call(arguments: .init(
+            title: "Call Shelley", due: "2026-08-05T16:00", list: nil))
+        #expect(result == "The user declined — no reminder was created.")
+        #expect(relay.claimEarlyMorningAsk())   // latch untouched by a daytime due
+    }
+
+    @Test func noDueDateNeverBounces() async throws {
+        let relay = ToolEventRelay()
+        let center = ToolConfirmationCenter()
+        center.autoDeclineForBattery = true
+        let tool = ReminderCreateTool(relay: relay, confirmations: center)
+        relay.beginTurn()
+        let result = try await tool.call(arguments: .init(
+            title: "Call Shelley", due: nil, list: nil))
+        #expect(result == "The user declined — no reminder was created.")
+        #expect(relay.claimEarlyMorningAsk())
+    }
+
+    // MARK: #233 the caution row (plumbing)
+
+    @Test func earlyMorningCautionOnlyForWeeHours() {
+        let four = DeviceActionParsing.parseDateTime("2026-08-05T04:00")!
+        #expect(ReminderCreateTool.earlyMorningCaution(for: four)
+            == "EARLY MORNING — \(DeviceActionParsing.timeOnly(four))")
+        #expect(ReminderCreateTool.earlyMorningCaution(for: DeviceActionParsing.parseDateTime("2026-08-05T16:00")!) == nil)
+        #expect(ReminderCreateTool.earlyMorningCaution(for: nil) == nil)
+    }
+
+    @Test func stagedCardCarriesTheCautionThroughTheGate() async {
+        let center = ToolConfirmationCenter()
+        let task = Task {
+            await center.requestConfirmation(
+                title: "Create this reminder?",
+                caution: "EARLY MORNING — 4:00 AM",
+                fields: [.init(key: "title", label: "Title", value: "Call Shelley")])
+        }
+        var attempts = 0
+        while center.pending == nil && attempts < 2000 { await Task.yield(); attempts += 1 }
+        #expect(center.pending?.caution == "EARLY MORNING — 4:00 AM")
+        center.decline()
+        _ = await task.value
+    }
+
+    /// The re-call path end-to-end: latch already claimed, a wee-hour due
+    /// stages a REAL card, and that card carries the caution (233-C).
+    @Test func weeHourRecallStagesCardWithCaution() async {
+        let relay = ToolEventRelay()
+        let center = ToolConfirmationCenter()
+        _ = relay.claimEarlyMorningAsk()
+        let task = Task {
+            await ReminderCreateTool.performCreate(
+                rawTitle: "Call Shelley", rawDue: "2026-08-05T04:00", rawList: "",
+                relay: relay, confirmations: center)
+        }
+        var attempts = 0
+        while center.pending == nil && attempts < 2000 { await Task.yield(); attempts += 1 }
+        #expect(center.pending?.caution != nil)
+        center.decline()
+        let result = await task.value
+        #expect(result == "The user declined — no reminder was created.")
     }
 
     // MARK: ToolConfirmationCenter gate mechanics

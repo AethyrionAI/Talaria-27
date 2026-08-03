@@ -162,6 +162,25 @@ struct LocalSessionHistoryTests {
         #expect(current.id == stored.id)
     }
 
+    /// #233: switching to a stored conversation is a conversation boundary —
+    /// the wee-hour AM/PM ask re-arms there exactly like the #30 escalation
+    /// offer resets. (Reopening the SAME conversation is the early-return
+    /// path and deliberately keeps the latch.)
+    @Test @MainActor
+    func openingAStoredSessionResetsTheWeeHourAskLatch() async throws {
+        let persistence = makePersistence()
+        let store = FakeSessionStore()
+        let stored = localConversation(prompt: "stored", reply: "kept", lastActivity: Date(timeIntervalSince1970: 4_000))
+        store.upsertSession(stored)
+        let backend = makeBackend(persistence: persistence, store: store)
+        let relay = ToolEventRelay()
+        backend.installTools([], relay: relay)
+
+        #expect(relay.claimEarlyMorningAsk())
+        _ = try await backend.openSession(stored.id.uuidString)
+        #expect(relay.claimEarlyMorningAsk())
+    }
+
     @Test @MainActor
     func backendOpenSessionUnknownIDThrows() async throws {
         let persistence = makePersistence()

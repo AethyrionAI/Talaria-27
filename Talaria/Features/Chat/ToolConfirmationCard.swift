@@ -50,6 +50,18 @@ struct ToolConfirmationCard: View {
                 }
             }
 
+            if let caution = confirmation.caution {
+                HStack(spacing: Design.Spacing.xs) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: Design.Size.iconSmall))
+                        .foregroundStyle(Design.Brand.forge)
+                    MonoLabel(caution.uppercased(), size: 11, weight: .medium,
+                              tracking: Design.Tracking.mono, color: Design.Brand.forge)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Caution: \(caution)")
+            }
+
             if let detail = confirmation.detail {
                 Text(detail)
                     .font(Design.Typography.caption)

@@ -13362,7 +13362,7 @@ tomorrow, pass their words through unchanged — never substitute 'tomorrow'"); 
 mislabeled relay is at least self-contradicting on its face. Either is device-only to
 verify — the sim has no model.
 
-## 233. 🐛 "Tomorrow at 4" became a 4:00 AM reminder — half-day defaulting on `createReminder`, and the confirm card did not save it
+## 233. 🐛 "Tomorrow at 4" became a 4:00 AM reminder — half-day defaulting on `createReminder`, and the confirm card did not save it — **BOUNCE BUILT 2026-08-03; 233-A/B/C green in suite; device bars 233-D/E owed to the next OTA**
 
 **FILED 2026-08-02, Lane 1 trial 3 (run results doc).** "Remind me to call Shelley
 tomorrow at 4," sent at 23:05, produced a REAL reminder due **Aug 3, 4:00 AM** —
@@ -13376,6 +13376,60 @@ that makes AM/PM easy to miss is part of the finding.
 for 1–11 unless context says otherwise — what Siri does), or the create tool
 REFUSING bare hours back to the model with "ask AM or PM," plus making the card's
 time rendering unmissable. Bars pre-register HERE before any fix lane.
+
+> **DIRECTION DECIDED 2026-08-03 (AM) with Owen — design doc
+> `docs/superpowers/specs/2026-08-03-233-bare-hour-reminders-design.md`.**
+> His preference order: ask AM/PM (ideal) → afternoon default (fallback).
+> Key reframe from reading the code: **the tool never sees "bare hours"** —
+> the model qualifies the time before the tool runs — so the buildable form
+> is a **wee-hour bounce**: due in 00:00–06:59 + conversation latch clear →
+> `performCreate` returns an ask-AM/PM instruction as ordinary tool output
+> (never a throw, #197) before staging any card; the latch (NOT reset by
+> `beginTurn`, cleared on fresh chat) admits the re-call so a confirmed
+> "yes, 4 AM" cannot loop. Card gains a forge-amber "⚠ EARLY MORNING" row for
+> staged wee-hour dues. Shared-engine placement means the DEBUG twins inherit
+> it. No `@Guide` changes: the afternoon-default guide line is the RECORDED
+> FALLBACK if device trials show the bounce grinding, not stacked on top.
+> `createCalendarEvent` has the same exposure — follow-on, not built here.
+>
+> ## 📋 BARS — PRE-REGISTERED 2026-08-03, BEFORE THE FIX LANE. Written first.
+> - **233-A (mechanical, sim):** wee-hour due (hour 0–6) with latch clear →
+>   bounce string, NO card staged, latch set; hour ≥ 7 stages normally; latch
+>   set → same wee-hour due proceeds to a card; a fresh conversation clears
+>   the latch. Pinned by tests written first.
+> - **233-B (mechanical, sim):** the bounce increments no governor refusal
+>   count and no `refusalsThisTurn` (#228 instrument counters assert it).
+> - **233-C (mechanical, sim):** an early-morning staged due carries the card
+>   caution; a 16:00 due carries none and renders unchanged from today.
+> - **233-D (device):** trial 3's prompt verbatim, evening send → the
+>   assistant asks AM or PM; answering "PM" → card shows 4:00 PM, store row
+>   at 16:00 (baseline: the real Aug 3 4:00 AM row). A silent 4 PM card
+>   without the ask also passes — the accepted fallback shape.
+> - **233-E (device):** explicit "remind me at 5 AM tomorrow" completes with
+>   ≤ 1 bounce; its card shows the caution.
+
+> **✅ BOUNCE BUILT 2026-08-03, later the same morning** (spec + plan under
+> `docs/superpowers/`; tests first, RED watched per task — the two wiring
+> tests were watched fail on ASSERTION, not just compile). Mechanical bars:
+> **233-A** pinned by `weeHourDueBouncesOnceThenProceeds` /
+> `daytimeDueNeverBounces` / `noDueDateNeverBounces` /
+> `isEarlyMorningCoversMidnightThroughSixFiftyNine` /
+> `earlyMorningAskClaimsExactlyOncePerConversation` /
+> `beginTurnDoesNotClearTheEarlyMorningLatch` /
+> `clearConversationResetsTheEarlyMorningLatch`; **233-B** asserted inside the
+> bounce test against the #228 counters (executed 2, refusals 0); **233-C** by
+> `earlyMorningCautionOnlyForWeeHours` /
+> `stagedCardCarriesTheCautionThroughTheGate` /
+> `weeHourRecallStagesCardWithCaution`. **Found while wiring: `openSession(_:)`
+> is a SECOND conversation boundary** — it resets #30's per-conversation state,
+> so the latch clears there too (`openingAStoredSessionResetsTheWeeHourAskLatch`);
+> reopening the same conversation keeps the latch by design. **Device bars
+> 233-D/E NOT claimed** — the next OTA's script: evening send of trial 3's
+> prompt verbatim ("Remind me to call Shelley tomorrow at 4" → expect the AM/PM
+> question; a silent 4 PM card also passes, the accepted fallback), and
+> "remind me at 5 AM tomorrow" (≤ 1 bounce, amber EARLY MORNING row on the
+> card, store row at 5:00 AM). **Build 1860 (`df9a300`) staged and installed
+> on whoGoesThere 2026-08-03 AM — Owen runs both prompts this evening.**
 
 ## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes — **CUT BUILT 2026-08-03 (AM); 232-C/D experiential halves MET on device same morning; log halves owed to the corded coda**
 

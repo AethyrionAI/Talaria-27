@@ -123,6 +123,32 @@ struct ToolCallInstrumentTests {
         #expect(line == "session budget: 13 tool(s) ~2500 tok + transcript ~— tok of window 8192 — free — (#228)")
     }
 
+    // MARK: - #233 conversation latch
+
+    @Test func earlyMorningAskClaimsExactlyOncePerConversation() {
+        let relay = ToolEventRelay()
+        #expect(relay.claimEarlyMorningAsk())
+        #expect(!relay.claimEarlyMorningAsk())
+    }
+
+    /// The ask/answer round-trip spans two turns — a turn boundary must not
+    /// re-arm the bounce, or the model asks again after the user answers.
+    @Test func beginTurnDoesNotClearTheEarlyMorningLatch() {
+        let relay = ToolEventRelay()
+        _ = relay.claimEarlyMorningAsk()
+        relay.beginTurn()
+        #expect(!relay.claimEarlyMorningAsk())
+    }
+
+    @Test func clearConversationResetsTheEarlyMorningLatch() async throws {
+        let backend = makeBackend()
+        let relay = ToolEventRelay()
+        backend.installTools([], relay: relay)
+        #expect(relay.claimEarlyMorningAsk())
+        _ = try await backend.clearConversation()
+        #expect(relay.claimEarlyMorningAsk())
+    }
+
     // MARK: - Deferred measurement (#228, revised after the device falsified L0-D)
     //
     // The first shipped shape measured DURING the turn: its tokenizer round

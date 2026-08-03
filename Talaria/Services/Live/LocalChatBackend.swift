@@ -683,6 +683,8 @@ final class LocalChatBackend: HermesClientProtocol {
         // #30: the escalation offer is per-conversation.
         shouldOfferPrivateCloudEscalation = false
         escalationOfferDismissed = false
+        // #233: the wee-hour AM/PM ask is per-conversation.
+        toolRelay?.endConversationToolState()
         let fresh = Conversation(title: Conversation.defaultTitle)
         currentConversation = fresh
         return fresh
@@ -774,6 +776,8 @@ final class LocalChatBackend: HermesClientProtocol {
         // #30: the escalation offer is per-conversation.
         shouldOfferPrivateCloudEscalation = false
         escalationOfferDismissed = false
+        // #233: the wee-hour AM/PM ask is per-conversation.
+        toolRelay?.endConversationToolState()
         return stored
     }
 
