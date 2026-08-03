@@ -116,7 +116,27 @@ final class ToolEventRelay {
     private static let batteryLogger = Logger(subsystem: "org.aethyrion.talaria", category: "LocalChatBackend")
     #endif
 
-    func started(_ name: String, detail: String? = nil) {
+    /// #225: the per-turn bound. Nil leaves every call admitted, which is what
+    /// bare test belts and any caller that never sets one get.
+    var governor: ToolCallGovernor?
+
+    /// Announces a tool call AND decides whether it may proceed (#225).
+    ///
+    /// **The admission check runs FIRST, before any event is emitted.** A
+    /// refused call must not produce a `started` chip in the transcript or a
+    /// battery line — both would record work that never happened, and a tool
+    /// chip for a call that did not run is exactly the kind of lie #180 is
+    /// about.
+    ///
+    /// Callers return the refusal string as their own output. **Never throw
+    /// it:** a throw kills the turn above the model (#197's mechanism) and
+    /// would trade an unbounded spiral for a dead turn.
+    @discardableResult
+    func started(_ name: String, detail: String? = nil) -> ToolCallGovernor.Admission {
+        if let governor {
+            let admission = governor.admit(tool: name)
+            if case .refused = admission { return admission }
+        }
         #if DEBUG
         if let tag = Self.batteryTrialTag {
             // One emit path for every battery line (#196 battery 4):
@@ -128,6 +148,7 @@ final class ToolEventRelay {
         }
         #endif
         emit?(ToolCallEvent(name: name, phase: .started, detail: detail))
+        return .allowed
     }
 
     /// #212: `result` is what the tool RETURNED, recorded into the battery

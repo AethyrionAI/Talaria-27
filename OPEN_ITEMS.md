@@ -13382,7 +13382,53 @@ not, there is a fourth source.
 > silent, and leg (b) collapses the duplicates. If it is still >1, the ×N decomposition
 > (above) says where the extra came from.
 
-## 225. 🐛 UNBOUNDED tool-call spiral in production: 64 calls on "weather in Gulfport tomorrow," user-terminated, no cap anywhere in the loop
+## 225. 🐛 UNBOUNDED tool-call spiral in production: 64 calls on "weather in Gulfport tomorrow," user-terminated, no cap anywhere in the loop — **BOUND BUILT 2026-08-02; the four behavioural bars are owed on device**
+
+> **✅ MECHANISM BUILT 2026-08-02 — `ToolCallGovernor`, per-turn budget 12 + same-tool
+> cap 4, wired into all 18 tool call sites.** Refusals return as the tool's OWN OUTPUT
+> (never thrown — a throw kills the turn above the model, #197's mechanism, trading a
+> spiral for a dead turn). The admission check runs BEFORE any event is emitted, so a
+> refused call leaves no tool chip for work that never happened. The governor is
+> installed in `installTools`, making it a property of HAVING a belt rather than of
+> remembering to arm one (#144's lesson). `beginToolTurn()` resets both counters on
+> BOTH turn paths — a leaked budget would silently strangle every later turn in a
+> session, which is worse and less visible than the spiral.
+>
+> ## ⚠️ DEVICE RESULT 2026-08-02, SAME EVENING — **B2 FAILED. The cap did not save the turn.**
+>
+> Production build, on-device, standalone, hand-launched. Same prompt. **4m34s, no reply
+> text ever**, ending in `PROVIDED 8,218 TOKENS, BUT THE MAXIMUM ALLOWED IS 8,192` and a
+> Retry. Bars: **B1 unresolved** (no production tool-call instrument exists — chips were
+> counted by eye), **B2 FAIL**, **B3 unreachable** (no text to judge).
+>
+> **Three findings, and they re-frame this item:**
+> 1. **#26's condense-and-retry FIRED and did not help** (log 21:19:07). #210's fix
+>    works — it caught the overflow, condensed, and rebuilt the session **with all 13
+>    tools re-armed**, then overflowed again. *A retry that restores the condition that
+>    caused the failure is not a retry.* **Whether the retry should re-arm at all is now
+>    the highest-value open question** (see the Fable run's Lane 2.3).
+> 2. **The ceiling is the WINDOW, not the call count.** 8,192 tokens hold 13 tool
+>    schemas + the memory injection + restored history + every tool result. It missed by
+>    **26 tokens**. The spiral is a symptom of pressure inside a window too small for the
+>    belt it carries.
+> 3. **The cap's own refusal strings are ~45 tokens each into that same window** — a
+>    real defect in this lane's design, named by its author. Terser refusals, or dropping
+>    tools from the session instead of refusing per-call, are the candidate corrections.
+>
+> **The scope call in the bars above — deferring the forecast tool as "removes the
+> trigger, not the class" — was WRONG on this evidence and is recorded as such.** The
+> class fix converts a 64-call spiral into a 4m34s silent overflow; the trigger fix ends
+> the question at call 2. **The cap stays** (correct, cheap insurance, never sufficient).
+>
+> **Routed to a dedicated device run:** `dispatch/FABLE-T27-LOCAL-BRAIN-DEVICE-RUN.md`,
+> which asks the question this result raises — *can the on-device brain answer an
+> ordinary question at all* — rather than treating this as one more local-brain bug.
+
+> **Ten mechanical bars green** (suite 1513 → 1523, Release green). **The four
+> BEHAVIOURAL bars below are NOT claimed** — B2 (does it speak) and B3 (does it stay
+> honest) can fail with a perfect cap, and they are now a device check in the running
+> list's **§F1**. The 18 sites were rewritten by script under a byte-level invariant:
+> only `started()` lines could change, every other byte asserted identical.
 
 **FILED 2026-08-02 from the device pass (running list §D5, which holds the full
 anatomy).** The #200-series' named residual — "over-serving on turns it CORRECTLY

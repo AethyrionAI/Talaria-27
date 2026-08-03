@@ -110,7 +110,7 @@ struct ReminderCreateTool: Tool {
 
     func call(arguments: Arguments) async throws -> String {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        await relay.started(name, detail: title)
+        if case .refused(let refusal) = await relay.started(name, detail: title) { return refusal }
         defer { Task { await relay.completed(name) } }
         // An omitted field lands on exactly the path an empty string took,
         // so the create flow is unchanged from the pre-promotion tool.
@@ -234,7 +234,7 @@ struct ReminderCreateToolRequiredFields: Tool {
 
     func call(arguments: Arguments) async throws -> String {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        await relay.started(name, detail: title)
+        if case .refused(let refusal) = await relay.started(name, detail: title) { return refusal }
         defer { Task { await relay.completed(name) } }
         return await ReminderCreateTool.performCreate(
             rawTitle: title, rawDue: arguments.due, rawList: arguments.list,
@@ -274,7 +274,7 @@ struct ReminderCreateToolGuidefix: Tool {
 
     func call(arguments: Arguments) async throws -> String {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        await relay.started(name, detail: title)
+        if case .refused(let refusal) = await relay.started(name, detail: title) { return refusal }
         defer { Task { await relay.completed(name) } }
         return await ReminderCreateTool.performCreate(
             rawTitle: title, rawDue: arguments.due, rawList: arguments.list,
@@ -325,7 +325,7 @@ struct CalendarEventTool: Tool {
 
     func call(arguments: Arguments) async throws -> String {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        await relay.started(name, detail: title)
+        if case .refused(let refusal) = await relay.started(name, detail: title) { return refusal }
         defer { Task { await relay.completed(name) } }
         // An omitted location lands on exactly the path an empty string took;
         // an omitted duration takes the shared engine's hour.
@@ -464,7 +464,7 @@ struct CalendarEventToolRequiredFields: Tool {
 
     func call(arguments: Arguments) async throws -> String {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        await relay.started(name, detail: title)
+        if case .refused(let refusal) = await relay.started(name, detail: title) { return refusal }
         defer { Task { await relay.completed(name) } }
         return await CalendarEventTool.performCreate(
             rawTitle: title, rawStartsAt: arguments.startsAt,
@@ -495,7 +495,7 @@ struct AlarmTool: Tool {
 
     func call(arguments: Arguments) async throws -> String {
         let raw = arguments.request.trimmingCharacters(in: .whitespacesAndNewlines)
-        await relay.started(name, detail: raw)
+        if case .refused(let refusal) = await relay.started(name, detail: raw) { return refusal }
         defer { Task { await relay.completed(name) } }
 
         // #16's grammar + executor, unchanged: parse → stage → explicit

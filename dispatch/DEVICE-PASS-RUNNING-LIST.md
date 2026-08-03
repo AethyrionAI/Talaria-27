@@ -570,7 +570,14 @@ Console.app or a sysdiagnose can recover the log after the fact. (3) **#81
 (§F4) must be run uncorded and un-attached** for the same reason — a
 lock-mid-stream check on the kept-alive rig would measure nothing real.
 
-### D5 · THE 64-CALL SPIRAL — `searchConversations`, in production, uninstrumented · **[FOUND 2026-08-02 — the worst over-serving instance ever recorded on this project. FILED as OPEN_ITEMS #225]**
+### D5 · THE 64-CALL SPIRAL — `searchConversations`, in production, uninstrumented · **[FOUND 2026-08-02 — the worst over-serving instance ever recorded on this project. FILED as OPEN_ITEMS #225. ✅ BOUND BUILT 2026-08-02 — re-run bars in §F1]**
+
+> **✅ THE CAP IS BUILT (per-turn 12, same-tool 4) — but the bars that decide whether
+> it WORKED are behavioural and live in §F1's `#225` row.** The suite can only prove
+> the cap counts; it cannot prove the model speaks honestly when told "no more tools",
+> and **capping the tools is exactly the condition that could turn a silent spiral into
+> a fabrication (#199).** Bars were pre-registered in OPEN_ITEMS #225 before the fix
+> lane ran.
 
 **Prompt: "what's the weather gonna be in Gulfport tomorrow." Config: on-device
 brain, STANDALONE (unpaired mid-#133/#143), hand-launched — no Xcode, no
@@ -706,6 +713,7 @@ four times total.
 
 | # | check | pass |
 |---|---|---|
+| **#225** ⭐ | **Re-run the exact spiral prompt on a build with the cap:** *"what's the weather gonna be in Gulfport tomorrow"* — **on-device brain, STANDALONE (unpaired), hand-launched** (no Xcode, no battery arming). Count the tool chips. | **FOUR bars, all required — pre-registered in #225 before the fix.** **B1 bounded:** ≤ **12** tool calls and the turn ends on its own *(before: 64 and still climbing when killed)*. **B2 it SPEAKS:** non-empty reply text *(before: none, ever — this is the bar that matters most, a cap that yields silence is not a fix)*. **B3 HONEST:** says it cannot get tomorrow's forecast rather than inventing one — **#199's fabrication risk is live here and was untestable before precisely because no text was emitted**. **B4 no collateral:** a normal multi-tool turn ("remind me to call Shelley tomorrow at 4") still completes; if this fails the budget is too tight and the NUMBER is falsified, not the mechanism |
 | **#121** | Resume a session that has prior reasoning | thinking panes restore from stored messages. **✅ PASS 2026-08-02** — two resumed sessions verified (one viewed under the on-device brain, one Hermes/cron): expanded AND collapsed reasoning panes restored from stored messages, and the live pane streams on a fresh turn |
 | **#122** | Open a session with known usage | spend row shows real numbers; `$0.00` only where genuinely unknown. **✅ PASS 2026-08-02** — Settings → Sessions rows show real `IN/OUT/CALLS` figures including host-run cron sessions (so the wire carries usage, not just phone-side receipts); a brand-new session's line materialized in 14s (`IN 7.4K · OUT 84 · 1 CALLS`); no `$0.00` placeholder anywhere — absent data hides the line by design. Console corroborates: `run finished on hermes [stream-ended]` |
 | **#191** | Airplane mode ON with **on-device** active | header title + model pill name the ACTIVE brain, not the stale Hermes session. **✅ PASS 2026-08-02** — verified in BOTH an existing Hermes session and a fresh chat: header + pill read ON-DEVICE in airplane mode. Console: the flip was user-initiated (`activeBrain hermes → on-device initiator=refresh/override`), and the offline errors are honest (`listSessions: 'OJAMD' unreachable — Internet offline`) |

@@ -23,7 +23,7 @@ struct DeviceStatusTool: Tool {
     struct Arguments {}
 
     func call(arguments: Arguments) async throws -> String {
-        await relay.started(name)
+        if case .refused(let refusal) = await relay.started(name) { return refusal }
         let result = await MainActor.run { Self.statusReport() }
         await relay.completed(name)
         return result
@@ -89,7 +89,7 @@ struct LocationTool: Tool {
     struct Arguments {}
 
     func call(arguments: Arguments) async throws -> String {
-        await relay.started(name)
+        if case .refused(let refusal) = await relay.started(name) { return refusal }
         defer { Task { await relay.completed(name) } }
 
         let status = await location.ensureAuthorization()
@@ -185,7 +185,7 @@ struct MotionTool: Tool {
     struct Arguments {}
 
     func call(arguments: Arguments) async throws -> String {
-        await relay.started(name)
+        if case .refused(let refusal) = await relay.started(name) { return refusal }
         defer { Task { await relay.completed(name) } }
 
         guard CMPedometer.isStepCountingAvailable() else {
@@ -290,7 +290,7 @@ struct WeatherTool: Tool {
                               location: DeviceLocationProvider, name: String) async -> String {
         // nil and "" are the same request: weather here.
         let place = (rawPlace ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        await relay.started(name, detail: place.isEmpty ? nil : place)
+        if case .refused(let refusal) = await relay.started(name, detail: place.isEmpty ? nil : place) { return refusal }
         // #212: record what this tool actually RETURNED, not merely that it
         // finished. 40 of 40 weather trials failed with WeatherKit's real
         // error in hand and the record kept only the model's paraphrase.
@@ -418,7 +418,7 @@ struct PlacesTool: Tool {
 
     func call(arguments: Arguments) async throws -> String {
         let query = arguments.query.trimmingCharacters(in: .whitespacesAndNewlines)
-        await relay.started(name, detail: query)
+        if case .refused(let refusal) = await relay.started(name, detail: query) { return refusal }
         defer { Task { await relay.completed(name) } }
         guard !query.isEmpty else { return "No search query was given." }
 
@@ -533,7 +533,7 @@ struct ContactsTool: Tool {
 
     func call(arguments: Arguments) async throws -> String {
         let query = arguments.contactName.trimmingCharacters(in: .whitespacesAndNewlines)
-        await relay.started(name, detail: query)
+        if case .refused(let refusal) = await relay.started(name, detail: query) { return refusal }
         defer { Task { await relay.completed(name) } }
         guard !query.isEmpty else { return "No name was given to look up." }
 
