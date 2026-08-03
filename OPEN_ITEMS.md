@@ -13321,6 +13321,41 @@ thread. **Cosmetic sibling, observed same session, note-only:** Kimi's
 `_thinking` channel mirrors raw JSON envelopes (`{"toolCalls": …`) into the
 REASONING rows — upstream shape, display-only.
 
+> **DIRECTION DECIDED 2026-08-03 (late morning) with Owen — design doc
+> `docs/superpowers/specs/2026-08-03-235-stream-loss-reconcile-design.md`.**
+> Deeper reading found the recovery machinery EXISTS and is correct
+> (`.interrupted` → `PendingRun` → reconcile loop → `attemptReconcile`);
+> the filing's "no recovery" was wrong in detail — there are two HOLES in
+> front of it, one per screenshot shape: **D1** a clean close without
+> `run.completed` and with empty assembled content yields an empty
+> `.finished` (the reasoning-chips-no-text groups) and never arms recovery;
+> **D2** the reconcile loop's 120s budget expires on agent-length turns and
+> nothing ever re-arms. Fix: route D1 to `.interrupted`; keep `pendingRun`
+> on expiry with two single-shot re-arm triggers (app-active, chat-appear);
+> **Owen's placement rule** — a recovered reply displaced by later exchanges
+> moves to the transcript TAIL with a marker naming its prompt, never
+> spliced above; the 20-vs-300 timeout precedence gets one experiment and a
+> split stream-session ONLY on a config-wins verdict.
+>
+> ## 📋 BARS — PRE-REGISTERED 2026-08-03, BEFORE THE FIX LANE. Written first.
+> - **235-A (sim):** started-run stream ending cleanly, no `run.completed`,
+>   empty assembled content → `.interrupted`, not `.finished`; the same close
+>   with non-empty content keeps today's partial-answer fallback.
+> - **235-B (sim):** budget expiry leaves `pendingRun` set; app-active or
+>   chat-appear fires exactly ONE `attemptReconcile` (single-flight
+>   coalesced); resolution clears the pending run.
+> - **235-C (sim):** a recovered reply displaced by later exchanges lands at
+>   the tail carrying `recoveredForPrompt`; undisplaced adoption is
+>   byte-identical to today's.
+> - **235-D (experiment, recorded):** the 20-vs-300 verdict with harness
+>   transcript; split-session change lands only on config-wins, with a
+>   structural test.
+> - **235-E (device, Owen's reproduction):** long agent turn → background
+>   into another app → return after server-side completion → the answer
+>   APPEARS at the tail with a receipt, no session reopen; ⏱ clears.
+> - **235-F (device):** a dead-stream turn followed by later messages shows
+>   the recovered reply at the BOTTOM with the marker naming its prompt.
+
 ## 234. 🐛 "Day after tomorrow" received TOMORROW'S forecast — the model collapses an unsupported day into the nearest supported one, and #230's honest refusal never reaches the user — **MECHANISM CONFIRMED same morning: argument-time nearest-fit, trial-7 severity family**
 
 **FILED 2026-08-03 from Owen's at-work spot check of the just-shipped #230** (Release
