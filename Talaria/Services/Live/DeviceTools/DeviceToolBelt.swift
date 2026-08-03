@@ -168,10 +168,18 @@ final class ToolEventRelay {
     /// it:** a throw kills the turn above the model (#197's mechanism) and
     /// would trade an unbounded spiral for a dead turn.
     @discardableResult
-    func started(_ name: String, detail: String? = nil) -> ToolCallGovernor.Admission {
+    func started(_ name: String, detail: String? = nil) throws -> ToolCallGovernor.Admission {
         if let governor {
             let admission = governor.admit(tool: name)
             if case .refused = admission {
+                // #232: refusals past the threshold end the tool phase
+                // STRUCTURALLY — 57 string-refusals in one instrumented turn
+                // proved the model treats them as results to argue with. The
+                // count is checked BEFORE incrementing so refusals 1…threshold
+                // stay strings and attempt threshold+1 throws.
+                if refusalsThisTurn >= ToolPhaseCutError.refusalThreshold {
+                    throw ToolPhaseCutError()
+                }
                 // #228 (L0-B): the refusal deliberately emits no chip, so this
                 // line is the ONLY place a refused call is visible at all.
                 refusalsThisTurn += 1

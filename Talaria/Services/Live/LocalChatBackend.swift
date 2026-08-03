@@ -372,6 +372,7 @@ final class LocalChatBackend: HermesClientProtocol {
 
         var didCondenseRetry = false
         var didToolDecodeRetry = false
+        var didToolPhaseCutRetry = false
         while true {
             do {
                 let response = try await liveSession.respond(to: Prompt(prompt), options: effectiveGenerationOptions())
@@ -393,6 +394,19 @@ final class LocalChatBackend: HermesClientProtocol {
                 appendAssistantMessage(reply, usage: usage)
                 return reply
             } catch {
+                if !didToolPhaseCutRetry, Self.isToolPhaseCut(error) {
+                    // #232: the refusal grind's structural end — retry ONCE as
+                    // a routed-toolless turn (empty belt + the toolless
+                    // instruction set). This turn's tool results are lost with
+                    // the dead session's transcript (#102's rule); for
+                    // grind-shaped turns they are noise by definition.
+                    didToolPhaseCutRetry = true
+                    turnRoutedToolless = true
+                    session = nil
+                    Self.logger.notice("send: tool phase cut after \(ToolPhaseCutError.refusalThreshold) refusals — retrying toolless (#232)")
+                    liveSession = await rebuildSession(attachments: attachments, excludingClientMessageID: clientMessageID, forceCondense: false)
+                    continue
+                }
                 if !didCondenseRetry, Self.isContextOverflow(error) {
                     // Overflow degrades to summarized memory, never errors:
                     // rebuild with condensation forced and retry exactly once.
@@ -527,6 +541,7 @@ final class LocalChatBackend: HermesClientProtocol {
 
         var didCondenseRetry = false
         var didToolDecodeRetry = false
+        var didToolPhaseCutRetry = false
         while true {
             do {
                 // FM snapshots are cumulative — diff against what has already
@@ -590,6 +605,18 @@ final class LocalChatBackend: HermesClientProtocol {
                 continuation.yield(.finished(reply, usage, nil))
                 return
             } catch {
+                if !didToolPhaseCutRetry, Self.isToolPhaseCut(error) {
+                    // #232: see `send` — the grind's structural end. Any text
+                    // already streamed is abandoned with the dead session; the
+                    // toolless retry repaints from scratch (grind turns have
+                    // streamed nothing — the model was inside the tool loop).
+                    didToolPhaseCutRetry = true
+                    turnRoutedToolless = true
+                    session = nil
+                    Self.logger.notice("streamTurn: tool phase cut after \(ToolPhaseCutError.refusalThreshold) refusals — retrying toolless (#232)")
+                    liveSession = await rebuildSession(attachments: attachments, excludingClientMessageID: clientMessageID, forceCondense: false)
+                    continue
+                }
                 if !didCondenseRetry, Self.isContextOverflow(error) {
                     didCondenseRetry = true
                     Self.logger.notice("streamTurn: context window exceeded — condensing older turns and retrying once (#26)")
@@ -921,6 +948,14 @@ final class LocalChatBackend: HermesClientProtocol {
                 Self.logger.notice("\(line, privacy: .public)")
             }
         }
+    }
+
+    /// #232: the cut arrives bare (thrown straight through a tool wrapper) or
+    /// wrapped in the SDK's `ToolCallError` — both mean the same thing: the
+    /// tool phase is over, retry this turn toolless.
+    nonisolated static func isToolPhaseCut(_ error: Error) -> Bool {
+        if error is ToolPhaseCutError { return true }
+        return (error as? LanguageModelSession.ToolCallError)?.underlyingError is ToolPhaseCutError
     }
 
     /// Pure and pinned by test — the grep key a device-run log gets read by.

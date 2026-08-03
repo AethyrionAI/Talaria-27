@@ -13278,7 +13278,31 @@ for 1–11 unless context says otherwise — what Siri does), or the create tool
 REFUSING bare hours back to the model with "ask AM or PM," plus making the card's
 time rendering unmissable. Bars pre-register HERE before any fix lane.
 
-## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes
+## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes — **CUT BUILT 2026-08-03 (AM); 232-C/D experiential halves MET on device same morning; log halves owed to the corded coda**
+
+> **✅ MECHANISM BUILT overnight, same session** (branch `claude/t27-232-refusal-cut`,
+> tests first): refusals 1–3 stay strings; the 4th attempted call throws
+> `ToolPhaseCutError` → both send loops retry ONCE as a routed-toolless turn.
+> `relay.started` is now `throws` (compiler-enforced sweep). Mechanical bars
+> 232-A/B/E green in suite; **232-C/D are DEVICE bars, not claimed** — OTA or
+> corded verify per the 2026-08-03 handoff.
+
+> **📱 DEVICE RESULTS 2026-08-03, ~7:38 AM — Owen's at-work test, OTA install of
+> the fix branch, fresh chats, screenshots in hand:**
+> - **232-C, experiential half MET:** the Gulfport control prompt — the exact turn
+>   that ground 57 refusals / ~2.5 min on build 1843 — replied **within the same
+>   clock minute** (2 tool calls, receipt IN 5.8K · OUT 84). Note the mechanism:
+>   with #230 aboard the same branch, the trigger is gone and this prompt now ends
+>   at call 2 — it no longer *reaches* the cut. The ≤3-refusals log half still
+>   needs the corded coda (trivially expected 0 on this prompt now; a grind-shaped
+>   prompt is the one that would show the cut itself firing).
+> - **232-D, experiential half MET:** "What's the weather right now" (fresh chat)
+>   → `currentLocation` + `currentWeather`, answer within the same clock minute
+>   (IN 5.8K · OUT 107), behavior unchanged from the healthy trials. The
+>   0-refusals / no-cut-line log half is the coda's.
+> - **The formal close remains the corded coda** (~10 min: verbose ON +
+>   `idevicesyslog`) — exact refusal counts for 232-C, and the cut's `.notice`
+>   line (232-E's device half) on a prompt that actually grinds.
 
 **FILED 2026-08-02 from the first fully instrumented device turn (#228's instrument,
 Release build 1843, verbose ON, the Gulfport control prompt).** The turn executed its
@@ -13311,6 +13335,34 @@ any fix lane runs.** Baseline for judgement: this trial — 12 executed / 57 ref
 **Cross-links:** the executed-call bound is #225 (correct, insufficient — again);
 the window class is #229; the trigger fix is #230. Same-tool cap held (4 executed
 max per tool); the grind is a REFUSAL loop, a distinct third mechanism.
+
+> ## 📋 BARS — PRE-REGISTERED 2026-08-02 (night), BEFORE THE FIX LANE. Written first.
+>
+> **Design chosen: the cut-and-toolless-retry.** At the FOURTH refusal in one turn
+> (threshold 3 — every healthy trial tonight had zero refusals; trial 1's refusals
+> 4–57 were pure waste, and no observed case exists where refusal ≥4 led anywhere),
+> `ToolEventRelay.started` THROWS `ToolPhaseCutError` instead of returning a string.
+> The tool protocol is already `throws`; the error surfaces as
+> `ToolCallError.underlyingError`; both send loops catch it exactly like #26/#197
+> and retry ONCE as a **routed-toolless turn** (`turnRoutedToolless = true` → empty
+> belt + the 486-token instruction set — the shape that went 10/10 tonight).
+> Deliberate scope: the retry loses this turn's tool results (mid-turn transcripts
+> are unknowable, #102) — for grind-shaped turns those results are noise by
+> definition. **The transcript-preserving deeper fix (DynamicProfile
+> `.toolCallingMode` demote, session-init-attached, re-evaluation semantics
+> unverified) is recorded as its own future spike, not attempted blind.**
+>
+> - **232-A (mechanical, sim):** refusals 1–3 return strings unchanged; the 4th
+>   attempted call in a turn throws; `beginTurn()` resets the count; a healthy turn
+>   (0 refusals) can never reach the throw. Pinned by tests written first.
+> - **232-B (mechanical, sim):** the cut error is detected both bare and wrapped in
+>   `ToolCallError`, and triggers exactly ONE toolless retry per turn.
+> - **232-C (device):** the Gulfport prompt produces reply text in **< 30s** with
+>   **≤ 3 refusals** in the log (baseline: ~2.5min / 57).
+> - **232-D (device):** healthy turns unchanged — a trial-2-shaped prompt still
+>   answers in seconds with 0 refusals and no cut line.
+> - **232-E:** the cut logs an always-on `.notice` (same convention as #26's
+>   condense line), so a cut turn is visible without verbose.
 
 ## 231. 🐛 RELEASE-ONLY: the chat screen scrambles — transcript collapses, identity strip lands on the input bar. Debug is fine, so every check we run was blind to it (#218's family, for UI)
 
@@ -13352,7 +13404,18 @@ code, identical fresh state.** So: not the phone, not the data, not #228's diff
 >   Verbose Logging there produces the #228 lines in a captured device log.
 > - **231-D:** the DEBUG banner behavior (#205) is unchanged in Debug builds.
 
-## 230. 🎨 `currentWeather` is today-only, and "tomorrow" was the trigger: extend it to WeatherKit's daily forecast — FILED, deliberately NOT built before the run
+## 230. 🎨 `currentWeather` is today-only, and "tomorrow" was the trigger: extend it to WeatherKit's daily forecast — **BUILT 2026-08-03 (AM); Bar 3.1 MET ON DEVICE same morning**
+
+> **✅ Bar 3.1 MET ON DEVICE — 2026-08-03, ~7:38 AM, Owen's at-work test (OTA
+> install of the fix branch, fresh chat, screenshot in hand).** "What's the
+> weather going to be like in Gulfport, MS, tomorrow" → **2 tool calls** (chip),
+> a **real tomorrow forecast** — mostly clear, high 91°F / low 77°F, 38% chance
+> of precipitation — answered within the same clock minute (sent 7:38 AM, reply
+> stamped 7:38 AM; receipt IN 5.8K · OUT 84). The relabel check passes on the
+> numbers alone: the same phone's "right now" turn, same minute, reported today
+> at high 87°F / low 76°F / 79% precip — tomorrow's row is **different data**,
+> not today's re-dated (the #199-suspect shape ruled out on evidence). The prompt
+> that filed #225, #229, and #232 now ends at call 2.
 
 **FILED 2026-08-02, Lane 3 of `dispatch/FABLE-T27-LOCAL-BRAIN-DEVICE-RUN.md`.**
 (OPEN_ITEMS #230 — not PR #230; the two sequences collide here, per the standing

@@ -23,20 +23,20 @@ struct ToolCallInstrumentTests {
 
     // MARK: - Per-turn counters (the instrument's data source)
 
-    @Test func executedCallsCountUpWithinATurn() {
+    @Test func executedCallsCountUpWithinATurn() throws {
         let relay = ToolEventRelay()
-        _ = relay.started("currentWeather")
-        _ = relay.started("readCalendar")
-        _ = relay.started("currentWeather")
+        _ = try relay.started("currentWeather")
+        _ = try relay.started("readCalendar")
+        _ = try relay.started("currentWeather")
         #expect(relay.executedCallsThisTurn == 3)
         #expect(relay.refusalsThisTurn == 0)
     }
 
-    @Test func aRefusedCallCountsAsARefusalNotAnExecution() {
+    @Test func aRefusedCallCountsAsARefusalNotAnExecution() throws {
         let relay = ToolEventRelay()
         relay.governor = ToolCallGovernor(perTurnBudget: 1, sameToolRepeatCap: 99)
-        _ = relay.started("currentWeather")
-        let admission = relay.started("searchConversations")
+        _ = try relay.started("currentWeather")
+        let admission = try relay.started("searchConversations")
         #expect(admission.isRefused)
         #expect(relay.executedCallsThisTurn == 1)
         #expect(relay.refusalsThisTurn == 1)
@@ -45,13 +45,13 @@ struct ToolCallInstrumentTests {
     /// #225's invariant, re-pinned here so the instrument can never regress it:
     /// a refused call gets a LOG line (L0-B) but still no chip — a chip for work
     /// that never happened is the lie #180 is about.
-    @Test func aRefusedCallStillEmitsNoChip() {
+    @Test func aRefusedCallStillEmitsNoChip() throws {
         let relay = ToolEventRelay()
         relay.governor = ToolCallGovernor(perTurnBudget: 1, sameToolRepeatCap: 99)
         var events: [ToolCallEvent] = []
         relay.emit = { events.append($0) }
-        _ = relay.started("currentWeather")
-        _ = relay.started("searchConversations")
+        _ = try relay.started("currentWeather")
+        _ = try relay.started("searchConversations")
         #expect(events.map(\.name) == ["currentWeather"])
     }
 
@@ -60,17 +60,17 @@ struct ToolCallInstrumentTests {
     /// `LocalChatBackend.beginToolTurn()` stops calling the governor directly.
     /// A leaked counter would misnumber every later turn's log; a dropped
     /// governor forward would resurrect #225's silent-strangulation bug.
-    @Test func beginTurnResetsTheCountersAndTheGovernor() {
+    @Test func beginTurnResetsTheCountersAndTheGovernor() throws {
         let relay = ToolEventRelay()
         relay.governor = ToolCallGovernor(perTurnBudget: 1, sameToolRepeatCap: 99)
-        _ = relay.started("currentWeather")
-        _ = relay.started("searchConversations")  // refused: budget spent
+        _ = try relay.started("currentWeather")
+        _ = try relay.started("searchConversations")  // refused: budget spent
 
         relay.beginTurn()
 
         #expect(relay.executedCallsThisTurn == 0)
         #expect(relay.refusalsThisTurn == 0)
-        #expect(relay.started("readCalendar") == .allowed, "a new turn must start with a full budget")
+        #expect(try relay.started("readCalendar") == .allowed, "a new turn must start with a full budget")
     }
 
     // MARK: - Log-line shapes (pure; pinned so the grep keys stay stable)
@@ -167,5 +167,62 @@ struct ToolCallInstrumentTests {
         backend.recordSessionBudgetIfVerbose(offered: [], transcript: Transcript())
         backend.flushSessionBudgetMeasurements()
         #expect(backend.pendingSessionBudgets.isEmpty)
+    }
+
+    // MARK: - #232: the refusal cut (bars 232-A/B, pre-registered in the entry)
+    //
+    // Trial 1, instrumented: after the 12-call cap the model burned 57
+    // refusal→re-infer cycles at ~2.4s each — refusals as tool output keep it
+    // in tool-calling mode, and NOTHING bounded the loop. The cut ends the
+    // tool phase STRUCTURALLY: the fourth attempted call in one turn throws
+    // `ToolPhaseCutError` (the Tool protocol is already `throws`), which the
+    // send loops catch like #26/#197 and retry once as a routed-toolless turn.
+
+    @Test func refusalsOneThroughThreeAreStringsTheFourthAttemptThrows() throws {
+        let relay = ToolEventRelay()
+        relay.governor = ToolCallGovernor(perTurnBudget: 1, sameToolRepeatCap: 99)
+        _ = try relay.started("currentWeather")                       // executed
+        for attempt in 1...3 {
+            let admission = try relay.started("searchConversations")  // refusals 1–3
+            #expect(admission.isRefused, "refusal \(attempt) must still be a string the model can react to")
+        }
+        #expect(relay.refusalsThisTurn == 3)
+        #expect(throws: ToolPhaseCutError.self) {
+            _ = try relay.started("searchConversations")              // attempt 4 → cut
+        }
+    }
+
+    @Test func beginTurnRearmsTheCut() throws {
+        let relay = ToolEventRelay()
+        relay.governor = ToolCallGovernor(perTurnBudget: 0, sameToolRepeatCap: 99)
+        for _ in 1...3 { _ = try relay.started("a") }
+        #expect(throws: ToolPhaseCutError.self) { _ = try relay.started("a") }
+
+        relay.beginTurn()
+
+        // A fresh turn gets refusal STRINGS again, not an instant throw.
+        #expect(try relay.started("a").isRefused)
+    }
+
+    /// A turn with no refusals can never reach the throw — the cut must be
+    /// unobservable on every healthy path (bar 232-D's sim half).
+    @Test func aHealthyTurnNeverThrows() throws {
+        let relay = ToolEventRelay()
+        relay.governor = ToolCallGovernor(perTurnBudget: 12, sameToolRepeatCap: 4)
+        for i in 1...12 {
+            #expect(try relay.started("tool\(i)") == .allowed)
+        }
+    }
+
+    /// The send loops see the cut either bare or wrapped in the SDK's
+    /// `ToolCallError` — both must route to the toolless retry (bar 232-B).
+    @Test func theCutIsDetectedBareAndWrappedInToolCallError() {
+        #expect(LocalChatBackend.isToolPhaseCut(ToolPhaseCutError()))
+        let wrapped = LanguageModelSession.ToolCallError(
+            tool: DeviceStatusTool(relay: ToolEventRelay()),
+            underlyingError: ToolPhaseCutError()
+        )
+        #expect(LocalChatBackend.isToolPhaseCut(wrapped))
+        #expect(!LocalChatBackend.isToolPhaseCut(CocoaError(.fileNoSuchFile)))
     }
 }

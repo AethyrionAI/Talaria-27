@@ -23,7 +23,7 @@ struct DeviceStatusTool: Tool {
     struct Arguments {}
 
     func call(arguments: Arguments) async throws -> String {
-        if case .refused(let refusal) = await relay.started(name) { return refusal }
+        if case .refused(let refusal) = try await relay.started(name) { return refusal }
         let result = await MainActor.run { Self.statusReport() }
         await relay.completed(name)
         return result
@@ -89,7 +89,7 @@ struct LocationTool: Tool {
     struct Arguments {}
 
     func call(arguments: Arguments) async throws -> String {
-        if case .refused(let refusal) = await relay.started(name) { return refusal }
+        if case .refused(let refusal) = try await relay.started(name) { return refusal }
         defer { Task { await relay.completed(name) } }
 
         let status = await location.ensureAuthorization()
@@ -185,7 +185,7 @@ struct MotionTool: Tool {
     struct Arguments {}
 
     func call(arguments: Arguments) async throws -> String {
-        if case .refused(let refusal) = await relay.started(name) { return refusal }
+        if case .refused(let refusal) = try await relay.started(name) { return refusal }
         defer { Task { await relay.completed(name) } }
 
         guard CMPedometer.isStepCountingAvailable() else {
@@ -253,7 +253,7 @@ struct WeatherTool: Tool {
     let name = "currentWeather"
     /// Static so the pinned rollback twin ships the SAME description — the two
     /// cells must differ in exactly one thing, the schema.
-    static let productionDescription = "Get live weather conditions and today's forecast from Apple Weather — at the user's current location, or at a named place if one is given."
+    static let productionDescription = "Get live weather conditions plus today's and tomorrow's forecast from Apple Weather — at the user's current location, or at a named place if one is given."
     let description = WeatherTool.productionDescription
     let relay: ToolEventRelay
     let location: DeviceLocationProvider
@@ -270,11 +270,41 @@ struct WeatherTool: Tool {
     struct Arguments {
         @Guide(description: "Optional place name to get weather for (city or address). Leave empty for the user's current location.")
         var place: String?
+        // #230: "tomorrow" was unmeetable by the whole belt, and the unmet
+        // demand displaced into searchConversations (#216) and became #225's
+        // spiral and #232's grind. One extra guided value ends that question
+        // at call 2.
+        @Guide(description: "Optional: 'tomorrow' for tomorrow's forecast. Leave empty for current conditions and today.")
+        var day: String?
     }
 
     func call(arguments: Arguments) async throws -> String {
-        await Self.performLookup(rawPlace: arguments.place, relay: relay,
-                                 location: location, name: name)
+        try await Self.performLookup(rawPlace: arguments.place, rawDay: arguments.day,
+                                 relay: relay, location: location, name: name)
+    }
+
+    // MARK: #230 — the day the caller asked for (pure, pinned)
+
+    enum RequestedDay: Equatable { case today, tomorrow, unsupported }
+
+    nonisolated static func requestedDay(from raw: String?) -> RequestedDay {
+        let day = (raw ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if day.isEmpty || day == "today" || day == "now" { return .today }
+        if day == "tomorrow" { return .tomorrow }
+        return .unsupported
+    }
+
+    nonisolated static func tomorrowForecastLine(
+        label: String, condition: String, high: String, low: String, precipPercent: Int
+    ) -> String {
+        "Tomorrow at \(label): \(condition), high \(high), low \(low), \(precipPercent)% chance of precipitation"
+    }
+
+    /// Real-data-only: a horizon this tool cannot serve is named back, never
+    /// silently answered with today's numbers — the date-relabel is the
+    /// #199-suspect shape from the 2026-08-02 control.
+    nonisolated static func unsupportedDayAnswer(requested: String) -> String {
+        "Weather is available for today and tomorrow only — \"\(requested)\" is beyond this tool's forecast horizon. Ask about today or tomorrow."
     }
 
     /// #198: forward geocode inside one MainActor hop — `MKMapItem` is
@@ -286,11 +316,19 @@ struct WeatherTool: Tool {
         return (item.location, item.name)
     }
 
-    static func performLookup(rawPlace: String?, relay: ToolEventRelay,
-                              location: DeviceLocationProvider, name: String) async -> String {
+    static func performLookup(rawPlace: String?, rawDay: String? = nil, relay: ToolEventRelay,
+                              location: DeviceLocationProvider, name: String) async throws -> String {
         // nil and "" are the same request: weather here.
         let place = (rawPlace ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        if case .refused(let refusal) = await relay.started(name, detail: place.isEmpty ? nil : place) { return refusal }
+        let day = requestedDay(from: rawDay)
+        let detailBase = place.isEmpty ? "" : place
+        let detail = day == .tomorrow ? (detailBase.isEmpty ? "tomorrow" : "\(detailBase) · tomorrow") : detailBase
+        if case .refused(let refusal) = try await relay.started(name, detail: detail.isEmpty ? nil : detail) { return refusal }
+        if day == .unsupported {
+            let answer = unsupportedDayAnswer(requested: (rawDay ?? "").trimmingCharacters(in: .whitespacesAndNewlines))
+            await relay.completed(name, result: answer)
+            return answer
+        }
         // #212: record what this tool actually RETURNED, not merely that it
         // finished. 40 of 40 weather trials failed with WeatherKit's real
         // error in hand and the record kept only the model's paraphrase.
@@ -307,12 +345,12 @@ struct WeatherTool: Tool {
         // the thing being fixed.** `relay.completed(result:)` is battery-store
         // only and never reaches a transcript (#197), so the raw text belongs
         // there and the sanitised sentence belongs in the reply.
-        let (answer, diagnostic) = await lookup(place: place, location: location)
+        let (answer, diagnostic) = await lookup(place: place, day: day, location: location)
         await relay.completed(name, result: diagnostic ?? answer)
         return answer
     }
 
-    private static func lookup(place: String, location: DeviceLocationProvider) async -> (answer: String, diagnostic: String?) {
+    private static func lookup(place: String, day: RequestedDay, location: DeviceLocationProvider) async -> (answer: String, diagnostic: String?) {
         let target: CLLocation
         let label: String
         if place.isEmpty {
@@ -343,6 +381,23 @@ struct WeatherTool: Tool {
             let formatter = MeasurementFormatter()
             formatter.unitOptions = .naturalScale
             formatter.numberFormatter.maximumFractionDigits = 0
+
+            // #230: the tomorrow path answers from the DAILY forecast — the
+            // exact data the "Gulfport tomorrow" turn needed at call 2 and
+            // could not get. Calendar-matched, never index-assumed.
+            if day == .tomorrow {
+                guard let tomorrow = weather.dailyForecast.first(where: { Calendar.current.isDateInTomorrow($0.date) }) else {
+                    return ("Apple Weather returned no forecast for tomorrow at \(label).", "NO-TOMORROW-ENTRY")
+                }
+                let line = Self.tomorrowForecastLine(
+                    label: label,
+                    condition: tomorrow.condition.description,
+                    high: formatter.string(from: tomorrow.highTemperature),
+                    low: formatter.string(from: tomorrow.lowTemperature),
+                    precipPercent: Int(tomorrow.precipitationChance * 100)
+                )
+                return (line, nil)
+            }
 
             let current = weather.currentWeather
             var lines = [
@@ -397,7 +452,7 @@ struct WeatherToolRequiredPlace: Tool {
     }
 
     func call(arguments: Arguments) async throws -> String {
-        await WeatherTool.performLookup(rawPlace: arguments.place, relay: relay,
+        try await WeatherTool.performLookup(rawPlace: arguments.place, relay: relay,
                                         location: location, name: name)
     }
 }
@@ -418,7 +473,7 @@ struct PlacesTool: Tool {
 
     func call(arguments: Arguments) async throws -> String {
         let query = arguments.query.trimmingCharacters(in: .whitespacesAndNewlines)
-        if case .refused(let refusal) = await relay.started(name, detail: query) { return refusal }
+        if case .refused(let refusal) = try await relay.started(name, detail: query) { return refusal }
         defer { Task { await relay.completed(name) } }
         guard !query.isEmpty else { return "No search query was given." }
 
@@ -533,7 +588,7 @@ struct ContactsTool: Tool {
 
     func call(arguments: Arguments) async throws -> String {
         let query = arguments.contactName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if case .refused(let refusal) = await relay.started(name, detail: query) { return refusal }
+        if case .refused(let refusal) = try await relay.started(name, detail: query) { return refusal }
         defer { Task { await relay.completed(name) } }
         guard !query.isEmpty else { return "No name was given to look up." }
 
