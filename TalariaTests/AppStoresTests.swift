@@ -1121,6 +1121,45 @@ struct AppStoresTests {
                 "loop never attempted a reconcile — the test proved nothing")
     }
 
+    // MARK: #235 F3 — tail placement for recovered replies
+
+    /// Owen's placement rule: a recovered reply DISPLACED by later exchanges
+    /// moves to the tail and is stamped with the prompt it answers; an
+    /// undisplaced reply is untouched — byte-identical adoption.
+    @Test func displacedRecoveredReplyMovesToTailWithMarker() {
+        let reply = Message(sender: .hermes, content: "the late answer", status: .delivered)
+        let later1 = Message(sender: .user, content: "next question", status: .delivered)
+        let later2 = Message(sender: .hermes, content: "next answer", status: .delivered)
+        let placed = ChatStore.placingRecoveredReply(
+            reply.id, prompt: "So what's the holdup?", in: [reply, later1, later2])
+        #expect(placed.last?.id == reply.id)
+        #expect(placed.last?.recoveredForPrompt == "So what's the holdup?")
+        #expect(placed.map(\.id) == [later1.id, later2.id, reply.id])
+    }
+
+    @Test func undisplacedRecoveredReplyIsUntouched() {
+        let q = Message(sender: .user, content: "question", status: .delivered)
+        let reply = Message(sender: .hermes, content: "answer", status: .delivered)
+        let placed = ChatStore.placingRecoveredReply(reply.id, prompt: "question", in: [q, reply])
+        #expect(placed.map(\.id) == [q.id, reply.id])
+        #expect(placed.last?.recoveredForPrompt == nil)
+    }
+
+    @Test func placementWithUnknownReplyIDIsIdentity() {
+        let q = Message(sender: .user, content: "question", status: .delivered)
+        let placed = ChatStore.placingRecoveredReply(UUID(), prompt: nil, in: [q])
+        #expect(placed.map(\.id) == [q.id])
+    }
+
+    /// Prompt text is clipped to 60 chars for the marker.
+    @Test func markerPromptIsClipped() {
+        let reply = Message(sender: .hermes, content: "late", status: .delivered)
+        let later = Message(sender: .user, content: "x", status: .delivered)
+        let long = String(repeating: "p", count: 200)
+        let placed = ChatStore.placingRecoveredReply(reply.id, prompt: long, in: [reply, later])
+        #expect(placed.last?.recoveredForPrompt?.count == 60)
+    }
+
     @Test @MainActor
     func budgetExpiryKeepsPendingRunAndSingleShotResolves() async throws {
         // #235 F2: the loop's budget expiring must NOT orphan the run —

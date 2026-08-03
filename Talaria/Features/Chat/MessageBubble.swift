@@ -226,6 +226,15 @@ struct MessageBubble: View {
             } else if message.isStreaming && message.content.isEmpty && message.toolActivities.isEmpty {
                 streamingPlaceholder
             } else {
+                // #235 F3: a recovered reply displaced to the tail says which
+                // question it answers — a late answer must never read as a
+                // reply to the newest one (#180: degradation visible).
+                if let prompt = message.recoveredForPrompt {
+                    MonoLabel("↩ RECOVERED REPLY — “\(prompt)”", size: 8,
+                              tracking: Design.Tracking.mono,
+                              color: Design.Colors.mutedForeground)
+                }
+
                 // #4.15: reasoning sits above the answer — where it happened.
                 // While still content-less the live line renders inside the
                 // streaming placeholder instead, so don't double it up here.
