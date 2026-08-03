@@ -13294,6 +13294,26 @@ path); one vanishing = render/merge-level. Screenshot owed for the record.
 re-entry surface (two triggers + tail-move) is new — treat the fix lane as
 #235's follow-on, bars pre-registered HERE before it runs.
 
+> **EVIDENCE UPGRADE, same sitting (Owen's 12:58 screenshots): the WHOLE
+> THREAD duplicated, not just the reply — header 32 → 128 messages, two
+> exact DOUBLINGS matching the two notifications.** The seams are visible
+> in-transcript: [12:48 chips] → [the 12:36 prompt again] → [12:36 chips
+> again], repeated; one prompt copy still carries ⏱ (the pre-adoption
+> local) while others carry ✓ (adopted); the two marked recovered replies
+> sit back-to-back. **Mechanism (b) effectively confirmed: message identity
+> does not survive re-fetch** — each adoption unions a full fresh-identity
+> copy of the transcript into the local one (#120's class at conversation
+> scale). (a) remains the explanation for the second pass running.
+> **Severity raised:** store-level and persistent (14 min later, same
+> count), and every future stream-loss recovery on this thread doubles it
+> again. Discriminator STILL owed: drawer-reopen of the chat — prediction:
+> the openSession path replaces wholesale from the server transcript and
+> HEALS the thread to single copies; if it does not, cache adoption unions
+> too and the defect is one layer deeper. **Fix-lane scope sketch (route
+> before building):** stable message identity across fetches (derive the
+> client id deterministically from the server row id — the root #120-family
+> fix) + reconcile idempotence (a resolved run id never resolves twice).
+
 ## 236. 🔧 MessageIdentityUITests flaked AGAIN — the #195 family's second variant: reply rendered a hair past the 20s wait on a hot sim
 
 **FILED 2026-08-03 (midday) from the #235 lane's first gate run.**
