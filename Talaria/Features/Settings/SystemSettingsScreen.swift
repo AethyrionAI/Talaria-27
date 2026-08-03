@@ -205,7 +205,9 @@ struct SystemSettingsScreen: View {
         }
     }
 
-    #if DEBUG
+    // #231/#228: compiled in EVERY build — the body's usage and this definition
+    // must stay un-gated together (the gate's Release leg caught exactly the
+    // half-promotion #218 warns about: usage promoted, definition still DEBUG).
     private var developerGroup: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             groupLabel("// Developer")
@@ -218,7 +220,6 @@ struct SystemSettingsScreen: View {
             .groupPanel()
         }
     }
-    #endif
 
     // MARK: Row builder
 
@@ -366,11 +367,12 @@ struct SystemSettingsScreen: View {
         settingsStore.settings.notificationsEnabled ? Design.Brand.accent : Design.Colors.mutedForeground
     }
 
-    #if DEBUG
+    // #231: un-gated with developerGroup (its only consumer). The environment
+    // model is already Release-clean — DeveloperSettingsScreen reads it in
+    // every build and Release resolves to Production-only.
     private var environmentValue: String {
         settingsStore.settings.environment.displayLabel.uppercased()
     }
-    #endif
 
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
