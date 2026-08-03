@@ -1,4 +1,5 @@
 import Foundation
+import FoundationModels
 import Testing
 @testable import Talaria
 
@@ -120,5 +121,51 @@ struct ToolCallInstrumentTests {
         let line = LocalChatBackend.sessionBudgetLogLine(
             toolCount: 13, toolTokens: 2500, transcriptTokens: nil, window: 8192)
         #expect(line == "session budget: 13 tool(s) ~2500 tok + transcript ~— tok of window 8192 — free — (#228)")
+    }
+
+    // MARK: - Deferred measurement (#228, revised after the device falsified L0-D)
+    //
+    // The first shipped shape measured DURING the turn: its tokenizer round
+    // trips shared the FM client plumbing with the live stream, and their
+    // teardown invalidated the turn's provider connection (ModelManagerError
+    // 1001 → the UI's "LanguageModelError -1", device, 2026-08-02, trial 1).
+    // The revision captures values at session build and measures only at the
+    // post-turn flush. These tests pin the queue discipline; the measurement
+    // itself needs the model and stays a thin async tail.
+
+    private func makeBackend() -> LocalChatBackend {
+        LocalChatBackend(
+            persistence: UserDefaultsAppPersistenceStore(
+                defaults: UserDefaults(suiteName: "tool-call-instrument-tests")!
+            ),
+            intelligence: LocalIntelligenceService()
+        )
+    }
+
+    @Test func budgetRecordingQueuesNothingWhenVerboseIsOff() {
+        TalariaLog.setVerbose(false)
+        let backend = makeBackend()
+        backend.recordSessionBudgetIfVerbose(offered: [], transcript: Transcript())
+        #expect(backend.pendingSessionBudgets.isEmpty)
+    }
+
+    /// Two records per turn is the real shape: a #26 overflow rebuilds the
+    /// session mid-turn, and BOTH builds' budgets must survive to the flush.
+    @Test func budgetRecordingQueuesOnePerSessionBuildWhenVerboseIsOn() {
+        TalariaLog.setVerbose(true)
+        defer { TalariaLog.setVerbose(false) }
+        let backend = makeBackend()
+        backend.recordSessionBudgetIfVerbose(offered: [], transcript: Transcript())
+        backend.recordSessionBudgetIfVerbose(offered: [], transcript: Transcript())
+        #expect(backend.pendingSessionBudgets.count == 2)
+    }
+
+    @Test func flushDrainsTheQueue() {
+        TalariaLog.setVerbose(true)
+        defer { TalariaLog.setVerbose(false) }
+        let backend = makeBackend()
+        backend.recordSessionBudgetIfVerbose(offered: [], transcript: Transcript())
+        backend.flushSessionBudgetMeasurements()
+        #expect(backend.pendingSessionBudgets.isEmpty)
     }
 }

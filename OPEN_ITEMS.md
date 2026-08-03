@@ -13363,6 +13363,24 @@ per call.
 > no model; its budget line correctly renders "—", which the L0-C test pins).
 > One find while building: `TalariaLog.verbose()` emits at `.debug`, which Console.app
 > suppresses — the instrument logs `.notice` directly for exactly that reason.
+>
+> ## ⚠️ L0-D FALSIFIED ON DEVICE THE SAME NIGHT — the instrument killed the turn it measured
+>
+> Device, Release build 1842, verbose ON, trial 1: the budget measurement's
+> fire-and-forget tokenizer round-trips ran CONCURRENTLY with the turn's streaming
+> request, and their teardown swept the turn's prewarm sessions (six `cancel session`
+> in 1ms, log 22:39:40.029) and invalidated its InferenceProvider connection —
+> `ModelManagerError 1001`, surfaced in the UI as `LanguageModelError -1`, **turn dead
+> in one second.** Confirmed by control: same prompt, verbose OFF, the turn ran
+> normally. The sim could never catch this — no model. **L0-C's number WAS captured
+> before the kill: `13 tool(s) ~1434 tok + transcript ~1823 tok of window 8192 —
+> ~4935 free` — the belt + instructions consume ~40% of the window before the user's
+> first word (Lane 2.1's answer).**
+>
+> **REVISED same night (tests first):** values captured at session build; tokenizer
+> round-trips + the log line deferred to a post-turn flush
+> (`flushSessionBudgetMeasurements()`, both send paths, every exit). L0-D's bar is
+> restated: *the instrument does no model-runtime work while a turn is live.*
 
 **FILED 2026-08-02 from `dispatch/FABLE-T27-LOCAL-BRAIN-DEVICE-RUN.md` Lane 0, the hard
 prerequisite for the whole run.** On the night of #225's device falsification, Owen
@@ -13562,6 +13580,27 @@ not, there is a fourth source.
 > registered" line (#231). The 274s/0-answer control numbers are Debug-speed numbers;
 > the overflow mechanism is config-independent, but L1-B comparisons against 274s
 > must say "vs a Debug baseline."
+>
+> ## 🎯 CONTROL RESULT, RELEASE BUILD 1842, VERBOSE OFF (2026-08-02 22:43): **B2 PASSED
+> ## ON DEVICE FOR THE FIRST TIME — the governor's cap is what forced the answer.**
+>
+> Same prompt, fresh chat, production routing, standalone, hand-launched.
+> **Answered YES** (first ever on this prompt): a real forecast paragraph plus an
+> honest "couldn't find historical data" residue. **12 executed tool calls — the
+> per-turn budget hit EXACTLY**, chips: location → weather (the right call, #2) →
+> displacement (searchConversations ×3, places, weather again…) → cap → answer from
+> what it had. **Wall ~2min (22:43→22:45), receipt IN 12.1K · OUT 187, CTX 9%,
+> NO overflow.** Refusal count unknown — the instrument was off (its own #228 story).
+> - **L1-A evidence: the turn speaks. L1-B evidence: FAIL at ~120s** — Owen's verdict
+>   on the spot: *"it checks my location, checks the weather, then gets sidetracked
+>   doing everything else instead of giving me the weather."* The answer existed at
+>   call 2; calls 3–12 were displacement waste, each one a full inference round-trip.
+>   #230 (the trigger fix) targets exactly this; #229 owns the window class.
+> - **Fabrication SUSPECT, not counted:** the reply labels numbers "tomorrow" from a
+>   today-only tool — possible date-relabel (#199 family). Unverifiable without the
+>   instrument's detail capture; re-checkable once verbose runs clean.
+> - Why no overflow here vs 21:16's `8,218 > 8,192` is NOT yet explained (Debug vs
+>   Release is the visible variable, not a mechanism) — stays open under #229.
 
 > **✅ MECHANISM BUILT 2026-08-02 — `ToolCallGovernor`, per-turn budget 12 + same-tool
 > cap 4, wired into all 18 tool call sites.** Refusals return as the tool's OWN OUTPUT
