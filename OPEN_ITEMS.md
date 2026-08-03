@@ -13642,6 +13642,11 @@ time rendering unmissable. Bars pre-register HERE before any fix lane.
 > was created. …ask the user whether they meant AM or PM…"), keep the
 > display time AFTER the ask instruction, and pin the new wording in the
 > 233-A tests. 233-D verdict still pending (midday/evening sends).
+>
+> **233-D midday data point (Owen, ~12:0x, build 1874/1886 era): reported
+> SUCCESSFUL** — shape (asked AM/PM vs silently staged 4 PM) unreported,
+> asked. **The pre-registered EVENING send runs after 5 PM** — Owen
+> self-scheduled; the evening condition is the baseline-matching half.
 
 > **✅ 233-E MET ON DEVICE — 2026-08-03 ~1 PM, build 1874 (the hardened
 > string, Owen routed the re-fix same hour).** Full chain observed: the
