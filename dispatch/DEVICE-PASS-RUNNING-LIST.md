@@ -14,7 +14,7 @@ verdicts.
 >
 > | # | sitting | what it covers | needs |
 > |---|---|---|---|
-> | **1** | **Two minutes, right now, standalone** | **§C5 only** — export `1835BBF9` and #200F's run | nothing. ⛔ **Do this before ANY reinstall or battery run** |
+> | **1** | ✅ **DONE 2026-08-02** — devicectl container pull, corded | **§C5** — `1835BBF9` rescued, 0/10 CONFIRMED; **#200F was already evicted** | see §C5's verdict block |
 > | **2** | **The big one — an evening** | **§F5's outage** and everything riding it: **#151** (3 shapes), **#145** (all of A–E(a)), **#180's instance-4 rejudgement**, **#117**. Then §F1's cheap rows (**#133/#143 row count**, **#222** image, **#193**, **#121**, **#122**, **#191**, **#192**) and **§F7a–c** (approvals — no setup) | > 25 min outage window; a build carrying #237–#242 |
 > | **3** | **Voice + calls — needs a second person** | **§A1b** (real incoming call), **§A2b** (#221 brain-governs-voice), **§F6** (#129, #58/#179, E1 residual) | someone who will call you |
 >
@@ -59,6 +59,11 @@ surface once you are already holding the phone.
 
 > ## ⛔ ORDERING RULE — **§C5 GOES FIRST, ahead of everything on this page.**
 >
+> **✅ DISCHARGED 2026-08-02 — §C5 ran; the whole store (all ten runs) is archived
+> off-device at `handoffs/evidence/battery-runs/`. Installs and battery runs no
+> longer threaten anything. Kept for the arc: the race was already half-lost —
+> #200F's run was evicted before this rule was ever written.**
+>
 > **§C5 exports the ONLY copies of two irreplaceable battery runs**, and they are
 > exposed to two different erasers that most of this list triggers:
 >
@@ -82,14 +87,14 @@ surface once you are already holding the phone.
 
 | for | you need | why it bites |
 |---|---|---|
-| **§C5** | **nothing — two minutes, do it first** | ⛔ see the ordering rule above. It is the only item here that gets **harder by waiting**, and the only one guarding evidence that cannot be regenerated. |
+| **§C5** | ✅ **DONE 2026-08-02** | rescued via devicectl container pull; verdict in §C5. The ordering rule above is discharged. |
 | **A1** (the top item) | **a second phone, or someone who will call you** | A1 is a real incoming call mid-session. There is no software substitute — the whole point is the OS interrupting us for real. **This is the single prerequisite most likely to end a sitting early.** |
 | **A2** | to background the app **overnight** | the system decides when `BGAppRefreshTask` runs; it cannot be forced. Start it before bed on a sitting day, read the log the next morning. |
 | **F3** | to **DELETE the app** | ⚠️ **destructive — local sessions and the Keychain stamp go with it.** Export anything you want from Battery Results FIRST. Run F3 **last** in any sitting for this reason. |
 | **F5** | a **> 25 minute** induced connector outage | the window IS the check — the original close scored a false PASS on a short one. Do not squeeze this between other checks. |
-| **B1 / F6** | the `probe/t27-130-halfduplex` branch **built to the phone** — **but B1 is PARKED, so do not stage it yet** | ⛔ **§C5 must be exported BEFORE this branch goes anywhere near the phone** (ordering rule above). And B1 is parked by Owen's own instruction — *"leave it parked as a reminder"* — so its blocker was never OTA-vs-corded. **Staging a build for a parked item, onto the phone holding §C5's only evidence, is the wrong move twice over.** It is a separate build from `main`, so it cannot share a sitting with the `main` checks either. |
+| **B1 / F6** | the `probe/t27-130-halfduplex` branch **built to the phone** — **but B1 is PARKED, so do not stage it yet** | ~~⛔ §C5 must be exported BEFORE this branch goes anywhere near the phone~~ *(✅ discharged 2026-08-02 — evidence off-device; B1 stays parked regardless).* And B1 is parked by Owen's own instruction — *"leave it parked as a reminder"* — so its blocker was never OTA-vs-corded. **Staging a build for a parked item, onto the phone holding §C5's only evidence, is the wrong move twice over.** It is a separate build from `main`, so it cannot share a sitting with the `main` checks either. |
 | **C1–C4** | phone **foregrounded and on power** | backgrounding kills a battery run outright. |
-| **⭐ SITTING 2, and most of §F1** | **a build carrying PRs #237–#242** — i.e. `main` at **`578df8c`** or later | ⛔ **EXPORT §C5 FIRST — an install is exactly what the ordering rule guards against.** Then: **remote** → `scripts/mac/ota-stage.sh main` on the Mac Mini, install from Safari at `https://owens-mac-mini.tail5663a6.ts.net`; **at the desk** → Xcode bridge `RunProject(tabIdentifier:"windowtab1")`. Both are **upgrade-installs** — same bundle id, app data (and Battery Results) persists. **Checks that NEED this build:** #145's outage rows (Part E(a) shipped in #242), #133/#143's row count (#241), #180's rejudgement (#237). Running them on an older build measures the OLD app and produces a verdict that reads as a pass. |
+| **⭐ SITTING 2, and most of §F1** | **a build carrying PRs #237–#242** — i.e. `main` at **`578df8c`** or later, **built DEBUG** — a Release build compiles out the battery instruments, Battery Results, AND the Developer screen link (so no verbose-logging toggle); discovered 2026-08-02 when a fresh Release install hid them all | ~~⛔ EXPORT §C5 FIRST~~ *(✅ done 2026-08-02 — evidence off-device, installs are now safe)*. Then: **remote** → `scripts/mac/ota-stage.sh main` on the Mac Mini, install from Safari at `https://owens-mac-mini.tail5663a6.ts.net`; **at the desk** → Xcode bridge `RunProject(tabIdentifier:"windowtab1")`. Both are **upgrade-installs** — same bundle id, app data (and Battery Results) persists. **Checks that NEED this build:** #145's outage rows (Part E(a) shipped in #242), #133/#143's row count (#241), #180's rejudgement (#237). Running them on an older build measures the OLD app and produces a verdict that reads as a pass. |
 | **F7d** | **host-side access to turn Hermes YOLO/auto-approve OFF**, and the discipline to restore it after | The other three F7 rows (**F7a–c**, the on-device confirm gate) need **nothing** — run them in any sitting. Only F7d touches the host. It is a **discovery probe, not a pass/fail**: Talaria handles no approval event at all, so the expected outcome is a stalled turn. Bounded by #145 Part A's timeouts now, which is itself worth confirming. |
 
 ### Decisions owed by you — no phone, no build, unblock other work
@@ -99,7 +104,7 @@ surface once you are already holding the phone.
 | **D2** | **Should LAN-hosted backends work at all?** `http://192.168.x` and MagicDNS names are ATS-blocked app-wide today; only the Tailscale CGNAT range is excepted. | If yes, it needs its own measured arm — and note `NSAllowsLocalNetworking` was only ever tested against a **CGNAT** host, never a `192.168.x` one, so do not assume the key does what its name says. If no, we close the ATS thread. |
 | ~~**#152**~~ | ~~Pick the pairing-surface label~~ — **WITHDRAWN 2026-08-01. This was not owed; it SHIPPED 2026-07-24.** The row reads **"Pairing & Devices"** in the tree today (`UplinkSettingsScreen.swift:357`, `ConnectHermesHostScreen.swift:38`), merged in **PR #146**. I put it on your plate as an open decision, and repeated it to you verbally — both wrong. If you want a different label it is now a change, not a decision. | Nothing. The device check it left behind is in **§F1**. |
 | **#164** | **Close the old UI flake, or formally quarantine it?** | Its own bar is *three consecutive green runs*; we have **one** (2026-08-01, 8/8). I did not close it on your behalf — meeting a bar is not the same as being tired of it. Your call whether the bar still earns its cost. |
-| **#170** | **Run #148's discriminator, or close as answered-for-the-world-that-exists?** | Neither shape is reachable on OJAMD — every real job carries a null `model_snapshot`. The discriminator is one read of the Mac's `cron/jobs.json`; I can do it if you want the answer. |
+| **#170** | **Run #148's discriminator, or close as answered-for-the-world-that-exists?** | Neither shape is reachable on OJAMD — every real job carries a null `model_snapshot`. The discriminator is one read of the Mac's `cron/jobs.json`; I can do it if you want the answer. **→ READ 2026-08-02: the Mac's `jobs.json` exists and holds ZERO jobs — the "one read" discriminator is unrunnable as filed.** Settling it now costs a throwaway job (create → read the written fields → delete) on the Mac's dev gateway. Still cheap, no phone — but it is a create, so it stays your call. |
 | **#47** | **Does the billing cap still matter?** | #47 is otherwise closed and in daily use. This residual is currently filed **nowhere** — it dies unless you say to keep it. |
 | ~~**tracker**~~ | ~~**Retire the old-style `## N.` headers?**~~ — **RESOLVED 2026-08-02, Owen delegated ("whatever works best for tracking and your reading it"). Decided the OTHER WAY: `## N.` is now the ONE canonical form and `## #N` was retired**, because a header reading `#223` looks like a GitHub reference and that collision has misfired twice. 33 headers converted, invariant-checked (no non-heading byte moved). | Nothing — `grep -oE '^## [0-9]+[A-Z]?\.' \| sort -u \| wc -l` is now the whole count. **#198/#199's two entries stay** (both ✅, each pointing at the other): merging entries is a content call, not a header call. |
 
@@ -149,7 +154,9 @@ as of 2026-08-01."* All four lanes ran, and the one remaining candidate is ruled
 out (see below). **The next real work needs Owen and the phone, starting with
 §C5.**
 
-> ⏳ **ONE THING IS TIME-SENSITIVE — §C5.** #216A's re-read landed on a question
+> ~~⏳ ONE THING IS TIME-SENSITIVE — §C5.~~ **✅ RAN 2026-08-02 — PARTIAL; see
+> §C5's verdict. It was indeed time-sensitive: half the evidence was already
+> gone.** #216A's re-read landed on a question
 > only two saved battery runs can answer, and the store prunes. Two minutes on the
 > phone, no battery run needed, and it is the only item here that gets *harder* by
 > waiting. **See the ordering rule above — it goes first, ahead of everything.**
@@ -339,7 +346,46 @@ Both verdicts carried a stated thermal confound running AGAINST the winner, so a
 matched-thermal re-run would strengthen conclusions that are currently honest but
 qualified. Long; only worth a dedicated sitting.
 
-### C5 · Rescue two battery run records before they are pruned · **[DO THIS FIRST — IT IS A RACE, AND THE ONLY ONE ON THIS LIST]**
+### C5 · Rescue two battery run records before they are pruned · ✅ **RAN 2026-08-02 — PARTIAL. The race was already half-lost.**
+
+> ## ✅ VERDICT (2026-08-02, corded): `1835BBF9` RESCUED and it CONFIRMS the 0/10. #200F's run was ALREADY EVICTED.
+>
+> **Method — no share sheet, no app UI, and none was reachable anyway:** the fresh
+> corded build turned out to be **Release**, and the entire battery panel including
+> Battery Results is `#if DEBUG` — the export surface §C5 assumed did not exist on
+> the phone. The records were pulled straight out of the app container instead:
+> `xcrun devicectl device copy from --domain-type appDataContainer --domain-identifier
+> org.aethyrion.talaria27 --source "Library/Application Support/BatteryRuns"`.
+> **All TEN surviving runs are archived at `handoffs/evidence/battery-runs/`**
+> (local, gitignored) — the whole store is now off-device, not just the named run,
+> so no future run or reinstall can touch this evidence. A corded Mac can always
+> reach the store this way regardless of build config.
+>
+> **`1835BBF9` (#214) — the 0/10 is a REAL ZERO.** `call_economy_report`
+> (`scripts/classify-battery-run.py`) on the rescued record: the `armed-scopedv2`
+> haiku cell logged **zero tool calls across all ten trials** — median=0, max=0,
+> empty per-tool Counter. **No silent `readCalendar`. The 0/10 grab count is not a
+> text-scoring artifact.** Corroboration inside the same record: the `armed`
+> control's haiku grabs 8/10 appear in `toolCalls` as `createReminder`×8 — text
+> scoring and the call record agree on both cells. And #216A's soft evidence is now
+> hard: the treatment's *"I cannot write a haiku without external tools"* refusals
+> came from trials that called **nothing** — an unusable-belt report, not a
+> failed-hunt narration.
+>
+> **#200F's run (2026-07-29) — EVICTED, unrecoverable.** The store held **exactly
+> 10 files**, oldest 2026-07-31 19:29Z: the old silent `maxRuns = 10` bound pruned
+> it during the 07-31/08-01 lanes, before the bound was raised. **Its
+> `armed-scoped` and `armed-createonly` haiku 0/10s stay permanently UNRESOLVED as
+> direct evidence** — do not cite them as verified. Closest available inference:
+> `armed-createonly`'s belt is identical to `armed-scopedv2`'s (`createReminder` +
+> `readCalendar`), which posted a true zero on the same prompt — supportive, not
+> probative. This is #219's abstract argument arrived in the concrete, exactly as
+> this section predicted: the evidence was destroyed silently and nothing recorded
+> that it had existed.
+>
+> Full analysis recorded in OPEN_ITEMS #216A (resolution block, 2026-08-02).
+
+**The original check, kept for the record:**
 
 **Two minutes, no battery run, and it can only get harder.** Everything else here
 waits patiently; **this one degrades every time a battery runs.**
@@ -373,16 +419,52 @@ not a two-minute read. That asymmetry is the whole reason this is first.
 
 ## D · Spotted, never chased
 
-### D1 · Cold-route timeouts at launch
-`:8765/models` and `:8000/v1/commands` timed out at launch while push/register to
-the **same relay** succeeded four seconds later. Reads like a cold Tailscale
-route rather than a service being down. **Not diagnosed.** Worth one deliberate
-cold launch with verbose on.
+### D1 · Cold-route timeouts at launch · ✅ **DIAGNOSED 2026-08-02 — the cold-route theory is DEAD; it is duplicate catalog fetches starving on the connector leg**
+
+> ## ✅ VERDICT (2026-08-02, corded cold launch, verbose on — the deliberate launch this item asked for)
+>
+> **Observed in one launch (16:20:13 local):** `push/register` to `ojamd:8000`
+> **succeeded at +0.2s**, a command-catalog fetch **succeeded at +1.8s**
+> (`[ChatStore] contextWindow ← 128000 [command catalog]`), and **two more**
+> `GET /v1/commands` tasks to the same host:port died −1001 at +5.3s. A cold
+> route cannot produce that split — the route was demonstrably warm at +0.2s.
+>
+> **Mechanism, from source on both ends:**
+> 1. **Server side:** `/v1/commands` is not relay-local — it is
+>    `send_connector_rpc(method="commands.catalog", timeout_seconds=10.0)`
+>    (`relay/app/main.py:1181`). Phone → relay → connector WS → host. The relay's
+>    graceful empty-catalog fallback only fires at ITS 10s timeout.
+> 2. **App side:** `refreshCommandCatalog` rides the **5s bootstrap probe client**
+>    by design (#136), so the app hangs up at 5s — **under** the relay's 10s —
+>    and sees −1001 instead of the designed fallback.
+> 3. **The duplication:** several launch-path callers invoke it with
+>    `force: true` (`AppContainer.swift:1363,1558,2575`) plus the online
+>    transition (`:1234`); `force` bypasses the 60s throttle, and
+>    `lastCommandCatalogRefreshAt` is stamped only on success (`:2379`). There is
+>    **no single-flight guard**, so a cold launch fires ~3 concurrent fetches.
+>    One wins; the extras starve on the connector leg (concurrent connector RPCs
+>    stalling is #54's territory) and burn their 5s.
+>
+> **User-visible harm: none found — the catalog ARRIVED.** The −1001s are noise
+> from requests the app never needed to make. **Candidate app-side fix (fits the
+> no-hardening rule — zero relay change): single-flight `refreshCommandCatalog`**
+> so concurrent callers await one in-flight fetch. Not filed as a tracker item
+> yet — Owen to say if wanted.
+>
+> **Residual, honestly stated:** the original sighting also had `:8765/models`
+> timing out; today's launch showed **no shim timeout**, so that half is
+> unreproduced and undiagnosed. If it recurs, note whether the shim was cold.
 
 ### D2 · LAN-hosted backends are ATS-blocked · **[DECISION FIRST, THEN TEST]**
 `http://192.168.x` and MagicDNS names have **no** ATS exception — only the
 Tailscale CGNAT range `100.64.0.0/10` does. This explains the
 `listSessions: 'Mac Mini' unreachable` line seen on 2026-08-01.
+
+**Live confirmation 2026-08-02 (corded console, PRE-airplane, 16:34:49 and again
+16:46:34):** `listSessions: 'Mac Mini' unreachable — The resource could not be
+loaded because the App Transport Security policy requires the use of a secure
+connection.` The MagicDNS-named profile is ATS-blocked in production, exactly as
+this section predicted — no longer an inference from the exception table.
 
 **Owen decides whether LAN backends should work at all.** If yes, it needs its
 own measured arm in #166b's harness (probes inside the app test host, so
@@ -392,6 +474,144 @@ been tried against a `192.168.x` one. **That is the untried arm** — do not ass
 the key does what its name suggests, because for CGNAT it did not.
 
 ---
+
+### D3 · Realtime voice start failed on a stale WebRTC state, fell back cleanly · **[SPOTTED 2026-08-02 — file, don't chase mid-sitting]**
+
+Console, corded, 16:41:02–06: `voice session starting on engine realtime
+(relayPaired=true)` → **`Realtime start failed (Failed to set remote answer
+sdp: Called in wrong state: closed) — falling back to local voice for this
+session`** → `active voice engine → native`. The peer connection was already
+CLOSED when the answer SDP arrived — smells like a stale/reused
+`RTCPeerConnection` from a prior session teardown. The triggering gesture was
+an accidental-but-real user tap (Owen, confirmed same sitting), so this is an
+ordinary production path, not a harness artifact. **The fallback worked
+exactly as designed** (the user got a working voice session), so this is a
+degraded-path finding, not an outage: the paid realtime path silently became
+native for that session. Worth one look at `LiveVoiceSessionService`'s peer
+connection lifecycle before the §F6 voice sitting; also note for #221's
+"should realtime be visibly indicated" question — a silent fallback is exactly
+the case an indicator would surface.
+
+Incidental same-window evidence, recorded so they aren't re-derived: **#145
+Part D observed live** (`handleAppDidBecomeActive: superseding an in-flight
+activation`), and **#192's router instruments** fired on a real brain flip
+(`brain preference → hermes [pick+default]`, `activeBrain on-device → hermes`,
+`run finished on hermes [stream-ended] — routing lock released`).
+
+### D4 · Run-completion notifications: the #38 background watch is structurally a NO-OP for home-screen backgrounding · **[FOUND 2026-08-02 — four live attempts + source, mechanism complete]**
+
+**User-visible truth today: background the app mid-run and you either get NOTHING
+(short run) or THREE identical banners at foreground (long run). Never one
+banner at the right time.** Four attempts this sitting, two with full console
+coverage, all four explained without residue:
+
+| attempt | run length vs background grace | what Owen saw |
+|---|---|---|
+| 1 (17:1x) | outlived it (or stream dropped) | nothing while waiting → **×3 on foreground** |
+| 2 (17:2x, 5-min wait, Notification Center checked: empty) | outlived it | nothing → **×3 on foreground** |
+| 3 (17:31) | finished in-process at +49s | **nothing, ever** |
+| 4 (17:34) | finished in-process at +9s | **nothing, ever** |
+
+**Mechanism, from source:**
+1. `PendingRun` is created **only on `.interrupted`** (stream drop), never during
+   healthy streaming (`ChatStore.swift:716`).
+2. The scene-phase hook `watchPendingRunIfNeeded()` (`AppEntry.swift:311` →
+   `AppContainer.swift:2178`) therefore **silently no-ops at the home-screen
+   transition** — the stream is still healthy inside iOS's background grace, so
+   there is no pending run to watch. The hook's own comment ("walking away
+   mid-run: hand the completion notify off to the relay") describes exactly the
+   case its guard excludes.
+3. Short run ⇒ finishes in-process during grace ⇒ no orphan, no watch, **no
+   notification at all** — the reply silently waits.
+4. Long run ⇒ stream dies at suspension, but `.interrupted` → `onRunDetached` →
+   `postPushWatch` only executes **on foreground** ⇒ the watch arms against an
+   already-completed run ⇒ relay **insta-pushes by design**, once per active
+   `push_registrations` row (baseline: this token likely holds 2 — recount will
+   confirm), PLUS the reconcile posts the local notify while the activation
+   chain is still `.inactive` (`ChatStore.swift:1743`), each with a **unique
+   UUID identifier** (`LocalNotificationService.swift:58`) so nothing coalesces
+   ⇒ **×3 identical banners over the app you just opened.**
+
+**Fix shape (all app-side, zero relay change):** (a) arm the watch on the
+background transition whenever a **stream is in flight**, not only when a
+PendingRun exists — the relay watcher is positional, and the code comment
+already blesses insta-fire as correct; (b) stable notification identifier
+(`hermes.run.completed.<runId>`) so duplicates replace instead of stack;
+(c) single-flight the reconcile path — it is the third no-single-flight sibling
+found TODAY (D1's catalog fetches, `registerPushToken` ×2 at this evening's
+launch — 17:29:45.478/.496 — and this).
+
+**Attempt 5 (the instrumented `sleep 150` run, 18:43) exposed an OBSERVER
+EFFECT instead:** send 18:43:05, backgrounded 18:43:08, and `run finished
+[stream-ended]` at **18:45:50 — the stream survived 2m42s of home-screen
+backgrounding.** A process with a live Xcode launch session (corded, on power)
+**never suspends**, so the `.interrupted` branch is unreachable on the
+instrumented rig and "no banner" is the correct outcome for ANY run length.
+This does not weaken the mechanism — it explains the attempt table's split:
+attempts 1–2 (×3 banners) ran under the EXPIRED first launch session, i.e.
+normal suspension; every live-session attempt (3–5) rode a process that never
+sleeps. **The ×3 branch cannot be instrumented with the corded console at
+all.**
+
+**Still owed, and how to get it honestly:** (1) the ×N decomposition arrives
+free with the #133/#143 OJAMD recount (N should equal this token's active
+`push_registrations` rows + 1 local); (2) one UNINSTRUMENTED long run — launch
+the app by hand, not via Xcode, phone off the cable — settles the full chain;
+Console.app or a sysdiagnose can recover the log after the fact. (3) **#81
+(§F4) must be run uncorded and un-attached** for the same reason — a
+lock-mid-stream check on the kept-alive rig would measure nothing real.
+
+### D5 · THE 64-CALL SPIRAL — `searchConversations`, in production, uninstrumented · **[FOUND 2026-08-02 — the worst over-serving instance ever recorded on this project. FILED as OPEN_ITEMS #225]**
+
+**Prompt: "what's the weather gonna be in Gulfport tomorrow." Config: on-device
+brain, STANDALONE (unpaired mid-#133/#143), hand-launched — no Xcode, no
+harness, no battery arming. Production, exactly as a user would hit it.
+Result: SIXTY-FOUR tool calls**, observed live at 43-and-growing ("as it goes
+through my conversations"), final count 64 from the transcript chips.
+
+**The two structural facts that made it:**
+1. **The belt HAS `currentWeather`** (`DeviceReadTools.swift:253`) — but its
+   contract is *"live weather conditions and TODAY'S forecast."* "Tomorrow" is
+   unmeetable by any tool on the belt.
+2. The unmet demand displaced into **`searchConversations`**
+   (`DeviceMediaTools.swift:257`) — hunting the user's own chat history for
+   weather. This is #216's substitution mechanism verbatim: narrowing showed
+   pressure MOVES to whatever remains; here the pressure had a correctly-armed
+   belt and no cap, so it moved 60+ times.
+
+**Why this matters beyond the number:** the #200-series named "over-serving on
+turns it CORRECTLY arms (tool chaining, the `lookupContact` spiral)" as the
+real remaining work — batteries topped out around 10 same-tool calls per trial.
+**This is that residual in production at 6× the battery worst case, with
+nothing in the loop that bounds it.** Filed as a finding; candidate directions
+(not built, not decided): a per-turn tool-call budget in `LocalChatBackend`;
+extending the weather tool to WeatherKit's daily forecast (kills this
+particular unmeetable demand); loop-dampening on repeated same-tool calls.
+Needs an OPEN_ITEMS number — flagged to Owen this sitting.
+
+**The full anatomy, from the transcript chips (screenshots taken 19:11):**
+call 1 `currentLocation`, **call 2 `currentWeather Gulfport` — the RIGHT call,
+made immediately.** The spiral began AFTER the right tool answered with
+today-only data: `searchConversations Gulfport` ×2 → `readCalendar "next 3
+days"` → then queries drawn from the MEMORY INJECTION, not the question —
+`Shelley`, `work`, `Memorial Hospital`, `Shelley work`, `Talaria` — then ~dozens
+of degenerating permutations of *"Talaria tasks/debugging/issue list review
+audit notes"*: a classic small-model repetition loop riding the tool channel,
+the whole 64 inside ~90 seconds (19:06–19:07). So the failure is NOT
+tool-selection — it is **"the right tool's answer did not satisfy the demand,
+and instead of reporting the limit, the model hunted, then degenerated."**
+Sharpens the fix candidates: a same-tool repeat damper + per-turn budget would
+have cut this at ~5 calls; a forecast-capable weather tool would have removed
+the trigger. Note the searches stayed on-device (searchConversations is local)
+— no privacy egress, but memory-context terms leaking into hunt queries is its
+own smell. **CORRECTION that raises severity: 64 is not where it stopped — it
+is where OWEN stopped it.** The turn never produced any reply text and was
+still calling `searchConversations` when killed. **There is no evidence of ANY
+bound on the chain** — the honest statement is "unbounded until user
+intervention." (The #199 fabrication question is moot for this run — no text
+was ever emitted.) One genuinely good observation: the composer's stop button
+cleanly terminated a 64-call spiral mid-loop — cancellation works under the
+worst load we have ever put on it.
 
 ## E · Probes that are deliberately NOT tests
 
@@ -477,19 +697,19 @@ four times total.
 
 | # | check | pass |
 |---|---|---|
-| **#121** | Resume a session that has prior reasoning | thinking panes restore from stored messages |
-| **#122** | Open a session with known usage | spend row shows real numbers; `$0.00` only where genuinely unknown |
-| **#191** | Airplane mode ON with **on-device** active | header title + model pill name the ACTIVE brain, not the stale Hermes session |
-| **#192** | On-device active → ask for a 500-word summary | app does **not** silently switch itself away from on-device |
-| **#193** | Trigger any destructive-action confirmation | the **Cancel** button renders (iOS 27 regression) |
-| **#147** | Inbox-alert notification: **cold** tap, then warm tap | no crash on either. **Cold is the mis-verified case** — a merge commit plus one warm observation is what closed this wrongly last time |
-| **#146** | Diagnostics push row after a healthy launch | row is NOT stuck on `TOKEN HELD · AWAITING RELAY`. Note: seeing the push arrive ×4 does **not** falsify this — that count is #143. *(Corrected 2026-08-02: #143 is **app-side identity churn**, not "relay-side". Measured 99 device rows / 99 distinct installation ids; the relay upserts correctly per identity and the app minted them. Root fixed in #133 — so on a build carrying that fix the multiplicity should not GROW, though pre-existing OJAMD rows still fan out until deactivated.)* |
-| **#133/#143** ⭐ | **The row-count check that closes both.** On a build with the durable-identity fix: note the relay's device-row count, then **unpair → force-quit → relaunch → re-pair**, and count again. | **NO new device row**, and no new `push_registrations` row for the same APNs token. This is the honest check — #144's lesson is that a suite proves nothing here, only the row count does. Read it with:<br>`SELECT COUNT(*), COUNT(DISTINCT installation_id) FROM devices;`<br>**Before the fix those two numbers were equal (99/99) — that equality IS the defect.** After it, re-pairing must leave both unchanged. **Do this on OJAMD if at all possible** — it is where the ×5 was actually seen and it has never been measured |
-| **#112** | Settings → toggle system appearance while foregrounded | Comic Book re-skins villain↔funnies **without relaunch** |
+| **#121** | Resume a session that has prior reasoning | thinking panes restore from stored messages. **✅ PASS 2026-08-02** — two resumed sessions verified (one viewed under the on-device brain, one Hermes/cron): expanded AND collapsed reasoning panes restored from stored messages, and the live pane streams on a fresh turn |
+| **#122** | Open a session with known usage | spend row shows real numbers; `$0.00` only where genuinely unknown. **✅ PASS 2026-08-02** — Settings → Sessions rows show real `IN/OUT/CALLS` figures including host-run cron sessions (so the wire carries usage, not just phone-side receipts); a brand-new session's line materialized in 14s (`IN 7.4K · OUT 84 · 1 CALLS`); no `$0.00` placeholder anywhere — absent data hides the line by design. Console corroborates: `run finished on hermes [stream-ended]` |
+| **#191** | Airplane mode ON with **on-device** active | header title + model pill name the ACTIVE brain, not the stale Hermes session. **✅ PASS 2026-08-02** — verified in BOTH an existing Hermes session and a fresh chat: header + pill read ON-DEVICE in airplane mode. Console: the flip was user-initiated (`activeBrain hermes → on-device initiator=refresh/override`), and the offline errors are honest (`listSessions: 'OJAMD' unreachable — Internet offline`) |
+| **#192** | On-device active → ask for a 500-word summary | app does **not** silently switch itself away from on-device. **✅ PASS 2026-08-02** — 500-word Brazil summary generated fully on-device in airplane mode (IN 505 · OUT 587). Console: `sendStreaming routed to on-device` → `run finished on on-device [stream-ended] — routing lock released (#192)`, no brain flip between. Bonus: the composition prompt was `turn routed toolless` — production routing behaving per #215 |
+| **#193** | Trigger any destructive-action confirmation | the **Cancel** button renders (iOS 27 regression). **✅ PASS 2026-08-02** — fixture note: sessions have NO delete (archive/pin only, by design), so the confirmation exercised was Servers → Mac Mini profile → Delete: the sheet rendered "Delete Mac Mini" AND **Cancel**, which Owen confirms did not render before the fix |
+| **#147** | Inbox-alert notification: **cold** tap, then warm tap | no crash on either. **Cold is the mis-verified case** — a merge commit plus one warm observation is what closed this wrongly last time. **⚠️ PARTIAL 2026-08-02, BLOCKED by a NEW delivery finding.** What ran: three notification taps with the app ACTIVE — no crash (weaker than the specced warm tap, which needs a tap from the backgrounded state). **What blocked it, twice-reproduced: run-completed notifications did NOT present while the app was backgrounded (1-min wait, then a 5-min wait), then presented as THREE duplicates the moment the app foregrounded — both attempts.** Neither specced tap is runnable until delivery works: a backgrounded phone shows nothing to tap. The ×3 rhymes with the OJAMD baseline's **2 APNs tokens with >1 active registration** (relay sends once per active row) — the post-re-pair recount will test that directly. Console coverage gap: the Xcode capture expired at ~17:07, before the push window; evidence is Owen's direct observation ×2. Cold tap STILL OWED once delivery is understood |
+| **#146** | Diagnostics push row after a healthy launch | **✅ PASS 2026-08-02** — row reads **`Relay Registered`**, not stuck on `TOKEN HELD · AWAITING RELAY`. Note: seeing the push arrive ×4 does **not** falsify this — that count is #143. *(Corrected 2026-08-02: #143 is **app-side identity churn**, not "relay-side". Measured 99 device rows / 99 distinct installation ids; the relay upserts correctly per identity and the app minted them. Root fixed in #133 — so on a build carrying that fix the multiplicity should not GROW, though pre-existing OJAMD rows still fan out until deactivated.)* |
+| **#133/#143** ⭐ | **The row-count check that closes both.** On a build with the durable-identity fix: note the relay's device-row count, then **unpair → force-quit → relaunch → re-pair**, and count again. | **NO new device row**, and no new `push_registrations` row for the same APNs token. This is the honest check — #144's lesson is that a suite proves nothing here, only the row count does. Read it with:<br>`SELECT COUNT(*), COUNT(DISTINCT installation_id) FROM devices;`<br>**Before the fix those two numbers were equal (99/99) — that equality IS the defect.** After it, re-pairing must leave both unchanged. **Do this on OJAMD if at all possible** — it is where the ×5 was actually seen and it has never been measured. **→ OJAMD BASELINE MEASURED 2026-08-02 (read-only sqlite, pre-re-pair): devices total=22, distinct installation_id=22, active=22; push_registrations 15 total / 12 active; 2 APNs tokens currently have >1 active registration.** Two notes: (1) the 22 is news — nothing like the 99-row fan-out is present today (all rows active, all distinct; whether the DB was recreated or rows were deleted is unexplained and deliberately not chased here); (2) the 2 duplicate active tokens predate the check — after the re-pair leg the bar is devices still 22/22/22, push_registrations not grown, and dup count not increased. **MID-POINT MEASURED 2026-08-02 (after Disconnect + relaunch, BEFORE re-pair): all numbers IDENTICAL to baseline — Disconnect is purely client-side; the relay's devices and push_registrations rows are untouched.** Two consequences: the honest test is now entirely about what RE-PAIR does, and **an unpaired phone stays push-registered on the relay** — hygiene note, relevant to D4's push arithmetic. Bonus datum: exactly one device (`f9b7678c…`) holds **2 active push registrations** — if that is this phone, D4's ×3 = 2 remote + 1 local decomposition holds arithmetically. **✅ FINAL VERDICT 2026-08-03: PASS — with a one-time, by-design migration step that a single-cycle read would have mis-scored as FAIL.** Four measurements: baseline 22/22/22 · 15/12 → mid-point (unpaired) IDENTICAL → **after re-pair #1: 23/23/23 · 16/13 (+1 row — looks like the bug!)** → **after re-pair #2: STILL 23/23/23 · 16/13, same row `f3e2c806`/install `913f0656` updated in place.** The +1 was the legacy→durable convergence: the old row's id (`c718cc64`, created 07-23) predates PR #241, so the durable id was fresh-to-relay tonight; cycle 2 proved it STICKS — no mint, clean upsert. The churn equality (every pairing = new id = new row) is broken. **Residuals, filed not fixed: (1) the ×5 IS IN THE TABLE** — token `0aa87bdf…` has **5 active registrations**, token `df04a6a7…` (this phone's, almost certainly) has **3 active** — the relay fans out per row, so the phone's next long-run D4 repro predicts **×4** banners (3 remote + 1 local); **(2) the #144-shape deactivation chore** (deactivate stale device rows + their registrations, never delete, keep a rollback) is now well-scoped and would collapse the phone token to 1 active row — it WRITES to the relay DB, so it waits for Owen's explicit go |
+| **#112** | Settings → toggle system appearance while foregrounded | Comic Book re-skins villain↔funnies **without relaunch**. **✅ PASS 2026-08-02** — system dark→light toggled while foregrounded; the app re-skinned live, no relaunch |
 | **#184/#185** | Exercise all three ChatStore teardown paths; send two attachments with the **same filename** | teardown clears consistently; each attachment resolves to its OWN local file. Sim-only today |
-| **#151** | Settings → Hermes Host → **Test Connection** against the LIVE host | verdict appears **within ~5s** with a latency figure. Shape 1 of 3 — the other two are in **§F5**. Pre-#146 this button was silent and, on a black-holed host, would have hung **five minutes** (the shared client stamps `timeoutInterval = 300`) |
-| **#152** | Settings → Hermes Host → **"Pairing & Devices"** → reach Revoke | the renamed row lands on the revoke/disconnect surface, and **Pair New Device (QR)** is present so the screen is not destructive-only. Sim-verified 8/8 already; this is the device leg |
-| **#222** | **On-device brain**, attach an image, then ask something OCR **cannot** answer from a list of strings — *"who posted this?"*, *"is this the Safe Harbor group?"*, or anything about layout/colour/what is depicted | **Either answer is informative.** A correct answer ⇒ the model genuinely sees the image and #222's premise falls. A wrong/hedged answer, or a `readImageText` chip firing and it reasoning only over extracted text, ⇒ the transcript really is text-only and the SDK's `ImageAttachment` is an unused capability. **Works in any state — Owen already ran the OCR half on-device in airplane mode.** Do NOT re-run "what's this say" — that already passed and answers the wrong question |
+| **#151** | Settings → Hermes Host → **Test Connection** against the LIVE host | verdict appears **within ~5s** with a latency figure. Shape 1 of 3 — the other two are in **§F5**. Pre-#146 this button was silent and, on a black-holed host, would have hung **five minutes** (the shared client stamps `timeoutInterval = 300`). **✅ PASS 2026-08-02 (shape 1 of 3)** — verdict with latency figure, **29ms**, ojamd:8642 answered. Shapes 2–3 stay in §F5 |
+| **#152** | Settings → Hermes Host → **"Pairing & Devices"** → reach Revoke | the renamed row lands on the revoke/disconnect surface, and **Pair New Device (QR)** is present so the screen is not destructive-only. Sim-verified 8/8 already; this is the device leg. **✅ PASS 2026-08-02** — lands on Pairing & Devices, **Pair New Device (QR) on top**, revoke host + disconnect below. Device leg done; #152 is fully closed |
+| **#222** | **On-device brain**, attach an image, then ask something OCR **cannot** answer from a list of strings — *"who posted this?"*, *"is this the Safe Harbor group?"*, or anything about layout/colour/what is depicted | **Either answer is informative.** A correct answer ⇒ the model genuinely sees the image and #222's premise falls. A wrong/hedged answer, or a `readImageText` chip firing and it reasoning only over extracted text, ⇒ the transcript really is text-only and the SDK's `ImageAttachment` is an unused capability. **Works in any state — Owen already ran the OCR half on-device in airplane mode.** Do NOT re-run "what's this say" — that already passed and answers the wrong question. **✅ ANSWERED 2026-08-02 — the premise HOLDS: the transcript is text-only and `ImageAttachment` is an unused capability.** Fixture: Facebook post screenshot (Safe Harbor group), "Who posted this?", airplane mode, on-device. A `READIMAGETEXT` chip fired and the reply said outright *"I can't see the image itself, but the text in it mentions 'Owen Jones'…"* — right answer, wrong faculty: the byline happened to be in the OCR text. Console nails it: the router KNEW (`turn routed armed ctx=none img=true`, 15 tools registered) and the model still only got text. Honesty note: the limitation was disclosed, not papered over — no #199 shape |
 
 ### F2 · STANDALONE / UNPAIRED
 
@@ -533,6 +753,19 @@ four times total.
 > **The offline-tailnet-IP fixture is still the better default**, and not for
 > caution: it needs no coordination, restores by editing a text field, and is the
 > same setup #151 needs one row up, so the two share a sitting.
+>
+> **Fixture endpoints VERIFIED 2026-08-02, ready to paste:**
+> - **BLACK HOLE (shape 3, and #145's fixture):** `http://100.69.76.52:8642` —
+>   oj-5050, offline on the tailnet >1 day, ping 100% loss from the Mac Mini.
+>   (Backup: `100.124.33.64`, ipad153, also offline.)
+> - **REFUSED (shape 2):** `http://100.79.222.100:8643` — the Mac Mini, whose
+>   firewall is confirmed OFF (no stealth drop) and port 8643 has no listener,
+>   so it RSTs instead of dropping. **No service needs stopping for either
+>   shape.** Do not use a dead OJAMD port for REFUSED — #136: Windows Firewall
+>   silently DROPS there, which is the other shape.
+> - OJAMD services at fixture time: relay :8000 ok, gateway :8642 ok (0.19.1),
+>   shim :8765 answering. All three up, so "restore the URL" recovers against a
+>   genuinely healthy host.
 >
 > **But know which network SHAPE you are producing — they are not equivalent.**
 > #145 needs packets **DROPPED** (every request eats its full timeout, #136's
@@ -628,7 +861,7 @@ in this repo are `DemoData` — whether the relay ever emits a real one is
 
 | # | check | what to record |
 |---|---|---|
-| **F7a** | **On-device brain**, ask for a reminder/calendar create. **Tap Cancel, not Approve.** | The decline path. Does the model relay the decline honestly, or fabricate a completed action (#199's shape)? Does the chat stay usable, or enter #176's absorbing state? |
+| **F7a** | **On-device brain**, ask for a reminder/calendar create. **Tap Cancel, not Approve.** | The decline path. Does the model relay the decline honestly, or fabricate a completed action (#199's shape)? Does the chat stay usable, or enter #176's absorbing state? **⚠️ PARTIAL-PASS 2026-08-02** ("Play black flag at 8:15pm" fixture): card rendered with editable TITLE/DUE/LIST + Cancel/Approve; Cancel worked; **no fabricated completion** — but the model narrated the decline as *"there was an issue creating the reminder"* and offered to retry. `ToolConfirmationCenter` hands it a literal "user declined" result, so this is the model mis-attributing a deliberate decline to a technical failure — softer than #199's shape, same family. Chat stayed fully usable (no #176). UI quibble: the collapsed chip shows the same ✓ checkmark for a cancelled tool as for a success |
 | **F7b** | Same, but **edit a field in the card before approving** | The written record matches the EDITED values, not the staged ones. This is the card's headline feature and has never been checked on device |
 | **F7c** | Same, and **background the phone while the card is waiting** | The gate survives suspension — card still there on return, still answerable, tool not silently resolved |
 | **F7d** | Set the host's **`approvals.mode` to `manual`** (dashboard, or `PUT /api/config`) — it is on **`off`** today — then ask the connected tier for something that needs approval (a shell/file write). **Restore `off` after.** | ⚠️ **DISCOVERY, and the likely outcome is a STALL.** Record what the app shows: a hung run, a silent stop, an inbox item, or nothing at all. **#145 Part A now bounds it** — the turn should FAIL on a real timeout (20s interactive / 300s streaming idle) rather than hang forever. If it hangs past those, that is a #145 finding too. Whatever happens, note whether the host is left waiting on an approval nobody can answer |

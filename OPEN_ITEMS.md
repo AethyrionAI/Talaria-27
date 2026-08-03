@@ -5675,7 +5675,17 @@ Logged 2026-07-17.
 
 ---
 
-## 133. 🐛 Dormant-relay push registration idempotency — ROOT CAUSE FOUND AND FIXED 2026-08-02: the installation identity was stored inside profile-scoped session state that unpair deletes. Device pass owed.
+## 133. ✅ Dormant-relay push registration idempotency — ROOT CAUSE FOUND AND FIXED 2026-08-02: the installation identity was stored inside profile-scoped session state that unpair deletes. DEVICE PASS ✅ 2026-08-03.
+
+> **CLOSED — device pass verified 2026-08-03 (running list §F1, four-measurement protocol).**
+> Baseline OJAMD 22/22/22 devices · 15/12 push_regs → Disconnect+relaunch: IDENTICAL
+> (disconnect is purely client-side) → re-pair #1: **+1 row (23/23/23 · 16/13)** — the
+> one-time legacy→durable convergence, NOT the bug: the old row's id predated the fix →
+> re-pair #2: **ZERO growth, same row upserted in place** (`913f0656…` stable). The churn
+> equality is broken. **A single-cycle read would have mis-scored the migration step as
+> FAIL — the two-cycle protocol is the honest close.** Residual filed, not fixed: stale-row
+> deactivation chore (#144 shape) — the table still holds a 5-active and a 3-active token
+> fan-out; awaiting Owen's go since it writes to the relay DB.
 
 > ## ✅ ROOT CAUSE 2026-08-02 — measured, not argued. **99 device rows / 99 distinct
 > ## `installation_id`s.** The relay was right all along; the app minted every identity.
@@ -6431,7 +6441,15 @@ likely the guilty branch. Then a Fable micro-lane with a fail-first test per cas
 
 Logged 2026-07-20.
 
-## 143. 🐛 Siri-ask completion notifications arrive ×5 — ROOT FIXED 2026-08-02 with #133 (one cause, two symptoms); device pass owed
+## 143. ✅ Siri-ask completion notifications arrive ×5 — ROOT FIXED 2026-08-02 with #133 (one cause, two symptoms); DEVICE PASS ✅ 2026-08-03
+
+> **CLOSED — same verdict as #133 (2026-08-03): identity churn broken by the two-cycle
+> re-pair proof. The ×5 itself was FOUND LIVE in the table this sitting** — token
+> `0aa87bdf…` holds 5 active registrations, `df04a6a7…` (the phone's) 3 — so duplicate
+> pushes CONTINUE until the #144-shape deactivation chore runs; that is debris from the
+> old bug, not evidence against the fix. Also note the device pass's D4 finding (running
+> list): the foreground reconcile posts its own local notification on top of any remote
+> fan-out, so the user-visible count is (active rows) + 1 until D4's app-side fix lands.
 
 > ## ✅ THE 2026-07-25 RE-ROOT-CAUSE WAS RIGHT, and the fix landed 2026-08-02 in #133.
 >
@@ -7523,7 +7541,14 @@ Logged 2026-07-20.
 
 ---
 
-## 152. 🎨 Settings host disconnect/revoke is buried under "Pair Device" — **RENAMED + merged (PR #146, 2026-07-24); one device check owed**
+## 152. ✅ Settings host disconnect/revoke is buried under "Pair Device" — **RENAMED + merged (PR #146, 2026-07-24); device check ✅ 2026-08-02**
+
+> **CLOSED — device leg passed 2026-08-02 (running list §F1):** "Pairing & Devices" lands
+> on the revoke/disconnect surface with **Pair New Device (QR) on top**, so the screen is
+> not destructive-only. Sim 8/8 + device pass = fully verified. Bonus from the same
+> sitting: the Revoke-vs-Disconnect distinction proved live and correct — Disconnect is
+> purely client-side (relay rows untouched, measured), matching its "signs this device
+> out" copy.
 
 > **⚠️ ROUTING CORRECTED 2026-08-01, and a decision withdrawn off Owen's plate.**
 > §G called this "a naming decision, not a check" and the device list asked Owen to
@@ -13197,6 +13222,31 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+## 225. 🐛 UNBOUNDED tool-call spiral in production: 64 calls on "weather in Gulfport tomorrow," user-terminated, no cap anywhere in the loop
+
+**FILED 2026-08-02 from the device pass (running list §D5, which holds the full
+anatomy).** The #200-series' named residual — "over-serving on turns it CORRECTLY
+arms" — arrived in production at 6× the battery worst case, uninstrumented,
+standalone, hand-launched, a prompt any user would type.
+
+**The shape:** call 2 was the RIGHT call (`currentWeather Gulfport`) — but its
+contract is *today-only*, "tomorrow" is unmeetable by the belt, and instead of
+reporting the limit the model displaced (#216's substitution mechanism) into
+`searchConversations`: first plausible queries (Gulfport ×2, `readCalendar next
+3 days`), then terms mined from the MEMORY INJECTION (Shelley, work, Memorial
+Hospital), then ~dozens of degenerating *"Talaria tasks list review audit
+notes"* permutations — a small-model repetition loop riding the tool channel
+(#110's family, one layer down). **64 calls in ~90s, no reply text ever, still
+running when Owen killed it. There is no evidence of ANY bound.** The stop
+button DID cleanly terminate it — cancellation held under the worst load ever
+put on it.
+
+**Candidate directions (none decided):** per-turn tool-call budget in
+`LocalChatBackend`; same-tool repeat damper (N identical-tool calls → forced
+text turn); WeatherKit daily forecast on the weather tool (removes this
+trigger, not the class). Bars to pre-register in THIS entry before any fix
+lane runs, per the standing rule.
+
 ## 223. 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the gateway can carry
 
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
@@ -14042,7 +14092,7 @@ on **4/10** and the promoted treatment on **0/10**, which is evidence this shape
 is **downstream of tool choice** rather than a separate disease. A lane should
 test that directly before assuming it needs its own words.
 
-## 216A. re-read #200F and #214's grab results in light of the substitution finding
+## 216A. ✅ re-read #200F and #214's grab results in light of the substitution finding — RESOLVED 2026-08-02: #214 CONFIRMED a true zero; #200F evicted, permanently unresolved
 
 **FILED 2026-08-01** from the audit's unfiled-lanes list. **Analysis, not a device
 run** — cheap, and it may retire other work.
@@ -14130,6 +14180,37 @@ and export them. Then `call_economy_report` gives the verdict directly.
 UNRESOLVED — neither confirmed nor retracted.** They are not being called wrong.
 They are being called **unverified in a way nobody had noticed**, which is the
 outcome #216A was filed to produce.
+
+### RESOLVED 2026-08-02 — §C5 ran (device pass, corded). #214 CONFIRMED; #200F EVICTED.
+
+**The one command ran, on the one record that survived.**
+
+- **Recovery method, worth keeping:** the records needed neither the share sheet
+  nor the DEBUG-only Battery Results screen — `xcrun devicectl device copy from
+  --domain-type appDataContainer --domain-identifier org.aethyrion.talaria27`
+  pulls `Library/Application Support/BatteryRuns/` off a corded phone directly,
+  on any build config. **All ten surviving runs are archived at
+  `handoffs/evidence/battery-runs/`** (local, gitignored) — the store can no
+  longer lose anything that existed on 2026-08-02.
+- **#214 (`1835BBF9`) — the 0/10 is REAL.** `call_economy_report`: the
+  `armed-scopedv2` haiku cell recorded **zero tool calls in all ten trials**
+  (median=0, max=0, empty Counter). **No silent `readCalendar` — the artifact
+  this lane was filed to look for did not occur.** Text scoring and the call
+  record also agree on the control cell (`armed` haiku: grabs 8/10, `toolCalls`
+  `createReminder`×8). And the soft evidence is now hard: the *"I cannot write a
+  haiku without external tools"* refusals came from trials that called
+  **nothing** — an unusable-belt report, not a failed-hunt narration.
+- **#200F — evicted, unrecoverable, and the timing fear above was exactly
+  right.** The store held **exactly 10 files**, oldest 2026-07-31 19:29Z: the
+  silent `maxRuns = 10` bound pruned the 07-29 run during the 07-31/08-01 lanes,
+  before `7bf206e` raised it. **Its `armed-scoped` and `armed-createonly` haiku
+  0/10s stay permanently UNRESOLVED as direct evidence — do not cite them as
+  verified.** Closest inference: `armed-createonly`'s belt is identical to
+  `armed-scopedv2`'s (`createReminder` + `readCalendar`), which posted a true
+  zero on the same prompt. Supportive, not probative.
+- The #219 argument this entry invoked in the abstract now has its concrete
+  instance: evidence a retraction would have rested on was destroyed silently,
+  and the deletion left no trace until someone went looking.
 
 ## 218. ✅ `main` DID NOT BUILD IN RELEASE for two days, and every check we run is blind to it. FIXED 2026-08-01.
 
