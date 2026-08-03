@@ -86,6 +86,7 @@
 		20C96A75186B18743C7F200A /* ChakraPetch-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 80EF15B79F03C0BF47DAB3C2 /* ChakraPetch-SemiBold.ttf */; };
 		21ABBB6BEBC4263724B61735 /* HermesHostStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDA88A494348CA2669EA79C /* HermesHostStore.swift */; };
 		21E9A22A97CE3C9866ACFCE2 /* Icon-MoltenForge@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 0F52C49687672CA223A85A7A /* Icon-MoltenForge@2x.png */; };
+		22399A05AABF123DBDB95A0A /* RunCompletionWatchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E47B17A1DA3E6BA9E3B7DB9B /* RunCompletionWatchTests.swift */; };
 		22F2CE9F8A34E0C2D6622CD4 /* DeviceLocationProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E331A6A95B8F14DCD79B956 /* DeviceLocationProviderTests.swift */; };
 		22F48F91FF6426E5A751032B /* ChartSpecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 481E7932F34BD96E19482B68 /* ChartSpecTests.swift */; };
 		23BDB5F7E650A9858DBDCCBC /* IconPreview-AutumnHarvest.png in Resources */ = {isa = PBXBuildFile; fileRef = 058B8D699AF44F536D6AD863 /* IconPreview-AutumnHarvest.png */; };
@@ -980,6 +981,7 @@
 		E3727619CB1A41ED47CADC62 /* StreamingUpdate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingUpdate.swift; sourceTree = "<group>"; };
 		E3898F88AB0B7488B69F77EF /* LocalChatBackend+Harnesses.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LocalChatBackend+Harnesses.swift"; sourceTree = "<group>"; };
 		E4397D4FA2DBFEF4C5B15923 /* ModelsSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsSettingsScreen.swift; sourceTree = "<group>"; };
+		E47B17A1DA3E6BA9E3B7DB9B /* RunCompletionWatchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunCompletionWatchTests.swift; sourceTree = "<group>"; };
 		E5AD6E957D927DE3495F4B72 /* AppTemplateUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTemplateUITests.swift; sourceTree = "<group>"; };
 		E5B4BC4786992BD264AE00F3 /* HermesControlsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesControlsTests.swift; sourceTree = "<group>"; };
 		E7F426FD56C06264562B21C0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -1205,6 +1207,7 @@
 				928B03CEA5240B87D4B99D7A /* RequiredPropertyDecodeTests.swift */,
 				A5E8EF024C3134EA534CFABD /* RoutedTrialShapeTests.swift */,
 				7E5D2D9D3E685C1D98187926 /* RouterIntentTests.swift */,
+				E47B17A1DA3E6BA9E3B7DB9B /* RunCompletionWatchTests.swift */,
 				4E908DCC59357802D176E212 /* SensorOptInTests.swift */,
 				BEBD81AC0A5839FA111D423E /* SensorOutboxChurnTests.swift */,
 				C0533895BE78322F481C2946 /* ServerSettingsTests.swift */,
@@ -2540,6 +2543,7 @@
 				7ED6B37BFBA2622B436E0881 /* RequiredPropertyDecodeTests.swift in Sources */,
 				20A1ED6E62216A11AC9486BC /* RoutedTrialShapeTests.swift in Sources */,
 				60E1156EC7FD9723A78E84BB /* RouterIntentTests.swift in Sources */,
+				22399A05AABF123DBDB95A0A /* RunCompletionWatchTests.swift in Sources */,
 				D8035EB463C86F3BF4A57174 /* SensorOptInTests.swift in Sources */,
 				39126650E0C3D4914B75988C /* SensorOutboxChurnTests.swift in Sources */,
 				FDDBDDD0DF3E665FD2E6BCE1 /* ServerSettingsTests.swift in Sources */,
