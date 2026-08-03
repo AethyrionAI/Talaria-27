@@ -135,6 +135,50 @@ struct DeviceActionToolsTests {
         #expect(relay.claimEarlyMorningAsk())
     }
 
+    // MARK: #233 the caution row (plumbing)
+
+    @Test func earlyMorningCautionOnlyForWeeHours() {
+        let four = DeviceActionParsing.parseDateTime("2026-08-05T04:00")!
+        #expect(ReminderCreateTool.earlyMorningCaution(for: four)
+            == "EARLY MORNING — \(DeviceActionParsing.timeOnly(four))")
+        #expect(ReminderCreateTool.earlyMorningCaution(for: DeviceActionParsing.parseDateTime("2026-08-05T16:00")!) == nil)
+        #expect(ReminderCreateTool.earlyMorningCaution(for: nil) == nil)
+    }
+
+    @Test func stagedCardCarriesTheCautionThroughTheGate() async {
+        let center = ToolConfirmationCenter()
+        let task = Task {
+            await center.requestConfirmation(
+                title: "Create this reminder?",
+                caution: "EARLY MORNING — 4:00 AM",
+                fields: [.init(key: "title", label: "Title", value: "Call Shelley")])
+        }
+        var attempts = 0
+        while center.pending == nil && attempts < 2000 { await Task.yield(); attempts += 1 }
+        #expect(center.pending?.caution == "EARLY MORNING — 4:00 AM")
+        center.decline()
+        _ = await task.value
+    }
+
+    /// The re-call path end-to-end: latch already claimed, a wee-hour due
+    /// stages a REAL card, and that card carries the caution (233-C).
+    @Test func weeHourRecallStagesCardWithCaution() async {
+        let relay = ToolEventRelay()
+        let center = ToolConfirmationCenter()
+        _ = relay.claimEarlyMorningAsk()
+        let task = Task {
+            await ReminderCreateTool.performCreate(
+                rawTitle: "Call Shelley", rawDue: "2026-08-05T04:00", rawList: "",
+                relay: relay, confirmations: center)
+        }
+        var attempts = 0
+        while center.pending == nil && attempts < 2000 { await Task.yield(); attempts += 1 }
+        #expect(center.pending?.caution != nil)
+        center.decline()
+        let result = await task.value
+        #expect(result == "The user declined — no reminder was created.")
+    }
+
     // MARK: ToolConfirmationCenter gate mechanics
 
     @Test func approveResolvesWithCurrentFieldValuesIncludingEdits() async {

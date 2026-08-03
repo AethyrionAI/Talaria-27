@@ -162,6 +162,7 @@ struct ReminderCreateTool: Tool {
         let decision = await confirmations.requestConfirmation(
             title: "Create this reminder?",
             detail: nil,
+            caution: Self.earlyMorningCaution(for: parsedDue),
             fields: [
                 .init(key: "title", label: "Title", value: title),
                 .init(key: "due", label: "Due", value: parsedDue.map { DeviceActionParsing.displayDate($0) } ?? ""),
@@ -220,6 +221,14 @@ struct ReminderCreateTool: Tool {
         // #200F: the SAVED title may carry the battery reap marker; the
         // success text echoes the model-requested form (marker stripped).
         return "Created reminder \"\(ToolConfirmationCenter.strippingBatteryMarker(finalTitle))\"\(dueLine) in list \"\(calendarTitle)\"."
+    }
+
+    /// #233: the card's last line of defense for a wee-hour due — the case
+    /// where the model ignored the bounce, or the user confirmed AM. Nil
+    /// for daytime dues so normal cards render byte-identically to today.
+    nonisolated static func earlyMorningCaution(for date: Date?) -> String? {
+        guard let date, DeviceActionParsing.isEarlyMorning(date) else { return nil }
+        return "EARLY MORNING — \(DeviceActionParsing.timeOnly(date))"
     }
 
     /// "None"/empty keeps no date; an unchanged display string keeps the
