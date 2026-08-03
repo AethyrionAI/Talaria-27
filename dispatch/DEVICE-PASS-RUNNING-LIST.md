@@ -738,9 +738,9 @@ four times total.
 | # | check | pass |
 |---|---|---|
 | **#117** | Induce a connector outage and hold it **> 25 minutes** | drains back off and STAY backed off; outage rate < 50% of healthy. **The window is the check** — the original close scored a false PASS on a short window, and the 27-minute run showed decay |
-| **#151** | Test Connection against a **STOPPED** host (gateway down, port closed) | **REFUSED**, fast — not OFFLINE, not a spinner. Shape 2 of 3 |
-| **#151** | Test Connection against a **BLACK-HOLED** host (packets dropped, e.g. an offline tailnet IP) | **NO ANSWER** at **~5s**. Shape 3 of 3, and the one that matters most — this is the case that used to hang for five minutes. **Cheapest setup on the board: point the base URL at an offline tailnet IP; no service needs stopping** |
-| **#145** ⭐ | **RIDES #151's BLACK-HOLE FIXTURE — same setup, do them together.** With the base URL pointed at an offline tailnet IP: background the app, then **foreground it**. Then point the URL back at the live host and foreground again. | **(1)** the app stays **responsive** while blocked — you can scroll, open Settings, switch brains. **(2)** the visible state (widget/Live Activity) reflects last-known-good **immediately**, not after minutes. **(3)** when the URL is restored it **recovers on its own — NO phone restart.** ← the whole item |
+| **#151** | Test Connection against a **STOPPED** host (gateway down, port closed) | **REFUSED**, fast — not OFFLINE, not a spinner. Shape 2 of 3. **✅ PASS 2026-08-02** — `http://100.79.222.100:8643` (dead port, firewall off): REFUSED, fast |
+| **#151** | Test Connection against a **BLACK-HOLED** host (packets dropped, e.g. an offline tailnet IP) | **NO ANSWER** at **~5s**. Shape 3 of 3, and the one that matters most — this is the case that used to hang for five minutes. **Cheapest setup on the board: point the base URL at an offline tailnet IP; no service needs stopping**. **✅ PASS 2026-08-02** — `http://100.69.76.52:8642`: NO ANSWER at ~5s. **All three shapes now verified on device — #151 is fully CLOSED** |
+| **#145** ⭐ | **RIDES #151's BLACK-HOLE FIXTURE — same setup, do them together.** With the base URL pointed at an offline tailnet IP: background the app, then **foreground it**. Then point the URL back at the live host and foreground again. | **(1)** the app stays **responsive** while blocked — you can scroll, open Settings, switch brains. **(2)** the visible state (widget/Live Activity) reflects last-known-good **immediately**, not after minutes. **(3)** when the URL is restored it **recovers on its own — NO phone restart.** ← the whole item. **✅ PASS 2026-08-02, CLEAN — the "expect CLEAN, not merely better" bar was met.** (1) fully navigable throughout, Owen: "no issues getting around in the app in this state"; (2) models stayed loaded (last-known-good), gateway badge honestly OFFLINE, shim honestly online (its URL was never black-holed); (3) restore → foreground → **self-recovery with no restart**: Part D superseded the stale activation, readiness probe flipped voice back to realtime, journal hop re-primed a fresh session (47k condensed tokens), and the **failed send's RETRY delivered** (`run finished on hermes` 20:13:53). **Part A live-proof included:** a send while black-holed showed the working/stop affordance, then died at **21s** (interactive bound) with a retry offered — console `sendStreaming` 20:11:45 → `stream-ended` 20:12:06. **E(a): zero `foregroundActivationsCutShort` the whole window.** Curiosity filed, not chased: two one-off ATS-block lines against IP-URL profiles mid-outage (20:08:50 'OJAMD', 20:13:02 'Mac Mini' — the latter is D2's known MagicDNS case) |
 
 > **⭐ #145 — the fixture, and the now-authorised alternative.**
 >
@@ -799,6 +799,12 @@ four times total.
 > original complaint (2026-07-23) predates every one of those mechanisms — this
 > is a taste call on today's build, not a repro. Outcome feeds #180's remaining
 > scope; "the strips are enough" closes instance 4 outright.
+>
+> **✅ INSTANCE 4 CLOSED 2026-08-02 — Owen's verdict, delivered mid-outage on the
+> live fixture:** *"Now that I see the attempt to send, yes, I think that's
+> enough."* The deciding observation was the send path itself — working
+> affordance → honest 21s timeout → retry — on top of the connection test and
+> the server-card badge. No proactive app-wide disconnected signal wanted.
 >
 > **The original 2026-07-20 report said "hard-lock, phone restart."** The
 > investigation's honest limit still stands: serial `await`s suspend, they do not

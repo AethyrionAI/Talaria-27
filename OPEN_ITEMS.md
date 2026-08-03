@@ -6709,7 +6709,17 @@ Deactivate rather than delete if audit history matters.
 
 Logged 2026-07-20.
 
-## 145. 🐛 App hard-locks when entered during an OJAMD gateway outage — **Parts A–D + E(a) ALL BUILT 2026-08-02**; only E(b) remains, tabled behind written triggers; **device pass owed (§F5)**
+## 145. ✅ App hard-locks when entered during an OJAMD gateway outage — **Parts A–D + E(a) ALL BUILT 2026-08-02; DEVICE PASS ✅ 2026-08-02, CLEAN**; only E(b) remains, tabled behind written triggers
+
+> **CLOSED — device pass 2026-08-02 (running list §F5), against a live black-holed
+> fixture (`100.69.76.52`, packets dropped): all three parts CLEAN, the pre-registered
+> "expect CLEAN, not merely better" bar met.** (1) app fully navigable while blocked;
+> (2) last-known-good visible immediately, badges honest; (3) restore → self-recovery,
+> no restart — Part D superseded the stale activation, journal hop re-primed, and the
+> failed send's retry delivered. Part A proved live: black-holed send died at 21s
+> (interactive bound) with working/stop affordance then retry. E(a):
+> `foregroundActivationsCutShort` stayed ZERO across the window. Part D observed firing
+> three separate times this sitting. E(b) stays tabled as before.
 
 > **Header corrected 2026-08-02 — it was STALE, and the way it went stale is the point.**
 > It read *"Parts B + C BUILT; Parts A + D owed"* while the body of this same entry
@@ -7501,7 +7511,12 @@ Logged 2026-07-20.
 
 ---
 
-## 151. 🔧 Settings → Hermes Host: "Test Connection" gives NO pass/fail feedback — **built + merged (PR #146, 2026-07-24); three device shapes owed**
+## 151. ✅ Settings → Hermes Host: "Test Connection" gives NO pass/fail feedback — **built + merged (PR #146, 2026-07-24); ALL THREE device shapes ✅ 2026-08-02**
+
+> **CLOSED — device pass 2026-08-02 (running list §F1 + §F5): live host → verdict with
+> latency (29ms); dead port on a live host → REFUSED, fast; black-holed tailnet IP →
+> NO ANSWER at ~5s (the case that used to hang five minutes).** All three honest
+> verdicts verified on hardware.
 
 > **⚠️ ROUTING CORRECTED 2026-08-01 — the note below was WRONG, and it was mine.**
 > It said this item's owed work is "NOT a device check" and sent it to §G pending a
@@ -8941,6 +8956,13 @@ Logged 2026-07-23.
 
 
 ## 180. 🎨 UMBRELLA — the app hides its own degradation: four instances, one design default
+
+> **INSTANCE 4 CLOSED 2026-08-02 — Owen rejudged the disconnection-indicator question
+> mid-outage on a #237–#242 build (device pass §F5):** *"Now that I see the attempt to
+> send, yes, I think that's enough."* The reactive convention (failure strips, "as of"
+> stamps, server-card badge, and the send path's working→timeout→retry presentation)
+> is the accepted answer; no proactive app-wide disconnected signal. PR #237's walk
+> surfaces plus the #145 fixes are what made this judgeable.
 
 > **Update 2026-08-02 — Phase 4 lane opened (`claude/t27-180-honest-degradation`). The entry
 > had DRIFTED: instance 3 was substantially fixed by the #156b/#160 lanes without this entry
