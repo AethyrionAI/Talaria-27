@@ -13553,7 +13553,7 @@ tomorrow, pass their words through unchanged — never substitute 'tomorrow'"); 
 mislabeled relay is at least self-contradicting on its face. Either is device-only to
 verify — the sim has no model.
 
-## 233. 🐛 "Tomorrow at 4" became a 4:00 AM reminder — half-day defaulting on `createReminder`, and the confirm card did not save it — **BOUNCE BUILT 2026-08-03; 233-A/B/C green in suite; device bars 233-D/E owed to the next OTA**
+## 233. 🐛 "Tomorrow at 4" became a 4:00 AM reminder — half-day defaulting on `createReminder`, and the confirm card did not save it — **ALL BARS MET 2026-08-03: 233-A/B/C suite + device, 233-E device, 233-D midday (preferred shape) AND evening (fallback shape) — CLOSED pending one store-row glance**
 
 **FILED 2026-08-02, Lane 1 trial 3 (run results doc).** "Remind me to call Shelley
 tomorrow at 4," sent at 23:05, produced a REAL reminder due **Aug 3, 4:00 AM** —
@@ -13658,6 +13658,23 @@ time rendering unmissable. Bars pre-register HERE before any fix lane.
 > beyond the entry's candidate wording: the hardened string carries NO
 > formatted date at all (nothing mineable), pinned by prefix + no-date
 > assertions in the bounce test. 233-D remains tonight's evening send.
+
+> **✅ 233-D EVENING SEND PASSED — 2026-08-03 4:57 PM, build 1886, Owen home,
+> fresh chat, trial 3's prompt verbatim ("remind me to call Shelley tomorrow
+> at 4"), screenshots in hand.** Observed shape: **the accepted FALLBACK arm**
+> — no AM/PM ask; the model resolved bare "4" to afternoon on its own, staged
+> the confirm card at **Aug 4, 2026 at 4:00 PM** (2 tool calls, IN 5.9K ·
+> OUT 101), **no caution row — correct**, 16:00 is not a wee hour (233-C's
+> negative half, now also observed on device). Owen approved; completion text
+> matched the card. Baseline contrast: the founding trial-3 send of this exact
+> prompt in the evening produced a real **4:00 AM** row. **Shape ledger for the
+> founding prompt: midday = preferred rung (asked AM/PM → card); evening =
+> fallback rung (silent 4 PM card). Both inside the pre-registered pass band;
+> the bounce never needed to fire because the model never picked a wee hour —
+> it exists for exactly the runs where it does.** Remaining formality: one
+> glance at the Reminders store confirming the row reads Aug 4, 4:00 PM
+> (the save chain itself was device-verified in 233-E). On that glance, #233
+> CLOSES.
 
 ## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes — **CUT BUILT 2026-08-03 (AM); 232-C/D experiential halves MET on device same morning; log halves owed to the corded coda**
 
