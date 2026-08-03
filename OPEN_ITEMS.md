@@ -13283,6 +13283,8 @@ direction — one more thing the gateway already carries.
 > **Device (237-E) NOT claimed:** Owen's quadrupled plex thread should
 > render single copies on first load under the fix build; then 235-F
 > unparks — a staged recovery produces ONE marked reply, no growth.
+> **Build 1886 (`09bfef7`) staged 2026-08-03 ~3 PM; gate PASS (1570 exact,
+> XCUITest 8/8); PR #251 open, Owen routes the merge.**
 
 **FILED 2026-08-03 (~1 PM) from Owen's 235-E test, minutes after the bar was
 met** — the recovery WORKED, then over-delivered: the plex-run answer appeared
