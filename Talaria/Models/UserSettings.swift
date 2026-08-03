@@ -546,7 +546,6 @@ struct UserSettings: Codable, Hashable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(userName, forKey: .userName)
         try container.encode(avatarInitials, forKey: .avatarInitials)
-        try container.encode(notificationsEnabled, forKey: .notificationsEnabled)
         try container.encode(hapticFeedbackEnabled, forKey: .hapticFeedbackEnabled)
         try container.encode(environment, forKey: .environment)
         try container.encode(relayConfiguration, forKey: .relayConfiguration)
