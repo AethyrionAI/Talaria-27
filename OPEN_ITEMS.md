@@ -13263,7 +13263,26 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
-## 237. 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can resolve twice for one run
+## 237. 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can resolve twice for one run — **FIX BUILT same day; 237-A/B/C/D green in suite; 237-E (device heal + the unparked 235-F) owed to the OTA**
+
+> **✅ FIX BUILT 2026-08-03 (afternoon), the day's third same-day lane.**
+> Three parts, TDD, RED watched (T3's first fixture HUNG by holding its
+> stream open — rebuilt with finishing streams; the watched RED then failed
+> on exactly the production defect, resolvedCount 2):
+> **F1** `stableMessageID` — SHA-256-derived RFC-4122-shaped UUID from
+> `sessionId:serverRowID` in `mapStoredMessage` (+ tolerant `id` decode on
+> `StoredMessage`) — re-fetches reproduce identities, so the merge's
+> unconfirmed-locals preserve recognizes prior adoptions (237-A).
+> **F3** `Conversation.dedupingAdoptedEchoes` — triple-keyed first-wins
+> sweep (sender, trimmed content, timestamp; empty shells also key on
+> activity labels), applied at merge exit AND cache restore, healing
+> pre-fix corruption on load (237-D).
+> **F2** `resolvedRunIDs` — adoptive resolutions record their run id;
+> a late duplicate `.interrupted` for a resolved run tears down quietly,
+> never re-arms (237-B/C via the corpse-echo fixture).
+> **Device (237-E) NOT claimed:** Owen's quadrupled plex thread should
+> render single copies on first load under the fix build; then 235-F
+> unparks — a staged recovery produces ONE marked reply, no growth.
 
 **FILED 2026-08-03 (~1 PM) from Owen's 235-E test, minutes after the bar was
 met** — the recovery WORKED, then over-delivered: the plex-run answer appeared
