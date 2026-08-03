@@ -1,35 +1,9 @@
 import CoreSpotlight
 import SwiftUI
 import UIKit
-import UserNotifications
 import os
 
 private let appDelegateLog = Logger(subsystem: "org.aethyrion.talaria", category: "AppDelegate")
-
-/// #47: lock-screen reply. Relay completion pushes carry this category
-/// (`send_run_completion_push` in relay/app/main.py — identifiers must stay
-/// in lockstep), and the category attaches a text-input Reply action so a
-/// push becomes a conversation without unlocking into the app.
-enum NotificationReplyAction {
-    static let categoryIdentifier = "HERMES_RUN_COMPLETED"
-    static let actionIdentifier = "HERMES_REPLY"
-
-    static var category: UNNotificationCategory {
-        let reply = UNTextInputNotificationAction(
-            identifier: actionIdentifier,
-            title: "Reply",
-            options: [],
-            textInputButtonTitle: "Send",
-            textInputPlaceholder: "Message Hermes"
-        )
-        return UNNotificationCategory(
-            identifier: categoryIdentifier,
-            actions: [reply],
-            intentIdentifiers: [],
-            options: []
-        )
-    }
-}
 
 /// Lane J (J-2): Talaria is a single-window app, by decision — the store
 /// layer (`ChatStore`/`AppContainer`) has never been audited for concurrent
@@ -88,11 +62,10 @@ enum SingleWindowPolicy {
 // #147: `@preconcurrency` on the notification-center conformance is what
 // lets the @MainActor `didReceive` witness below satisfy the nonisolated
 // protocol requirement — without it, Swift 6 region isolation rejects
-// sending the non-Sendable UNUserNotificationCenter/UNNotificationResponse
 // parameters into a main-actor-isolated implementation. The system delivers
 // these delegate callbacks on the main thread, so the dynamic isolation
 // precondition this conformance inserts always holds.
-final class HermesAppDelegate: NSObject, UIApplicationDelegate, @preconcurrency UNUserNotificationCenterDelegate {
+final class HermesAppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -106,112 +79,15 @@ final class HermesAppDelegate: NSObject, UIApplicationDelegate, @preconcurrency 
         // Lane J (J-2): refuse second app windows on iPad; see SingleWindowPolicy.
         SingleWindowPolicy.activate()
 
-        // Register for remote (silent push) notifications
-        application.registerForRemoteNotifications()
-
         // #14: the BGAppRefreshTask launch handler must be registered before
         // the app finishes launching; scheduling happens on background entry.
         BackgroundRefreshScheduler.register()
-        // Receive notification taps + foreground presentation
-        UNUserNotificationCenter.current().delegate = self
-        // #47: register the Reply category at every launch — including
-        // scene-less background ones — so the long-press action exists
-        // before the first completion push arrives.
-        UNUserNotificationCenter.current().setNotificationCategories([NotificationReplyAction.category])
-
         Task { @MainActor in
             await AppContainer.sharedDefault().handleSystemLaunch()
         }
         return true
     }
 
-    // MARK: - UNUserNotificationCenterDelegate
-
-    // Show banner + sound even when the app is in the foreground.
-    //
-    // #147: deliberately still `nonisolated`, unlike didReceive below. This is
-    // the sync completion-handler variant: the handler is invoked
-    // synchronously, touches no actor state, and a synchronous nonisolated
-    // protocol requirement cannot be witnessed by a @MainActor method anyway.
-    nonisolated func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
-    ) {
-        completionHandler([.banner, .sound])
-    }
-
-    // User tapped a notification. Remote completion pushes carry `session_id`
-    // (set by the relay's run-completion watcher); local completion
-    // notifications don't. Route to chat, open the pushed session when named,
-    // and reconcile so the finished reply is fetched.
-    //
-    // #147: main-actor isolated (inherits the class's @MainActor — do NOT add
-    // `nonisolated` back). The `nonisolated` this method carried opted it out
-    // of the class-level isolation, so the compiler-synthesized objc
-    // completion bridge fired on the cooperative pool and UIKit's
-    // post-response snapshot/state-restoration work hard-asserted off-main:
-    // the deterministic cold-tap SIGABRT (.ips 2026-07-21, reproduced
-    // 2026-07-25 — the class-level @MainActor added by 22f92e1 was inert
-    // against it).
-    //
-    // The #47 process-lifetime guarantee is unchanged: it comes from the
-    // system AWAITING this async variant, and is independent of which actor
-    // the body runs on. (The async variant also has no completion handler to
-    // send across an isolation boundary, which is exactly why it does not
-    // need `nonisolated`.)
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
-        let sessionID = response.notification.request.content.userInfo["session_id"] as? String
-
-        // #47: a typed reply from the notification's text-input action.
-        // Headless — no scene mounts. Awaiting the send before returning is
-        // what keeps the process alive (the background-task assertion inside
-        // buys the rest of the window).
-        if response.actionIdentifier == NotificationReplyAction.actionIdentifier,
-           let textResponse = response as? UNTextInputNotificationResponse {
-            await AppContainer.sharedDefault().handleNotificationReply(textResponse.userText, sessionID: sessionID)
-            return
-        }
-
-        await AppContainer.sharedDefault().handleNotificationTap(sessionID: sessionID)
-    }
-
-    func application(
-        _ application: UIApplication,
-        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
-    ) {
-        let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-        appDelegateLog.notice("APNs device token delivered")
-        Task { @MainActor in
-            UserDefaults.standard.set(token, forKey: AppContainer.apnsTokenDefaultsKey)
-            await AppContainer.sharedDefault().registerPushTokenIfNeeded(token)
-        }
-    }
-
-    func application(
-        _ application: UIApplication,
-        didFailToRegisterForRemoteNotificationsWithError error: Error
-    ) {
-        // Normal on simulators; on-device it means no token was issued this
-        // launch (e.g. missing aps-environment entitlement or no network).
-        appDelegateLog.notice("APNs registration failed: \(error.localizedDescription, privacy: .public)")
-    }
-
-    func application(
-        _ application: UIApplication,
-        didReceiveRemoteNotification userInfo: [AnyHashable: Any],
-        fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
-    ) {
-        // Handle silent push without marking the app foreground.
-        Task { @MainActor in
-            let container = AppContainer.sharedDefault()
-            await container.handleRemoteNotificationWake()
-            completionHandler(.newData)
-        }
-    }
 }
 
 @main
@@ -305,10 +181,6 @@ struct TalariaApp: App {
                         BackgroundRefreshScheduler.schedule()
                         Task {
                             await container.reportAppStateIfNeeded("background")
-                            // Walking away mid-run: hand the completion notify
-                            // off to the relay's APNs watcher (#38), since the
-                            // in-app reconcile loop can't tick while suspended.
-                            await container.watchPendingRunIfNeeded()
                         }
                     }
                     // Voice sessions END on background (#118, privacy):
