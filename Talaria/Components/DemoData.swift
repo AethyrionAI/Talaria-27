@@ -153,7 +153,6 @@ nonisolated enum DemoData {
             statusDetail: "While Using • Full Accuracy"
         ),
         DeviceCapability(permissionType: .health, status: .notDetermined),
-        DeviceCapability(permissionType: .notifications, status: .authorized),
         DeviceCapability(permissionType: .camera, status: .notDetermined),
         DeviceCapability(permissionType: .photos, status: .denied),
     ]
