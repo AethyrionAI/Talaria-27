@@ -717,7 +717,7 @@ struct AppStoresTests {
         var authorizationRequests = 0
         func requestAuthorizationIfNeeded() async { authorizationRequests += 1 }
         func notifyReplyFailed(reason: String) {}
-        func notifyRunCompleted(preview: String?) {}
+        func notifyRunCompleted(preview: String?, runId: String?) {}
     }
 
     /// #189: the old trigger was gated behind `continuedSend != nil`, which

@@ -2176,7 +2176,11 @@ final class AppContainer {
     /// (`onRunDetached`) covers the lock-mid-stream case where the scene
     /// phase change has already passed.
     func watchPendingRunIfNeeded() async {
-        guard let sessionId = chatStore.pendingRunSessionId else { return }
+        // #226 leg (a): `pendingRunSessionId` alone made this a NO-OP at the
+        // home-screen transition — a healthy stream has no PendingRun, so the
+        // guard returned early and no watch was ever posted. See
+        // `ChatStore.watchableSessionId`.
+        guard let sessionId = chatStore.watchableSessionId else { return }
         await postPushWatch(sessionId: sessionId)
     }
 

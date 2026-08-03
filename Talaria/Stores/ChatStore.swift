@@ -256,6 +256,11 @@ final class ChatStore {
     }
     private var pendingRun: PendingRun?
     private var reconcileTask: Task<Void, Never>?
+    /// #226 leg (c) / #227 instance 3: concurrent `reconcilePendingRuns()`
+    /// callers coalesce onto this one in-flight pass. Distinct from
+    /// `reconcileTask`, which is the polling LOOP started when a reconcile
+    /// finds the run unfinished.
+    private var reconcileInFlight: Task<Void, Never>?
 
     /// #145 Part C — the reconcile loop's budget is WALL CLOCK, not an attempt
     /// count.
@@ -293,6 +298,48 @@ final class ChatStore {
     /// Session id of the run awaiting reconcile, if any — what the relay's
     /// completion watcher needs to be told about (#38).
     var pendingRunSessionId: String? { pendingRun?.sessionId }
+
+    /// #226 leg (a) — which session the background transition should ask the
+    /// relay to watch.
+    ///
+    /// **The old hook guarded on `pendingRunSessionId` alone, and that is a
+    /// no-op at the moment it matters.** `PendingRun` is created ONLY on
+    /// `.interrupted` (a dropped stream). At the home-screen transition the
+    /// stream is still healthy inside iOS's background grace, so there is no
+    /// pending run, the guard returns early, and **no watch is ever posted** —
+    /// measured on device 2026-08-02 (§D4): short runs finish in-process and
+    /// the user gets NOTHING.
+    ///
+    /// A live stream is exactly the case #38 was written for — the hook's own
+    /// comment says "walking away mid-run" — so a stream in flight is
+    /// watchable via the session it is running on. The relay watcher is
+    /// positional and its insta-fire on an already-finished run is blessed by
+    /// design, so arming early is safe.
+    var watchableSessionId: String? {
+        Self.watchableSessionId(
+            pendingRunSessionId: pendingRunSessionId,
+            isStreaming: isStreaming,
+            activeSessionID: activeSessionID
+        )
+    }
+
+    /// Pure so the decision is truth-table testable rather than only reachable
+    /// through a live stream (this project's standing shape — cf.
+    /// `ChatHealthPollPolicy`, `HostFedListPresentation`).
+    nonisolated static func watchableSessionId(
+        pendingRunSessionId: String?,
+        isStreaming: Bool,
+        activeSessionID: String?
+    ) -> String? {
+        // A pending run names the session actually orphaned and wins — on the
+        // lock-mid-stream path it is the only correct answer.
+        if let pendingRunSessionId { return pendingRunSessionId }
+        // Nothing in flight ⇒ nothing to watch. Arming for an idle app would
+        // point the relay at a run that already delivered, which IS the ×3
+        // mechanism rather than a fix for it.
+        guard isStreaming else { return nil }
+        return activeSessionID
+    }
 
     /// Called when conversation content changes (new message, streaming complete).
     /// Used by AppContainer to push widget data updates.
@@ -1658,7 +1705,49 @@ final class ChatStore {
 
     /// Called on app foreground to catch a run that finished while the app was
     /// suspended and the in-app loop couldn't tick.
+    #if DEBUG
+    /// harness-visible (#226 leg c): seeds a pending run so the single-flight
+    /// can be exercised without driving a real dropped stream. `#if DEBUG`
+    /// because production never reads it — and per #218, a gating edit is
+    /// verified with a Release build, which this lane's gate run does.
+    func seedPendingRunForTesting(sessionId: String, runId: String?) {
+        pendingRun = PendingRun(
+            sessionId: sessionId,
+            runId: runId,
+            userMessageID: UUID(),
+            sentAt: .distantPast,
+            partialReasoning: nil
+        )
+    }
+    #endif
+
+    /// #226 leg (c) / **#227 instance 3** — single-flight.
+    ///
+    /// Four call sites invoke this (`AppContainer.swift:1573,1682,1699,1776`),
+    /// and on a foreground transition more than one can fire. Without
+    /// coalescing, two concurrent reconciles could both find the same pending
+    /// run, both succeed, and both post a completion notification — the third
+    /// banner in §D4's measured ×3.
+    ///
+    /// Same shape as `AppSessionStore.refreshAccessTokenIfNeeded`'s keyed task
+    /// map and #145 Part D's activation task. **Deliberately not an
+    /// `isReconciling` Bool:** every concurrent caller passes that check before
+    /// any of them sets it, which is the non-guard #227 exists to name.
     func reconcilePendingRuns() async {
+        if let running = reconcileInFlight {
+            await running.value
+            return
+        }
+        let task = Task { [weak self] in
+            guard let self else { return }
+            await self.performReconcilePendingRuns()
+        }
+        reconcileInFlight = task
+        await task.value
+        if reconcileInFlight == task { reconcileInFlight = nil }
+    }
+
+    private func performReconcilePendingRuns() async {
         guard let pending = pendingRun else { return }
         if await attemptReconcile(pending) == false {
             startReconcileLoopIfNeeded()
@@ -1741,7 +1830,9 @@ final class ChatStore {
             journal?.sync(with: conversation, lastExchangeViaActiveHop: true)
         }
         if UIApplication.shared.applicationState != .active {
-            notifications.notifyRunCompleted(preview: reply.content)
+            // #226 leg (b): keyed on the run so the relay's insta-push and this
+            // local notify REPLACE each other instead of stacking.
+            notifications.notifyRunCompleted(preview: reply.content, runId: pending.runId)
         }
         finalizeOnDeviceIntelligence()
         return true
