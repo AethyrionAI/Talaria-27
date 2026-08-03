@@ -32,6 +32,27 @@ struct DeviceActionToolsTests {
         #expect(components.minute == 0)
     }
 
+    // MARK: #233 wee-hour window
+
+    @Test func isEarlyMorningCoversMidnightThroughSixFiftyNine() {
+        #expect(DeviceActionParsing.isEarlyMorning(DeviceActionParsing.parseDateTime("2026-08-05T00:00")!))
+        #expect(DeviceActionParsing.isEarlyMorning(DeviceActionParsing.parseDateTime("2026-08-05T04:00")!))
+        #expect(DeviceActionParsing.isEarlyMorning(DeviceActionParsing.parseDateTime("2026-08-05T06:59")!))
+        #expect(!DeviceActionParsing.isEarlyMorning(DeviceActionParsing.parseDateTime("2026-08-05T07:00")!))
+        #expect(!DeviceActionParsing.isEarlyMorning(DeviceActionParsing.parseDateTime("2026-08-05T16:00")!))
+        #expect(!DeviceActionParsing.isEarlyMorning(DeviceActionParsing.parseDateTime("2026-08-05T23:00")!))
+    }
+
+    @Test func timeOnlyRendersJustTheClockTime() {
+        let four = DeviceActionParsing.parseDateTime("2026-08-05T04:00")!
+        let rendered = DeviceActionParsing.timeOnly(four)
+        // Locale-safe: no hardcoded "4:00 AM" — assert it is short (no date
+        // parts) and that the full display form ends with it.
+        #expect(!rendered.isEmpty)
+        #expect(rendered.count < 12)
+        #expect(DeviceActionParsing.displayDate(four).hasSuffix(rendered))
+    }
+
     // MARK: Duration parsing
 
     @Test func parseDurationMinutesReadsIntegersAndSuffixes() {

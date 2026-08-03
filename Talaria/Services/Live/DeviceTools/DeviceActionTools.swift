@@ -43,6 +43,22 @@ enum DeviceActionParsing {
         return formatter.string(from: date)
     }
 
+    /// #233: the wee-hour window — hours 0–6 (00:00–06:59 local). A due
+    /// time here is at least as likely the model's half-day default as the
+    /// user's actual ask ("tomorrow at 4" arrived as T04:00), so the create
+    /// tool treats the first one per conversation as a question.
+    nonisolated static func isEarlyMorning(_ date: Date) -> Bool {
+        Calendar.current.component(.hour, from: date) <= 6
+    }
+
+    /// Time-only display form for the card's caution row.
+    nonisolated static func timeOnly(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
     /// Duration-in-minutes from a card field: plain integers, clamped to a
     /// sane meeting range. Nil for unparseable input.
     nonisolated static func parseDurationMinutes(_ raw: String) -> Int? {
