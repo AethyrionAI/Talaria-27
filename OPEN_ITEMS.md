@@ -13263,7 +13263,20 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
-## 238. ✂️ NOTIFICATION REMOVAL — the pivot's first cut (post-#235/#237, banners are scaffolding around a fixed defect) — **BUILT + GATED same evening: 238-A/B/C MET (gate PASS, Release clean, fresh-sim no-dialog observed); 238-D/E owed to merge + OTA**
+## 238. ✂️ NOTIFICATION REMOVAL — the pivot's first cut (post-#235/#237, banners are scaffolding around a fixed defect) — **MERGED (PR #252) + OTA 1908 staged; 238-A/B/C/E MET; 238-D owed to Owen's install**
+
+> **✅ 238-E MET — 2026-08-03 ~18:59, host-side, by CONTRAST not mere absence.**
+> Sequence: hook disarmed 18:52 (device file deleted — the designed OFF switch,
+> no gateway restart) → deliberate Mac-gateway probe session
+> `api_1785801465_f8c45089` completed ~18:57 → **zero `talaria-push: ping` lines
+> and zero APNs traffic** in agent.log since the 15:35 rotation. The contrast
+> that makes it evidence: the morning smoke's identical scenario WITH the device
+> file pinged within seconds (`ping … device=whoGoesThere status=200`, e.g.
+> 12:14:49), and watcher crashes provably log loudly (12:10:10 traceback) — so
+> silence here means alive-and-not-sending, not dead. Merged as PR #252
+> (`0b4a4e0`); **OTA build 1908 staged from `main @ 6894c73`** — Owen installs
+> from Safari, then 238-D: backgrounded remote run → NO banner → open the app →
+> answer at the tail.
 
 > **✅ GATE PASS 2026-08-03 ~19:0x, third run.** 238-A: `testFreshInstall-
 > NeverPresentsNotificationPermissionDialog` PASSED (13.7s) on the ERASED sim —
