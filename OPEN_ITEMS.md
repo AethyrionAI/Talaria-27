@@ -13377,6 +13377,37 @@ for 1–11 unless context says otherwise — what Siri does), or the create tool
 REFUSING bare hours back to the model with "ask AM or PM," plus making the card's
 time rendering unmissable. Bars pre-register HERE before any fix lane.
 
+> **DIRECTION DECIDED 2026-08-03 (AM) with Owen — design doc
+> `docs/superpowers/specs/2026-08-03-233-bare-hour-reminders-design.md`.**
+> His preference order: ask AM/PM (ideal) → afternoon default (fallback).
+> Key reframe from reading the code: **the tool never sees "bare hours"** —
+> the model qualifies the time before the tool runs — so the buildable form
+> is a **wee-hour bounce**: due in 00:00–06:59 + conversation latch clear →
+> `performCreate` returns an ask-AM/PM instruction as ordinary tool output
+> (never a throw, #197) before staging any card; the latch (NOT reset by
+> `beginTurn`, cleared on fresh chat) admits the re-call so a confirmed
+> "yes, 4 AM" cannot loop. Card gains a forge-amber "⚠ EARLY MORNING" row for
+> staged wee-hour dues. Shared-engine placement means the DEBUG twins inherit
+> it. No `@Guide` changes: the afternoon-default guide line is the RECORDED
+> FALLBACK if device trials show the bounce grinding, not stacked on top.
+> `createCalendarEvent` has the same exposure — follow-on, not built here.
+>
+> ## 📋 BARS — PRE-REGISTERED 2026-08-03, BEFORE THE FIX LANE. Written first.
+> - **233-A (mechanical, sim):** wee-hour due (hour 0–6) with latch clear →
+>   bounce string, NO card staged, latch set; hour ≥ 7 stages normally; latch
+>   set → same wee-hour due proceeds to a card; a fresh conversation clears
+>   the latch. Pinned by tests written first.
+> - **233-B (mechanical, sim):** the bounce increments no governor refusal
+>   count and no `refusalsThisTurn` (#228 instrument counters assert it).
+> - **233-C (mechanical, sim):** an early-morning staged due carries the card
+>   caution; a 16:00 due carries none and renders unchanged from today.
+> - **233-D (device):** trial 3's prompt verbatim, evening send → the
+>   assistant asks AM or PM; answering "PM" → card shows 4:00 PM, store row
+>   at 16:00 (baseline: the real Aug 3 4:00 AM row). A silent 4 PM card
+>   without the ask also passes — the accepted fallback shape.
+> - **233-E (device):** explicit "remind me at 5 AM tomorrow" completes with
+>   ≤ 1 bounce; its card shows the caution.
+
 ## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes — **CUT BUILT 2026-08-03 (AM); 232-C/D experiential halves MET on device same morning; log halves owed to the corded coda**
 
 > **✅ MECHANISM BUILT overnight, same session** (branch `claude/t27-232-refusal-cut`,
