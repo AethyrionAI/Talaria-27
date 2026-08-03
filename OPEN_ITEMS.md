@@ -13382,7 +13382,23 @@ not, there is a fourth source.
 > silent, and leg (b) collapses the duplicates. If it is still >1, the ×N decomposition
 > (above) says where the extra came from.
 
-## 225. 🐛 UNBOUNDED tool-call spiral in production: 64 calls on "weather in Gulfport tomorrow," user-terminated, no cap anywhere in the loop
+## 225. 🐛 UNBOUNDED tool-call spiral in production: 64 calls on "weather in Gulfport tomorrow," user-terminated, no cap anywhere in the loop — **BOUND BUILT 2026-08-02; the four behavioural bars are owed on device**
+
+> **✅ MECHANISM BUILT 2026-08-02 — `ToolCallGovernor`, per-turn budget 12 + same-tool
+> cap 4, wired into all 18 tool call sites.** Refusals return as the tool's OWN OUTPUT
+> (never thrown — a throw kills the turn above the model, #197's mechanism, trading a
+> spiral for a dead turn). The admission check runs BEFORE any event is emitted, so a
+> refused call leaves no tool chip for work that never happened. The governor is
+> installed in `installTools`, making it a property of HAVING a belt rather than of
+> remembering to arm one (#144's lesson). `beginToolTurn()` resets both counters on
+> BOTH turn paths — a leaked budget would silently strangle every later turn in a
+> session, which is worse and less visible than the spiral.
+>
+> **Ten mechanical bars green** (suite 1513 → 1523, Release green). **The four
+> BEHAVIOURAL bars below are NOT claimed** — B2 (does it speak) and B3 (does it stay
+> honest) can fail with a perfect cap, and they are now a device check in the running
+> list's **§F1**. The 18 sites were rewritten by script under a byte-level invariant:
+> only `started()` lines could change, every other byte asserted identical.
 
 **FILED 2026-08-02 from the device pass (running list §D5, which holds the full
 anatomy).** The #200-series' named residual — "over-serving on turns it CORRECTLY
