@@ -13263,6 +13263,46 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+## 231. 🐛 RELEASE-ONLY: the chat screen scrambles — transcript collapses, identity strip lands on the input bar. Debug is fine, so every check we run was blind to it (#218's family, for UI)
+
+**FILED 2026-08-02, found by Owen ~60 seconds into the first Release install anyone
+has LOOKED at on device** (build 1839, staged for the local-brain run). Two
+screenshots, same phone, same data: tonight's earlier build renders the strip under
+the nav with a live transcript; build 1839 renders the strip ON the input bar with
+the transcript area empty despite "2 MESSAGES".
+
+**Reproduced in the sim within minutes: Release scrambled, Debug correct — identical
+code, identical fresh state.** So: not the phone, not the data, not #228's diff
+(which touches no UI). A compile-conditional layout divergence.
+
+- **ROOT CAUSE CONFIRMED same night, one-variable experiment:** `ChatScreen.body`'s
+  `.safeAreaInset(edge: .top, spacing: 0) { debugSessionShapeBanner }` — the #205
+  banner. In Debug the builder yields a real zero-height conditional view; in
+  Release the empty `@ViewBuilder` yields `EmptyView` **as a top safe-area inset's
+  content**, and iOS 27 beta 4 mis-lays-out the containing stack for it. Compiling
+  the MODIFIER out of Release (content already was) healed the sim Release build
+  byte-for-byte to Debug's layout. **231-A MET** (screenshots, both configs, same
+  sim, same state). #205's Debug behavior untouched.
+- **The find that led here:** tonight's 21:16 "production build" failure log carries
+  `armed — 13 tools registered`, a `#if DEBUG`-only line — **so tonight's build was
+  DEBUG, and the dispatch's "production build" label was wrong.** Release UI had not
+  been looked at since the 2026-07-27 OTA proof.
+- **Sibling finding, same sitting:** the Developer menu row is `#if DEBUG`
+  (`SystemSettingsScreen`), so **Release has no path to `verboseLogging` and #228's
+  instrument gate is unreachable exactly where it matters** — L0-A was unmeetable as
+  shipped. `DeveloperSettingsScreen` is already internally Release-clean (its
+  DEBUG-only sections are individually gated), so exposing the row is safe;
+  **re-hiding for App Store builds is a Phase 7 question, flagged there.**
+
+> ## 📋 BARS — PRE-REGISTERED 2026-08-02 BEFORE THE FIX LANE
+> - **231-A:** Release sim build renders the chat screen byte-identically in
+>   structure to Debug: strip under nav, transcript expanded, input at bottom —
+>   verified by screenshot both configs.
+> - **231-B:** on the DEVICE Release build, Owen confirms the layout is back.
+> - **231-C:** Settings → System shows the Developer row in Release; flipping
+>   Verbose Logging there produces the #228 lines in a captured device log.
+> - **231-D:** the DEBUG banner behavior (#205) is unchanged in Debug builds.
+
 ## 230. 🎨 `currentWeather` is today-only, and "tomorrow" was the trigger: extend it to WeatherKit's daily forecast — FILED, deliberately NOT built before the run
 
 **FILED 2026-08-02, Lane 3 of `dispatch/FABLE-T27-LOCAL-BRAIN-DEVICE-RUN.md`.**
@@ -13516,6 +13556,12 @@ not, there is a fourth source.
 > report — that is a verdict on the free tier, and #166c makes it gate Phase 7.**
 > Window pressure itself is OPEN_ITEMS #229's subject; **do not fix mid-run** — a run
 > that fixes as it goes produces a verdict about a build that no longer exists.
+>
+> **Baseline caveat (added same night, before the run):** the 2026-08-02 21:16
+> failure ran a **DEBUG** build — its log carries the `#if DEBUG`-only "13 tools
+> registered" line (#231). The 274s/0-answer control numbers are Debug-speed numbers;
+> the overflow mechanism is config-independent, but L1-B comparisons against 274s
+> must say "vs a Debug baseline."
 
 > **✅ MECHANISM BUILT 2026-08-02 — `ToolCallGovernor`, per-turn budget 12 + same-tool
 > cap 4, wired into all 18 tool call sites.** Refusals return as the tool's OWN OUTPUT

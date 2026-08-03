@@ -34,9 +34,14 @@ struct SystemSettingsScreen: View {
                     connectionGroup
                     experienceGroup
                     dataSystemGroup
-                    #if DEBUG
+                    // #231/#228: visible in EVERY build, pre-launch. The row was
+                    // #if DEBUG, which left Release with no path to the verbose
+                    // toggle — and #228's instrument (which exists so a RELEASE
+                    // build can be diagnosed) was gated on a setting Release
+                    // could not reach. The screen itself is Release-clean: its
+                    // DEBUG-only sections are individually compiled out.
+                    // Re-hiding for App Store builds is a Phase 7 decision.
                     developerGroup
-                    #endif
                     footer
                 }
                 .padding(.horizontal, Design.Spacing.md)

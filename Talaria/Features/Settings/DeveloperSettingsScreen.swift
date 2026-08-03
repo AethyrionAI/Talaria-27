@@ -12,8 +12,10 @@ import SwiftUI
 //   • The mockup's "Mock Responses" toggle is dropped (no real mock layer).
 //   • COMMIT has no build-injected source, so it renders "—".
 //
-// The SYSTEM index only links here in DEBUG builds (the row is compiled out of
-// Release), matching the "hidden in App Store builds" intent.
+// The SYSTEM index links here in EVERY build since #231/#228: Release needs a
+// reachable Verbose Logging toggle for the production tool-call instrument, and
+// the screen is Release-clean (DEBUG-only sections individually compiled out).
+// Re-hiding for App Store builds is a Phase 7 decision, flagged in #231.
 struct DeveloperSettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SettingsStore.self) private var settingsStore
@@ -34,7 +36,7 @@ struct DeveloperSettingsScreen: View {
 
             ScrollView {
                 VStack(spacing: Design.Spacing.lg) {
-                    SettingsScreenHeader(title: "Developer", subtitle: "Debug Builds Only") { dismiss() }
+                    SettingsScreenHeader(title: "Developer", subtitle: "Internal Tools") { dismiss() }
                     warningBanner
                     environmentSection
                     flagsSection
@@ -64,7 +66,7 @@ struct DeveloperSettingsScreen: View {
     private var warningBanner: some View {
         HStack(spacing: Design.Spacing.sm) {
             StatusPip(color: Design.Brand.forge, diameter: 7, blinks: true)
-            Text("Internal tools — hidden in App Store builds.")
+            Text("Internal tools — visible in all builds until launch (#231).")
                 .font(Design.Typography.caption)
                 .foregroundStyle(Design.Brand.forge)
             Spacer(minLength: 0)
