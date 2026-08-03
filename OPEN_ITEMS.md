@@ -13362,7 +13362,7 @@ tomorrow, pass their words through unchanged — never substitute 'tomorrow'"); 
 mislabeled relay is at least self-contradicting on its face. Either is device-only to
 verify — the sim has no model.
 
-## 233. 🐛 "Tomorrow at 4" became a 4:00 AM reminder — half-day defaulting on `createReminder`, and the confirm card did not save it
+## 233. 🐛 "Tomorrow at 4" became a 4:00 AM reminder — half-day defaulting on `createReminder`, and the confirm card did not save it — **BOUNCE BUILT 2026-08-03; 233-A/B/C green in suite; device bars 233-D/E owed to the next OTA**
 
 **FILED 2026-08-02, Lane 1 trial 3 (run results doc).** "Remind me to call Shelley
 tomorrow at 4," sent at 23:05, produced a REAL reminder due **Aug 3, 4:00 AM** —
@@ -13407,6 +13407,28 @@ time rendering unmissable. Bars pre-register HERE before any fix lane.
 >   without the ask also passes — the accepted fallback shape.
 > - **233-E (device):** explicit "remind me at 5 AM tomorrow" completes with
 >   ≤ 1 bounce; its card shows the caution.
+
+> **✅ BOUNCE BUILT 2026-08-03, later the same morning** (spec + plan under
+> `docs/superpowers/`; tests first, RED watched per task — the two wiring
+> tests were watched fail on ASSERTION, not just compile). Mechanical bars:
+> **233-A** pinned by `weeHourDueBouncesOnceThenProceeds` /
+> `daytimeDueNeverBounces` / `noDueDateNeverBounces` /
+> `isEarlyMorningCoversMidnightThroughSixFiftyNine` /
+> `earlyMorningAskClaimsExactlyOncePerConversation` /
+> `beginTurnDoesNotClearTheEarlyMorningLatch` /
+> `clearConversationResetsTheEarlyMorningLatch`; **233-B** asserted inside the
+> bounce test against the #228 counters (executed 2, refusals 0); **233-C** by
+> `earlyMorningCautionOnlyForWeeHours` /
+> `stagedCardCarriesTheCautionThroughTheGate` /
+> `weeHourRecallStagesCardWithCaution`. **Found while wiring: `openSession(_:)`
+> is a SECOND conversation boundary** — it resets #30's per-conversation state,
+> so the latch clears there too (`openingAStoredSessionResetsTheWeeHourAskLatch`);
+> reopening the same conversation keeps the latch by design. **Device bars
+> 233-D/E NOT claimed** — the next OTA's script: evening send of trial 3's
+> prompt verbatim ("Remind me to call Shelley tomorrow at 4" → expect the AM/PM
+> question; a silent 4 PM card also passes, the accepted fallback), and
+> "remind me at 5 AM tomorrow" (≤ 1 bounce, amber EARLY MORNING row on the
+> card, store row at 5:00 AM).
 
 ## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes — **CUT BUILT 2026-08-03 (AM); 232-C/D experiential halves MET on device same morning; log halves owed to the corded coda**
 
