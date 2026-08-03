@@ -13317,6 +13317,24 @@ re-run recorded there.
 > to RDP → return → answer at the tail, ⏱ clears) and the displaced-recovery
 > marker.
 
+> **✅ 235-E MET ON DEVICE — 2026-08-03 ~12:55 PM, build 1870, Owen's
+> at-work test, the morning's exact failure inverted.** Long plex-mcp
+> investigation on OJAMD (85+ store rows, ~17 min), phone backgrounded
+> mid-run, stream dead; on foreground the unstarved reconcile adopted the
+> 4,361-char answer (store row 25103) at the transcript tail, ⏱ cleared, no
+> session reopen. Owen: "Recovered reply worked! I see the response at the
+> bottom!!" Mid-test false alarm recorded honestly: at 12:44 Owen called it
+> failed while the run was still RUNNING server-side (live reasoning chips
+> at 12:43 were the tell); a Monitor on the session store timed the real
+> check to completion. **Observation, #38-adjacent:** no remote push
+> arrived while backgrounded (the relay watch stayed silent — the same
+> relay that needed an agent restart this morning); the banner that popped
+> on open was the app's LOCAL completion notice in the foreground
+> transition. Remedy is #223 Task 1.7 (OJAMD watcher deploy), not relay
+> repair — deletion doctrine. **235-F still owed** (needs later messages
+> stacked on a stranded turn; this run's reply was newest → no marker is
+> correct behavior).
+
 **FILED 2026-08-03 mid-morning from Owen's at-work report** (OJAMD session
 `api_1785768068_885aa3ad`, KIMI-K3 global default, heavy multi-tool turns while
 directing host repairs from the phone). The phone shows reasoning + SKILL_VIEW
