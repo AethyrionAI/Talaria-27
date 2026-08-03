@@ -132,7 +132,7 @@ struct ReminderCreateTool: Tool {
         // so the create flow is unchanged from the pre-promotion tool.
         return await Self.performCreate(
             rawTitle: title, rawDue: arguments.due ?? "", rawList: arguments.list ?? "",
-            confirmations: confirmations
+            relay: relay, confirmations: confirmations
         )
     }
 
@@ -141,12 +141,24 @@ struct ReminderCreateTool: Tool {
     /// text — structural-identity discipline: two structs, one engine.
     nonisolated static func performCreate(
         rawTitle: String, rawDue: String, rawList: String,
+        relay: ToolEventRelay,
         confirmations: ToolConfirmationCenter
     ) async -> String {
         let title = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return "No reminder title was given — nothing staged." }
 
         let parsedDue = DeviceActionParsing.parseDateTime(rawDue)
+        // #233: the model qualifies bare hours before the tool ever runs
+        // ("tomorrow at 4" arrived here as T04:00), so the ambiguity is
+        // invisible by now — the first wee-hour due per conversation is
+        // treated as a question, not an order. Ordinary tool OUTPUT, never
+        // a throw (#197); an EXECUTED call, not a governor refusal (#232's
+        // counter must not move). The latch admits the re-call, so a
+        // user-confirmed "yes, 4 AM" cannot loop.
+        if let parsedDue, DeviceActionParsing.isEarlyMorning(parsedDue),
+           await relay.claimEarlyMorningAsk() {
+            return "The due time reads as \(DeviceActionParsing.displayDate(parsedDue)) — early morning. Ask the user whether they meant AM or PM, then create the reminder with the time they confirm."
+        }
         let decision = await confirmations.requestConfirmation(
             title: "Create this reminder?",
             detail: nil,
@@ -254,7 +266,7 @@ struct ReminderCreateToolRequiredFields: Tool {
         defer { Task { await relay.completed(name) } }
         return await ReminderCreateTool.performCreate(
             rawTitle: title, rawDue: arguments.due, rawList: arguments.list,
-            confirmations: confirmations
+            relay: relay, confirmations: confirmations
         )
     }
 }
@@ -294,7 +306,7 @@ struct ReminderCreateToolGuidefix: Tool {
         defer { Task { await relay.completed(name) } }
         return await ReminderCreateTool.performCreate(
             rawTitle: title, rawDue: arguments.due, rawList: arguments.list,
-            confirmations: confirmations
+            relay: relay, confirmations: confirmations
         )
     }
 }

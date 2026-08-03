@@ -86,6 +86,55 @@ struct DeviceActionToolsTests {
         #expect(ReminderCreateTool.resolveEditedDate(edited: "whenever", original: original) == nil)
     }
 
+    // MARK: #233 the wee-hour bounce
+
+    @Test func weeHourDueBouncesOnceThenProceeds() async throws {
+        let relay = ToolEventRelay()
+        relay.governor = ToolCallGovernor()
+        let center = ToolConfirmationCenter()
+        center.autoDeclineForBattery = true   // resolves the gate instantly: no card, no EventKit, no hang
+        let tool = ReminderCreateTool(relay: relay, confirmations: center)
+        relay.beginTurn()
+
+        let first = try await tool.call(arguments: .init(
+            title: "Call Shelley", due: "2026-08-05T04:00", list: nil))
+        #expect(first.contains("Ask the user whether they meant AM or PM"))
+        #expect(first.contains("early morning"))
+
+        let second = try await tool.call(arguments: .init(
+            title: "Call Shelley", due: "2026-08-05T04:00", list: nil))
+        #expect(second == "The user declined — no reminder was created.")
+
+        // 233-B: both attempts were EXECUTED calls — the bounce is tool
+        // output, never a governor refusal, so #232's counter must not move.
+        #expect(relay.executedCallsThisTurn == 2)
+        #expect(relay.refusalsThisTurn == 0)
+    }
+
+    @Test func daytimeDueNeverBounces() async throws {
+        let relay = ToolEventRelay()
+        let center = ToolConfirmationCenter()
+        center.autoDeclineForBattery = true
+        let tool = ReminderCreateTool(relay: relay, confirmations: center)
+        relay.beginTurn()
+        let result = try await tool.call(arguments: .init(
+            title: "Call Shelley", due: "2026-08-05T16:00", list: nil))
+        #expect(result == "The user declined — no reminder was created.")
+        #expect(relay.claimEarlyMorningAsk())   // latch untouched by a daytime due
+    }
+
+    @Test func noDueDateNeverBounces() async throws {
+        let relay = ToolEventRelay()
+        let center = ToolConfirmationCenter()
+        center.autoDeclineForBattery = true
+        let tool = ReminderCreateTool(relay: relay, confirmations: center)
+        relay.beginTurn()
+        let result = try await tool.call(arguments: .init(
+            title: "Call Shelley", due: nil, list: nil))
+        #expect(result == "The user declined — no reminder was created.")
+        #expect(relay.claimEarlyMorningAsk())
+    }
+
     // MARK: ToolConfirmationCenter gate mechanics
 
     @Test func approveResolvesWithCurrentFieldValuesIncludingEdits() async {
