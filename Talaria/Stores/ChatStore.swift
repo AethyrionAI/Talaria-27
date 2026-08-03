@@ -149,9 +149,6 @@ final class ChatStore {
 
     private let hermesClient: any HermesClientProtocol
     private let chatLiveActivity = LiveActivityService()
-    /// Injectable (#189) so tests can pin the priming trigger with a spy;
-    /// defaults to the live service in init.
-    private let notifications: any LocalNotificationScheduling
     let persistence: any AppPersistenceStoreProtocol
 
     /// P1 (#90): the durable journal — the conversation's primary on-device
@@ -307,30 +304,6 @@ final class ChatStore {
     /// completion watcher needs to be told about (#38).
     var pendingRunSessionId: String? { pendingRun?.sessionId }
 
-    /// #226 leg (a) — which session the background transition should ask the
-    /// relay to watch.
-    ///
-    /// **The old hook guarded on `pendingRunSessionId` alone, and that is a
-    /// no-op at the moment it matters.** `PendingRun` is created ONLY on
-    /// `.interrupted` (a dropped stream). At the home-screen transition the
-    /// stream is still healthy inside iOS's background grace, so there is no
-    /// pending run, the guard returns early, and **no watch is ever posted** —
-    /// measured on device 2026-08-02 (§D4): short runs finish in-process and
-    /// the user gets NOTHING.
-    ///
-    /// A live stream is exactly the case #38 was written for — the hook's own
-    /// comment says "walking away mid-run" — so a stream in flight is
-    /// watchable via the session it is running on. The relay watcher is
-    /// positional and its insta-fire on an already-finished run is blessed by
-    /// design, so arming early is safe.
-    var watchableSessionId: String? {
-        Self.watchableSessionId(
-            pendingRunSessionId: pendingRunSessionId,
-            isStreaming: isStreaming,
-            activeSessionID: activeSessionID
-        )
-    }
-
     /// #235 F3 — Owen's placement rule, pure so it truth-tables: a recovered
     /// reply below later exchanges is where nobody is looking; move it to the
     /// tail and stamp WHICH question it answers so it cannot masquerade as a
@@ -347,24 +320,6 @@ final class ChatStore {
         return result
     }
 
-    /// Pure so the decision is truth-table testable rather than only reachable
-    /// through a live stream (this project's standing shape — cf.
-    /// `ChatHealthPollPolicy`, `HostFedListPresentation`).
-    nonisolated static func watchableSessionId(
-        pendingRunSessionId: String?,
-        isStreaming: Bool,
-        activeSessionID: String?
-    ) -> String? {
-        // A pending run names the session actually orphaned and wins — on the
-        // lock-mid-stream path it is the only correct answer.
-        if let pendingRunSessionId { return pendingRunSessionId }
-        // Nothing in flight ⇒ nothing to watch. Arming for an idle app would
-        // point the relay at a run that already delivered, which IS the ×3
-        // mechanism rather than a fix for it.
-        guard isStreaming else { return nil }
-        return activeSessionID
-    }
-
     /// Called when conversation content changes (new message, streaming complete).
     /// Used by AppContainer to push widget data updates.
     var onConversationChanged: (@MainActor () -> Void)?
@@ -372,13 +327,9 @@ final class ChatStore {
     /// #17: fired with the fresh session list whenever it's fetched — wired by
     /// AppContainer to Spotlight donation (gated there). Stays nil in tests.
     var onSessionsLoaded: (@MainActor ([HermesSessionInfo]) -> Void)?
-    /// A run detached while the app was leaving the foreground — the in-app
-    /// reconcile loop can't tick once suspended, so AppContainer hands the
-    /// completion notify to the relay's APNs watcher (#38).
-    var onRunDetached: (@MainActor (String) -> Void)?
-
-    /// A previously detached run was reconciled in-app; AppContainer
-    /// withdraws the relay watch so no stale push arrives.
+    /// A pending run was resolved in-app (reconciled or abandoned). An
+    /// observation seam — #237's resolution-idempotence tests assert through
+    /// it; no production consumer since notification removal (#238).
     var onRunResolved: (@MainActor (String) -> Void)?
 
     /// A send reached a terminal failure the user will see (stream error
@@ -391,13 +342,11 @@ final class ChatStore {
     init(
         hermesClient: any HermesClientProtocol,
         persistence: any AppPersistenceStoreProtocol,
-        journal: ConversationJournalStore? = nil,
-        notifications: (any LocalNotificationScheduling)? = nil
+        journal: ConversationJournalStore? = nil
     ) {
         self.hermesClient = hermesClient
         self.persistence = persistence
         self.journal = journal
-        self.notifications = notifications ?? LocalNotificationService()
         self.composeOutbox = persistence.loadComposeOutboxState()
     }
 
@@ -569,18 +518,6 @@ final class ChatStore {
         // anyway, so expiration finalizes partial content via cancelStreaming.
         let continuedSend = attachments.isEmpty ? nil : beginContinuedSend?(displayContent)
         continuedSend?.onExpiration = { [weak self] in self?.cancelStreaming() }
-
-        // #31 contextual priming, widened by #189: the prompt rides EVERY
-        // dispatched send, not just attachment sends. The old gate
-        // (`continuedSend != nil`) only existed for messages with attachments,
-        // so a plain-text user was never asked, ever — every notification
-        // feature silently dead. The moment kept: the user has just handed the
-        // agent a run — the first moment a completion notify has value, it
-        // precedes any chance for the run to detach, and every user reaches
-        // it. Idempotent: once per launch here, once ever at the OS level; a
-        // no-op prompt-wise when already determined or scene-less (#47
-        // replies, intents).
-        Task { await self.notifications.requestAuthorizationIfNeeded() }
 
         let stream = hermesClient.sendStreaming(message: trimmedContent, attachments: attachments, clientMessageID: clientMessageID)
         var acceptedJobID: UUID?
@@ -812,24 +749,10 @@ final class ChatStore {
                         partialReasoning: partialReasoning
                     )
                     self.startReconcileLoopIfNeeded()
-                    // #31: this run just went long (finishing server-side
-                    // while we may background) — the completion notify needs
-                    // authorization. Best-effort: the prompt can only present
-                    // while foregrounded; idempotent on the next long run.
-                    Task { await self.notifications.requestAuthorizationIfNeeded() }
                     // #14: the continued task's job — keeping the stream alive —
                     // is over; the reconcile loop owns recovery from here. Not a
                     // failure in the system progress UI.
                     continuedSend?.finish(success: true)
-                    // Streams overwhelmingly detach because the app left the
-                    // foreground (lock/background) — that's the case where only
-                    // a remote push can announce completion. A rare in-app
-                    // network blip also lands here; the watch is still harmless
-                    // (the reconcile loop resolves first and cancels it).
-                    if UIApplication.shared.applicationState != .active {
-                        self.onRunDetached?(sessionId)
-                    }
-
                 case .unreachable(let errorMessage):
                     // P1 offline compose outbox (#90): the turn never reached
                     // the Sessions API at all. Text-only turns park durably
@@ -1888,11 +1811,6 @@ final class ChatStore {
             // P1 (#90): the reconciled exchange ran on the active hop's
             // server session — journal it and bump the waterline.
             journal?.sync(with: conversation, lastExchangeViaActiveHop: true)
-        }
-        if UIApplication.shared.applicationState != .active {
-            // #226 leg (b): keyed on the run so the relay's insta-push and this
-            // local notify REPLACE each other instead of stacking.
-            notifications.notifyRunCompleted(preview: reply.content, runId: pending.runId)
         }
         finalizeOnDeviceIntelligence()
         return true

@@ -350,7 +350,6 @@ struct UserSettings: Codable, Hashable, Sendable {
 
     var userName: String
     var avatarInitials: String
-    var notificationsEnabled: Bool
     var hapticFeedbackEnabled: Bool
     var environment: AppEnvironment
     var relayConfiguration: RelayConfiguration
@@ -412,7 +411,6 @@ struct UserSettings: Codable, Hashable, Sendable {
     init(
         userName: String = "User",
         avatarInitials: String = "U",
-        notificationsEnabled: Bool = true,
         hapticFeedbackEnabled: Bool = true,
         environment: AppEnvironment = AppEnvironmentPolicy.currentBuild.defaultEnvironment,
         relayConfiguration: RelayConfiguration = RelayConfiguration.defaultValue(),
@@ -443,7 +441,6 @@ struct UserSettings: Codable, Hashable, Sendable {
     ) {
         self.userName = userName
         self.avatarInitials = avatarInitials
-        self.notificationsEnabled = notificationsEnabled
         self.hapticFeedbackEnabled = hapticFeedbackEnabled
         self.environment = environment
         self.relayConfiguration = relayConfiguration
@@ -476,7 +473,6 @@ struct UserSettings: Codable, Hashable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case userName
         case avatarInitials
-        case notificationsEnabled
         case hapticFeedbackEnabled
         case environment
         case relayConfiguration
@@ -510,7 +506,6 @@ struct UserSettings: Codable, Hashable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         userName = try container.decodeIfPresent(String.self, forKey: .userName) ?? "User"
         avatarInitials = try container.decodeIfPresent(String.self, forKey: .avatarInitials) ?? "U"
-        notificationsEnabled = try container.decodeIfPresent(Bool.self, forKey: .notificationsEnabled) ?? true
         hapticFeedbackEnabled = try container.decodeIfPresent(Bool.self, forKey: .hapticFeedbackEnabled) ?? true
         environment = try container.decodeIfPresent(AppEnvironment.self, forKey: .environment) ?? AppEnvironmentPolicy.currentBuild.defaultEnvironment
         relayConfiguration = try container.decodeIfPresent(RelayConfiguration.self, forKey: .relayConfiguration)

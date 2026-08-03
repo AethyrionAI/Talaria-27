@@ -163,7 +163,6 @@ nonisolated enum DemoData {
     static let sampleUserSettings = UserSettings(
         userName: "Alex",
         avatarInitials: "A",
-        notificationsEnabled: true,
         hapticFeedbackEnabled: true,
         environment: AppEnvironmentPolicy.currentBuild.defaultEnvironment,
         autoConnectOnLaunch: true
