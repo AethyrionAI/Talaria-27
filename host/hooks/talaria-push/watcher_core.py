@@ -21,6 +21,22 @@ def _message_text(content: object) -> str:
     return ""
 
 
+_APNS_HOSTS = {"sandbox": "https://api.sandbox.push.apple.com",
+               "production": "https://api.push.apple.com"}
+
+
+def build_apns_request(token: str, session_id: str, *, topic: str,
+                       environment: str, title: str, body: str):
+    host = _APNS_HOSTS[environment]
+    url = f"{host}/3/device/{token}"
+    headers = {"apns-topic": topic, "apns-push-type": "alert",
+               "apns-priority": "10"}
+    payload = {"aps": {"alert": {"title": title, "body": body},
+                       "sound": "default"},
+               "session_id": session_id}
+    return url, headers, payload
+
+
 class WatcherState:
     """Per-session watermarks. Priming is silent: the first observation of a
     session records its current completion (if any) WITHOUT pinging, so a

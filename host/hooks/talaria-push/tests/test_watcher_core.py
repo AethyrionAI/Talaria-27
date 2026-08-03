@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from watcher_core import WatcherState, extract_completion
+from watcher_core import WatcherState, build_apns_request, extract_completion
 
 
 def _u(mid, text="hi"):
@@ -60,3 +60,20 @@ def test_sessions_are_independent():
     st = WatcherState()
     st.completions_to_ping("s1", [_u(1), _a(2)])
     assert st.completions_to_ping("s2", [_u(1), _a(2)]) == []  # s2 primes separately
+
+
+def test_apns_request_shape():
+    url, headers, payload = build_apns_request(
+        "abc123", "api_555", topic="org.aethyrion.talaria27",
+        environment="sandbox", title="Hermes", body="Reply ready")
+    assert url == "https://api.sandbox.push.apple.com/3/device/abc123"
+    assert headers["apns-topic"] == "org.aethyrion.talaria27"
+    assert headers["apns-push-type"] == "alert"
+    assert payload["session_id"] == "api_555"          # #38 payload contract
+    assert payload["aps"]["alert"]["body"] == "Reply ready"
+
+
+def test_production_host():
+    url, _, _ = build_apns_request("t", "s", topic="x", environment="production",
+                                   title="a", body="b")
+    assert url.startswith("https://api.push.apple.com/")
