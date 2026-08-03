@@ -13339,6 +13339,24 @@ re-entry surface (two triggers + tail-move) is new — treat the fix lane as
 > twice); (3) a one-time dedupe sweep for already-corrupted cached threads
 > (Owen's plex thread is 4× — the fix must also clean, not just stop).
 > Bars pre-register HERE at routing.
+>
+> **ROUTED 2026-08-03 ~2 PM ("merge and go"); spec at
+> `docs/superpowers/specs/2026-08-03-237-stable-identity-design.md`.**
+>
+> ## 📋 BARS — PRE-REGISTERED 2026-08-03, BEFORE THE FIX LANE. Written first.
+> - **237-A (sim):** `stableMessageID` deterministic across calls, distinct
+>   across rows/sessions; two decodes of one fixture → identical id
+>   sequences; rowless messages still unique.
+> - **237-B (sim):** two successive adoptions of the same server transcript
+>   leave the count UNCHANGED; a genuinely-unconfirmed local send still
+>   survives (the preserve's designed purpose, pinned).
+> - **237-C (sim):** a late `.interrupted` with an already-resolved runId →
+>   no second adoption, `onRunResolved` count == 1.
+> - **237-D (sim):** the sweep collapses a synthetically quadrupled thread,
+>   is idempotent, preserves distinct-timestamp repeats.
+> - **237-E (device):** Owen's plex thread heals to single copies under the
+>   fix build; the parked 235-F bar then runs: ONE marked recovered reply,
+>   no thread growth.
 
 > **DISCRIMINATOR ANSWERED (Owen, same sitting): the duplicates SURVIVE a
 > drawer-reopen — the healing prediction was WRONG.** The reopen/cache path
