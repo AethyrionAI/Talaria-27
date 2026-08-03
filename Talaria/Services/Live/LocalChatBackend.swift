@@ -177,8 +177,23 @@ final class LocalChatBackend: HermesClientProtocol {
     func installTools(_ tools: [any Tool], relay: ToolEventRelay) {
         self.tools = tools
         self.toolRelay = relay
+        // #225: the belt gets its per-turn bound with it. Installed here rather
+        // than at each call site so a future tool cannot be added ungoverned —
+        // the governor is a property of HAVING a belt, not of remembering to
+        // arm one (#144's lesson: a guard that depends on being remembered is
+        // the thing that failed).
+        relay.governor = ToolCallGovernor()
         session = nil
         sessionToolNames = []
+    }
+
+    /// #225 — resets the per-turn tool budget. **Called at the START of every
+    /// turn, both paths.** Without this the counters leak across turns and
+    /// every turn after the twelfth tool call of the session goes silently
+    /// toolless, which is a worse and far less visible bug than the spiral this
+    /// bounds. Pinned by `theBudgetResetsForEachTurn`.
+    private func beginToolTurn() {
+        toolRelay?.governor?.beginTurn()
     }
 
     /// Honest explanation for the CURRENT unavailability, nil when the model
@@ -335,6 +350,9 @@ final class LocalChatBackend: HermesClientProtocol {
         var liveSession = await preparedSession(nextPrompt: prompt, attachments: attachments, excludingClientMessageID: clientMessageID)
         appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
 
+        // #225: fresh tool budget for this turn.
+        beginToolTurn()
+
         // #197: the sync path has no visible stream, but a tool that ran
         // this turn is still observable activity — retrying would run it
         // again. Chained (not replaced) so a harness's observer survives.
@@ -480,6 +498,9 @@ final class LocalChatBackend: HermesClientProtocol {
         let prompt = Self.composePrompt(message: message, attachments: attachments)
         var liveSession = await preparedSession(nextPrompt: prompt, attachments: attachments, excludingClientMessageID: clientMessageID)
         appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
+
+        // #225: fresh tool budget for this turn.
+        beginToolTurn()
 
         // #197: any observable activity — a tool event, a text delta, a
         // reasoning delta — makes the turn non-retryable: a tool that

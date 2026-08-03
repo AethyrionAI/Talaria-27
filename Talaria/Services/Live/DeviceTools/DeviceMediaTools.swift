@@ -86,7 +86,7 @@ struct ImageTextTool: Tool, ImageDependentTool {
     struct Arguments {}
 
     func call(arguments: Arguments) async throws -> String {
-        await relay.started(name)
+        if case .refused(let refusal) = await relay.started(name) { return refusal }
         defer { Task { await relay.completed(name) } }
 
         guard let (fileName, image) = await ConversationImageSource.latestImage(in: conversationProvider()) else {
@@ -132,7 +132,7 @@ struct BarcodeReaderTool: Tool, ImageDependentTool {
     struct Arguments {}
 
     func call(arguments: Arguments) async throws -> String {
-        await relay.started(name)
+        if case .refused(let refusal) = await relay.started(name) { return refusal }
         defer { Task { await relay.completed(name) } }
 
         guard let (fileName, image) = await ConversationImageSource.latestImage(in: conversationProvider()) else {
@@ -285,7 +285,7 @@ struct ConversationSearchTool: Tool {
 
     func call(arguments: Arguments) async throws -> String {
         let term = arguments.term.trimmingCharacters(in: .whitespacesAndNewlines)
-        await relay.started(name, detail: term)
+        if case .refused(let refusal) = await relay.started(name, detail: term) { return refusal }
         defer { Task { await relay.completed(name) } }
         guard !term.isEmpty else { return "No search term was given." }
 

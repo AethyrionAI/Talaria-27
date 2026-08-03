@@ -53,7 +53,7 @@ struct DeviceHealthTool: Tool {
     static func performRead(rawMetric: String?, relay: ToolEventRelay, name: String) async -> String {
         // An omitted metric lands on exactly the path an empty string took.
         let metric = normalizedMetric(rawMetric)
-        await relay.started(name, detail: metric)
+        if case .refused(let refusal) = await relay.started(name, detail: metric) { return refusal }
         defer { Task { await relay.completed(name) } }
 
         guard HKHealthStore.isHealthDataAvailable() else {
