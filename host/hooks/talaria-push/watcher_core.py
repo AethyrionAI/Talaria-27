@@ -21,6 +21,33 @@ def _message_text(content: object) -> str:
     return ""
 
 
+class WatcherState:
+    """Per-session watermarks. Priming is silent: the first observation of a
+    session records its current completion (if any) WITHOUT pinging, so a
+    gateway restart can never replay old completions as fresh pushes."""
+
+    def __init__(self) -> None:
+        self._watermark: dict[str, int] = {}
+
+    def completions_to_ping(self, session_id: str,
+                            messages: list[dict]) -> list[int]:
+        completion = extract_completion(messages)
+        seen = session_id in self._watermark
+        current = self._watermark.get(session_id, 0)
+        if completion is None:
+            if not seen:
+                self._watermark[session_id] = 0
+            return []
+        msg_id, _text = completion
+        if not seen:
+            self._watermark[session_id] = msg_id
+            return []
+        if msg_id > current:
+            self._watermark[session_id] = msg_id
+            return [msg_id]
+        return []
+
+
 def extract_completion(messages: list[dict[str, Any]]) -> tuple[int, str] | None:
     """(assistant_message_id, text) concluding the last user turn, else None."""
     last_user_index = None

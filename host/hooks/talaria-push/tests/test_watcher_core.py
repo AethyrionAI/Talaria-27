@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from watcher_core import extract_completion
+from watcher_core import WatcherState, extract_completion
 
 
 def _u(mid, text="hi"):
@@ -39,3 +39,24 @@ def test_structured_content_parts_extracted():
     msgs = [_u(1), {"id": 2, "role": "assistant",
                     "content": [{"type": "text", "text": "part"}]}]
     assert extract_completion(msgs) == (2, "part")
+
+
+def test_first_sight_primes_silently():
+    st = WatcherState()
+    # A session first seen ALREADY completed must not ping (gateway restart case).
+    assert st.completions_to_ping("s1", [_u(1), _a(2)]) == []
+
+
+def test_new_completion_after_priming_pings_once():
+    st = WatcherState()
+    st.completions_to_ping("s1", [_u(1), _a(2)])          # prime
+    st.completions_to_ping("s1", [_u(1), _a(2), _u(3)])   # run pending
+    assert st.completions_to_ping("s1", [_u(1), _a(2), _u(3), _a(4)]) == [4]
+    # same transcript again: no re-ping
+    assert st.completions_to_ping("s1", [_u(1), _a(2), _u(3), _a(4)]) == []
+
+
+def test_sessions_are_independent():
+    st = WatcherState()
+    st.completions_to_ping("s1", [_u(1), _a(2)])
+    assert st.completions_to_ping("s2", [_u(1), _a(2)]) == []  # s2 primes separately
