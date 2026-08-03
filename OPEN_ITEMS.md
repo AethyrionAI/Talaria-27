@@ -14367,6 +14367,21 @@ lane runs, per the standing rule.
 
 ## 223. 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the gateway can carry
 
+> **✂️ PUSH LANES RETIRED BY THE PIVOT — 2026-08-03 evening (#238, Owen-routed).**
+> Notification removal ends the push leg of this plan: **Lane 1** (talaria-push
+> gateway hook — built, smoke-proven, now DISARMED: device file deleted, hook dir
+> inert, removed at the next natural gateway restart; branch
+> `claude/t27-223-talaria-push` stays as the archive/reference for any future
+> hosted-forwarder decision), **Lane 3** (OJAMD rollout — cancelled, never
+> deployed) and **Lane 4** (tap payload host hint — moot). **Lane 6 (upstream
+> re-attach PR) is UNAFFECTED** — live SSE re-attach is not push. The removal
+> also ADVANCES this item's core goal: the app no longer calls `push/register`,
+> `push/watch`, `push/watch/cancel` or `push/deactivate`, so that whole relay
+> surface is starved and deletable. Retired app features recorded in #238:
+> #47 lock-screen reply, #189 pipeline display, #226 leg (b) coalescing,
+> #31 priming, #133/#143's push halves (installation identity itself stays —
+> sensor pairing).
+
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
 Couple that with ending the shim, and we won't have very much running anymore separately."*
 Recorded so the target architecture lives in the tracker, with each piece's blocker named —
