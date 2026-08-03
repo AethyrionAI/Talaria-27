@@ -13407,6 +13407,56 @@ text turn); WeatherKit daily forecast on the weather tool (removes this
 trigger, not the class). Bars to pre-register in THIS entry before any fix
 lane runs, per the standing rule.
 
+> ## 📋 BARS — PRE-REGISTERED 2026-08-02, BEFORE THE FIX LANE. Written first, per the
+> ## standing rule; a missed bar is a falsification, not a redefinition.
+>
+> **Scope decision, stated up front: the fix is (1) + (2), NOT (3).** A daily-forecast
+> weather tool removes *this trigger* and leaves *the class* — the next unmeetable
+> demand displaces the same way. It is worth doing on its own merits and is **out of
+> this lane**.
+>
+> ### The numbers, and why these numbers
+>
+> | knob | value | reasoning |
+> |---|---|---|
+> | **per-turn tool-call budget** | **12** | Legitimate observed chains are short: `currentLocation` → `currentWeather` is 2; `lookupContact` → `createEvent` is 2–3. The #200-series batteries topped out near **10 same-tool calls per trial**, so 12 clears every measured legitimate turn with headroom and still cuts #225's 64 to a fifth. |
+> | **same-tool repeat cap** | **4** | The spiral was dominated by repeated `searchConversations`. Four lets a genuine re-query with a corrected term through (the #200T/#200U shape) and stops a loop early. |
+>
+> **Both numbers are REVIEWABLE and their falsification is explicit: if any legitimate
+> turn hits either cap, the number is wrong and moves.** That is a falsification of the
+> value, not of the mechanism.
+>
+> ### What the unit suite CAN prove (mechanical — this lane)
+> 1. The 13th tool call in one turn is **refused**, not executed.
+> 2. The 5th consecutive call to the SAME tool is **refused**, while a 5th call to a
+>    DIFFERENT tool proceeds.
+> 3. Counters **reset per turn** — turn 2 starts at zero. *(A budget that leaks across
+>    turns would silently strangle a long conversation; that is the obvious way for this
+>    fix to become a worse bug than the one it fixes.)*
+> 4. The refusal reaches the model as **tool output text**, not a thrown error — a throw
+>    would kill the turn upstream, which is **#197**'s failure mode and would trade a
+>    spiral for a dead turn.
+>
+> ### What ONLY a device run can prove (behavioural — Owen, §F1, uncapped by this lane)
+> **Re-run the exact prompt: "what's the weather gonna be in Gulfport tomorrow", on-device
+> brain, standalone, hand-launched.** Bars, all four required to pass:
+> - **B1 — bounded:** total tool calls **≤ 12**, and the turn ends on its own. *(Before:
+>   64 and still climbing when killed.)*
+> - **B2 — it speaks:** the turn produces **non-empty reply text**. *(Before: none, ever.
+>   This is the bar that matters most — a cap that yields silence is not a fix.)*
+> - **B3 — honest:** the reply **states it cannot get tomorrow's forecast** rather than
+>   inventing one. **#199's fabrication risk is LIVE here and was untestable on the
+>   original run precisely because no text was emitted** — capping the tools is exactly
+>   the condition that turns a silent spiral into a possible fabrication.
+> - **B4 — no collateral:** a normal multi-tool turn (e.g. "remind me to call Shelley
+>   tomorrow at 4") still completes. If this fails, the budget is too tight — see the
+>   falsification note above.
+>
+> **B2 and B3 are the ones that can fail even with a perfect cap**, because they are
+> about what the model does when told "no more tools." That is a behavioural question
+> the suite cannot reach, which is why they are pre-registered here rather than claimed
+> on merge.
+
 ## 223. 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the gateway can carry
 
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
