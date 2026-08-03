@@ -1121,6 +1121,53 @@ struct AppStoresTests {
                 "loop never attempted a reconcile — the test proved nothing")
     }
 
+    // MARK: #237 — the dedupe sweep (adopted-echo corruption heals on load)
+
+    private func echoRow(_ sender: MessageSender, _ content: String, ts: TimeInterval,
+                         activities: [ToolActivity] = []) -> Message {
+        Message(sender: sender, content: content,
+                timestamp: Date(timeIntervalSince1970: ts),
+                status: .delivered, toolActivities: activities)
+    }
+
+    @Test func sweepCollapsesAQuadrupledThread() {
+        let original = [
+            echoRow(.user, "smoke test plex", ts: 1_000),
+            echoRow(.hermes, "", ts: 1_001,
+                    activities: [ToolActivity(label: "terminal", startedAt: Date(timeIntervalSince1970: 1_001), isActive: false, detail: nil)]),
+            echoRow(.hermes, "Done. Report saved.", ts: 1_060),
+        ]
+        // Four adoptions' worth of fresh-identity copies (distinct UUIDs,
+        // identical triples) — Owen's 32→128 shape in miniature.
+        let quadrupled = original + original.map { Message(sender: $0.sender, content: $0.content, timestamp: $0.timestamp, status: .delivered, toolActivities: $0.toolActivities) }
+            + original.map { Message(sender: $0.sender, content: $0.content, timestamp: $0.timestamp, status: .delivered, toolActivities: $0.toolActivities) }
+            + original.map { Message(sender: $0.sender, content: $0.content, timestamp: $0.timestamp, status: .delivered, toolActivities: $0.toolActivities) }
+        let swept = Conversation.dedupingAdoptedEchoes(quadrupled)
+        #expect(swept.count == original.count)
+        #expect(swept.map(\.content) == original.map(\.content))
+        // Idempotent: sweeping the swept is identity.
+        #expect(Conversation.dedupingAdoptedEchoes(swept).map(\.id) == swept.map(\.id))
+    }
+
+    @Test func sweepPreservesDistinctTimestampRepeats() {
+        // A user really can send the same text twice — different timestamps.
+        let twice = [echoRow(.user, "ping", ts: 1_000), echoRow(.hermes, "pong", ts: 1_001),
+                     echoRow(.user, "ping", ts: 2_000), echoRow(.hermes, "pong", ts: 2_001)]
+        #expect(Conversation.dedupingAdoptedEchoes(twice).count == 4)
+    }
+
+    @Test func sweepDedupesEmptyShellsOnlyWhenActivitiesMatch() {
+        let shellA = echoRow(.hermes, "", ts: 1_000,
+                             activities: [ToolActivity(label: "terminal", startedAt: Date(timeIntervalSince1970: 1_000), isActive: false, detail: nil)])
+        let shellAdup = echoRow(.hermes, "", ts: 1_000,
+                                activities: [ToolActivity(label: "terminal", startedAt: Date(timeIntervalSince1970: 1_000), isActive: false, detail: nil)])
+        let shellB = echoRow(.hermes, "", ts: 1_000,
+                             activities: [ToolActivity(label: "read_file", startedAt: Date(timeIntervalSince1970: 1_000), isActive: false, detail: nil)])
+        let swept = Conversation.dedupingAdoptedEchoes([shellA, shellAdup, shellB])
+        #expect(swept.count == 2)
+        #expect(swept.last?.toolActivities.first?.label == "read_file")
+    }
+
     // MARK: #235 F3 — tail placement for recovered replies
 
     /// Owen's placement rule: a recovered reply DISPLACED by later exchanges

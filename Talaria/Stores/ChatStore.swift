@@ -396,6 +396,13 @@ final class ChatStore {
     func loadConversationIfNeeded() async {
         if conversation == nil {
             conversation = persistence.loadConversationCache()
+            // #237: heal pre-fix adopted-echo corruption at the restore
+            // boundary — Owen's quadrupled thread renders single copies on
+            // first load under the fix (bar 237-E's sim-reachable half).
+            if var restored = conversation {
+                restored.messages = Conversation.dedupingAdoptedEchoes(restored.messages)
+                conversation = restored
+            }
             if let cachedUsage = conversation?.latestUsage {
                 lastTokenUsage = cachedUsage
             }
@@ -2097,6 +2104,10 @@ final class ChatStore {
             )
         }
 
+        // #237: every adoption pass exits through the sweep, so even a
+        // pre-fix-corrupted local (or an unforeseen union path) converges to
+        // single copies instead of compounding.
+        refreshedConversation.messages = Conversation.dedupingAdoptedEchoes(refreshedConversation.messages)
         return refreshedConversation
     }
 
