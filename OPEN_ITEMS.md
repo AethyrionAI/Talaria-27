@@ -13263,6 +13263,40 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes
+
+**FILED 2026-08-02 from the first fully instrumented device turn (#228's instrument,
+Release build 1843, verbose ON, the Gulfport control prompt).** The turn executed its
+12 budgeted calls, then spent ~2.3 MINUTES in a loop the instrument watched live:
+the model calls `searchConversations`, the governor refuses (as tool output, per
+#225's correct never-throw design), the model burns a full ~2.4s inference round
+reacting to the refusal — **by calling the tool again. 53 consecutive
+`searchConversations` refusals, then a thrash to `currentLocation` (#56) and
+`currentWeather` (#57), then an honest text decline.** Receipt IN 5.7K · OUT 66;
+no overflow; no fabrication.
+
+**Why this was invisible until tonight:** refusals deliberately emit no chip (#180 —
+right call, unchanged), and the relay's only logging was DEBUG+battery-gated. The
+user-visible symptom was exactly Owen's report: *"after 12 tools, its giving the
+still working."*
+
+**The mechanism, named:** a refusal handed back as tool output keeps the model in
+tool-calling mode — the text says "answer now," but the model treats it as one more
+result to react to. Each cycle also appends ~45 tokens of refusal text to the very
+window #225 worries about (57 × ~45 ≈ 2,500 tokens of pure refusal).
+
+**Candidate fix, with the SDK seam verified in the beta4 interface:** after K
+refusals, END the tool phase structurally instead of rhetorically — demote the
+turn's `GenerationOptions.ToolCallingMode` to `.disallowed` (per-request, exists,
+see the FM surfaces memory) or drop the belt for the remainder of the turn. Terser
+refusal strings are a secondary patch. **Bars to pre-register in THIS entry before
+any fix lane runs.** Baseline for judgement: this trial — 12 executed / 57 refused /
+~2.5min / honest decline.
+
+**Cross-links:** the executed-call bound is #225 (correct, insufficient — again);
+the window class is #229; the trigger fix is #230. Same-tool cap held (4 executed
+max per tool); the grind is a REFUSAL loop, a distinct third mechanism.
+
 ## 231. 🐛 RELEASE-ONLY: the chat screen scrambles — transcript collapses, identity strip lands on the input bar. Debug is fine, so every check we run was blind to it (#218's family, for UI)
 
 **FILED 2026-08-02, found by Owen ~60 seconds into the first Release install anyone
