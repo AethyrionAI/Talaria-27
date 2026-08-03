@@ -9,20 +9,17 @@ final class PermissionsStore {
 
     private let locationService: any LocationServiceProtocol
     private let healthService: any HealthServiceProtocol
-    private let notificationService: any NotificationServiceProtocol
     private let mediaService: any MediaServiceProtocol
     private let motionService: LiveMotionService?
 
     init(
         locationService: any LocationServiceProtocol,
         healthService: any HealthServiceProtocol,
-        notificationService: any NotificationServiceProtocol,
         mediaService: any MediaServiceProtocol,
         motionService: LiveMotionService? = nil
     ) {
         self.locationService = locationService
         self.healthService = healthService
-        self.notificationService = notificationService
         self.mediaService = mediaService
         self.motionService = motionService
         self.capabilities = currentCapabilities()
@@ -31,7 +28,6 @@ final class PermissionsStore {
     func reloadCapabilities() async {
         locationService.refreshAuthorizationState()
         await healthService.refreshAuthorizationStatus()
-        await notificationService.refreshAuthorizationStatus()
         motionService?.refreshAuthorizationStatus()
         capabilities = currentCapabilities()
     }
@@ -42,8 +38,6 @@ final class PermissionsStore {
             _ = await locationService.requestAuthorization()
         case .health:
             _ = await healthService.requestAuthorization()
-        case .notifications:
-            _ = await notificationService.requestAuthorization()
         case .microphone:
             await requestMicrophoneAuthorization()
         case .camera:
@@ -97,7 +91,6 @@ final class PermissionsStore {
                 status: healthService.authorizationStatus,
                 statusDetail: healthStatusDetail()
             ),
-            DeviceCapability(permissionType: .notifications, status: notificationService.authorizationStatus),
             DeviceCapability(permissionType: .microphone, status: microphoneAuthorizationStatus()),
             DeviceCapability(permissionType: .camera, status: mediaService.cameraAuthorizationStatus),
             DeviceCapability(permissionType: .photos, status: mediaService.photosAuthorizationStatus),

@@ -299,7 +299,6 @@ struct AppStoresTests {
             syncCoordinator: MockSyncCoordinator(),
             secureStore: secureStore,
             persistence: persistence,
-            notificationService: MockNotificationService(),
             environmentProvider: { .development }
         )
 
@@ -340,7 +339,6 @@ struct AppStoresTests {
             syncCoordinator: MockSyncCoordinator(),
             secureStore: secureStore,
             persistence: persistence,
-            notificationService: MockNotificationService(),
             environmentProvider: { .development }
         )
 
@@ -454,7 +452,6 @@ struct AppStoresTests {
             syncCoordinator: MockSyncCoordinator(),
             secureStore: secureStore,
             persistence: persistence,
-            notificationService: MockNotificationService(),
             environmentProvider: { .development }
         )
     }
@@ -2497,7 +2494,6 @@ struct AppStoresTests {
             syncCoordinator: MockSyncCoordinator(),
             secureStore: secureStore,
             persistence: persistence,
-            notificationService: MockNotificationService(),
             environmentProvider: { .production }
         )
         let pairingStore = PairingStore(
@@ -2612,7 +2608,6 @@ struct AppStoresTests {
             syncCoordinator: MockSyncCoordinator(),
             secureStore: secureStore,
             persistence: persistence,
-            notificationService: MockNotificationService(),
             environmentProvider: { .production }
         )
         let pairingStore = PairingStore(
@@ -2669,7 +2664,6 @@ struct AppStoresTests {
             syncCoordinator: MockSyncCoordinator(),
             secureStore: secureStore,
             persistence: persistence,
-            notificationService: MockNotificationService(),
             environmentProvider: { .production }
         )
         let pairingService = RecordingPairingService()
@@ -2707,7 +2701,6 @@ struct AppStoresTests {
             syncCoordinator: MockSyncCoordinator(),
             secureStore: MockSecureStore(),
             persistence: persistence,
-            notificationService: MockNotificationService(),
             environmentProvider: { .production }
         )
 
@@ -2763,7 +2756,6 @@ struct AppStoresTests {
             syncCoordinator: MockSyncCoordinator(),
             secureStore: MockSecureStore(),
             persistence: persistence,
-            notificationService: MockNotificationService(),
             environmentProvider: { .development }
         )
         await sessionStore.bootstrap()
@@ -3314,7 +3306,6 @@ struct AppStoresTests {
             syncCoordinator: MockSyncCoordinator(),
             secureStore: secureStore,
             persistence: persistence,
-            notificationService: MockNotificationService(),
             environmentProvider: { .production }
         )
         let pairingStore = PairingStore(
@@ -3358,8 +3349,7 @@ struct AppStoresTests {
             permissionsStore: PermissionsStore(
                 locationService: MockLocationService(),
                 healthService: MockHealthService(),
-                notificationService: MockNotificationService(),
-                mediaService: MockMediaService()
+                    mediaService: MockMediaService()
             ),
             settingsStore: SettingsStore(persistence: persistence),
             talkStore: TalkStore(voiceService: RecordingVoiceSessionService()),
