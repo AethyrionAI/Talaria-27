@@ -13263,7 +13263,7 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
-## 234. 🐛 "Day after tomorrow" received TOMORROW'S forecast — the model collapses an unsupported day into the nearest supported one, and #230's honest refusal never reaches the user
+## 234. 🐛 "Day after tomorrow" received TOMORROW'S forecast — the model collapses an unsupported day into the nearest supported one, and #230's honest refusal never reaches the user — **MECHANISM CONFIRMED same morning: argument-time nearest-fit, trial-7 severity family**
 
 **FILED 2026-08-03 from Owen's at-work spot check of the just-shipped #230** (Release
 OTA of the fix branch, fresh chat): "What's the weather in Gulfport the day after
@@ -13278,8 +13278,9 @@ the horizon honestly. Pinned by `WeatherTomorrowTests` ("friday", "next week"); 
 literal phrase "day after tomorrow" should be added as a pin in any fix lane — same
 mechanism, but it is THE observed input.
 
-**Two candidate mechanisms, both model-half, discriminable by the turn's chip count
-(screenshot owed):**
+**Two candidate mechanisms were filed; (a) CONFIRMED by Owen's screenshot the same
+morning (8:23 AM, fresh chat, chip reads 2 TOOL CALLS — a single `currentWeather`
+call, so no refuse-and-re-call round ever happened):**
 - **(a) Argument-time nearest-fit (2 calls):** the `day` @Guide advertises exactly
   two states ("'tomorrow' … or empty for today") — a model with no advertised way to
   say "day after tomorrow" snaps to `"tomorrow"`, and the honest path never fires.
@@ -13288,10 +13289,13 @@ mechanism, but it is THE observed input.
   got the honest unsupported answer, and re-called with `"tomorrow"` — #216's
   substitution mechanism in miniature, bounded by the caps, same wrong answer.
 
-**Also owed to the screenshot: what the answer TEXT called the day.** "Tomorrow will
-be…" = answering a different question than asked (trial 7's family); "The day after
-tomorrow will be…" = a fabricated day label on real data (full #199). The severity
-call between those waits on evidence.
+**Severity settled by the same screenshot:** the answer opens "**Tomorrow** in
+Gulfport, it will rain…" (90°F / 79°F, 60% precip) — the day label is honest about
+the data it carries, it just is not the day the user asked about. That is **trial
+7's family (true data, misread question), NOT the fabricated-label full-#199 shape.**
+Consequence of (a) for any fix lane: the tool receives a well-formed `"tomorrow"`
+and CANNOT detect the collapse — a tool-side guard is structurally impossible here
+(the same reframe #233 hit: the model qualifies before the tool sees).
 
 **Candidate directions (none decided; bars pre-register HERE before any lane):**
 @Guide text naming the boundary AND a pass-through rule ("if the user asks beyond
