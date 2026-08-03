@@ -13428,7 +13428,8 @@ time rendering unmissable. Bars pre-register HERE before any fix lane.
 > prompt verbatim ("Remind me to call Shelley tomorrow at 4" → expect the AM/PM
 > question; a silent 4 PM card also passes, the accepted fallback), and
 > "remind me at 5 AM tomorrow" (≤ 1 bounce, amber EARLY MORNING row on the
-> card, store row at 5:00 AM).
+> card, store row at 5:00 AM). **Build 1860 (`df9a300`) staged and installed
+> on whoGoesThere 2026-08-03 AM — Owen runs both prompts this evening.**
 
 ## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes — **CUT BUILT 2026-08-03 (AM); 232-C/D experiential halves MET on device same morning; log halves owed to the corded coda**
 
