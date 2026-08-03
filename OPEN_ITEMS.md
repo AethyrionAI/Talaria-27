@@ -13263,7 +13263,21 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
-## 238. ✂️ NOTIFICATION REMOVAL — the pivot's first cut (post-#235/#237, banners are scaffolding around a fixed defect) — **LANE OPEN 2026-08-03 (evening)**
+## 238. ✂️ NOTIFICATION REMOVAL — the pivot's first cut (post-#235/#237, banners are scaffolding around a fixed defect) — **BUILT + GATED same evening: 238-A/B/C MET (gate PASS, Release clean, fresh-sim no-dialog observed); 238-D/E owed to merge + OTA**
+
+> **✅ GATE PASS 2026-08-03 ~19:0x, third run.** 238-A: `testFreshInstall-
+> NeverPresentsNotificationPermissionDialog` PASSED (13.7s) on the ERASED sim —
+> genuine fresh-install condition, walks first-launch + a dispatched send (the
+> exact trigger the retired #189 priming rode). 238-B: absence sweep clean, first
+> try. 238-C: 1548 green TWICE (T8 + gate — the −22 delta held on two independent
+> runs; #235 recovery tests ride inside), XCUITest count MOVED 8 → 9. Release
+> build clean (#218 arm — the config-plane check that matters for an entitlement
+> cut). **Two gate hangs en route, both harness, both banked to memory:** the
+> sim erase wiped TCC and the EventKit probes hang on undetermined authorization;
+> first fix granted a FALLBACK-LITERAL bundle id (`org.aethyrion.talaria`) read
+> from code instead of the real `org.aethyrion.talaria27` — the TCC.db query is
+> what settled it. Two compile fixups en route (custom `encode(to:)`, DemoData
+> capability row) — the compiler caught both, the designed failure mode.
 
 **FILED AND ROUTED 2026-08-03 evening, Owen home.** Post-pivot ("self-contained local
 brain that can upgrade to Hermes"), the default user is HOSTLESS — notifications can
