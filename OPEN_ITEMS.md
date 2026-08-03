@@ -13278,7 +13278,14 @@ for 1–11 unless context says otherwise — what Siri does), or the create tool
 REFUSING bare hours back to the model with "ask AM or PM," plus making the card's
 time rendering unmissable. Bars pre-register HERE before any fix lane.
 
-## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes
+## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes — **CUT BUILT 2026-08-03 (AM); device bars 232-C/D owed**
+
+> **✅ MECHANISM BUILT overnight, same session** (branch `claude/t27-232-refusal-cut`,
+> tests first): refusals 1–3 stay strings; the 4th attempted call throws
+> `ToolPhaseCutError` → both send loops retry ONCE as a routed-toolless turn.
+> `relay.started` is now `throws` (compiler-enforced sweep). Mechanical bars
+> 232-A/B/E green in suite; **232-C/D are DEVICE bars, not claimed** — OTA or
+> corded verify per the 2026-08-03 handoff.
 
 **FILED 2026-08-02 from the first fully instrumented device turn (#228's instrument,
 Release build 1843, verbose ON, the Gulfport control prompt).** The turn executed its
@@ -13380,7 +13387,7 @@ code, identical fresh state.** So: not the phone, not the data, not #228's diff
 >   Verbose Logging there produces the #228 lines in a captured device log.
 > - **231-D:** the DEBUG banner behavior (#205) is unchanged in Debug builds.
 
-## 230. 🎨 `currentWeather` is today-only, and "tomorrow" was the trigger: extend it to WeatherKit's daily forecast — FILED, deliberately NOT built before the run
+## 230. 🎨 `currentWeather` is today-only, and "tomorrow" was the trigger: extend it to WeatherKit's daily forecast — **BUILT 2026-08-03 (AM), after the run banked the control; Bar 3.1 owed on device**
 
 **FILED 2026-08-02, Lane 3 of `dispatch/FABLE-T27-LOCAL-BRAIN-DEVICE-RUN.md`.**
 (OPEN_ITEMS #230 — not PR #230; the two sequences collide here, per the standing
