@@ -13314,6 +13314,16 @@ re-entry surface (two triggers + tail-move) is new — treat the fix lane as
 > client id deterministically from the server row id — the root #120-family
 > fix) + reconcile idempotence (a resolved run id never resolves twice).
 
+> **Code-reading refinement (same day, pre-lane):** the union site is NOT
+> `mergeConversationMetadata` — it REPLACES with the server view and even
+> dedupes internal same-UUID rows. What IS confirmed in code:
+> `mapStoredMessage` mints a fresh Message per fetched row, deriving
+> nothing from the server row id (only clientMessageID/jobID fallbacks
+> rescue some rows), so re-fetches are unrecognizable by identity. The
+> concatenation therefore happens DOWNSTREAM — journal sync, cache
+> restore, or openSession adoption — and locating the true union site is
+> the fix lane's Phase 1, before any design hardens.
+
 > **DISCRIMINATOR ANSWERED (Owen, same sitting): the duplicates SURVIVE a
 > drawer-reopen — the healing prediction was WRONG.** The reopen/cache path
 > preserves the unioned transcript rather than replacing it from the
