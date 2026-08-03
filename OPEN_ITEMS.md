@@ -13263,6 +13263,43 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+## 234. 🐛 "Day after tomorrow" received TOMORROW'S forecast — the model collapses an unsupported day into the nearest supported one, and #230's honest refusal never reaches the user
+
+**FILED 2026-08-03 from Owen's at-work spot check of the just-shipped #230** (Release
+OTA of the fix branch, fresh chat): "What's the weather in Gulfport the day after
+tomorrow" → tomorrow's forecast served as the answer. This is the user-facing shape
+#230 was explicitly designed to never produce ("never a silent date-relabel — the
+#199-suspect shape") — arriving one boundary higher, above the tool.
+
+**The tool half is verified correct and is NOT the defect:** `requestedDay`
+equality-matches only `""`/`"today"`/`"now"`/`"tomorrow"`; anything else — including
+the literal "day after tomorrow" — is `.unsupported` → `unsupportedDayAnswer` names
+the horizon honestly. Pinned by `WeatherTomorrowTests` ("friday", "next week"); the
+literal phrase "day after tomorrow" should be added as a pin in any fix lane — same
+mechanism, but it is THE observed input.
+
+**Two candidate mechanisms, both model-half, discriminable by the turn's chip count
+(screenshot owed):**
+- **(a) Argument-time nearest-fit (2 calls):** the `day` @Guide advertises exactly
+  two states ("'tomorrow' … or empty for today") — a model with no advertised way to
+  say "day after tomorrow" snaps to `"tomorrow"`, and the honest path never fires.
+  The tool cannot detect this; it receives a well-formed request.
+- **(b) Refusal-then-substitution (3 calls):** the model passed the phrase through,
+  got the honest unsupported answer, and re-called with `"tomorrow"` — #216's
+  substitution mechanism in miniature, bounded by the caps, same wrong answer.
+
+**Also owed to the screenshot: what the answer TEXT called the day.** "Tomorrow will
+be…" = answering a different question than asked (trial 7's family); "The day after
+tomorrow will be…" = a fabricated day label on real data (full #199). The severity
+call between those waits on evidence.
+
+**Candidate directions (none decided; bars pre-register HERE before any lane):**
+@Guide text naming the boundary AND a pass-through rule ("if the user asks beyond
+tomorrow, pass their words through unchanged — never substitute 'tomorrow'"); and/or
+`tomorrowForecastLine` carrying its calendar date ("Tomorrow (Aug 4): …") so a
+mislabeled relay is at least self-contradicting on its face. Either is device-only to
+verify — the sim has no model.
+
 ## 233. 🐛 "Tomorrow at 4" became a 4:00 AM reminder — half-day defaulting on `createReminder`, and the confirm card did not save it
 
 **FILED 2026-08-02, Lane 1 trial 3 (run results doc).** "Remind me to call Shelley
@@ -13303,6 +13340,12 @@ time rendering unmissable. Bars pre-register HERE before any fix lane.
 > - **The formal close remains the corded coda** (~10 min: verbose ON +
 >   `idevicesyslog`) — exact refusal counts for 232-C, and the cut's `.notice`
 >   line (232-E's device half) on a prompt that actually grinds.
+> - **The same screenshot closes the run's follow-up list:** trial 1 was the
+>   only Lane 1 row that failed a bar (L1-B's no-trial->90s clause, ~150s on
+>   the grind), and this is that row on the fixed build, done in seconds. The
+>   handoff's "re-run the failed Lane 1 rows" is complete — **the tier
+>   question (#166c / Phase 7) is LIVE, and it is Owen's verdict, not a
+>   lane's.**
 
 **FILED 2026-08-02 from the first fully instrumented device turn (#228's instrument,
 Release build 1843, verbose ON, the Gulfport control prompt).** The turn executed its
@@ -13403,6 +13446,13 @@ code, identical fresh state.** So: not the phone, not the data, not #228's diff
 > - **231-C:** Settings → System shows the Developer row in Release; flipping
 >   Verbose Logging there produces the #228 lines in a captured device log.
 > - **231-D:** the DEBUG banner behavior (#205) is unchanged in Debug builds.
+
+> **✅ 231-B MET; 231-C's UI HALF MET — 2026-08-03 (AM), Owen at work, Release
+> OTA of the fix branch.** Both morning screenshots show the healed layout —
+> strip under the nav, live transcript, input at the bottom — and Owen
+> confirmed in so many words. The Developer row SHOWS in Release Settings →
+> System (the #246 promotion's first device look). **Still owed:** 231-C's
+> captured-log half (verbose toggle → #228 lines) rides the corded coda.
 
 ## 230. 🎨 `currentWeather` is today-only, and "tomorrow" was the trigger: extend it to WeatherKit's daily forecast — **BUILT 2026-08-03 (AM); Bar 3.1 MET ON DEVICE same morning**
 
