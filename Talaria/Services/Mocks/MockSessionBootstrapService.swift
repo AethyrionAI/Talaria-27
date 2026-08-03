@@ -9,8 +9,7 @@ final class MockSessionBootstrapService: SessionBootstrapServiceProtocol {
         syncStatus: .synced,
         isMockMode: true,
         backendEndpoint: DemoData.sampleUserSettings.relayConfiguration.activeBaseURLString ?? "",
-        lastSyncAt: .now,
-        registeredPushToken: nil
+        lastSyncAt: .now
     )
 
     func registerDevice(_ request: DeviceRegistrationRequest) async throws -> SessionBootstrapResponse {

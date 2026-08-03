@@ -29,8 +29,7 @@ final class MockPairingService: PairingServiceProtocol {
                 syncStatus: .synced,
                 isMockMode: false,
                 backendEndpoint: request.relayBaseURLString,
-                lastSyncAt: .now,
-                registeredPushToken: nil
+                lastSyncAt: .now
             ),
             tokens: AuthTokens(
                 accessToken: "mock-paired-access-token-\(normalizedCode)",

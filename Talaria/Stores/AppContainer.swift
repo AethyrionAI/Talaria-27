@@ -7,7 +7,6 @@ private let containerLog = Logger(subsystem: "org.aethyrion.talaria", category: 
 @MainActor
 @Observable
 final class AppContainer {
-    static let apnsTokenDefaultsKey = "hermes.apns.deviceToken"
     private static let sharedDefaultContainer = AppContainer.makeDefault()
 
     let router = TabRouter()
@@ -104,9 +103,6 @@ final class AppContainer {
     /// #16: AlarmKit executor behind the /alarm confirm gate. Stateless until
     /// first use (authorization requested on first schedule).
     let alarmService = AlarmService()
-    /// #47: honest failure notices for lock-screen replies (the typed text
-    /// must never vanish silently on a headless send failure).
-    private let localNotifications = LocalNotificationService()
     /// #29: the shared confirm gate for side-effecting device tools — stages
     /// a card in the chat transcript and suspends the tool until the user
     /// decides. Defaults closed (app death = nothing created).
@@ -115,10 +111,9 @@ final class AppContainer {
     let sensorUploadService: SensorUploadService?
     private let apiClient: RelayAPIClient?
     /// #136: short-timeout client for launch/bootstrap-class probes (command
-    /// catalog, push register). Nil in bare test containers — probe calls
-    /// fall back to `apiClient`.
+    /// catalog). Nil in bare test containers — probe calls fall back to
+    /// `apiClient`.
     private let probeAPIClient: RelayAPIClient?
-    private let notificationService: (any NotificationServiceProtocol)?
     private let secureStore: (any SecureStoreProtocol)?
     private(set) var hermesAPIKey: String = ""
     private(set) var modelsShimToken: String = ""
@@ -158,7 +153,6 @@ final class AppContainer {
         sensorUploadService: SensorUploadService? = nil,
         apiClient: RelayAPIClient? = nil,
         probeAPIClient: RelayAPIClient? = nil,
-        notificationService: (any NotificationServiceProtocol)? = nil,
         secureStore: (any SecureStoreProtocol)? = nil,
         localIntelligence: LocalIntelligenceService = LocalIntelligenceService(),
         chatBackendRouter: ChatBackendRouter? = nil
@@ -175,7 +169,6 @@ final class AppContainer {
         self.sensorUploadService = sensorUploadService
         self.apiClient = apiClient
         self.probeAPIClient = probeAPIClient
-        self.notificationService = notificationService
         self.secureStore = secureStore
         self.localIntelligence = localIntelligence
         self.chatBackendRouter = chatBackendRouter
@@ -355,7 +348,6 @@ final class AppContainer {
         // drift from UserSettings across restores (#29).
         TalariaLog.setVerbose(settingsStore.settings.verboseLogging)
         let syncCoordinator = MockSyncCoordinator()
-        let notificationService = LiveNotificationService()
         let allowMockFallbacks = AppEnvironmentPolicy.currentBuild.allowsEnvironmentOverrides
         // #144: a test run must never enrol as a LIVE device. This used to read
         // `UITEST_PAIRING_MODE == "mock"` alone, which relied on every test
@@ -416,7 +408,6 @@ final class AppContainer {
             syncCoordinator: syncCoordinator,
             secureStore: secureStore,
             persistence: persistence,
-            notificationService: notificationService,
             environmentProvider: { settingsStore.settings.environment },
             credentialScopeProvider: { profilesStore.activeProfile?.credentialScopeID }
         )
@@ -732,7 +723,6 @@ final class AppContainer {
             permissionsStore: PermissionsStore(
                 locationService: liveLocationService,
                 healthService: liveHealthService,
-                notificationService: notificationService,
                 mediaService: processEnvironment["UITEST_PAIRING_MODE"] != nil ? MockMediaService() : LiveMediaService(),
                 motionService: liveMotionService
             ),
@@ -742,7 +732,6 @@ final class AppContainer {
             sensorUploadService: sensorUploadService,
             apiClient: apiClient,
             probeAPIClient: bootstrapProbeClient,
-            notificationService: notificationService,
             secureStore: secureStore,
             localIntelligence: localIntelligence,
             chatBackendRouter: chatBackendRouter
@@ -1198,16 +1187,6 @@ final class AppContainer {
             // dimmed row exists to avoid.
             container?.spotlightIndexing.donateSessions(sessions.filter(\.isResumable))
         }
-        // Run-completion push watch (#38): when a stream detaches while the
-        // app is leaving the foreground, ask the relay to watch the session
-        // and fire APNs on completion; when the app reconciles the run on its
-        // own, withdraw the watch so no stale push arrives.
-        container.chatStore.onRunDetached = { [weak container] sessionId in
-            Task { await container?.postPushWatch(sessionId: sessionId) }
-        }
-        container.chatStore.onRunResolved = { [weak container] sessionId in
-            Task { await container?.cancelPushWatch(sessionId: sessionId) }
-        }
         container.talkStore.onSessionStateChanged = { [weak container] in
             guard let container else { return }
             container.updateWidgetData()
@@ -1369,8 +1348,6 @@ final class AppContainer {
             await seedActiveModelFromShim()
             guard isCurrent() else { return }
         }
-        await registerStoredPushTokenIfNeeded()
-        guard isCurrent() else { return }
         // #136: the sensor foreground refresh drains the outbox — an inline
         // relay upload — so it rides here, not the splash critical path
         // (start() itself stays on the critical path: capture + HealthKit
@@ -1571,8 +1548,6 @@ final class AppContainer {
             await seedActiveModelFromShim()
             if Task.isCancelled { return }
         }
-        await registerStoredPushTokenIfNeeded()
-        if Task.isCancelled { return }
         await sensorUploadService?.handleAppDidBecomeActive()
         if Task.isCancelled { return }
         talkStore.handleAppDidBecomeActive()
@@ -1590,133 +1565,6 @@ final class AppContainer {
         // fetched state for no benefit (#145 Part B).
         reconcileLiveActivities()
         await reportAppStateIfNeeded("foreground")
-        updateWidgetData()
-    }
-
-    // MARK: - Lock-screen reply (#47)
-
-    /// A typed reply from a completion push's text-input action. Headless by
-    /// design — no scene mounts, so nothing here may touch UI state, and the
-    /// #38 scene-phase hook (`watchPendingRunIfNeeded`) never runs: the
-    /// completion watch for the reply's own run is re-armed explicitly, which
-    /// is what makes the loop close (the next completion push again carries
-    /// Reply).
-    func handleNotificationReply(_ text: String, sessionID: String?) async {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-
-        // Keep iOS from suspending the scene-less process mid-send — the
-        // delegate callback's grace window alone is short.
-        let backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "hermes.lockscreen.reply")
-        defer {
-            if backgroundTask != .invalid {
-                UIApplication.shared.endBackgroundTask(backgroundTask)
-            }
-        }
-
-        // Cold scene-less launch: the Keychain key restore is async — same
-        // bounded wait AskHermesIntent uses.
-        await waitForHermesAPIKeyRestore()
-
-        // One run at a time (AskHermesIntent's rule): stacking a second
-        // stream would tangle ChatStore's placeholder bookkeeping. The typed
-        // text must not vanish silently — say so.
-        guard !chatStore.isStreaming else {
-            localNotifications.notifyReplyFailed(
-                reason: "Hermes is still working on another run. Open Talaria to send it."
-            )
-            return
-        }
-
-        let sentAt = Date()
-        if let sessionID, !sessionID.isEmpty {
-            // Adopt the pushed session so the reply continues THAT thread
-            // (and the app opens into it later).
-            await chatStore.openSession(sessionID)
-        } else {
-            await chatStore.loadConversationIfNeeded()
-        }
-
-        await chatStore.sendMessage(trimmed)
-
-        // Re-arm the relay watch so THIS run's completion pushes (again with
-        // a Reply action). Only after a committed turn: the watcher's
-        // completion check is positional — assistant-after-last-user — so
-        // arming after a failed send would insta-push a stale reply. For a
-        // run that already finished in-process the insta-fire is the point:
-        // it's what announces the answer to the locked phone.
-        switch AskHermesIntent.resolveOutcome(
-            messages: chatStore.conversation?.messages ?? [],
-            sentAfter: sentAt
-        ) {
-        case .answered, .pending:
-            if let watchSession = sessionID ?? chatStore.pendingRunSessionId {
-                await postPushWatch(sessionId: watchSession)
-            }
-        case .failed(let errorText):
-            localNotifications.notifyReplyFailed(reason: errorText)
-        case .queued:
-            // Parked in the offline compose outbox (#90): nothing was accepted
-            // server-side, so there's no run to push-watch and it isn't a
-            // failure. The outbox drain arms its own watch when it later sends.
-            break
-        }
-    }
-
-    /// Bounded wait for the async Keychain key restore on cold scene-less
-    /// launches (mirrors AskHermesIntent.waitForAPIKeyRestore).
-    private func waitForHermesAPIKeyRestore() async {
-        let clock = ContinuousClock()
-        let deadline = clock.now + .seconds(2)
-        while hermesAPIKey.isEmpty, clock.now < deadline, !Task.isCancelled {
-            try? await Task.sleep(for: .milliseconds(100))
-        }
-    }
-
-    /// User tapped a completion notification — bring the app to chat and
-    /// reconcile so the finished reply is fetched. `sessionID` (from the
-    /// remote push payload) targets the specific conversation; local
-    /// completion notifications pass nil and land on the active one.
-    func handleNotificationTap(sessionID: String?) async {
-        guard pairingStore.isPaired else { return }
-        router.activeSheet = nil
-        router.popToRoot()
-        router.selectedTab = .chat
-        if let sessionID, !sessionID.isEmpty {
-            await chatStore.openSession(sessionID)
-        }
-        await chatStore.reconcilePendingRuns()
-    }
-
-    func handleRemoteNotificationWake() async {
-        containerLog.notice("handleRemoteNotificationWake: entered")
-        guard pairingStore.isPaired else {
-            containerLog.warning("handleRemoteNotificationWake: BLOCKED — not paired")
-            return
-        }
-        guard await sessionStore.currentAccessToken() != nil else {
-            containerLog.warning("handleRemoteNotificationWake: BLOCKED — no access token")
-            return
-        }
-
-        // A push that woke us almost always means a run finished server-side;
-        // reconcile so the reply is fetched and the completion notification
-        // can fire.
-        await chatStore.reconcilePendingRuns()
-
-        // #45: a silent push is also how an agent-posted inbox item announces
-        // itself — refresh so the item is waiting before the user ever opens
-        // the app.
-        await inboxStore.loadInbox(force: true)
-
-        await permissionsStore.reloadCapabilities()
-        await hostStore.refresh()
-        lastKnownHostOnline = hostStore.isHostOnline
-        await registerStoredPushTokenIfNeeded()
-        await sensorUploadService?.handleAppDidBecomeActive()
-        talkStore.handleAppDidBecomeActive()
-        await talkStore.refreshReadiness()
-        reconcileLiveActivities()
         updateWidgetData()
     }
 
@@ -1742,7 +1590,6 @@ final class AppContainer {
 
         sensorUploadService?.start()
         await sensorUploadService?.handleSystemLaunch()
-        await registerStoredPushTokenIfNeeded()
         await talkStore.refreshReadiness()
         reconcileLiveActivities()
         await reportAppStateIfNeeded("foreground")
@@ -1798,224 +1645,6 @@ final class AppContainer {
         // Start sensor data pipeline
         sensorUploadService?.start()
         await talkStore.refreshReadiness()
-    }
-
-    /// The push-token pipeline has two independent stages, and conflating them
-    /// produced contradictory Settings readouts (Notifications vs Diagnostics).
-    /// This is the single source of truth both screens render from:
-    ///   1. iOS issues an APNs device token (requires the aps-environment
-    ///      entitlement; cached under `apnsTokenDefaultsKey` when delivered).
-    ///   2. The relay accepts that token via POST push/register
-    ///      (recorded as `sessionStore.state.registeredPushToken`).
-    enum PushTokenPipelineState: Equatable {
-        /// iOS has not delivered an APNs device token on this install.
-        case notIssued
-        /// A token is held locally but the relay registration is unconfirmed.
-        case awaitingRelay
-        /// The relay has confirmed the push registration.
-        case registered
-    }
-
-    /// #146: a COMPARISON, not a flag — the token iOS handed us against the
-    /// token the relay acked. A stale record can no longer read as registered,
-    /// and a live registration can no longer read as awaiting: both stages are
-    /// answered by the same field, so there is no second record to strand.
-    /// Pure, so the rule is assertable without standing up a container.
-    static func pushTokenPipelineState(
-        heldToken: String?,
-        recordedToken: String?
-    ) -> PushTokenPipelineState {
-        guard let heldToken else { return .notIssued }
-        return recordedToken == heldToken ? .registered : .awaitingRelay
-    }
-
-    var pushTokenPipelineState: PushTokenPipelineState {
-        Self.pushTokenPipelineState(
-            heldToken: cachedAPNsDeviceToken,
-            recordedToken: sessionStore.state.registeredPushToken
-        )
-    }
-
-    /// The APNs device token most recently delivered by iOS, if any.
-    var cachedAPNsDeviceToken: String? {
-        guard let token = UserDefaults.standard.string(forKey: Self.apnsTokenDefaultsKey),
-              !token.isEmpty else { return nil }
-        return token
-    }
-
-    /// Registers the APNs device token with the relay so it can send silent push notifications.
-    func registerPushTokenIfNeeded(_ token: String) async {
-        guard let notificationService else { return }
-        // M-7: any paired profile makes push registration worth running —
-        // the ACTIVE profile may legitimately be an unpaired one while a
-        // dormant profile still wants its completion pushes.
-        let anyProfilePaired = pairingStore.isPaired
-            || (profilesStore?.profiles.contains { profileRelaySessions?.isPaired(profileID: $0.id) == true } ?? false)
-        guard anyProfilePaired else { return }
-
-        // Respect the user's in-app notifications toggle.
-        // If disabled, deactivate any existing registration on the relays
-        // so the user actually stops receiving pushes.
-        guard settingsStore.settings.notificationsEnabled else {
-            // Always attempt deactivation — the relay may have an active
-            // registration from a previous session even if the local flag is false.
-            await deactivatePushRegistration()
-            await deactivateDormantPushRegistrations()
-            await notificationService.markPushTokenRegistered(false)
-            sessionStore.state.registeredPushToken = nil
-            return
-        }
-
-        let normalizedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalizedToken.isEmpty else { return }
-
-        await notificationService.updatePushToken(normalizedToken)
-        await registerPushTokenWithActiveRelay(normalizedToken, notificationService: notificationService)
-
-        // M-7: every paired relay holds this device's token from its own
-        // pairing and watches its own gateway — completion pushes must work
-        // for BOTH hosts regardless of which is active. Runs even when the
-        // active profile's registration deferred (no token / no deviceID).
-        await registerPushTokenWithDormantRelays(normalizedToken)
-    }
-
-    /// The pre-Lane-M active-relay registration path, verbatim — only the
-    /// dormant fan-out moved out from under its early returns.
-    private func registerPushTokenWithActiveRelay(
-        _ normalizedToken: String,
-        notificationService: any NotificationServiceProtocol
-    ) async {
-        // #136: push registration is a launch/bootstrap-class probe (tiny
-        // POST, retried on next launch) — the short-timeout client keeps
-        // background init converging against a black-holed relay.
-        guard pairingStore.isPaired, let apiClient = probeAPIClient ?? apiClient else { return }
-
-        guard let accessToken = await sessionStore.currentAccessToken() else {
-            containerLog.notice("registerPushToken: no relay access token — registration deferred")
-            await notificationService.markPushTokenRegistered(false)
-            sessionStore.state.registeredPushToken = nil
-            return
-        }
-
-        // #146: a skip IS a confirmation — this relay already acked exactly
-        // this token, so record it rather than leaving the record behind.
-        if notificationService.isPushTokenRegistered,
-           notificationService.currentPushToken == normalizedToken {
-            sessionStore.state.registeredPushToken = normalizedToken
-            return
-        }
-
-        guard let deviceID = sessionStore.state.deviceID else {
-            containerLog.notice("registerPushToken: no deviceID in session state — registration deferred")
-            await notificationService.markPushTokenRegistered(false)
-            sessionStore.state.registeredPushToken = nil
-            return
-        }
-
-        #if DEBUG
-        let pushEnvironment = "development"
-        #else
-        let pushEnvironment = "production"
-        #endif
-
-        struct PushRegisterBody: Encodable {
-            let deviceId: String
-            let apnsToken: String
-            let pushEnvironment: String
-            let bundleId: String
-        }
-
-        let body = PushRegisterBody(
-            deviceId: deviceID.uuidString.lowercased(),
-            apnsToken: normalizedToken,
-            pushEnvironment: pushEnvironment,
-            bundleId: Bundle.main.bundleIdentifier ?? "org.aethyrion.talaria"
-        )
-
-        struct PushRegisterResponse: Decodable {
-            let data: PushData?
-            struct PushData: Decodable { let registered: Bool }
-        }
-
-        do {
-            let _: PushRegisterResponse = try await apiClient.post(
-                path: "push/register",
-                body: body,
-                accessToken: accessToken
-            )
-            containerLog.notice("registerPushToken: relay accepted push registration")
-            await notificationService.markPushTokenRegistered(true)
-            sessionStore.state.registeredPushToken = normalizedToken
-        } catch {
-            // Non-critical — token will be retried on next app launch
-            containerLog.notice("registerPushToken: relay push/register failed: \(error.localizedDescription, privacy: .public)")
-            await notificationService.markPushTokenRegistered(false)
-            sessionStore.state.registeredPushToken = nil
-        }
-    }
-
-    /// M-7: best-effort push registration on every paired NON-ACTIVE relay.
-    /// Failures are logged only — the active-relay path above stays the
-    /// authoritative UX signal.
-    private func registerPushTokenWithDormantRelays(_ token: String) async {
-        guard let profilesStore, let profileRelaySessions else { return }
-
-        #if DEBUG
-        let pushEnvironment = "development"
-        #else
-        let pushEnvironment = "production"
-        #endif
-
-        struct PushRegisterBody: Encodable {
-            let deviceId: String
-            let apnsToken: String
-            let pushEnvironment: String
-            let bundleId: String
-        }
-        struct PushRegisterResponse: Decodable {
-            let data: PushData?
-            struct PushData: Decodable { let registered: Bool }
-        }
-
-        for profile in profilesStore.profiles where profile.id != profilesStore.activeProfileID {
-            guard profileRelaySessions.isPaired(profileID: profile.id),
-                  let profileState = profileRelaySessions.sessionState(forProfileID: profile.id),
-                  let deviceID = profileState.deviceID else { continue }
-            // #133: mirror the active path's short-circuit — this relay
-            // already acked exactly this token, so there is nothing to send.
-            // #146: safe to skip WITHOUT re-marking, now that the record we
-            // consult here is the same one the UI and the watch guard read.
-            guard DormantPushRegistrationPolicy.shouldRegister(
-                recordedToken: profileState.registeredPushToken,
-                currentToken: token
-            ) else { continue }
-            guard var accessToken = await profileRelaySessions.accessToken(forProfileID: profile.id) else { continue }
-
-            let body = PushRegisterBody(
-                deviceId: deviceID.uuidString.lowercased(),
-                apnsToken: token,
-                pushEnvironment: pushEnvironment,
-                bundleId: Bundle.main.bundleIdentifier ?? "org.aethyrion.talaria"
-            )
-            let client = profileRelaySessions.apiClient(forProfileID: profile.id)
-            do {
-                do {
-                    let _: PushRegisterResponse = try await client.post(path: "push/register", body: body, accessToken: accessToken)
-                } catch RelayAPIClient.ClientError.unauthorized {
-                    // Dormant tokens go stale between visits — one refresh,
-                    // one retry, then give up quietly.
-                    guard let refreshed = await profileRelaySessions.refreshAccessToken(forProfileID: profile.id) else {
-                        continue
-                    }
-                    accessToken = refreshed
-                    let _: PushRegisterResponse = try await client.post(path: "push/register", body: body, accessToken: accessToken)
-                }
-                profileRelaySessions.markPushTokenRegistered(true, profileID: profile.id, token: token)
-                containerLog.notice("registerPushToken: dormant relay '\(profile.name, privacy: .public)' accepted push registration")
-            } catch {
-                containerLog.notice("registerPushToken: dormant relay '\(profile.name, privacy: .public)' failed: \(error.localizedDescription, privacy: .public)")
-            }
-        }
     }
 
     // MARK: - In-app permission revocation (#6 / OPEN_ITEMS #23)
@@ -2085,15 +1714,6 @@ final class AppContainer {
         await permissionsStore.reloadCapabilities()
     }
 
-    /// Revoke (`false`) or restore (`true`) push notifications. The existing
-    /// register path deactivates the relay registration when the flag is off
-    /// and re-registers the cached APNs token when it's on.
-    func setNotificationsEnabled(_ enabled: Bool) async {
-        settingsStore.settings.notificationsEnabled = enabled
-        await registerPushTokenIfNeeded(cachedAPNsDeviceToken ?? "")
-        await permissionsStore.reloadCapabilities()
-    }
-
     /// Re-enabling a sensor rides the normal start() wiring, which is gated
     /// on the collection flags — a stop/start rebuilds exactly the enabled set.
     private func restartSensorPipelineIfPaired() {
@@ -2124,153 +1744,6 @@ final class AppContainer {
             settingsStore.settings = settings
             containerLog.notice("sensor opt-in migration: grandfathered streaming ON (active pairing)")
         }
-    }
-
-    /// Tells the relay to deactivate push registrations for this device.
-    private func deactivatePushRegistration() async {
-        guard let apiClient,
-              let accessToken = await sessionStore.currentAccessToken() else { return }
-
-        struct DeactivateResponse: Decodable {
-            let deactivated: Bool?
-        }
-
-        _ = try? await apiClient.post(
-            path: "push/deactivate",
-            accessToken: accessToken
-        ) as DeactivateResponse
-    }
-
-    /// M-7: the user's notifications toggle governs EVERY paired relay, not
-    /// just the active one. Best-effort, like the active path.
-    private func deactivateDormantPushRegistrations() async {
-        guard let profilesStore, let profileRelaySessions else { return }
-
-        struct DeactivateResponse: Decodable {
-            let deactivated: Bool?
-        }
-
-        for profile in profilesStore.profiles where profile.id != profilesStore.activeProfileID {
-            guard profileRelaySessions.isPaired(profileID: profile.id),
-                  let accessToken = await profileRelaySessions.accessToken(forProfileID: profile.id) else { continue }
-            _ = try? await profileRelaySessions.apiClient(forProfileID: profile.id).post(
-                path: "push/deactivate",
-                accessToken: accessToken
-            ) as DeactivateResponse
-            profileRelaySessions.markPushTokenRegistered(false, profileID: profile.id)
-        }
-    }
-
-    private func registerStoredPushTokenIfNeeded() async {
-        guard let storedToken = UserDefaults.standard.string(forKey: Self.apnsTokenDefaultsKey) else {
-            return
-        }
-        await registerPushTokenIfNeeded(storedToken)
-    }
-
-    // MARK: - Run-completion push watch (#38)
-    //
-    // Chat rides the direct :8642 path, so the relay never sees a run happen.
-    // These calls are the bridge: on detach the app names the session it
-    // walked away from, the relay polls the gateway's messages endpoint, and
-    // an APNs alert (payload `session_id`) fires when the reply lands. All
-    // best-effort — a failed watch just means no push, and the existing
-    // foreground reconcile still recovers the reply.
-
-    /// Asks the relay to watch the currently pending run, if there is one.
-    /// Called on the background transition; the stream-detach callback
-    /// (`onRunDetached`) covers the lock-mid-stream case where the scene
-    /// phase change has already passed.
-    func watchPendingRunIfNeeded() async {
-        // #226 leg (a): `pendingRunSessionId` alone made this a NO-OP at the
-        // home-screen transition — a healthy stream has no PendingRun, so the
-        // guard returned early and no watch was ever posted. See
-        // `ChatStore.watchableSessionId`.
-        guard let sessionId = chatStore.watchableSessionId else { return }
-        await postPushWatch(sessionId: sessionId)
-    }
-
-    /// M-7: a watch must be posted to the relay that watches the session's
-    /// BIRTH gateway — a run on the Mac can't be watched by OJAMD's relay.
-    /// Returns nil for the active profile (and for pre-profile sessions,
-    /// which all live on the migrated/active backend): those take the
-    /// original sessionStore-backed path.
-    private func dormantWatchProfileID(forSessionID sessionId: String) -> UUID? {
-        guard let profilesStore, let sessionProfileIndex else { return nil }
-        let target = sessionProfileIndex.index.routingProfileID(
-            forSessionID: sessionId,
-            activeProfileID: profilesStore.activeProfileID
-        )
-        guard let target, target != profilesStore.activeProfileID else { return nil }
-        return target
-    }
-
-    func postPushWatch(sessionId: String) async {
-        guard settingsStore.settings.notificationsEnabled else { return }
-
-        struct WatchBody: Encodable { let sessionId: String }
-        struct WatchResponse: Decodable {}
-
-        if let dormantProfileID = dormantWatchProfileID(forSessionID: sessionId) {
-            // M-7: the session lives on a non-active backend — its own relay
-            // holds this device's push registration and watches its gateway.
-            guard let profileRelaySessions,
-                  profileRelaySessions.sessionState(forProfileID: dormantProfileID)?.pushTokenRegistered == true,
-                  let accessToken = await profileRelaySessions.accessToken(forProfileID: dormantProfileID)
-            else { return }
-            do {
-                let _: WatchResponse = try await profileRelaySessions.apiClient(forProfileID: dormantProfileID).post(
-                    path: "push/watch",
-                    body: WatchBody(sessionId: sessionId),
-                    accessToken: accessToken
-                )
-                containerLog.notice("postPushWatch: dormant-profile relay watching session for completion push")
-            } catch {
-                containerLog.notice("postPushWatch: dormant-profile watch failed (no completion push this run): \(error.localizedDescription, privacy: .public)")
-            }
-            return
-        }
-
-        guard sessionStore.state.pushTokenRegistered,
-              let apiClient,
-              let accessToken = await sessionStore.currentAccessToken()
-        else { return }
-
-        do {
-            let _: WatchResponse = try await apiClient.post(
-                path: "push/watch",
-                body: WatchBody(sessionId: sessionId),
-                accessToken: accessToken
-            )
-            containerLog.notice("postPushWatch: relay watching session for completion push")
-        } catch {
-            containerLog.notice("postPushWatch: failed (no completion push this run): \(error.localizedDescription, privacy: .public)")
-        }
-    }
-
-    func cancelPushWatch(sessionId: String) async {
-        struct CancelBody: Encodable { let sessionId: String }
-        struct CancelResponse: Decodable {}
-
-        if let dormantProfileID = dormantWatchProfileID(forSessionID: sessionId) {
-            guard let profileRelaySessions,
-                  let accessToken = await profileRelaySessions.accessToken(forProfileID: dormantProfileID) else { return }
-            _ = try? await profileRelaySessions.apiClient(forProfileID: dormantProfileID).post(
-                path: "push/watch/cancel",
-                body: CancelBody(sessionId: sessionId),
-                accessToken: accessToken
-            ) as CancelResponse
-            return
-        }
-
-        guard let apiClient,
-              let accessToken = await sessionStore.currentAccessToken() else { return }
-
-        _ = try? await apiClient.post(
-            path: "push/watch/cancel",
-            body: CancelBody(sessionId: sessionId),
-            accessToken: accessToken
-        ) as CancelResponse
     }
 
     /// Fetches the dynamic slash command catalog from the connected Hermes host.
@@ -2580,7 +2053,6 @@ final class AppContainer {
             await hostStore.refresh()
             lastKnownHostOnline = hostStore.isHostOnline
             await inboxStore.loadInbox(force: true)
-            await registerStoredPushTokenIfNeeded()
         }
         await refreshCommandCatalog(force: true)
         if chatStore.activeModelName == nil {
