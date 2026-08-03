@@ -13312,9 +13312,10 @@ re-run recorded there.
 >   40s guard-cancel. #145 Part A's assumption CONFIRMED; the split-session
 >   change was NOT built (evidence-gated, gate not met). Probe deleted
 >   uncommitted per plan.
-> **Device bars 235-E/F NOT claimed** — next OTA: Owen's reproduction (long
-> turn → background to RDP → return → answer at the tail, ⏱ clears) and the
-> displaced-recovery marker.
+> **Device bars 235-E/F NOT claimed** — staged on build 1870 (`main @
+> 3a41757`, 2026-08-03 midday): Owen's reproduction (long turn → background
+> to RDP → return → answer at the tail, ⏱ clears) and the displaced-recovery
+> marker.
 
 **FILED 2026-08-03 mid-morning from Owen's at-work report** (OJAMD session
 `api_1785768068_885aa3ad`, KIMI-K3 global default, heavy multi-tool turns while
@@ -13515,7 +13516,8 @@ time rendering unmissable. Bars pre-register HERE before any fix lane.
 > question; a silent 4 PM card also passes, the accepted fallback), and
 > "remind me at 5 AM tomorrow" (≤ 1 bounce, amber EARLY MORNING row on the
 > card, store row at 5:00 AM). **Build 1860 (`df9a300`) staged and installed
-> on whoGoesThere 2026-08-03 AM — Owen runs both prompts this evening.**
+> on whoGoesThere 2026-08-03 AM; superseded same day by build 1870 (`main @
+> 3a41757`, both PRs merged) — the device bars ride 1870.**
 
 ## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes — **CUT BUILT 2026-08-03 (AM); 232-C/D experiential halves MET on device same morning; log halves owed to the corded coda**
 
