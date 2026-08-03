@@ -6,7 +6,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from watcher_core import WatcherState, build_apns_request, extract_completion
+from watcher_core import (ApnsTokenPolicy, WatcherState, build_apns_request,
+                          extract_completion)
 
 
 def _u(mid, text="hi"):
@@ -77,3 +78,14 @@ def test_production_host():
     url, _, _ = build_apns_request("t", "s", topic="x", environment="production",
                                    title="a", body="b")
     assert url.startswith("https://api.push.apple.com/")
+
+
+def test_token_reused_inside_window():
+    calls = []
+    pol = ApnsTokenPolicy(mint=lambda: calls.append(1) or f"tok{len(calls)}",
+                          now=lambda: 1000.0)
+    assert pol.token() == "tok1"
+    pol._now = lambda: 1000.0 + 40 * 60          # 40 min later
+    assert pol.token() == "tok1"                  # reused
+    pol._now = lambda: 1000.0 + 51 * 60          # past 50-min refresh
+    assert pol.token() == "tok2"

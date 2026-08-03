@@ -21,6 +21,21 @@ def _message_text(content: object) -> str:
     return ""
 
 
+class ApnsTokenPolicy:
+    """Cache a minted provider JWT for 50 minutes (Apple: reuse 20-60 min)."""
+    REFRESH_S = 50 * 60
+
+    def __init__(self, mint, now):
+        self._mint, self._now = mint, now
+        self._token, self._minted_at = None, 0.0
+
+    def token(self) -> str:
+        if self._token is None or self._now() - self._minted_at >= self.REFRESH_S:
+            self._token = self._mint()
+            self._minted_at = self._now()
+        return self._token
+
+
 _APNS_HOSTS = {"sandbox": "https://api.sandbox.push.apple.com",
                "production": "https://api.push.apple.com"}
 
