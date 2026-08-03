@@ -13263,6 +13263,64 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+## 235. 🐛 CRITICAL (Owen, 2026-08-03): remote chats DROP THE FINAL ANSWER when the stream dies mid-turn — chips render, the answer lands in the server store, the app never fetches it
+
+**FILED 2026-08-03 mid-morning from Owen's at-work report** (OJAMD session
+`api_1785768068_885aa3ad`, KIMI-K3 global default, heavy multi-tool turns while
+directing host repairs from the phone). The phone shows reasoning + SKILL_VIEW
+chips for the 9:47 turn and NO answer bubble; the 9:50 sends sit at ⏱ pending —
+while Hermes Desktop shows full answers for the same turns.
+
+**What live probes established the same morning (Mac-side; raw captures in the
+session scratchpad `sse-probe*.txt`):**
+- **The server store is healthy.** `/api/sessions/{id}/messages` carries the
+  answers as plain text (row 24980 "Done — `HermesMobileRelay` is now
+  **Running**…", row 24983 "It's up now…"). Storage is not the defect.
+- **The stream shape is healthy on short turns, tools included.** Two probe
+  turns against OJAMD (no-tool; terminal-tool) both delivered the documented
+  taxonomy — `assistant.delta` carrying the answer text, `assistant.completed`,
+  `run.completed`. The taxonomy has NOT shifted under 0.19.1(+1)/Kimi.
+- **The failing turns were LONG multi-tool turns** (host service repair,
+  minutes) **with the phone app-switching to an RDP viewer** — Owen's own
+  screenshots come from the other app. Chips rendered = the stream was alive
+  early in the run; no answer = it was dead before `assistant.delta` fired.
+  Sends stuck "pending" though answered server-side = the response path died,
+  not the request path.
+
+**Mechanism:** the SSE stream is the ONLY path an answer reaches an open chat,
+and it does not survive a long turn under real conditions. Candidate
+breakpoints, not mutually exclusive: (a) **app backgrounding** suspends the
+URLSession data task (Owen was actively RDP-ing on the same phone); (b) **idle
+timeout** — `makeChatPlaneSession()` sets `timeoutIntervalForRequest = 20` (the
+INTERACTIVE budget) on the shared configuration while the stream request stamps
+300 per-request; **which value wins on-device is unpinned** (#145 Part A assumed
+the per-request stamp — worth a test before believing it); (c) cellular-over-
+tailnet drops. **The defect regardless of breakpoint: there is NO recovery.**
+When the stream dies without `run.completed`, the turn's answer is lost to the
+UI forever — even though the store holds it and `openSession` already knows how
+to fetch a stored transcript.
+
+**Interlock with #38/#223 worth naming:** the DESIGNED net for backgrounded runs
+is the relay push watch (`onRunDetached`) — and the relay was DOWN this exact
+morning (Owen had the agent restart it), so the net was absent precisely when
+needed. The #223 watcher (Lane 1, deployed on the Mac today) replaces that net
+without the relay.
+
+**One-tap diagnostic for Owen (a falsifiable prediction, not a claim):** leave
+the chat and re-open the session from the drawer. The reopen path fetches the
+stored transcript, so the missing answers should APPEAR. If they do, the bug is
+narrowly "no reconcile after stream loss" and the fix is app-side — on stream
+termination without `run.completed`, refetch the session's message tail and
+reconcile from the same store the reopen path reads. If they DON'T appear, the
+reopen path has its own defect — file that separately, don't fold it in.
+
+**Candidate directions (none decided; bars pre-register HERE before any fix
+lane):** stream-loss reconcile; pin the 20-vs-300 idle-timeout precedence with a
+test BEFORE touching either number; foreground-return reconcile for the open
+thread. **Cosmetic sibling, observed same session, note-only:** Kimi's
+`_thinking` channel mirrors raw JSON envelopes (`{"toolCalls": …`) into the
+REASONING rows — upstream shape, display-only.
+
 ## 234. 🐛 "Day after tomorrow" received TOMORROW'S forecast — the model collapses an unsupported day into the nearest supported one, and #230's honest refusal never reaches the user — **MECHANISM CONFIRMED same morning: argument-time nearest-fit, trial-7 severity family**
 
 **FILED 2026-08-03 from Owen's at-work spot check of the just-shipped #230** (Release
