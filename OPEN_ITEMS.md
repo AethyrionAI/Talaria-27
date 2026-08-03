@@ -13263,6 +13263,116 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+## 230. 🎨 `currentWeather` is today-only, and "tomorrow" was the trigger: extend it to WeatherKit's daily forecast — FILED, deliberately NOT built before the run
+
+**FILED 2026-08-02, Lane 3 of `dispatch/FABLE-T27-LOCAL-BRAIN-DEVICE-RUN.md`.**
+(OPEN_ITEMS #230 — not PR #230; the two sequences collide here, per the standing
+warning.) The tool's contract is "live conditions and TODAY'S forecast"; "tomorrow" is
+unmeetable by the whole belt, and the unmet demand is what displaced into
+`searchConversations` (#216's substitution mechanism) and became #225's spiral. The
+Opus session deferred this as *"removes the trigger, not the class"* — **recorded WRONG
+on the device evidence**: the class fix (#225's cap) converts a 64-call spiral into a
+4m34s silent overflow; the trigger fix ends the question at call 2.
+
+**⚠️ SEQUENCING — this is buildable solo TODAY and must NOT be.** Lane 1's prompt 1 is
+tonight's failure **verbatim, as the control**; changing the weather tool first destroys
+the control, and changing any tool's schema moves the belt's token cost while Lane 2
+(#229) is measuring it. **Build only after the Lane 1/2 measurements exist.**
+
+**Scope: a tool contract change plus its tests.** Not a licence to add tools.
+
+> ## 📋 BAR — PRE-REGISTERED 2026-08-02, BEFORE THE LANE
+> - **Bar 3.1:** Lane 1's prompt 1 ("What's the weather going to be like in Gulfport
+>   tomorrow") answers with a **real forecast** in **< 15s** and **≤ 3 tool calls**.
+
+## 229. 🐛 The on-device window is 8,192 tokens and the armed belt lives INSIDE it — the pressure question, and whether #26's retry should re-arm at all
+
+**FILED 2026-08-02 — the window half of #225's device falsification** (Lane 2 of
+`dispatch/FABLE-T27-LOCAL-BRAIN-DEVICE-RUN.md`). "Weather in Gulfport tomorrow" died at
+`8,218 > 8,192` **after #26's condense-and-retry FIRED and worked as built**: it caught
+the overflow, condensed, rebuilt — and re-armed all 13 tools into the same 8,192-token
+window, then overflowed again. *A retry that restores the condition that caused the
+failure is not a retry.* The cap (#225) is correct and insufficient; **the ceiling is
+the window, not the call count** (missed by 26 tokens). The cap's own refusal strings
+are ~45 tokens each into the window they protect — a named defect, candidate
+corrections: terser refusals, or dropping tools from the session instead of refusing
+per call.
+
+**Three questions, in order — hypothesis to TEST, not assume:**
+1. **2.1 — the fraction.** With #228's instrument: what do 13 tool schemas +
+   instructions + memory injection consume of 8,192 **before the user's first token**?
+2. **2.2 — the narrowed belt.** Re-run the control prompt with a deliberately narrowed
+   belt (the #216 mechanism — narrowing MOVES pressure; watch where it goes).
+3. **2.3 — the re-arm question. The single highest-value experiment in the run:**
+   should the overflow retry re-arm at all? A toolless retry cannot spiral and cannot
+   overflow on tool schemas, and #215 already measured that a toolless turn composes
+   cleanly.
+
+> ## 📋 BAR — PRE-REGISTERED 2026-08-02, BEFORE THE RUN
+> - **Bar 2.3:** on the same prompt, a **toolless retry** produces text where the armed
+>   retry produced an overflow. If met, that is a one-line change to #26's guard with a
+>   measured justification.
+
+## 228. 🔍 Lane 0 of the local-brain run: NO production tool-call instrument, and the belt's token cost has never been measured — **BUILT 2026-08-02; the on-device halves of L0-A/L0-C are owed to the run itself**
+
+> **✅ BUILT 2026-08-02, same session that filed it.** 11 tests, written first and
+> watched fail (15 missing-member errors — the API not existing was the failure).
+> Suite **1523 → 1534**, Release green, gate PASS. The counters and both line shapes
+> are pinned; **what is NOT claimed:** L0-A/L0-C's "readable on a verbose RELEASE
+> build on DEVICE" halves — that is the run's first act, not a sim claim (the sim has
+> no model; its budget line correctly renders "—", which the L0-C test pins).
+> One find while building: `TalariaLog.verbose()` emits at `.debug`, which Console.app
+> suppresses — the instrument logs `.notice` directly for exactly that reason.
+
+**FILED 2026-08-02 from `dispatch/FABLE-T27-LOCAL-BRAIN-DEVICE-RUN.md` Lane 0, the hard
+prerequisite for the whole run.** On the night of #225's device falsification, Owen
+counted tool chips **by eye** and the log could not corroborate one of them: the relay's
+per-call logging is `#if DEBUG` **and** gated on `batteryTrialTag`, which only the
+battery sets. A production Release build — the thing a user runs, and the thing Lane 1
+measures — can log **nothing** about tool calls. And nobody has ever seen the number
+that makes tonight's `8,218 > 8,192` legible: **what the armed belt itself costs in
+tokens before the user's first word.**
+
+**Two tasks, both app-side, no phone needed:**
+- **0.1 — a verbose-gated tool-call line** from `ToolEventRelay.started`: tool name +
+  running per-turn index, plus a line for every governor refusal (#225's refusals
+  deliberately emit no chip, so today a refused call is invisible everywhere). Behind
+  `UserSettings.verboseLogging` (the Developer toggle, via `TalariaLog.isVerbose`),
+  **not** `#if DEBUG` — #218's lesson is that an all-Debug stack is blind to what
+  Release does. At **`.notice`**, not `.debug` — Console.app's default view suppresses
+  `.info` and below (standing gotcha), and an instrument nobody can see is not one.
+- **0.2 — a token-budget line at session build**: tool count, measured token cost of
+  the armed tool schemas, measured starting-transcript cost (instructions + replayed
+  history), against the runtime window. The SDK carries the exact instrument:
+  `SystemLanguageModel.tokenCount(for: [any Tool])` and
+  `tokenCount(for: some Collection<Transcript.Entry>)` — **verified against the beta4
+  swiftinterface 2026-08-02**, lines 418/430 of `arm64e-apple-ios.swiftinterface`.
+  Measurement is fire-and-forget so the instrument never adds latency to the turn it
+  is measuring; on the sim (no model) the tokenizer fails and the line renders **"—"
+  per the real-data-only rule, never an estimate dressed as a measurement.**
+
+> ## 📋 BARS — PRE-REGISTERED 2026-08-02, BEFORE THE CODE. A missed bar is a
+> ## falsification, not a redefinition.
+>
+> - **L0-A** — on a **verbose Release build**, a single turn's log yields the exact
+>   executed tool-call sequence: one `.notice` line per admitted call carrying the
+>   tool name and its running index in the turn.
+> - **L0-B** — a governor refusal produces a visible log line (name + executed count +
+>   refusal count) even though it emits no chip. The chip-silence itself is #225's
+>   invariant and must NOT regress: refused calls still produce no `started` event.
+> - **L0-C** — every session build logs ONE line with tool count, belt token cost,
+>   starting-transcript token cost, and the window. On device the numbers are real
+>   (the model's own tokenizer); where the tokenizer is unavailable the line shows
+>   "—" and never invents.
+> - **L0-D** — the instrument does not alter the measured system: zero added work on
+>   the turn path when verbose is off, and no synchronous tokenizer round-trip on the
+>   turn path when it is on.
+>
+> **Recorded choice:** both 0.1 lines are verbose-gated (the dispatch's ask). An
+> always-on refusal `.notice` was considered and deliberately NOT taken — "do not
+> widen" — but is a one-word change if the device run shows refusals matter in the
+> wild with verbose off.
+
 ## 227. 🎨 UMBRELLA — no single-flight on launch/foreground fan-out: THREE instances found in ONE sitting
 
 **Filed 2026-08-02 from the device pass.** Three independent findings the same evening
@@ -13383,6 +13493,29 @@ not, there is a fourth source.
 > (above) says where the extra came from.
 
 ## 225. 🐛 UNBOUNDED tool-call spiral in production: 64 calls on "weather in Gulfport tomorrow," user-terminated, no cap anywhere in the loop — **BOUND BUILT 2026-08-02; the four behavioural bars are owed on device**
+
+> ## 📋 LANE 1 BARS — PRE-REGISTERED 2026-08-02, BEFORE THE DEVICE RUN
+> ## (`dispatch/FABLE-T27-LOCAL-BRAIN-DEVICE-RUN.md`). Written first, per the standing rule.
+>
+> **Config, fixed for every trial and stated because #215 exists:** on-device brain,
+> STANDALONE, hand-launched, phone on power, foreground, PRODUCTION routing — the
+> `routed-production` shape; an unrouted or armed cell measures a configuration the app
+> never enters. Ten fresh-chat prompts (list in the dispatch doc). Per-trial record:
+> wall time · executed tool calls · refusals · answered? · fabricated? · overflowed? —
+> **on a verbose Release build, which #228's instrument makes sufficient.**
+>
+> - **L1-A — it answers.** ≥ 8/10 produce non-empty reply text. *(2026-08-02: 0/1.)*
+> - **L1-B — it is not slow.** Median wall time < 30s, and no trial > 90s. *(274s.)*
+> - **L1-C — no overflow.** 0/10 end in a context-window error. *(1/1.)*
+> - **L1-D — honesty.** Where it cannot answer it says so; any fabricated fact is a
+>   #199 finding, reported separately, never averaged away.
+> - **L1-E — no spiral.** No trial exceeds 12 executed tool calls — the cap should make
+>   this structural; a breach means the cap is not wired on the tested path.
+>
+> **Stop condition (Owen's call, not a lane's): if L1-A lands below 5/10, HALT and
+> report — that is a verdict on the free tier, and #166c makes it gate Phase 7.**
+> Window pressure itself is OPEN_ITEMS #229's subject; **do not fix mid-run** — a run
+> that fixes as it goes produces a verdict about a build that no longer exists.
 
 > **✅ MECHANISM BUILT 2026-08-02 — `ToolCallGovernor`, per-turn budget 12 + same-tool
 > cap 4, wired into all 18 tool call sites.** Refusals return as the tool's OWN OUTPUT
