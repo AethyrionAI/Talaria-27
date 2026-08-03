@@ -14099,6 +14099,32 @@ lane runs, per the standing rule.
 
 ## 223. 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the gateway can carry
 
+> **🔨 LANE 1 BUILT + MAC-DEPLOYED 2026-08-03 (AM), Owen routed the plan's start
+> that morning** (branch `claude/t27-223-talaria-push`, per
+> `dispatch/FABLE-T27-223-zero-setup-execution-plan.md`). Watcher core TDD
+> green (11 pytest, RED watched each step: predicate / watermarks / APNs
+> builder / JWT reuse policy); vendored `h2`/`hpack`/`hyperframe` import
+> clean from the hermes venv (`http2 client OK: True`, re-verified today);
+> hook deployed to `~/.hermes/hooks/talaria-push` and LIVE on the Mac
+> gateway — `1 hook(s) loaded`, `supervisor task started`,
+> `watcher up (poll=4s)`, idling on zero device files (the OFF state).
+> **Task 1.6 Step 4 payload verification PASSED live:** session rows carry
+> `last_active` + `message_count`; message rows are `{id:int, role:str,
+> content:str}` — the re-plan stop-condition did not trigger.
+> **Plan drift found live, for the record:** (a) the Mac gateway is now
+> SUPERVISED — `gateway run --replace` (the plan's Lane 0 P1 command)
+> REFUSES with "restart the supervised gateway instead"; the working path is
+> `hermes gateway restart` (drains in-flight runs, ~180s cap). Lane 0 P1 was
+> already satisfied before the lane started (health OK on 0.19.1). (b) The
+> hook's own log lines land in **`agent.log`**, not `gateway.log` (only the
+> loader's `hook(s) loaded` goes there) — Lane 3's grep target is agent.log.
+> **Blocked at the APNs boundary on two Owen-only items:** the #38 `.p8`
+> copied to `~/.hermes/talaria-push-apns.p8` on the Mac (chmod 600) + its
+> Key ID into the deployed `config.json` — the private key moves by Owen's
+> hand, never through a chat channel — and the device push token from
+> Diagnostics. Then the Task 1.6 Step 5 smoke: one phone chat run against
+> the Mac gateway, backgrounded, watch for `ping … status=200` + the banner.
+
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
 Couple that with ending the shim, and we won't have very much running anymore separately."*
 Recorded so the target architecture lives in the tracker, with each piece's blocker named —
