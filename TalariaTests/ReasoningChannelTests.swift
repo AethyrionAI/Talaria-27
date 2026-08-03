@@ -59,6 +59,22 @@ struct ReasoningChannelTests {
         #expect(!SessionsHermesClient.cleanCloseArmsRecovery(runStarted: false, effectiveContent: "text"))
     }
 
+    // MARK: #237 — stable message identity
+
+    /// A re-fetch must reproduce the SAME ids or every adoption unions the
+    /// prior transcript as "unconfirmed" (#237's 32→128 quadrupling).
+    @Test func stableMessageIDIsDeterministicAndDistinct() {
+        let a1 = SessionsHermesClient.stableMessageID(sessionId: "s1", serverRowID: 9046)
+        let a2 = SessionsHermesClient.stableMessageID(sessionId: "s1", serverRowID: 9046)
+        #expect(a1 == a2)
+        #expect(SessionsHermesClient.stableMessageID(sessionId: "s1", serverRowID: 9047) != a1)
+        #expect(SessionsHermesClient.stableMessageID(sessionId: "s2", serverRowID: 9046) != a1)
+        // RFC-4122 shape: version nibble 5, variant bits 10xx.
+        let bytes = a1.uuid
+        #expect(bytes.6 & 0xF0 == 0x50)
+        #expect(bytes.8 & 0xC0 == 0x80)
+    }
+
     // MARK: Wire-mode hedge (increments vs cumulative snapshots)
 
     @Test func incrementalDeltaPassesThroughIncrementMode() {

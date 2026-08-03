@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import os
 
@@ -720,7 +721,7 @@ final class SessionsHermesClient: HermesClientProtocol {
             throw error
         }
         Self.logger.verbose("openSession: decoded \(response.data.count) messages for '\(id)'")
-        let messages = response.data.compactMap(Self.mapStoredMessage)
+        let messages = response.data.compactMap { Self.mapStoredMessage($0, sessionId: id) }
         let convo = Conversation(
             title: Conversation.defaultTitle,
             messages: messages,
@@ -729,7 +730,7 @@ final class SessionsHermesClient: HermesClientProtocol {
         return (response.sessionId ?? id, convo)
     }
 
-    nonisolated private static func mapStoredMessage(_ m: SessionMessagesResponse.StoredMessage) -> Message? {
+    nonisolated private static func mapStoredMessage(_ m: SessionMessagesResponse.StoredMessage, sessionId: String) -> Message? {
         let sender: MessageSender
         switch (m.role ?? "").lowercased() {
         case "user": sender = .user
@@ -762,7 +763,13 @@ final class SessionsHermesClient: HermesClientProtocol {
         // An assistant row can be tool-calls-only (the text lands on a later
         // row) — keep it so the chips survive history reload.
         guard !text.isEmpty || !activities.isEmpty else { return nil }
+        // #237: a re-fetch must reproduce the SAME id, or the merge's
+        // unconfirmed-locals preserve treats every previously-adopted row as
+        // new and unions the whole prior transcript (the 32→128 quadrupling).
+        // Rows without a server id keep the fresh-UUID fallback, honestly.
+        let stableID = m.id.map { Self.stableMessageID(sessionId: sessionId, serverRowID: $0) }
         return Message(
+            id: stableID ?? UUID(),
             sender: sender,
             content: text,
             timestamp: ts,
@@ -770,6 +777,20 @@ final class SessionsHermesClient: HermesClientProtocol {
             toolActivities: activities,
             reasoning: reasoning
         )
+    }
+
+    /// #237: deterministic message identity from the server's own row id —
+    /// SHA-256 over a domain-separated key, truncated to 16 bytes with
+    /// RFC-4122 version/variant bits, so every fetch of the same row maps to
+    /// the same UUID. App-side only; the server contract is untouched.
+    nonisolated static func stableMessageID(sessionId: String, serverRowID: Int) -> UUID {
+        let digest = SHA256.hash(data: Data("talaria-msg:\(sessionId):\(serverRowID)".utf8))
+        var bytes = Array(digest.prefix(16))
+        bytes[6] = (bytes[6] & 0x0F) | 0x50
+        bytes[8] = (bytes[8] & 0x3F) | 0x80
+        return UUID(uuid: (bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5],
+                           bytes[6], bytes[7], bytes[8], bytes[9], bytes[10], bytes[11],
+                           bytes[12], bytes[13], bytes[14], bytes[15]))
     }
 
     /// The reasoning to restore for a resumed assistant row, or nil (#121).
@@ -1718,6 +1739,9 @@ final class SessionsHermesClient: HermesClientProtocol {
             case data
         }
         struct StoredMessage: Decodable {
+            /// #237: the server row id — the stable-identity anchor. Tolerant:
+            /// absent decodes nil and the row keeps a fresh UUID.
+            let id: Int?
             let role: String?
             let content: String?
             let timestamp: Double?
@@ -1731,13 +1755,16 @@ final class SessionsHermesClient: HermesClientProtocol {
             let reasoning: String?
             let reasoningContent: String?
             enum CodingKeys: String, CodingKey {
-                case role, content, timestamp, reasoning
+                case id, role, content, timestamp, reasoning
                 case createdAt = "created_at"
                 case toolCalls = "tool_calls"
                 case reasoningContent = "reasoning_content"
             }
             init(from decoder: Decoder) throws {
                 let c = try decoder.container(keyedBy: CodingKeys.self)
+                // #237: tolerant — a non-integer or absent id folds to nil
+                // and the row keeps a fresh UUID (no stable anchor to use).
+                id = (try? c.decodeIfPresent(Int.self, forKey: .id)) ?? nil
                 role = try c.decodeIfPresent(String.self, forKey: .role)
                 let ts = try? c.decodeIfPresent(Double.self, forKey: .timestamp)
                 let created = try? c.decodeIfPresent(Double.self, forKey: .createdAt)
