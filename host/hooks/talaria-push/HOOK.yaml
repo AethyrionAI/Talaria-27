@@ -1,0 +1,4 @@
+name: talaria-push
+description: "Resident watcher: APNs ping when an api_server session run completes (Talaria OPEN_ITEMS #223 push v1). OFF = remove device files from HERMES_HOME/talaria/push/devices/."
+events:
+  - gateway:startup

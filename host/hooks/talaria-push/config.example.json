@@ -1,0 +1,14 @@
+{
+  "gateway_base": "http://127.0.0.1:8642",
+  "api_key_env_file": "~/.hermes/.env",
+  "apns": {
+    "key_file": "~/.hermes/talaria-push-apns.p8",
+    "key_id": "REPLACE_KEY_ID",
+    "team_id": "DNL25ZFSD2",
+    "topic": "org.aethyrion.talaria27",
+    "environment": "sandbox"
+  },
+  "poll_seconds": 4,
+  "idle_seconds": 30,
+  "sessions_limit": 15
+}
