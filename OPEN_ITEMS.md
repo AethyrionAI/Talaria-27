@@ -13305,8 +13305,11 @@ Mac talaria-push hook disarmed at merge time (device-file OFF switch);
 **Counted delta, recorded BEFORE the verification run:** −11 (`PushRegistrationRecordTests`
 deleted) −8 (`RunCompletionWatchTests` deleted) −2 (AppStoresTests priming pair) −2
 (BackendProfileRoutingTests dormant-idempotency pair) +1 (the decode-tolerance pin) =
-**−22 → expected 1543** on the T8 run; the gate run expects **1544** after T9 adds the
-238-A UI test. Any other number is a falsification, not a redefinition.
+**−22.** The 1565 baseline is a FULL-SCHEME (gate) count, so the bar binds to the gate
+run: **expected 1544** (1565 − 22 + the 238-A UI test). The T8 unit-scoped run checks
+compile + green only. Any other gate number is a falsification, not a redefinition.
+(Amended pre-result: the first wording bound 1543 to the unit-scoped T8 run, which
+measures a different scope than the baseline.)
 
 ## 237. 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can resolve twice for one run — **FIX BUILT same day; 237-A/B/C/D green in suite; 237-E (device heal + the unparked 235-F) owed to the OTA**
 
