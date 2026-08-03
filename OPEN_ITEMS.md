@@ -13263,6 +13263,37 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+## 237. 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can resolve twice for one run
+
+**FILED 2026-08-03 (~1 PM) from Owen's 235-E test, minutes after the bar was
+met** — the recovery WORKED, then over-delivered: the plex-run answer appeared
+twice at the tail, **both copies wearing the ↩ RECOVERED REPLY marker**, and
+**two local completion notifications** fired when Owen entered the app. Two
+notifications = `attemptReconcile` ran to full resolution twice for ONE run
+(each resolution posts one notify when the app is not active).
+
+**Candidate mechanisms (evidence will discriminate):**
+- **(a) Late `.interrupted` re-arm:** the dying stream delivers a trailing
+  `.interrupted` after the first resolution cleared `pendingRun` → a second
+  PendingRun for the same run → second reconcile → second adoption + second
+  tail-move. The two triggers themselves are single-flighted; a NEW pending
+  run between passes defeats that by design.
+- **(b) Fetch-minted message IDs defeat the merge:** if
+  `fetchSessionConversation` mints fresh `Message` UUIDs per fetch, the
+  second adoption cannot recognize the first pass's tail-moved copy by id —
+  `mergeConversationMetadata` keeps both. (#120's family, one level up — the
+  dupIDProbe guards same-ID duplicates; different-ID content duplicates pass
+  it.)
+
+**Discriminator requested from Owen:** leave/re-open the chat (or relaunch) —
+both copies persisting = the duplicate reached the store/cache (adoption
+path); one vanishing = render/merge-level. Screenshot owed for the record.
+
+**Severity:** moderate — the OPPOSITE failure class from #235's answer-loss
+(over-delivery, honestly labeled). The reconcile core predates today; the
+re-entry surface (two triggers + tail-move) is new — treat the fix lane as
+#235's follow-on, bars pre-registered HERE before it runs.
+
 ## 236. 🔧 MessageIdentityUITests flaked AGAIN — the #195 family's second variant: reply rendered a hair past the 20s wait on a hot sim
 
 **FILED 2026-08-03 (midday) from the #235 lane's first gate run.**
