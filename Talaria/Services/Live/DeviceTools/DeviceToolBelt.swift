@@ -126,6 +126,27 @@ final class ToolEventRelay {
     private(set) var executedCallsThisTurn = 0
     private(set) var refusalsThisTurn = 0
 
+    /// #233: conversation-scoped — deliberately NOT reset in beginTurn(),
+    /// because the ask/answer round-trip spans two turns. Cleared only by
+    /// endConversationToolState() (fresh chat) and process launch.
+    private(set) var earlyMorningAskIssued = false
+
+    /// #233: true exactly once per conversation. The reminder tool bounces
+    /// on true and proceeds on false — so a user-confirmed "yes, 4 AM"
+    /// re-call cannot loop, and a model that ignores the ask degrades to
+    /// staging the card, where the caution row is the backstop.
+    func claimEarlyMorningAsk() -> Bool {
+        if earlyMorningAskIssued { return false }
+        earlyMorningAskIssued = true
+        return true
+    }
+
+    /// #233: the conversation-boundary reset. Turn-scoped state belongs in
+    /// beginTurn(); anything conversation-scoped resets here instead.
+    func endConversationToolState() {
+        earlyMorningAskIssued = false
+    }
+
     /// #228: NOT `#if DEBUG` — #218's lesson is that an all-Debug stack is
     /// blind to what Release does, and Release is what a user runs. Same
     /// subsystem/category as the battery lines so one Console filter
