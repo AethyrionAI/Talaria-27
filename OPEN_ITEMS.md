@@ -14135,10 +14135,13 @@ lane runs, per the standing rule.
 > on whoGoesThere.** Two pings not one is correct: the watcher came up
 > mid-turn-1, and a LIVE turn completing after first sight is a new
 > completion — the silent-prime guard covers only already-completed history
-> (pinned by test). **Tap-routing probe in flight:** the smoke session lives
-> on the MAC while the app's active profile is OJAMD — the tap either proves
-> cross-host routing or surfaces a Lane 4 finding (payload may need a
-> host/profile hint; the OJAMD-only relay never faced this).
+> (pinned by test). **Tap-routing probe VERDICT (Owen, same sitting):** the
+> tap opened Talaria and the app answered HONESTLY — "Couldn't open
+> conversation … no longer exists on the host" — because the smoke session
+> lives on the MAC while the app's active profile is OJAMD. **Confirmed
+> Lane 4 finding: multi-host pushes need a host/profile hint in the payload**
+> (the OJAMD-only relay never faced this). NOT a pilot blocker: Task 1.7
+> puts the hook on OJAMD, whose pushes resolve on the active profile.
 >
 > **Ops findings, recorded not hardened:** (a) `hermes gateway restart` can
 > RACE ITS OWN DRAIN — the old process still held `:8642` when the new one
@@ -14148,8 +14151,16 @@ lane runs, per the standing rule.
 > which cannot answer when the plane never bound. (b) The watcher's first
 > poll can race the api_server bind at boot (ConnectError) — the supervisor
 > caught it, backed off, recovered on its own; working as designed, one
-> traceback of noise per unlucky boot. Task 1.6 Step 6 (idle/OFF check) and
-> Task 1.7 (OJAMD deploy) remain.
+> traceback of noise per unlucky boot.
+>
+> **Task 1.6 Step 6 OFF-CHECK PASSED (same sitting):** device file parked →
+> a driven completion (turn 3) produced NO ping (newest line still
+> 12:15:17); file restored → the watcher caught up with one late ping, the
+> designed ON/OFF transition. **B3's Lane 3 bar needs an observable before
+> the measured run:** the handler logs pings only — "zero session polls in
+> the log" is vacuously true with no poll logging (the green-that-proves-
+> nothing shape). Add a poll-count heartbeat line to the hook before Lane 3,
+> repo-first. **Lane 1 remaining: Task 1.7 (OJAMD deploy) only.**
 
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
 Couple that with ending the shim, and we won't have very much running anymore separately."*
