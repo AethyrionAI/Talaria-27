@@ -13302,8 +13302,11 @@ Mac talaria-push hook disarmed at merge time (device-file OFF switch);
   agent.log — the Lane-1 OFF-check, inverted.
 - Gate before PR, Release build included (#218 — entitlement edits are config-plane).
 
-Expected suite count after edits: recorded in Task 8's commit before the verification
-run.
+**Counted delta, recorded BEFORE the verification run:** −11 (`PushRegistrationRecordTests`
+deleted) −8 (`RunCompletionWatchTests` deleted) −2 (AppStoresTests priming pair) −2
+(BackendProfileRoutingTests dormant-idempotency pair) +1 (the decode-tolerance pin) =
+**−22 → expected 1543** on the T8 run; the gate run expects **1544** after T9 adds the
+238-A UI test. Any other number is a falsification, not a redefinition.
 
 ## 237. 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can resolve twice for one run — **FIX BUILT same day; 237-A/B/C/D green in suite; 237-E (device heal + the unparked 235-F) owed to the OTA**
 

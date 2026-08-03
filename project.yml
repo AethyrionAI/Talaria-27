@@ -43,10 +43,6 @@ targets:
     entitlements:
       path: Talaria/Talaria.entitlements
       properties:
-        # Declared here so `xcodegen generate` stops stripping it from the
-        # entitlements file (OPEN_ITEMS #44/#48 trap). Dev/sandbox value —
-        # switch to production for TestFlight/Release (#8).
-        aps-environment: development
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
         com.apple.developer.healthkit.background-delivery: true
@@ -358,7 +354,6 @@ targets:
           - fetch
           - processing
           - location
-          - remote-notification
           - audio
         # #14 native background wake. `fetch` above powers BGAppRefreshTask;
         # the wildcard covers per-send BGContinuedProcessingTask identifiers.
