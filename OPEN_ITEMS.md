@@ -13553,7 +13553,7 @@ tomorrow, pass their words through unchanged — never substitute 'tomorrow'"); 
 mislabeled relay is at least self-contradicting on its face. Either is device-only to
 verify — the sim has no model.
 
-## 233. 🐛 "Tomorrow at 4" became a 4:00 AM reminder — half-day defaulting on `createReminder`, and the confirm card did not save it — **ALL BARS MET 2026-08-03: 233-A/B/C suite + device, 233-E device, 233-D midday (preferred shape) AND evening (fallback shape) — CLOSED pending one store-row glance**
+## 233. 🐛 "Tomorrow at 4" became a 4:00 AM reminder — half-day defaulting on `createReminder`, and the confirm card did not save it — **✅ CLOSED 2026-08-03 evening — every bar met: 233-A/B/C suite + device, 233-E device, 233-D midday (preferred shape) AND evening (fallback shape), store row observed**
 
 **FILED 2026-08-02, Lane 1 trial 3 (run results doc).** "Remind me to call Shelley
 tomorrow at 4," sent at 23:05, produced a REAL reminder due **Aug 3, 4:00 AM** —
@@ -13671,10 +13671,9 @@ time rendering unmissable. Bars pre-register HERE before any fix lane.
 > founding prompt: midday = preferred rung (asked AM/PM → card); evening =
 > fallback rung (silent 4 PM card). Both inside the pre-registered pass band;
 > the bounce never needed to fire because the model never picked a wee hour —
-> it exists for exactly the runs where it does.** Remaining formality: one
-> glance at the Reminders store confirming the row reads Aug 4, 4:00 PM
-> (the save chain itself was device-verified in 233-E). On that glance, #233
-> CLOSES.
+> it exists for exactly the runs where it does.** Store glance done two
+> minutes later (4:59 PM, screenshot): Reminders → Scheduled → Tomorrow →
+> **"Call Shelley — Stuff — 4:00 PM."** Observed, not derived. **#233 CLOSED.**
 
 ## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes — **CUT BUILT 2026-08-03 (AM); 232-C/D experiential halves MET on device same morning; log halves owed to the corded coda**
 
