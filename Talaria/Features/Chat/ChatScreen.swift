@@ -161,7 +161,18 @@ struct ChatScreen: View {
             // only signal. Retired names fail to parse and fall back to
             // production; valid ones do not. This is the banner that stops a
             // wasted debugging session.
+            //
+            // The MODIFIER is conditionally compiled, not just the banner's
+            // content: in Release an empty @ViewBuilder made this
+            // `safeAreaInset(edge: .top) { EmptyView() }`, and on iOS 27
+            // beta 4 that collapsed the chat VStack to the bottom of the
+            // screen — the transcript vanished and the identity strip sat on
+            // the input bar. Debug (a real zero-height conditional view) was
+            // unaffected, so every Debug check was blind to it (#218's
+            // family, for UI).
+            #if DEBUG
             .safeAreaInset(edge: .top, spacing: 0) { debugSessionShapeBanner }
+            #endif
             // #203 (1A): re-evaluate the stall hint once a second while a
             // turn is in flight. Idle chats never tick.
             .task(id: chatStore.isStreaming) {

@@ -13263,6 +13263,95 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+## 233. 🐛 "Tomorrow at 4" became a 4:00 AM reminder — half-day defaulting on `createReminder`, and the confirm card did not save it
+
+**FILED 2026-08-02, Lane 1 trial 3 (run results doc).** "Remind me to call Shelley
+tomorrow at 4," sent at 23:05, produced a REAL reminder due **Aug 3, 4:00 AM** —
+verified in the store by trial 7's `readReminders`. Mechanically flawless (1 call,
+~1 min including confirmation, B4's shape); semantically wrong: a human saying "at 4"
+in the evening means 4 PM. The model even hedged ("let me know if you'd like to
+adjust"), and the #29 confirm card was approved without the AM registering — a card
+that makes AM/PM easy to miss is part of the finding.
+
+**Candidate directions (none decided):** a bare-hour disambiguation default (afternoon
+for 1–11 unless context says otherwise — what Siri does), or the create tool
+REFUSING bare hours back to the model with "ask AM or PM," plus making the card's
+time rendering unmissable. Bars pre-register HERE before any fix lane.
+
+## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes
+
+**FILED 2026-08-02 from the first fully instrumented device turn (#228's instrument,
+Release build 1843, verbose ON, the Gulfport control prompt).** The turn executed its
+12 budgeted calls, then spent ~2.3 MINUTES in a loop the instrument watched live:
+the model calls `searchConversations`, the governor refuses (as tool output, per
+#225's correct never-throw design), the model burns a full ~2.4s inference round
+reacting to the refusal — **by calling the tool again. 53 consecutive
+`searchConversations` refusals, then a thrash to `currentLocation` (#56) and
+`currentWeather` (#57), then an honest text decline.** Receipt IN 5.7K · OUT 66;
+no overflow; no fabrication.
+
+**Why this was invisible until tonight:** refusals deliberately emit no chip (#180 —
+right call, unchanged), and the relay's only logging was DEBUG+battery-gated. The
+user-visible symptom was exactly Owen's report: *"after 12 tools, its giving the
+still working."*
+
+**The mechanism, named:** a refusal handed back as tool output keeps the model in
+tool-calling mode — the text says "answer now," but the model treats it as one more
+result to react to. Each cycle also appends ~45 tokens of refusal text to the very
+window #225 worries about (57 × ~45 ≈ 2,500 tokens of pure refusal).
+
+**Candidate fix, with the SDK seam verified in the beta4 interface:** after K
+refusals, END the tool phase structurally instead of rhetorically — demote the
+turn's `GenerationOptions.ToolCallingMode` to `.disallowed` (per-request, exists,
+see the FM surfaces memory) or drop the belt for the remainder of the turn. Terser
+refusal strings are a secondary patch. **Bars to pre-register in THIS entry before
+any fix lane runs.** Baseline for judgement: this trial — 12 executed / 57 refused /
+~2.5min / honest decline.
+
+**Cross-links:** the executed-call bound is #225 (correct, insufficient — again);
+the window class is #229; the trigger fix is #230. Same-tool cap held (4 executed
+max per tool); the grind is a REFUSAL loop, a distinct third mechanism.
+
+## 231. 🐛 RELEASE-ONLY: the chat screen scrambles — transcript collapses, identity strip lands on the input bar. Debug is fine, so every check we run was blind to it (#218's family, for UI)
+
+**FILED 2026-08-02, found by Owen ~60 seconds into the first Release install anyone
+has LOOKED at on device** (build 1839, staged for the local-brain run). Two
+screenshots, same phone, same data: tonight's earlier build renders the strip under
+the nav with a live transcript; build 1839 renders the strip ON the input bar with
+the transcript area empty despite "2 MESSAGES".
+
+**Reproduced in the sim within minutes: Release scrambled, Debug correct — identical
+code, identical fresh state.** So: not the phone, not the data, not #228's diff
+(which touches no UI). A compile-conditional layout divergence.
+
+- **ROOT CAUSE CONFIRMED same night, one-variable experiment:** `ChatScreen.body`'s
+  `.safeAreaInset(edge: .top, spacing: 0) { debugSessionShapeBanner }` — the #205
+  banner. In Debug the builder yields a real zero-height conditional view; in
+  Release the empty `@ViewBuilder` yields `EmptyView` **as a top safe-area inset's
+  content**, and iOS 27 beta 4 mis-lays-out the containing stack for it. Compiling
+  the MODIFIER out of Release (content already was) healed the sim Release build
+  byte-for-byte to Debug's layout. **231-A MET** (screenshots, both configs, same
+  sim, same state). #205's Debug behavior untouched.
+- **The find that led here:** tonight's 21:16 "production build" failure log carries
+  `armed — 13 tools registered`, a `#if DEBUG`-only line — **so tonight's build was
+  DEBUG, and the dispatch's "production build" label was wrong.** Release UI had not
+  been looked at since the 2026-07-27 OTA proof.
+- **Sibling finding, same sitting:** the Developer menu row is `#if DEBUG`
+  (`SystemSettingsScreen`), so **Release has no path to `verboseLogging` and #228's
+  instrument gate is unreachable exactly where it matters** — L0-A was unmeetable as
+  shipped. `DeveloperSettingsScreen` is already internally Release-clean (its
+  DEBUG-only sections are individually gated), so exposing the row is safe;
+  **re-hiding for App Store builds is a Phase 7 question, flagged there.**
+
+> ## 📋 BARS — PRE-REGISTERED 2026-08-02 BEFORE THE FIX LANE
+> - **231-A:** Release sim build renders the chat screen byte-identically in
+>   structure to Debug: strip under nav, transcript expanded, input at bottom —
+>   verified by screenshot both configs.
+> - **231-B:** on the DEVICE Release build, Owen confirms the layout is back.
+> - **231-C:** Settings → System shows the Developer row in Release; flipping
+>   Verbose Logging there produces the #228 lines in a captured device log.
+> - **231-D:** the DEBUG banner behavior (#205) is unchanged in Debug builds.
+
 ## 230. 🎨 `currentWeather` is today-only, and "tomorrow" was the trigger: extend it to WeatherKit's daily forecast — FILED, deliberately NOT built before the run
 
 **FILED 2026-08-02, Lane 3 of `dispatch/FABLE-T27-LOCAL-BRAIN-DEVICE-RUN.md`.**
@@ -13323,6 +13412,24 @@ per call.
 > no model; its budget line correctly renders "—", which the L0-C test pins).
 > One find while building: `TalariaLog.verbose()` emits at `.debug`, which Console.app
 > suppresses — the instrument logs `.notice` directly for exactly that reason.
+>
+> ## ⚠️ L0-D FALSIFIED ON DEVICE THE SAME NIGHT — the instrument killed the turn it measured
+>
+> Device, Release build 1842, verbose ON, trial 1: the budget measurement's
+> fire-and-forget tokenizer round-trips ran CONCURRENTLY with the turn's streaming
+> request, and their teardown swept the turn's prewarm sessions (six `cancel session`
+> in 1ms, log 22:39:40.029) and invalidated its InferenceProvider connection —
+> `ModelManagerError 1001`, surfaced in the UI as `LanguageModelError -1`, **turn dead
+> in one second.** Confirmed by control: same prompt, verbose OFF, the turn ran
+> normally. The sim could never catch this — no model. **L0-C's number WAS captured
+> before the kill: `13 tool(s) ~1434 tok + transcript ~1823 tok of window 8192 —
+> ~4935 free` — the belt + instructions consume ~40% of the window before the user's
+> first word (Lane 2.1's answer).**
+>
+> **REVISED same night (tests first):** values captured at session build; tokenizer
+> round-trips + the log line deferred to a post-turn flush
+> (`flushSessionBudgetMeasurements()`, both send paths, every exit). L0-D's bar is
+> restated: *the instrument does no model-runtime work while a turn is live.*
 
 **FILED 2026-08-02 from `dispatch/FABLE-T27-LOCAL-BRAIN-DEVICE-RUN.md` Lane 0, the hard
 prerequisite for the whole run.** On the night of #225's device falsification, Owen
@@ -13494,6 +13601,16 @@ not, there is a fourth source.
 
 ## 225. 🐛 UNBOUNDED tool-call spiral in production: 64 calls on "weather in Gulfport tomorrow," user-terminated, no cap anywhere in the loop — **BOUND BUILT 2026-08-02; the four behavioural bars are owed on device**
 
+> ## ✅ THE RUN RAN, SAME NIGHT — full verdict in
+> ## `dispatch/FABLE-T27-LOCAL-BRAIN-RUN-RESULTS-2026-08-02.md`.
+> **L1-A PASS 10/10 · L1-B FAIL (median ~4s, but trial 1 >90s) · L1-C PASS 0
+> overflows · L1-D PASS no fabrication · L1-E PASS cap held.** Stop condition not
+> approached. New findings #232 (the refusal grind) and #233 (4 AM reminder);
+> Lane 2.1 answered (armed turns start 40% deep); Lane 2.3 unrunnable (nothing
+> overflowed on Release — open under #229). **Headline: the brain answers ordinary
+> questions in ~4s; the unmeetable-demand class costs minutes and blocks the tier
+> until #232+#230 run. Owen's verdict.**
+
 > ## 📋 LANE 1 BARS — PRE-REGISTERED 2026-08-02, BEFORE THE DEVICE RUN
 > ## (`dispatch/FABLE-T27-LOCAL-BRAIN-DEVICE-RUN.md`). Written first, per the standing rule.
 >
@@ -13516,6 +13633,33 @@ not, there is a fourth source.
 > report — that is a verdict on the free tier, and #166c makes it gate Phase 7.**
 > Window pressure itself is OPEN_ITEMS #229's subject; **do not fix mid-run** — a run
 > that fixes as it goes produces a verdict about a build that no longer exists.
+>
+> **Baseline caveat (added same night, before the run):** the 2026-08-02 21:16
+> failure ran a **DEBUG** build — its log carries the `#if DEBUG`-only "13 tools
+> registered" line (#231). The 274s/0-answer control numbers are Debug-speed numbers;
+> the overflow mechanism is config-independent, but L1-B comparisons against 274s
+> must say "vs a Debug baseline."
+>
+> ## 🎯 CONTROL RESULT, RELEASE BUILD 1842, VERBOSE OFF (2026-08-02 22:43): **B2 PASSED
+> ## ON DEVICE FOR THE FIRST TIME — the governor's cap is what forced the answer.**
+>
+> Same prompt, fresh chat, production routing, standalone, hand-launched.
+> **Answered YES** (first ever on this prompt): a real forecast paragraph plus an
+> honest "couldn't find historical data" residue. **12 executed tool calls — the
+> per-turn budget hit EXACTLY**, chips: location → weather (the right call, #2) →
+> displacement (searchConversations ×3, places, weather again…) → cap → answer from
+> what it had. **Wall ~2min (22:43→22:45), receipt IN 12.1K · OUT 187, CTX 9%,
+> NO overflow.** Refusal count unknown — the instrument was off (its own #228 story).
+> - **L1-A evidence: the turn speaks. L1-B evidence: FAIL at ~120s** — Owen's verdict
+>   on the spot: *"it checks my location, checks the weather, then gets sidetracked
+>   doing everything else instead of giving me the weather."* The answer existed at
+>   call 2; calls 3–12 were displacement waste, each one a full inference round-trip.
+>   #230 (the trigger fix) targets exactly this; #229 owns the window class.
+> - **Fabrication SUSPECT, not counted:** the reply labels numbers "tomorrow" from a
+>   today-only tool — possible date-relabel (#199 family). Unverifiable without the
+>   instrument's detail capture; re-checkable once verbose runs clean.
+> - Why no overflow here vs 21:16's `8,218 > 8,192` is NOT yet explained (Debug vs
+>   Release is the visible variable, not a mechanism) — stays open under #229.
 
 > **✅ MECHANISM BUILT 2026-08-02 — `ToolCallGovernor`, per-turn budget 12 + same-tool
 > cap 4, wired into all 18 tool call sites.** Refusals return as the tool's OWN OUTPUT

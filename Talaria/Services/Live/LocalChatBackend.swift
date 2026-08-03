@@ -354,6 +354,9 @@ final class LocalChatBackend: HermesClientProtocol {
 
         // #225: fresh tool budget for this turn.
         beginToolTurn()
+        // #228: measure the recorded session budgets only once the turn is
+        // over, on every exit path — measuring mid-turn killed the turn.
+        defer { flushSessionBudgetMeasurements() }
 
         // #197: the sync path has no visible stream, but a tool that ran
         // this turn is still observable activity — retrying would run it
@@ -437,6 +440,9 @@ final class LocalChatBackend: HermesClientProtocol {
                     into: continuation
                 )
                 continuation.finish()
+                // #228: the turn is fully over — measure the recorded
+                // session budgets now, when the model runtime is quiet.
+                self.flushSessionBudgetMeasurements()
             }
         }
     }
@@ -855,41 +861,65 @@ final class LocalChatBackend: HermesClientProtocol {
         let offered = effectiveOfferedTools(hasImageInContext: hasImage)
         let fresh = makeSession(from: blueprint, offering: offered)
         session = fresh
-        logSessionBudgetIfVerbose(offered: offered, transcript: fresh.transcript)
+        recordSessionBudgetIfVerbose(offered: offered, transcript: fresh.transcript)
         return fresh
     }
 
     /// #228 (Lane 0.2): the number nobody had ever seen on the night #225's
     /// cap was falsified — what the armed belt itself costs in tokens against
     /// the window, before the user's first word. One line per session BUILD,
-    /// which includes #26's mid-turn condense-and-rebuild — the 21:19:07
-    /// rebuild that re-armed 13 tools into 8,192 is exactly the event this
-    /// makes readable.
+    /// which includes #26's mid-turn condense-and-rebuild.
     ///
-    /// Fire-and-forget (L0-D): the tokenizer round-trips must not add latency
-    /// to the turn they are measuring. Counts come from the model's OWN
-    /// tokenizer (`SystemLanguageModel.tokenCount(for:)`, verified against the
-    /// beta4 swiftinterface); where it is unavailable — the sim has no model —
-    /// the line shows "—" and never invents (real-data-only).
-    private func logSessionBudgetIfVerbose(offered: [any Tool], transcript: Transcript) {
+    /// **REVISED 2026-08-02, same night, after the device falsified L0-D.**
+    /// The first shape measured DURING the turn (fire-and-forget at build):
+    /// its tokenizer round-trips shared the FM client plumbing with the live
+    /// stream, and their teardown swept the turn's prewarm sessions and
+    /// invalidated its InferenceProvider connection — ModelManagerError 1001,
+    /// surfaced as "LanguageModelError -1", killing the turn in one second.
+    /// The sim could never catch this (no model). So: VALUES are captured
+    /// here, synchronously and for free; the tokenizer round-trips and the
+    /// log line run only at `flushSessionBudgetMeasurements()`, after the
+    /// turn has fully ended and the model runtime is quiet.
+    ///
+    /// Counts come from the model's OWN tokenizer
+    /// (`SystemLanguageModel.tokenCount(for:)`); where it is unavailable —
+    /// the sim has no model — the line shows "—" and never invents.
+    func recordSessionBudgetIfVerbose(offered: [any Tool], transcript: Transcript) {  // harness-visible
         guard TalariaLog.isVerbose else { return }
+        pendingSessionBudgets.append((toolCount: offered.count, tools: offered, transcript: transcript))
+    }
+
+    /// Session builds awaiting their post-turn measurement. One entry per
+    /// build — a #26 overflow turn legitimately holds two.
+    private(set) var pendingSessionBudgets: [(toolCount: Int, tools: [any Tool], transcript: Transcript)] = []  // harness-visible
+
+    /// Drains the queue and measures OUTSIDE the turn. Called from both send
+    /// paths once the turn is over; the spawned task contends with nothing
+    /// unless the user fires the next turn within its ~100ms of tokenizer
+    /// work — an accepted, narrow window in a diagnostic mode.
+    func flushSessionBudgetMeasurements() {  // harness-visible
+        guard !pendingSessionBudgets.isEmpty else { return }
+        let pending = pendingSessionBudgets
+        pendingSessionBudgets = []
         Task { [model] in
-            // An empty belt (a routed-toolless turn) costs 0 by definition —
-            // knowable without a tokenizer, so never rendered "—".
-            let toolTokens: Int?
-            if offered.isEmpty {
-                toolTokens = 0
-            } else {
-                toolTokens = try? await model.tokenCount(for: offered)
+            for entry in pending {
+                // An empty belt (a routed-toolless turn) costs 0 by
+                // definition — knowable without a tokenizer, never "—".
+                let toolTokens: Int?
+                if entry.tools.isEmpty {
+                    toolTokens = 0
+                } else {
+                    toolTokens = try? await model.tokenCount(for: entry.tools)
+                }
+                let transcriptTokens = try? await model.tokenCount(for: entry.transcript)
+                let line = Self.sessionBudgetLogLine(
+                    toolCount: entry.toolCount,
+                    toolTokens: toolTokens,
+                    transcriptTokens: transcriptTokens,
+                    window: await self.activeContextSize()
+                )
+                Self.logger.notice("\(line, privacy: .public)")
             }
-            let transcriptTokens = try? await model.tokenCount(for: transcript)
-            let line = Self.sessionBudgetLogLine(
-                toolCount: offered.count,
-                toolTokens: toolTokens,
-                transcriptTokens: transcriptTokens,
-                window: await self.activeContextSize()
-            )
-            Self.logger.notice("\(line, privacy: .public)")
         }
     }
 
