@@ -13263,6 +13263,48 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+## 238. ✂️ NOTIFICATION REMOVAL — the pivot's first cut (post-#235/#237, banners are scaffolding around a fixed defect) — **LANE OPEN 2026-08-03 (evening)**
+
+**FILED AND ROUTED 2026-08-03 evening, Owen home.** Post-pivot ("self-contained local
+brain that can upgrade to Hermes"), the default user is HOSTLESS — notifications can
+never fire for them, yet the app still shows the iOS permission dialog on first run.
+The upgrade tier can't push either: self-hosted Hermes can never hold our team `.p8`.
+And the one user notifications served no longer needs them — Owen, routing the lane:
+*"I was only going to check because it wasn't giving me the answer completed... If
+that's there when I go to check, the notification is moot."* The banner was scaffolding
+around the #235 defect; #235 fixed reconstruction, #237 fixed dedupe, and
+open-the-app-and-it's-there is now the trusted surface.
+
+**Scope settled with Owen same evening** (spec:
+`docs/superpowers/specs/2026-08-03-notification-removal-design.md`, approach A — one
+clean cut): everything goes — APNs registration, delegate, both producer services, the
+push-token pipeline (#189), settings UI, `notificationsEnabled`, the `aps-environment`
+entitlement and `remote-notification` background mode. **Confirmed collateral, Owen
+accepted explicitly: reply-from-the-lock-screen (#47) and its failure banner.** STAYS:
+BGAppRefresh (#14, now the sole background catch-up), Live Activities, inbox/briefings
+(poll-fed, verified), connector-outage alert (in-app, verified), durable installation
+identity (sensor pairing), and the relay — zero edits, its push endpoints starve.
+Mac talaria-push hook disarmed at merge time (device-file OFF switch);
+`claude/t27-223-talaria-push` stays as the archive; OJAMD 1.7 deploy cancelled.
+
+## 📋 BARS — PRE-REGISTERED 2026-08-03 evening, BEFORE the run. Written first.
+- **238-A (sim, fresh install):** erased sim, scripted pass through onboarding +
+  first chat + settings → the iOS notification permission dialog NEVER appears.
+- **238-B (mechanical):** zero `UserNotifications` / `UNUserNotificationCenter`
+  references in app-target sources; `project.yml` clean of `aps-environment` and
+  `remote-notification`.
+- **238-C (suite):** #235 recovery tests green; the UserSettings decode-tolerance
+  test green (old JSON carrying the retired key still loads); suite count moves
+  DOWN by the counted delta recorded before the verification run.
+- **238-D (device, OTA):** remote run, app backgrounded → NO banner; open the app →
+  answer present at the tail. The waiting surface observed doing the banners' old job.
+- **238-E (host):** a Mac-gateway session completion produces NO APNs attempt in
+  agent.log — the Lane-1 OFF-check, inverted.
+- Gate before PR, Release build included (#218 — entitlement edits are config-plane).
+
+Expected suite count after edits: recorded in Task 8's commit before the verification
+run.
+
 ## 237. 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can resolve twice for one run — **FIX BUILT same day; 237-A/B/C/D green in suite; 237-E (device heal + the unparked 235-F) owed to the OTA**
 
 > **✅ FIX BUILT 2026-08-03 (afternoon), the day's third same-day lane.**
