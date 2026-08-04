@@ -9241,7 +9241,40 @@ warm. A counter nobody increments is how the first one sat unexamined for two we
 
 Logged 2026-07-24 (review of PR #144).
 
-## 183. 🧹 Tests that pass without exercising what they name — three instances, one shape
+## 183. 🧹 Tests that pass without exercising what they name — three instances, one shape — **✅ CLOSED 2026-08-04: Phase 2 mutation check RUN, 6 invariants verified real, 1 coverage gap found and fixed**
+
+> ## ✅ PHASE 2 RAN 2026-08-04 (quality-batch lane; Owen queued the batch on-deck,
+> ## which supersedes the "after the device pass" hold — device passes have since
+> ## landed 2026-08-02/03/04). Per-invariant verdicts, every mutation reverted
+> ## before the next (verified by `git status` + `git diff` each time; final tree
+> ## carried ONLY the new test):
+>
+> | target | mutation | verdict |
+> |---|---|---|
+> | **#137 consent inversion** (the most expensive failure on the list) | no-blob branch grants health+location | **PASS** — `pairedDeviceWithoutBlobGrandfathersStreamingOnlyNotHealthOrLocation` RED on both flipped assertions, 5 tests executed |
+> | **#61 `degenerateCardReason`** | unconditional `nil` | **PASS** — every trip-branch test RED (identical, containment, repetition, preamble, end-to-end, single-field) |
+> | **#127 monetization fail-open** | `existingPairing` → `.showPaywall` | **PASS** — `existingPairingAlwaysPassesRegardlessOfEntitlement` RED across its whole state×cache matrix |
+> | **#172/#168a field-mode dead-end guard** | `offersReturnToList` drops `hasPlatformList` | **PASS** — `noPlatformListMeansNoModeToggleInEitherDirection` RED, 7 executed |
+> | **#174 downscale, renderer half** | `format.scale = 1` pin removed | **PASS** — 4 of 5 tests RED |
+> | **#174 downscale, measurement half** | `* image.scale` dropped | **NOT OBSERVABLE → GAP FIXED.** Whole suite stayed GREEN because every fixture was scale-1 (points == pixels). Not a masked test — a fixture that cannot distinguish the fixed code from half-reverted code. Fixed in this lane: `threeXScaleImageIsStillCappedInPixels` (3×-scale image, points 1344 < cap, pixels 4032 > cap) — RED under the mutation (ONLY it; the other 5 stayed green, confirming the gap), GREEN on production. Suite 1574 → **1575** on this branch |
+> | #133 push idempotency / #146 derived Bool | — | **MOOT** — #238 deleted the entire push-registration surface; zero references (re-verified today) |
+>
+> **The Phase-1 lesson recurred INSIDE this run, twice:** `-only-testing:` with a
+> FILE name (`SensorOptInTests`) and with a FUNCTION path both silently ran
+> **`Executed 0 tests` under `TEST SUCCEEDED`** — each nearly minted a false
+> MASKED verdict. Suites in this repo are named per-struct, not per-file
+> (`SensorGrandfatheringTests` lives in `SensorOptInTests.swift`), and the
+> function-level filter doesn't match swift-testing tests at all here. **Read
+> the executed count before believing any green — including a mutation run's.**
+>
+> **Close accounting per the spec's full-lane criteria:** Phase 1 counts
+> reported (2026-08-02, below) ✓ · Phase 2 run against the prioritized list
+> with per-test verdicts ✓ · clear-cut fix landed (+1 test), nothing left to
+> file ✓ · no mutation committed ✓ · suite green with the delta accounted ✓.
+> **Deliberately a prioritized SAMPLE (the spec forbids mutating across the
+> whole suite)** — six invariants proven, not 1,500. Instance 3
+> (`CondenserFidelityTests` skip-not-pass) stays with **#93**, its owner; the
+> gate has reported skips since Phase 1.
 
 **Raised 2026-07-24 (Owen) after the second instance surfaced in one bundle.** Three independent
 findings now share a shape, which makes it a pattern rather than a run of accidents:
@@ -9481,7 +9514,19 @@ identity outrank the name fallback even when the echo reorders. Single-attachmen
 unchanged by the pre-existing round-trip test passing untouched. NOT device-verified — sim suite
 only.
 
-## 186. 🐛 Permission accept-lists reject valid grants — the tool belt tells users to enable what they enabled
+## 186. 🐛 Permission accept-lists reject valid grants — the tool belt tells users to enable what they enabled — **✅ VERIFIED ON MAIN 2026-08-04; only the device checks remain, queued in the running list**
+
+> **✅ 2026-08-04 (quality-batch lane): all four built pieces confirmed on
+> main by direct grep, not by trusting the 176B note** —
+> `CalendarEventTool` accepts `.fullAccess, .writeOnly` AND re-reads the
+> settled status after a request (`DeviceActionTools.swift:444–448`); the
+> calendar reader's `.writeOnly` branch names the add-only grant and how to
+> widen it (`DeviceCalendarTools.swift:37`); `ContactsTool` accepts
+> `.limited` (`DeviceReadTools.swift:623`); and
+> `NSCalendarsWriteOnlyAccessUsageDescription` is in `project.yml:170`.
+> **The three owed device checks moved to
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md` §F1 (one queue — #184's rule);
+> they are this item's only remaining content.** App-side work: none.
 
 Found by ultrareview Pass B (2026-07-25), verified against source.
 
@@ -9596,6 +9641,13 @@ the parameter or the client should stop implying a contract that is not kept.
 > server-side filter arrives free with the client-side filter demoted to belt. The
 > gateway half of this item is now a **watch**, not work: re-probe after notable gateway
 > updates, close when a release honors it. No code change in either direction.
+>
+> **WATCH FIRED 2026-08-04 — v0.20.0 STILL IGNORES IT.** OJAMD self-updated to
+> 0.20.0 on 2026-08-03; per the watch, re-probed read-only against the live
+> OJAMD gateway (`100.110.102.59:8642`, `GET /api/sessions?limit=50&order=recent`
+> with and without `min_messages=1`): **identical 50-row id sets, 13 rows with
+> `message_count == 0` in both.** Client-side filter stays load-bearing; the
+> watch stays armed for the next notable update.
 
 **Update 2026-07-26 — the empties have a single source, and it is not Talaria.**
 
