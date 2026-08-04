@@ -13263,6 +13263,41 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+## 242. 💡 LOCAL-ANSWER BRIDGE: remote Hermes chats get phone-only facts by dispatching the on-device FM belt at query time — Owen's proposed avenue to ditch the sensor plane without losing health — **FILED 2026-08-03 late night, UNROUTED (idea, no design yet)**
+
+**Owen, same night as the sensors-leaning (see #223), verbatim:** *"I keep hoping
+we'll find a different avenue to take for the health stuff, but I think we can
+extrapolate everything we need for sensors from the foundation models. Maybe it
+could be a setting, and when enabled, if queried about something that only the
+phone could know, maybe Talaria could ask the foundation models, and get the
+answer to provide in its chat. Think how when you do workflows or dispatch
+agents."*
+
+**The shape:** in a REMOTE (Hermes) chat, when the turn needs something only the
+phone knows (health, activity, location), Talaria — behind a setting — dispatches
+the question to the on-device FM belt (which already owns HealthKit/location
+tools), takes the local answer, and provides it into the Hermes conversation.
+The app is the orchestrator; the local brain is the subagent. **Inversion that
+matters:** no data stream, no host-side sensor store — phone facts leave the
+device only as a per-question answer inside a turn the user sent. This would
+retire the sensor plane's interactive half with ZERO sidecars and ZERO upstream
+change (upstream's `split_runtime:false` acknowledges client-side tool execution
+as a someday-mode — this is the app-side version that needs none of it).
+
+**Already in the codebase to build on:** the device-tool belt + HealthKit lane
+(#211, local, 10/10), intent routing (`routeNeedsDeviceTool`, #215/#217 — the
+router's measured surface), and the local/remote backend split (#216's files).
+
+**Open design questions (for the brainstorm when routed):** (1) detection in
+remote mode — the router must flag phone-only intents BEFORE the send (a remote
+turn Hermes answers with "I can't know that" is the miss shape); (2) delivery —
+prepend the local answer as turn context Hermes weaves in, vs. answer locally
+inline and skip Hermes for that turn; (3) the setting's name and default;
+(4) honest non-coverage: host-side ASYNC analysis of phone history (cron jobs,
+"analyze my sleep trends while I'm away") — that half of the old sensor plane
+does not come back with this and should be said out loud when deciding #223's
+sensor question.
+
 ## 241. 🐛 HERMES CORE (upstream): gateway sends its OWN self-name as the upstream model id on the nous provider, and reports the resulting non-retryable 404 to the client as HTTP 200 — **FILED 2026-08-03 night from OJAMD-session evidence; UPSTREAM-REPORT CANDIDATE, re-test on v0.20.0 first**
 
 **Source: the OJAMD-side session's findings file (archived at
@@ -14592,7 +14627,33 @@ lane runs, per the standing rule.
 > notifications fired from SSE events" for run completions/approvals — #238
 > removed the ENTIRE notification surface the same night this was written.
 > Any future /v1/runs approval-prompt feature is a REINTRODUCTION decision
-> for Owen, not a default to build.
+> for Owen, not a default to build. **Owen resolved the tension same night:
+> if notifications ever return they are IN-APP surfaces only** (banner /
+> approvals row / the existing inbox pattern — ordinary app UI) — never
+> system-wide phone notifications. So the #238 cut is permanent: no
+> UNUserNotificationCenter, no permission dialog, no `aps-environment`,
+> regardless of what the /v1/runs plane grows.
+>
+> **🧭 SENSORS: OWEN'S LEANING RECORDED — same night (a leaning, NOT a
+> decision; nothing builds or deletes on it).** On the brief's §5 open
+> question, verbatim: *"A plugin would be a cleaner implementation for it
+> if we keep it. I'm ok with ditching the sensors if i'm being honest. Its
+> a lot of baggage. Its really only health that we can't get from the
+> onboard models, and beta 5,6,or7 may release those, who knows. I'm not
+> hard locked on keepin' em."* Read: IF kept → upstream Hermes plugin
+> (never a sidecar); the lean → ditch. What a full ditch would delete:
+> relay :8000 + connector + watchdog on OJAMD, the app's pairing /
+> device-bearer auth plane (#15/#94 ladders), SensorUploadService + its
+> outbox, HealthKit upload surface, and the `hermes_mobile` MCP tools —
+> the dylan-buck shell's LAST tenants, making zero-setup literal. The one
+> real loss: the REMOTE Hermes agent's view of phone health/sensor history
+> (on-device answers are unaffected — #211's steps lane is local FM +
+> HealthKit). Owen notes a later iOS 27 beta may expose health to onboard
+> models regardless. Decision stays open; Owen calls it. **Same night, Owen
+> sketched the avenue that could dissolve the loss entirely — filed as #242
+> (local-answer bridge: remote chats dispatch the on-device belt for
+> phone-only facts at query time).** If #242 builds, ditching the sensor
+> plane costs only host-side ASYNC analysis of phone history — named there.
 
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
 Couple that with ending the shim, and we won't have very much running anymore separately."*
