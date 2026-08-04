@@ -13286,7 +13286,7 @@ same evening, so re-test before filing upstream. App-side follow-on question (no
 item): whether a run that yields no assistant turn within some horizon should surface
 a visible dead-run state instead of quiet nothing — rides the #235 family if ever built.
 
-## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **FILED 2026-08-03 ~7:49 PM from 238-D trial 2; DESIGN approved same night (both fixes); spec written, Owen's review pending**
+## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **FILED 2026-08-03 ~7:49 PM from 238-D trial 2; SPEC APPROVED same night (both fixes) — BUILD HELD by Owen pending post-compaction go; #239 queued behind it**
 
 **Evidence (Owen, 1908, OJAMD, kimi-k3, screenshot):** the 238-D pass itself was clean
 (no banner; answer on open), but the transcript showed his question TWICE — the server's
