@@ -251,6 +251,12 @@ struct ChatScreen: View {
                     standaloneUnavailableBanner(explanation)
                 } else if let failure = chatStore.sessionOpenFailure {
                     sessionOpenFailureBanner(failure)
+                } else if let notice = container.profileSwitchNotice {
+                    // #247 B2: the switch verdict — a dead host is NAMED, and
+                    // when every host is dead the banner says to check this
+                    // phone's own network instead of letting the user debug
+                    // by elimination.
+                    routingNoticeBanner(notice, icon: "arrow.left.arrow.right")
                 } else if let notice = container.chatBackendRouter?.privateCloudFallbackNotice {
                     routingNoticeBanner(notice, icon: "cloud")
                 } else if let notice = container.chatBackendRouter?.automaticFallbackNotice {

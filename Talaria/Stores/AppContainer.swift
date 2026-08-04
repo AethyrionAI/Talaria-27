@@ -2004,6 +2004,67 @@ final class AppContainer {
     /// keeps working via its birth-profile affinity (M-5). Only the
     /// relay-plane interactive surfaces (inbox, host status, push watch
     /// arming) and the shim/model surfaces re-resolve.
+    // MARK: - #247 B2: the profile-switch verdict
+
+    /// What a 5s gateway probe concluded. Mirrors the #151 Test Connection
+    /// classification: 2xx online, 401/403 answering-but-unkeyed, anything
+    /// else (including timeout — Owen's outage shape) unreachable.
+    enum GatewayProbeVerdict: Sendable { case online, unkeyed, unreachable }
+
+    /// The switch verdict banner, rendered in ChatScreen's notice cascade.
+    /// Set by `handleActiveProfileChanged`'s probe; an online confirmation
+    /// auto-clears, a failure stays until the next switch resolves it.
+    private(set) var profileSwitchNotice: String?
+    private var lastActivatedProfile: BackendProfile?
+    private var switchNoticeTask: Task<Void, Never>?
+
+    /// Pure and pinned (bars 247-B): the exact sentences. The all-hosts row
+    /// is the diagnosis Owen had to derive by RDP elimination during the
+    /// 2026-08-04 outage — when BOTH gateways are dark, the phone's own
+    /// network is the likely culprit and the app says so.
+    nonisolated static func profileSwitchNotice(
+        newProfileName: String,
+        verdict: GatewayProbeVerdict,
+        previousProfileName: String?,
+        previousVerdict: GatewayProbeVerdict?
+    ) -> String? {
+        switch verdict {
+        case .online:
+            return "\(newProfileName): gateway online."
+        case .unkeyed:
+            return "\(newProfileName): gateway answering, but its API key was rejected."
+        case .unreachable:
+            if let previousProfileName, previousVerdict == .unreachable {
+                return "\(newProfileName) is unreachable — and so is \(previousProfileName). Every host is failing; check this phone's network or Tailscale."
+            }
+            return "\(newProfileName): gateway unreachable."
+        }
+    }
+
+    /// One bounded probe (5s), nil when the profile has no gateway URL to
+    /// probe. Unauthenticated probes still classify reachability: a live
+    /// gateway answers 401/403 (`.unkeyed`), which is all the all-hosts-dead
+    /// diagnosis needs from the PREVIOUS host.
+    nonisolated static func probeGatewayVerdict(baseURL: String, key: String?) async -> GatewayProbeVerdict? {
+        var trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        while trimmed.hasSuffix("/") { trimmed.removeLast() }
+        guard !trimmed.isEmpty, let url = URL(string: trimmed + "/v1/models") else { return nil }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 5
+        if let key, !key.isEmpty {
+            request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        }
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let status = (response as? HTTPURLResponse)?.statusCode else { return .unreachable }
+            if (200 ..< 300).contains(status) { return .online }
+            if status == 401 || status == 403 { return .unkeyed }
+            return .unreachable
+        } catch {
+            return .unreachable
+        }
+    }
+
     func handleActiveProfileChanged(to profile: BackendProfile) async {
         containerLog.notice("profile switch: activating '\(profile.name, privacy: .public)'")
         // #136: the launch background bootstrap may still be in flight
@@ -2024,6 +2085,40 @@ final class AppContainer {
             chatAPIKeyBox?.value = gatewayKey
         }
         chatBackendRouter?.refreshActiveBrain()
+
+        // #247 B2: verdict the switch — probe the NEW and PREVIOUS gateways
+        // concurrently and say what happened, instead of the silent
+        // everything-times-out Owen debugged by RDP elimination. Detached
+        // from the switch itself; verdicts land within ~5s.
+        let previous = lastActivatedProfile
+        lastActivatedProfile = profile
+        switchNoticeTask?.cancel()
+        profileSwitchNotice = nil
+        let newKey = hermesAPIKey
+        switchNoticeTask = Task { [weak self] in
+            async let newVerdict = Self.probeGatewayVerdict(baseURL: profile.gatewayBaseURL, key: newKey)
+            async let previousVerdict: GatewayProbeVerdict? = {
+                guard let previous else { return nil }
+                return await Self.probeGatewayVerdict(baseURL: previous.gatewayBaseURL, key: nil)
+            }()
+            guard let verdict = await newVerdict, !Task.isCancelled else { return }
+            let notice = Self.profileSwitchNotice(
+                newProfileName: profile.name,
+                verdict: verdict,
+                previousProfileName: previous?.name,
+                previousVerdict: await previousVerdict
+            )
+            guard let self, !Task.isCancelled else { return }
+            self.profileSwitchNotice = notice
+            containerLog.notice("profile switch verdict: \(notice ?? "none", privacy: .public) (#247)")
+            if verdict == .online {
+                // A confirmation is news for a moment, noise after.
+                try? await Task.sleep(for: .seconds(5))
+                if !Task.isCancelled, self.profileSwitchNotice == notice {
+                    self.profileSwitchNotice = nil
+                }
+            }
+        }
 
         // #223 Lane 5: the new profile's own pick (or none) drives the
         // per-turn lock from the next turn on.

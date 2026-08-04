@@ -75,6 +75,13 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
         activeEngine == .realtime ? realtime : native
     }
 
+    /// #247 B1: the realtime start's whole budget. A black-holed relay (drop,
+    /// not refuse) otherwise rides the shared 300s-timeout client and pins
+    /// "ESTABLISHING LINK" until a force quit; at the deadline the start is
+    /// cancelled and this session falls back to local voice. Var, not let:
+    /// the suite shortens it. // harness-visible
+    var realtimeStartTimeout: Duration = .seconds(12)
+
     // MARK: - Routing decisions (pure, unit-tested)
 
     /// After a readiness probe on the Realtime engine: route local when the
@@ -117,16 +124,26 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
     /// microphone permission — which blocks the native engine identically.
     nonisolated static func shouldFallBackToNative(
         connectionState: TalkConnectionState,
-        blockedReason: String?
+        blockedReason: String?,
+        timedOut: Bool = false
     ) -> Bool {
-        switch connectionState {
-        case .connected, .connecting:
-            return false
-        default:
-            break
-        }
+        // #247 B1: the microphone exemption outranks everything — a mic
+        // denial blocks BOTH engines, so bouncing just moves the dead end.
         if blockedReason?.localizedCaseInsensitiveContains("microphone") == true {
             return false
+        }
+        switch connectionState {
+        case .connected:
+            return false
+        case .connecting:
+            // #247 B1: a start that RETURNED still connecting may finish
+            // asynchronously — but a TIMED-OUT start already had its whole
+            // budget and doesn't get to keep "still connecting" as an
+            // excuse. This is the branch Owen's ESTABLISHING LINK lockup
+            // lived in: a black-holed relay rode the shared 300s client.
+            return timedOut
+        default:
+            break
         }
         return true
     }
@@ -205,13 +222,31 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
             return
         }
         if activeEngine == .realtime, isRelayPaired() {
-            await realtime.startSession()
+            // #247 B1: belt the start. A REFUSED relay fails fast and the
+            // fallback below always ran; a BLACK-HOLED one (tailnet drop)
+            // rode the shared 300s-timeout client and pinned ESTABLISHING
+            // LINK until a force quit. The belt cancels the start at the
+            // deadline — cancellation aborts the underlying bootstrap
+            // request, so the await returns — and a timed-out start falls
+            // back to local voice like any failed one.
+            let start = Task { await realtime.startSession() }
+            let belt = Task { [timeout = realtimeStartTimeout] in
+                try? await Task.sleep(for: timeout)
+                start.cancel()
+            }
+            await start.value
+            let timedOut = belt.isCancelled == false && start.isCancelled
+            belt.cancel()
             let attempted = realtime.snapshot
             if Self.shouldFallBackToNative(
                 connectionState: attempted.connectionState,
-                blockedReason: attempted.blockedReason
+                blockedReason: attempted.blockedReason,
+                timedOut: timedOut
             ) {
-                Self.logger.notice("Realtime start failed (\(attempted.blockedReason ?? "no reason", privacy: .public)) — falling back to local voice for this session")
+                let cause = timedOut
+                    ? "timed out after \(realtimeStartTimeout)"
+                    : "failed (\(attempted.blockedReason ?? "no reason"))"
+                Self.logger.notice("Realtime start \(cause, privacy: .public) — falling back to local voice for this session (#247)")
                 setActive(.native)
                 await native.startSession()
             }
