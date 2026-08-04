@@ -14525,6 +14525,20 @@ lane runs, per the standing rule.
 > the overnight relay outage was a ~10-hour port-8000 bind deadlock (watchdog
 > restarted the connector ~300 times to no effect) — one more exhibit for
 > deletion over robustness.
+>
+> **✂️ OWEN PRUNED THE GAP LIST — 2026-08-03 night, verbatim: "I don't care
+> about expensive guard. rich metadata isn't currently being used just the
+> name and provider, the persistent set default is a potential though."**
+> So Lane 5's requirements collapse to ONE: a durable set-default (the shim's
+> `_apply_model_assignment_sync` capability). Gaps (2) expensive guard and
+> (3) rich metadata are WAIVED — the app's picker consumes name + provider
+> only; (4) refresh knob and (5) dual-token die with the shim. Remaining
+> design fork when Lane 5 routes: a small upstream gateway PR exposing
+> persistent set-default, OR de-scope app-side to per-session pins only
+> (`POST /api/sessions/{id}/model` already live-probed on 0.20.0) and ask
+> whether a phone-set durable default is worth an upstream PR at all.
+> Consequence when built: the CONFIRM-for-expensive-models flow (CLAUDE.md
+> "Model switching") retires with the shim.
 
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
 Couple that with ending the shim, and we won't have very much running anymore separately."*
