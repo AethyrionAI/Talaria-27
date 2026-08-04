@@ -14571,6 +14571,28 @@ lane runs, per the standing rule.
 > /api/sessions/{id}` accepts `title`/`end_reason` only; `X-Hermes-Session-Key`
 > memory-scope header; ⚠️ `jobs_admin:false` capabilities flag contradicts live
 > jobs routes — never code against that flag.
+>
+> **🗞 HERMES'S CUTOVER BRIEF PROCESSED — same night (archived
+> `handoffs/sessions-api-brief-2026-08-04.md`; written by the Hermes agent on
+> OJAMD from the same audit; Owen: leads-as-usual, and he'd separately
+> discussed relay-vs-API with Hermes before the audit landed).** Direction it
+> restates as settled by Owen matches the tracker: store release, on-device
+> core, Hermes optional via direct :8642, zero sidecars, APNs abandoned.
+> NEW facts banked: **v0.20.0 ships an official relay/connector contract
+> (`gateway/relay/`) — evaluated and REJECTED** (lateral move, re-adds a
+> user-run process); **no mid-run steering verb over HTTP** (control plane is
+> stop + approval-response — composer designs must be stop-and-edit, never
+> type-while-it-works; pre-filed here so it is never filed as an app bug);
+> capabilities doc is advisory (probe endpoints, don't gate UI on flags).
+> Its §6 build order (unified chat SSE → /v1/runs approvals → picker off
+> `/api/model/options` + session lock → session list w/ client-side cost
+> rollup → jobs) is a PROPOSAL — Owen routes. Open decision Owen owns (§5):
+> remote sensors — upstream ingestion endpoint vs cut; build neither until
+> he calls it. **⚠️ One stale assumption flagged:** §3.6 prescribes "local
+> notifications fired from SSE events" for run completions/approvals — #238
+> removed the ENTIRE notification surface the same night this was written.
+> Any future /v1/runs approval-prompt feature is a REINTRODUCTION decision
+> for Owen, not a default to build.
 
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
 Couple that with ending the shim, and we won't have very much running anymore separately."*
