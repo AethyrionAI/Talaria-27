@@ -7118,7 +7118,7 @@ same Console session), #143/#144 (same notification plane), #145 (same host-flux
 
 Logged 2026-07-20.
 
-## 147. 🐛 Tapping an inbox-alert notification CRASHES the app — REOPENED 2026-07-25; the 2026-07-21 fix has been inert since it merged
+## 147. 🐛 Tapping an inbox-alert notification CRASHES the app — **⚰️ MOOT 2026-08-04 (goal-run sweep, under Owen's standing "disregard obsolete/moot items"): #238 deleted the ENTIRE system-notification surface — the `UNUserNotificationCenter` delegate this crash lived in no longer exists, and notifications, if ever reintroduced, are in-app surfaces only (permanent cut). The device check in DEVICE-PASS-RUNNING-LIST §F1 is likewise moot. Reopen only if an in-app alert TAP-THROUGH surface is built and crashes — which would be a NEW item against new code, not this one.** — (was: REOPENED 2026-07-25; the 2026-07-21 fix has been inert since it merged)
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
@@ -14512,7 +14512,7 @@ are app-side; zero relay change**, which is what the no-hardening rule asks for.
 three drive-by single-flight patches across launch, push, and chat would be an
 unreviewable diff, and #180's lesson is that the convention is the deliverable.
 
-## 226. 🐛 The #38 run-completion push watch is a STRUCTURAL NO-OP for home-screen backgrounding — nothing, or THREE identical banners
+## 226. 🐛 The #38 run-completion push watch is a STRUCTURAL NO-OP for home-screen backgrounding — **⚰️ MOOT 2026-08-04 (goal-run sweep): the push-watch surface itself was deleted by #238 (app posts no `push/watch` calls; banners cannot exist without the notification plane). The one durable piece of this item — the reconcile-leg single-flight — was FIXED in this item's own lane (`0b8aad4`, `reconcileInFlight`) and stays. Nothing left to build.** — (was: nothing, or THREE identical banners)
 
 **FILED 2026-08-02 from the device pass (running list §D4, which holds the attempt table
 and the full source trace).** Four live attempts plus source; **all four explained
