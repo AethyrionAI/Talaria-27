@@ -13411,7 +13411,7 @@ next outbox drain re-sends the question and Hermes answers it again, unprompted.
    history for an identical user message at/after its sentAt; adopt instead of
    re-send. Belt-and-braces; also heals rows parked before the fix.
 
-## 239. 🎨 Appearance screen: the theme picker buries everything below it — Themes should be a tappable sub-section — **DESIGN + SPEC APPROVED 2026-08-03 night ("Spec approved, build it. Make sure the new page is covered for theme changes too"); BUILDING**
+## 239. 🎨 Appearance screen: the theme picker buries everything below it — Themes should be a tappable sub-section — **BUILT + GATED 2026-08-03 night (suite 1557 = 1555+2, XCUITest 10 = 9+1, Release clean, GATE: PASS) — 239-A/B MET; PR open; 239-C owed to Owen on device**
 
 > **BARS — written first, before the run** (spec:
 > `docs/superpowers/specs/2026-08-03-239-themes-subsection-design.md`):
@@ -13426,6 +13426,30 @@ next outbox drain re-sends the question and Hermes answers it again, unprompted.
 > discoverable. Counters pinned BEFORE verification: swift-testing 1555 →
 > 1555 + new helper tests; XCUITest `Executed` 9 → 10. Owen's answered
 > design fork: the seasonal auto-rotate toggle moves INTO the sub-screen.
+>
+> **BUILD RECORD — same night, branch `claude/t27-239-themes-subsection`
+> (plan `docs/superpowers/plans/2026-08-03-239-themes-subsection.md`).**
+> T1 (`a96500f`): `AppearanceSettingsScreen.themesRowValue(settings:on:)`
+> — **239-A MET, watched RED** (compile-fail naming the member) → GREEN,
+> `DesignThemeTests` 23 → 25. T2 (`467e374`): `ThemesSettingsScreen.swift`
+> (new file; themeSection/themeGroup/automaticPanel+caption+binding/
+> themeCard/lockBadge/accentSection/accentSwatch moved VERBATIM, own
+> resolution layer + `HUDScreenBackground` → live re-skin preserved by
+> construction); parent body: cards+accents → `themesNavRow`
+> (iconTile+hudPanel idiom); orphaned `isAutomatic` removed;
+> `effectiveAccent` stays (still feeds the App Icon row label). T3
+> (`bbc4ab2`): **239-B MET** —
+> `testThemeChangeFromThemesSubScreenAppliesAndSurfacesInRow` passed,
+> `Executed 1` (16.8s): settings → Appearance → Themes → Solar Forge card
+> gains `.isSelected` (one hedged re-tap per sim-verify memory) → Back →
+> row label contains "SOLAR FORGE". First run was a false green —
+> `-only-testing:TalariaUITests/AppTemplateUITests/...` matched NOTHING
+> (`Executed 0` + TEST SUCCEEDED; the class inside AppTemplateUITests.swift
+> is named `TalariaUITests`) — caught by the count, re-run correctly.
+> **Suite: 1557 observed = 1555 + 2 pinned, exactly.** **GATE: PASS**
+> (Debug TEST SUCCEEDED, swift-testing 1557, XCUITest 10 — BOTH counters
+> moved as pinned; 2 expected Apple-Intelligence skips; Release clean).
+> PR open; 239-C owed to Owen on device (corded, `--terminate-existing`).
 
 **Owen, on 1908 (which relocated the haptics toggle into Appearance per #238):** *"we
 may want to put Themes in a tappable section inside Appearance. It takes up so much,
