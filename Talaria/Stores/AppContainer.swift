@@ -68,6 +68,32 @@ final class AppContainer {
     /// Lane M: the concrete Sessions client, kept for the surfaces that are
     /// profile-aware by nature (M-16's new-chat-on-profile override).
     private(set) var sessionsChatClient: SessionsHermesClient?
+
+    /// #223 Lane 5: the active profile's persisted model pick (nil = follow
+    /// the host default). Reads live from the profiles store so the picker,
+    /// the chat client, and profile switches all see one truth.
+    var activeModelSelection: ModelSelection? {
+        guard let profile = profilesStore?.activeProfile,
+              let provider = profile.selectedModelProvider, !provider.isEmpty,
+              let modelID = profile.selectedModelID, !modelID.isEmpty else { return nil }
+        return ModelSelection(provider: provider, modelID: modelID)
+    }
+
+    /// #223 Lane 5: persist a pick (or nil to follow the host default) on the
+    /// active profile and arm the live client's per-turn lock. The header
+    /// updates optimistically; each turn's `runtime` block corrects it with
+    /// the RESOLVED model afterward.
+    func applyModelSelection(_ selection: ModelSelection?) {
+        profilesStore?.updateActiveProfile {
+            $0.selectedModelProvider = selection?.provider
+            $0.selectedModelID = selection?.modelID
+        }
+        sessionsChatClient?.modelSelection = selection
+        if let selection {
+            let display = selection.modelID.split(separator: "/").last.map(String.init) ?? selection.modelID
+            chatStore.replaceCommandCatalog(chatStore.commandCatalog, activeModel: display)
+        }
+    }
     /// #156a: the Tasks (scheduled cron jobs) store — rides the ACTIVE
     /// profile's gateway endpoint, same auth as the Sessions chat client.
     /// Nil in bare test containers that construct stores directly.
@@ -770,6 +796,9 @@ final class AppContainer {
         container.profileRelaySessions = profileRelaySessions
         container.gatewayKeyCache = gatewayKeyCache
         container.sessionsChatClient = sessionsClient
+        // #223 Lane 5: arm the per-turn model lock from the active profile's
+        // persisted pick, from the first turn of the launch.
+        sessionsClient.modelSelection = container.activeModelSelection
         // #156a: Tasks — the cron-jobs surface talks to the same :8642
         // gateway with the same API key as chat; no relay, no new services
         // (#161). Bare test containers skip this (nil store → honest
@@ -2029,6 +2058,10 @@ final class AppContainer {
             shimTokenBox?.value = shimToken
         }
         chatBackendRouter?.refreshActiveBrain()
+
+        // #223 Lane 5: the new profile's own pick (or none) drives the
+        // per-turn lock from the next turn on.
+        sessionsChatClient?.modelSelection = activeModelSelection
 
         // Relay-plane + model surfaces re-home (M-6/M-10). The conversation
         // and journal are deliberately untouched.

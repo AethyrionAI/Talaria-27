@@ -46,6 +46,10 @@ struct GatewayProviderEntry: Decodable, Sendable {
     }
 }
 
+extension GatewayProviderEntry: Identifiable {
+    var id: String { slug }
+}
+
 struct GatewayModelPricing: Decodable, Sendable {
     let input: String?
     let output: String?

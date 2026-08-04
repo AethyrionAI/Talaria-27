@@ -58,6 +58,28 @@ final class ModelPricingCatalog {
                 }
             }
         }
+        commit(merged)
+    }
+
+    /// #223 Lane 5: same harvest off the gateway catalog — identical display
+    /// vocabulary ("$8.00" / "free"), different DTO.
+    func ingest(_ catalog: GatewayModelCatalog) {
+        var merged = pricingByModelID
+        for provider in catalog.providers {
+            for (modelID, display) in provider.pricing ?? [:] {
+                if let input = Self.parsePrice(display.input),
+                   let output = Self.parsePrice(display.output) {
+                    merged[Self.normalize(modelID)] = ModelPricing(
+                        inputPerMTok: input,
+                        outputPerMTok: output
+                    )
+                }
+            }
+        }
+        commit(merged)
+    }
+
+    private func commit(_ merged: [String: ModelPricing]) {
         guard merged != pricingByModelID else { return }
         pricingByModelID = merged
         if let data = try? JSONEncoder().encode(merged) {

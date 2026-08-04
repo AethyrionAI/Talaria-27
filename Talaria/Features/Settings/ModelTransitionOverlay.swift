@@ -1,13 +1,11 @@
 import SwiftUI
 
-/// Model-switch transition surface (#9). Covers the list area while the dual-write
-/// (shim set-default + gateway session pin) runs, then branches to success / confirm /
-/// error. Header + shim config stay visible underneath (this is an overlay on the list
-/// content only). All copy is real: CONFIRM shows the shim's message, ERROR shows the
-/// thrown description — nothing is mocked.
+/// Model-switch transition surface (#9 → #223 Lane 5). apply() is a synchronous
+/// local persist now, so ACTIVATING is one animation frame and SUCCESS follows
+/// immediately; ERROR only ever carries a load/refresh failure. The CONFIRM
+/// phase (the shim's expensive-model guard) retired with the shim.
 ///
 /// Derived from `ModelsSettingsModel`:
-///   • `pendingConfirm != nil`             → CONFIRM (amber, no auto-dismiss)
 ///   • `applyingModelID != nil`            → ACTIVATING (telemetry + reactor)
 ///   • activation resolved, no error       → SUCCESS (checkmark, auto-dismiss ~750ms)
 ///   • activation resolved with an error   → ERROR (Retry / Dismiss; model never mutated)
@@ -24,8 +22,7 @@ struct ModelTransitionOverlay: View {
     @State private var successTask: Task<Void, Never>?
     @State private var watchdogTask: Task<Void, Never>?
 
-    private var confirmActive: Bool { model.pendingConfirm != nil }
-    private var visible: Bool { confirmActive || phase != .hidden }
+    private var visible: Bool { phase != .hidden }
 
     private var telemetry: [(String, Color)] {
         [
@@ -48,7 +45,6 @@ struct ModelTransitionOverlay: View {
         .allowsHitTesting(visible)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: visible)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: phase)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: confirmActive)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.30), value: step)
         .onChange(of: model.applyingModelID) { old, new in
             handleApplyingChange(old: old, new: new)
@@ -67,9 +63,7 @@ struct ModelTransitionOverlay: View {
             if !reduceMotion { advanceTelemetry() }
         } else if old != nil {
             watchdogTask?.cancel()
-            if model.pendingConfirm != nil {
-                phase = .hidden               // CONFIRM card takes over (derived)
-            } else if model.errorMessage != nil {
+            if model.errorMessage != nil {
                 phase = .error
             } else {
                 phase = .success
@@ -122,15 +116,11 @@ struct ModelTransitionOverlay: View {
     }
 
     @ViewBuilder private var card: some View {
-        if confirmActive, let pending = model.pendingConfirm {
-            confirmCard(pending)
-        } else {
-            switch phase {
-            case .activating: activatingCard
-            case .success:    successCard
-            case .error:      errorCard
-            case .hidden:     EmptyView()
-            }
+        switch phase {
+        case .activating: activatingCard
+        case .success:    successCard
+        case .error:      errorCard
+        case .hidden:     EmptyView()
         }
     }
 
@@ -150,7 +140,7 @@ struct ModelTransitionOverlay: View {
                         .offset(y: step >= idx ? 0 : 4)
                 }
             }
-            MonoLabel("HOLD · 1–5S · DO NOT CLOSE", size: 8,
+            MonoLabel("APPLYING LOCK", size: 8,
                       tracking: Design.Tracking.monoWide, color: Design.Colors.dimForeground)
                 .padding(.top, Design.Spacing.xs)
         }
@@ -178,33 +168,6 @@ struct ModelTransitionOverlay: View {
         .padding(Design.Spacing.xl)
         .frame(maxWidth: 320)
         .hudPanel(borderColor: Design.Colors.accentTint(0.35), innerGlow: true)
-    }
-
-    private func confirmCard(_ pending: ModelsSettingsModel.PendingConfirm) -> some View {
-        VStack(spacing: Design.Spacing.md) {
-            HStack(spacing: Design.Spacing.xs) {
-                StatusPip(color: Design.Brand.forge, blinks: true)
-                MonoLabel("PREMIUM MODEL · CONFIRM", size: 10, weight: .medium,
-                          tracking: Design.Tracking.monoWide, color: Design.Brand.forge)
-            }
-            MonoLabel(pending.modelID, size: 13, weight: .medium,
-                      tracking: Design.Tracking.mono, color: Design.Colors.foregroundBright)
-            Text(pending.message)
-                .font(Design.Typography.body(13, weight: .regular))
-                .foregroundStyle(Design.Colors.foreground)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: Design.Spacing.sm) {
-                GhostButton(title: "Cancel") { model.cancelPending() }
-                pillButton("Activate", tint: Design.Brand.forge) {
-                    Task { await model.confirmPending() }
-                }
-            }
-            .padding(.top, Design.Spacing.xs)
-        }
-        .padding(Design.Spacing.xl)
-        .frame(maxWidth: 340)
-        .hudPanel(borderColor: Design.Brand.forge.opacity(0.45), innerGlow: true)
     }
 
     private var errorCard: some View {
@@ -241,7 +204,7 @@ struct ModelTransitionOverlay: View {
         .hudPanel(borderColor: Design.Colors.danger.opacity(0.45), innerGlow: true)
     }
 
-    // MARK: Tinted pill button (GlowButton is cyan-only; CONFIRM/ERROR need amber/red)
+    // MARK: Tinted pill button (GlowButton is cyan-only; ERROR needs red)
 
     private func pillButton(_ title: String, tint: Color, glyph: String? = nil,
                             action: @escaping () -> Void) -> some View {
