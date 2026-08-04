@@ -13263,7 +13263,7 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
-## 244. 🎨 APPEARANCE TAB HOLISTIC REWORK — "It doesn't flow right" — **ROUTED 2026-08-04 early AM: Owen supplied Claude Design's channel-browser mockup and delegated the build ("If this is something doable and you like the design, implement that as well"). Verdict: doable + good — BUILT on `claude/t27-244-appearance-channels`; #243 subsumed; #239's sub-screen superseded (its live-re-skin guarantee carries forward by construction). Spec: `docs/superpowers/specs/2026-08-04-244-appearance-channel-browser-design.md`.**
+## 244. 🎨 APPEARANCE TAB HOLISTIC REWORK — "It doesn't flow right" — **✅ CLOSED 2026-08-04 (Owen's device pass on 1955: "looks good!"). ROUTED same day: Owen supplied Claude Design's channel-browser mockup and delegated the build ("If this is something doable and you like the design, implement that as well"). Verdict: doable + good — BUILT on `claude/t27-244-appearance-channels`; #243 subsumed; #239's sub-screen superseded (its live-re-skin guarantee carries forward by construction). Spec: `docs/superpowers/specs/2026-08-04-244-appearance-channel-browser-design.md`.**
 
 > ## 📋 BARS — PRE-REGISTERED 2026-08-04, BEFORE the lane's tests ran. Written first.
 > - **244-A (unit):** `ThemeChannels.build` — channel 00 is AUTO resolving
@@ -13283,6 +13283,10 @@ direction — one more thing the gateway already carries.
 >   the spectrum (hidden for Terminal); Seasonal AUTO = channel 00 (counter
 >   NN/30, computed); inert `locked` badge machinery carried deliberately.
 
+> **✅ OWEN'S DEVICE VISUAL PASS: PASSED — 2026-08-04 morning, build 1955
+> ("looks good!"). The channel browser ships as designed; #244 CLOSED (the
+> umbrella's flow complaint answered by the rebuild), #243 stays subsumed.**
+>
 > **✅ BUILT + BARS MET — 2026-08-04 early AM.** 244-A/B green (DesignThemeTests
 > 27/27 — honest note: the four new tests were written before the
 > implementation but their RED was not separately witnessed; new-type
@@ -14031,7 +14035,7 @@ REASONING rows — upstream shape, display-only.
 > - **235-F (device):** a dead-stream turn followed by later messages shows
 >   the recovered reply at the BOTTOM with the marker naming its prompt.
 
-## 234. 🐛 "Day after tomorrow" received TOMORROW'S forecast — the model collapses an unsupported day into the nearest supported one, and #230's honest refusal never reaches the user — **MECHANISM CONFIRMED same morning: argument-time nearest-fit, trial-7 severity family**
+## 234. 🐛 "Day after tomorrow" received TOMORROW'S forecast — **✅ CLOSED 2026-08-04: guide boundary + pass-through + dated line built (PR #256), 234-A/B sim-met, 234-C device-met on build 1955 (honest horizon answer, Owen's screenshot)** — *(was: mechanism confirmed — argument-time nearest-fit, trial-7 severity family)*
 
 **FILED 2026-08-03 from Owen's at-work spot check of the just-shipped #230** (Release
 OTA of the fix branch, fresh chat): "What's the weather in Gulfport the day after
@@ -14101,6 +14105,14 @@ rule; (b) `tomorrowForecastLine` carries its calendar date. Branch
   existing exact-string test in place) ⇒ swift-testing **1557 + 2 = 1559
   expected on this branch** (bases off main — Lane 5's 1570 rides the
   unmerged PR #255); XCUITest 10 unchanged.
+
+**✅ 234-C MET ON DEVICE — 2026-08-04 7:52 AM (Owen's screenshot, build 1955,
+ON-DEVICE brain, fresh chat, trial prompt verbatim "What's the weather in
+Gulfport, MS the day after tomorrow"): 3 tool calls, then the IDEAL pass shape
+— "I can't provide the forecast for the day after tomorrow in Gulfport, MS —
+only today and tomorrow's data are available." The pass-through fired and the
+honest unsupported answer reached the user. The trial-7 collapse did not
+recur. ALL BARS MET — #234 CLOSED.**
 
 **✅ 234-A/B MET (sim) — 2026-08-04 early AM.** RED witnessed on both new
 members (`dayGuideText` missing; `date:` param missing), then GREEN 8/8 in
