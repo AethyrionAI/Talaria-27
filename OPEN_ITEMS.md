@@ -13357,6 +13357,51 @@ touching the session default. Audit route diff shows +1,707 lines in
 `api_server.py` incl. "model-lock plumbing," so 0.20.0 MAY have changed provider
 model-id resolution — no evidence either way yet.
 
+**🔬 RE-TEST ON v0.20.0 EXECUTED — 2026-08-03 ~23:20–23:25 CDT, direct from the
+Mac over Tailscale (bearer from `~/.hermes/.env`, the same key the HermesMCP
+server loads; box config untouched — default verified kimi-coding/kimi-k3 via
+`/api/model/options` before probing). Six probes in throwaway API sessions plus
+a read-only Hermes-side agent.log grep. Raw responses archived at
+`handoffs/241-retest-2026-08-03/`. VERDICT: the user-visible harm is GONE on
+0.20.0; the self-name defect is only PARTLY fixed; upstream-report routing is
+Owen's call — evidence below.**
+
+| # | Probe | Result |
+|---|---|---|
+| 1 | non-stream chat, bare `model` = deepseek id | ANSWERED on kimi-coding — request echoed in `runtime.requested` but **silently not honored**; agent.log 23:20:35: `Could not determine context length for model 'hermes-agent' (base_url=https://api.kimi.com/coding)` → **the default path still uses the self-name as the wire id on 0.20.0** (config model is kimi-k3) |
+| 2 | + `provider: "nous"` | Same — echoed, ignored, ran kimi-coding |
+| 3 | + `require_model_lock: true` | **HONORED**: runtime `provider=nous model=deepseek/deepseek-v4-flash-0731 model_lock=confirmed`, answered in 6.2s on the VALIDATING provider (the incident's 404er) — the new lock plumbing resolves and sends the real id |
+| 4/4b | `POST .../model` pin, then PLAIN chat | Pin `accepted`; the plain turn ran nous/deepseek with `route_source: "session_model_lock"` — **the pin persists with no per-turn flags** |
+| 5 | incident wire shape: nous + `hermes-agent` + lock, non-stream | Nous 404s (verbatim the same upstream error); gateway returns **HTTP 200 with the error as `.message.content`** + usage 0/0/0 — no longer a silent dead run |
+| 6 | same on `/chat/stream` | Clean SSE run: `run.started → message.started → assistant.completed` (error text as content) `→ run.completed → done`. No writer crash, no hang; the app renders it as an ordinary message with ZERO changes |
+
+Log ground truth (Hermes-side grep, read-only): **zero `NotFoundError` /
+`Non-retryable` lines in the probe window**; the only model_metadata warning is
+probe 1's hermes-agent-on-kimi line. (Zero "Stream opened" lines matched —
+0.20.0 may have renamed that line; not chased, since the new per-turn `runtime`
+blocks carry the resolution directly.)
+
+**Disposition (Owen routes):**
+- **Defect 2's harm — the invisible dead run — is CLEARED on 0.20.0.** Both
+  chat paths surface the upstream error as visible assistant content. The
+  letter remains (HTTP 200 + usage 0/0/0 for an errored run), but Talaria is
+  not harmed by it.
+- **Defect 1 (self-name as upstream model id) PERSISTS on the default/config
+  path** — probe 1's warning proves 0.20.0 still runs `hermes-agent` as the
+  wire id when no lock is in play; kimi tolerates it, and the incident recurs
+  the day config moves back to a validating provider without lock plumbing.
+  THIS is the reportable upstream finding, now with a one-curl repro (probe 5).
+- **NEW 0.20.0 quirk, recorded here because Lane 5 must never trip on it:
+  per-request `model`/`provider` WITHOUT `require_model_lock` is a SILENT
+  NO-OP** — echoed under `runtime.requested`, not honored. A picker built on
+  bare per-request `model` would "work" while every turn ran the default.
+  App contract: always send `require_model_lock: true` per-turn, or pin
+  per-session via `POST .../model`, and verify `model_lock: "confirmed"` /
+  `route_source` in the runtime block.
+- Bonus banked: 0.20.0 responses AND SSE events now carry a per-turn `runtime`
+  block (resolved provider/model, lock state, `requested` echo), and SSE
+  events gained `seq`/`ts` fields — real per-turn model attribution for the UI.
+
 ## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **✅ CLOSED 2026-08-03 ~10:02 PM — filed, spec'd, built, gated, merged (PR #253), corded-deployed, and ALL THREE BARS MET in one evening; 240-C observed on device (row adopted, no second answer)**
 
 > **BUILD RECORD — 2026-08-03 late night, branch `claude/t27-240-preflight-parking`
@@ -14825,6 +14870,26 @@ lane runs, per the standing rule.
 > (local-answer bridge: remote chats dispatch the on-device belt for
 > phone-only facts at query time).** If #242 builds, ditching the sensor
 > plane costs only host-side ASYNC analysis of phone history — named there.
+
+> **✅ LANE 5'S OWED FUNCTIONAL PROBE — DONE (2026-08-03 ~23:20 CDT; full
+> six-probe record + raw responses in #241's re-test block and
+> `handoffs/241-retest-2026-08-03/`; run from the Mac against OJAMD 0.20.0,
+> box config untouched).** The verdict that matters here: per-request
+> `model` (with or without `provider`) is a **SILENT NO-OP unless
+> `require_model_lock: true`** — echoed under `runtime.requested`, not
+> honored. WITH the lock: honored and confirmed (`model_lock: "confirmed"`),
+> proven by a cross-provider switch onto nous — the VALIDATING provider —
+> answering in 6.2s. The session pin (`POST /api/sessions/{id}/model`) is
+> `accepted` once and PERSISTS: subsequent plain turns run the pinned model
+> with `route_source: "session_model_lock"`. So the audit's app-side shape
+> STANDS, with the contract sharpened: picker list from `/api/model/options`
+> (name+provider is all Owen kept), app-owned persisted default, and EVERY
+> turn locked — per-turn `model` + `require_model_lock: true`, or pin at
+> session create; never bare `model`. The per-turn `runtime` block gives the
+> UI real model attribution plus a verify signal. Failure shape when a
+> locked model is invalid upstream: error text AS the assistant message
+> (HTTP 200, usage 0/0/0) on both chat paths — render-safe in today's app.
+> **Lane 5 is DESIGN-READY; Owen routes the design.**
 
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
 Couple that with ending the shim, and we won't have very much running anymore separately."*
