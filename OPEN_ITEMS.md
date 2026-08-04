@@ -13437,6 +13437,41 @@ a real chat turn observed stalled on an unanswerable approval (→ upstream
 conversation), or Owen asking for the cards to stop prompting (→ the small
 Manual/Off app lane).**
 
+## 248. 🐛 Stall-recovery adoption briefly DUPES the user's sent message; a session re-open heals it — F3's tail placement is the suspect neighborhood
+
+**FILED 2026-08-04 (~2:45 PM) from Owen's build-1987 pass of the #246 device
+bar:** *"Duped the original message when I first went back in, but, it had
+the response. I left the conversation after a minute, and returned, and the
+message deduped."* The core recovery WORKED (the answer surfaced without
+manual re-entry — 235-E met); this is the residue.
+
+**Mechanism neighborhood (from source, one suspect):** `attemptReconcile`'s
+adoption replaces the conversation with the SERVER view (server rows carry
+server ids), then `placingRecoveredReply(reply.id, prompt: promptText, …)` —
+#235 F3's placement — re-materializes the prompt at the tail
+(`ChatStore.swift:1816-1821`). If the placement INSERTS a prompt copy
+instead of MOVING the server's own user row (e.g., a content mismatch
+between the locally captured prompt text and the server's stored copy), the
+user message renders twice: the server row in place + the F3 copy at the
+tail. **The heal on re-open is the tell:** a session re-entry refetches the
+clean server view — so the dupe is app-side presentation from the adoption
+pass, not server state. This was F3's FIRST device exercise via the stall
+path; the sim fixtures (235 T3) passed, so the divergence lives in something
+they didn't model.
+
+**Severity:** low-moderate — transient, self-healing, cosmetic; but it's a
+dupe in the message list, the exact family #237 exists to keep at zero.
+
+**Discriminator wanted from Owen (before the fix is specced):** was the
+duped bubble your SENT message (user bubble ×2), and were the two copies
+byte-identical? And roughly where — adjacent at the tail, or one in place +
+one at the tail? That distinguishes insert-vs-move from a different merge
+path entirely.
+
+**Owed:** the fix lane (unrouted — Owen routes) with a fixture modeling the
+real divergence once the discriminator answers; then the same backgrounding
+maneuver clean.
+
 ## 247. 🐛 Failover is theater when the fallback host is dark: switching profiles to the Mac Mini "does absolutely nothing" — and nothing TOLD Owen the fallback was dead
 
 **FILED 2026-08-04 (~2 PM) from Owen at work, mid-outage:** *"the connection
@@ -13491,7 +13526,16 @@ matters.
 > runs persistently (it is currently a plain process started 2026-08-04,
 > dies with a reboot).
 
-## 246. 🐛 A backgrounded remote turn shows the pending spinner forever when the stream ZOMBIFIES — recovery only arms on stream END, and a stream that never ends never arms it — **✅ BUILT 2026-08-04 (with #245); 246-A/B/C GREEN; 235-E/F close through the device re-run on the next OTA**
+## 246. ✅ A backgrounded remote turn shows the pending spinner forever when the stream ZOMBIFIES — recovery only arms on stream END, and a stream that never ends never arms it — **CLOSED 2026-08-04: device bar MET on 1987 — the answer surfaced WITHOUT manual re-entry; residue (transient user-message dupe) filed as #248**
+
+> **✅ CLOSED 2026-08-04 (~2:45 PM).** On 1987, Owen's exact morning
+> maneuver: backgrounded mid-run, returned — *"it had the response."* No
+> leave/re-enter needed; the stall guard + reconcile did the recovery. That
+> is **235-E MET** (recorded in #235). **235-F (the longer-absence variant)
+> was not separately run** — same mechanism, so it inherits reasonable
+> confidence but stays honest as not-independently-exercised. The one
+> residue — the user's sent message briefly duped during adoption, healing
+> on re-open — is **#248**, its own mechanism (F3 placement), its own item.
 
 > **✅ BUILT 2026-08-04 afternoon (`claude/t27-245-246-fixes`, TDD
 > watched-RED).** `stallGuardedLines` (pump + watchdog over the post-2xx
@@ -13576,7 +13620,13 @@ bar; it is not met until the answer surfaces WITHOUT manual re-entry).
 >   mid-run, return — and the answer surfaces WITHOUT leaving the
 >   conversation. 235-E/F close through this bar.
 
-## 245. 🐛 The chat header reverts to the HOST default model after relaunch while the per-turn lock quietly keeps working — a #191-family surface lie, and the catalog refresh is the stomp — **✅ BUILT 2026-08-04 (with #246); 245-A/B GREEN; device relaunch check owed to the next OTA**
+## 245. ✅ The chat header reverts to the HOST default model after relaunch while the per-turn lock quietly keeps working — a #191-family surface lie, and the catalog refresh is the stomp — **CLOSED 2026-08-04: device bar MET on 1987 (Owen: "Pass. Remained on DeepSeek")**
+
+> **✅ CLOSED 2026-08-04 (~2:45 PM).** Filed, diagnosed (probe + code),
+> built, gated, and device-verified inside one afternoon: on 1987 the header
+> held the pick through force-quit + relaunch with nothing sent — no
+> last-second correction needed. Every bar met (245-A/B suite, 245-C by
+> construction, device pass above).
 
 > **✅ BUILT 2026-08-04 afternoon (`claude/t27-245-246-fixes`, TDD
 > watched-RED).** `ModelSelection.displayName` (the one tail-split) +
@@ -14311,6 +14361,11 @@ gate's full XCUITest run.
 > layer if so), and the `.xcresult` should be captured then.
 
 ## 235. 🐛 CRITICAL (Owen, 2026-08-03): remote chats DROP THE FINAL ANSWER when the stream dies mid-turn — chips render, the answer lands in the server store, the app never fetches it — **FIX BUILT same day; 235-A/B/C green in suite; 235-D verdict: request stamp wins, no timeout change; ⚠️ 235-E RAN 2026-08-04 AND FAILED AS SHIPPED — the zombie-stream gap, spun into #246**
+
+> **✅ 235-E MET — 2026-08-04 afternoon, build 1987 (the #246 fix):** the
+> same maneuver, and the answer surfaced WITHOUT leaving the conversation.
+> The residue observed on that pass (transient user-message dupe, healed on
+> re-open) is **#248**. 235-F not separately run — see #246's closure.
 
 > **⚠️ 235-E FIRST DEVICE RUN — 2026-08-04, build 1978, Owen: FAIL (partial).**
 > Backgrounded mid-run, returned ~30s later → pending spinner, no answer;
