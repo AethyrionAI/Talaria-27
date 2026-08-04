@@ -13418,6 +13418,30 @@ error-as-content shape); (2) the complete draft text written to `handoffs/`
 for Owen to read verbatim; (3) Owen's explicit go. The filing is optional and
 entirely his — the evidence above is banked and loses nothing by waiting.
 
+**✅ CONDITION (1) MET — RE-VERIFY ROUND 2, 2026-08-04 00:45–00:46 CDT
+(sessions + raw responses archived `handoffs/241-retest-2026-08-04-round2/`;
+expectations were pre-registered in this entry the night before — "expecting
+identical results, esp. probe 1's self-name warning and probe 5/6's
+error-as-content shape").** All six probes reproduced IDENTICALLY on fresh
+sessions a day later: P1/P2 echoed-and-ignored (ran kimi-coding, answered);
+P3 lock honored (`nous`/deepseek, `model_lock: "confirmed"`); P4 pin
+`accepted`, P4b plain turn ran the pin (`route_source: "session_model_lock"`);
+P5 Nous 404 delivered as error-text assistant content, HTTP 200, usage 0/0/0;
+P6 same on `/chat/stream`, clean SSE shape. **Log half is now WIRE-LEVEL and
+same-window** (last night's grep window predated P5 — this round covers it):
+agent.log 00:46:12/00:46:16 carries, verbatim, `provider=nous
+base_url=https://inference-api.nousresearch.com/v1 model=hermes-agent
+summary=HTTP 404: Model 'hermes-agent' not found…` + `Non-retryable client
+error` for BOTH invalid-lock sessions — the request's own model field logged
+alongside Nous's rejection. One honest delta: P1's context-length warning did
+NOT re-fire this round — metadata for `hermes-agent`@kimi was cached by last
+night's probe (the warning is cache-miss-only); P1's runtime block still
+proves the silent-ignore routing. **CONDITION (2) MET — the complete draft is
+at `handoffs/241-upstream-report-DRAFT.md`** (title, body, one-curl repro,
+verbatim log lines, the silent-ignore question; duplicate-check summary
+included). **Condition (3) — Owen reads the draft and says go/no-go. Nothing
+has been submitted.**
+
 ## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **✅ CLOSED 2026-08-03 ~10:02 PM — filed, spec'd, built, gated, merged (PR #253), corded-deployed, and ALL THREE BARS MET in one evening; 240-C observed on device (row adopted, no second answer)**
 
 > **BUILD RECORD — 2026-08-03 late night, branch `claude/t27-240-preflight-parking`
