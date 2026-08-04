@@ -14064,6 +14064,20 @@ rule; (b) `tomorrowForecastLine` carries its calendar date. Branch
   expected on this branch** (bases off main — Lane 5's 1570 rides the
   unmerged PR #255); XCUITest 10 unchanged.
 
+**✅ 234-A/B MET (sim) — 2026-08-04 early AM.** RED witnessed on both new
+members (`dayGuideText` missing; `date:` param missing), then GREEN 8/8 in
+the suite. The guide now reads: *"…Weather beyond tomorrow is not available:
+if the user asks about a later day (like 'day after tomorrow' or a weekday),
+pass their exact words through unchanged — never substitute 'tomorrow'."*
+`tomorrowForecastLine` emits "Tomorrow (Aug 5) at Gulfport: …" (fixed-locale
+month-day off the forecast entry's own date; nil-date keeps the undated
+form). The #209 rollback twin has no `day` field — untouched. **GATE: PASS —
+swift-testing 1559 (pinned delta met exactly), XCUITest 10, 2 expected skips,
+Release clean.** **234-C stays OWED to the next device pass** (the sim has no
+model): trial prompt verbatim on a fresh chat; PASS = honest horizon answer
+or a visibly self-contradicting dated label; FAIL = the trial-7 collapse
+recurs uncontradicted.
+
 ## 233. 🐛 "Tomorrow at 4" became a 4:00 AM reminder — half-day defaulting on `createReminder`, and the confirm card did not save it — **✅ CLOSED 2026-08-03 evening — every bar met: 233-A/B/C suite + device, 233-E device, 233-D midday (preferred shape) AND evening (fallback shape), store row observed**
 
 **FILED 2026-08-02, Lane 1 trial 3 (run results doc).** "Remind me to call Shelley
