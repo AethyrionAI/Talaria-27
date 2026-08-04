@@ -79,6 +79,28 @@ struct AttachmentDownscaleTests {
 
     // MARK: The downscale contract
 
+    /// #183 Phase 2 found the gap this test closes: every other fixture here
+    /// is scale-1, where points == pixels — so the input-measurement half of
+    /// the #174 fix (`size * image.scale`) was invisible to the suite. Under
+    /// the mutation `pixelWidth = image.size.width` (no scale), the whole
+    /// suite stayed GREEN. This fixture is a 3×-scale image whose POINT long
+    /// edge (1344) is under the cap while its PIXEL long edge (4032) is far
+    /// over it: measure-in-points skips the downscale entirely and this test
+    /// goes red; measure-in-pixels downscales and it passes.
+    @Test @MainActor
+    func threeXScaleImageIsStillCappedInPixels() throws {
+        let base = cameraSizedImage()  // 4032×3024 at scale 1
+        let threeX = UIImage(cgImage: try #require(base.cgImage), scale: 3, orientation: .up)
+        #expect(threeX.size.width == 1344, "fixture: points must be pixels / 3")
+
+        let attachment = try #require(PendingAttachment.image(threeX))
+        let pixels = try #require(pixelSize(of: attachment.data))
+        #expect(
+            max(pixels.width, pixels.height) <= CGFloat(PendingAttachment.imageMaxPixelDimension),
+            "a 3×-scale image's PIXELS must be capped even when its POINTS fit"
+        )
+    }
+
     @Test @MainActor
     func stagedImageIsDownscaledInPixelsNotPoints() throws {
         let attachment = try #require(PendingAttachment.image(cameraSizedImage()))
