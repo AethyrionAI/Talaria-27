@@ -13491,7 +13491,24 @@ matters.
 > runs persistently (it is currently a plain process started 2026-08-04,
 > dies with a reboot).
 
-## 246. 🐛 A backgrounded remote turn shows the pending spinner forever when the stream ZOMBIFIES — recovery only arms on stream END, and a stream that never ends never arms it
+## 246. 🐛 A backgrounded remote turn shows the pending spinner forever when the stream ZOMBIFIES — recovery only arms on stream END, and a stream that never ends never arms it — **✅ BUILT 2026-08-04 (with #245); 246-A/B/C GREEN; 235-E/F close through the device re-run on the next OTA**
+
+> **✅ BUILT 2026-08-04 afternoon (`claude/t27-245-246-fixes`, TDD
+> watched-RED).** `stallGuardedLines` (pump + watchdog over the post-2xx
+> byte stream) throws `StreamStallError` after `streamStallThreshold` (60s
+> production, harness-shortenable) of silence; the existing catch
+> classifies it `.interrupted` and #235's machinery owns recovery — zero
+> ChatStore change, exactly as designed. 246-A/B GREEN (wrapper unit,
+> sub-second thresholds); **246-C GREEN end-to-end** (zombie SSE stub:
+> `run.started` + one more event then silence → `.interrupted` with the
+> runId in 0.4s, hang-belt never needed); #240's two regression tests
+> untouched-green. **Fixture lesson recorded:** `bytes.lines` swallows
+> blank lines, so a LONE final event never dispatches until the next
+> `event:` line — a zombie right after `run.started` with nothing following
+> arms recovery with a nil runId (positional reconcile, per #240's note);
+> the fixture streams a following event because real zombies do. Device
+> half: Owen re-runs the exact 235-E maneuver on the next OTA — the answer
+> must surface WITHOUT leaving the conversation.
 
 **FILED 2026-08-04 (~1 PM) from Owen's build-1978 test — the first run of the
 235-E device bar, and it FAILED as shipped.** His exact maneuver: held a
@@ -13559,7 +13576,16 @@ bar; it is not met until the answer surfaces WITHOUT manual re-entry).
 >   mid-run, return — and the answer surfaces WITHOUT leaving the
 >   conversation. 235-E/F close through this bar.
 
-## 245. 🐛 The chat header reverts to the HOST default model after relaunch while the per-turn lock quietly keeps working — a #191-family surface lie, and the catalog refresh is the stomp
+## 245. 🐛 The chat header reverts to the HOST default model after relaunch while the per-turn lock quietly keeps working — a #191-family surface lie, and the catalog refresh is the stomp — **✅ BUILT 2026-08-04 (with #246); 245-A/B GREEN; device relaunch check owed to the next OTA**
+
+> **✅ BUILT 2026-08-04 afternoon (`claude/t27-245-246-fixes`, TDD
+> watched-RED).** `ModelSelection.displayName` (the one tail-split) +
+> `ModelSelection.headerName(pick:hostDefault:)` (pick-wins); the catalog
+> refresh call site threads the preference; `applyModelSelection` and the
+> boot seed now share the same derivation. 245-A/B GREEN
+> (`GatewayModelCatalogTests` 6 → 8); 245-C by construction as
+> pre-registered. Picker checkmark confirmed profile-sourced pre-build —
+> untouched. Device half: Owen's relaunch re-test on the next OTA.
 
 **FILED 2026-08-04 (~1 PM) from Owen's build-1978 test #3 ("Fail. …if I force
 quit and reload, it changes back to the server default (kimi at the moment)").**
