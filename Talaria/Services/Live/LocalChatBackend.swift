@@ -409,9 +409,12 @@ final class LocalChatBackend: HermesClientProtocol {
                 }
                 if !didCondenseRetry, Self.isContextOverflow(error) {
                     // Overflow degrades to summarized memory, never errors:
-                    // rebuild with condensation forced and retry exactly once.
+                    // rebuild with condensation forced and retry exactly once,
+                    // toolless (#229) — re-arming the belt restored the
+                    // overflow the retry exists to escape.
                     didCondenseRetry = true
-                    liveSession = await rebuildSession(attachments: attachments, excludingClientMessageID: clientMessageID, forceCondense: true)
+                    Self.logger.notice("send: context window exceeded — condensing and retrying toolless (#229)")
+                    liveSession = await rebuildForOverflowRetry(attachments: attachments, excludingClientMessageID: clientMessageID)
                     continue
                 }
                 if Self.shouldRetryToolDecodeFailure(
@@ -618,9 +621,10 @@ final class LocalChatBackend: HermesClientProtocol {
                     continue
                 }
                 if !didCondenseRetry, Self.isContextOverflow(error) {
+                    // #26's condense + #229's disarm: see rebuildForOverflowRetry.
                     didCondenseRetry = true
-                    Self.logger.notice("streamTurn: context window exceeded — condensing older turns and retrying once (#26)")
-                    liveSession = await rebuildSession(attachments: attachments, excludingClientMessageID: clientMessageID, forceCondense: true)
+                    Self.logger.notice("streamTurn: context window exceeded — condensing and retrying toolless (#229)")
+                    liveSession = await rebuildForOverflowRetry(attachments: attachments, excludingClientMessageID: clientMessageID)
                     continue
                 }
                 if Self.shouldRetryToolDecodeFailure(
@@ -894,6 +898,28 @@ final class LocalChatBackend: HermesClientProtocol {
         session = fresh
         recordSessionBudgetIfVerbose(offered: offered, transcript: fresh.transcript)
         return fresh
+    }
+
+    /// #229: the #26 overflow retry must not re-arm the belt. Filed on device
+    /// evidence: the armed retry condensed, rebuilt — and re-armed 13 tools
+    /// (~1470 tok measured, L0-C) into the 8,192-token window it had just
+    /// overflowed by 26 tokens, then overflowed again. The retry is now a
+    /// routed-toolless turn (#232's shape): condensed history, empty belt,
+    /// the toolless instruction set — both via the `turnRoutedToolless` gate.
+    /// The disarm is per-turn by construction: the next turn's
+    /// `preparedSession` re-routes from scratch. Pre-turn condensation keeps
+    /// the belt on purpose — the router armed that turn and nothing failed;
+    /// only the mid-turn overflow RETRY disarms.
+    func rebuildForOverflowRetry(  // harness-visible
+        attachments: [PendingAttachment],
+        excludingClientMessageID: UUID?
+    ) async -> LanguageModelSession {
+        turnRoutedToolless = true
+        return await rebuildSession(
+            attachments: attachments,
+            excludingClientMessageID: excludingClientMessageID,
+            forceCondense: true
+        )
     }
 
     /// #228 (Lane 0.2): the number nobody had ever seen on the night #225's
