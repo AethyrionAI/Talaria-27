@@ -1,4 +1,5 @@
 import Foundation
+import FoundationModels
 import Testing
 @testable import Talaria
 
@@ -84,4 +85,68 @@ struct ContextOverflowGuardTests {
         #expect(!LocalChatBackend.isContextOverflow(
             RecordedError(description: "The network connection was lost.")))
     }
+
+    // MARK: - #229: the overflow retry must not re-arm the belt
+    //
+    // Filed on device evidence: "weather in Gulfport tomorrow" died at
+    // 8,218 > 8,192, #26's retry condensed, rebuilt — and re-armed all 13
+    // tools (~1470 tok measured, L0-C) into the same window, then overflowed
+    // again. The retry now rebuilds as a routed-toolless turn (#232's shape);
+    // bars 229-A/B, pre-registered in the entry.
+
+    @MainActor private func makeBackend() -> LocalChatBackend {
+        LocalChatBackend(
+            persistence: UserDefaultsAppPersistenceStore(
+                defaults: UserDefaults(suiteName: "context-overflow-guard-tests")!
+            ),
+            intelligence: LocalIntelligenceService()
+        )
+    }
+
+    /// 229-A: an armed turn's overflow retry registers NO belt — observable
+    /// on the rebuilt state and on the #228 budget record of the rebuild.
+    @Test @MainActor func overflowRetryRebuildsWithNoBelt() async {
+        TalariaLog.setVerbose(true)
+        defer { TalariaLog.setVerbose(false) }
+        let backend = makeBackend()
+        backend.installTools([OverflowProbeTool()], relay: ToolEventRelay())
+        #expect(!backend.effectiveOfferedTools(hasImageInContext: false).isEmpty,
+                "precondition: the turn must be ARMED before the retry, or the disarm assertion is vacuous")
+
+        _ = await backend.rebuildForOverflowRetry(attachments: [], excludingClientMessageID: nil)
+
+        #expect(backend.effectiveOfferedTools(hasImageInContext: false).isEmpty)
+        #expect(backend.pendingSessionBudgets.last?.toolCount == 0,
+                "the rebuilt session's own budget record must show the empty belt")
+    }
+
+    /// 229-B: the same rebuild moves the instructions to the toolless branch —
+    /// #176's invariant that a session never advertises a tool it wasn't given.
+    @Test @MainActor func overflowRetrySpeaksTheToollessInstructions() async {
+        let backend = makeBackend()
+        backend.installTools([OverflowProbeTool()], relay: ToolEventRelay())
+        let armed = backend.effectiveInstructionsText(hasImageInContext: false)
+
+        _ = await backend.rebuildForOverflowRetry(attachments: [], excludingClientMessageID: nil)
+
+        let retried = backend.effectiveInstructionsText(hasImageInContext: false)
+        #expect(retried != armed)
+        #expect(retried == LocalChatBackend.productionToollessInstructions(
+            deviceContext: LocalChatBackend.deviceContextLine(),
+            hasImageTools: false
+        ))
+    }
+}
+
+fileprivate struct OverflowProbeTool: Tool {
+    let name = "overflowProbe"
+    let description = "Probe tool. Never called."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Unused.")
+        var probe: String
+    }
+
+    func call(arguments: Arguments) async throws -> String { "unused" }
 }
