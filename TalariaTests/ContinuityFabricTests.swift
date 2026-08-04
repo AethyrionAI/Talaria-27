@@ -202,6 +202,9 @@ struct ContinuityFabricTests {
         /// script repeats once the queue drains.
         var scripts: [[StreamingUpdate]] = []
         private(set) var sentMessages: [String] = []
+        /// #240: scripted server history for the drain-time adoption guard.
+        /// nil = fetch failed / no server-backed session — drain as before.
+        var reconcileConversation: Conversation?
 
         func connect() async {}
         func disconnect() async {}
@@ -237,6 +240,8 @@ struct ContinuityFabricTests {
             currentConversation = fresh
             return fresh
         }
+
+        func reconcileFromServer() async -> Conversation? { reconcileConversation }
     }
 
     // MARK: - ChatStore: priming notice + totals
@@ -395,6 +400,103 @@ struct ContinuityFabricTests {
         #expect(persistence.loadComposeOutboxState().isEmpty)
         // The pending row still represents the message.
         #expect(store.conversation?.messages.contains(where: { $0.content == "dup" && $0.status == .sending }) == true)
+    }
+
+    // MARK: - #240: drain-time adoption guard
+
+    @Test @MainActor
+    func drainAdoptsTurnAlreadyDeliveredServerSide() async throws {
+        let persistence = Self.makePersistence()
+        let client = ScriptedClient()
+        client.scripts = [[.unreachable("down")]]
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+
+        await store.sendMessage("was the steam sale worth it")
+        #expect(store.hasQueuedComposeTurns)
+
+        // The server already holds the question: the park was the
+        // accepted-but-pre-run.started misclassification (#240) — the turn
+        // WAS delivered; only the client's stream died.
+        var serverConvo = Conversation(title: Conversation.defaultTitle)
+        serverConvo.messages = [
+            Message(sender: .user, content: "was the steam sale worth it", status: .delivered),
+            Message(sender: .hermes, content: "Yes — 60% off.", status: .delivered),
+        ]
+        client.reconcileConversation = serverConvo
+
+        await store.drainComposeOutboxIfPossible()
+
+        // Adopted, not re-sent: the park-time send stays the only send.
+        #expect(client.sentMessages == ["was the steam sale worth it"])
+        #expect(!store.hasQueuedComposeTurns)
+        #expect(persistence.loadComposeOutboxState().isEmpty)
+        #expect(store.conversation?.messages.contains(where: { $0.status == .queued }) == false)
+    }
+
+    @Test @MainActor
+    func drainStillResendsTurnAbsentFromServerHistory() async throws {
+        let persistence = Self.makePersistence()
+        let client = ScriptedClient()
+        client.scripts = [
+            [.unreachable("down")],
+            [.finished(Message(sender: .hermes, content: "delivered at last", status: .delivered), nil, nil)],
+        ]
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+
+        await store.sendMessage("never made it")
+
+        var serverConvo = Conversation(title: Conversation.defaultTitle)
+        serverConvo.messages = [
+            Message(sender: .user, content: "some other question", status: .delivered),
+        ]
+        client.reconcileConversation = serverConvo
+
+        await store.drainComposeOutboxIfPossible()
+
+        #expect(client.sentMessages == ["never made it", "never made it"])
+        #expect(!store.hasQueuedComposeTurns)
+    }
+
+    @Test @MainActor
+    func drainWithNilHistoryFetchDrainsAsToday() async throws {
+        let persistence = Self.makePersistence()
+        let client = ScriptedClient()
+        client.scripts = [
+            [.unreachable("down")],
+            [.finished(Message(sender: .hermes, content: "delivered at last", status: .delivered), nil, nil)],
+        ]
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+
+        await store.sendMessage("offline drain")
+        // reconcileConversation stays nil — the fetch "failed"; the guard is
+        // an optimization, not a gate (offline drains must still work).
+
+        await store.drainComposeOutboxIfPossible()
+
+        #expect(client.sentMessages == ["offline drain", "offline drain"])
+        #expect(!store.hasQueuedComposeTurns)
+    }
+
+    @Test
+    func adoptionPredicateMatchesTrimmedTextWithinClockSkewWindow() {
+        let composedAt = Date(timeIntervalSince1970: 1_000_000)
+        let turn = ComposeOutboxState.PendingTurn(id: UUID(), text: "  hello there \n", composedAt: composedAt)
+
+        let match = Message(sender: .user, content: "hello there", timestamp: composedAt.addingTimeInterval(-59), status: .delivered)
+        #expect(ChatStore.historyAdoptsQueuedTurn(turn, serverMessages: [match]))
+
+        let tooOld = Message(sender: .user, content: "hello there", timestamp: composedAt.addingTimeInterval(-61), status: .delivered)
+        #expect(!ChatStore.historyAdoptsQueuedTurn(turn, serverMessages: [tooOld]))
+    }
+
+    @Test
+    func adoptionPredicateIgnoresNonUserAndDifferentText() {
+        let composedAt = Date.now
+        let turn = ComposeOutboxState.PendingTurn(id: UUID(), text: "hello", composedAt: composedAt)
+
+        let hermesEcho = Message(sender: .hermes, content: "hello", timestamp: composedAt, status: .delivered)
+        let different = Message(sender: .user, content: "hello?", timestamp: composedAt, status: .delivered)
+        #expect(!ChatStore.historyAdoptsQueuedTurn(turn, serverMessages: [hermesEcho, different]))
     }
 
     @Test @MainActor
