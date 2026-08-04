@@ -13472,6 +13472,39 @@ the fix aims differently.
 **Owed:** the fix lane, then a re-run of the same maneuver (235-E stays the
 bar; it is not met until the answer surfaces WITHOUT manual re-entry).
 
+> **ROUTED 2026-08-04 (~1:30 PM): Owen — "Build both, I'll test on the next
+> OTA."** Fix design (refined from the filing's foreground-hook sketch to a
+> STRUCTURALLY simpler site): the stall detector lives INSIDE
+> `SessionsHermesClient.streamTurn` — the byte loop iterates a stall-guarded
+> wrapper of `bytes.lines` that THROWS `StreamStallError` when no line
+> arrives within the threshold. The existing catch already converts any
+> post-2xx throw into `.interrupted` (#240's guard), which arms `pendingRun`
+> and the reconcile loop — ALL of #235/#237's pinned machinery reused, zero
+> ChatStore change. The suspension case falls out for free: while suspended
+> nothing runs; on resume the watchdog wakes, sees the stale clock, throws —
+> so Owen's return-from-background recovers within seconds without any
+> foreground-hook special case. **Threshold 60s** (instance-injectable for
+> tests): a false positive merely degrades transport from SSE to the
+> budgeted reconcile poll — the turn still resolves — so the cost of firing
+> on a legitimately quiet slow tool is a vanished streaming bubble, not a
+> lost answer. The guard wraps only the post-2xx byte stream by
+> construction, so pre-response failures keep their existing
+> unreachable/failed semantics untouched.
+>
+> ## 📋 BARS — PRE-REGISTERED 2026-08-04, BEFORE THE CODE
+> - **246-A (unit):** the wrapper — a sequence that yields once then goes
+>   silent past the threshold THROWS `StreamStallError` (test threshold
+>   sub-second); the yielded line was delivered first.
+> - **246-B (unit):** lines flowing faster than the threshold pass through
+>   untouched and the sequence completes normally — no throw on a healthy
+>   stream, however long.
+> - **246-C (integration, URLProtocol SSE stub):** a stream that delivers
+>   `run.started` then goes silent yields `.interrupted` (with the runId) —
+>   not `.failed`, not a hang — within the shortened test threshold.
+> - **Device (Owen, next OTA):** the exact 235-E maneuver — background
+>   mid-run, return — and the answer surfaces WITHOUT leaving the
+>   conversation. 235-E/F close through this bar.
+
 ## 245. 🐛 The chat header reverts to the HOST default model after relaunch while the per-turn lock quietly keeps working — a #191-family surface lie, and the catalog refresh is the stomp
 
 **FILED 2026-08-04 (~1 PM) from Owen's build-1978 test #3 ("Fail. …if I force
@@ -13509,6 +13542,30 @@ there rather than assume).
 **Owed:** the fix lane (unrouted — Owen routes), then the relaunch test
 re-run: pick DS Flash → force quit → relaunch → header still names the pick
 before any message is sent.
+
+> **ROUTED 2026-08-04 (~1:30 PM): Owen — "Build both, I'll test on the next
+> OTA."** Fix as filed: the catalog-refresh call site prefers the persisted
+> pick's display name over `response.activeModel?.name` (mirroring the seed's
+> pick-wins rule); the tail-split display derivation moves to ONE place
+> (`ModelSelection.displayName`). The picker checkmark was verified
+> profile-sourced before building (`ModelsSettingsModel.isActive` reads
+> `readSelection()` → `activeModelSelection` live) — no picker change needed.
+> CTX denominator deliberately stays host-reported (#191's standing choice) —
+> this lane moves the LABEL only.
+>
+> ## 📋 BARS — PRE-REGISTERED 2026-08-04, BEFORE THE CODE
+> - **245-A (unit):** `ModelSelection.displayName` — `"deepseek/deepseek-v4-flash"`
+>   → `"deepseek-v4-flash"`; an id with no slash is unchanged.
+> - **245-B (unit):** the header preference is pick-wins — pick present ⇒ pick's
+>   display name regardless of host default; nil pick ⇒ host default; both nil
+>   ⇒ nil.
+> - **245-C (by construction, recorded honestly):** the
+>   `performCommandCatalogRefresh` call site threads the preference — the
+>   refresh path is relay-network-bound with no scriptable seam; the pure
+>   preference is pinned and the call site is a one-line read.
+> - **Device (Owen, next OTA):** pick a non-default model → force quit →
+>   relaunch → the chat header names the PICK before any message is sent, and
+>   keeps naming it after the catalog refresh lands.
 
 ## 244. 🎨 APPEARANCE TAB HOLISTIC REWORK — "It doesn't flow right" — **✅ CLOSED 2026-08-04 (Owen's device pass on 1955: "looks good!"). ROUTED same day: Owen supplied Claude Design's channel-browser mockup and delegated the build ("If this is something doable and you like the design, implement that as well"). Verdict: doable + good — BUILT on `claude/t27-244-appearance-channels`; #243 subsumed; #239's sub-screen superseded (its live-re-skin guarantee carries forward by construction). Spec: `docs/superpowers/specs/2026-08-04-244-appearance-channel-browser-design.md`.**
 
