@@ -13328,7 +13328,38 @@ touching the session default. Audit route diff shows +1,707 lines in
 `api_server.py` incl. "model-lock plumbing," so 0.20.0 MAY have changed provider
 model-id resolution — no evidence either way yet.
 
-## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **FILED 2026-08-03 ~7:49 PM from 238-D trial 2; SPEC APPROVED same night (both fixes); BUILD STARTED post-compaction same night (Owen: "lets continue"); #239 queued behind it**
+## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **FILED 2026-08-03 ~7:49 PM from 238-D trial 2; SPEC APPROVED same night (both fixes); BUILT + GATED same night (suite 1555 = 1548+7 exactly; XCUITest 9; Release clean; GATE: PASS) — 240-A/B MET; 240-C owed to Owen's device post-merge/OTA**
+
+> **BUILD RECORD — 2026-08-03 late night, branch `claude/t27-240-preflight-parking`
+> (plan `docs/superpowers/plans/2026-08-03-240-preflight-parking.md`).**
+> **Fix 1** (`8e3e9f8`): `responseReceived` set after the 2xx guard in
+> `SessionsHermesClient.streamTurn`; catch condition now
+> `runStarted || responseReceived → .interrupted` (nil runId; reconcile
+> resolves positionally). **Fix 2** (`b27b629`): one `reconcileFromServer()`
+> fetch at drain start + `ChatStore.historyAdoptsQueuedTurn` predicate
+> (trimmed-equal user message at/after `composedAt − 60s`); adopted turns drop
+> with the "#240 adopted, not re-sent" log line; nil fetch drains as before.
+> **240-A MET (watched RED→GREEN):** `StreamLossClassificationTests` — the
+> accepted-but-pre-`run.started` drop yields `.interrupted("sess-1", runId
+> nil)`, never `.unreachable`; the pre-response drop still parks. RED was
+> witnessed TWICE, honestly: the first fixture RACED (URLSession buffers a
+> custom URLProtocol's sub-512B body until completion, so a synchronous — and
+> even a 100–300ms-delayed — `didFailWithError` superseded the never-flushed
+> 2xx and exercised the PRE-response path while claiming to test the
+> mid-stream one; isolated with standalone `swift` CLI transport probes,
+> fixed with an over-threshold SSE comment pad + 0.1s-delayed error, then RED
+> re-witnessed with the production fix stashed → 3 issues via the TRUE
+> window → popped → GREEN 2/2). Fixture gotcha banked to persistent memory.
+> **240-B MET (watched RED→GREEN):** `ContinuityFabricTests` +5 — adoption
+> drop (park-time send stays the only send), absent-from-history re-send,
+> nil-fetch drains-as-today, predicate window edges (−59s in / −61s out,
+> trimming) and sender/text mismatches. Behavioral RED: 4 issues, all the
+> missing guard's consequences; GREEN: 28/28 suite-wide.
+> **Counted delta (pinned BEFORE the verification run): 1548 + 7 = 1555 —
+> OBSERVED 1555 exactly** ("Test run with 1555 tests in 121 suites passed").
+> **GATE: PASS** (Debug suite TEST SUCCEEDED, swift-testing 1555, XCUITest 9,
+> the 2 expected Apple-Intelligence skips only, Release build clean — the
+> #218 check). PR opened same night; merge is Owen's call; 240-C after OTA.
 
 **Evidence (Owen, 1908, OJAMD, kimi-k3, screenshot):** the 238-D pass itself was clean
 (no banner; answer on open), but the transcript showed his question TWICE — the server's
