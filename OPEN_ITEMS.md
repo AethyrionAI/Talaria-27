@@ -13437,7 +13437,78 @@ a real chat turn observed stalled on an unanswerable approval (→ upstream
 conversation), or Owen asking for the cards to stop prompting (→ the small
 Manual/Off app lane).**
 
-## 246. 🐛 A backgrounded remote turn shows the pending spinner forever when the stream ZOMBIFIES — recovery only arms on stream END, and a stream that never ends never arms it
+## 247. 🐛 Failover is theater when the fallback host is dark: switching profiles to the Mac Mini "does absolutely nothing" — and nothing TOLD Owen the fallback was dead
+
+**FILED 2026-08-04 (~2 PM) from Owen at work, mid-outage:** *"the connection
+to ojamd failed. And i discovered if ojamd goes down, the way its set up,
+switching to the mac mini does absolutely nothing."*
+
+**Vantage-point evidence captured DURING the report (Mac Mini, same tailnet):**
+OJAMD `:8642` AND `:8000` both listening; authenticated `/health` → **200**.
+**The host was healthy — the PHONE's path was down** (its Tailscale at the
+work network, or iCloud Private Relay re-grabbing the route — the standing
+gotcha). Meanwhile the Mac Mini's own gateway had **nothing listening on
+`:8642`**: it has been deliberately stopped since 2026-08-02 (Owen's choice,
+recorded in the handoffs). So the profile switch re-pointed the app at a
+DARK host — with the phone's tailnet path likely dead, BOTH targets were
+unreachable from the phone, and "nothing" is what honest failure looked
+like, minus the honesty.
+
+**Two halves, different owners:**
+1. **Ops half (acted on immediately):** the Mac gateway was started back up
+   during the report so the fallback profile has a live target again. The
+   deeper truth: a fallback host that is off is not a fallback, and nothing
+   anywhere says which hosts are currently live. Whether the Mac gateway
+   should RUN persistently (launchd, reboot-proof, like OJAMD's services) is
+   **Owen's call** — it was stopped by his choice.
+2. **App half (the filed defect):** switching to a profile whose gateway is
+   unreachable produced **no visible verdict.** The app has the pieces —
+   the #146 Test Connection probe (5s verdict + latency), honest offline
+   console errors (#191's pass) — but a PROFILE SWITCH runs none of them
+   visibly. Candidate shape (unrouted, needs Owen's read of what the UI
+   actually showed): the switch runs the existing connection probe against
+   the new profile's gateway and surfaces the verdict inline (the #30-style
+   one-line banner), so a switch to a dark host SAYS "Mac Mini: unreachable"
+   within seconds instead of nothing.
+
+**Open question for Owen (needed before the app half is specced):** what did
+the UI show after the switch — header unchanged? Spinner? Old OJAMD session
+still on screen? "Does absolutely nothing" is the symptom; which nothing
+matters.
+
+> **RESOLVED (ops half) 2026-08-04 ~2:15 PM — Owen: "There it goes. I
+> restarted tailnet."** Full diagnosis, confirmed from the Mac vantage while
+> it was live: OJAMD was NEVER down (gateway/relay/RDP all listening, authed
+> `/health` 200 throughout). The tailnet map showed the break: Mac↔OJAMD
+> rode a DIRECT LAN path (192.168.1.x), while the phone AND the work PC both
+> rode DERP relay "mia" — and both failed. OJAMD's relay path was broken
+> while its LAN path was fine; Owen's tailnet restart cured it. The Mac
+> timeout during the flap was the same broken path, not the Mac gateway —
+> exercised locally mid-outage: `/api/model/options` 200 (42 providers),
+> session create instant, chat answered 5.1s. **Still open on this item:**
+> the APP half (a profile switch to an unreachable host shows no verdict —
+> Owen's UI detail still wanted), and Owen's call on whether the Mac gateway
+> runs persistently (it is currently a plain process started 2026-08-04,
+> dies with a reboot).
+
+## 246. 🐛 A backgrounded remote turn shows the pending spinner forever when the stream ZOMBIFIES — recovery only arms on stream END, and a stream that never ends never arms it — **✅ BUILT 2026-08-04 (with #245); 246-A/B/C GREEN; 235-E/F close through the device re-run on the next OTA**
+
+> **✅ BUILT 2026-08-04 afternoon (`claude/t27-245-246-fixes`, TDD
+> watched-RED).** `stallGuardedLines` (pump + watchdog over the post-2xx
+> byte stream) throws `StreamStallError` after `streamStallThreshold` (60s
+> production, harness-shortenable) of silence; the existing catch
+> classifies it `.interrupted` and #235's machinery owns recovery — zero
+> ChatStore change, exactly as designed. 246-A/B GREEN (wrapper unit,
+> sub-second thresholds); **246-C GREEN end-to-end** (zombie SSE stub:
+> `run.started` + one more event then silence → `.interrupted` with the
+> runId in 0.4s, hang-belt never needed); #240's two regression tests
+> untouched-green. **Fixture lesson recorded:** `bytes.lines` swallows
+> blank lines, so a LONE final event never dispatches until the next
+> `event:` line — a zombie right after `run.started` with nothing following
+> arms recovery with a nil runId (positional reconcile, per #240's note);
+> the fixture streams a following event because real zombies do. Device
+> half: Owen re-runs the exact 235-E maneuver on the next OTA — the answer
+> must surface WITHOUT leaving the conversation.
 
 **FILED 2026-08-04 (~1 PM) from Owen's build-1978 test — the first run of the
 235-E device bar, and it FAILED as shipped.** His exact maneuver: held a
@@ -13472,7 +13543,58 @@ the fix aims differently.
 **Owed:** the fix lane, then a re-run of the same maneuver (235-E stays the
 bar; it is not met until the answer surfaces WITHOUT manual re-entry).
 
-## 245. 🐛 The chat header reverts to the HOST default model after relaunch while the per-turn lock quietly keeps working — a #191-family surface lie, and the catalog refresh is the stomp
+> **ROUTED 2026-08-04 (~1:30 PM): Owen — "Build both, I'll test on the next
+> OTA."** Fix design (refined from the filing's foreground-hook sketch to a
+> STRUCTURALLY simpler site): the stall detector lives INSIDE
+> `SessionsHermesClient.streamTurn` — the byte loop iterates a stall-guarded
+> wrapper of `bytes.lines` that THROWS `StreamStallError` when no line
+> arrives within the threshold. The existing catch already converts any
+> post-2xx throw into `.interrupted` (#240's guard), which arms `pendingRun`
+> and the reconcile loop — ALL of #235/#237's pinned machinery reused, zero
+> ChatStore change. The suspension case falls out for free: while suspended
+> nothing runs; on resume the watchdog wakes, sees the stale clock, throws —
+> so Owen's return-from-background recovers within seconds without any
+> foreground-hook special case. **Threshold 60s** (instance-injectable for
+> tests): a false positive merely degrades transport from SSE to the
+> budgeted reconcile poll — the turn still resolves — so the cost of firing
+> on a legitimately quiet slow tool is a vanished streaming bubble, not a
+> lost answer. The guard wraps only the post-2xx byte stream by
+> construction, so pre-response failures keep their existing
+> unreachable/failed semantics untouched.
+>
+> ## 📋 BARS — PRE-REGISTERED 2026-08-04, BEFORE THE CODE
+> - **246-A (unit):** the wrapper — a sequence that yields once then goes
+>   silent past the threshold THROWS `StreamStallError` (test threshold
+>   sub-second); the yielded line was delivered first.
+> - **246-B (unit):** lines flowing faster than the threshold pass through
+>   untouched and the sequence completes normally — no throw on a healthy
+>   stream, however long.
+> - **246-C (integration, URLProtocol SSE stub):** a stream that delivers
+>   `run.started` then goes silent yields `.interrupted` (with the runId) —
+>   not `.failed`, not a hang — within the shortened test threshold.
+> - **Device (Owen, next OTA):** the exact 235-E maneuver — background
+>   mid-run, return — and the answer surfaces WITHOUT leaving the
+>   conversation. 235-E/F close through this bar.
+
+## 245. 🐛 The chat header reverts to the HOST default model after relaunch while the per-turn lock quietly keeps working — a #191-family surface lie, and the catalog refresh is the stomp — **✅ BUILT 2026-08-04 (with #246); 245-A/B GREEN; device relaunch check owed to the next OTA**
+
+> **✅ BUILT 2026-08-04 afternoon (`claude/t27-245-246-fixes`, TDD
+> watched-RED).** `ModelSelection.displayName` (the one tail-split) +
+> `ModelSelection.headerName(pick:hostDefault:)` (pick-wins); the catalog
+> refresh call site threads the preference; `applyModelSelection` and the
+> boot seed now share the same derivation. 245-A/B GREEN
+> (`GatewayModelCatalogTests` 6 → 8); 245-C by construction as
+> pre-registered. Picker checkmark confirmed profile-sourced pre-build —
+> untouched. Device half: Owen's relaunch re-test on the next OTA.
+>
+> **📸 MECHANISM CONFIRMED ON DEVICE 2026-08-04 ~1:46 PM (Owen, build 1978
+> — pre-fix — two screenshots, same conversation):** header KIMI-K3 while
+> the turn underneath answers "deepseek-v4-flash, via the deepseek
+> provider"; the pill flips to DEEPSEEK-V4-FLASH only when the turn's
+> `runtime` correction lands, then the next catalog refresh stomps it back.
+> Owen: *"It was lying to me right up until the last second and it
+> changed."* The stomp-then-correct cycle, observed exactly as filed — the
+> per-turn runtime handler was the only truth-teller on 1978.
 
 **FILED 2026-08-04 (~1 PM) from Owen's build-1978 test #3 ("Fail. …if I force
 quit and reload, it changes back to the server default (kimi at the moment)").**
@@ -13509,6 +13631,30 @@ there rather than assume).
 **Owed:** the fix lane (unrouted — Owen routes), then the relaunch test
 re-run: pick DS Flash → force quit → relaunch → header still names the pick
 before any message is sent.
+
+> **ROUTED 2026-08-04 (~1:30 PM): Owen — "Build both, I'll test on the next
+> OTA."** Fix as filed: the catalog-refresh call site prefers the persisted
+> pick's display name over `response.activeModel?.name` (mirroring the seed's
+> pick-wins rule); the tail-split display derivation moves to ONE place
+> (`ModelSelection.displayName`). The picker checkmark was verified
+> profile-sourced before building (`ModelsSettingsModel.isActive` reads
+> `readSelection()` → `activeModelSelection` live) — no picker change needed.
+> CTX denominator deliberately stays host-reported (#191's standing choice) —
+> this lane moves the LABEL only.
+>
+> ## 📋 BARS — PRE-REGISTERED 2026-08-04, BEFORE THE CODE
+> - **245-A (unit):** `ModelSelection.displayName` — `"deepseek/deepseek-v4-flash"`
+>   → `"deepseek-v4-flash"`; an id with no slash is unchanged.
+> - **245-B (unit):** the header preference is pick-wins — pick present ⇒ pick's
+>   display name regardless of host default; nil pick ⇒ host default; both nil
+>   ⇒ nil.
+> - **245-C (by construction, recorded honestly):** the
+>   `performCommandCatalogRefresh` call site threads the preference — the
+>   refresh path is relay-network-bound with no scriptable seam; the pure
+>   preference is pinned and the call site is a one-line read.
+> - **Device (Owen, next OTA):** pick a non-default model → force quit →
+>   relaunch → the chat header names the PICK before any message is sent, and
+>   keeps naming it after the catalog refresh lands.
 
 ## 244. 🎨 APPEARANCE TAB HOLISTIC REWORK — "It doesn't flow right" — **✅ CLOSED 2026-08-04 (Owen's device pass on 1955: "looks good!"). ROUTED same day: Owen supplied Claude Design's channel-browser mockup and delegated the build ("If this is something doable and you like the design, implement that as well"). Verdict: doable + good — BUILT on `claude/t27-244-appearance-channels`; #243 subsumed; #239's sub-screen superseded (its live-re-skin guarantee carries forward by construction). Spec: `docs/superpowers/specs/2026-08-04-244-appearance-channel-browser-design.md`.**
 

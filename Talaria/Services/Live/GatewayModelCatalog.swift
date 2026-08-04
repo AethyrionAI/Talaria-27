@@ -86,4 +86,20 @@ struct TurnRuntime: Decodable, Sendable, Equatable {
 struct ModelSelection: Equatable, Sendable {
     let provider: String
     let modelID: String
+
+    /// #245: the header/chip display form — the id's tail. Gateway model ids
+    /// are `provider/model` ("deepseek/deepseek-v4-flash"); slashless ids
+    /// pass through. The ONE place this derivation lives.
+    var displayName: String {
+        modelID.split(separator: "/").last.map(String.init) ?? modelID
+    }
+
+    /// #245: pick-wins — what the chat header should call the model. The
+    /// catalog refresh stomped a persisted pick with the HOST's default
+    /// (`response.activeModel?.name`) while the per-turn lock kept riding;
+    /// every header write goes through this preference so the label can
+    /// never claim a model the turns aren't using.
+    static func headerName(pick: ModelSelection?, hostDefault: String?) -> String? {
+        pick?.displayName ?? hostDefault
+    }
 }

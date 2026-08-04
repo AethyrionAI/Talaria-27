@@ -31,6 +31,17 @@ final class SessionsHermesClient: HermesClientProtocol {
     private let baseURLProvider: @MainActor () -> String?
     private let apiKeyProvider: @MainActor () -> String?
 
+    /// #246: how long the live SSE byte stream may go SILENT before the turn
+    /// is declared stalled. A zombie stream — socket open, bytes never
+    /// coming, the backgrounded-and-returned shape — never ends, so without
+    /// this nothing ever threw and recovery never armed. Firing converts to
+    /// `.interrupted` (the same catch as a dropped stream), which degrades
+    /// transport to the budgeted reconcile poll — a false positive on a
+    /// legitimately quiet slow turn still resolves; it never loses the
+    /// answer. 60s clears any observed healthy inter-event gap. Var, not
+    /// let: the suite shortens it to exercise the guard. // harness-visible
+    var streamStallThreshold: Duration = .seconds(60)
+
     /// The durable journal (shared with ChatStore via AppContainer). Owns the
     /// conversation's identity and the active hop handle; this client only
     /// ever reads the handle and begins/ends hops.
@@ -202,6 +213,54 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// the single 404 retry for a REUSED persisted hop whose server session
     /// expired: the handle swaps (that's what makes it a handle, not
     /// identity) and the turn re-runs once on a fresh, transplanted hop.
+    /// #246: thrown by the stall guard when the byte stream goes silent past
+    /// the threshold. Reaching `streamTurn`'s catch with `responseReceived`
+    /// true (always, post-2xx by construction) classifies it `.interrupted`.
+    struct StreamStallError: Error {}
+
+    /// #246: wraps a line sequence so that prolonged SILENCE throws instead
+    /// of blocking forever. A pump task owns the base iterator and forwards
+    /// lines, stamping a shared clock; a watchdog task checks the clock and
+    /// fails the stream when it goes stale. The suspension case falls out
+    /// for free: while the app is suspended neither task runs, and on resume
+    /// the watchdog's next check sees the stale clock and throws — which is
+    /// exactly the backgrounded-zombie shape that filed this item.
+    nonisolated static func stallGuardedLines<S: AsyncSequence & Sendable>(
+        _ base: S,
+        threshold: Duration
+    ) -> AsyncThrowingStream<String, Error> where S.Element == String {
+        AsyncThrowingStream { continuation in
+            let lastActivity = OSAllocatedUnfairLock(initialState: ContinuousClock.now)
+            let pump = Task {
+                do {
+                    for try await line in base {
+                        lastActivity.withLock { $0 = ContinuousClock.now }
+                        continuation.yield(line)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            let checkEvery = max(threshold / 4, .milliseconds(50))
+            let watchdog = Task {
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: checkEvery)
+                    if Task.isCancelled { break }
+                    let last = lastActivity.withLock { $0 }
+                    if ContinuousClock.now - last > threshold {
+                        continuation.finish(throwing: StreamStallError())
+                        break
+                    }
+                }
+            }
+            continuation.onTermination = { _ in
+                pump.cancel()
+                watchdog.cancel()
+            }
+        }
+    }
+
     private func streamTurn(
         message content: String,
         attachments: [PendingAttachment],
@@ -395,7 +454,12 @@ final class SessionsHermesClient: HermesClientProtocol {
                 }
             }
 
-            for try await line in bytes.lines {
+            // #246: silence past the threshold THROWS out of this loop; the
+            // catch below classifies it like any post-2xx drop (.interrupted)
+            // and the #235 reconcile machinery owns recovery from there. The
+            // guard wraps only the post-2xx byte stream, so pre-response
+            // failures keep their unreachable/failed semantics untouched.
+            for try await line in Self.stallGuardedLines(bytes.lines, threshold: streamStallThreshold) {
                 if Task.isCancelled { break }
                 if line.hasPrefix(":") { continue }
                 if line.isEmpty {
