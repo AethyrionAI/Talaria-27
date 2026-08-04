@@ -13437,7 +13437,15 @@ a real chat turn observed stalled on an unanswerable approval (→ upstream
 conversation), or Owen asking for the cards to stop prompting (→ the small
 Manual/Off app lane).**
 
-## 248. 🐛 Stall-recovery adoption briefly DUPES the user's sent message; a session re-open heals it — F3's tail placement is the suspect neighborhood
+## 248. 🐛 Stall-recovery adoption briefly DUPES the user's sent message; a session re-open heals it — F3's tail placement is the suspect neighborhood — **✅ BUILT 2026-08-04 (with #247); 248-A/B/C/D GREEN; device re-run tonight**
+
+> **✅ BUILT 2026-08-04 late afternoon (`claude/t27-247-248-fixes`, TDD
+> watched-RED).** `unconfirmedLocalMessages` extracted as the testable
+> static with the third confirmation tier exactly as designed —
+> content-claim for user rows, dequeue counting. 248-A (Owen's exact shape
+> → empty), 248-B (repeat safety → one survives), 248-C/D (pins) all GREEN.
+> Device half: tonight's backgrounding maneuver — answer solo AND the sent
+> message exactly once.
 
 **FILED 2026-08-04 (~2:45 PM) from Owen's build-1987 pass of the #246 device
 bar:** *"Duped the original message when I first went back in, but, it had
@@ -13515,7 +13523,22 @@ backgrounding maneuver clean on device.
 > - **Device (Owen, tonight):** the same backgrounding maneuver — answer
 >   surfaces solo AND the sent message renders exactly once.
 
-## 247. 🐛 Failover is theater when the fallback host is dark: switching profiles to the Mac Mini "does absolutely nothing" — and nothing TOLD Owen the fallback was dead
+## 247. 🐛 Failover is theater when the fallback host is dark: switching profiles to the Mac Mini "does absolutely nothing" — and nothing TOLD Owen the fallback was dead — **✅ APP HALF BUILT 2026-08-04 (with #248); 247-A/B GREEN; device bars tonight; Mac-gateway persistence still Owen's call**
+
+> **✅ APP HALF BUILT 2026-08-04 late afternoon (`claude/t27-247-248-fixes`,
+> TDD watched-RED).** B1: `realtimeStartTimeout` (12s, harness-shortenable)
+> belts the realtime start — the belt Task cancels the wedged bootstrap at
+> the deadline and the EXISTING native fallback runs;
+> `shouldFallBackToNative(timedOut:)` pinned (247-A: timed-out overrides
+> `.connecting`; late-but-connected is not bounced; the microphone
+> exemption outranks). B2: `handleActiveProfileChanged` probes the new and
+> previous gateways concurrently (5s each, unauthenticated on the previous —
+> 401/403 still proves reachability) and sets `profileSwitchNotice`,
+> rendered in ChatScreen's banner cascade; online confirmations auto-clear
+> in 5s, failures persist to the next switch. 247-B string rows GREEN
+> including the all-hosts-dead sentence. 247-C by construction as
+> pre-registered. **Still open on this item:** tonight's device bars, and
+> the ops decision (Mac gateway persistence — launchd or plain process).
 
 **FILED 2026-08-04 (~2 PM) from Owen at work, mid-outage:** *"the connection
 to ojamd failed. And i discovered if ojamd goes down, the way its set up,
