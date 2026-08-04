@@ -9481,7 +9481,19 @@ identity outrank the name fallback even when the echo reorders. Single-attachmen
 unchanged by the pre-existing round-trip test passing untouched. NOT device-verified — sim suite
 only.
 
-## 186. 🐛 Permission accept-lists reject valid grants — the tool belt tells users to enable what they enabled
+## 186. 🐛 Permission accept-lists reject valid grants — the tool belt tells users to enable what they enabled — **✅ VERIFIED ON MAIN 2026-08-04; only the device checks remain, queued in the running list**
+
+> **✅ 2026-08-04 (quality-batch lane): all four built pieces confirmed on
+> main by direct grep, not by trusting the 176B note** —
+> `CalendarEventTool` accepts `.fullAccess, .writeOnly` AND re-reads the
+> settled status after a request (`DeviceActionTools.swift:444–448`); the
+> calendar reader's `.writeOnly` branch names the add-only grant and how to
+> widen it (`DeviceCalendarTools.swift:37`); `ContactsTool` accepts
+> `.limited` (`DeviceReadTools.swift:623`); and
+> `NSCalendarsWriteOnlyAccessUsageDescription` is in `project.yml:170`.
+> **The three owed device checks moved to
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md` §F1 (one queue — #184's rule);
+> they are this item's only remaining content.** App-side work: none.
 
 Found by ultrareview Pass B (2026-07-25), verified against source.
 
@@ -9596,6 +9608,13 @@ the parameter or the client should stop implying a contract that is not kept.
 > server-side filter arrives free with the client-side filter demoted to belt. The
 > gateway half of this item is now a **watch**, not work: re-probe after notable gateway
 > updates, close when a release honors it. No code change in either direction.
+>
+> **WATCH FIRED 2026-08-04 — v0.20.0 STILL IGNORES IT.** OJAMD self-updated to
+> 0.20.0 on 2026-08-03; per the watch, re-probed read-only against the live
+> OJAMD gateway (`100.110.102.59:8642`, `GET /api/sessions?limit=50&order=recent`
+> with and without `min_messages=1`): **identical 50-row id sets, 13 rows with
+> `message_count == 0` in both.** Client-side filter stays load-bearing; the
+> watch stays armed for the next notable update.
 
 **Update 2026-07-26 — the empties have a single source, and it is not Talaria.**
 
