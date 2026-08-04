@@ -3,63 +3,49 @@ import UIKit
 
 // MARK: - Appearance settings screen (Settings → APPEARANCE)
 //
-// HUD appearance prefs. Mirrors design/Settings.dc.html screen 06, extended
-// with the theme system (design/THEME_SYSTEM_PLAN.md). Theme / accent / glow /
-// grid / reduce-motion are PERSISTED to UserSettings and drive the whole app
-// live via `ThemeRuntime` at the app root.
-//
-// Preview helpers here resolve `ThemePalette(theme:accent:)` DIRECTLY (not the
-// live runtime) so each theme card can render its own environment while a
-// different theme is active. The accent swatches show the slot colors as the
-// *current* theme resolves them (hero-slot model — see ThemePaletteCore.swift).
+// #244: a full-bleed theme CHANNEL browser (from Claude Design's mockup,
+// routed by Owen 2026-08-04). One theme per channel; the LIVE app chrome is
+// the canvas — a channel applies as you land on it, so the screen you're
+// looking at IS the preview (#239's live-re-skin guarantee, by construction).
+// Channel 00 is Seasonal AUTO; the rest are the catalog's picker identities
+// in section order (ThemeChannels.build). Everything non-theme rehomes into
+// the TUNING sheet: glow, grid, reduce motion, haptics, app icon. Accent
+// slots render as three dots under the spectrum, hidden when the channel's
+// theme pins its slot (Terminal, #12). Supersedes the #239 sub-screen and
+// subsumes the #243 gallery idea.
 struct AppearanceSettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SettingsStore.self) private var settingsStore
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
 
-    @State private var spin = false
+    @State private var channels: [ThemeChannels.Channel] = []
+    @State private var selectedChannelID: String = ""
+    @State private var showTuning = false
+    @State private var sweepVisible = false
 
-    /// The theme actually in effect — honors automatic (seasonal) mode (#24).
+    // MARK: Applied state (the runtime mirrors these on write)
+
     private var theme: AppearanceTheme { settingsStore.settings.effectiveAppearanceTheme() }
     private var accent: AppearanceAccent { settingsStore.settings.appearanceAccent }
     private var glow: Double { settingsStore.settings.hudGlowIntensity }
     private var grid: GridDensity { settingsStore.settings.gridDensity }
-    private var reduceMotion: Bool { settingsStore.settings.reduceMotion }
+    private var reduceMotion: Bool { systemReduceMotion || settingsStore.settings.reduceMotion }
 
-    /// Render identity for a theme as this screen previews it: the adaptive
-    /// Comic Book resolves with the runtime's mirrored scheme, so its card
-    /// and swatches show the variant matching the PRESENTED surface —
-    /// identical to live resolution whenever Comic Book is active. Known
-    /// limit (Lane L Phase 2, noted in the PR): while a FIXED theme is
-    /// active the mirror reads that theme's forced scheme, so on a device
-    /// whose system appearance differs, the Comic Book card previews the
-    /// other half than selecting it will produce. SwiftUI offers no
-    /// un-forced system-scheme read inside the overridden window; a
-    /// screen-traits reader is the candidate follow-up if the Mac pass
-    /// wants the stricter behavior.
+    /// Render identity, honoring the adaptive theme's mirrored scheme — the
+    /// same resolution (and the same known Comic Book preview limit) the
+    /// previous screen documented.
     private func resolvedThemeID(_ theme: AppearanceTheme) -> ThemeID {
         theme.themeID(for: ThemeRuntime.shared.systemColorScheme)
     }
 
-    /// #239: the Themes navRow value — seasonal mode surfaces the season so
-    /// automatic rotation stays legible from the top level.
-    nonisolated static func themesRowValue(settings: UserSettings, on date: Date = Date()) -> String {
-        let theme = settings.effectiveAppearanceTheme(on: date)
-        guard settings.appearanceThemeMode == .automatic else {
-            return theme.displayLabel.uppercased()
-        }
-        return "\(ThemeCatalog.season(on: date).displayLabel.uppercased()) · \(theme.displayLabel.uppercased())"
+    /// Palette for one CHANNEL's content — resolved directly so a neighboring
+    /// page mid-swipe renders its own colors before it applies on land.
+    private func channelPalette(_ channel: ThemeChannels.Channel) -> ThemePalette {
+        ThemePalette(theme: resolvedThemeID(channel.definition.appearanceTheme), accent: accent.slot)
     }
 
-    /// Palette for the *selected* (theme, accent) — matches the live runtime
-    /// once the app root mirrors the settings change.
-    private var palette: ThemePalette { ThemePalette(theme: resolvedThemeID(theme), accent: accent.slot) }
-
-    /// The accent palette resolution actually uses. Locked themes (Terminal)
-    /// pin to their hero slot (#12), so labels must not echo a stale stored
-    /// accent while the screen renders the hero hue.
-    private var effectiveAccent: AppearanceAccent {
-        guard let locked = theme.themeID.lockedAccentSlot else { return accent }
-        return AppearanceAccent(rawValue: locked.rawValue) ?? accent
+    private var currentChannel: ThemeChannels.Channel? {
+        channels.first { $0.id == selectedChannelID }
     }
 
     var body: some View {
@@ -67,199 +53,398 @@ struct AppearanceSettingsScreen: View {
             HUDScreenBackground()
                 .ignoresSafeArea()
 
-            ScrollView {
-                VStack(spacing: Design.Spacing.lg) {
-                    SettingsScreenHeader(title: "Appearance", subtitle: "Heads-Up Display") { dismiss() }
-                    previewPanel
-                    themesNavRow
-                    glowSection
-                    gridSection
-                    appIconRow
-                    togglePanel
+            VStack(spacing: 0) {
+                topBar
+                    .padding(.horizontal, Design.Spacing.md)
+                    .padding(.top, Design.Spacing.xs)
+
+                TabView(selection: $selectedChannelID) {
+                    ForEach(channels) { channel in
+                        channelContent(channel)
+                            .tag(channel.id)
+                    }
                 }
-                .padding(.horizontal, Design.Spacing.md)
-                .padding(.vertical, Design.Spacing.sm)
+                .tabViewStyle(.page(indexDisplayMode: .never))
+
+                bottomControls
+                    .padding(.horizontal, Design.Spacing.md)
+                    .padding(.bottom, Design.Spacing.md)
+            }
+
+            if sweepVisible {
+                sweepBand
             }
         }
         .navigationTitle("Appearance")
         .toolbarVisibility(.hidden, for: .navigationBar)
-        .onAppear { spin = true }
+        .task { configureChannels() }
+        .onChange(of: selectedChannelID) { old, new in
+            guard !old.isEmpty else { return }   // initial positioning is not a pick
+            applyChannel(id: new)
+            runSweep()
+        }
+        .sheet(isPresented: $showTuning) { tuningSheet }
     }
 
-    // MARK: Themes navRow (#239)
+    // MARK: Channel list + apply
 
-    /// The theme cards + accents live one level down (ThemesSettingsScreen);
-    /// this row surfaces the resolved state so automatic mode stays legible
-    /// from the top level.
-    private var themesNavRow: some View {
-        NavigationLink {
-            ThemesSettingsScreen()
-        } label: {
-            HStack(spacing: Design.Spacing.sm) {
-                Image(systemName: "paintpalette")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Design.Brand.accent)
-                    .frame(width: 32, height: 32)
-                    .background(Design.Colors.accentTint(0.05),
-                                in: RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: Design.CornerRadius.sm)
-                            .strokeBorder(Design.Colors.accentTint(0.18), lineWidth: 1)
-                    }
-                Text("Themes")
-                    .font(Design.Typography.body(15, weight: .medium))
-                    .foregroundStyle(Design.Colors.foreground)
-                Spacer(minLength: Design.Spacing.xs)
-                MonoLabel(Self.themesRowValue(settings: settingsStore.settings),
-                          size: 10, weight: .medium,
-                          tracking: Design.Tracking.mono, color: Design.Brand.accent)
-                    .lineLimit(1)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(Design.Colors.accentTint(0.7))
-            }
-            .padding(.horizontal, Design.Spacing.md)
-            .padding(.vertical, Design.Spacing.sm)
-            .contentShape(Rectangle())
-            .hudPanel(cornerRadius: Design.CornerRadius.lg,
-                      borderColor: Design.Colors.accentTint(0.12),
-                      fill: Design.Colors.background.opacity(0.5),
-                      innerGlow: false)
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: Preview
-
-    private var previewPanel: some View {
-        let p = palette
-        return ZStack {
-            RoundedRectangle(cornerRadius: Design.CornerRadius.xl)
-                .fill(LinearGradient(colors: p.screenGradientStops.map(\.color),
-                                     startPoint: .top, endPoint: .bottom))
-
-            previewGrid(p)
-            previewBrackets(color: p.base)
-
-            VStack {
-                HStack {
-                    MonoLabel("PREVIEW", size: 8, weight: .medium,
-                              tracking: Design.Tracking.monoWide, color: p.mutedForeground)
-                    Spacer()
-                }
-                Spacer()
-                HStack {
-                    Spacer()
-                    MonoLabel("REACTOR · GLOW \(String(format: "%.1f", glow))", size: 8, weight: .medium,
-                              tracking: Design.Tracking.mono, color: p.base)
-                }
-            }
-            .padding(Design.Spacing.sm)
-
-            previewReactor(p)
-        }
-        .frame(height: 150)
-        .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.xl))
-        .overlay {
-            RoundedRectangle(cornerRadius: Design.CornerRadius.xl)
-                .strokeBorder(p.base.opacity(0.22), lineWidth: 1)
-        }
-    }
-
-    @ViewBuilder
-    private func previewReactor(_ p: ThemePalette) -> some View {
-        // Bespoke orb anatomies (Event Horizon's singularity and the gallery
-        // ports) preview the real composition. Safe to read the live orb
-        // here: the preview panel's (theme, accent) always mirrors the
-        // runtime — selection applies immediately — so `ReactorOrb`'s
-        // runtime-resolved palette matches `p`. The four flagship styles
-        // keep the generic glyph below, unchanged.
-        let flagshipStyles: [ThemeOrbStyle] = [.arcReactor, .forgeSun, .crtCrosshair, .paperReel]
-        if !flagshipStyles.contains(p.orbStyle) {
-            ReactorOrb(size: 58, style: .standard, glowIntensity: glow)
+    private func configureChannels() {
+        guard channels.isEmpty else { return }
+        channels = ThemeChannels.build(on: Date())
+        // Open on the channel matching current state: AUTO when automatic,
+        // else the stored theme's channel (fallback: first).
+        if settingsStore.settings.appearanceThemeMode == .automatic {
+            selectedChannelID = "auto"
         } else {
-            ZStack {
-                Circle()
-                    .strokeBorder(p.base.opacity(0.35), lineWidth: 1.5)
-                Circle()
-                    .trim(from: 0, to: 0.28)
-                    .stroke(p.base, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                    .padding(6)
-                    .rotationEffect(.degrees(spin ? 360 : 0))
-                    .animation(reduceMotion ? nil : .linear(duration: 4).repeatForever(autoreverses: false), value: spin)
-                Circle()
-                    .fill(RadialGradient(colors: [p.bright, p.base, p.deep],
-                                         center: UnitPoint(x: 0.5, y: 0.4), startRadius: 0, endRadius: 13))
-                    .padding(16)
-                    .shadow(color: p.base.opacity(0.7 * p.glowScale), radius: max(2, 16 * glow))
-            }
-            .frame(width: 58, height: 58)
+            let stored = settingsStore.settings.appearanceTheme
+            selectedChannelID = channels.first { $0.kind == .theme && $0.definition.appearanceTheme == stored }?.id
+                ?? channels.first?.id ?? ""
         }
     }
 
-    private func previewGrid(_ p: ThemePalette) -> some View {
-        GridOverlay(cell: 22, lineColor: p.base.opacity(0.12), style: p.gridStyle)
-            .opacity(gridPreviewOpacity)
+    /// Apply-on-land (#244: "applies as you go"): the visible channel IS the
+    /// applied theme. AUTO writes the mode; a theme channel writes the same
+    /// atomic mode+theme pair the retired grid card wrote.
+    private func applyChannel(id: String) {
+        guard let channel = channels.first(where: { $0.id == id }) else { return }
+        var updated = settingsStore.settings
+        switch channel.kind {
+        case .automatic:
+            guard updated.appearanceThemeMode != .automatic else { return }
+            updated.appearanceThemeMode = .automatic
+        case .theme:
+            let target = channel.definition.appearanceTheme
+            guard updated.appearanceThemeMode != .manual || updated.appearanceTheme != target else { return }
+            updated.appearanceThemeMode = .manual
+            updated.appearanceTheme = target
+        }
+        settingsStore.settings = updated
     }
 
-    private var gridPreviewOpacity: Double {
-        switch grid {
-        case .off:   0.0
-        case .faint: 0.55
-        case .bold:  1.0
+    private func step(_ delta: Int) {
+        guard let index = channels.firstIndex(where: { $0.id == selectedChannelID }) else { return }
+        let next = (index + delta + channels.count) % channels.count
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.28)) {
+            selectedChannelID = channels[next].id
         }
     }
 
-    private func previewBrackets(color: Color) -> some View {
-        VStack {
-            HStack {
-                previewCorner(color, .degrees(0))
-                Spacer()
-                previewCorner(color, .degrees(90))
+    private func surprise() {
+        guard channels.count > 1,
+              let index = channels.firstIndex(where: { $0.id == selectedChannelID }) else { return }
+        var next = index
+        while next == index { next = Int.random(in: 0 ..< channels.count) }
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.28)) {
+            selectedChannelID = channels[next].id
+        }
+    }
+
+    // MARK: Top bar
+
+    private var topBar: some View {
+        HStack {
+            GlassCircleButton(icon: "chevron.left", accessibilityLabel: "Back") { dismiss() }
+                .keyboardShortcut(.cancelAction)
+            Spacer()
+            VStack(spacing: 3) {
+                MonoLabel("APPEARANCE", size: 9, weight: .medium,
+                          tracking: Design.Tracking.monoWide, color: Design.Colors.mutedForeground)
+                MonoLabel(counterText, size: 10, weight: .medium,
+                          tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                    .accessibilityIdentifier("appearance.channelCounter")
             }
             Spacer()
-            HStack {
-                previewCorner(color, .degrees(-90))
-                Spacer()
-                previewCorner(color, .degrees(180))
+            GlassCircleButton(icon: "arrow.clockwise", accessibilityLabel: "Surprise me") { surprise() }
+        }
+    }
+
+    private var counterText: String {
+        guard let index = channels.firstIndex(where: { $0.id == selectedChannelID }) else {
+            return "CHANNEL \u{2014}"
+        }
+        return String(format: "CHANNEL %02d / %02d", index + 1, channels.count)
+    }
+
+    // MARK: Channel content
+
+    private func channelContent(_ channel: ThemeChannels.Channel) -> some View {
+        let palette = channelPalette(channel)
+        let applied = isApplied(channel)
+        return VStack(spacing: Design.Spacing.lg) {
+            Spacer(minLength: Design.Spacing.md)
+
+            channelOrb(channel, palette: palette, applied: applied)
+
+            VStack(spacing: Design.Spacing.sm) {
+                Text(channel.definition.displayName.uppercased())
+                    .font(Design.Typography.display(40, weight: .bold, relativeTo: .largeTitle))
+                    .tracking(1)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.6)
+                    .foregroundStyle(palette.isLight ? palette.foreground : palette.foregroundBright)
+
+                MonoLabel(slotLine(channel), size: 11, weight: .medium,
+                          tracking: Design.Tracking.monoWide, color: palette.base)
+
+                HStack(spacing: Design.Spacing.xs) {
+                    if channel.definition.locked {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(palette.mutedForeground)
+                    }
+                    MonoLabel(channel.sectionTitle.uppercased(), size: 9, weight: .medium,
+                              tracking: Design.Tracking.mono, color: palette.mutedForeground)
+                }
+                .padding(.horizontal, Design.Spacing.md)
+                .padding(.vertical, Design.Spacing.xs)
+                .overlay { Capsule().strokeBorder(palette.base.opacity(0.22), lineWidth: 1) }
+            }
+
+            Spacer(minLength: Design.Spacing.sm)
+
+            spectrumStrip(palette)
+
+            if !channel.locksAccent {
+                accentDots(channel)
+            }
+
+            tuningHandle
+        }
+        .padding(.horizontal, Design.Spacing.lg)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(channel.kind == .automatic ? "Seasonal Auto" : channel.definition.displayName)
+        .accessibilityAddTraits(applied ? .isSelected : [])
+    }
+
+    private func isApplied(_ channel: ThemeChannels.Channel) -> Bool {
+        switch channel.kind {
+        case .automatic: return settingsStore.settings.appearanceThemeMode == .automatic
+        case .theme:
+            return settingsStore.settings.appearanceThemeMode == .manual
+                && settingsStore.settings.appearanceTheme == channel.definition.appearanceTheme
+        }
+    }
+
+    /// The applied channel renders the REAL runtime orb (bespoke anatomies
+    /// free); a neighboring page mid-swipe gets a generic ring in its own
+    /// palette — it becomes the real orb the instant it applies on land.
+    @ViewBuilder
+    private func channelOrb(_ channel: ThemeChannels.Channel, palette: ThemePalette, applied: Bool) -> some View {
+        if applied {
+            ReactorOrb(size: 96, style: .standard, glowIntensity: glow)
+        } else {
+            ZStack {
+                Circle().strokeBorder(palette.base.opacity(0.35), lineWidth: 1.5)
+                Circle()
+                    .fill(RadialGradient(colors: [palette.bright, palette.base, palette.deep],
+                                         center: UnitPoint(x: 0.5, y: 0.4), startRadius: 0, endRadius: 24))
+                    .padding(24)
+                    .shadow(color: palette.base.opacity(0.7 * palette.glowScale), radius: max(2, 22 * glow))
+            }
+            .frame(width: 96, height: 96)
+            .accessibilityHidden(true)
+        }
+    }
+
+    private func slotLine(_ channel: ThemeChannels.Channel) -> String {
+        let resolved = resolvedThemeID(channel.definition.appearanceTheme)
+        if channel.kind == .automatic {
+            return "\(ThemeCatalog.season(on: Date()).displayLabel.uppercased()) \u{00b7} \(accent.displayLabel(for: resolved).uppercased())"
+        }
+        return accent.displayLabel(for: resolved).uppercased()
+    }
+
+    // MARK: Spectrum strip (bright / base / deep / foreground / background)
+
+    private func spectrumStrip(_ palette: ThemePalette) -> some View {
+        let swatches: [Color] = [palette.bright, palette.base, palette.deep, palette.foreground, palette.background]
+        return VStack(spacing: Design.Spacing.xxs) {
+            HStack(spacing: 3) {
+                ForEach(Array(swatches.enumerated()), id: \.offset) { index, color in
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: index == 0 ? 9 : 3,
+                        bottomLeadingRadius: index == 0 ? 9 : 3,
+                        bottomTrailingRadius: index == swatches.count - 1 ? 9 : 3,
+                        topTrailingRadius: index == swatches.count - 1 ? 9 : 3
+                    )
+                    .fill(color)
+                    .frame(height: 42)
+                    .overlay {
+                        UnevenRoundedRectangle(
+                            topLeadingRadius: index == 0 ? 9 : 3,
+                            bottomLeadingRadius: index == 0 ? 9 : 3,
+                            bottomTrailingRadius: index == swatches.count - 1 ? 9 : 3,
+                            topTrailingRadius: index == swatches.count - 1 ? 9 : 3
+                        )
+                        .strokeBorder(palette.base.opacity(index == swatches.count - 1 ? 0.2 : 0), lineWidth: 1)
+                    }
+                }
+            }
+            HStack(spacing: 3) {
+                ForEach(Array(swatches.enumerated()), id: \.offset) { _, color in
+                    MonoLabel(ThemeChannels.hexLabel(for: color), size: 7, weight: .regular,
+                              tracking: 0.6, color: palette.mutedForeground)
+                        .frame(maxWidth: .infinity)
+                }
             }
         }
-        .padding(Design.Spacing.sm)
+        .accessibilityHidden(true)
     }
 
-    private func previewCorner(_ color: Color, _ rotation: Angle) -> some View {
-        Path { p in
-            p.move(to: CGPoint(x: 0, y: 14))
-            p.addLine(to: CGPoint(x: 0, y: 0))
-            p.addLine(to: CGPoint(x: 14, y: 0))
+    // MARK: Accent dots (mockup decision 1 — under the spectrum)
+
+    private func accentDots(_ channel: ThemeChannels.Channel) -> some View {
+        let resolved = resolvedThemeID(channel.definition.appearanceTheme)
+        return HStack(spacing: Design.Spacing.md) {
+            ForEach(AppearanceAccent.allCases, id: \.self) { a in
+                let c = ThemePalette(theme: resolved, accent: a.slot)
+                let selected = (a == accent)
+                Button {
+                    settingsStore.settings.appearanceAccent = a
+                } label: {
+                    ZStack {
+                        if selected {
+                            Circle()
+                                .strokeBorder(c.base, lineWidth: 1.5)
+                                .frame(width: 26, height: 26)
+                                .shadow(color: c.base.opacity(0.45 * c.glowScale), radius: 5)
+                        }
+                        Circle()
+                            .fill(c.base)
+                            .frame(width: selected ? 16 : 20, height: selected ? 16 : 20)
+                            .opacity(selected ? 1 : 0.85)
+                    }
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .hoverEffect(.highlight)
+                .accessibilityLabel(a.displayLabel(for: resolved))
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
         }
-        .stroke(color.opacity(0.55), lineWidth: 1.5)
-        .frame(width: 14, height: 14)
-        .rotationEffect(rotation)
     }
 
-    // MARK: Glow
+    // MARK: Tuning handle + bottom controls
+
+    private var tuningHandle: some View {
+        Button {
+            showTuning = true
+        } label: {
+            HStack(spacing: Design.Spacing.sm) {
+                MonoLabel("TUNING", size: 9, weight: .medium,
+                          tracking: Design.Tracking.monoWide, color: Design.Colors.mutedForeground)
+                Image(systemName: "chevron.up")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(Design.Brand.accent)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 40)
+            .contentShape(Rectangle())
+            .overlay(alignment: .top) {
+                Rectangle().fill(Design.Colors.hairline).frame(height: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Tuning")
+    }
+
+    private var bottomControls: some View {
+        HStack(spacing: Design.Spacing.sm) {
+            channelStepButton(icon: "chevron.left", label: "Previous theme") { step(-1) }
+            GlowButton(title: "Surprise Me", height: 50) { surprise() }
+            channelStepButton(icon: "chevron.right", label: "Next theme") { step(1) }
+        }
+    }
+
+    private func channelStepButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Design.Brand.accentBright)
+                .frame(width: 56, height: 50)
+                .background(Design.Colors.accentTint(0.10),
+                            in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Design.CornerRadius.lg)
+                        .strokeBorder(Design.Colors.accentTint(0.4), lineWidth: 1)
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    // MARK: Reboot sweep (gated on reduce motion)
+
+    private var sweepBand: some View {
+        GeometryReader { proxy in
+            LinearGradient(
+                colors: [.clear, Design.Brand.accent.opacity(0.16), Design.Brand.accentBright.opacity(0.3), .clear],
+                startPoint: .top, endPoint: .bottom
+            )
+            .frame(height: proxy.size.height * 0.46)
+            .offset(y: sweepVisible ? proxy.size.height : -proxy.size.height * 0.46)
+            .animation(.easeOut(duration: 0.62), value: sweepVisible)
+        }
+        .allowsHitTesting(false)
+        .ignoresSafeArea()
+    }
+
+    private func runSweep() {
+        guard !reduceMotion else { return }
+        sweepVisible = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(700))
+            sweepVisible = false
+        }
+    }
+
+    // MARK: Tuning sheet (the rehomed settings)
+
+    private var tuningSheet: some View {
+        NavigationStack {
+            ZStack {
+                Design.Colors.background.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: Design.Spacing.lg) {
+                        glowSection
+                        gridSection
+                        togglesPanel
+                        appIconRow
+                    }
+                    .padding(.horizontal, Design.Spacing.md)
+                    .padding(.top, Design.Spacing.lg)
+                    .padding(.bottom, Design.Spacing.md)
+                }
+            }
+            .navigationTitle("Tuning")
+            .toolbarVisibility(.hidden, for: .navigationBar)
+        }
+        .presentationDetents([.height(420)])
+        .presentationBackgroundInteraction(.enabled(upThrough: .height(420)))
+        .presentationDragIndicator(.visible)
+    }
 
     private var glowSection: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.xs) {
             HStack {
-                MonoLabel("// Glow Intensity", size: 10, tracking: Design.Tracking.monoXWide,
+                MonoLabel("// Glow", size: 10, tracking: Design.Tracking.monoXWide,
                           color: Design.Colors.mutedForeground)
                 Spacer()
                 MonoLabel(String(format: "%.1f", glow), size: 11, weight: .medium,
-                          tracking: Design.Tracking.mono, color: palette.base)
+                          tracking: Design.Tracking.mono, color: Design.Brand.accent)
             }
             Slider(value: glowBinding, in: 0...1.6, step: 0.1)
-                .tint(palette.base)
+                .tint(Design.Brand.accent)
                 .padding(.horizontal, Design.Spacing.xxs)
         }
     }
 
-    // MARK: Grid density
-
     private var gridSection: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
-            MonoLabel("// Grid Density", size: 10, tracking: Design.Tracking.monoXWide,
+            MonoLabel("// Grid", size: 10, tracking: Design.Tracking.monoXWide,
                       color: Design.Colors.mutedForeground)
             HStack(spacing: Design.Spacing.xxs) {
                 ForEach(GridDensity.allCases, id: \.self) { gridSegment($0) }
@@ -276,7 +461,6 @@ struct AppearanceSettingsScreen: View {
 
     private func gridSegment(_ d: GridDensity) -> some View {
         let selected = (d == grid)
-        let c = palette.base
         return Button {
             settingsStore.settings.gridDensity = d
         } label: {
@@ -286,16 +470,14 @@ struct AppearanceSettingsScreen: View {
                 .foregroundStyle(selected ? Design.Colors.background : Design.Colors.secondaryForeground)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Design.Spacing.sm)
-                .background(selected ? c : Color.clear,
+                .background(selected ? Design.Brand.accent : Color.clear,
                             in: RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
         }
         .buttonStyle(.plain)
         .hoverEffect(.highlight)
     }
 
-    // MARK: Reduce motion + theme summary
-
-    private var togglePanel: some View {
+    private var togglesPanel: some View {
         VStack(spacing: 0) {
             HStack {
                 Text("Reduce Motion")
@@ -304,7 +486,7 @@ struct AppearanceSettingsScreen: View {
                 Spacer()
                 Toggle("", isOn: reduceMotionBinding)
                     .labelsHidden()
-                    .tint(palette.base)
+                    .tint(Design.Brand.accent)
             }
             .padding(.horizontal, Design.Spacing.md)
             .padding(.vertical, Design.Spacing.sm)
@@ -314,9 +496,8 @@ struct AppearanceSettingsScreen: View {
                 .frame(height: 1)
                 .padding(.horizontal, Design.Spacing.md)
 
-            // #238: relocated from the retired Notifications settings screen —
-            // haptics is experience feedback, so it lives with the other
-            // feel toggles.
+            // #238: relocated from the retired Notifications screen; #244
+            // keeps it on the TUNING surface — feel, alongside motion.
             HStack {
                 Text("Haptic Feedback")
                     .font(Design.Typography.callout)
@@ -324,24 +505,7 @@ struct AppearanceSettingsScreen: View {
                 Spacer()
                 Toggle("", isOn: hapticsBinding)
                     .labelsHidden()
-                    .tint(palette.base)
-            }
-            .padding(.horizontal, Design.Spacing.md)
-            .padding(.vertical, Design.Spacing.sm)
-
-            Rectangle()
-                .fill(Design.Colors.hairline)
-                .frame(height: 1)
-                .padding(.horizontal, Design.Spacing.md)
-
-            HStack {
-                Text("Theme")
-                    .font(Design.Typography.callout)
-                    .foregroundStyle(Design.Colors.foreground)
-                Spacer()
-                MonoLabel("\(theme.displayLabel) · \(effectiveAccent.displayLabel(for: resolvedThemeID(theme)))",
-                          size: 10, weight: .medium,
-                          tracking: Design.Tracking.mono, color: palette.base)
+                    .tint(Design.Brand.accent)
             }
             .padding(.horizontal, Design.Spacing.md)
             .padding(.vertical, Design.Spacing.sm)
@@ -354,10 +518,6 @@ struct AppearanceSettingsScreen: View {
         )
     }
 
-    // MARK: App icon
-
-    /// Navigates to the data-driven icon picker (issue #25). Shows the current
-    /// icon's name so the row reads as real state, not a static label.
     private var appIconRow: some View {
         NavigationLink {
             AppIconSettingsScreen()
