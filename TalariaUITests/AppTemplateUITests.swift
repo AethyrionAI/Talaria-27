@@ -350,6 +350,57 @@ final class TalariaUITests: XCTestCase {
     }
 
     @MainActor
+    /// 239-B: the Themes sub-screen exists, a theme picked THERE applies
+    /// (the card gains the selected trait — the mechanical proxy for the
+    /// live re-skin), and the parent row reflects the new theme on return.
+    func testThemeChangeFromThemesSubScreenAppliesAndSurfacesInRow() throws {
+        let context = UITestLaunchContext()
+        let app = makeApp(context: context)
+        app.launch()
+
+        guard waitForComposer(in: app, timeout: 15) != nil else {
+            XCTFail("chat composer should be the first-launch landing state")
+            return
+        }
+
+        app.buttons["Open settings"].tap()
+        let appearanceRow = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS 'Appearance'")).firstMatch
+        XCTAssertTrue(appearanceRow.waitForExistence(timeout: 10))
+        appearanceRow.tap()
+
+        let themesRow = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS 'Themes'")).firstMatch
+        XCTAssertTrue(themesRow.waitForExistence(timeout: 10),
+                      "Appearance must surface the Themes navRow (#239)")
+        themesRow.tap()
+
+        let solarForge = app.buttons["Solar Forge"]
+        XCTAssertTrue(solarForge.waitForExistence(timeout: 10),
+                      "theme cards must live in the Themes sub-screen (#239)")
+        solarForge.tap()
+        // Same-tick tap hedging (sim-verify memory): re-tap once if the
+        // selection trait hasn't landed before asserting.
+        let selectedPredicate = NSPredicate(format: "isSelected == true")
+        var settled = XCTWaiter.wait(
+            for: [XCTNSPredicateExpectation(predicate: selectedPredicate, object: solarForge)],
+            timeout: 5) == .completed
+        if !settled {
+            solarForge.tap()
+            settled = XCTWaiter.wait(
+                for: [XCTNSPredicateExpectation(predicate: selectedPredicate, object: solarForge)],
+                timeout: 5) == .completed
+        }
+        XCTAssertTrue(settled,
+                      "picking a card in the sub-screen must apply immediately (239-B)")
+
+        app.buttons["Back"].firstMatch.tap()
+        let updatedRow = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS 'SOLAR FORGE'")).firstMatch
+        XCTAssertTrue(updatedRow.waitForExistence(timeout: 10),
+                      "the Themes row value must show the newly selected theme (239-B)")
+    }
+
     private func makeApp(context: UITestLaunchContext) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["UITEST_DEFAULTS_SUITE"] = context.defaultsSuite
