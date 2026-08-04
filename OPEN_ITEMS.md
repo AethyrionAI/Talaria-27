@@ -14474,7 +14474,88 @@ the control, and changing any tool's schema moves the belt's token cost while La
 > - **Bar 3.1:** Lane 1's prompt 1 ("What's the weather going to be like in Gulfport
 >   tomorrow") answers with a **real forecast** in **< 15s** and **≤ 3 tool calls**.
 
-## 229. 🐛 The on-device window is 8,192 tokens and the armed belt lives INSIDE it — the pressure question, and whether #26's retry should re-arm at all
+## 229. 🐛 The on-device window is 8,192 tokens and the armed belt lives INSIDE it — the pressure question, and whether #26's retry should re-arm at all — **✅ BUILT 2026-08-04 (on-deck lane 1); 229-A/B GREEN, 229-C met on archived numbers**
+
+> **✅ BUILT 2026-08-04, same lane that recorded the dispositions below.**
+> `rebuildForOverflowRetry` (LocalChatBackend) sets `turnRoutedToolless =
+> true` and rebuilds with `forceCondense: true`; both #26 catch branches
+> (`send` and `streamTurn`) now call it, logging
+> `context window exceeded — condensing and retrying toolless (#229)`.
+> TDD watched-RED (missing-member ×2, the API-not-existing failure class),
+> then GREEN: `ContextOverflowGuardTests` 9 → **11**, both new tests passing —
+> and the end-to-end one exercises the REAL rebuild on the sim (session
+> construction included), not just the state flag.
+> - **229-A MET (sim):** armed precondition asserted, then after the retry
+>   rebuild `effectiveOfferedTools` is empty and the #228 budget record of
+>   the rebuild carries `toolCount == 0`.
+> - **229-B MET (sim):** instructions move to
+>   `productionToollessInstructions` — exact equality, the drift-proof pin.
+> - **229-C MET (archived device numbers, no new run):** belt ~1470 tok
+>   (L0-C ×2) vs the 26-token kill margin — the retry frees ~56× the margin
+>   that killed the filing turn; #215's F486F103 already measured
+>   routed-toolless composition clean 10/10.
+> - **Honest gaps:** (1) the catch-branch→helper linkage is pinned by
+>   construction (3 lines of straight-line code) — the loop cannot run
+>   without a live model, so no unit drives the branch itself; (2) the
+>   device half stays opportunistic as pre-registered — post-#230 overflow
+>   is rare, and any future verbose log's `retrying toolless (#229)` line
+>   must be followed by a `session budget: 0 tool(s)` line.
+> - **Named defect left OPEN in this entry:** #225's refusal strings
+>   (~45 tok each) still spend tokens inside the window they protect.
+>   Unaddressed here — weight shrank with routing (#215) and the #232 cut
+>   (max 3 refusal strings before the phase ends structurally), but the
+>   candidate corrections (terser refusals / dropping tools from the
+>   session) remain valid if pressure ever resurfaces.
+
+> **📐 DISPOSITIONS RECORDED 2026-08-04 (lane opened from Owen's on-deck queue,
+> before any code):**
+> - **2.1 (the fraction) — ANSWERED, by measurement, no new run needed.** #228's
+>   L0-C captured it twice on device, identically (Release, verbose, 2026-08-03
+>   ~10:44/10:47 PM): `13 tool(s) ~1470 tok + transcript ~1859 tok of window
+>   8192 — ~4863 free`. The belt alone is **~18%** of the window; belt +
+>   starting transcript (instructions + replayed history on a short
+>   conversation) is **~41% before the user's first token**. The filing
+>   overflow's margin was **26 tokens** — the belt costs ~56× the margin that
+>   killed that turn.
+> - **2.2 (the narrowed belt) — DECLINED as a device experiment, recorded not
+>   run.** Narrowing MOVES pressure rather than removing it (#216's mechanism),
+>   and the 2.3 fix removes the belt from the retry entirely — a narrowed-belt
+>   run would measure a configuration the fix obsoletes. If a future item needs
+>   belt-narrowing data, this stays a valid experiment design; nothing here
+>   forecloses it.
+> - **2.3 (the re-arm question) — BUILDING NOW, this lane.** Confirmed in code
+>   before the bars were written: both overflow branches
+>   (`LocalChatBackend.send` and `streamTurn`) call
+>   `rebuildSession(forceCondense: true)` without touching
+>   `turnRoutedToolless`, so an armed turn's overflow retry re-arms the full
+>   belt into the window it just overflowed. The fix is #232's exact shape —
+>   the retry becomes a routed-toolless turn (empty belt + the toolless
+>   instruction set, both via the existing `turnRoutedToolless` gate). The
+>   disarm is per-turn by construction: the next turn's `preparedSession`
+>   re-routes from scratch. Pre-turn condensation (`preparedSession`'s own
+>   condense path) deliberately KEEPS the belt — the router armed that turn and
+>   nothing has failed yet; only the mid-turn overflow RETRY disarms.
+>
+> ## 📋 BARS — PRE-REGISTERED 2026-08-04, BEFORE THE CODE. Bar 2.3's original
+> ## form is RESTATED: its control ("the same prompt") stopped overflowing when
+> ## #230 fixed the trigger (Bar 3.1, device, 2 calls) — the 2026-08-02 wording
+> ## is unfalsifiable on the current build, so the bar moves to the seams that
+> ## remain observable. A missed bar is a falsification, not a redefinition.
+> - **229-A (unit):** with tools installed and the turn armed, the overflow
+>   retry's rebuild registers NO belt: `effectiveOfferedTools` returns empty
+>   and the rebuilt session's #228 budget record carries `toolCount == 0`.
+> - **229-B (unit):** the same rebuild moves the instructions to the toolless
+>   branch (#176's invariant: a session never advertises a tool it wasn't
+>   given).
+> - **229-C (measured justification, archived device numbers — no new run):**
+>   the belt the retry stops re-arming measured ~1470 tok (L0-C ×2); the
+>   filing overflow's margin was 26 tok. A toolless retry frees ~56× the
+>   measured kill margin, and #215 already measured that routed-toolless turns
+>   compose cleanly (10/10, run F486F103).
+> - **Device half (opportunistic — no dedicated run owed):** overflow is rare
+>   post-#230; if a future verbose device log ever shows the
+>   `retrying toolless (#229)` line, the session-budget line that follows it
+>   must read `0 tool(s)`.
 
 **FILED 2026-08-02 — the window half of #225's device falsification** (Lane 2 of
 `dispatch/FABLE-T27-LOCAL-BRAIN-DEVICE-RUN.md`). "Weather in Gulfport tomorrow" died at
