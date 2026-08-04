@@ -42,12 +42,13 @@ final class ModelPricingCatalog {
         }
     }
 
-    /// Harvests pricing from a shim payload the picker already fetched.
+    /// Harvests pricing display strings off the gateway catalog (#46 → #223
+    /// Lane 5; same "$8.00" / "free" vocabulary the shim payload carried).
     /// Merges (payloads can be partial when providers are unauthenticated)
-    /// and persists so estimates survive relaunch and shim downtime.
-    func ingest(_ options: ShimModelOptions) {
+    /// and persists so estimates survive relaunch and gateway downtime.
+    func ingest(_ catalog: GatewayModelCatalog) {
         var merged = pricingByModelID
-        for provider in options.providers {
+        for provider in catalog.providers {
             for (modelID, display) in provider.pricing ?? [:] {
                 if let input = Self.parsePrice(display.input),
                    let output = Self.parsePrice(display.output) {
@@ -58,6 +59,10 @@ final class ModelPricingCatalog {
                 }
             }
         }
+        commit(merged)
+    }
+
+    private func commit(_ merged: [String: ModelPricing]) {
         guard merged != pricingByModelID else { return }
         pricingByModelID = merged
         if let data = try? JSONEncoder().encode(merged) {
@@ -122,11 +127,9 @@ final class ModelPricingCatalog {
         return value
     }
 
-    /// Case normalization only. NOTE: the shim payload is decoded with
-    /// `.convertFromSnakeCase`, which also rewrites dictionary keys — model
-    /// ids containing `_` would arrive mangled. None do today (`/`, `.`, `-`,
-    /// `:` only); if one appears, its pricing simply won't match (estimate
-    /// shows nothing rather than something wrong).
+    /// Case normalization only. (#223 Lane 5: the gateway catalog decodes
+    /// with a bare decoder, so dictionary keys — model ids — arrive verbatim,
+    /// underscores included.)
     nonisolated static func normalize(_ modelID: String) -> String {
         modelID.lowercased()
     }

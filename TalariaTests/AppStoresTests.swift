@@ -2927,43 +2927,6 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
-    func selectModelStoresHermesReportedWindowNotTheTable() async {
-        @MainActor
-        final class SwitchResponseClient: HermesClientProtocol {
-            var connectionStatus: ConnectionStatus = .connected
-            var currentConversation: Conversation?
-            func connect() async {}
-            func disconnect() async {}
-            func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
-                Message(sender: .hermes, content: "unused", status: .delivered)
-            }
-            func sendStreaming(message: String, attachments: [PendingAttachment], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
-                AsyncStream { $0.finish() }
-            }
-            func loadConversation() async -> Conversation { Conversation(title: "Hermes") }
-            func clearConversation() async throws -> Conversation { Conversation(title: "Hermes") }
-            func switchModel(_ identifier: String) async throws -> String? {
-                "Model switched to `kimi-k2.6`\nContext: 190,000 tokens"
-            }
-        }
-
-        let suiteName = "chat-ctx-denominator-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        let chatStore = ChatStore(hermesClient: SwitchResponseClient(), persistence: persistence)
-
-        let ok = await chatStore.selectModel("kimi-k2.6")
-
-        // The Hermes-reported window wins — NOT inferredContextWindow's
-        // nominal 262,144 for kimi (#4).
-        #expect(ok)
-        #expect(chatStore.activeModelName == "kimi-k2.6")
-        #expect(chatStore.contextWindow == 190_000)
-        #expect(chatStore.resolvedContextWindow(fallbackModelName: "kimi-k2.6") == 190_000)
-    }
-
-    @Test @MainActor
     func failedCatalogRefreshPreservesHermesReportedWindow() {
         let suiteName = "chat-ctx-preserve-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -3352,8 +3315,7 @@ struct AppStoresTests {
                     mediaService: MockMediaService()
             ),
             settingsStore: SettingsStore(persistence: persistence),
-            talkStore: TalkStore(voiceService: RecordingVoiceSessionService()),
-            modelsShimClient: ModelsShimClient(baseURLProvider: { nil }, tokenProvider: { nil })
+            talkStore: TalkStore(voiceService: RecordingVoiceSessionService())
         )
         return LaunchHarness(
             container: container,

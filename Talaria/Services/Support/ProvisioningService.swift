@@ -10,6 +10,8 @@ private let provisioningLog = Logger(subsystem: "org.aethyrion.talaria", categor
 /// API key is deliberately NOT part of the bundle: adding a key in Uplink
 /// stays a manual, human gate (#108).
 struct RelayProvisioningDescriptor: Decodable, Equatable {
+    /// #223 Lane 5: the shim retired — these two decode tolerantly (old relays
+    /// still send them) and are IGNORED on apply.
     var shimBaseURL: String?
     var shimToken: String?
     var gatewayBaseURL: String?
@@ -20,13 +22,10 @@ struct RelayProvisioningDescriptor: Decodable, Equatable {
         return trimmed
     }
 
-    var normalizedShimBaseURL: String? { Self.normalized(shimBaseURL) }
-    var normalizedShimToken: String? { Self.normalized(shimToken) }
     var normalizedGatewayBaseURL: String? { Self.normalized(gatewayBaseURL) }
 
-    var isEmpty: Bool {
-        normalizedShimBaseURL == nil && normalizedShimToken == nil && normalizedGatewayBaseURL == nil
-    }
+    /// Nothing the app still consumes (#223 Lane 5: shim fields don't count).
+    var isEmpty: Bool { normalizedGatewayBaseURL == nil }
 }
 
 /// Envelope for the endpoint's `data` payload.
@@ -35,15 +34,12 @@ struct DeviceProvisioningResponse: Decodable, Equatable {
     var updatedAt: Date?
 }
 
-/// Applies a host's provisioning bundle to a backend profile (#116): shim
-/// base URL + shim token (profile-scoped Keychain slot) and the gateway base
-/// URL. Fill rules are the whole point, so they live in one place:
+/// Applies a host's provisioning bundle to a backend profile (#116, reduced
+/// by #223 Lane 5 to the gateway base URL — the shim fields are tolerated and
+/// ignored). Fill rules live in one place:
 ///
 /// - URLs are only ever FILLED, never overwritten — a manually configured
 ///   endpoint (custom port, reverse proxy) survives every mode.
-/// - The shim token fills when empty; `.refresh` (the explicit user action on
-///   the profile card) additionally REPLACES a stored token — that's the
-///   rotation path the affordance exists for.
 /// - The gateway API key is never touched, in any mode.
 @MainActor
 final class ProvisioningService {
@@ -55,28 +51,21 @@ final class ProvisioningService {
     }
 
     struct Outcome: Equatable {
-        var filledShimBaseURL = false
-        var filledShimToken = false
         var filledGatewayBaseURL = false
-        /// The relay answered with the explicit empty shape — the host's
-        /// connector has reported no provisioning (e.g. no shim runs there).
+        /// The relay reported nothing the app still consumes.
         var descriptorWasEmpty = false
 
-        var didFillAnything: Bool { filledShimBaseURL || filledShimToken || filledGatewayBaseURL }
+        var didFillAnything: Bool { filledGatewayBaseURL }
 
         /// Human summary for the Server screen's notice line.
         func summary(profileName: String) -> String {
             if descriptorWasEmpty {
-                return "\(profileName): host reported no provisioning."
+                return "\(profileName): host reported no gateway provisioning."
             }
-            var parts: [String] = []
-            if filledShimToken { parts.append("shim token") }
-            if filledShimBaseURL { parts.append("shim URL") }
-            if filledGatewayBaseURL { parts.append("gateway URL") }
-            if parts.isEmpty {
-                return "\(profileName): provisioning already up to date."
+            if filledGatewayBaseURL {
+                return "\(profileName): updated gateway URL."
             }
-            return "\(profileName): updated \(parts.joined(separator: ", "))."
+            return "\(profileName): provisioning already up to date."
         }
     }
 
@@ -94,21 +83,15 @@ final class ProvisioningService {
 
     private let profileResolver: @MainActor (UUID) -> BackendProfile?
     private let upsertProfile: @MainActor (BackendProfile) -> Void
-    private let readShimToken: @MainActor (BackendProfile) async -> String?
-    private let writeShimToken: @MainActor (String, BackendProfile) async -> Void
     private let fetchDescriptor: @MainActor (BackendProfile) async throws -> RelayProvisioningDescriptor
 
     init(
         profileResolver: @escaping @MainActor (UUID) -> BackendProfile?,
         upsertProfile: @escaping @MainActor (BackendProfile) -> Void,
-        readShimToken: @escaping @MainActor (BackendProfile) async -> String?,
-        writeShimToken: @escaping @MainActor (String, BackendProfile) async -> Void,
         fetchDescriptor: @escaping @MainActor (BackendProfile) async throws -> RelayProvisioningDescriptor
     ) {
         self.profileResolver = profileResolver
         self.upsertProfile = upsertProfile
-        self.readShimToken = readShimToken
-        self.writeShimToken = writeShimToken
         self.fetchDescriptor = fetchDescriptor
     }
 
@@ -132,27 +115,11 @@ final class ProvisioningService {
             throw ServiceError.profileNotFound
         }
 
-        if let shimURL = descriptor.normalizedShimBaseURL,
-           (updated.shimBaseURL ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            updated.shimBaseURL = shimURL
-            outcome.filledShimBaseURL = true
-        }
         if let gatewayURL = descriptor.normalizedGatewayBaseURL,
            updated.gatewayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             updated.gatewayBaseURL = gatewayURL
             outcome.filledGatewayBaseURL = true
-        }
-        if outcome.filledShimBaseURL || outcome.filledGatewayBaseURL {
             upsertProfile(updated)
-        }
-
-        if let token = descriptor.normalizedShimToken {
-            let stored = (await readShimToken(updated) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            let shouldWrite = stored.isEmpty || (mode == .refresh && stored != token)
-            if shouldWrite {
-                await writeShimToken(token, updated)
-                outcome.filledShimToken = true
-            }
         }
 
         provisioningLog.notice("provisioning: '\(profile.name, privacy: .public)' — \(outcome.summary(profileName: profile.name), privacy: .public)")

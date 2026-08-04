@@ -31,12 +31,11 @@ struct TurnReceiptsTests {
         return ModelPricingCatalog(defaults: defaults)
     }
 
-    /// Decodes a miniature shim payload through the same snake_case decoder
-    /// the live client uses, so `pricing` decoding is exercised end-to-end.
-    private func decodeOptions(_ json: String) throws -> ShimModelOptions {
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        return try decoder.decode(ShimModelOptions.self, from: Data(json.utf8))
+    /// Decodes a miniature gateway catalog through the same bare decoder the
+    /// live client uses (#223 Lane 5), so `pricing` decoding is exercised
+    /// end-to-end.
+    private func decodeOptions(_ json: String) throws -> GatewayModelCatalog {
+        try JSONDecoder().decode(GatewayModelCatalog.self, from: Data(json.utf8))
     }
 
     private static let sampleOptionsJSON = """
@@ -44,7 +43,8 @@ struct TurnReceiptsTests {
       "providers": [
         {
           "slug": "nous",
-          "is_current": true,
+          "name": "Nous Portal",
+          "authenticated": true,
           "models": ["anthropic/claude-opus-4.8", "deepseek/deepseek-v4-pro"],
           "pricing": {
             "anthropic/claude-opus-4.8": {"input": "$5.00", "output": "$25.00", "cache": "$0.50", "free": false},
@@ -92,10 +92,12 @@ struct TurnReceiptsTests {
           "providers": [
             {
               "slug": "a",
+              "name": "Provider A",
               "pricing": {"prov-a/shared-model": {"input": "$1.00", "output": "$2.00", "cache": null, "free": false}}
             },
             {
               "slug": "b",
+              "name": "Provider B",
               "pricing": {"prov-b/shared-model": {"input": "$9.00", "output": "$18.00", "cache": null, "free": false}}
             }
           ]

@@ -35,6 +35,12 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
     /// ACTIVE profile's tokens rotate organically, so its stamp may lag —
     /// worst case is one redundant cheap refresh after a switch.
     var lastTokenRefreshAt: Date?
+    /// #223 Lane 5: the profile's model pick — sent on every chat turn as a
+    /// per-turn lock (provider + model + require_model_lock). Both nil =
+    /// follow the host default (no model fields on the wire). Optional-only
+    /// so old persisted blobs decode and old builds tolerate new blobs.
+    var selectedModelProvider: String?
+    var selectedModelID: String?
 
     init(
         id: UUID = UUID(),
@@ -44,7 +50,9 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
         shimBaseURL: String? = nil,
         note: String? = nil,
         usesLegacyCredentialKeys: Bool = false,
-        lastTokenRefreshAt: Date? = nil
+        lastTokenRefreshAt: Date? = nil,
+        selectedModelProvider: String? = nil,
+        selectedModelID: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -54,6 +62,8 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
         self.note = note
         self.usesLegacyCredentialKeys = usesLegacyCredentialKeys
         self.lastTokenRefreshAt = lastTokenRefreshAt
+        self.selectedModelProvider = selectedModelProvider
+        self.selectedModelID = selectedModelID
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -65,6 +75,8 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
         case note
         case usesLegacyCredentialKeys
         case lastTokenRefreshAt
+        case selectedModelProvider
+        case selectedModelID
     }
 
     /// Hand-written so future additive fields decode tolerantly — a decode
@@ -79,6 +91,8 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
         note = try container.decodeIfPresent(String.self, forKey: .note)
         usesLegacyCredentialKeys = try container.decodeIfPresent(Bool.self, forKey: .usesLegacyCredentialKeys) ?? false
         lastTokenRefreshAt = try container.decodeIfPresent(Date.self, forKey: .lastTokenRefreshAt)
+        selectedModelProvider = try container.decodeIfPresent(String.self, forKey: .selectedModelProvider)
+        selectedModelID = try container.decodeIfPresent(String.self, forKey: .selectedModelID)
     }
 
     /// The scope under which this profile's credentials are keyed: nil means

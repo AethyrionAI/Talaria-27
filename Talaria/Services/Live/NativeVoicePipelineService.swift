@@ -526,6 +526,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                     voiceState = .thinking
                     statusMessage = "Hermes is working on that\u{2026}"
                 }
+            case .modelResolved:
+                // #223 Lane 5: header attribution is a chat-surface concern;
+                // ChatStore consumes it. Never spoken.
+                break
             case .finished(let message, _, _):
                 let final = message.content.isEmpty ? streamedText : message.content
                 finalizeAssistantItem(text: final)

@@ -621,6 +621,15 @@ final class ChatStore {
                     }
                     continuedSend?.tick()
 
+                case .modelResolved(let runtime):
+                    // #223 Lane 5: header attribution from the gateway's own
+                    // report of which model served the turn — resolved truth,
+                    // not the optimistic pick. Display uses the id's tail
+                    // ("deepseek/deepseek-v4-flash-0731" → the flash id alone).
+                    if let resolved = runtime.model, !resolved.isEmpty {
+                        activeModelName = resolved.split(separator: "/").last.map(String.init) ?? resolved
+                    }
+
                 case .finished(let finalMessage, let usage, let diff):
                     finishedViaHermesHop = finalMessage.sender == .hermes
                         && (finalMessage.brain == nil || finalMessage.brain == ChatBackendRouter.Brain.hermes.rawValue)
@@ -1453,26 +1462,6 @@ final class ChatStore {
     /// Switches the active model. Applies to the NEXT session (the Hermes agent
     /// dispatches `/model` as a command turn), so start a new chat for it to take
     /// effect. Updates the displayed model immediately for toolbar feedback.
-    ///
-    /// The CTX denominator reconciles against the host's `/model` response
-    /// ("Context: N tokens") — Hermes's own number for the switched model. It is
-    /// NEVER seeded from the client-side nominal table here; that table stays a
-    /// read-time display fallback only (resolvedContextWindow), because its
-    /// nominal windows run ~1.4x above Hermes's effective ones (#4).
-    @discardableResult
-    func selectModel(_ identifier: String) async -> Bool {
-        do {
-            let responseText = try await hermesClient.switchModel(identifier)
-            activeModelName = identifier
-            updateContextWindow(
-                responseText.flatMap(Self.reportedContextWindow(in:)),
-                source: "model-switch response"
-            )
-            return true
-        } catch {
-            return false
-        }
-    }
 
     // MARK: - Sessions
 

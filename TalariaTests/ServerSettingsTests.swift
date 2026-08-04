@@ -187,16 +187,13 @@ struct ServerSettingsTests {
         #expect(draft.validationMessage != nil) // not absolute http(s)
 
         draft.gatewayBaseURL = "http://100.79.222.100:8642"
-        #expect(draft.isValid) // relay + shim are optional
+        #expect(draft.isValid) // relay is optional
 
         draft.relayBaseURL = "not a url"
         #expect(draft.validationMessage != nil)
         draft.relayBaseURL = "http://100.79.222.100:8000"
         #expect(draft.isValid) // normalizes to …/v1 on apply
 
-        draft.shimBaseURL = "100.79.222.100:8765"
-        #expect(draft.validationMessage != nil)
-        draft.shimBaseURL = "http://100.79.222.100:8765"
         draft.note = "  Apple ecosystem  "
         #expect(draft.isValid)
 
@@ -210,7 +207,9 @@ struct ServerSettingsTests {
         #expect(updated.usesLegacyCredentialKeys)
         #expect(updated.name == "Mac Mini")
         #expect(updated.relayBaseURL == "http://100.79.222.100:8000/v1")
-        #expect(updated.shimBaseURL == "http://100.79.222.100:8765")
+        // #223 Lane 5: the editor no longer touches shimBaseURL — an existing
+        // profile's stored value survives apply() untouched.
+        #expect(updated.shimBaseURL == existing.shimBaseURL)
         #expect(updated.note == "Apple ecosystem")
 
         // A fresh apply mints a new, non-legacy profile.
@@ -232,25 +231,6 @@ struct ServerSettingsTests {
         #expect(ServerProbeResult.unknown.label == "—")
     }
 
-    // MARK: - #116: honest two-step shim probe
-
-    @Test @MainActor
-    func shimProbeClassificationIsHonestAboutAuth() {
-        // No HTTP answer from /healthz at all → offline.
-        #expect(ServerProbeResult.classifyShimProbe(healthzStatus: nil, authedStatus: nil) == .offline)
-        // /healthz answered but unhealthy → its status decides.
-        #expect(ServerProbeResult.classifyShimProbe(healthzStatus: 500, authedStatus: nil) == .offline)
-        // THE #116 fix: /healthz green + authed call refused = answering but
-        // unkeyed — NO KEY, never the old always-green healthz dot.
-        #expect(ServerProbeResult.classifyShimProbe(healthzStatus: 200, authedStatus: 401) == .unauthorized)
-        #expect(ServerProbeResult.classifyShimProbe(healthzStatus: 200, authedStatus: 403) == .unauthorized)
-        // Healthy AND the token works → online.
-        #expect(ServerProbeResult.classifyShimProbe(healthzStatus: 200, authedStatus: 200) == .online)
-        // Healthy /healthz but the authed call died or errored → offline,
-        // not a fake green.
-        #expect(ServerProbeResult.classifyShimProbe(healthzStatus: 200, authedStatus: nil) == .offline)
-        #expect(ServerProbeResult.classifyShimProbe(healthzStatus: 200, authedStatus: 500) == .offline)
-    }
 
     // MARK: - M-13: hosted-relay retirement decode compatibility
 

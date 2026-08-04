@@ -14931,6 +14931,69 @@ lane runs, per the standing rule.
 > (HTTP 200, usage 0/0/0) on both chat paths — render-safe in today's app.
 > **Lane 5 is DESIGN-READY; Owen routes the design.**
 
+> **🏗 LANE 5 BUILT — 2026-08-04 early AM, goal run ("finish the rest of the
+> open items that are workable"); Owen approved the three forks directly:
+> scope "One default per host," services "I can stop them remotely when
+> you're done. You can do the app side now," mechanism "A for the a/b
+> choice." Spec `docs/superpowers/specs/2026-08-04-lane5-shim-retirement-design.md`,
+> plan alongside it, branch `claude/t27-223-lane5-shim-retirement`.**
+>
+> ## 📋 BARS — PRE-REGISTERED 2026-08-04 before the gate run. Written first.
+> - **L5-A (wire):** with a pick, `ChatTurnBody` encodes exactly
+>   `input`+`provider`+`model`+`require_model_lock:true`; with none, the key
+>   set is exactly `["input"]` (byte-compatible). Image-parts variant keeps
+>   the parts shape. Pinned by `ChatTurnBodyEncodingTests` (3).
+> - **L5-B (catalog):** the REAL archived OJAMD payload decodes — 42
+>   providers, 13 authenticated, nous 35 models/31 featured/no warning,
+>   fireworks unauth + setup warning, top-level kimi-coding/kimi-k3 pair,
+>   paid + discounted + `:free` pricing rows; `TurnRuntime` decodes probe 3's
+>   verbatim runtime block and tolerates empty/partial. Pinned by
+>   `GatewayModelCatalogTests` (6).
+> - **L5-C (behavior):** scripted-catalog picker model — load populates
+>   providers + host pair; `apply` persists per-profile and touches NO
+>   network; HOST DEFAULT clears the pick; pick beats host-current for the
+>   checkmark; load failure surfaces the error panel; `BackendProfile`
+>   decodes legacy JSON without the new keys and round-trips them. Pinned by
+>   `ModelsPickerModelTests` (6).
+> - **L5-D (retirement):** zero references to `ModelsShimClient` /
+>   `ShimModelOptions` / `/models/default` anywhere in app or tests
+>   (grep-verified); gate PASS incl. the Release build (#218 check).
+> - **L5-E (device, owed to next OTA):** on OJAMD — pick the deepseek flash
+>   id → next turn's SSE runtime shows `model_lock: "confirmed"` + the
+>   resolved deepseek id and the header updates to resolved truth; HOST
+>   DEFAULT → turn runs kimi-k3 with no lock fields; an invalid pick renders
+>   the gateway's error text as an ordinary assistant message.
+> - **Counted delta (pinned BEFORE the verification run):** swift-testing
+>   1557 + 15 (6 catalog, 3 encoding, 6 picker) − 2 (ServerSettingsTests'
+>   `shimProbeClassificationIsHonestAboutAuth`, AppStoresTests' selectModel
+>   CTX-denominator test — both pinned retired features) = **1570 expected**;
+>   XCUITest 10 unchanged. ProvisioningServiceTests rewritten 7 → 7.
+>
+> **What shipped:** `GatewayModelCatalog`/`TurnRuntime`/`ModelSelection` DTOs
+> + `fetchModelCatalog()`; `ChatTurnBody` lock trio on all three turn paths
+> (sync, stream, priming — never a bare `model`); `BackendProfile` gains
+> `selectedModelProvider`/`selectedModelID` (decode-tolerant both ways);
+> `ModelsSettingsModel` rewritten gateway-native (HOST DEFAULT row, instant
+> apply, no `activeOverride`); `StreamingUpdate.modelResolved(TurnRuntime)`
+> yielded at `run.completed` → ChatStore sets the header to the RESOLVED
+> model id tail; `AppContainer.applyModelSelection`/`activeModelSelection` +
+> lock re-arm at boot and profile switch; pricing ingest re-pointed at the
+> gateway payload (TurnReceipts consumers unchanged). **Retired:**
+> `ModelsShimClient.swift` (deleted), `/model` slash-command pin
+> (`switchModel`+`selectModel` — #9's hang path no longer exists), CONFIRM
+> overlay card + `PendingConfirm` (#4's guard, waived), ServerSettings shim
+> probe/row/editor field + `classifyShimProbe`, provisioning's shim fills
+> (descriptor fields tolerated + ignored; service init loses the two token
+> closures), boot/foreground shim-token restore, `saveModelsShimToken`,
+> `shimToken(for:)`, `MutableShimTokenBox`. Kept for downgrade safety:
+> `BackendProfile.shimBaseURL`, `UserSettings.modelsShimBaseURL` (decode
+> tolerance; UI no longer reads/writes), `BackendProfileScopedKeys.shimToken`
+> (profile-delete Keychain hygiene still clears old rows). **Known
+> limitation, documented in the spec:** header attribution rides the STREAM
+> path only (sync turns don't parse runtime — nothing user-facing uses sync
+> attribution today). Box-side services: Owen stops them remotely once the
+> new picker proves out; app no longer calls :8765 at all.
+
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
 Couple that with ending the shim, and we won't have very much running anymore separately."*
 Recorded so the target architecture lives in the tracker, with each piece's blocker named —
