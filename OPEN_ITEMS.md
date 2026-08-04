@@ -13445,32 +13445,43 @@ the response. I left the conversation after a minute, and returned, and the
 message deduped."* The core recovery WORKED (the answer surfaced without
 manual re-entry — 235-E met); this is the residue.
 
-**Mechanism neighborhood (from source, one suspect):** `attemptReconcile`'s
-adoption replaces the conversation with the SERVER view (server rows carry
-server ids), then `placingRecoveredReply(reply.id, prompt: promptText, …)` —
-#235 F3's placement — re-materializes the prompt at the tail
-(`ChatStore.swift:1816-1821`). If the placement INSERTS a prompt copy
-instead of MOVING the server's own user row (e.g., a content mismatch
-between the locally captured prompt text and the server's stored copy), the
-user message renders twice: the server row in place + the F3 copy at the
-tail. **The heal on re-open is the tell:** a session re-entry refetches the
-clean server view — so the dupe is app-side presentation from the adoption
-pass, not server state. This was F3's FIRST device exercise via the stall
-path; the sim fixtures (235 T3) passed, so the divergence lives in something
-they didn't model.
+**Mechanism — first suspect FALSIFIED by source read, corrected same hour.**
+The filing named #235-F3's tail placement. **F3 is exonerated:**
+`placingRecoveredReply` (`ChatStore.swift:311-321`) only MOVES the existing
+reply row and explicitly no-ops when the reply is already last — it inserts
+nothing, and in Owen's shape (nothing sent after backgrounding, reply
+already the tail) it provably did nothing. **Owen's discriminator answers
+narrowed the real neighborhood:** the duped bubble was his SENT message,
+identical copies, one in its ORIGINAL position and one BELOW the response —
+i.e., a second user row entered the list after the reply. That points at
+the MERGE layer: during the ~60s stall window after his return, one of the
+mid-stream merge paths (the #120-family relay-poll/refresh merge, or
+`mergeConversationMetadata`'s adoption semantics) pulled the SERVER's copy
+of the user message (server id) in beside the LOCAL optimistic row (client
+id), and **#237's dedupe sweep did not collapse the pair** — its
+stable-id mapping presumably doesn't bind for user rows on the stall path
+(no `.finished` ever delivered the id mapping this turn). The heal on
+re-open (clean server refetch) confirms app-side presentation state.
+
+**Needs a real diagnosis pass, not a drive-by:** read
+`mergeConversationMetadata` + the poll-merge path + the 237-D sweep's
+mapping source against the stall timeline, build a fixture that models the
+local-row + server-row coexistence, watch it RED. The fix likely belongs in
+the dedupe sweep (match user rows by content+sender+timestamp-window when
+no id mapping exists) or in gating the mid-stream merge while a stall
+recovery is pending.
 
 **Severity:** low-moderate — transient, self-healing, cosmetic; but it's a
 dupe in the message list, the exact family #237 exists to keep at zero.
 
-**Discriminator wanted from Owen (before the fix is specced):** was the
-duped bubble your SENT message (user bubble ×2), and were the two copies
-byte-identical? And roughly where — adjacent at the tail, or one in place +
-one at the tail? That distinguishes insert-vs-move from a different merge
-path entirely.
+**Discriminators ANSWERED (Owen, 2026-08-04 ~2:50 PM):** yes his sent
+message, one copy, identical; *"One at the top where I started, and one
+below the response."* Recorded verbatim — these answers are what falsified
+the F3 suspect above.
 
-**Owed:** the fix lane (unrouted — Owen routes) with a fixture modeling the
-real divergence once the discriminator answers; then the same backgrounding
-maneuver clean.
+**Owed:** the diagnosis-then-fix lane (unrouted — Owen routes): merge-path
+read → fixture modeling the coexistence → watched RED → fix → the same
+backgrounding maneuver clean on device.
 
 ## 247. 🐛 Failover is theater when the fallback host is dark: switching profiles to the Mac Mini "does absolutely nothing" — and nothing TOLD Owen the fallback was dead
 
