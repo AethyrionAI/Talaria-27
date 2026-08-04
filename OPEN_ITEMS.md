@@ -13263,6 +13263,41 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+## 242. 💡 LOCAL-ANSWER BRIDGE: remote Hermes chats get phone-only facts by dispatching the on-device FM belt at query time — Owen's proposed avenue to ditch the sensor plane without losing health — **FILED 2026-08-03 late night, UNROUTED (idea, no design yet)**
+
+**Owen, same night as the sensors-leaning (see #223), verbatim:** *"I keep hoping
+we'll find a different avenue to take for the health stuff, but I think we can
+extrapolate everything we need for sensors from the foundation models. Maybe it
+could be a setting, and when enabled, if queried about something that only the
+phone could know, maybe Talaria could ask the foundation models, and get the
+answer to provide in its chat. Think how when you do workflows or dispatch
+agents."*
+
+**The shape:** in a REMOTE (Hermes) chat, when the turn needs something only the
+phone knows (health, activity, location), Talaria — behind a setting — dispatches
+the question to the on-device FM belt (which already owns HealthKit/location
+tools), takes the local answer, and provides it into the Hermes conversation.
+The app is the orchestrator; the local brain is the subagent. **Inversion that
+matters:** no data stream, no host-side sensor store — phone facts leave the
+device only as a per-question answer inside a turn the user sent. This would
+retire the sensor plane's interactive half with ZERO sidecars and ZERO upstream
+change (upstream's `split_runtime:false` acknowledges client-side tool execution
+as a someday-mode — this is the app-side version that needs none of it).
+
+**Already in the codebase to build on:** the device-tool belt + HealthKit lane
+(#211, local, 10/10), intent routing (`routeNeedsDeviceTool`, #215/#217 — the
+router's measured surface), and the local/remote backend split (#216's files).
+
+**Open design questions (for the brainstorm when routed):** (1) detection in
+remote mode — the router must flag phone-only intents BEFORE the send (a remote
+turn Hermes answers with "I can't know that" is the miss shape); (2) delivery —
+prepend the local answer as turn context Hermes weaves in, vs. answer locally
+inline and skip Hermes for that turn; (3) the setting's name and default;
+(4) honest non-coverage: host-side ASYNC analysis of phone history (cron jobs,
+"analyze my sleep trends while I'm away") — that half of the old sensor plane
+does not come back with this and should be said out loud when deciding #223's
+sensor question.
+
 ## 241. 🐛 HERMES CORE (upstream): gateway sends its OWN self-name as the upstream model id on the nous provider, and reports the resulting non-retryable 404 to the client as HTTP 200 — **FILED 2026-08-03 night from OJAMD-session evidence; UPSTREAM-REPORT CANDIDATE, re-test on v0.20.0 first**
 
 **Source: the OJAMD-side session's findings file (archived at
@@ -13293,7 +13328,38 @@ touching the session default. Audit route diff shows +1,707 lines in
 `api_server.py` incl. "model-lock plumbing," so 0.20.0 MAY have changed provider
 model-id resolution — no evidence either way yet.
 
-## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **FILED 2026-08-03 ~7:49 PM from 238-D trial 2; SPEC APPROVED same night (both fixes); BUILD STARTED post-compaction same night (Owen: "lets continue"); #239 queued behind it**
+## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **FILED 2026-08-03 ~7:49 PM from 238-D trial 2; SPEC APPROVED same night (both fixes); BUILT + GATED same night (suite 1555 = 1548+7 exactly; XCUITest 9; Release clean; GATE: PASS) — 240-A/B MET; 240-C owed to Owen's device post-merge/OTA**
+
+> **BUILD RECORD — 2026-08-03 late night, branch `claude/t27-240-preflight-parking`
+> (plan `docs/superpowers/plans/2026-08-03-240-preflight-parking.md`).**
+> **Fix 1** (`8e3e9f8`): `responseReceived` set after the 2xx guard in
+> `SessionsHermesClient.streamTurn`; catch condition now
+> `runStarted || responseReceived → .interrupted` (nil runId; reconcile
+> resolves positionally). **Fix 2** (`b27b629`): one `reconcileFromServer()`
+> fetch at drain start + `ChatStore.historyAdoptsQueuedTurn` predicate
+> (trimmed-equal user message at/after `composedAt − 60s`); adopted turns drop
+> with the "#240 adopted, not re-sent" log line; nil fetch drains as before.
+> **240-A MET (watched RED→GREEN):** `StreamLossClassificationTests` — the
+> accepted-but-pre-`run.started` drop yields `.interrupted("sess-1", runId
+> nil)`, never `.unreachable`; the pre-response drop still parks. RED was
+> witnessed TWICE, honestly: the first fixture RACED (URLSession buffers a
+> custom URLProtocol's sub-512B body until completion, so a synchronous — and
+> even a 100–300ms-delayed — `didFailWithError` superseded the never-flushed
+> 2xx and exercised the PRE-response path while claiming to test the
+> mid-stream one; isolated with standalone `swift` CLI transport probes,
+> fixed with an over-threshold SSE comment pad + 0.1s-delayed error, then RED
+> re-witnessed with the production fix stashed → 3 issues via the TRUE
+> window → popped → GREEN 2/2). Fixture gotcha banked to persistent memory.
+> **240-B MET (watched RED→GREEN):** `ContinuityFabricTests` +5 — adoption
+> drop (park-time send stays the only send), absent-from-history re-send,
+> nil-fetch drains-as-today, predicate window edges (−59s in / −61s out,
+> trimming) and sender/text mismatches. Behavioral RED: 4 issues, all the
+> missing guard's consequences; GREEN: 28/28 suite-wide.
+> **Counted delta (pinned BEFORE the verification run): 1548 + 7 = 1555 —
+> OBSERVED 1555 exactly** ("Test run with 1555 tests in 121 suites passed").
+> **GATE: PASS** (Debug suite TEST SUCCEEDED, swift-testing 1555, XCUITest 9,
+> the 2 expected Apple-Intelligence skips only, Release build clean — the
+> #218 check). PR opened same night; merge is Owen's call; 240-C after OTA.
 
 **Evidence (Owen, 1908, OJAMD, kimi-k3, screenshot):** the 238-D pass itself was clean
 (no banner; answer on open), but the transcript showed his question TWICE — the server's
@@ -14571,6 +14637,54 @@ lane runs, per the standing rule.
 > /api/sessions/{id}` accepts `title`/`end_reason` only; `X-Hermes-Session-Key`
 > memory-scope header; ⚠️ `jobs_admin:false` capabilities flag contradicts live
 > jobs routes — never code against that flag.
+>
+> **🗞 HERMES'S CUTOVER BRIEF PROCESSED — same night (archived
+> `handoffs/sessions-api-brief-2026-08-04.md`; written by the Hermes agent on
+> OJAMD from the same audit; Owen: leads-as-usual, and he'd separately
+> discussed relay-vs-API with Hermes before the audit landed).** Direction it
+> restates as settled by Owen matches the tracker: store release, on-device
+> core, Hermes optional via direct :8642, zero sidecars, APNs abandoned.
+> NEW facts banked: **v0.20.0 ships an official relay/connector contract
+> (`gateway/relay/`) — evaluated and REJECTED** (lateral move, re-adds a
+> user-run process); **no mid-run steering verb over HTTP** (control plane is
+> stop + approval-response — composer designs must be stop-and-edit, never
+> type-while-it-works; pre-filed here so it is never filed as an app bug);
+> capabilities doc is advisory (probe endpoints, don't gate UI on flags).
+> Its §6 build order (unified chat SSE → /v1/runs approvals → picker off
+> `/api/model/options` + session lock → session list w/ client-side cost
+> rollup → jobs) is a PROPOSAL — Owen routes. Open decision Owen owns (§5):
+> remote sensors — upstream ingestion endpoint vs cut; build neither until
+> he calls it. **⚠️ One stale assumption flagged:** §3.6 prescribes "local
+> notifications fired from SSE events" for run completions/approvals — #238
+> removed the ENTIRE notification surface the same night this was written.
+> Any future /v1/runs approval-prompt feature is a REINTRODUCTION decision
+> for Owen, not a default to build. **Owen resolved the tension same night:
+> if notifications ever return they are IN-APP surfaces only** (banner /
+> approvals row / the existing inbox pattern — ordinary app UI) — never
+> system-wide phone notifications. So the #238 cut is permanent: no
+> UNUserNotificationCenter, no permission dialog, no `aps-environment`,
+> regardless of what the /v1/runs plane grows.
+>
+> **🧭 SENSORS: OWEN'S LEANING RECORDED — same night (a leaning, NOT a
+> decision; nothing builds or deletes on it).** On the brief's §5 open
+> question, verbatim: *"A plugin would be a cleaner implementation for it
+> if we keep it. I'm ok with ditching the sensors if i'm being honest. Its
+> a lot of baggage. Its really only health that we can't get from the
+> onboard models, and beta 5,6,or7 may release those, who knows. I'm not
+> hard locked on keepin' em."* Read: IF kept → upstream Hermes plugin
+> (never a sidecar); the lean → ditch. What a full ditch would delete:
+> relay :8000 + connector + watchdog on OJAMD, the app's pairing /
+> device-bearer auth plane (#15/#94 ladders), SensorUploadService + its
+> outbox, HealthKit upload surface, and the `hermes_mobile` MCP tools —
+> the dylan-buck shell's LAST tenants, making zero-setup literal. The one
+> real loss: the REMOTE Hermes agent's view of phone health/sensor history
+> (on-device answers are unaffected — #211's steps lane is local FM +
+> HealthKit). Owen notes a later iOS 27 beta may expose health to onboard
+> models regardless. Decision stays open; Owen calls it. **Same night, Owen
+> sketched the avenue that could dissolve the loss entirely — filed as #242
+> (local-answer bridge: remote chats dispatch the on-device belt for
+> phone-only facts at query time).** If #242 builds, ditching the sensor
+> plane costs only host-side ASYNC analysis of phone history — named there.
 
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
 Couple that with ending the shim, and we won't have very much running anymore separately."*

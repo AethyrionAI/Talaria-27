@@ -205,6 +205,9 @@ final class SessionsHermesClient: HermesClientProtocol {
         var capturedSessionId = ""
         var runId: String?
         var runStarted = false
+        // #240: 2xx on the chat/stream POST proves the turn REACHED the API,
+        // even when the stream dies before run.started is parsed.
+        var responseReceived = false
         do {
             let hop = try await ensureHopForTurn()
             capturedSessionId = hop.sessionId
@@ -237,6 +240,7 @@ final class SessionsHermesClient: HermesClientProtocol {
                 return
             }
 
+            responseReceived = true
             connectionStatus = .connected
 
             var currentEvent = "message"
@@ -444,9 +448,13 @@ final class SessionsHermesClient: HermesClientProtocol {
         } catch {
             connectionStatus = .error
             Self.logger.warning("Sessions API stream failed: \(error.localizedDescription)")
-            if runStarted {
-                // Run committed server-side; a dropped stream (e.g. the app
-                // suspended on lock) is recoverable, not a failure.
+            if runStarted || responseReceived {
+                // Run committed (run.started seen) or at least accepted (2xx
+                // seen) server-side — a dropped stream (e.g. the app
+                // suspended on lock) is recoverable, not a failure, and
+                // NEVER a re-queue: parking an accepted turn re-sends it and
+                // Hermes answers twice (#240). runId is nil before
+                // run.started; reconcile resolves positionally.
                 continuation.yield(.interrupted(sessionId: capturedSessionId, runId: runId))
             } else if Self.isUnreachableError(error) {
                 // The turn never reached the Sessions API — queueable in the

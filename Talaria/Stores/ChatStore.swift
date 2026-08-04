@@ -1362,6 +1362,23 @@ final class ChatStore {
     /// Whether any composed turns are parked waiting for reachability.
     var hasQueuedComposeTurns: Bool { !composeOutbox.isEmpty }
 
+    /// #240: a queued turn whose text the server ALREADY holds as a user
+    /// message (at/after `composedAt` − 60s clock-skew slack) was delivered —
+    /// the park was a misclassification of the accepted-but-pre-`run.started`
+    /// window, and re-sending it makes Hermes answer the question twice.
+    nonisolated static func historyAdoptsQueuedTurn(
+        _ turn: ComposeOutboxState.PendingTurn,
+        serverMessages: [Message]
+    ) -> Bool {
+        let text = turn.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return false }
+        return serverMessages.contains { message in
+            message.sender == .user
+                && message.timestamp >= turn.composedAt.addingTimeInterval(-60)
+                && message.content.trimmingCharacters(in: .whitespacesAndNewlines) == text
+        }
+    }
+
     /// Drains queued turns oldest-first through the normal send pipeline
     /// (each drained turn hops/transplants exactly like a live send). The
     /// queued transcript row is replaced by the re-send's fresh optimistic
@@ -1372,12 +1389,28 @@ final class ChatStore {
         isDrainingComposeOutbox = true
         defer { isDrainingComposeOutbox = false }
 
+        // #240: one history fetch per drain. A queued turn the server already
+        // holds was DELIVERED (pre-`run.started` parking) — drop the outbox
+        // copy instead of making Hermes answer it twice. A nil fetch
+        // (offline, or no server-backed session) drains exactly as before:
+        // the guard is an optimization, not a gate.
+        let serverMessages = await hermesClient.reconcileFromServer()?.messages
+
         while let turn = composeOutbox.pendingTurns.first {
             composeOutbox.remove(id: turn.id)
             persistComposeOutbox()
             if var conv = conversation {
                 conv.messages.removeAll { $0.id == turn.id || $0.clientMessageID == turn.id }
                 conversation = conv
+            }
+            if let serverMessages, Self.historyAdoptsQueuedTurn(turn, serverMessages: serverMessages) {
+                // The transcript already carries the server's copy (the #235
+                // reconcile adopted the server view); the queued row was
+                // removed above — persist that removal, since no send
+                // pipeline follows to do it.
+                chatLog.notice("compose outbox: turn already delivered server-side — adopted, not re-sent (#240)")
+                if let conversation { persistence.saveConversationCache(conversation) }
+                continue
             }
             let dispatched = await sendMessage(turn.text)
             if !dispatched {

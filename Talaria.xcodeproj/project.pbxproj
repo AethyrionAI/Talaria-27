@@ -446,6 +446,7 @@
 		E41A27EF2277F8FF8AE441EC /* MockSessionBootstrapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB23EEE4091D1A2F309E9B3C /* MockSessionBootstrapService.swift */; };
 		E41A33A79D56C233A0AE4229 /* DeveloperSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4BC51686A9E81353B562BC7 /* DeveloperSettingsScreen.swift */; };
 		E4EE52A039E47EBA8881069D /* Icon-MidnightAquarium@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 8BD8C35FF4AC86391DCCFEC4 /* Icon-MidnightAquarium@2x.png */; };
+		E55D967594F813AE526B9E1E /* StreamLossClassificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D9C8AE622EA2B105C222872 /* StreamLossClassificationTests.swift */; };
 		E66E1DCD6DDC6DFDF214ED71 /* SpaceGrotesk-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 57107F3D3770FAA8F93F1E70 /* SpaceGrotesk-Medium.ttf */; };
 		E720D0212714D677520D0169 /* ToolCallGovernorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A48706B93FBAD7CE6804E50 /* ToolCallGovernorTests.swift */; };
 		E91BA6F1F84BEBD94CE8DA22 /* HermesStatusWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B9370067BF51189E67CA57 /* HermesStatusWidget.swift */; };
@@ -753,6 +754,7 @@
 		6CA4892C88295D384A10AF06 /* Icon-GraffitiGalaxy@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-GraffitiGalaxy@3x.png"; sourceTree = "<group>"; };
 		6CE4EEAC02A092183861BD65 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6CFDC1C0E69F3F22B6BFD94D /* SkillsGroupingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsGroupingTests.swift; sourceTree = "<group>"; };
+		6D9C8AE622EA2B105C222872 /* StreamLossClassificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamLossClassificationTests.swift; sourceTree = "<group>"; };
 		6DF4B2F289BFF10048D304C8 /* MonetizationGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonetizationGateTests.swift; sourceTree = "<group>"; };
 		6E47F426E5F7560C5850EAF8 /* MockSecureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockSecureStore.swift; sourceTree = "<group>"; };
 		6E49B2094965500D4F7FEEC4 /* ChartSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartSpec.swift; sourceTree = "<group>"; };
@@ -1213,6 +1215,7 @@
 				7BAC4C9847BE119AB66D781D /* SplitViewLayoutTests.swift */,
 				43FDBE36354084B4A9D586C5 /* SpotlightIndexingTests.swift */,
 				692CE05A577894FFE49EDDF3 /* SpotlightOpenIntentTests.swift */,
+				6D9C8AE622EA2B105C222872 /* StreamLossClassificationTests.swift */,
 				557346D0DB64E949DE47F8E2 /* TalkPreflightTests.swift */,
 				7B2AED870C806635A35329B5 /* TalkSessionRulesTests.swift */,
 				55A40BBCFF31EA70CC924E54 /* TaskScheduleDraftTests.swift */,
@@ -2544,6 +2547,7 @@
 				D3E7437E18DE7F64ACF26C16 /* SplitViewLayoutTests.swift in Sources */,
 				9304F2AB740D219F4BBB136C /* SpotlightIndexingTests.swift in Sources */,
 				31AFEA785F400F5330324795 /* SpotlightOpenIntentTests.swift in Sources */,
+				E55D967594F813AE526B9E1E /* StreamLossClassificationTests.swift in Sources */,
 				382AE4C2878C84116F806CFC /* TalkPreflightTests.swift in Sources */,
 				C353F3E90BF93E9741E06417 /* TalkSessionRulesTests.swift in Sources */,
 				8B3A2B61F4D2C285004C06BF /* TaskScheduleDraftTests.swift in Sources */,
