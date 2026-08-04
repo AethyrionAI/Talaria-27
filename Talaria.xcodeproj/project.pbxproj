@@ -94,7 +94,6 @@
 		25D9CAD82CD433E329191ADA /* Icon-StickerBombToybox@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = EC29CB41A2376E24068A0D64 /* Icon-StickerBombToybox@2x.png */; };
 		2651750F6B29A6D7A22EC940 /* ConversationSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB0056665D4A47D62681F26B /* ConversationSearch.swift */; };
 		265A4787A9870DA7441BC100 /* PrivateCloudRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 239665852938D1C25488A8E2 /* PrivateCloudRoutingTests.swift */; };
-		26C073BAAC8A14B7A72900EE /* ModelsShimClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C3685099731A3903F45B2E1 /* ModelsShimClient.swift */; };
 		272E78CECEB89C93332E5E1C /* Icon-EventHorizon@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 89B8FD72600750DA213172D8 /* Icon-EventHorizon@2x.png */; };
 		275892846011C97D2DA99E21 /* ModelOptionsFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4392E57D1B89A360DAAD212D /* ModelOptionsFixture.swift */; };
 		27DA43C16EBED01B3E5881CB /* Icon-SummerSolar@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = ECE44E35B41DB47D36E44566 /* Icon-SummerSolar@3x.png */; };
@@ -853,7 +852,6 @@
 		99D01CD4530887103707EAA6 /* InboxDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxDecodingTests.swift; sourceTree = "<group>"; };
 		9A09FC324E28A6A2B4439048 /* ConnectHermesHostScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectHermesHostScreen.swift; sourceTree = "<group>"; };
 		9C033B79367C600767758EB0 /* LiveLocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveLocationService.swift; sourceTree = "<group>"; };
-		9C3685099731A3903F45B2E1 /* ModelsShimClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsShimClient.swift; sourceTree = "<group>"; };
 		9C6A4A5B1356C64A3A6476FA /* LocalIntelligenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalIntelligenceService.swift; sourceTree = "<group>"; };
 		9DF933619662DB426B20E614 /* InboxItemPriority.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxItemPriority.swift; sourceTree = "<group>"; };
 		9E4DFA5389F9FC0BC51F405B /* Icon-SpringSprout@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-SpringSprout@2x.png"; sourceTree = "<group>"; };
@@ -1093,7 +1091,6 @@
 				E3898F88AB0B7488B69F77EF /* LocalChatBackend+Harnesses.swift */,
 				C29A2A27A33E264942D362BD /* LocalChatBackend+IntentRouting.swift */,
 				9C6A4A5B1356C64A3A6476FA /* LocalIntelligenceService.swift */,
-				9C3685099731A3903F45B2E1 /* ModelsShimClient.swift */,
 				64C042CCDAA333F54214D067 /* NativeVoicePipelineService.swift */,
 				ABEA0742AA139362CA26B832 /* SensorUploadService.swift */,
 				58B4BF576EF1055C45F7E0B3 /* SessionsHermesClient.swift */,
@@ -2361,7 +2358,6 @@
 				DAD55F32A9534B69E0F4E04A /* ModelSelector.swift in Sources */,
 				829EEABD606FCC1440D52798 /* ModelTransitionOverlay.swift in Sources */,
 				6CE9246ED97177E3B5530050 /* ModelsSettingsScreen.swift in Sources */,
-				26C073BAAC8A14B7A72900EE /* ModelsShimClient.swift in Sources */,
 				034D3B45F528195F5D028485 /* MonetizationGate.swift in Sources */,
 				24B16B107A6D7001E50E5E23 /* NativeVoicePipelineService.swift in Sources */,
 				D0CE97CC717284A4BA3E6C05 /* PairedRelayConfiguration.swift in Sources */,

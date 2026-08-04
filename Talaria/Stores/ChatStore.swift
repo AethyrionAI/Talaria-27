@@ -1462,26 +1462,6 @@ final class ChatStore {
     /// Switches the active model. Applies to the NEXT session (the Hermes agent
     /// dispatches `/model` as a command turn), so start a new chat for it to take
     /// effect. Updates the displayed model immediately for toolbar feedback.
-    ///
-    /// The CTX denominator reconciles against the host's `/model` response
-    /// ("Context: N tokens") — Hermes's own number for the switched model. It is
-    /// NEVER seeded from the client-side nominal table here; that table stays a
-    /// read-time display fallback only (resolvedContextWindow), because its
-    /// nominal windows run ~1.4x above Hermes's effective ones (#4).
-    @discardableResult
-    func selectModel(_ identifier: String) async -> Bool {
-        do {
-            let responseText = try await hermesClient.switchModel(identifier)
-            activeModelName = identifier
-            updateContextWindow(
-                responseText.flatMap(Self.reportedContextWindow(in:)),
-                source: "model-switch response"
-            )
-            return true
-        } catch {
-            return false
-        }
-    }
 
     // MARK: - Sessions
 

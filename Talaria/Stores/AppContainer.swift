@@ -133,7 +133,6 @@ final class AppContainer {
     /// a card in the chat transcript and suspends the tool until the user
     /// decides. Defaults closed (app death = nothing created).
     let toolConfirmationCenter = ToolConfirmationCenter()
-    let modelsShimClient: ModelsShimClient
     let sensorUploadService: SensorUploadService?
     private let apiClient: RelayAPIClient?
     /// #136: short-timeout client for launch/bootstrap-class probes (command
@@ -142,9 +141,7 @@ final class AppContainer {
     private let probeAPIClient: RelayAPIClient?
     private let secureStore: (any SecureStoreProtocol)?
     private(set) var hermesAPIKey: String = ""
-    private(set) var modelsShimToken: String = ""
     private var _chatAPIKeyBox: MutableHermesAPIKeyBox?
-    private var _shimTokenBox: MutableShimTokenBox?
     private var isInitialized = false
     /// #136: the relay-backed half of launch, running behind the live UI.
     /// Doubles as the single-flight gate and the splash suppressor; exposed
@@ -175,7 +172,6 @@ final class AppContainer {
         permissionsStore: PermissionsStore,
         settingsStore: SettingsStore,
         talkStore: TalkStore,
-        modelsShimClient: ModelsShimClient,
         sensorUploadService: SensorUploadService? = nil,
         apiClient: RelayAPIClient? = nil,
         probeAPIClient: RelayAPIClient? = nil,
@@ -191,7 +187,6 @@ final class AppContainer {
         self.permissionsStore = permissionsStore
         self.settingsStore = settingsStore
         self.talkStore = talkStore
-        self.modelsShimClient = modelsShimClient
         self.sensorUploadService = sensorUploadService
         self.apiClient = apiClient
         self.probeAPIClient = probeAPIClient
@@ -236,7 +231,7 @@ final class AppContainer {
         case hostRefresh
         case inboxLoad
         case commandCatalogRefresh
-        case shimModelSeed
+        case gatewayModelSeed
         case pushTokenRegistration
         case sensorForegroundRefresh
 
@@ -254,7 +249,7 @@ final class AppContainer {
                  .validateRestoredIdentity:
                 false
             case .sessionBootstrap, .hostRefresh, .inboxLoad, .commandCatalogRefresh,
-                 .shimModelSeed, .pushTokenRegistration, .sensorForegroundRefresh:
+                 .gatewayModelSeed, .pushTokenRegistration, .sensorForegroundRefresh:
                 true
             }
         }
@@ -271,7 +266,7 @@ final class AppContainer {
         /// these upgrade it as each lands.
         static let backgroundBootstrap: [LaunchInitStep] = [
             .sessionBootstrap, .validateRestoredIdentity, .hostRefresh, .inboxLoad,
-            .commandCatalogRefresh, .shimModelSeed, .pushTokenRegistration,
+            .commandCatalogRefresh, .gatewayModelSeed, .pushTokenRegistration,
             .sensorForegroundRefresh,
         ]
     }
@@ -601,33 +596,6 @@ final class AppContainer {
             }
         )
 
-        // Talaria models-shim client (OJAMD tailnet). Auth priority:
-        //  1. Dedicated shim token from Keychain (legacy / explicit override)
-        //  2. DEBUG launch-env TALARIA_SHIM_TOKEN (simulator convenience)
-        //  3. Hermes API server key (same key used for chat — zero-config)
-        // Option 3 means the user never has to manually copy a second token;
-        // the shim accepts both its own token AND the API server key (#14).
-        let shimTokenBox = MutableShimTokenBox()
-        let modelsShimClient = ModelsShimClient(
-            baseURLProvider: {
-                let raw = (profilesStore.activeProfile?.shimBaseURL ?? "")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                return raw.isEmpty ? nil : raw
-            },
-            tokenProvider: { [hermesAPIKeyBox] in
-                if !shimTokenBox.value.isEmpty { return shimTokenBox.value }
-                #if DEBUG
-                if let envToken = processEnvironment["TALARIA_SHIM_TOKEN"], !envToken.isEmpty {
-                    return envToken
-                }
-                #endif
-                // Fall back to the Hermes API key — the shim accepts it as an
-                // alternate bearer token (see tools/models-shim/shim.py).
-                if !hermesAPIKeyBox.value.isEmpty { return hermesAPIKeyBox.value }
-                return nil
-            }
-        )
-
         // Lane M PR 2: per-profile relay access for the non-active backends.
         let profileRelaySessions = ProfileRelaySessionFactory(
             persistence: persistence,
@@ -754,7 +722,6 @@ final class AppContainer {
             ),
             settingsStore: settingsStore,
             talkStore: TalkStore(voiceService: voiceService),
-            modelsShimClient: modelsShimClient,
             sensorUploadService: sensorUploadService,
             apiClient: apiClient,
             probeAPIClient: bootstrapProbeClient,
@@ -764,7 +731,6 @@ final class AppContainer {
         )
 
         container.chatAPIKeyBox = hermesAPIKeyBox
-        container.shimTokenBox = shimTokenBox
 
         // #113: repeated drain retry-exhaustion (the dead-connector shape)
         // surfaces as ONE deduped local inbox alert; the next successful
@@ -868,25 +834,11 @@ final class AppContainer {
         }
         // #116: the post-pair provisioning bundle. The fetch rides the
         // profile's OWN relay + freshly minted access token (works for the
-        // active and dormant slots alike); fills are profile-scoped and the
-        // ACTIVE profile's shim token also lands in the in-memory box the
-        // shim client reads.
+        // active and dormant slots alike). #223 Lane 5: only the gateway URL
+        // still applies — the descriptor's shim fields are ignored.
         let provisioningService = ProvisioningService(
             profileResolver: { profilesStore.profile(id: $0) },
             upsertProfile: { profilesStore.upsert($0) },
-            readShimToken: { profile in
-                await secureStore.retrieve(key: BackendProfileScopedKeys.shimToken(profile.credentialScopeID))
-            },
-            writeShimToken: { [weak container] value, profile in
-                if profile.id == profilesStore.activeProfileID {
-                    await container?.saveModelsShimToken(value)
-                } else {
-                    await secureStore.store(
-                        key: BackendProfileScopedKeys.shimToken(profile.credentialScopeID),
-                        value: value
-                    )
-                }
-            },
             fetchDescriptor: { profile in
                 guard let token = await profileRelaySessions.accessToken(forProfileID: profile.id),
                       !token.isEmpty else {
@@ -1029,14 +981,6 @@ final class AppContainer {
             }
         }
 
-        // Restore the persisted models-shim bearer token (same pattern).
-        Task { @MainActor [weak container, shimTokenBox] in
-            let scope = profilesStore.activeProfile?.credentialScopeID
-            if let stored = await secureStore.retrieve(key: BackendProfileScopedKeys.shimToken(scope)) {
-                shimTokenBox.value = stored
-                container?.modelsShimToken = stored
-            }
-        }
 
         // Pre-unlock staleness recovery: a post-reboot background launch
         // (location relaunch) runs BEFORE first unlock, when Keychain and
@@ -1047,7 +991,7 @@ final class AppContainer {
         // lost. Re-read whenever protected data becomes available (and on
         // activation, covering the zombie-foreground case). Idempotent: only
         // acts on values that are currently empty.
-        let refreshCredentialState: @MainActor () -> Void = { [weak container, hermesAPIKeyBox, shimTokenBox] in
+        let refreshCredentialState: @MainActor () -> Void = { [weak container, hermesAPIKeyBox] in
             guard UIApplication.shared.isProtectedDataAvailable else { return }
             container?.pairingStore.reloadPersistedConfigurationIfNeeded()
             // #137: a migration deferred by a pre-unlock launch lands here,
@@ -1062,15 +1006,6 @@ final class AppContainer {
                         container?.hermesAPIKey = stored
                         container?.chatBackendRouter?.refreshActiveBrain()
                         containerLog.notice("credential refresh: Sessions API key re-read after protected data became available")
-                    }
-                }
-            }
-            if shimTokenBox.value.isEmpty {
-                Task { @MainActor in
-                    let scope = profilesStore.activeProfile?.credentialScopeID
-                    if let stored = await secureStore.retrieve(key: BackendProfileScopedKeys.shimToken(scope)), !stored.isEmpty {
-                        shimTokenBox.value = stored
-                        container?.modelsShimToken = stored
                     }
                 }
             }
@@ -1374,7 +1309,7 @@ final class AppContainer {
         // provide an active model name (e.g. relay offline). Best-effort: if the
         // shim is unreachable or the token isn't set, the chip shows "HERMES".
         if chatStore.activeModelName == nil {
-            await seedActiveModelFromShim()
+            await seedActiveModelFromGateway()
             guard isCurrent() else { return }
         }
         // #136: the sensor foreground refresh drains the outbox — an inline
@@ -1574,7 +1509,7 @@ final class AppContainer {
         // Seed the model chip from the shim if the catalog didn't provide one
         // (e.g. relay offline). This path runs even when initialize() aborts.
         if chatStore.activeModelName == nil {
-            await seedActiveModelFromShim()
+            await seedActiveModelFromGateway()
             if Task.isCancelled { return }
         }
         await sensorUploadService?.handleAppDidBecomeActive()
@@ -1902,26 +1837,28 @@ final class AppContainer {
     /// Best-effort seed for the model chip label. Uses the shim's cached model
     /// list (no refresh — fast) and extracts the `model` field (the persistent
     /// default id). Only called when the command catalog didn't supply one.
-    private func seedActiveModelFromShim() async {
+    private func seedActiveModelFromGateway() async {
+        // #223 Lane 5: a persisted pick wins outright — no fetch needed.
+        if let pick = activeModelSelection {
+            let display = pick.modelID.split(separator: "/").last.map(String.init) ?? pick.modelID
+            chatStore.replaceCommandCatalog(chatStore.commandCatalog, activeModel: display)
+            return
+        }
         do {
-            // #136: launch/bootstrap-class probe — the short timeout keeps a
-            // black-holed shim (:8765) from stalling background init.
-            let options = try await modelsShimClient.fetchModels(
-                refresh: false,
-                timeout: RelayAPIClient.bootstrapProbeRequestTimeout
-            )
-            // #46: harvest the pricing this payload always carried.
-            ModelPricingCatalog.shared.ingest(options)
-            if let currentModel = options.model, !currentModel.isEmpty {
+            guard let client = sessionsChatClient else { return }
+            let catalog = try await client.fetchModelCatalog()
+            // #46: harvest the pricing this payload carries.
+            ModelPricingCatalog.shared.ingest(catalog)
+            if let currentModel = catalog.model, !currentModel.isEmpty {
                 chatStore.replaceCommandCatalog(
                     chatStore.commandCatalog,
                     activeModel: currentModel
                 )
-                containerLog.verbose("seedActiveModelFromShim: seeded '\(currentModel)'")
+                containerLog.verbose("seedActiveModelFromGateway: seeded '\(currentModel)'")
             }
         } catch {
-            // Shim unreachable / not configured — chip will show fallback ("HERMES")
-            containerLog.notice("seedActiveModelFromShim: shim unavailable — \(error.localizedDescription, privacy: .public)")
+            // Gateway unreachable — chip will show fallback ("HERMES")
+            containerLog.notice("seedActiveModelFromGateway: catalog unavailable — \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -2053,9 +1990,6 @@ final class AppContainer {
             gatewayKeyCache?.set(gatewayKey, forScope: scope)
             hermesAPIKey = gatewayKey
             chatAPIKeyBox?.value = gatewayKey
-            let shimToken = await secureStore.retrieve(key: BackendProfileScopedKeys.shimToken(scope)) ?? ""
-            modelsShimToken = shimToken
-            shimTokenBox?.value = shimToken
         }
         chatBackendRouter?.refreshActiveBrain()
 
@@ -2089,7 +2023,7 @@ final class AppContainer {
         }
         await refreshCommandCatalog(force: true)
         if chatStore.activeModelName == nil {
-            await seedActiveModelFromShim()
+            await seedActiveModelFromGateway()
         }
         await talkStore.refreshReadiness()
         await chatStore.refreshDirectHealth()
@@ -2131,11 +2065,6 @@ final class AppContainer {
 
     /// #116: a profile's stored models-shim token — the Server screen's
     /// honest shim probe follows /healthz with an authenticated call.
-    func shimToken(for profile: BackendProfile) async -> String? {
-        guard let secureStore else { return nil }
-        return await secureStore.retrieve(key: BackendProfileScopedKeys.shimToken(profile.credentialScopeID))
-    }
-
     /// Lane M (M-12): saves a gateway API key into a NAMED profile's slot.
     /// The active profile takes the full `saveHermesAPIKey` path (box +
     /// routing signal); other profiles update the Keychain + cache so the
@@ -2156,26 +2085,7 @@ final class AppContainer {
         }
     }
 
-    /// Persists the models-shim bearer token in the Keychain (under the
-    /// ACTIVE profile's slot) and updates the in-memory copy that
-    /// `ModelsShimClient` reads on each request.
-    func saveModelsShimToken(_ value: String) async {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        modelsShimToken = trimmed
-        shimTokenBox?.value = trimmed
-        guard let secureStore else { return }
-        let key = BackendProfileScopedKeys.shimToken(activeCredentialScope)
-        if trimmed.isEmpty {
-            await secureStore.delete(key: key)
-        } else {
-            await secureStore.store(key: key, value: trimmed)
-        }
-    }
 
-    fileprivate var shimTokenBox: MutableShimTokenBox? {
-        get { _shimTokenBox }
-        set { _shimTokenBox = newValue }
-    }
 }
 
 /// Reference-typed holder so the chat client's @MainActor closure captures by

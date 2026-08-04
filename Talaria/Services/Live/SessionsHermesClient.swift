@@ -538,45 +538,6 @@ final class SessionsHermesClient: HermesClientProtocol {
 
     // MARK: - Session lifecycle
 
-    /// Switches the active model. The Hermes agent dispatches `/model …` as a
-    /// command turn; the chosen model applies once a fresh session is created
-    /// — so the hop ends here, making "next session" mean the user's very
-    /// next message: it hops to a fresh session under the new model with the
-    /// journal transplanted. A model switch IS a brain hop (P1/#90).
-    ///
-    /// A command turn needs a session but NOT context: it reuses the current
-    /// hop when one exists, and otherwise posts through a bare throwaway
-    /// session — never `ensureHopForTurn()`, which would pay for a transplant
-    /// that `endHop()` immediately discards (and the user's next message
-    /// would pay for again).
-    ///
-    /// Returns the response text — it carries the authoritative
-    /// "Context: N tokens" for the switched model, which the CTX meter's
-    /// denominator reconciles against (#4).
-    @discardableResult
-    func switchModel(_ identifier: String) async throws -> String? {
-        let command = "/model \(identifier)"
-        var response: String?
-        // M-6: model switching is an ACTIVE-profile surface (shim + gateway
-        // pair). Only reuse the hop when it lives on the active profile — a
-        // command turn posted to a foreign hop would pin the model on the
-        // wrong host. A nil hop profile is the pre-Lane-M record, which can
-        // only be the migrated (active) profile.
-        let activeID = activeProfileIDProvider()
-        if let hop = journal.activeHop, journal.activeHopIsCurrent,
-           hop.profileID == nil || hop.profileID == activeID {
-            do {
-                response = try await postSyncChat(sessionId: hop.apiSessionId, profileID: hop.profileID, message: command, attachments: [])
-            } catch SessionsClientError.sessionNotFound {
-                journal.endHop()
-            }
-        }
-        if response == nil {
-            response = try await postSyncChat(sessionId: try await createBareSession(), profileID: nil, message: command, attachments: [])
-        }
-        journal.endHop()
-        return response
-    }
 
     // MARK: - Sessions list / open
 
@@ -1082,7 +1043,7 @@ final class SessionsHermesClient: HermesClientProtocol {
     }
 
     /// #145 Part A — for the Hermes-plane clients that **never stream**:
-    /// `ModelsShimClient` (`:8765`), `CronJobService`, `SkillsService`,
+    /// the retired models shim (`:8765`, #223 Lane 5), `CronJobService`, `SkillsService`,
     /// `InsightsService`. All four defaulted to `URLSession.shared` — 60s
     /// request over a **7-day** resource ceiling — and
     /// `seedActiveModelFromShim()` puts one of them directly in

@@ -145,7 +145,6 @@ final class ModelsSettingsModel {
 
 struct ModelsSettingsScreen: View {
     @Environment(AppContainer.self) private var container
-    @Environment(SettingsStore.self) private var settingsStore
     @Environment(\.dismiss) private var dismiss
 
     @State private var model: ModelsSettingsModel?
