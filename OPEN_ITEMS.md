@@ -13437,6 +13437,45 @@ a real chat turn observed stalled on an unanswerable approval (→ upstream
 conversation), or Owen asking for the cards to stop prompting (→ the small
 Manual/Off app lane).**
 
+## 247. 🐛 Failover is theater when the fallback host is dark: switching profiles to the Mac Mini "does absolutely nothing" — and nothing TOLD Owen the fallback was dead
+
+**FILED 2026-08-04 (~2 PM) from Owen at work, mid-outage:** *"the connection
+to ojamd failed. And i discovered if ojamd goes down, the way its set up,
+switching to the mac mini does absolutely nothing."*
+
+**Vantage-point evidence captured DURING the report (Mac Mini, same tailnet):**
+OJAMD `:8642` AND `:8000` both listening; authenticated `/health` → **200**.
+**The host was healthy — the PHONE's path was down** (its Tailscale at the
+work network, or iCloud Private Relay re-grabbing the route — the standing
+gotcha). Meanwhile the Mac Mini's own gateway had **nothing listening on
+`:8642`**: it has been deliberately stopped since 2026-08-02 (Owen's choice,
+recorded in the handoffs). So the profile switch re-pointed the app at a
+DARK host — with the phone's tailnet path likely dead, BOTH targets were
+unreachable from the phone, and "nothing" is what honest failure looked
+like, minus the honesty.
+
+**Two halves, different owners:**
+1. **Ops half (acted on immediately):** the Mac gateway was started back up
+   during the report so the fallback profile has a live target again. The
+   deeper truth: a fallback host that is off is not a fallback, and nothing
+   anywhere says which hosts are currently live. Whether the Mac gateway
+   should RUN persistently (launchd, reboot-proof, like OJAMD's services) is
+   **Owen's call** — it was stopped by his choice.
+2. **App half (the filed defect):** switching to a profile whose gateway is
+   unreachable produced **no visible verdict.** The app has the pieces —
+   the #146 Test Connection probe (5s verdict + latency), honest offline
+   console errors (#191's pass) — but a PROFILE SWITCH runs none of them
+   visibly. Candidate shape (unrouted, needs Owen's read of what the UI
+   actually showed): the switch runs the existing connection probe against
+   the new profile's gateway and surfaces the verdict inline (the #30-style
+   one-line banner), so a switch to a dark host SAYS "Mac Mini: unreachable"
+   within seconds instead of nothing.
+
+**Open question for Owen (needed before the app half is specced):** what did
+the UI show after the switch — header unchanged? Spinner? Old OJAMD session
+still on screen? "Does absolutely nothing" is the symptom; which nothing
+matters.
+
 ## 246. 🐛 A backgrounded remote turn shows the pending spinner forever when the stream ZOMBIFIES — recovery only arms on stream END, and a stream that never ends never arms it
 
 **FILED 2026-08-04 (~1 PM) from Owen's build-1978 test — the first run of the
