@@ -6313,6 +6313,22 @@ item overclaimed; and CLAUDE.md already references Xcode-beta3 throughout, no ed
 **Remaining (rides P-4):** docs/index.html positioning for the freemium free tier +
 screenshot refresh, batched with the App Store screenshot pass so shots are produced once.
 
+> **✏️ COPY HALF DONE 2026-08-04 (queue item 6, `claude/t27-140-docs-refresh` — Owen
+> reviews via the PR).** The positioning copy was deliberately DECOUPLED from the
+> P-4 screenshot batch: the launch pivot (local brain first, Hermes as the upgrade
+> tier) plus Lane 5 (shim retired) plus #238 (notifications removed) had left both
+> public surfaces actively wrong about what the app IS, and that could not wait on
+> shots. Swept: README intro inverted to on-device-first; status table (model
+> picking now gateway-native; the two notification rows honestly replaced with the
+> removed-by-design row; inbox row de-pushed); architecture diagram and network
+> notes down to two services with the shim named as retired; setup §5 is now
+> "nothing to run"; relay env table marks APNs keys legacy. Pages site: title +
+> meta + tagline + hero-sub repositioned, ON-DEVICE BRAIN feature card added, shim
+> claims corrected in the diagram/service card/feature card/setup step, relay APNs
+> mention dropped. **Still remaining, still batched with P-4: the screenshot
+> refresh** (docs/img/ predates the theming + local-brain UI) — shots produced
+> once, with the App Store pass.
+
 **Logged 2026-07-20 (Owen).** Public-facing repo surfaces contradict current reality:
 - **README:26** still claims voice is "currently wedged by an iOS 27 beta seed regression…
   revisit on the next seed" — that rule was DISPROVEN 2026-07-16 (root cause was app-side

@@ -3,9 +3,9 @@
 > [!NOTE]
 > Talaria is an independent community project. It is not affiliated with, endorsed by, or part of [Nous Research](https://nousresearch.com/) or the official [Hermes Agent](https://github.com/NousResearch/hermes-agent) project.
 
-Talaria is a native SwiftUI iPhone client for a self-hosted [Hermes AI agent](https://github.com/NousResearch/hermes-agent). It adds a native iOS app, a lightweight relay sidecar, and a models shim so Hermes can move between chat, phone, sensors, and voice — without turning your runtime into a hosted service.
+Talaria is a native SwiftUI iPhone app with a **fully on-device chat brain** (Apple's FoundationModels framework): streaming chat, a device tool belt (calendar, reminders, contacts, weather, health, alarms — every action confirmed in-app), sessions, themes, and voice, with zero host setup and no data leaving the phone.
 
-It also works **standalone**: an on-device chat brain (Apple's FoundationModels framework) runs with zero host setup, and pairing your Hermes machine upgrades the app with your full agent, your models, and the sensor pipeline.
+Pairing a self-hosted [Hermes AI agent](https://github.com/NousResearch/hermes-agent) is the **upgrade tier**: it adds your full agent, your desktop model roster, server sessions, and the sensor pipeline — through a lightweight relay sidecar, without turning your runtime into a hosted service.
 
 This repository (**Talaria-27**) is the active development line, targeting **iOS 27** and built with Swift 6.2 / strict concurrency. The original iOS 26 line lives at [ChronoRixun/Talaria](https://github.com/ChronoRixun/Talaria) and is stable but frozen.
 
@@ -22,13 +22,12 @@ Talaria is a working alpha, developed and used daily on real hardware. Honestly,
 | Streaming chat (SSE) | Working — reasoning and answer channels separated, background continuation, reconciliation |
 | On-device chat | Working — Apple FoundationModels, no host required; a Private Cloud Compute tier shows only when the entitlement and availability check actually pass (beta) |
 | Tool calls & agent files | Working |
-| Inbox / Directives & daily briefing | Working — agent pushes actionable items (approvals, reminders, briefings) to the phone |
+| Inbox / Directives & daily briefing | Working — actionable items (approvals, reminders, briefings) land in the in-app inbox; approve or dismiss in place |
 | Sensor pipeline (location / HealthKit / motion) | Working — deliberate opt-in (off by default) with per-sensor grants; resume-from-background can occasionally be flaky |
-| Model switching (shim) | Working — the shim sets the persistent default, the gateway pins the live session |
+| Model picking | Working — the full provider roster comes from the gateway's own API; picks apply as a per-turn model lock plus a session pin. The old models shim is retired — no third service |
 | Widgets & Live Activities | Working — status, health, and briefing widgets; alarm Live Activity; lock-screen controls |
 | Share extension | Working — share URLs, images, files, and text into Hermes from any app |
-| Local notifications | Working |
-| Remote push (APNs) | Working — bring your own APNs key (.p8), configured on the relay |
+| Notifications (local + push) | Removed by design — the app posts no notifications and registers for no push; chat, the inbox, and Live Activities carry state in-app |
 | Voice mode | Working — realtime speech-to-speech plus an on-device fallback engine; echo/self-interruption tuning and connect hardening actively in progress |
 | CarPlay | Parked — scene and voice manager are built but disabled pending Apple's discretionary capability grant |
 
@@ -45,38 +44,35 @@ One thing worth knowing up front: **pairing is optional.** On-device chat works 
 - **Voice mode** — real-time WebRTC speech-to-speech, server-side voice, continuous mic, mute/barge-in, multimodal image support; falls back to an on-device engine when the relay is unpaired or unreachable
 - **Inbox / Directives** — your agent pushes to-dos, approvals, reminders, and a daily briefing to the phone; approve or dismiss in place, and the verdict lands back on the host
 - **Sensor pipeline** — location, 11 HealthKit metrics, and CoreMotion activity delivered to Hermes in the background; your agent gets live context about you and you own all the data
-- **Live model switching** — pick from your full provider roster mid-session; the models shim sets the persistent default and the gateway pins the running session (no restart)
+- **Model picking, gateway-native** — pick from your full provider roster in Settings → Models; the pick rides every turn as a model lock and pins the live session through the gateway itself (no shim, no restart)
 - **Agent files** — files your agent generates surface as tappable share bubbles in chat
 - **Widgets & Live Activities** — agent status, health tiles, and briefing widgets; alarm Live Activities; lock-screen toggle controls
 - **Share extension** — send a web URL, up to four images, a file, or plain text straight into Hermes from the iOS share sheet
 - **Siri & App Intents** — ask Hermes or start a voice session hands-free; conversations index into Spotlight
 - **Device tool belt** — the agent can read your calendar, reminders, contacts, weather (WeatherKit), health, and media, and set real alarms/timers (AlarmKit) — every action confirmed in-app before it fires
 - **Multi-host profiles** — pair more than one Hermes machine (e.g. a desktop and a dev box); each profile keeps its own API key in the Keychain
-- **Full settings suite** — System, Uplink, Server, Models, Voice, Appearance, Sessions, Notifications, Privacy, Diagnostics, Developer — everything configurable in-app, including a theme system, 30+ alternate app icons, and an optional Face ID app lock
+- **Full settings suite** — System, Uplink, Server, Models, Voice, Appearance, Sessions, Privacy, Diagnostics, Developer — everything configurable in-app, including a full-bleed theme channel browser (the live app is the preview), 30+ alternate app icons, and an optional Face ID app lock
 
 ---
 
 ## Architecture
 
-Three independent paths, each talking to a dedicated service on your host:
+Two independent paths, each talking to a dedicated service on your host:
 
 ```
 iPhone (Talaria)
   │
-  ├─ Chat & sessions  ──────→  Hermes Sessions API  :8642
-  │    SSE streaming, sync         hermes gateway run
+  ├─ Chat, sessions & models ─→  Hermes Sessions API  :8642
+  │    SSE streaming, sync          hermes gateway run
+  │    model roster + per-turn lock
   │    Bearer auth (API_SERVER_KEY)
   │
-  ├─ Sensors, push, inbox, ──→  HermesMobile Relay   :8000
-  │    files, voice bootstrap      sidecar (Python/uvicorn)
-  │                                → connector → hermes_mobile MCP tools
-  │
-  └─ Model switching  ──────→  Models Shim          :8765
-       Live model list + swap      tools/models-shim/shim.py
-       Per-session, no restart     (optional)
+  └─ Sensors, inbox, files, ──→  HermesMobile Relay   :8000
+       voice bootstrap             sidecar (Python/uvicorn)
+                                   → connector → hermes_mobile MCP tools
 ```
 
-Chat connects **directly** to the Sessions API — it never transits the relay. The relay carries everything else phone-facing: pairing and auth, sensor ingestion, APNs push, the inbox/directives channel, scheduled runs (e.g. the daily briefing), agent-file downloads, and the voice WebRTC bootstrap. All three services are independently restartable. The verified SSE event taxonomy and API contract live in [CLEAN_CHAT_PATH.md](CLEAN_CHAT_PATH.md).
+Chat connects **directly** to the Sessions API — it never transits the relay — and model selection rides the same connection (roster, per-turn lock, session pin). The relay carries everything else phone-facing: pairing and auth, sensor ingestion, the inbox/directives channel, scheduled runs (e.g. the daily briefing), agent-file downloads, and the voice WebRTC bootstrap. Both services are independently restartable. The verified SSE event taxonomy and API contract live in [CLEAN_CHAT_PATH.md](CLEAN_CHAT_PATH.md). (Earlier versions used a third service — a models shim on `:8765`; it is retired and current builds never call it.)
 
 ---
 
@@ -125,8 +121,8 @@ Key environment variables (`.env` in the relay directory):
 | `INTERNAL_API_KEY` | Change it from the default — the relay logs a security warning at startup if you don't |
 | `PUBLIC_BASE_URL` | The URL the phone uses to reach the relay (e.g. `http://your-tailscale-ip:8000/v1`) |
 | `AGENT_FILES_DIR` | Directory the relay is allowed to serve agent-generated files from (enables in-chat downloads) |
-| `GATEWAY_API_KEY` | Your `API_SERVER_KEY` — lets the relay watch run completion for push notifications |
-| `APNS_KEY_PATH` / `APNS_KEY_ID` / `APNS_TEAM_ID` | Remote push (optional; bring your own .p8) |
+| `GATEWAY_API_KEY` | Your `API_SERVER_KEY` — lets the relay query the gateway on the phone's behalf |
+| `APNS_KEY_PATH` / `APNS_KEY_ID` / `APNS_TEAM_ID` | Legacy remote push (current app builds don't register for push — safe to omit) |
 
 Bind to `0.0.0.0` for Tailscale reachability. A `Dockerfile`, `docker-compose.yml`, and `fly.toml` are included if you'd rather run the relay containerized or hosted.
 
@@ -143,19 +139,9 @@ hermes-mobile setup        # validates Hermes, pairs against your relay, registe
 
 See [connector/README.md](connector/README.md) for the full wizard options (including `--skip-mcp` and background-service install).
 
-### 5 — (Optional) Run the models shim
+### 5 — Model switching: nothing to run
 
-```bash
-cd tools/models-shim
-python shim.py
-```
-
-Required only if you want live model switching in the app. Listens on `:8765`. Two gotchas:
-
-- It imports Hermes internals (`hermes_cli.*`), so run it from a Python environment where Hermes is installed.
-- `TALARIA_SHIM_HOST` defaults to the author's own Tailscale IP — set it explicitly (e.g. `0.0.0.0` or your host's tailnet IP) before first run.
-
-Auth is a Bearer token at `~/.hermes/talaria_shim_token` (auto-created on first run); the shim also accepts your `API_SERVER_KEY`. See [tools/models-shim/README.md](tools/models-shim/README.md).
+Model picking is built into the gateway connection — the app reads the provider roster from the Sessions API and applies your pick as a per-turn model lock plus a session pin. No extra service. (The legacy models shim in `tools/models-shim/` served this role for older builds and is no longer used by the app.)
 
 ### 6 — Generate and build the Xcode project
 
@@ -199,7 +185,7 @@ TalariaTests/         Unit tests (Swift Testing)
 TalariaUITests/       UI tests (XCTest/XCUITest)
 relay/                HermesMobile relay sidecar (Python/FastAPI)
 connector/            Host-side bridge: relay connection, hermes_mobile MCP tools, pairing
-tools/models-shim/    Model-switching shim (Python)
+tools/models-shim/    Legacy model-switching shim (Python; retired — current app builds are gateway-native)
 tools/appicons/       Alternate app icon gallery renderer
 project.yml           XcodeGen project definition (source of truth)
 design/               UI design reference files + theme galleries
@@ -219,7 +205,7 @@ dispatch/             In-flight agent task specs (temporary)
 
 ## Network notes
 
-- All three services (`8642`, `8000`, `8765`) should be reachable from your phone's Tailscale IP
+- Both services (`8642`, `8000`) should be reachable from your phone's Tailscale IP
 - Bind each service to `0.0.0.0`, not `127.0.0.1`
 - Add Windows Firewall inbound rules for each port if on Windows (a Tailscale process-level allow rule also covers this)
 - iCloud Private Relay must be disabled (or Tailscale IPs excluded) for HTTP to Tailscale addresses
