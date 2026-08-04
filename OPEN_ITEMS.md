@@ -13286,7 +13286,14 @@ same evening, so re-test before filing upstream. App-side follow-on question (no
 item): whether a run that yields no assistant turn within some horizon should surface
 a visible dead-run state instead of quiet nothing — rides the #235 family if ever built.
 
-## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **FILED 2026-08-03 ~7:49 PM from 238-D trial 2; SPEC APPROVED same night (both fixes) — BUILD HELD by Owen pending post-compaction go; #239 queued behind it**
+**Re-test vehicle (2026-08-03 late night, from the v0.20.0 audit):** `POST
+/api/sessions/{id}/chat` accepts a per-request `model` on 0.20.0 — one non-stream
+turn with `model` set to the deepseek id reproduces (or clears) this without
+touching the session default. Audit route diff shows +1,707 lines in
+`api_server.py` incl. "model-lock plumbing," so 0.20.0 MAY have changed provider
+model-id resolution — no evidence either way yet.
+
+## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **FILED 2026-08-03 ~7:49 PM from 238-D trial 2; SPEC APPROVED same night (both fixes); BUILD STARTED post-compaction same night (Owen: "lets continue"); #239 queued behind it**
 
 **Evidence (Owen, 1908, OJAMD, kimi-k3, screenshot):** the 238-D pass itself was clean
 (no banner; answer on open), but the transcript showed his question TWICE — the server's
@@ -14539,6 +14546,31 @@ lane runs, per the standing rule.
 > whether a phone-set durable default is worth an upstream PR at all.
 > Consequence when built: the CONFIRM-for-expensive-models flow (CLAUDE.md
 > "Model switching") retires with the shim.
+>
+> **📡 v0.20.0 API AUDIT PROCESSED — 2026-08-03 late night (Owen had Hermes scour
+> the surface; archived `handoffs/sessions-api-v0.20.0-audit.md`; method = live
+> probes on OJAMD :8642 + route-table source + git diff vs the 0.19.x tag).**
+> Route-diff answer to the prime question: **0.20.0 added exactly TWO routes**
+> (`GET /api/model/options`, `POST /api/sessions/{id}/model`) — **still no durable
+> set-default route.** BUT the audit resolves the design fork the other way:
+> `POST /api/sessions/{id}/chat` (and `/chat/stream`) accepts a **per-request
+> `model` + `model_options` + `require_model_lock`**, and per-turn ephemeral
+> `system_message`/`instructions`. If that holds, the app OWNS the default (a
+> persisted setting) and sends it per-turn — the shim's persistent set-default
+> becomes unnecessary for the phone, **zero upstream PR**, the exact
+> fix-app-side shape the hardening doctrine prefers. Shim surface would then be
+> fully gateway-covered: list = `/api/model/options` (name+provider is all Owen
+> kept), selection = per-turn `model` (+ optional session lock). Loss, named
+> honestly: a phone-side default no longer changes the HOST's default for other
+> surfaces (Discord/CLI) — that was shim-only behavior and dies with it.
+> **Verification owed before designing on it (doctrine 6):** one functional probe
+> from our side — send a chat turn with `model` set, confirm the answering model
+> differs from the session default. The audit verified routes live but the
+> per-request-`model` FIELD behavior warrants its own probe. Also banked from the
+> audit: profile multiplexing `/p/{profile}/...` is live; `PATCH
+> /api/sessions/{id}` accepts `title`/`end_reason` only; `X-Hermes-Session-Key`
+> memory-scope header; ⚠️ `jobs_admin:false` capabilities flag contradicts live
+> jobs routes — never code against that flag.
 
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
 Couple that with ending the shim, and we won't have very much running anymore separately."*
