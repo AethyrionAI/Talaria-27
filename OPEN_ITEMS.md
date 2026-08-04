@@ -14474,7 +14474,38 @@ the control, and changing any tool's schema moves the belt's token cost while La
 > - **Bar 3.1:** Lane 1's prompt 1 ("What's the weather going to be like in Gulfport
 >   tomorrow") answers with a **real forecast** in **< 15s** and **≤ 3 tool calls**.
 
-## 229. 🐛 The on-device window is 8,192 tokens and the armed belt lives INSIDE it — the pressure question, and whether #26's retry should re-arm at all
+## 229. 🐛 The on-device window is 8,192 tokens and the armed belt lives INSIDE it — the pressure question, and whether #26's retry should re-arm at all — **✅ BUILT 2026-08-04 (on-deck lane 1); 229-A/B GREEN, 229-C met on archived numbers**
+
+> **✅ BUILT 2026-08-04, same lane that recorded the dispositions below.**
+> `rebuildForOverflowRetry` (LocalChatBackend) sets `turnRoutedToolless =
+> true` and rebuilds with `forceCondense: true`; both #26 catch branches
+> (`send` and `streamTurn`) now call it, logging
+> `context window exceeded — condensing and retrying toolless (#229)`.
+> TDD watched-RED (missing-member ×2, the API-not-existing failure class),
+> then GREEN: `ContextOverflowGuardTests` 9 → **11**, both new tests passing —
+> and the end-to-end one exercises the REAL rebuild on the sim (session
+> construction included), not just the state flag.
+> - **229-A MET (sim):** armed precondition asserted, then after the retry
+>   rebuild `effectiveOfferedTools` is empty and the #228 budget record of
+>   the rebuild carries `toolCount == 0`.
+> - **229-B MET (sim):** instructions move to
+>   `productionToollessInstructions` — exact equality, the drift-proof pin.
+> - **229-C MET (archived device numbers, no new run):** belt ~1470 tok
+>   (L0-C ×2) vs the 26-token kill margin — the retry frees ~56× the margin
+>   that killed the filing turn; #215's F486F103 already measured
+>   routed-toolless composition clean 10/10.
+> - **Honest gaps:** (1) the catch-branch→helper linkage is pinned by
+>   construction (3 lines of straight-line code) — the loop cannot run
+>   without a live model, so no unit drives the branch itself; (2) the
+>   device half stays opportunistic as pre-registered — post-#230 overflow
+>   is rare, and any future verbose log's `retrying toolless (#229)` line
+>   must be followed by a `session budget: 0 tool(s)` line.
+> - **Named defect left OPEN in this entry:** #225's refusal strings
+>   (~45 tok each) still spend tokens inside the window they protect.
+>   Unaddressed here — weight shrank with routing (#215) and the #232 cut
+>   (max 3 refusal strings before the phase ends structurally), but the
+>   candidate corrections (terser refusals / dropping tools from the
+>   session) remain valid if pressure ever resurfaces.
 
 > **📐 DISPOSITIONS RECORDED 2026-08-04 (lane opened from Owen's on-deck queue,
 > before any code):**
