@@ -222,7 +222,7 @@ needed since project setup: no files had been added since.)
 
 ---
 
-## 4. 💤 Expensive-model confirm guard (wired, dormant)
+## 4. 💤 Expensive-model confirm guard (wired, dormant) — **⚰️ RETIRED 2026-08-04 (PR #255 merged): the guard was shim machinery; Owen waived it 2026-08-03 ("I don't care about expensive guard") and Lane 5 deleted the shim + the CONFIRM card. Pricing stays visible in the gateway-backed picker rows. Reopen only as a NEW app-side feature if a spend-guard is ever wanted again.**
 
 The app handles the shim's `{ok:false, confirm_required:true, confirm_message}` response
 (→ confirm dialog → re-POST with `confirm_expensive:true`). This comes from the shim
@@ -270,7 +270,7 @@ the `tailscale serve` HTTPS work. Add Shelley as the second tester when ready.
 
 ---
 
-## 9. ✅ Model transition overlay — built + both regressions fixed
+## 9. ✅ Model transition overlay — built + both regressions fixed — **AND THE HANG PATH ITSELF IS GONE 2026-08-04 (PR #255 merged): Lane 5 deleted the gateway `/model` session pin (`switchModel`/`pinSessionInBackground`) entirely — apply() is a synchronous local persist now, so the ~37s-hang class this item worked around no longer exists.**
 
 When a model is tapped, the dual-write runs: shim `POST /models/default` **and** the
 gateway `/model` pin (the latter creates a session + sends a command turn and can be
@@ -13310,7 +13310,7 @@ survives as a component either way. Current anatomy for the brainstorm:
 glowSection → gridSection → appIconRow → togglePanel (Reduce Motion, Haptic
 Feedback); `ThemesSettingsScreen` = cards + seasonal toggle + accents.
 
-## 243. 🎨 Theme selection as a SLIDING CARD GALLERY (toggle option) — **FILED 2026-08-03 night, UNROUTED (Owen's note-for-later, no design) — rides #244's rework when that routes**
+## 243. 🎨 Theme selection as a SLIDING CARD GALLERY (toggle option) — **✅ SUBSUMED 2026-08-04 by #244's channel browser (PR #258 merged): theme selection IS a full-bleed sliding gallery now — not as a toggle beside the grid, but as the whole surface. If Owen's device pass bounces the browser, this idea un-subsumes and goes back on the shelf.**
 
 **Owen, immediately after approving #239's merge, verbatim:** *"I do want to
 redesign Theme selection into a sliding card gallery (toggle option), just a
@@ -13555,7 +13555,7 @@ next outbox drain re-sends the question and Hermes answers it again, unprompted.
    history for an identical user message at/after its sentAt; adopt instead of
    re-send. Belt-and-braces; also heals rows parked before the fix.
 
-## 239. 🎨 Appearance screen: the theme picker buries everything below it — Themes should be a tappable sub-section — **✅ CLOSED 2026-08-03 night — all three bars met; merged (PR #254); 239-C passed Owen's corded visual check ("Ok yeah it works")**
+## 239. 🎨 Appearance screen: the theme picker buries everything below it — Themes should be a tappable sub-section — **✅ CLOSED 2026-08-03 night — all three bars met; merged (PR #254); 239-C passed Owen's corded visual check ("Ok yeah it works"). SUPERSEDED one day later by #244's channel browser (PR #258, 2026-08-04): ThemesSettingsScreen deleted; the live-re-skin guarantee carries forward by construction; `themesRowValue` + its two tests retired with the row.**
 
 > **239-C MET — Owen, on device (corded branch build, cold-launched with
 > `--terminate-existing`), same night:** Appearance opens compact, the
