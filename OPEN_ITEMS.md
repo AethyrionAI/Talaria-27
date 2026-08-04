@@ -9241,7 +9241,40 @@ warm. A counter nobody increments is how the first one sat unexamined for two we
 
 Logged 2026-07-24 (review of PR #144).
 
-## 183. 🧹 Tests that pass without exercising what they name — three instances, one shape
+## 183. 🧹 Tests that pass without exercising what they name — three instances, one shape — **✅ CLOSED 2026-08-04: Phase 2 mutation check RUN, 6 invariants verified real, 1 coverage gap found and fixed**
+
+> ## ✅ PHASE 2 RAN 2026-08-04 (quality-batch lane; Owen queued the batch on-deck,
+> ## which supersedes the "after the device pass" hold — device passes have since
+> ## landed 2026-08-02/03/04). Per-invariant verdicts, every mutation reverted
+> ## before the next (verified by `git status` + `git diff` each time; final tree
+> ## carried ONLY the new test):
+>
+> | target | mutation | verdict |
+> |---|---|---|
+> | **#137 consent inversion** (the most expensive failure on the list) | no-blob branch grants health+location | **PASS** — `pairedDeviceWithoutBlobGrandfathersStreamingOnlyNotHealthOrLocation` RED on both flipped assertions, 5 tests executed |
+> | **#61 `degenerateCardReason`** | unconditional `nil` | **PASS** — every trip-branch test RED (identical, containment, repetition, preamble, end-to-end, single-field) |
+> | **#127 monetization fail-open** | `existingPairing` → `.showPaywall` | **PASS** — `existingPairingAlwaysPassesRegardlessOfEntitlement` RED across its whole state×cache matrix |
+> | **#172/#168a field-mode dead-end guard** | `offersReturnToList` drops `hasPlatformList` | **PASS** — `noPlatformListMeansNoModeToggleInEitherDirection` RED, 7 executed |
+> | **#174 downscale, renderer half** | `format.scale = 1` pin removed | **PASS** — 4 of 5 tests RED |
+> | **#174 downscale, measurement half** | `* image.scale` dropped | **NOT OBSERVABLE → GAP FIXED.** Whole suite stayed GREEN because every fixture was scale-1 (points == pixels). Not a masked test — a fixture that cannot distinguish the fixed code from half-reverted code. Fixed in this lane: `threeXScaleImageIsStillCappedInPixels` (3×-scale image, points 1344 < cap, pixels 4032 > cap) — RED under the mutation (ONLY it; the other 5 stayed green, confirming the gap), GREEN on production. Suite 1574 → **1575** on this branch |
+> | #133 push idempotency / #146 derived Bool | — | **MOOT** — #238 deleted the entire push-registration surface; zero references (re-verified today) |
+>
+> **The Phase-1 lesson recurred INSIDE this run, twice:** `-only-testing:` with a
+> FILE name (`SensorOptInTests`) and with a FUNCTION path both silently ran
+> **`Executed 0 tests` under `TEST SUCCEEDED`** — each nearly minted a false
+> MASKED verdict. Suites in this repo are named per-struct, not per-file
+> (`SensorGrandfatheringTests` lives in `SensorOptInTests.swift`), and the
+> function-level filter doesn't match swift-testing tests at all here. **Read
+> the executed count before believing any green — including a mutation run's.**
+>
+> **Close accounting per the spec's full-lane criteria:** Phase 1 counts
+> reported (2026-08-02, below) ✓ · Phase 2 run against the prioritized list
+> with per-test verdicts ✓ · clear-cut fix landed (+1 test), nothing left to
+> file ✓ · no mutation committed ✓ · suite green with the delta accounted ✓.
+> **Deliberately a prioritized SAMPLE (the spec forbids mutating across the
+> whole suite)** — six invariants proven, not 1,500. Instance 3
+> (`CondenserFidelityTests` skip-not-pass) stays with **#93**, its owner; the
+> gate has reported skips since Phase 1.
 
 **Raised 2026-07-24 (Owen) after the second instance surfaced in one bundle.** Three independent
 findings now share a shape, which makes it a pattern rather than a run of accidents:
