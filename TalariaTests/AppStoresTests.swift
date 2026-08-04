@@ -1187,6 +1187,93 @@ struct AppStoresTests {
         #expect(Conversation.dedupingAdoptedEchoes(twice).count == 4)
     }
 
+    // MARK: - #248: the adoption merge's unconfirmed-locals selection
+    //
+    // Owen's build-1987 dupe: the gateway transcript carries NO
+    // clientMessageID, so the just-sent local user row failed both id
+    // confirmations and was re-appended BELOW the recovered reply. The
+    // selection gains a content-claim tier for user rows: each refreshed
+    // user row lacking clientMessageID confirms at most ONE
+    // content-identical local user row.
+
+    /// 248-A — Owen's exact shape: server echoes the user row (server id,
+    /// no clientMessageID) plus the reply; the optimistic local must read
+    /// as CONFIRMED, not get re-appended.
+    @Test func adoptedServerCopyConfirmsTheLocalUserRowByContent() {
+        let clientID = UUID()
+        let local = [Message(id: clientID, clientMessageID: clientID, sender: .user,
+                             content: "What model are you using", status: .working)]
+        let refreshed = [
+            Message(sender: .user, content: "What model are you using", status: .delivered),
+            Message(sender: .hermes, content: "deepseek-v4-flash, via the deepseek provider", status: .delivered),
+        ]
+        #expect(ChatStore.unconfirmedLocalMessages(local: local, refreshed: refreshed).isEmpty)
+    }
+
+    /// 248-B — repeat safety: two identical in-flight sends, server has ONE
+    /// so far — exactly one local row stays unconfirmed (dequeue counting).
+    @Test func contentClaimConfirmsAtMostOneLocalPerServerRow() {
+        let firstID = UUID(), secondID = UUID()
+        let local = [
+            Message(id: firstID, clientMessageID: firstID, sender: .user, content: "yes", status: .working),
+            Message(id: secondID, clientMessageID: secondID, sender: .user, content: "yes", status: .sending),
+        ]
+        let refreshed = [Message(sender: .user, content: "yes", status: .delivered)]
+        let unconfirmed = ChatStore.unconfirmedLocalMessages(local: local, refreshed: refreshed)
+        #expect(unconfirmed.count == 1)
+    }
+
+    /// 248-C — pin: an echoed clientMessageID confirms its row regardless of
+    /// content (the pre-#248 tiers are untouched).
+    @Test func echoedClientMessageIDStillConfirms() {
+        let clientID = UUID()
+        let local = [Message(id: clientID, clientMessageID: clientID, sender: .user,
+                             content: "original text", status: .working)]
+        let refreshed = [Message(clientMessageID: clientID, sender: .user,
+                                 content: "server-normalized text", status: .delivered)]
+        #expect(ChatStore.unconfirmedLocalMessages(local: local, refreshed: refreshed).isEmpty)
+    }
+
+    /// 248-D — pin: with an empty refresh, a just-sent local survives — the
+    /// vanish-protection this pass exists for.
+    @Test func inFlightSendSurvivesAnEmptyRefresh() {
+        let clientID = UUID()
+        let local = [Message(id: clientID, clientMessageID: clientID, sender: .user,
+                             content: "hello", status: .sending)]
+        #expect(ChatStore.unconfirmedLocalMessages(local: local, refreshed: []).count == 1)
+    }
+
+    // MARK: - #247 B2: the profile-switch verdict (bars 247-B)
+
+    /// The exact strings are the product surface — pinned.
+    @Test func switchVerdictNamesEveryOutcome() {
+        #expect(AppContainer.profileSwitchNotice(
+            newProfileName: "Mac Mini", verdict: .online,
+            previousProfileName: "OJAMD", previousVerdict: .online
+        ) == "Mac Mini: gateway online.")
+        #expect(AppContainer.profileSwitchNotice(
+            newProfileName: "Mac Mini", verdict: .unkeyed,
+            previousProfileName: nil, previousVerdict: nil
+        ) == "Mac Mini: gateway answering, but its API key was rejected.")
+        #expect(AppContainer.profileSwitchNotice(
+            newProfileName: "Mac Mini", verdict: .unreachable,
+            previousProfileName: "OJAMD", previousVerdict: .online
+        ) == "Mac Mini: gateway unreachable.")
+        #expect(AppContainer.profileSwitchNotice(
+            newProfileName: "Mac Mini", verdict: .unreachable,
+            previousProfileName: nil, previousVerdict: nil
+        ) == "Mac Mini: gateway unreachable.")
+    }
+
+    /// The all-hosts-dead diagnosis — the sentence Owen had to derive by RDP
+    /// elimination. Both dead ⇒ the problem is the phone, and the app says so.
+    @Test func switchVerdictDiagnosesTheAllHostsDeadShape() {
+        #expect(AppContainer.profileSwitchNotice(
+            newProfileName: "Mac Mini", verdict: .unreachable,
+            previousProfileName: "OJAMD", previousVerdict: .unreachable
+        ) == "Mac Mini is unreachable — and so is OJAMD. Every host is failing; check this phone's network or Tailscale.")
+    }
+
     @Test func sweepDedupesEmptyShellsOnlyWhenActivitiesMatch() {
         let shellA = echoRow(.hermes, "", ts: 1_000,
                              activities: [ToolActivity(label: "terminal", startedAt: Date(timeIntervalSince1970: 1_000), isActive: false, detail: nil)])

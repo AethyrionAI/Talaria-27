@@ -145,6 +145,38 @@ struct NativeVoicePipelineTests {
         #expect(!VoiceEngineRouter.shouldFallBackToNative(connectionState: .connecting, blockedReason: nil))
     }
 
+    // MARK: - #247 B1: the timed-out start (bars 247-A)
+    //
+    // Owen's outage lockup: a black-holed relay (tailnet drop, not refuse)
+    // rode the shared 300s-timeout client, so "ESTABLISHING LINK" sat for
+    // minutes and the refused-path fallback never fired. A timed-out start
+    // loses the right to claim "still connecting."
+
+    @Test func timedOutStartFallsBackEvenWhileConnecting() {
+        #expect(VoiceEngineRouter.shouldFallBackToNative(
+            connectionState: .connecting, blockedReason: nil, timedOut: true))
+        #expect(VoiceEngineRouter.shouldFallBackToNative(
+            connectionState: .checking, blockedReason: nil, timedOut: true))
+        #expect(VoiceEngineRouter.shouldFallBackToNative(
+            connectionState: .failed, blockedReason: nil, timedOut: true))
+    }
+
+    /// A start that connected right at the deadline SUCCEEDED — late is not
+    /// failed, and bouncing a live connection would be the #221 sin.
+    @Test func lateButConnectedStartIsNotBounced() {
+        #expect(!VoiceEngineRouter.shouldFallBackToNative(
+            connectionState: .connected, blockedReason: nil, timedOut: true))
+    }
+
+    /// The microphone exemption outranks the timeout: a mic denial blocks
+    /// BOTH engines, so falling back just moves the same dead end.
+    @Test func microphoneDenialStillExemptsEvenWhenTimedOut() {
+        #expect(!VoiceEngineRouter.shouldFallBackToNative(
+            connectionState: .blocked,
+            blockedReason: "Microphone access is required for talk mode.",
+            timedOut: true))
+    }
+
     // MARK: - Router seam behavior
 
     /// Scriptable engine stub: enough of the protocol to drive the router.
