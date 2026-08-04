@@ -13263,6 +13263,37 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **FILED 2026-08-03 ~7:49 PM from 238-D trial 2, UNROUTED**
+
+**Evidence (Owen, 1908, OJAMD, kimi-k3, screenshot):** the 238-D pass itself was clean
+(no banner; answer on open), but the transcript showed his question TWICE — the server's
+copy in correct position above the answer, and a second copy at the BOTTOM stamped
+**7:48 PM with the queued clock glyph** (#90 compose-outbox shape). Not #237's family:
+that was answer echoes with fresh identities; this is the QUESTION, parked by
+classification.
+
+**Mechanism (read tonight, `SessionsHermesClient.swift` ~445–457):** the stream-error
+branch routes to `.unreachable` (→ durable `.queued` parking, auto-resend on drain)
+only when `runStarted == false`. Backgrounding fast kills the SSE connection in the
+window where the server has ACCEPTED the run but the client has not yet parsed
+`run.started`; the teardown surfaces as an unreachable-family `URLError`
+(`isUnreachableError`: notConnectedToInternet / cannotConnectToHost / dnsLookupFailed
+/ …), so the app concludes "never reached the API" — while the run is in fact live
+server-side (the answer's existence proves it). #235 covered every window AFTER
+`run.started`; this is the same hole one event earlier.
+
+**Consequence:** cosmetic dupe now, and the parked row is an ARMED AUTO-RESEND — the
+next outbox drain re-sends the question and Hermes answers it again, unprompted.
+
+**Candidate fixes (none built; Owen routes):**
+1. **Track `responseReceived` separately from `runStarted`** — once HTTP
+   response bytes/status have arrived, the turn provably reached the API: never
+   park it as queued; arm recovery instead (`.interrupted` with nil runId — the
+   reconcile already resolves positionally).
+2. **Drain-time dedupe guard** — before re-sending a queued row, check server
+   history for an identical user message at/after its sentAt; adopt instead of
+   re-send. Belt-and-braces; also heals rows parked before the fix.
+
 ## 239. 🎨 Appearance screen: the theme picker buries everything below it — Themes should be a tappable sub-section — **FILED 2026-08-03 evening, UNROUTED**
 
 **Owen, on 1908 (which relocated the haptics toggle into Appearance per #238):** *"we
@@ -13274,7 +13305,16 @@ never scrolls to Reduce Motion / Haptic Feedback / glow / grid. Candidate shape:
 owns the picker + accent slots; the feel toggles stay on the top level. Small lane;
 Owen routes.
 
-## 238. ✂️ NOTIFICATION REMOVAL — the pivot's first cut (post-#235/#237, banners are scaffolding around a fixed defect) — **MERGED (PR #252) + OTA 1908 staged; 238-A/B/C/E MET; 238-D owed to Owen's install**
+## 238. ✂️ NOTIFICATION REMOVAL — the pivot's first cut (post-#235/#237, banners are scaffolding around a fixed defect) — **✅ CLOSED 2026-08-03 evening — ALL FIVE BARS MET same day as filing**
+
+> **✅ 238-D MET — trial 2 (Owen, 1908, ~7:49 PM, kimi-k3, the Steam friends
+> sweep: 17 tool calls completing server-side while backgrounded).** No banner
+> arrived; the answer was on screen at open with no reload — via the normal
+> merge, not the reconcile (no RECOVERED marker needed; the healthier shape).
+> The question-dupe observed in the same trial is NOT this item's failure — it
+> is the pre-`run.started` parking hole, filed as #240 with mechanism and fix
+> candidates. **#238 CLOSED: filed, spec'd, built (−1,242 lines), gated, merged,
+> disarmed, and device-verified inside one evening.**
 
 > **⚠ 238-D trial 1 (Owen, 1908, ~19:1x): CONTAMINATED — no verdict either way.**
 > Settings eyeball on 1908: GOOD (no Notifications row; haptics in Appearance;
