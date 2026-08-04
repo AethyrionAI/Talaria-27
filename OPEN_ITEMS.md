@@ -15638,6 +15638,14 @@ a positive control (2026-08-02).
 
 1. **Correct the comment first.** It is wrong in the tree right now and it is being
    read as a premise. That is a standalone fix regardless of what follows.
+   > **✅ DONE 2026-08-04 (queue item 5).** The `LocalChatBackend+Battery.swift`
+   > comment now states the blind turn as OUR integration choice (we OCR and
+   > hand the model a String; the SDK's image surface is unused), cites the
+   > 2026-08-02 §F1 device confirmation that the behavior is real today, and
+   > points re-derivation of the routing premise at this entry's decision.
+   > Items 2–3 below stay owed: 2 needs a code experiment + device run
+   > (attach via `Transcript.ImageAttachment`, ask a viewer-only question),
+   > 3 is Owen's adopt-or-not call — **the entry stays OPEN on those two.**
 2. **Prove the model actually sees an attached image** — attach one, ask something
    only a viewer could answer (dominant colour, object count), on device. Until
    that runs, "the SDK has the type" is availability, not capability. **Do not

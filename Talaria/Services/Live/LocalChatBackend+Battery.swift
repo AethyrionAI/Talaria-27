@@ -1822,10 +1822,18 @@ extension LocalChatBackend {
     ]
 
     /// #205: IMAGE TURNS ARE A #202-FAMILY DISARMAMENT and the pinned router
-    /// instructions never mention images. The on-device model cannot see
-    /// images at all — the transcript carries a placeholder — so image
-    /// capability exists ONLY through `readImageText` / `BarcodeReaderTool`.
-    /// A toolless route on a photo turn is a BLIND turn.
+    /// instructions never mention images. UNDER OUR INTEGRATION the model
+    /// never receives image bytes — we OCR with Vision ourselves and hand it
+    /// a String; our transcript carries a placeholder, so image capability
+    /// exists ONLY through `readImageText` / `BarcodeReaderTool`, and a
+    /// toolless route on a photo turn is a BLIND turn. **That is a design
+    /// CHOICE, not a property of the model** (#222): the beta4 SDK ships
+    /// `Transcript.Segment.image` / `Transcript.ImageAttachment` /
+    /// `ImageReference`, all unused here. Device-confirmed 2026-08-02
+    /// ("who posted this?" → "I can't see the image itself, but the text in
+    /// it…"): the behavior below is real today, and its cause is this
+    /// integration. Re-derive this routing premise only if #222's true
+    /// image-input question is ever decided in favor of attaching images.
     ///
     /// **Deliberately a SEPARATE list from `routerBaselineProbes`.** That one
     /// carries a 200/200 history over exactly TEN rows, and #202A's
