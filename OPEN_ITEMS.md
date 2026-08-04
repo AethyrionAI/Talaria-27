@@ -13263,7 +13263,30 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
-## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **FILED 2026-08-03 ~7:49 PM from 238-D trial 2, UNROUTED**
+## 241. 🐛 HERMES CORE (upstream): gateway sends its OWN self-name as the upstream model id on the nous provider, and reports the resulting non-retryable 404 to the client as HTTP 200 — **FILED 2026-08-03 night from OJAMD-session evidence; UPSTREAM-REPORT CANDIDATE, re-test on v0.20.0 first**
+
+**Source: the OJAMD-side session's findings file (archived at
+`handoffs/ojamd-findings-2026-08-03.md`, §2), agent.log timeline for sessions
+`api_1785804165_5e71b36d` / `api_1785804180_710d566f`, 19:42–19:45 CDT.** This is what
+#238's "238-D trial 1 provider stall" actually was — not deepseek, not a timeout:
+
+1. **Model id not resolved per provider.** After `/model deepseek/deepseek-v4-flash-0731`
+   the gateway CACHED that model's context length successfully, then opened the Nous
+   stream with `model=hermes-agent` — its own advertised identity (`GET /v1/models`
+   returns exactly one entry, `hermes-agent`). Nous validates and 404s ("Model
+   'hermes-agent' not found"); kimi-coding tolerates the name, which is why switching
+   providers "fixed" it. Failure is exactly two turns wide in the whole log.
+2. **The non-retryable 404 surfaced to the phone as HTTP 200** (1,087 bytes) — a run
+   that starts and never answers, indistinguishable from a hang app-side. For Talaria
+   this is the worse half: no error to show, nothing for reconcile to fetch.
+
+**Doctrine 2: no local patch — upstream report only**, and the evidence is from the
+pre-update gateway (0.19.x-era process); OJAMD self-updated to **v0.20.0** at 19:52
+same evening, so re-test before filing upstream. App-side follow-on question (not this
+item): whether a run that yields no assistant turn within some horizon should surface
+a visible dead-run state instead of quiet nothing — rides the #235 family if ever built.
+
+## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **FILED 2026-08-03 ~7:49 PM from 238-D trial 2; DESIGN approved same night (both fixes); spec written, Owen's review pending**
 
 **Evidence (Owen, 1908, OJAMD, kimi-k3, screenshot):** the 238-D pass itself was clean
 (no banner; answer on open), but the transcript showed his question TWICE — the server's
@@ -13316,6 +13339,22 @@ Owen routes.
 > candidates. **#238 CLOSED: filed, spec'd, built (−1,242 lines), gated, merged,
 > disarmed, and device-verified inside one evening.**
 
+> **📜 OJAMD-session findings (2026-08-03 night, archived
+> `handoffs/ojamd-findings-2026-08-03.md`) — three post-closure notes:**
+> (1) **The 16:28 CDT `push/register` + `push/watch` the relay logged does NOT
+> contradict this item** — the OJAMD session couldn't see the build, but the Mac
+> timeline can: 1908 was staged 18:58 and installed ~19:05, so 16:28 traffic was
+> build 1886 (which still carried push code). Zero `/v1/push/*` since the 19:59
+> gateway restart (small sample; keep an eye on the next OJAMD look).
+> (2) **The relay's push leg was ALREADY dead at APNs** — 6× `403
+> BadEnvironmentKeyInToken` (production-environment registration vs a key APNs
+> rejects for it). The removal deleted an already-broken path; the "flaky relay
+> push" of recent days was actually a hard fail.
+> (3) The stale-row deactivation chore had ALREADY run 2026-08-02 (rollback JSON
+> + DB backup exist relay-side); the phone's 1886-era re-registration undid it,
+> as re-running would be until the fleet is on ≥1908. Recommendation adopted:
+> don't re-run; rows starve naturally now.
+>
 > **⚠ 238-D trial 1 (Owen, 1908, ~19:1x): CONTAMINATED — no verdict either way.**
 > Settings eyeball on 1908: GOOD (no Notifications row; haptics in Appearance;
 > Privacy/Diagnostics clean). The 238-D attempt ran on deepseek-flash, which
@@ -14458,6 +14497,34 @@ lane runs, per the standing rule.
 > #47 lock-screen reply, #189 pipeline display, #226 leg (b) coalescing,
 > #31 priming, #133/#143's push halves (installation identity itself stays —
 > sensor pairing).
+
+> **🔬 LANE 5 RECON COMPLETE — OJAMD session, 2026-08-03 night (findings §4,
+> archived `handoffs/ojamd-findings-2026-08-03.md`; every claim probe-confirmed
+> against the LIVE :8642/:8765, doctrine 6).** The decisive finding: **the shim
+> is not a proxy — it is an in-process caller of three `hermes_cli` functions**
+> (`inventory.build_models_payload`, `web_server._apply_model_assignment_sync`
+> — imported as a function library, never talking to :9119 — and
+> `model_cost_guard.expensive_model_warning`). Retirement therefore requires
+> the GATEWAY to expose these upstream, not a base-URL re-point. Gap list
+> (shim-only): (1) persistent set-default — THE hard blocker; :8642's
+> `/api/sessions/{id}/model` is a per-session pin only, no durable-default
+> route exists (probed absent: `/api/model`, `/api/models`, `/api/model/default`,
+> `/select`, `/current`, `/set`); (2) expensive-model confirm guard; (3) picker
+> metadata — gateway payload is a strict 5-key subset, missing pricing /
+> capabilities / free_tier / unavailable_models / total_models / source /
+> authenticated; (4) `?refresh` + cache metadata backing "Refresh models";
+> (5) dual-token auth (#14). **Lane 5's shape is therefore an UPSTREAM Hermes
+> PR (like Lane 6), or the shim stays.** Two latent shim bugs recorded: the
+> `~/.hermes/config.yaml` key-fallback is dead on OJAMD (auth works only via
+> `run-shim.cmd`'s env injection — launching `shim.py` bare loses dual-token
+> silently), and the OJAMD copy's `HOST` default is hard-coded to the Mac's
+> Tailscale IP (overridden by the cmd wrapper). Unverified, honestly flagged:
+> whether `/api/model/options` enumerates unconfigured providers. **Also from
+> the same session:** OJAMD self-updated to Hermes v0.20.0 at 19:52 (route
+> tables in CLAUDE.md were verified on 0.19.1 — re-verify before new claims);
+> the overnight relay outage was a ~10-hour port-8000 bind deadlock (watchdog
+> restarted the connector ~300 times to no effect) — one more exhibit for
+> deletion over robustness.
 
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
 Couple that with ending the shim, and we won't have very much running anymore separately."*

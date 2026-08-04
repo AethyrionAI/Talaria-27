@@ -74,8 +74,10 @@ failure. **The gateway pin can hang ~37s+ or indefinitely** — do not block UI 
   **gateway adapter**, not standalone — `hermes gateway run` serves the API server + all
   enabled platforms (Discord, etc.) in **one** process. Discord is one token away.
 - **Connector** — a plain bat-launched process (`O:\Hermes\Talaria\scripts\start-connector.bat`,
-  logs to `connector\logs\connector.log`, `PYTHONUTF8=1`). Unsupervised, unlike relay and
-  shim: that supervision gap is **OPEN_ITEMS #113**. `restart-relay.ps1` in
+  `PYTHONUTF8=1`). **`connector\logs\connector.log` is DEAD (last write 2026-07-02) — the
+  live connector signal is `O:\Hermes\Talaria\logs\connector-watchdog.log`** (found
+  2026-08-03; where the process's stdout goes now is unlocated). Supervision gap is
+  **OPEN_ITEMS #113**. `restart-relay.ps1` in
   `C:\Users\Owen\.hermes\scripts\` does `Restart-Service HermesMobileRelay` then the bat.
 - **OPS:** `Start-Service HermesMobileRelay` / `Start-Service TalariaModelsShim` need
   elevation (Owen pastes). Use `~/.hermes/scripts/hermes-update-safe.ps1`, never bare
@@ -114,8 +116,12 @@ failure. **The gateway pin can hang ~37s+ or indefinitely** — do not block UI 
 ## Auth
 
 Shim accepts its dedicated token **or** the Hermes `API_SERVER_KEY` (dual-token, #14) — no
-shim-token paste after a re-pair. `API_SERVER_KEY` lives at `~/.hermes/.env` (64 chars) and
-works against OJAMD.
+shim-token paste after a re-pair. **`API_SERVER_KEY` lives in HERMES_HOME's `.env`
+(`C:\Users\Owen\AppData\Local\hermes\.env`, 64 chars) — `C:\Users\Owen\.hermes\.env` does
+NOT exist** (corrected 2026-08-03 by an OJAMD-side session; `~/.hermes/` holds only
+`talaria_shim_token`, `logs\`, `scripts\`, `desktop-attachments\`). Dual-token on OJAMD
+works only because `run-shim.cmd` injects the key from HERMES_HOME's .env — `shim.py`'s
+own `~/.hermes/config.yaml` fallback is dead on that box.
 
 ## Hard-won gotchas (do not relitigate)
 
@@ -130,7 +136,12 @@ works against OJAMD.
   brief, and an external audit before live probes killed it. The dashboard app (`hermes_cli/web_server.py`,
   **:9119**, dashboard auth) and the api_server the phone speaks (**:8642**) are different
   apps with different route tables; the dashboard's 129 routes are not the gateway's.
-  **The complete `:8642` table, verified 2026-08-02 against a fresh 0.19.1 process:**
+  **OJAMD self-updated to Hermes v0.20.0 on 2026-08-03 ~19:52 — the table below was
+  verified on 0.19.1; re-verify by live probe before any NEW route claim on 0.20.0**
+  (0.20.0 probes so far: `/api/model/options` 200, `POST /api/sessions/{id}/model` exists,
+  `/v1/models` returns the single `hermes-agent` entry, `/api/model/*` variants still 404 —
+  findings §4, 2026-08-03). **The complete `:8642` table, verified 2026-08-02 against a
+  fresh 0.19.1 process:**
   `/health{,/detailed}` · `/v1/health` · `/v1/models` · **`/api/model/options` (the ONLY
   `/api/model/*` route — there is no `/info`, `/recommended-default`, `/auxiliary`, or
   `POST /api/model/set`)** · `/v1/capabilities` · `/v1/skills` · `/v1/toolsets` ·
