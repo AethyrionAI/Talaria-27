@@ -209,7 +209,6 @@
 		6656EF52FE3364A696ABE89C /* InboxServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72A317D6B5A8EE12A0B49489 /* InboxServiceProtocol.swift */; };
 		66E032F97623A61AFC0329F0 /* InsightsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FAF22435856B1441762344F /* InsightsScreen.swift */; };
 		68429B87C63BAD618E5E7CEA /* GlassCircleButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14B5F8B2C079548A21E610E1 /* GlassCircleButton.swift */; };
-		68605C23075E928E183E33F7 /* ThemesSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8892CCAB2A34A3C8BEB8DA0E /* ThemesSettingsScreen.swift */; };
 		68AFC49144A8DD89C59CB86F /* SessionStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6DABD8EE1467EE669FF3FD2 /* SessionStats.swift */; };
 		69F3448685D89DCF09247A46 /* MessageIdentityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 992ACC9FF55104E22717D5ED /* MessageIdentityUITests.swift */; };
 		6BC4CD52173F321EE5501ADE /* Icon-SolarForge@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = D3037072326C8733C97EFF85 /* Icon-SolarForge@3x.png */; };
@@ -321,6 +320,7 @@
 		A0E8E2227CF55B1CC7DCD785 /* IconPreview-Default.png in Resources */ = {isa = PBXBuildFile; fileRef = F0DD777FA8C7A1E450D9343F /* IconPreview-Default.png */; };
 		A12ADA550ED9B8308C66C21C /* InboxItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 798846A846FE8EC91E40117C /* InboxItem.swift */; };
 		A1CE1388F456CFEF6EC0EA94 /* AppearanceSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = C226310D52EB40A7356747B7 /* AppearanceSettingsScreen.swift */; };
+		A282849F7EFF8BCB6802349E /* ThemeChannels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 827F37EE72AFCBAF188EBF43 /* ThemeChannels.swift */; };
 		A32A517B2F8FA405A87CAE2E /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57CF6F188E6A3E52F6D1204B /* MessageBubble.swift */; };
 		A43764F0194218B7E022440D /* HTMLPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3A2F2CE4651CA705DE47FAF /* HTMLPreviewView.swift */; };
 		A471D69AE8AE388DD00569CA /* UserSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F26836C847785834B084F24B /* UserSettings.swift */; };
@@ -803,6 +803,7 @@
 		80E35FC09C7F861A2551FC4C /* Icon-CerealBox@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-CerealBox@2x.png"; sourceTree = "<group>"; };
 		80EDA325939230DE08CBF841 /* MockInboxService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockInboxService.swift; sourceTree = "<group>"; };
 		80EF15B79F03C0BF47DAB3C2 /* ChakraPetch-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ChakraPetch-SemiBold.ttf"; sourceTree = "<group>"; };
+		827F37EE72AFCBAF188EBF43 /* ThemeChannels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeChannels.swift; sourceTree = "<group>"; };
 		82A9EFD28E7758CB1A9CBBD0 /* ToolActivityRail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolActivityRail.swift; sourceTree = "<group>"; };
 		8423FB3F18FCB7BE1F2A738F /* IconPreview-CosmicBowling.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-CosmicBowling.png"; sourceTree = "<group>"; };
 		843DA9094BCC14595B48C63B /* TalariaWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TalariaWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -815,7 +816,6 @@
 		8739CA6477AD05CC3DAF4CB7 /* ShareInboxCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareInboxCoreTests.swift; sourceTree = "<group>"; };
 		87E097ED8DDD1535E7288D6D /* HealthServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthServiceProtocol.swift; sourceTree = "<group>"; };
 		885791BF5D014DFF87001553 /* Icon-LuchaLibre@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-LuchaLibre@3x.png"; sourceTree = "<group>"; };
-		8892CCAB2A34A3C8BEB8DA0E /* ThemesSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemesSettingsScreen.swift; sourceTree = "<group>"; };
 		88975BD7EEDA7212610A9EFC /* IconPreview-Terminal.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-Terminal.png"; sourceTree = "<group>"; };
 		88BFEAFBB2627EB4811BF076 /* MarkdownInterleavingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownInterleavingTests.swift; sourceTree = "<group>"; };
 		88CAC7066A927294099D41BE /* InboxItemStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxItemStatus.swift; sourceTree = "<group>"; };
@@ -1694,7 +1694,7 @@
 				25935CD9A0AD28B30B6FFBE1 /* SettingsScreenHeader.swift */,
 				61E8C06E456A6825E0B020C3 /* SettingsSectionView.swift */,
 				4B6960308556A1B2ADA625CC /* SystemSettingsScreen.swift */,
-				8892CCAB2A34A3C8BEB8DA0E /* ThemesSettingsScreen.swift */,
+				827F37EE72AFCBAF188EBF43 /* ThemeChannels.swift */,
 				48891721C03839B52AFA1F85 /* UplinkSettingsScreen.swift */,
 				58ED77D1094E15E538EEEE59 /* VoiceSettingsScreen.swift */,
 			);
@@ -2432,9 +2432,9 @@
 				0318108AEF92EBFF7A246242 /* TasksScreen.swift in Sources */,
 				7826E55EAE1131F4783743E8 /* ThemeArtDirection.swift in Sources */,
 				29AB3C83EDABB8EBC1BE6519 /* ThemeCatalog.swift in Sources */,
+				A282849F7EFF8BCB6802349E /* ThemeChannels.swift in Sources */,
 				41E65B4A7740FECC00A61A3E /* ThemePaletteCore.swift in Sources */,
 				58A79513D2968FE0A9D5690E /* ThemeTextures.swift in Sources */,
-				68605C23075E928E183E33F7 /* ThemesSettingsScreen.swift in Sources */,
 				C7B4505CC064FFCCA1072751 /* ThinkingIndicatorView.swift in Sources */,
 				98AB7856D5810ABF3AC6062C /* TokenUsage.swift in Sources */,
 				0699DDCC47EA218CB27160AF /* ToolActivity.swift in Sources */,

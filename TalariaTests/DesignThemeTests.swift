@@ -345,26 +345,6 @@ struct DesignThemeTests {
         }
     }
 
-    // MARK: - #239: Themes navRow value
-
-    @Test func themesRowValueManualModeIsUppercasedThemeName() {
-        var settings = UserSettings()
-        settings.appearanceThemeMode = .manual
-        settings.appearanceTheme = .solarForge
-        #expect(AppearanceSettingsScreen.themesRowValue(settings: settings, on: Date(timeIntervalSince1970: 1_700_000_000))
-            == "SOLAR FORGE")
-    }
-
-    @Test func themesRowValueAutomaticModePrefixesSeason() {
-        var settings = UserSettings()
-        settings.appearanceThemeMode = .automatic
-        let midsummer = DateComponents(calendar: .init(identifier: .gregorian),
-                                       year: 2026, month: 7, day: 10).date!
-        let value = AppearanceSettingsScreen.themesRowValue(settings: settings, on: midsummer)
-        let season = ThemeCatalog.season(on: midsummer).displayLabel.uppercased()
-        let theme = settings.effectiveAppearanceTheme(on: midsummer).displayLabel.uppercased()
-        #expect(value == "\(season) · \(theme)")
-    }
 
     @Test func comicBookPersistsAsItsOwnRawValue() throws {
         var settings = UserSettings()
@@ -412,4 +392,48 @@ struct DesignThemeTests {
         #expect(lightArt == ThemeArtDirectionCatalog.artDirection(for: .comicFunnies))
         #expect(darkArt != lightArt)
     }
+    // MARK: - #244: the Appearance channel browser's pure list builder
+
+    @Test func channelZeroIsAutomaticResolvingTodaysSeason() throws {
+        var comps = DateComponents(); comps.year = 2026; comps.month = 7; comps.day = 10
+        let date = Calendar(identifier: .gregorian).date(from: comps)!
+        let channels = ThemeChannels.build(on: date)
+        let first = try #require(channels.first)
+        #expect(first.kind == .automatic)
+        #expect(first.definition.appearanceTheme == ThemeCatalog.seasonalTheme(on: date))
+        #expect(first.sectionTitle == "Auto · Seasonal")
+    }
+
+    @Test func channelsFollowCatalogSectionOrderAndCount() {
+        var comps = DateComponents(); comps.year = 2026; comps.month = 8; comps.day = 4
+        let date = Calendar(identifier: .gregorian).date(from: comps)!
+        let channels = ThemeChannels.build(on: date)
+        // AUTO + every available definition, in catalog section order.
+        #expect(channels.count == ThemeCatalog.availableDefinitions(on: date).count + 1)
+        #expect(channels[1].definition.displayName == "Deep Field")
+        #expect(channels[1].sectionTitle == "Flagship")
+        #expect(channels.last?.sectionTitle == "Seasonal")
+        // Section titles appear in catalog order with no interleaving.
+        let titles = channels.dropFirst().map(\.sectionTitle)
+        let collapsed = titles.reduce(into: [String]()) { acc, t in
+            if acc.last != t { acc.append(t) }
+        }
+        #expect(collapsed == ThemeCatalog.sections.map(\.title).filter { titles.contains($0) })
+    }
+
+    @Test func terminalChannelReportsItsLockedAccent() {
+        let channels = ThemeChannels.build(on: Date())
+        let locked = channels.filter(\.locksAccent)
+        #expect(locked.count == 1)
+        #expect(locked.first?.definition.appearanceTheme == .terminal)
+    }
+
+    @Test func hexLabelRendersRealResolvedValues() {
+        // Real computed values off the resolved colors — the palettes store
+        // no raw hex strings (#244 spec).
+        #expect(ThemeChannels.hexLabel(for: Color(hex: 0x54E6F0)) == "54E6F0")
+        #expect(ThemeChannels.hexLabel(for: Color(hex: 0x000000)) == "000000")
+        #expect(ThemeChannels.hexLabel(for: Color(hex: 0xF2EFE9)) == "F2EFE9")
+    }
+
 }

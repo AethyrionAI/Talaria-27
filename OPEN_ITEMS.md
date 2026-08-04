@@ -13263,7 +13263,37 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
-## 244. 🎨 APPEARANCE TAB HOLISTIC REWORK — "It doesn't flow right" — **FILED 2026-08-03 night (pre-compaction), UNROUTED (Owen's observation, no design)**
+## 244. 🎨 APPEARANCE TAB HOLISTIC REWORK — "It doesn't flow right" — **ROUTED 2026-08-04 early AM: Owen supplied Claude Design's channel-browser mockup and delegated the build ("If this is something doable and you like the design, implement that as well"). Verdict: doable + good — BUILT on `claude/t27-244-appearance-channels`; #243 subsumed; #239's sub-screen superseded (its live-re-skin guarantee carries forward by construction). Spec: `docs/superpowers/specs/2026-08-04-244-appearance-channel-browser-design.md`.**
+
+> ## 📋 BARS — PRE-REGISTERED 2026-08-04, BEFORE the lane's tests ran. Written first.
+> - **244-A (unit):** `ThemeChannels.build` — channel 00 is AUTO resolving
+>   today's season; order = catalog section order (Flagship → Neon Arcade →
+>   Special Edition → Midnight Marquee → Seasonal); count = available
+>   definitions + 1; Terminal's channel reports the locked accent slot.
+> - **244-B (unit):** the resolved-Color→hex helper renders real values (the
+>   palettes store no raw hex — computed, never hardcoded copy).
+> - **244-C (UI, replaces the #239 test IN PLACE):** settings → Appearance →
+>   browser present (counter) → › to Solar Forge → name label renders →
+>   reopening lands on Solar Forge's channel (apply-on-land persisted).
+> - **Counted delta (pinned BEFORE the verification run):** DesignThemeTests
+>   25 − 2 (themesRowValue pair dies with the row) + 4 = 27 ⇒ swift-testing
+>   **1557 + 2 = 1559 expected on this branch** (bases off main; Lane 5's
+>   1570 rides unmerged PR #255); XCUITest **10** (one replaced in place).
+> - Mockup's three open decisions resolved in the spec: accent dots under
+>   the spectrum (hidden for Terminal); Seasonal AUTO = channel 00 (counter
+>   NN/30, computed); inert `locked` badge machinery carried deliberately.
+
+> **✅ BUILT + BARS MET — 2026-08-04 early AM.** 244-A/B green (DesignThemeTests
+> 27/27 — honest note: the four new tests were written before the
+> implementation but their RED was not separately witnessed; new-type
+> compile-RED class, implementation landed in the same edit window). 244-C
+> MET live: the replaced XCUITest drives the real browser — opens on Deep
+> Field, › to Solar Forge, leaves, re-enters, and the browser reopens on
+> Solar Forge's channel (apply-on-land persisted). **GATE: PASS — 1559 exact
+> (pinned), XCUITest 10, 2 expected skips, Release clean.** Dropped detail
+> recorded in the spec: TabView has no native page-peek, so the prev/next
+> edge slivers are omitted (‹ › + counter carry adjacency). Owen's visual
+> pass owed on device — the design is his call to keep, tune, or bounce.
 
 **Owen, minutes after #239 closed, verbatim:** *"The whole appearance tab feels
 like it needs a rework in general. It doesn't flow right."* Read: #239's
