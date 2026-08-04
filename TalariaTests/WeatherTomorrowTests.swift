@@ -39,6 +39,29 @@ struct WeatherTomorrowTests {
         #expect(WeatherTool.requestedDay(from: "next week") == .unsupported)
     }
 
+    /// #234: THE observed input, pinned verbatim. A PIN, not a fix — the tool
+    /// half was always correct; the defect was argument-time nearest-fit one
+    /// boundary up (the model snapping to 'tomorrow' because the guide
+    /// advertised no third state).
+    @Test func dayAfterTomorrowIsPinnedUnsupported() {
+        #expect(WeatherTool.requestedDay(from: "day after tomorrow") == .unsupported)
+        #expect(WeatherTool.requestedDay(from: " Day After Tomorrow ") == .unsupported)
+        #expect(WeatherTool.requestedDay(from: "the day after tomorrow") == .unsupported)
+    }
+
+    /// #234-A: the guide must name the beyond-tomorrow boundary AND the
+    /// pass-through rule — the model needs an ADVERTISED way to express a
+    /// later day, or it snaps to the nearest advertised value. Same pinning
+    /// pattern as `theDescriptionAdvertisesTomorrow`: a guide edit is a
+    /// deliberate act.
+    @Test func theDayGuideNamesTheBoundaryAndThePassThroughRule() {
+        let guide = WeatherTool.dayGuideText.lowercased()
+        #expect(guide.contains("beyond tomorrow"))
+        #expect(guide.contains("pass") && guide.contains("unchanged"))
+        #expect(guide.contains("never substitute"))
+        #expect(guide.contains("day after tomorrow"))
+    }
+
     // MARK: - The contract text
 
     /// The description must ADVERTISE tomorrow, or the model keeps treating
@@ -50,11 +73,15 @@ struct WeatherTomorrowTests {
 
     // MARK: - The tomorrow line (pure)
 
-    @Test func tomorrowLineCarriesTheRealForecastNumbers() {
+    @Test func tomorrowLineCarriesTheRealForecastNumbersAndItsDate() {
+        // #234-B: the line names its own calendar date, so a relay that
+        // mislabels the day contradicts itself on its face.
+        var comps = DateComponents(); comps.year = 2026; comps.month = 8; comps.day = 5
+        let date = Calendar(identifier: .gregorian).date(from: comps)!
         let line = WeatherTool.tomorrowForecastLine(
             label: "Gulfport", condition: "Mostly cloudy",
-            high: "88°F", low: "77°F", precipPercent: 56)
-        #expect(line == "Tomorrow at Gulfport: Mostly cloudy, high 88°F, low 77°F, 56% chance of precipitation")
+            high: "88°F", low: "77°F", precipPercent: 56, date: date)
+        #expect(line == "Tomorrow (Aug 5) at Gulfport: Mostly cloudy, high 88°F, low 77°F, 56% chance of precipitation")
     }
 
     @Test func unsupportedDayAnswerNamesTheLimitHonestly() {

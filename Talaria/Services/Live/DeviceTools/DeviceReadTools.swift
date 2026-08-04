@@ -274,9 +274,16 @@ struct WeatherTool: Tool {
         // demand displaced into searchConversations (#216) and became #225's
         // spiral and #232's grind. One extra guided value ends that question
         // at call 2.
-        @Guide(description: "Optional: 'tomorrow' for tomorrow's forecast. Leave empty for current conditions and today.")
+        // #234: the guide names the beyond-tomorrow boundary and the
+        // pass-through rule — with no advertised third state, the model
+        // snapped "day after tomorrow" to 'tomorrow' and the honest
+        // unsupported path never fired (argument-time nearest-fit).
+        @Guide(description: WeatherTool.dayGuideText)
         var day: String?
     }
+
+    /// #234-A: pinned by WeatherTomorrowTests — a guide edit is a deliberate act.
+    nonisolated static let dayGuideText = "Optional: 'tomorrow' for tomorrow's forecast. Leave empty for current conditions and today. Weather beyond tomorrow is not available: if the user asks about a later day (like 'day after tomorrow' or a weekday), pass their exact words through unchanged — never substitute 'tomorrow'."
 
     func call(arguments: Arguments) async throws -> String {
         try await Self.performLookup(rawPlace: arguments.place, rawDay: arguments.day,
@@ -294,10 +301,23 @@ struct WeatherTool: Tool {
         return .unsupported
     }
 
+    /// #234-B: the line names its own calendar date ("Tomorrow (Aug 5) at…"),
+    /// so a relay that mislabels the day contradicts itself on its face.
+    /// Fixed-locale month-day — tool output is English throughout.
     nonisolated static func tomorrowForecastLine(
-        label: String, condition: String, high: String, low: String, precipPercent: Int
+        label: String, condition: String, high: String, low: String, precipPercent: Int,
+        date: Date? = nil
     ) -> String {
-        "Tomorrow at \(label): \(condition), high \(high), low \(low), \(precipPercent)% chance of precipitation"
+        let datePart: String
+        if let date {
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.dateFormat = "MMM d"
+            datePart = " (\(formatter.string(from: date)))"
+        } else {
+            datePart = ""
+        }
+        return "Tomorrow\(datePart) at \(label): \(condition), high \(high), low \(low), \(precipPercent)% chance of precipitation"
     }
 
     /// Real-data-only: a horizon this tool cannot serve is named back, never
@@ -394,7 +414,8 @@ struct WeatherTool: Tool {
                     condition: tomorrow.condition.description,
                     high: formatter.string(from: tomorrow.highTemperature),
                     low: formatter.string(from: tomorrow.lowTemperature),
-                    precipPercent: Int(tomorrow.precipitationChance * 100)
+                    precipPercent: Int(tomorrow.precipitationChance * 100),
+                    date: tomorrow.date
                 )
                 return (line, nil)
             }

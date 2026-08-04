@@ -14034,6 +14034,50 @@ tomorrow, pass their words through unchanged — never substitute 'tomorrow'"); 
 mislabeled relay is at least self-contradicting on its face. Either is device-only to
 verify — the sim has no model.
 
+**🏗 LANE ROUTED 2026-08-04 early AM (goal run "finish the rest of the open
+items that are workable"; #234 was queue item 5 in Owen's post-compaction
+list). Direction: BOTH candidates — they are complementary and both were the
+only ones filed: (a) the `day` @Guide names the boundary and the pass-through
+rule; (b) `tomorrowForecastLine` carries its calendar date. Branch
+`claude/t27-234-day-nearest-fit`.**
+
+## 📋 BARS — PRE-REGISTERED 2026-08-04, BEFORE the lane's tests ran. Written first.
+- **234-A (sim, mechanical):** the `day` guide text names the beyond-tomorrow
+  boundary AND the pass-through rule verbatim (pinned by a text test so a
+  guide edit is a deliberate act, the `theDescriptionAdvertisesTomorrow`
+  pattern); the literal observed input "day after tomorrow" is pinned
+  `.unsupported` (a PIN, expected green-on-arrival — the tool half was always
+  correct; recorded honestly as a pin, not a RED→GREEN).
+- **234-B (sim, mechanical):** `tomorrowForecastLine` carries the forecast's
+  calendar date — "Tomorrow (Aug 5) at Gulfport: …" for a fixed date — so a
+  mislabeled relay contradicts itself on its face. RED-able: the existing
+  exact-string test pins the UNDATED line today.
+- **234-C (device, owed to the next OTA — the sim has no model):** trial
+  prompt verbatim, fresh chat: "What's the weather in Gulfport the day after
+  tomorrow" → PASS = the honest horizon answer reaches the user (pass-through
+  fired), OR the reply is visibly self-contradicting (asked-day ≠ the dated
+  label). FAIL = the trial-7 shape recurs: tomorrow's numbers presented as
+  the asked day with no contradiction visible.
+- **Counted delta (pinned BEFORE the verification run):** WeatherTomorrowTests
+  +2 (guide-text pin, day-after-tomorrow pin; the dated-line change edits the
+  existing exact-string test in place) ⇒ swift-testing **1557 + 2 = 1559
+  expected on this branch** (bases off main — Lane 5's 1570 rides the
+  unmerged PR #255); XCUITest 10 unchanged.
+
+**✅ 234-A/B MET (sim) — 2026-08-04 early AM.** RED witnessed on both new
+members (`dayGuideText` missing; `date:` param missing), then GREEN 8/8 in
+the suite. The guide now reads: *"…Weather beyond tomorrow is not available:
+if the user asks about a later day (like 'day after tomorrow' or a weekday),
+pass their exact words through unchanged — never substitute 'tomorrow'."*
+`tomorrowForecastLine` emits "Tomorrow (Aug 5) at Gulfport: …" (fixed-locale
+month-day off the forecast entry's own date; nil-date keeps the undated
+form). The #209 rollback twin has no `day` field — untouched. **GATE: PASS —
+swift-testing 1559 (pinned delta met exactly), XCUITest 10, 2 expected skips,
+Release clean.** **234-C stays OWED to the next device pass** (the sim has no
+model): trial prompt verbatim on a fresh chat; PASS = honest horizon answer
+or a visibly self-contradicting dated label; FAIL = the trial-7 collapse
+recurs uncontradicted.
+
 ## 233. 🐛 "Tomorrow at 4" became a 4:00 AM reminder — half-day defaulting on `createReminder`, and the confirm card did not save it — **✅ CLOSED 2026-08-03 evening — every bar met: 233-A/B/C suite + device, 233-E device, 233-D midday (preferred shape) AND evening (fallback shape), store row observed**
 
 **FILED 2026-08-02, Lane 1 trial 3 (run results doc).** "Remind me to call Shelley
