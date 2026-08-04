@@ -13263,6 +13263,24 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+**🔬 THE DECIDING PROBE RAN — 2026-08-04 ~8:15 AM, v0.20.0, prompted by Owen's
+worry ("we'll have to integrate with the gateway more to make that work").
+VERDICT: THE PLANES ARE DISJOINT.** A fresh Sessions-API streamed turn's
+`run.started` id (`run_597cd29e…`) was looked up on `/v1/runs/{id}` WHILE THE
+RUN WAS LIVE → `404 run_not_found` (and again post-completion; an 8-hour-old
+id from the #241 probes also 404s). So `POST /v1/runs/{id}/approval` cannot
+answer a chat run's approval on today's API — consistent with the earlier
+finding that hooks don't fire for Sessions-API runs (the Sessions plane is
+thinner than the runs plane). **Disposition:** half (2) — anything touching
+the HOST's approval machinery — is PARKED: building it means new gateway
+surface (dashboard-plane config, or upstream work joining the two planes),
+which is exactly the added coupling Owen flagged and the brief's
+stop+approval-only control plane discourages. Revisit only if §F7d ever shows
+a real chat turn stalled on an unanswerable approval — then it's a Lane-6-class
+upstream conversation, not an app patch. **Half (1) — Manual/Off (Smart
+gated behind a battery, #200-series caution) for OUR OWN on-device confirm
+gate — needs zero gateway anything and stays fully buildable app-side.**
+
 ## 244. 🎨 APPEARANCE TAB HOLISTIC REWORK — "It doesn't flow right" — **✅ CLOSED 2026-08-04 (Owen's device pass on 1955: "looks good!"). ROUTED same day: Owen supplied Claude Design's channel-browser mockup and delegated the build ("If this is something doable and you like the design, implement that as well"). Verdict: doable + good — BUILT on `claude/t27-244-appearance-channels`; #243 subsumed; #239's sub-screen superseded (its live-re-skin guarantee carries forward by construction). Spec: `docs/superpowers/specs/2026-08-04-244-appearance-channel-browser-design.md`.**
 
 > ## 📋 BARS — PRE-REGISTERED 2026-08-04, BEFORE the lane's tests ran. Written first.
