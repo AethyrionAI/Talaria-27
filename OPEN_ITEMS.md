@@ -13281,6 +13281,17 @@ upstream conversation, not an app patch. **Half (1) — Manual/Off (Smart
 gated behind a battery, #200-series caution) for OUR OWN on-device confirm
 gate — needs zero gateway anything and stays fully buildable app-side.**
 
+**⏸ SHELVED 2026-08-04 morning on Owen's operational report: his host runs
+smart/auto mode and "i've never seen it ask for an approval" — the approval
+base rate in his real usage is ~zero (his side-effecting work rides OUR
+on-device tools and their confirm cards; host-side work is reads). So half
+(2) is structurally blocked AND operationally unneeded, and half (1) is a
+comfort feature with no expressed discomfort — the #233 AM/PM catch happened
+ON a confirm card, so the cards are currently load-bearing. Reopen triggers:
+a real chat turn observed stalled on an unanswerable approval (→ upstream
+conversation), or Owen asking for the cards to stop prompting (→ the small
+Manual/Off app lane).**
+
 ## 244. 🎨 APPEARANCE TAB HOLISTIC REWORK — "It doesn't flow right" — **✅ CLOSED 2026-08-04 (Owen's device pass on 1955: "looks good!"). ROUTED same day: Owen supplied Claude Design's channel-browser mockup and delegated the build ("If this is something doable and you like the design, implement that as well"). Verdict: doable + good — BUILT on `claude/t27-244-appearance-channels`; #243 subsumed; #239's sub-screen superseded (its live-re-skin guarantee carries forward by construction). Spec: `docs/superpowers/specs/2026-08-04-244-appearance-channel-browser-design.md`.**
 
 > ## 📋 BARS — PRE-REGISTERED 2026-08-04, BEFORE the lane's tests ran. Written first.
