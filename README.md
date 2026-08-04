@@ -139,11 +139,7 @@ hermes-mobile setup        # validates Hermes, pairs against your relay, registe
 
 See [connector/README.md](connector/README.md) for the full wizard options (including `--skip-mcp` and background-service install).
 
-### 5 — Model switching: nothing to run
-
-Model picking is built into the gateway connection — the app reads the provider roster from the Sessions API and applies your pick as a per-turn model lock plus a session pin. No extra service. (The legacy models shim in `tools/models-shim/` served this role for older builds and is no longer used by the app.)
-
-### 6 — Generate and build the Xcode project
+### 5 — Generate and build the Xcode project
 
 The Xcode project is generated from `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeGen):
 
@@ -154,7 +150,7 @@ open Talaria.xcodeproj
 
 Regenerate whenever Swift files are added or removed — sources are listed explicitly in the project. Set your own signing team and bundle identifier locally. Build to your iPhone with Xcode 27 beta.
 
-### 7 — Launch, then pair (optional)
+### 6 — Launch, then pair (optional)
 
 On first launch the app works immediately in on-device mode — no account, no cloud login. To connect your Hermes machine:
 

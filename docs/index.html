@@ -401,7 +401,7 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
   <div class="setup-inner">
     <div class="setup-hdr">
       <p class="slabel">// GETTING STARTED</p>
-      <h2 class="stitle">Self-host in seven steps.</h2>
+      <h2 class="stitle">Self-host in six steps.</h2>
       <p class="sbody">The app runs on-device with no host at all. To pair your own agent you need a machine running Hermes, a Tailscale network, and Xcode to build the app. There is no TestFlight or App Store distribution.</p>
     </div>
     <div class="steps">
@@ -449,16 +449,6 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
       <div class="step">
         <div class="step-n">05</div>
         <div class="step-body">
-          <div class="step-title">MODEL SWITCHING — NOTHING TO RUN</div>
-          <p class="step-text">
-            Model picking is built into the gateway connection: the app reads your provider roster from the Sessions API and applies picks as a per-turn model lock plus a session pin. No extra service, no restart. (The legacy shim in <code>tools/models-shim/</code> served older builds and is no longer used.)
-          </p>
-        </div>
-      </div>
-
-      <div class="step">
-        <div class="step-n">06</div>
-        <div class="step-body">
           <div class="step-title">BUILD TALARIA IN XCODE</div>
           <p class="step-text">
             Generate the Xcode project with <code>xcodegen generate</code>, then open it (requires Xcode 27 beta / iOS 27 SDK). Select your physical iPhone as the run destination. Build and run. You will need an Apple Developer account to sign the app for your device.
@@ -467,7 +457,7 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
       </div>
 
       <div class="step">
-        <div class="step-n">07</div>
+        <div class="step-n">06</div>
         <div class="step-body">
           <div class="step-title">LAUNCH, THEN PAIR (OPTIONAL)</div>
           <p class="step-text">
