@@ -15050,6 +15050,13 @@ lane runs, per the standing rule.
 > (HTTP 200, usage 0/0/0) on both chat paths — render-safe in today's app.
 > **Lane 5 is DESIGN-READY; Owen routes the design.**
 
+> **✅ LANE 5 COMPLETE — L5-E MET ON DEVICE 2026-08-04 ~8 AM (Owen, build
+> 1955, OJAMD over tailnet): "Loaded models, picked DS Flash, sent message.
+> No issues." Catalog loaded from the gateway, the pick applied instantly,
+> the locked turn answered via deepseek. All five bars met; the shim is
+> disabled on OJAMD (Owen, same morning) and nothing noticed. The phone
+> speaks gateway-only for models.**
+>
 > **🏗 LANE 5 BUILT — 2026-08-04 early AM, goal run ("finish the rest of the
 > open items that are workable"); Owen approved the three forks directly:
 > scope "One default per host," services "I can stop them remotely when
