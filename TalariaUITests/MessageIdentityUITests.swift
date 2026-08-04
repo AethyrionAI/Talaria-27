@@ -106,7 +106,11 @@ final class MessageIdentityUITests: XCTestCase {
         // The synthetic reply is "Acknowledged <settled text>"; wait for it to
         // settle so the assertion spans the full append→finish sequence.
         let reply = app.staticTexts["Acknowledged \(settled)"]
-        XCTAssertTrue(reply.waitForExistence(timeout: 20),
+        // #236 (the #195 family's TIME variant): on a hot gate machine the
+        // reply once rendered 40ms past a 20s wait — the failure-time AX
+        // snapshot proved the app innocent. This test's charter is the
+        // duplicate-id probe, not render latency; budget accordingly.
+        XCTAssertTrue(reply.waitForExistence(timeout: 40),
                       "the on-device reply for '\(settled)' should render")
     }
 

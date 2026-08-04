@@ -162,6 +162,14 @@ final class AppContainer {
     private var lastKnownTalkSessionActive = false
 
     private static let commandCatalogRefreshInterval: TimeInterval = 60
+    /// #227 instance 1: single-flight for the command-catalog fetch — a cold
+    /// launch fired ~3 concurrent /v1/commands, one won, the extras starved
+    /// on the connector leg and burned their 5s as −1001 log noise. Shape
+    /// copied from ChatStore's `reconcileInFlight` / AppSessionStore's
+    /// `tokenRefreshTasks` (the entry's instruction: copy, don't invent a
+    /// third shape). Concurrent callers JOIN the live fetch — that satisfies
+    /// force-callers too, since the data they want is the data being fetched.
+    private var commandCatalogRefreshTask: Task<Void, Never>?
 
     init(
         sessionStore: AppSessionStore,
@@ -1718,6 +1726,23 @@ final class AppContainer {
            Date().timeIntervalSince(lastCommandCatalogRefreshAt) < Self.commandCatalogRefreshInterval {
             return
         }
+        // #227: join an in-flight fetch instead of racing it. The throttle
+        // stamp above is success-only and therefore NOT a concurrency guard
+        // (every concurrent caller reads it unstamped) — this is.
+        if let running = commandCatalogRefreshTask {
+            await running.value
+            return
+        }
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.performCommandCatalogRefresh()
+        }
+        commandCatalogRefreshTask = task
+        await task.value
+        if commandCatalogRefreshTask == task { commandCatalogRefreshTask = nil }
+    }
+
+    private func performCommandCatalogRefresh() async {
 
         // #136: the catalog fetch is a launch/bootstrap-class probe — ride
         // the short-timeout client so a black-holed relay fails in seconds.

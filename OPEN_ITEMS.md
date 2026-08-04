@@ -13879,6 +13879,14 @@ the duplicate-ID probe, not render latency. Same class as #195; its fix keyed
 the TEXT, this one is the TIME. Not built in the #235 lane — filed, one gate
 re-run recorded there.
 
+**✅ FIX BUILT 2026-08-04 early AM (goal run; rides the hygiene branch
+`claude/t27-236-227-hygiene` with #227's instance 1).** The reply wait went
+20 → 40s with a comment carrying the finding (app proven innocent by the
+failure-time AX snapshot; the charter is the dup-id probe, not render
+latency). `waitForExistence` already polls internally — budget was the only
+defect. No counted-delta change (an edit in place). Verified by the branch
+gate's full XCUITest run.
+
 ## 235. 🐛 CRITICAL (Owen, 2026-08-03): remote chats DROP THE FINAL ANSWER when the stream dies mid-turn — chips render, the answer lands in the server store, the app never fetches it — **FIX BUILT same day; 235-A/B/C green in suite; 235-D verdict: request stamp wins, no timeout change; device bars 235-E/F owed to the next OTA**
 
 > **✅ FIX BUILT 2026-08-03 (midday), same-day turnaround on Owen's routing**
@@ -14585,6 +14593,31 @@ are app-side; zero relay change**, which is what the no-hardening rule asks for.
 **Not a lane yet — Owen routes.** Recorded here rather than fixed in passing because
 three drive-by single-flight patches across launch, push, and chat would be an
 unreviewable diff, and #180's lesson is that the convention is the deliverable.
+
+**✅ RESOLVED 2026-08-04 early AM (goal run; Owen queued #227 post-compaction
+and separately authorized disregarding mooted items). Final disposition of
+the three instances:**
+- **Instance 1 (command-catalog fetch): FIXED on the hygiene branch**
+  (`claude/t27-236-227-hygiene`, with #236). `refreshCommandCatalog` gained
+  the one-in-flight-Task-callers-JOIN shape, copied from ChatStore's
+  `reconcileInFlight` / AppSessionStore's `tokenRefreshTasks` per this
+  entry's own instruction — no third shape invented. Force-callers join the
+  live fetch (the data they want is the data being fetched); the
+  success-only throttle stamp stays what it was, a throttle, with the
+  comment now naming why it is not a guard. Pinned BY CONSTRUCTION (the
+  copied shape's reference implementations carry the suite coverage) — a
+  behavioral coalescing test would need a scriptable catalog endpoint seam
+  that doesn't exist; adding one for the test alone was judged out of
+  proportion for this lane and is recorded here as the honest gap.
+- **Instance 2 (`registerPushToken` ×2): MOOT** — #238 deleted the entire
+  push-registration surface; zero references remain (grep-verified
+  2026-08-04). Nothing to fix; the finding stands as history.
+- **Instance 3 (run-completion reconcile ×3): ALREADY FIXED by the #226
+  lane** — `git log -S reconcileInFlight` lands on commit `0b8aad4`
+  ("fix(#226): the run-completion watch was a structural no-op"), exactly
+  the rides-#226 routing this entry prescribed.
+The umbrella's deliverable — the convention, stated once — now lives in the
+`commandCatalogRefreshTask` comment block and this entry.
 
 ## 226. 🐛 The #38 run-completion push watch is a STRUCTURAL NO-OP for home-screen backgrounding — **⚰️ MOOT 2026-08-04 (goal-run sweep): the push-watch surface itself was deleted by #238 (app posts no `push/watch` calls; banners cannot exist without the notification plane). The one durable piece of this item — the reconcile-leg single-flight — was FIXED in this item's own lane (`0b8aad4`, `reconcileInFlight`) and stays. Nothing left to build.** — (was: nothing, or THREE identical banners)
 
