@@ -345,6 +345,27 @@ struct DesignThemeTests {
         }
     }
 
+    // MARK: - #239: Themes navRow value
+
+    @Test func themesRowValueManualModeIsUppercasedThemeName() {
+        var settings = UserSettings()
+        settings.appearanceThemeMode = .manual
+        settings.appearanceTheme = .solarForge
+        #expect(AppearanceSettingsScreen.themesRowValue(settings: settings, on: Date(timeIntervalSince1970: 1_700_000_000))
+            == "SOLAR FORGE")
+    }
+
+    @Test func themesRowValueAutomaticModePrefixesSeason() {
+        var settings = UserSettings()
+        settings.appearanceThemeMode = .automatic
+        let midsummer = DateComponents(calendar: .init(identifier: .gregorian),
+                                       year: 2026, month: 7, day: 10).date!
+        let value = AppearanceSettingsScreen.themesRowValue(settings: settings, on: midsummer)
+        let season = ThemeCatalog.season(on: midsummer).displayLabel.uppercased()
+        let theme = settings.effectiveAppearanceTheme(on: midsummer).displayLabel.uppercased()
+        #expect(value == "\(season) · \(theme)")
+    }
+
     @Test func comicBookPersistsAsItsOwnRawValue() throws {
         var settings = UserSettings()
         settings.appearanceTheme = .comicBook

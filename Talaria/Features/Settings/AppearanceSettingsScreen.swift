@@ -41,6 +41,16 @@ struct AppearanceSettingsScreen: View {
         theme.themeID(for: ThemeRuntime.shared.systemColorScheme)
     }
 
+    /// #239: the Themes navRow value — seasonal mode surfaces the season so
+    /// automatic rotation stays legible from the top level.
+    nonisolated static func themesRowValue(settings: UserSettings, on date: Date = Date()) -> String {
+        let theme = settings.effectiveAppearanceTheme(on: date)
+        guard settings.appearanceThemeMode == .automatic else {
+            return theme.displayLabel.uppercased()
+        }
+        return "\(ThemeCatalog.season(on: date).displayLabel.uppercased()) · \(theme.displayLabel.uppercased())"
+    }
+
     /// Palette for the *selected* (theme, accent) — matches the live runtime
     /// once the app root mirrors the settings change.
     private var palette: ThemePalette { ThemePalette(theme: resolvedThemeID(theme), accent: accent.slot) }
