@@ -8048,7 +8048,19 @@ clean on a solo rerun. `aps-environment: development` verified after regen.
 
 Logged 2026-07-22.
 
-## 164. 🎲 Recurring UI-test flake: `testDisconnectReturnsToStandaloneChat` fails on bundle-warm runs
+## 164. ✅ Recurring UI-test flake: `testDisconnectReturnsToStandaloneChat` fails on bundle-warm runs — **CLOSED 2026-08-04: fix landed 2026-07-24, close criteria exceeded — zero recurrences across 11 days of full-bundle gate runs**
+
+> **✅ CLOSED 2026-08-04 (queue item 4, flake family).** The discriminating fix
+> (`waitForNonExistence(timeout: 5)` — tolerates the dismissal animation,
+> still fails on a real #31 regression) has been on main since 2026-07-24.
+> The close criteria asked for three consecutive green full-suite bundle
+> runs; the accumulated record is stronger: **every lane gate and combined
+> gate from 2026-07-24 through 2026-08-04 ran the full bundle and the #164
+> assertion signature never fired again** (that is well over a dozen runs,
+> including five on 2026-08-04 alone). The test's only appearance since is
+> inside **#219's runner-death list (2026-08-01), which is explicitly a
+> different mechanism** — no assertion text, runner lost, four tests taken
+> together — and stays filed there. Quarantine never needed.
 
 **2026-07-24 — REPRODUCED UNDER CONTROLLED CONDITIONS. Occurrence 4, and the first with a captured
 mechanism.** Three sequential full-suite runs on an otherwise-idle sim (Mac Mini, Owen away):
@@ -9238,6 +9250,13 @@ that surface.
 
 **Standing instruction:** record further occurrences here with build SHA and whether the run was
 warm. A counter nobody increments is how the first one sat unexamined for two weeks.
+
+> **Counter checked 2026-08-04 (queue item 4, flake family): still 1.** No
+> recurrence of the launch-timeout signature in any bundle run since filing —
+> eleven days of near-daily full-suite gates. Per this entry's own bar
+> ("do not spend a lane on a single occurrence"), no lane is spendable;
+> remains a counted WATCH. (#219's 2026-08-01 runner death did not involve
+> this test.)
 
 Logged 2026-07-24 (review of PR #144).
 
@@ -15970,6 +15989,13 @@ machine." The gate now prints which kind of failure it is looking at.
 **Owed:** nothing yet — this is a WATCH at occurrence 1. Two is a pattern (the
 standing rule that promoted #164). If it recurs, capture the `.xcresult`, not
 just the log.
+
+> **Watch confirmed 2026-08-04 (queue item 4, flake family): still occurrence
+> 1.** Every gate since filing — the four per-PR gates + the combined gate on
+> 2026-08-04 morning, and both quality-lane gates later that day — ran the
+> full XCUITest bundle first-try green; the no-assertion runner-death
+> signature has not recurred. The gate's flake protocol (re-run once, record
+> BOTH runs) stays armed. Nothing owed.
 
 ## 199A. false decline-attribution: the model blames a CONTACT for the USER's decline
 
