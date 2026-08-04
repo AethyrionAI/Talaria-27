@@ -9909,7 +9909,14 @@ from a work desk over the Tailscale OTA path. Airplane mode as ground truth for 
 - Same session produced fresh #192-family evidence (silent badge flip on Hermes-thread send —
   recorded at #192) and new #194 (tool fixation).
 
-## 191. 🐛 Chat header is not backend-aware — title and model pill keep reporting the Hermes session
+## 191. ✅ Chat header is not backend-aware — title and model pill keep reporting the Hermes session — **CLOSED 2026-08-04 (closure sweep): fix built 2026-07-27, device check PASSED 2026-08-02**
+
+> **✅ CLOSED 2026-08-04 (queue item 3 closure sweep).** The only thing this
+> item still owed was its §F1 device check, and it PASSED 2026-08-02 (recorded
+> in the running list): airplane mode, BOTH an existing Hermes session and a
+> fresh chat — header + pill read ON-DEVICE, the flip logged as user-initiated,
+> offline errors honest. Nothing left to build; the conversation-shell swap
+> this entry deliberately excluded belongs to #190.
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
@@ -9950,9 +9957,17 @@ Logged 2026-07-25.
 
 ---
 
-## 192. 🐛 The app SWITCHES ITSELF away from on-device; the refused manual switch is the residue
+## 192. ✅ The app SWITCHES ITSELF away from on-device; the refused manual switch is the residue — **CLOSED 2026-08-04 (closure sweep): both of this entry's own bars are met**
 
-> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> **✅ CLOSED 2026-08-04 (queue item 3 closure sweep), against the two bars the
+> entry itself set:** (1) *"a fix must carry a test that creates the stuck
+> state synthetically, or the item stays open"* — the 2026-07-27 fix carries
+> exactly those tests (never-finishing stream creates the wedge; the refused
+> switch is asserted; both recovery paths asserted); (2) the reproduction
+> trigger ("500-word summary" on-device) PASSED on device 2026-08-02 (§F1):
+> generated fully on-device in airplane mode, `routing lock released (#192)`
+> in the console, no brain flip. Sticky mode, the run-token teardown, the
+> one-writer instrumentation, and the fallback banner are all long merged.
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
 > runnable check. **One queue** — do not restate it here; a check that lives in two
 > places drifts, and a check that lives only in a closed-looking item is not recorded.
@@ -10055,7 +10070,13 @@ Logged 2026-07-25.
 
 ---
 
-## 193. 🔧 `confirmationDialog` Cancel button does not render on iOS 27
+## 193. ✅ `confirmationDialog` Cancel button does not render on iOS 27 — **CLOSED 2026-08-04 (closure sweep): all seven converted to `.alert` 2026-07-27; device check PASSED 2026-08-02**
+
+> **✅ CLOSED 2026-08-04 (queue item 3 closure sweep).** Zero
+> `confirmationDialog` uses remain in app code (all seven converted to
+> `.alert` with explicit Cancel, 2026-07-27), and the owed device check PASSED
+> 2026-08-02 (§F1): the Servers → delete-profile sheet rendered "Delete Mac
+> Mini" AND Cancel — which Owen confirmed did not render before the fix.
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
@@ -10432,7 +10453,20 @@ closes on merge.
 Logged 2026-07-27; battery-4/results-page note 2026-07-28; battery-4 VERDICT 2026-07-28;
 router probe 200/200 2026-07-28; PROMOTED 2026-07-28.
 
-## 197. 🐛 Tool-invocation failure aborts the turn and renders the RAW error — types, descriptions, and a memory address in the transcript
+## 197. ✅ Tool-invocation failure aborts the turn and renders the RAW error — types, descriptions, and a memory address in the transcript — **CLOSED 2026-08-04 (closure sweep): both defects fixed; the unexplained decode cause becomes a WATCH on the armed instrument**
+
+> **✅ CLOSED 2026-08-04 (queue item 3 closure sweep).** Both stacked defects
+> are fixed and merged: the raw-error rendering (2026-07-31 — only `tool.name`
+> surfaces, pinned by tests) and the dead turn (2026-08-02 — the once-only
+> decode retry, six truth-table rows RED-witnessed). **What stays open is not
+> app work: the decode failure's upstream CAUSE is unexplained** — and per the
+> never-blame-Apple rule that is recorded as *unexplained*, not attributed.
+> **WATCH, on the instrument already armed:** every retry logs a notice and
+> bumps `toolDecodeRetryCount`; the failure class is spurious, so observation
+> is opportunistic by nature. **Reopen triggers:** a second-consecutive-failure
+> message reaching the user in the wild, or a verbose pass showing the counter
+> climbing (the retry masking a worsening decode layer rather than absorbing a
+> rare one).
 
 **Observed 2026-07-27 18:23, device, airplane mode, armed cell (#196 A/B battery, fresh
 chat).** "Write a 50 word summary about Norway" → the model spuriously invoked WeatherTool
@@ -10592,7 +10626,25 @@ render. Parent: #196.
 
 Logged 2026-07-28.
 
-## 200. 🐛 Armed path refuses APPROPRIATE device actions — read-for-create substitution, then capability denial that survives corrections
+## 200. ✅ Armed path refuses APPROPRIATE device actions — read-for-create substitution, then capability denial that survives corrections — **CLOSED 2026-08-04 (closure sweep): the disease is measured CURED — #204's warm scoreboard is 30/30 across all three create intents**
+
+> **✅ CLOSED 2026-08-04 (queue item 3 closure sweep).** The defect this item
+> filed — appropriate creates refused — was treated through the measured
+> promotion arc this entry documents and its cure is on the record: **remind
+> 0/50 lifetime control → 75% (#200G) → 90% (#200K) → 10/10; calendar 53% →
+> 10/10; alarm 10/10 throughout** (#204 verdict run `E3759EE3`, production
+> cell, warm). Zero spiral, zero invented locations, zero card narration in
+> that run. **Residues all have named owners and none belong here:** the
+> false-attribution family → **#199A**; router/context misroutes → **#202
+> (closed)**; the structural over-serving question → **#214 (closed, both
+> directions answered)**; the window/overflow class → **#229 (built
+> 2026-08-04)**. The multi-turn offer→denial instrument, queued behind the
+> treatments all series long, is **MOOT under Owen's standing
+> moot-retirement note**: its entry point (read-then-offer on a failed
+> create) existed only while creates failed — at 10/10 there is no failed
+> create to offer after. The #200-series cell contrasts remain valid as
+> contrasts and are read per the #215 measurement-discipline rule (armed
+> cells, not production facts).
 
 Observed 2026-07-28 09:28–09:29 CDT, whoGoesThere, promoted build (`8e99402` Debug,
 armed-routed default), live chat, Owen's post-promotion spot check (screenshots on the
