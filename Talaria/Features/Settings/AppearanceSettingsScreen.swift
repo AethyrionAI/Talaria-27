@@ -20,7 +20,6 @@ struct AppearanceSettingsScreen: View {
 
     /// The theme actually in effect — honors automatic (seasonal) mode (#24).
     private var theme: AppearanceTheme { settingsStore.settings.effectiveAppearanceTheme() }
-    private var isAutomatic: Bool { settingsStore.settings.appearanceThemeMode == .automatic }
     private var accent: AppearanceAccent { settingsStore.settings.appearanceAccent }
     private var glow: Double { settingsStore.settings.hudGlowIntensity }
     private var grid: GridDensity { settingsStore.settings.gridDensity }
@@ -72,12 +71,7 @@ struct AppearanceSettingsScreen: View {
                 VStack(spacing: Design.Spacing.lg) {
                     SettingsScreenHeader(title: "Appearance", subtitle: "Heads-Up Display") { dismiss() }
                     previewPanel
-                    themeSection
-                    // Locked themes (Terminal) offer no accent choice — their
-                    // identity is the hero hue (#12).
-                    if theme.themeID.lockedAccentSlot == nil {
-                        accentSection
-                    }
+                    themesNavRow
                     glowSection
                     gridSection
                     appIconRow
@@ -90,6 +84,49 @@ struct AppearanceSettingsScreen: View {
         .navigationTitle("Appearance")
         .toolbarVisibility(.hidden, for: .navigationBar)
         .onAppear { spin = true }
+    }
+
+    // MARK: Themes navRow (#239)
+
+    /// The theme cards + accents live one level down (ThemesSettingsScreen);
+    /// this row surfaces the resolved state so automatic mode stays legible
+    /// from the top level.
+    private var themesNavRow: some View {
+        NavigationLink {
+            ThemesSettingsScreen()
+        } label: {
+            HStack(spacing: Design.Spacing.sm) {
+                Image(systemName: "paintpalette")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Design.Brand.accent)
+                    .frame(width: 32, height: 32)
+                    .background(Design.Colors.accentTint(0.05),
+                                in: RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Design.CornerRadius.sm)
+                            .strokeBorder(Design.Colors.accentTint(0.18), lineWidth: 1)
+                    }
+                Text("Themes")
+                    .font(Design.Typography.body(15, weight: .medium))
+                    .foregroundStyle(Design.Colors.foreground)
+                Spacer(minLength: Design.Spacing.xs)
+                MonoLabel(Self.themesRowValue(settings: settingsStore.settings),
+                          size: 10, weight: .medium,
+                          tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                    .lineLimit(1)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Design.Colors.accentTint(0.7))
+            }
+            .padding(.horizontal, Design.Spacing.md)
+            .padding(.vertical, Design.Spacing.sm)
+            .contentShape(Rectangle())
+            .hudPanel(cornerRadius: Design.CornerRadius.lg,
+                      borderColor: Design.Colors.accentTint(0.12),
+                      fill: Design.Colors.background.opacity(0.5),
+                      innerGlow: false)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: Preview
@@ -199,196 +236,6 @@ struct AppearanceSettingsScreen: View {
         .stroke(color.opacity(0.55), lineWidth: 1.5)
         .frame(width: 14, height: 14)
         .rotationEffect(rotation)
-    }
-
-    // MARK: Theme
-
-    private var themeSection: some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
-            MonoLabel("// Theme", size: 10, tracking: Design.Tracking.monoXWide,
-                      color: Design.Colors.mutedForeground)
-            automaticPanel
-            // Titled sections mirroring the gallery taxonomy (Lane E Task 0).
-            // Availability still runs through the catalog per group: holiday
-            // themes appear only in their window, an emptied group vanishes.
-            ForEach(ThemeCatalog.sections) { section in
-                themeGroup(section.title, section.definitions)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func themeGroup(_ title: String, _ definitions: [ThemeDefinition]) -> some View {
-        let available = ThemeCatalog.availableDefinitions(on: Date(), in: definitions)
-        if !available.isEmpty {
-            MonoLabel(title, size: 9, weight: .medium,
-                      tracking: Design.Tracking.monoWide,
-                      color: Design.Colors.dimForeground)
-                .padding(.top, Design.Spacing.xxs)
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: Design.Spacing.sm),
-                                GridItem(.flexible())],
-                      spacing: Design.Spacing.sm) {
-                ForEach(available) { themeCard($0) }
-            }
-        }
-    }
-
-    // MARK: Automatic (seasonal) mode
-
-    /// Seasonal auto-rotation toggle (#24). When on, the app resolves the theme
-    /// from the calendar; picking a card below switches back to manual.
-    private var automaticPanel: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
-                Text("Seasonal (Auto)")
-                    .font(Design.Typography.callout)
-                    .foregroundStyle(Design.Colors.foreground)
-                MonoLabel(automaticCaption, size: 9, weight: .regular,
-                          tracking: Design.Tracking.mono, color: Design.Colors.mutedForeground)
-            }
-            Spacer()
-            Toggle("", isOn: automaticBinding)
-                .labelsHidden()
-                .tint(palette.base)
-        }
-        .padding(.horizontal, Design.Spacing.md)
-        .padding(.vertical, Design.Spacing.sm)
-        .hudPanel(
-            cornerRadius: Design.CornerRadius.lg,
-            borderColor: isAutomatic ? Design.Colors.accentTint(0.3) : Design.Colors.accentTint(0.12),
-            fill: Design.Colors.background.opacity(0.5),
-            innerGlow: false
-        )
-    }
-
-    private var automaticCaption: String {
-        if isAutomatic {
-            return "\(ThemeCatalog.season(on: Date()).displayLabel.uppercased()) · \(theme.displayLabel.uppercased())"
-        }
-        return "Rotate theme by season"
-    }
-
-    private var automaticBinding: Binding<Bool> {
-        Binding(
-            get: { settingsStore.settings.appearanceThemeMode == .automatic },
-            set: { settingsStore.settings.appearanceThemeMode = $0 ? .automatic : .manual }
-        )
-    }
-
-    private func themeCard(_ definition: ThemeDefinition) -> some View {
-        // Each card renders its own environment, resolved with the user's
-        // current accent slot so it previews what they'd actually get.
-        let t = definition.appearanceTheme
-        let p = ThemePalette(theme: resolvedThemeID(t), accent: accent.slot)
-        // In automatic mode the active season's theme reads as selected.
-        let selected = (t == theme)
-        return Button {
-            // Picking a specific theme is a manual override (leaves auto mode).
-            var updated = settingsStore.settings
-            updated.appearanceThemeMode = .manual
-            updated.appearanceTheme = t
-            settingsStore.settings = updated
-        } label: {
-            VStack(spacing: Design.Spacing.xs) {
-                ZStack {
-                    Circle()
-                        .strokeBorder(p.base.opacity(0.4), lineWidth: 1.5)
-                        .frame(width: 34, height: 34)
-                    Circle()
-                        .fill(RadialGradient(colors: [p.bright, p.base, p.deep],
-                                             center: UnitPoint(x: 0.5, y: 0.4),
-                                             startRadius: 0, endRadius: 9))
-                        .frame(width: 16, height: 16)
-                        .shadow(color: p.base.opacity(0.6 * p.glowScale), radius: 6)
-                    if definition.locked {
-                        lockBadge(p)
-                    }
-                }
-                .padding(.top, Design.Spacing.sm)
-
-                MonoLabel(definition.displayName, size: 9, weight: .medium,
-                          tracking: Design.Tracking.mono, color: p.foreground)
-                    .padding(.bottom, Design.Spacing.sm)
-            }
-            .frame(maxWidth: .infinity)
-            .background(
-                LinearGradient(colors: p.screenGradientStops.map(\.color),
-                               startPoint: .top, endPoint: .bottom),
-                in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: Design.CornerRadius.lg)
-                    .strokeBorder(selected ? p.base.opacity(0.7) : p.hairline,
-                                  lineWidth: selected ? 1.5 : 1)
-            }
-            .shadow(color: selected ? p.base.opacity(0.35 * p.glowScale) : .clear, radius: 8)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        // Lane J (J-5): pointer affordance on iPad — inert without a pointer.
-        .hoverEffect(.highlight)
-        .accessibilityLabel(definition.displayName)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
-
-    /// Reserved premium/paid gate (#24). Inert today — no shipped theme is
-    /// locked — but the affordance exists so a future tier is a flag flip.
-    private func lockBadge(_ p: ThemePalette) -> some View {
-        Image(systemName: "lock.fill")
-            .font(.system(size: 9, weight: .bold))
-            .foregroundStyle(p.foreground)
-            .padding(4)
-            .background(Circle().fill(p.deep.opacity(0.85)))
-            .offset(x: 15, y: -15)
-    }
-
-    // MARK: Accent
-
-    private var accentSection: some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
-            MonoLabel("// Accent", size: 10, tracking: Design.Tracking.monoXWide,
-                      color: Design.Colors.mutedForeground)
-            HStack(spacing: Design.Spacing.md) {
-                ForEach(AppearanceAccent.allCases, id: \.self) { accentSwatch($0) }
-                Spacer()
-                // Slot names come from the RESOLVED variant so the adaptive
-                // theme labels its slots per the presented appearance
-                // (Kapow Yellow by night, Ben-Day Cyan by day).
-                MonoLabel(accent.displayLabel(for: resolvedThemeID(theme)).uppercased(),
-                          size: 9, weight: .medium,
-                          tracking: Design.Tracking.mono, color: palette.base)
-            }
-            .padding(.horizontal, Design.Spacing.xs)
-        }
-    }
-
-    private func accentSwatch(_ a: AppearanceAccent) -> some View {
-        // The slot swatch shows the color the CURRENT theme resolves it to.
-        let c = ThemePalette(theme: resolvedThemeID(theme), accent: a.slot)
-        let selected = (a == accent)
-        return Button {
-            settingsStore.settings.appearanceAccent = a
-        } label: {
-            ZStack {
-                if selected {
-                    Circle()
-                        .strokeBorder(c.base, lineWidth: 1.5)
-                        .frame(width: 34, height: 34)
-                        .shadow(color: c.base.opacity(0.45 * c.glowScale), radius: 6)
-                }
-                Circle()
-                    .fill(c.base)
-                    .frame(width: selected ? 24 : 30, height: selected ? 24 : 30)
-                    .opacity(selected ? 1 : 0.85)
-            }
-            .frame(width: 36, height: 36)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .hoverEffect(.highlight)
-        // Scheme-resolved so VoiceOver names the swatch by the variant it
-        // visibly renders (the adaptive theme's halves differ).
-        .accessibilityLabel(a.displayLabel(for: resolvedThemeID(theme)))
     }
 
     // MARK: Glow
