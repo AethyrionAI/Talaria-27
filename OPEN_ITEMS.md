@@ -13283,6 +13283,18 @@ direction — one more thing the gateway already carries.
 >   the spectrum (hidden for Terminal); Seasonal AUTO = channel 00 (counter
 >   NN/30, computed); inert `locked` badge machinery carried deliberately.
 
+> **✅ BUILT + BARS MET — 2026-08-04 early AM.** 244-A/B green (DesignThemeTests
+> 27/27 — honest note: the four new tests were written before the
+> implementation but their RED was not separately witnessed; new-type
+> compile-RED class, implementation landed in the same edit window). 244-C
+> MET live: the replaced XCUITest drives the real browser — opens on Deep
+> Field, › to Solar Forge, leaves, re-enters, and the browser reopens on
+> Solar Forge's channel (apply-on-land persisted). **GATE: PASS — 1559 exact
+> (pinned), XCUITest 10, 2 expected skips, Release clean.** Dropped detail
+> recorded in the spec: TabView has no native page-peek, so the prev/next
+> edge slivers are omitted (‹ › + counter carry adjacency). Owen's visual
+> pass owed on device — the design is his call to keep, tune, or bounce.
+
 **Owen, minutes after #239 closed, verbatim:** *"The whole appearance tab feels
 like it needs a rework in general. It doesn't flow right."* Read: #239's
 sub-section split fixed the burying problem but the screen's overall FLOW —
