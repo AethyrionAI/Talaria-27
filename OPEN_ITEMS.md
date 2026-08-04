@@ -13586,6 +13586,15 @@ bar; it is not met until the answer surfaces WITHOUT manual re-entry).
 > (`GatewayModelCatalogTests` 6 → 8); 245-C by construction as
 > pre-registered. Picker checkmark confirmed profile-sourced pre-build —
 > untouched. Device half: Owen's relaunch re-test on the next OTA.
+>
+> **📸 MECHANISM CONFIRMED ON DEVICE 2026-08-04 ~1:46 PM (Owen, build 1978
+> — pre-fix — two screenshots, same conversation):** header KIMI-K3 while
+> the turn underneath answers "deepseek-v4-flash, via the deepseek
+> provider"; the pill flips to DEEPSEEK-V4-FLASH only when the turn's
+> `runtime` correction lands, then the next catalog refresh stomps it back.
+> Owen: *"It was lying to me right up until the last second and it
+> changed."* The stomp-then-correct cycle, observed exactly as filed — the
+> per-turn runtime handler was the only truth-teller on 1978.
 
 **FILED 2026-08-04 (~1 PM) from Owen's build-1978 test #3 ("Fail. …if I force
 quit and reload, it changes back to the server default (kimi at the moment)").**
