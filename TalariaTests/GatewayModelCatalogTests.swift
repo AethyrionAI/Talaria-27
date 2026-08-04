@@ -80,4 +80,29 @@ struct GatewayModelCatalogTests {
         #expect(partial.provider == "kimi-coding")
         #expect(partial.routeSource == nil)
     }
+
+    // MARK: - #245: the header display name and its pick-wins preference
+    //
+    // Filed from Owen's build-1978 relaunch test: the persisted pick's LOCK
+    // survived (session probe: deepseek served + self-reported; no kimi
+    // session) while the header reverted — the catalog refresh stomped it
+    // with the host default. The display derivation lives in ONE place and
+    // the preference is pinned pure.
+
+    /// 245-A: the display name is the id's tail; slashless ids pass through.
+    @Test
+    func modelSelectionDisplayNameIsTheIDTail() {
+        #expect(ModelSelection(provider: "deepseek", modelID: "deepseek/deepseek-v4-flash").displayName == "deepseek-v4-flash")
+        #expect(ModelSelection(provider: "kimi-coding", modelID: "kimi-k3").displayName == "kimi-k3")
+    }
+
+    /// 245-B: pick-wins — a persisted pick's name outranks the host default;
+    /// no pick falls through to the host default; nothing yields nothing.
+    @Test
+    func headerNamePrefersThePickOverTheHostDefault() {
+        let pick = ModelSelection(provider: "deepseek", modelID: "deepseek/deepseek-v4-flash")
+        #expect(ModelSelection.headerName(pick: pick, hostDefault: "kimi-k3") == "deepseek-v4-flash")
+        #expect(ModelSelection.headerName(pick: nil, hostDefault: "kimi-k3") == "kimi-k3")
+        #expect(ModelSelection.headerName(pick: nil, hostDefault: nil) == nil)
+    }
 }
