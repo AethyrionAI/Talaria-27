@@ -266,9 +266,14 @@ struct StreamStallGuardTests {
     func zombieStreamAfterRunStartedYieldsInterrupted() async {
         // The same sub-512B buffering trap as #240's fixture: pad past the
         // custom-protocol flush threshold or the body never reaches the task.
+        // The trailing message.started matters: `bytes.lines` swallows blank
+        // lines, so an event only dispatches when the NEXT `event:` line
+        // arrives — a lone run.started with nothing after it parks
+        // undispatched (runId nil, reconcile resolves positionally). Real
+        // zombies stream events before going quiet, so the fixture does too.
         let padding = ": " + String(repeating: "x", count: 700) + "\n"
         ZombieSSEProtocol.streamBody = Data(
-            (padding + "event: run.started\ndata: {\"run_id\":\"run-z1\"}\n\n").utf8
+            (padding + "event: run.started\ndata: {\"run_id\":\"run-z1\"}\n\nevent: message.started\ndata: {}\n\n").utf8
         )
         defer { ZombieSSEProtocol.streamBody = nil }
 
@@ -287,38 +292,31 @@ struct StreamStallGuardTests {
         )
         client.streamStallThreshold = .milliseconds(400)
 
-        // Belt against a hang if the guard ever regresses: the collection
-        // races a deadline; the loser is cancelled (AsyncStream iteration
-        // ends on cancellation, so no stranded waiter — the Task.value trap).
-        let outcome: (interrupted: [(String, String?)], sawFailed: Bool)? = await withTaskGroup(
-            of: (interrupted: [(String, String?)], sawFailed: Bool)?.self
-        ) { group in
-            group.addTask { @MainActor in
-                var interrupted: [(String, String?)] = []
-                var sawFailed = false
-                for await update in client.sendStreaming(message: "Q", attachments: [], clientMessageID: UUID()) {
-                    switch update {
-                    case let .interrupted(sessionId, runId): interrupted.append((sessionId, runId))
-                    case .failed: sawFailed = true
-                    default: break
-                    }
+        // Belt against a hang if the guard ever regresses: a deadline task
+        // CANCELS the collector, and cancellation genuinely ends AsyncStream
+        // iteration — the loop exits with a partial outcome, so awaiting
+        // `.value` cannot strand (the Task.value trap needs an operation
+        // that ignores cancellation; this one doesn't).
+        let collector = Task { @MainActor in
+            var interrupted: [(String, String?)] = []
+            var sawFailed = false
+            for await update in client.sendStreaming(message: "Q", attachments: [], clientMessageID: UUID()) {
+                switch update {
+                case let .interrupted(sessionId, runId): interrupted.append((sessionId, runId))
+                case .failed: sawFailed = true
+                default: break
                 }
-                return (interrupted, sawFailed)
             }
-            group.addTask {
-                try? await Task.sleep(for: .seconds(10))
-                return nil
-            }
-            let first = await group.next() ?? nil
-            group.cancelAll()
-            return first
+            return (interrupted: interrupted, sawFailed: sawFailed)
         }
+        let belt = Task {
+            try? await Task.sleep(for: .seconds(10))
+            collector.cancel()
+        }
+        let outcome = await collector.value
+        belt.cancel()
 
-        guard let outcome else {
-            Issue.record("the zombie stream HUNG past the 10s belt — the stall guard did not fire")
-            return
-        }
-        #expect(outcome.interrupted.count == 1)
+        #expect(outcome.interrupted.count == 1, "the zombie stream must interrupt, not hang past the belt")
         #expect(outcome.interrupted.first?.0 == "sess-z")
         #expect(outcome.interrupted.first?.1 == "run-z1")
         #expect(!outcome.sawFailed)

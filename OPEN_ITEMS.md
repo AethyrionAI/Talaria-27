@@ -13476,6 +13476,21 @@ the UI show after the switch — header unchanged? Spinner? Old OJAMD session
 still on screen? "Does absolutely nothing" is the symptom; which nothing
 matters.
 
+> **RESOLVED (ops half) 2026-08-04 ~2:15 PM — Owen: "There it goes. I
+> restarted tailnet."** Full diagnosis, confirmed from the Mac vantage while
+> it was live: OJAMD was NEVER down (gateway/relay/RDP all listening, authed
+> `/health` 200 throughout). The tailnet map showed the break: Mac↔OJAMD
+> rode a DIRECT LAN path (192.168.1.x), while the phone AND the work PC both
+> rode DERP relay "mia" — and both failed. OJAMD's relay path was broken
+> while its LAN path was fine; Owen's tailnet restart cured it. The Mac
+> timeout during the flap was the same broken path, not the Mac gateway —
+> exercised locally mid-outage: `/api/model/options` 200 (42 providers),
+> session create instant, chat answered 5.1s. **Still open on this item:**
+> the APP half (a profile switch to an unreachable host shows no verdict —
+> Owen's UI detail still wanted), and Owen's call on whether the Mac gateway
+> runs persistently (it is currently a plain process started 2026-08-04,
+> dies with a reboot).
+
 ## 246. 🐛 A backgrounded remote turn shows the pending spinner forever when the stream ZOMBIFIES — recovery only arms on stream END, and a stream that never ends never arms it
 
 **FILED 2026-08-04 (~1 PM) from Owen's build-1978 test — the first run of the

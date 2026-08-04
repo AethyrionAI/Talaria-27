@@ -90,8 +90,7 @@ final class AppContainer {
         }
         sessionsChatClient?.modelSelection = selection
         if let selection {
-            let display = selection.modelID.split(separator: "/").last.map(String.init) ?? selection.modelID
-            chatStore.replaceCommandCatalog(chatStore.commandCatalog, activeModel: display)
+            chatStore.replaceCommandCatalog(chatStore.commandCatalog, activeModel: selection.displayName)
         }
     }
     /// #156a: the Tasks (scheduled cron jobs) store — rides the ACTIVE
@@ -1845,7 +1844,16 @@ final class AppContainer {
             } else {
                 chatStore.replaceCommandCatalog(
                     catalog,
-                    activeModel: response.activeModel?.name,
+                    // #245: pick-wins. This call site used to write the HOST's
+                    // default over a persisted pick's label on every launch
+                    // and foreground refresh — while the per-turn lock kept
+                    // riding — so the header claimed a model the turns were
+                    // not using. CTX denominator deliberately stays
+                    // host-reported (#191's standing choice).
+                    activeModel: ModelSelection.headerName(
+                        pick: activeModelSelection,
+                        hostDefault: response.activeModel?.name
+                    ),
                     contextWindow: response.activeModel?.contextWindow
                 )
                 lastCommandCatalogRefreshAt = .now
@@ -1865,8 +1873,7 @@ final class AppContainer {
     private func seedActiveModelFromGateway() async {
         // #223 Lane 5: a persisted pick wins outright — no fetch needed.
         if let pick = activeModelSelection {
-            let display = pick.modelID.split(separator: "/").last.map(String.init) ?? pick.modelID
-            chatStore.replaceCommandCatalog(chatStore.commandCatalog, activeModel: display)
+            chatStore.replaceCommandCatalog(chatStore.commandCatalog, activeModel: pick.displayName)
             return
         }
         do {
