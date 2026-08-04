@@ -14043,6 +14043,25 @@ latency). `waitForExistence` already polls internally — budget was the only
 defect. No counted-delta change (an edit in place). Verified by the branch
 gate's full XCUITest run.
 
+> **⚠️ POST-FIX OCCURRENCE 1 — 2026-08-04 midday: the 40s budget was blown
+> OUTRIGHT, which the render-latency premise does not explain.** On the
+> #222 comment-only branch (production code identical to merged main in the
+> synthetic-reply path), the gate's first run failed the SAME assertion
+> (`MessageIdentityUITests.swift:113`, "the on-device reply for 'warm'
+> should render", test runtime 94s, 10 executed / 1 failure — NOT #219's
+> runner death). Per the record-both-runs protocol: **run 1 FAIL, run 2
+> PASS** (1574/10, standing skips only). Context matching #182's
+> first-question: this was roughly the ELEVENTH sim test invocation of the
+> day (the #183 mutation runs) — hot-machine correlation now has two data
+> points across two items. Artifacts preserved:
+> `handoffs/222-gate-flake-2026-08-04/` (suite.log + release.log). **The
+> 20→40s bump absorbed a 40ms overshoot; it cannot absorb whatever stalled
+> this reply >40s.** Counter is at 1 for the post-fix shape — per the #164
+> bar, one occurrence is counted, not laned. If it recurs, the next
+> question is whether the synthetic backend's reply task is starving under
+> load rather than rendering slowly (a polling-loop fix aims at the wrong
+> layer if so), and the `.xcresult` should be captured then.
+
 ## 235. 🐛 CRITICAL (Owen, 2026-08-03): remote chats DROP THE FINAL ANSWER when the stream dies mid-turn — chips render, the answer lands in the server store, the app never fetches it — **FIX BUILT same day; 235-A/B/C green in suite; 235-D verdict: request stamp wins, no timeout change; device bars 235-E/F owed to the next OTA**
 
 > **✅ FIX BUILT 2026-08-03 (midday), same-day turnaround on Owen's routing**
@@ -15842,6 +15861,14 @@ a positive control (2026-08-02).
 
 1. **Correct the comment first.** It is wrong in the tree right now and it is being
    read as a premise. That is a standalone fix regardless of what follows.
+   > **✅ DONE 2026-08-04 (queue item 5).** The `LocalChatBackend+Battery.swift`
+   > comment now states the blind turn as OUR integration choice (we OCR and
+   > hand the model a String; the SDK's image surface is unused), cites the
+   > 2026-08-02 §F1 device confirmation that the behavior is real today, and
+   > points re-derivation of the routing premise at this entry's decision.
+   > Items 2–3 below stay owed: 2 needs a code experiment + device run
+   > (attach via `Transcript.ImageAttachment`, ask a viewer-only question),
+   > 3 is Owen's adopt-or-not call — **the entry stays OPEN on those two.**
 2. **Prove the model actually sees an attached image** — attach one, ask something
    only a viewer could answer (dominant colour, object count), on device. Until
    that runs, "the SDK has the type" is availability, not capability. **Do not
