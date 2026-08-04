@@ -13263,7 +13263,24 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
-## 243. 🎨 Theme selection as a SLIDING CARD GALLERY (toggle option) — **FILED 2026-08-03 night, UNROUTED (Owen's note-for-later, no design)**
+## 244. 🎨 APPEARANCE TAB HOLISTIC REWORK — "It doesn't flow right" — **FILED 2026-08-03 night (pre-compaction), UNROUTED (Owen's observation, no design)**
+
+**Owen, minutes after #239 closed, verbatim:** *"The whole appearance tab feels
+like it needs a rework in general. It doesn't flow right."* Read: #239's
+sub-section split fixed the burying problem but the screen's overall FLOW —
+what order things appear in, how preview / themes row / glow / grid / app icon
+/ feel toggles relate as you scroll — still reads wrong to the owner. This is
+the umbrella item: when routed it starts at brainstorming with Owen (his
+design instinct filed #239 and #243; the questions are his to answer —
+what feels out of order, what belongs together, what the screen is FOR
+post-pivot). **Fold-ins when routed:** #243 (sliding card gallery toggle)
+should ride this rework rather than land piecemeal; #239's navRow/sub-screen
+survives as a component either way. Current anatomy for the brainstorm:
+`AppearanceSettingsScreen` = header → previewPanel → themesNavRow →
+glowSection → gridSection → appIconRow → togglePanel (Reduce Motion, Haptic
+Feedback); `ThemesSettingsScreen` = cards + seasonal toggle + accents.
+
+## 243. 🎨 Theme selection as a SLIDING CARD GALLERY (toggle option) — **FILED 2026-08-03 night, UNROUTED (Owen's note-for-later, no design) — rides #244's rework when that routes**
 
 **Owen, immediately after approving #239's merge, verbatim:** *"I do want to
 redesign Theme selection into a sliding card gallery (toggle option), just a
