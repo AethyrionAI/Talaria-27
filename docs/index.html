@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Talaria — Native iOS client for self-hosted Hermes AI</title>
-<meta name="description" content="A native SwiftUI iPhone client for your self-hosted Hermes AI agent. Direct API, streaming chat, voice, sensors, and full settings — built for self-hosters.">
+<title>Talaria — On-device AI companion for iPhone, self-host ready</title>
+<meta name="description" content="A native SwiftUI iPhone app with a fully on-device AI brain — and a client for your self-hosted Hermes agent when you pair one. Streaming chat, voice, sensors, device tools.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
@@ -180,8 +180,8 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
     <div class="h-core"></div>
   </div>
   <h1>TALARIA</h1>
-  <p class="tagline">A native iOS client for your self-hosted Hermes AI agent.</p>
-  <p class="hero-sub">SELF-HOSTED &nbsp;·&nbsp; SWIFT NATIVE &nbsp;·&nbsp; DIRECT API &nbsp;·&nbsp; SENSORS + VOICE</p>
+  <p class="tagline">A native iOS AI companion with a fully on-device brain — and a client for your self-hosted Hermes agent when you pair one.</p>
+  <p class="hero-sub">ON-DEVICE BRAIN &nbsp;·&nbsp; SWIFT NATIVE &nbsp;·&nbsp; SELF-HOST UPGRADE &nbsp;·&nbsp; SENSORS + VOICE</p>
   <div class="badges">
     <span class="badge">iOS 27</span>
     <span class="badge">Swift 6</span>
@@ -283,7 +283,7 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
     </p>
     <br>
     <p class="sbody">
-      Chat talks directly to the Hermes Gateway API. Sensors flow through a lightweight sidecar relay. Model switching is handled by a local shim. Everything is auditable, replaceable, and yours.
+      Chat and model selection talk directly to the Hermes Gateway API. Sensors flow through a lightweight sidecar relay. Everything is auditable, replaceable, and yours.
     </p>
   </div>
   <div class="about-phone">
@@ -297,7 +297,7 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
     <div class="arch-hdr">
       <p class="slabel">// ARCHITECTURE</p>
       <h2 class="stitle">How it connects.</h2>
-      <p class="sbody">Three independent paths — chat, sensors, and model control — each talking to a dedicated service on your host machine.</p>
+      <p class="sbody">Two independent paths — chat and sensors — each talking to a dedicated service on your host machine. Model control rides the chat connection.</p>
     </div>
 
 <pre class="arch">
@@ -311,9 +311,9 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
   │    Location, HealthKit, motion         <span class="dim">sidecar process (Python/uvicorn)</span>
   │    Background upload                   <span class="dim">→ hermes_mobile MCP tools</span>
   │
-  └─ <span class="acc">Model switching</span>  ──────→  Models Shim         <span class="dim">:8765</span>
-       Live model list + swap              <span class="dim">tools/models-shim/shim.py</span>
-       Per-session, no restart             <span class="dim">(optional)</span>
+  └─ <span class="acc">Model picking</span>  ────────→  (same gateway connection)
+       Provider roster + swap              <span class="dim">per-turn model lock</span>
+       Per-session, no restart             <span class="dim">no third service</span>
 </pre>
 
     <div class="service-grid">
@@ -328,14 +328,14 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
         <div class="svc-desc">Lightweight Python sidecar that receives sensor uploads from the phone and delivers them to Hermes via <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent)">hermes_mobile</code> MCP tools.</div>
       </div>
       <div class="svc">
-        <div class="svc-port">:8765</div>
-        <div class="svc-name">MODELS SHIM</div>
-        <div class="svc-desc">Optional. Exposes the full live model list from your Hermes install and allows per-session model switching without a gateway restart.</div>
+        <div class="svc-port">:8642</div>
+        <div class="svc-name">MODEL CONTROL</div>
+        <div class="svc-desc">No third service. The app reads your full provider roster from the gateway and applies picks as a per-turn model lock plus a session pin — model switching with nothing extra to run.</div>
       </div>
       <div class="svc">
         <div class="svc-port">TAILSCALE</div>
         <div class="svc-name">NETWORK LAYER</div>
-        <div class="svc-desc">Recommended for remote access. The app uses Tailscale hostnames and IPs to reach all three services without exposing them to the public internet.</div>
+        <div class="svc-desc">Recommended for remote access. The app uses Tailscale hostnames and IPs to reach both services without exposing them to the public internet.</div>
       </div>
     </div>
   </div>
@@ -348,6 +348,11 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
     <h2 class="stitle">What Talaria does.</h2>
   </div>
   <div class="feat-grid">
+    <div class="feat">
+      <div class="feat-icon">🧠</div>
+      <div class="feat-name">ON-DEVICE BRAIN</div>
+      <div class="feat-desc">A full local chat backend on Apple's FoundationModels: streaming, sessions, read-aloud, and a device tool belt (calendar, reminders, contacts, weather, health, alarms) with every action confirmed in-app. Works in airplane mode; nothing leaves the phone.</div>
+    </div>
     <div class="feat">
       <div class="feat-icon">💬</div>
       <div class="feat-name">STREAMING CHAT</div>
@@ -366,7 +371,7 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
     <div class="feat">
       <div class="feat-icon">🔀</div>
       <div class="feat-name">LIVE MODEL SWITCHING</div>
-      <div class="feat-desc">Pick from your full provider roster mid-session. Switches take effect on the next session without restarting any service.</div>
+      <div class="feat-desc">Pick from your full provider roster, straight from the gateway. Picks ride every turn as a model lock and pin the live session — no extra service, no restart.</div>
     </div>
     <div class="feat">
       <div class="feat-icon">📁</div>
@@ -426,7 +431,7 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
         <div class="step-body">
           <div class="step-title">DEPLOY THE RELAY SIDECAR</div>
           <p class="step-text">
-            Clone this repo and run the HermesMobile relay from <code>relay/</code>. Set <code>AGENT_FILES_DIR</code> in your <code>.env</code> for agent file downloads, and change <code>INTERNAL_API_KEY</code> from its default. The relay carries pairing and auth, sensor ingestion, APNs push, the inbox/directives channel, scheduled runs, agent-file downloads, and the voice WebRTC bootstrap — everything phone-facing except chat, which talks straight to the gateway. Bind to <code>0.0.0.0</code> so your phone can reach it over Tailscale.
+            Clone this repo and run the HermesMobile relay from <code>relay/</code>. Set <code>AGENT_FILES_DIR</code> in your <code>.env</code> for agent file downloads, and change <code>INTERNAL_API_KEY</code> from its default. The relay carries pairing and auth, sensor ingestion, the inbox/directives channel, scheduled runs, agent-file downloads, and the voice WebRTC bootstrap — everything phone-facing except chat, which talks straight to the gateway. Bind to <code>0.0.0.0</code> so your phone can reach it over Tailscale.
           </p>
         </div>
       </div>
@@ -444,9 +449,9 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
       <div class="step">
         <div class="step-n">05</div>
         <div class="step-body">
-          <div class="step-title">RUN THE MODELS SHIM (OPTIONAL)</div>
+          <div class="step-title">MODEL SWITCHING — NOTHING TO RUN</div>
           <p class="step-text">
-            Only needed for live model switching. Run <code>python shim.py</code> from <code>tools/models-shim/</code>; it listens on <code>:8765</code>. It imports Hermes internals, so run it from a Python environment where Hermes is installed, and set <code>TALARIA_SHIM_HOST</code> explicitly — the default is the author's own tailnet IP. Auth is a Bearer token at <code>~/.hermes/talaria_shim_token</code>.
+            Model picking is built into the gateway connection: the app reads your provider roster from the Sessions API and applies picks as a per-turn model lock plus a session pin. No extra service, no restart. (The legacy shim in <code>tools/models-shim/</code> served older builds and is no longer used.)
           </p>
         </div>
       </div>
