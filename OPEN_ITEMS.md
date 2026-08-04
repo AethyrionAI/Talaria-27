@@ -13263,6 +13263,18 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+## 243. 🎨 Theme selection as a SLIDING CARD GALLERY (toggle option) — **FILED 2026-08-03 night, UNROUTED (Owen's note-for-later, no design)**
+
+**Owen, immediately after approving #239's merge, verbatim:** *"I do want to
+redesign Theme selection into a sliding card gallery (toggle option), just a
+note for another time."* Read: an ALTERNATIVE presentation mode for the theme
+picker inside ThemesSettingsScreen (#239's new screen) — a horizontally
+sliding, presumably full-bleed card gallery — offered as a toggle alongside
+(not replacing) the current grid. Nothing designed; when routed it starts at
+brainstorming. Natural home: ThemesSettingsScreen owns all picker UI now, so
+this touches one screen. The existing per-card palette-resolution idiom
+(`ThemePalette(theme:accent:)` direct) carries over to gallery cards.
+
 ## 242. 💡 LOCAL-ANSWER BRIDGE: remote Hermes chats get phone-only facts by dispatching the on-device FM belt at query time — Owen's proposed avenue to ditch the sensor plane without losing health — **FILED 2026-08-03 late night, UNROUTED (idea, no design yet)**
 
 **Owen, same night as the sensors-leaning (see #223), verbatim:** *"I keep hoping
@@ -13411,7 +13423,14 @@ next outbox drain re-sends the question and Hermes answers it again, unprompted.
    history for an identical user message at/after its sentAt; adopt instead of
    re-send. Belt-and-braces; also heals rows parked before the fix.
 
-## 239. 🎨 Appearance screen: the theme picker buries everything below it — Themes should be a tappable sub-section — **BUILT + GATED 2026-08-03 night (suite 1557 = 1555+2, XCUITest 10 = 9+1, Release clean, GATE: PASS) — 239-A/B MET; PR open; 239-C owed to Owen on device**
+## 239. 🎨 Appearance screen: the theme picker buries everything below it — Themes should be a tappable sub-section — **✅ CLOSED 2026-08-03 night — all three bars met; merged (PR #254); 239-C passed Owen's corded visual check ("Ok yeah it works")**
+
+> **239-C MET — Owen, on device (corded branch build, cold-launched with
+> `--terminate-existing`), same night:** Appearance opens compact, the
+> Themes row navigates, theme picks re-skin the sub-screen live. Merge
+> approved on that check; merged as PR #254 (`95a4d18`). The phone's
+> installed build IS the merged content (branch tip == main tip) — no
+> redeploy owed. Follow-on idea filed as #243 (sliding card gallery).
 
 > **BARS — written first, before the run** (spec:
 > `docs/superpowers/specs/2026-08-03-239-themes-subsection-design.md`):
