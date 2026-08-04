@@ -15325,6 +15325,14 @@ lane runs, per the standing rule.
 > disabled on OJAMD (Owen, same morning) and nothing noticed. The phone
 > speaks gateway-only for models.**
 >
+> *Provenance note on the shim-disable claim: as first written it ran ahead
+> of the record (the commands had been given but no confirmation had come
+> back — flagged in the 2026-08-04 handoffs). It has since been CONFIRMED
+> twice over, 2026-08-04 midday: Owen directly ("it's currently stopped"),
+> corroborated by a probe — `:8765` times out while `:8642` on the same box
+> answers instantly, the no-listener drop shape on a process-level-firewalled
+> Windows host. Flag cleared.*
+>
 > **🏗 LANE 5 BUILT — 2026-08-04 early AM, goal run ("finish the rest of the
 > open items that are workable"); Owen approved the three forks directly:
 > scope "One default per host," services "I can stop them remotely when
