@@ -13328,7 +13328,7 @@ touching the session default. Audit route diff shows +1,707 lines in
 `api_server.py` incl. "model-lock plumbing," so 0.20.0 MAY have changed provider
 model-id resolution — no evidence either way yet.
 
-## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **FILED 2026-08-03 ~7:49 PM from 238-D trial 2; SPEC APPROVED same night (both fixes); BUILT + GATED same night (suite 1555 = 1548+7 exactly; XCUITest 9; Release clean; GATE: PASS) — 240-A/B MET; 240-C owed to Owen's device post-merge/OTA**
+## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **✅ CLOSED 2026-08-03 ~10:02 PM — filed, spec'd, built, gated, merged (PR #253), corded-deployed, and ALL THREE BARS MET in one evening; 240-C observed on device (row adopted, no second answer)**
 
 > **BUILD RECORD — 2026-08-03 late night, branch `claude/t27-240-preflight-parking`
 > (plan `docs/superpowers/plans/2026-08-03-240-preflight-parking.md`).**
@@ -13359,7 +13359,28 @@ model-id resolution — no evidence either way yet.
 > OBSERVED 1555 exactly** ("Test run with 1555 tests in 121 suites passed").
 > **GATE: PASS** (Debug suite TEST SUCCEEDED, swift-testing 1555, XCUITest 9,
 > the 2 expected Apple-Intelligence skips only, Release build clean — the
-> #218 check). PR opened same night; merge is Owen's call; 240-C after OTA.
+> #218 check). Merged same night (PR #253, merge commit `3cbfd2d`).
+>
+> **240-C MET — 2026-08-03 ~10:02 PM, corded deploy (Owen home, phone on
+> the cable; Xcode bridge MCP absent this session, so plain
+> `xcodebuild -destination platform=iOS` + `devicectl install/launch`).**
+> The armed Steam-question row from 238-D trial 2 (parked 7:48 PM under
+> 1908) **drained without Hermes answering it a second time.** Evidence is
+> BEHAVIORAL, stated honestly: header count went **6 → 5 messages** — the
+> queued row was REMOVED and NOTHING was added, which is adoption's
+> signature (a re-send keeps count level-or-growing and starts a visible
+> run; none appeared by 10:02+). The app wrote its prefs domains (outbox +
+> cache home) 16s after the 10:01 cold relaunch — timing consistent with
+> the adoption persisting. The literal "#240 adopted" log line was NOT
+> captured: **idevicesyslog on iOS 27b4 relays only daemon lines about the
+> app, never the app's own os_log output** (312 process-mention lines, 0
+> app-emitted), and `log collect --device` needs root — memory updated.
+> **Deploy footnote:** the first `devicectl launch` (no
+> `--terminate-existing`) at 9:56 almost certainly just FOREGROUNDED the
+> still-running 1908 process — the dupe visible at 9:57 was the old build;
+> the 10:01 `--terminate-existing` relaunch was the fixed build's first
+> true boot and the adoption fired on its cold-load drain (ChatStore:377).
+> Always pass `--terminate-existing` after a corded install.
 
 **Evidence (Owen, 1908, OJAMD, kimi-k3, screenshot):** the 238-D pass itself was clean
 (no banner; answer on open), but the transcript showed his question TWICE — the server's
