@@ -6328,6 +6328,12 @@ screenshot refresh, batched with the App Store screenshot pass so shots are prod
 > mention dropped. **Still remaining, still batched with P-4: the screenshot
 > refresh** (docs/img/ predates the theming + local-brain UI) — shots produced
 > once, with the App Store pass.
+>
+> **Owen's read of the refreshed site, 2026-08-04 afternoon (post-merge,
+> follow-up fix `93f4223` shrank both setup lists to six steps per his note):**
+> *"better. I'm thinking a redesign is in the future, but I'll only ask for a
+> handoff to Claude Design for that."* **A future Pages redesign is HIS to
+> initiate via Claude Design; nothing queued here.**
 
 **Logged 2026-07-20 (Owen).** Public-facing repo surfaces contradict current reality:
 - **README:26** still claims voice is "currently wedged by an iOS 27 beta seed regression…
@@ -13431,6 +13437,79 @@ a real chat turn observed stalled on an unanswerable approval (→ upstream
 conversation), or Owen asking for the cards to stop prompting (→ the small
 Manual/Off app lane).**
 
+## 246. 🐛 A backgrounded remote turn shows the pending spinner forever when the stream ZOMBIFIES — recovery only arms on stream END, and a stream that never ends never arms it
+
+**FILED 2026-08-04 (~1 PM) from Owen's build-1978 test — the first run of the
+235-E device bar, and it FAILED as shipped.** His exact maneuver: held a
+conversation, asked for something longer, backgrounded mid-run, returned ~30s
+later → **pending spinner, no response.** Left the conversation via the
+sidebar, re-entered → **the answer was there.** No duplicates (that half is
+237-E's bar and it PASSED — recorded in #237).
+
+**Mechanism hypothesis (from source, not yet log-confirmed):** #235's recovery
+arms when a stream ENDS abnormally (`.interrupted` / empty clean-close). A
+stream that goes zombie in the background — socket nominally open, no bytes
+ever arriving, no terminal event — never ends, so `pendingRun` never arms.
+The foreground reconcile then no-ops on its very first guard
+(`performReconcilePendingRuns`: `guard let pending = pendingRun else { return }`,
+`ChatStore.swift:1740`) and the polling loop behind it never starts. **The
+leave/re-enter "fix" wasn't the recovery path at all** — it was the ordinary
+session-open history fetch, which is why it worked.
+
+**What this is NOT:** not a reconcile-loop bug (the loop is fine once armed —
+235-A/B/C pinned it); not #237's dedupe (passed on this very maneuver); not
+the #240 parking path (the turn was streaming long before backgrounding).
+
+**Fix territory (unrouted — Owen routes):** a stall detector on the live
+stream — foregrounded with an in-flight streaming task whose last received
+event is older than N seconds ⇒ treat as interrupted, arm recovery, reconcile.
+The foreground-return hook is the natural site: it already runs; it just has
+nothing armed to act on. **Discriminator to capture on the next natural
+occurrence (verbose ON):** whether ANY terminal stream event logged during
+the background window — if one did, the bug is in arming, not detection, and
+the fix aims differently.
+
+**Owed:** the fix lane, then a re-run of the same maneuver (235-E stays the
+bar; it is not met until the answer surfaces WITHOUT manual re-entry).
+
+## 245. 🐛 The chat header reverts to the HOST default model after relaunch while the per-turn lock quietly keeps working — a #191-family surface lie, and the catalog refresh is the stomp
+
+**FILED 2026-08-04 (~1 PM) from Owen's build-1978 test #3 ("Fail. …if I force
+quit and reload, it changes back to the server default (kimi at the moment)").**
+
+**PROBED THE SAME HOUR — the lock is INTACT; the display is lying.** Read-only
+OJAMD session probe during his test window: the newest api_server session
+(fresh "Hi" opener, 12:48 PM — post-relaunch) carries **session model
+`deepseek-v4-flash`**, and asked "What model are you on?" the model answered
+*"DeepSeek v4 Flash, via the deepseek provider on the API server."* **No
+api_server session after the pick ran kimi — none.** So the persisted pick
+survived the relaunch and rode the wire exactly as Lane 5 built it
+(boot re-arm at `AppContainer.swift:775` works; persistence chain verified
+end to end: fields + CodingKeys + tolerant decode + `didSet` save +
+`normalized()` harmless).
+
+**The stomp, located:** `performCommandCatalogRefresh` ends in
+`chatStore.replaceCommandCatalog(catalog, activeModel: response.activeModel?.name, …)`
+(`AppContainer.swift:1846-1850`) — the **host's own default** (kimi),
+written over the header unconditionally on launch and every foreground
+catalog refresh. The Lane 5 seed (`seedActiveModelFromGateway`) correctly
+lets a pick win, but the catalog refresh landing after it does not. The
+header then claims a model the turns are not using — precisely the #191
+family (a surface asserting state it does not have), in the opposite
+direction.
+
+**Fix shape (small):** the catalog-refresh call site prefers
+`activeModelSelection`'s display name when a pick exists (host default only
+when no pick), mirroring the seed's rule; a unit pins "catalog refresh does
+not overwrite a persisted pick's header." **Open sub-question for the fix
+lane:** whether the Models picker's checkmark ALSO misreports after relaunch
+(readSelection reads the profile, so it should be correct — verify while in
+there rather than assume).
+
+**Owed:** the fix lane (unrouted — Owen routes), then the relaunch test
+re-run: pick DS Flash → force quit → relaunch → header still names the pick
+before any message is sent.
+
 ## 244. 🎨 APPEARANCE TAB HOLISTIC REWORK — "It doesn't flow right" — **✅ CLOSED 2026-08-04 (Owen's device pass on 1955: "looks good!"). ROUTED same day: Owen supplied Claude Design's channel-browser mockup and delegated the build ("If this is something doable and you like the design, implement that as well"). Verdict: doable + good — BUILT on `claude/t27-244-appearance-channels`; #243 subsumed; #239's sub-screen superseded (its live-re-skin guarantee carries forward by construction). Spec: `docs/superpowers/specs/2026-08-04-244-appearance-channel-browser-design.md`.**
 
 > ## 📋 BARS — PRE-REGISTERED 2026-08-04, BEFORE the lane's tests ran. Written first.
@@ -13900,7 +13979,14 @@ untouched is the **−22 delta**, and 1570 − 22 = 1548 landed on the number. T
 wrong absolute pins stay recorded above as what they are: mis-anchored, caught at
 verification.
 
-## 237. 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can resolve twice for one run — **FIX BUILT same day; 237-A/B/C/D green in suite; 237-E (device heal + the unparked 235-F) owed to the OTA**
+## 237. 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can resolve twice for one run — **FIX BUILT same day; 237-A/B/C/D green in suite; ✅ 237-E's no-dupes half MET ON DEVICE 2026-08-04 (build 1978)**
+
+> **✅ 237-E (the no-duplicates half) MET 2026-08-04, build 1978, Owen's
+> backgrounding maneuver:** the answer that surfaced after background +
+> re-enter appeared exactly once — "no dupes." Caveat recorded honestly: the
+> answer surfaced via the session-open fetch rather than the armed recovery
+> path (that failure is **#246**), so this pass covers the adoption/dedupe
+> machinery on the fetch path; a recovery-path repeat rides #246's re-test.
 
 > **✅ FIX BUILT 2026-08-03 (afternoon), the day's third same-day lane.**
 > Three parts, TDD, RED watched (T3's first fixture HUNG by holding its
@@ -14078,7 +14164,16 @@ gate's full XCUITest run.
 > load rather than rendering slowly (a polling-loop fix aims at the wrong
 > layer if so), and the `.xcresult` should be captured then.
 
-## 235. 🐛 CRITICAL (Owen, 2026-08-03): remote chats DROP THE FINAL ANSWER when the stream dies mid-turn — chips render, the answer lands in the server store, the app never fetches it — **FIX BUILT same day; 235-A/B/C green in suite; 235-D verdict: request stamp wins, no timeout change; device bars 235-E/F owed to the next OTA**
+## 235. 🐛 CRITICAL (Owen, 2026-08-03): remote chats DROP THE FINAL ANSWER when the stream dies mid-turn — chips render, the answer lands in the server store, the app never fetches it — **FIX BUILT same day; 235-A/B/C green in suite; 235-D verdict: request stamp wins, no timeout change; ⚠️ 235-E RAN 2026-08-04 AND FAILED AS SHIPPED — the zombie-stream gap, spun into #246**
+
+> **⚠️ 235-E FIRST DEVICE RUN — 2026-08-04, build 1978, Owen: FAIL (partial).**
+> Backgrounded mid-run, returned ~30s later → pending spinner, no answer;
+> manual leave + re-enter surfaced it (the ordinary session-open fetch, not
+> recovery). The answer was never DROPPED — this item's original harm stays
+> fixed — but recovery never fired on its own. **Mechanism + fix territory
+> filed as #246** (recovery arms only on stream END; a zombified stream never
+> ends; the foreground reconcile no-ops with nothing armed). 235-E is NOT met
+> and now rides #246's re-test; 235-F likewise.
 
 > **✅ FIX BUILT 2026-08-03 (midday), same-day turnaround on Owen's routing**
 > (branch `claude/t27-235-stream-reconcile`; spec + plan under
