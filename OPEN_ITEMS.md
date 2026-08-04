@@ -13483,6 +13483,38 @@ the F3 suspect above.
 read → fixture modeling the coexistence → watched RED → fix → the same
 backgrounding maneuver clean on device.
 
+> **ROUTED 2026-08-04 (~3:15 PM): Owen — "Route both, I'll test tonight"
+> (with #247's app half).** Diagnosis COMPLETE from source before the bars:
+> - **Root cause, exact:** `mergeConversationMetadata`'s unconfirmed-locals
+>   pass (`ChatStore.swift:2047-2054`) confirms a local row only by id or
+>   `clientMessageID` — and the gateway transcript carries NO
+>   `clientMessageID`, so the just-sent local user row (id = client id)
+>   fails both checks and is APPENDED below the reply. Owen's layout
+>   reproduced by construction: server user row in place, local copy below
+>   the response.
+> - **Why the #237 sweep passed the pair:** `dedupingAdoptedEchoes` keys on
+>   `sender|content|timestamp` — the two copies carry different timestamps.
+> - **Fix:** the unconfirmed-locals selection becomes a testable static with
+>   a third confirmation tier — CONTENT CLAIM, `.user` rows only: each
+>   refreshed user row lacking `clientMessageID` confirms at most ONE
+>   content-identical local user row (dequeue counting), so legitimate
+>   repeats keep their counts and in-flight sends still survive the merge.
+>   Hermes-row handling deliberately untouched.
+>
+> ## 📋 BARS — PRE-REGISTERED 2026-08-04, BEFORE THE CODE
+> - **248-A (unit, Owen's exact shape):** local = the optimistic user row;
+>   refreshed = server user row (same text, no clientMessageID) + reply ⇒
+>   unconfirmed is EMPTY (today it re-appends the user row — RED).
+> - **248-B (unit, repeat safety):** local = two identical "yes" rows;
+>   refreshed carries ONE server copy ⇒ exactly one local row stays
+>   unconfirmed (the in-flight second send survives; today both do — RED).
+> - **248-C (unit, pin):** a refreshed row echoing `clientMessageID` confirms
+>   its local row regardless of content (existing behavior, pinned).
+> - **248-D (unit, pin):** with an EMPTY refresh, a just-sent local row
+>   survives the merge (the vanish-protection this pass exists for).
+> - **Device (Owen, tonight):** the same backgrounding maneuver — answer
+>   surfaces solo AND the sent message renders exactly once.
+
 ## 247. 🐛 Failover is theater when the fallback host is dark: switching profiles to the Mac Mini "does absolutely nothing" — and nothing TOLD Owen the fallback was dead
 
 **FILED 2026-08-04 (~2 PM) from Owen at work, mid-outage:** *"the connection
@@ -13543,6 +13575,44 @@ matters.
 >    time out in a window, the app has the evidence to say exactly that
 >    instead of letting the user debug by RDP elimination like Owen had to.
 > **Both are spec-ready now; unrouted — Owen routes.**
+>
+> **ROUTED 2026-08-04 (~3:15 PM): Owen — "Route both, I'll test tonight"
+> (with #248).** Designs, from source:
+> - **B1 (the hang):** the ESTABLISHING LINK surface is the VOICE overlay;
+>   `realtime.startSession()` rides the shared 300s-timeout client, so a
+>   black-holed relay pins it for five minutes while the REFUSED-path
+>   fallback (which works — logged) never fires. Fix: the router belts the
+>   realtime start with `realtimeStartTimeout` (12s, harness-shortenable);
+>   on expiry the start Task is cancelled and the EXISTING native fallback
+>   runs. `shouldFallBackToNative` gains `timedOut:` — true overrides even
+>   `.connecting` (a timed-out start never gets to keep "still connecting"
+>   as an excuse); false rows byte-preserve today's table.
+> - **B2 (the missing diagnosis):** `handleActiveProfileChanged` probes the
+>   NEW and PREVIOUS profiles' gateways concurrently (5s, the #151 probe
+>   shape) and sets a `profileSwitchNotice` rendered in ChatScreen's
+>   existing banner cascade: online → brief positive confirmation
+>   (auto-clears); new-host-only unreachable → names the host; BOTH
+>   unreachable → "every host is unreachable — the problem is likely this
+>   phone's network; check Tailscale." Self-contained at switch time — no
+>   failure-stamp plumbing, always current.
+>
+> ## 📋 BARS — PRE-REGISTERED 2026-08-04, BEFORE THE CODE
+> - **247-A (unit):** `shouldFallBackToNative` — `timedOut: true` forces
+>   fallback from `.connecting` and from every other state; the existing
+>   `timedOut: false` rows (connected/connecting stay, microphone-blocked
+>   stays native-exempt) are pinned unchanged.
+> - **247-B (unit):** the switch-verdict classifier — (online, _) → positive
+>   confirmation naming the profile; (unreachable, previousOnline) → names
+>   the new host only; (unreachable, previousUnreachable) → the
+>   check-this-phone's-network wording. Exact strings pinned.
+> - **247-C (by construction, recorded honestly):** the belt-race wiring in
+>   `startSession` and the concurrent probe wiring in
+>   `handleActiveProfileChanged` — network-bound seams; the predicates they
+>   consult are the pinned pure functions above.
+> - **Device (Owen, tonight):** with Tailscale OFF on the phone (airplane-
+>   style repro): voice attempt resolves to local voice within ~12s instead
+>   of a force-quit; a profile switch shows the every-host banner within
+>   ~5s. With the network healthy: switch shows the positive confirmation.
 
 > **RESOLVED (ops half) 2026-08-04 ~2:15 PM — Owen: "There it goes. I
 > restarted tailnet."** Full diagnosis, confirmed from the Mac vantage while
