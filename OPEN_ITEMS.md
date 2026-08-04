@@ -13522,6 +13522,28 @@ the UI show after the switch — header unchanged? Spinner? Old OJAMD session
 still on screen? "Does absolutely nothing" is the symptom; which nothing
 matters.
 
+> **UI SEQUENCE ANSWERED (Owen, ~3 PM — the app-half question):** *"it
+> locked up on establishing link. I force quit, and reloaded. Sent a message
+> and it timed out. Tried to go into models and it timed out. Switched to
+> Mac Mini. Same thing on both tries."* And the root cause, his own
+> diagnosis confirmed: *"The issue wasn't talaria, it was tailnet. I
+> couldn't rdp into anything **from my phone** … I restarted tailnet,
+> functionality returned"* — the PHONE's own Tailscale was wedged.
+> **So "does absolutely nothing" meant "switching didn't help," not "the UI
+> was inert" — the app tried and timed out everywhere.** That reshapes the
+> app half into two specific defects:
+> 1. **The establishing-link path can HANG hard enough to need a force
+>    quit** — no timeout, no escape. A link attempt must always resolve to
+>    a verdict or a cancellable state; force-quit-required is never
+>    acceptable.
+> 2. **Nothing DIAGNOSES the all-hosts-dead shape.** Every surface timed out
+>    independently and identically, and the one true statement — "every
+>    tailnet host is unreachable; the problem is this phone's network, check
+>    Tailscale" — appeared nowhere. When BOTH profiles (or N≥2 endpoints)
+>    time out in a window, the app has the evidence to say exactly that
+>    instead of letting the user debug by RDP elimination like Owen had to.
+> **Both are spec-ready now; unrouted — Owen routes.**
+
 > **RESOLVED (ops half) 2026-08-04 ~2:15 PM — Owen: "There it goes. I
 > restarted tailnet."** Full diagnosis, confirmed from the Mac vantage while
 > it was live: OJAMD was NEVER down (gateway/relay/RDP all listening, authed
