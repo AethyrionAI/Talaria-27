@@ -13411,7 +13411,21 @@ next outbox drain re-sends the question and Hermes answers it again, unprompted.
    history for an identical user message at/after its sentAt; adopt instead of
    re-send. Belt-and-braces; also heals rows parked before the fix.
 
-## 239. 🎨 Appearance screen: the theme picker buries everything below it — Themes should be a tappable sub-section — **FILED 2026-08-03 evening, UNROUTED**
+## 239. 🎨 Appearance screen: the theme picker buries everything below it — Themes should be a tappable sub-section — **DESIGN + SPEC APPROVED 2026-08-03 night ("Spec approved, build it. Make sure the new page is covered for theme changes too"); BUILDING**
+
+> **BARS — written first, before the run** (spec:
+> `docs/superpowers/specs/2026-08-03-239-themes-subsection-design.md`):
+> **239-A (suite, TDD watched RED):** pure navRow-value helper — manual mode
+> → uppercased theme name; seasonal mode → `"<SEASON> · <THEME>"` for a
+> fixed date. **239-B (XCUITest, new walk):** fresh context → Settings →
+> Appearance & HUD → Themes → tap a different theme card → sub-screen
+> re-skins (selection applies) → back → navRow value shows the NEW theme.
+> This is Owen's "new page covered for theme changes" made mechanical.
+> **239-C (device, Owen, observational):** Appearance opens compact; theme
+> switching from the sub-screen re-skins live; Glow/Grid/App Icon/toggles
+> discoverable. Counters pinned BEFORE verification: swift-testing 1555 →
+> 1555 + new helper tests; XCUITest `Executed` 9 → 10. Owen's answered
+> design fork: the seasonal auto-rotate toggle moves INTO the sub-screen.
 
 **Owen, on 1908 (which relocated the haptics toggle into Appearance per #238):** *"we
 may want to put Themes in a tappable section inside Appearance. It takes up so much,
