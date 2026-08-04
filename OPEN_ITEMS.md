@@ -14054,7 +14054,23 @@ time rendering unmissable. Bars pre-register HERE before any fix lane.
 > minutes later (4:59 PM, screenshot): Reminders → Scheduled → Tomorrow →
 > **"Call Shelley — Stuff — 4:00 PM."** Observed, not derived. **#233 CLOSED.**
 
-## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes — **CUT BUILT 2026-08-03 (AM); 232-C/D experiential halves MET on device same morning; log halves owed to the corded coda**
+## 232. 🐛 THE REFUSAL GRIND: the #225 cap bounds executed calls, but NOTHING bounds refusals — 57 refusal→re-infer cycles at ~2.4s each WERE the "still working" minutes — **✅ CLOSED 2026-08-03 night — corded coda log: ZERO refusals on the control prompt (was 57), turn 5.9s (was minutes); 232-E's device notice unobservable-because-healed, recorded honestly**
+
+> **✅ THE CODA'S LOG HALVES — 2026-08-03 ~10:44 PM, verbose RELEASE device
+> build, `log collect` archive (verbatim lines in #228's closure block).**
+> - **232-C log half MET, and the exact refusal count is ZERO:** the
+>   Gulfport control prompt — the turn that once ground through 57
+>   refusal→re-infer cycles — executed `#1 currentLocation` →
+>   `#2 currentWeather` and finished. No refusal line exists in the archive
+>   (the L0-B shape would have printed one); routed→finished **5.9s**,
+>   against the <30s bar. The grind is not bounded — it is GONE (#230's
+>   tomorrow-fix removed its cause; this cut remains the backstop).
+> - **232-D re-confirmed on Release:** the right-now turn, same shape, 5.2s.
+> - **232-E device half: UNOBSERVABLE-BECAUSE-HEALED, said plainly.** The
+>   cut's `.notice` fires only when a turn actually grinds, and no known
+>   prompt grinds anymore. The suite half (232-E green, line shape pinned)
+>   stands. NOT claimed as device-witnessed. Reopen trigger: any future
+>   long "still working" turn whose log lacks the cut's notice.
 
 > **✅ MECHANISM BUILT overnight, same session** (branch `claude/t27-232-refusal-cut`,
 > tests first): refusals 1–3 stay strings; the 4th attempted call throws
@@ -14146,7 +14162,14 @@ max per tool); the grind is a REFUSAL loop, a distinct third mechanism.
 > - **232-E:** the cut logs an always-on `.notice` (same convention as #26's
 >   condense line), so a cut turn is visible without verbose.
 
-## 231. 🐛 RELEASE-ONLY: the chat screen scrambles — transcript collapses, identity strip lands on the input bar. Debug is fine, so every check we run was blind to it (#218's family, for UI)
+## 231. 🐛 RELEASE-ONLY: the chat screen scrambles — transcript collapses, identity strip lands on the input bar. Debug is fine, so every check we run was blind to it (#218's family, for UI) — **✅ CLOSED 2026-08-03 night: 231-C's captured-log half met in the corded coda; all four bars now met**
+
+> **✅ 231-C LOG HALF MET — the corded coda's `log collect` archive shows the
+> #228 instrument lines on the RELEASE build after Owen flipped Verbose
+> Logging in the Release Developer screen** (tool-call sequence + session
+> budget lines at 22:44 and 22:47; full verbatim in #228's closure block).
+> With 231-A (sim screenshots), 231-B (Owen's device confirm), 231-C both
+> halves, and 231-D (Debug banner unchanged) — CLOSED.
 
 **FILED 2026-08-02, found by Owen ~60 seconds into the first Release install anyone
 has LOOKED at on device** (build 1839, staged for the local-brain run). Two
@@ -14254,7 +14277,29 @@ per call.
 >   retry produced an overflow. If met, that is a one-line change to #26's guard with a
 >   measured justification.
 
-## 228. 🔍 Lane 0 of the local-brain run: NO production tool-call instrument, and the belt's token cost has never been measured — **BUILT 2026-08-02; the on-device halves of L0-A/L0-C are owed to the run itself**
+## 228. 🔍 Lane 0 of the local-brain run: NO production tool-call instrument, and the belt's token cost has never been measured — **✅ L0-A + L0-C ON-DEVICE HALVES MET 2026-08-03 ~10:44/10:47 PM (corded coda, verbose RELEASE build, sudo log collect archive)**
+
+> **✅ THE CORDED CODA DELIVERED THE OWED HALVES — 2026-08-03 night, Release
+> device build (main @ `231b21a`), Verbose Logging flipped by Owen in the
+> Release Developer screen (pid changed 24529 → 24536 across his
+> kill+relaunch — the toggle-then-restart was followed exactly), captured
+> via `sudo /usr/bin/log collect --device` (idevicesyslog is BLIND to app
+> os_log on 27b4 — see #240's closure note).** Archive:
+> session scratchpad `coda.logarchive`; lines verbatim:
+> - **L0-A MET ×2** — `tool-call #1 currentLocation (#228)` →
+>   `tool-call #2 currentWeather — Gulfport, MS · tomorrow (#228)`
+>   (22:44:13/14), and the same #1/#2 pair on the right-now turn
+>   (22:47:23/24). Exact executed sequence, names + running index, on a
+>   verbose RELEASE device build.
+> - **L0-C MET ×2, REAL numbers** — `session budget: 13 tool(s) ~1470 tok
+>   + transcript ~1859 tok of window 8192 — ~4863 free (#228)` (22:44:16
+>   and 22:47:25, identical). The device tokenizer's own numbers — the belt
+>   costs ~18% of the window before a word is typed; first real measurement.
+> - L0-B's device look: NO refusal lines — zero refusals fired on either
+>   turn (see #232's closure: that's the healthy answer, and the suite half
+>   already pins the line shape).
+> - Turn wall-clock from the same lines: routed→finished **5.9s**
+>   (Gulfport-tomorrow) and **5.2s** (right-now).
 
 > **✅ BUILT 2026-08-02, same session that filed it.** 11 tests, written first and
 > watched fail (15 missing-member errors — the API not existing was the failure).
