@@ -2044,14 +2044,10 @@ final class ChatStore {
         // only if the refreshed conversation contains it by id OR by clientMessageID.
         // Anything unconfirmed must survive the merge, otherwise a sent message
         // vanishes the instant the first poll/refresh returns without it.
-        let refreshedIDs = Set(refreshedConversation.messages.map(\.id))
-        let refreshedClientIDs = Set(refreshedConversation.messages.compactMap(\.clientMessageID))
-        let unconfirmedLocals = localConversation.messages.filter { local in
-            if refreshedIDs.contains(local.id) { return false }
-            if let clientID = local.clientMessageID, refreshedClientIDs.contains(clientID) { return false }
-            return true
-        }
-        refreshedConversation.messages.append(contentsOf: unconfirmedLocals)
+        refreshedConversation.messages.append(contentsOf: Self.unconfirmedLocalMessages(
+            local: localConversation.messages,
+            refreshed: refreshedConversation.messages
+        ))
 
         // P1 (#90): conversation identity is LOCAL and durable. Refresh
         // sources mint a new Conversation UUID on every fetch; adopting it
@@ -2075,6 +2071,39 @@ final class ChatStore {
         // single copies instead of compounding.
         refreshedConversation.messages = Conversation.dedupingAdoptedEchoes(refreshedConversation.messages)
         return refreshedConversation
+    }
+
+    /// #248: which local messages survive an adoption merge as "unconfirmed"
+    /// (and get re-appended so an in-flight send never vanishes). Three
+    /// confirmation tiers: exact id, echoed `clientMessageID` — and, because
+    /// the GATEWAY transcript carries no `clientMessageID` at all, a CONTENT
+    /// CLAIM for user rows: each refreshed user row lacking a client id
+    /// confirms at most ONE content-identical local user row (dequeue
+    /// counting, so a legitimate repeat still in flight keeps its copy).
+    /// Without the third tier, the just-sent user row failed both id checks
+    /// after a stall-recovery adoption and was re-appended BELOW the
+    /// recovered reply — Owen's build-1987 dupe, healed only by re-entry.
+    nonisolated static func unconfirmedLocalMessages(
+        local: [Message], refreshed: [Message]
+    ) -> [Message] {
+        let refreshedIDs = Set(refreshed.map(\.id))
+        let refreshedClientIDs = Set(refreshed.compactMap(\.clientMessageID))
+        var claimableUserContent: [String: Int] = [:]
+        for row in refreshed where row.sender == .user && row.clientMessageID == nil {
+            claimableUserContent[row.content.trimmingCharacters(in: .whitespacesAndNewlines), default: 0] += 1
+        }
+        return local.filter { localRow in
+            if refreshedIDs.contains(localRow.id) { return false }
+            if let clientID = localRow.clientMessageID, refreshedClientIDs.contains(clientID) { return false }
+            if localRow.sender == .user {
+                let key = localRow.content.trimmingCharacters(in: .whitespacesAndNewlines)
+                if let claimable = claimableUserContent[key], claimable > 0 {
+                    claimableUserContent[key] = claimable - 1
+                    return false
+                }
+            }
+            return true
+        }
     }
 
     private func mergeAttachments(_ localAttachments: [MessageAttachment], onto remoteAttachments: [MessageAttachment]) -> [MessageAttachment] {
