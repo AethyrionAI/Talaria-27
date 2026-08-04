@@ -91,6 +91,12 @@ final class SessionsHermesClient: HermesClientProtocol {
         self.decoder = JSONDecoder()
     }
 
+    /// #223 Lane 5: the active profile's model pick, set by AppContainer on
+    /// profile switch and by the picker on apply. Nil = no pick — turns carry
+    /// no model fields and the host default rules. Read at body-build time by
+    /// all three turn paths (sync, stream, priming).
+    var modelSelection: ModelSelection?
+
     /// Normalizes a routing profile id for request building: the ACTIVE
     /// profile (and profile-less nil) collapse to nil so those requests take
     /// the pre-Lane-M provider path exactly.
@@ -163,7 +169,7 @@ final class SessionsHermesClient: HermesClientProtocol {
         let path = "\(Self.sessionsPath)/\(sessionId)/chat"
         let response: SyncChatResponse = try await postJSON(
             path: path,
-            body: ChatTurnBody.make(message: message, attachments: attachments),
+            body: ChatTurnBody.make(message: message, attachments: attachments, selection: modelSelection),
             profileID: profileID
         )
         return response.message?.content ?? response.content ?? ""
@@ -217,7 +223,7 @@ final class SessionsHermesClient: HermesClientProtocol {
                 continuation.yield(.contextPrimed(priming.usage))
             }
             let path = "\(Self.sessionsPath)/\(hop.sessionId)/chat/stream"
-            let body = try encoder.encode(ChatTurnBody.make(message: content, attachments: attachments))
+            let body = try encoder.encode(ChatTurnBody.make(message: content, attachments: attachments, selection: modelSelection))
             let request = try makeRequest(path: path, method: "POST", body: body, accept: "text/event-stream", profileID: hop.profileID)
 
             let (bytes, response) = try await session.bytes(for: request)
@@ -331,6 +337,11 @@ final class SessionsHermesClient: HermesClientProtocol {
                     )
                     // Defer `.finished` until run.completed delivers token usage.
                 case "run.completed":
+                    // #223 Lane 5: surface the resolved provider/model for
+                    // header attribution. Tolerant — absent block yields nothing.
+                    if let runtime = Self.decodeTurnRuntime(currentData) {
+                        continuation.yield(.modelResolved(runtime))
+                    }
                     let usage = decodeRunUsage(currentData)
                     // #25: persist the run's usage keyed by this hop's server
                     // session — the CTX gauge's only source when the session
@@ -501,6 +512,13 @@ final class SessionsHermesClient: HermesClientProtocol {
     // MARK: - Model controls
 
     /// Lists switchable model identifiers from the host's /api/model/options.
+    /// #223 Lane 5: the full provider catalog for the picker — auth state,
+    /// setup warnings, pricing, and the host's current default pair. Same
+    /// route `availableModels()` flattens, decoded whole.
+    func fetchModelCatalog() async throws -> GatewayModelCatalog {
+        try await getJSON(path: Self.modelOptionsPath)
+    }
+
     func availableModels() async throws -> [String] {
         // The OpenAI-compatible /v1/models endpoint reports only the Hermes
         // agent itself as a single pseudo-model ("hermes-agent"). The real list
@@ -923,7 +941,7 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// acknowledgment is meta-traffic, not conversation content.
     private func postPrimingTurn(sessionId: String, profileID: UUID?, text: String) async throws -> TokenUsage? {
         let path = "\(Self.sessionsPath)/\(sessionId)/chat/stream"
-        let body = try encoder.encode(ChatTurnBody.make(message: text, attachments: []))
+        let body = try encoder.encode(ChatTurnBody.make(message: text, attachments: [], selection: modelSelection))
         let request = try makeRequest(path: path, method: "POST", body: body, accept: "text/event-stream", profileID: profileID)
         let (bytes, response) = try await session.bytes(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
@@ -1477,6 +1495,22 @@ final class SessionsHermesClient: HermesClientProtocol {
         return segments.isEmpty ? nil : segments.joined(separator: "\n\n")
     }
 
+    /// Extracts the #223 Lane 5 `runtime` block from a `run.completed` SSE
+    /// payload. v0.20.0 rides it both top-level and nested under `usage`;
+    /// top-level wins, nested is the fallback. Nil on older gateways.
+    nonisolated static func decodeTurnRuntime(_ data: String) -> TurnRuntime? {
+        guard let raw = data.data(using: .utf8),
+              let envelope = try? JSONDecoder().decode(RuntimeEnvelope.self, from: raw)
+        else { return nil }
+        return envelope.runtime ?? envelope.usage?.runtime
+    }
+
+    private struct RuntimeEnvelope: Decodable {
+        let runtime: TurnRuntime?
+        let usage: NestedRuntime?
+        struct NestedRuntime: Decodable { let runtime: TurnRuntime? }
+    }
+
     private struct RunCompletedEnvelope: Decodable {
         let usage: RunCompletedUsage?
         let messages: [RunTranscriptMessage]?
@@ -1586,10 +1620,21 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// they used to be silently dropped here). The assembly rules (ordering,
     /// budget, delimiting, truncation) live in `AttachmentInlining` so they're
     /// unit-testable and shared with the voice-memo transcript path.
-    private struct ChatTurnBody: Encodable {
+    // internal, not private — test-visible (#223 Lane 5: L5-A pins the wire
+    // shape). Same widening convention as the #216 `// harness-visible` tag.
+    struct ChatTurnBody: Encodable {
         let input: TurnInput
+        // #223 Lane 5: the per-turn model lock. All three nil on a no-pick
+        // turn — synthesized Encodable omits nil optionals, keeping the
+        // encoded JSON byte-compatible with the pre-Lane-5 wire shape.
+        let provider: String?
+        let model: String?
+        let requireModelLock: Bool?
 
-        private enum CodingKeys: String, CodingKey { case input }
+        private enum CodingKeys: String, CodingKey {
+            case input, provider, model
+            case requireModelLock = "require_model_lock"
+        }
 
         // Nonisolated logger — the enclosing client is @MainActor, but this
         // nested value type isn't, so it can't reach the class's isolated one.
@@ -1597,8 +1642,10 @@ final class SessionsHermesClient: HermesClientProtocol {
 
         /// Build a turn body from the composer's message + staged attachments.
         /// With no transmittable attachments the body stays a plain string so
-        /// existing text turns are unchanged on the wire.
-        static func make(message: String, attachments: [PendingAttachment]) -> ChatTurnBody {
+        /// existing text turns are unchanged on the wire. A non-nil selection
+        /// adds the #223 Lane 5 lock trio; `require_model_lock` is always true
+        /// alongside `model` — a bare `model` is silently ignored (#241).
+        static func make(message: String, attachments: [PendingAttachment], selection: ModelSelection?) -> ChatTurnBody {
             let assembly = AttachmentInlining.assemble(message: message, attachments: attachments)
 
             // A raw (un-extracted) PDF or other binary has no wire shape; the
@@ -1617,14 +1664,24 @@ final class SessionsHermesClient: HermesClientProtocol {
             // string, byte-identical to the pre-attachment wire shape. Also
             // the defensive fallback — the server 400s empty-array turns.
             guard !assembly.parts.isEmpty else {
-                return ChatTurnBody(input: .text(message))
+                return ChatTurnBody(
+                    input: .text(message),
+                    provider: selection?.provider,
+                    model: selection?.modelID,
+                    requireModelLock: selection == nil ? nil : true
+                )
             }
-            return ChatTurnBody(input: .parts(assembly.parts.map { part in
-                switch part {
-                case .text(let text): ContentPart.text(text)
-                case .imageDataURL(let dataURL): ContentPart.imageURL(dataURL: dataURL)
-                }
-            }))
+            return ChatTurnBody(
+                input: .parts(assembly.parts.map { part in
+                    switch part {
+                    case .text(let text): ContentPart.text(text)
+                    case .imageDataURL(let dataURL): ContentPart.imageURL(dataURL: dataURL)
+                    }
+                }),
+                provider: selection?.provider,
+                model: selection?.modelID,
+                requireModelLock: selection == nil ? nil : true
+            )
         }
 
         /// `input` is a string for text-only turns, or an array of content parts

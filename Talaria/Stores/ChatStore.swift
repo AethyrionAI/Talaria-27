@@ -621,6 +621,15 @@ final class ChatStore {
                     }
                     continuedSend?.tick()
 
+                case .modelResolved(let runtime):
+                    // #223 Lane 5: header attribution from the gateway's own
+                    // report of which model served the turn — resolved truth,
+                    // not the optimistic pick. Display uses the id's tail
+                    // ("deepseek/deepseek-v4-flash-0731" → the flash id alone).
+                    if let resolved = runtime.model, !resolved.isEmpty {
+                        activeModelName = resolved.split(separator: "/").last.map(String.init) ?? resolved
+                    }
+
                 case .finished(let finalMessage, let usage, let diff):
                     finishedViaHermesHop = finalMessage.sender == .hermes
                         && (finalMessage.brain == nil || finalMessage.brain == ChatBackendRouter.Brain.hermes.rawValue)
