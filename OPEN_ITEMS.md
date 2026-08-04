@@ -13263,7 +13263,31 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
+## 239. 🎨 Appearance screen: the theme picker buries everything below it — Themes should be a tappable sub-section — **FILED 2026-08-03 evening, UNROUTED**
+
+**Owen, on 1908 (which relocated the haptics toggle into Appearance per #238):** *"we
+may want to put Themes in a tappable section inside Appearance. It takes up so much,
+that folks won't realize there are other options."* Post-pivot this is a launch-quality
+concern: the default user's first Appearance visit shows a wall of theme cards and
+never scrolls to Reduce Motion / Haptic Feedback / glow / grid. Candidate shape: a
+`navRow` ("Themes", value = current theme name) pushing a ThemesSettingsScreen that
+owns the picker + accent slots; the feel toggles stay on the top level. Small lane;
+Owen routes.
+
 ## 238. ✂️ NOTIFICATION REMOVAL — the pivot's first cut (post-#235/#237, banners are scaffolding around a fixed defect) — **MERGED (PR #252) + OTA 1908 staged; 238-A/B/C/E MET; 238-D owed to Owen's install**
+
+> **⚠ 238-D trial 1 (Owen, 1908, ~19:1x): CONTAMINATED — no verdict either way.**
+> Settings eyeball on 1908: GOOD (no Notifications row; haptics in Appearance;
+> Privacy/Diagnostics clean). The 238-D attempt ran on deepseek-flash, which
+> **stalled server-side and produced no answer** — the bar's precondition ("the
+> answer exists server-side while you're away") never held, so the trial counts
+> neither for nor against. Owen's read, consistent with the evidence: a Hermes/
+> provider quirk, server-side — no app item. Switching to K3 in-session picked
+> the question up and finished it (foreground, not the backgrounded path).
+> **238-D still owed: one clean pass on a behaving model** — remote prompt,
+> background until completion, open → no banner, answer at the tail. Note the
+> OJAMD relay cannot push either despite its stale token rows: its watcher fires
+> only on app-armed watches, and 1908 never arms one — starved as designed.
 
 > **✅ 238-E MET — 2026-08-03 ~18:59, host-side, by CONTRAST not mere absence.**
 > Sequence: hook disarmed 18:52 (device file deleted — the designed OFF switch,
