@@ -349,11 +349,15 @@ final class TalariaUITests: XCTestCase {
         return nil
     }
 
+    /// #244 (replaces the #239 sub-screen test IN PLACE): the Appearance tab
+    /// is a full-bleed channel browser — one theme per channel, applies as
+    /// you land. Steps to Solar Forge with the deterministic › button (the
+    /// browser opens on Deep Field's channel in a fresh UITest context, and
+    /// Solar Forge is the next Flagship channel), then verifies the pick
+    /// PERSISTED by relaunch-free re-entry: leave Appearance, reopen, and
+    /// the browser must open on Solar Forge's channel.
     @MainActor
-    /// 239-B: the Themes sub-screen exists, a theme picked THERE applies
-    /// (the card gains the selected trait — the mechanical proxy for the
-    /// live re-skin), and the parent row reflects the new theme on return.
-    func testThemeChangeFromThemesSubScreenAppliesAndSurfacesInRow() throws {
+    func testAppearanceChannelBrowserAppliesThemeOnLand() throws {
         let context = UITestLaunchContext()
         let app = makeApp(context: context)
         app.launch()
@@ -369,36 +373,30 @@ final class TalariaUITests: XCTestCase {
         XCTAssertTrue(appearanceRow.waitForExistence(timeout: 10))
         appearanceRow.tap()
 
-        let themesRow = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS 'Themes'")).firstMatch
-        XCTAssertTrue(themesRow.waitForExistence(timeout: 10),
-                      "Appearance must surface the Themes navRow (#239)")
-        themesRow.tap()
+        // The browser is present: counter + the fresh-context start channel.
+        let counter = app.staticTexts["appearance.channelCounter"]
+        XCTAssertTrue(counter.waitForExistence(timeout: 10),
+                      "Appearance must present the channel browser (#244)")
+        let deepFieldName = app.staticTexts["DEEP FIELD"]
+        XCTAssertTrue(deepFieldName.waitForExistence(timeout: 5),
+                      "a fresh context opens on Deep Field's channel")
 
-        let solarForge = app.buttons["Solar Forge"]
-        XCTAssertTrue(solarForge.waitForExistence(timeout: 10),
-                      "theme cards must live in the Themes sub-screen (#239)")
-        solarForge.tap()
-        // Same-tick tap hedging (sim-verify memory): re-tap once if the
-        // selection trait hasn't landed before asserting.
-        let selectedPredicate = NSPredicate(format: "isSelected == true")
-        var settled = XCTWaiter.wait(
-            for: [XCTNSPredicateExpectation(predicate: selectedPredicate, object: solarForge)],
-            timeout: 5) == .completed
-        if !settled {
-            solarForge.tap()
-            settled = XCTWaiter.wait(
-                for: [XCTNSPredicateExpectation(predicate: selectedPredicate, object: solarForge)],
-                timeout: 5) == .completed
-        }
-        XCTAssertTrue(settled,
-                      "picking a card in the sub-screen must apply immediately (239-B)")
+        // One deterministic step forward: Flagship order puts Solar Forge next.
+        app.buttons["Next theme"].tap()
+        let solarForgeName = app.staticTexts["SOLAR FORGE"]
+        XCTAssertTrue(solarForgeName.waitForExistence(timeout: 5),
+                      "the next channel must be Solar Forge (catalog order)")
 
+        // Apply-on-land persisted: leave and re-enter — the browser must
+        // reopen on Solar Forge's channel, not Deep Field's.
         app.buttons["Back"].firstMatch.tap()
-        let updatedRow = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS 'SOLAR FORGE'")).firstMatch
-        XCTAssertTrue(updatedRow.waitForExistence(timeout: 10),
-                      "the Themes row value must show the newly selected theme (239-B)")
+        let appearanceRowAgain = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS 'Appearance'")).firstMatch
+        XCTAssertTrue(appearanceRowAgain.waitForExistence(timeout: 10))
+        appearanceRowAgain.tap()
+        let reopened = app.staticTexts["SOLAR FORGE"]
+        XCTAssertTrue(reopened.waitForExistence(timeout: 10),
+                      "re-entry must open on the applied channel (244-C)")
     }
 
     private func makeApp(context: UITestLaunchContext) -> XCUIApplication {

@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - Server settings screen (Settings → SERVER, Lane M / OPEN_ITEMS #114)
 //
 // The backend-profile switcher: one card per named backend (OJAMD, Mac Mini),
-// showing active state, live reachability (gateway answer + shim /healthz —
+// showing active state, live reachability (gateway answer —
 // real probes only, "—" until probed), and per-profile paired state. Tap a
 // card to activate (confirm sheet; non-destructive by construction — M-6),
 // add/edit/delete profiles, pair each through the existing QR flow (M-12).
@@ -28,16 +28,6 @@ enum ServerProbeResult: Equatable {
         }
     }
 
-    /// #116: the two-step shim probe's verdict — pure for tests. `/healthz`
-    /// is unauthenticated, so a green dot off it alone lies about the token;
-    /// a healthy shim is followed by an authenticated call whose status is
-    /// what actually decides. `nil` = the request never got an HTTP answer.
-    static func classifyShimProbe(healthzStatus: Int?, authedStatus: Int?) -> ServerProbeResult {
-        guard let healthzStatus else { return .offline }
-        guard (200 ..< 300).contains(healthzStatus) else { return classify(statusCode: healthzStatus) }
-        guard let authedStatus else { return .offline }
-        return classify(statusCode: authedStatus)
-    }
 
     var label: String {
         switch self {
@@ -51,7 +41,6 @@ enum ServerProbeResult: Equatable {
 
 struct ServerProfileReachability: Equatable {
     var gateway: ServerProbeResult = .unknown
-    var shim: ServerProbeResult = .unknown
 }
 
 struct ServerSettingsScreen: View {
@@ -170,7 +159,7 @@ struct ServerSettingsScreen: View {
             }
             Button("Cancel", role: .cancel) { pendingDelete = nil }
         } message: { profile in
-            Text("Removes \(profile.name) and its stored credentials — API key, shim token and relay session — from this device. Conversations that started on it stay in your history but can't reach it again until you re-add it. Other profiles are untouched.")
+            Text("Removes \(profile.name) and its stored credentials — API key and relay session — from this device. Conversations that started on it stay in your history but can't reach it again until you re-add it. Other profiles are untouched.")
         }
         .sheet(item: $editorTarget) { target in
             switch target {
@@ -288,7 +277,6 @@ struct ServerSettingsScreen: View {
 
                 HStack(spacing: Design.Spacing.md) {
                     statusRow("GATEWAY", result: probes.gateway)
-                    statusRow("SHIM", result: profile.shimBaseURL == nil ? .unknown : probes.shim)
                     Spacer(minLength: 0)
                     MonoLabel(isPaired ? "PAIRED" : "NOT PAIRED", size: 9, weight: .medium,
                               tracking: Design.Tracking.mono,
@@ -460,7 +448,7 @@ struct ServerSettingsScreen: View {
     }
 
     /// #116: user-initiated provisioning refresh for one profile. `.refresh`
-    /// mode rotates a stale shim token; endpoints are only filled when empty.
+    /// endpoints are only filled when empty (#223 Lane 5: gateway URL only).
     private func refreshProvisioning(_ profile: BackendProfile) async {
         guard let service = container.provisioningService else { return }
         do {
@@ -507,9 +495,9 @@ struct ServerSettingsScreen: View {
         // then fan out static probes whose closures capture only Sendable
         // values + a MainActor accumulator box — the proven
         // SessionsHermesClient pattern. Probes still overlap.
-        var keyed: [(profile: BackendProfile, key: String?, shimToken: String?)] = []
+        var keyed: [(profile: BackendProfile, key: String?)] = []
         for profile in profiles {
-            keyed.append((profile, await container.gatewayAPIKey(for: profile), await container.shimToken(for: profile)))
+            keyed.append((profile, await container.gatewayAPIKey(for: profile)))
         }
         let gathered = ProbeAccumulator()
         // …and the iOS 27 SDK's checker rejects even fully-Sendable captures
@@ -521,7 +509,7 @@ struct ServerSettingsScreen: View {
         let handles = keyed.map { entry in
             Task { @MainActor in
                 gathered.results[entry.profile.id] = await Self.probe(
-                    entry.profile, gatewayKey: entry.key, shimToken: entry.shimToken
+                    entry.profile, gatewayKey: entry.key
                 )
             }
         }
@@ -533,10 +521,9 @@ struct ServerSettingsScreen: View {
         }
     }
 
-    private static func probe(_ profile: BackendProfile, gatewayKey: String?, shimToken: String?) async -> ServerProfileReachability {
+    private static func probe(_ profile: BackendProfile, gatewayKey: String?) async -> ServerProfileReachability {
         var result = ServerProfileReachability()
         result.gateway = await probeGateway(profile, gatewayKey: gatewayKey)
-        result.shim = await probeShim(profile, shimToken: shimToken)
         return result
     }
 
@@ -559,22 +546,6 @@ struct ServerSettingsScreen: View {
         }
     }
 
-    /// #116: honest two-step shim probe. `/healthz` (unauthenticated) decides
-    /// reachability only; a healthy shim is then hit on `/models?refresh=0`
-    /// with the profile's token — the shim 401s a missing/wrong bearer, so an
-    /// answering-but-unkeyed shim renders NO KEY exactly like the gateway,
-    /// instead of the old always-green healthz dot.
-    private static func probeShim(_ profile: BackendProfile, shimToken: String?) async -> ServerProbeResult {
-        guard let raw = profile.shimBaseURL?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !raw.isEmpty, let healthzURL = URL(string: normalized(raw) + "/healthz") else { return .unknown }
-        let healthzStatus = await statusCode(for: healthzURL, bearer: nil)
-        guard let healthzStatus, (200 ..< 300).contains(healthzStatus),
-              let authedURL = URL(string: normalized(raw) + "/models?refresh=0") else {
-            return ServerProbeResult.classifyShimProbe(healthzStatus: healthzStatus, authedStatus: nil)
-        }
-        let authedStatus = await statusCode(for: authedURL, bearer: shimToken)
-        return ServerProbeResult.classifyShimProbe(healthzStatus: healthzStatus, authedStatus: authedStatus)
-    }
 
     /// One probe request → HTTP status, nil when no HTTP answer arrived.
     private static func statusCode(for url: URL, bearer: String?) async -> Int? {
@@ -616,7 +587,6 @@ struct ProfileEditorDraft: Equatable {
     var name: String = ""
     var gatewayBaseURL: String = ""
     var relayBaseURL: String = ""
-    var shimBaseURL: String = ""
     var note: String = ""
 
     init() {}
@@ -625,7 +595,6 @@ struct ProfileEditorDraft: Equatable {
         name = profile.name
         gatewayBaseURL = profile.gatewayBaseURL
         relayBaseURL = profile.relayBaseURL
-        shimBaseURL = profile.shimBaseURL ?? ""
         note = profile.note ?? ""
     }
 
@@ -644,10 +613,6 @@ struct ProfileEditorDraft: Equatable {
         if !relay.isEmpty, RelayConfiguration.normalizeBaseURL(relay) == nil {
             return "Relay URL must be an absolute http(s) URL ending with /v1."
         }
-        let shim = shimBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !shim.isEmpty, !shim.hasPrefix("http://") && !shim.hasPrefix("https://") {
-            return "Shim URL must be an absolute http(s) URL."
-        }
         return nil
     }
 
@@ -661,8 +626,6 @@ struct ProfileEditorDraft: Equatable {
         profile.gatewayBaseURL = gatewayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let relay = relayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         profile.relayBaseURL = RelayConfiguration.normalizeBaseURL(relay) ?? relay
-        let shim = shimBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        profile.shimBaseURL = shim.isEmpty ? nil : shim
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
         profile.note = trimmedNote.isEmpty ? nil : trimmedNote
         return profile
@@ -691,7 +654,6 @@ private struct ProfileEditorSheet: View {
                         field("Name", text: $draft.name, placeholder: "Mac Mini")
                         field("Gateway URL", text: $draft.gatewayBaseURL, placeholder: "http://100.79.222.100:8642", keyboard: .URL)
                         field("Relay URL", text: $draft.relayBaseURL, placeholder: "http://100.79.222.100:8000/v1", keyboard: .URL)
-                        field("Models Shim URL", text: $draft.shimBaseURL, placeholder: "http://100.79.222.100:8765", keyboard: .URL)
                         field("Note", text: $draft.note, placeholder: "Apple ecosystem / Xcode / iMessage")
                         apiKeySection
 

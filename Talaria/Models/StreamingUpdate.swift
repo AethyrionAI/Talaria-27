@@ -36,6 +36,11 @@ enum StreamingUpdate: Sendable {
     /// `run.completed` (nil when the server reported none) so the cost
     /// surfaces in the receipts — priming is not free.
     case contextPrimed(TokenUsage?)
+    /// #223 Lane 5: the terminal `runtime` block — which provider/model
+    /// ACTUALLY served this turn and whether a requested lock was honored.
+    /// Emitted just before `.finished` when the gateway reports one (v0.20.0+);
+    /// older gateways simply never emit it.
+    case modelResolved(TurnRuntime)
     case finished(Message, TokenUsage?, CodeDiff?)
     case failed(String)
     /// P1 (#90): the turn never reached the Sessions API at all (transport

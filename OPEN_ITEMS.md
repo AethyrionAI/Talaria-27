@@ -7118,7 +7118,7 @@ same Console session), #143/#144 (same notification plane), #145 (same host-flux
 
 Logged 2026-07-20.
 
-## 147. 🐛 Tapping an inbox-alert notification CRASHES the app — REOPENED 2026-07-25; the 2026-07-21 fix has been inert since it merged
+## 147. 🐛 Tapping an inbox-alert notification CRASHES the app — **⚰️ MOOT 2026-08-04 (goal-run sweep, under Owen's standing "disregard obsolete/moot items"): #238 deleted the ENTIRE system-notification surface — the `UNUserNotificationCenter` delegate this crash lived in no longer exists, and notifications, if ever reintroduced, are in-app surfaces only (permanent cut). The device check in DEVICE-PASS-RUNNING-LIST §F1 is likewise moot. Reopen only if an in-app alert TAP-THROUGH surface is built and crashes — which would be a NEW item against new code, not this one.** — (was: REOPENED 2026-07-25; the 2026-07-21 fix has been inert since it merged)
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
@@ -13263,7 +13263,37 @@ stall is real.
 lane. Then (1) as a design question, Smart last if ever. Rides #223's gateway-API
 direction — one more thing the gateway already carries.
 
-## 244. 🎨 APPEARANCE TAB HOLISTIC REWORK — "It doesn't flow right" — **FILED 2026-08-03 night (pre-compaction), UNROUTED (Owen's observation, no design)**
+## 244. 🎨 APPEARANCE TAB HOLISTIC REWORK — "It doesn't flow right" — **ROUTED 2026-08-04 early AM: Owen supplied Claude Design's channel-browser mockup and delegated the build ("If this is something doable and you like the design, implement that as well"). Verdict: doable + good — BUILT on `claude/t27-244-appearance-channels`; #243 subsumed; #239's sub-screen superseded (its live-re-skin guarantee carries forward by construction). Spec: `docs/superpowers/specs/2026-08-04-244-appearance-channel-browser-design.md`.**
+
+> ## 📋 BARS — PRE-REGISTERED 2026-08-04, BEFORE the lane's tests ran. Written first.
+> - **244-A (unit):** `ThemeChannels.build` — channel 00 is AUTO resolving
+>   today's season; order = catalog section order (Flagship → Neon Arcade →
+>   Special Edition → Midnight Marquee → Seasonal); count = available
+>   definitions + 1; Terminal's channel reports the locked accent slot.
+> - **244-B (unit):** the resolved-Color→hex helper renders real values (the
+>   palettes store no raw hex — computed, never hardcoded copy).
+> - **244-C (UI, replaces the #239 test IN PLACE):** settings → Appearance →
+>   browser present (counter) → › to Solar Forge → name label renders →
+>   reopening lands on Solar Forge's channel (apply-on-land persisted).
+> - **Counted delta (pinned BEFORE the verification run):** DesignThemeTests
+>   25 − 2 (themesRowValue pair dies with the row) + 4 = 27 ⇒ swift-testing
+>   **1557 + 2 = 1559 expected on this branch** (bases off main; Lane 5's
+>   1570 rides unmerged PR #255); XCUITest **10** (one replaced in place).
+> - Mockup's three open decisions resolved in the spec: accent dots under
+>   the spectrum (hidden for Terminal); Seasonal AUTO = channel 00 (counter
+>   NN/30, computed); inert `locked` badge machinery carried deliberately.
+
+> **✅ BUILT + BARS MET — 2026-08-04 early AM.** 244-A/B green (DesignThemeTests
+> 27/27 — honest note: the four new tests were written before the
+> implementation but their RED was not separately witnessed; new-type
+> compile-RED class, implementation landed in the same edit window). 244-C
+> MET live: the replaced XCUITest drives the real browser — opens on Deep
+> Field, › to Solar Forge, leaves, re-enters, and the browser reopens on
+> Solar Forge's channel (apply-on-land persisted). **GATE: PASS — 1559 exact
+> (pinned), XCUITest 10, 2 expected skips, Release clean.** Dropped detail
+> recorded in the spec: TabView has no native page-peek, so the prev/next
+> edge slivers are omitted (‹ › + counter carry adjacency). Owen's visual
+> pass owed on device — the design is his call to keep, tune, or bounce.
 
 **Owen, minutes after #239 closed, verbatim:** *"The whole appearance tab feels
 like it needs a rework in general. It doesn't flow right."* Read: #239's
@@ -14042,6 +14072,50 @@ tomorrow, pass their words through unchanged — never substitute 'tomorrow'"); 
 mislabeled relay is at least self-contradicting on its face. Either is device-only to
 verify — the sim has no model.
 
+**🏗 LANE ROUTED 2026-08-04 early AM (goal run "finish the rest of the open
+items that are workable"; #234 was queue item 5 in Owen's post-compaction
+list). Direction: BOTH candidates — they are complementary and both were the
+only ones filed: (a) the `day` @Guide names the boundary and the pass-through
+rule; (b) `tomorrowForecastLine` carries its calendar date. Branch
+`claude/t27-234-day-nearest-fit`.**
+
+## 📋 BARS — PRE-REGISTERED 2026-08-04, BEFORE the lane's tests ran. Written first.
+- **234-A (sim, mechanical):** the `day` guide text names the beyond-tomorrow
+  boundary AND the pass-through rule verbatim (pinned by a text test so a
+  guide edit is a deliberate act, the `theDescriptionAdvertisesTomorrow`
+  pattern); the literal observed input "day after tomorrow" is pinned
+  `.unsupported` (a PIN, expected green-on-arrival — the tool half was always
+  correct; recorded honestly as a pin, not a RED→GREEN).
+- **234-B (sim, mechanical):** `tomorrowForecastLine` carries the forecast's
+  calendar date — "Tomorrow (Aug 5) at Gulfport: …" for a fixed date — so a
+  mislabeled relay contradicts itself on its face. RED-able: the existing
+  exact-string test pins the UNDATED line today.
+- **234-C (device, owed to the next OTA — the sim has no model):** trial
+  prompt verbatim, fresh chat: "What's the weather in Gulfport the day after
+  tomorrow" → PASS = the honest horizon answer reaches the user (pass-through
+  fired), OR the reply is visibly self-contradicting (asked-day ≠ the dated
+  label). FAIL = the trial-7 shape recurs: tomorrow's numbers presented as
+  the asked day with no contradiction visible.
+- **Counted delta (pinned BEFORE the verification run):** WeatherTomorrowTests
+  +2 (guide-text pin, day-after-tomorrow pin; the dated-line change edits the
+  existing exact-string test in place) ⇒ swift-testing **1557 + 2 = 1559
+  expected on this branch** (bases off main — Lane 5's 1570 rides the
+  unmerged PR #255); XCUITest 10 unchanged.
+
+**✅ 234-A/B MET (sim) — 2026-08-04 early AM.** RED witnessed on both new
+members (`dayGuideText` missing; `date:` param missing), then GREEN 8/8 in
+the suite. The guide now reads: *"…Weather beyond tomorrow is not available:
+if the user asks about a later day (like 'day after tomorrow' or a weekday),
+pass their exact words through unchanged — never substitute 'tomorrow'."*
+`tomorrowForecastLine` emits "Tomorrow (Aug 5) at Gulfport: …" (fixed-locale
+month-day off the forecast entry's own date; nil-date keeps the undated
+form). The #209 rollback twin has no `day` field — untouched. **GATE: PASS —
+swift-testing 1559 (pinned delta met exactly), XCUITest 10, 2 expected skips,
+Release clean.** **234-C stays OWED to the next device pass** (the sim has no
+model): trial prompt verbatim on a fresh chat; PASS = honest horizon answer
+or a visibly self-contradicting dated label; FAIL = the trial-7 collapse
+recurs uncontradicted.
+
 ## 233. 🐛 "Tomorrow at 4" became a 4:00 AM reminder — half-day defaulting on `createReminder`, and the confirm card did not save it — **✅ CLOSED 2026-08-03 evening — every bar met: 233-A/B/C suite + device, 233-E device, 233-D midday (preferred shape) AND evening (fallback shape), store row observed**
 
 **FILED 2026-08-02, Lane 1 trial 3 (run results doc).** "Remind me to call Shelley
@@ -14545,7 +14619,7 @@ the three instances:**
 The umbrella's deliverable — the convention, stated once — now lives in the
 `commandCatalogRefreshTask` comment block and this entry.
 
-## 226. 🐛 The #38 run-completion push watch is a STRUCTURAL NO-OP for home-screen backgrounding — nothing, or THREE identical banners
+## 226. 🐛 The #38 run-completion push watch is a STRUCTURAL NO-OP for home-screen backgrounding — **⚰️ MOOT 2026-08-04 (goal-run sweep): the push-watch surface itself was deleted by #238 (app posts no `push/watch` calls; banners cannot exist without the notification plane). The one durable piece of this item — the reconcile-leg single-flight — was FIXED in this item's own lane (`0b8aad4`, `reconcileInFlight`) and stays. Nothing left to build.** — (was: nothing, or THREE identical banners)
 
 **FILED 2026-08-02 from the device pass (running list §D4, which holds the attempt table
 and the full source trace).** Four live attempts plus source; **all four explained
@@ -14963,6 +15037,69 @@ lane runs, per the standing rule.
 > locked model is invalid upstream: error text AS the assistant message
 > (HTTP 200, usage 0/0/0) on both chat paths — render-safe in today's app.
 > **Lane 5 is DESIGN-READY; Owen routes the design.**
+
+> **🏗 LANE 5 BUILT — 2026-08-04 early AM, goal run ("finish the rest of the
+> open items that are workable"); Owen approved the three forks directly:
+> scope "One default per host," services "I can stop them remotely when
+> you're done. You can do the app side now," mechanism "A for the a/b
+> choice." Spec `docs/superpowers/specs/2026-08-04-lane5-shim-retirement-design.md`,
+> plan alongside it, branch `claude/t27-223-lane5-shim-retirement`.**
+>
+> ## 📋 BARS — PRE-REGISTERED 2026-08-04 before the gate run. Written first.
+> - **L5-A (wire):** with a pick, `ChatTurnBody` encodes exactly
+>   `input`+`provider`+`model`+`require_model_lock:true`; with none, the key
+>   set is exactly `["input"]` (byte-compatible). Image-parts variant keeps
+>   the parts shape. Pinned by `ChatTurnBodyEncodingTests` (3).
+> - **L5-B (catalog):** the REAL archived OJAMD payload decodes — 42
+>   providers, 13 authenticated, nous 35 models/31 featured/no warning,
+>   fireworks unauth + setup warning, top-level kimi-coding/kimi-k3 pair,
+>   paid + discounted + `:free` pricing rows; `TurnRuntime` decodes probe 3's
+>   verbatim runtime block and tolerates empty/partial. Pinned by
+>   `GatewayModelCatalogTests` (6).
+> - **L5-C (behavior):** scripted-catalog picker model — load populates
+>   providers + host pair; `apply` persists per-profile and touches NO
+>   network; HOST DEFAULT clears the pick; pick beats host-current for the
+>   checkmark; load failure surfaces the error panel; `BackendProfile`
+>   decodes legacy JSON without the new keys and round-trips them. Pinned by
+>   `ModelsPickerModelTests` (6).
+> - **L5-D (retirement):** zero references to `ModelsShimClient` /
+>   `ShimModelOptions` / `/models/default` anywhere in app or tests
+>   (grep-verified); gate PASS incl. the Release build (#218 check).
+> - **L5-E (device, owed to next OTA):** on OJAMD — pick the deepseek flash
+>   id → next turn's SSE runtime shows `model_lock: "confirmed"` + the
+>   resolved deepseek id and the header updates to resolved truth; HOST
+>   DEFAULT → turn runs kimi-k3 with no lock fields; an invalid pick renders
+>   the gateway's error text as an ordinary assistant message.
+> - **Counted delta (pinned BEFORE the verification run):** swift-testing
+>   1557 + 15 (6 catalog, 3 encoding, 6 picker) − 2 (ServerSettingsTests'
+>   `shimProbeClassificationIsHonestAboutAuth`, AppStoresTests' selectModel
+>   CTX-denominator test — both pinned retired features) = **1570 expected**;
+>   XCUITest 10 unchanged. ProvisioningServiceTests rewritten 7 → 7.
+>
+> **What shipped:** `GatewayModelCatalog`/`TurnRuntime`/`ModelSelection` DTOs
+> + `fetchModelCatalog()`; `ChatTurnBody` lock trio on all three turn paths
+> (sync, stream, priming — never a bare `model`); `BackendProfile` gains
+> `selectedModelProvider`/`selectedModelID` (decode-tolerant both ways);
+> `ModelsSettingsModel` rewritten gateway-native (HOST DEFAULT row, instant
+> apply, no `activeOverride`); `StreamingUpdate.modelResolved(TurnRuntime)`
+> yielded at `run.completed` → ChatStore sets the header to the RESOLVED
+> model id tail; `AppContainer.applyModelSelection`/`activeModelSelection` +
+> lock re-arm at boot and profile switch; pricing ingest re-pointed at the
+> gateway payload (TurnReceipts consumers unchanged). **Retired:**
+> `ModelsShimClient.swift` (deleted), `/model` slash-command pin
+> (`switchModel`+`selectModel` — #9's hang path no longer exists), CONFIRM
+> overlay card + `PendingConfirm` (#4's guard, waived), ServerSettings shim
+> probe/row/editor field + `classifyShimProbe`, provisioning's shim fills
+> (descriptor fields tolerated + ignored; service init loses the two token
+> closures), boot/foreground shim-token restore, `saveModelsShimToken`,
+> `shimToken(for:)`, `MutableShimTokenBox`. Kept for downgrade safety:
+> `BackendProfile.shimBaseURL`, `UserSettings.modelsShimBaseURL` (decode
+> tolerance; UI no longer reads/writes), `BackendProfileScopedKeys.shimToken`
+> (profile-delete Keychain hygiene still clears old rows). **Known
+> limitation, documented in the spec:** header attribution rides the STREAM
+> path only (sync turns don't parse runtime — nothing user-facing uses sync
+> attribution today). Box-side services: Owen stops them remotely once the
+> new picker proves out; app no longer calls :8765 at all.
 
 **Filed 2026-08-02 from Owen's direction:** *"I like a potential 'end the relay dependency'.
 Couple that with ending the shim, and we won't have very much running anymore separately."*

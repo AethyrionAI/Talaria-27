@@ -847,7 +847,7 @@ struct ReasoningChannelTests {
 
     /// #145 Part A, completing the lane. The FIVE Hermes-plane clients all
     /// defaulted to `URLSession.shared` — 60s request over a **7-day** resource
-    /// ceiling — and `seedActiveModelFromShim()` puts `ModelsShimClient`
+    /// ceiling — and `seedActiveModelFromGateway()` used to put the shim client
     /// directly in `handleAppDidBecomeActive`'s chain, so #145's wedge reached
     /// them too. The first Part A PR bounded only `SessionsHermesClient`.
     ///

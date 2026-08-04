@@ -2,214 +2,142 @@ import SwiftUI
 
 // MARK: - Models settings screen (Settings → MODELS)
 //
-// Wires the live Talaria models shim (OJAMD tailnet) into the HUD. Lists the
-// authenticated providers/models, marks the active model, refreshes the shim's
-// per-provider cache on demand, and — on tap — DUAL-WRITES the selection:
-//   1. current session  → ChatStore.selectModel (gateway `/model <id>`)
-//   2. persistent default → shim POST /models/default (new-session scope)
-// The expensive-model guard surfaces as a confirm dialog.
+// #223 Lane 5: gateway-native picker. Lists providers/models straight from
+// `GET /api/model/options` (auth state, setup warnings, pricing), and a tap
+// persists ONE pick per backend profile — applied to every subsequent turn as
+// a per-turn `require_model_lock` (see GatewayModelCatalog.swift). apply() is
+// instant and touches no network; the HOST DEFAULT row clears the pick so the
+// host's own default rules again. The shim, its dual-write, and the
+// expensive-model confirm guard retired with this rewrite.
 
 // MARK: View model
 
 @MainActor
 @Observable
 final class ModelsSettingsModel {
-    private let shim: ModelsShimClient
-    private let chat: ChatStore
+    typealias CatalogFetch = @MainActor () async throws -> GatewayModelCatalog
 
-    var options: ShimModelOptions?
+    private let fetchCatalog: CatalogFetch
+    private let readSelection: () -> ModelSelection?
+    private let writeSelection: (ModelSelection?) -> Void
+
+    var catalog: GatewayModelCatalog?
     var isLoading = false
     var isRefreshing = false
     var errorMessage: String?
     var statusMessage: String?
-    /// The model id currently mid dual-write (drives per-row spinner + disable).
+    /// Kept for the transition overlay's phase machine; apply() is synchronous
+    /// now, so this is set and cleared within one call.
     var applyingModelID: String?
-    /// Pending expensive-model confirmation, if the shim asked for one.
-    var pendingConfirm: PendingConfirm?
     /// Last apply() target, captured so the transition overlay's Retry can re-run it.
     private(set) var lastAppliedSlug: String?
     private(set) var lastAppliedModel: String?
 
-    /// Optimistic active pointer set right after a successful set-default. The shim
-    /// caches its GET payload for an hour and does NOT bust the cache on set, so a
-    /// `refresh=0` re-GET still reports the OLD current; this override keeps the
-    /// checkmark truthful until a manual "Refresh models" reconciles against ground.
-    private var activeOverride: ActiveOverride?
-
-    struct ActiveOverride: Equatable { let slug: String; let model: String }
-
-    struct PendingConfirm: Identifiable {
-        let id = UUID()
-        let providerSlug: String
-        let modelID: String
-        let message: String
+    init(
+        fetchCatalog: @escaping CatalogFetch,
+        readSelection: @escaping () -> ModelSelection?,
+        writeSelection: @escaping (ModelSelection?) -> Void
+    ) {
+        self.fetchCatalog = fetchCatalog
+        self.readSelection = readSelection
+        self.writeSelection = writeSelection
     }
 
-    init(shim: ModelsShimClient, chat: ChatStore) {
-        self.shim = shim
-        self.chat = chat
-    }
+    /// The active profile's persisted pick (nil = following the host default).
+    var selection: ModelSelection? { readSelection() }
 
     // MARK: Loading
 
-    /// Initial / re-entrant load. Uses the cached compile (no `refresh`).
     func load() async {
-        if options == nil { isLoading = true }
+        if catalog == nil { isLoading = true }
         errorMessage = nil
         do {
-            options = try await shim.fetchModels(refresh: false)
-            // #46: harvest the pricing this payload always carried.
-            if let options { ModelPricingCatalog.shared.ingest(options) }
+            catalog = try await fetchCatalog()
+            if let catalog { ModelPricingCatalog.shared.ingest(catalog) }
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
         isLoading = false
     }
 
-    /// "Refresh models" — busts the shim's per-provider disk cache (re-hits every
-    /// provider's live `/v1/models`). Genuinely slow (~20–60s); always async with a
-    /// spinner and never blocks the rest of the UI.
+    /// "Refresh models" — a plain re-fetch of /api/model/options (the gateway
+    /// serves its live provider inventory; no cache knob to bust).
     func refresh() async {
         guard !isRefreshing else { return }
         isRefreshing = true
         errorMessage = nil
         statusMessage = nil
         do {
-            options = try await shim.fetchModels(refresh: true)
-            // #46: harvest the pricing this payload always carried.
-            if let options { ModelPricingCatalog.shared.ingest(options) }
-            // Fresh payload is ground truth — drop any optimistic override.
-            activeOverride = nil
-            statusMessage = "Refreshed \(compiledAgoText ?? "just now")"
+            catalog = try await fetchCatalog()
+            if let catalog { ModelPricingCatalog.shared.ingest(catalog) }
+            statusMessage = "Refreshed just now"
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
         isRefreshing = false
     }
 
-    // MARK: Dual write
+    // MARK: Apply (#223 Lane 5 — persist the pick; no network)
 
-    /// Tap handler. Persists the default via the shim first (so the expensive guard
-    /// can interrupt before we touch the live session), then pins the current
-    /// session via `/model`, and moves the checkmark optimistically (the shim caches
-    /// its GET payload, so we don't trust an immediate re-GET — "Refresh" reconciles).
-    func apply(providerSlug: String, modelID: String, confirmExpensive: Bool = false) async {
+    /// Tap handler. Persists the pick on the active profile — every subsequent
+    /// turn carries it as `provider` + `model` + `require_model_lock: true`.
+    /// Instant by design: no shim POST, no session pin, nothing to await.
+    func apply(providerSlug: String, modelID: String) {
         guard applyingModelID == nil else { return }
         applyingModelID = modelID
         lastAppliedSlug = providerSlug
         lastAppliedModel = modelID
         errorMessage = nil
-        statusMessage = nil
-        defer { applyingModelID = nil }
-
-        do {
-            let outcome = try await shim.setDefault(
-                provider: providerSlug, model: modelID, confirmExpensive: confirmExpensive
-            )
-            switch outcome {
-            case .confirmRequired(let message):
-                pendingConfirm = PendingConfirm(providerSlug: providerSlug, modelID: modelID, message: message)
-                return
-            case .success:
-                // The shim caches its GET payload for an hour and does NOT bust it on
-                // set, so a `refresh=0` re-GET would still show the OLD current. Move
-                // the active pointer optimistically; "Refresh models" reconciles later.
-                activeOverride = ActiveOverride(slug: providerSlug, model: modelID)
-                statusMessage = "Default → \(modelID) · pinning session…"
-                // Pin the live session (gateway `/model`) in the BACKGROUND. It is
-                // non-fatal and can be slow (~37s+) or hang when the gateway is offline,
-                // so it must not hold `applyingModelID` open — that would freeze the
-                // transition overlay and disable every model row (#9).
-                pinSessionInBackground(modelID: modelID)
-            }
-        } catch {
-            errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-        }
+        writeSelection(ModelSelection(provider: providerSlug, modelID: modelID))
+        statusMessage = "Locked → \(modelID) · applies to every turn"
+        applyingModelID = nil
     }
 
-    /// Pins the live session to the new model via the gateway `/model` command, OFF the
-    /// blocking apply() path. Non-fatal and possibly slow/hanging, so it runs detached and
-    /// only refreshes the status line if this model is still the chosen default. (#9)
-    private func pinSessionInBackground(modelID: String) {
-        Task { @MainActor in
-            let sessionOK = await chat.selectModel(modelID)
-            guard activeOverride?.model == modelID else { return }
-            statusMessage = sessionOK
-                ? "Default → \(modelID) · pinned this session"
-                : "Default → \(modelID) · session pin unavailable (gateway offline?)"
-        }
-    }
-
-    func confirmPending() async {
-        guard let pending = pendingConfirm else { return }
-        pendingConfirm = nil
-        await apply(providerSlug: pending.providerSlug, modelID: pending.modelID, confirmExpensive: true)
-    }
-
-    func cancelPending() {
-        pendingConfirm = nil
+    /// HOST DEFAULT row: clear the pick — turns carry no model fields and the
+    /// host's own default rules again.
+    func applyHostDefault() {
+        writeSelection(nil)
+        statusMessage = "Following the host default"
     }
 
     /// Re-run the last apply() target (driven by the transition overlay's Retry).
     func retryLast() async {
         guard let slug = lastAppliedSlug, let id = lastAppliedModel else { return }
-        await apply(providerSlug: slug, modelID: id)
+        apply(providerSlug: slug, modelID: id)
     }
 
     // MARK: Derived
 
-    /// Active model = the row whose id == top-level `model`, inside the provider
-    /// with is_current == true. (Provider slug != top-level `provider` for kimi.)
+    /// Host's current default pair from the catalog top level. On the v0.20.0
+    /// payload the top-level `provider` IS a row slug (unlike the old shim
+    /// payload, where they could differ).
+    var hostDefaultProvider: String? { catalog?.provider }
+    var hostDefaultModel: String? { catalog?.model }
+
+    var hostDefaultIsActive: Bool { selection == nil }
+
+    /// Checkmark truth: an explicit pick wins; with no pick, the host's
+    /// current pair reads as active.
     func isActive(providerSlug: String, modelID: String) -> Bool {
-        if let activeOverride {
-            return activeOverride.slug == providerSlug && activeOverride.model == modelID
+        if let selection {
+            return selection.provider == providerSlug && selection.modelID == modelID
         }
-        guard let options else { return false }
-        guard let row = options.providers.first(where: { $0.slug == providerSlug }) else { return false }
-        return row.current && modelID == options.model
+        return providerSlug == catalog?.provider && modelID == catalog?.model
     }
 
-    var authenticatedProviders: [ShimProviderRow] {
-        let auth = (options?.providers ?? []).filter { $0.isAuthenticated }
-        // Current provider first, then by display name.
+    var authenticatedProviders: [GatewayProviderEntry] {
+        let auth = (catalog?.providers ?? []).filter(\.authenticated)
+        let currentSlug = catalog?.provider
         return auth.sorted { lhs, rhs in
-            if lhs.current != rhs.current { return lhs.current }
-            return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+            let lhsCurrent = lhs.slug == currentSlug
+            let rhsCurrent = rhs.slug == currentSlug
+            if lhsCurrent != rhsCurrent { return lhsCurrent }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
         }
     }
 
     var needsSetupCount: Int {
-        (options?.providers ?? []).filter { !$0.isAuthenticated }.count
-    }
-
-    var compiledAgoText: String? { Self.compiledAgo(from: options?.compiledAt) }
-
-    // MARK: ISO8601 freshness (tolerant: handles `Z` and `+00:00`, 0–6 frac digits)
-
-    static func compiledAgo(from iso: String?) -> String? {
-        guard let iso, let date = parseISO(iso) else { return nil }
-        let secs = Date().timeIntervalSince(date)
-        if secs < 1 { return "just now" }
-        if secs < 60 { return "\(Int(secs))s ago" }
-        if secs < 3600 { return "\(Int(secs / 60)) min ago" }
-        if secs < 86_400 { return "\(Int(secs / 3600))h ago" }
-        return "\(Int(secs / 86_400))d ago"
-    }
-
-    static func parseISO(_ s: String) -> Date? {
-        let withFrac = ISO8601DateFormatter()
-        withFrac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = withFrac.date(from: s) { return d }
-        let plain = ISO8601DateFormatter()
-        plain.formatOptions = [.withInternetDateTime]
-        if let d = plain.date(from: s) { return d }
-        // Strip a fractional-seconds group the formatters choke on, then retry.
-        if let r = s.range(of: #"\.[0-9]+"#, options: .regularExpression) {
-            var stripped = s
-            stripped.removeSubrange(r)
-            if let d = plain.date(from: stripped) { return d }
-        }
-        return nil
+        (catalog?.providers ?? []).filter { !$0.authenticated }.count
     }
 }
 
@@ -217,13 +145,9 @@ final class ModelsSettingsModel {
 
 struct ModelsSettingsScreen: View {
     @Environment(AppContainer.self) private var container
-    @Environment(SettingsStore.self) private var settingsStore
     @Environment(\.dismiss) private var dismiss
 
     @State private var model: ModelsSettingsModel?
-    @State private var tokenDraft = ""
-    @State private var tokenSaving = false
-    @State private var tokenJustSaved = false
 
     var body: some View {
         ZStack {
@@ -238,7 +162,6 @@ struct ModelsSettingsScreen: View {
                     if let brainRouter = container.chatBackendRouter, brainRouter.showsBrainPicker {
                         brainSection(brainRouter)
                     }
-                    shimConfigSection
                     if let model {
                         content(model)
                     } else {
@@ -261,9 +184,22 @@ struct ModelsSettingsScreen: View {
         .toolbarVisibility(.hidden, for: .navigationBar)
         .task {
             if model == nil {
-                model = ModelsSettingsModel(shim: container.modelsShimClient, chat: container.chatStore)
+                // #223 Lane 5: catalog from the gateway, pick persisted on the
+                // active profile via the container (which also feeds the live
+                // client's per-turn lock).
+                model = ModelsSettingsModel(
+                    fetchCatalog: { [weak container] in
+                        guard let client = container?.sessionsChatClient else {
+                            throw SessionsHermesClient.SessionsClientError.notConfigured("No gateway configured \u{2014} pair a Hermes host first.")
+                        }
+                        return try await client.fetchModelCatalog()
+                    },
+                    readSelection: { [weak container] in container?.activeModelSelection },
+                    writeSelection: { [weak container] selection in
+                        container?.applyModelSelection(selection)
+                    }
+                )
             }
-            tokenDraft = container.modelsShimToken
             await model?.load()
         }
     }
@@ -399,63 +335,6 @@ struct ModelsSettingsScreen: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: Shim config (URL + token)
-
-    private var shimConfigSection: some View {
-        SettingsSectionView(title: "Shim Uplink") {
-            VStack(alignment: .leading, spacing: Design.Spacing.sm) {
-                VStack(alignment: .leading, spacing: Design.Spacing.xs) {
-                    MonoLabel("Shim URL", size: 9, weight: .medium, color: Design.Colors.mutedForeground)
-                    TextField("http://ojamd:8765", text: shimURLBinding)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.URL)
-                        .autocorrectionDisabled()
-                        .font(Design.Typography.callout.monospaced())
-                        .foregroundStyle(Design.Colors.foreground)
-                        .padding(Design.Spacing.md)
-                        .modifier(ShimFieldBackground())
-                    Text("Talaria models-shim endpoint on OJAMD (tailnet).")
-                        .font(Design.Typography.caption)
-                        .foregroundStyle(Design.Colors.secondaryForeground)
-                }
-
-                VStack(alignment: .leading, spacing: Design.Spacing.xs) {
-                    MonoLabel("Bearer Token", size: 9, weight: .medium, color: Design.Colors.mutedForeground)
-                    SecureField("Token from ~/.hermes/talaria_shim_token", text: $tokenDraft)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .font(Design.Typography.callout.monospaced())
-                        .foregroundStyle(Design.Colors.foreground)
-                        .padding(Design.Spacing.md)
-                        .modifier(ShimFieldBackground())
-                    HStack {
-                        Text(container.modelsShimToken.isEmpty ? "No token stored." : "Token stored in Keychain.")
-                            .font(Design.Typography.caption)
-                            .foregroundStyle(Design.Colors.secondaryForeground)
-                        Spacer()
-                        Button {
-                            Task { await saveToken() }
-                        } label: {
-                            HStack(spacing: Design.Spacing.xs) {
-                                if tokenSaving { ProgressView().controlSize(.mini) }
-                                Text((tokenJustSaved ? "Saved" : "Save").uppercased())
-                                    .font(Design.Typography.mono(11, weight: .medium))
-                                    .tracking(Design.Tracking.mono)
-                            }
-                            .foregroundStyle(Design.Brand.accentBright)
-                            .padding(.horizontal, Design.Spacing.md)
-                            .padding(.vertical, Design.Spacing.xs)
-                            .background(Design.Colors.accentTint(0.10), in: Capsule())
-                            .overlay { Capsule().strokeBorder(Design.Colors.accentTint(0.4), lineWidth: 1) }
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(tokenDraft == container.modelsShimToken)
-                    }
-                }
-            }
-        }
-    }
-
     // MARK: Content (freshness + refresh + providers)
 
     @ViewBuilder
@@ -465,7 +344,7 @@ struct ModelsSettingsScreen: View {
 
             if model.isLoading {
                 ProgressView().tint(Design.Brand.accent).padding(.top, Design.Spacing.lg)
-            } else if let error = model.errorMessage, model.options == nil {
+            } else if let error = model.errorMessage, model.catalog == nil {
                 errorPanel(error, model)
             } else {
                 if let status = model.statusMessage {
@@ -478,6 +357,7 @@ struct ModelsSettingsScreen: View {
                               color: Design.Colors.danger)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                hostDefaultRow(model)
                 ForEach(model.authenticatedProviders) { provider in
                     providerSection(provider, model: model)
                 }
@@ -493,9 +373,9 @@ struct ModelsSettingsScreen: View {
     private func freshnessBar(_ model: ModelsSettingsModel) -> some View {
         HStack(spacing: Design.Spacing.sm) {
             VStack(alignment: .leading, spacing: 2) {
-                MonoLabel("COMPILED", size: 8, tracking: Design.Tracking.monoWide,
+                MonoLabel("MODEL CATALOG", size: 8, tracking: Design.Tracking.monoWide,
                           color: Design.Colors.mutedForeground)
-                Text(model.compiledAgoText ?? "—")
+                Text("gateway \u{00b7} /api/model/options")
                     .font(Design.Typography.mono(12, weight: .medium))
                     .foregroundStyle(Design.Colors.coolForeground)
             }
@@ -525,28 +405,65 @@ struct ModelsSettingsScreen: View {
         .frame(maxWidth: .infinity)
         .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Colors.hairline,
                   fill: Design.Colors.surface)
-        .overlay(alignment: .bottomLeading) {
-            if model.isRefreshing {
-                Text("Re-checking every provider — 20–60s.")
-                    .font(Design.Typography.caption2)
-                    .foregroundStyle(Design.Colors.secondaryForeground)
-                    .padding(.leading, Design.Spacing.md)
-                    .offset(y: 18)
-            }
-        }
     }
 
-    private func providerSection(_ provider: ShimProviderRow, model: ModelsSettingsModel) -> some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.xs) {
+    /// #223 Lane 5: the pick-clearing row. Selected when no pick exists —
+    /// turns carry no model fields and the host's own default rules.
+    private func hostDefaultRow(_ model: ModelsSettingsModel) -> some View {
+        Button {
+            model.applyHostDefault()
+        } label: {
+            HStack(spacing: Design.Spacing.sm) {
+                Image(systemName: "server.rack")
+                    .font(.system(size: Design.Size.iconSmall))
+                    .foregroundStyle(model.hostDefaultIsActive ? Design.Brand.accent : Design.Colors.mutedForeground)
+                    .frame(width: 20)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Host default")
+                        .font(Design.Typography.body(14, weight: model.hostDefaultIsActive ? .bold : .regular))
+                        .foregroundStyle(model.hostDefaultIsActive ? Design.Colors.foregroundBright : Design.Colors.foreground)
+                    MonoLabel(
+                        hostDefaultDetail(model),
+                        size: 9,
+                        tracking: Design.Tracking.mono,
+                        color: Design.Colors.secondaryForeground
+                    )
+                }
+                Spacer(minLength: Design.Spacing.sm)
+                if model.hostDefaultIsActive {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Design.Brand.accent)
+                }
+            }
+            .padding(Design.Spacing.sm)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Colors.hairline,
+                  fill: Design.Colors.surface)
+    }
+
+    private func hostDefaultDetail(_ model: ModelsSettingsModel) -> String {
+        guard let provider = model.hostDefaultProvider, let modelID = model.hostDefaultModel else {
+            return "\u{2014}"
+        }
+        return "\(provider) \u{00b7} \(modelID)".uppercased()
+    }
+
+    private func providerSection(_ provider: GatewayProviderEntry, model: ModelsSettingsModel) -> some View {
+        let isCurrent = provider.slug == model.hostDefaultProvider
+        return VStack(alignment: .leading, spacing: Design.Spacing.xs) {
             HStack(spacing: Design.Spacing.xs) {
-                StatusPip(color: provider.current ? Design.Brand.accent : Design.Colors.dimForeground, diameter: 6)
-                MonoLabel(provider.displayName, size: 10, weight: .medium, tracking: Design.Tracking.monoWide,
-                          color: provider.current ? Design.Brand.accentBright : Design.Colors.secondaryForeground)
+                StatusPip(color: isCurrent ? Design.Brand.accent : Design.Colors.dimForeground, diameter: 6)
+                MonoLabel(provider.name, size: 10, weight: .medium, tracking: Design.Tracking.monoWide,
+                          color: isCurrent ? Design.Brand.accentBright : Design.Colors.secondaryForeground)
                 Spacer()
-                MonoLabel("\(provider.modelIDs.count)", size: 9, color: Design.Colors.dimForeground)
+                MonoLabel("\(provider.models.count)", size: 9, color: Design.Colors.dimForeground)
             }
             VStack(spacing: 0) {
-                ForEach(provider.modelIDs, id: \.self) { id in
+                ForEach(provider.models, id: \.self) { id in
                     modelRow(provider: provider, id: id, model: model)
                 }
             }
@@ -557,11 +474,11 @@ struct ModelsSettingsScreen: View {
         }
     }
 
-    private func modelRow(provider: ShimProviderRow, id: String, model: ModelsSettingsModel) -> some View {
+    private func modelRow(provider: GatewayProviderEntry, id: String, model: ModelsSettingsModel) -> some View {
         let active = model.isActive(providerSlug: provider.slug, modelID: id)
         let applying = model.applyingModelID == id
         return Button {
-            Task { await model.apply(providerSlug: provider.slug, modelID: id) }
+            model.apply(providerSlug: provider.slug, modelID: id)
         } label: {
             HStack(spacing: Design.Spacing.sm) {
                 Text(id)
@@ -605,45 +522,4 @@ struct ModelsSettingsScreen: View {
                   fill: Design.Colors.surface)
     }
 
-    // MARK: Bindings / actions
-
-    private var shimURLBinding: Binding<String> {
-        Binding(
-            get: {
-                container.profilesStore?.activeProfile?.shimBaseURL
-                    ?? settingsStore.settings.modelsShimBaseURL
-            },
-            set: { newValue in
-                let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                // Lane M: the active profile owns the shim endpoint; the
-                // legacy settings field is mirror-written for downgrade safety.
-                container.profilesStore?.updateActiveProfile { $0.shimBaseURL = trimmed.isEmpty ? nil : trimmed }
-                settingsStore.settings.modelsShimBaseURL = trimmed
-            }
-        )
-    }
-
-    private func saveToken() async {
-        tokenSaving = true
-        await container.saveModelsShimToken(tokenDraft)
-        tokenSaving = false
-        tokenJustSaved = true
-        // Re-load now that auth may be available.
-        await model?.load()
-        try? await Task.sleep(for: .seconds(1.5))
-        tokenJustSaved = false
-    }
-}
-
-// MARK: - Field background (matches the Hermes API fields)
-
-private struct ShimFieldBackground: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .background(Design.Colors.chipSurface, in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
-            .overlay {
-                RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                    .strokeBorder(Design.Colors.chipBorder, lineWidth: 1)
-            }
-    }
 }
