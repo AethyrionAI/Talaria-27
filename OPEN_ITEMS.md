@@ -13402,6 +13402,22 @@ blocks carry the resolution directly.)
   block (resolved provider/model, lock state, `requested` echo), and SSE
   events gained `seq`/`ts` fields — real per-turn model attribution for the UI.
 
+**⏸ UPSTREAM FILING HELD BY OWEN — 2026-08-03 ~midnight.** Owen halted the
+submission mid-draft ("I don't want a pr submitted on my behalf," then: another
+round of dedicated testing tomorrow "to ease my anxiety" before any filing).
+**Nothing was submitted** — the only upstream-repo contact was read-only
+duplicate searching (clean: closest hit #52461 is a different bug, the TUI
+gateway's hardcoded placeholder; zero matches on this defect's signatures in
+issues or PRs). Upstream repo identified: `NousResearch/hermes-agent`
+(from the Mac install's git remote; CONTRIBUTING.md wants the duplicate search
+that was done). **Conditions before any filing, in order:** (1) a dedicated
+re-verification round on 2026-08-04 — fresh sessions, the same six probes
+re-run with bars pre-registered in this entry before the run, expecting
+identical results (esp. probe 1's self-name warning line and probe 5/6's
+error-as-content shape); (2) the complete draft text written to `handoffs/`
+for Owen to read verbatim; (3) Owen's explicit go. The filing is optional and
+entirely his — the evidence above is banked and loses nothing by waiting.
+
 ## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **✅ CLOSED 2026-08-03 ~10:02 PM — filed, spec'd, built, gated, merged (PR #253), corded-deployed, and ALL THREE BARS MET in one evening; 240-C observed on device (row adopted, no second answer)**
 
 > **BUILD RECORD — 2026-08-03 late night, branch `claude/t27-240-preflight-parking`
