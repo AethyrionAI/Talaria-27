@@ -397,6 +397,7 @@
 		CA5C10292BAFAB1B8AD2B751 /* CronJob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40F4DA998F50F26432D5BFFB /* CronJob.swift */; };
 		CA65B8819B1619503577C599 /* HermesAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECE60067CC3898F2148D9C58 /* HermesAvatar.swift */; };
 		CA84CD85EE3FBCF4B0687EF9 /* ConnectorOutageAlertPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F42292E29A3C5B4C3A70972 /* ConnectorOutageAlertPolicy.swift */; };
+		CADC8BA5700D563EA1F326F4 /* SettingsChannelsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08FD65B8CCE83D816E84A5D5 /* SettingsChannelsScreen.swift */; };
 		CADD4DE01A62A50ECED18E2D /* Icon-GraffitiGalaxy@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 51D3DE21F5F10FD325E99423 /* Icon-GraffitiGalaxy@2x.png */; };
 		CAF0C9A08403D28A4708638A /* MonetizationGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DF4B2F289BFF10048D304C8 /* MonetizationGateTests.swift */; };
 		CB158CADFFC7E9FC5382D1F2 /* DeviceToolBelt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D3DC3DD1F39850425CE2160 /* DeviceToolBelt.swift */; };
@@ -565,6 +566,7 @@
 		068E0164B35DB9857A55847E /* PermissionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionStatus.swift; sourceTree = "<group>"; };
 		07421A623E331F4C5116F434 /* IconPreview-WitchsBrew.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-WitchsBrew.png"; sourceTree = "<group>"; };
 		078776BA69767B945B3B0B82 /* InboxStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxStore.swift; sourceTree = "<group>"; };
+		08FD65B8CCE83D816E84A5D5 /* SettingsChannelsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsChannelsScreen.swift; sourceTree = "<group>"; };
 		099915A255DC3C5BBF05F29E /* AlarmService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmService.swift; sourceTree = "<group>"; };
 		0A2B8983CE86355818012300 /* HapticEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticEngine.swift; sourceTree = "<group>"; };
 		0AD2308C9C97CEA542271B0C /* UserDefaultsAppPersistenceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsAppPersistenceStore.swift; sourceTree = "<group>"; };
@@ -1697,6 +1699,7 @@
 				637B1A2DE6232361D4E695DD /* ServerSettingsScreen.swift */,
 				92672F43E2FCAF98C5F13FDD /* SessionsSettingsScreen.swift */,
 				112DEA8A0B96068758BC3EC4 /* SettingsChannels.swift */,
+				08FD65B8CCE83D816E84A5D5 /* SettingsChannelsScreen.swift */,
 				25935CD9A0AD28B30B6FFBE1 /* SettingsScreenHeader.swift */,
 				61E8C06E456A6825E0B020C3 /* SettingsSectionView.swift */,
 				4B6960308556A1B2ADA625CC /* SystemSettingsScreen.swift */,
@@ -2401,6 +2404,7 @@
 				4CBE69826995E93F912B4F68 /* SessionsHermesClient.swift in Sources */,
 				2F6057CE3E050CA5FE899316 /* SessionsSettingsScreen.swift in Sources */,
 				370B398864795F2AD103EC77 /* SettingsChannels.swift in Sources */,
+				CADC8BA5700D563EA1F326F4 /* SettingsChannelsScreen.swift in Sources */,
 				F0D7B45CD46C5059C16EAD54 /* SettingsScreenHeader.swift in Sources */,
 				9E7BD9196926A1DC9732B4AC /* SettingsSectionView.swift in Sources */,
 				051B582BC2F877D6AA89BD3E /* SettingsStore.swift in Sources */,
