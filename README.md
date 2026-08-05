@@ -156,7 +156,7 @@ On first launch the app works immediately in on-device mode — no account, no c
 
 1. On the host, run `hermes-mobile pair-phone`. It prints a QR code and a short-lived 8-character code.
 2. In the app, scan the QR code or tap **Enter Code Manually**, paste your relay URL, and enter the code.
-3. For hosted chat, go to **Settings → Uplink** and enter your gateway URL (`http://your-host:8642`) and that host's `API_SERVER_KEY` (from `~/.hermes/.env`). Each paired profile keeps its own key.
+3. For hosted chat, go to **Settings → Uplink** and enter your gateway URL (`http://your-host:8642`) and that host's `API_SERVER_KEY` (in the Hermes `.env` — `~/.hermes/.env` on macOS, `%LOCALAPPDATA%\hermes\.env` on Windows). Each paired profile keeps its own key.
 
 > ⚠️ **iCloud Private Relay** intercepts HTTP to Tailscale IPs. Disable it on your iPhone for Tailscale addresses, or the app will not reach your services.
 
