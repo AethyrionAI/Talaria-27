@@ -13494,6 +13494,39 @@ Manual/Off app lane).**
   headers/comments, project metadata. Present the inventory to Owen with
   keep/rename/delete per site before touching anything.
 
+**📋 INVENTORY DONE 2026-08-05 evening (read-only greps) — the repo is
+cleaner than feared; dispositions below, decisions owed from Owen:**
+- **Zero dylan marks in code.** The literal "dylan" appears ONLY in our
+  own history docs (CLEAN_CHAT_PATH, OPEN_ITEMS, CLAUDE.md, two dispatch
+  docs) and `THIRD_PARTY_LICENSES.md` §"Dylan Buck — original author"
+  (first commit `c4e5b36` provenance). The history docs are ours and the
+  licenses file is legal surface — **all KEEP**.
+- **LICENSE** is MIT "Copyright (c) 2026 Hermes iOS Contributors" —
+  **KEEP** (the notice must survive any sweep; appending an AethyrionAI
+  line is allowed, removing the original is not).
+- **`hermes-mobile`/`hermes_mobile` lives ONLY in the EOL sidecars**:
+  `relay/` (package `hermes_mobile_relay`, `hermes_mobile.db`, env
+  prefixes), `connector/` (tests + MCP tool names), and OJAMD's
+  `HermesMobileRelay` NSSM service. Renaming any of it is churn against
+  the ⛔ deletion direction — **the rename ask is SATISFIED BY #251**:
+  the successor surface is already `talaria`-named (plugin, toolset,
+  CLI), and the old name dies with the sidecars in Phase 4.
+- **Cheap renames available now:** `skills/hermes-ios/` →
+  `skills/talaria/` (+ its README.md:190 mention). Zero runtime risk.
+- **`CONTRIBUTING.md:99`** upstream-issues link points at
+  NousResearch/hermes-agent for CORE changes — accurate, **KEEP**.
+- **`Hermes*` Swift types + user-visible "Hermes" strings**
+  (HermesLiveActivity, Hermes*Widget*, "Ask Hermes"/"Talk to Hermes"
+  controls, CarPlay variants) name **Owen's AGENT, not dylan** — not
+  upstream marks. Whether user-visible strings should read "Talaria" for
+  the hostless-first pivot is a PRODUCT call, per-surface, Owen's
+  routing.
+- **Decision menu for Owen:** (a) do the cheap `skills/` rename now;
+  (b) mechanical app-side type sweep `Hermes*` → `Talaria*` (broad diff,
+  xcodegen + gate, no behavior change); (c) user-visible string verdicts
+  per surface. Recommendation: (a) yes, (b) optional/low value, (c)
+  decide alongside the #253 pivot conversation.
+
 ## 254. 🐛 Control Center "Ask/Talk to Hermes" buttons now BIND (good) — but the voice session SURVIVES dismissing its UI and keeps talking at full volume — **FILED 2026-08-05 evening from Owen's OTA-2024 device report; lifecycle bug, lane not yet opened**
 
 **Owen (2026-08-05, on OTA build 2024):** *"the ask hermes and talk to
