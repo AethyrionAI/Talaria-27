@@ -139,7 +139,7 @@ struct ChatScreen: View {
     private var debugSessionShapeBanner: some View {
         #if DEBUG
         if LocalChatBackend.activeSessionShape != .armedRouted {
-            MonoLabel("⚠︎ BRAIN SHAPE OVERRIDE — \(LocalChatBackend.activeSessionShape.rawValue). Not production. Reset in Diagnostics → Local brain.",
+            MonoLabel("⚠︎ BRAIN SHAPE OVERRIDE — \(LocalChatBackend.activeSessionShape.rawValue). Not production. Reset in Developer → Batteries.",
                       size: 9, tracking: Design.Tracking.mono, color: Design.Colors.foregroundBright)
                 .padding(.horizontal, Design.Spacing.md)
                 .padding(.vertical, Design.Spacing.xs)

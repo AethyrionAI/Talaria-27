@@ -44,6 +44,9 @@ struct ServerProfileReachability: Equatable {
 }
 
 struct ServerSettingsScreen: View {
+    // #252: deck pages supply the background and top bar; the screen keeps
+    // owning its content, tasks, and sheets in both presentations.
+    var embedded: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var container
     @Environment(PairingStore.self) private var pairingStore
@@ -80,12 +83,29 @@ struct ServerSettingsScreen: View {
 
     var body: some View {
         ZStack {
-            HUDScreenBackground()
-                .ignoresSafeArea()
+            if !embedded {
+                HUDScreenBackground()
+                    .ignoresSafeArea()
+            }
 
             ScrollView {
                 VStack(spacing: Design.Spacing.lg) {
-                    SettingsScreenHeader(title: "Server", subtitle: "Backend Profiles") { dismiss() }
+                    if !embedded {
+                        SettingsScreenHeader(title: "Server", subtitle: "Backend Profiles") { dismiss() }
+                    }
+                    if embedded {
+                        SubsystemHero(
+                            motif: .profileBars,
+                            title: SettingsSubsystem.server.title,
+                            status: SettingsCardValues.server(
+                                activeProfileName: container.profilesStore?.activeProfile?.name,
+                                isPaired: pairingStore.isPaired),
+                            statusColor: container.profilesStore?.activeProfile != nil
+                                ? Design.Brand.accent : Design.Colors.mutedForeground,
+                            chip: SettingsSubsystem.server.chip,
+                            accented: container.profilesStore?.activeProfile != nil
+                        )
+                    }
                     profileCards
                     if let provisioningMessage {
                         infoNotice(provisioningMessage)

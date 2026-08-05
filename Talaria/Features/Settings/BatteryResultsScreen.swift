@@ -30,7 +30,7 @@ struct BatteryResultsScreen: View {
                     SettingsScreenHeader(title: "Battery results", subtitle: "#196 Instrument") { dismiss() }
 
                     if runs.isEmpty {
-                        MonoLabel("No captured runs. Run a battery or router probe from Diagnostics — every run records here.",
+                        MonoLabel("No captured runs. Run a battery or router probe from Developer → Batteries — every run records here.",
                                   size: 10, tracking: Design.Tracking.mono,
                                   color: Design.Colors.secondaryForeground)
                             .frame(maxWidth: .infinity, alignment: .leading)

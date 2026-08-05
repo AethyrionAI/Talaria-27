@@ -269,8 +269,8 @@ struct MainTabView: View {
         switch destination {
         case .settings:
             NavigationStack {
-                // Settings entry: the SYSTEM index (the legacy monolith was removed in T3).
-                SystemSettingsScreen()
+                // #252: Subsystem Channels root (1c). SystemSettingsScreen retired (Task 8).
+                SettingsChannelsScreen()
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)

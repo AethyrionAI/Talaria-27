@@ -14,6 +14,9 @@ import UIKit
 //     push registration — persisted so a relaunch doesn't resurrect them.
 //     Camera/Photos stay deep-link-only ("Manage in System Settings").
 struct PrivacySettingsScreen: View {
+    // #252: deck pages supply the background and top bar; the screen keeps
+    // owning its content, tasks, and sheets in both presentations.
+    var embedded: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @Environment(AppContainer.self) private var container
@@ -51,12 +54,30 @@ struct PrivacySettingsScreen: View {
 
     var body: some View {
         ZStack {
-            HUDScreenBackground()
-                .ignoresSafeArea()
+            if !embedded {
+                HUDScreenBackground()
+                    .ignoresSafeArea()
+            }
 
             ScrollView {
                 VStack(spacing: Design.Spacing.lg) {
-                    SettingsScreenHeader(title: "Privacy", subtitle: "Permissions") { dismiss() }
+                    if !embedded {
+                        SettingsScreenHeader(title: "Privacy", subtitle: "Permissions") { dismiss() }
+                    }
+                    if embedded {
+                        SubsystemHero(
+                            motif: .hatchShield,
+                            title: SettingsSubsystem.privacy.title,
+                            status: SettingsCardValues.privacy(
+                                masterOn: settingsStore.settings.sensorStreamingEnabled,
+                                health: settingsStore.settings.healthCollectionEnabled,
+                                location: settingsStore.settings.locationCollectionEnabled,
+                                motion: settingsStore.settings.motionCollectionEnabled),
+                            statusColor: privacyIsAccented ? Design.Brand.accent : Design.Colors.mutedForeground,
+                            chip: SettingsSubsystem.privacy.chip,
+                            accented: privacyIsAccented
+                        )
+                    }
                     permissionsSection
                     sensorStreamingSection
                     locationSection
@@ -72,6 +93,17 @@ struct PrivacySettingsScreen: View {
         .navigationTitle("Privacy")
         .toolbarVisibility(.hidden, for: .navigationBar)
         .task { await permissionsStore.reloadCapabilities() }
+    }
+
+    // MARK: Hero (#252 Task 7)
+
+    /// Mirrors `SettingsChannelsScreen.cardIsAccented(.privacy)` — streaming
+    /// is on AND at least one sensor is actually enabled.
+    private var privacyIsAccented: Bool {
+        settingsStore.settings.sensorStreamingEnabled &&
+        (settingsStore.settings.healthCollectionEnabled ||
+         settingsStore.settings.locationCollectionEnabled ||
+         settingsStore.settings.motionCollectionEnabled)
     }
 
     // MARK: Permissions

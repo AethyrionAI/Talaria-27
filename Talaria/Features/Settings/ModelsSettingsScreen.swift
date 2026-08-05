@@ -144,6 +144,9 @@ final class ModelsSettingsModel {
 // MARK: - Screen
 
 struct ModelsSettingsScreen: View {
+    // #252: deck pages supply the background and top bar; the screen keeps
+    // owning its content, tasks, and sheets in both presentations.
+    var embedded: Bool = false
     @Environment(AppContainer.self) private var container
     @Environment(\.dismiss) private var dismiss
 
@@ -151,12 +154,29 @@ struct ModelsSettingsScreen: View {
 
     var body: some View {
         ZStack {
-            HUDScreenBackground()
-                .ignoresSafeArea()
+            if !embedded {
+                HUDScreenBackground()
+                    .ignoresSafeArea()
+            }
 
             ScrollView {
                 VStack(spacing: Design.Spacing.lg) {
-                    header
+                    if !embedded {
+                        header
+                    }
+                    if embedded {
+                        SubsystemHero(
+                            motif: .barChart,
+                            title: SettingsSubsystem.models.title,
+                            status: SettingsCardValues.models(
+                                activeModelName: container.chatStore.activeModelName,
+                                brainLabel: container.chatBackendRouter?.activeBrain.monoLabel),
+                            statusColor: container.chatStore.activeModelName?.isEmpty == false
+                                ? Design.Brand.accent : Design.Colors.mutedForeground,
+                            chip: SettingsSubsystem.models.chip,
+                            accented: container.chatStore.activeModelName?.isEmpty == false
+                        )
+                    }
                     // #27: brain picker — only once any Hermes host exists
                     // (a never-paired device has one brain, nothing to pick).
                     if let brainRouter = container.chatBackendRouter, brainRouter.showsBrainPicker {

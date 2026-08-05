@@ -13523,7 +13523,100 @@ eleven screens gets an explicit new home (inventory in progress).
 sequence deliberately. #244's channel browser is a hard dependency and
 survives unchanged. Spec:
 `planning/superpowers/specs/2026-08-05-252-settings-channels-design.md` (being
-written). Bars pre-register HERE before the build runs.
+written).
+
+**BARS (pre-registered 2026-08-05, before any build):**
+- **252-A** — sim UI test: the settings sheet presents a grid with NINE subsystem
+  entries whose value labels are live-store-derived (no "REACTOR"/"REALTIME"
+  literals anywhere in the new surface).
+- **252-B** — sim UI test: card tap opens the deck at that subsystem; counter reads
+  `%02d / 09`; grid-toggle returns; swipe advances the counter.
+- **252-C** — control parity: every control in
+  `planning/superpowers/specs/2026-08-05-252-settings-inventory.md` §1–§11 is reachable
+  in the new IA (checklist pass, sim or device).
+- **252-D** — DEBUG build: the battery harness is reachable under Developer and
+  `Battery results →` still opens; a battery button still arms (visual check).
+- **252-E** — the four updated pairing/appearance UI tests green.
+- **252-F** — Release build green
+  (`xcodebuild -configuration Release … build CODE_SIGNING_ALLOWED=NO`).
+A missed bar is a falsification, not a redefinition.
+
+**Final whole-branch review + fix wave (2026-08-05):** reviewer verdict
+"mergeable with minor fixes"; ONE fix wave (`c47a91b`) landed all four
+pre-merge items — About health-verdict coherence (new pure
+`aboutIsHealthy(hostConfigured:connectionOnline:)`, shared by grid card AND
+About hero; **hostless now reads HEALTHY**, honoring the routed
+"unpaired is the designed state" constraint — the old root's
+DEGRADED-when-hostless was an inherited defect the redesign had promoted to
+a hero), two stale "Diagnostics" path strings → "Developer → Batteries"
+(ChatScreen banner + BatteryResultsScreen empty state), system
+reduce-motion OR'd in (mirrors the browser), and deck-nav counter asserts
+now poll. Scoped re-review: all ADDRESSED, no new breakage.
+
+**Ride-along follow-ons (filed, NOT built — post-device-pass candidates):**
+(a) deck entry builds all nine pages, so every grid↔deck flip re-fires each
+page's read-only status probes (host refresh, per-profile probes, catalog
+fetch, talk readiness, sessions load) — user-invoked and idempotent, but
+network chatter vs the old push IA; judged acceptable, revisit if Owen
+notices. (b) Voice card's live-session branch is production-dead (overlay
+can't coexist with the sheet) — formatter kept, tests cover it. (c) Visual
+spec-drift dropped at plan time: no decorative card motifs, Appearance card
+accent-tinted rather than palette-gradient, Appearance hero lacks the three
+accent-slot dots — Owen judges on device whether to want them. (d) Hero
+wording flattens the spec's framing (Privacy "0 STREAMS" vs "NOTHING LEAVES
+THIS PHONE"; Sessions drops "· M MSGS"). (e) Sessions card count is stale
+after in-deck Clear until the sheet reopens. (f) `server()` formatter's
+"PAIRED" branch is an addition over the spec table (benign, tested).
+
+**Bar verdicts (2026-08-05, Task 10 — all six MET):**
+- **252-A MET** — `testSettingsGridPresentsNineSubsystems` green (13.574s in the T10 gate
+  run; also green in T9's own run). Live re-confirmed on the pinned sim: grid shows 8
+  numbered cards + a `09 DEVELOPER` row, every value label store-derived (DIRECT, OJAMD,
+  ON-DEVICE, READ-ALOUD OFF, DEEP FIELD · CH 01, 0 STREAMS, 15 SESSIONS, HEALTHY,
+  PRODUCTION) — no `REACTOR`/`REALTIME` literal anywhere.
+- **252-B MET** — `testSettingsDeckNavigation` green (19.355s in the T10 gate run). Live
+  re-confirmed: card tap opens the deck at that subsystem, counter reads `NN / 09`,
+  grid-toggle icon returns to the grid, page-dot tap jumps the counter.
+- **252-C MET** — control-parity checklist walked live on the pinned sim
+  (`47F68496-24F9-45D9-93D3-1C778DB6B557`) against
+  `planning/superpowers/specs/2026-08-05-252-settings-inventory.md` §1–§11; written to
+  `.superpowers/sdd/2026-08-05-252-settings-channels/parity-checklist.md` (gitignored,
+  local only). Every control reachable — zero ❌. Conditional/state-gated branches
+  (paired-only rows, destructive alerts, paywall sheets) were cross-confirmed present in
+  the current source rather than triggered live, and are marked distinctly in the
+  checklist. One incident: a mistimed scroll-tap on the Developer battery list fired a
+  real `HONESTY-FIX`/`HONESTY-FIX-V2` battery run by accident; caught immediately, the
+  app was force-terminated and relaunched — no lasting effect (the interrupted run's
+  44/44 ERR/TIMEOUT result sits harmlessly in that build's local Battery Results list,
+  not part of the git diff).
+- **252-D MET** — DEBUG build, live on the pinned sim: the full battery/probe harness
+  (~46 launcher buttons, forced-trip panel) is reachable under **Developer**, not About
+  (About was scrolled end-to-end and confirmed clear of it — the T8 relocation holds).
+  `Battery Results →` opens the 3-level nested `BatteryResultsScreen` (run list → Run
+  Detail with BUILD/OS/CELLS + Copy raw run/Share Run JSON → per-cell trial rows); a
+  battery button visibly arms (the accidental trigger above is, awkwardly, direct proof
+  of this half of the bar).
+- **252-E MET** — the four updated tests green in the **T10 gate run** (not just T9's):
+  `testAppearanceChannelBrowserAppliesThemeOnLand`, `testDisconnectReturnsToStandaloneChat`
+  (33.499s), `testMockPairingViaSettingsEntryPoint` (26.820s),
+  `testPairedRelaunchSkipsPairingEntry` (42.977s) — all passed, part of the same 12/12
+  XCUITest, 0 failures line.
+- **252-F MET** — `scripts/mac/lane-gate.sh` (full run, not `--release` only): Debug
+  suite leg — Swift Testing `Test run with 1600 tests in 126 suites passed`; XCUITest
+  `Executed 12 tests, with 0 failures` + `** TEST SUCCEEDED **`; 2 expected skips
+  (`CondenserFidelityTests`, Apple Intelligence hardware, per the gate's own documented
+  expectation). Release leg — `** BUILD SUCCEEDED **`, 0 Swift compile errors.
+  `GATE: PASS`. Logs: `/var/folders/0z/b07gxktx30s5cm8506x55py40000gn/T/talaria-gate.V0i8slwSLa/`
+  (`suite.log`, `release.log`), copied for safekeeping to
+  `.superpowers/sdd/2026-08-05-252-settings-channels/gate-logs/` (gitignored).
+
+**Correction of record (T9's finding, re-anchored here):** the plan's
+`-only-testing:TalariaUITests/AppTemplateUITests` invocation is a **false green** — it
+targets a class name (`AppTemplateUITests`) that does not exist in
+`AppTemplateUITests.swift` (the class inside is actually `TalariaUITests`), so the filter
+silently matches zero tests and reports `** TEST SUCCEEDED **` / `Executed 0 tests, with 0
+failures`. The correct invocation is `-only-testing:TalariaUITests/TalariaUITests`. Any
+doc or script still carrying the bad path should be fixed against this note.
 
 ## 251. 🚀 THE PLUGIN VENTURE: replace relay + connector + MCP server + venv CLIs with ONE Hermes plugin — **FILED 2026-08-05 (Owen's direction, via a Hermes-authored architecture report); architecture CORRECTED in discussion; lane not yet opened**
 

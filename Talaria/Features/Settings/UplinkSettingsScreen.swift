@@ -86,6 +86,9 @@ enum ConnectionTestState: Equatable {
 // construction). What replaced it is the honest state that mattered: a
 // paired-but-UNKEYED profile says so here instead of failing silently.
 struct UplinkSettingsScreen: View {
+    // #252: deck pages supply the background and top bar; the screen keeps
+    // owning its content, tasks, and sheets in both presentations.
+    var embedded: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var container
     @Environment(AppSessionStore.self) private var sessionStore
@@ -117,13 +120,28 @@ struct UplinkSettingsScreen: View {
 
     var body: some View {
         ZStack {
-            HUDScreenBackground()
-                .ignoresSafeArea()
+            if !embedded {
+                HUDScreenBackground()
+                    .ignoresSafeArea()
+            }
 
             ScrollView {
                 VStack(spacing: Design.Spacing.lg) {
-                    SettingsScreenHeader(title: "Uplink", subtitle: activeProfileName) { dismiss() }
-                    linkStatusPanel
+                    if !embedded {
+                        SettingsScreenHeader(title: "Uplink", subtitle: activeProfileName) { dismiss() }
+                    }
+                    if embedded {
+                        SubsystemHero(
+                            motif: .rings,
+                            title: SettingsSubsystem.uplink.title,
+                            status: linkTitle,
+                            statusColor: linkColor,
+                            chip: SettingsSubsystem.uplink.chip,
+                            accented: effectiveConnectionState == .online
+                        )
+                    } else {
+                        linkStatusPanel
+                    }
                     if showsUnkeyedNudge {
                         unkeyedProfileNotice
                     }
