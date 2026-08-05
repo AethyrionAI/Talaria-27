@@ -13470,6 +13470,52 @@ Manual/Off app lane).**
 > runs deny side effects silently under current config. Item stays SHELVED;
 > the #251 venture's interactive half is now the natural reopen path.**
 
+## 255. 🧹 DE-BRANDING SWEEP: rename hermes-mobile → talaria-mobile; remove the remaining dylan-buck marks from the repo — **FILED 2026-08-05 evening (Owen: "I also want to rename the hermes-mobile to talaria-mobile and get rid of the rest of dylan's mark on the repo"); inventory owed before any rename**
+
+**Scope discipline written at filing, before the inventory:**
+- **The LICENSE attribution STAYS.** The repo is forked from
+  `dylan-buck/Hermes-iOS`; whatever the upstream license requires
+  (copyright lines, notice files) is legal surface, not branding —
+  `LICENSE` / `THIRD_PARTY_LICENSES.md` keep their notices verbatim.
+- **"Hermes" is TWO names here — only one is dylan's.** Hermes is ALSO
+  Owen's agent; `HermesLiveActivity`, `HermesWidgetBundle`, "Ask Hermes"
+  etc. name the AGENT and are not automatically upstream marks. The
+  inventory must tag each `Hermes*` occurrence as agent-name (keep or
+  Owen's call) vs upstream-mark (remove/rename).
+- **Relay-side names ride #251's deletion, not a rename.** The
+  `hermes_mobile` MCP namespace, `HermesMobileRelay` service, and
+  `hermes_mobile.db` live in components with a planned end-of-life
+  (#223/#251 Phase 4). Renaming them buys churn in things we intend to
+  delete — the rename lands naturally when the plugin (Phase 2) replaces
+  that surface as `talaria-mobile`/`talaria` naming. App-side references
+  to the name (docs, comments, the shell's tool wiring) get the rename.
+- Candidate mark sites for the inventory: `UPSTREAM_TESTED_SHA`,
+  `README`/`CONTRIBUTING`/`MAINTAINER_NOTES` fork copy, upstream code
+  headers/comments, project metadata. Present the inventory to Owen with
+  keep/rename/delete per site before touching anything.
+
+## 254. 🐛 Control Center "Ask/Talk to Hermes" buttons now BIND (good) — but the voice session SURVIVES dismissing its UI and keeps talking at full volume — **FILED 2026-08-05 evening from Owen's OTA-2024 device report; lifecycle bug, lane not yet opened**
+
+**Owen (2026-08-05, on OTA build 2024):** *"the ask hermes and talk to
+hermes buttons in the control center started working? The chat one takes
+me right to the composer and the talk to takes me directly to a voice
+session. Interesting! It also stayed alive that method after I closed it
+and just started talking to me full volume in the office LOL."*
+
+- **Half 1 (observation, good news):** the #7 `ControlWidget` pair
+  (`TalariaWidgets/Controls/HermesControls.swift`) now routes correctly —
+  chat → composer, talk → live voice session. First confirmed working
+  binding; worth knowing OTA 2024 is where it started.
+- **Half 2 (the bug):** closing the voice UI did NOT end the voice
+  session — it kept running and speaking at full volume. The session's
+  lifetime is evidently not tied to its view's dismissal on the
+  intent-launched path. Suspect neighborhood: `StartVoiceSessionIntent`
+  sets a flag `DeeplinkRouter` (`Talaria/Core/DeeplinkRouter.swift:48`)
+  consumes; whatever tears the session down on the normal in-app path is
+  bypassed or never armed when the session starts from the control.
+  Needs a diagnosis pass (how "closed" was performed matters — dismiss
+  vs app-switch vs swipe-kill); bars pre-register here when a lane opens.
+
 ## 253. 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it for later as a maybe"); no design, no lane**
 
 Surfaced inside Claude Design's settings prototype as an ON-DEVICE / AUTO /
@@ -13865,6 +13911,49 @@ conversation-clock (evening ask + next-morning due → one latched ask) is
 the philosophically consistent shape; direction (1) rides along as the
 deterministic backstop for the past-due cards. Design conversation with
 Owen before any code.
+
+**▶ ROUTED 2026-08-05 evening (Owen, via AskUserQuestion): BOTH guards
+ship** — the past-due bounce (deterministic backstop) AND the
+evening-clock ask. Design:
+`planning/superpowers/specs/2026-08-05-249-reminder-clock-design.md`.
+Both #233-shaped: bounce once per conversation (own latches on
+`ToolEventRelay`, reset only at conversation end), latched re-call stages
+with a caution row; tool OUTPUT never a throw (#197); an executed call,
+not a governor refusal (#232). Order in `performCreate`: past-due →
+wee-hour (#233, unchanged) → evening-clock. Predicates:
+`isPastDue(date, now)` = date < now − 300s (the grace absorbs "right
+now" asks and staging latency); `isNextMorning(date, askedAt)` =
+ask-hour ≥ 17 ∧ due on the next calendar day ∧ due hour 7–11 (0–6 stays
+#233's net). `performCreate` gains `now: Date = Date()` for clock
+injection — existing call sites unchanged by the default.
+
+**BARS — written HERE, BEFORE the run:**
+- **249-A (unit):** Owen's exact shape — now 2026-08-05T21:30, due raw
+  "2026-08-06T08:00": first call returns the evening-clock ask verbatim,
+  NO card staged; with the latch spent, the same call stages a card whose
+  caution reads "NEXT MORNING — " + timeOnly(due).
+- **249-B (unit):** now 2026-08-04T21:31, due "2026-08-04T08:00" (the
+  observed 13-hours-stale card): first call returns the past-due ask, NO
+  card; latched re-call stages with caution "IN THE PAST — " +
+  displayDate(due).
+- **249-C (unit pins):** tomorrow-16:00 due → no bounce, nil caution
+  (normal cards byte-identical); future wee-hour due with the
+  early-morning latch spent → card + EARLY MORNING caution (#233 path
+  unchanged); a due both past AND wee-hour → the past-due ask wins.
+- **249-D (unit boundaries):** due now−2min NOT past, now−6min past;
+  asked 16:59 → no evening-clock ask; due next-day 06:30 → wee-hour's,
+  not evening-clock; due next-day 12:00 → no ask; due same-evening
+  future 20:00 → no ask.
+- **249-E (device, Owen):** evening "remind me at 8 to call Shelley" →
+  clarifying question, no card; confirming the evening hour stages a card
+  with the evening due; no card ever again shows an already-past due.
+
+A missed bar is a falsification, not a redefinition. Ride-along fix: the
+#233 test dues are hardcoded 2026-08-05 strings — already PAST at run
+time, which the new guard would bounce; bounce-path tests move to
+explicit `now` injection and `tool.call` wiring tests build
+dynamically-future dues (tomorrow 16:00). The guard itself surfaced the
+rot.
 
 ## 248. 🐛 Stall-recovery adoption briefly DUPES the user's sent message; a session re-open heals it — F3's tail placement is the suspect neighborhood — **✅ CLOSED 2026-08-04 night: device bar MET on the corded `b94fc27` build — no dupe, answer below the question, in the HARDER cross-device shape**
 
