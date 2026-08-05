@@ -124,9 +124,12 @@ def corner_brackets(img, color, strength):
     img.paste(overlay, (0, 0), overlay)
 
 
-def render(theme) -> Image.Image:
+def render(theme, bg: bool = True) -> Image.Image:
+    """Render a theme's icon. ``bg=False`` draws the glyph on a transparent
+    canvas — the source for the tinted primary variant, where the system
+    supplies the backdrop."""
     s = MASTER
-    img = gradient_bg(s, theme["grad"])
+    img = gradient_bg(s, theme["grad"]) if bg else Image.new("RGBA", (s, s), (0, 0, 0, 0))
     cx = cy = s // 2
     ring_c = rgb(theme["ring"])
     arc_c = rgb(theme["arc"])
@@ -164,6 +167,33 @@ def save_variants(master: Image.Image, theme_id: str):
     )
 
 
+APPICONSET_DIR = os.path.join("Talaria", "Resources", "Assets.xcassets",
+                              "AppIcon.appiconset")
+
+
+def darken(h: int, factor: float) -> int:
+    r, g, b = rgb(h)
+    return (int(r * factor) << 16) | (int(g * factor) << 8) | int(b * factor)
+
+
+def emit_primary():
+    """#250: the DEFAULT app icon is the Deep Field orb — the primary
+    appiconset art (1024 light/dark/tinted) regenerated from the same render
+    the DeepField alternate uses, so default and alternate can never drift.
+    Tinted is the grayscale glyph on transparency per the HIG; dark deepens
+    the gradient so the two appearances stay distinguishable."""
+    theme = next(t for t in THEMES if t["id"] == "DeepField")
+    render(theme).save(os.path.join(APPICONSET_DIR, "AppIcon.png"))
+    dark = dict(theme, grad=[(darken(h, 0.55), loc) for h, loc in theme["grad"]])
+    render(dark).save(os.path.join(APPICONSET_DIR, "AppIcon-Dark.png"))
+    glyph = render(theme, bg=False)
+    alpha = glyph.split()[3]
+    tinted = glyph.convert("L").convert("RGBA")
+    tinted.putalpha(alpha)
+    tinted.save(os.path.join(APPICONSET_DIR, "AppIcon-Tinted.png"))
+    print("  AppIcon.png / AppIcon-Dark.png / AppIcon-Tinted.png (Deep Field orb)")
+
+
 def make_default_preview():
     """The default icon's art lives in the asset catalog (AppIcon), which is not
     loadable as a loose image — bake a picker preview from it so the 'Default'
@@ -183,6 +213,7 @@ def main():
     if not os.path.isdir(os.path.join("Talaria", "Resources")):
         raise SystemExit("Run from the repo root (Talaria/Resources not found).")
     os.makedirs(OUT_DIR, exist_ok=True)
+    emit_primary()
     make_default_preview()
     for theme in THEMES:
         master = render(theme)

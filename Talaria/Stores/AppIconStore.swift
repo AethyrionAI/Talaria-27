@@ -21,15 +21,30 @@ final class AppIconStore {
     var supportsAlternateIcons: Bool { application.supportsAlternateIcons }
 
     private let application: UIApplication
+    /// #250: where the selected icon's preview is published for the widget
+    /// extension (the island wears it). Injected for tests; nil (no app
+    /// group) publishes nowhere and the widget falls back to bundled art.
+    private let iconHandoffURL: URL?
 
-    init(application: UIApplication = .shared) {
+    init(application: UIApplication = .shared,
+         iconHandoffURL: URL? = SelectedIconHandoff.containerFileURL()) {
         self.application = application
+        self.iconHandoffURL = iconHandoffURL
         self.selection = AppIconCatalog.option(forAlternateIconName: application.alternateIconName)
+        publishSelectionForWidgets()   // heal a missing handoff on every launch
     }
 
     /// Re-read the OS in case the icon changed elsewhere (or a prior set failed).
     func refresh() {
         selection = AppIconCatalog.option(forAlternateIconName: application.alternateIconName)
+        publishSelectionForWidgets()
+    }
+
+    /// #250: hand the current selection's art across the app-group boundary.
+    private func publishSelectionForWidgets() {
+        SelectedIconHandoff.publish(
+            previewImageName: selection.previewImageName, to: iconHandoffURL
+        )
     }
 
     /// Apply `option`, tolerating the no-op and unsupported cases.
@@ -53,6 +68,7 @@ final class AppIconStore {
         do {
             try await application.setAlternateIconName(option.alternateIconName)
             selection = option
+            publishSelectionForWidgets()
         } catch {
             // Reconcile to whatever the OS actually kept, then report.
             refresh()
