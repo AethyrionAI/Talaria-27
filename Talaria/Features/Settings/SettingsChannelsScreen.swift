@@ -177,32 +177,12 @@ struct SettingsChannelsScreen: View {
         case .server: ServerSettingsScreen(embedded: true)
         case .models: ModelsSettingsScreen(embedded: true)
         case .voice: VoiceSettingsScreen(embedded: true)
-        case .appearance: appearanceInterimPage   // replaced in Task 6
+        case .appearance: AppearanceDeckPage()
         case .privacy: PrivacySettingsScreen(embedded: true)
         case .sessions: SessionsSettingsScreen(embedded: true)
         case .about: DiagnosticsSettingsScreen(embedded: true)   // merge lands in Task 8
         case .developer: DeveloperSettingsScreen(embedded: true)
         }
-    }
-
-    // Interim until Task 6: preserves the browser handoff so Appearance never
-    // becomes unreachable mid-lane.
-    private var appearanceInterimPage: some View {
-        VStack(spacing: Design.Spacing.lg) {
-            Spacer()
-            NavigationLink { AppearanceSettingsScreen() } label: {
-                MonoLabel("OPEN CHANNEL BROWSER", size: 12, weight: .bold,
-                          tracking: Design.Tracking.monoWide, color: Design.Colors.foregroundBright)
-                    .padding(.vertical, Design.Spacing.md)
-                    .frame(maxWidth: .infinity)
-                    .hudPanel(cornerRadius: Design.CornerRadius.lg,
-                              borderColor: Design.Colors.strongBorder,
-                              fill: Design.Colors.accentTint(0.12), innerGlow: true)
-            }
-            .buttonStyle(.plain)
-            Spacer()
-        }
-        .padding(.horizontal, Design.Spacing.md)
     }
 
     private var pageDots: some View {

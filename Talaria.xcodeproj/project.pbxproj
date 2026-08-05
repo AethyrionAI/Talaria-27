@@ -405,6 +405,7 @@
 		CC1EAA9C352C18A50DCA10A0 /* HermesTimelineProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7EF7C1C1B42AD37C29AA1BB /* HermesTimelineProvider.swift */; };
 		CC77698D0F1D768BAA3CB743 /* ConnectHermesHostScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A09FC324E28A6A2B4439048 /* ConnectHermesHostScreen.swift */; };
 		CD4124B10E098FB583AE1B6E /* HealthQueryCoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D45CA30DC1D43A51A7A75093 /* HealthQueryCoreTests.swift */; };
+		CD50F30C715899DE8C03B54C /* AppearanceDeckPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5602055A01C5868752EB7CE8 /* AppearanceDeckPage.swift */; };
 		CE06D7642092F56AD5B43D20 /* LocalIntelligenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5225896A0381DF9CEFD84EF9 /* LocalIntelligenceTests.swift */; };
 		CF50CBC054D83AD4EFC8CEC1 /* MockHermesHostService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7966AEDE93C3C43683A5F83 /* MockHermesHostService.swift */; };
 		D05D81A2C90DD2AE86C4B203 /* HapticEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A2B8983CE86355818012300 /* HapticEngine.swift */; };
@@ -715,6 +716,7 @@
 		5431984AC04837DD9C79F3E6 /* ContinuityFabricTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinuityFabricTests.swift; sourceTree = "<group>"; };
 		557346D0DB64E949DE47F8E2 /* TalkPreflightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkPreflightTests.swift; sourceTree = "<group>"; };
 		55A40BBCFF31EA70CC924E54 /* TaskScheduleDraftTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskScheduleDraftTests.swift; sourceTree = "<group>"; };
+		5602055A01C5868752EB7CE8 /* AppearanceDeckPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceDeckPage.swift; sourceTree = "<group>"; };
 		5644BBB6D14C8B003D6BB139 /* PairedRelayConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairedRelayConfiguration.swift; sourceTree = "<group>"; };
 		564FBB51A62CECD63D04A001 /* InsightsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsStore.swift; sourceTree = "<group>"; };
 		56548D8DE1131EC66EBC3B77 /* IconPreview-ComicVillain.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-ComicVillain.png"; sourceTree = "<group>"; };
@@ -1687,6 +1689,7 @@
 		A821C8EB1B621F1E818AF6A8 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				5602055A01C5868752EB7CE8 /* AppearanceDeckPage.swift */,
 				C226310D52EB40A7356747B7 /* AppearanceSettingsScreen.swift */,
 				F40B3EFC9CE0AF10120A00B8 /* AppIconSettingsScreen.swift */,
 				1C1F6BBA55BF217D40902D37 /* BatteryResultsScreen.swift */,
@@ -2220,6 +2223,7 @@
 				4BC23867516A49731D7575B6 /* AppRootView.swift in Sources */,
 				C58C8BCED23610D9BC20804A /* AppSessionState.swift in Sources */,
 				652951B3AE1D80621A494459 /* AppSessionStore.swift in Sources */,
+				CD50F30C715899DE8C03B54C /* AppearanceDeckPage.swift in Sources */,
 				A1CE1388F456CFEF6EC0EA94 /* AppearanceSettingsScreen.swift in Sources */,
 				0E2F45F2B1E72D4BD04DA898 /* AskHermesIntent.swift in Sources */,
 				D3346FE690F7B724D9FF8BF4 /* AskHermesLongRunSupport.swift in Sources */,
