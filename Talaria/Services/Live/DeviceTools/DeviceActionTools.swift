@@ -51,6 +51,26 @@ enum DeviceActionParsing {
         Calendar.current.component(.hour, from: date) <= 6
     }
 
+    /// #249: a due already elapsed. Five minutes of grace absorb staging
+    /// latency and "right now" asks; the observed defect cards were hours
+    /// stale, so the grace costs no detection.
+    nonisolated static func isPastDue(_ date: Date, now: Date) -> Bool {
+        date < now.addingTimeInterval(-300)
+    }
+
+    /// #249: an evening ask resolved to the next morning — due lands
+    /// 07:00–11:59 on the next calendar day of the ask. The model's
+    /// half-day-default shape one hour outside #233's wee-hour net;
+    /// hours 0–6 stay the wee-hour ask's.
+    nonisolated static func isNextMorning(_ date: Date, askedAt now: Date) -> Bool {
+        let calendar = Calendar.current
+        guard calendar.component(.hour, from: now) >= 17,
+              let tomorrow = calendar.date(byAdding: .day, value: 1, to: now),
+              calendar.isDate(date, inSameDayAs: tomorrow) else { return false }
+        let hour = calendar.component(.hour, from: date)
+        return hour >= 7 && hour <= 11
+    }
+
     /// Time-only display form for the card's caution row.
     nonisolated static func timeOnly(_ date: Date) -> String {
         let formatter = DateFormatter()
@@ -142,12 +162,33 @@ struct ReminderCreateTool: Tool {
     nonisolated static func performCreate(
         rawTitle: String, rawDue: String, rawList: String,
         relay: ToolEventRelay,
-        confirmations: ToolConfirmationCenter
+        confirmations: ToolConfirmationCenter,
+        now: Date = Date()
     ) async -> String {
         let title = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return "No reminder title was given — nothing staged." }
 
         let parsedDue = DeviceActionParsing.parseDateTime(rawDue)
+        // #249 instrument: raw model-supplied due vs the parsed local time.
+        // A zone-bearing raw string takes the ISO branch and gets CONVERTED
+        // to local — a DST-wrong offset (-06:00 in summer Chicago) lands the
+        // card an hour off what the user said, indistinguishable at the UI
+        // from the model resolving the hour wrong. This line is the
+        // discriminator.
+        if TalariaLog.isVerbose {
+            TalariaLog.logger.notice("createReminder due raw=\"\(rawDue, privacy: .public)\" parsed=\(parsedDue.map { DeviceActionParsing.displayDate($0) } ?? "nil", privacy: .public)")
+        }
+        // #249 guard 1: a due already in the past is never what the user
+        // meant — two of the three observed cards were hours stale at
+        // staging. Checked BEFORE the wee-hour ask (a stale wee-hour due is
+        // first a stale due). Same contract as #233: tool OUTPUT never a
+        // throw (#197), an executed call not a refusal (#232), one bounce
+        // per conversation, and the 233-E hardening — lead with the
+        // negative, carry no formatted date to mine.
+        if let parsedDue, DeviceActionParsing.isPastDue(parsedDue, now: now),
+           await relay.claimPastDueAsk() {
+            return "No reminder was created. The requested due time has already passed. Ask the user what future time they meant, then create the reminder with the time they confirm."
+        }
         // #233: the model qualifies bare hours before the tool ever runs
         // ("tomorrow at 4" arrived here as T04:00), so the ambiguity is
         // invisible by now — the first wee-hour due per conversation is
@@ -165,10 +206,17 @@ struct ReminderCreateTool: Tool {
             // the hour the ask refers to.
             return "No reminder was created. The requested due time falls in the early morning (midnight to 7 AM). Ask the user whether they meant AM or PM, then create the reminder with the time they confirm."
         }
+        // #249 guard 2: an evening ask whose due landed the next morning —
+        // the half-day-default shape ("at 8" asked 10 PM → tomorrow 08:00)
+        // one hour outside the wee-hour net. Own latch, same contract.
+        if let parsedDue, DeviceActionParsing.isNextMorning(parsedDue, askedAt: now),
+           await relay.claimEveningClockAsk() {
+            return "No reminder was created. The request was made in the evening and the due time landed the next morning, which may be a misread evening time. Ask the user which time of day they meant, then create the reminder with the time they confirm."
+        }
         let decision = await confirmations.requestConfirmation(
             title: "Create this reminder?",
             detail: nil,
-            caution: Self.earlyMorningCaution(for: parsedDue),
+            caution: Self.dueCaution(for: parsedDue, now: now),
             fields: [
                 .init(key: "title", label: "Title", value: title),
                 .init(key: "due", label: "Due", value: parsedDue.map { DeviceActionParsing.displayDate($0) } ?? ""),
@@ -235,6 +283,23 @@ struct ReminderCreateTool: Tool {
     nonisolated static func earlyMorningCaution(for date: Date?) -> String? {
         guard let date, DeviceActionParsing.isEarlyMorning(date) else { return nil }
         return "EARLY MORNING — \(DeviceActionParsing.timeOnly(date))"
+    }
+
+    /// #249: the card's single caution row, first match wins — past-due
+    /// beats wee-hour beats next-morning; nil for ordinary dues so normal
+    /// cards render byte-identically to today. The past-due row carries the
+    /// full date (the stale due may be yesterday's); the clock-shaped rows
+    /// carry time only, matching #233's precedent.
+    nonisolated static func dueCaution(for date: Date?, now: Date) -> String? {
+        guard let date else { return nil }
+        if DeviceActionParsing.isPastDue(date, now: now) {
+            return "IN THE PAST — \(DeviceActionParsing.displayDate(date))"
+        }
+        if let earlyMorning = earlyMorningCaution(for: date) { return earlyMorning }
+        if DeviceActionParsing.isNextMorning(date, askedAt: now) {
+            return "NEXT MORNING — \(DeviceActionParsing.timeOnly(date))"
+        }
+        return nil
     }
 
     /// "None"/empty keeps no date; an unchanged display string keeps the

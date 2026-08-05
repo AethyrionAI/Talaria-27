@@ -141,10 +141,33 @@ final class ToolEventRelay {
         return true
     }
 
+    /// #249: conversation-scoped like the wee-hour latch — the past-due
+    /// bounce's ask/answer round-trip spans turns too.
+    private(set) var pastDueAskIssued = false
+
+    /// #249: the evening-clock ask's latch, same lifetime.
+    private(set) var eveningClockAskIssued = false
+
+    /// #249: true exactly once per conversation — the past-due bounce.
+    func claimPastDueAsk() -> Bool {
+        if pastDueAskIssued { return false }
+        pastDueAskIssued = true
+        return true
+    }
+
+    /// #249: true exactly once per conversation — the evening-clock ask.
+    func claimEveningClockAsk() -> Bool {
+        if eveningClockAskIssued { return false }
+        eveningClockAskIssued = true
+        return true
+    }
+
     /// #233: the conversation-boundary reset. Turn-scoped state belongs in
     /// beginTurn(); anything conversation-scoped resets here instead.
     func endConversationToolState() {
         earlyMorningAskIssued = false
+        pastDueAskIssued = false
+        eveningClockAskIssued = false
     }
 
     /// #228: NOT `#if DEBUG` — #218's lesson is that an all-Debug stack is

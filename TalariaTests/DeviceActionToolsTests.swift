@@ -88,6 +88,17 @@ struct DeviceActionToolsTests {
 
     // MARK: #233 the wee-hour bounce
 
+    /// A local wall-clock due string N days out at the given hour — future
+    /// at any suite run time, so `tool.call` wiring tests (which run on the
+    /// real clock) cannot rot into the #249 past-due guard the way the old
+    /// hardcoded 2026-08-05 dues did.
+    private func futureDueString(daysFromNow: Int, hour: Int) -> String {
+        let cal = Calendar.current
+        let day = cal.date(byAdding: .day, value: daysFromNow, to: Date())!
+        let comps = cal.dateComponents([.year, .month, .day], from: day)
+        return String(format: "%04d-%02d-%02dT%02d:00", comps.year!, comps.month!, comps.day!, hour)
+    }
+
     @Test func weeHourDueBouncesOnceThenProceeds() async throws {
         let relay = ToolEventRelay()
         relay.governor = ToolCallGovernor()
@@ -95,9 +106,10 @@ struct DeviceActionToolsTests {
         center.autoDeclineForBattery = true   // resolves the gate instantly: no card, no EventKit, no hang
         let tool = ReminderCreateTool(relay: relay, confirmations: center)
         relay.beginTurn()
+        let due = futureDueString(daysFromNow: 1, hour: 4)
 
         let first = try await tool.call(arguments: .init(
-            title: "Call Shelley", due: "2026-08-05T04:00", list: nil))
+            title: "Call Shelley", due: due, list: nil))
         // 233-E device falsification (2026-08-03): the model mined the old
         // bounce string's displayDate for a FABRICATED "has been set" claim.
         // The hardened wording leads with the negative and carries NO
@@ -105,10 +117,10 @@ struct DeviceActionToolsTests {
         #expect(first.hasPrefix("No reminder was created"))
         #expect(first.contains("Ask the user whether they meant AM or PM"))
         #expect(first.contains("early morning"))
-        #expect(!first.contains("2026"))   // no mineable date string, any format
+        #expect(!first.contains(String(due.prefix(4))))   // no mineable date string, any format
 
         let second = try await tool.call(arguments: .init(
-            title: "Call Shelley", due: "2026-08-05T04:00", list: nil))
+            title: "Call Shelley", due: due, list: nil))
         #expect(second == "The user declined — no reminder was created.")
 
         // 233-B: both attempts were EXECUTED calls — the bounce is tool
@@ -124,7 +136,7 @@ struct DeviceActionToolsTests {
         let tool = ReminderCreateTool(relay: relay, confirmations: center)
         relay.beginTurn()
         let result = try await tool.call(arguments: .init(
-            title: "Call Shelley", due: "2026-08-05T16:00", list: nil))
+            title: "Call Shelley", due: futureDueString(daysFromNow: 1, hour: 16), list: nil))
         #expect(result == "The user declined — no reminder was created.")
         #expect(relay.claimEarlyMorningAsk())   // latch untouched by a daytime due
     }
@@ -172,10 +184,13 @@ struct DeviceActionToolsTests {
         let relay = ToolEventRelay()
         let center = ToolConfirmationCenter()
         _ = relay.claimEarlyMorningAsk()
+        // Explicit clock: 1 AM the same day, so the 4 AM due is FUTURE and
+        // the #249 past-due guard stays out of this #233 path's way.
         let task = Task {
             await ReminderCreateTool.performCreate(
                 rawTitle: "Call Shelley", rawDue: "2026-08-05T04:00", rawList: "",
-                relay: relay, confirmations: center)
+                relay: relay, confirmations: center,
+                now: DeviceActionParsing.parseDateTime("2026-08-05T01:00")!)
         }
         var attempts = 0
         while center.pending == nil && attempts < 2000 { await Task.yield(); attempts += 1 }
@@ -183,6 +198,185 @@ struct DeviceActionToolsTests {
         center.decline()
         let result = await task.value
         #expect(result == "The user declined — no reminder was created.")
+    }
+
+    // MARK: #249 the past-due + evening-clock guards
+
+    @Test func isPastDueHasFiveMinuteGrace() {
+        let now = DeviceActionParsing.parseDateTime("2026-08-05T21:00")!
+        #expect(!DeviceActionParsing.isPastDue(now.addingTimeInterval(-120), now: now))
+        #expect(DeviceActionParsing.isPastDue(now.addingTimeInterval(-360), now: now))
+        #expect(!DeviceActionParsing.isPastDue(now.addingTimeInterval(3600), now: now))
+    }
+
+    @Test func isNextMorningRequiresEveningAskAndNextMorningDue() {
+        let evening = DeviceActionParsing.parseDateTime("2026-08-05T21:30")!
+        let afternoon = DeviceActionParsing.parseDateTime("2026-08-05T16:59")!
+        let nextMorning = DeviceActionParsing.parseDateTime("2026-08-06T08:00")!
+        #expect(DeviceActionParsing.isNextMorning(nextMorning, askedAt: evening))
+        // 16:59 is not an evening ask.
+        #expect(!DeviceActionParsing.isNextMorning(nextMorning, askedAt: afternoon))
+        // Next-day 06:30 is the wee-hour net's, not this ask's.
+        #expect(!DeviceActionParsing.isNextMorning(DeviceActionParsing.parseDateTime("2026-08-06T06:30")!, askedAt: evening))
+        // Noon next day is not a morning.
+        #expect(!DeviceActionParsing.isNextMorning(DeviceActionParsing.parseDateTime("2026-08-06T12:00")!, askedAt: evening))
+        // The same evening is not the next morning.
+        #expect(!DeviceActionParsing.isNextMorning(DeviceActionParsing.parseDateTime("2026-08-05T23:00")!, askedAt: evening))
+        // Two days out is a deliberate date, not a half-day default.
+        #expect(!DeviceActionParsing.isNextMorning(DeviceActionParsing.parseDateTime("2026-08-07T08:00")!, askedAt: evening))
+    }
+
+    @Test func newLatchesClaimOncePerConversationAndSurviveTurns() {
+        let relay = ToolEventRelay()
+        #expect(relay.claimPastDueAsk())
+        #expect(!relay.claimPastDueAsk())
+        #expect(relay.claimEveningClockAsk())
+        #expect(!relay.claimEveningClockAsk())
+        relay.beginTurn()   // a turn boundary must NOT reset conversation latches
+        #expect(!relay.claimPastDueAsk())
+        #expect(!relay.claimEveningClockAsk())
+        relay.endConversationToolState()
+        #expect(relay.claimPastDueAsk())
+        #expect(relay.claimEveningClockAsk())
+    }
+
+    /// 249-B: Owen's stale cards — today 8:00 AM staged at 9:31 PM. First
+    /// call is a question; the latched re-call proceeds to the gate. (The
+    /// #232 executed-not-refused counter contract is pinned by the wee-hour
+    /// tool.call test; these drive performCreate directly to inject the
+    /// clock, which never touches the counters.)
+    @Test func pastDueBouncesOnceThenProceeds() async {
+        let relay = ToolEventRelay()
+        let center = ToolConfirmationCenter()
+        center.autoDeclineForBattery = true
+        let now = DeviceActionParsing.parseDateTime("2026-08-04T21:31")!
+
+        let first = await ReminderCreateTool.performCreate(
+            rawTitle: "Call Shelley", rawDue: "2026-08-04T08:00", rawList: "",
+            relay: relay, confirmations: center, now: now)
+        #expect(first.hasPrefix("No reminder was created"))
+        #expect(first.contains("already passed"))
+        #expect(first.contains("Ask the user what future time they meant"))
+        #expect(!first.contains("2026"))   // 233-E: nothing mineable
+
+        let second = await ReminderCreateTool.performCreate(
+            rawTitle: "Call Shelley", rawDue: "2026-08-04T08:00", rawList: "",
+            relay: relay, confirmations: center, now: now)
+        #expect(second == "The user declined — no reminder was created.")
+    }
+
+    /// 249-A: Owen's exact shape — "at 8" asked 9:30 PM arrived as tomorrow
+    /// 08:00. First call is a question, not an order.
+    @Test func eveningNextMorningDueBouncesOnceThenProceeds() async {
+        let relay = ToolEventRelay()
+        let center = ToolConfirmationCenter()
+        center.autoDeclineForBattery = true
+        let now = DeviceActionParsing.parseDateTime("2026-08-05T21:30")!
+
+        let first = await ReminderCreateTool.performCreate(
+            rawTitle: "Call Shelley", rawDue: "2026-08-06T08:00", rawList: "",
+            relay: relay, confirmations: center, now: now)
+        #expect(first.hasPrefix("No reminder was created"))
+        #expect(first.contains("evening"))
+        #expect(first.contains("Ask the user which time of day they meant"))
+        #expect(!first.contains("2026"))   // 233-E: nothing mineable
+
+        let second = await ReminderCreateTool.performCreate(
+            rawTitle: "Call Shelley", rawDue: "2026-08-06T08:00", rawList: "",
+            relay: relay, confirmations: center, now: now)
+        #expect(second == "The user declined — no reminder was created.")
+    }
+
+    /// 249-B caution half: latch spent, the staged card carries IN THE PAST
+    /// with the full date — the stale due may be yesterday's.
+    @Test func pastDueRecallStagesCardWithInThePastCaution() async {
+        let relay = ToolEventRelay()
+        let center = ToolConfirmationCenter()
+        _ = relay.claimPastDueAsk()
+        let now = DeviceActionParsing.parseDateTime("2026-08-04T21:31")!
+        let due = DeviceActionParsing.parseDateTime("2026-08-04T08:00")!
+        let task = Task {
+            await ReminderCreateTool.performCreate(
+                rawTitle: "Call Shelley", rawDue: "2026-08-04T08:00", rawList: "",
+                relay: relay, confirmations: center, now: now)
+        }
+        var attempts = 0
+        while center.pending == nil && attempts < 2000 { await Task.yield(); attempts += 1 }
+        #expect(center.pending?.caution == "IN THE PAST — \(DeviceActionParsing.displayDate(due))")
+        center.decline()
+        _ = await task.value
+    }
+
+    /// 249-A caution half: latch spent, the staged card carries NEXT MORNING.
+    @Test func eveningClockRecallStagesCardWithNextMorningCaution() async {
+        let relay = ToolEventRelay()
+        let center = ToolConfirmationCenter()
+        _ = relay.claimEveningClockAsk()
+        let now = DeviceActionParsing.parseDateTime("2026-08-05T21:30")!
+        let due = DeviceActionParsing.parseDateTime("2026-08-06T08:00")!
+        let task = Task {
+            await ReminderCreateTool.performCreate(
+                rawTitle: "Call Shelley", rawDue: "2026-08-06T08:00", rawList: "",
+                relay: relay, confirmations: center, now: now)
+        }
+        var attempts = 0
+        while center.pending == nil && attempts < 2000 { await Task.yield(); attempts += 1 }
+        #expect(center.pending?.caution == "NEXT MORNING — \(DeviceActionParsing.timeOnly(due))")
+        center.decline()
+        _ = await task.value
+    }
+
+    /// 249-C ordering pin: a due both past AND wee-hour gets the past-due
+    /// ask — a stale wee-hour due is first a stale due.
+    @Test func pastWeeHourDueGetsThePastDueAskFirst() async {
+        let relay = ToolEventRelay()
+        let center = ToolConfirmationCenter()
+        center.autoDeclineForBattery = true
+        let now = DeviceActionParsing.parseDateTime("2026-08-05T21:00")!
+        let first = await ReminderCreateTool.performCreate(
+            rawTitle: "Call Shelley", rawDue: "2026-08-05T04:00", rawList: "",
+            relay: relay, confirmations: center, now: now)
+        #expect(first.contains("already passed"))
+        #expect(!first.contains("AM or PM"))
+    }
+
+    /// 249-C: ordinary future dues stage byte-identically — no bounce, nil
+    /// caution, and neither new latch consumed on the way through.
+    @Test func ordinaryFutureDueStagesWithNoCaution() async {
+        let relay = ToolEventRelay()
+        let center = ToolConfirmationCenter()
+        let now = DeviceActionParsing.parseDateTime("2026-08-05T21:30")!
+        let task = Task {
+            await ReminderCreateTool.performCreate(
+                rawTitle: "Call Shelley", rawDue: "2026-08-06T16:00", rawList: "",
+                relay: relay, confirmations: center, now: now)
+        }
+        var attempts = 0
+        while center.pending == nil && attempts < 2000 { await Task.yield(); attempts += 1 }
+        #expect(center.pending?.caution == nil)
+        #expect(relay.claimPastDueAsk())        // untouched
+        #expect(relay.claimEveningClockAsk())   // untouched
+        center.decline()
+        _ = await task.value
+    }
+
+    /// The caution row picks past-due over wee-hour over next-morning, and
+    /// stays nil for ordinary dues (and for a next-day WEE-hour due on the
+    /// evening path — that one is still #233's).
+    @Test func dueCautionPicksPastThenWeeThenNextMorning() {
+        let now = DeviceActionParsing.parseDateTime("2026-08-05T21:30")!
+        let past = DeviceActionParsing.parseDateTime("2026-08-04T08:00")!
+        #expect(ReminderCreateTool.dueCaution(for: past, now: now)
+            == "IN THE PAST — \(DeviceActionParsing.displayDate(past))")
+        let wee = DeviceActionParsing.parseDateTime("2026-08-06T04:00")!
+        #expect(ReminderCreateTool.dueCaution(for: wee, now: now)
+            == "EARLY MORNING — \(DeviceActionParsing.timeOnly(wee))")
+        let nextMorning = DeviceActionParsing.parseDateTime("2026-08-06T08:00")!
+        #expect(ReminderCreateTool.dueCaution(for: nextMorning, now: now)
+            == "NEXT MORNING — \(DeviceActionParsing.timeOnly(nextMorning))")
+        let ordinary = DeviceActionParsing.parseDateTime("2026-08-06T16:00")!
+        #expect(ReminderCreateTool.dueCaution(for: ordinary, now: now) == nil)
+        #expect(ReminderCreateTool.dueCaution(for: nil, now: now) == nil)
     }
 
     // MARK: ToolConfirmationCenter gate mechanics
