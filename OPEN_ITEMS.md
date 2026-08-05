@@ -13658,7 +13658,18 @@ backgrounding maneuver clean on device.
 > - **Device (Owen, tonight):** the same backgrounding maneuver — answer
 >   surfaces solo AND the sent message renders exactly once.
 
-## 247. 🐛 Failover is theater when the fallback host is dark: switching profiles to the Mac Mini "does absolutely nothing" — and nothing TOLD Owen the fallback was dead — **✅ APP HALF CLOSED 2026-08-04 night: B1 + B2 device bars MET on the corded `b94fc27` build; Mac-gateway persistence still Owen's call**
+## 247. 🐛 Failover is theater when the fallback host is dark: switching profiles to the Mac Mini "does absolutely nothing" — and nothing TOLD Owen the fallback was dead — **✅ CLOSED 2026-08-04 night: B1 + B2 device bars MET on the corded `b94fc27` build; ops half DECIDED — no launchd, the Mac gateway stays a plain process (Owen: "we deal with the gateway staying alive. The two persistance things were flukes")**
+
+> **Ops decision, 2026-08-04 night: NO persistence machinery.** Owen
+> declined launchd for the Mac gateway — consistent with the standing
+> anti-hardening rule, and his fluke read is CORRECT: both 2026-08-04
+> deaths were SIGTERMs at Claude-session boundaries reaping an orphaned
+> child process, not gateway crashes. The current launch (PID 51417,
+> 21:10) is double-fork-detached (`( nohup … & )`), which orphans it to
+> launchd-as-parent and survives session teardown — future sessions
+> should launch it the same way. If it's ever found down, that's a
+> 20-second relaunch, and the #247 banners now TELL the phone when a
+> host is dark instead of failing silently.
 
 > **✅ DEVICE BARS MET 2026-08-04 night.** **B1 (voice, Tailscale off):**
 > *"Like, 2 seconds, not even. no hang. Just instant up"* — the fallback
