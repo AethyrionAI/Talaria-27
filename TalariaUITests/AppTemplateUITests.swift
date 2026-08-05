@@ -183,10 +183,15 @@ final class TalariaUITests: XCTestCase {
         XCTAssertFalse(relaunchedApp.buttons["Enter Code Manually"].exists)
 
         // Paired state survived the relaunch: the Settings upgrade row only
-        // renders while unpaired.
+        // renders while unpaired. #252: the index is the subsystem grid now
+        // — assert the grid presents, then assert `settings.upgradeBanner`
+        // (the new id) is absent, plus the legacy containment text as a
+        // second, independent negative probe.
         relaunchedApp.buttons["Open settings"].tap()
-        XCTAssertNotNil(waitForButton(containing: "Hermes Host", in: relaunchedApp, timeout: 5),
-                        "the Settings index should present")
+        XCTAssertTrue(relaunchedApp.otherElements["settings.grid"].waitForExistence(timeout: 5),
+                      "the Settings index (subsystem grid) should present")
+        XCTAssertFalse(relaunchedApp.buttons["settings.upgradeBanner"].exists,
+                       "a paired install must not offer the settings.upgradeBanner row (#252)")
         XCTAssertNil(waitForButton(containing: "Connect Hermes Desktop", in: relaunchedApp, timeout: 2),
                      "a paired install must not offer the unpaired upgrade row")
     }
@@ -203,19 +208,21 @@ final class TalariaUITests: XCTestCase {
         completePairing(in: app, setupCode: context.setupCode)
         XCTAssertNotNil(waitForComposer(in: app, timeout: 15))
 
-        // Paired management path: Settings → Hermes Host → Pairing & Devices
+        // Paired management path: Settings → Uplink card → Pairing & Devices
         // (routes to .connectHost, which resolves to the host status screen
         // while paired). #152 renamed this action from "Pair Device" — the
-        // surface owns revoke and disconnect, not just pairing.
+        // surface owns revoke and disconnect, not just pairing. #252: the
+        // Uplink card opens the deck directly onto UplinkSettingsScreen
+        // (embedded: true) — there is no separate "Hermes Host" row to
+        // traverse first anymore, so Pairing & Devices is one tap away.
         app.buttons["Open settings"].tap()
-        guard let hostRow = waitForButton(containing: "Hermes Host", in: app, timeout: 5) else {
-            XCTFail("Settings should offer the Hermes Host row")
-            return
-        }
-        hostRow.tap()
+        let uplinkCard = app.buttons["settings.card.uplink"]
+        XCTAssertTrue(uplinkCard.waitForExistence(timeout: 5),
+                      "Settings should offer the settings.card.uplink card")
+        uplinkCard.tap()
 
         guard let pairingRow = waitForButton(containing: "Pairing & Devices", in: app, timeout: 5) else {
-            XCTFail("the Hermes Host screen should offer the Pairing & Devices action")
+            XCTFail("the Uplink deck page should offer the Pairing & Devices action")
             return
         }
         pairingRow.tap()
@@ -257,8 +264,11 @@ final class TalariaUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Enter Code Manually"].waitForNonExistence(timeout: 5),
                       "no pairing wall may return after disconnect (#31)")
 
-        // Standalone again: the upgrade row is back.
+        // Standalone again: the upgrade banner is back. #252: assert both
+        // the id and the legacy containment text, same as the entry point.
         app.buttons["Open settings"].tap()
+        XCTAssertTrue(app.buttons["settings.upgradeBanner"].waitForExistence(timeout: 5),
+                      "an unpaired install should offer the settings.upgradeBanner row again (#252)")
         XCTAssertNotNil(waitForButton(containing: "Connect Hermes Desktop", in: app, timeout: 5),
                         "an unpaired install should offer the Settings upgrade row again")
     }
@@ -274,13 +284,19 @@ final class TalariaUITests: XCTestCase {
         XCTAssertTrue(settingsButton.waitForExistence(timeout: 10))
         settingsButton.tap()
 
-        // The upgrade row is a plain SwiftUI Button whose accessibility label
-        // concatenates title + subtitle + UPGRADE — match by containment.
-        guard let connectRow = waitForButton(containing: "Connect Hermes Desktop", in: app, timeout: 5) else {
-            XCTFail("Settings should offer the Connect Hermes Desktop upgrade row while unpaired")
-            return
-        }
-        connectRow.tap()
+        // #252: the settings root is now the subsystem grid, and the
+        // unpaired upgrade row is `settings.upgradeBanner`. It is still a
+        // plain SwiftUI Button whose accessibility label concatenates
+        // title + subtitle + UPGRADE — assert BOTH the id and the legacy
+        // "Connect Hermes Desktop" containment match resolve to the same
+        // row, so a future relabel can't silently drop one contract while
+        // keeping the other green.
+        let upgradeBanner = app.buttons["settings.upgradeBanner"]
+        XCTAssertTrue(upgradeBanner.waitForExistence(timeout: 5),
+                      "Settings should offer the settings.upgradeBanner row while unpaired (#252)")
+        XCTAssertNotNil(waitForButton(containing: "Connect Hermes Desktop", in: app, timeout: 5),
+                        "the upgrade banner must still contain 'Connect Hermes Desktop' copy")
+        upgradeBanner.tap()
 
         // ConnectHermesScreen (the sheet dismissed; pushed on the main stack).
         let manualEntry = app.buttons["Enter Code Manually"]
@@ -367,11 +383,18 @@ final class TalariaUITests: XCTestCase {
             return
         }
 
+        // #252: Settings → Appearance card opens the deck on the Appearance
+        // page (a hero + read-only tuning values); the channel browser
+        // itself is a separate push behind the openBrowser handoff button.
         app.buttons["Open settings"].tap()
-        let appearanceRow = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS 'Appearance'")).firstMatch
-        XCTAssertTrue(appearanceRow.waitForExistence(timeout: 10))
-        appearanceRow.tap()
+        let appearanceCard = app.buttons["settings.card.appearance"]
+        XCTAssertTrue(appearanceCard.waitForExistence(timeout: 10))
+        appearanceCard.tap()
+
+        let openBrowser = app.buttons["settings.appearance.openBrowser"]
+        XCTAssertTrue(openBrowser.waitForExistence(timeout: 10),
+                      "the Appearance deck page should offer the channel browser handoff (#252)")
+        openBrowser.tap()
 
         // The browser is present: counter + the fresh-context start channel.
         let counter = app.staticTexts["appearance.channelCounter"]
@@ -388,15 +411,100 @@ final class TalariaUITests: XCTestCase {
                       "the next channel must be Solar Forge (catalog order)")
 
         // Apply-on-land persisted: leave and re-enter — the browser must
-        // reopen on Solar Forge's channel, not Deep Field's.
+        // reopen on Solar Forge's channel, not Deep Field's. "Back" pops
+        // the NavigationLink push back onto the Appearance deck page (the
+        // deck's own TabView selection is untouched), so the handoff
+        // button is a direct re-tap — no card re-navigation needed.
         app.buttons["Back"].firstMatch.tap()
-        let appearanceRowAgain = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS 'Appearance'")).firstMatch
-        XCTAssertTrue(appearanceRowAgain.waitForExistence(timeout: 10))
-        appearanceRowAgain.tap()
+        let openBrowserAgain = app.buttons["settings.appearance.openBrowser"]
+        XCTAssertTrue(openBrowserAgain.waitForExistence(timeout: 10))
+        openBrowserAgain.tap()
         let reopened = app.staticTexts["SOLAR FORGE"]
         XCTAssertTrue(reopened.waitForExistence(timeout: 10),
                       "re-entry must open on the applied channel (244-C)")
+    }
+
+    // MARK: - #252 Channels IA navigation (252-A/B/E)
+
+    /// 252-A: the settings root opens directly on the nine-subsystem grid —
+    /// every card + the developer row present by id, and none of the old
+    /// hardcoded root header values (e.g. "REACTOR") survive the rewrite.
+    @MainActor
+    func testSettingsGridPresentsNineSubsystems() throws {
+        let context = UITestLaunchContext()
+        let app = makeApp(context: context)
+        app.launch()
+
+        guard waitForComposer(in: app, timeout: 15) != nil else {
+            XCTFail("chat composer should be the first-launch landing state")
+            return
+        }
+
+        app.buttons["Open settings"].tap()
+        XCTAssertTrue(app.otherElements["settings.grid"].waitForExistence(timeout: 10),
+                      "Settings must open on the subsystem grid (#252)")
+        for id in ["settings.card.uplink", "settings.card.server", "settings.card.models",
+                   "settings.card.voice", "settings.card.appearance", "settings.card.privacy",
+                   "settings.card.sessions", "settings.card.about", "settings.row.developer"] {
+            XCTAssertTrue(app.buttons[id].exists, "\(id) card must be present")
+        }
+        XCTAssertFalse(app.staticTexts["REACTOR"].exists, "hardcoded root values must be gone (#252)")
+    }
+
+    /// 252-B: swipe and grid-toggle navigation through the deck, plus the
+    /// deferred coverage owed from Tasks 3–8 — page-dot tap navigation
+    /// (each dot's accessibilityLabel is "Open <TITLE>") and, where
+    /// feasible on iOS XCUITest, Esc-key sheet dismissal (`dismissKeyCatcher`
+    /// wires `.keyboardShortcut(.cancelAction)` on a control that stays in
+    /// the tree across both grid and deck mode).
+    @MainActor
+    func testSettingsDeckNavigation() throws {
+        let context = UITestLaunchContext()
+        let app = makeApp(context: context)
+        app.launch()
+
+        guard waitForComposer(in: app, timeout: 15) != nil else {
+            XCTFail("chat composer should be the first-launch landing state")
+            return
+        }
+
+        app.buttons["Open settings"].tap()
+        app.buttons["settings.card.uplink"].tap()
+        let counter = app.staticTexts["settings.deck.counter"]
+        XCTAssertTrue(counter.waitForExistence(timeout: 10), "deck counter must appear")
+        XCTAssertEqual(counter.label, "01 / 09")
+        // The deck page's accessibilityIdentifier lands on whatever root
+        // view each embedded screen collapses to — UplinkSettingsScreen's
+        // is a ScrollView, not a generic "Other" container, and other
+        // subsystems may differ again. Query by `.any` so the swipe target
+        // resolves regardless of the underlying element type.
+        let uplinkPage = app.descendants(matching: .any)["settings.deck.page.uplink"]
+        XCTAssertTrue(uplinkPage.waitForExistence(timeout: 5), "the uplink deck page must be reachable")
+        uplinkPage.swipeLeft()
+        XCTAssertEqual(counter.label, "02 / 09", "swipe must advance the deck")
+
+        // Page-dot tap navigation (owed from Tasks 3–8): each dot's
+        // accessibilityLabel is "Open <TITLE>", independent of swiping.
+        let aboutDot = app.buttons["Open ABOUT"]
+        XCTAssertTrue(aboutDot.waitForExistence(timeout: 5), "the About page dot must be reachable")
+        aboutDot.tap()
+        XCTAssertEqual(counter.label, "08 / 09", "a dot tap must jump straight to its page")
+
+        app.buttons["Toggle overview"].tap()
+        XCTAssertTrue(app.otherElements["settings.grid"].waitForExistence(timeout: 5),
+                      "grid toggle must return to the overview")
+
+        // Esc-key dismissal (owed from Tasks 3–8): re-enter the deck, then
+        // synthesize a hardware Escape key press. `typeKey` is available
+        // for iOS in XCUIElement.h (gated `TARGET_OS_OSX ||
+        // TARGET_OS_MACCATALYST || TARGET_OS_IOS`, not macOS-only), so
+        // this is a real probe of on-simulator behavior, not a compile-time
+        // assumption.
+        app.buttons["settings.card.uplink"].tap()
+        XCTAssertTrue(counter.waitForExistence(timeout: 5))
+        app.typeKey(XCUIKeyboardKey.escape, modifierFlags: [])
+        XCTAssertNotNil(waitForComposer(in: app, timeout: 5),
+                        "Esc should dismiss the settings sheet back to chat (#252)")
     }
 
     private func makeApp(context: UITestLaunchContext) -> XCUIApplication {
