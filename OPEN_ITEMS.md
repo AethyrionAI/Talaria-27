@@ -13567,10 +13567,26 @@ mounts on the DASHBOARD (:9119, web_server.py:17277), not the phone's plane;
 for Sessions-API runs); the Telegram/Discord push analogy fails at the last
 hop (no durable outbound queue in Hermes; send_message errors on failure).
 
-**Open questions (routing owed before a lane):** voice WebRTC bootstrap's
-home (in-tree RTC precedent: `plugins/google_meet/`); #21 file downloads'
-home (webhook responses fine for small files, ugly for large); plugin repo
-name; phase order vs #249/#250/settings-redesign. OJAMD's operational ask
+**THE PHASE ARC (plan of record — Owen blessed the shape 2026-08-05:
+"That sounds like a good plan"):**
+1. **Tools + admin plugin** — `register_tool` (incl. #242's phone-query) +
+   `hermes talaria pair|status|unpair`. Small, risks nothing, deletes the
+   venv CLIs.
+2. **Webhook adapter** — pairing handshake + durable outbox/directives over
+   `POST /api/platforms/talaria/events` on the existing :8642 listener.
+3. **Runs-transport migration** — remote turns move `chat/stream` →
+   `/v1/runs` + `/events`: in-chat approvals land (e2e proven above), and
+   recovery gets SIMPLER (runs pollable by id — the #235/#246 machinery's
+   sturdier successor). `approvals.timeout` set humane (~300s) when the UI
+   ships.
+4. **Relay decommission** — stop/disable the OJAMD services, archive with a
+   README pointer.
+
+**Still-open questions (routing owed before a lane):** voice WebRTC
+bootstrap's home (in-tree RTC precedent: `plugins/google_meet/`); #21 file
+downloads' home (webhook responses fine for small files, ugly for large);
+plugin repo name; when Phase 1 opens vs #249/#250/settings-redesign.
+OJAMD's operational ask
 (from its consult): don't retire the relay until the adapter's process story
 is settled — with the webhook shape the "listener" is the gateway itself, so
 this reduces to accepting that gateway-down = whole paired tier down (the
