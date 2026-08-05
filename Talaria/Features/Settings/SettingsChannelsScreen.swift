@@ -2,9 +2,10 @@ import SwiftUI
 
 // MARK: - #252 Settings root — Subsystem Channels
 //
-// Grid of nine live-telemetry cards (Claude Design 1c). Deck mode arrives in
-// Task 5; until then cards push the existing sub-screens, so every control
-// stays reachable at every commit on this lane.
+// Grid of nine live-telemetry cards (Claude Design 1c) with a paged deck for
+// drill-down. Cards and the developer row open the deck via `openSubsystem`;
+// every sub-screen renders `embedded: true` inside a TabView page so its own
+// header/background stay suppressed (Task 4).
 struct SettingsChannelsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var container
@@ -25,17 +26,17 @@ struct SettingsChannelsScreen: View {
 
             VStack(spacing: 0) {
                 topBar
-                ScrollView {
-                    VStack(spacing: Design.Spacing.md) {
-                        if !pairingStore.isPaired { upgradeBanner }
-                        cardGrid
-                        developerRow
-                        footer
-                    }
-                    .padding(.horizontal, Design.Spacing.md)
-                    .padding(.vertical, Design.Spacing.sm)
+                switch mode {
+                case .grid: gridScroll
+                case .deck: deckPager
                 }
             }
+
+            // Esc must dismiss the sheet in both grid and deck mode, even
+            // though the visible left button changes action (✕ vs ‹) between
+            // them — keep the shortcut on a control that's always present
+            // rather than on whichever button happens to be showing.
+            dismissKeyCatcher
         }
         .navigationTitle("System")
         .toolbarVisibility(.hidden, for: .navigationBar)
@@ -45,23 +46,28 @@ struct SettingsChannelsScreen: View {
         }
     }
 
+    private var dismissKeyCatcher: some View {
+        Button(action: { dismiss() }) { EmptyView() }
+            .keyboardShortcut(.cancelAction)
+            .frame(width: 0, height: 0)
+            .opacity(0)
+            .accessibilityHidden(true)
+    }
+
     // MARK: Top bar
 
     private var topBar: some View {
         HStack {
-            GlassCircleButton(icon: "xmark", accessibilityLabel: "Close settings") { dismiss() }
-                .keyboardShortcut(.cancelAction)
+            leftButton
             Spacer()
             VStack(spacing: Design.Spacing.xxs) {
-                MonoLabel("SYSTEM", size: 9, weight: .medium,
+                MonoLabel(kickerText, size: 9, weight: .medium,
                           tracking: Design.Tracking.monoXWide, color: Design.Colors.mutedForeground)
-                MonoLabel("09 SUBSYSTEMS", size: 10, weight: .medium,
+                MonoLabel(counterText, size: 10, weight: .medium,
                           tracking: Design.Tracking.monoWide, color: Design.Brand.accent)
                     .accessibilityIdentifier("settings.deck.counter")
             }
             Spacer()
-            // Grid-toggle button: accent-active in grid mode. Becomes the
-            // deck/grid flip in Task 5; inert-but-visible until then.
             gridToggleGlyph
         }
         .padding(.horizontal, Design.Spacing.md)
@@ -69,9 +75,167 @@ struct SettingsChannelsScreen: View {
         .padding(.bottom, Design.Spacing.sm)
     }
 
+    @ViewBuilder
+    private var leftButton: some View {
+        switch mode {
+        case .grid:
+            GlassCircleButton(icon: "xmark", accessibilityLabel: "Close settings") { dismiss() }
+        case .deck:
+            GlassCircleButton(icon: "chevron.left", accessibilityLabel: "Back to overview") {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) { mode = .grid }
+            }
+        }
+    }
+
+    private var kickerText: String {
+        switch mode {
+        case .grid: "SYSTEM"
+        case .deck: "SUBSYSTEM"
+        }
+    }
+
+    private var counterText: String {
+        switch mode {
+        case .grid: "09 SUBSYSTEMS"
+        case .deck: String(format: "%02d / 09", deckIndex + 1)
+        }
+    }
+
+    // Flips grid↔deck. Accent-styled only in grid mode (its "you are on the
+    // overview, tap to open the deck" affordance); muted once already in the
+    // deck, where the ‹ back button is the primary way out.
     private var gridToggleGlyph: some View {
-        GlassCircleButton(icon: "square.grid.2x2", accessibilityLabel: "Toggle overview") {
-            // Task 5 wires deck↔grid; in grid-only Stage 1 this is a no-op.
+        let active = mode == .grid
+        return Button {
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) {
+                switch mode {
+                case .grid: mode = .deck(deckIndex)
+                case .deck: mode = .grid
+                }
+            }
+        } label: {
+            Image(systemName: "square.grid.2x2")
+                .font(.system(size: Design.Size.iconSmall, weight: .medium))
+                .foregroundStyle(active ? Design.Brand.accentBright : Design.Colors.mutedForeground)
+                .frame(width: Design.Size.glassCircleButton, height: Design.Size.glassCircleButton)
+                .background(
+                    active ? Design.Colors.accentTint(0.08) : Color.clear,
+                    in: Circle()
+                )
+                .overlay {
+                    Circle()
+                        .strokeBorder(
+                            active ? Design.Colors.strongBorder : Design.Colors.accentTint(0.16),
+                            lineWidth: 1
+                        )
+                }
+                .hudGlow(Design.Brand.accent, radius: 12, strength: active ? 0.25 : 0)
+        }
+        .buttonStyle(.plain)
+        .frame(minWidth: Design.Size.minTapTarget, minHeight: Design.Size.minTapTarget)
+        .contentShape(Circle())
+        .hoverEffect(.highlight)
+        .accessibilityLabel("Toggle overview")
+    }
+
+    // MARK: Deck
+
+    private var deckIndex: Int {
+        if case .deck(let i) = mode { return i }
+        return 0
+    }
+
+    private func openSubsystem(_ subsystem: SettingsSubsystem) {
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) {
+            mode = .deck(subsystem.rawValue)
+        }
+    }
+
+    private var reduceMotion: Bool { settingsStore.settings.reduceMotion }
+
+    private var deckPager: some View {
+        VStack(spacing: 0) {
+            TabView(selection: Binding(
+                get: { deckIndex },
+                set: { mode = .deck($0) }
+            )) {
+                ForEach(SettingsSubsystem.allCases) { subsystem in
+                    deckPage(subsystem)
+                        .tag(subsystem.rawValue)
+                        .accessibilityIdentifier("settings.deck.page.\(String(describing: subsystem))")
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            pageDots
+        }
+    }
+
+    @ViewBuilder
+    private func deckPage(_ subsystem: SettingsSubsystem) -> some View {
+        switch subsystem {
+        case .uplink: UplinkSettingsScreen(embedded: true)
+        case .server: ServerSettingsScreen(embedded: true)
+        case .models: ModelsSettingsScreen(embedded: true)
+        case .voice: VoiceSettingsScreen(embedded: true)
+        case .appearance: appearanceInterimPage   // replaced in Task 6
+        case .privacy: PrivacySettingsScreen(embedded: true)
+        case .sessions: SessionsSettingsScreen(embedded: true)
+        case .about: DiagnosticsSettingsScreen(embedded: true)   // merge lands in Task 8
+        case .developer: DeveloperSettingsScreen(embedded: true)
+        }
+    }
+
+    // Interim until Task 6: preserves the browser handoff so Appearance never
+    // becomes unreachable mid-lane.
+    private var appearanceInterimPage: some View {
+        VStack(spacing: Design.Spacing.lg) {
+            Spacer()
+            NavigationLink { AppearanceSettingsScreen() } label: {
+                MonoLabel("OPEN CHANNEL BROWSER", size: 12, weight: .bold,
+                          tracking: Design.Tracking.monoWide, color: Design.Colors.foregroundBright)
+                    .padding(.vertical, Design.Spacing.md)
+                    .frame(maxWidth: .infinity)
+                    .hudPanel(cornerRadius: Design.CornerRadius.lg,
+                              borderColor: Design.Colors.strongBorder,
+                              fill: Design.Colors.accentTint(0.12), innerGlow: true)
+            }
+            .buttonStyle(.plain)
+            Spacer()
+        }
+        .padding(.horizontal, Design.Spacing.md)
+    }
+
+    private var pageDots: some View {
+        HStack(spacing: 7) {
+            ForEach(SettingsSubsystem.allCases) { subsystem in
+                Button {
+                    mode = .deck(subsystem.rawValue)
+                } label: {
+                    Capsule()
+                        .fill(subsystem.rawValue == deckIndex
+                              ? Design.Brand.accent
+                              : Design.Colors.accentTint(0.25))
+                        .frame(width: subsystem.rawValue == deckIndex ? 20 : 5, height: 5)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open \(subsystem.title)")
+            }
+        }
+        .padding(.vertical, Design.Spacing.sm)
+    }
+
+    // MARK: Grid
+
+    private var gridScroll: some View {
+        ScrollView {
+            VStack(spacing: Design.Spacing.md) {
+                if !pairingStore.isPaired { upgradeBanner }
+                cardGrid
+                developerRow
+                footer
+            }
+            .padding(.horizontal, Design.Spacing.md)
+            .padding(.vertical, Design.Spacing.sm)
         }
     }
 
@@ -109,15 +273,13 @@ struct SettingsChannelsScreen: View {
         .accessibilityIdentifier("settings.upgradeBanner")
     }
 
-    // MARK: Grid
-
     private let gridColumns = [GridItem(.flexible(), spacing: Design.Spacing.sm),
                                GridItem(.flexible(), spacing: Design.Spacing.sm)]
 
     private var cardGrid: some View {
         LazyVGrid(columns: gridColumns, spacing: Design.Spacing.sm) {
             ForEach(SettingsSubsystem.allCases.filter { $0 != .developer }) { subsystem in
-                NavigationLink { interimDestination(subsystem) } label: {
+                Button { openSubsystem(subsystem) } label: {
                     SubsystemCard(
                         subsystem: subsystem,
                         value: cardValue(subsystem),
@@ -132,7 +294,7 @@ struct SettingsChannelsScreen: View {
     }
 
     private var developerRow: some View {
-        NavigationLink { DeveloperSettingsScreen() } label: {
+        Button { openSubsystem(.developer) } label: {
             HStack(spacing: Design.Spacing.sm) {
                 MonoLabel(SettingsSubsystem.developer.indexLabel, size: 10, weight: .bold,
                           tracking: Design.Tracking.monoXWide, color: Design.Colors.mutedForeground)
@@ -169,23 +331,6 @@ struct SettingsChannelsScreen: View {
                   color: Design.Colors.dimForeground)
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.vertical, Design.Spacing.sm)
-    }
-
-    // MARK: Interim destinations (replaced by the deck in Task 5)
-
-    @ViewBuilder
-    private func interimDestination(_ subsystem: SettingsSubsystem) -> some View {
-        switch subsystem {
-        case .uplink: UplinkSettingsScreen()
-        case .server: ServerSettingsScreen()
-        case .models: ModelsSettingsScreen()
-        case .voice: VoiceSettingsScreen()
-        case .appearance: AppearanceSettingsScreen()
-        case .privacy: PrivacySettingsScreen()
-        case .sessions: SessionsSettingsScreen()
-        case .about: DiagnosticsSettingsScreen()
-        case .developer: DeveloperSettingsScreen()
-        }
     }
 
     // MARK: Telemetry (live stores → Task 2 formatters)
