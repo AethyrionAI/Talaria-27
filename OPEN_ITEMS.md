@@ -13437,7 +13437,142 @@ a real chat turn observed stalled on an unanswerable approval (→ upstream
 conversation), or Owen asking for the cards to stop prompting (→ the small
 Manual/Off app lane).**
 
-## 248. 🐛 Stall-recovery adoption briefly DUPES the user's sent message; a session re-open heals it — F3's tail placement is the suspect neighborhood — **✅ BUILT 2026-08-04 (with #247); 248-A/B/C/D GREEN; device re-run tonight**
+## 250. ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear whatever icon is currently selected — **FILED 2026-08-04 night (Owen's feature request, with screenshot); feasible on existing #25 machinery; lane not yet scheduled**
+
+**FILED from Owen, 2026-08-04 night, during device testing:** *"In the
+preview island it uses the Hermes default icon for hermes desktop. I'd
+like, first off, for the default app to be the teal talaria icon.
+Secondly, i'd like th preview island to use whatever icon is currently
+set for Talaria."* Screenshot shows the compact island's leading slot
+wearing the upstream Hermes desktop icon.
+
+**Feasibility (checked at filing): both halves are yes.**
+- **Half 1 — default icon:** the primary `AppIcon` lives in the asset
+  catalog (upstream-inherited art); alternates are the #25 machinery
+  (loose PNGs + `CFBundleAlternateIcons` + `AppIconCatalog`). Making teal
+  Talaria the default = swapping the primary AppIcon asset art (the
+  DeepField/cyan identity — confirm WHICH icon Owen means by "teal
+  talaria" before swapping). Trivial mechanically; needs no plist change.
+- **Half 2 — island wears the selected icon:** the Live Activity view
+  (`TalariaWidgets/HermesLiveActivity.swift`) hardcodes a bundled asset.
+  The widget target cannot read the APP bundle's loose alternate-icon
+  PNGs, so the selected icon must cross the app-group boundary the same
+  way `appearanceTheme` does: `AppIconStore` copies the selected icon's
+  PNG (or its key + a bundled-in-widget fallback set) into the app-group
+  container on selection; the island view loads it, falling back to the
+  default art when unset. Small lane: AppIconStore write + widget read +
+  a project.yml/resource decision + `xcodegen` + gate.
+
+**Bars pre-register here when the lane opens.** Not scheduled tonight —
+test night; #249's confirmation run and the #241 read come first.
+
+## 249. 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the card is not the hour the user said — **INSTRUMENTED 2026-08-04 night; discriminator run pending; readings pre-registered below BEFORE the evidence** *(header's 9 PM is the as-filed observation — CORRECTED to 8:00 AM in the dated note below)*
+
+**FILED 2026-08-04 night from Owen's tonight-list item 4 (corded build of
+`b94fc27`, on-device model):** bare "remind me at 8" → the model asked what
+the reminder was for (healthy — #200S keeps `title` required; NOT part of
+this item). "to call shelley" → approval card, Due **9:00 PM**. Second
+attempt, full sentence "Remind me at 8 to call Shelley" → same card, same
+**9:00 PM**. Two for two, consistent.
+
+**NOT a #233 failure.** The wee-hour machinery (bounce + amber caution)
+covers 00:00–06:59 by design; a 21:00 due is out of its scope and it
+correctly stayed silent. The defect is the HOUR ITSELF: user said 8, card
+says 9.
+
+**Code-read facts (before evidence):** `DeviceActionParsing.parseDateTime`
+tries `ISO8601DateFormatter` (`.withInternetDateTime`) FIRST — that branch
+accepts a model-supplied zone offset and CONVERTS to local. The bare-string
+fallbacks parse as local wall-clock (`.current`). The `due` @Guide says
+"local time". So a zone-bearing raw string is the one shape where the app
+itself can shift the hour.
+
+**Instrument (this filing's only code change):** a verbose-gated `.notice`
+line in `performCreate` — `createReminder due raw="…" parsed=…` — the raw
+model string beside the parsed local rendering. Uncommitted tonight; rides
+the fix lane's PR.
+
+**Pre-registered readings of the discriminator run (written before the
+log line has ever fired):**
+- **(a) raw carries an offset** (e.g. `…T20:00:00-06:00`, or a Z-form like
+  next-day `…T02:00:00Z` — both render 9:00 PM CDT): the model resolved the
+  user's 8 PM but wrapped it in a zone, and OUR parse honoring the offset is
+  what lies on the card. DST-wrong `-06:00` for summer Chicago is the classic
+  LLM shape. Fix direction: tool-supplied dues should honor the WALL-CLOCK
+  literal (the guide asked for local; offsets are noise) — parse-side, TDD,
+  in a proper lane.
+- **(b) raw is bare local `…T21:00`:** the model invented 9. Only app-side
+  lever is @Guide text; per #196/#200 discipline that ships ONLY behind a
+  battery verdict, not a vibe.
+- **(c) raw empty/unparseable while the card still shows 9:00 PM:** display
+  path bug — new investigation, no hypothesis yet.
+
+**Severity:** moderate — a reminder an hour off is worse than none; it fails
+silently at the exact moment the user trusted it.
+
+**⚠️ OBSERVATION CORRECTED same night (Owen, with screenshots): the cards
+say 8:00 AM, not 9 PM** — *"I originally misspoke. when going to gather the
+screenshots for you, they all say AM."* Three staged cards, all "Call
+Shelley": **Aug 4, 2026 at 8:00 AM** (two-turn shape, staged ~9:31 PM — a
+due 13 hours in the PAST), **Aug 5, 2026 at 8:00 AM** (full-sentence
+shape), **Aug 4, 2026 at 8:00 AM again** (fresh 9:51 PM run). What this
+does to the pre-registered readings:
+- **Reading (a) — offset conversion — is effectively DEAD.** No plausible
+  zone offset maps an evening literal to 8:00 AM. The display shape pins
+  **(b) in its MORNING variant**: the model half-day-defaults "at 8" to
+  08:00 — the exact #233 "tomorrow at 4"→4 AM family, landing ONE HOUR
+  outside the wee-hour net (hour 8 > 6, so the bounce/caution correctly
+  never see it).
+- **A second, separable defect surfaced: the card will stage a due in the
+  PAST** (today 8:00 AM, staged at 9:31 PM and again at 9:51 PM). Nothing
+  in `performCreate` checks the parsed due against now. Deterministic,
+  app-side, would have caught 2 of tonight's 3 cards regardless of what
+  the model meant.
+- **The instrument line did not fire on the 9:51 run** — the capture shows
+  zero verbose-gated lines from those turns (the DeviceToolBelt tool-call
+  breadcrumb is absent too), so Verbose Logging was almost certainly OFF.
+  The raw-string confirmation run (verbose on) is still owed before the
+  fix lane opens — the fix design wants the exact raw form (bare
+  `…T08:00` expected).
+
+**Candidate fix directions (NONE decided; bars pre-register here when the
+lane opens):** (1) a past-due guard in `performCreate` — same shape as the
+wee-hour ask (bounce the first one back as a question) or a caution row
+("IN THE PAST — …"); (2) widening the ambiguity window would relitigate
+#233's deliberate 0–6 choice — 8 AM is a legitimate morning-ask hour, so
+this needs the conversation-time context, not a bigger net; (3) @Guide
+text — #196/#200 discipline, battery-gated only.
+
+**🔬 DISCRIMINATOR RUN CONFIRMED READING (b), 2026-08-04 22:05, verbose
+on:** `createReminder due raw="2026-08-05T08:00" parsed=Aug 5, 2026 at
+8:00 AM`. The raw string is BARE LOCAL — no offset, no Z — so the parse
+and the card are faithful and **the model itself resolves "at 8" (asked
+10:05 PM) to next-morning 08:00**. The app's honesty is proven exactly one
+layer deep: it renders precisely what the model decided, and the model's
+half-day default is the defect. (Verbose timeline also confirmed: the
+`Verbose logging ENABLED` state-change line stamps 22:02:34 — the earlier
+runs' silence was the toggle, not the instrument.) Note the tension the
+fix lane must resolve: "at 8" asked at 10 PM is GENUINELY ambiguous
+(tomorrow 8 AM vs tomorrow 8 PM — today's 8 PM already passed), and
+#233's own philosophy says an ambiguous first-per-conversation due is a
+QUESTION, not an order — the model just resolved it to an hour the
+wee-hour net was deliberately scoped not to catch. Direction (2) with the
+conversation-clock (evening ask + next-morning due → one latched ask) is
+the philosophically consistent shape; direction (1) rides along as the
+deterministic backstop for the past-due cards. Design conversation with
+Owen before any code.
+
+## 248. 🐛 Stall-recovery adoption briefly DUPES the user's sent message; a session re-open heals it — F3's tail placement is the suspect neighborhood — **✅ CLOSED 2026-08-04 night: device bar MET on the corded `b94fc27` build — no dupe, answer below the question, in the HARDER cross-device shape**
+
+> **✅ CLOSED 2026-08-04 night.** Owen's device run: *"picked up a session
+> that started on the mac on talaria, and asked a follow up question that
+> will need research and tools - Question not duplicated. Response below
+> question. PASS."* Note the shape is STRONGER than the filing's: a
+> cross-device session pickup means the transcript is FULL of server rows
+> with no `clientMessageID` — exactly the population the content-claim tier
+> exists for — and zero dupes survived. With this, the 235-E/237-E recovery
+> saga is fully closed: answer surfaces solo (#246, met on 1987) AND the
+> sent message renders exactly once (this bar).
 
 > **✅ BUILT 2026-08-04 late afternoon (`claude/t27-247-248-fixes`, TDD
 > watched-RED).** `unconfirmedLocalMessages` extracted as the testable
@@ -13523,7 +13658,21 @@ backgrounding maneuver clean on device.
 > - **Device (Owen, tonight):** the same backgrounding maneuver — answer
 >   surfaces solo AND the sent message renders exactly once.
 
-## 247. 🐛 Failover is theater when the fallback host is dark: switching profiles to the Mac Mini "does absolutely nothing" — and nothing TOLD Owen the fallback was dead — **✅ APP HALF BUILT 2026-08-04 (with #248); 247-A/B GREEN; device bars tonight; Mac-gateway persistence still Owen's call**
+## 247. 🐛 Failover is theater when the fallback host is dark: switching profiles to the Mac Mini "does absolutely nothing" — and nothing TOLD Owen the fallback was dead — **✅ APP HALF CLOSED 2026-08-04 night: B1 + B2 device bars MET on the corded `b94fc27` build; Mac-gateway persistence still Owen's call**
+
+> **✅ DEVICE BARS MET 2026-08-04 night.** **B1 (voice, Tailscale off):**
+> *"Like, 2 seconds, not even. no hang. Just instant up"* — the fallback
+> verdict fired immediately, the 12s belt never even needed to run. **B2
+> (switch banners):** offline switch → the banner appeared and stayed;
+> healthy switch → "server online" banner, then self-dismissed. One
+> observation to keep visible: Owen noted the offline banner *"didn't clear
+> after 15s"* — that is BY DESIGN (only the online verdict auto-clears at
+> ~5s; a dead-host warning persists until acted on), but if the persistence
+> reads as a bug to the user it may want a manual dismiss — Owen's call,
+> cosmetic lane if wanted. Remaining half unchanged: the MAC GATEWAY is
+> still a plain user process (relaunched twice on 2026-08-04 after
+> SIGTERMs at session boundaries) — launchd persistence is Owen's pending
+> decision.
 
 > **✅ APP HALF BUILT 2026-08-04 late afternoon (`claude/t27-247-248-fixes`,
 > TDD watched-RED).** B1: `realtimeStartTimeout` (12s, harness-shortenable)
@@ -13930,7 +14079,7 @@ inline and skip Hermes for that turn; (3) the setting's name and default;
 does not come back with this and should be said out loud when deciding #223's
 sensor question.
 
-## 241. 🐛 HERMES CORE (upstream): gateway sends its OWN self-name as the upstream model id on the nous provider, and reports the resulting non-retryable 404 to the client as HTTP 200 — **FILED 2026-08-03 night from OJAMD-session evidence; UPSTREAM-REPORT CANDIDATE, re-test on v0.20.0 first**
+## 241. 🐛 HERMES CORE (upstream): gateway sends its OWN self-name as the upstream model id on the nous provider, and reports the resulting non-retryable 404 to the client as HTTP 200 — **⏸ PARKED UNSUBMITTED 2026-08-04 night, Owen's call: not critical to us — the app rides the (working) lock plumbing, and #246/#235 guard the failure shape client-side. Draft + evidence preserved at `handoffs/241-upstream-report-DRAFT.md`; the submission gate (his read + explicit go on the exact text) stands unchanged if ever revived.**
 
 **Source: the OJAMD-side session's findings file (archived at
 `handoffs/ojamd-findings-2026-08-03.md`, §2), agent.log timeline for sessions
@@ -14738,6 +14887,15 @@ or a visibly self-contradicting dated label; FAIL = the trial-7 collapse
 recurs uncontradicted.
 
 ## 233. 🐛 "Tomorrow at 4" became a 4:00 AM reminder — half-day defaulting on `createReminder`, and the confirm card did not save it — **✅ CLOSED 2026-08-03 evening — every bar met: 233-A/B/C suite + device, 233-E device, 233-D midday (preferred shape) AND evening (fallback shape), store row observed**
+
+> **2026-08-04 night re-observation (Owen's tonight-list item 4): stays
+> CLOSED, and the machinery was NOT at fault in what he saw.** "Remind me
+> at 8 (to call Shelley)" asked ~9:15 PM staged a card for **9:00 PM**,
+> twice — the model resolved the bare hour to 21:00-ish, which is OUTSIDE
+> the wee-hour window (00:00–06:59), so the bounce and caution correctly
+> stayed silent; this shape cannot exercise 233-D/E at all. The
+> wrong-hour defect itself is **#249** (instrumented; raw-`due`
+> discriminator pre-registered there).
 
 **FILED 2026-08-02, Lane 1 trial 3 (run results doc).** "Remind me to call Shelley
 tomorrow at 4," sent at 23:05, produced a REAL reminder due **Aug 3, 4:00 AM** —
