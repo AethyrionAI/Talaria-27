@@ -6334,6 +6334,23 @@ screenshot refresh, batched with the App Store screenshot pass so shots are prod
 > *"better. I'm thinking a redesign is in the future, but I'll only ask for a
 > handoff to Claude Design for that."* **A future Pages redesign is HIS to
 > initiate via Claude Design; nothing queued here.**
+>
+> **✏️ REDESIGN SHIPPED 2026-08-04 night (PR #266, merge `a375bea`) — Owen
+> initiated it exactly as forecast:** he brought a Claude Design handoff zip
+> (three `.dc.html` pages) and approved launch after review. The export format
+> needs a React host its files never load (blank on Pages), so the pages were
+> BAKED to static HTML — index/screens/setup, two vanilla-JS widgets (channel
+> demo, carousel). Content corrected against the codebase during the bake:
+> **27→30 theme channels** (Cosmic Bowling / Sticker-Bomb Toybox / Comic
+> Villain added with real `ThemePaletteCore` values), the "real captures from
+> hardware" claim removed (docs/img are stylized renders — 9:41, STARK-WKSTN),
+> an unsupported "end-to-end encrypted" pairing claim dropped, and
+> `API_SERVER_KEY`'s `.env` location stated per-OS (README's line was wrong on
+> Windows — fixed in the same PR). Verified live post-deploy: Pages build
+> green on `a375bea`, screens.html 200, thirty-channels marker present.
+> **Still remaining, still batched with P-4: the screenshot refresh** — the
+> 13 renders predate the theming + local-brain UI and are now labeled
+> honestly, but real captures replace them when the App Store pass runs.
 
 **Logged 2026-07-20 (Owen).** Public-facing repo surfaces contradict current reality:
 - **README:26** still claims voice is "currently wedged by an iOS 27 beta seed regression…
