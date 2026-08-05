@@ -33,6 +33,11 @@ struct HermesBrandIcon: View {
     }
 
     private static func loadImage() -> UIImage? {
+        // #250: the app publishes the SELECTED icon's art into the app group;
+        // wear it when present so the island matches the home screen.
+        if let selected = SelectedIconHandoff.load() {
+            return selected
+        }
         if let image = UIImage(named: "AppIcon60x60", in: Bundle.main, compatibleWith: nil) {
             return image
         }
