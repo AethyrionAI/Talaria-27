@@ -1,6 +1,6 @@
 # Lane 5 — Shim Retirement Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: superpowers:executing-plans (inline, this session — goal run 2026-08-04). Spec: `docs/superpowers/specs/2026-08-04-lane5-shim-retirement-design.md`. Executor note: this plan is compressed relative to handoff-grade plans because the author executes it in the same session with the spec in context; signatures below are the contract.
+> **For agentic workers:** REQUIRED SUB-SKILL: superpowers:executing-plans (inline, this session — goal run 2026-08-04). Spec: `planning/superpowers/specs/2026-08-04-lane5-shim-retirement-design.md`. Executor note: this plan is compressed relative to handoff-grade plans because the author executes it in the same session with the spec in context; signatures below are the contract.
 
 **Goal:** Retire the models shim app-side — picker + pricing from `/api/model/options`, selection as a per-turn `require_model_lock` on chat, one optional pick persisted per profile.
 

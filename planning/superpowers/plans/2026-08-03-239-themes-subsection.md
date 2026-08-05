@@ -4,7 +4,7 @@
 
 **Goal:** Appearance shows a compact "Themes" navRow (value = resolved theme, seasonal-aware) pushing a new ThemesSettingsScreen that owns the theme cards, seasonal toggle, and accent swatches — and re-skins live when a theme is picked.
 
-**Architecture:** Pure relocation per the approved spec (`docs/superpowers/specs/2026-08-03-239-themes-subsection-design.md`). A nonisolated static value helper (unit-tested) feeds the navRow; the new screen duplicates the parent's small resolution helpers (`theme`/`accent`/`palette`/`resolvedThemeID`) and carries its own `HUDScreenBackground`, so selection re-skins it exactly as the single screen does today. No settings-key or palette changes.
+**Architecture:** Pure relocation per the approved spec (`planning/superpowers/specs/2026-08-03-239-themes-subsection-design.md`). A nonisolated static value helper (unit-tested) feeds the navRow; the new screen duplicates the parent's small resolution helpers (`theme`/`accent`/`palette`/`resolvedThemeID`) and carries its own `HUDScreenBackground`, so selection re-skins it exactly as the single screen does today. No settings-key or palette changes.
 
 **Tech Stack:** SwiftUI, swift-testing (`TalariaTests/DesignThemeTests.swift`), XCUITest (`TalariaUITests/AppTemplateUITests.swift`), xcodegen.
 

@@ -4,7 +4,7 @@
 
 **Goal:** A stream that dies after the server accepted the run (HTTP 2xx) but before `run.started` arms recovery (`.interrupted`) instead of parking the turn as queued, and the outbox drain adopts (drops) any queued turn the server already holds — killing the visible dupe and the armed auto-resend.
 
-**Architecture:** Two independent guards per the approved spec (`docs/superpowers/specs/2026-08-03-240-pre-runstarted-parking-design.md`). Fix 1 is a `responseReceived` flag inside `SessionsHermesClient.streamTurn` that widens the catch branch's recovery condition. Fix 2 is a one-fetch adoption guard at the top of `ChatStore.drainComposeOutboxIfPossible()` backed by a pure static predicate. No UI change, no settings, no migration; `ComposeOutboxState` untouched.
+**Architecture:** Two independent guards per the approved spec (`planning/superpowers/specs/2026-08-03-240-pre-runstarted-parking-design.md`). Fix 1 is a `responseReceived` flag inside `SessionsHermesClient.streamTurn` that widens the catch branch's recovery condition. Fix 2 is a one-fetch adoption guard at the top of `ChatStore.drainComposeOutboxIfPossible()` backed by a pure static predicate. No UI change, no settings, no migration; `ComposeOutboxState` untouched.
 
 **Tech Stack:** Swift / SwiftUI app, swift-testing (`@Test`/`#expect`) in `TalariaTests`, URLProtocol SSE stubs, Xcode-beta4 toolchain.
 
@@ -514,7 +514,7 @@ cd /Users/owenjones/Documents/Claude/Talaria-27 && gh pr create --title "#240: p
 - Suite: 1555 swift-testing tests green (1548 + 7). Gate: Debug suite + XCUITest + Release build all passed.
 - 240-C (device): owed post-OTA — the parked Steam row on Owen's phone drains without a second answer.
 
-Spec: docs/superpowers/specs/2026-08-03-240-pre-runstarted-parking-design.md (approved)
+Spec: planning/superpowers/specs/2026-08-03-240-pre-runstarted-parking-design.md (approved)
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF

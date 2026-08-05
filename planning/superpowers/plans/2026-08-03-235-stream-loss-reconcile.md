@@ -8,7 +8,7 @@
 
 **Tech Stack:** Swift/SwiftUI, swift-testing, xcodebuild on Xcode-beta4; pure-static truth-table test shape (the project standard).
 
-**Spec:** `docs/superpowers/specs/2026-08-03-235-stream-loss-reconcile-design.md` (approved). **Mechanism revision vs spec, discovered pre-plan and honored here:** the foreground trigger EXISTS at AppContainer.swift:1573 — the defect is placement (end of the #145 Part D serial chain, superseded by rapid app-switching), so F2 is a MOVE plus one new trigger, not two new triggers. Record this in the entry at Task 5.
+**Spec:** `planning/superpowers/specs/2026-08-03-235-stream-loss-reconcile-design.md` (approved). **Mechanism revision vs spec, discovered pre-plan and honored here:** the foreground trigger EXISTS at AppContainer.swift:1573 — the defect is placement (end of the #145 Part D serial chain, superseded by rapid app-switching), so F2 is a MOVE plus one new trigger, not two new triggers. Record this in the entry at Task 5.
 
 ## Global Constraints
 
@@ -398,7 +398,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 gh pr create --title "#235: dead streams reconcile — empty-close arms recovery, unstarved foreground single-shot, tail placement (OPEN_ITEMS numbering)" --body "$(cat <<'EOF'
 Fixes OPEN_ITEMS #235 (CRITICAL): a remote turn whose SSE stream died could lose its answer forever while the server store held it. Three routed end-states into the existing (correct) reconcile machinery: an empty clean-close now arms `.interrupted` recovery instead of delivering an empty bubble; `reconcilePendingRuns()` moves to the FRONT of the activation chain (the trigger existed but was starved behind the #145 Part D network ladder under rapid app-switching) plus a chat-appear single-shot; recovered replies displaced by later exchanges land at the transcript tail with a marker naming their prompt (Owen's placement rule, #180-stamped). The 20-vs-300 idle-timeout precedence was measured (verdict in the entry); the split-session change lands only on a config-wins verdict.
 
-Spec: docs/superpowers/specs/2026-08-03-235-stream-loss-reconcile-design.md (approved). TDD, RED watched. Bars 235-A/B/C green in suite; 235-D verdict recorded. **Device bars NOT claimed:** 235-E (Owen's reproduction: long turn → background → return → answer appears at the tail) and 235-F (displaced recovery shows the marker) ride the next OTA.
+Spec: planning/superpowers/specs/2026-08-03-235-stream-loss-reconcile-design.md (approved). TDD, RED watched. Bars 235-A/B/C green in suite; 235-D verdict recorded. **Device bars NOT claimed:** 235-E (Owen's reproduction: long turn → background → return → answer appears at the tail) and 235-F (displaced recovery shows the marker) ride the next OTA.
 
 Owen routes the merge; the branch is stageable for OTA as-is.
 

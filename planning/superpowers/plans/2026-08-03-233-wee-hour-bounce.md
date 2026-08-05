@@ -8,7 +8,7 @@
 
 **Tech Stack:** Swift / SwiftUI, FoundationModels `Tool` protocol, swift-testing (`@Test`/`#expect`), xcodebuild against the Xcode-beta4 toolchain.
 
-**Spec:** `docs/superpowers/specs/2026-08-03-233-bare-hour-reminders-design.md` (approved by Owen 2026-08-03).
+**Spec:** `planning/superpowers/specs/2026-08-03-233-bare-hour-reminders-design.md` (approved by Owen 2026-08-03).
 
 ## Global Constraints
 
@@ -506,7 +506,7 @@ git commit -m "OPEN_ITEMS #233: bounce built, mechanical bars green, device bars
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 git push
 gh pr create --title "#233: the wee-hour bounce and the loud card (OPEN_ITEMS numbering)" --body "$(cat <<'EOF'
-The first wee-hour (00:00-06:59) reminder due per conversation now bounces back to the model as an ask-AM/PM question before any card stages; the latch admits the re-call so a confirmed "yes, 4 AM" cannot loop; and any wee-hour card that does stage carries a forge-amber EARLY MORNING caution. Spec: docs/superpowers/specs/2026-08-03-233-bare-hour-reminders-design.md (approved by Owen 2026-08-03).
+The first wee-hour (00:00-06:59) reminder due per conversation now bounces back to the model as an ask-AM/PM question before any card stages; the latch admits the re-call so a confirmed "yes, 4 AM" cannot loop; and any wee-hour card that does stage carries a forge-amber EARLY MORNING caution. Spec: planning/superpowers/specs/2026-08-03-233-bare-hour-reminders-design.md (approved by Owen 2026-08-03).
 
 **Verification:** TDD, RED watched per task. Bars 233-A/B/C green in the suite; gate PASS (Debug suite + Release build). **Device bars NOT claimed:** 233-D (evening "tomorrow at 4" gets asked AM or PM) and 233-E (explicit "5 AM" completes with one bounce, caution on card) are owed to the next OTA.
 

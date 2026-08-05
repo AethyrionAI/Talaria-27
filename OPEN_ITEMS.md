@@ -13522,7 +13522,7 @@ eleven screens gets an explicit new home (inventory in progress).
 **Collisions:** #250 (icon lane) touches the Appearance/App Icon surface —
 sequence deliberately. #244's channel browser is a hard dependency and
 survives unchanged. Spec:
-`docs/superpowers/specs/2026-08-05-252-settings-channels-design.md` (being
+`planning/superpowers/specs/2026-08-05-252-settings-channels-design.md` (being
 written). Bars pre-register HERE before the build runs.
 
 ## 251. 🚀 THE PLUGIN VENTURE: replace relay + connector + MCP server + venv CLIs with ONE Hermes plugin — **FILED 2026-08-05 (Owen's direction, via a Hermes-authored architecture report); architecture CORRECTED in discussion; lane not yet opened**
@@ -14203,7 +14203,7 @@ before any message is sent.
 >   relaunch → the chat header names the PICK before any message is sent, and
 >   keeps naming it after the catalog refresh lands.
 
-## 244. 🎨 APPEARANCE TAB HOLISTIC REWORK — "It doesn't flow right" — **✅ CLOSED 2026-08-04 (Owen's device pass on 1955: "looks good!"). ROUTED same day: Owen supplied Claude Design's channel-browser mockup and delegated the build ("If this is something doable and you like the design, implement that as well"). Verdict: doable + good — BUILT on `claude/t27-244-appearance-channels`; #243 subsumed; #239's sub-screen superseded (its live-re-skin guarantee carries forward by construction). Spec: `docs/superpowers/specs/2026-08-04-244-appearance-channel-browser-design.md`.**
+## 244. 🎨 APPEARANCE TAB HOLISTIC REWORK — "It doesn't flow right" — **✅ CLOSED 2026-08-04 (Owen's device pass on 1955: "looks good!"). ROUTED same day: Owen supplied Claude Design's channel-browser mockup and delegated the build ("If this is something doable and you like the design, implement that as well"). Verdict: doable + good — BUILT on `claude/t27-244-appearance-channels`; #243 subsumed; #239's sub-screen superseded (its live-re-skin guarantee carries forward by construction). Spec: `planning/superpowers/specs/2026-08-04-244-appearance-channel-browser-design.md`.**
 
 > ## 📋 BARS — PRE-REGISTERED 2026-08-04, BEFORE the lane's tests ran. Written first.
 > - **244-A (unit):** `ThemeChannels.build` — channel 00 is AUTO resolving
@@ -14419,7 +14419,7 @@ has been submitted.**
 ## 240. 🐛 Backgrounding in the accepted-but-pre-`run.started` window parks the question as QUEUED — visible dupe + armed auto-resend — **✅ CLOSED 2026-08-03 ~10:02 PM — filed, spec'd, built, gated, merged (PR #253), corded-deployed, and ALL THREE BARS MET in one evening; 240-C observed on device (row adopted, no second answer)**
 
 > **BUILD RECORD — 2026-08-03 late night, branch `claude/t27-240-preflight-parking`
-> (plan `docs/superpowers/plans/2026-08-03-240-preflight-parking.md`).**
+> (plan `planning/superpowers/plans/2026-08-03-240-preflight-parking.md`).**
 > **Fix 1** (`8e3e9f8`): `responseReceived` set after the 2xx guard in
 > `SessionsHermesClient.streamTurn`; catch condition now
 > `runStarted || responseReceived → .interrupted` (nil runId; reconcile
@@ -14509,7 +14509,7 @@ next outbox drain re-sends the question and Hermes answers it again, unprompted.
 > redeploy owed. Follow-on idea filed as #243 (sliding card gallery).
 
 > **BARS — written first, before the run** (spec:
-> `docs/superpowers/specs/2026-08-03-239-themes-subsection-design.md`):
+> `planning/superpowers/specs/2026-08-03-239-themes-subsection-design.md`):
 > **239-A (suite, TDD watched RED):** pure navRow-value helper — manual mode
 > → uppercased theme name; seasonal mode → `"<SEASON> · <THEME>"` for a
 > fixed date. **239-B (XCUITest, new walk):** fresh context → Settings →
@@ -14523,7 +14523,7 @@ next outbox drain re-sends the question and Hermes answers it again, unprompted.
 > design fork: the seasonal auto-rotate toggle moves INTO the sub-screen.
 >
 > **BUILD RECORD — same night, branch `claude/t27-239-themes-subsection`
-> (plan `docs/superpowers/plans/2026-08-03-239-themes-subsection.md`).**
+> (plan `planning/superpowers/plans/2026-08-03-239-themes-subsection.md`).**
 > T1 (`a96500f`): `AppearanceSettingsScreen.themesRowValue(settings:on:)`
 > — **239-A MET, watched RED** (compile-fail naming the member) → GREEN,
 > `DesignThemeTests` 23 → 25. T2 (`467e374`): `ThemesSettingsScreen.swift`
@@ -14633,7 +14633,7 @@ around the #235 defect; #235 fixed reconstruction, #237 fixed dedupe, and
 open-the-app-and-it's-there is now the trusted surface.
 
 **Scope settled with Owen same evening** (spec:
-`docs/superpowers/specs/2026-08-03-notification-removal-design.md`, approach A — one
+`planning/superpowers/specs/2026-08-03-notification-removal-design.md`, approach A — one
 clean cut): everything goes — APNs registration, delegate, both producer services, the
 push-token pipeline (#189), settings UI, `notificationsEnabled`, the `aps-environment`
 entitlement and `remote-notification` background mode. **Confirmed collateral, Owen
@@ -14785,7 +14785,7 @@ re-entry surface (two triggers + tail-move) is new — treat the fix lane as
 > Bars pre-register HERE at routing.
 >
 > **ROUTED 2026-08-03 ~2 PM ("merge and go"); spec at
-> `docs/superpowers/specs/2026-08-03-237-stable-identity-design.md`.**
+> `planning/superpowers/specs/2026-08-03-237-stable-identity-design.md`.**
 >
 > ## 📋 BARS — PRE-REGISTERED 2026-08-03, BEFORE THE FIX LANE. Written first.
 > - **237-A (sim):** `stableMessageID` deterministic across calls, distinct
@@ -14875,7 +14875,7 @@ gate's full XCUITest run.
 
 > **✅ FIX BUILT 2026-08-03 (midday), same-day turnaround on Owen's routing**
 > (branch `claude/t27-235-stream-reconcile`; spec + plan under
-> `docs/superpowers/`; TDD, RED watched where a RED existed). What landed:
+> `planning/superpowers/`; TDD, RED watched where a RED existed). What landed:
 > - **F1 (D1's fix):** `cleanCloseArmsRecovery` — a clean close on a started
 >   run with no answer text yields `.interrupted`, never an empty
 >   `.finished`. Pinned by `emptyCleanCloseArmsRecoveryOnlyForStartedRuns`.
@@ -14981,7 +14981,7 @@ thread. **Cosmetic sibling, observed same session, note-only:** Kimi's
 REASONING rows — upstream shape, display-only.
 
 > **DIRECTION DECIDED 2026-08-03 (late morning) with Owen — design doc
-> `docs/superpowers/specs/2026-08-03-235-stream-loss-reconcile-design.md`.**
+> `planning/superpowers/specs/2026-08-03-235-stream-loss-reconcile-design.md`.**
 > Deeper reading found the recovery machinery EXISTS and is correct
 > (`.interrupted` → `PendingRun` → reconcile loop → `attemptReconcile`);
 > the filing's "no recovery" was wrong in detail — there are two HOLES in
@@ -15133,7 +15133,7 @@ REFUSING bare hours back to the model with "ask AM or PM," plus making the card'
 time rendering unmissable. Bars pre-register HERE before any fix lane.
 
 > **DIRECTION DECIDED 2026-08-03 (AM) with Owen — design doc
-> `docs/superpowers/specs/2026-08-03-233-bare-hour-reminders-design.md`.**
+> `planning/superpowers/specs/2026-08-03-233-bare-hour-reminders-design.md`.**
 > His preference order: ask AM/PM (ideal) → afternoon default (fallback).
 > Key reframe from reading the code: **the tool never sees "bare hours"** —
 > the model qualifies the time before the tool runs — so the buildable form
@@ -15164,7 +15164,7 @@ time rendering unmissable. Bars pre-register HERE before any fix lane.
 >   ≤ 1 bounce; its card shows the caution.
 
 > **✅ BOUNCE BUILT 2026-08-03, later the same morning** (spec + plan under
-> `docs/superpowers/`; tests first, RED watched per task — the two wiring
+> `planning/superpowers/`; tests first, RED watched per task — the two wiring
 > tests were watched fail on ASSERTION, not just compile). Mechanical bars:
 > **233-A** pinned by `weeHourDueBouncesOnceThenProceeds` /
 > `daytimeDueNeverBounces` / `noDueDateNeverBounces` /
@@ -16139,7 +16139,7 @@ lane runs, per the standing rule.
 > open items that are workable"); Owen approved the three forks directly:
 > scope "One default per host," services "I can stop them remotely when
 > you're done. You can do the app side now," mechanism "A for the a/b
-> choice." Spec `docs/superpowers/specs/2026-08-04-lane5-shim-retirement-design.md`,
+> choice." Spec `planning/superpowers/specs/2026-08-04-lane5-shim-retirement-design.md`,
 > plan alongside it, branch `claude/t27-223-lane5-shim-retirement`.**
 >
 > ## 📋 BARS — PRE-REGISTERED 2026-08-04 before the gate run. Written first.

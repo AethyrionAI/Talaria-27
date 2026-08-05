@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the settings root with a nine-card live-telemetry grid that toggles into a swipeable full-bleed subsystem deck (Claude Design direction 1c), per `docs/superpowers/specs/2026-08-05-252-settings-channels-design.md`.
+**Goal:** Replace the settings root with a nine-card live-telemetry grid that toggles into a swipeable full-bleed subsystem deck (Claude Design direction 1c), per `planning/superpowers/specs/2026-08-05-252-settings-channels-design.md`.
 
 **Architecture:** A new `SettingsChannelsScreen` owns a `grid`/`deck(index)` state. Grid = `LazyVGrid` of `SubsystemCard`s fed by pure value formatters; deck = paged `TabView` whose pages embed the existing sub-screens (headers/backgrounds suppressed via an `embedded:` flag), later topped with `SubsystemHero`s. Stage 3 merges Diagnostics into About and relocates the battery harness to Developer.
 
@@ -59,7 +59,7 @@
 - **252-B** — sim UI test: card tap opens the deck at that subsystem; counter reads
   `%02d / 09`; grid-toggle returns; swipe advances the counter.
 - **252-C** — control parity: every control in
-  `docs/superpowers/specs/2026-08-05-252-settings-inventory.md` §1–§11 is reachable
+  `planning/superpowers/specs/2026-08-05-252-settings-inventory.md` §1–§11 is reachable
   in the new IA (checklist pass, sim or device).
 - **252-D** — DEBUG build: the battery harness is reachable under Developer and
   `Battery results →` still opens; a battery button still arms (visual check).

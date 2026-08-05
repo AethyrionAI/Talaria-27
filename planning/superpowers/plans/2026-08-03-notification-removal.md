@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Delete the app's entire notification surface (APNs registration, delegate, producers, push-token pipeline, settings UI, entitlement/background mode) in one clean cut, per the approved spec `docs/superpowers/specs/2026-08-03-notification-removal-design.md`.
+**Goal:** Delete the app's entire notification surface (APNs registration, delegate, producers, push-token pipeline, settings UI, entitlement/background mode) in one clean cut, per the approved spec `planning/superpowers/specs/2026-08-03-notification-removal-design.md`.
 
 **Architecture:** Consumers are cut before producers so every intermediate task compiles: settings model → ChatStore → AppContainer → stores/protocols/services → AppEntry → UI → project config. Deletion is verified by absence greps (238-B) and a counted suite delta, never by green alone.
 

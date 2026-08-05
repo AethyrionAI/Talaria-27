@@ -4,7 +4,7 @@
 
 **Goal:** Reconcile adoptions stop duplicating transcripts (stable ids), a run can never resolve twice (idempotence), and already-corrupted threads heal on load (sweep).
 
-**Spec:** `docs/superpowers/specs/2026-08-03-237-stable-identity-design.md` (routed). Branch `claude/t27-237-stable-identity`. Sim UDID `47F68496-24F9-45D9-93D3-1C778DB6B557`; `DEVELOPER_DIR=/Applications/Xcode-beta4.app/Contents/Developer`; no new files → no xcodegen; commit trailer as always.
+**Spec:** `planning/superpowers/specs/2026-08-03-237-stable-identity-design.md` (routed). Branch `claude/t27-237-stable-identity`. Sim UDID `47F68496-24F9-45D9-93D3-1C778DB6B557`; `DEVELOPER_DIR=/Applications/Xcode-beta4.app/Contents/Developer`; no new files → no xcodegen; commit trailer as always.
 
 ### Task 1 (F1 · 237-A): `stableMessageID` + threading
 
