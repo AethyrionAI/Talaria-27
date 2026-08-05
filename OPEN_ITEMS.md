@@ -13470,6 +13470,61 @@ Manual/Off app lane).**
 > runs deny side effects silently under current config. Item stays SHELVED;
 > the #251 venture's interactive half is now the natural reopen path.**
 
+## 253. 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it for later as a maybe"); no design, no lane**
+
+Surfaced inside Claude Design's settings prototype as an ON-DEVICE / AUTO /
+SERVER segmented control. AUTO = route each message by need (short toolless
+turns → local FM brain; tools/vision/long context → server). NOT a current
+capability — we have brain SELECTION, not per-message routing. Deliberately
+scoped OUT of #252 (its segmented control ships two-state, matching
+reality). If ever routed: it's a chat-transport feature, not a settings
+feature; it would interact with #251 Phase 3 (runs migration) and the #215
+routed-production discipline. Nothing owed.
+
+## 252. 🎨 SETTINGS REDESIGN — "Subsystem Channels" (Claude Design direction 1c): grid of nine live-telemetry cards ↔ swipeable full-bleed subsystem deck — **ROUTED 2026-08-05 (all four decisions), spec in progress**
+
+**Source:** Claude Design handoff bundle (Owen, 2026-08-05):
+`Settings Redesign.dc.html` (three-directions survey: 1a Command Deck /
+1b Flight Strip / 1c Subsystem Channels) + `Settings Channels
+Prototype.dc.html` (1c fully interactive — the file Owen had open, the
+bundle's declared primary). Both read END-TO-END this session; unpacked in
+session scratchpad, re-unzippable from
+`~/Downloads/Settings redesign directions-handoff.zip`.
+
+**Owen's routing (2026-08-05, verbatim decisions):**
+1. **Direction: 1c** as prototyped ("Yes, 1c"). 1b's settings search is a
+   possible follow-on lane, not in scope.
+2. **AUTO routing: OUT** — filed as #253 ("file it for later as a maybe").
+   The routing segmented control ships two-state (on-device/server).
+3. **IA: take the About merge** — System + Diagnostics fold into one ABOUT
+   subsystem; NINE subsystems total (Uplink, Server, Models, Voice,
+   Appearance, Privacy, Sessions, About, Developer). *"We can relocate the
+   batteries to somewhere else if we need to use them again before we strip
+   them out"* — any battery/harness UI displaced by the merge parks under
+   Developer.
+4. **Scale: green-lit** as a multi-session lane incl. UI-test rework
+   ("yes"); the plan stages it internally (shell first, pages migrate).
+
+**Design constraints held fixed (from the survey doc, adopted):** Deep Field
+palette exactly as shipped; existing type stack; reactor orb; ✕-to-close;
+plain SwiftUI (LazyVGrid + paged TabView + sheets — no custom layout
+engine); **Appearance untouched** — its deck page is an entry that hands
+off to the #244 channel browser unchanged; **unpaired is the DESIGNED
+state** (pairing framed as capability added, never as something missing).
+
+**Reality substitutions owed in the spec (prototype is illustrative):**
+"Talaria 3B/8B" fiction → FoundationModels + PCC tier reality; placeholder
+model cards → live gateway roster; voice names/retention rows → real voice
+settings; each deck page SCROLLS (hero + full control inventory — the
+prototype shows a curated subset); every existing control from today's
+eleven screens gets an explicit new home (inventory in progress).
+
+**Collisions:** #250 (icon lane) touches the Appearance/App Icon surface —
+sequence deliberately. #244's channel browser is a hard dependency and
+survives unchanged. Spec:
+`docs/superpowers/specs/2026-08-05-252-settings-channels-design.md` (being
+written). Bars pre-register HERE before the build runs.
+
 ## 251. 🚀 THE PLUGIN VENTURE: replace relay + connector + MCP server + venv CLIs with ONE Hermes plugin — **FILED 2026-08-05 (Owen's direction, via a Hermes-authored architecture report); architecture CORRECTED in discussion; lane not yet opened**
 
 **Owen's framing (2026-08-05 ~midnight):** *"I think we need to make a plugin…
