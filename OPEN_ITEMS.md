@@ -13514,16 +13514,37 @@ Talaria-27, survives bare `hermes update` by construction) providing:
    gateway) — #241 fired live during this discussion (404 self-name, 0 tokens);
    OJAMD/kimi is the consult host.
 
-**Approvals probe (RUN 2026-08-05, Owen's go):** wire VERIFIED, policy OFF.
-Two streamed turns on OJAMD (session `api_1785934468_ae6ed63e`): plain echo
-AND deletion-shaped `del` both executed ungated (bash terminal; `del` was
-`command not found` — harmless by design). Cause: `approvals.mode: off`
-(see #224's dated note). `/v1/capabilities` advertises the approval surface;
-the `approval.request`/`approval.responded` SSE events and the
-once/session/always/deny resolution vocabulary are code-verified. **Owed
-before any approval UI ships: one end-to-end with `approvals.mode: manual`
-temporarily on (trigger → approval.request → POST resolve → resume) — a
-2-minute test behind a config flip that is Owen's to schedule.**
+**Approvals probe (RUN 2026-08-05, Owen's go) — COMPLETE, e2e GREEN on the
+runs plane, and a decisive plane split found:**
+- **OJAMD (mode off):** echo AND deletion-shaped `del` executed ungated —
+  policy off, wire dormant (see #224's dated note).
+- **Mac (Owen flipped `approvals.mode: manual` live, no restart needed —
+  config.yaml is read per-check by design):** `echo` still passes free —
+  manual gates only DANGEROUS_PATTERNS matches (approval.py:692), not all
+  commands. `rm -r /tmp/<nonexistent>` trips "delete in root path."
+- **⚠️ THE PLANE SPLIT (the Talaria-relevant finding):** on the app's plane
+  (`/api/sessions/{id}/chat/stream`, handler at api_server.py:3632) there is
+  NO approval wiring — the gated tool returns `pending_approval` AS A TOOL
+  RESULT, the model narrates it, the turn ENDS, and the pending approval
+  dies by `approvals.timeout` ("BLOCKED: Command timed out without user
+  response"). No `approval.request` event, no parked run, and
+  `POST /v1/runs/{id}/approval` has nothing to resolve. Only `_handle_runs`
+  (api_server.py:6298) registers the approval notifier.
+- **✅ E2E GREEN on `/v1/runs` (2026-08-05, runs `run_ea99…` timeout arm /
+  `run_e6bb…` approve arm):** submit with `session_id` (kept the pinned
+  session; `model_lock: accepted` on deepseek-v4-flash-0731 — #241's lock
+  plumbing again) → run parks `waiting_for_approval` + `approval.request`
+  → `POST …/approval {"choice":"once"}` → `resolved: 1` → run resumes,
+  executes, reports the rm error verbatim → `run.completed`. The FIRST
+  attempt also proved the timeout arm by accident: approving after the 60s
+  window returns `approval_not_pending` and the run self-completes blocked.
+- **Consequence for the venture's in-chat approvals:** three options —
+  (a) the app routes gate-able turns via `/v1/runs` (session-compatible,
+  proven above), (b) upstream wires approvals into chat/stream (a
+  #241-family report, same submission gate), or (c) approvals stay off and
+  the phone-side confirm cards remain the only gate (today's shape). Note
+  mode=manual makes NORMAL chat turns narrate-and-timeout on dangerous
+  commands — leave the Mac on manual only knowingly.
 
 **Report errata (so nobody re-trusts them):** Option A's "loses nothing" was
 false (relay also carries sensor ingestion, inbox fetch, voice bootstrap,
