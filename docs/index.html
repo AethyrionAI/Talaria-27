@@ -1,470 +1,143 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Talaria — On-device AI companion for iPhone, self-host ready</title>
-<meta name="description" content="A native SwiftUI iPhone app with a fully on-device AI brain — and a client for your self-hosted Hermes agent when you pair one. Streaming chat, voice, sensors, device tools.">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Talaria — an agent that lives on your phone</title>
+<meta name="description" content="A native SwiftUI iPhone app with a complete on-device chat brain, and a client for the Hermes agent you host yourself.">
+<meta property="og:title" content="Talaria — an agent that lives on your phone">
+<meta property="og:description" content="A native SwiftUI iPhone app with a complete on-device chat brain, and a client for the Hermes agent you host yourself.">
+<meta property="og:image" content="https://aethyrionai.github.io/Talaria-27/img/02_chat.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='9' fill='%2354E6F0'/%3E%3Ccircle cx='16' cy='16' r='14' fill='none' stroke='%2354E6F0' stroke-opacity='.45' stroke-width='1.5'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300;1,6..72,400&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-:root {
-  --bg:#06080c; --bg2:#0a0f17; --bg3:#0d1622;
-  --accent:#54e6f0; --accent2:#7ef4fa;
-  --dim:#5d7488; --mid:#7c93a6; --text:#e8eef5; --text2:#cfe1ea;
-  --border:rgba(84,230,240,.12); --border2:rgba(84,230,240,.26);
-  --glow:0 0 28px rgba(84,230,240,.28);
-}
-html { scroll-behavior:smooth; }
-body { background:var(--bg); color:var(--text); font-family:'Space Grotesk',sans-serif; line-height:1.6; overflow-x:hidden; }
-
-/* nav */
-nav {
-  position:sticky; top:0; z-index:100;
-  display:flex; align-items:center; justify-content:space-between;
-  padding:0 48px; height:60px;
-  background:rgba(6,8,12,.9); backdrop-filter:blur(16px);
-  border-bottom:1px solid var(--border);
-}
-.nav-logo { display:flex; align-items:center; gap:10px; font-family:'Chakra Petch',sans-serif; font-weight:700; font-size:17px; letter-spacing:.28em; padding-left:.28em; color:var(--text); text-decoration:none; }
-.orb { position:relative; width:20px; height:20px; flex:none; }
-.orb-ring { position:absolute; inset:0; border-radius:50%; border:1px solid rgba(84,230,240,.45); animation:spin 9s linear infinite; }
-.orb-core { position:absolute; inset:5px; border-radius:50%; background:radial-gradient(circle at 50% 40%,#cdf8fb,#54e6f0 45%,#14636e); box-shadow:0 0 10px rgba(84,230,240,.9); }
-.nav-links { display:flex; align-items:center; gap:28px; list-style:none; }
-.nav-links a { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.16em; color:var(--dim); text-decoration:none; transition:color .2s; }
-.nav-links a:hover { color:var(--accent); }
-.nav-gh { color:var(--accent) !important; border:1px solid var(--border2); padding:6px 16px; border-radius:6px; }
-.nav-gh:hover { background:rgba(84,230,240,.08) !important; }
-
-/* hero */
-header {
-  min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  padding:80px 24px 80px; text-align:center;
-  background:radial-gradient(140% 90% at 50% -8%,#0d1a2e 0%,#08101a 50%,#05070b 100%);
-}
-.hero-orb { position:relative; width:72px; height:72px; margin-bottom:36px; }
-.h-ring1 { position:absolute; inset:0; border-radius:50%; border:1px solid rgba(84,230,240,.35); animation:spin 9s linear infinite; }
-.h-ring2 { position:absolute; inset:-14px; border-radius:50%; border:1px solid rgba(84,230,240,.1); animation:spin-rev 15s linear infinite; }
-.h-core { position:absolute; inset:16px; border-radius:50%; background:radial-gradient(circle at 50% 40%,#cdf8fb,#54e6f0 45%,#14636e); box-shadow:0 0 36px rgba(84,230,240,.85),0 0 80px rgba(84,230,240,.3); animation:breathe 4s ease-in-out infinite; }
-h1 { font-family:'Chakra Petch',sans-serif; font-weight:700; font-size:clamp(52px,9vw,104px); letter-spacing:.3em; padding-left:.3em; background:linear-gradient(135deg,#cdf8fb 0%,#54e6f0 50%,#2da8b4 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:20px; }
-.tagline { font-size:clamp(17px,2.4vw,22px); color:var(--text2); max-width:560px; margin:0 auto 10px; }
-.hero-sub { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.22em; color:var(--dim); margin-bottom:44px; }
-.badges { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom:48px; }
-.badge { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.16em; padding:6px 14px; border-radius:20px; border:1px solid var(--border2); color:var(--accent); background:rgba(84,230,240,.06); }
-.hero-btns { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; }
-.btn-p { font-family:'Chakra Petch',sans-serif; font-size:12px; font-weight:700; letter-spacing:.18em; padding:14px 32px; border-radius:8px; background:var(--accent); color:#04070c; text-decoration:none; transition:box-shadow .2s,transform .15s; }
-.btn-p:hover { box-shadow:0 0 32px rgba(84,230,240,.5); transform:translateY(-1px); }
-.btn-s { font-family:'Chakra Petch',sans-serif; font-size:12px; font-weight:700; letter-spacing:.18em; padding:14px 32px; border-radius:8px; border:1px solid var(--border2); color:var(--accent); text-decoration:none; transition:background .2s,box-shadow .2s; }
-.btn-s:hover { background:rgba(84,230,240,.08); box-shadow:var(--glow); }
-
-/* disclaimer */
-#disclaimer { padding:40px 24px; max-width:820px; margin:0 auto; }
-.disc-box { border-left:3px solid var(--accent); padding:18px 22px; background:rgba(84,230,240,.04); border-radius:0 8px 8px 0; }
-.disc-box p { font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.03em; color:var(--mid); line-height:1.75; }
-.disc-box a { color:var(--accent); text-decoration:none; }
-.disc-box a:hover { text-decoration:underline; }
-
-/* section chrome */
-.slabel { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.28em; color:var(--dim); margin-bottom:12px; }
-.stitle { font-family:'Chakra Petch',sans-serif; font-weight:700; font-size:clamp(26px,4vw,38px); letter-spacing:.07em; color:var(--text); margin-bottom:16px; }
-.sbody { font-size:16px; color:var(--mid); max-width:540px; line-height:1.7; }
-
-/* screens */
-#screens { padding:100px 24px; background:var(--bg2); border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
-.screens-hdr { text-align:center; margin-bottom:60px; }
-.screens-hdr .sbody { margin:0 auto; }
-.phone-row { display:flex; gap:20px; overflow-x:auto; padding:16px 0 24px; scrollbar-width:thin; scrollbar-color:var(--border2) transparent; justify-content:center; flex-wrap:wrap; }
-.phone-card { flex:none; display:flex; flex-direction:column; align-items:center; gap:12px; }
-.phone-card img { width:188px; height:auto; aspect-ratio:780/1646; object-fit:contain; border-radius:26px; border:1px solid rgba(84,230,240,.16); box-shadow:0 12px 40px rgba(0,0,0,.65),0 0 0 1px rgba(84,230,240,.07); transition:transform .3s,box-shadow .3s; display:block; }
-.phone-card img:hover { transform:translateY(-6px) scale(1.025); box-shadow:0 24px 60px rgba(0,0,0,.75),0 0 32px rgba(84,230,240,.2); }
-.phone-label { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.2em; color:var(--dim); text-align:center; }
-
-/* about */
-#about { padding:100px 24px; max-width:1100px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:80px; align-items:center; }
-.about-phone img { width:260px; height:auto; aspect-ratio:780/1646; object-fit:contain; border-radius:32px; box-shadow:0 20px 60px rgba(0,0,0,.7),0 0 40px rgba(84,230,240,.15); }
-
-/* architecture */
-#architecture { padding:100px 24px; background:var(--bg2); border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
-.arch-inner { max-width:900px; margin:0 auto; }
-.arch-hdr { margin-bottom:52px; }
-pre.arch {
-  font-family:'JetBrains Mono',monospace; font-size:13px; line-height:2.1;
-  background:rgba(4,6,10,.8); border:1px solid var(--border); border-radius:12px;
-  padding:32px 36px; overflow-x:auto; color:var(--text2);
-}
-pre.arch .acc { color:var(--accent); }
-pre.arch .dim { color:var(--dim); }
-pre.arch .grn { color:#6ef0a0; }
-pre.arch .ylw { color:#f0c06e; }
-.service-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin-top:36px; }
-.svc { border:1px solid var(--border); border-radius:10px; padding:18px 20px; background:rgba(13,22,34,.5); transition:border-color .2s; }
-.svc:hover { border-color:var(--border2); }
-.svc-port { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.12em; color:var(--accent); margin-bottom:6px; }
-.svc-name { font-family:'Chakra Petch',sans-serif; font-size:14px; font-weight:600; letter-spacing:.1em; color:var(--text); margin-bottom:6px; }
-.svc-desc { font-size:13px; color:var(--dim); line-height:1.5; }
-
-/* features */
-#features { padding:100px 24px; max-width:1100px; margin:0 auto; }
-.feat-hdr { margin-bottom:52px; }
-.feat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px; }
-.feat { border:1px solid var(--border); border-radius:12px; padding:24px; background:linear-gradient(135deg,rgba(13,22,34,.7) 0%,rgba(6,8,12,.4) 100%); transition:border-color .2s,transform .2s; }
-.feat:hover { border-color:var(--border2); transform:translateY(-2px); }
-.feat-icon { font-size:22px; margin-bottom:12px; }
-.feat-name { font-family:'Chakra Petch',sans-serif; font-size:13px; font-weight:700; letter-spacing:.12em; color:var(--text); margin-bottom:8px; }
-.feat-desc { font-size:14px; color:var(--dim); line-height:1.6; }
-
-/* setup */
-#setup { padding:100px 24px; background:var(--bg2); border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
-.setup-inner { max-width:820px; margin:0 auto; }
-.setup-hdr { margin-bottom:52px; }
-.steps { display:flex; flex-direction:column; }
-.step { display:flex; gap:24px; align-items:flex-start; padding:28px 0; border-bottom:1px solid var(--border); }
-.step:last-child { border-bottom:none; }
-.step-n { font-family:'Chakra Petch',sans-serif; font-size:30px; font-weight:700; color:var(--accent); opacity:.35; flex:none; width:44px; text-align:right; padding-top:2px; }
-.step-body { flex:1; }
-.step-title { font-family:'Chakra Petch',sans-serif; font-size:15px; font-weight:600; letter-spacing:.1em; color:var(--text); margin-bottom:8px; }
-.step-text { font-size:14px; color:var(--dim); line-height:1.65; }
-.step-text code { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--accent); background:rgba(84,230,240,.08); padding:2px 7px; border-radius:4px; }
-.step-text a { color:var(--accent); text-decoration:none; }
-.step-text a:hover { text-decoration:underline; }
-
-/* stack */
-#stack { padding:80px 24px; max-width:900px; margin:0 auto; }
-.stack-pills { display:flex; flex-wrap:wrap; gap:10px; margin-top:32px; }
-.pill { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.12em; color:var(--mid); border:1px solid var(--border); padding:8px 16px; border-radius:20px; background:rgba(13,22,34,.5); }
-
-/* footer */
-footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px; }
-.f-logo { font-family:'Chakra Petch',sans-serif; font-weight:700; font-size:14px; letter-spacing:.28em; color:var(--dim); }
-.f-note { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.12em; color:var(--dim); }
-.f-links { display:flex; gap:22px; }
-.f-links a { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.12em; color:var(--dim); text-decoration:none; transition:color .2s; }
-.f-links a:hover { color:var(--accent); }
-
-@keyframes spin     { to { transform:rotate(360deg); } }
-@keyframes spin-rev { to { transform:rotate(-360deg); } }
-@keyframes breathe  { 0%,100% { transform:scale(1); } 50% { transform:scale(1.07); } }
-
-@media(max-width:768px) {
-  nav { padding:0 20px; }
-  .nav-links { display:none; }
-  #about { grid-template-columns:1fr; gap:48px; }
-  .about-phone { order:-1; }
-  footer { flex-direction:column; text-align:center; }
-  pre.arch { font-size:11px; padding:20px; }
+html { scroll-behavior: smooth; }
+body { background: #06080C; color: #E8EEF5; font-family: 'Space Grotesk', sans-serif; line-height: 1.6; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+a { color: #54E6F0; text-decoration: none; }
+a:hover { color: #CDF8FB; }
+::selection { background: rgba(84,230,240,.25); }
+button { font: inherit; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes riseIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes pulseDot { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+.nl { transition: color .2s; }
+.nl:hover { color: #54E6F0 !important; }
+.hb { transition: background .2s; }
+.hb:hover { background: rgba(84,230,240,.09) !important; }
+.cta { transition: background .2s; }
+.cta:hover { background: #CDF8FB !important; color: #04070C !important; }
+.srow { transition: background .2s; }
+.srow:hover { background: rgba(84,230,240,.03); }
+.cap { transition: background .25s; }
+.cap:hover { background: #08121A !important; }
+.chb { transition: all .28s ease; }
+.chb:hover { transform: translateY(-2px); }
+.tsr { transition: transform .3s ease, box-shadow .3s ease; }
+.tsr:hover { transform: translateY(-6px); box-shadow: 0 26px 60px rgba(0,0,0,.7), 0 0 0 1px rgba(84,230,240,.3) !important; }
+#channels {
+  --chbg: #06080C;
+  --chtop: #0C2730;
+  --chbezel: #14181F;
+  --chfg: #E8EEF5;
+  --chsec: #7C93A6;
+  --chacc: #54E6F0;
+  --chbord: rgba(84,230,240,.2);
+  --chbord2: rgba(84,230,240,.42);
+  --chchip: rgba(84,230,240,.09);
 }
 </style>
 </head>
 <body>
 
-<nav>
-  <a class="nav-logo" href="#">
-    <div class="orb"><div class="orb-ring"></div><div class="orb-core"></div></div>
-    TALARIA
+<div style="background:#06080C">
+
+<nav style="position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;min-height:64px;padding:10px clamp(18px,3.4vw,40px);row-gap:12px;flex-wrap:wrap;background:rgba(6,8,12,.82);backdrop-filter:blur(20px);border-bottom:1px solid rgba(84,230,240,.14)">
+  <a href="index.html" style="display:flex;align-items:center;gap:11px;color:#E8EEF5">
+    <span style="position:relative;display:block;width:18px;height:18px;flex:none">
+      <span style="position:absolute;inset:0;border-radius:50%;border:1px solid rgba(84,230,240,.4);border-top-color:rgba(84,230,240,.95);animation:spin 8s linear infinite"></span>
+      <span style="position:absolute;inset:5px;border-radius:50%;background:radial-gradient(circle at 45% 35%,#EAF6F8,#54E6F0 50%,#14636E);box-shadow:0 0 9px rgba(84,230,240,.75)"></span>
+    </span>
+    <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.34em">TALARIA</span>
   </a>
-  <ul class="nav-links">
-    <li><a href="#screens">SCREENS</a></li>
-    <li><a href="#architecture">ARCHITECTURE</a></li>
-    <li><a href="#features">FEATURES</a></li>
-    <li><a href="#setup">SETUP</a></li>
-    <li><a href="https://github.com/AethyrionAI/Talaria-27" class="nav-gh">GITHUB ↗</a></li>
-  </ul>
+  <div style="display:flex;align-items:center;gap:clamp(12px,1.9vw,30px);flex-wrap:wrap">
+    <a class="nl" href="#tiers" style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;color:#7C93A6">TWO TIERS</a>
+    <a class="nl" href="#status" style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;color:#7C93A6">STATUS</a>
+    <a class="nl" href="#architecture" style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;color:#7C93A6">ARCHITECTURE</a>
+    <a class="nl" href="#channels" style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;color:#7C93A6">CHANNELS</a>
+    <a class="nl" href="screens.html" style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;color:#7C93A6">SCREENS</a>
+    <a class="nl" href="setup.html" style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;color:#7C93A6">SETUP</a>
+    <a class="hb" href="https://github.com/AethyrionAI/Talaria-27" style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;color:#54E6F0;border:1px solid rgba(84,230,240,.3);padding:7px 15px;border-radius:5px">GITHUB ↗</a>
+  </div>
 </nav>
 
-<header>
-  <div class="hero-orb">
-    <div class="h-ring1"></div>
-    <div class="h-ring2"></div>
-    <div class="h-core"></div>
-  </div>
-  <h1>TALARIA</h1>
-  <p class="tagline">A native iOS AI companion with a fully on-device brain — and a client for your self-hosted Hermes agent when you pair one.</p>
-  <p class="hero-sub">ON-DEVICE BRAIN &nbsp;·&nbsp; SWIFT NATIVE &nbsp;·&nbsp; SELF-HOST UPGRADE &nbsp;·&nbsp; SENSORS + VOICE</p>
-  <div class="badges">
-    <span class="badge">iOS 27</span>
-    <span class="badge">Swift 6</span>
-    <span class="badge">SwiftUI</span>
-    <span class="badge">Hermes Agent</span>
-    <span class="badge">Tailscale</span>
-    <span class="badge">Build from source</span>
-  </div>
-  <div class="hero-btns">
-    <a class="btn-p" href="https://github.com/AethyrionAI/Talaria-27">VIEW ON GITHUB</a>
-    <a class="btn-s" href="#setup">SETUP GUIDE</a>
+<header style="position:relative;background:radial-gradient(120% 80% at 78% -10%,#0C2730 0%,#070D15 46%,#04070C 100%);border-bottom:1px solid rgba(84,230,240,.14);overflow:hidden">
+  <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.05) 1px,transparent 1px);background-size:26px 26px;mask-image:radial-gradient(70% 60% at 70% 20%,#000 0%,transparent 100%);-webkit-mask-image:radial-gradient(70% 60% at 70% 20%,#000 0%,transparent 100%)"></div>
+  <div style="position:relative;max-width:1240px;margin:0 auto;padding:clamp(52px,7vw,104px) clamp(20px,4vw,40px) clamp(56px,7vw,96px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,430px),1fr));gap:clamp(40px,5vw,64px);align-items:center">
+    <div style="animation:riseIn .7s ease both">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:26px">
+        <span style="width:5px;height:5px;border-radius:50%;background:#54E6F0;box-shadow:0 0 8px #54E6F0;animation:pulseDot 2.6s ease-in-out infinite"></span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.24em;color:#7C93A6">WORKING ALPHA · iOS 27 · SWIFT 6</span>
+      </div>
+      <h1 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(40px,6.4vw,76px);line-height:1.16;letter-spacing:.004em;color:#EAF6F8;margin-bottom:28px;text-wrap:balance">An agent that lives<br>on your phone —<br><em style="font-style:italic;letter-spacing:.024em;color:#54E6F0">and answers to<br>your machine.</em></h1>
+      <p style="font-size:18.5px;line-height:1.62;color:#CFE1EA;max-width:520px;margin-bottom:20px;text-wrap:pretty">Talaria runs a complete chat brain <strong style="color:#EAF6F8;font-weight:500">on the device</strong> — streaming, sessions, read-aloud, and a real device tool belt that can move your calendar and set your alarms. It works in airplane mode.</p>
+      <p style="font-size:16px;line-height:1.62;color:#7C93A6;max-width:520px;margin-bottom:38px;text-wrap:pretty">Pair a <a href="https://github.com/NousResearch/hermes-agent">Hermes agent</a> you host yourself and it grows your desktop model roster, server sessions, and a live sensor feed. No cloud. No relay you don't own.</p>
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:30px;flex-wrap:wrap">
+        <a class="cta" href="setup.html" style="font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;letter-spacing:.16em;padding:15px 30px;border-radius:6px;background:#54E6F0;color:#04070C">BUILD IT →</a>
+        <a class="hb" href="screens.html" style="font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;letter-spacing:.16em;padding:15px 30px;border-radius:6px;border:1px solid rgba(84,230,240,.3);color:#54E6F0">SEE EVERY SCREEN</a>
+      </div>
+      <p style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;color:#4D6273;line-height:1.9">NO APP STORE &nbsp;·&nbsp; NO TESTFLIGHT &nbsp;·&nbsp; YOU BUILD AND SIGN IT YOURSELF</p>
+    </div>
+    <div style="display:flex;justify-content:center;animation:riseIn .9s .12s ease both">
+      <div style="position:relative">
+        <div style="position:absolute;inset:-8%;border-radius:50%;background:radial-gradient(circle,rgba(84,230,240,.14) 0%,transparent 66%)"></div>
+        <img src="img/02_chat.png" alt="Talaria chat, streaming a tool run" width="390" height="823" style="position:relative;display:block;width:min(352px,86vw);height:auto;border-radius:min(44px,11vw);box-shadow:0 40px 90px rgba(0,0,0,.75),0 0 0 1px rgba(84,230,240,.16)">
+      </div>
+    </div>
   </div>
 </header>
 
-<!-- disclaimer -->
-<section id="disclaimer">
-  <div class="disc-box">
-    <p>
-      <strong style="color:var(--text2)">NOTE &nbsp;—</strong>&nbsp;
-      Talaria is an independent community project. It is not affiliated with, endorsed by, or part of
-      <a href="https://nousresearch.com/">Nous Research</a> or the official
-      <a href="https://github.com/NousResearch/hermes-agent">Hermes Agent</a> project.
-    </p>
-  </div>
-</section>
+<section id="tiers" style="border-bottom:1px solid rgba(84,230,240,.14)">
+  <div style="max-width:1240px;margin:0 auto;padding:clamp(60px,8vw,96px) clamp(20px,4vw,40px) clamp(64px,8vw,100px)">
+    <div style="max-width:660px;margin-bottom:56px">
+      <p style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.26em;color:#5D7488;margin-bottom:18px">01 — HOW YOU RUN IT</p>
+      <h2 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(32px,4.6vw,52px);line-height:1.22;letter-spacing:.004em;color:#EAF6F8;margin-bottom:18px">Pairing is optional.</h2>
+      <p style="font-size:17px;line-height:1.65;color:#7C93A6;text-wrap:pretty">Most self-hosted apps are useless until you've stood up a server. This one isn't. Install it and it already works — a host is the upgrade, not the entry fee.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,370px),1fr));gap:20px">
 
-<!-- screenshots -->
-<section id="screens">
-  <div class="screens-hdr">
-    <p class="slabel">// INTERFACE</p>
-    <h2 class="stitle">Every screen, purpose-built.</h2>
-    <p class="sbody">From initial pairing through streaming chat, voice, and diagnostics — Talaria's UI is designed around the Hermes agent experience.</p>
-  </div>
-
-  <p class="slabel" style="text-align:center;margin-bottom:20px">// MAIN FLOWS</p>
-  <div class="phone-row">
-    <div class="phone-card">
-      <img src="img/01_onboarding.png" width="390" height="823" alt="Talaria onboarding / pairing screen" loading="lazy">
-      <span class="phone-label">HANDSHAKE</span>
-    </div>
-    <div class="phone-card">
-      <img src="img/02_chat.png" width="390" height="823" alt="Talaria chat screen" loading="lazy">
-      <span class="phone-label">CHAT</span>
-    </div>
-    <div class="phone-card">
-      <img src="img/03_voice.png" width="390" height="823" alt="Talaria voice mode" loading="lazy">
-      <span class="phone-label">VOICE</span>
-    </div>
-    <div class="phone-card">
-      <img src="img/04_directives.png" width="390" height="823" alt="Talaria directives screen" loading="lazy">
-      <span class="phone-label">DIRECTIVES</span>
-    </div>
-    <div class="phone-card">
-      <img src="img/05_settings.png" width="390" height="823" alt="Talaria settings overview" loading="lazy">
-      <span class="phone-label">SETTINGS</span>
-    </div>
-  </div>
-
-  <p class="slabel" style="text-align:center;margin:48px 0 20px">// SETTINGS SCREENS</p>
-  <div class="phone-row">
-    <div class="phone-card">
-      <img src="img/s_system.png" width="390" height="823" alt="System settings" loading="lazy">
-      <span class="phone-label">SYSTEM</span>
-    </div>
-    <div class="phone-card">
-      <img src="img/s_uplink.png" width="390" height="823" alt="Uplink / connection settings" loading="lazy">
-      <span class="phone-label">UPLINK</span>
-    </div>
-    <div class="phone-card">
-      <img src="img/s_models.png" width="390" height="823" alt="Model selection" loading="lazy">
-      <span class="phone-label">MODELS</span>
-    </div>
-    <div class="phone-card">
-      <img src="img/s_voice.png" width="390" height="823" alt="Voice settings" loading="lazy">
-      <span class="phone-label">VOICE</span>
-    </div>
-    <div class="phone-card">
-      <img src="img/s_appearance.png" width="390" height="823" alt="Appearance / HUD settings" loading="lazy">
-      <span class="phone-label">APPEARANCE</span>
-    </div>
-    <div class="phone-card">
-      <img src="img/s_sessions.png" width="390" height="823" alt="Sessions management" loading="lazy">
-      <span class="phone-label">SESSIONS</span>
-    </div>
-    <div class="phone-card">
-      <img src="img/s_diagnostics.png" width="390" height="823" alt="Diagnostics screen" loading="lazy">
-      <span class="phone-label">DIAGNOSTICS</span>
-    </div>
-  </div>
-</section>
-
-<!-- about -->
-<section id="about">
-  <div class="about-text">
-    <p class="slabel">// WHAT IT IS</p>
-    <h2 class="stitle">Your phone. Your agent. Your backend.</h2>
-    <p class="sbody">
-      Talaria is a native SwiftUI iPhone app that runs a full chat brain on-device — and pairs with a Hermes AI agent you host yourself for the rest. There is no cloud, no managed relay — just your device talking to your machine over your network.
-    </p>
-    <br>
-    <p class="sbody">
-      Chat and model selection talk directly to the Hermes Gateway API. Sensors flow through a lightweight sidecar relay. Everything is auditable, replaceable, and yours.
-    </p>
-  </div>
-  <div class="about-phone">
-    <img src="img/02_chat.png" width="390" height="823" alt="Talaria chat interface" loading="lazy">
-  </div>
-</section>
-
-<!-- architecture -->
-<section id="architecture">
-  <div class="arch-inner">
-    <div class="arch-hdr">
-      <p class="slabel">// ARCHITECTURE</p>
-      <h2 class="stitle">How it connects.</h2>
-      <p class="sbody">Two independent paths — chat and sensors — each talking to a dedicated service on your host machine. Model control rides the chat connection.</p>
-    </div>
-
-<pre class="arch">
-<span class="acc">iPhone (Talaria)</span>
-  │
-  ├─ <span class="grn">Chat &amp; sessions</span>  ──────→  Hermes Gateway      <span class="dim">:8642</span>
-  │    SSE streaming, sync                 <span class="dim">hermes gateway run</span>
-  │    Bearer auth                         <span class="dim">Sessions API + all platforms</span>
-  │
-  ├─ <span class="ylw">Sensor data</span>  ──────────→  HermesMobile Relay  <span class="dim">:8000</span>
-  │    Location, HealthKit, motion         <span class="dim">sidecar process (Python/uvicorn)</span>
-  │    Background upload                   <span class="dim">→ hermes_mobile MCP tools</span>
-  │
-  └─ <span class="acc">Model picking</span>  ────────→  (same gateway connection)
-       Provider roster + swap              <span class="dim">per-turn model lock</span>
-       Per-session, no restart             <span class="dim">no third service</span>
-</pre>
-
-    <div class="service-grid">
-      <div class="svc">
-        <div class="svc-port">:8642</div>
-        <div class="svc-name">HERMES GATEWAY</div>
-        <div class="svc-desc">The Hermes Sessions API. Chat, streaming SSE, and all enabled platforms in one process. Run with <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent)">hermes gateway run</code>.</div>
-      </div>
-      <div class="svc">
-        <div class="svc-port">:8000</div>
-        <div class="svc-name">HERMES MOBILE RELAY</div>
-        <div class="svc-desc">Lightweight Python sidecar that receives sensor uploads from the phone and delivers them to Hermes via <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent)">hermes_mobile</code> MCP tools.</div>
-      </div>
-      <div class="svc">
-        <div class="svc-port">:8642</div>
-        <div class="svc-name">MODEL CONTROL</div>
-        <div class="svc-desc">No third service. The app reads your full provider roster from the gateway and applies picks as a per-turn model lock plus a session pin — model switching with nothing extra to run.</div>
-      </div>
-      <div class="svc">
-        <div class="svc-port">TAILSCALE</div>
-        <div class="svc-name">NETWORK LAYER</div>
-        <div class="svc-desc">Recommended for remote access. The app uses Tailscale hostnames and IPs to reach both services without exposing them to the public internet.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- features -->
-<section id="features">
-  <div class="feat-hdr">
-    <p class="slabel">// CAPABILITIES</p>
-    <h2 class="stitle">What Talaria does.</h2>
-  </div>
-  <div class="feat-grid">
-    <div class="feat">
-      <div class="feat-icon">🧠</div>
-      <div class="feat-name">ON-DEVICE BRAIN</div>
-      <div class="feat-desc">A full local chat backend on Apple's FoundationModels: streaming, sessions, read-aloud, and a device tool belt (calendar, reminders, contacts, weather, health, alarms) with every action confirmed in-app. Works in airplane mode; nothing leaves the phone.</div>
-    </div>
-    <div class="feat">
-      <div class="feat-icon">💬</div>
-      <div class="feat-name">STREAMING CHAT</div>
-      <div class="feat-desc">Server-sent events from the Hermes Sessions API. Markdown, code blocks, inline images, and agent file downloads — all rendered natively.</div>
-    </div>
-    <div class="feat">
-      <div class="feat-icon">🎙️</div>
-      <div class="feat-name">VOICE MODE</div>
-      <div class="feat-desc">Real-time WebRTC speech-to-speech via the relay. Server-side voice, continuous mic, mute/barge-in, and multimodal image support.</div>
-    </div>
-    <div class="feat">
-      <div class="feat-icon">📡</div>
-      <div class="feat-name">SENSOR PIPELINE</div>
-      <div class="feat-desc">Location, 11 HealthKit metrics, and CoreMotion activity upload in the background. Your agent gets live context about you — and you own all the data.</div>
-    </div>
-    <div class="feat">
-      <div class="feat-icon">🔀</div>
-      <div class="feat-name">LIVE MODEL SWITCHING</div>
-      <div class="feat-desc">Pick from your full provider roster, straight from the gateway. Picks ride every turn as a model lock and pin the live session — no extra service, no restart.</div>
-    </div>
-    <div class="feat">
-      <div class="feat-icon">📁</div>
-      <div class="feat-name">AGENT FILES</div>
-      <div class="feat-desc">Files your agent generates are surfaced as tappable share bubbles in chat. Download, save, or forward directly from the conversation.</div>
-    </div>
-    <div class="feat">
-      <div class="feat-icon">⚙️</div>
-      <div class="feat-name">FULL SETTINGS SUITE</div>
-      <div class="feat-desc">System, Uplink, Models, Voice, Appearance, Sessions, Diagnostics — everything configurable in-app, no config file edits needed.</div>
-    </div>
-    <div class="feat">
-      <div class="feat-icon">🔍</div>
-      <div class="feat-name">DIAGNOSTICS</div>
-      <div class="feat-desc">Live connection health, port status, session counts, and service state — all visible from the app without touching the host terminal.</div>
-    </div>
-    <div class="feat">
-      <div class="feat-icon">🔒</div>
-      <div class="feat-name">DIRECT, NO CLOUD</div>
-      <div class="feat-desc">Chat goes phone → Hermes Gateway. Nothing passes through a third-party server. Bearer token auth. You control the keys.</div>
-    </div>
-  </div>
-</section>
-
-<!-- setup -->
-<section id="setup">
-  <div class="setup-inner">
-    <div class="setup-hdr">
-      <p class="slabel">// GETTING STARTED</p>
-      <h2 class="stitle">Self-host in six steps.</h2>
-      <p class="sbody">The app runs on-device with no host at all. To pair your own agent you need a machine running Hermes, a Tailscale network, and Xcode to build the app. There is no TestFlight or App Store distribution.</p>
-    </div>
-    <div class="steps">
-
-      <div class="step">
-        <div class="step-n">01</div>
-        <div class="step-body">
-          <div class="step-title">INSTALL AND RUN HERMES AGENT</div>
-          <p class="step-text">
-            Follow the <a href="https://github.com/NousResearch/hermes-agent" target="_blank">Hermes Agent</a> install instructions for your host OS (macOS or Windows). Verify <code>hermes</code> is in your PATH and a profile is configured.
-          </p>
+      <div style="border:1px solid rgba(84,230,240,.3);border-radius:14px;padding:clamp(26px,3vw,36px) clamp(22px,2.8vw,34px) clamp(26px,3vw,34px);background:linear-gradient(168deg,rgba(12,39,48,.6) 0%,rgba(8,18,26,.3) 100%)">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.2em;color:#54E6F0">SOLO</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;color:#5D7488">ZERO HOST SETUP</span>
+        </div>
+        <h3 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(26px,3vw,34px);line-height:1.26;color:#EAF6F8;margin-bottom:14px">Everything on the device.</h3>
+        <p style="font-size:15px;line-height:1.65;color:#7C93A6;margin-bottom:26px;text-wrap:pretty">A full local backend on Apple's FoundationModels framework, behind the same client seam as the hosted path. Context-window-aware condensation instead of errors. Nothing leaves the phone.</p>
+        <div style="display:flex;flex-direction:column;gap:0">
+          <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#54E6F0;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Streaming chat, sessions drawer and persistence</span></div>
+          <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#54E6F0;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Read-aloud, and a sessions history that survives relaunch</span></div>
+          <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#54E6F0;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Device tool belt: calendar, reminders, contacts, weather, health, alarms</span></div>
+          <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#54E6F0;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Siri and App Intents; conversations index into Spotlight</span></div>
+          <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#54E6F0;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Works in airplane mode — nothing leaves the phone</span></div>
         </div>
       </div>
 
-      <div class="step">
-        <div class="step-n">02</div>
-        <div class="step-body">
-          <div class="step-title">START THE HERMES GATEWAY</div>
-          <p class="step-text">
-            Run <code>hermes gateway run</code> on your host. This starts the Sessions API on <code>:8642</code>. On Windows, use NSSM or a Scheduled Task for persistence. On macOS, use a launchd agent. Ensure the port is reachable from your Tailscale IP.
-          </p>
+      <div style="border:1px solid rgba(84,230,240,.14);border-radius:14px;padding:clamp(26px,3vw,36px) clamp(22px,2.8vw,34px) clamp(26px,3vw,34px);background:rgba(8,18,26,.5)">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.2em;color:#FFC14D">PAIRED</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;color:#5D7488">+ A MACHINE YOU OWN</span>
         </div>
-      </div>
-
-      <div class="step">
-        <div class="step-n">03</div>
-        <div class="step-body">
-          <div class="step-title">DEPLOY THE RELAY SIDECAR</div>
-          <p class="step-text">
-            Clone this repo and run the HermesMobile relay from <code>relay/</code>. Set <code>AGENT_FILES_DIR</code> in your <code>.env</code> for agent file downloads, and change <code>INTERNAL_API_KEY</code> from its default. The relay carries pairing and auth, sensor ingestion, the inbox/directives channel, scheduled runs, agent-file downloads, and the voice WebRTC bootstrap — everything phone-facing except chat, which talks straight to the gateway. Bind to <code>0.0.0.0</code> so your phone can reach it over Tailscale.
-          </p>
-        </div>
-      </div>
-
-      <div class="step">
-        <div class="step-n">04</div>
-        <div class="step-body">
-          <div class="step-title">INSTALL AND RUN THE CONNECTOR</div>
-          <p class="step-text">
-            From <code>connector/</code>, create a venv, <code>pip install -e .</code>, then run <code>hermes-mobile setup</code>. The connector is the host-side bridge that owns the durable relay connection, registers the <code>hermes_mobile</code> MCP server (the sensor tools your agent calls), and prints phone-pairing codes. Without it, the sensor pipeline and inbox go nowhere.
-          </p>
-        </div>
-      </div>
-
-      <div class="step">
-        <div class="step-n">05</div>
-        <div class="step-body">
-          <div class="step-title">BUILD TALARIA IN XCODE</div>
-          <p class="step-text">
-            Generate the Xcode project with <code>xcodegen generate</code>, then open it (requires Xcode 27 beta / iOS 27 SDK). Select your physical iPhone as the run destination. Build and run. You will need an Apple Developer account to sign the app for your device.
-          </p>
-        </div>
-      </div>
-
-      <div class="step">
-        <div class="step-n">06</div>
-        <div class="step-body">
-          <div class="step-title">LAUNCH, THEN PAIR (OPTIONAL)</div>
-          <p class="step-text">
-            On first launch the app works immediately in on-device mode — no account, no cloud login. To connect your Hermes machine, run <code>hermes-mobile pair-phone</code> on the host: it prints a QR code and a short-lived 8-character code. In the app, scan the QR or tap <strong>Enter Code Manually</strong>, paste your relay URL, and enter the code. For hosted chat, go to <strong>Settings → Uplink</strong> and enter your gateway URL (<code>http://your-host:8642</code>) and that host's <code>API_SERVER_KEY</code>. Each paired profile keeps its own key in the Keychain.
-            <br><br>
-            ⚠️ If you use iCloud Private Relay, disable it for Tailscale IPs or the app will not be able to reach your services.
-          </p>
+        <h3 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(26px,3vw,34px);line-height:1.26;color:#EAF6F8;margin-bottom:14px">Your whole agent, on tap.</h3>
+        <p style="font-size:15px;line-height:1.65;color:#7C93A6;margin-bottom:26px;text-wrap:pretty">Point it at a Hermes host over Tailscale. Chat talks straight to the Sessions API; a lightweight relay sidecar carries everything else. Pair more than one machine if you like — each profile keeps its own key in the Keychain.</p>
+        <div style="display:flex;flex-direction:column;gap:0">
+          <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Your full desktop provider roster, live from the gateway</span></div>
+          <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Server sessions synced with the agent you already run</span></div>
+          <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Sensor pipeline: location, 11 HealthKit metrics, CoreMotion activity</span></div>
+          <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Inbox and directives — your agent pushes work to your pocket</span></div>
+          <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Realtime WebRTC voice, and agent-file downloads in chat</span></div>
+          <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Multiple host profiles, each with its own key in the Keychain</span></div>
         </div>
       </div>
 
@@ -472,38 +145,462 @@ footer { padding:44px 48px 36px; border-top:1px solid var(--border); display:fle
   </div>
 </section>
 
-<!-- stack -->
-<section id="stack">
-  <p class="slabel">// TECH STACK</p>
-  <h2 class="stitle">Built on.</h2>
-  <div class="stack-pills">
-    <span class="pill">Swift 6</span>
-    <span class="pill">SwiftUI</span>
-    <span class="pill">iOS 27 (beta)</span>
-    <span class="pill">Xcode 27 beta</span>
-    <span class="pill">XcodeGen</span>
-    <span class="pill">Hermes Agent</span>
-    <span class="pill">Sessions API (SSE)</span>
-    <span class="pill">WebRTC</span>
-    <span class="pill">HealthKit</span>
-    <span class="pill">CoreLocation</span>
-    <span class="pill">CoreMotion</span>
-    <span class="pill">Python · uvicorn</span>
-    <span class="pill">Tailscale</span>
-    <span class="pill">NSSM (Windows)</span>
-    <span class="pill">launchd (macOS)</span>
+<section id="status" style="background:#04070C;border-bottom:1px solid rgba(84,230,240,.14)">
+  <div style="max-width:1240px;margin:0 auto;padding:clamp(60px,8vw,96px) clamp(20px,4vw,40px) clamp(64px,8vw,100px)">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:32px 64px;align-items:end;margin-bottom:48px">
+      <div>
+        <p style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.26em;color:#5D7488;margin-bottom:18px">02 — WHERE IT ACTUALLY STANDS</p>
+        <h2 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(32px,4.6vw,52px);line-height:1.22;letter-spacing:.004em;color:#EAF6F8">We'd rather you knew.</h2>
+      </div>
+      <p style="font-size:17px;line-height:1.65;color:#7C93A6;text-wrap:pretty">Developed and used daily on real hardware. Expect rough edges — here is exactly where they are, subsystem by subsystem, the same table that's in the README.</p>
+    </div>
+
+    <div style="border-top:1px solid rgba(84,230,240,.3)">
+      <div class="srow" style="display:flex;flex-wrap:wrap;gap:12px 28px;align-items:start;padding:20px 4px;border-bottom:1px solid rgba(84,230,240,.14)">
+        <div style="flex:1 1 230px;font-size:16px;font-weight:500;color:#EAF6F8;line-height:1.4">Streaming chat (SSE)</div>
+        <div><span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.16em;padding:5px 11px;border-radius:20px;border:1px solid rgba(84,230,240,.34);background:rgba(84,230,240,.09);color:#54E6F0">WORKING</span></div>
+        <div style="flex:3 1 320px;font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Reasoning and answer channels separated, background continuation, reconciliation after stream loss.</div>
+      </div>
+      <div class="srow" style="display:flex;flex-wrap:wrap;gap:12px 28px;align-items:start;padding:20px 4px;border-bottom:1px solid rgba(84,230,240,.14)">
+        <div style="flex:1 1 230px;font-size:16px;font-weight:500;color:#EAF6F8;line-height:1.4">On-device chat</div>
+        <div><span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.16em;padding:5px 11px;border-radius:20px;border:1px solid rgba(84,230,240,.34);background:rgba(84,230,240,.09);color:#54E6F0">WORKING</span></div>
+        <div style="flex:3 1 320px;font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Apple FoundationModels, no host required. A Private Cloud Compute tier appears only when the entitlement and availability check actually pass.</div>
+      </div>
+      <div class="srow" style="display:flex;flex-wrap:wrap;gap:12px 28px;align-items:start;padding:20px 4px;border-bottom:1px solid rgba(84,230,240,.14)">
+        <div style="flex:1 1 230px;font-size:16px;font-weight:500;color:#EAF6F8;line-height:1.4">Tool calls &amp; agent files</div>
+        <div><span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.16em;padding:5px 11px;border-radius:20px;border:1px solid rgba(84,230,240,.34);background:rgba(84,230,240,.09);color:#54E6F0">WORKING</span></div>
+        <div style="flex:3 1 320px;font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Generated files surface as tappable share bubbles in chat.</div>
+      </div>
+      <div class="srow" style="display:flex;flex-wrap:wrap;gap:12px 28px;align-items:start;padding:20px 4px;border-bottom:1px solid rgba(84,230,240,.14)">
+        <div style="flex:1 1 230px;font-size:16px;font-weight:500;color:#EAF6F8;line-height:1.4">Inbox / Directives</div>
+        <div><span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.16em;padding:5px 11px;border-radius:20px;border:1px solid rgba(84,230,240,.34);background:rgba(84,230,240,.09);color:#54E6F0">WORKING</span></div>
+        <div style="flex:3 1 320px;font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Approvals, reminders and the daily briefing land in the in-app inbox; approve or dismiss in place and the verdict goes back to the host.</div>
+      </div>
+      <div class="srow" style="display:flex;flex-wrap:wrap;gap:12px 28px;align-items:start;padding:20px 4px;border-bottom:1px solid rgba(84,230,240,.14)">
+        <div style="flex:1 1 230px;font-size:16px;font-weight:500;color:#EAF6F8;line-height:1.4">Model picking</div>
+        <div><span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.16em;padding:5px 11px;border-radius:20px;border:1px solid rgba(84,230,240,.34);background:rgba(84,230,240,.09);color:#54E6F0">WORKING</span></div>
+        <div style="flex:3 1 320px;font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">The full provider roster comes from the gateway's own API. Picks apply as a per-turn model lock plus a session pin.</div>
+      </div>
+      <div class="srow" style="display:flex;flex-wrap:wrap;gap:12px 28px;align-items:start;padding:20px 4px;border-bottom:1px solid rgba(84,230,240,.14)">
+        <div style="flex:1 1 230px;font-size:16px;font-weight:500;color:#EAF6F8;line-height:1.4">Widgets &amp; Live Activities</div>
+        <div><span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.16em;padding:5px 11px;border-radius:20px;border:1px solid rgba(84,230,240,.34);background:rgba(84,230,240,.09);color:#54E6F0">WORKING</span></div>
+        <div style="flex:3 1 320px;font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Status, health and briefing widgets; alarm Live Activity; lock-screen controls.</div>
+      </div>
+      <div class="srow" style="display:flex;flex-wrap:wrap;gap:12px 28px;align-items:start;padding:20px 4px;border-bottom:1px solid rgba(84,230,240,.14)">
+        <div style="flex:1 1 230px;font-size:16px;font-weight:500;color:#EAF6F8;line-height:1.4">Share extension</div>
+        <div><span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.16em;padding:5px 11px;border-radius:20px;border:1px solid rgba(84,230,240,.34);background:rgba(84,230,240,.09);color:#54E6F0">WORKING</span></div>
+        <div style="flex:3 1 320px;font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Share URLs, images, files and text into Hermes from any app.</div>
+      </div>
+      <div class="srow" style="display:flex;flex-wrap:wrap;gap:12px 28px;align-items:start;padding:20px 4px;border-bottom:1px solid rgba(84,230,240,.14)">
+        <div style="flex:1 1 230px;font-size:16px;font-weight:500;color:#EAF6F8;line-height:1.4">Sensor pipeline</div>
+        <div><span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.16em;padding:5px 11px;border-radius:20px;border:1px solid rgba(255,193,77,.34);background:rgba(255,193,77,.09);color:#FFC14D">WORKING · CAVEAT</span></div>
+        <div style="flex:3 1 320px;font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Deliberate opt-in, off by default, with per-sensor grants. Resume-from-background can occasionally be flaky.</div>
+      </div>
+      <div class="srow" style="display:flex;flex-wrap:wrap;gap:12px 28px;align-items:start;padding:20px 4px;border-bottom:1px solid rgba(84,230,240,.14)">
+        <div style="flex:1 1 230px;font-size:16px;font-weight:500;color:#EAF6F8;line-height:1.4">Voice mode</div>
+        <div><span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.16em;padding:5px 11px;border-radius:20px;border:1px solid rgba(255,193,77,.34);background:rgba(255,193,77,.09);color:#FFC14D">WORKING · CAVEAT</span></div>
+        <div style="flex:3 1 320px;font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Realtime speech-to-speech plus an on-device fallback engine. Echo and self-interruption tuning is actively in progress.</div>
+      </div>
+      <div class="srow" style="display:flex;flex-wrap:wrap;gap:12px 28px;align-items:start;padding:20px 4px;border-bottom:1px solid rgba(84,230,240,.14)">
+        <div style="flex:1 1 230px;font-size:16px;font-weight:500;color:#EAF6F8;line-height:1.4">Notifications</div>
+        <div><span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.16em;padding:5px 11px;border-radius:20px;border:1px solid rgba(124,147,166,.26);background:rgba(124,147,166,.08);color:#7C93A6">REMOVED BY DESIGN</span></div>
+        <div style="flex:3 1 320px;font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">The app posts no notifications and registers for no push. Chat, the inbox and Live Activities carry state in-app.</div>
+      </div>
+      <div class="srow" style="display:flex;flex-wrap:wrap;gap:12px 28px;align-items:start;padding:20px 4px;border-bottom:1px solid rgba(84,230,240,.14)">
+        <div style="flex:1 1 230px;font-size:16px;font-weight:500;color:#EAF6F8;line-height:1.4">CarPlay</div>
+        <div><span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.16em;padding:5px 11px;border-radius:20px;border:1px solid rgba(124,147,166,.26);background:rgba(124,147,166,.08);color:#7C93A6">PARKED</span></div>
+        <div style="flex:3 1 320px;font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Scene and voice manager are built but disabled, pending Apple's discretionary capability grant.</div>
+      </div>
+    </div>
+    <p style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;color:#4D6273;margin-top:26px;line-height:1.8">↳ There is no TestFlight and no App Store build. You clone it, generate the project, and sign it with your own developer account.</p>
   </div>
 </section>
 
-<footer>
-  <div class="f-logo">TALARIA</div>
-  <div class="f-note">Independent community project · Not affiliated with Nous Research</div>
-  <div class="f-links">
-    <a href="https://github.com/AethyrionAI/Talaria-27">GitHub</a>
-    <a href="https://github.com/AethyrionAI/Talaria-27/blob/main/README.md">Docs</a>
-    <a href="https://github.com/NousResearch/hermes-agent">Hermes Agent ↗</a>
+<section style="border-bottom:1px solid rgba(84,230,240,.14)">
+  <div style="max-width:1240px;margin:0 auto;padding:clamp(60px,8vw,96px) clamp(20px,4vw,40px) clamp(64px,8vw,100px)">
+    <div style="max-width:660px;margin-bottom:56px">
+      <p style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.26em;color:#5D7488;margin-bottom:18px">03 — CAPABILITIES</p>
+      <h2 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(32px,4.6vw,52px);line-height:1.22;letter-spacing:.004em;color:#EAF6F8;margin-bottom:18px">What it can actually do.</h2>
+      <p style="font-size:17px;line-height:1.65;color:#7C93A6;text-wrap:pretty">Every action the agent takes on your device is confirmed in-app before it fires. Nothing runs behind your back.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,268px),1fr));gap:1px;background:rgba(84,230,240,.14);border:1px solid rgba(84,230,240,.14);border-radius:14px;overflow:hidden">
+      <div class="cap" style="background:#06080C;padding:30px 28px 32px;min-height:180px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:#4D6273;margin-bottom:20px">01</div>
+        <div style="font-family:'Newsreader',serif;font-size:clamp(21px,2.2vw,25px);line-height:1.32;color:#EAF6F8;margin-bottom:11px">On-device brain</div>
+        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">A complete local chat backend on FoundationModels, behind the same client seam as the hosted path. Context-window-aware condensation instead of errors.</div>
+      </div>
+      <div class="cap" style="background:#06080C;padding:30px 28px 32px;min-height:180px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:#4D6273;margin-bottom:20px">02</div>
+        <div style="font-family:'Newsreader',serif;font-size:clamp(21px,2.2vw,25px);line-height:1.32;color:#EAF6F8;margin-bottom:11px">Streaming chat</div>
+        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Server-sent events from the Hermes Sessions API. Markdown, code blocks, inline images and agent file downloads, rendered natively.</div>
+      </div>
+      <div class="cap" style="background:#06080C;padding:30px 28px 32px;min-height:180px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:#4D6273;margin-bottom:20px">03</div>
+        <div style="font-family:'Newsreader',serif;font-size:clamp(21px,2.2vw,25px);line-height:1.32;color:#EAF6F8;margin-bottom:11px">Voice mode</div>
+        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Realtime WebRTC speech-to-speech with server-side voice, continuous mic and barge-in — falling back to an on-device engine when the relay is unreachable.</div>
+      </div>
+      <div class="cap" style="background:#06080C;padding:30px 28px 32px;min-height:180px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:#4D6273;margin-bottom:20px">04</div>
+        <div style="font-family:'Newsreader',serif;font-size:clamp(21px,2.2vw,25px);line-height:1.32;color:#EAF6F8;margin-bottom:11px">Device tool belt</div>
+        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Calendar, reminders, contacts, WeatherKit, health and media — plus real alarms and timers through AlarmKit. Every action confirmed before it fires.</div>
+      </div>
+      <div class="cap" style="background:#06080C;padding:30px 28px 32px;min-height:180px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:#4D6273;margin-bottom:20px">05</div>
+        <div style="font-family:'Newsreader',serif;font-size:clamp(21px,2.2vw,25px);line-height:1.32;color:#EAF6F8;margin-bottom:11px">Sensor pipeline</div>
+        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Location, 11 HealthKit metrics and CoreMotion activity delivered in the background. Your agent gets live context; you own all the data.</div>
+      </div>
+      <div class="cap" style="background:#06080C;padding:30px 28px 32px;min-height:180px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:#4D6273;margin-bottom:20px">06</div>
+        <div style="font-family:'Newsreader',serif;font-size:clamp(21px,2.2vw,25px);line-height:1.32;color:#EAF6F8;margin-bottom:11px">Inbox &amp; directives</div>
+        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">To-dos, approvals, reminders and a daily briefing pushed from the host. Approve or dismiss in place — the verdict lands back on your machine.</div>
+      </div>
+      <div class="cap" style="background:#06080C;padding:30px 28px 32px;min-height:180px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:#4D6273;margin-bottom:20px">07</div>
+        <div style="font-family:'Newsreader',serif;font-size:clamp(21px,2.2vw,25px);line-height:1.32;color:#EAF6F8;margin-bottom:11px">Widgets &amp; Live Activities</div>
+        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Agent status, health tiles and briefing widgets. Alarm Live Activities and lock-screen toggle controls.</div>
+      </div>
+      <div class="cap" style="background:#06080C;padding:30px 28px 32px;min-height:180px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:#4D6273;margin-bottom:20px">08</div>
+        <div style="font-family:'Newsreader',serif;font-size:clamp(21px,2.2vw,25px);line-height:1.32;color:#EAF6F8;margin-bottom:11px">Share extension</div>
+        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Send a URL, up to four images, a file or plain text straight into Hermes from the iOS share sheet.</div>
+      </div>
+      <div class="cap" style="background:#06080C;padding:30px 28px 32px;min-height:180px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:#4D6273;margin-bottom:20px">09</div>
+        <div style="font-family:'Newsreader',serif;font-size:clamp(21px,2.2vw,25px);line-height:1.32;color:#EAF6F8;margin-bottom:11px">Multi-host profiles</div>
+        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Pair a desktop and a dev box. Each profile keeps its own API key in the Keychain, and switching is one tap.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="architecture" style="background:#04070C;border-bottom:1px solid rgba(84,230,240,.14)">
+  <div style="max-width:1240px;margin:0 auto;padding:clamp(60px,8vw,96px) clamp(20px,4vw,40px) clamp(64px,8vw,100px)">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:32px 64px;align-items:end;margin-bottom:56px">
+      <div>
+        <p style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.26em;color:#5D7488;margin-bottom:18px">04 — ARCHITECTURE</p>
+        <h2 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(32px,4.6vw,52px);line-height:1.22;letter-spacing:.004em;color:#EAF6F8">Two paths. Nothing in the middle.</h2>
+      </div>
+      <p style="font-size:17px;line-height:1.65;color:#7C93A6;text-wrap:pretty">Chat connects <strong style="color:#CFE1EA;font-weight:500">directly</strong> to the Sessions API — it never transits the relay — and model selection rides the same connection. Both services restart independently.</p>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;border:1px solid rgba(84,230,240,.14);border-radius:14px;overflow:hidden;background:rgba(8,18,26,.4)">
+      <div style="flex:0 0 200px;max-width:100%;padding:38px 30px;border-right:1px solid rgba(84,230,240,.14);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:16px;background:rgba(12,39,48,.35)">
+        <span style="position:relative;display:block;width:44px;height:44px">
+          <span style="position:absolute;inset:0;border-radius:50%;border:1px solid rgba(84,230,240,.35);border-top-color:rgba(84,230,240,.9);animation:spin 9s linear infinite"></span>
+          <span style="position:absolute;inset:11px;border-radius:50%;background:radial-gradient(circle at 45% 35%,#EAF6F8,#54E6F0 50%,#14636E);box-shadow:0 0 20px rgba(84,230,240,.6)"></span>
+        </span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.18em;color:#EAF6F8;text-align:center">iPHONE<br>TALARIA</span>
+      </div>
+      <div style="flex:1 1 420px;min-width:0">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,228px),1fr));gap:22px 32px;padding:30px clamp(20px,3vw,36px);border-bottom:1px solid rgba(84,230,240,.14)">
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#54E6F0">──→</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.14em;color:#54E6F0">CHAT, SESSIONS &amp; MODELS</span>
+            </div>
+            <div style="font-size:14.5px;line-height:1.65;color:#7C93A6;text-wrap:pretty">SSE streaming and sync, the model roster, per-turn model lock, bearer auth with your API_SERVER_KEY.</div>
+          </div>
+          <div style="border-left:1px solid rgba(84,230,240,.14);padding-left:32px">
+            <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:#EAF6F8">Hermes Sessions API</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#54E6F0">:8642</span>
+            </div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.85;color:#5D7488;white-space:pre-line">hermes gateway run
+runs on your host machine</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,228px),1fr));gap:22px 32px;padding:30px clamp(20px,3vw,36px);border-bottom:1px solid rgba(84,230,240,.14)">
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#FFC14D">──→</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.14em;color:#FFC14D">SENSORS, INBOX, FILES, VOICE</span>
+            </div>
+            <div style="font-size:14.5px;line-height:1.65;color:#7C93A6;text-wrap:pretty">Pairing and auth, sensor ingestion, the directives channel, scheduled runs, agent-file downloads, voice WebRTC bootstrap.</div>
+          </div>
+          <div style="border-left:1px solid rgba(84,230,240,.14);padding-left:32px">
+            <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:#EAF6F8">HermesMobile Relay</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#FFC14D">:8000</span>
+            </div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.85;color:#5D7488;white-space:pre-line">python sidecar · uvicorn
+→ connector → hermes_mobile MCP</div>
+          </div>
+        </div>
+        <div style="padding:22px clamp(20px,3vw,36px);display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;color:#4D6273">RETIRED</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#4D6273;text-decoration:line-through">models shim · :8765</span>
+          <span style="font-size:13.5px;color:#5D7488">— current builds never call it. Model picking is native to the gateway now.</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:18px;margin-top:22px">
+      <div style="border:1px solid rgba(84,230,240,.14);border-radius:12px;padding:22px 24px;background:rgba(8,18,26,.4)">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.16em;color:#54E6F0;margin-bottom:9px">NETWORK</div>
+        <div style="font-size:14px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Tailscale is the recommended path — hostnames and IPs reach both services without exposing anything to the public internet.</div>
+      </div>
+      <div style="border:1px solid rgba(84,230,240,.14);border-radius:12px;padding:22px 24px;background:rgba(8,18,26,.4)">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.16em;color:#54E6F0;margin-bottom:9px">AUTH</div>
+        <div style="font-size:14px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Bearer token on the gateway; each paired profile stores its own key in the iOS Keychain, never in a config file.</div>
+      </div>
+      <div style="border:1px solid rgba(84,230,240,.14);border-radius:12px;padding:22px 24px;background:rgba(8,18,26,.4)">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.16em;color:#54E6F0;margin-bottom:9px">FAILURE MODE</div>
+        <div style="font-size:14px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Both services restart independently. If the relay is down, chat keeps working. If both are down, the on-device brain takes over.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="channels" style="border-bottom:1px solid rgba(84,230,240,.14);background:var(--chbg);transition:background .5s ease">
+  <div style="max-width:1240px;margin:0 auto;padding:clamp(60px,8vw,96px) clamp(20px,4vw,40px) clamp(56px,7vw,84px)">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:32px 64px;align-items:end;margin-bottom:52px">
+      <div>
+        <p style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.26em;color:var(--chsec);margin-bottom:18px;transition:color .5s ease">05 — APPEARANCE</p>
+        <h2 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(32px,4.6vw,52px);line-height:1.22;letter-spacing:.004em;color:var(--chfg);transition:color .5s ease">Thirty channels.</h2>
+      </div>
+      <p style="font-size:17px;line-height:1.65;color:var(--chsec);transition:color .5s ease;text-wrap:pretty">Themes aren't a colour picker bolted on the side — each one is a full art direction: background gradient, texture, grid, orb style, glow scale, and three accent slots. Pick a channel below; this section is running the real palettes.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,318px),1fr));gap:clamp(36px,4vw,52px);align-items:start">
+
+      <div style="position:relative">
+        <div style="max-width:380px;margin:0 auto;border-radius:44px;padding:12px;background:var(--chbezel);box-shadow:0 40px 90px rgba(0,0,0,.6);transition:background .5s ease">
+          <div style="border-radius:33px;overflow:hidden;background:linear-gradient(170deg,var(--chtop) 0%,var(--chbg) 58%,var(--chbg) 100%);height:640px;display:flex;flex-direction:column;transition:background .5s ease">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 22px 10px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--chfg);transition:color .5s ease">9:41</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;color:var(--chacc);transition:color .5s ease">▸ 24ms</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:center;padding:6px 22px 14px">
+              <span style="display:inline-flex;align-items:center;gap:9px;padding:9px 18px;border-radius:22px;border:1px solid var(--chbord);background:var(--chchip);transition:all .5s ease">
+                <span style="width:7px;height:7px;border-radius:50%;background:var(--chacc);box-shadow:0 0 7px var(--chacc);transition:all .5s ease"></span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--chfg);transition:color .5s ease">CLAUDE OPUS 4.6 ▾</span>
+              </span>
+            </div>
+            <div style="display:flex;align-items:center;gap:11px;padding:4px 22px 14px;border-bottom:1px solid var(--chbord);transition:border-color .5s ease">
+              <span style="position:relative;display:block;width:26px;height:26px;flex:none">
+                <span style="position:absolute;inset:0;border-radius:50%;border:1px solid var(--chbord2);transition:border-color .5s ease"></span>
+                <span style="position:absolute;inset:7px;border-radius:50%;background:var(--chacc);box-shadow:0 0 10px var(--chacc);transition:all .5s ease"></span>
+              </span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;letter-spacing:.14em;color:var(--chfg);transition:color .5s ease">HERMES</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.12em;color:var(--chsec);transition:color .5s ease">ONLINE · STARK-WKSTN</span>
+            </div>
+            <div style="flex:1;padding:20px 22px;display:flex;flex-direction:column;gap:16px;overflow:hidden">
+              <div style="align-self:flex-end;max-width:82%;padding:14px 17px;border-radius:14px;border:1px solid var(--chbord);background:var(--chchip);font-size:14.5px;line-height:1.5;color:var(--chfg);transition:all .5s ease">Reschedule my afternoon — push everything after 2pm.</div>
+              <div style="display:flex;gap:11px">
+                <span style="width:20px;height:20px;flex:none;border-radius:50%;background:var(--chacc);box-shadow:0 0 9px var(--chacc);margin-top:2px;transition:all .5s ease"></span>
+                <span style="font-size:14.5px;line-height:1.5;color:var(--chfg);transition:color .5s ease">On it. Clearing the afternoon now.</span>
+              </div>
+              <div style="border:1px solid var(--chbord);border-radius:11px;overflow:hidden;transition:border-color .5s ease">
+                <div style="display:flex;justify-content:space-between;padding:11px 15px;border-bottom:1px solid var(--chbord);transition:border-color .5s ease">
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;color:var(--chsec);transition:color .5s ease">TOOL ACTIVITY</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;color:var(--chacc);transition:color .5s ease">3 STEPS</span>
+                </div>
+                <div style="padding:12px 15px;display:flex;flex-direction:column;gap:9px">
+                  <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--chfg);transition:color .5s ease"><span>◉ calendar.read</span><span style="color:var(--chsec);transition:color .5s ease">0.4s</span></div>
+                  <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--chfg);transition:color .5s ease"><span>◉ calendar.shift · 4</span><span style="color:var(--chsec);transition:color .5s ease">0.9s</span></div>
+                  <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--chfg);transition:color .5s ease"><span>◐ mail.draft</span><span style="color:var(--chacc);transition:color .5s ease">running</span></div>
+                </div>
+              </div>
+              <div style="display:flex;gap:9px">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:7px 13px;border-radius:16px;border:1px solid var(--chbord);color:var(--chacc);transition:all .5s ease">/ slash</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:7px 13px;border-radius:16px;border:1px solid var(--chbord);color:var(--chsec);transition:all .5s ease">@ context</span>
+              </div>
+            </div>
+            <div style="padding:0 22px 22px">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-radius:15px;border:1px solid var(--chbord);transition:border-color .5s ease">
+                <span style="font-size:14.5px;color:var(--chsec);transition:color .5s ease">＋ Message Hermes…</span>
+                <span style="width:32px;height:32px;border-radius:9px;border:1px solid var(--chacc);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--chacc);transition:all .5s ease">❚❚</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:var(--chsec);text-align:center;margin-top:16px;transition:color .5s ease">STYLISED PREVIEW · REAL PALETTE VALUES</p>
+      </div>
+
+      <div>
+        <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:6px">
+          <h3 id="ch-name" style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(30px,4vw,42px);line-height:1.24;color:var(--chfg);transition:color .5s ease">Deep Field</h3>
+          <span id="ch-kind" style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;color:var(--chsec);transition:color .5s ease">DARK CHANNEL</span>
+        </div>
+        <p id="ch-blurb" style="font-size:16px;line-height:1.6;color:var(--chsec);margin-bottom:22px;max-width:520px;transition:color .5s ease;text-wrap:pretty">The original arc-reactor HUD. Cool blue-black, hairline grid, a breathing core.</p>
+        <div id="ch-slots" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:34px">
+          <span style="display:inline-flex;align-items:center;gap:8px;padding:7px 13px;border-radius:20px;border:1px solid rgba(84,230,240,.45)"><span style="width:9px;height:9px;border-radius:50%;background:#54E6F0"></span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:#7C93A6">Cyan · Arc</span></span>
+          <span style="display:inline-flex;align-items:center;gap:8px;padding:7px 13px;border-radius:20px;border:1px solid rgba(255,193,77,.45)"><span style="width:9px;height:9px;border-radius:50%;background:#FFC14D"></span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:#7C93A6">Amber · Forge</span></span>
+          <span style="display:inline-flex;align-items:center;gap:8px;padding:7px 13px;border-radius:20px;border:1px solid rgba(177,140,255,.45)"><span style="width:9px;height:9px;border-radius:50%;background:#B18CFF"></span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:#7C93A6">Violet · Flux</span></span>
+        </div>
+
+        <p style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:var(--chsec);margin-bottom:14px;transition:color .5s ease">SELECT A CHANNEL</p>
+        <div id="ch-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px"></div>
+        <p style="font-size:14px;line-height:1.6;color:var(--chsec);margin-top:22px;transition:color .5s ease;text-wrap:pretty">Plus 30+ alternate app icons, and an optional Face ID lock — all in Settings → Appearance, where the live app is the preview.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section style="border-bottom:1px solid rgba(84,230,240,.14)">
+  <div style="max-width:1240px;margin:0 auto;padding:clamp(60px,8vw,96px) clamp(20px,4vw,40px) clamp(64px,8vw,100px)">
+    <div style="display:flex;align-items:end;justify-content:space-between;flex-wrap:wrap;gap:28px 48px;margin-bottom:44px">
+      <div style="max-width:620px">
+        <p style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.26em;color:#5D7488;margin-bottom:18px">06 — THE INTERFACE</p>
+        <h2 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(32px,4.6vw,52px);line-height:1.22;letter-spacing:.004em;color:#EAF6F8;margin-bottom:18px">Thirteen screens, no filler.</h2>
+        <p style="font-size:17px;line-height:1.65;color:#7C93A6;text-wrap:pretty">Pairing, chat, voice, directives, and a full settings suite — System, Uplink, Models, Voice, Appearance, Sessions, Diagnostics.</p>
+      </div>
+      <a class="hb" href="screens.html" style="font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;letter-spacing:.16em;padding:15px 28px;border-radius:6px;border:1px solid rgba(84,230,240,.3);color:#54E6F0;flex:none">BROWSE THE GALLERY →</a>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,148px),1fr));gap:18px">
+      <a href="screens.html" style="display:flex;flex-direction:column;gap:12px">
+        <img class="tsr" src="img/01_onboarding.png" alt="Pairing screen" width="390" height="823" loading="lazy" style="width:100%;height:auto;border-radius:20px;box-shadow:0 14px 40px rgba(0,0,0,.6),0 0 0 1px rgba(84,230,240,.14)">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.18em;color:#5D7488">HANDSHAKE</span>
+      </a>
+      <a href="screens.html" style="display:flex;flex-direction:column;gap:12px">
+        <img class="tsr" src="img/03_voice.png" alt="Voice mode" width="390" height="823" loading="lazy" style="width:100%;height:auto;border-radius:20px;box-shadow:0 14px 40px rgba(0,0,0,.6),0 0 0 1px rgba(84,230,240,.14)">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.18em;color:#5D7488">VOICE</span>
+      </a>
+      <a href="screens.html" style="display:flex;flex-direction:column;gap:12px">
+        <img class="tsr" src="img/04_directives.png" alt="Directives inbox" width="390" height="823" loading="lazy" style="width:100%;height:auto;border-radius:20px;box-shadow:0 14px 40px rgba(0,0,0,.6),0 0 0 1px rgba(84,230,240,.14)">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.18em;color:#5D7488">DIRECTIVES</span>
+      </a>
+      <a href="screens.html" style="display:flex;flex-direction:column;gap:12px">
+        <img class="tsr" src="img/s_models.png" alt="Model roster" width="390" height="823" loading="lazy" style="width:100%;height:auto;border-radius:20px;box-shadow:0 14px 40px rgba(0,0,0,.6),0 0 0 1px rgba(84,230,240,.14)">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.18em;color:#5D7488">MODELS</span>
+      </a>
+      <a href="screens.html" style="display:flex;flex-direction:column;gap:12px">
+        <img class="tsr" src="img/s_diagnostics.png" alt="Diagnostics" width="390" height="823" loading="lazy" style="width:100%;height:auto;border-radius:20px;box-shadow:0 14px 40px rgba(0,0,0,.6),0 0 0 1px rgba(84,230,240,.14)">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.18em;color:#5D7488">DIAGNOSTICS</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section style="background:radial-gradient(110% 130% at 50% 130%,#0C2730 0%,#06080C 62%)">
+  <div style="max-width:1240px;margin:0 auto;padding:clamp(64px,8vw,104px) clamp(20px,4vw,40px) clamp(60px,8vw,96px);text-align:center">
+    <h2 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(34px,5.4vw,60px);line-height:1.2;color:#EAF6F8;margin-bottom:20px;max-width:760px;margin-left:auto;margin-right:auto;text-wrap:balance">You'll need Xcode, an iPhone, and about an afternoon.</h2>
+    <p style="font-size:17.5px;line-height:1.65;color:#7C93A6;max-width:560px;margin:0 auto 36px;text-wrap:pretty">On-device mode needs nothing but the build. Pairing a host adds four steps — Hermes, the gateway, the relay, the connector.</p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <a class="cta" href="setup.html" style="font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;letter-spacing:.16em;padding:16px 32px;border-radius:6px;background:#54E6F0;color:#04070C">READ THE SETUP GUIDE →</a>
+      <a class="hb" href="https://github.com/AethyrionAI/Talaria-27" style="font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;letter-spacing:.16em;padding:16px 32px;border-radius:6px;border:1px solid rgba(84,230,240,.3);color:#54E6F0">CLONE THE REPO ↗</a>
+    </div>
+  </div>
+</section>
+
+<footer style="border-top:1px solid rgba(84,230,240,.14);background:#04070C">
+  <div style="max-width:1240px;margin:0 auto;padding:44px clamp(20px,4vw,40px)">
+    <div style="border-left:2px solid rgba(84,230,240,.3);padding:4px 0 4px 18px;margin-bottom:36px;max-width:820px">
+      <p style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;color:#5D7488">Talaria is an independent community project. It is not affiliated with, endorsed by, or part of <a href="https://nousresearch.com/">Nous Research</a> or the official <a href="https://github.com/NousResearch/hermes-agent">Hermes Agent</a> project.</p>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:18px 30px;padding-top:26px;border-top:1px solid rgba(84,230,240,.14)">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.34em;color:#5D7488">TALARIA</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.1em;color:#4D6273">Talaria-27 is the active line, targeting iOS 27 · the iOS 26 line is frozen</span>
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <a class="nl" href="setup.html" style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#5D7488">Setup</a>
+        <a class="nl" href="screens.html" style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#5D7488">Screens</a>
+        <a class="nl" href="https://github.com/AethyrionAI/Talaria-27" style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#5D7488">GitHub ↗</a>
+        <a class="nl" href="https://github.com/NousResearch/hermes-agent" style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#5D7488">Hermes Agent ↗</a>
+      </div>
+    </div>
   </div>
 </footer>
 
+</div>
+
+<script>
+// The channel demo runs the app's real palette values — see Shared/ThemePaletteCore.swift.
+// Order matches the app's ThemeID order (30 channels).
+const THEMES = [
+  { id:"deepField", name:"Deep Field", bg:"#06080C", top:"#0C2730", fg:"#E8EEF5", sec:"#7C93A6", a:["#54E6F0","#FFC14D","#B18CFF"], slots:["Cyan · Arc","Amber · Forge","Violet · Flux"], light:false, blurb:"The original arc-reactor HUD. Cool blue-black, hairline grid, a breathing core." },
+  { id:"solarForge", name:"Solar Forge", bg:"#080602", top:"#2A1A0C", fg:"#F5E8D8", sec:"#B8A58F", a:["#FFC14D","#54E6F0","#B18CFF"], slots:["Amber · Forge","Cyan · Plasma","Violet · Flux"], light:false, blurb:"Industrial forge — brass, ember and warm metal, with drifting sparks." },
+  { id:"terminal", name:"Terminal", bg:"#000000", top:"#001A00", fg:"#D8FFD0", sec:"#7BC96A", a:["#33FF00","#FFB000","#3BD6E0"], slots:["Green · Phosphor","Amber · Phosphor","Cyan · IBM"], light:false, blurb:"CRT phosphor on true black. Scanlines, no gloss, nothing but the glow." },
+  { id:"paperTape", name:"Paper Tape", bg:"#F2EFE9", top:"#FFFFFF", fg:"#2B2B2B", sec:"#5C5C5C", a:["#B5382E","#1E7F8C","#A96A12"], slots:["Red · Tracker","Cyan · Ink","Amber · Ink"], light:true, blurb:"Vintage teleprinter — ink on warm paper. The quiet one." },
+  { id:"winterFrost", name:"Winter Frost", bg:"#F4F9FC", top:"#FFFFFF", fg:"#0F2330", sec:"#4A6578", a:["#3AB3F0","#8FD4F4","#C94F6D"], slots:["Ice · Winter","Snow · Winter","Berry · Winter"], light:true, blurb:"Daylight on snow. Pale blue, high key, cold and clean." },
+  { id:"summerSolar", name:"Summer Solar", bg:"#1A1005", top:"#3A2408", fg:"#FFF8E8", sec:"#F0D8A8", a:["#FFA028","#FF503C","#78DCFF"], slots:["Mango · Summer","Heatwave · Summer","Pool · Summer"], light:false, blurb:"Late-evening heat — mango, sunburn red, and one shock of pool blue." },
+  { id:"springSprout", name:"Spring Sprout", bg:"#FFF9F4", top:"#FFFFFF", fg:"#2A1F1A", sec:"#7A6258", a:["#FF6B8A","#5ED47A","#FFD04A"], slots:["Blossom · Spring","Mint · Spring","Butter · Spring"], light:true, blurb:"Blossom, new leaf and butter yellow on warm paper white." },
+  { id:"autumnHarvest", name:"Autumn Harvest", bg:"#1A110A", top:"#3A2410", fg:"#FFF5E8", sec:"#E0C4A0", a:["#FF8C28","#C85032","#B4A050"], slots:["Pumpkin · Autumn","Cranberry · Autumn","Gourd · Autumn"], light:false, blurb:"Pumpkin, cranberry and dried gourd over damp brown earth." },
+  { id:"cerealBox", name:"Cereal Box", bg:"#0A0610", top:"#1E0A2A", fg:"#FFF8FF", sec:"#C8B8D8", a:["#FF5078","#00C8FF","#FFDC00"], slots:["Berry · Cereal","Milk · Cereal","Honey · Cereal"], light:false, blurb:"Saturday-morning sugar rush. Primary colours turned all the way up." },
+  { id:"bubblegumMecha", name:"Bubblegum Mecha", bg:"#0A050A", top:"#1A0F1A", fg:"#FFF5F8", sec:"#D8B8C8", a:["#FF6EC7","#00F0FF","#FFE600"], slots:["Candy · Mecha","Cyan · Mecha","Voltage · Mecha"], light:false, blurb:"Candy-shell giant robot. Hot pink chassis, cyan coolant, voltage yellow." },
+  { id:"retroSciFi", name:"Retro Sci-Fi", bg:"#F5F0E8", top:"#FFFFFF", fg:"#1A1210", sec:"#5C5048", a:["#FF2D2D","#007BFF","#FFD600"], slots:["Red · Retro","Blue · Retro","Yellow · Retro"], light:true, blurb:"Paperback cover stock — flat primaries, hard edges, no gradients." },
+  { id:"eventHorizon", name:"Event Horizon", bg:"#08050F", top:"#1A0F2E", fg:"#F7F4FF", sec:"#C4B8D8", a:["#8A5CFF","#00F0FF","#FFDC50"], slots:["Accretion Violet","Hawking Cyan","Supernova Gold"], light:false, blurb:"Accretion violet falling into a very dark centre. Gravitational." },
+  { id:"glitchGarden", name:"Glitch Garden", bg:"#050505", top:"#0A1A0A", fg:"#E8FFE8", sec:"#9CB89C", a:["#39FF14","#00F0FF","#FF00AA"], slots:["Vine · Garden","Corruption · Garden","Glitch · Garden"], light:false, blurb:"Overgrowth eating a corrupted framebuffer. Radioactive green vines." },
+  { id:"witchsBrew", name:"Witch's Brew", bg:"#0A0F0A", top:"#14261A", fg:"#F0FFF0", sec:"#9CB89C", a:["#4ADE80","#A855F7","#FACC15"], slots:["Poison · Brew","Mystic · Brew","Bubble · Brew"], light:false, blurb:"Cauldron light — poison green, mystic violet, and one bubble of gold." },
+  { id:"holoSushi", name:"Holo Sushi", bg:"#0A0A12", top:"#141428", fg:"#FFF5F7", sec:"#B8B0C8", a:["#FF69B4","#00F0FF","#ADFF2F"], slots:["Roe · Sushi","Wasabi · Sushi","Nori · Sushi"], light:false, blurb:"Iridescent counter under neon. Roe pink, wasabi cyan, nori lime." },
+  { id:"lunarDiner", name:"Lunar Diner", bg:"#0C0812", top:"#1E1428", fg:"#FFF8F5", sec:"#C8B8B0", a:["#FF9AB4","#40E0D0","#FFD700"], slots:["Soda · Lunar","Chrome · Lunar","Mustard · Lunar"], light:false, blurb:"Chrome-and-formica roadside diner, parked on the far side of the moon." },
+  { id:"cyberCactus", name:"Cyber Cactus", bg:"#0A080F", top:"#1E1024", fg:"#FFF7F0", sec:"#D8C0B8", a:["#FF5078","#00DCC8","#FFC850"], slots:["Sunset · Cactus","Succulent · Cactus","Sand · Cactus"], light:false, blurb:"Desert dusk with a fibre-optic saguaro. Sunset pink over cold teal." },
+  { id:"discoInferno", name:"Disco Inferno", bg:"#0A0505", top:"#2A0A0A", fg:"#FFF8F0", sec:"#E8C8A8", a:["#FFD700","#E8E8E8","#FF3333"], slots:["Disco Gold","Mirror Silver","Hellfire Crimson"], light:false, blurb:"Mirrorball gold and hellfire crimson. The floor is definitely on fire." },
+  { id:"graffitiGalaxy", name:"Graffiti Galaxy", bg:"#0C0A14", top:"#1E1432", fg:"#F8F6FF", sec:"#B8B0D8", a:["#FF006E","#8338EC","#FBFF26"], slots:["Hot Pink","Electric Violet","Citron"], light:false, blurb:"Spray-can nebula. Hot pink over electric violet with a citron highlight." },
+  { id:"karaokeSupernova", name:"Karaoke Supernova", bg:"#09071A", top:"#1A0F3A", fg:"#FFF9FB", sec:"#D8C8E8", a:["#FF00AA","#00F0FF","#FFE600"], slots:["Magenta","Cyan","Gold"], light:false, blurb:"Private booth, 2am. Magenta, cyan and gold fighting for the mic." },
+  { id:"midnightAquarium", name:"Midnight Aquarium", bg:"#030A14", top:"#0A2038", fg:"#EAF7FF", sec:"#A5C9DD", a:["#3EF2E0","#FF7AD9","#8A7CFF"], slots:["Biolume Cyan","Jelly Pink","Anemone Violet"], light:false, blurb:"Bioluminescence in very deep water. Caustics drift across the glass." },
+  { id:"moltenForge", name:"Molten Forge", bg:"#150B06", top:"#3A1A08", fg:"#FFF2E6", sec:"#D9B49B", a:["#FF6A1A","#FFD23C","#A9C2D1"], slots:["Lava Orange","Spark Gold","Hammered Steel"], light:false, blurb:"Lava orange against hammered steel. Embers rise the whole time." },
+  { id:"luchaLibre", name:"Lucha Libre", bg:"#0C1024", top:"#1A2048", fg:"#EEF1FF", sec:"#9AA4C8", a:["#3D6BFF","#FF7A29","#CCD6E8"], slots:["Royal Blue","Pyro Orange","Chrome Silver"], light:false, blurb:"Midnight heel — royal blue mask, pyro orange, chrome sequins." },
+  { id:"kaijuAttack", name:"Kaiju Attack", bg:"#0A0F1E", top:"#12203A", fg:"#EEF3FF", sec:"#93A3C4", a:["#6AFF57","#FFD259","#FF4438"], slots:["Radioactive Green","Searchlight Amber","Siren Red"], light:false, blurb:"Code red Tokyo. Searchlights, sirens, and something radioactive." },
+  { id:"pulpNoir", name:"Pulp Noir", bg:"#EFE3C6", top:"#FFF8E8", fg:"#262019", sec:"#7D6F58", a:["#276F6D","#C8912B","#B3382E"], slots:["Library Teal","Mustard Gold","Faded Crimson"], light:true, blurb:"Dime-novel paper, foxed at the edges. Library teal and faded crimson." },
+  { id:"casinoLucky7s", name:"Casino Lucky 7s", bg:"#0D3B28", top:"#14513A", fg:"#F3F0E4", sec:"#9DC4AD", a:["#4F9DFF","#FFD24A","#FF4757"], slots:["Chip Blue","Jackpot Gold","Cherry Red"], light:false, blurb:"House felt green with chip blue and jackpot gold. The table always wins." },
+  { id:"cosmicBowling", name:"Cosmic Bowling", bg:"#121016", top:"#1A1720", fg:"#F0EDE4", sec:"#A49AA8", a:["#00B3A4","#FF6257","#8455E0"], slots:["Alley Teal","Coral Confetti","Grape Purple"], light:false, blurb:"League night under blacklight. Alley teal, coral confetti, and the house ball." },
+  { id:"stickerBombToybox", name:"Sticker-Bomb Toybox", bg:"#F4F1EA", top:"#FFFFFF", fg:"#26212E", sec:"#7A7268", a:["#4BBF22","#FF8A2B","#8C52FF"], slots:["Slime Green","Tangerine","Grape Pop"], light:true, blurb:"A toy-shop shelf in daylight — die-cut stickers, slime, tangerine and grape." },
+  { id:"comicVillain", name:"Comic Villain", bg:"#100E16", top:"#191622", fg:"#F5F2FF", sec:"#A8A3B8", a:["#FFD828","#FF2B2B","#F5F2FF"], slots:["Kapow Yellow","Panic Red","Ink White"], light:false, blurb:"Black-and-white inks with two spot colours — kapow yellow and panic red." },
+  { id:"comicFunnies", name:"Sunday Funnies", bg:"#FBF7EC", top:"#FFFFFF", fg:"#1F1A24", sec:"#6F6678", a:["#00A8E8","#FFD23F","#FF3D7F"], slots:["Ben-Day Cyan","Banana Yellow","Pop Magenta"], light:true, blurb:"Newsprint with Ben-Day dots. CMY spot colour, black outlines." },
+];
+
+(function () {
+  const section = document.getElementById("channels");
+  const grid = document.getElementById("ch-grid");
+  const nameEl = document.getElementById("ch-name");
+  const kindEl = document.getElementById("ch-kind");
+  const blurbEl = document.getElementById("ch-blurb");
+  const slotsEl = document.getElementById("ch-slots");
+  let selected = 0;
+
+  const rgb = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+  const tintOf = (hex, o) => { const [r, g, b] = rgb(hex); return "rgba(" + r + "," + g + "," + b + "," + o + ")"; };
+
+  const buttons = THEMES.map((t, i) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chb";
+    btn.style.cssText = "display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;cursor:pointer;text-align:left;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.08em;background:transparent;border:1px solid transparent";
+    const sw = t.a.map(h => "<span style=\"width:9px;height:18px;background:" + h + "\"></span>").join("");
+    btn.innerHTML = "<span style=\"display:flex;flex:none;border-radius:4px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.12)\">" + sw + "</span><span style=\"overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">" + t.name + "</span>";
+    btn.addEventListener("click", () => pick(i));
+    grid.appendChild(btn);
+    return btn;
+  });
+
+  function restyleButtons() {
+    const cur = THEMES[selected];
+    buttons.forEach((btn, i) => {
+      const t = THEMES[i];
+      const on = i === selected;
+      btn.style.background = on ? tintOf(t.a[0], .16) : (cur.light ? "rgba(0,0,0,.035)" : "rgba(255,255,255,.035)");
+      btn.style.borderColor = on ? tintOf(t.a[0], .8) : (cur.light ? "rgba(0,0,0,.14)" : "rgba(255,255,255,.12)");
+      btn.style.color = on ? cur.fg : cur.sec;
+    });
+  }
+
+  function pick(i) {
+    selected = i;
+    const t = THEMES[i];
+    const s = section.style;
+    s.setProperty("--chbg", t.bg);
+    s.setProperty("--chtop", t.top);
+    s.setProperty("--chbezel", t.light ? "#D8D2C8" : "#14181F");
+    s.setProperty("--chfg", t.fg);
+    s.setProperty("--chsec", t.sec);
+    s.setProperty("--chacc", t.a[0]);
+    s.setProperty("--chbord", tintOf(t.a[0], t.light ? .34 : .2));
+    s.setProperty("--chbord2", tintOf(t.a[0], t.light ? .5 : .42));
+    s.setProperty("--chchip", tintOf(t.a[0], .09));
+    nameEl.textContent = t.name;
+    kindEl.textContent = t.light ? "LIGHT CHANNEL" : "DARK CHANNEL";
+    blurbEl.textContent = t.blurb;
+    slotsEl.innerHTML = t.a.map((hex, k) =>
+      "<span style=\"display:inline-flex;align-items:center;gap:8px;padding:7px 13px;border-radius:20px;border:1px solid " + tintOf(hex, .45) + "\">" +
+      "<span style=\"width:9px;height:9px;border-radius:50%;background:" + hex + "\"></span>" +
+      "<span style=\"font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:" + (t.light ? t.fg : t.sec) + "\">" + t.slots[k] + "</span></span>"
+    ).join("");
+    restyleButtons();
+  }
+
+  restyleButtons();
+})();
+</script>
 </body>
 </html>
