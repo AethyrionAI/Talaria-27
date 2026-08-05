@@ -13454,10 +13454,13 @@ a real chat turn observed stalled on an unanswerable approval (→ upstream
 conversation), or Owen asking for the cards to stop prompting (→ the small
 Manual/Off app lane).**
 
-> **📝 2026-08-05 (from #251's approvals probe): the shelving premise was
-> half-wrong — OJAMD's gateway config is `approvals.mode: off` (agent
-> self-read of config.yaml), not smart/auto as Owen believed. He's never
-> seen an approval because they are literally disabled. The probe verified
+> **📝 2026-08-05 (from #251's approvals probe): OJAMD's gateway config is
+> now `approvals.mode: off` (agent self-read of config.yaml). NOT a
+> contradiction of the shelving premise — Owen had smart on when he made
+> the 08-04 report, and turned approvals off himself afterward ("since I
+> wasn't sure it was set up properly," corrected 2026-08-05). So the
+> operational observation stands under BOTH configs: smart never surfaced
+> a prompt in his real usage, and off can't. The probe verified
 > the Sessions-API approval WIRE exists and is advertised
 > (`/v1/capabilities`: `approval_events`, `run_approval_response`;
 > `approval.request` SSE emitter + `POST /v1/runs/{id}/approval` handler
