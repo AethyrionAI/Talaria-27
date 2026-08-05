@@ -148,6 +148,15 @@ struct ReminderCreateTool: Tool {
         guard !title.isEmpty else { return "No reminder title was given — nothing staged." }
 
         let parsedDue = DeviceActionParsing.parseDateTime(rawDue)
+        // #249 instrument: raw model-supplied due vs the parsed local time.
+        // A zone-bearing raw string takes the ISO branch and gets CONVERTED
+        // to local — a DST-wrong offset (-06:00 in summer Chicago) lands the
+        // card an hour off what the user said, indistinguishable at the UI
+        // from the model resolving the hour wrong. This line is the
+        // discriminator.
+        if TalariaLog.isVerbose {
+            TalariaLog.logger.notice("createReminder due raw=\"\(rawDue, privacy: .public)\" parsed=\(parsedDue.map { DeviceActionParsing.displayDate($0) } ?? "nil", privacy: .public)")
+        }
         // #233: the model qualifies bare hours before the tool ever runs
         // ("tomorrow at 4" arrived here as T04:00), so the ambiguity is
         // invisible by now — the first wee-hour due per conversation is
