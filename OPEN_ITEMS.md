@@ -13454,6 +13454,93 @@ a real chat turn observed stalled on an unanswerable approval (→ upstream
 conversation), or Owen asking for the cards to stop prompting (→ the small
 Manual/Off app lane).**
 
+> **📝 2026-08-05 (from #251's approvals probe): the shelving premise was
+> half-wrong — OJAMD's gateway config is `approvals.mode: off` (agent
+> self-read of config.yaml), not smart/auto as Owen believed. He's never
+> seen an approval because they are literally disabled. The probe verified
+> the Sessions-API approval WIRE exists and is advertised
+> (`/v1/capabilities`: `approval_events`, `run_approval_response`;
+> `approval.request` SSE emitter + `POST /v1/runs/{id}/approval` handler
+> with once/session/always/deny — code-read at api_server.py:6464/6772),
+> and that terminal commands (echo AND a deletion-shaped `del`) execute
+> ungated under mode=off. Also learned: `approvals.cron_mode: deny` — cron
+> runs deny side effects silently under current config. Item stays SHELVED;
+> the #251 venture's interactive half is now the natural reopen path.**
+
+## 251. 🚀 THE PLUGIN VENTURE: replace relay + connector + MCP server + venv CLIs with ONE Hermes plugin — **FILED 2026-08-05 (Owen's direction, via a Hermes-authored architecture report); architecture CORRECTED in discussion; lane not yet opened**
+
+**Owen's framing (2026-08-05 ~midnight):** *"I think we need to make a plugin…
+we may be able to use the built in stuff for full interactiveness and features
+of hermes instead of being limited by the api. Think how like Discord and
+Telegram do it."* Source doc: the Mac Hermes agent's report at
+`~/Documents/talaria-plugin-architecture-2026-08-05.md` (its §3 capability
+citations verified line-exact against the local v0.20.0 install this session).
+This is the concrete form of the standing ⛔ rule: the sidecars' direction is
+DELETION, and this is the deletion vehicle.
+
+**The corrected architecture (v2 — supersedes the report's Option A/B split):**
+one `talaria` plugin in `~/.hermes/plugins/` (its own repo, never inside
+Talaria-27, survives bare `hermes update` by construction) providing:
+- **Tools** via `register_tool()` — headlined by #242's `phone.query`
+  local-answer bridge (the agent asks the PHONE at query time; no ingestion,
+  no sensor store). The tool's `check_fn`/handler reports "phone unreachable"
+  honestly when no client is connected.
+- **Admin** via `register_cli_command()` — `hermes talaria pair|status|unpair`;
+  secrets/settings via `plugin.yaml` env prompts.
+- **A webhook-mode platform adapter** — NO socket of its own: inbound rides
+  `POST /api/platforms/talaria/events` on the EXISTING :8642 listener
+  (api_server.py:1808/2012 — adapter implements `verify_http_event_request` +
+  `dispatch_http_event`, adapter-owned auth, fail-closed, adapter-authored
+  response bodies). Pairing handshake, inbox acks, and outbox drain all ride
+  this route. Durable outbox lives plugin-side.
+- Interactive primitives (`send_exec_approval`, `send_clarify`,
+  `send_model_picker`, shared callback-id conventions `appr:/cl:/sc:`) render
+  as native SwiftUI surfaces for GATEWAY-dispatched turns (cron,
+  agent-initiated). **Chat stays on the Sessions API** — the #235–#248-hardened
+  plane; in-chat approvals have their own route (below).
+
+**Decisions taken in the filing discussion (Owen, 2026-08-05):**
+1. **Push stays DEAD.** The BYO-.p8 paired-tier revival was considered and
+   rejected: *"lets not build a solution for an audience of 1 again… If it
+   can't work, it can't work"* — App Store users won't have developer
+   accounts, and the .p8 can't be distributed. Baseline delivery = durable
+   outbox + fetch-on-connect (+ Live Activities), full stop. #238 stands.
+2. **Sensors ride #242**, not an ingestion pipeline — the report's Option-A
+   sensor hole dissolves because the direction is already query-time.
+3. Mac-side agent consults burn Nous Portal credit (only provider on the Mac
+   gateway) — #241 fired live during this discussion (404 self-name, 0 tokens);
+   OJAMD/kimi is the consult host.
+
+**Approvals probe (RUN 2026-08-05, Owen's go):** wire VERIFIED, policy OFF.
+Two streamed turns on OJAMD (session `api_1785934468_ae6ed63e`): plain echo
+AND deletion-shaped `del` both executed ungated (bash terminal; `del` was
+`command not found` — harmless by design). Cause: `approvals.mode: off`
+(see #224's dated note). `/v1/capabilities` advertises the approval surface;
+the `approval.request`/`approval.responded` SSE events and the
+once/session/always/deny resolution vocabulary are code-verified. **Owed
+before any approval UI ships: one end-to-end with `approvals.mode: manual`
+temporarily on (trigger → approval.request → POST resolve → resume) — a
+2-minute test behind a config flip that is Owen's to schedule.**
+
+**Report errata (so nobody re-trusts them):** Option A's "loses nothing" was
+false (relay also carries sensor ingestion, inbox fetch, voice bootstrap,
+files); §2.2 repeats the dead dashboard-routes claim (file/fs endpoints —
+:9119-only, see the CLAUDE.md standing rule); §3.7's `ctx.rest` plugin REST
+mounts on the DASHBOARD (:9119, web_server.py:17277), not the phone's plane;
+§7.1's hook telemetry only sees gateway-dispatched turns (hooks don't fire
+for Sessions-API runs); the Telegram/Discord push analogy fails at the last
+hop (no durable outbound queue in Hermes; send_message errors on failure).
+
+**Open questions (routing owed before a lane):** voice WebRTC bootstrap's
+home (in-tree RTC precedent: `plugins/google_meet/`); #21 file downloads'
+home (webhook responses fine for small files, ugly for large); plugin repo
+name; phase order vs #249/#250/settings-redesign. OJAMD's operational ask
+(from its consult): don't retire the relay until the adapter's process story
+is settled — with the webhook shape the "listener" is the gateway itself, so
+this reduces to accepting that gateway-down = whole paired tier down (the
+app's on-device fallback already covers it). Bars pre-register HERE when a
+lane opens.
+
 ## 250. ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear whatever icon is currently selected — **FILED 2026-08-04 night (Owen's feature request, with screenshot); feasible on existing #25 machinery; lane not yet scheduled**
 
 **FILED from Owen, 2026-08-04 night, during device testing:** *"In the
