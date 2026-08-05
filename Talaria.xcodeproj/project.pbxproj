@@ -26,6 +26,7 @@
 		05C40D41387A70CBD82325B1 /* LiveHermesHostService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92D54EA83CEDB4EBFEA38099 /* LiveHermesHostService.swift */; };
 		060D195325073772160DE995 /* MockSecureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E47F426E5F7560C5850EAF8 /* MockSecureStore.swift */; };
 		062B015021677D136F335948 /* GenUISchemaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11D4C7D5673FB21C2B22C40 /* GenUISchemaTests.swift */; };
+		0687660C758D32E99E8B684C /* AboutSettingsContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08018BA41E171180A3E70E0A /* AboutSettingsContent.swift */; };
 		0699DDCC47EA218CB27160AF /* ToolActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D05FEFC0C88B9061B363B56 /* ToolActivity.swift */; };
 		07E0800E7104CF04955F0360 /* VoiceMemoRecorderSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59F7F29D1DB87BEA4BCCE4D5 /* VoiceMemoRecorderSheet.swift */; };
 		08751E12A738BFBF97809B26 /* SessionBootstrapResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2D09CCD9B4464AAADCD11A /* SessionBootstrapResponse.swift */; };
@@ -170,7 +171,6 @@
 		4DF08CBE0F2A192FBABF00ED /* Icon-CosmicBowling@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = D1C8260B4538A6EB2CB6BC2D /* Icon-CosmicBowling@3x.png */; };
 		4E204D5C7F1352A9CE981C69 /* WeatherTomorrowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FE343EDAB6F66DD9764DC7A /* WeatherTomorrowTests.swift */; };
 		4E4B1F1367DF61EA7F9D835C /* InboxBriefing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 998128B6337A93B7540FDF42 /* InboxBriefing.swift */; };
-		4E5AA772DBB57B51D9598C7E /* SystemSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B6960308556A1B2ADA625CC /* SystemSettingsScreen.swift */; };
 		503D4D57EBB1BA98B00ECA2B /* DeliverFieldModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F851B3F3DCBCD700EE6C8E69 /* DeliverFieldModeTests.swift */; };
 		50868BE2CD8995BCB39A72B4 /* JetBrainsMono-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = BA496D40EFBD6D1622DE20A0 /* JetBrainsMono-Regular.ttf */; };
 		50B980315F65B561C2ED69E8 /* LocalIntelligenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C6A4A5B1356C64A3A6476FA /* LocalIntelligenceService.swift */; };
@@ -240,7 +240,6 @@
 		7B5BEC5E4D34AF13634F687A /* ShareExtensionConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69E5B7A33B613AA64CF8495B /* ShareExtensionConfigTests.swift */; };
 		7D1E913B92F72BB1BD6CB6C6 /* ResilientHermesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872B0ADD4223BACB94F26C79 /* ResilientHermesClient.swift */; };
 		7D594381366A01A69E246F06 /* Icon-AutumnHarvest@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 45A00D780AC82DFD56C2E7B6 /* Icon-AutumnHarvest@2x.png */; };
-		7D814964FE1AEA78D1EF2B5A /* DiagnosticsSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B5AE9C0BA3949E810C4FCE /* DiagnosticsSettingsScreen.swift */; };
 		7E684A7F10A754DC9BD54738 /* BatteryResultsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C1F6BBA55BF217D40902D37 /* BatteryResultsScreen.swift */; };
 		7ED6B37BFBA2622B436E0881 /* RequiredPropertyDecodeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 928B03CEA5240B87D4B99D7A /* RequiredPropertyDecodeTests.swift */; };
 		7F8401F607B2A269FDAB040B /* IconPreview-GraffitiGalaxy.png in Resources */ = {isa = PBXBuildFile; fileRef = 2ACB4CFB03940283DB799C62 /* IconPreview-GraffitiGalaxy.png */; };
@@ -568,6 +567,7 @@
 		068E0164B35DB9857A55847E /* PermissionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionStatus.swift; sourceTree = "<group>"; };
 		07421A623E331F4C5116F434 /* IconPreview-WitchsBrew.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-WitchsBrew.png"; sourceTree = "<group>"; };
 		078776BA69767B945B3B0B82 /* InboxStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxStore.swift; sourceTree = "<group>"; };
+		08018BA41E171180A3E70E0A /* AboutSettingsContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutSettingsContent.swift; sourceTree = "<group>"; };
 		08FD65B8CCE83D816E84A5D5 /* SettingsChannelsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsChannelsScreen.swift; sourceTree = "<group>"; };
 		099915A255DC3C5BBF05F29E /* AlarmService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmService.swift; sourceTree = "<group>"; };
 		0A2B8983CE86355818012300 /* HapticEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticEngine.swift; sourceTree = "<group>"; };
@@ -693,7 +693,6 @@
 		4A163806FF4662C261521D41 /* Icon-WinterFrost@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-WinterFrost@2x.png"; sourceTree = "<group>"; };
 		4AC9E25C07D7F4EE9CE95202 /* InboxActionResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxActionResult.swift; sourceTree = "<group>"; };
 		4B55CE6DA29BBF3D6B02E0C7 /* MockMediaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockMediaService.swift; sourceTree = "<group>"; };
-		4B6960308556A1B2ADA625CC /* SystemSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemSettingsScreen.swift; sourceTree = "<group>"; };
 		4B8FF666C56327F765813BB9 /* TalkModeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkModeScreen.swift; sourceTree = "<group>"; };
 		4CB3976CD4EE70D0721D03B0 /* GenUISchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenUISchema.swift; sourceTree = "<group>"; };
 		4CFEF9D3A27BC3070CA020E2 /* DocumentTextExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentTextExtractor.swift; sourceTree = "<group>"; };
@@ -706,7 +705,6 @@
 		4F7672B25F6886DDA7552BFE /* DeviceToolBeltTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceToolBeltTests.swift; sourceTree = "<group>"; };
 		4FEF4DC986BD45CCA162C8FD /* Icon-HoloSushi@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-HoloSushi@3x.png"; sourceTree = "<group>"; };
 		50A76862D8411AF3BD87C3C8 /* Icon-PaperTape@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-PaperTape@2x.png"; sourceTree = "<group>"; };
-		51B5AE9C0BA3949E810C4FCE /* DiagnosticsSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsSettingsScreen.swift; sourceTree = "<group>"; };
 		51D3C8A5DD8B31346F8649D7 /* TalariaAlarmLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalariaAlarmLiveActivity.swift; sourceTree = "<group>"; };
 		51D3DE21F5F10FD325E99423 /* Icon-GraffitiGalaxy@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-GraffitiGalaxy@2x.png"; sourceTree = "<group>"; };
 		520B8194AEA8B671E7A43451 /* InsightsAggregationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsAggregationTests.swift; sourceTree = "<group>"; };
@@ -1691,13 +1689,13 @@
 		A821C8EB1B621F1E818AF6A8 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				08018BA41E171180A3E70E0A /* AboutSettingsContent.swift */,
 				5602055A01C5868752EB7CE8 /* AppearanceDeckPage.swift */,
 				C226310D52EB40A7356747B7 /* AppearanceSettingsScreen.swift */,
 				F40B3EFC9CE0AF10120A00B8 /* AppIconSettingsScreen.swift */,
 				1C1F6BBA55BF217D40902D37 /* BatteryResultsScreen.swift */,
 				9A09FC324E28A6A2B4439048 /* ConnectHermesHostScreen.swift */,
 				D4BC51686A9E81353B562BC7 /* DeveloperSettingsScreen.swift */,
-				51B5AE9C0BA3949E810C4FCE /* DiagnosticsSettingsScreen.swift */,
 				E4397D4FA2DBFEF4C5B15923 /* ModelsSettingsScreen.swift */,
 				9F2351D78A8E43CA90F5A982 /* ModelTransitionOverlay.swift */,
 				B76E7696B16B5568AE4666F1 /* PrivacySettingsScreen.swift */,
@@ -1708,7 +1706,6 @@
 				25935CD9A0AD28B30B6FFBE1 /* SettingsScreenHeader.swift */,
 				61E8C06E456A6825E0B020C3 /* SettingsSectionView.swift */,
 				8C9D8DBBA9993CD9C037B997 /* SubsystemHero.swift */,
-				4B6960308556A1B2ADA625CC /* SystemSettingsScreen.swift */,
 				827F37EE72AFCBAF188EBF43 /* ThemeChannels.swift */,
 				48891721C03839B52AFA1F85 /* UplinkSettingsScreen.swift */,
 				58ED77D1094E15E538EEEE59 /* VoiceSettingsScreen.swift */,
@@ -2213,6 +2210,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0687660C758D32E99E8B684C /* AboutSettingsContent.swift in Sources */,
 				AC7DDBB7536D12E2AE0E363F /* AlarmService.swift in Sources */,
 				88C9BB304D028456F8157B88 /* AppContainer.swift in Sources */,
 				784723436D764DC29E45E022 /* AppEntry.swift in Sources */,
@@ -2283,7 +2281,6 @@
 				88227A5FEA66A1E25F1021DB /* DeviceReadTools.swift in Sources */,
 				E9B07CADC065C3C2336EFB93 /* DeviceRegistrationRequest.swift in Sources */,
 				CB158CADFFC7E9FC5382D1F2 /* DeviceToolBelt.swift in Sources */,
-				7D814964FE1AEA78D1EF2B5A /* DiagnosticsSettingsScreen.swift in Sources */,
 				5449864B8E79D201F17A43DF /* DocumentTextExtractor.swift in Sources */,
 				1652AB3BBCB351E6209B7AA4 /* EntitlementService.swift in Sources */,
 				E9CC8616807E52B13A4B50D9 /* EntitlementServiceProtocol.swift in Sources */,
@@ -2437,7 +2434,6 @@
 				3DDB62A494936DCE3BDB6E53 /* SwiftDataLocalSessionStore.swift in Sources */,
 				DC512C3C18CA4A1472735BCB /* SyncCoordinatorProtocol.swift in Sources */,
 				3006083D60A6551CE5DBAAFD /* SyncStatus.swift in Sources */,
-				4E5AA772DBB57B51D9598C7E /* SystemSettingsScreen.swift in Sources */,
 				F27E5034CD34A735DE65FB9A /* TalariaAlarmMetadata.swift in Sources */,
 				1D65E5AB7B2A5160256979EE /* TalariaLog.swift in Sources */,
 				08B3FB0C74D278495673F432 /* TalkModeScreen.swift in Sources */,

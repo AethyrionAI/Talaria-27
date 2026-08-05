@@ -180,7 +180,12 @@ struct SettingsChannelsScreen: View {
         case .appearance: AppearanceDeckPage()
         case .privacy: PrivacySettingsScreen(embedded: true)
         case .sessions: SessionsSettingsScreen(embedded: true)
-        case .about: DiagnosticsSettingsScreen(embedded: true)   // merge lands in Task 8
+        case .about:
+            ScrollView {
+                AboutSettingsContent()
+                    .padding(.horizontal, Design.Spacing.md)
+                    .padding(.vertical, Design.Spacing.sm)
+            }
         case .developer: DeveloperSettingsScreen(embedded: true)
         }
     }

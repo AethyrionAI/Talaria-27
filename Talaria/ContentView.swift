@@ -269,7 +269,7 @@ struct MainTabView: View {
         switch destination {
         case .settings:
             NavigationStack {
-                // #252: Subsystem Channels root (1c). SystemSettingsScreen retired in Task 8.
+                // #252: Subsystem Channels root (1c). SystemSettingsScreen retired (Task 8).
                 SettingsChannelsScreen()
             }
             .presentationDetents([.large])
