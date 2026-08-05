@@ -13833,8 +13833,38 @@ wearing the upstream Hermes desktop icon.
   default art when unset. Small lane: AppIconStore write + widget read +
   a project.yml/resource decision + `xcodegen` + gate.
 
-**Bars pre-register here when the lane opens.** Not scheduled tonight —
-test night; #249's confirmation run and the #241 read come first.
+**▶ LANE OPENED 2026-08-05 evening (Owen routed via AskUserQuestion:
+"teal talaria" = the Deep Field orb).** Design: the primary appiconset
+art (1024 light/dark/tinted) is REGENERATED from the same
+`tools/appicons/generate_app_icons.py` render that draws the DeepField
+alternate — no hand art, no drift; `IconPreview-Default` regenerated to
+match so the picker's "Talaria / Default" thumbnail is honest. The
+picker's separate Deep Field entry stays (near-identical art is the
+accepted consequence). Island half: a new `Shared/SelectedIconHandoff`
+(compiled into app + widgets like ControlHandoff) — `AppIconStore`
+publishes the selected icon's preview PNG into the app-group container
+on init (heal) and on successful select; `HermesBrandIcon.loadImage()`
+tries the handoff file FIRST, then the existing AppIcon60x60 → container
+bundle → SF-symbol chain. `#25` machinery (CFBundleAlternateIcons,
+catalog, picker) untouched.
+
+**BARS — written HERE, BEFORE the run:**
+- **250-A (build):** primary `AppIcon.appiconset` art is the Deep Field
+  orb render (byte-diff vs the upstream art proves the swap; dark +
+  tinted variants regenerated, tinted grayscale-on-transparent per the
+  Apple spec); `IconPreview-Default.png` matches.
+- **250-B (unit):** `SelectedIconHandoff` round-trip — publish writes a
+  PNG at the destination URL and load returns an image; load from a
+  missing or nil URL returns nil (the island then falls back to the
+  bundled chain).
+- **250-C (unit):** `AppIconStore` publishes the current selection's
+  preview at init against an injected destination — a fresh launch heals
+  a missing handoff file.
+- **250-D (device, Owen):** home screen shows the teal orb as the
+  default; the island/Live Activity leading icon matches the currently
+  selected icon and follows a switch on the next activity render.
+
+A missed bar is a falsification, not a redefinition.
 
 ## 249. 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the card is not the hour the user said — **INSTRUMENTED 2026-08-04 night; discriminator run pending; readings pre-registered below BEFORE the evidence** *(header's 9 PM is the as-filed observation — CORRECTED to 8:00 AM in the dated note below)*
 
