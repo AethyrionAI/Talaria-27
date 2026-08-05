@@ -13899,6 +13899,18 @@ catalog, picker) untouched.
 
 A missed bar is a falsification, not a redefinition.
 
+**✅ BUILT 2026-08-05 evening (`claude/t27-250-icon-identity`).**
+250-A MET: primary appiconset art (1024 light/dark/tinted) is the Deep
+Field orb from `emit_primary()` in the generator (tinted =
+grayscale-glyph-on-transparent per the HIG; dark = deepened gradient);
+`IconPreview-Default` rebaked from the new art by the existing
+`make_default_preview()` path. 250-B/C MET: 4 unit tests green
+(`SelectedIconHandoffTests` — round-trip, nil/missing fallback,
+fail-closed publish, init heal). **GATE: PASS — 1617 Swift Testing
+units (1613 + 4, count moved) + 12 XCUITest, Release green.** 250-D
+(device) OWED on the next OTA. Note for the device pass: the tinted
+variant's glow renders bright — placeholder-grade, judge on the phone.
+
 ## 249. 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the card is not the hour the user said — **INSTRUMENTED 2026-08-04 night; discriminator run pending; readings pre-registered below BEFORE the evidence** *(header's 9 PM is the as-filed observation — CORRECTED to 8:00 AM in the dated note below)*
 
 **FILED 2026-08-04 night from Owen's tonight-list item 4 (corded build of
