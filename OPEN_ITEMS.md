@@ -13830,6 +13830,18 @@ install deliberately deferred to Phase 2** — Phase 1 adds no user value
 there and the venv CLIs it retires are only worth touching when pairing
 becomes consumable.
 
+**Phase 2 design note (doc-confirmed 2026-08-05,
+hermes-agent.nousresearch.com/docs):** official docs give platform-channel
+plugins a designated layout (`plugins/platforms/<name>/`) distinct from
+general plugins — reconcile with the local install's `register_platform`
+path when the Phase 2 lane opens. Same session's user-facing lesson:
+Hermes Desktop's Settings → Plugins pane manages ONLY desktop UI plugins
+(`desktop-plugins/<id>/plugin.js`, ESM); agent plugins have NO desktop
+surface at all — verify with `hermes plugins list` (or the bare
+`hermes plugins` interactive screen), never the pane. Owen hit this
+2026-08-05: two restarts looking for talaria in the one pane the app
+offers, which cannot show it by design of the desktop app.
+
 **Still-open questions (routing owed before Phase 2):** voice WebRTC
 bootstrap's home (in-tree RTC precedent: `plugins/google_meet/`); #21 file
 downloads' home (webhook responses fine for small files, ugly for large).
