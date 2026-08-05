@@ -13842,6 +13842,48 @@ surface at all — verify with `hermes plugins list` (or the bare
 2026-08-05: two restarts looking for talaria in the one pane the app
 offers, which cannot show it by design of the desktop app.
 
+**🌟 USER-JOURNEY ROUTING (Owen, 2026-08-05 late) — the Phase 2 design
+star: after Hermes is installed, the user's hands never touch a
+terminal. THE AGENT IS THE INSTALLER.**
+- **Corrected acquisition model:** a real user gets Hermes as a DESKTOP
+  APP from a GitHub-released installer — no `curl | bash`, no terminal,
+  ever. (Owen: *"I didn't even know it had a terminal cli until I had
+  update issues."* The curl path is OUR server-side reality on
+  OJAMD/the Mini, not the user's.) Any setup story that says "just run
+  one command" fails the actual audience on contact.
+- **Conversational install (chosen shape; Owen: "I like this. Empowers
+  the user too"):** Talaria's upgrade flow = connect the app to Hermes
+  (the existing API-key handshake), then the APP SENDS THE SETUP PROMPT
+  and the agent — which has hands on its own host — installs and
+  enables the talaria plugin itself. Consent ("enable talaria?")
+  surfaces in chat where the user lives; the app probes to verify.
+  Vehicle is "a skill more or less, and the intro prompt for the user,
+  and hermes handles the rest" (Owen) — note the first contact must
+  ride the app's prompt, since a skill can't ship inside a plugin that
+  isn't installed yet. The agent can lay down BOTH halves (agent plugin
+  AND the desktop-face plugin.js), which dissolves every
+  file-system-navigation step.
+- **CLI = power-user backup path.** Kept, documented, never the
+  headline. Community discovery (upstream #64181 index, HermesHub et
+  al.) is CLI-flavored today; being a well-formed plugin.yaml plugin
+  lists us for free when/if a GUI hub lands.
+- **The desktop pane (tonight's recon, banked):** read-only visibility
+  for backend plugins — NOT an installer, but the verification layer of
+  the install story (the "is it actually installed?" moment gets a
+  clickable answer — tonight's own confusion, productized). Mechanism
+  proven end-to-end: desktop `plugin.js` (SDK: PANES/ROUTES/SIDEBAR
+  areas, theme vars, ctx.rest) → `/api/plugins/talaria/…` → FastAPI
+  `router` in `plugins/talaria/dashboard/plugin_api.py` (mounted by
+  `web_server._mount_plugin_api_routes()` at backend start; desktop app
+  spawns `hermes serve --port 0` as its backend — verified live, PID
+  child of Hermes.app; `tab.hidden` keeps the web dashboard clean;
+  user plugins must be in `plugins.enabled` to mount — talaria is).
+  Chicken-and-egg noted: the backend mounts only once talaria is
+  installed+enabled, so the plugin.js half should render a friendly
+  "not installed yet — ask Hermes to set it up" card, making the pane
+  double as the upgrade prompt surface. FOLDED INTO PHASE 2 as the
+  desktop face's v0 (grows paired-devices + outbox columns there).
+
 **Still-open questions (routing owed before Phase 2):** voice WebRTC
 bootstrap's home (in-tree RTC precedent: `plugins/google_meet/`); #21 file
 downloads' home (webhook responses fine for small files, ugly for large).
