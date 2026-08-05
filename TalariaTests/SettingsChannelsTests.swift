@@ -62,4 +62,21 @@ struct SettingsChannelsTests {
         #expect(SettingsCardValues.about(isHealthy: false) == "DEGRADED")
         #expect(SettingsCardValues.developer(environmentLabel: "Production") == "PRODUCTION")
     }
+
+    // #252 final-review: hostless is the DESIGNED state, not a degraded one —
+    // a user with no profile/pairing configured must read HEALTHY, never
+    // DEGRADED-forever. Once a host IS configured, health tracks the real
+    // connection signal.
+    @Test func aboutIsHealthyHostlessIsAlwaysHealthy() {
+        #expect(SettingsCardValues.aboutIsHealthy(hostConfigured: false, connectionOnline: false) == true)
+        #expect(SettingsCardValues.aboutIsHealthy(hostConfigured: false, connectionOnline: true) == true)
+    }
+
+    @Test func aboutIsHealthyConfiguredAndOnline() {
+        #expect(SettingsCardValues.aboutIsHealthy(hostConfigured: true, connectionOnline: true) == true)
+    }
+
+    @Test func aboutIsHealthyConfiguredAndOffline() {
+        #expect(SettingsCardValues.aboutIsHealthy(hostConfigured: true, connectionOnline: false) == false)
+    }
 }

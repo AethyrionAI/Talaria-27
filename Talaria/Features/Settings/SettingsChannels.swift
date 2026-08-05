@@ -89,5 +89,14 @@ enum SettingsCardValues {
 
     static func about(isHealthy: Bool) -> String { isHealthy ? "HEALTHY" : "DEGRADED" }
 
+    /// #252 final-review: unpaired/no-profile is the DESIGNED state, not a
+    /// fault — a hostless user must read HEALTHY forever, never
+    /// DEGRADED-by-default. Once a host IS configured, health tracks the
+    /// real connection signal. Shared by the grid card and the About hero so
+    /// they can never disagree.
+    static func aboutIsHealthy(hostConfigured: Bool, connectionOnline: Bool) -> Bool {
+        hostConfigured ? connectionOnline : true
+    }
+
     static func developer(environmentLabel: String) -> String { environmentLabel.uppercased() }
 }

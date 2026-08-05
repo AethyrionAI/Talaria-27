@@ -365,6 +365,25 @@ final class TalariaUITests: XCTestCase {
         return nil
     }
 
+    /// T9: the deck counter updates asynchronously after tap/swipe/dot-tap,
+    /// so asserting `counter.label` the instant the gesture returns is a
+    /// proven flake source. Same poll idiom as `waitForButton` above —
+    /// re-check on a short interval until the deadline instead of a single
+    /// immediate read. The caller still asserts for real afterward, so a
+    /// label that never catches up fails the test rather than being masked.
+    @MainActor
+    private func waitForCounter(
+        _ element: XCUIElement,
+        toEqual expected: String,
+        timeout: TimeInterval
+    ) {
+        let deadline = Date(timeIntervalSinceNow: timeout)
+        repeat {
+            if element.label == expected { return }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.2))
+        } while Date() < deadline
+    }
+
     /// #244 (replaces the #239 sub-screen test IN PLACE): the Appearance tab
     /// is a full-bleed channel browser — one theme per channel, applies as
     /// you land. Steps to Solar Forge with the deterministic › button (the
@@ -472,6 +491,7 @@ final class TalariaUITests: XCTestCase {
         app.buttons["settings.card.uplink"].tap()
         let counter = app.staticTexts["settings.deck.counter"]
         XCTAssertTrue(counter.waitForExistence(timeout: 10), "deck counter must appear")
+        waitForCounter(counter, toEqual: "01 / 09", timeout: 5)
         XCTAssertEqual(counter.label, "01 / 09")
         // The deck page's accessibilityIdentifier lands on whatever root
         // view each embedded screen collapses to — UplinkSettingsScreen's
@@ -481,6 +501,7 @@ final class TalariaUITests: XCTestCase {
         let uplinkPage = app.descendants(matching: .any)["settings.deck.page.uplink"]
         XCTAssertTrue(uplinkPage.waitForExistence(timeout: 5), "the uplink deck page must be reachable")
         uplinkPage.swipeLeft()
+        waitForCounter(counter, toEqual: "02 / 09", timeout: 5)
         XCTAssertEqual(counter.label, "02 / 09", "swipe must advance the deck")
 
         // Page-dot tap navigation (owed from Tasks 3–8): each dot's
@@ -488,6 +509,7 @@ final class TalariaUITests: XCTestCase {
         let aboutDot = app.buttons["Open ABOUT"]
         XCTAssertTrue(aboutDot.waitForExistence(timeout: 5), "the About page dot must be reachable")
         aboutDot.tap()
+        waitForCounter(counter, toEqual: "08 / 09", timeout: 5)
         XCTAssertEqual(counter.label, "08 / 09", "a dot tap must jump straight to its page")
 
         app.buttons["Toggle overview"].tap()

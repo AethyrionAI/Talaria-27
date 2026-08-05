@@ -14,6 +14,7 @@ struct SettingsChannelsScreen: View {
     @Environment(PairingStore.self) private var pairingStore
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(TabRouter.self) private var router
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
 
     enum Mode: Equatable { case grid, deck(Int) }
     @State private var mode: Mode = .grid
@@ -151,7 +152,7 @@ struct SettingsChannelsScreen: View {
         }
     }
 
-    private var reduceMotion: Bool { settingsStore.settings.reduceMotion }
+    private var reduceMotion: Bool { systemReduceMotion || settingsStore.settings.reduceMotion }
 
     private var deckPager: some View {
         VStack(spacing: 0) {
@@ -356,7 +357,7 @@ struct SettingsChannelsScreen: View {
         case .sessions:
             SettingsCardValues.sessions(count: sessionCount, isPaired: pairingStore.isPaired)
         case .about:
-            SettingsCardValues.about(isHealthy: effectiveConnectionState == .online)
+            SettingsCardValues.about(isHealthy: aboutIsHealthy)
         case .developer:
             SettingsCardValues.developer(
                 environmentLabel: settingsStore.settings.environment.displayLabel)
@@ -376,9 +377,19 @@ struct SettingsChannelsScreen: View {
              settingsStore.settings.locationCollectionEnabled ||
              settingsStore.settings.motionCollectionEnabled)
         case .sessions: sessionCount != nil
-        case .about: effectiveConnectionState == .online
+        case .about: aboutIsHealthy
         case .developer: false
         }
+    }
+
+    // #252 final-review: hostless is the DESIGNED state, not degraded —
+    // shared with AboutSettingsContent's hero so the card and the hero can
+    // never disagree (SettingsCardValues.aboutIsHealthy is the single source
+    // of truth for both).
+    private var aboutIsHealthy: Bool {
+        SettingsCardValues.aboutIsHealthy(
+            hostConfigured: container.profilesStore?.activeProfile != nil || pairingStore.isPaired,
+            connectionOnline: effectiveConnectionState == .online)
     }
 
     // Same channel list the #244 browser counts with (AppearanceSettingsScreen

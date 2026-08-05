@@ -23,6 +23,8 @@ struct AboutSettingsContent: View {
     @Environment(\.openURL) private var openURL
     @Environment(AppContainer.self) private var container
     @Environment(AppSessionStore.self) private var sessionStore
+    @Environment(HermesHostStore.self) private var hostStore
+    @Environment(PairingStore.self) private var pairingStore
     @Environment(PermissionsStore.self) private var permissionsStore
     @Environment(SettingsStore.self) private var settingsStore
 
@@ -61,10 +63,25 @@ struct AboutSettingsContent: View {
 
     // MARK: Hero (#252 Task 7)
 
-    /// The page's own reachability read — reused, not re-derived; the same
-    /// signal `hermesAPIStatus` already renders as REACHABLE / UNREACHABLE.
+    /// #252 final-review: matches SettingsChannelsScreen's grid-card verdict
+    /// exactly — same `SettingsCardValues.aboutIsHealthy` formatter, same
+    /// inputs — so the card and this hero can never disagree. Hostless (no
+    /// profile, not paired) is the DESIGNED state and always reads HEALTHY;
+    /// once a host is configured, health tracks the real direct-or-relay
+    /// connection signal.
     private var isHealthy: Bool {
-        container.chatStore.directConnectionStatus == .connected
+        SettingsCardValues.aboutIsHealthy(
+            hostConfigured: container.profilesStore?.activeProfile != nil || pairingStore.isPaired,
+            connectionOnline: effectiveConnectionState == .online)
+    }
+
+    /// Direct-or-relay reachability — moved here verbatim from
+    /// SettingsChannelsScreen so both surfaces read the identical signal
+    /// (previously this hero checked `directConnectionStatus == .connected`
+    /// only, which missed relay-online cases the grid card already counted).
+    private var effectiveConnectionState: HermesHostConnectionState {
+        if container.chatStore.directConnectionStatus == .connected { return .online }
+        return hostStore.connectionState
     }
 
     // MARK: Status panel
