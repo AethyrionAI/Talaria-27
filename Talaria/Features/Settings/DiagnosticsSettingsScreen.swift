@@ -43,6 +43,16 @@ struct DiagnosticsSettingsScreen: View {
                     if !embedded {
                         SettingsScreenHeader(title: "Diagnostics", subtitle: "System Health") { dismiss() }
                     }
+                    if embedded {
+                        SubsystemHero(
+                            motif: .sparkline,
+                            title: SettingsSubsystem.about.title,
+                            status: SettingsCardValues.about(isHealthy: isHealthy),
+                            statusColor: isHealthy ? Design.Brand.accent : Design.Brand.forge,
+                            chip: SettingsSubsystem.about.chip,
+                            accented: isHealthy
+                        )
+                    }
                     statusPanel
                     voicePanel
                     sensorPanel
@@ -64,6 +74,14 @@ struct DiagnosticsSettingsScreen: View {
             await permissionsStore.reloadCapabilities()
             sensorAccessToken = await container.sensorUploadService?.hasValidAccessToken()
         }
+    }
+
+    // MARK: Hero (#252 Task 7)
+
+    /// The screen's own reachability read — reused, not re-derived; the same
+    /// signal `hermesAPIStatus` already renders as REACHABLE / UNREACHABLE.
+    private var isHealthy: Bool {
+        container.chatStore.directConnectionStatus == .connected
     }
 
     // MARK: Status panel

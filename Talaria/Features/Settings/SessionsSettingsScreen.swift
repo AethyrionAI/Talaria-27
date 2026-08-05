@@ -50,6 +50,18 @@ struct SessionsSettingsScreen: View {
                     if !embedded {
                         SettingsScreenHeader(title: "Sessions", subtitle: "Storage & Data") { dismiss() }
                     }
+                    if embedded {
+                        SubsystemHero(
+                            motif: .stackedRows,
+                            title: SettingsSubsystem.sessions.title,
+                            status: SettingsCardValues.sessions(
+                                count: isLoading ? nil : sessions.count,
+                                isPaired: container.pairingStore.isPaired),
+                            statusColor: isLoading ? Design.Colors.mutedForeground : Design.Brand.accent,
+                            chip: SettingsSubsystem.sessions.chip,
+                            accented: !isLoading
+                        )
+                    }
                     statsRow
                     shelfSection
                     recentSection

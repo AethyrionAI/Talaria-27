@@ -64,6 +64,20 @@ struct PrivacySettingsScreen: View {
                     if !embedded {
                         SettingsScreenHeader(title: "Privacy", subtitle: "Permissions") { dismiss() }
                     }
+                    if embedded {
+                        SubsystemHero(
+                            motif: .hatchShield,
+                            title: SettingsSubsystem.privacy.title,
+                            status: SettingsCardValues.privacy(
+                                masterOn: settingsStore.settings.sensorStreamingEnabled,
+                                health: settingsStore.settings.healthCollectionEnabled,
+                                location: settingsStore.settings.locationCollectionEnabled,
+                                motion: settingsStore.settings.motionCollectionEnabled),
+                            statusColor: privacyIsAccented ? Design.Brand.accent : Design.Colors.mutedForeground,
+                            chip: SettingsSubsystem.privacy.chip,
+                            accented: privacyIsAccented
+                        )
+                    }
                     permissionsSection
                     sensorStreamingSection
                     locationSection
@@ -79,6 +93,17 @@ struct PrivacySettingsScreen: View {
         .navigationTitle("Privacy")
         .toolbarVisibility(.hidden, for: .navigationBar)
         .task { await permissionsStore.reloadCapabilities() }
+    }
+
+    // MARK: Hero (#252 Task 7)
+
+    /// Mirrors `SettingsChannelsScreen.cardIsAccented(.privacy)` — streaming
+    /// is on AND at least one sensor is actually enabled.
+    private var privacyIsAccented: Bool {
+        settingsStore.settings.sensorStreamingEnabled &&
+        (settingsStore.settings.healthCollectionEnabled ||
+         settingsStore.settings.locationCollectionEnabled ||
+         settingsStore.settings.motionCollectionEnabled)
     }
 
     // MARK: Permissions

@@ -44,6 +44,17 @@ struct DeveloperSettingsScreen: View {
                     if !embedded {
                         SettingsScreenHeader(title: "Developer", subtitle: "Internal Tools") { dismiss() }
                     }
+                    if embedded {
+                        SubsystemHero(
+                            motif: .squares,
+                            title: SettingsSubsystem.developer.title,
+                            status: SettingsCardValues.developer(
+                                environmentLabel: settingsStore.settings.environment.displayLabel),
+                            statusColor: Design.Colors.mutedForeground,
+                            chip: SettingsSubsystem.developer.chip,
+                            accented: false
+                        )
+                    }
                     warningBanner
                     environmentSection
                     flagsSection

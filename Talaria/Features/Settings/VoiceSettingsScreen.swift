@@ -37,7 +37,18 @@ struct VoiceSettingsScreen: View {
                     if !embedded {
                         SettingsScreenHeader(title: "Voice", subtitle: "Talk Engine") { dismiss() }
                     }
-                    heroPanel
+                    if embedded {
+                        SubsystemHero(
+                            motif: .waveform,
+                            title: SettingsSubsystem.voice.title,
+                            status: engineState.text,
+                            statusColor: engineState.color,
+                            chip: SettingsSubsystem.voice.chip,
+                            accented: engineState.color == Design.Brand.accent
+                        )
+                    } else {
+                        heroPanel
+                    }
                     statusSection
                     modelSection
                     readAloudSection

@@ -93,6 +93,19 @@ struct ServerSettingsScreen: View {
                     if !embedded {
                         SettingsScreenHeader(title: "Server", subtitle: "Backend Profiles") { dismiss() }
                     }
+                    if embedded {
+                        SubsystemHero(
+                            motif: .profileBars,
+                            title: SettingsSubsystem.server.title,
+                            status: SettingsCardValues.server(
+                                activeProfileName: container.profilesStore?.activeProfile?.name,
+                                isPaired: pairingStore.isPaired),
+                            statusColor: container.profilesStore?.activeProfile != nil
+                                ? Design.Brand.accent : Design.Colors.mutedForeground,
+                            chip: SettingsSubsystem.server.chip,
+                            accented: container.profilesStore?.activeProfile != nil
+                        )
+                    }
                     profileCards
                     if let provisioningMessage {
                         infoNotice(provisioningMessage)

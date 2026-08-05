@@ -130,7 +130,18 @@ struct UplinkSettingsScreen: View {
                     if !embedded {
                         SettingsScreenHeader(title: "Uplink", subtitle: activeProfileName) { dismiss() }
                     }
-                    linkStatusPanel
+                    if embedded {
+                        SubsystemHero(
+                            motif: .rings,
+                            title: SettingsSubsystem.uplink.title,
+                            status: linkTitle,
+                            statusColor: linkColor,
+                            chip: SettingsSubsystem.uplink.chip,
+                            accented: effectiveConnectionState == .online
+                        )
+                    } else {
+                        linkStatusPanel
+                    }
                     if showsUnkeyedNudge {
                         unkeyedProfileNotice
                     }

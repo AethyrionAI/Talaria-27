@@ -164,6 +164,19 @@ struct ModelsSettingsScreen: View {
                     if !embedded {
                         header
                     }
+                    if embedded {
+                        SubsystemHero(
+                            motif: .barChart,
+                            title: SettingsSubsystem.models.title,
+                            status: SettingsCardValues.models(
+                                activeModelName: container.chatStore.activeModelName,
+                                brainLabel: container.chatBackendRouter?.activeBrain.monoLabel),
+                            statusColor: container.chatStore.activeModelName?.isEmpty == false
+                                ? Design.Brand.accent : Design.Colors.mutedForeground,
+                            chip: SettingsSubsystem.models.chip,
+                            accented: container.chatStore.activeModelName?.isEmpty == false
+                        )
+                    }
                     // #27: brain picker — only once any Hermes host exists
                     // (a never-paired device has one brain, nothing to pick).
                     if let brainRouter = container.chatBackendRouter, brainRouter.showsBrainPicker {
