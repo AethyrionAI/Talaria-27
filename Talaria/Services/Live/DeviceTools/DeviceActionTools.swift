@@ -55,7 +55,7 @@ enum DeviceActionParsing {
     /// latency and "right now" asks; the observed defect cards were hours
     /// stale, so the grace costs no detection.
     nonisolated static func isPastDue(_ date: Date, now: Date) -> Bool {
-        false // RED stub — replaced by the #249 implementation commit
+        date < now.addingTimeInterval(-300)
     }
 
     /// #249: an evening ask resolved to the next morning — due lands
@@ -63,7 +63,12 @@ enum DeviceActionParsing {
     /// half-day-default shape one hour outside #233's wee-hour net;
     /// hours 0–6 stay the wee-hour ask's.
     nonisolated static func isNextMorning(_ date: Date, askedAt now: Date) -> Bool {
-        false // RED stub — replaced by the #249 implementation commit
+        let calendar = Calendar.current
+        guard calendar.component(.hour, from: now) >= 17,
+              let tomorrow = calendar.date(byAdding: .day, value: 1, to: now),
+              calendar.isDate(date, inSameDayAs: tomorrow) else { return false }
+        let hour = calendar.component(.hour, from: date)
+        return hour >= 7 && hour <= 11
     }
 
     /// Time-only display form for the card's caution row.

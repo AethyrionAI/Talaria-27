@@ -150,12 +150,16 @@ final class ToolEventRelay {
 
     /// #249: true exactly once per conversation — the past-due bounce.
     func claimPastDueAsk() -> Bool {
-        false // RED stub — replaced by the #249 implementation commit
+        if pastDueAskIssued { return false }
+        pastDueAskIssued = true
+        return true
     }
 
     /// #249: true exactly once per conversation — the evening-clock ask.
     func claimEveningClockAsk() -> Bool {
-        false // RED stub — replaced by the #249 implementation commit
+        if eveningClockAskIssued { return false }
+        eveningClockAskIssued = true
+        return true
     }
 
     /// #233: the conversation-boundary reset. Turn-scoped state belongs in
