@@ -13523,7 +13523,23 @@ eleven screens gets an explicit new home (inventory in progress).
 sequence deliberately. #244's channel browser is a hard dependency and
 survives unchanged. Spec:
 `planning/superpowers/specs/2026-08-05-252-settings-channels-design.md` (being
-written). Bars pre-register HERE before the build runs.
+written).
+
+**BARS (pre-registered 2026-08-05, before any build):**
+- **252-A** — sim UI test: the settings sheet presents a grid with NINE subsystem
+  entries whose value labels are live-store-derived (no "REACTOR"/"REALTIME"
+  literals anywhere in the new surface).
+- **252-B** — sim UI test: card tap opens the deck at that subsystem; counter reads
+  `%02d / 09`; grid-toggle returns; swipe advances the counter.
+- **252-C** — control parity: every control in
+  `planning/superpowers/specs/2026-08-05-252-settings-inventory.md` §1–§11 is reachable
+  in the new IA (checklist pass, sim or device).
+- **252-D** — DEBUG build: the battery harness is reachable under Developer and
+  `Battery results →` still opens; a battery button still arms (visual check).
+- **252-E** — the four updated pairing/appearance UI tests green.
+- **252-F** — Release build green
+  (`xcodebuild -configuration Release … build CODE_SIGNING_ALLOWED=NO`).
+A missed bar is a falsification, not a redefinition.
 
 ## 251. 🚀 THE PLUGIN VENTURE: replace relay + connector + MCP server + venv CLIs with ONE Hermes plugin — **FILED 2026-08-05 (Owen's direction, via a Hermes-authored architecture report); architecture CORRECTED in discussion; lane not yet opened**
 
