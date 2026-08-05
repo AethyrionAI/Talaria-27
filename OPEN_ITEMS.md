@@ -13538,13 +13538,25 @@ runs plane, and a decisive plane split found:**
   executes, reports the rm error verbatim → `run.completed`. The FIRST
   attempt also proved the timeout arm by accident: approving after the 60s
   window returns `approval_not_pending` and the run self-completes blocked.
-- **Consequence for the venture's in-chat approvals:** three options —
-  (a) the app routes gate-able turns via `/v1/runs` (session-compatible,
-  proven above), (b) upstream wires approvals into chat/stream (a
-  #241-family report, same submission gate), or (c) approvals stay off and
-  the phone-side confirm cards remain the only gate (today's shape). Note
-  mode=manual makes NORMAL chat turns narrate-and-timeout on dangerous
-  commands — leave the Mac on manual only knowingly.
+- **Consequence for the venture's in-chat approvals — ROUTED 2026-08-05
+  (Owen):** option **(a) chosen** — *"Route gate-able turns through runs
+  sounds good if we can get the timing right. I think this may slot well
+  into the relay retirement."* Option (b) upstream PR **declined** ("I
+  don't want to do a PR, anxious" — consistent with #241's parking; the
+  submission gate stands if ever revived). Mac goes back to
+  `approvals.mode: off` until the next test window (Owen).
+  - **The timing half is config, not luck:** `approvals.timeout` is
+    per-host (observed 60s Mac / 360s OJAMD) — set it humane (~300s) when
+    approval UI ships; timeout = deny is the safe failure and is exactly
+    what we observed.
+  - **Honest scope note for the eventual lane:** the app cannot know a
+    turn will hit a dangerous command BEFORE sending, so "route gate-able
+    turns via runs" in practice means the REMOTE transport migrates to
+    `/v1/runs` + `/events` (chat/stream taxonomy largely carries over —
+    both planes emit the same event family). Sweetener: runs are pollable
+    by id (`GET /v1/runs/{run_id}`), a strictly more robust recovery shape
+    than SSE reconcile — the #235/#246 machinery would get simpler, not
+    hairier. Design work when the lane opens; bars pre-register here.
 
 **Report errata (so nobody re-trusts them):** Option A's "loses nothing" was
 false (relay also carries sensor ingestion, inbox fetch, voice bootstrap,
