@@ -13541,6 +13541,33 @@ written).
   (`xcodebuild -configuration Release … build CODE_SIGNING_ALLOWED=NO`).
 A missed bar is a falsification, not a redefinition.
 
+**Final whole-branch review + fix wave (2026-08-05):** reviewer verdict
+"mergeable with minor fixes"; ONE fix wave (`c47a91b`) landed all four
+pre-merge items — About health-verdict coherence (new pure
+`aboutIsHealthy(hostConfigured:connectionOnline:)`, shared by grid card AND
+About hero; **hostless now reads HEALTHY**, honoring the routed
+"unpaired is the designed state" constraint — the old root's
+DEGRADED-when-hostless was an inherited defect the redesign had promoted to
+a hero), two stale "Diagnostics" path strings → "Developer → Batteries"
+(ChatScreen banner + BatteryResultsScreen empty state), system
+reduce-motion OR'd in (mirrors the browser), and deck-nav counter asserts
+now poll. Scoped re-review: all ADDRESSED, no new breakage.
+
+**Ride-along follow-ons (filed, NOT built — post-device-pass candidates):**
+(a) deck entry builds all nine pages, so every grid↔deck flip re-fires each
+page's read-only status probes (host refresh, per-profile probes, catalog
+fetch, talk readiness, sessions load) — user-invoked and idempotent, but
+network chatter vs the old push IA; judged acceptable, revisit if Owen
+notices. (b) Voice card's live-session branch is production-dead (overlay
+can't coexist with the sheet) — formatter kept, tests cover it. (c) Visual
+spec-drift dropped at plan time: no decorative card motifs, Appearance card
+accent-tinted rather than palette-gradient, Appearance hero lacks the three
+accent-slot dots — Owen judges on device whether to want them. (d) Hero
+wording flattens the spec's framing (Privacy "0 STREAMS" vs "NOTHING LEAVES
+THIS PHONE"; Sessions drops "· M MSGS"). (e) Sessions card count is stale
+after in-deck Clear until the sheet reopens. (f) `server()` formatter's
+"PAIRED" branch is an addition over the spec table (benign, tested).
+
 **Bar verdicts (2026-08-05, Task 10 — all six MET):**
 - **252-A MET** — `testSettingsGridPresentsNineSubsystems` green (13.574s in the T10 gate
   run; also green in T9's own run). Live re-confirmed on the pinned sim: grid shows 8
