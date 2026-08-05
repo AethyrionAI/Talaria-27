@@ -13776,10 +13776,30 @@ hop (no durable outbound queue in Hermes; send_message errors on failure).
 4. **Relay decommission** — stop/disable the OJAMD services, archive with a
    README pointer.
 
-**Still-open questions (routing owed before a lane):** voice WebRTC
+**✅ PHASE 1 SHIPPED 2026-08-05 evening (Owen routed the name:
+`talaria-plugin`, private under AethyrionAI, gh-created with his go).**
+Repo: `github.com/AethyrionAI/talaria-plugin`, main @ `3519972`,
+developed/installed at `~/.hermes/plugins/talaria` on the Mac Mini
+(the clone IS the install). Shape: `plugin.yaml` (kind standalone) +
+`store.py` (JSON device store at `<HERMES_HOME>/talaria/devices.json`,
+0600, tokens SHA-256-hashed, deactivate-never-delete per #144) +
+`tools.py` (`talaria_phone_query` in toolset `talaria`,
+**check_fn=False Phase 1 gate** so the model never burns a turn on a
+transport that doesn't exist; handler honest-unreachable if forced) +
+`admin.py` (`hermes talaria pair|status|unpair`). **Smoked green on the
+Mac install:** `hermes plugins list` shows talaria enabled (source git);
+registry probe confirms tool registered + gated + honest handler; CLI
+full cycle pair→status→unpair worked, record deactivated not deleted.
+`~/.hermes/config.yaml` gained `talaria` under `plugins.enabled`. The
+running gateway sees the plugin at its next restart (harmless — toolset
+reads unavailable until Phase 2 heartbeats flip check_fn). **OJAMD
+install deliberately deferred to Phase 2** — Phase 1 adds no user value
+there and the venv CLIs it retires are only worth touching when pairing
+becomes consumable.
+
+**Still-open questions (routing owed before Phase 2):** voice WebRTC
 bootstrap's home (in-tree RTC precedent: `plugins/google_meet/`); #21 file
-downloads' home (webhook responses fine for small files, ugly for large);
-plugin repo name; when Phase 1 opens vs #249/#250/settings-redesign.
+downloads' home (webhook responses fine for small files, ugly for large).
 OJAMD's operational ask
 (from its consult): don't retire the relay until the adapter's process story
 is settled — with the webhook shape the "listener" is the gateway itself, so
@@ -13954,6 +13974,18 @@ time, which the new guard would bounce; bounce-path tests move to
 explicit `now` injection and `tool.call` wiring tests build
 dynamically-future dues (tomorrow 16:00). The guard itself surfaced the
 rot.
+
+**✅ BUILT 2026-08-05 evening, TDD watched-RED (`claude/t27-249-reminder-clock`).**
+RED was exact: 34 tests, 20 issues — precisely the predicted sum of
+failing expectations across the 10 new tests with all four stubs inert
+(1+1+4+3+3+1+1+2+2+2), every #233 pin green (`460c596`). GREEN 34/34 by
+replacing only the four stub bodies (`513f34a`). **Bars 249-A/B/C/D all
+MET** (the unit set is the bars, one test per clause). **GATE: PASS —
+1613 Swift Testing units (1603 baseline + 10, count moved) + 12 XCUITest,
+Release green.** 249-E (device) is OWED: Owen's next evening "remind me
+at 8" should come back as a question, and no card should ever again show
+an already-past due — rides the next OTA. The #249 due-parse instrument
+ships in the same PR (`93a0632`).
 
 ## 248. 🐛 Stall-recovery adoption briefly DUPES the user's sent message; a session re-open heals it — F3's tail placement is the suspect neighborhood — **✅ CLOSED 2026-08-04 night: device bar MET on the corded `b94fc27` build — no dupe, answer below the question, in the HARDER cross-device shape**
 
