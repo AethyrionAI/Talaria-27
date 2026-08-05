@@ -14,6 +14,9 @@ import SwiftUI
 //     the destructive action is "Clear Conversation", not "Clear All
 //     Sessions". A true delete-all would need a new host route.
 struct SessionsSettingsScreen: View {
+    // #252: deck pages supply the background and top bar; the screen keeps
+    // owning its content, tasks, and sheets in both presentations.
+    var embedded: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var container
     @Environment(SettingsStore.self) private var settingsStore
@@ -37,12 +40,16 @@ struct SessionsSettingsScreen: View {
 
     var body: some View {
         ZStack {
-            HUDScreenBackground()
-                .ignoresSafeArea()
+            if !embedded {
+                HUDScreenBackground()
+                    .ignoresSafeArea()
+            }
 
             ScrollView {
                 VStack(spacing: Design.Spacing.lg) {
-                    SettingsScreenHeader(title: "Sessions", subtitle: "Storage & Data") { dismiss() }
+                    if !embedded {
+                        SettingsScreenHeader(title: "Sessions", subtitle: "Storage & Data") { dismiss() }
+                    }
                     statsRow
                     shelfSection
                     recentSection

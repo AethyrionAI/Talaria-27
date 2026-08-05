@@ -14,6 +14,9 @@ import UIKit
 //     push registration — persisted so a relaunch doesn't resurrect them.
 //     Camera/Photos stay deep-link-only ("Manage in System Settings").
 struct PrivacySettingsScreen: View {
+    // #252: deck pages supply the background and top bar; the screen keeps
+    // owning its content, tasks, and sheets in both presentations.
+    var embedded: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @Environment(AppContainer.self) private var container
@@ -51,12 +54,16 @@ struct PrivacySettingsScreen: View {
 
     var body: some View {
         ZStack {
-            HUDScreenBackground()
-                .ignoresSafeArea()
+            if !embedded {
+                HUDScreenBackground()
+                    .ignoresSafeArea()
+            }
 
             ScrollView {
                 VStack(spacing: Design.Spacing.lg) {
-                    SettingsScreenHeader(title: "Privacy", subtitle: "Permissions") { dismiss() }
+                    if !embedded {
+                        SettingsScreenHeader(title: "Privacy", subtitle: "Permissions") { dismiss() }
+                    }
                     permissionsSection
                     sensorStreamingSection
                     locationSection

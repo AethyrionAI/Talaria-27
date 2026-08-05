@@ -13,6 +13,9 @@ import UIKit
 //     placeholder pointing at the real capture path (Console.app). Tracked in
 //     OPEN_ITEMS alongside an export action.
 struct DiagnosticsSettingsScreen: View {
+    // #252: deck pages supply the background and top bar; the screen keeps
+    // owning its content, tasks, and sheets in both presentations.
+    var embedded: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @Environment(AppContainer.self) private var container
@@ -30,12 +33,16 @@ struct DiagnosticsSettingsScreen: View {
 
     var body: some View {
         ZStack {
-            HUDScreenBackground()
-                .ignoresSafeArea()
+            if !embedded {
+                HUDScreenBackground()
+                    .ignoresSafeArea()
+            }
 
             ScrollView {
                 VStack(spacing: Design.Spacing.lg) {
-                    SettingsScreenHeader(title: "Diagnostics", subtitle: "System Health") { dismiss() }
+                    if !embedded {
+                        SettingsScreenHeader(title: "Diagnostics", subtitle: "System Health") { dismiss() }
+                    }
                     statusPanel
                     voicePanel
                     sensorPanel

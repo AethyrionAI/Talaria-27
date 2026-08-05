@@ -17,6 +17,9 @@ import SwiftUI
 // the screen is Release-clean (DEBUG-only sections individually compiled out).
 // Re-hiding for App Store builds is a Phase 7 decision, flagged in #231.
 struct DeveloperSettingsScreen: View {
+    // #252: deck pages supply the background and top bar; the screen keeps
+    // owning its content, tasks, and sheets in both presentations.
+    var embedded: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(SettingsStore.self) private var settingsStore
     #if DEBUG
@@ -31,12 +34,16 @@ struct DeveloperSettingsScreen: View {
 
     var body: some View {
         ZStack {
-            HUDScreenBackground()
-                .ignoresSafeArea()
+            if !embedded {
+                HUDScreenBackground()
+                    .ignoresSafeArea()
+            }
 
             ScrollView {
                 VStack(spacing: Design.Spacing.lg) {
-                    SettingsScreenHeader(title: "Developer", subtitle: "Internal Tools") { dismiss() }
+                    if !embedded {
+                        SettingsScreenHeader(title: "Developer", subtitle: "Internal Tools") { dismiss() }
+                    }
                     warningBanner
                     environmentSection
                     flagsSection

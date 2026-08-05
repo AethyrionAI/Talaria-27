@@ -16,6 +16,9 @@ import SwiftUI
 //     Settings sheet — so the sheet must finish dismissing before the cover
 //     can present.
 struct VoiceSettingsScreen: View {
+    // #252: deck pages supply the background and top bar; the screen keeps
+    // owning its content, tasks, and sheets in both presentations.
+    var embedded: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var container
     @Environment(TalkStore.self) private var talkStore
@@ -24,12 +27,16 @@ struct VoiceSettingsScreen: View {
 
     var body: some View {
         ZStack {
-            HUDScreenBackground()
-                .ignoresSafeArea()
+            if !embedded {
+                HUDScreenBackground()
+                    .ignoresSafeArea()
+            }
 
             ScrollView {
                 VStack(spacing: Design.Spacing.lg) {
-                    SettingsScreenHeader(title: "Voice", subtitle: "Talk Engine") { dismiss() }
+                    if !embedded {
+                        SettingsScreenHeader(title: "Voice", subtitle: "Talk Engine") { dismiss() }
+                    }
                     heroPanel
                     statusSection
                     modelSection
