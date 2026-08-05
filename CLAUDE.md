@@ -80,9 +80,16 @@ failure. **The gateway pin can hang ~37s+ or indefinitely** — do not block UI 
   **OPEN_ITEMS #113**. `restart-relay.ps1` in
   `C:\Users\Owen\.hermes\scripts\` does `Restart-Service HermesMobileRelay` then the bat.
 - **OPS:** `Start-Service HermesMobileRelay` / `Start-Service TalariaModelsShim` need
-  elevation (Owen pastes). Use `~/.hermes/scripts/hermes-update-safe.ps1`, never bare
-  `hermes update`. **Do NOT run `hermes gateway install` on Windows** (creates a conflicting
-  login-only task).
+  elevation (Owen pastes). **Updates: Owen runs bare `hermes update` — that is his actual
+  practice and it's fine** (the `hermes-update-safe.ps1` script exists but he has never
+  once used it; corrected 2026-08-04 on his word). Updates are safe BECAUSE we keep zero
+  core edits. The real invariants: **restart the gateway after any update** (a running
+  process serves stale imports forever), and **verify by process start time, not version
+  string** — head `aec3318` shipped still calling itself 0.20.0, so `/health` version
+  proves nothing about which code serves. An interrupted update can leave a half-install
+  (git at head, `venv/bin/hermes` missing) — finish it with the venv's own
+  `pip install -e ~/.hermes/hermes-agent`, don't reinstall. **Do NOT run
+  `hermes gateway install` on Windows** (creates a conflicting login-only task).
 - **Diagnostic discipline:** verify OJAMD against live state — port listeners, DB rows,
   relay logs — never by text-matching a project-knowledge snapshot, which lags.
 - **⛔ DO NOT HARDEN THE RELAY OR THE CONNECTOR (Owen, standing, 2026-08-02).**
