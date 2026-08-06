@@ -26,8 +26,10 @@
 		05C40D41387A70CBD82325B1 /* LiveHermesHostService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92D54EA83CEDB4EBFEA38099 /* LiveHermesHostService.swift */; };
 		060D195325073772160DE995 /* MockSecureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E47F426E5F7560C5850EAF8 /* MockSecureStore.swift */; };
 		062B015021677D136F335948 /* GenUISchemaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11D4C7D5673FB21C2B22C40 /* GenUISchemaTests.swift */; };
+		06585A72D4861950D2F3E978 /* TalariaPlatform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F4E2E6C8A314FB772607573 /* TalariaPlatform.swift */; };
 		0687660C758D32E99E8B684C /* AboutSettingsContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08018BA41E171180A3E70E0A /* AboutSettingsContent.swift */; };
 		0699DDCC47EA218CB27160AF /* ToolActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D05FEFC0C88B9061B363B56 /* ToolActivity.swift */; };
+		073F514793203C57186558F6 /* TalariaPlatformLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A68D762376A815E45F9F5114 /* TalariaPlatformLinkTests.swift */; };
 		07E0800E7104CF04955F0360 /* VoiceMemoRecorderSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59F7F29D1DB87BEA4BCCE4D5 /* VoiceMemoRecorderSheet.swift */; };
 		08751E12A738BFBF97809B26 /* SessionBootstrapResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2D09CCD9B4464AAADCD11A /* SessionBootstrapResponse.swift */; };
 		08B3FB0C74D278495673F432 /* TalkModeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B8FF666C56327F765813BB9 /* TalkModeScreen.swift */; };
@@ -221,6 +223,7 @@
 		6CE9246ED97177E3B5530050 /* ModelsSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4397D4FA2DBFEF4C5B15923 /* ModelsSettingsScreen.swift */; };
 		6DBA2CE227CA5E912E18AA66 /* ShareInboxDrainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47B6D7C2209DD2079E8B39A3 /* ShareInboxDrainer.swift */; };
 		6E15D6DFBEF885DCAB056FC9 /* InboxItemType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B460D7581A6DCBA4B2770E8 /* InboxItemType.swift */; };
+		6E7F26765271508DB4015350 /* TalariaPlatformLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6151A7914EC6D46541D58EE1 /* TalariaPlatformLink.swift */; };
 		6F7426E331EBAB6AB9F9DCE6 /* SkillsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF8AAADA890E96CECA5D0CDD /* SkillsStore.swift */; };
 		700F3C77CB181111F0096464 /* DeviceCapability.swift in Sources */ = {isa = PBXBuildFile; fileRef = C70E0AC5FF9CE2176CFE8FBB /* DeviceCapability.swift */; };
 		7105A431C0522A95D5577C02 /* PermissionsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5947892A74BA10823951BC62 /* PermissionsStore.swift */; };
@@ -740,6 +743,7 @@
 		5EB471468F064EE7016C31FE /* TypingDotsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingDotsView.swift; sourceTree = "<group>"; };
 		5F28E7FA18E6D1C83E907BC0 /* VoiceTranscriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceTranscriptTests.swift; sourceTree = "<group>"; };
 		6086194E5DA00269632F6A09 /* Icon-AutumnHarvest@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-AutumnHarvest@3x.png"; sourceTree = "<group>"; };
+		6151A7914EC6D46541D58EE1 /* TalariaPlatformLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalariaPlatformLink.swift; sourceTree = "<group>"; };
 		61B9370067BF51189E67CA57 /* HermesStatusWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesStatusWidget.swift; sourceTree = "<group>"; };
 		61E8C06E456A6825E0B020C3 /* SettingsSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSectionView.swift; sourceTree = "<group>"; };
 		620742C177DDD76042D01179 /* PairingRedeemResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingRedeemResult.swift; sourceTree = "<group>"; };
@@ -841,6 +845,7 @@
 		8CF7DE3CA7DE3F9908C24E5F /* VoiceOverlayScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceOverlayScreen.swift; sourceTree = "<group>"; };
 		8D5B4700A4C8D2978B2CA512 /* HermesActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesActivityAttributes.swift; sourceTree = "<group>"; };
 		8DA769E9A5190E37983334B8 /* DeviceMediaTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceMediaTools.swift; sourceTree = "<group>"; };
+		8F4E2E6C8A314FB772607573 /* TalariaPlatform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalariaPlatform.swift; sourceTree = "<group>"; };
 		8FAE2542B7FCC56AC7DD7A30 /* UITestSecureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestSecureStore.swift; sourceTree = "<group>"; };
 		9053E72DD0D11D3A48B6D2C8 /* ConversationSearchScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationSearchScreen.swift; sourceTree = "<group>"; };
 		90829D7BD62048956A505665 /* AppIconStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconStore.swift; sourceTree = "<group>"; };
@@ -883,6 +888,7 @@
 		A5E8EF024C3134EA534CFABD /* RoutedTrialShapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutedTrialShapeTests.swift; sourceTree = "<group>"; };
 		A60B419A4FBED58CCA577635 /* AskHermesIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskHermesIntent.swift; sourceTree = "<group>"; };
 		A6454C18539C7CF76928BBA5 /* IconPreview-LunarDiner.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-LunarDiner.png"; sourceTree = "<group>"; };
+		A68D762376A815E45F9F5114 /* TalariaPlatformLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalariaPlatformLinkTests.swift; sourceTree = "<group>"; };
 		A6DABD8EE1467EE669FF3FD2 /* SessionStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStats.swift; sourceTree = "<group>"; };
 		A6EED40F681E2DA9D3C5E857 /* IconPreview-MoltenForge.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-MoltenForge.png"; sourceTree = "<group>"; };
 		A7966AEDE93C3C43683A5F83 /* MockHermesHostService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockHermesHostService.swift; sourceTree = "<group>"; };
@@ -1110,6 +1116,7 @@
 				FCEB34BDA045BEF5C8451A95 /* SkillsService.swift */,
 				261578F7A8CEF07EF851192F /* SpeechOutputService.swift */,
 				CEAF3310FF6B138C469841C2 /* SpotlightIndexingService.swift */,
+				6151A7914EC6D46541D58EE1 /* TalariaPlatformLink.swift */,
 				B2CCE55977727DE21D3DB5C5 /* VoiceMemoPlayer.swift */,
 				301C5906499EE7579DB26285 /* VoiceMemoRecorder.swift */,
 				49FFDC553B63DC1D09E83DF6 /* VoiceMemoTranscriber.swift */,
@@ -1245,6 +1252,7 @@
 				43FDBE36354084B4A9D586C5 /* SpotlightIndexingTests.swift */,
 				692CE05A577894FFE49EDDF3 /* SpotlightOpenIntentTests.swift */,
 				6D9C8AE622EA2B105C222872 /* StreamLossClassificationTests.swift */,
+				A68D762376A815E45F9F5114 /* TalariaPlatformLinkTests.swift */,
 				557346D0DB64E949DE47F8E2 /* TalkPreflightTests.swift */,
 				7B2AED870C806635A35329B5 /* TalkSessionRulesTests.swift */,
 				55A40BBCFF31EA70CC924E54 /* TaskScheduleDraftTests.swift */,
@@ -1459,6 +1467,7 @@
 				B91842CE9C8F9B0938C747E5 /* SSEEvent.swift */,
 				E3727619CB1A41ED47CADC62 /* StreamingUpdate.swift */,
 				FC9503176968EC14B829B955 /* SyncStatus.swift */,
+				8F4E2E6C8A314FB772607573 /* TalariaPlatform.swift */,
 				F2FA13DEE0B0D8B6137FFF18 /* ThemeCatalog.swift */,
 				3F3EAD544A476678B4CAA8A8 /* TokenUsage.swift */,
 				0D05FEFC0C88B9061B363B56 /* ToolActivity.swift */,
@@ -2444,6 +2453,8 @@
 				3006083D60A6551CE5DBAAFD /* SyncStatus.swift in Sources */,
 				F27E5034CD34A735DE65FB9A /* TalariaAlarmMetadata.swift in Sources */,
 				1D65E5AB7B2A5160256979EE /* TalariaLog.swift in Sources */,
+				06585A72D4861950D2F3E978 /* TalariaPlatform.swift in Sources */,
+				6E7F26765271508DB4015350 /* TalariaPlatformLink.swift in Sources */,
 				08B3FB0C74D278495673F432 /* TalkModeScreen.swift in Sources */,
 				90858A93D62640CD1DCE932B /* TalkPreflight.swift in Sources */,
 				47529498EE239A6304A10651 /* TalkSessionRules.swift in Sources */,
@@ -2593,6 +2604,7 @@
 				9304F2AB740D219F4BBB136C /* SpotlightIndexingTests.swift in Sources */,
 				31AFEA785F400F5330324795 /* SpotlightOpenIntentTests.swift in Sources */,
 				E55D967594F813AE526B9E1E /* StreamLossClassificationTests.swift in Sources */,
+				073F514793203C57186558F6 /* TalariaPlatformLinkTests.swift in Sources */,
 				382AE4C2878C84116F806CFC /* TalkPreflightTests.swift in Sources */,
 				C353F3E90BF93E9741E06417 /* TalkSessionRulesTests.swift in Sources */,
 				8B3A2B61F4D2C285004C06BF /* TaskScheduleDraftTests.swift in Sources */,
