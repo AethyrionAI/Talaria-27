@@ -180,6 +180,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#189** 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and …
+- **#262** 🎨 Artifact chip placement is not stable across the finish boundary — inline at the generation point …
 - **#261** 🗃️ OPEN_ITEMS IS OUT OF HAND — archive the closed, keep the open, and stop putting attack recipes in a file …
 - **#260** 🔐 PRIVACY LEGIBILITY: the health row contradicts itself, a denial names the wrong toggle, and "streaming" …
 - **#259** 🔓 The `.html` artifact preview has NO CSP — an agent-authored HTML file can beacon out and reach tailnet …
@@ -216,7 +217,9 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#210** #26's condense-and-retry guard did not fire on the REAL context-overflow error. FIXED 2026-07-31.
 - **#208** (Lane 4) — the token cap is NOT the D4 mechanism. Hypothesis falsified; #102's cap stays.
 
-*104 live items; the other 163 (closed or terminal) are in `OPEN_ITEMS-ARCHIVE.md`.*
+*105 items on this board (#262 added, #258 newly closed-in-place 2026-08-06 late
+evening; closed items move to the archive at cleanup passes, not instantly);
+163 closed/terminal items are in `OPEN_ITEMS-ARCHIVE.md`.*
 
 ---
 
@@ -4695,6 +4698,24 @@ Manual/Off app lane).**
 > runs deny side effects silently under current config. Item stays SHELVED;
 > the #251 venture's interactive half is now the natural reopen path.**
 
+## 262. 🎨 Artifact chip placement is not stable across the finish boundary — inline at the generation point mid-turn, then JUMPS to end-of-response at `run.completed` — **FILED + ROUTED 2026-08-06 late evening (from 258-E's device pass; Owen picked "lane, queued behind #260")**
+
+Observed by Owen on OTA 2085, both 258-E runs: *"The generated file doesn't
+stay in line where its generated, its moved to the end of the response on both
+a and b."* Mechanism: the streamed chip renders at the generation point (below
+the tool-activity card) while text continues streaming beneath it; at
+`run.completed` the `.finished` merge's canonical list takes the lead and the
+chip re-anchors to end-of-response. Exactly one chip either way — #258's
+dedupe bar held — the defect is PLACEMENT ONLY.
+
+**Likely fix shape (to be validated when the lane opens):** anchor the chip
+below the streaming text for the whole turn — the transcript's final layout —
+so the finish boundary changes nothing. The alternative (pin the streamed
+inline position permanently) fights `run.completed`'s list-led merge and makes
+the final transcript depend on WHEN a tool fired mid-prose; lean away.
+
+**Queued behind #260. Bars pre-register HERE before any code.**
+
 ## 261. 🗃️ OPEN_ITEMS IS OUT OF HAND — archive the closed, keep the open, and stop putting attack recipes in a file that goes to GitHub — **ROUTED 2026-08-06 evening (Owen: "lets add an item to OI, ironically, to clean up and archive close OI as a start. Its starting to get out of hand")**
 
 **The numbers, measured at filing:** **21,051 lines · 1.5 MB · 268
@@ -4838,6 +4859,21 @@ depends on which gates exist, so (C) landing later may re-touch it.
   screen, and a refused query tells him which switch to flip — the one
   that actually unblocks it.
 
+> **Update 2026-08-06 (late evening) — (C) ROUTED: ONE switch, relabeled
+> (Owen's pick, on the recommended option).** The master switch governs ALL
+> sensor egress — continuous streaming AND query-time answers — and its copy
+> must say so honestly; the per-sensor toggles and iOS permissions stay as the
+> finer gates beneath it. Consequences: (B)'s three payloads stand exactly as
+> barred (master-off / per-sensor-off / iOS-ungranted), and "don't stream but
+> you may ask" stays inexpressible BY DESIGN — recorded as the accepted trade
+> (one privacy concept beats two similar-sounding ones). **ALL THREE FIXES NOW
+> UNBLOCKED — lane opens now** on `claude/t27-260-privacy-legibility` (reset to
+> current main; the branch predates tonight's commits). Fold in tonight's pass
+> data: the 2A-F ON leg proved the iOS health grant EXISTS while the
+> Permissions row had read NOT SET in the earlier pass — the row has been
+> inconsistent across sessions, so (A)'s matrix must treat both readings as
+> real specimens, not assume the flag side is the only liar.
+
 ## 259. 🔓 The `.html` artifact preview has NO CSP — an agent-authored HTML file can beacon out and reach tailnet services — **FILED 2026-08-06 from #258's independent security review (§6, out of that lane's scope); no lane opened**
 
 **The defect, clinically:** the `.html` preview route renders
@@ -4866,7 +4902,13 @@ pre-register here when a lane opens.
 > §A1) — Owen's call 2026-08-06: decisions and fixes in the tracker,
 > attack-shaped detail out of the repo. See #261 for why.
 
-## 258. 🖼️ ARTIFACT PANES v2: agent files appear WHILE the turn streams, and SVG renders instead of "unsupported" — **ROUTED + APPROVED 2026-08-06 (Owen: "5. approved" then "f1 looks good"); design proposal read and blessed; bars pre-registered below BEFORE the build**
+> **DECISION 2026-08-06 (late evening), Owen: scripts ON, network BLOCKED.**
+> The `.html` preview gets a CSP that permits inline script but denies all
+> network destinations — interactivity (much of the point of an HTML artifact)
+> survives; the beacon/tailnet reach dies. Lane queued AFTER #260 per Owen's
+> ordering; bars pre-register in this entry when it opens.
+
+## 258. 🖼️ ARTIFACT PANES v2: agent files appear WHILE the turn streams, and SVG renders instead of "unsupported" — **ROUTED + APPROVED 2026-08-06 (Owen: "5. approved" then "f1 looks good"); design proposal read and blessed; bars pre-registered below BEFORE the build** — **✅ CLOSED 2026-08-06 late evening: all five bars MET (258-E on device), white canvas DECIDED (stays white), chip relocation spun off to #262**
 
 **Framing (established by the terrain map, `G-preview-panes-terrain.md`,
 and the approved proposal `planning/superpowers/specs/2026-08-06-f1-artifact-panes-proposal.md`):
@@ -4977,6 +5019,16 @@ have been edited); **258-E rides the OTA**.
 >   background baked into the file), so the predicted mismatch appeared — a
 >   dark strip floating on the white preview canvas. Owen's aesthetic verdict
 >   pending.
+
+> **Closure 2026-08-06 (late evening):** Owen's two calls came back. **The SVG
+> canvas STAYS WHITE** — a decision now, not a default: bare SVGs render on a
+> light canvas the way browsers and GitHub treat them, and dark-authored SVGs
+> bake their own background (tonight's specimen did exactly that). **The
+> chip-relocation observation is PROMOTED to #262**, its own lane, queued
+> behind #260. With 258-A..E all MET, this item CLOSES. One non-blocking
+> nicety stays on the record: the CSP enforcement check ran on macOS WebKit
+> rather than the iOS 27 sim — a cheap repeat closes that inch if anyone ever
+> wants it.
 
 ## 257. 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt, so "what can you do?" gets an improvised 3-of-15 answer — **FILED 2026-08-05 night (Owen's device screenshots, build 2047: "btw I thought it could do more than that"); measured lane, not yet opened**
 
