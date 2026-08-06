@@ -14498,6 +14498,31 @@ pre-register in this entry before the run. The guard is safe while it
 waits — nothing gets created on the bounce path. Note `lookupContact`
 ran exactly once — no spiral this turn.
 
+**🔧 SHARPENING LANE OPENED 2026-08-06 morning (solo queue, Owen in
+meetings — "if you have anything on the solo queue... feel free").
+BARS PRE-REGISTERED BEFORE THE BUILD:**
+- **249F-A (text):** the evening-clock bounce leads with the negative,
+  carries NO formatted date, NO success-flavored verb outside the
+  quoted line, and hands the model a VERBATIM quoted question to
+  parrot ("Nothing is scheduled yet — did you mean tonight or tomorrow
+  morning?"). Unit pins assert the quoted question + the leading
+  negative.
+- **249F-B (no collateral):** every existing #249/#233 latch, ordering
+  and caution test stays green unmodified except the evening-clock
+  text pins themselves.
+- **249F-C (gate):** full lane gate PASS, unit count moved only if
+  pins were added (state the arithmetic).
+- **249F-D (device, Owen, passive):** the next NATURAL evening
+  reminder whose due resolves to tomorrow morning gets a reply that
+  asks tonight-or-tomorrow WITHOUT claiming anything was set. Rides
+  the next OTA; no forced test.
+Design note: the old text's "the due time landed the next morning" was
+mined into "was set for the next morning" (2026-08-05 device run). The
+new text avoids set/landed phrasing entirely outside the quoted
+question, and the quoted line's negative ("Nothing is scheduled yet")
+requires word-DELETION to flip, which is a harder mining error than
+the word-drop that burned 233-E.
+
 ## 248. 🐛 Stall-recovery adoption briefly DUPES the user's sent message; a session re-open heals it — F3's tail placement is the suspect neighborhood — **✅ CLOSED 2026-08-04 night: device bar MET on the corded `b94fc27` build — no dupe, answer below the question, in the HARDER cross-device shape**
 
 > **✅ CLOSED 2026-08-04 night.** Owen's device run: *"picked up a session
