@@ -14059,9 +14059,84 @@ terminal. THE AGENT IS THE INSTALLER.**
   double as the upgrade prompt surface. FOLDED INTO PHASE 2 as the
   desktop face's v0 (grows paired-devices + outbox columns there).
 
+**🔧 SLICE 2A LANE OPENED 2026-08-05 late (Owen routed: A-first, inbox
+replaces relay feed, structured catalog, long-poll drain; spec approved
+"Looks right"; execution = subagent-driven, sonnet/opus implementers).**
+Spec: `planning/superpowers/specs/2026-08-05-251-2a-transport-spine-design.md`
+(+ Addendum: payload `auth` field, prose query results). Plan:
+`planning/superpowers/plans/2026-08-05-251-2a-transport-spine.md`
+(12 tasks, plugin-first). App branch `claude/t27-251-2a-spine`; plugin
+work in `~/.hermes/plugins/talaria` (the clone IS the install).
+
+**BARS PRE-REGISTERED (written BEFORE the build; a missed bar is a
+falsification, not a redefinition):**
+- **2A-A (pair):** fresh app install against the Mac gateway auto-pairs
+  on first foreground — `hermes talaria status` shows the device, token
+  in keychain, zero user steps beyond the existing profile.
+- **2A-B (live query):** app open, a real agent turn calling
+  `talaria_phone_query(kind:"location")` answers in ≤5s wall-clock with
+  real device data.
+- **2A-C (durability, exactly-once):** `hermes talaria send` while the
+  app is CLOSED → gateway restart → app open → item appears in the
+  Inbox exactly once (dedupe on platformID).
+- **2A-D (honest unreachable):** app closed >60s → check_fn gates the
+  tool; a forced call returns unreachable prose, no throw, no #232
+  counter movement.
+- **2A-E (deletion):** `LiveInboxService`/`RelayInboxItem` gone from
+  the tree; suite green without them.
+- **2A-F (privacy):** health toggle OFF on device →
+  `phone.query(kind:"health")` answers "declined: privacy settings";
+  toggling back ON answers with data.
+- **2A-G (gate):** full `scripts/mac/lane-gate.sh` PASS — units +
+  XCUITest + Release, unit count moved by the net new tests.
+2A-A/B/C/F are device bars (Owen's pass, likely tomorrow); D/E/G close
+build-side.
+
+**📚 PHASE 3 RESEARCH (Owen's dispatch, 2026-08-05 late): three-agent
+feature gap analysis, reports in
+`planning/superpowers/research/251-phase3-gap/`.** A (adapter capability
+inventory, 52 caps): api_server plane hard-sets
+`supports_async_delivery=False` (async delivery REFUSES api clients
+today); approvals only on `/v1/runs` (re-confirms Phase 3 premise);
+newly on the radar: mid-turn interrupt/steer, adapter-layer two-way
+voice (STT + streaming PCM TTS), 92-command slash surface,
+`platform_hint` as day-one cheap win; media on our plane is
+images-only/base64/≤5MB. B (stock platform matrix): **`tui_gateway`
+JSON-RPC/WebSocket protocol exists in Hermes core and its docstring
+names "an iOS / web client" as anticipated consumer** — the structural
+opposite of a platform adapter and a candidate home for Phase 3's rich
+features (streaming, steering, slash); needs live verification. Discord
+= best reference adapter (SQLite missed-message recovery, tiered auth,
+live voice); WhatsApp Cloud stream-edit bug noted in passing (upstream's
+problem, not ours). C (API-vs-gateway gaps, 442 lines): **recommends
+exactly our shape — HYBRID, not migration** (chat stays on
+`/chat/stream`; the adapter exists for delivery + inbound media); High
+gaps = push/unsolicited delivery, file delivery (~60 native extensions
+vs images-only), cron delivery (**`deliver="origin"` on api_server
+FIRES, BURNS A TURN, NEVER DELIVERS — check Owen's cron configs**),
+delivery reliability (ledger/retry/redelivery: zero refs in
+api_server); Medium = inbound voice/docs, HITL (every MCP elicitation
+AUTO-DECLINES on the chat plane), clarify/tts missing (API toolset is
+41-of-62), memory scope (send `X-Hermes-Session-Key`). Must-not-lose
+list pins our plane's strengths (token SSE + separate reasoning
+channel, history+fork, model pinning; set `splits_long_messages=True`
+or a 4000-char cap clips). **Two standing-doc corrections flagged (C
+§22, verify before editing docs): "hooks don't fire for Sessions-API
+runs" is only HALF true (gateway HookRegistry no; PLUGIN lifecycle
+hooks fire on both lanes) — qualify CLAUDE.md + the two-of-everything
+memory when verified; and the markdown-suppressing api_server prompt
+hint is config-overridable TODAY, zero code.** Session-key divergence
+between lanes (§21) named the biggest design risk — testable now.
+**Owen's routing on features: "Get them all. I'm very excited.
+Especially about steering."** — the phase arc's target is the FULL
+high-value capability set; steering is the named priority. tui_gateway
+investigation dispatched same night (agent D).
+
 **Still-open questions (routing owed before Phase 2):** voice WebRTC
-bootstrap's home (in-tree RTC precedent: `plugins/google_meet/`); #21 file
-downloads' home (webhook responses fine for small files, ugly for large).
+bootstrap's home (in-tree RTC precedent: `plugins/google_meet/`) — note
+agent A found adapter-layer voice that may moot this; #21 file
+downloads' home (webhook responses fine for small files, ugly for large;
+agent A's MEDIA pipeline finding is the likely Phase 3 answer).
 OJAMD's operational ask
 (from its consult): don't retire the relay until the adapter's process story
 is settled — with the webhook shape the "listener" is the gateway itself, so
