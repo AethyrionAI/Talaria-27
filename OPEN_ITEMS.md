@@ -13618,6 +13618,18 @@ cleaner than feared; dispositions below, decisions owed from Owen:**
   per surface. Recommendation: (a) yes, (b) optional/low value, (c)
   decide alongside the #253 pivot conversation.
 
+> **✅ ROUTED 2026-08-05 night (Owen, via the menu): (a) only.**
+> Executed same session: `skills/hermes-ios/` → `skills/talaria/`
+> (git mv), SKILL.md `name:` → `talaria`, README.md tree line, and
+> connector/README.md install/refresh paths updated (refresh block now
+> removes the old install under either name). Docs-only, no build
+> surface. (b) and (c) NOT taken — (c) waits for the #253 pivot
+> conversation per the recommendation. Note for ops: the copies already
+> installed at `~/.hermes/skills/hermes-ios` (Mac, per #148) keep the
+> old name until someone runs the refresh block — harmless, the skill
+> still works under its old name. Item stays open only for (b)/(c)
+> verdicts; everything else in the inventory was KEEP or rides #251.
+
 ## 254. 🐛 Control Center "Ask/Talk to Hermes" buttons now BIND (good) — but the voice session SURVIVES dismissing its UI and keeps talking at full volume — **FILED 2026-08-05 evening from Owen's OTA-2024 device report; lifecycle bug, lane not yet opened**
 
 **Owen (2026-08-05, on OTA build 2024):** *"the ask hermes and talk to

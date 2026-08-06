@@ -1,5 +1,5 @@
 ---
-name: hermes-ios
+name: talaria
 description: Access real-time iOS sensor data — location, health metrics, activity detection, and custom queries from the user's iPhone.
 version: 1.0.0
 author: Hermes iOS

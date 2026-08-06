@@ -187,7 +187,7 @@ project.yml           XcodeGen project definition (source of truth)
 design/               UI design reference files + theme galleries
 docs/                 Landing page + screenshots
 scripts/              Host ops scripts (service install, watchdog, updates)
-skills/hermes-ios/    Agent skill for working in this repo
+skills/talaria/       Agent skill for working in this repo
 planning/             Eval notes and cross-machine handoffs
 CLEAN_CHAT_PATH.md    Verified SSE event taxonomy and API contract
 OPEN_ITEMS.md         Active work items and decisions log

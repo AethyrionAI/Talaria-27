@@ -116,15 +116,15 @@ hermes-mobile validate-mcp
 
 If Hermes chat is already open when MCP registration finishes, the connector may report `Reload required`. Run `/reload-mcp` in Hermes or start a fresh chat.
 
-## Recommended: install the `hermes-ios` skill
+## Recommended: install the `talaria` skill
 
-The MCP server gives Hermes access to the tools, but the bundled `hermes-ios` skill teaches the agent when and how to use them well for location, health, activity, and sensor-aware responses.
+The MCP server gives Hermes access to the tools, but the bundled `talaria` skill (formerly `hermes-ios`) teaches the agent when and how to use them well for location, health, activity, and sensor-aware responses.
 
 From the repo root:
 
 ```bash
 mkdir -p ~/.hermes/skills
-cp -R skills/hermes-ios ~/.hermes/skills/
+cp -R skills/talaria ~/.hermes/skills/
 ```
 
 Then reload Hermes:
@@ -138,11 +138,11 @@ Or start a fresh Hermes session.
 > [!IMPORTANT]
 > Copy the skill directory into `~/.hermes/skills`. Do not rely on a symlink-based install unless you have already confirmed your Hermes setup follows symlinked skills correctly.
 
-If you are updating an older copy of the skill, replace it explicitly:
+If you are updating an older copy of the skill, remove it (under either name) and copy fresh:
 
 ```bash
-rm -rf ~/.hermes/skills/hermes-ios
-cp -R skills/hermes-ios ~/.hermes/skills/
+rm -rf ~/.hermes/skills/hermes-ios ~/.hermes/skills/talaria
+cp -R skills/talaria ~/.hermes/skills/
 ```
 
 ## Background service
