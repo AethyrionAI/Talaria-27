@@ -14237,7 +14237,22 @@ CLARIFIED AND IMPROVED:**
   Steer's mid-turn acceptance + landing site remain source-read
   claims. NEEDS OWEN: an explicit go for one live steer-fire session
   (one short kimi turn on the Mac), or we carry the source-read as
-  sufficient into Phase 3 routing.** Honesty flag from the probe
+  sufficient into Phase 3 routing.**
+  - **✅ RE-RUN SAME DAY WITH OWEN'S GO ("Go for a test on steering") —
+    STEER WORKS ON THE WIRE.** Mid-tool-call (`terminal: sleep 20`),
+    `session.steer` returned `OK {"status":"queued"}` and the turn's
+    final output became the steered text (`message.complete
+    'STEERED-OK'`) instead of the originally instructed "done"; the
+    injection leaves NO extra user bubble in `session.history`. **The
+    migration's load-bearing claim is now demonstrated, not inferred.**
+    Two bonus findings: (a) **steer is NOT gated on
+    `display.busy_input_mode`** — this box is `interrupt` and the
+    explicit RPC worked anyway (the mode governs bare `prompt.submit`
+    while busy; the dedicated method bypasses it) — SUPERSEDES the
+    earlier "needs steer mode" note; (b) `config.get` calls
+    `display.busy_input_mode` an unknown key, so a client can't query
+    the mode over RPC. Teardown verified; `:8642` untouched. Full wire
+    table in the D dossier's "Arm 4 RE-RUN" section. Honesty flag from the probe
   agent, verified benign: config.yaml mtime moved during the window —
   consistent with serve's own startup normalization rewrite (same
   behavior the gateway showed at 09:42); no settings changed.
