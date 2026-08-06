@@ -462,6 +462,9 @@ final class TalariaUITests: XCTestCase {
         app.buttons["Open settings"].tap()
         XCTAssertTrue(app.otherElements["settings.grid"].waitForExistence(timeout: 10),
                       "Settings must open on the subsystem grid (#252)")
+        // #256: the at-a-glance status strip sits above the cards in grid view.
+        XCTAssertTrue(app.descendants(matching: .any)["settings.statusStrip"].exists,
+                      "the status strip must render above the grid (#256)")
         for id in ["settings.card.uplink", "settings.card.server", "settings.card.models",
                    "settings.card.voice", "settings.card.appearance", "settings.card.privacy",
                    "settings.card.sessions", "settings.card.about", "settings.row.developer"] {
@@ -500,6 +503,9 @@ final class TalariaUITests: XCTestCase {
         // resolves regardless of the underlying element type.
         let uplinkPage = app.descendants(matching: .any)["settings.deck.page.uplink"]
         XCTAssertTrue(uplinkPage.waitForExistence(timeout: 5), "the uplink deck page must be reachable")
+        // #256: the strip is grid-only — the deck stays full-bleed.
+        XCTAssertFalse(app.descendants(matching: .any)["settings.statusStrip"].exists,
+                       "the status strip must not render in deck mode (#256)")
         uplinkPage.swipeLeft()
         waitForCounter(counter, toEqual: "02 / 09", timeout: 5)
         XCTAssertEqual(counter.label, "02 / 09", "swipe must advance the deck")

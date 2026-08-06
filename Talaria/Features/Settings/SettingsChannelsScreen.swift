@@ -215,6 +215,7 @@ struct SettingsChannelsScreen: View {
     private var gridScroll: some View {
         ScrollView {
             VStack(spacing: Design.Spacing.md) {
+                statusStrip
                 if !pairingStore.isPaired { upgradeBanner }
                 cardGrid
                 developerRow
@@ -223,6 +224,46 @@ struct SettingsChannelsScreen: View {
             .padding(.horizontal, Design.Spacing.md)
             .padding(.vertical, Design.Spacing.sm)
         }
+    }
+
+    // MARK: #256 status strip (grid view only — at-a-glance LINK · HOST · MODEL,
+    // Owen's device-pass call: the grid sat too high and the page wanted
+    // one glanceable line of link telemetry)
+
+    private var statusStripText: String {
+        SettingsCardValues.statusStrip(
+            state: effectiveConnectionState,
+            isDirect: container.chatStore.directConnectionStatus == .connected,
+            hostName: container.profilesStore?.activeProfile?.name,
+            modelName: container.chatStore.activeModelName,
+            brainLabel: container.chatBackendRouter?.activeBrain.monoLabel)
+    }
+
+    private var statusStrip: some View {
+        HStack(spacing: Design.Spacing.sm) {
+            StatusPip(
+                color: effectiveConnectionState == .online
+                    ? Design.Brand.accent : Design.Colors.mutedForeground,
+                diameter: 8,
+                blinks: effectiveConnectionState == .online)
+            MonoLabel(statusStripText, size: 10, weight: .medium,
+                      tracking: Design.Tracking.mono,
+                      color: Design.Colors.foregroundBright)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm + 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.lg,
+            borderColor: Design.Colors.hairline,
+            fill: Design.Colors.background.opacity(0.5)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(statusStripText)
+        .accessibilityIdentifier("settings.statusStrip")
     }
 
     // MARK: Upgrade banner (unpaired only — label containment is a test contract)
@@ -435,6 +476,9 @@ private struct SubsystemCard: View {
                       tracking: Design.Tracking.mono,
                       color: accented ? Design.Brand.accent : Design.Colors.mutedForeground)
                 .lineLimit(1)
+                // #256: long theme names ("CASINO LUCKY 7S · CH 22") were
+                // ellipsizing on device — scale to fit instead.
+                .minimumScaleFactor(0.65)
                 .padding(.top, Design.Spacing.xxs)
         }
         .padding(Design.Spacing.md)

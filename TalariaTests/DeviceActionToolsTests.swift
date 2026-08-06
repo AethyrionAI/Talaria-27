@@ -256,7 +256,12 @@ struct DeviceActionToolsTests {
             relay: relay, confirmations: center, now: now)
         #expect(first.hasPrefix("No reminder was created"))
         #expect(first.contains("already passed"))
-        #expect(first.contains("Ask the user what future time they meant"))
+        // #256 sharpening (249-E residue): steer the model toward the
+        // nearest FUTURE reading of the same clock hour instead of the
+        // open-ended "what future time" — "8" asked at 6:59 PM should come
+        // back offering tonight.
+        #expect(first.contains("next time that clock time comes around"))
+        #expect(first.contains("later today or tomorrow"))
         #expect(!first.contains("2026"))   // 233-E: nothing mineable
 
         let second = await ReminderCreateTool.performCreate(
