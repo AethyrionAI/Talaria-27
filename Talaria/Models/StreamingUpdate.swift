@@ -30,6 +30,15 @@ enum StreamingUpdate: Sendable {
     /// from the answer — never folded into `textDelta`.
     case reasoningDelta(String)
     case toolActivity(ToolCallEvent)
+    /// #258: an agent-written file, reconstructed the moment its
+    /// `tool.started` payload was parsed — NOT at the end of the turn. The
+    /// tool pill was always live while the artifact was not: `producedFiles`
+    /// accumulated locally in the client and only reached the message at
+    /// `run.completed`, so the openable chip appeared a whole turn late.
+    /// `run.completed` still assigns the authoritative list (it is what adds
+    /// the #21 Tier 2 fetchables); this is the same attachment VALUE, so the
+    /// two are one chip, deduped by id at the finish merge.
+    case artifactProduced(MessageAttachment)
     /// P1 (#90): this turn started a fresh server session and transplanted
     /// condensed journal context into it as turn zero, BEFORE the user's turn
     /// was posted. Carries the priming turn's real token usage from its

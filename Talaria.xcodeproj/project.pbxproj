@@ -137,6 +137,7 @@
 		375ECB9BBF434C4BB80B60AC /* LocalSessionStoring.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39E46CE71DF45FCD29B22771 /* LocalSessionStoring.swift */; };
 		3761D9CE23F6E783C852413F /* AppTemplateUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5AD6E957D927DE3495F4B72 /* AppTemplateUITests.swift */; };
 		376B41B92E12CA8ED8B82D57 /* KeychainSecureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2573EFA3B69C8859EC660995 /* KeychainSecureStore.swift */; };
+		37F70526FB6568CDA2B8BC3C /* ArtifactStreamingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A409B6A1140C0D421B4CBF5 /* ArtifactStreamingTests.swift */; };
 		382AE4C2878C84116F806CFC /* TalkPreflightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 557346D0DB64E949DE47F8E2 /* TalkPreflightTests.swift */; };
 		39126650E0C3D4914B75988C /* SensorOutboxChurnTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEBD81AC0A5839FA111D423E /* SensorOutboxChurnTests.swift */; };
 		3A416A1C3DE88071A6765234 /* AppTemplateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3A103D6FF3E893A48AE64C3 /* AppTemplateTests.swift */; };
@@ -868,6 +869,7 @@
 		9971D47F897C6706C20D07DD /* LiveMotionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveMotionService.swift; sourceTree = "<group>"; };
 		998128B6337A93B7540FDF42 /* InboxBriefing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxBriefing.swift; sourceTree = "<group>"; };
 		9A09FC324E28A6A2B4439048 /* ConnectHermesHostScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectHermesHostScreen.swift; sourceTree = "<group>"; };
+		9A409B6A1140C0D421B4CBF5 /* ArtifactStreamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactStreamingTests.swift; sourceTree = "<group>"; };
 		9C033B79367C600767758EB0 /* LiveLocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveLocationService.swift; sourceTree = "<group>"; };
 		9C6A4A5B1356C64A3A6476FA /* LocalIntelligenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalIntelligenceService.swift; sourceTree = "<group>"; };
 		9DF933619662DB426B20E614 /* InboxItemPriority.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxItemPriority.swift; sourceTree = "<group>"; };
@@ -1173,6 +1175,7 @@
 				5CE6B0DE5CE1DCD32DA50DFA /* AppLockTests.swift */,
 				3F0818490CD153ED5EBCD1CC /* AppStoresTests.swift */,
 				A3A103D6FF3E893A48AE64C3 /* AppTemplateTests.swift */,
+				9A409B6A1140C0D421B4CBF5 /* ArtifactStreamingTests.swift */,
 				52BA50723B237D05E12279BE /* AskHermesIntentTests.swift */,
 				2EB44A40F5D84F7994A337C1 /* AttachmentDownscaleTests.swift */,
 				036CD989156BAB4FE1A35157 /* AttachmentInliningTests.swift */,
@@ -2527,6 +2530,7 @@
 				FD770D93F0C4CBDACA2F2544 /* AppLockTests.swift in Sources */,
 				893E3D0A9F65586C2824B63E /* AppStoresTests.swift in Sources */,
 				3A416A1C3DE88071A6765234 /* AppTemplateTests.swift in Sources */,
+				37F70526FB6568CDA2B8BC3C /* ArtifactStreamingTests.swift in Sources */,
 				B918873555ADC2DBEDE9BB5E /* AskHermesIntentTests.swift in Sources */,
 				4DD8CA2AE4A58EBB90B35B2D /* AttachmentDownscaleTests.swift in Sources */,
 				4C6B5D44AC6F0ECD63D2A229 /* AttachmentInliningTests.swift in Sources */,

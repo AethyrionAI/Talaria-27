@@ -363,6 +363,15 @@ final class SessionsHermesClient: HermesClientProtocol {
                     if currentEvent == "tool.started" {
                         if let file = Self.parseWrittenFile(currentData, profileID: hop.profileID) {
                             producedFiles.append(file)
+                            // #258: and deliver it NOW. The accumulation above
+                            // still feeds the `run.completed` assign — that
+                            // list stays the source of truth because it is
+                            // where the Tier 2 fetchables are appended — but
+                            // the bytes are already staged at this point, so
+                            // there is nothing for the chip to wait on. Same
+                            // VALUE on both paths (same id), which is what
+                            // lets the store's finish merge collapse them.
+                            continuation.yield(.artifactProduced(file))
                         }
                         // #21 Tier 2: any tool call can reveal an agent-files
                         // path (`terminal` commands, search results) — harvest
