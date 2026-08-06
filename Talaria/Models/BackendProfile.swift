@@ -167,10 +167,14 @@ enum BackendProfileScopedKeys {
     static func gatewayAPIKey(_ scope: UUID?) -> String { scoped("hermes.apiServerKey", scope) }
     /// Dedicated models-shim token (Keychain, legacy/manual override).
     static func shimToken(_ scope: UUID?) -> String { scoped("talaria.modelsShimToken", scope) }
-    /// #251-2A: the talaria-platform device token minted by auto-pair. The
-    /// device id it is issued with rides in the same slot family (this key
-    /// plus a ".deviceID" suffix) — see `TalariaPlatformLink`.
+    /// #251-2A: the talaria-platform device token minted by auto-pair.
     static func talariaDeviceToken(_ scope: UUID?) -> String { scoped("talaria.platformDeviceToken", scope) }
+    /// The device id issued alongside the token above — same slot family
+    /// (this key plus the ".deviceID" suffix), named here rather than
+    /// derived inline at the call site so a future purge (#251-2A Task 11)
+    /// can enumerate both halves of the credential from this namespace
+    /// instead of reconstructing the suffix by hand.
+    static func talariaDeviceID(_ scope: UUID?) -> String { talariaDeviceToken(scope) + ".deviceID" }
     /// Paired relay configuration (UserDefaults + Keychain mirror, #41).
     static func pairedRelayConfiguration(_ scope: UUID?) -> String { scoped("hermes.pairedRelayConfiguration", scope) }
     /// Relay session state (UserDefaults, `AppSessionStore.state`).

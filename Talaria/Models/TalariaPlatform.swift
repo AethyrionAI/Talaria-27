@@ -46,8 +46,11 @@ struct TalariaDrainResponse: Decodable, Sendable {
     let queries: [TalariaPlatformQuery]
 }
 
-/// The gateway's error envelope — `code` is the machine-readable half
-/// (`invalid_talaria_auth` is the one that drives the re-pair).
+/// The gateway's error envelope — `code` is the machine-readable half,
+/// decoded purely for logging. Re-pair is driven by the HTTP 401 status
+/// alone (`TalariaPlatformLink.drain`); this code is never inspected to
+/// decide it — `invalid_talaria_auth` is simply the value that's been
+/// observed to accompany the 401, not a trigger in its own right.
 struct TalariaEnvelopeError: Decodable, Sendable {
     let error: String
     let code: String

@@ -72,6 +72,7 @@ struct TalariaPlatformLinkTests {
     // MARK: - Pairing
 
     @Test func pairStoresTokenInProfileScopedKeychainSlot() async {
+        defer { StubURLProtocol.handler = nil }
         let secure = MockSecureStore()
         let link = makeLink(secureStore: secure) { _ in
             (200, Data(#"{"device_id":"dev12","device_token":"tok-1"}"#.utf8))
@@ -85,6 +86,7 @@ struct TalariaPlatformLinkTests {
     }
 
     @Test func pairSkippedWhenAlreadyPaired() async {
+        defer { StubURLProtocol.handler = nil }
         let secure = MockSecureStore()
         await secure.store(key: Self.tokenKey, value: "existing")
         await secure.store(key: Self.deviceIDKey, value: "dev-existing")
@@ -101,6 +103,7 @@ struct TalariaPlatformLinkTests {
     // MARK: - Drain
 
     @Test func drainParsesItemsAndAcksThem() async {
+        defer { StubURLProtocol.handler = nil }
         let secure = MockSecureStore()
         await secure.store(key: Self.tokenKey, value: "tok-1")
         await secure.store(key: Self.deviceIDKey, value: "dev12")
@@ -131,6 +134,7 @@ struct TalariaPlatformLinkTests {
     }
 
     @Test func emptyDrainIsIdleAndAcksNothing() async {
+        defer { StubURLProtocol.handler = nil }
         let secure = MockSecureStore()
         await secure.store(key: Self.tokenKey, value: "tok-1")
         await secure.store(key: Self.deviceIDKey, value: "dev12")
@@ -145,6 +149,7 @@ struct TalariaPlatformLinkTests {
     }
 
     @Test func unauthorizedDrainRepairsExactlyOnce() async {
+        defer { StubURLProtocol.handler = nil }
         let secure = MockSecureStore()
         await secure.store(key: Self.tokenKey, value: "stale")
         await secure.store(key: Self.deviceIDKey, value: "dev-stale")
@@ -170,6 +175,7 @@ struct TalariaPlatformLinkTests {
     }
 
     @Test func drainWithoutGatewayURLIsNotConfigured() async {
+        defer { StubURLProtocol.handler = nil }
         let secure = MockSecureStore()
         let recorder = Recorder()
         StubURLProtocol.handler = { request in
@@ -192,6 +198,47 @@ struct TalariaPlatformLinkTests {
 
         #expect(await link.drainOnce(wait: false) == .notConfigured)
         #expect(recorder.all.isEmpty)
+    }
+
+    // MARK: - Loop
+
+    @Test func backoffLadderIsBoundedAndDeterministic() {
+        let link = makeLink(secureStore: MockSecureStore()) { _ in (200, Data()) }
+        defer { StubURLProtocol.handler = nil }
+        #expect(link.nextDelay(afterFailureCount: 1) == 1)
+        #expect(link.nextDelay(afterFailureCount: 2) == 2)
+        #expect(link.nextDelay(afterFailureCount: 3) == 4)
+        #expect(link.nextDelay(afterFailureCount: 6) == 30)
+        #expect(link.nextDelay(afterFailureCount: 99) == 30)
+    }
+
+    @Test func stopCancelsTheLoop() async throws {
+        defer { StubURLProtocol.handler = nil }
+        let secure = MockSecureStore()
+        await secure.store(key: Self.tokenKey, value: "tok")
+        await secure.store(key: Self.deviceIDKey, value: "dev")
+        let link = makeLink(secureStore: secure) { _ in
+            (200, Data(#"{"items":[],"queries":[]}"#.utf8))
+        }
+        link.start()
+        #expect(link.isRunning == true)
+        link.stop()
+        #expect(link.isRunning == false)
+    }
+
+    @Test func startIsIdempotentWhileAlreadyRunning() async {
+        defer { StubURLProtocol.handler = nil }
+        let secure = MockSecureStore()
+        await secure.store(key: Self.tokenKey, value: "tok")
+        await secure.store(key: Self.deviceIDKey, value: "dev")
+        let link = makeLink(secureStore: secure) { _ in
+            (200, Data(#"{"items":[],"queries":[]}"#.utf8))
+        }
+        link.start()
+        link.start()  // second call must not spawn a competing loop
+        #expect(link.isRunning == true)
+        link.stop()
+        #expect(link.isRunning == false)
     }
 }
 
