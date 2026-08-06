@@ -23,10 +23,14 @@ enum DeviceToolBelt {
         relay: ToolEventRelay,
         conversationProvider: @escaping @MainActor () -> Conversation?,
         sessionCacheProvider: @escaping @MainActor () -> [ConversationSearchTool.CachedSession],
-        spotlightEnabledProvider: @escaping @MainActor () -> Bool
+        spotlightEnabledProvider: @escaping @MainActor () -> Bool,
+        // #251-2A: the app passes the provider in so the phone-query reader
+        // (`LivePhoneQueryReader`) shares this exact instance — one
+        // CLLocationManager per device, not one per consumer. Defaulted so
+        // every existing caller (and every test) is unchanged.
+        location: DeviceLocationProvider = DeviceLocationProvider()
     ) -> [any Tool] {
-        let location = DeviceLocationProvider()
-        return [
+        [
             DeviceHealthTool(relay: relay),
             LocationTool(relay: relay, location: location),
             MotionTool(relay: relay),

@@ -471,6 +471,14 @@ final class TalariaUITests: XCTestCase {
             XCTAssertTrue(app.buttons[id].exists, "\(id) card must be present")
         }
         XCTAssertFalse(app.staticTexts["REACTOR"].exists, "hardcoded root values must be gone (#252)")
+
+        // #251-2A: the Server page carries the plugin-link status row. Query
+        // by `.any` — the combined accessibility element's type depends on
+        // what the panel collapses to.
+        app.buttons["settings.card.server"].tap()
+        let talariaLink = app.descendants(matching: .any)["settings.server.talariaLink"]
+        XCTAssertTrue(talariaLink.waitForExistence(timeout: 10),
+                      "the Server page must show the talaria PLUGIN LINK row (#251-2A)")
     }
 
     /// 252-B: swipe and grid-toggle navigation through the deck, plus the

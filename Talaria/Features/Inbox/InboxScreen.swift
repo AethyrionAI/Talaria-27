@@ -1,5 +1,29 @@
 import SwiftUI
 
+/// What tapping an Inbox row does. Extracted from the view so the one
+/// non-obvious rule is pinned by a test instead of by a comment.
+///
+/// #126: briefings open their detail screen, which marks them read there.
+/// #251-2A: everything else USED to be a no-op — platform items are plain
+/// notifications with no detail screen and no action buttons, so nothing on
+/// the row could ever reach `markRead` and the unread pip stuck forever.
+///
+/// Actionable rows stay a no-op deliberately: `markRead` moves `.pending` →
+/// `.opened` and then recomputes `isActionable` from that status, so marking
+/// one read on tap would silently strip its Approve / Dismiss buttons.
+enum InboxRowTapAction: Equatable {
+    case openBriefing
+    case markRead
+    /// Named `ignore` rather than `none` on purpose — a `.none` case shadows
+    /// `Optional.none` at every comparison site.
+    case ignore
+
+    static func resolve(for item: InboxItem) -> InboxRowTapAction {
+        if item.isBriefing { return .openBriefing }
+        return item.isActionable ? .ignore : .markRead
+    }
+}
+
 struct InboxScreen: View {
     @Environment(InboxStore.self) private var inboxStore
     @Environment(TabRouter.self) private var router
@@ -54,10 +78,13 @@ struct InboxScreen: View {
                                 Task { await inboxStore.dismiss(item) }
                             },
                             onOpenDetails: {
-                                // #126: briefings get the rich detail; other
-                                // kinds keep the pre-existing no-op.
-                                if item.isBriefing {
+                                switch InboxRowTapAction.resolve(for: item) {
+                                case .openBriefing:
                                     router.navigate(to: .briefing(item))
+                                case .markRead:
+                                    inboxStore.markRead(item)
+                                case .ignore:
+                                    break
                                 }
                             }
                         )

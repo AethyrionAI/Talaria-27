@@ -20,7 +20,15 @@ struct CalendarReadTool: Tool {
     }
 
     func call(arguments: Arguments) async throws -> String {
-        let days = min(max(arguments.daysAhead, 1), 14)
+        try await Self.performRead(rawDaysAhead: arguments.daysAhead, relay: relay, name: name)
+    }
+
+    /// #251-2A: `call`'s body, lifted verbatim — clamp included, so the
+    /// window bounds live in exactly one place for both callers. `daysAhead`
+    /// is a required `Int` in the schema, so the extraction takes an `Int`
+    /// (the signature follows the body).
+    static func performRead(rawDaysAhead: Int, relay: ToolEventRelay, name: String) async throws -> String {
+        let days = min(max(rawDaysAhead, 1), 14)
         if case .refused(let refusal) = try await relay.started(name, detail: "next \(days) day\(days == 1 ? "" : "s")") { return refusal }
         defer { Task { await relay.completed(name) } }
 
@@ -92,6 +100,12 @@ struct ReminderReadTool: Tool {
     struct Arguments {}
 
     func call(arguments: Arguments) async throws -> String {
+        try await Self.performRead(relay: relay, name: name)
+    }
+
+    /// #251-2A: `call`'s body, lifted verbatim. `Arguments` is empty — there
+    /// is no list filter to thread through, so the extraction takes none.
+    static func performRead(relay: ToolEventRelay, name: String) async throws -> String {
         if case .refused(let refusal) = try await relay.started(name) { return refusal }
         defer { Task { await relay.completed(name) } }
 
