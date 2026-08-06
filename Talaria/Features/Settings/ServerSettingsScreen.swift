@@ -151,11 +151,15 @@ struct ServerSettingsScreen: View {
         }
         .navigationTitle("Server")
         .toolbarVisibility(.hidden, for: .navigationBar)
-        .task {
-            // Cheap local read first — the row settles immediately instead of
-            // waiting behind the network probes.
+        .task { await probeAllProfiles() }
+        // #251-2A: KEYED on the active profile, not a plain `.task`. The
+        // switch happens on THIS screen (the confirm alert is
+        // `setActiveProfile`'s only caller), so a plain `.task` never re-fires
+        // and the row would go on asserting the PREVIOUS profile's pairing —
+        // confidently wrong, which is worse than "—". A local Keychain read,
+        // so it settles ahead of the probes above rather than behind them.
+        .task(id: container.profilesStore?.activeProfileID) {
             await refreshTalariaLinkState()
-            await probeAllProfiles()
         }
         // #193: was a `.confirmationDialog`, whose cancel role does not
         // render on iOS 26/27. Non-destructive, but a one-button sheet with
@@ -551,10 +555,11 @@ struct ServerSettingsScreen: View {
     }
 
     private func refreshTalariaLinkState() async {
-        guard let profile = container.profilesStore?.activeProfile else {
-            talariaLink = .unknown
-            return
-        }
+        // Drop to "—" while the read is in flight: on a profile switch the
+        // held value describes the profile we just left, and showing it for
+        // the duration of a Keychain read is the same lie in miniature.
+        talariaLink = .unknown
+        guard let profile = container.profilesStore?.activeProfile else { return }
         let token = await container.talariaDeviceToken(for: profile)
         talariaLink = TalariaLinkState.resolve(hasActiveProfile: true, deviceToken: token)
     }

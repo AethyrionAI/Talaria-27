@@ -999,13 +999,18 @@ final class AppContainer {
             onItemsReceived: { [weak container] items in
                 guard let container else { return }
                 container.inboxStore.receivePlatformItems(items)
-                // …then repaint. `receivePlatformItems` lands the CACHE only;
-                // without this the drain is invisible until the user next
-                // opens the Inbox — including the chat toolbar's unread pip,
-                // which reads `inboxStore.items`. The reload is entirely
-                // local (the platform inbox service makes no network call and
-                // `currentAccessToken` is a Keychain read), so this costs a
-                // persistence decode, not a round trip.
+                // …then nudge a repaint. `receivePlatformItems` lands the
+                // CACHE only; without this the drain stays invisible until
+                // the user next opens the Inbox — including the chat
+                // toolbar's unread pip, which reads `inboxStore.items`.
+                //
+                // Best-effort, and honestly so: `loadInbox` early-returns
+                // while one is already in flight, so a concurrent load wins
+                // instead — which is fine, because that load reads the same
+                // persisted cache this merge just wrote. The reload is
+                // entirely local (the platform inbox service makes no network
+                // call and `currentAccessToken` is a Keychain read), so it
+                // costs a persistence decode, not a round trip.
                 Task { await container.inboxStore.loadInbox(force: true) }
             }
         )
@@ -2267,8 +2272,14 @@ final class AppContainer {
         await talkStore.refreshReadiness()
         await chatStore.refreshDirectHealth()
         // #251-2A: back on the loop, now resolving the NEW profile's gateway,
-        // key and credential scope.
-        talariaPlatformLink?.start()
+        // key and credential scope — unless the app went to the background
+        // while this chain ran. `didEnterBackground` already fired its stop()
+        // by then, and restarting here would arm a foreground-only loop with
+        // nobody watching, with no further foreground event to correct it
+        // (the next `didBecomeActive` start() is a no-op on a running loop).
+        if UIApplication.shared.applicationState != .background {
+            talariaPlatformLink?.start()
+        }
         updateWidgetData()
     }
 
