@@ -13499,6 +13499,11 @@ Ride-along: Appearance card value truncation ("CASINO LUCKY 7S ·…").
 - **256-E (device, Owen):** strip reads LINKED · DIRECT · OJAMD ·
   DEEPSEEK-V4-FLASH on his paired install and the grid sits visibly
   lower; an evening "remind me at 8" now comes back offering tonight.
+- **256-F (ride-along, added same night from Owen's #250 follow-up
+  screenshot, before its code):** the Appearance deck page's APP ICON
+  row becomes a NavigationLink to the icon gallery
+  (`settings.appearance.openIconGallery`) — the gallery was findable
+  only via browser → tuning → expand. GLOW/GRID rows stay read-only.
 
 A missed bar is a falsification, not a redefinition.
 
@@ -14033,6 +14038,16 @@ Settings → Appearance → App Icon shows as selected. If it says
 Default/Talaria and the home screen still shows the upstream art,
 that's a real fail (icon cache vs asset — diagnose). Island half not
 yet judged either.
+
+**250-D home-screen half RESOLVED (same night, follow-up screenshot):**
+the picker sits on **KAIJU ATTACK** — so keeping it was correct
+behavior, and Owen adds "I don't even see the old icon which is good"
+(the upstream art is gone from every surface he's met). Island half
+stays OPEN as a watch — he can't consistently trigger the island;
+judge it whenever one appears. UX ride-along from the same screenshot,
+routed into #256: the icon gallery was buried (browser → tuning →
+expand); the deck page's APP ICON row now navigates to the gallery
+directly.
 
 ## 249. 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the card is not the hour the user said — **INSTRUMENTED 2026-08-04 night; discriminator run pending; readings pre-registered below BEFORE the evidence** *(header's 9 PM is the as-filed observation — CORRECTED to 8:00 AM in the dated note below)*
 

@@ -4,8 +4,9 @@ import UIKit
 // MARK: - #252 Appearance deck page
 //
 // The deck entry for the #244 channel browser — a spectrum hero + read-only
-// tuning values + the handoff button. The browser itself is UNCHANGED; this
-// page never duplicates its controls.
+// tuning values + handoff buttons (channel browser, and since #256 the app
+// icon gallery via its row). The browser itself is UNCHANGED; this page
+// never duplicates its CONTROLS — rows either display or navigate.
 struct AppearanceDeckPage: View {
     @Environment(SettingsStore.self) private var settingsStore
 
@@ -69,7 +70,27 @@ struct AppearanceDeckPage: View {
             divider
             infoRow("GRID", settingsStore.settings.gridDensity.displayLabel.uppercased())
             divider
-            infoRow("APP ICON", currentIconName)
+            // #256 (Owen's device pass): the icon gallery was buried behind
+            // the browser's tuning section — this row now opens it directly.
+            NavigationLink { AppIconSettingsScreen() } label: {
+                HStack {
+                    MonoLabel("APP ICON", size: 10, weight: .medium,
+                              tracking: Design.Tracking.mono,
+                              color: Design.Colors.secondaryForeground)
+                    Spacer()
+                    MonoLabel(currentIconName, size: 10, weight: .medium,
+                              tracking: Design.Tracking.mono,
+                              color: Design.Colors.foreground)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(Design.Colors.mutedForeground)
+                }
+                .padding(.horizontal, Design.Spacing.md)
+                .padding(.vertical, Design.Spacing.sm)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("settings.appearance.openIconGallery")
         }
         .hudPanel(cornerRadius: Design.CornerRadius.lg,
                   borderColor: Design.Colors.accentTint(0.14),
