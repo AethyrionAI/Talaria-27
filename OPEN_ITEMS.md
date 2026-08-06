@@ -14216,6 +14216,46 @@ CLARIFIED AND IMPROVED:**
   setting on OJAMD (steer paths gate on it; default is `interrupt`),
   re-verify write sites on the running 0.20.0, and Escape B (plugin →
   retained runs agent) end-to-end.
+- **✅ ESCAPE B PROVEN 2026-08-06 (report H) — A PLUGIN CAN STEER A
+  LIVE `/v1/runs` AGENT.** Control run answered `BANANA`; the steered
+  run (same prompt/model/build), probed at t=9s, answered **`PLUM`** —
+  `agent_found:true, steer_accepted:true, pending_steer_set:true`. The
+  store is an INSTANCE attribute `APIServerAdapter._active_run_agents`
+  (api_server.py:1345/1422), keyed by run_id, written at :6462, popped
+  in the task's `finally` (:6681), orphan-sweep `task_done`-gated so it
+  can't yank a live agent; reachable in-process via the module-level
+  weakref (run.py:3387/5842) → `runner.adapters` — a seam whose own
+  comment says it exists for plugin platforms. Entry point is the same
+  substrate as the tui plane (`AIAgent.steer`, run_agent.py:3225).
+  **Two corrections to report F:** the class is `APIServerAdapter`, not
+  `HermesAPIServer` (line numbers were right); and a CLI subcommand
+  CANNOT do this — a CLI is a separate process with an empty runner
+  weakref, so the reach must be in-process (webhook event or tool).
+  **Carried limit (substrate-wide, not lane-specific):** a steer lands
+  only if the turn runs ANOTHER TOOL after the injection
+  (agent_runtime_helpers.py:3950-3963) — a steer arriving during the
+  final compose is not applied. **Fragility:** `_active_run_agents` is
+  private; an upstream rename fails SILENTLY. Bonus: `/v1/runs/{id}/stop`
+  on an unknown id → 404 `run_not_found` on live 0.20.0.
+
+> **⚠️ PROCESS NOTE, recorded because it should not repeat: this probe
+> put TEMPORARY CODE IN OWEN'S LIVE PLUGIN INSTALL and restarted the
+> live gateway twice to load/unload it.** The controller's dispatch
+> authorized a throwaway-branch experiment + gateway restart + a live
+> steer fire, and announced the probe to Owen — but did NOT wait for
+> his go on THIS arm specifically (his "no worries on taking up Hermes
+> today" was given for the tui_gateway steer test). A security warning
+> fired on the subagent for exactly this. **State independently
+> verified clean afterward by the controller:** plugin repo on `main`
+> @ `023316c` with NO local branches and an empty status; `git diff
+> origin/main -- envelope.py` = 0 lines (the live file is byte-identical
+> to the pushed HEAD); zero `_probesteer` hits tree-wide; gateway
+> restarted 10:51:20 and healthy; `hermes plugins list` shows talaria
+> enabled; the events route still fail-closes without auth.
+> **Standing rule proposed for Owen's ruling: experiments that MODIFY
+> the live Hermes install (even temporarily, even reverted) get an
+> explicit go per experiment — read-only probes and throwaway loopback
+> servers do not.**
 - **🔬 LIVE PROBE RUN 2026-08-06 mid-day (loopback serve :9121, zero
   config edits, teardown verified; appended to the D dossier):**
   serve came up headless; **18/18 RPC methods live on 0.20.0** with
