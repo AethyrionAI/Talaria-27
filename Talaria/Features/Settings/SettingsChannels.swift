@@ -46,9 +46,11 @@ enum SettingsSubsystem: Int, CaseIterable, Identifiable {
 }
 
 enum SettingsCardValues {
+    // #256 verbiage round (Owen): "DIRECT" answered a question users don't
+    // ask — and the DIRECT/RELAY distinction dies with #251 Phase 4 anyway.
     static func uplink(state: HermesHostConnectionState, isDirect: Bool) -> String {
         switch state {
-        case .online: isDirect ? "DIRECT" : "RELAY"
+        case .online: isDirect ? "CONNECTED" : "RELAY"
         case .offline: "STANDBY"
         case .unreachable: "OFFLINE"
         case .notConnected: "NOT LINKED"
@@ -66,9 +68,20 @@ enum SettingsCardValues {
         return "SELECT"
     }
 
-    static func voice(readAloudOn: Bool, sessionLive: Bool, engineStateText: String) -> String {
-        if sessionLive { return engineStateText.uppercased() }
-        return readAloudOn ? "READ-ALOUD ON" : "READ-ALOUD OFF"
+    // #256 verbiage round (Owen): the card shows the voice ROUTE, not the
+    // read-aloud toggle (that detail lives on the Voice page). Three-way
+    // voluntary/forced distinction: ON-DEVICE = the brain choice implies
+    // local voice; LOCAL = the user picked the native engine; LOCAL ONLY =
+    // linked to Hermes but realtime isn't available — the forced fallback.
+    static func voice(brainIsLocal: Bool, engine: VoiceEngine, talkState: TalkConnectionState) -> String {
+        if brainIsLocal { return "ON-DEVICE" }
+        if engine == .native { return "LOCAL" }
+        return switch talkState {
+        case .connected: "REALTIME · LIVE"
+        case .ready, .connecting: "REALTIME"
+        case .checking: "…"
+        case .idle, .blocked, .failed: "LOCAL ONLY"
+        }
     }
 
     static func appearance(themeName: String, channelIndex: Int?) -> String {
@@ -94,8 +107,10 @@ enum SettingsCardValues {
             return model == "ON-DEVICE" ? "ON-DEVICE" : "ON-DEVICE · \(model)"
         }
         let host = (hostName?.isEmpty == false) ? hostName!.uppercased() : "—"
+        // Direct is the norm — no transport qualifier; RELAY is the anomaly
+        // worth flagging (#256 verbiage round).
         let link: String = switch state {
-        case .online: isDirect ? "LINKED · DIRECT" : "LINKED · RELAY"
+        case .online: isDirect ? "LINKED" : "LINKED · RELAY"
         case .offline: "STANDBY"
         case .unreachable: "OFFLINE"
         case .notConnected: "ON-DEVICE" // unreachable — handled above

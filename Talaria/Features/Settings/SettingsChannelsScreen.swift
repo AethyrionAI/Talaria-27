@@ -13,6 +13,7 @@ struct SettingsChannelsScreen: View {
     @Environment(HermesHostStore.self) private var hostStore
     @Environment(PairingStore.self) private var pairingStore
     @Environment(SettingsStore.self) private var settingsStore
+    @Environment(TalkStore.self) private var talkStore
     @Environment(TabRouter.self) private var router
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
 
@@ -44,6 +45,9 @@ struct SettingsChannelsScreen: View {
         .task {
             await hostStore.refresh()
             sessionCount = await container.chatStore.loadSessions().count
+            // #256 verbiage round: the Voice card shows the live talk route,
+            // so the grid needs the same readiness probe the deck fires.
+            await talkStore.refreshReadiness()
         }
     }
 
@@ -383,9 +387,9 @@ struct SettingsChannelsScreen: View {
                 brainLabel: container.chatBackendRouter?.activeBrain.monoLabel)
         case .voice:
             SettingsCardValues.voice(
-                readAloudOn: settingsStore.settings.readAloudAutoPlay,
-                sessionLive: false,
-                engineStateText: "")
+                brainIsLocal: container.chatBackendRouter?.activeBrain != .hermes,
+                engine: talkStore.voiceEngine,
+                talkState: talkStore.connectionState)
         case .appearance:
             SettingsCardValues.appearance(
                 themeName: currentThemeName, channelIndex: currentChannelIndex)

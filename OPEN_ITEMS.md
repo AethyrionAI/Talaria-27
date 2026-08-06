@@ -13518,6 +13518,31 @@ CONNECTED/ONLINE now or collapse to LINKED when the relay retires;
 instead of the read-aloud toggle, demoting read-aloud to the deck page.
 Both formatter-level; ship together when Owen picks the words.
 
+**▶ WORDS PICKED (Owen, same night) — BARS FIRST, then the code:**
+"Change Direct to Connected, and Voice to show the engine route.
+Realtime or Local. If On Device is selected, the voice should also
+change to on device… If Realtime is setup AND connected, then it would
+show. Otherwise, It would still use Local, maybe a different indicator
+for voluntary being on On Device, vs thats the only option."
+- **256-G (unit):** uplink card online+direct → "CONNECTED" (relay →
+  "RELAY", other states unchanged); strip drops the transport word for
+  the direct case → "LINKED · OJAMD · DEEPSEEK-V4-FLASH", keeps the
+  anomaly → "LINKED · RELAY · …".
+- **256-H (unit):** voice route formatter — brain on-device →
+  "ON-DEVICE" (voluntary); engine picked .native on a linked brain →
+  "LOCAL" (voluntary); talk .connected → "REALTIME · LIVE"; .ready /
+  .connecting → "REALTIME"; .checking → "…"; .idle/.blocked/.failed on
+  a linked brain → "LOCAL ONLY" (the forced-fallback indicator).
+  Read-aloud state demotes to the Voice deck page (already there).
+- **256-I (device, Owen):** Uplink reads CONNECTED; Voice card shows
+  the route and flips to ON-DEVICE when he switches the brain.
+
+**✅ VERBIAGE ROUND BUILT + GATED (`claude/t27-256-verbiage`).** 256-G/H
+MET (13/13 in the formatter suite; strip's direct case now
+"LINKED · OJAMD · …", RELAY stays flagged; voice route three-way with
+the grid firing `refreshReadiness()` so the card is live). **GATE:
+PASS — 1618 units + 12 XCUITest, Release green.** 256-I rides the OTA.
+
 **✅ BUILT + GATED same night (`claude/t27-256-grid-strip`).** 256-A/B
 MET (privacy formatter + bounce pins, watched RED via the pin updates
 then GREEN); 256-C MET (strip asserted present in grid / absent in deck
