@@ -14195,6 +14195,35 @@ Especially about steering."** — the phase arc's target is the FULL
 high-value capability set; steering is the named priority. tui_gateway
 investigation dispatched same night (agent D).
 
+**🧭 STEERING PROBE RESOLVED 2026-08-06 morning (agent F, code-read
+arm; report `F-cross-plane-steering-probe.md`) — Phase 3's shape
+CLARIFIED AND IMPROVED:**
+- **Sessions-API chat lane: STRUCTURALLY-NO.** Steering is a method
+  call on a live AIAgent; the chat handlers never publish theirs
+  (registry write sites are all platform-path in gateway/run.py —
+  api_server has none; run.py:7355 says it out loud). Also found: that
+  lane has NO REAL STOP — disconnect cancels only the SSE wrapper, the
+  worker thread runs the turn to completion (relevant to our stop UX).
+- **THE D-DOSSIER'S "runs cannot steer" CLAIM WAS WRONG:** `/v1/runs`
+  RETAINS a live agent (api_server.py:1422/6462/6867). No route
+  exposes steering — but a PLUGIN in the same process can reach it
+  with zero core edits. **So the already-planned Phase 3 runs
+  migration buys approvals AND steering AND poll-recovery on ONE
+  plugin-bundled lane.** tui_gateway drops to nice-to-have (it's one
+  steer substrate — AIAgent._pending_steer — behind three doors in two
+  processes; adopting it = process+protocol+auth move).
+- Live-probe list before Phase 3 commits: `display.busy_input_mode`
+  setting on OJAMD (steer paths gate on it; default is `interrupt`),
+  re-verify write sites on the running 0.20.0, and Escape B (plugin →
+  retained runs agent) end-to-end.
+- Same morning, two verifications closed: the tui_gateway "iOS / web
+  client" docstring traces to `f49afd312` (2026-04-21, emozilla) and
+  survived 4 months — deliberate upstream intent, not a drive-by; and
+  the hooks split is CONFIRMED in code (plugin lifecycle hooks fire
+  from the shared turn_finalizer on BOTH lanes — hooks.outbound push
+  works on our chat plane today; gateway HookRegistry hooks remain
+  platform-only). Memory updated.
+
 **Still-open questions (routing owed before Phase 2):** voice WebRTC
 bootstrap's home (in-tree RTC precedent: `plugins/google_meet/`) — note
 agent A found adapter-layer voice that may moot this; #21 file
@@ -14522,6 +14551,19 @@ new text avoids set/landed phrasing entirely outside the quoted
 question, and the quoted line's negative ("Nothing is scheduled yet")
 requires word-DELETION to flip, which is a harder mining error than
 the word-drop that burned 233-E.
+
+**✅ 249F BUILT + MERGED 2026-08-06 morning (PR #273, `ca895f2`).**
+TDD watched-RED: the three new pins failed against the old text for
+exactly the right reasons (missing "exactly this question", missing the
+quoted line, old text contains "landed") → GREEN, full suite via GATE:
+PASS — 1650 units UNCHANGED (pins modified, none added — the stated
+arithmetic) + 12 XCUITest + Release. Bars 249F-A/B/C MET; **249F-D
+(device) rides the OTA** — the next natural evening reminder whose due
+resolves to tomorrow morning should come back asking tonight-or-
+tomorrow with no success claim. Ride-along lesson: `-only-testing`
+with a METHOD path under a Swift Testing struct silently runs 0 tests
+under `TEST SUCCEEDED` — suite-level selectors only; caught by the
+executed-count check both times it appeared today.
 
 ## 248. 🐛 Stall-recovery adoption briefly DUPES the user's sent message; a session re-open heals it — F3's tail placement is the suspect neighborhood — **✅ CLOSED 2026-08-04 night: device bar MET on the corded `b94fc27` build — no dupe, answer below the question, in the HARDER cross-device shape**
 
