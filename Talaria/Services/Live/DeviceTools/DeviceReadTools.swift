@@ -29,8 +29,12 @@ struct DeviceStatusTool: Tool {
         return result
     }
 
+    /// #251-2A: internal rather than private so `PhoneQueryResponder` can
+    /// answer a `deviceStatus` phone query through the SAME report the belt
+    /// returns — one status string, one place. Not a harness widening: this
+    /// is production code with a second production caller.
     @MainActor
-    private static func statusReport() -> String {
+    static func statusReport() -> String {
         var lines: [String] = []
 
         let device = UIDevice.current
@@ -89,6 +93,16 @@ struct LocationTool: Tool {
     struct Arguments {}
 
     func call(arguments: Arguments) async throws -> String {
+        try await Self.performLocationRead(relay: relay, location: location, name: name)
+    }
+
+    /// #251-2A: `call`'s body, lifted verbatim so a phone query reads through
+    /// the SAME machinery (and emits the same relay events) as the belt —
+    /// matching the `WeatherTool.performLookup` / `DeviceHealthTool.performRead`
+    /// shape that already existed for the same reason.
+    static func performLocationRead(
+        relay: ToolEventRelay, location: DeviceLocationProvider, name: String
+    ) async throws -> String {
         if case .refused(let refusal) = try await relay.started(name) { return refusal }
         defer { Task { await relay.completed(name) } }
 
@@ -185,6 +199,13 @@ struct MotionTool: Tool {
     struct Arguments {}
 
     func call(arguments: Arguments) async throws -> String {
+        try await Self.performMotionRead(relay: relay, name: name)
+    }
+
+    /// #251-2A: `call`'s body, lifted verbatim. `Arguments` is empty, so the
+    /// extraction takes no request parameter — the signature follows the body,
+    /// not the sketch.
+    static func performMotionRead(relay: ToolEventRelay, name: String) async throws -> String {
         if case .refused(let refusal) = try await relay.started(name) { return refusal }
         defer { Task { await relay.completed(name) } }
 
