@@ -605,6 +605,20 @@ final class ChatStore {
                     }
                     continuedSend?.tick()
 
+                case .artifactProduced(let attachment):
+                    // #258: the agent wrote a file and its bytes are already
+                    // staged — put the chip on the still-streaming placeholder
+                    // instead of making the user wait out the turn. Idempotent
+                    // by id, so a re-delivery can never double the row.
+                    self.lastStreamActivityAt = .now
+                    if var conv = self.conversation,
+                       let idx = conv.messages.firstIndex(where: { $0.id == placeholderID }),
+                       !conv.messages[idx].attachments.contains(where: { $0.id == attachment.id }) {
+                        conv.messages[idx].attachments.append(attachment)
+                        self.conversation = conv
+                    }
+                    continuedSend?.tick()
+
                 case .contextPrimed(let usage):
                     // P1 (#90): a fresh server session was just primed with
                     // condensed journal context, before this turn was posted.
@@ -639,9 +653,29 @@ final class ChatStore {
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
                         let activities = self.conversation?.messages[idx].toolActivities ?? []
                         let streamedReasoning = self.conversation?.messages[idx].reasoning
+                        let streamedArtifacts = self.conversation?.messages[idx].attachments ?? []
                         var resolved = finalMessage
                         resolved.toolActivities = activities
                         resolved.codeDiff = diff
+                        // #258: the final message's list LEADS — it is the
+                        // authoritative one (`run.completed` is where the #21
+                        // Tier 2 fetchables get appended). Artifacts the
+                        // stream already put on screen are merged in behind
+                        // it rather than overwritten away, so a backend whose
+                        // finish doesn't repeat them can't make a chip the
+                        // user watched appear vanish at the end of the turn.
+                        // Dedupe is by attachment id: the Sessions client
+                        // yields the SAME value it accumulates into
+                        // `producedFiles`, so the streamed chip and its
+                        // final-message twin are one row (bar 258-A). Two
+                        // genuine writes to one path stay two rows — distinct
+                        // ids, distinct staged bytes, write order preserved.
+                        if !streamedArtifacts.isEmpty {
+                            var seen = Set(resolved.attachments.map(\.id))
+                            for artifact in streamedArtifacts where seen.insert(artifact.id).inserted {
+                                resolved.attachments.append(artifact)
+                            }
+                        }
                         // #4.15: keep the accumulated reasoning when the final
                         // message doesn't carry its own (relay/mock clients) —
                         // unless it just mirrors the answer (#60: the defective

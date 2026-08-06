@@ -13470,6 +13470,37 @@ Manual/Off app lane).**
 > runs deny side effects silently under current config. Item stays SHELVED;
 > the #251 venture's interactive half is now the natural reopen path.**
 
+## 259. 🔓 The `.html` artifact preview has NO CSP — an agent-authored HTML file can beacon out and reach tailnet services — **FILED 2026-08-06 from #258's independent security review (§6, out of that lane's scope); no lane opened**
+
+**Found while hardening SVG (#258): the SVG wrapper is now strictly MORE
+hardened than the `.html` route that has shipped since #99.** The
+reviewer's control arm — which IS the current `.html` path — demonstrated
+live, against real WebKit: `<script>` RUNS, `fetch()` egresses, CSS
+`@import url(http://…)` egresses, and a remote `<image href>` egresses.
+Three network hits where the CSP-wrapped SVG arm had zero.
+
+**Why ATS does not save us:** `project.yml`'s single exception adds
+*insecure HTTP* for `100.64.0.0/10`; ATS permits **HTTPS to any host by
+default**. So an HTTPS beacon leaks the user's IP, UA, timestamp and a
+read-receipt for that artifact — and plaintext HTTP to the tailnet is
+EXPLICITLY permitted, putting relay `:8000`, shim `:8765` and gateway
+`:8642` within SSRF reach of an agent-authored artifact (CORS blocks
+reading responses, not sending requests).
+
+**Mitigating context, not a dismissal:** the author is the user's own
+agent on the user's own server — but that agent browses the open web and
+relays what it finds, which is exactly the untrusted-content path. The
+one-shot navigation policy, `baseURL: nil`, no script bridge, ephemeral
+store and no-popups all still hold; what's missing is subresource
+control, which only a CSP provides.
+
+**Candidate fix (small):** give `.html` the same wrapper treatment #258
+gave SVG — `default-src 'none'; base-uri 'none'; form-action 'none';
+style-src 'unsafe-inline'; img-src data:` — noting that a stricter policy
+than SVG's may be wanted (HTML artifacts plausibly want their own inline
+`<script>`, which is exactly what we would be taking away; decide
+deliberately). Bars pre-register here when a lane opens.
+
 ## 258. 🖼️ ARTIFACT PANES v2: agent files appear WHILE the turn streams, and SVG renders instead of "unsupported" — **ROUTED + APPROVED 2026-08-06 (Owen: "5. approved" then "f1 looks good"); design proposal read and blessed; bars pre-registered below BEFORE the build**
 
 **Framing (established by the terrain map, `G-preview-panes-terrain.md`,

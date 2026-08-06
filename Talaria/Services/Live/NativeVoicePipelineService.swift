@@ -517,6 +517,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 // Reasoning is a separate channel — never spoken, never folded
                 // into the answer.
                 break
+            case .artifactProduced:
+                // #258: an agent-written file is a transcript surface —
+                // never spoken. ChatStore renders the chip.
+                break
             case .contextPrimed:
                 // P1 (#90): a hop transplant is chat-surface bookkeeping —
                 // never spoken; ChatStore renders the notice and cost.
