@@ -282,8 +282,16 @@ struct DeviceActionToolsTests {
             rawTitle: "Call Shelley", rawDue: "2026-08-06T08:00", rawList: "",
             relay: relay, confirmations: center, now: now)
         #expect(first.hasPrefix("No reminder was created"))
-        #expect(first.contains("evening"))
-        #expect(first.contains("Ask the user which time of day they meant"))
+        // 249F-A (2026-08-06): the 9:02 PM live firing showed the model
+        // mining "the due time landed the next morning" into a fabricated
+        // "was set for the next morning". The sharpened text hands the
+        // model a VERBATIM quoted question to parrot (#200J) whose
+        // negative requires word-deletion to flip, and carries no
+        // set/landed phrasing outside the quote.
+        #expect(first.contains("exactly this question"))
+        #expect(first.contains("\"Nothing is scheduled yet — did you mean tonight or tomorrow morning?\""))
+        #expect(!first.contains("was set"))
+        #expect(!first.contains("landed"))
         #expect(!first.contains("2026"))   // 233-E: nothing mineable
 
         let second = await ReminderCreateTool.performCreate(

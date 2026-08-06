@@ -215,7 +215,15 @@ struct ReminderCreateTool: Tool {
         // one hour outside the wee-hour net. Own latch, same contract.
         if let parsedDue, DeviceActionParsing.isNextMorning(parsedDue, askedAt: now),
            await relay.claimEveningClockAsk() {
-            return "No reminder was created. The request was made in the evening and the due time landed the next morning, which may be a misread evening time. Ask the user which time of day they meant, then create the reminder with the time they confirm."
+            // 249F (2026-08-06): the 9:02 PM live firing mined the old
+            // wording's "the due time landed the next morning" into a
+            // fabricated "was set for the next morning" — even behind the
+            // leading negative. The sharpened form hands the model a
+            // verbatim quoted question to parrot (#200J) and keeps every
+            // set/landed-flavored verb out of the prose around it; the
+            // quote's own negative needs word-DELETION to flip, a harder
+            // mining error than the word-drop that burned 233-E.
+            return "No reminder was created. Evening requests that resolve to the next morning are usually a misread clock time. Reply to the user with exactly this question: \"Nothing is scheduled yet — did you mean tonight or tomorrow morning?\" Then create the reminder with the time they confirm."
         }
         let decision = await confirmations.requestConfirmation(
             title: "Create this reminder?",
