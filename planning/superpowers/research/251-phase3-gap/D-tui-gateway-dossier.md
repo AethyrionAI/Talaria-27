@@ -829,3 +829,44 @@ read exactly like "nothing was modified." I caught it only by sanity-checking th
 a directory I knew was dirty. Same family as the `cmd | grep || echo "absent"` trap already in the
 project's memory notes: **an empty result from a command that failed is not evidence of absence.**
 
+
+### Arm 4 RE-RUN 2026-08-06 (Owen's explicit go): **STEER WORKS ON THE WIRE**
+
+Same guardrails (loopback :9121, `HERMES_DASHBOARD_SESSION_TOKEN`
+injected at spawn so the client could authenticate, zero config edits,
+teardown verified: 9121 free, no `hermes serve` processes, `:8642`
+still the 09:42:22 launchd process). One kimi turn spent.
+
+**Result — the claim the whole migration rests on is now DEMONSTRATED,
+not inferred:**
+
+| step | wire result |
+|---|---|
+| `prompt.submit` (agent asked to run `sleep 20`, then say "done") | `OK {"status": "streaming"}` |
+| `tool.start name='terminal'` observed → waited 1s to sit INSIDE the running tool call | turn confirmed busy |
+| **`session.steer` while busy** | **`OK {"status": "queued", "text": "STEERED-OK say exactly this and stop"}`** |
+| turn outcome | `message.complete text='STEERED-OK'` — **not** the originally instructed "done" |
+| accumulated deltas | `'\n\nSTEERED-OK'` |
+| `session.history` after | `[user] <original prompt>` · `[tool] ''` · `[assistant] 'STEERED-OK'` |
+
+**What this proves:** steer is accepted mid-turn (during a live tool
+call), is acknowledged as `queued`, reaches the model before it
+composes its answer, and CHANGES THE TURN'S OUTPUT. The injected text
+does not appear as a separate user bubble in history — the turn simply
+obeys it, exactly as §4.2's source reading predicted.
+
+**Two findings beyond the money arm:**
+1. **`session.steer` is NOT gated on `display.busy_input_mode`.** This
+   box is explicitly `interrupt` (config:275) and the explicit steer
+   RPC still worked. The mode governs what a BARE `prompt.submit`
+   does while busy; the dedicated method bypasses that policy. Earlier
+   probe note ("steer needs steer mode set") is SUPERSEDED.
+2. `config.get` rejects `display.busy_input_mode` as an "unknown config
+   key" (4002) over RPC — the mode is readable from config.yaml but not
+   through that method, so a client cannot query it.
+
+**Standing correction to this dossier's own earlier text:** the Arm-4
+"NOT RUN — blocked by policy" section above remains accurate as a
+record of the first attempt (the classifier denied the subagent's
+scripts). The controller re-ran it with Owen's explicit go and the same
+script; nothing about the guardrails changed, only the authorization.
