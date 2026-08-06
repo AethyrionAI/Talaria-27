@@ -198,7 +198,22 @@ final class TalariaPlatformLink {
         if let responder {
             switch await responder.answer(kind: query.kind, params: query.params ?? [:]) {
             case .success(let text): body["result"] = ["text": text]
-            case .denied: body["error"] = "permission_denied"
+            case .denied:
+                body["error"] = "permission_denied"
+                // #260(B): additive gate metadata so the plugin's prose can
+                // name the actual blocker. A responder that classifies nil
+                // (or predates the classifier) keeps the bare pre-#260 body,
+                // which the plugin maps to its generic declined prose —
+                // graceful in both skew directions.
+                switch responder.deniedGate(kind: query.kind) {
+                case .master:
+                    body["denied_gate"] = "master"
+                case .stream(let sensor):
+                    body["denied_gate"] = "stream"
+                    body["denied_stream"] = sensor
+                case nil:
+                    break
+                }
             case .unavailable(let reason): body["error"] = reason
             }
         } else {
@@ -310,10 +325,31 @@ final class TalariaPlatformLink {
 @MainActor
 protocol PhoneQueryResponding {
     func answer(kind: String, params: [String: String]) async -> PhoneQueryAnswer
+
+    /// #260(B): which settings gate WOULD refuse this kind right now, so a
+    /// serialized denial can name the switch that actually unblocks it.
+    /// Diagnostic metadata only — `answer` alone decides denied-vs-not, and
+    /// the default keeps every pre-#260 conformer compiling with the exact
+    /// pre-#260 wire body (bare `permission_denied`).
+    func deniedGate(kind: String) -> PhoneQueryDeniedGate?
+}
+
+extension PhoneQueryResponding {
+    func deniedGate(kind: String) -> PhoneQueryDeniedGate? { nil }
 }
 
 enum PhoneQueryAnswer: Equatable {
     case success(text: String)
     case denied
     case unavailable(reason: String)
+}
+
+/// #260(B): the two settings gates a denial can come from. iOS-ungranted is
+/// deliberately NOT a case — permission prose comes back from the read as a
+/// `.success` (the belt's honest strings), never as a settings denial.
+enum PhoneQueryDeniedGate: Equatable {
+    case master
+    /// The named per-sensor stream toggle ("health" / "location" / "motion")
+    /// — for weather that is LOCATION, the toggle a user must actually flip.
+    case stream(sensor: String)
 }
