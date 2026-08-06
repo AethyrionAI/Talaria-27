@@ -14216,6 +14216,31 @@ CLARIFIED AND IMPROVED:**
   setting on OJAMD (steer paths gate on it; default is `interrupt`),
   re-verify write sites on the running 0.20.0, and Escape B (plugin →
   retained runs agent) end-to-end.
+- **🔬 LIVE PROBE RUN 2026-08-06 mid-day (loopback serve :9121, zero
+  config edits, teardown verified; appended to the D dossier):**
+  serve came up headless; **18/18 RPC methods live on 0.20.0** with
+  exact documented validation codes (`session.steer` → 4002 as
+  source-read); NO version key on the wire (churn risk confirmed);
+  `gateway.ready` carries no session_id (decoder gotcha). **ws auth
+  correction:** loopback disables the auth-PROVIDER gate, not the
+  credential check — the sole loopback credential is a per-process
+  `_SESSION_TOKEN` only the SPAWNER can know (injectable via
+  `HERMES_DASHBOARD_SESSION_TOKEN`), so the desktop-recipe works only
+  if Talaria owns the spawn; remote = the auth-provider path, full
+  stop. **NEW HAZARD: `hermes serve` runs its OWN cron ticker — beside
+  the gateway that's two tickers on one state.db (double-fire risk)**
+  — any serve adoption must account for it. Mac `busy_input_mode` is
+  explicitly `interrupt` (config:275) — steer needs `steer` mode set.
+  **The money arm (steer a LIVE busy turn) DID NOT RUN: the shell
+  policy layer denied every `prompt.submit` script (clean bisect —
+  it's driving a live agent turn that's refused, not the payload).
+  Steer's mid-turn acceptance + landing site remain source-read
+  claims. NEEDS OWEN: an explicit go for one live steer-fire session
+  (one short kimi turn on the Mac), or we carry the source-read as
+  sufficient into Phase 3 routing.** Honesty flag from the probe
+  agent, verified benign: config.yaml mtime moved during the window —
+  consistent with serve's own startup normalization rewrite (same
+  behavior the gateway showed at 09:42); no settings changed.
 - Same morning, two verifications closed: the tui_gateway "iOS / web
   client" docstring traces to `f49afd312` (2026-04-21, emozilla) and
   survived 4 months — deliberate upstream intent, not a drive-by; and
