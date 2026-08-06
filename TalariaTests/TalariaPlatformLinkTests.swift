@@ -50,6 +50,7 @@ struct TalariaPlatformLinkTests {
 
     private func makeLink(
         secureStore: MockSecureStore,
+        responder: PhoneQueryResponding? = nil,
         onItems: @escaping @MainActor ([TalariaPlatformItem]) -> Void = { _ in },
         handler: @escaping @Sendable (URLRequest) -> (Int, Data)
     ) -> TalariaPlatformLink {
@@ -63,7 +64,7 @@ struct TalariaPlatformLinkTests {
             deviceName: { "TestPhone" },
             credentialScopeID: { Self.scope },
             secureStore: secureStore,
-            responder: nil,
+            responder: responder,
             onItemsReceived: onItems,
             session: URLSession(configuration: configuration)
         )
@@ -239,6 +240,94 @@ struct TalariaPlatformLinkTests {
         #expect(link.isRunning == true)
         link.stop()
         #expect(link.isRunning == false)
+    }
+
+    // MARK: - #260(B): the query_result wire payloads
+
+    /// A responder with full #260(B) vocabulary: scripted answer + gate.
+    @MainActor
+    private final class StubResponder: PhoneQueryResponding {
+        var answerValue: PhoneQueryAnswer
+        var gateValue: PhoneQueryDeniedGate?
+
+        init(answer: PhoneQueryAnswer, gate: PhoneQueryDeniedGate? = nil) {
+            self.answerValue = answer
+            self.gateValue = gate
+        }
+
+        func answer(kind: String, params: [String: String]) async -> PhoneQueryAnswer { answerValue }
+        func deniedGate(kind: String) -> PhoneQueryDeniedGate? { gateValue }
+    }
+
+    /// A conformer written before #260(B) existed: `answer` only, so
+    /// `deniedGate` resolves through the protocol default. Pins the compat
+    /// shape — old conformers keep producing exactly the pre-#260 body.
+    @MainActor
+    private final class LegacyResponder: PhoneQueryResponding {
+        func answer(kind: String, params: [String: String]) async -> PhoneQueryAnswer { .denied }
+    }
+
+    /// One drain returning one health query; returns the decoded
+    /// `query_result` body the link posted back.
+    private func queryResultBody(responder: PhoneQueryResponding) async -> [String: Any]? {
+        defer { StubURLProtocol.handler = nil }
+        let secure = MockSecureStore()
+        await secure.store(key: Self.tokenKey, value: "tok-1")
+        await secure.store(key: Self.deviceIDKey, value: "dev12")
+        let recorder = Recorder()
+        let link = makeLink(secureStore: secure, responder: responder) { request in
+            let body = StubURLProtocol.bodyString(request)
+            recorder.record(body)
+            if body.contains("\"drain\"") {
+                return (200, Data(#"{"items":[],"queries":[{"id":"q1","kind":"health","params":{"metric":"steps"}}]}"#.utf8))
+            }
+            return (200, Data(#"{"ok":true}"#.utf8))
+        }
+        let outcome = await link.drainOnce(wait: false)
+        #expect(outcome == .delivered)
+        // Key order in a serialized dictionary is not stable — decode the
+        // recorded body instead of substring-matching adjacent keys.
+        guard let raw = recorder.all.first(where: { $0.contains("\"query_result\"") }),
+              let object = try? JSONSerialization.jsonObject(with: Data(raw.utf8))
+        else { return nil }
+        return object as? [String: Any]
+    }
+
+    @Test func masterDenialNamesTheMasterOnTheWire() async {
+        let body = await queryResultBody(responder: StubResponder(answer: .denied, gate: .master))
+        #expect(body?["error"] as? String == "permission_denied")
+        #expect(body?["denied_gate"] as? String == "master")
+        #expect(body?["denied_stream"] == nil)
+        #expect(body?["result"] == nil)
+    }
+
+    @Test func streamDenialNamesTheStreamOnTheWire() async {
+        let body = await queryResultBody(responder: StubResponder(answer: .denied, gate: .stream(sensor: "health")))
+        #expect(body?["error"] as? String == "permission_denied")
+        #expect(body?["denied_gate"] as? String == "stream")
+        #expect(body?["denied_stream"] as? String == "health")
+    }
+
+    /// Old conformers (and any future responder that never classifies) keep
+    /// the exact pre-#260 body: bare `permission_denied`, no gate keys — the
+    /// plugin's generic prose path.
+    @Test func legacyResponderDenialStaysBareOnTheWire() async {
+        let body = await queryResultBody(responder: LegacyResponder())
+        #expect(body?["error"] as? String == "permission_denied")
+        #expect(body?["denied_gate"] == nil)
+        #expect(body?["denied_stream"] == nil)
+    }
+
+    /// #260-B's third payload: iOS-ungranted travels as SUCCESS prose — the
+    /// wire carries `result.text` and no error/gate keys at all.
+    @Test func successProseCarriesResultAndNoGateKeys() async {
+        let body = await queryResultBody(
+            responder: StubResponder(answer: .success(text: "Health data permission hasn't been granted."))
+        )
+        let result = body?["result"] as? [String: Any]
+        #expect(result?["text"] as? String == "Health data permission hasn't been granted.")
+        #expect(body?["error"] == nil)
+        #expect(body?["denied_gate"] == nil)
     }
 }
 

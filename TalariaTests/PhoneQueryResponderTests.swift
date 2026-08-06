@@ -237,4 +237,80 @@ struct PhoneQueryResponderTests {
         let responder: any PhoneQueryResponding = makeResponder(allOn, reader: FakeReader())
         #expect(await responder.answer(kind: "deviceStatus", params: [:]) == .success(text: "Battery: 80% (not charging)"))
     }
+
+    // MARK: - #260(B): a denial can name its gate
+
+    /// The gate table itself is unchanged (#260-C) — `.denied` still comes
+    /// back exactly as the pins above assert. What #260(B) adds is a parallel
+    /// CLASSIFIER the link asks when it serializes a denial, so the wire can
+    /// say WHICH gate refused instead of a bare `permission_denied` the model
+    /// has to guess a toggle from.
+    @Test func deniedGateNamesTheMasterWhenTheMasterIsOff() async {
+        var settings = allOn
+        settings.sensorStreamingEnabled = false
+        let responder = makeResponder(settings, reader: FakeReader())
+        #expect(responder.deniedGate(kind: "health") == .master)
+        #expect(responder.deniedGate(kind: "location") == .master)
+        #expect(responder.deniedGate(kind: "motion") == .master)
+        #expect(responder.deniedGate(kind: "weather") == .master)
+    }
+
+    /// Master on, one stream off: the classifier names THAT stream's toggle —
+    /// including weather naming LOCATION, because that is the toggle a user
+    /// must actually flip to unblock a weather query.
+    @Test func deniedGateNamesTheSensorStreamWhenOnlyItsToggleIsOff() async {
+        var settings = allOn
+        settings.healthCollectionEnabled = false
+        settings.locationCollectionEnabled = false
+        let responder = makeResponder(settings, reader: FakeReader())
+        #expect(responder.deniedGate(kind: "health") == .stream(sensor: "health"))
+        #expect(responder.deniedGate(kind: "location") == .stream(sensor: "location"))
+        #expect(responder.deniedGate(kind: "weather") == .stream(sensor: "location"))
+        #expect(responder.deniedGate(kind: "motion") == nil)
+    }
+
+    /// Master-off outranks a stream-off: with both closed, the master is the
+    /// switch that unblocks nothing until it flips, so it is the one named.
+    @Test func masterOffOutranksAStreamOff() async {
+        var settings = allOn
+        settings.sensorStreamingEnabled = false
+        settings.healthCollectionEnabled = false
+        let responder = makeResponder(settings, reader: FakeReader())
+        #expect(responder.deniedGate(kind: "health") == .master)
+    }
+
+    /// Open gates, permission-only kinds, and unknown kinds all classify as
+    /// nil — there is no denial for the wire to explain.
+    @Test func deniedGateIsNilWhereNothingWouldDeny() async {
+        let open = makeResponder(allOn, reader: FakeReader())
+        #expect(open.deniedGate(kind: "health") == nil)
+        #expect(open.deniedGate(kind: "weather") == nil)
+        var masterOff = allOn
+        masterOff.sensorStreamingEnabled = false
+        let gated = makeResponder(masterOff, reader: FakeReader())
+        #expect(gated.deniedGate(kind: "calendar") == nil)
+        #expect(gated.deniedGate(kind: "reminders") == nil)
+        #expect(gated.deniedGate(kind: "deviceStatus") == nil)
+        #expect(gated.deniedGate(kind: "photos") == nil)
+    }
+
+    /// #260-B's third payload: iOS-ungranted is NOT a settings denial — the
+    /// read runs and the belt's honest "not granted" prose comes back as a
+    /// `.success`, so the wire carries `result.text`, never `permission_denied`.
+    /// This pins that no one "improves" the responder into inspecting read
+    /// prose and converting it to a denial the wire would then mis-blame on a
+    /// toggle.
+    @Test func iosUngrantedProseTravelsAsSuccessNotDenial() async {
+        final class UngrantedReader: FakeReader {
+            override func health(metric: String?, relay: ToolEventRelay) async throws -> String {
+                calls.append("health:\(metric ?? "")")
+                return "Health data permission hasn't been granted to Talaria in the Health app."
+            }
+        }
+        let reader = UngrantedReader()
+        let responder = makeResponder(allOn, reader: reader)
+        let answer = await responder.answer(kind: "health", params: [:])
+        #expect(answer == .success(text: "Health data permission hasn't been granted to Talaria in the Health app."))
+        #expect(responder.deniedGate(kind: "health") == nil)
+    }
 }

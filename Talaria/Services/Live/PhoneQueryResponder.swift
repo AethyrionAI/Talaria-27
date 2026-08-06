@@ -113,18 +113,12 @@ final class PhoneQueryResponder: PhoneQueryResponding {
 
     func answer(kind: String, params: [String: String]) async -> PhoneQueryAnswer {
         let current = settings()
-        let master = current.sensorStreamingEnabled
         switch kind {
-        case "health":
-            guard master, current.healthCollectionEnabled else { return .denied }
-        case "location":
-            guard master, current.locationCollectionEnabled else { return .denied }
-        case "motion":
-            guard master, current.motionCollectionEnabled else { return .denied }
-        case "weather":
-            // Weather here is weather AT THE USER'S LOCATION, so it is a
-            // location read wearing another name and rides that toggle.
-            guard master, current.locationCollectionEnabled else { return .denied }
+        case "health", "location", "motion", "weather":
+            // One classifier is BOTH the gate and the wire's explanation of
+            // it (#260(B)) — a second hand-synced toggle table here would be
+            // exactly the drift hazard the dispatch switch below documents.
+            guard Self.deniedGate(kind: kind, settings: current) == nil else { return .denied }
         case "calendar", "reminders", "deviceStatus":
             // iOS's own permission prompts gate these, exactly as on the belt
             // (spec §2.2) — there is no sensor-collection setting for them to
@@ -178,5 +172,38 @@ final class PhoneQueryResponder: PhoneQueryResponding {
             return defaultCalendarDaysAhead
         }
         return days
+    }
+
+    // MARK: - #260(B): naming the gate
+
+    /// The single settings-gate table for sensor kinds. `answer` consults it
+    /// to decide `.denied`; the link consults `deniedGate(kind:)` to explain
+    /// a denial on the wire. Master-off outranks a stream-off: until the
+    /// master flips, no other toggle unblocks anything, so it is the switch
+    /// worth naming.
+    static func deniedGate(kind: String, settings: UserSettings) -> PhoneQueryDeniedGate? {
+        let stream: (name: String, isOn: Bool)
+        switch kind {
+        case "health":
+            stream = ("health", settings.healthCollectionEnabled)
+        case "location", "weather":
+            // Weather is weather AT THE USER'S LOCATION — a location read
+            // wearing another name — so LOCATION is the toggle it names.
+            stream = ("location", settings.locationCollectionEnabled)
+        case "motion":
+            stream = ("motion", settings.motionCollectionEnabled)
+        default:
+            return nil  // permission-only and unknown kinds have no settings gate
+        }
+        guard settings.sensorStreamingEnabled else { return .master }
+        return stream.isOn ? nil : .stream(sensor: stream.name)
+    }
+
+    /// Protocol hook for the link. Re-reads settings so the explanation
+    /// matches the toggles as they are NOW; a flip in the microseconds since
+    /// `answer` ran can at worst name a switch the user just moved, and the
+    /// retry after flipping is consistent.
+    func deniedGate(kind: String) -> PhoneQueryDeniedGate? {
+        Self.deniedGate(kind: kind, settings: settings())
     }
 }

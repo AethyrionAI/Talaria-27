@@ -325,6 +325,7 @@
 		9EEC930B7713468A6003C33F /* Icon-BubblegumMecha@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 77F7D81CF6E2F364F63642E3 /* Icon-BubblegumMecha@3x.png */; };
 		9F036D2AAE305475B84AD8FE /* BackendProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31568D2667BC2033E06EB960 /* BackendProfile.swift */; };
 		9F61E1E99BD4140435375130 /* Icon-WinterFrost@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 4A163806FF4662C261521D41 /* Icon-WinterFrost@2x.png */; };
+		9FEB4A121415BC5E95AA2C20 /* RevokeRowStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0535266D0B9B050419521177 /* RevokeRowStateTests.swift */; };
 		A04796F42CF0104AC6C9A58B /* SessionProfileIndexStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B4489595DCA794247F0F65 /* SessionProfileIndexStore.swift */; };
 		A0E8E2227CF55B1CC7DCD785 /* IconPreview-Default.png in Resources */ = {isa = PBXBuildFile; fileRef = F0DD777FA8C7A1E450D9343F /* IconPreview-Default.png */; };
 		A12ADA550ED9B8308C66C21C /* InboxItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 798846A846FE8EC91E40117C /* InboxItem.swift */; };
@@ -569,6 +570,7 @@
 		036CD989156BAB4FE1A35157 /* AttachmentInliningTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentInliningTests.swift; sourceTree = "<group>"; };
 		04601E35A47260A48E58E587 /* Icon-NeonArcade@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-NeonArcade@3x.png"; sourceTree = "<group>"; };
 		04CCEE369568ECDEC0C2C0A3 /* Icon-WitchsBrew@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-WitchsBrew@2x.png"; sourceTree = "<group>"; };
+		0535266D0B9B050419521177 /* RevokeRowStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevokeRowStateTests.swift; sourceTree = "<group>"; };
 		058B8D699AF44F536D6AD863 /* IconPreview-AutumnHarvest.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-AutumnHarvest.png"; sourceTree = "<group>"; };
 		059AC4BF9B2C0C3522E078C3 /* RelayAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayAPIClient.swift; sourceTree = "<group>"; };
 		05D62FD47740DE0B77814B5E /* LiveVoiceSessionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveVoiceSessionService.swift; sourceTree = "<group>"; };
@@ -1240,6 +1242,7 @@
 				58403047D33DC8853F341109 /* ProvisioningServiceTests.swift */,
 				6BB71CCECAE06823EA97EEDA /* ReasoningChannelTests.swift */,
 				928B03CEA5240B87D4B99D7A /* RequiredPropertyDecodeTests.swift */,
+				0535266D0B9B050419521177 /* RevokeRowStateTests.swift */,
 				A5E8EF024C3134EA534CFABD /* RoutedTrialShapeTests.swift */,
 				7E5D2D9D3E685C1D98187926 /* RouterIntentTests.swift */,
 				AAA0D3900268D098B2590A75 /* SelectedIconHandoffTests.swift */,
@@ -2595,6 +2598,7 @@
 				840B88B41CCC59999D67655D /* ProvisioningServiceTests.swift in Sources */,
 				542E125ADE6CFAD3AADC94AF /* ReasoningChannelTests.swift in Sources */,
 				7ED6B37BFBA2622B436E0881 /* RequiredPropertyDecodeTests.swift in Sources */,
+				9FEB4A121415BC5E95AA2C20 /* RevokeRowStateTests.swift in Sources */,
 				20A1ED6E62216A11AC9486BC /* RoutedTrialShapeTests.swift in Sources */,
 				60E1156EC7FD9723A78E84BB /* RouterIntentTests.swift in Sources */,
 				D0B904EAE8DA90379BE72433 /* SelectedIconHandoffTests.swift in Sources */,

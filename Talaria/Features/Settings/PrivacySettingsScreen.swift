@@ -1,6 +1,111 @@
 import SwiftUI
 import UIKit
 
+// MARK: - #260(A): the revoke row's honesty model
+
+/// The grants Talaria can genuinely stop using in-app (#6).
+/// Camera/Photos are intentionally absent — deep-link-only.
+/// File-scope (not nested in the view) so the #260-A matrix is unit-pinned.
+enum RevocablePermission: String, Identifiable, CaseIterable {
+    case health
+    case location
+
+    var id: String { rawValue }
+
+    var displayLabel: String {
+        switch self {
+        case .health: "Health Collection"
+        case .location: "Location Sync"
+        }
+    }
+
+    var permissionType: PermissionType {
+        switch self {
+        case .health: .health
+        case .location: .location
+        }
+    }
+
+    var revokeEffect: String {
+        switch self {
+        case .health: "Stops health observers and background delivery, and drops queued samples."
+        case .location: "Stops location monitoring and drops the queued fix. Sync resets to foreground-only."
+        }
+    }
+}
+
+/// #260(A): what a Revoke/Reset row truthfully IS, computed from BOTH truths
+/// — the app's collection flag AND the iOS permission — instead of displaying
+/// the flag alone as if it were a state. ACTIVE requires both; every other
+/// cell names its real state and offers the one action that unblocks it.
+///
+/// Health honesty caveat, load-bearing: HealthKit hides read-grant status by
+/// design, so its reported status is "a request completed this launch"
+/// (`.authorized`) vs "not confirmed this launch" (`.notDetermined`) — the
+/// matrix is honest against what iOS lets us know, and needs-permission's
+/// action re-requests, which resolves silently when the grant already exists.
+enum RevokeRowState: Equatable {
+    case off
+    case active
+    case needsPermission
+    case blockedByIOS
+    case unavailable
+
+    static func compute(flagOn: Bool, iosStatus: PermissionStatus) -> RevokeRowState {
+        if iosStatus == .unsupported { return .unavailable }
+        guard flagOn else { return .off }
+        switch iosStatus {
+        case .authorized, .authorizedWhenInUse, .authorizedAlways, .limited:
+            return .active
+        case .notDetermined:
+            return .needsPermission
+        case .denied, .restricted:
+            return .blockedByIOS
+        case .unsupported:
+            return .unavailable
+        }
+    }
+
+    var statusLabel: String {
+        switch self {
+        case .off: "OFF"
+        case .active: "ACTIVE"
+        case .needsPermission: "NEEDS PERMISSION"
+        case .blockedByIOS: "OFF IN iOS"
+        case .unavailable: "—"
+        }
+    }
+
+    var action: RevokeRowAction? {
+        switch self {
+        case .off: .enableCollection
+        case .active: .revoke
+        case .needsPermission: .requestPermission
+        case .blockedByIOS: .openSystemSettings
+        case .unavailable: nil
+        }
+    }
+
+    var actionLabel: String? {
+        switch action {
+        case .enableCollection: "ENABLE ›"
+        case .requestPermission: "ALLOW ›"
+        case .openSystemSettings: "SETTINGS ›"
+        case .revoke: "REVOKE ✕"
+        case nil: nil
+        }
+    }
+}
+
+/// The single action each row state offers — the one that actually unblocks
+/// it, which is the half of #260-A words alone can't carry.
+enum RevokeRowAction: Equatable {
+    case enableCollection
+    case requestPermission
+    case openSystemSettings
+    case revoke
+}
+
 // MARK: - Privacy settings screen (Settings → PRIVACY, sub-screen 11)
 //
 // Permission readout + location sync preference. Mirrors
@@ -28,29 +133,6 @@ struct PrivacySettingsScreen: View {
     @State private var pendingRevoke: RevocablePermission?
 
     private let shownPermissions: [PermissionType] = [.location, .health, .motion, .microphone]
-
-    /// The grants Talaria can genuinely stop using in-app (#6).
-    /// Camera/Photos are intentionally absent — deep-link-only.
-    private enum RevocablePermission: String, Identifiable, CaseIterable {
-        case health
-        case location
-
-        var id: String { rawValue }
-
-        var displayLabel: String {
-            switch self {
-            case .health: "Health Collection"
-            case .location: "Location Sync"
-            }
-        }
-
-        var revokeEffect: String {
-            switch self {
-            case .health: "Stops health observers and background delivery, and drops queued samples."
-            case .location: "Stops location monitoring and drops the queued fix. Sync resets to foreground-only."
-            }
-        }
-    }
 
     var body: some View {
         ZStack {
@@ -211,20 +293,23 @@ struct PrivacySettingsScreen: View {
 
     private var sensorStreamingSection: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
-            MonoLabel("// Sensor Streaming", size: 10, tracking: Design.Tracking.monoXWide,
+            MonoLabel("// Sensor Sharing", size: 10, tracking: Design.Tracking.monoXWide,
                       color: Design.Colors.mutedForeground)
 
             VStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: Design.Spacing.xs) {
                     HStack(spacing: Design.Spacing.sm) {
-                        Text("Stream Sensors to Hermes")
+                        // #260(C), Owen's routing: ONE switch governs ALL
+                        // sensor egress — streams and query-time answers —
+                        // and its words say so instead of "streaming".
+                        Text("Share Sensors with Hermes")
                             .font(Design.Typography.callout)
                             .foregroundStyle(Design.Colors.foreground)
                         Spacer()
                         Toggle("", isOn: sensorStreamingBinding)
                             .labelsHidden()
                             .tint(Design.Brand.accent)
-                            .accessibilityLabel("Stream Sensors to Hermes")
+                            .accessibilityLabel("Share Sensors with Hermes")
                     }
                     Text(sensorStreamingCaption)
                         .font(Design.Typography.caption)
@@ -253,9 +338,11 @@ struct PrivacySettingsScreen: View {
 
     private var sensorStreamingCaption: String {
         if !container.pairingStore.isPaired {
-            return "Requires a paired Hermes host — streaming stays idle until one is connected. Each sensor asks for its iOS permission when you turn it on."
+            return "Requires a paired Hermes host — sharing stays idle until one is connected. Each sensor asks for its iOS permission when you turn it on."
         }
-        return "Streams the sensors you enable to your Hermes host. Each sensor asks for its iOS permission when you turn it on. Turning this off stops capture and drops queued samples."
+        // #260(C): honest about BOTH acts this one switch gates — continuous
+        // streaming AND answering the agent's query-time asks.
+        return "Sends the sensors you enable to your Hermes host — as live streams, and as answers when your agent asks your phone directly. Each sensor asks for its iOS permission when you turn it on. Turning this off stops capture, drops queued samples, and declines sensor queries."
     }
 
     private var sensorStreamingBinding: Binding<Bool> {
@@ -571,38 +658,66 @@ struct PrivacySettingsScreen: View {
     }
 
     private func revokeRow(_ permission: RevocablePermission) -> some View {
-        let active = isCollectionActive(permission)
+        let state = revokeRowState(permission)
         return HStack(spacing: Design.Spacing.sm) {
-            StatusPip(color: active ? Design.Brand.accent : Design.Colors.mutedForeground, diameter: 7)
+            StatusPip(color: revokeStateColor(state), diameter: 7)
             Text(permission.displayLabel)
                 .font(Design.Typography.callout)
                 .foregroundStyle(Design.Colors.foreground)
             Spacer(minLength: Design.Spacing.xs)
-            MonoLabel(active ? "ACTIVE" : "OFF", size: 9, weight: .medium,
+            MonoLabel(state.statusLabel, size: 9, weight: .medium,
                       tracking: Design.Tracking.mono,
-                      color: active ? Design.Brand.accent : Design.Colors.mutedForeground)
-            Button {
-                if active {
-                    pendingRevoke = permission
-                } else {
-                    reenable(permission)
+                      color: revokeStateColor(state))
+            if let actionLabel = state.actionLabel {
+                Button {
+                    perform(state.action, for: permission)
+                } label: {
+                    MonoLabel(actionLabel, size: 9, weight: .medium,
+                              tracking: Design.Tracking.mono,
+                              color: state.action == .revoke
+                                  ? Design.Colors.danger : Design.Colors.accentTint(0.7))
+                        .contentShape(Rectangle())
                 }
-            } label: {
-                MonoLabel(active ? "REVOKE ✕" : "ENABLE ›", size: 9, weight: .medium,
-                          tracking: Design.Tracking.mono,
-                          color: active ? Design.Colors.danger : Design.Colors.accentTint(0.7))
-                    .contentShape(Rectangle())
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)
     }
 
-    private func isCollectionActive(_ permission: RevocablePermission) -> Bool {
-        switch permission {
+    /// #260(A): the row is a function of BOTH truths — the app flag and the
+    /// live iOS permission — never the flag alone.
+    private func revokeRowState(_ permission: RevocablePermission) -> RevokeRowState {
+        let flag = switch permission {
         case .health: settingsStore.settings.healthCollectionEnabled
         case .location: settingsStore.settings.locationCollectionEnabled
+        }
+        let status = permissionsStore.capabilities
+            .first { $0.permissionType == permission.permissionType }?.status ?? .notDetermined
+        return RevokeRowState.compute(flagOn: flag, iosStatus: status)
+    }
+
+    private func revokeStateColor(_ state: RevokeRowState) -> Color {
+        switch state {
+        case .active: Design.Brand.accent
+        case .needsPermission: Design.Brand.forge
+        case .blockedByIOS: Design.Colors.danger
+        case .off, .unavailable: Design.Colors.mutedForeground
+        }
+    }
+
+    private func perform(_ action: RevokeRowAction?, for permission: RevocablePermission) {
+        switch action {
+        case .revoke:
+            pendingRevoke = permission
+        case .enableCollection:
+            reenable(permission)
+        case .requestPermission:
+            Task { await permissionsStore.requestPermission(for: permission.permissionType) }
+        case .openSystemSettings:
+            openAppSettings()
+        case nil:
+            break
         }
     }
 
