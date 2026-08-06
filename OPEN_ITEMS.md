@@ -13470,6 +13470,47 @@ Manual/Off app lane).**
 > runs deny side effects silently under current config. Item stays SHELVED;
 > the #251 venture's interactive half is now the natural reopen path.**
 
+## 258. 🖼️ ARTIFACT PANES v2: agent files appear WHILE the turn streams, and SVG renders instead of "unsupported" — **ROUTED + APPROVED 2026-08-06 (Owen: "5. approved" then "f1 looks good"); design proposal read and blessed; bars pre-registered below BEFORE the build**
+
+**Framing (established by the terrain map, `G-preview-panes-terrain.md`,
+and the approved proposal `planning/superpowers/specs/2026-08-06-f1-artifact-panes-proposal.md`):
+this is an ITERATION on shipped work, not a new subsystem.** #21 (SSE
+reconstruction) and #99 (preview sheet) shipped 2026-07-12 — agent files
+already open in a sheet with Markdown, syntax-highlighted code, and HTML
+in a hardened WKWebView. Two gaps make it feel unlike the desktop's
+artifact panel, and only those two are in scope:
+
+1. **Mid-turn rendering.** `producedFiles` accumulates during streaming
+   (`SessionsHermesClient.swift:321-373`) but is assigned to the message
+   only at `run.completed` (`:442-448`) — the tool pill is live, the
+   openable chip is not. Fix: stream artifacts as they arrive.
+2. **SVG route.** `FilePreviewRoute` (`FilePreviewSheet.swift:21-56`)
+   routes html/markdown/code/unsupported; **`.svg` falls to
+   `.unsupported`** despite being the named differentiator. Fix: route it
+   through the existing hardened WKWebView path.
+
+**Deferred with reasons (Owen approved the deferrals):** revision chains
+(needs a data-model change), cross-session gallery (browse feature; wants
+Phase 3 media settled first), mermaid (bundling a JS renderer is a
+supply-chain call, not a polish-lane call), Quick Look (pays off only
+when real binaries arrive), widget/Live-Activity surface (decoration).
+
+**BARS PRE-REGISTERED (before any code; a missed bar is a falsification):**
+- **258-A (mid-turn):** in a live turn where the agent writes a Markdown
+  file, the chip appears and is openable BEFORE `run.completed`, shows
+  the content it had at that moment, and does NOT duplicate when the turn
+  finishes (exactly one chip per written file).
+- **258-B (svg):** an agent-written `.svg` opens and renders as a graphic;
+  malformed SVG degrades to the code view — never a blank pane, never a
+  crash.
+- **258-C (no regression):** every existing #21/#99/#235/#237 test
+  (reconstruction, preview routing, stream recovery, dedupe, stall)
+  stays green UNMODIFIED — this lane may not edit those pins to pass.
+- **258-D (gate):** full `lane-gate.sh` PASS, unit count MOVED by the new
+  tests (state the arithmetic).
+- **258-E (device, Owen):** ask Hermes to write a file on a real turn —
+  the chip shows up while it is still talking; an SVG diagram renders.
+
 ## 257. 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt, so "what can you do?" gets an improvised 3-of-15 answer — **FILED 2026-08-05 night (Owen's device screenshots, build 2047: "btw I thought it could do more than that"); measured lane, not yet opened**
 
 **Evidence (Owen, 9:04 PM, on-device brain, fresh conversation):**
