@@ -13470,6 +13470,38 @@ Manual/Off app lane).**
 > runs deny side effects silently under current config. Item stays SHELVED;
 > the #251 venture's interactive half is now the natural reopen path.**
 
+## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run**
+
+**Owen's routing (device pass, build 2034):** (1) info strip = **Link ·
+Host · Model** — status pip + link state (LINKED · DIRECT / ON-DEVICE) +
+host name + active-model short-name, full-width row between top bar and
+grid, grid view only ("a status bar about the size of two cards left to
+right would move it down perfectly"); (2) Privacy card value = **"SENSORS
+OFF" / "N SENSORS LIVE"** (his catch: "NOTHING LEAVES THIS PHONE" is
+misleading when paired; "0 STREAMS" clarifies nothing); (3) **#249
+past-due bounce text sharpened** to steer the model toward the
+nearest-future reading of the same clock hour ("8" at 6:59 PM → offer
+tonight) — tool-output text, 233-E rules, unit-pinned, no battery owed.
+Ride-along: Appearance card value truncation ("CASINO LUCKY 7S ·…").
+
+**BARS — written HERE, BEFORE the run:**
+- **256-A (unit):** privacy formatter — 0 → "SENSORS OFF", 1 →
+  "1 SENSOR LIVE", 3 → "3 SENSORS LIVE".
+- **256-B (unit):** new past-due bounce pins — still leads "No reminder
+  was created", carries the next-occurrence steering phrase, still no
+  digits or formatted date (233-E); the latch/caution path is unchanged
+  (existing 249 tests stay green with only wording pins updated).
+- **256-C (UI):** grid shows `settings.statusStrip` with store-derived
+  link/host/model text; strip absent in deck mode.
+- **256-D (build + device):** Appearance card value renders the longest
+  catalog theme name without ellipsis (scale-to-fit); Owen judges on
+  device.
+- **256-E (device, Owen):** strip reads LINKED · DIRECT · OJAMD ·
+  DEEPSEEK-V4-FLASH on his paired install and the grid sits visibly
+  lower; an evening "remind me at 8" now comes back offering tonight.
+
+A missed bar is a falsification, not a redefinition.
+
 ## 255. 🧹 DE-BRANDING SWEEP: rename hermes-mobile → talaria-mobile; remove the remaining dylan-buck marks from the repo — **FILED 2026-08-05 evening (Owen: "I also want to rename the hermes-mobile to talaria-mobile and get rid of the rest of dylan's mark on the repo"); inventory owed before any rename**
 
 **Scope discipline written at filing, before the inventory:**
