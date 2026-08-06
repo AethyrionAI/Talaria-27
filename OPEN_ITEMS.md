@@ -14092,6 +14092,69 @@ falsification, not a redefinition):**
 2A-A/B/C/F are device bars (Owen's pass, likely tomorrow); D/E/G close
 build-side.
 
+**✅ 2A BUILT OVERNIGHT 2026-08-06 (~23:00–02:30), subagent-driven
+(sonnet/opus implementers+reviewers, FABLE whole-branch review), merged
+as PR #272 (`3f3bdee`); plugin repo at `023316c` (50/50 pytest), LIVE
+on the Mac gateway.** The numbers: 12 tasks, 6 fix rounds, every task
+through spec+quality review; app suite **1618 → 1650 units** (+32 net:
++45 new − 13 relay-inbox deletions) + 12 XCUITest + **Release green
+(GATE: PASS)**; plugin suite 0 → 50. **Live smoke green end-to-end on
+:8642**: unauth → fail-closed 401 · pair · `hermes talaria send` →
+drain delivered · re-pair rotated (old row deactivated) · ack · empty
+re-drain · unpair · status = deactivate-never-delete holding.
+**Bars: 2A-E MET (LiveInboxService/RelayInboxItem gone, suite green
+without them), 2A-G MET (gate). 2A-A/B/C/D/F ride OTA — steps for
+Owen below.** What the review layer caught before it could ship: two
+transport races (reproduced by running the module), a pre-auth crash
+(non-ASCII bearer → 500), cross-device query-forgery hole, an
+uncallable `send()` signature (MY plan error — spec Addendum 3),
+stdlib module shadowing (→ `platform_adapter.py`, Addendum 4), a
+drain-decode poisoning class (params/meta stringified), a
+data-clobber wiring shape (T11 now uses `receivePlatformItems`), a
+forever-stuck unread pip, and profile-switch `reset()` destroying the
+only copy of agent messages. All fixed and regression-pinned.
+
+**Ops discovery: the Mac gateway is now LAUNCHD-SUPERVISED** — `kill`
+= clean restart via respawn (~20s); `hermes gateway restart` is the
+polite form; a manual `hermes gateway run` from a shell now REFUSES
+(orphan-dispatcher guard). Bounced twice tonight (config enable; plugin
+fix pickup), both clean.
+
+**Noted for Owen (decisions/nuances, none blocking):**
+- `platformItems` grows without bound (dismissed included) — retention
+  policy is a product call.
+- The inbox blob is a GLOBAL (non-profile-scoped) UserDefaults key —
+  preserved platform history spans profile switches (Host A messages
+  visible under Host B), and a profile switch resets read/dismissed
+  state on preserved items. Scoping = Phase 3 decision.
+- `hermes talaria unpair` is undone by a foregrounded app BY DESIGN
+  (401 → self-repair re-pairs). Durable unpair = app-side too.
+- Existing relay inbox items vanish on FIRST LAUNCH of this build
+  (one-time, expected — the relay feed is gone).
+- Dead relay-copy `unreachableState` UI in InboxScreen → #255/UI pass.
+- Torn-keychain pair (kill between two writes) has a microsecond
+  no-self-repair window; candidate fix noted in the fable review.
+
+**📱 OWEN'S DEVICE PASS (bars, ~10 min, phone on the tailnet):**
+1. Install the staged OTA (Safari → owens-mac-mini.tail5663a6.ts.net).
+2. **2A-A:** open the app with your Mac profile active → Settings →
+   Server: PLUGIN LINK row should read PAIRED with zero steps from
+   you. (Mac-side check: `hermes talaria status` shows the device.)
+3. **2A-C:** close the app fully → on the Mac:
+   `hermes talaria send "morning"` → reopen the app → the message is
+   in the Inbox exactly once, and the unread pip clears when you tap
+   it.
+4. **2A-B:** with the app OPEN, ask Mac-Hermes (Portal credit — keep
+   it to one or two turns) or use `hermes talaria` tooling to fire
+   `talaria_phone_query` kind location → answer ≤5s. This is the
+   riskiest bar (first real agent-turn through is_async tool plumbing
+   + cold GPS); if it misses, note WHICH leg lagged.
+5. **2A-F:** Privacy → toggle health OFF (master ON) → health query →
+   "declined: privacy settings"; toggle ON → real data. (If master is
+   off, flip it too — the ON leg needs both.)
+6. **2A-D:** close the app >60s → query → tool gated/honest
+   unreachable, no throw.
+
 **📚 PHASE 3 RESEARCH (Owen's dispatch, 2026-08-05 late): three-agent
 feature gap analysis, reports in
 `planning/superpowers/research/251-phase3-gap/`.** A (adapter capability
