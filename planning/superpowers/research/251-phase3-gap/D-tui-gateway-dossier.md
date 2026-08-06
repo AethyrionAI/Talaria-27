@@ -870,3 +870,41 @@ obeys it, exactly as §4.2's source reading predicted.
 record of the first attempt (the classifier denied the subagent's
 scripts). The controller re-ran it with Owen's explicit go and the same
 script; nothing about the guardrails changed, only the authorization.
+
+### Steer BOUNDARY probe 2026-08-06 (Owen: "the steering quirk I think is system wide" — CONFIRMED, and it's worse than a quirk)
+
+Loopback :9121, no install modification, teardown verified. One kimi turn
+plus a one-word follow-up.
+
+**Setup:** a turn that uses NO TOOLS at all ("write a six-line poem about
+the ocean; do not use any tools"), steered mid-compose as soon as prose
+started streaming.
+
+| observation | result |
+|---|---|
+| `session.steer` during pure compose | **`OK {"status": "queued", ...}`** — accepted, success-shaped |
+| tool used this turn | `False` |
+| final answer | the poem, **completely unaffected** |
+| `STEER LANDED THIS TURN` | **False** |
+| does the un-consumed steer leak into the NEXT turn? | **No** — next turn answered `ACORN` normally |
+
+**The precise rule (system-wide, `agent/agent_runtime_helpers.py:3950-3963`
+is shared substrate — this is NOT a runs-plane or tui-plane quirk):**
+
+> **A steer is consumed at the next TOOL-RESULT boundary. With no tool
+> boundary left in the turn, it is SILENTLY DISCARDED — and the RPC still
+> answered `{"status":"queued"}`.**
+
+This also explains why both earlier successes worked: each injected while
+a tool call was in flight (`terminal: sleep 20`), so the in-flight tool's
+completion WAS the boundary. "Runs another tool" is more precisely "has a
+tool result still to process."
+
+**Consequence for any steer UI we build (all three planes):** the
+`queued` ACK is a FALSE POSITIVE — a naive steer button would say "sent"
+and do nothing whenever the agent is writing prose, which is exactly when
+a user most wants to redirect it. A real implementation must either gate
+the affordance on "a tool is running / expected", or fall back to
+interrupt-and-resend during compose, and must never treat `queued` as
+"applied". Worth pinning a client-side test on this the day steering
+ships.
