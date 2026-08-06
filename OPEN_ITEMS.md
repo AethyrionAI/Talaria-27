@@ -4956,6 +4956,28 @@ have been edited); **258-E rides the OTA**.
   macOS WebKit rather than the iOS 27 sim (same engine core; a cheap
   repeat would close the last inch).
 
+> **Update 2026-08-06 (late evening) — 258-E MET on device (Owen, OTA 2085, Mac
+> profile; deepseek-flash + kimi runs).** Both halves:
+> - **Mid-turn chip:** on BOTH prompts the chip appeared while the turn was
+>   still streaming and was tappable before the reply finished. Owen: *"IF
+>   YOU'RE FAST ENOUGH, you can tap it before the response loads. With Deepseek
+>   flash though, damn, no chance - Switched to kimi and I barely beat it."* The
+>   race is purely against model speed — designed behavior. Exactly one chip per
+>   file after finish; the 258-A merge held on device.
+> - **SVG:** `talaria-arch.svg` rendered as a real graphic (boxes, arrows,
+>   grid, mono labels) — not "unsupported", not blank.
+> - **NEW OBSERVATION (Owen's, filed not fixed):** *"The generated file doesn't
+>   stay in line where its generated, its moved to the end of the response on
+>   both a and b"* — the chip renders inline at the generation point mid-turn,
+>   then RELOCATES to end-of-response when `.finished`'s run.completed list
+>   takes the lead. One chip, no dupe — the bar held — but placement is not
+>   stable across the finish boundary. Owen's call whether placement-stability
+>   becomes a lane.
+> - **White-canvas specimen observed live:** kimi authored a DARK SVG (slate
+>   background baked into the file), so the predicted mismatch appeared — a
+>   dark strip floating on the white preview canvas. Owen's aesthetic verdict
+>   pending.
+
 ## 257. 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt, so "what can you do?" gets an improvised 3-of-15 answer — **FILED 2026-08-05 night (Owen's device screenshots, build 2047: "btw I thought it could do more than that"); measured lane, not yet opened**
 
 **Evidence (Owen, 9:04 PM, on-device brain, fresh conversation):**
@@ -5901,6 +5923,46 @@ is settled — with the webhook shape the "listener" is the gateway itself, so
 this reduces to accepting that gateway-down = whole paired tier down (the
 app's on-device fallback already covers it). Bars pre-register HERE when a
 lane opens.
+
+> **Update 2026-08-06 (late evening) — 2A-D and 2A-F MET; the 2A device pass is
+> COMPLETE.** Queries fired from a fresh Mac-gateway session (kimi-coding), Owen
+> driving the phone (OTA 2085).
+> - **2A-D MET, both halves, app dark ~55 min.** (1) Natural prompt "where is my
+>   phone?": the model never saw `talaria_phone_query` (belt-gated), fell back
+>   to the hermes_mobile sensor MCP, reported zero rows HONESTLY and suggested
+>   opening the app — no fabricated location. (2) Forced call: the model needed
+>   `tool_describe` to even find the tool, and the handler returned the designed
+>   prose VERBATIM in 0.00s: *"Phone unreachable: the paired phone is not
+>   connected right now (the app is probably closed). Do not retry this turn."*
+>   Both turns ended `finish_reason=stop`, 3 API calls each, zero retries — no
+>   #232-style movement. **Nuance for the record:** the gate fired SILENTLY —
+>   no `_transport_available returned False` warning was logged for these turns
+>   (the registry's bypass-scope branch logs raises, not plain False), so gating
+>   is evidenced by model behavior, not a log line. Separately at 16:25 local
+>   (transport LIVE), a malformed forced call via the `tool_call` shim returned
+>   a clean missing-argument error — no throw on that path either.
+> - **2A-F MET, both legs, wording confirmed verbatim.** Master ON. Health
+>   stream toggle OFF → the phone round-tripped the query and declined with the
+>   EXACT designed prose: *"The phone declined: permission for that data stream
+>   is disabled in Talaria's privacy settings."* (Also clears the
+>   refusal-wording confirmation owed from the location run. In THIS shape the
+>   prose is accurate — the stream toggle WAS the blocker; #260(B)'s master-off
+>   mis-blame stays filed.) Toggle ON → *"Steps today: 4275"* — real HealthKit
+>   data.
+> - **#260(A) second specimen:** the Permissions row read ENABLED tonight vs
+>   NOT SET in the earlier pass — same row, no grant sheet either time. The ON
+>   leg proves the iOS grant EXISTS (data flowed), so the earlier NOT SET was
+>   the wrong reading. Also worth remembering: iOS's per-app Settings pane never
+>   lists Health (grants live under Privacy & Security → Health), so "not in
+>   system settings" proves nothing about the grant.
+> - **Spotted in passing, NOT investigated:** at 16:22 local the phone
+>   (`Talaria 27` UA, 100.68.60.11) hit the Mac gateway `GET /v1/models` with an
+>   INVALID API key — one rejection logged during the evening pass window while
+>   chat demonstrably worked. Possibly profile-switch timing. Observation only.
+>
+> **Still owed from the 2A pass: only 2A-B's transport-leg instrumentation**
+> (the 32s-vs-≤5s falsification stands; measure enqueue → phone answer → future
+> resolved, model latency out of scope).
 
 ## 250. ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear whatever icon is currently selected — **FILED 2026-08-04 night (Owen's feature request, with screenshot); feasible on existing #25 machinery; lane not yet scheduled**
 
