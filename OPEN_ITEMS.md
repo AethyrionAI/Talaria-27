@@ -14224,6 +14224,37 @@ CLARIFIED AND IMPROVED:**
   works on our chat plane today; gateway HookRegistry hooks remain
   platform-only). Memory updated.
 
+**🗳️ OWEN'S DECISION ROUND (2026-08-06 mid-day, from a meeting break —
+phone-mangled numbering, reading confirmed by Owen "hopefully you get
+it"):**
+- **X1 platform_hint: APPROVED + DONE on the Mac** — config
+  `platform_hints.api_server.replace` swaps the "assume plain text, no
+  markdown" paragraph for a Talaria-renders-full-Markdown hint
+  (verified against `_resolve_platform_hint`, system_prompt.py:73-120;
+  malformed entries fall back safely). Applied + gateway bounced
+  (09:42:22 process). **OJAMD: Owen pastes the same block** into
+  `config.yaml` when convenient (snippet = the Mac's lines at
+  `platform_hints:`; comments don't survive gateway config rewrites —
+  learned this round: the gateway NORMALIZES config.yaml on start,
+  reordering keys and dropping comments; settings persist).
+  Ride-along fact: the Mac gateway's default model is now
+  `kimi-k3`/`kimi-coding` per the rewritten config — the "Mac is
+  Portal-only" cost rule needs re-verification before it's cited again.
+- **platformItems retention: leave for now; when built, cap ~25–50.**
+- **#255: (b) type sweep SKIPPED; (c) user-visible strings ride #253.**
+  Item now closed save (c)'s future conversation.
+- **F1 artifact preview panes: APPROVED as the next app feature lane**
+  (after the 2A device bars close). Brainstorm-first; no code before an
+  approved design.
+- **tui_gateway live probe: AUTHORIZED** ("You can probe when ready")
+  incl. the temporary auth-provider config; plan = configure, probe
+  login→ticket→ws→steer on loopback, tear the auth config back out,
+  record results here.
+- **P1 doorbell: PENDING** — Owen asked for the zero-extra option;
+  answer given (zero-extra = NO doorbell, the 2A outbox + open-the-app
+  delivery IS the #238 baseline; least-new real option = self-hosted
+  ntfy + its iOS app). Awaiting his pick: nothing vs ntfy.
+
 **Still-open questions (routing owed before Phase 2):** voice WebRTC
 bootstrap's home (in-tree RTC precedent: `plugins/google_meet/`) — note
 agent A found adapter-layer voice that may moot this; #21 file
