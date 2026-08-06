@@ -13549,6 +13549,15 @@ and just started talking to me full volume in the office LOL."*
   Needs a diagnosis pass (how "closed" was performed matters — dismiss
   vs app-switch vs swipe-kill); bars pre-register here when a lane opens.
 
+**⬇️ DOWNGRADED TO WATCH 2026-08-05 evening (build 2034): NOT
+REPRODUCIBLE.** Owen re-tested both buttons repeatedly: chat → composer
+and talk → voice session, consistently, every time; voice audio cut off
+correctly BOTH on app swipe-out AND on ending the session. The
+full-volume ghost did not recur ("it couldn't reproduce it, but it did
+work each time" — plus one workplace embarrassment in the line of
+science). Half 1 (buttons bind) is now CONFIRMED WORKING on 2034. Leave
+filed; re-open on next sighting with the how-was-it-closed detail.
+
 ## 253. 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it for later as a maybe"); no design, no lane**
 
 Surfaced inside Claude Design's settings prototype as an ON-DEVICE / AUTO /
@@ -13631,6 +13640,24 @@ a hero), two stale "Diagnostics" path strings → "Developer → Batteries"
 (ChatScreen banner + BatteryResultsScreen empty state), system
 reduce-motion OR'd in (mirrors the browser), and deck-nav counter asserts
 now poll. Scoped re-review: all ADDRESSED, no new breakage.
+
+**📱 OWEN'S DEVICE PASS (2026-08-05 evening, build 2034) — follow-on
+verdicts, mapped to the letters below:** (a) grid↔deck chatter: "good"
+— keep as built. (b) nothing to judge on device (code fact: the dead
+branch renders never; kept + tested) — clarified for Owen, no verdict
+needed. (c) dropped motifs / gradient card / accent dots: "nah i'm ok
+with it" — CLOSED, stay dropped. (d) Privacy card "0 STREAMS":
+**REJECTED** — "doesn't clarify what it is, would drive me nuts"; the
+spec's "NOTHING LEAVES THIS PHONE" also rejected (only true hostless —
+misleading when paired; Owen's catch). Owen floats blank as possibly
+better; candidate replacement "SENSORS OFF / N LIVE" — decided in the
+strip lane below. (e) stale-after-clear: accepted as-is, not retesting
+on his main install. (f-as-relabeled) **INFO STRIP APPROVED**: the grid
+sits too high; a full-row status bar (~two cards wide) between the top
+bar and the grid "would move it down perfectly" — at-a-glance info
+wanted on this page. Lane opens with bars (contents proposal owed to
+Owen first). Cosmetic ride-along for that lane: the Appearance card
+value truncates on long theme names ("CASINO LUCKY 7S ·…" on device).
 
 **Ride-along follow-ons (filed, NOT built — post-device-pass candidates):**
 (a) deck entry builds all nine pages, so every grid↔deck flip re-fires each
@@ -13965,6 +13992,16 @@ units (1613 + 4, count moved) + 12 XCUITest, Release green.** 250-D
 (device) OWED on the next OTA. Note for the device pass: the tinted
 variant's glow renders bright — placeholder-grade, judge on the phone.
 
+**250-D PARTIAL (2026-08-05 evening, build 2034):** Owen reports the
+home icon "didn't revert to the default. It stayed on what it was set
+on before." That is CORRECT behavior IF the picker sits on an alternate
+(the default art shows only when the selection is Default/Talaria) —
+but it doesn't yet confirm the art swap. Owed to close: what
+Settings → Appearance → App Icon shows as selected. If it says
+Default/Talaria and the home screen still shows the upstream art,
+that's a real fail (icon cache vs asset — diagnose). Island half not
+yet judged either.
+
 ## 249. 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the card is not the hour the user said — **INSTRUMENTED 2026-08-04 night; discriminator run pending; readings pre-registered below BEFORE the evidence** *(header's 9 PM is the as-filed observation — CORRECTED to 8:00 AM in the dated note below)*
 
 **FILED 2026-08-04 night from Owen's tonight-list item 4 (corded build of
@@ -14103,6 +14140,26 @@ time, which the new guard would bounce; bounce-path tests move to
 explicit `now` injection and `tool.call` wiring tests build
 dynamically-future dues (tomorrow 16:00). The guard itself surfaced the
 rot.
+
+**📵 249-E DEVICE RESULT (2026-08-05 ~6:59 PM, build 2034, on-device
+brain): the GUARD FIRED — zero stale cards staged — but the bar as
+worded is NOT MET; the residue is model-side.** Two runs (Owen's
+screenshots): "Remind me at 8 to call Shelley" and "Remind me to call
+Shelley at 10", both asked 6:59 PM. Both times the model resolved to
+TODAY'S morning hour (8 AM / 10 AM — the half-day default landing
+same-day, so the evening-clock ask never came into play), the past-due
+bounce returned the ask, NO card staged, and the model asked the user
+for a time. Compare Monday night: three silent stale cards — the harm
+this lane targeted is dead. What still fails the user: (1) the model
+narrates the bounce as a system failure ("It seems there was a previous
+attempt… but it failed") instead of a clean question; (2) nobody
+proposes the OBVIOUS future reading — "8" asked at 6:59 PM is 8 PM
+TONIGHT, one hour out. **Follow-on (routing owed): sharpen the past-due
+bounce text** to steer the re-ask toward the nearest-future reading of
+the same clock hour — tool-OUTPUT text (#233-family, unit-testable,
+233-E rules apply: lead negative, no mineable date), NOT @Guide text,
+so no battery owed. Ride-along observation: both turns also chained
+`searchConversations` (#200-family over-serving, known, not this item).
 
 **✅ BUILT 2026-08-05 evening, TDD watched-RED (`claude/t27-249-reminder-clock`).**
 RED was exact: 34 tests, 20 issues — precisely the predicted sum of
