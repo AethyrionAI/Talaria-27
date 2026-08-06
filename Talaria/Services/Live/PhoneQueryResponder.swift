@@ -144,8 +144,16 @@ final class PhoneQueryResponder: PhoneQueryResponding {
                 text = try await reader.calendar(daysAhead: Self.daysAhead(from: params["window_days"]), relay: relay)
             case "reminders":
                 text = try await reader.reminders(relay: relay)
-            default:
+            case "deviceStatus":
                 text = await reader.deviceStatus()
+            default:
+                // The gate switch above and this one are two hand-synced
+                // lists. A kind added to the gate's permission-only arm but
+                // forgotten here must fail LOUDLY — falling through to the
+                // device-status report would answer a privacy-adjacent query
+                // with confidently wrong data, which is the one failure mode
+                // this whole type exists to prevent.
+                return .unavailable(reason: "unknown_kind")
             }
             return .success(text: text)
         } catch {

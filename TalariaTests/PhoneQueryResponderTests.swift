@@ -197,6 +197,26 @@ struct PhoneQueryResponderTests {
         #expect(reader.calls.isEmpty)
     }
 
+    /// Pins the dispatch switch's `default:` arm — which returns
+    /// `.unavailable`, NOT the device-status report.
+    ///
+    /// Honest about its own reach: the gate switch rejects "photos" first, so
+    /// this case cannot execute the dispatch default arm today. What it pins
+    /// is the CONTRACT between the two hand-synced switches — a kind the
+    /// catalog does not serve answers `unknown_kind` and reads nothing, by
+    /// whichever of the two arms it reaches. Before the hardening the default
+    /// arm answered `deviceStatus()`, so a kind added to the gate's
+    /// permission-only list and forgotten in dispatch would have returned the
+    /// battery/storage report as a `.success` — confidently wrong data on a
+    /// privacy-adjacent path.
+    @Test func kindOutsideTheCatalogNeverFallsThroughToDeviceStatus() async {
+        let reader = FakeReader()
+        let answer = await makeResponder(allOn, reader: reader).answer(kind: "photos", params: [:])
+        #expect(answer == .unavailable(reason: "unknown_kind"))
+        #expect(answer != .success(text: "Battery: 80% (not charging)"))
+        #expect(reader.calls.isEmpty)
+    }
+
     @Test func readerThrowBecomesUnavailable() async {
         final class ThrowingReader: FakeReader {
             struct Boom: Error {}
