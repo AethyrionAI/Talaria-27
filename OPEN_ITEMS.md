@@ -13470,6 +13470,64 @@ Manual/Off app lane).**
 > runs deny side effects silently under current config. Item stays SHELVED;
 > the #251 venture's interactive half is now the natural reopen path.**
 
+## 261. 🗃️ OPEN_ITEMS IS OUT OF HAND — archive the closed, keep the open, and stop putting attack recipes in a file that goes to GitHub — **ROUTED 2026-08-06 evening (Owen: "lets add an item to OI, ironically, to clean up and archive close OI as a start. Its starting to get out of hand")**
+
+**The numbers, measured at filing:** **21,051 lines · 1.5 MB · 268
+items, of which 167 are ✅ closed.** Roughly 62% of the file is history
+of finished work. Every session loads it, every grep walks it, and the
+signal — what is actually open and what Owen must decide — is buried in
+it. This is the file that governs the project, so its legibility is not
+cosmetic.
+
+**Part 1 — the security-detail move, ALREADY DONE at filing.** Owen's
+instruction: *"Take that out of open items, and make an addendum and put
+it somewhere else, outside of the repo."* Prompted by Fable's safeguards
+flagging a message — the trigger was almost certainly the concentrated
+attack-shaped prose this file had accumulated (#259's write-up, #258's
+review notes). Done same evening: the mechanics now live in
+`~/Documents/Claude/talaria-security-addendum.md` (deliberately OUTSIDE
+the repo — not on GitHub, not in the context every session reloads), and
+#258/#259 keep a clinical statement, the fix, the decision, and a
+pointer. **Standing convention, now in force:** tracker gets the defect
+in one sentence + fix + decision + bars; the addendum gets mechanics and
+reasoning; NEITHER gets working payloads.
+
+**Part 2 — the archive split (the actual lane, not yet built).**
+Proposed shape, Owen's routing owed on the specifics:
+- `OPEN_ITEMS.md` keeps ONLY open/watch/decision items + the standing
+  conventions block at the top. Target: something a person can read.
+- `OPEN_ITEMS-ARCHIVE.md` (in-repo, same directory) takes every ✅
+  closed item VERBATIM — the history is genuinely valuable (it is how
+  "did we already try this?" gets answered) and must not be summarized
+  away, only moved.
+- A short INDEX at the top of the live file: item number → one line →
+  status, so the shape of the project is visible without scrolling.
+- Numbering stays a single monotonic sequence across both files (a moved
+  item keeps its number forever; nothing is renumbered, ever).
+- Cross-references: closed items referenced by open ones get a pointer
+  to the archive rather than a copy.
+
+**Known hazards for whoever builds it** (this file has burned us
+before): the header form is load-bearing and mechanical
+(`^## N.` / `^## NL.` — see the counting rules at the top of this file);
+CLAUDE.md points at OPEN_ITEMS as the canonical tracker and would need
+its pointer updated; several memories and handoffs cite item numbers, so
+numbers must survive the move unchanged; and the file is edited by
+almost every session, so the split wants to land as ONE commit with no
+other work in flight.
+
+**BARS (pre-registered):**
+- **261-A:** every ✅ item present in the archive, byte-identical to its
+  pre-split text; a scripted diff proves nothing was lost or reworded.
+- **261-B:** item-number set is identical before and after (union of
+  both files = the original 268); zero renumbering.
+- **261-C:** the live file's item count equals 268 − (archived count),
+  and every remaining item is genuinely open/watch/decision.
+- **261-D:** CLAUDE.md's tracker pointer updated to name both files;
+  the counting rules travel with whichever file they govern.
+- **261-E (Owen):** he can open the live file and see the shape of the
+  project without scrolling past finished work.
+
 ## 260. 🔐 PRIVACY LEGIBILITY: the health row contradicts itself, a denial names the wrong toggle, and "streaming" gates a non-streaming act — **ROUTED 2026-08-06 evening (Owen: "sounds good, bundle them into a lane") from his own 2A device pass; bars pre-registered below BEFORE the build**
 
 All three came out of Owen's device pass and share one root: **the app
@@ -13535,34 +13593,31 @@ depends on which gates exist, so (C) landing later may re-touch it.
 
 ## 259. 🔓 The `.html` artifact preview has NO CSP — an agent-authored HTML file can beacon out and reach tailnet services — **FILED 2026-08-06 from #258's independent security review (§6, out of that lane's scope); no lane opened**
 
-**Found while hardening SVG (#258): the SVG wrapper is now strictly MORE
-hardened than the `.html` route that has shipped since #99.** The
-reviewer's control arm — which IS the current `.html` path — demonstrated
-live, against real WebKit: `<script>` RUNS, `fetch()` egresses, CSS
-`@import url(http://…)` egresses, and a remote `<image href>` egresses.
-Three network hits where the CSP-wrapped SVG arm had zero.
+**The defect, clinically:** the `.html` preview route renders
+agent-authored markup with **no content-security policy**, so the
+document may load and contact arbitrary external resources. The `.svg`
+route hardened in #258 has one; `.html`, shipped since #99, does not.
+Demonstrated live during #258's review (it was that review's control
+arm). The view's existing protections — nil base URL, one-shot
+navigation policy, no script bridge, ephemeral store, no popups — stop
+navigation and persistence but **not subresource loads**, which never
+reach the navigation delegate. ATS does not cover it either: our single
+exception is for insecure HTTP to the tailnet range, and HTTPS to any
+host is permitted by default.
 
-**Why ATS does not save us:** `project.yml`'s single exception adds
-*insecure HTTP* for `100.64.0.0/10`; ATS permits **HTTPS to any host by
-default**. So an HTTPS beacon leaks the user's IP, UA, timestamp and a
-read-receipt for that artifact — and plaintext HTTP to the tailnet is
-EXPLICITLY permitted, putting relay `:8000`, shim `:8765` and gateway
-`:8642` within SSRF reach of an agent-authored artifact (CORS blocks
-reading responses, not sending requests).
+**Decision owed from Owen (this is the whole item):** applying #258's
+SVG policy verbatim works mechanically, but HTML artifacts plausibly
+*want* inline script — an interactive artifact is half the point — and a
+deny-by-default policy removes exactly that. Three options: same-as-SVG
+(safest, kills interactivity); a script-permitting policy that still
+blocks network destinations (keeps interactivity, stops the leak —
+likely right); or leave as-is with the exposure documented. Bars
+pre-register here when a lane opens.
 
-**Mitigating context, not a dismissal:** the author is the user's own
-agent on the user's own server — but that agent browses the open web and
-relays what it finds, which is exactly the untrusted-content path. The
-one-shot navigation policy, `baseURL: nil`, no script bridge, ephemeral
-store and no-popups all still hold; what's missing is subresource
-control, which only a CSP provides.
-
-**Candidate fix (small):** give `.html` the same wrapper treatment #258
-gave SVG — `default-src 'none'; base-uri 'none'; form-action 'none';
-style-src 'unsafe-inline'; img-src data:` — noting that a stricter policy
-than SVG's may be wanted (HTML artifacts plausibly want their own inline
-`<script>`, which is exactly what we would be taking away; decide
-deliberately). Bars pre-register here when a lane opens.
+> **Mechanics, demonstrated behavior and the reasoning live in the
+> security addendum OUTSIDE this repo** (`~/Documents/Claude/talaria-security-addendum.md`,
+> §A1) — Owen's call 2026-08-06: decisions and fixes in the tracker,
+> attack-shaped detail out of the repo. See #261 for why.
 
 ## 258. 🖼️ ARTIFACT PANES v2: agent files appear WHILE the turn streams, and SVG renders instead of "unsupported" — **ROUTED + APPROVED 2026-08-06 (Owen: "5. approved" then "f1 looks good"); design proposal read and blessed; bars pre-registered below BEFORE the build**
 
@@ -13626,23 +13681,21 @@ have been edited); **258-E rides the OTA**.
   and has no bytes to judge) and degrades to the code view. `svgz`
   deliberately NOT routed (gzip; the stack is UTF-8 text end to end) and
   pinned so it reads as a decision.
-- **🔒 The independent security review is the story of this lane.** It
-  verified EMPIRICALLY — real WebKit, with a no-CSP control arm proving
-  the harness was live — that a meta CSP in a `loadHTMLString(baseURL:
-  nil)` document IS enforced: script/fetch/`@import`/remote `<image>`/
-  foreignObject-iframe all blocked, **0 network hits vs 3 in the
-  control**. It also confirmed `shouldResolveExternalEntities = false`
-  really blocks XXE and that libxml2 kills a billion-laughs bomb in
-  0.2 ms. **And it caught a BAR VIOLATION the suite was certifying
-  green:** a namespace-prefixed `<svg:svg>` root passed the validator
-  but paints a BLANK PANE in WebKit (the HTML parser can't resolve
-  prefixes) — 258-B says never blank. Fixed: prefixed roots reject to
+- **🔒 The independent security review is the story of this lane.** Two
+  things it established, both worth not re-litigating: the deny-by-
+  default policy on the SVG wrapper **is genuinely enforced** (verified
+  against real WebKit with a control arm proving the check was live —
+  not assumed from the code), and the pre-render validator **does NOT
+  constrain what the renderer builds** (it parses as strict XML; the web
+  view parses as HTML). The wrapper is safe because of the POLICY, not
+  because of validation — the code comment now says so and a pin holds
+  it there. **If anyone ever proposes relaxing the policy because "the
+  validator guarantees a clean tree" — it does not.** The review also
+  caught a **BAR VIOLATION the suite was certifying green**: a
+  namespace-prefixed `<svg:svg>` root passed the validator but paints a
+  BLANK PANE (258-B says never blank). Fixed: prefixed roots reject to
   the code view; the test that pinned the acceptance was inverted.
-  Second fix: the wrapper's comment claimed the validator "proves a
-  single balanced tree" — FALSE (strict-XML ≠ HTML5 foreign content;
-  breakout tags escape into `<body>`), contained entirely by the CSP.
-  Comment corrected + a pin added asserting breakout markup IS accepted,
-  so the false claim can't drift back.
+  Fuller reasoning in the out-of-repo security addendum §A2.
 - **⚠️ THE LESSON (implementer's own words, worth carrying):** *"I wrote
   a pin from how `XMLParser` reports names, never from how WebKit
   renders — so a green suite certified a blank pane."* Same family as
