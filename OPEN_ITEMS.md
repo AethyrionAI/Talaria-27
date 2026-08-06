@@ -13537,6 +13537,12 @@ for voluntary being on On Device, vs thats the only option."
 - **256-I (device, Owen):** Uplink reads CONNECTED; Voice card shows
   the route and flips to ON-DEVICE when he switches the brain.
 
+**✅ VERBIAGE ROUND BUILT + GATED (`claude/t27-256-verbiage`).** 256-G/H
+MET (13/13 in the formatter suite; strip's direct case now
+"LINKED · OJAMD · …", RELAY stays flagged; voice route three-way with
+the grid firing `refreshReadiness()` so the card is live). **GATE:
+PASS — 1618 units + 12 XCUITest, Release green.** 256-I rides the OTA.
+
 **✅ BUILT + GATED same night (`claude/t27-256-grid-strip`).** 256-A/B
 MET (privacy formatter + bounce pins, watched RED via the pin updates
 then GREEN); 256-C MET (strip asserted present in grid / absent in deck
