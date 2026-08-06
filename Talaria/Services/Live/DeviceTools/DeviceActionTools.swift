@@ -187,7 +187,11 @@ struct ReminderCreateTool: Tool {
         // negative, carry no formatted date to mine.
         if let parsedDue, DeviceActionParsing.isPastDue(parsedDue, now: now),
            await relay.claimPastDueAsk() {
-            return "No reminder was created. The requested due time has already passed. Ask the user what future time they meant, then create the reminder with the time they confirm."
+            // #256 sharpening (249-E residue): the open-ended "what future
+            // time" left the model narrating a failure; steering it toward
+            // the nearest future reading of the same clock hour gets "8"
+            // asked at 6:59 PM answered with an offer of tonight.
+            return "No reminder was created. The requested due time has already passed. The user most likely means the next time that clock time comes around — ask whether they meant later today or tomorrow, then create the reminder with the time they confirm."
         }
         // #233: the model qualifies bare hours before the tool ever runs
         // ("tomorrow at 4" arrived here as T04:00), so the ambiguity is

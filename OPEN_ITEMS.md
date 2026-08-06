@@ -13470,6 +13470,53 @@ Manual/Off app lane).**
 > runs deny side effects silently under current config. Item stays SHELVED;
 > the #251 venture's interactive half is now the natural reopen path.**
 
+## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run**
+
+**Owen's routing (device pass, build 2034):** (1) info strip = **Link ·
+Host · Model** — status pip + link state (LINKED · DIRECT / ON-DEVICE) +
+host name + active-model short-name, full-width row between top bar and
+grid, grid view only ("a status bar about the size of two cards left to
+right would move it down perfectly"); (2) Privacy card value = **"SENSORS
+OFF" / "N SENSORS LIVE"** (his catch: "NOTHING LEAVES THIS PHONE" is
+misleading when paired; "0 STREAMS" clarifies nothing); (3) **#249
+past-due bounce text sharpened** to steer the model toward the
+nearest-future reading of the same clock hour ("8" at 6:59 PM → offer
+tonight) — tool-output text, 233-E rules, unit-pinned, no battery owed.
+Ride-along: Appearance card value truncation ("CASINO LUCKY 7S ·…").
+
+**BARS — written HERE, BEFORE the run:**
+- **256-A (unit):** privacy formatter — 0 → "SENSORS OFF", 1 →
+  "1 SENSOR LIVE", 3 → "3 SENSORS LIVE".
+- **256-B (unit):** new past-due bounce pins — still leads "No reminder
+  was created", carries the next-occurrence steering phrase, still no
+  digits or formatted date (233-E); the latch/caution path is unchanged
+  (existing 249 tests stay green with only wording pins updated).
+- **256-C (UI):** grid shows `settings.statusStrip` with store-derived
+  link/host/model text; strip absent in deck mode.
+- **256-D (build + device):** Appearance card value renders the longest
+  catalog theme name without ellipsis (scale-to-fit); Owen judges on
+  device.
+- **256-E (device, Owen):** strip reads LINKED · DIRECT · OJAMD ·
+  DEEPSEEK-V4-FLASH on his paired install and the grid sits visibly
+  lower; an evening "remind me at 8" now comes back offering tonight.
+- **256-F (ride-along, added same night from Owen's #250 follow-up
+  screenshot, before its code):** the Appearance deck page's APP ICON
+  row becomes a NavigationLink to the icon gallery
+  (`settings.appearance.openIconGallery`) — the gallery was findable
+  only via browser → tuning → expand. GLOW/GRID rows stay read-only.
+
+A missed bar is a falsification, not a redefinition.
+
+**✅ BUILT + GATED same night (`claude/t27-256-grid-strip`).** 256-A/B
+MET (privacy formatter + bounce pins, watched RED via the pin updates
+then GREEN); 256-C MET (strip asserted present in grid / absent in deck
+in the XCUITest pair); 256-D built (scale-to-fit 0.65 on card values;
+device judge owed); 256-F MET (deck APP ICON row → gallery,
+`settings.appearance.openIconGallery`). Strip formatter unit-pinned
+(5 shapes incl. hostless collapse to "ON-DEVICE"). **GATE: PASS — 1618
+Swift Testing units (1617 + 1, count moved) + 12 XCUITest, Release
+green.** 256-E (device) rides the next OTA.
+
 ## 255. 🧹 DE-BRANDING SWEEP: rename hermes-mobile → talaria-mobile; remove the remaining dylan-buck marks from the repo — **FILED 2026-08-05 evening (Owen: "I also want to rename the hermes-mobile to talaria-mobile and get rid of the rest of dylan's mark on the repo"); inventory owed before any rename**
 
 **Scope discipline written at filing, before the inventory:**
@@ -14001,6 +14048,16 @@ Settings → Appearance → App Icon shows as selected. If it says
 Default/Talaria and the home screen still shows the upstream art,
 that's a real fail (icon cache vs asset — diagnose). Island half not
 yet judged either.
+
+**250-D home-screen half RESOLVED (same night, follow-up screenshot):**
+the picker sits on **KAIJU ATTACK** — so keeping it was correct
+behavior, and Owen adds "I don't even see the old icon which is good"
+(the upstream art is gone from every surface he's met). Island half
+stays OPEN as a watch — he can't consistently trigger the island;
+judge it whenever one appears. UX ride-along from the same screenshot,
+routed into #256: the icon gallery was buried (browser → tuning →
+expand); the deck page's APP ICON row now navigates to the gallery
+directly.
 
 ## 249. 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the card is not the hour the user said — **INSTRUMENTED 2026-08-04 night; discriminator run pending; readings pre-registered below BEFORE the evidence** *(header's 9 PM is the as-filed observation — CORRECTED to 8:00 AM in the dated note below)*
 

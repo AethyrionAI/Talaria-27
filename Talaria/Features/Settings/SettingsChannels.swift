@@ -76,9 +76,31 @@ enum SettingsCardValues {
         return "\(themeName.uppercased()) · CH \(String(format: "%02d", index))"
     }
 
+    /// #256 (Owen's device-pass verdict): "0 STREAMS" clarified nothing.
+    /// The value now names what the number counts — sensor streams.
     static func privacy(masterOn: Bool, health: Bool, location: Bool, motion: Bool) -> String {
         let count = masterOn ? [health, location, motion].filter { $0 }.count : 0
-        return "\(count) STREAM\(count == 1 ? "" : "S")"
+        if count == 0 { return "SENSORS OFF" }
+        return "\(count) SENSOR\(count == 1 ? "" : "S") LIVE"
+    }
+
+    /// #256: the grid's at-a-glance status strip — LINK · HOST · MODEL.
+    /// Hostless collapses to the on-device story (no "—" host noise);
+    /// unknowable hosts render "—" (real data only).
+    static func statusStrip(state: HermesHostConnectionState, isDirect: Bool,
+                            hostName: String?, modelName: String?, brainLabel: String?) -> String {
+        let model = models(activeModelName: modelName, brainLabel: brainLabel)
+        if case .notConnected = state {
+            return model == "ON-DEVICE" ? "ON-DEVICE" : "ON-DEVICE · \(model)"
+        }
+        let host = (hostName?.isEmpty == false) ? hostName!.uppercased() : "—"
+        let link: String = switch state {
+        case .online: isDirect ? "LINKED · DIRECT" : "LINKED · RELAY"
+        case .offline: "STANDBY"
+        case .unreachable: "OFFLINE"
+        case .notConnected: "ON-DEVICE" // unreachable — handled above
+        }
+        return "\(link) · \(host) · \(model)"
     }
 
     static func sessions(count: Int?, isPaired: Bool) -> String {

@@ -44,10 +44,39 @@ struct SettingsChannelsTests {
         #expect(SettingsCardValues.appearance(themeName: "Deep Field", channelIndex: nil) == "DEEP FIELD")
     }
 
-    @Test func privacyStreamCount() {
-        #expect(SettingsCardValues.privacy(masterOn: false, health: true, location: true, motion: true) == "0 STREAMS")
-        #expect(SettingsCardValues.privacy(masterOn: true, health: true, location: false, motion: true) == "2 STREAMS")
-        #expect(SettingsCardValues.privacy(masterOn: true, health: true, location: false, motion: false) == "1 STREAM")
+    /// #256 (Owen's device-pass verdict): "0 STREAMS" clarified nothing —
+    /// the value now says what the number counts. Off (master or none) →
+    /// SENSORS OFF; live → counted, singular-aware.
+    @Test func privacySensorValue() {
+        #expect(SettingsCardValues.privacy(masterOn: false, health: true, location: true, motion: true) == "SENSORS OFF")
+        #expect(SettingsCardValues.privacy(masterOn: true, health: false, location: false, motion: false) == "SENSORS OFF")
+        #expect(SettingsCardValues.privacy(masterOn: true, health: true, location: false, motion: true) == "2 SENSORS LIVE")
+        #expect(SettingsCardValues.privacy(masterOn: true, health: true, location: false, motion: false) == "1 SENSOR LIVE")
+    }
+
+    /// #256: the grid's status strip — link · host · model, hostless
+    /// collapsing to the on-device story instead of "— " noise.
+    @Test func statusStripComposesLinkHostModel() {
+        #expect(SettingsCardValues.statusStrip(
+            state: .online, isDirect: true, hostName: "OJAMD",
+            modelName: "deepseek-v4-flash", brainLabel: nil)
+            == "LINKED · DIRECT · OJAMD · DEEPSEEK-V4-FLASH")
+        #expect(SettingsCardValues.statusStrip(
+            state: .online, isDirect: false, hostName: "Mac Mini",
+            modelName: "kimi-k2", brainLabel: nil)
+            == "LINKED · RELAY · MAC MINI · KIMI-K2")
+        #expect(SettingsCardValues.statusStrip(
+            state: .unreachable, isDirect: false, hostName: "Mac Mini",
+            modelName: nil, brainLabel: nil)
+            == "OFFLINE · MAC MINI · SELECT")
+        #expect(SettingsCardValues.statusStrip(
+            state: .notConnected, isDirect: false, hostName: nil,
+            modelName: nil, brainLabel: "On-Device")
+            == "ON-DEVICE")
+        #expect(SettingsCardValues.statusStrip(
+            state: .notConnected, isDirect: false, hostName: nil,
+            modelName: "qwen-local", brainLabel: nil)
+            == "ON-DEVICE · QWEN-LOCAL")
     }
 
     @Test func sessionsValueHandlesUnloaded() {
