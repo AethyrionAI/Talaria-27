@@ -485,17 +485,18 @@ final class AppContainer {
             )
         }
 
-        // #45: the Inbox is a live surface now — no mock fallback. Real items
-        // or an honest unreachable state; MockInboxService survives only for
-        // the UITest harness (and unit tests), never a production path.
-        // Constructed after relayAccessTokenRefresher so the Inbox rides the
-        // same 401-recovery ladder as every other relay consumer.
+        // #45: the Inbox is a live surface — no demo fallback; MockInboxService
+        // survives only for the UITest harness (and unit tests), never a
+        // production path.
+        // #251-2A: the feed is the talaria drain's local cache, not the relay
+        // — `LiveInboxService` and its 401-recovery ladder went with the relay
+        // inbox route. Nothing here fetches, so there is no longer a fetch that
+        // can fail: #45's "unreachable" Inbox state is now dead UI (its copy
+        // still names the relay — InboxScreen.unreachableState, left for the
+        // Inbox UI pass rather than adjusted blind here).
         let inboxService: any InboxServiceProtocol = usesMockPairingService
             ? MockInboxService()
-            : LiveInboxService(
-                apiClient: bootstrapProbeClient,
-                accessTokenRefresher: relayAccessTokenRefresher
-            )
+            : TalariaPlatformInboxService(persistence: persistence)
 
         let hostStore = HermesHostStore(
             hostService: hostService,

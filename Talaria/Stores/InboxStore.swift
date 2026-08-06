@@ -59,6 +59,25 @@ final class InboxStore {
         }
     }
 
+    // MARK: - Platform drain (#251-2A)
+
+    /// The drain loop's landing point. Merging happens against this store's
+    /// OWN `localState` because the store is the single writer of the
+    /// persisted inbox blob: a merge written straight to persistence would be
+    /// erased by the next `localState` mutation here (a markRead, a dismiss,
+    /// a #113 alert), silently losing items the plugin has already marked
+    /// delivered and will never send again.
+    ///
+    /// Refreshing the visible list is the caller's job (`loadInbox(force:)`)
+    /// — this only lands the cache. A batch that is entirely re-delivery
+    /// changes nothing and writes nothing.
+    func receivePlatformItems(_ platformItems: [TalariaPlatformItem]) {
+        var updated = localState
+        TalariaPlatformInboxService.merge(platformItems, into: &updated)
+        guard updated != localState else { return }
+        localState = updated
+    }
+
     // MARK: - Local operational alerts (#113)
 
     /// Marks an app-generated item so action handling never round-trips the
