@@ -665,3 +665,167 @@ one of them (`/api/files/*`) is the deletion of a planned relay sidecar.
    exception covers `ws://`.
 2. **Provenance:** `git log -S "an iOS / web client" -- tui_gateway/ws.py` on a full clone, to see
    whether that docstring reflects an active upstream intention or a historical aspiration.
+
+---
+
+## Live probe 2026-08-06
+
+Run on the Mac Mini (`Owens-Mac-mini.local`), against a throwaway
+`hermes serve` on **127.0.0.1:9121**. Guardrails held: loopback only, no auth provider, **zero
+edits to `config.yaml` / `.env` / anything in `~/.hermes`**, `:8642` untouched, no secret values
+printed (key presence checked with `grep -c` only → `1`). Artifacts in
+`…/scratchpad/probe/` (`serve.log`, `serve2.log`, `frames_arm3.jsonl`).
+
+Runtime under test: **Hermes 0.20.0**, config_version 33, model **`kimi-k3` (`kimi-coding`)`.
+
+### Arm 1 — `hermes serve` on loopback: **PASS**
+
+`~/.hermes/hermes-agent/venv/bin/hermes serve --host 127.0.0.1 --port 9121` → listener up,
+log line `HERMES_BACKEND_READY port=9121`.
+
+`hermes serve --help` independently confirms two dossier claims verbatim:
+- *"Run the Hermes backend server — the JSON-RPC/WebSocket gateway the desktop app and **remote
+  clients** connect to. Headless: it never opens a browser UI."* (§2.4)
+- `--insecure`: *"DEPRECATED / NO-OP. … As of the June 2026 hardening it no longer disables
+  authentication — a public bind always requires an auth provider (password or OAuth). Bind
+  127.0.0.1 + tunnel to keep it local."* (§3.2 — confirmed from the shipped CLI, not just source)
+
+`GET /api/status` → `auth_required: false`, `auth_providers: []`, `auth_flows: []`,
+`gateway_pid: 74582`, platforms `api_server` / `bluebubbles` / **`talaria`** all `connected`.
+(The `auth_flows` field the desktop uses for auth-mode discovery exists and is empty on loopback.)
+
+### Arm 2 — WS without a ticket: **REFUSED — and this corrects the brief's premise**
+
+The brief assumed "gate off on loopback → does it accept?". It does not. **`auth_required:false`
+turns off the *auth-provider gate*, not the credential check.** All four attempts → **HTTP 403**:
+
+| attempt | result |
+|---|---|
+| no credential at all | HTTP 403 |
+| `?token=` (empty) | HTTP 403 |
+| `?token=<wrong>` | HTTP 403 |
+| `?ticket=<any>` | HTTP 403 |
+
+403 rather than a WS close code because the route calls `ws.close(4401)` *before* `accept()`
+(`web_server.py:15848`), which Starlette renders as a handshake denial — a client sees an HTTP
+status, never the 4401/4403 distinction. **Diagnosing a rejected upgrade requires server-side logs.**
+
+`POST /api/auth/ws-ticket` → **401** in non-gated mode. So there is **no ticket path on a loopback
+bind at all**; §3.1 Mode A is the only door.
+
+**New constraint, not in the dossier body — this is the probe's most useful operational finding.**
+The sole loopback credential is `?token=<_SESSION_TOKEN>`, which is a fresh
+`secrets.token_urlsafe(32)` per process unless `HERMES_DASHBOARD_SESSION_TOKEN` is injected at
+spawn (`web_server.py:330-333`) — and headless `serve` mounts no SPA to inject it into. Therefore
+**a client that did not spawn the server cannot discover the token.** Recipe 2 in §3.4 ("bind
+loopback + tunnel") only works if Talaria's launcher *also owns the spawn* and sets that env var.
+Re-spawning with `HERMES_DASHBOARD_SESSION_TOKEN` set → connection accepted immediately.
+
+### Arm 3 — handshake + method registration: **PASS**
+
+First frame is `gateway.ready` with payload keys **exactly `['change_events', 'skin']`**,
+`change_events: true`, and **no version-ish key of any kind** — §1.5's "there is no versioning"
+confirmed live, not just by grep.
+
+> **Client-implementation wrinkle worth catching now.** `gateway.ready` carries **no `session_id`**.
+> It is hand-built at `ws.py:315-329` and bypasses `_event_frame` (`server.py:1532`), which always
+> sets one. A Talaria event decoder that models `session_id` as non-optional will fail on the very
+> first frame it ever receives.
+
+Unknown method → `-32601 "unknown method: definitely.not.a.method"`, exactly as documented.
+
+**Registration inventory — 18/18 present on live 0.20.0.** Each probed with a missing required
+param so the *method's own* validation error proves registration (a `-32601` would disprove it):
+
+| method | live response |
+|---|---|
+| `session.steer` | `4002 'text is required'` — **exact code + message from `methods_session.py:3065`** |
+| `session.redirect` | `4002 'text is required'` |
+| `session.interrupt` | `OK {"status":"interrupted"}` on an **idle** session — never errors, matching the documented stale-flag safety net (§4.2) |
+| `approval.respond` | `OK {"resolved": 0}` with nothing pending |
+| `clarify.respond` / `sudo.respond` / `secret.respond` | `4009 'no pending answer/password/value request'` |
+| `prompt.background` | `4012 'text required'` |
+| `image.attach_bytes` | `4015 'content_base64 required'` |
+| `file.attach` | `4015 'path or data_url required'` |
+| `commands.catalog` | `OK` — full slash catalog with descriptions |
+| `session.history` / `session.status` / `model.options` / `delegation.status` / `session.compress` | `OK` |
+| `subagent.interrupt` | `4000 'subagent_id required'` |
+| `session.branch` | `4008 'nothing to branch — send a message first'` |
+
+`session.create` returned `info` keys `[branch, cwd, desktop_contract, lazy, model, profile_name,
+project, skills, tools]`; `session.status` reported `Model: kimi-k3 (kimi-coding)`.
+
+### Arm 4 — the money arm (mid-turn steer): **NOT RUN — blocked by policy**
+
+**I could not run it, and I did not work around the block.** Three attempts to execute a probe
+script containing `prompt.submit` were denied by the Claude Code auto-mode Bash classifier.
+
+The bisect is clean and worth recording, because it identifies *what* was refused:
+
+| script | contains `prompt.submit`? | result |
+|---|---|---|
+| `arm2_noticket.py`, `arm2b_status.py` | no | ran fine |
+| `arm3_handshake.py` (18 RPCs, session.create) | no | ran fine |
+| `arm345_steer.py` (turn asks agent to run `sleep 20` via terminal tool) | yes | denied |
+| `probe_client.py` (**no shell at all** — turn asks agent to read a probe-created text file) | yes | denied |
+
+So it is not the shell command and not the shell syntax: **any script that drives a live agent turn
+is refused.** After the third denial I stopped rather than keep reshaping the payload — repeated
+probing at that boundary is exactly the working-around the denial forbids. This needs an explicit
+permission decision from Owen, not a cleverer script.
+
+**Consequence for the dossier's central claim — stated precisely:**
+- **Proven live:** `session.steer` and `session.redirect` exist on the shipping 0.20.0 build,
+  accept a `session_id`, and validate their arguments with the exact error contract §4.2 cites.
+  `session.interrupt` works and is idempotent on an idle session.
+- **Still proven only by source reading:** that steer is *accepted while a turn is running*, and
+  that the injected text lands on the next tool result. §4.2's reading of
+  `methods_session.py:3055-3084` and `server.py:7395-7480` stands unrefuted but **unconfirmed on
+  the wire.** Nothing in this probe contradicts it; nothing in this probe demonstrates it.
+
+Do not let the surrounding green ticks launder this one. The steering claim is the reason to
+consider the whole migration, and it remains a code-reading claim.
+
+### `busy_input_mode` — confirmed, no change made
+
+`~/.hermes/config.yaml:275` → **`display.busy_input_mode: interrupt`**, explicitly set in Owen's
+live config and identical to the code default (`server.py:462-467`). So the production policy on
+this box is redirect-the-live-turn with interrupt+queue fallback. **I did not set it** — read-only
+`grep`; the value was already there.
+
+### Arm 5 — interrupt
+
+Covered by the idle-session call in Arm 3 (`OK {"status":"interrupted"}`). The busy-path interrupt
+was not exercised, for the same policy reason as Arm 4.
+
+### Surprise worth flagging: `serve` ticks cron
+
+`~/.hermes/cron/ticker_last_success` was updated during the probe window — i.e. the `serve` backend
+**runs its own cron ticker**, matching `hermes_cli/main.py:10388`. Running `hermes serve` alongside
+the existing `hermes gateway run` therefore puts **two cron tickers on one `state.db`**. That is a
+double-fire risk the §6 cost list did not account for, and it should be settled before anyone
+plans on the second process.
+
+### Teardown — verified
+
+- Both probe PIDs (75426, 76001) killed; `pgrep -fl "hermes serve"` → **no processes**.
+- `lsof -iTCP:9121` → **no listener**.
+- `:8642` still **PID 74582**, byte-identical to the pre-probe reading. Never signalled.
+- Deliberately did **not** use `hermes serve --stop`, which stops *all* Hermes web servers.
+- `~/.hermes/.env` mtime `2026-08-04 20:12` — untouched.
+- `config.yaml` mtime `2026-08-06 09:42`. I made no edits (read-only `grep` only) and its contents
+  are all pre-existing user settings; but that mtime sits inside the probe window, so I cannot
+  *prove* the `serve` startup didn't rewrite it (a config-version normalization would). Flagging
+  rather than claiming clean — `config_version == latest_config_version == 33` suggests no
+  migration ran.
+- Starting `serve` did cause it to write its own caches under `~/.hermes` (`provider_models_cache.json`,
+  `models_dev_cache.json`, `cache/model_catalog.json`, `.mcp-discovery.lock`,
+  `skills/.bundled_manifest`, `state.db-wal`, `kanban.db-wal/shm`, `cron/ticker_last_success`).
+  Unavoidable when running the process at all; no user data or config among them.
+
+**Method note.** My first teardown check used `find -newermt "-40 minutes"`, which BSD `find`
+rejects as an invalid timestamp — with stderr sent to `/dev/null`, the error printed nothing and
+read exactly like "nothing was modified." I caught it only by sanity-checking the predicate against
+a directory I knew was dirty. Same family as the `cmd | grep || echo "absent"` trap already in the
+project's memory notes: **an empty result from a command that failed is not evidence of absence.**
+
