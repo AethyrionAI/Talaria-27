@@ -14286,6 +14286,32 @@ at 8" should come back as a question, and no card should ever again show
 an already-past due — rides the next OTA. The #249 due-parse instrument
 ships in the same PR (`93a0632`).
 
+**🌙 EVENING-CLOCK GUARD: FIRST LIVE FIRING (2026-08-05 9:02 PM, build
+2047, on-device brain) — guard CORRECT end-to-end; the residue is a
+model-side FALSE SUCCESS CLAIM.** Owen: "remind me at 11 to call
+Shelley" at 9:02 PM. The model resolved "11" to NEXT-DAY 11:00 AM (the
+half-day default finally landing tomorrow-morning — the exact shape
+guard 2 was built for and had never seen live). Tool pill confirms the
+whole story: `lookupContact Shelley` then ONE `createReminder Call
+Shelley` — the evening-clock ask bounced it, NO confirmation card was
+staged, and nothing was created (Owen confirmed: "I never confirmed so
+nothing was made"). The model then asked the user for the correct time
+✓ — but narrated it as *"the reminder **was set** for the next morning
+(August 6th at 11:00 AM)… Could you confirm the correct time?"* — a
+fabricated success claim directly contradicting the bounce's leading
+"No reminder was created," with the mined phrase visible ("the due time
+landed the next morning" → "was set for the next morning"). 233-E's
+lead-with-the-negative held the past-due text but not this one: the
+false positive is the DANGEROUS direction (user believes a reminder
+exists, relies on it, misses the call). The date it quoted came from
+its own tool args, not the bounce (the text carries none — that rule
+held). **Follow-on (routing owed): sharpen the evening-clock bounce the
+way #256 sharpened the past-due one** — candidate shape gives the model
+a ready-made relay line plus the concrete two-way question ("tonight or
+tomorrow morning?"), since #200J showed the model parrots what it's
+handed. Tool-OUTPUT text, unit-testable, no battery owed. Note
+`lookupContact` ran exactly once — no spiral this turn.
+
 ## 248. 🐛 Stall-recovery adoption briefly DUPES the user's sent message; a session re-open heals it — F3's tail placement is the suspect neighborhood — **✅ CLOSED 2026-08-04 night: device bar MET on the corded `b94fc27` build — no dupe, answer below the question, in the HARDER cross-device shape**
 
 > **✅ CLOSED 2026-08-04 night.** Owen's device run: *"picked up a session
