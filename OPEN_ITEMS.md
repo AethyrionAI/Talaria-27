@@ -14278,6 +14278,59 @@ fix pickup), both clean.
 6. **2A-D:** close the app >60s → query → tool gated/honest
    unreachable, no throw.
 
+**📱 DEVICE PASS 2026-08-06 evening (Owen, OTA 2085, Mac profile):**
+- **2A-A MET.** PLUGIN LINK read PAIRED with zero steps; Mac side
+  confirmed device `659442776dd4` minted 21:21 with `last_seen` ticking
+  forward (drain loop live, not just paired). Owen's first read was a
+  false alarm — he was looking at the older RELAY pairing rows, which
+  also say "paired". **UX note: two different things on the Server
+  screen now say "paired"** — disambiguate when the relay goes.
+- **2A-C MET, both ends.** `hermes talaria send` with the app force-quit
+  → reopened → message present EXACTLY ONCE, unread pip cleared on tap
+  (the mark-read-on-tap fix the T10 review demanded, working). Server
+  side: `delivered_at` stamped 21:24:01, outbox pending count 0. No
+  notification, which is CORRECT — push stayed dead by design (#238);
+  "it's waiting when you open the app" IS the delivery model.
+- **2A-B: SUBSTANCE VERIFIED, BAR AS WRITTEN NOT MET — and the bar was
+  MIS-SPECIFIED BY ME.** The query returned Owen's real address from
+  his phone to an agent on another machine ✅. But the receipt read
+  **32S** against a bar of ≤5s. **Owen's correction, which is right:**
+  *"It's going through Hermes now, so it's not instantaneous like the
+  onboard phone model. That's the <5s bar — for local on-device
+  timing."* The 32s is a full remote turn (66.6K in on
+  deepseek-v4-flash + tool call + phone leg + compose); the TRANSPORT
+  leg is a small unmeasured slice of it. **Recorded as a falsification
+  of the bar's letter, NOT redefined** (standing rule: a missed bar is
+  a falsification, not a redefinition — that applies to bars I wrote
+  badly). What a correct bar should measure: the transport leg alone
+  (enqueue → phone answer → future resolved), with the model's latency
+  explicitly out of scope. **OWED: instrument the phone leg** (a few
+  minutes of plugin timing, removed after) to learn the real number —
+  it matters for whether voice/steer UX can ride this path.
+- **2A-F denied leg observed IN THE WILD:** Owen's FIRST location query
+  (master sensor toggle OFF) was refused, and the retry after toggling
+  succeeded — the model's own reasoning says "retry" and its answer
+  says "the permission toggle took effect". Confirmation of the exact
+  refusal WORDING still owed from Owen; health-metric leg still owed.
+
+**🗳️ DESIGN QUESTION RAISED BY THE PASS (Owen's call, not yet
+answered): should query-time answers be gated behind the STREAMING
+toggle at all?** The master switch reads *"Stream Sensors to Hermes —
+streams the sensors you enable to your Hermes host… turning this off
+stops capture and drops queued samples"* — that describes CONTINUOUS
+UPLOAD. A `phone.query` is the opposite act (#242's whole premise:
+query-time, no ingestion, no store). As shipped, a user who wants
+"don't stream my location, but you may ask me where I am" cannot
+express it. Options: **(a)** one switch governing all sensor egress,
+RELABELED to say so (simpler; one privacy concept) — controller's
+lean; **(b)** split the gates: streaming toggle governs upload only,
+query answers ride the per-sensor toggles + iOS permission (more
+faithful to the query-time model, two concepts to understand).
+Smaller sibling spotted the same screen: **Health reads `NOT SET` in
+Permissions but `Health Collection: ACTIVE` in Revoke/Reset** — two
+different concepts (our grant record vs the iOS permission) showing
+contradictory-looking words.
+
 **📚 PHASE 3 RESEARCH (Owen's dispatch, 2026-08-05 late): three-agent
 feature gap analysis, reports in
 `planning/superpowers/research/251-phase3-gap/`.** A (adapter capability
