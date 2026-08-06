@@ -13470,6 +13470,51 @@ Manual/Off app lane).**
 > runs deny side effects silently under current config. Item stays SHELVED;
 > the #251 venture's interactive half is now the natural reopen path.**
 
+## 257. 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt, so "what can you do?" gets an improvised 3-of-15 answer — **FILED 2026-08-05 night (Owen's device screenshots, build 2047: "btw I thought it could do more than that"); measured lane, not yet opened**
+
+**Evidence (Owen, 9:04 PM, on-device brain, fresh conversation):**
+"do I have any new emails?" → *"I can't directly check your emails. Let
+me know if you'd like me to look at your reminders, calendar, or other
+data"* — the email half is CORRECT behavior, not a defect (iOS gives
+third-party apps no Mail read API; honest no is the designed answer).
+Then "What other data?" → *"I can access your health data, motion
+activity, or calendar events."* That names 3 of the belt's **15 tools**
+and omits reminders — which the model had used three minutes earlier in
+the other conversation. Full belt for the record (from the `Tool`
+conformances in `Talaria/Services/Live/DeviceTools/`): reads
+`readHealth`, `readCalendar`, `readReminders`, `currentLocation`,
+`readMotion`, `currentWeather`, `searchPlaces`, `lookupContact`,
+`deviceStatus`, `readImageText`, `readBarcode`, `searchConversations`;
+actions `createReminder`, `createCalendarEvent`, `scheduleAlarm`.
+
+**Root cause (structural, not model dimness):** capability questions
+route TOOLLESS — correctly, since answering needs no tool — and the
+toolless instruction branches (`LocalChatBackend.swift` ~1846/1854/1857)
+say "you have no internet access and no external tools in this mode"
+with no description of what the app CAN do when armed. The armed
+branch's category list ("their health, location, schedule, reminders,
+contacts, and past conversations", line ~1828) is never in context on a
+toolless turn. So on "what can you do?" the model is improvising its own
+résumé from nothing; token counts in the screenshots (IN 1.9K/3.9K vs
+6K on the armed reminder turn) are consistent with both turns running
+toolless.
+
+**Candidate fix (when the lane opens):** one capability-inventory
+sentence in the toolless branch(es) — e.g. "When asked what you can do:
+the app can read health, location, motion, weather, calendar,
+reminders, contacts, device status, photos' text and barcodes, and past
+conversations, and can create reminders, calendar events, and alarms —
+those requests arm the tools automatically. Email is not available."
+This is INSTRUCTION-CLAUSE territory: #215/#218 discipline applies in
+full — bars pre-registered here before the run, measured (canary trials
+at minimum), wording must NOT re-license tool-syntax emission on
+toolless turns (the toolless-lic2 format mandate exists because that
+was a live failure), and any promoted string lives outside `#if DEBUG`
+with a Release build check. Alternative considered and disfavored:
+routing capability questions ARMED (≈6K in per turn for a question that
+needs no tool, plus intent-guide churn). Bars pre-register here when
+the lane opens.
+
 ## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run**
 
 **Owen's routing (device pass, build 2034):** (1) info strip = **Link ·
@@ -14305,12 +14350,15 @@ lead-with-the-negative held the past-due text but not this one: the
 false positive is the DANGEROUS direction (user believes a reminder
 exists, relies on it, misses the call). The date it quoted came from
 its own tool args, not the bounce (the text carries none — that rule
-held). **Follow-on (routing owed): sharpen the evening-clock bounce the
-way #256 sharpened the past-due one** — candidate shape gives the model
-a ready-made relay line plus the concrete two-way question ("tonight or
+held). **Follow-on ROUTED 2026-08-05 night (Owen, via the menu): FILE
+IT, RUN NEXT SESSION — sharpen the evening-clock bounce the way #256
+sharpened the past-due one.** Candidate shape gives the model a
+ready-made relay line plus the concrete two-way question ("tonight or
 tomorrow morning?"), since #200J showed the model parrots what it's
-handed. Tool-OUTPUT text, unit-testable, no battery owed. Note
-`lookupContact` ran exactly once — no spiral this turn.
+handed. Tool-OUTPUT text, unit-testable, no battery owed; bars
+pre-register in this entry before the run. The guard is safe while it
+waits — nothing gets created on the bounce path. Note `lookupContact`
+ran exactly once — no spiral this turn.
 
 ## 248. 🐛 Stall-recovery adoption briefly DUPES the user's sent message; a session re-open heals it — F3's tail placement is the suspect neighborhood — **✅ CLOSED 2026-08-04 night: device bar MET on the corded `b94fc27` build — no dupe, answer below the question, in the HARDER cross-device shape**
 
