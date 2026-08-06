@@ -12,8 +12,10 @@ struct SettingsChannelsTests {
         #expect(SettingsSubsystem.developer.a11yID == "settings.row.developer")
     }
 
+    /// #256-G: "DIRECT" → "CONNECTED" (Owen's verbiage round) — the
+    /// DIRECT/RELAY distinction retires with the relay itself (#251 P4).
     @Test func uplinkValueMirrorsRootRowLogic() {
-        #expect(SettingsCardValues.uplink(state: .online, isDirect: true) == "DIRECT")
+        #expect(SettingsCardValues.uplink(state: .online, isDirect: true) == "CONNECTED")
         #expect(SettingsCardValues.uplink(state: .online, isDirect: false) == "RELAY")
         #expect(SettingsCardValues.uplink(state: .offline, isDirect: false) == "STANDBY")
         #expect(SettingsCardValues.uplink(state: .unreachable, isDirect: false) == "OFFLINE")
@@ -33,10 +35,24 @@ struct SettingsChannelsTests {
         #expect(SettingsCardValues.models(activeModelName: nil, brainLabel: nil) == "SELECT")
     }
 
-    @Test func voiceValue() {
-        #expect(SettingsCardValues.voice(readAloudOn: true, sessionLive: false, engineStateText: "STANDBY") == "READ-ALOUD ON")
-        #expect(SettingsCardValues.voice(readAloudOn: false, sessionLive: false, engineStateText: "STANDBY") == "READ-ALOUD OFF")
-        #expect(SettingsCardValues.voice(readAloudOn: true, sessionLive: true, engineStateText: "SESSION LIVE") == "SESSION LIVE")
+    /// #256-H: the card shows the voice ROUTE (Owen's verbiage round).
+    /// Three-way voluntary/forced distinction: ON-DEVICE = brain choice,
+    /// LOCAL = native engine picked, LOCAL ONLY = realtime unavailable.
+    @Test func voiceValueShowsTheRoute() {
+        // Brain choice wins over everything.
+        #expect(SettingsCardValues.voice(brainIsLocal: true, engine: .realtime, talkState: .connected) == "ON-DEVICE")
+        // Native engine picked on a linked brain — voluntary local.
+        #expect(SettingsCardValues.voice(brainIsLocal: false, engine: .native, talkState: .ready) == "LOCAL")
+        // Realtime states.
+        #expect(SettingsCardValues.voice(brainIsLocal: false, engine: .realtime, talkState: .connected) == "REALTIME · LIVE")
+        #expect(SettingsCardValues.voice(brainIsLocal: false, engine: .realtime, talkState: .ready) == "REALTIME")
+        #expect(SettingsCardValues.voice(brainIsLocal: false, engine: .realtime, talkState: .connecting) == "REALTIME")
+        // Probe in flight — honest ellipsis, resolves on its own.
+        #expect(SettingsCardValues.voice(brainIsLocal: false, engine: .realtime, talkState: .checking) == "…")
+        // Linked but realtime unavailable — the forced fallback.
+        #expect(SettingsCardValues.voice(brainIsLocal: false, engine: .realtime, talkState: .idle) == "LOCAL ONLY")
+        #expect(SettingsCardValues.voice(brainIsLocal: false, engine: .realtime, talkState: .blocked) == "LOCAL ONLY")
+        #expect(SettingsCardValues.voice(brainIsLocal: false, engine: .realtime, talkState: .failed) == "LOCAL ONLY")
     }
 
     @Test func appearanceValue() {
@@ -57,10 +73,11 @@ struct SettingsChannelsTests {
     /// #256: the grid's status strip — link · host · model, hostless
     /// collapsing to the on-device story instead of "— " noise.
     @Test func statusStripComposesLinkHostModel() {
+        // #256-G: direct is the norm — no transport qualifier in the strip.
         #expect(SettingsCardValues.statusStrip(
             state: .online, isDirect: true, hostName: "OJAMD",
             modelName: "deepseek-v4-flash", brainLabel: nil)
-            == "LINKED · DIRECT · OJAMD · DEEPSEEK-V4-FLASH")
+            == "LINKED · OJAMD · DEEPSEEK-V4-FLASH")
         #expect(SettingsCardValues.statusStrip(
             state: .online, isDirect: false, hostName: "Mac Mini",
             modelName: "kimi-k2", brainLabel: nil)
