@@ -238,3 +238,22 @@ Hermes core patches (never).
 Owen's current briefing habits point at relay-era MCP tools; the e2e
 smoke includes repointing one cron/agent send at the `talaria` platform
 on the Mac. OJAMD production repointing is slice D's business.
+
+## Addendum (plan-time mechanics, 2026-08-05 late)
+
+Two deviations discovered while writing the implementation plan — both
+mechanical, neither changes the approved behavior:
+
+1. **Envelopes carry an `auth` field mirroring the bearer.** The route
+   hands the adapter the Authorization header in `verify` and the JSON
+   body in `dispatch` — as two separate calls with no shared request
+   context — so per-TYPE authorization (pair=API key, device ops=own
+   token) cannot be derived from the header inside dispatch. Contract:
+   the HEADER authenticates (any valid credential, else the route
+   401s fail-closed), the payload `auth` field authorizes per-type.
+   Clients send the same credential in both places.
+2. **Query results are `{"text": <prose>}`**, produced by the same belt
+   read paths the on-device model uses. The REQUEST side stays a
+   structured catalog exactly as routed; the RESPONSE side reuses the
+   belt's honest prose instead of inventing a parallel structured
+   schema with no consumer — the reader is an LLM.
