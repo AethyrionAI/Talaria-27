@@ -35,6 +35,20 @@ struct FilePreviewTests {
         #expect(FilePreviewRoute.route(forFileName: "deploy.YAML") == .code(language: "yaml"))
     }
 
+    @Test func routesSVGToTheGraphicSurface() {
+        // #258 bar 258-B: an agent-drawn diagram is a GRAPHIC, not its source.
+        #expect(FilePreviewRoute.route(forFileName: "chart.svg") == .svg)
+        #expect(FilePreviewRoute.route(forFileName: "DIAGRAM.SVG") == .svg)
+    }
+
+    @Test func gzippedSVGStaysUnsupported() {
+        // `.svgz` is gzip, and the whole preview stack is UTF-8 text end to
+        // end (`stagedText` decodes or gives up). Routing it would buy a
+        // guaranteed no-preview card with extra steps; leaving it unsupported
+        // keeps the honest card plus a working ShareLink.
+        #expect(FilePreviewRoute.route(forFileName: "chart.svgz") == .unsupported)
+    }
+
     @Test func routesEverythingElseToUnsupported() {
         #expect(FilePreviewRoute.route(forFileName: "photo.png") == .unsupported)
         #expect(FilePreviewRoute.route(forFileName: "archive.zip") == .unsupported)
@@ -111,6 +125,113 @@ struct FilePreviewTests {
         defer { try? FileManager.default.removeItem(at: url) }
         let attachment = MessageAttachment(
             kind: "file", fileName: "junk.txt", mimeType: "text/plain", localStoragePath: url.path
+        )
+        #expect(AgentFilePreview.content(for: attachment) == .unavailable)
+    }
+
+    // MARK: - SVG artifacts (#258 bar 258-B)
+
+    private static let squareSVG = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">\
+        <rect width="10" height="10" fill="#54E6F0"/></svg>
+        """
+
+    @Test func wellFormedSVGFixtureCarriesTheRawMarkupToTheGraphicSurface() throws {
+        let attachment = try #require(
+            MessageAttachment.agentFile(remotePath: "O:\\Hermes\\chart.svg", content: Self.squareSVG)
+        )
+        defer { removeStagedFile(attachment) }
+        // The RAW markup rides the value; wrapping happens at render time.
+        #expect(AgentFilePreview.content(for: attachment) == .svg(Self.squareSVG))
+    }
+
+    @Test func malformedSVGDegradesToTheCodeViewRatherThanABlankSheet() throws {
+        // Unbalanced tag — a real failure mode for model-authored markup.
+        let broken = "<svg viewBox=\"0 0 10 10\"><rect width=\"10\" height=\"10\">"
+        let attachment = try #require(
+            MessageAttachment.agentFile(remotePath: "O:\\Hermes\\broken.svg", content: broken)
+        )
+        defer { removeStagedFile(attachment) }
+        #expect(AgentFilePreview.content(for: attachment) == .code(language: "xml", text: broken))
+    }
+
+    @Test func wellFormedXMLThatIsNotAnSVGAlsoDegradesToTheCodeView() throws {
+        // Parses fine, but the web view would render nothing — and "never
+        // blank" is the bar, so the source is the honest surface.
+        let notSVG = "<report><finding id=\"1\">ok</finding></report>"
+        let attachment = try #require(
+            MessageAttachment.agentFile(remotePath: "O:\\Hermes\\mislabelled.svg", content: notSVG)
+        )
+        defer { removeStagedFile(attachment) }
+        #expect(AgentFilePreview.content(for: attachment) == .code(language: "xml", text: notSVG))
+    }
+
+    @Test func emptySVGFileDegradesToTheCodeView() throws {
+        let attachment = try #require(
+            MessageAttachment.agentFile(remotePath: "O:\\Hermes\\empty.svg", content: "")
+        )
+        defer { removeStagedFile(attachment) }
+        #expect(AgentFilePreview.content(for: attachment) == .code(language: "xml", text: ""))
+    }
+
+    @Test func namespacePrefixedRootIsStillAnSVG() {
+        let prefixed = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <svg:svg xmlns:svg="http://www.w3.org/2000/svg" viewBox="0 0 4 4">\
+            <svg:circle cx="2" cy="2" r="2"/></svg:svg>
+            """
+        #expect(SVGPreviewDocument.isRenderable(prefixed))
+    }
+
+    @Test func validatorRejectsUnescapedAmpersandAndUnclosedTags() {
+        #expect(!SVGPreviewDocument.isRenderable("<svg><text>Tom & Jerry</text></svg>"))
+        #expect(!SVGPreviewDocument.isRenderable("<svg><g>"))
+        #expect(!SVGPreviewDocument.isRenderable(""))
+        #expect(!SVGPreviewDocument.isRenderable("just prose, no markup at all"))
+    }
+
+    @Test func wrappedDocumentEmbedsTheMarkupAndDeniesScriptAndNetworkReach() {
+        let document = SVGPreviewDocument.wrap(Self.squareSVG)
+        // The artifact is present verbatim — nothing is re-serialized.
+        #expect(document.contains(Self.squareSVG))
+        #expect(document.hasPrefix("<!DOCTYPE html>"))
+        // The chrome the wrapper ADDS introduces no reach of its own: no
+        // <base>, no <link>, no script, and no URL to fetch. (The artifact's
+        // own `xmlns="http://www.w3.org/2000/svg"` is a namespace NAME, never
+        // fetched — so the check is against the chrome, not the whole page;
+        // and the chrome's only "http" is the `http-equiv` attribute, which
+        // is why this tests for a SCHEME rather than the substring.)
+        let chrome = document.replacingOccurrences(of: Self.squareSVG, with: "").lowercased()
+        #expect(!chrome.contains("<base"))
+        #expect(!chrome.contains("<link"))
+        #expect(!chrome.contains("<script"))
+        #expect(!chrome.contains("http://"))
+        #expect(!chrome.contains("https://"))
+        // Belt on top of the #99 sandbox: an SVG may legally carry <script>
+        // and remote <image href>; CSP denies both by default.
+        #expect(document.contains("Content-Security-Policy"))
+        #expect(document.contains("default-src 'none'"))
+    }
+
+    @Test func aScriptBearingSVGStillRendersAsAGraphic() throws {
+        // Well-formed, so it takes the graphic path — the CSP in the wrapper
+        // is what neuters the script, not a routing refusal.
+        let scripted = """
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 4">\
+            <script>fetch('https://example.com')</script><rect width="4" height="4"/></svg>
+            """
+        let attachment = try #require(
+            MessageAttachment.agentFile(remotePath: "O:\\Hermes\\live.svg", content: scripted)
+        )
+        defer { removeStagedFile(attachment) }
+        #expect(AgentFilePreview.content(for: attachment) == .svg(scripted))
+        #expect(SVGPreviewDocument.wrap(scripted).contains("default-src 'none'"))
+    }
+
+    @Test func unreadableStagedSVGIsUnavailableNotACrash() {
+        let attachment = MessageAttachment(
+            kind: "file", fileName: "ghost.svg", mimeType: "image/svg+xml",
+            localStoragePath: "/nonexistent/\(UUID().uuidString)/ghost.svg"
         )
         #expect(AgentFilePreview.content(for: attachment) == .unavailable)
     }

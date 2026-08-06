@@ -6,8 +6,10 @@ import SwiftUI
 // tappable file chip; this adds the in-app preview on top: tap the chip → a
 // full-screen sheet. v1 previews single-file HTML (sandboxed WKWebView —
 // HTMLPreviewView.swift) and text/code/markdown (the shipped #92 rendering
-// stack); everything else gets an honest no-preview card with a working
-// ShareLink — never a blank sheet.
+// stack); #258 adds SVG, rendered as a graphic through that same sandbox and
+// degrading to its own source when the markup won't parse. Everything else
+// gets an honest no-preview card with a working ShareLink — never a blank
+// sheet.
 //
 // The sheet chrome deliberately takes "a content view + a title", not a
 // payload string, so a future P8 rung can present a rendered GenUI IR surface
@@ -21,6 +23,11 @@ import SwiftUI
 enum FilePreviewRoute: Equatable {
     case html
     case markdown
+    /// #258 bar 258-B: a vector graphic, rendered as a GRAPHIC rather than as
+    /// its source. Routing is by extension alone and so cannot know whether
+    /// the bytes parse — an `.svg` whose markup is malformed degrades to the
+    /// code view at content-resolution time, never to a blank sheet.
+    case svg
     /// #92 code panel; `language` is the fence tag handed to the highlighter
     /// (nil for plain text, so prose never gets false keyword coloring).
     case code(language: String?)
@@ -33,6 +40,12 @@ enum FilePreviewRoute: Equatable {
             return .html
         case "md", "markdown":
             return .markdown
+        case "svg":
+            // #258: NOT `svgz` — that is gzip, and the whole preview stack is
+            // UTF-8 text end to end (`stagedText` decodes or gives up), so
+            // routing it would buy a guaranteed no-preview card with extra
+            // steps. It keeps the honest card and its working ShareLink.
+            return .svg
         case "txt", "log", "text":
             return .code(language: nil)
         case _ where codeExtensions.contains(ext):
@@ -62,6 +75,11 @@ enum FilePreviewRoute: Equatable {
 enum AgentFilePreviewContent: Equatable {
     case html(String)
     case markdown(String)
+    /// #258: the RAW SVG markup. The sheet wraps it for the hardened web view
+    /// at render time (`SVGPreviewDocument.wrap`) — keeping the raw markup in
+    /// the value means the wrapping stays one testable function, not a string
+    /// smeared through content resolution.
+    case svg(String)
     case code(language: String?, text: String)
     /// No preview: unsupported type, missing staged file, or non-UTF-8 bytes.
     case unavailable
@@ -79,6 +97,17 @@ enum AgentFilePreview {
         switch route {
         case .html: return .html(text)
         case .markdown: return .markdown(text)
+        case .svg:
+            // #258 bar 258-B: the malformed check lives HERE, not in routing —
+            // routing is a pure function of the file name and has no bytes to
+            // judge, while this is where the staged read already happens. An
+            // unparseable (or misnamed) `.svg` degrades to its source in the
+            // #92 code panel rather than painting an empty web view.
+            guard SVGPreviewDocument.isRenderable(text) else {
+                TalariaLog.event("FilePreview: \(attachment.fileName) is not renderable SVG — showing the source instead")
+                return .code(language: "xml", text: text)
+            }
+            return .svg(text)
         case .code(let language): return .code(language: language, text: text)
         case .unsupported: return .unavailable
         }
@@ -154,6 +183,9 @@ struct AgentFilePreviewSheet: View {
             switch resolved {
             case .html(let html):
                 HTMLPreviewView(html: html)
+                    .ignoresSafeArea(edges: .bottom)
+            case .svg(let markup):
+                HTMLPreviewView(html: SVGPreviewDocument.wrap(markup))
                     .ignoresSafeArea(edges: .bottom)
             case .markdown(let text):
                 ScrollView {

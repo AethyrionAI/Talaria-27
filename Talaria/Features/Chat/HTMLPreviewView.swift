@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import WebKit
 
@@ -105,5 +106,87 @@ struct HTMLPreviewView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         // Content is fixed for the life of the presentation; a reload here
         // would be cancelled by the one-shot policy by design.
+    }
+}
+
+// MARK: - SVG artifacts (#258 bar 258-B)
+
+/// Turns an agent-written `.svg` into something the hardened preview above can
+/// show as a GRAPHIC, and decides when it can't be shown at all.
+///
+/// The vehicle is deliberately the sandbox above, UNMODIFIED: the wrapped
+/// document still rides `loadHTMLString(_:baseURL: nil)`, the ephemeral data
+/// store, the one-shot navigation policy, the dead `window.open`, and the
+/// absent JS bridge. Every guarantee in the block at the top of this file
+/// holds for an SVG exactly as it holds for an HTML artifact.
+///
+/// The wrapper adds one thing on top — a deny-by-default
+/// Content-Security-Policy — because SVG is the artifact type that can legally
+/// carry `<script>` and a remote `<image href>`, and a subresource load is NOT
+/// a navigation, so the one-shot policy never sees it. The CSP is a belt, not
+/// the braces: if a WebKit build ignored the meta tag, an SVG would land
+/// exactly where HTML artifacts already are today — never further.
+enum SVGPreviewDocument {
+
+    /// Whether the markup is worth handing to the web view at all: well-formed
+    /// XML whose root element is `svg`. Anything else — a truncated
+    /// generation, an unescaped `&`, a file merely NAMED `.svg` — would paint
+    /// an empty page, so the caller degrades it to the code view instead
+    /// (bar 258-B: never blank, never a crash).
+    static func isRenderable(_ markup: String) -> Bool {
+        guard let data = markup.data(using: .utf8), !data.isEmpty else { return false }
+        let parser = XMLParser(data: data)
+        // Agent-authored markup never gets to make the app fetch a DTD or
+        // expand an external entity on its say-so.
+        parser.shouldResolveExternalEntities = false
+        let probe = RootElementProbe()
+        parser.delegate = probe
+        guard parser.parse(), let root = probe.rootElement else { return false }
+        // Namespace processing is off, so a prefixed document reports its root
+        // qualified (`svg:svg`); the local name is what identifies it.
+        return root.split(separator: ":").last?.lowercased() == "svg"
+    }
+
+    /// The minimal host document: charset, viewport, the deny-by-default CSP,
+    /// and just enough CSS to centre the graphic and fit it to the sheet.
+    ///
+    /// The markup is embedded verbatim rather than re-serialized — callers
+    /// have already run it through `isRenderable`, which proves it is a single
+    /// balanced `<svg>` tree, so it cannot close the wrapper early. The canvas
+    /// is white on purpose: an `.svg` almost always assumes a light page and
+    /// `currentColor` resolves to black, so painting one straight onto the
+    /// dark HUD would produce the invisible-graphic case this route exists to
+    /// avoid.
+    static func wrap(_ markup: String) -> String {
+        """
+        <!DOCTYPE html><html><head><meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta http-equiv="Content-Security-Policy" \
+        content="default-src 'none'; style-src 'unsafe-inline'; img-src data:">
+        <style>
+        html, body { margin: 0; height: 100%; background: #ffffff; }
+        body { display: flex; align-items: center; justify-content: center;
+               padding: 16px; box-sizing: border-box; }
+        body > svg { max-width: 100%; max-height: 100%; width: auto; height: auto; }
+        </style>
+        </head><body>
+        \(markup)
+        </body></html>
+        """
+    }
+
+    /// Captures the first element the parser opens — the document root.
+    private final class RootElementProbe: NSObject, XMLParserDelegate {
+        private(set) var rootElement: String?
+
+        func parser(
+            _ parser: XMLParser,
+            didStartElement elementName: String,
+            namespaceURI: String?,
+            qualifiedName: String?,
+            attributes attributeDict: [String: String]
+        ) {
+            if rootElement == nil { rootElement = elementName }
+        }
     }
 }
