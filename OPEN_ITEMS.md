@@ -13543,6 +13543,14 @@ MET (13/13 in the formatter suite; strip's direct case now
 the grid firing `refreshReadiness()` so the card is live). **GATE:
 PASS — 1618 units + 12 XCUITest, Release green.** 256-I rides the OTA.
 
+**✅ 256-I MET (Owen, build 2047, PR #271 merged):** "strip looks good,
+voice looks good, privacy looks good." With that, every #256 bar is MET
+except 256-E's second half — the sharpened reminder phrasing (evening
+"remind me at 8" should now come back OFFERING tonight) — which stays
+open until his next natural reminder ask; and 256-D's device judgment
+rides along informally (nothing ellipsized in his passes). Item is
+otherwise CLOSED.
+
 **✅ BUILT + GATED same night (`claude/t27-256-grid-strip`).** 256-A/B
 MET (privacy formatter + bounce pins, watched RED via the pin updates
 then GREEN); 256-C MET (strip asserted present in grid / absent in deck
