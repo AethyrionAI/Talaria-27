@@ -64,7 +64,19 @@ final class TalariaPlatformInboxService: InboxServiceProtocol {
     }
 
     func fetchInbox(accessToken: String?) async throws -> [InboxItem] {
-        persistence.loadInboxState().platformItems.sorted { $0.timestamp > $1.timestamp }
+        persistence.loadInboxState().platformItems.sorted(by: Self.newestFirst)
+    }
+
+    /// Newest first, tie-broken on the platform id. The plugin stamps
+    /// `isoformat(timespec="seconds")`, so one agent turn's batch routinely
+    /// carries IDENTICAL timestamps — and `sorted(by:)` is not guaranteed
+    /// stable, so on timestamp alone those rows could reorder between two
+    /// reads of the same unchanged cache. The id is random, not monotonic:
+    /// this buys a DETERMINISTIC order, not a chronological one within the
+    /// second.
+    static func newestFirst(_ lhs: InboxItem, _ rhs: InboxItem) -> Bool {
+        if lhs.timestamp != rhs.timestamp { return lhs.timestamp > rhs.timestamp }
+        return (lhs.payload?["platformID"] ?? "") > (rhs.payload?["platformID"] ?? "")
     }
 
     /// Unreachable in practice, and deliberately inert rather than pretending:

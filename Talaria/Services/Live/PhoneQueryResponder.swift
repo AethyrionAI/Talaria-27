@@ -28,7 +28,16 @@ final class LivePhoneQueryReader: PhoneQueryReader {
     /// One provider for both location-flavored reads, matching the belt's
     /// single shared `DeviceLocationProvider` (#31 contextual priming: the
     /// prompt appears on first use, never up front).
-    private let location = DeviceLocationProvider()
+    private let location: DeviceLocationProvider
+
+    /// Injected so the app hands over the SAME provider the #28 belt already
+    /// holds (Task 11 ruling): two `DeviceLocationProvider`s mean two
+    /// `CLLocationManager`s with two independent delegates, authorization
+    /// states and in-flight fixes — one device answering itself twice. The
+    /// default keeps standalone construction (tests, previews) valid.
+    init(location: DeviceLocationProvider = DeviceLocationProvider()) {
+        self.location = location
+    }
 
     func location(relay: ToolEventRelay) async throws -> String {
         try await LocationTool.performLocationRead(relay: relay, location: location, name: "currentLocation")

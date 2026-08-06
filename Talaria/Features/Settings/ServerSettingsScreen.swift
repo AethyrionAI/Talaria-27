@@ -43,6 +43,31 @@ struct ServerProfileReachability: Equatable {
     var gateway: ServerProbeResult = .unknown
 }
 
+/// #251-2A: the PLUGIN LINK row's value. `unknown` renders "—" and covers
+/// BOTH honest not-knowables — no active profile at all, and the Keychain
+/// read not having landed yet — because neither one is evidence about the
+/// link. Only a read that resolved says PAIRED or NOT PAIRED.
+enum TalariaLinkState: Equatable {
+    case unknown
+    case paired
+    case notPaired
+
+    var label: String {
+        switch self {
+        case .unknown: "—"
+        case .paired: "PAIRED"
+        case .notPaired: "NOT PAIRED"
+        }
+    }
+
+    /// Pure for tests: a token in the active profile's slot is the whole
+    /// signal. An empty string is not a token.
+    static func resolve(hasActiveProfile: Bool, deviceToken: String?) -> TalariaLinkState {
+        guard hasActiveProfile else { return .unknown }
+        return (deviceToken?.isEmpty == false) ? .paired : .notPaired
+    }
+}
+
 struct ServerSettingsScreen: View {
     // #252: deck pages supply the background and top bar; the screen keeps
     // owning its content, tasks, and sheets in both presentations.
@@ -54,6 +79,9 @@ struct ServerSettingsScreen: View {
     @Environment(TabRouter.self) private var router
 
     @State private var reachability: [UUID: ServerProfileReachability] = [:]
+    /// #251-2A: the active profile's talaria plugin-link pairing, resolved by
+    /// an async Keychain read on appear.
+    @State private var talariaLink: TalariaLinkState = .unknown
     @State private var pendingActivation: BackendProfile?
     @State private var editorTarget: ProfileEditorTarget?
     @State private var pendingForget: BackendProfile?
@@ -110,6 +138,7 @@ struct ServerSettingsScreen: View {
                     if let provisioningMessage {
                         infoNotice(provisioningMessage)
                     }
+                    talariaLinkPanel
                     addProfileButton
                     autoConnectPanel
                     if let deleteErrorMessage {
@@ -122,7 +151,12 @@ struct ServerSettingsScreen: View {
         }
         .navigationTitle("Server")
         .toolbarVisibility(.hidden, for: .navigationBar)
-        .task { await probeAllProfiles() }
+        .task {
+            // Cheap local read first — the row settles immediately instead of
+            // waiting behind the network probes.
+            await refreshTalariaLinkState()
+            await probeAllProfiles()
+        }
         // #193: was a `.confirmationDialog`, whose cancel role does not
         // render on iOS 26/27. Non-destructive, but a one-button sheet with
         // no visible decline reads as a forced choice for something that
@@ -478,6 +512,51 @@ struct ServerSettingsScreen: View {
         } catch {
             provisioningMessage = "\(profile.name): provisioning refresh failed — \(error.localizedDescription)"
         }
+    }
+
+    // MARK: Plugin link (#251-2A)
+
+    /// The active profile's talaria plugin link: PAIRED once this phone holds
+    /// a device token minted by the host's plugin. Read-only and real — the
+    /// link pairs itself on its first drain; there is no button here, because
+    /// there is no user action that would make it happen sooner.
+    private var talariaLinkPanel: some View {
+        HStack(spacing: Design.Spacing.xs) {
+            StatusPip(color: talariaLinkColor, diameter: 6)
+            MonoLabel("PLUGIN LINK", size: 9, weight: .medium, tracking: Design.Tracking.mono,
+                      color: Design.Colors.secondaryForeground)
+            Spacer(minLength: Design.Spacing.xs)
+            MonoLabel(talariaLink.label, size: 9, weight: .medium, tracking: Design.Tracking.mono,
+                      color: talariaLinkColor)
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.lg,
+            borderColor: Design.Colors.accentTint(0.12),
+            fill: Design.Colors.background.opacity(0.5),
+            innerGlow: false
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("settings.server.talariaLink")
+        .accessibilityLabel("Plugin link \(talariaLink.label)")
+    }
+
+    private var talariaLinkColor: Color {
+        switch talariaLink {
+        case .unknown: Design.Colors.mutedForeground
+        case .paired: Design.Brand.accent
+        case .notPaired: Design.Colors.mutedForeground
+        }
+    }
+
+    private func refreshTalariaLinkState() async {
+        guard let profile = container.profilesStore?.activeProfile else {
+            talariaLink = .unknown
+            return
+        }
+        let token = await container.talariaDeviceToken(for: profile)
+        talariaLink = TalariaLinkState.resolve(hasActiveProfile: true, deviceToken: token)
     }
 
     // MARK: Auto-connect (relocated from the retired Relay sub-page)

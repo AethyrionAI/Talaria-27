@@ -133,6 +133,13 @@ final class AppContainer {
     /// decides. Defaults closed (app death = nothing created).
     let toolConfirmationCenter = ToolConfirmationCenter()
     let sensorUploadService: SensorUploadService?
+    /// #251-2A: the talaria platform transport — auto-pairs with the ACTIVE
+    /// profile's gateway key, drains the plugin's durable outbox into the
+    /// Inbox, and answers the gateway's phone queries. Optional exactly like
+    /// `sensorUploadService`: nil in bare test containers and under the #144
+    /// mock-pairing gate. Foreground-only by design (spec §2.1) — see the
+    /// scene observers in `makeDefault`.
+    private(set) var talariaPlatformLink: TalariaPlatformLink?
     private let apiClient: RelayAPIClient?
     /// #136: short-timeout client for launch/bootstrap-class probes (command
     /// catalog). Nil in bare test containers — probe calls fall back to
@@ -899,6 +906,12 @@ final class AppContainer {
                 await secureStore.delete(key: BackendProfileScopedKeys.refreshToken(scope))
                 await secureStore.delete(key: BackendProfileScopedKeys.gatewayAPIKey(scope))
                 await secureStore.delete(key: BackendProfileScopedKeys.shimToken(scope))
+                // #251-2A: the talaria device credential is TWO slots — a
+                // surviving half re-pairs to a host this profile no longer
+                // exists on, and `ensurePaired` treats a half-written pair as
+                // unpaired anyway. Both halves die with the profile.
+                await secureStore.delete(key: BackendProfileScopedKeys.talariaDeviceToken(scope))
+                await secureStore.delete(key: BackendProfileScopedKeys.talariaDeviceID(scope))
             }
         }
 
@@ -914,6 +927,11 @@ final class AppContainer {
         // installs after the container exists; installTools invalidates the
         // local session so the next turn picks the tools up.
         let toolRelay = ToolEventRelay()
+        // #251-2A: ONE location provider for this process. The belt's
+        // location/weather/places tools and the phone-query reader both read
+        // through it, so a remote query and a local turn share a single
+        // CLLocationManager — one authorization state, one in-flight fix.
+        let sharedLocationProvider = DeviceLocationProvider()
         var deviceTools = DeviceToolBelt.makeReadTools(
             relay: toolRelay,
             conversationProvider: { [weak container] in
@@ -928,7 +946,8 @@ final class AppContainer {
             },
             spotlightEnabledProvider: {
                 settingsStore.settings.spotlightIndexingEnabled
-            }
+            },
+            location: sharedLocationProvider
         )
         deviceTools += DeviceToolBelt.makeActionTools(
             relay: toolRelay,
@@ -939,6 +958,87 @@ final class AppContainer {
         // #31: the chat screen reads the standalone availability state off
         // the backend directly.
         container.localChatBackend = localChatBackend
+
+        // #251-2A: the talaria platform transport. Every endpoint-shaped
+        // input is a CLOSURE, not a captured value — the active profile can
+        // change under this object (M-6) and the link must re-resolve the
+        // gateway, key and credential scope on the turn AFTER the switch, not
+        // keep talking to the host it was built on.
+        //
+        // Nil under the #144 mock-pairing gate for the same reason sensor
+        // upload is: a UI-test run must never enrol this device with a live
+        // host.
+        let talariaPlatformLink: TalariaPlatformLink? = usesMockPairingService ? nil : TalariaPlatformLink(
+            gatewayBaseURL: {
+                let raw = (profilesStore.activeProfile?.gatewayBaseURL ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                return raw.isEmpty ? nil : raw
+            },
+            // The Keychain directly, exactly like `gatewayAPIKey(for:)` — the
+            // in-memory box lags a cold launch and a profile switch, and a
+            // pair attempt with a stale key mints a token against the wrong
+            // host.
+            apiKey: {
+                await secureStore.retrieve(
+                    key: BackendProfileScopedKeys.gatewayAPIKey(profilesStore.activeProfile?.credentialScopeID)
+                )
+            },
+            installID: { sessionStore.state.installationID.uuidString },
+            deviceName: { UIDevice.current.name },
+            credentialScopeID: { profilesStore.activeProfile?.credentialScopeID },
+            secureStore: secureStore,
+            responder: PhoneQueryResponder(
+                settings: { settingsStore.settings },
+                reader: LivePhoneQueryReader(location: sharedLocationProvider)
+            ),
+            // Through the STORE, never a merge written straight to
+            // persistence: InboxStore is the single writer of that blob, and
+            // its next local write (a markRead, a #113 alert) would erase a
+            // merge that went around it — losing items the plugin has already
+            // marked delivered and will never send again.
+            onItemsReceived: { [weak container] items in
+                guard let container else { return }
+                container.inboxStore.receivePlatformItems(items)
+                // …then repaint. `receivePlatformItems` lands the CACHE only;
+                // without this the drain is invisible until the user next
+                // opens the Inbox — including the chat toolbar's unread pip,
+                // which reads `inboxStore.items`. The reload is entirely
+                // local (the platform inbox service makes no network call and
+                // `currentAccessToken` is a Keychain read), so this costs a
+                // persistence decode, not a round trip.
+                Task { await container.inboxStore.loadInbox(force: true) }
+            }
+        )
+        container.talariaPlatformLink = talariaPlatformLink
+
+        // Foreground-only by design (spec §2.1): the plugin's durable outbox
+        // is what makes closed-app time safe, so there is nothing to hold a
+        // long-poll open for once the user leaves.
+        //
+        // Scene notifications rather than the sensor pipeline's start sites,
+        // deliberately: every `sensorUploadService?.start()` call sits behind
+        // `guard pairingStore.isPaired`, and that is the RELAY pairing — a
+        // plane this transport does not use and #223 is retiring. Gating the
+        // link on it would leave the whole feature dark on a gateway-only
+        // host, which is precisely the configuration the lane exists for.
+        // `start()`/`stop()` are both idempotent, so overlapping triggers are
+        // free.
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil, queue: .main
+        ) { [weak container] _ in
+            Task { @MainActor [weak container] in
+                container?.talariaPlatformLink?.start()
+            }
+        }
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil, queue: .main
+        ) { [weak container] _ in
+            Task { @MainActor [weak container] in
+                container?.talariaPlatformLink?.stop()
+            }
+        }
 
         // #30: PCC tier gates — the picker entry appears only when the
         // entitlement + availability check actually passes, the router
@@ -1616,6 +1716,11 @@ final class AppContainer {
 
         // Start sensor data pipeline
         sensorUploadService?.start()
+        // #251-2A: a fresh pairing usually arrives with a provisioned gateway
+        // key (#116), so the link has something to pair with now — don't make
+        // the user bounce the app to pick it up. Idempotent when the scene
+        // observer already started it.
+        talariaPlatformLink?.start()
         await talkStore.refreshReadiness()
     }
 
@@ -2072,6 +2177,12 @@ final class AppContainer {
         // against the OLD profile's stores — supersede it before rebinding
         // scope, or its late completions would land cross-profile.
         cancelBackgroundBootstrap()
+        // #251-2A: park the drain before the scope moves. Its closures all
+        // re-resolve the ACTIVE profile at call time, so a turn already in
+        // flight would finish against the new host holding the OLD host's
+        // token — the 401 self-repair would clean that up, but only after
+        // spending a round trip and a re-pair on it. Restarted at the end.
+        talariaPlatformLink?.stop()
         // Rebind the credential-scoped stores FIRST — their persistence
         // writes resolve the live scope.
         sessionStore.rebindToCurrentScope()
@@ -2155,6 +2266,9 @@ final class AppContainer {
         }
         await talkStore.refreshReadiness()
         await chatStore.refreshDirectHealth()
+        // #251-2A: back on the loop, now resolving the NEW profile's gateway,
+        // key and credential scope.
+        talariaPlatformLink?.start()
         updateWidgetData()
     }
 
@@ -2189,6 +2303,15 @@ final class AppContainer {
     func gatewayAPIKey(for profile: BackendProfile) async -> String? {
         guard let secureStore else { return nil }
         return await secureStore.retrieve(key: BackendProfileScopedKeys.gatewayAPIKey(profile.credentialScopeID))
+    }
+
+    /// #251-2A: a profile's minted talaria device token, read the same way —
+    /// Keychain direct, no cache to go stale. The Server screen's PLUGIN LINK
+    /// row is the only reader: a token in the slot is the one honest local
+    /// signal that this phone has paired with the host's talaria plugin.
+    func talariaDeviceToken(for profile: BackendProfile) async -> String? {
+        guard let secureStore else { return nil }
+        return await secureStore.retrieve(key: BackendProfileScopedKeys.talariaDeviceToken(profile.credentialScopeID))
     }
 
     /// #116: a profile's stored models-shim token — the Server screen's

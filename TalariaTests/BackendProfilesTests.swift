@@ -153,10 +153,21 @@ struct BackendProfilesTests {
         #expect(BackendProfileScopedKeys.shimToken(nil) == "talaria.modelsShimToken")
         #expect(BackendProfileScopedKeys.pairedRelayConfiguration(nil) == "hermes.pairedRelayConfiguration")
         #expect(BackendProfileScopedKeys.sessionState(nil) == "hermes.sessionState")
+        // #251-2A: the talaria device credential's two halves. Pinned like
+        // the rest because a renamed key string is a silently orphaned
+        // Keychain entry — the app re-pairs and the old token lingers
+        // forever, invisible to the profile-delete purge that enumerates
+        // these exact names.
+        #expect(BackendProfileScopedKeys.talariaDeviceToken(nil) == "talaria.platformDeviceToken")
+        #expect(BackendProfileScopedKeys.talariaDeviceID(nil) == "talaria.platformDeviceToken.deviceID")
 
         let scope = UUID()
         #expect(BackendProfileScopedKeys.accessToken(scope) == "session.accessToken.\(scope.uuidString)")
         #expect(BackendProfileScopedKeys.pairedRelayConfiguration(scope).hasSuffix(scope.uuidString))
+        // The device id is derived from the SCOPED token key, so the suffix
+        // lands in the middle — pin the whole string, not just its tail.
+        #expect(BackendProfileScopedKeys.talariaDeviceToken(scope) == "talaria.platformDeviceToken.\(scope.uuidString)")
+        #expect(BackendProfileScopedKeys.talariaDeviceID(scope) == "talaria.platformDeviceToken.\(scope.uuidString).deviceID")
     }
 
     @Test @MainActor

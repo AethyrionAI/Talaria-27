@@ -127,6 +127,49 @@ struct TalariaPlatformInboxServiceTests {
         #expect(items.map { $0.payload?["platformID"] } == ["b", "a"])
     }
 
+    /// Same-second items are the NORMAL case, not an edge one: the plugin
+    /// stamps `timespec="seconds"` and one agent turn emits its batch inside
+    /// a single second. `sorted(by:)` is not guaranteed stable, so timestamp
+    /// alone leaves those rows free to reorder between two reads of an
+    /// unchanged cache. Merged a→b, the id tiebreak pins b→a.
+    @Test func fetchOrdersSameSecondItemsDeterministically() async throws {
+        let persistence = MemoryPersistence()
+        var state = InboxLocalState()
+        TalariaPlatformInboxService.merge(
+            [
+                platformItem(id: "aaa", text: "first", createdAt: "2026-08-05T21:00:00+00:00"),
+                platformItem(id: "bbb", text: "second", createdAt: "2026-08-05T21:00:00+00:00"),
+            ],
+            into: &state
+        )
+        persistence.saveInboxState(state)
+
+        let service = TalariaPlatformInboxService(persistence: persistence)
+        let items = try await service.fetchInbox(accessToken: nil)
+
+        #expect(items.map { $0.payload?["platformID"] } == ["bbb", "aaa"])
+    }
+
+    /// The tiebreak must not outrank the timestamp — an older item with a
+    /// higher id still sorts below a newer one.
+    @Test func fetchKeepsNewestFirstAcrossDifferentSeconds() async throws {
+        let persistence = MemoryPersistence()
+        var state = InboxLocalState()
+        TalariaPlatformInboxService.merge(
+            [
+                platformItem(id: "zzz", text: "old", createdAt: "2026-08-04T21:00:00+00:00"),
+                platformItem(id: "aaa", text: "new", createdAt: "2026-08-05T21:00:00+00:00"),
+            ],
+            into: &state
+        )
+        persistence.saveInboxState(state)
+
+        let service = TalariaPlatformInboxService(persistence: persistence)
+        let items = try await service.fetchInbox(accessToken: nil)
+
+        #expect(items.map { $0.payload?["platformID"] } == ["aaa", "zzz"])
+    }
+
     // MARK: - Decode tolerance
 
     @Test func decodeToleranceOldStateBlobStillLoads() throws {
@@ -181,6 +224,105 @@ struct TalariaPlatformInboxServiceTests {
 
         #expect(persistence.inboxState.platformItems.count == 1)
         #expect(store.items.count == 1)
+    }
+
+    /// `reset()` runs on every pairing change and every profile switch. The
+    /// platform cache is the ONLY copy of these messages — the plugin drops
+    /// an item from its outbox the moment the phone acks it — so clearing it
+    /// there deletes the user's agent history outright. The local
+    /// annotations (read marks) are the part that must go.
+    @Test func resetPreservesPlatformItemsAndClearsReadMarks() async throws {
+        let persistence = MemoryPersistence()
+        let store = await makeStore(persistence: persistence)
+        store.receivePlatformItems([platformItem(id: "a", text: "from the agent")])
+        await store.loadInbox(force: true)
+        let landed = try #require(store.items.first)
+        store.markRead(landed)
+        #expect(persistence.inboxState.readItemIDs.isEmpty == false)
+
+        store.reset()
+        await store.loadInbox(force: true)
+
+        #expect(store.items.map { $0.payload?["platformID"] } == ["a"])
+        #expect(persistence.inboxState.platformItems.count == 1)
+        #expect(persistence.inboxState.readItemIDs.isEmpty)
+        #expect(store.items.first?.isRead == false)
+    }
+
+    /// #113 alerts are NOT preserved — they are operational state about this
+    /// device's pipeline, re-raised by the next failed drain if still true.
+    @Test func resetStillClearsLocalAlerts() async {
+        let persistence = MemoryPersistence()
+        let store = await makeStore(persistence: persistence)
+        store.receivePlatformItems([platformItem(id: "a")])
+        store.raiseConnectorOutageAlert()
+
+        store.reset()
+        await store.loadInbox(force: true)
+
+        #expect(persistence.inboxState.localItems.isEmpty)
+        #expect(store.items.count == 1)
+        #expect(store.items.first?.type == .notification)
+    }
+
+    // MARK: - Read state (Task 11 ruling)
+
+    /// A platform row has no detail screen and no action buttons, so a tap is
+    /// the only read signal it can offer — `InboxScreen` routes one here, and
+    /// the unread count is what the user actually sees move.
+    @Test func markingAPlatformItemReadClearsTheUnreadCount() async throws {
+        let persistence = MemoryPersistence()
+        let store = await makeStore(persistence: persistence)
+        store.receivePlatformItems([platformItem(id: "a", text: "from the agent")])
+        await store.loadInbox(force: true)
+        #expect(store.unreadCount == 1)
+
+        store.markRead(try #require(store.items.first))
+
+        #expect(store.unreadCount == 0)
+        #expect(store.items.first?.isRead == true)
+    }
+
+    /// The read mark survives the next fetch — it lives in `readItemIDs`,
+    /// keyed on the row identity the merge mints once and keeps.
+    @Test func aReadPlatformItemStaysReadAcrossAReload() async throws {
+        let persistence = MemoryPersistence()
+        let store = await makeStore(persistence: persistence)
+        store.receivePlatformItems([platformItem(id: "a")])
+        await store.loadInbox(force: true)
+        store.markRead(try #require(store.items.first))
+
+        await store.loadInbox(force: true)
+
+        #expect(store.unreadCount == 0)
+    }
+
+    /// The tap rule itself: briefings open, actionable rows are left alone
+    /// (marking one read recomputes `isActionable` and would strip its
+    /// buttons), everything else — the platform items — marks read.
+    @Test func rowTapActionRoutesByKind() {
+        let platform = talariaInboxItem(from: platformItem(id: "a"))
+        #expect(InboxRowTapAction.resolve(for: platform) == .markRead)
+
+        let actionable = InboxItem(
+            type: .approval,
+            title: "Approve",
+            body: "body",
+            isActionable: true,
+            primaryAction: InboxActionDescriptor(id: "approve", title: "Approve")
+        )
+        #expect(InboxRowTapAction.resolve(for: actionable) == .ignore)
+
+        // #126: a briefing keeps its detail push, even though it is also
+        // non-actionable — the branch order matters.
+        let briefing = InboxItem(
+            type: .notification,
+            title: "Daily briefing",
+            body: "body",
+            isActionable: false,
+            payload: [InboxItem.BriefingPayloadKey.category: InboxItem.briefingCategoryValue]
+        )
+        #expect(InboxRowTapAction.resolve(for: briefing) == .openBriefing)
     }
 
     // MARK: - Harness

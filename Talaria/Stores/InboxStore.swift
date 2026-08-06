@@ -215,10 +215,23 @@ final class InboxStore {
         }
     }
 
+    /// Clears the device-local bookkeeping — read/dismissed marks, #113
+    /// operational alerts — and the visible list.
+    ///
+    /// #251-2A: `platformItems` deliberately SURVIVE. Every other slice of
+    /// this blob is a local annotation on data the server can re-serve; the
+    /// platform items are the only copy that exists anywhere, because the
+    /// plugin drops an item from its outbox the moment the phone acks it.
+    /// Clearing them on a pairing change or a profile switch would delete the
+    /// user's agent messages outright, with no re-fetch to recover them.
     func reset() {
         items = []
         lastErrorMessage = nil
-        localState = InboxLocalState()
+        var preserved = InboxLocalState()
+        preserved.platformItems = localState.platformItems
+        // Clear FIRST, then assign: `localState`'s didSet is what writes the
+        // preserved copy back, so a clear afterwards would erase it.
         persistence.clearInboxState()
+        localState = preserved
     }
 }
