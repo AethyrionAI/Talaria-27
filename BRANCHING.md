@@ -70,6 +70,9 @@ git rev-list --left-right --count main...origin/main   # want "0<TAB>0"
   committed `tools/orphan-audit-report.md` if it drifted. It's a review list, never a delete list.
 - Tag before any `reset --hard` on a branch that has unpushed commits.
 - Session scratch/handoffs go in `handoffs/` (gitignored) — never commit them.
-- `OPEN_ITEMS.md`: Claude edits + verifies; Owen commits (unless he says otherwise in-session).
+- Tracker files (`OPEN_ITEMS.md` / `OPEN_ITEMS-ARCHIVE.md`): Claude edits, verifies, and
+  commits (Owen, standing, 2026-08-06: "you can commit unless I say otherwise" — this
+  replaced the old Owen-commits rule, which had already lagged weeks of practice).
   Always re-check the max item number against the *live* file before appending (parallel
-  sessions advance numbering independently).
+  sessions advance numbering independently), counting across BOTH files since the #261
+  split.
