@@ -257,3 +257,19 @@ mechanical, neither changes the approved behavior:
    structured catalog exactly as routed; the RESPONSE side reuses the
    belt's honest prose instead of inventing a parallel structured
    schema with no consumer — the reader is an LLM.
+
+Build-time corrections (Task 5 review, same night — both are transcription
+errors in this spec/plan, ruled by the controller against the verified
+base-class contract):
+
+3. **`send` matches `BasePlatformAdapter` exactly:**
+   `async def send(self, chat_id, content, reply_to=None, metadata=None)
+   -> SendResult` — in-tree callers pass `content=` by keyword and read
+   `result.success`/`result.message_id`, so the spec's earlier
+   `send(chat_id, text, …)` sketch was uncallable by the gateway.
+4. **The adapter module is `platform_adapter.py`**, not `platform.py` —
+   a plugin-root file named `platform.py` shadows the stdlib module for
+   any cwd-on-sys.path invocation (pytest -m). Production loading was
+   verified safe either way (`hermes_cli/plugins.py:1854-1890` loads
+   plugins package-namespaced, no sys.path insertion), but the rename
+   removes the trap outright.

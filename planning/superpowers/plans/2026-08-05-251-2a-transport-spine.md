@@ -865,7 +865,8 @@ async def test_phone_query_round_trip(hub, monkeypatch):
     async def answer_soon():
         await asyncio.sleep(0.02)
         [q] = hub.take_queries("dev1")
-        hub.resolve_query(q["id"], result={"text": "Currently at: Home"})
+        # Task-4 fix round bound queries to their owner device.
+        hub.resolve_query(q["id"], result={"text": "Currently at: Home"}, device_id="dev1")
 
     answering = asyncio.create_task(answer_soon())
     text = await tools.phone_query({"kind": "location", "params": {}})
@@ -887,7 +888,8 @@ async def test_phone_query_error_result_reported_plainly(hub, monkeypatch):
     async def deny_soon():
         await asyncio.sleep(0.02)
         [q] = hub.take_queries("dev1")
-        hub.resolve_query(q["id"], error="permission_denied")
+        # Task-4 fix round bound queries to their owner device.
+        hub.resolve_query(q["id"], error="permission_denied", device_id="dev1")
 
     denying = asyncio.create_task(deny_soon())
     text = await tools.phone_query({"kind": "health"})
