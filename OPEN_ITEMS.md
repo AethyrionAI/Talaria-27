@@ -13542,6 +13542,57 @@ when real binaries arrive), widget/Live-Activity surface (decoration).
 - **258-E (device, Owen):** ask Hermes to write a file on a real turn —
   the chip shows up while it is still talking; an SVG diagram renders.
 
+**✅ BUILT + MERGED 2026-08-06 (PR #274, `270551c`), same day as the
+approval.** Two commits + one security-fix commit; **GATE: PASS — 1650 →
+1668 units** (+18: 5 streaming pins, 11 SVG pins, 2 from the fix round;
+one pin was INVERTED in place so it doesn't move the count) + 12 XCUITest
++ Release green. **Bars 258-A/B/C/D MET** (258-C held by construction —
+the T1 diff was 448 insertions / 0 deletions, so no existing pin could
+have been edited); **258-E rides the OTA**.
+- **Mid-turn:** new `StreamingUpdate` case yielded the moment
+  `parseWrittenFile` produces an attachment; `.finished` MERGES on
+  attachment `id` (run.completed's list leading) so a streamed chip and
+  its final twin collapse to one row while a streamed-only chip can't
+  vanish. Same path written twice still yields two chips — unchanged
+  from pre-lane behavior; the lane changes WHEN chips appear, never how
+  many.
+- **SVG:** routed through the UNMODIFIED `HTMLPreviewView` behind
+  `default-src 'none'; base-uri 'none'; form-action 'none'; style-src
+  'unsafe-inline'; img-src data:`; malformed SVG detected at
+  content-resolution time (routing is a pure function of the file NAME
+  and has no bytes to judge) and degrades to the code view. `svgz`
+  deliberately NOT routed (gzip; the stack is UTF-8 text end to end) and
+  pinned so it reads as a decision.
+- **🔒 The independent security review is the story of this lane.** It
+  verified EMPIRICALLY — real WebKit, with a no-CSP control arm proving
+  the harness was live — that a meta CSP in a `loadHTMLString(baseURL:
+  nil)` document IS enforced: script/fetch/`@import`/remote `<image>`/
+  foreignObject-iframe all blocked, **0 network hits vs 3 in the
+  control**. It also confirmed `shouldResolveExternalEntities = false`
+  really blocks XXE and that libxml2 kills a billion-laughs bomb in
+  0.2 ms. **And it caught a BAR VIOLATION the suite was certifying
+  green:** a namespace-prefixed `<svg:svg>` root passed the validator
+  but paints a BLANK PANE in WebKit (the HTML parser can't resolve
+  prefixes) — 258-B says never blank. Fixed: prefixed roots reject to
+  the code view; the test that pinned the acceptance was inverted.
+  Second fix: the wrapper's comment claimed the validator "proves a
+  single balanced tree" — FALSE (strict-XML ≠ HTML5 foreign content;
+  breakout tags escape into `<body>`), contained entirely by the CSP.
+  Comment corrected + a pin added asserting breakout markup IS accepted,
+  so the false claim can't drift back.
+- **⚠️ THE LESSON (implementer's own words, worth carrying):** *"I wrote
+  a pin from how `XMLParser` reports names, never from how WebKit
+  renders — so a green suite certified a blank pane."* Same family as
+  the stale-incremental and zero-tests-under-`TEST SUCCEEDED` traps: the
+  test agreed with the code and both were wrong about what the USER
+  would see. When a pin describes rendering, it must be written from the
+  renderer's semantics, not the parser's.
+- Open for Owen's device pass beyond 258-E: the SVG canvas is WHITE
+  (right for black-stroke diagrams, wrong for dark-authored SVGs — a
+  judgment call worth an eyeball), and the CSP enforcement check ran on
+  macOS WebKit rather than the iOS 27 sim (same engine core; a cheap
+  repeat would close the last inch).
+
 ## 257. 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt, so "what can you do?" gets an improvised 3-of-15 answer — **FILED 2026-08-05 night (Owen's device screenshots, build 2047: "btw I thought it could do more than that"); measured lane, not yet opened**
 
 **Evidence (Owen, 9:04 PM, on-device brain, fresh conversation):**
