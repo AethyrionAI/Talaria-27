@@ -190,7 +190,8 @@ scripts/              Host ops scripts (service install, watchdog, updates)
 skills/talaria/       Agent skill for working in this repo
 planning/             Eval notes and cross-machine handoffs
 CLEAN_CHAT_PATH.md    Verified SSE event taxonomy and API contract
-OPEN_ITEMS.md         Active work items and decisions log
+OPEN_ITEMS.md         Active work items and decisions log (live board)
+OPEN_ITEMS-ARCHIVE.md Closed items, moved verbatim (one numbering across both)
 BRANCHING.md          Branch/PR workflow conventions
 CONTRIBUTING.md       Contribution guidelines
 SECURITY.md           Security architecture and reporting

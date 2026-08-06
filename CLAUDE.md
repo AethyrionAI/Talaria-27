@@ -1,8 +1,10 @@
 # CLAUDE.md — Talaria
 
 Guidance for Claude / Claude Code working in this repo. This is the living, in-repo source
-of truth (the project-knowledge snapshot may lag). `OPEN_ITEMS.md` tracks issues with dated
-notes; the local `handoffs/` notes (gitignored) + in-repo `CLEAN_CHAT_PATH.md` carry per-session detail.
+of truth (the project-knowledge snapshot may lag). `OPEN_ITEMS.md` tracks live issues with
+dated notes; closed items live verbatim in `OPEN_ITEMS-ARCHIVE.md` (split by #261,
+2026-08-06 — one numbering sequence across both files, nothing ever renumbered); the local
+`handoffs/` notes (gitignored) + in-repo `CLEAN_CHAT_PATH.md` carry per-session detail.
 
 ## What this is
 
@@ -318,7 +320,8 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
 - **Real data only** in UI — show `"—"` where a value isn't knowable; no mocked toggles.
 - **Verification-first:** honest corrections over confident guesses; mid-session corrections
   are normal and valued. The **"Questions for Owen"** header surfaces decisions.
-- Issues tracked in `OPEN_ITEMS.md` (dated update notes); session continuity in
+- Issues tracked in `OPEN_ITEMS.md` (dated update notes; closed items move verbatim to
+  `OPEN_ITEMS-ARCHIVE.md` — see #261); session continuity in
   the local `handoffs/` notes (gitignored) + `CLEAN_CHAT_PATH.md`.
 
 ## Measurement discipline (#215 — the rule that cost the most to learn)
@@ -383,9 +386,13 @@ Release build**, because a green Debug suite cannot see a mis-set gate.
 ## Project history
 
 Dated per-item history — every wave, lane, and PR previously transcribed here — lives in
-`OPEN_ITEMS.md`, which is the canonical tracker and stays monolithic. The narrative
-duplicate that used to sit at the end of this file was pruned 2026-07-24: it had drifted
-badly, still describing merged work as "cloud-written, NOT compiled" with next-session
-instructions for sessions long past. Read `OPEN_ITEMS.md` for state; read this file for
-standing rules. OPEN_ITEMS item numbers are a **separate sequence** from GitHub issue and
-PR numbers — always disambiguate which you mean.
+the canonical tracker, which since #261 (2026-08-06) is TWO files: `OPEN_ITEMS.md` (the
+live board — open/watch/decision items + the counting rules, which govern both files) and
+`OPEN_ITEMS-ARCHIVE.md` (every closed item, moved verbatim, never summarized). Numbering
+is one monotonic sequence across both; nothing is ever renumbered, and whole-project
+counts run over the concatenation. `scripts/oi-split-verify.py` proves the split lost
+nothing. The narrative duplicate that used to sit at the end of this file was pruned
+2026-07-24: it had drifted badly, still describing merged work as "cloud-written, NOT
+compiled" with next-session instructions for sessions long past. Read the tracker for
+state; read this file for standing rules. Tracker item numbers are a **separate sequence**
+from GitHub issue and PR numbers — always disambiguate which you mean.
