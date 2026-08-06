@@ -92,6 +92,20 @@ failure. **The gateway pin can hang ~37s+ or indefinitely** — do not block UI 
   `hermes gateway install` on Windows** (creates a conflicting login-only task).
 - **Diagnostic discipline:** verify OJAMD against live state — port listeners, DB rows,
   relay logs — never by text-matching a project-knowledge snapshot, which lags.
+- **🔐 LIVE-INSTALL EXPERIMENTS NEED AN EXPLICIT PER-EXPERIMENT GO (Owen approved
+  2026-08-06: "that's a good edition").** Anything that MODIFIES a live Hermes install —
+  editing a loaded plugin file, adding a temporary event type or command, changing
+  `config.yaml` — gets Owen's go for THAT experiment, even when it is temporary and
+  reverted. **Read-only probes and throwaway loopback servers (`hermes serve --host
+  127.0.0.1 --port <spare>`) do NOT** — those are free. Restarting the Mac gateway is
+  routine (launchd-supervised, `kill` = clean respawn), but restarting it *to load
+  experimental code* is part of the experiment and rides the same gate. Why: the
+  2026-08-06 Escape-B probe put a temporary event type into the live `envelope.py` and
+  bounced the gateway twice under a dispatch that announced-but-did-not-await Owen's go;
+  cleanup verified clean, but the authorization was assumed rather than held.
+  **Time-boxed exception, 2026-08-06 only: "you are cleared for modifications, especially
+  if you're removing it afterwards."** That clearance expires with the day; the rule above
+  is the standing state.
 - **⛔ DO NOT HARDEN THE RELAY OR THE CONNECTOR (Owen, standing, 2026-08-02).**
   *"Every time we harden something on the connectors, it makes a new hoop to jump
   through to make it update. I beg not to harden, and it gets more and more every

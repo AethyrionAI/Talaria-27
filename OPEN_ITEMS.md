@@ -14234,7 +14234,23 @@ CLARIFIED AND IMPROVED:**
   **Carried limit (substrate-wide, not lane-specific):** a steer lands
   only if the turn runs ANOTHER TOOL after the injection
   (agent_runtime_helpers.py:3950-3963) — a steer arriving during the
-  final compose is not applied. **Fragility:** `_active_run_agents` is
+  final compose is not applied.
+  - **✅ OWEN CALLED IT ("the steering quirk I think is system wide") and
+    a boundary probe CONFIRMED it 2026-08-06, with a sharper edge than
+    expected.** Loopback probe, no-tool turn, steered mid-compose:
+    RPC answered **`{"status":"queued"}`** — and the answer came back
+    **completely unaffected**; the discarded steer did NOT leak into the
+    next turn either. **The rule: a steer is consumed at the next
+    TOOL-RESULT boundary; with no boundary left it is SILENTLY DROPPED
+    while the API still reports success.** (This also explains both
+    earlier successes — each injected while `terminal: sleep 20` was in
+    flight, so that tool's completion WAS the boundary.)
+    **Design consequence for the eventual steer UI, all planes: the
+    `queued` ACK is a FALSE POSITIVE.** A naive steer button would say
+    "sent" and do nothing precisely when the user most wants to redirect
+    (mid-prose). Ship it gated on "a tool is running/expected", or fall
+    back to interrupt-and-resend during compose — and pin a client-side
+    test on this the day steering ships. **Fragility:** `_active_run_agents` is
   private; an upstream rename fails SILENTLY. Bonus: `/v1/runs/{id}/stop`
   on an unknown id → 404 `run_not_found` on live 0.20.0.
 
