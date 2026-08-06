@@ -13470,6 +13470,69 @@ Manual/Off app lane).**
 > runs deny side effects silently under current config. Item stays SHELVED;
 > the #251 venture's interactive half is now the natural reopen path.**
 
+## 260. 🔐 PRIVACY LEGIBILITY: the health row contradicts itself, a denial names the wrong toggle, and "streaming" gates a non-streaming act — **ROUTED 2026-08-06 evening (Owen: "sounds good, bundle them into a lane") from his own 2A device pass; bars pre-registered below BEFORE the build**
+
+All three came out of Owen's device pass and share one root: **the app
+has more privacy CONCEPTS than it has honest words for them.**
+
+**(A) The health row contradicts itself — an honesty bug by our own
+rule.** Privacy screen, same scroll: *Permissions → Health `NOT SET`*
+(real iOS authorization, `PermissionStatus.notDetermined`) versus
+*Revoke/Reset → Health Collection `ACTIVE`* with a REVOKE button
+(`isCollectionActive`, `PrivacySettingsScreen.swift:601-606`, reads ONLY
+our app flag `healthCollectionEnabled` and never consults iOS). Nothing
+is being collected — it cannot be — but the row claims ACTIVE and offers
+to revoke something that never ran. Violates CLAUDE.md's "real data
+only; show `—` where a value isn't knowable": a flag is being displayed
+as a state. **Fix:** ACTIVE only when the app flag is on AND iOS has
+granted; otherwise an honest third state (e.g. `NEEDS PERMISSION`), with
+the action following suit. Location is the same shape — fix both.
+
+**(B) A denial names the WRONG toggle.** Owen's refused query said
+*"location permission is currently disabled in Talaria's privacy
+settings… toggle on Location, then ask me again"* — but Location Sync
+WAS already on; the real blocker was the master "Stream Sensors to
+Hermes" switch. Root cause: `PhoneQueryResponder` returns a bare
+`permission_denied` with no indication of WHICH gate refused
+(`PhoneQueryResponder.swift`, gate switch), so the model guessed the
+obvious control and guessed wrong. A user following that advice
+literally toggles Location, retries, is refused again, and concludes the
+feature is broken. **Fix:** the responder distinguishes master-off from
+stream-off (and from iOS-not-granted), the plugin's tool text relays the
+distinction, so the model can name the actual blocker.
+
+**(C) THE DESIGN QUESTION — "streaming" gates a non-streaming act.**
+Master copy: *"Stream Sensors to Hermes — streams the sensors you enable
+to your Hermes host… turning this off stops capture and drops queued
+samples."* That describes CONTINUOUS UPLOAD. A `phone.query` is the
+opposite act — #242's whole premise is query-time, no ingestion, no
+store. As shipped, "don't stream my location, but you may ask me where I
+am" is inexpressible. **Owen's routing owed** between: **(a)** ONE
+switch governing all sensor egress, RELABELED to say so (controller's
+lean — one privacy concept beats two similar-sounding ones); **(b)**
+SPLIT: streaming toggle governs upload only, query answers ride the
+per-sensor toggles + iOS permission. **(A) and (B) are unblocked and
+build first; (C) waits for the routing** — but note (B)'s wording
+depends on which gates exist, so (C) landing later may re-touch it.
+
+**BARS PRE-REGISTERED (before any code):**
+- **260-A (honesty):** with iOS health NOT granted, the Revoke row never
+  reads ACTIVE; it names the real state and offers the action that
+  matches. Unit-pinned across the matrix (flag×iOS-status, both
+  sensors).
+- **260-B (right toggle):** with master OFF and location stream ON, a
+  location query's refusal names the MASTER switch; with master ON and
+  the stream off, it names that stream; with iOS ungranted, it says so.
+  Three distinct payloads, unit-pinned app-side + relayed in the
+  plugin's tool text.
+- **260-C (no regression):** #258's and 2A's existing pins stay green
+  unmodified; the gate table's BEHAVIOR is unchanged by (A)/(B) — only
+  what the UI and the refusal SAY changes.
+- **260-D (gate):** full lane gate PASS, unit count moved.
+- **260-E (device, Owen):** the contradiction is gone from the Privacy
+  screen, and a refused query tells him which switch to flip — the one
+  that actually unblocks it.
+
 ## 259. 🔓 The `.html` artifact preview has NO CSP — an agent-authored HTML file can beacon out and reach tailnet services — **FILED 2026-08-06 from #258's independent security review (§6, out of that lane's scope); no lane opened**
 
 **Found while hardening SVG (#258): the SVG wrapper is now strictly MORE
