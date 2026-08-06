@@ -13507,6 +13507,17 @@ Ride-along: Appearance card value truncation ("CASINO LUCKY 7S ·…").
 
 A missed bar is a falsification, not a redefinition.
 
+**📱 2042 DEVICE NOTES (Owen, same night):** strip ACCEPTED — "Strip
+looks good. Good on width, I imagined it larger, but i'm ok with this"
+(256-E first half MET; reminder-phrasing half still owed). Two musings
+FILED, not routed: (1) rename Uplink's "DIRECT" — note the DIRECT/RELAY
+distinction dies with #251 Phase 4, so either swap to plain
+CONNECTED/ONLINE now or collapse to LINKED when the relay retires;
+(2) Voice card value could show the voice ROUTE/engine state
+(talkStore.connectionState — REALTIME READY / SESSION LIVE / on-device)
+instead of the read-aloud toggle, demoting read-aloud to the deck page.
+Both formatter-level; ship together when Owen picks the words.
+
 **✅ BUILT + GATED same night (`claude/t27-256-grid-strip`).** 256-A/B
 MET (privacy formatter + bounce pins, watched RED via the pin updates
 then GREEN); 256-C MET (strip asserted present in grid / absent in deck
