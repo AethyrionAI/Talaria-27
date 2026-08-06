@@ -13507,6 +13507,16 @@ Ride-along: Appearance card value truncation ("CASINO LUCKY 7S ·…").
 
 A missed bar is a falsification, not a redefinition.
 
+**✅ BUILT + GATED same night (`claude/t27-256-grid-strip`).** 256-A/B
+MET (privacy formatter + bounce pins, watched RED via the pin updates
+then GREEN); 256-C MET (strip asserted present in grid / absent in deck
+in the XCUITest pair); 256-D built (scale-to-fit 0.65 on card values;
+device judge owed); 256-F MET (deck APP ICON row → gallery,
+`settings.appearance.openIconGallery`). Strip formatter unit-pinned
+(5 shapes incl. hostless collapse to "ON-DEVICE"). **GATE: PASS — 1618
+Swift Testing units (1617 + 1, count moved) + 12 XCUITest, Release
+green.** 256-E (device) rides the next OTA.
+
 ## 255. 🧹 DE-BRANDING SWEEP: rename hermes-mobile → talaria-mobile; remove the remaining dylan-buck marks from the repo — **FILED 2026-08-05 evening (Owen: "I also want to rename the hermes-mobile to talaria-mobile and get rid of the rest of dylan's mark on the repo"); inventory owed before any rename**
 
 **Scope discipline written at filing, before the inventory:**
