@@ -13376,3 +13376,148 @@ it isn't rediscovered later.
 Deferred 2026-06-27 — revisit after the active items clear.
 
 > **Update 2026-08-06 late night — ✅ SUBSUMED INTO #107 (oldest-20 triage sweep reconciliation).** #34's own header hands Phase 1 to #107 and Phase 2 to #33, and #107's closure ('T6 Phase 1+2 — EXECUTED + reboot-verified') covers the Mini checklist: 8 of 11 lines confirmed done with citations in #107/#114/#54; the Mac-relay sensor-delivery line was SUPERSEDED by #114's deliberate design (sensors pinned to OJAMD permanently — the 2026-07-16 device note confirms 'SENSORS badge stayed pinned to OJAMD while Mac was active'); the run-completion-APNs line is MOOT (#238 deleted the push-watch/APNs surface app-wide, commit e32f554, 2026-08-03); the optional 'Windows brain, Mac hands' accelerator was explicitly declined in the T6 spec and stays unbuilt by choice. Anything Mac-host that resurfaces files NEW items.
+
+## 265. 🎨 Artifact chip anchor can split a word — the #262 pin is honest but lands mid-token ("The file lan ⟨card+chip⟩ ded at ~/…") — **FILED 2026-08-06 late night from Owen's first 262-E screenshots on OTA 2107** — **✅ CLOSED 2026-08-07: 265-E MET on device (OTA 2120), all bars MET**
+
+Observed on the first #262 device run: Deepseek-flash narrated across the
+write ("…The file landed at…") and the tool fired mid-word, so the anchor
+(content length at fire time) split "landed" into "lan" / "ded" around the
+tool card + chip. Placement is stable — the #262 bars all held — this is
+purely where the split point falls when the model narrates THROUGH a tool
+call instead of pausing at a sentence boundary.
+
+**Fix shape (small, display-side):** when building the transcript layout,
+snap each anchor BACK to the last whitespace/newline at-or-before the raw
+offset before emitting the text split (clamp math otherwise unchanged;
+equal-anchor grouping still applies after snapping). Pure function change
+in `MessageBubble.transcriptLayout` — the stored anchor stays raw and
+honest; only the rendered split moves. Bars pre-register here before any
+code, per convention.
+
+**BARS — written 2026-08-06 late night BEFORE any code:**
+- **265-A (unit, the snap):** an anchor landing mid-word renders its split
+  at the last whitespace at-or-before the raw offset — the haiku shape
+  ("The file lan⟨items⟩ded at…") becomes "The file " ⟨items⟩ "landed at…".
+  The STORED `anchorOffset` stays raw — pinned by asserting the model value
+  is unchanged by rendering.
+- **265-B (unit, ordering preserved):** snapping never reorders or
+  un-groups — equal raw anchors still share a group after snapping; two
+  different raw anchors that snap to the same boundary merge into one
+  anchor point with tools-before-chips order preserved; a snapped anchor
+  never moves before the walk cursor (the existing clamp still binds).
+- **265-C (unit, degenerates):** an anchor already at a boundary is a
+  no-op; an anchor inside a run with no whitespace before the cursor
+  clamps to the cursor; out-of-range anchors clamp exactly as today
+  (#10's clamp pin stays green untouched).
+- **265-D (gate):** full lane gate green, unit count MOVED, Release
+  included.
+- **265-E (device, Owen):** re-run the narrate-through-a-write shape — the
+  split lands on a word boundary (no "lan/ded"), and #262's stability
+  semantics are unchanged (chip under the card, no movement, tappable).
+
+> **Update 2026-08-07 — 265-E MET on device (OTA 2120); ITEM CLOSED, all
+> bars MET.** Owen, same narrate-through-a-write prompt on Deepseek flash
+> that produced the defect 12 hours earlier: *"chip stayed put. Locked to a
+> word instead of splitting one."* The mid-token split is gone and #262's
+> stability semantics held in the same turn. Lane total: filed from a device
+> screenshot, bars pre-registered, RED witnessed with the exact device shape,
+> GREEN, gated (1698→1705), merged (PR #278), OTA'd, and device-verified —
+> inside one night.
+
+## 262. 🎨 Artifact chip placement is not stable across the finish boundary — inline at the generation point mid-turn, then JUMPS to end-of-response at `run.completed` — **FILED + ROUTED 2026-08-06 late evening (from 258-E's device pass; Owen picked "lane, queued behind #260")** — **✅ CLOSED 2026-08-07: 262-E MET on device (OTA 2120), all five bars MET**
+
+Observed by Owen on OTA 2085, both 258-E runs: *"The generated file doesn't
+stay in line where its generated, its moved to the end of the response on both
+a and b."* Mechanism: the streamed chip renders at the generation point (below
+the tool-activity card) while text continues streaming beneath it; at
+`run.completed` the `.finished` merge's canonical list takes the lead and the
+chip re-anchors to end-of-response. Exactly one chip either way — #258's
+dedupe bar held — the defect is PLACEMENT ONLY.
+
+**Likely fix shape (to be validated when the lane opens):** anchor the chip
+below the streaming text for the whole turn — the transcript's final layout —
+so the finish boundary changes nothing. The alternative (pin the streamed
+inline position permanently) fights `run.completed`'s list-led merge and makes
+the final transcript depend on WHEN a tool fired mid-prose; lean away.
+
+**Queued behind #260. Bars pre-register HERE before any code.**
+
+**Update 2026-08-06 late night — lane opened; mechanism validated and the filed guess
+FALSIFIED in both halves (recorded, not redefined):**
+1. **There is no discrete `run.completed` re-anchor.** The chip renders in a
+   fixed after-transcript section (`MessageBubble.hermesAttachments`, after
+   `interleavedTranscript`) at every instant. At `.artifactProduced` time the
+   streamed message happens to END at the generation point, so the chip
+   momentarily sits below the write_file tool card; each subsequent
+   `assistant.delta` grows the transcript's trailing text segment ABOVE the
+   grid, pushing the chip down delta-by-delta until it lands at
+   end-of-response. A fast model (Owen's Deepseek-flash run) makes the slide
+   read as a jump. The `.finished` merge only dedupes the attachment list —
+   it never changes where the grid renders.
+2. **Consequently the filed "likely fix shape" — anchor the chip below the
+   streaming text for the whole turn — describes CURRENT behavior.** It is a
+   no-op, and the lean away from the inline pin was backwards. The fix that
+   changes what Owen observed is the inline pin: the same anchoring
+   convention tool chips have had since #10 ("the final transcript depends on
+   WHEN a tool fired" is #10's shipped, accepted behavior for the very card
+   this chip appears under).
+
+**Fix shape (routed by the validation):** `MessageAttachment` gains optional
+`anchorOffset: Int?` (synthesized Codable — pre-lane caches decode nil);
+`ChatStore` stamps `content.count` at `.artifactProduced` (mirror of the tool
+chip stamp); the transcript builder interleaves anchored attachments at their
+offsets; unanchored attachments (old caches, Tier-2 fetchables appended at
+finish) keep today's trailing grid; the `.finished` id-dedupe transfers the
+streamed anchor onto the final-list twin.
+
+**BARS — written 2026-08-06 late night BEFORE any production code:**
+- **262-A (unit, placement + boundary):** for content with a write_file
+  activity and an artifact anchored mid-content, the segment list places the
+  artifact chip AT its anchor, between the surrounding text runs — and the
+  list is IDENTICAL for the streaming and finished renders of the same data
+  (the finish boundary changes nothing).
+- **262-B (unit, conservation + degrade):** every attachment renders exactly
+  once — anchored → inline, unanchored (nil anchor) → trailing grid with
+  layout identical to today; an anchored attachment on a message with NO tool
+  activities still renders (never vanishes).
+- **262-C (unit, merge):** `.finished` delivering a same-id anchorless twin of
+  a streamed anchored artifact resolves to ONE row carrying the STREAMED
+  anchor; two genuine writes to one path stay two rows (258-A re-asserted).
+- **262-D (gate):** full lane gate green — unit count MOVED, Release build
+  included.
+- **262-E (device, Owen):** fast-model artifact turn — the chip appears under
+  the write_file card and DOES NOT MOVE while text streams beneath; tappable
+  mid-turn; after relaunch/history reload the placement persists (anchor is
+  persisted with the message).
+
+> **Update 2026-08-06 late night — BUILT + GATED; PR #277 open, awaiting Owen.** TDD
+> with every RED witnessed (compile RED for `transcriptLayout`/`anchorOffset`,
+> runtime RED for the merge transfer). Bars 262-A/B/C MET in-suite; #10's
+> segment pins and #258's merge pins stayed green. **262-D MET — GATE: PASS,
+> 1693 → 1698 units (+5), 12 XCUITest, Release green.** Owen independently
+> re-confirmed the defect on OTA 2100 mid-lane ("Chip still relocated and
+> stayed at the bottom of the generated text" — that build predates the fix).
+> 262-E rides the first OTA after merge.
+
+> **Update 2026-08-06 late night — MERGED (PR #277, `6b2f6d6`, under Owen's
+> tonight-scoped merge clearance); OTA 2107 staged and installed; first
+> 262-E evidence IN (partial).** Owen's screenshots of the narrate-through-
+> a-write prompt (Deepseek-flash, 10:31 PM) show the fix live: the
+> write_file card AND the chip sit inline at the generation point with the
+> narrative continuing beneath — on 2095/2100 that chip sat below the
+> syllable check at end-of-response. **The same screenshots caught a
+> cosmetic wart, filed as #265:** the raw anchor split the word "landed"
+> ("The file lan" ⟨card+chip⟩ "ded at ~/…"). Placement stability held;
+> the split POINT is the new item. **262-E still owed (a still image
+> cannot show them): no movement DURING streaming, mid-turn tap opens the
+> preview, and placement survives kill+relaunch. Queued in the 2026-08-07
+> consolidated device run.**
+
+> **Update 2026-08-07 — 262-E MET in full on OTA 2120; ITEM CLOSED, all five
+> bars MET.** The three parts a still image could not show were run in the
+> consolidated device session and all passed: no movement during streaming
+> (Owen: *"chip stayed put"*), the mid-stream tap opened the preview without
+> racing the model, and the placement survived kill + relaunch + history
+> reload — confirming the anchor persists with the message, not just within
+> a live turn. The word-split wart the first screenshots caught was fixed in
+> the same window as #265 and verified in the same prompt.
