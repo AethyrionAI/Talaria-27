@@ -53,6 +53,14 @@ protocol AppPersistenceStoreProtocol {
     func loadComposeOutboxState() -> ComposeOutboxState
     func saveComposeOutboxState(_ state: ComposeOutboxState)
     func clearComposeOutboxState()
+    // #277: agent-written file chips (#21), keyed by SERVER SESSION ID. The
+    // conversation cache above is a single slot — opening any other thread
+    // evicts it — and the server transcript carries no attachments, so this
+    // is the only durable record of a chip once the user leaves the thread.
+    // Records only: file names, mime types, staged paths. Never file bytes.
+    func loadAgentAttachmentSidecar() -> AgentAttachmentSidecar
+    func saveAgentAttachmentSidecar(_ sidecar: AgentAttachmentSidecar)
+    func clearAgentAttachmentSidecar()
     func loadHealthQueryAnchorData(for identifier: String) -> Data?
     func saveHealthQueryAnchorData(_ data: Data?, for identifier: String)
     func clearHealthQueryAnchorData()
@@ -89,6 +97,17 @@ extension AppPersistenceStoreProtocol {
     #if DEBUG
     func clearSensorStreamingMigrationStamp() {}
     #endif
+
+    /// #277: test doubles read as "no records". Defaulted for the same reason
+    /// the migration stamp above is — several doubles conform to this
+    /// protocol and none of them has an opinion about the sidecar. **A double
+    /// that takes one must override all three**: a defaulted no-op store
+    /// makes the restore a structural no-op, which is precisely the
+    /// green-certifies-broken shape #78 was caught by. The #277 pins use the
+    /// REAL `UserDefaultsAppPersistenceStore` for exactly that reason.
+    func loadAgentAttachmentSidecar() -> AgentAttachmentSidecar { AgentAttachmentSidecar() }
+    func saveAgentAttachmentSidecar(_ sidecar: AgentAttachmentSidecar) {}
+    func clearAgentAttachmentSidecar() {}
 
     func loadSessionState() -> AppSessionState? {
         loadSessionState(profileScope: nil)

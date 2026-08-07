@@ -176,6 +176,7 @@
 		4DF08CBE0F2A192FBABF00ED /* Icon-CosmicBowling@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = D1C8260B4538A6EB2CB6BC2D /* Icon-CosmicBowling@3x.png */; };
 		4E204D5C7F1352A9CE981C69 /* WeatherTomorrowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FE343EDAB6F66DD9764DC7A /* WeatherTomorrowTests.swift */; };
 		4E4B1F1367DF61EA7F9D835C /* InboxBriefing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 998128B6337A93B7540FDF42 /* InboxBriefing.swift */; };
+		4F243BAD8C8B7DF50F46B708 /* AgentFileChipPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FBB1C82C985346CB2C6D31A /* AgentFileChipPersistenceTests.swift */; };
 		503D4D57EBB1BA98B00ECA2B /* DeliverFieldModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F851B3F3DCBCD700EE6C8E69 /* DeliverFieldModeTests.swift */; };
 		5079B69268BC322E428F67E6 /* PhoneQueryResponder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947F9265A84F63468EABA014 /* PhoneQueryResponder.swift */; };
 		50868BE2CD8995BCB39A72B4 /* JetBrainsMono-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = BA496D40EFBD6D1622DE20A0 /* JetBrainsMono-Regular.ttf */; };
@@ -195,6 +196,7 @@
 		5C49C4720FA8F43B7B25A932 /* ChatBackendRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D38920943EB10B55009A10F9 /* ChatBackendRouterTests.swift */; };
 		5C9CD02D776AD6DE92CEFAF3 /* ChatBackendRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23AE5D825BE2C07683DC0829 /* ChatBackendRouter.swift */; };
 		5CDB93AA3B13C56A42382C74 /* Conversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53502E05F0B1B3E8DFCBB4A2 /* Conversation.swift */; };
+		5D050F16C1C69A8F63E5267B /* AgentAttachmentSidecar.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A6E1576D938318C1376582 /* AgentAttachmentSidecar.swift */; };
 		5DCD15D3AE240E043780EB84 /* IconPreview-WitchsBrew.png in Resources */ = {isa = PBXBuildFile; fileRef = 07421A623E331F4C5116F434 /* IconPreview-WitchsBrew.png */; };
 		5E021FABF9925B73DB14923E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F003D8D38FFD1BF2755F625A /* PrivacyInfo.xcprivacy */; };
 		5E0758B2A415EB50FAF15068 /* TurnReceipts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 976BAC43D166A0D9AD794CF2 /* TurnReceipts.swift */; };
@@ -823,6 +825,7 @@
 		7E6312F5D7D7A4DEABE995FB /* IconPreview-CyberCactus.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-CyberCactus.png"; sourceTree = "<group>"; };
 		7EC64740ACEB2CBFC10CB13C /* DeviceCalendarTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceCalendarTools.swift; sourceTree = "<group>"; };
 		7F94F97659D571FFFA930600 /* InsightsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsService.swift; sourceTree = "<group>"; };
+		7FBB1C82C985346CB2C6D31A /* AgentFileChipPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentFileChipPersistenceTests.swift; sourceTree = "<group>"; };
 		8064CC89E452AB4576D02AAB /* TurnReceiptsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnReceiptsTests.swift; sourceTree = "<group>"; };
 		80E35FC09C7F861A2551FC4C /* Icon-CerealBox@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-CerealBox@2x.png"; sourceTree = "<group>"; };
 		80EDA325939230DE08CBF841 /* MockInboxService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockInboxService.swift; sourceTree = "<group>"; };
@@ -951,6 +954,7 @@
 		BFA27EC6BEFCF9C3F3A54282 /* InboxLocalState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxLocalState.swift; sourceTree = "<group>"; };
 		C0533895BE78322F481C2946 /* ServerSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSettingsTests.swift; sourceTree = "<group>"; };
 		C108E8F8682E3051C07464DA /* FilePreviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePreviewSheet.swift; sourceTree = "<group>"; };
+		C1A6E1576D938318C1376582 /* AgentAttachmentSidecar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentAttachmentSidecar.swift; sourceTree = "<group>"; };
 		C1EAB9C98E5FE27B257BF2EA /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		C1EBB25EF20155CC80C56FC4 /* AppIconCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconCatalogTests.swift; sourceTree = "<group>"; };
 		C226310D52EB40A7356747B7 /* AppearanceSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsScreen.swift; sourceTree = "<group>"; };
@@ -1177,6 +1181,7 @@
 		103CFAA4F2279113DEBD72F1 /* TalariaTests */ = {
 			isa = PBXGroup;
 			children = (
+				7FBB1C82C985346CB2C6D31A /* AgentFileChipPersistenceTests.swift */,
 				BDF1BE5651B4CF68E3034596 /* AgentFileFetchTests.swift */,
 				8CEBE11A12DBCD1349D97C3B /* AlarmCommandParsingTests.swift */,
 				C1EBB25EF20155CC80C56FC4 /* AppIconCatalogTests.swift */,
@@ -1443,6 +1448,7 @@
 		674A812244EE4E58501583BC /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				C1A6E1576D938318C1376582 /* AgentAttachmentSidecar.swift */,
 				32F815FB445E74F44232A383 /* AppIconCatalog.swift */,
 				BB102E61656C931ED75E0A22 /* AppSessionState.swift */,
 				22896D31C41A825232C1E43B /* AuthTokens.swift */,
@@ -2248,6 +2254,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0687660C758D32E99E8B684C /* AboutSettingsContent.swift in Sources */,
+				5D050F16C1C69A8F63E5267B /* AgentAttachmentSidecar.swift in Sources */,
 				AC7DDBB7536D12E2AE0E363F /* AlarmService.swift in Sources */,
 				88C9BB304D028456F8157B88 /* AppContainer.swift in Sources */,
 				784723436D764DC29E45E022 /* AppEntry.swift in Sources */,
@@ -2537,6 +2544,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4F243BAD8C8B7DF50F46B708 /* AgentFileChipPersistenceTests.swift in Sources */,
 				8A6751DE0DDDD448F0112A77 /* AgentFileFetchTests.swift in Sources */,
 				0D61F177FD88F4C441AB9C71 /* AlarmCommandParsingTests.swift in Sources */,
 				8948D8F45C1422C15C6D5DD4 /* AppIconCatalogTests.swift in Sources */,
