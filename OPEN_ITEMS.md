@@ -176,6 +176,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#189** 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and …
+- **#281** 🐛 A re-sent prompt VANISHES — an already-confirmed refreshed row mints a surplus content claim that eats the new row …
 - **#280** 📝 A dictated-only thread gets a blank conversation-card title — bars pre-register before any code …
 - **#279** 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — bars pre-register …
 - **#278** 🐛 Edit & Resend is offered on a LIVE run — the in-flight gate excludes `.sending` but a detached run is `.working` …
@@ -4976,6 +4977,73 @@ Manual/Off app lane).**
 > slice 3B** (`design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §2.2). Note that
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
+
+## 281. 🐛 A re-sent prompt VANISHES from the transcript — an already-id-confirmed refreshed row still mints a content claim, and the genuinely-new row consumes it — **FILED 2026-08-07 from the 78-F device failure; a #248 defect, PRE-EXISTING, newly ARMED on the regenerate path by #78's adopt**
+
+**This is what actually failed Owen's first 78-F run.** #78's truncation
+origin is correct (verified in the merged code: the backward scan finds the
+producing user turn and `truncateTranscript` removes from there). What went
+missing was the **fresh user row** the re-send mints — which is why Owen
+saw no current timestamp: *"It didn't show the current time for when I
+actually regenerated it."* There was no new user row at all; the bubble he
+read as the unchanged producing turn was an earlier content-identical ask,
+stamped the same as the one that was removed and indistinguishable on
+screen.
+
+**Mechanism.** `ChatStore.unconfirmedLocalMessages` builds its claim map
+from **every** refreshed user row lacking a `clientMessageID` — including
+rows already confirmed against a local twin by id at tier 1. Tier 1 returns
+without decrementing, so each content-identical historical row leaves a
+**surplus claim**, and the genuinely-new row consumes it and is filtered out
+of the merge. The second ingredient is `clientMessageID == nil` on those
+historical rows, which on the Hermes path is guaranteed once a thread has
+been opened from the drawer: `mapStoredMessage` builds every row from the
+server transcript and never sets it (which is also why the old timestamps
+are preserved verbatim).
+
+**Why the suite never saw it — the second bar-quality defect of the day, in
+the same family as the first.** #78's own `MirroringReplyClient` double sets
+`clientMessageID` on mirrored user rows; **the real Hermes mirror never
+does**. And its fixture history uses four distinct contents, so no claim can
+ever fire. A double built to expose one resurrection path was not audited
+against the merge's other heuristics. The #248 pins don't cover it either —
+their refreshed rows have no local id twin, so none exercises "an
+already-confirmed row mints a claim the new row then eats."
+
+**Fix (smallest correct):** a refreshed user row mints a content claim only
+if it is NOT already confirmed against a local row by identity — gate the
+claim-map loop on `!localIDs.contains(row.id)`. All four existing #248 pins
+survive (their refreshed rows carry fresh server ids absent from `local`).
+
+**BARS — written 2026-08-07 BEFORE any code:**
+- **281-A (unit, fails today):** local `[Hist(id:H, clientMessageID:nil,
+  "X"), New(id:N, clientMessageID:N, "X")]` against refreshed
+  `[Hist(id:H)]` leaves `New` unconfirmed (it survives the merge).
+- **281-B (unit, fails today):** a store-level regenerate against a
+  mirroring double whose history REPEATS a user string and whose mirrored
+  rows carry `clientMessageID == nil` — the new user row is present after
+  settle, with a timestamp later than every pre-existing row.
+- **281-C (unit, fixture fidelity):** the mirroring double's rows match what
+  the real Hermes mirror produces — no `clientMessageID` on rows that came
+  from a server transcript. A double that cannot express the production
+  shape is not a pin; this bar exists because two doubles in a row failed
+  this way.
+- **281-D (unit, regression):** all four existing #248 pins stay green
+  UNMODIFIED. If the fix forces an edit to any of them, the fix is wrong.
+- **281-E (device, Owen) — the case that failed:** on a thread where the
+  SAME prompt text has been sent more than once, regenerate one of those
+  replies. The fresh user row appears, carrying the regenerate-time
+  timestamp. Expected RED until this lands.
+
+**Repair of already-damaged threads: DECLINED, with reasoning.** Owen has at
+least one thread carrying stacked replies under a single user turn from the
+pre-fix bug. Do NOT write a normaliser: consecutive assistant rows are
+LEGITIMATE in this app (tool-calls-only rows, `.voiceHermes` + `.hermes`
+pairs — pinned by 275-D), so a "a run of assistant rows is corruption"
+heuristic would delete real rows in healthy threads to tidy one damaged one.
+And it is unnecessary: **regenerate self-heals the shape** once this lands —
+truncating from the single producing turn removes the whole stacked run and
+re-sends one clean turn. The repair path is the feature.
 
 ## 280. 📝 A dictated-only thread gets a blank conversation-card title — **FILED 2026-08-07 from #78's lane. Bars pre-register here before any code.**
 
