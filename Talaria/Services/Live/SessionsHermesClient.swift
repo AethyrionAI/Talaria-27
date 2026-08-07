@@ -53,15 +53,40 @@ final class SessionsHermesClient: HermesClientProtocol {
     // harness-visible
     var runsPollInterval: Duration = .seconds(2)
 
-    /// #283 slice 3A: the recovery poll's WALL-CLOCK budget. Past it the turn
-    /// hands off to the same `.interrupted` machinery a dropped sessions
-    /// stream uses (ChatStore's pendingRun reconcile) — degrading, never
-    /// spinning and never claiming failure. This is also what bounds the
-    /// pathological cases the poll can otherwise meet forever: a run parked
-    /// in `waiting_for_approval`, or a host that answers `running` for a run
-    /// nobody will ever finish. 120s clears any turn worth waiting inline for.
+    /// #283 slice 3A: the **STREAMED** turn's recovery-poll wall-clock budget
+    /// — `streamTurnViaRuns` only. It does NOT bound `send(...)`; that path
+    /// has its own, much shorter ceiling (`runsSyncBudget` below), because a
+    /// caller holding no continuation has nothing to degrade to.
+    ///
+    /// Past it the turn hands off to the same `.interrupted` machinery a
+    /// dropped sessions stream uses (ChatStore's pendingRun reconcile) —
+    /// degrading, never spinning and never claiming failure. That hand-off is
+    /// what buys the long budget: nothing is lost by waiting, and the answer
+    /// stays recoverable afterwards either way (status TTL is an hour). This
+    /// is also what bounds the pathological cases the poll can otherwise meet
+    /// forever: a run parked in `waiting_for_approval`, or a host that answers
+    /// `running` for a run nobody will ever finish. 120s clears any turn worth
+    /// waiting inline for.
     /// Var, not let: the suite shortens it. // harness-visible
     var runsPollBudget: Duration = .seconds(120)
+
+    /// #283 slice 3A: the **SYNC** turn's budget — `syncTurnViaRuns` only.
+    ///
+    /// Deliberately NOT `runsPollBudget`. `send(...)` is a non-stream call
+    /// with a user waiting on a single answer and no `.interrupted` machinery
+    /// to hand off to, so it lives under the #145 Part A policy for
+    /// everything that is not a stream (`interactiveRequestTimeout` = 20s,
+    /// `requestTimeout(forAccept:)`). The sessions sync path it replaces was
+    /// already capped there — its one `POST /chat` carried that 20s stamp —
+    /// so **20s is parity, not a new restriction**; the runs path just has to
+    /// state the ceiling itself, since submit-then-poll is many short requests
+    /// rather than one long one and no per-request timeout can bound it.
+    ///
+    /// Expiring is not the end of the run: the submit was accepted, so the
+    /// answer keeps being produced and stays readable for the status TTL (1h).
+    /// The throw says so rather than implying the turn was lost.
+    /// Var, not let: the suite shortens it. // harness-visible
+    var runsSyncBudget: Duration = .seconds(20)
 
     /// The durable journal (shared with ChatStore via AppContainer). Owns the
     /// conversation's identity and the active hop handle; this client only
@@ -1162,6 +1187,15 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// Everything that is not a stream. A user is watching the foreground
     /// refresh, and eight of these run serially in `handleAppDidBecomeActive` —
     /// at the old 300s each that is most of an hour against a black-holed host.
+    ///
+    /// **This caps one REQUEST, which stopped being the whole story in #283.**
+    /// The runs-plane sync turn (`syncTurnViaRuns`) answers a `send(...)` with
+    /// submit-then-poll — many short requests, each correctly stamped 20s here,
+    /// and a loop no per-request timeout can bound. `runsSyncBudget` (`:79`) is
+    /// that path's ceiling and is set to this same 20s so the policy holds
+    /// end-to-end; the STREAMED recovery poll is the deliberate exception and
+    /// carries `runsPollBudget` instead, because it degrades to `.interrupted`
+    /// rather than making a user wait.
     nonisolated static let interactiveRequestTimeout: TimeInterval = 20
 
     /// #145 Part A — which budget a request gets.

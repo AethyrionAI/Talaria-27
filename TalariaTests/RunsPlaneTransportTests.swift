@@ -925,6 +925,59 @@ struct RunsPlaneTransportTests {
         #expect(!paths.contains { $0.hasSuffix("/events") })
     }
 
+    /// The sync path is bounded by its OWN budget (`runsSyncBudget`, 20s in
+    /// production), not by the streamed path's `runsPollBudget` (120s).
+    /// `send(...)` has a user waiting on one answer and no `.interrupted`
+    /// machinery to degrade to, so it lives under #145 Part A's non-stream
+    /// ceiling — the same 20s the sessions `/chat` turn it replaces already
+    /// carried via `requestTimeout(forAccept:)`.
+    ///
+    /// The two knobs are set FAR apart here on purpose: a sync path that read
+    /// the wrong one would poll for 30 seconds, so the elapsed-time bound is
+    /// what distinguishes them. A per-request timeout could not have caught
+    /// this — each individual GET is correctly stamped; it is the LOOP that
+    /// needs the ceiling.
+    @Test @MainActor
+    func syncSendStopsAtItsOwnBudgetNotTheStreamedPollBudget() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: "",
+            // The run never finishes — the only thing that can end this call
+            // is the budget.
+            statusBodies: [Self.runningStatus]
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "sync-budget")
+        client.runsPollBudget = .seconds(30)
+        client.runsSyncBudget = .milliseconds(300)
+
+        let started = ContinuousClock.now
+        let message = await client.send(message: "hi", attachments: [], clientMessageID: UUID())
+        let elapsed = ContinuousClock.now - started
+
+        // Bounded, and bounded by the SYNC knob: reading `runsPollBudget`
+        // would have parked this call for 30s.
+        #expect(elapsed < .seconds(5), "the sync turn must stop at runsSyncBudget, not runsPollBudget")
+
+        // `SessionsClientError.requestFailed`'s message passes through
+        // `errorDescription` verbatim, so this pins BOTH the error case and
+        // its user-facing text.
+        #expect(message.sender == .system)
+        #expect(message.status == .failed)
+        #expect(message.content == "The Hermes run did not answer in time. It may still finish on the host — check the conversation shortly.")
+        // The run was ACCEPTED, so the honest words matter: giving up watching
+        // is not the turn being lost, and the status object stays readable for
+        // the TTL (1h).
+        #expect(message.content.contains("may still finish"))
+
+        // It really polled — and really stopped. 300ms at a 40ms interval is
+        // ~8 reads; an unbounded loop would run to the belt instead.
+        let statusReads = RunsStubURLProtocol.count("/v1/runs/run-r1")
+        #expect(statusReads >= 2, "a single read would not have exercised the loop at all")
+        #expect(statusReads <= 20, "polling must stop at the budget, not run unbounded")
+    }
+
     /// The sync path's failure half: a run the host declares FAILED must
     /// surface as a failed message carrying the host's own reason, never as
     /// an empty successful answer.

@@ -513,6 +513,9 @@ extension SessionsHermesClient {
     /// appears on the event stream or the status object. Polling is the honest
     /// one for a caller holding no continuation.
     ///
+    /// Bounded by `runsSyncBudget` (20s, #145 Part A's non-stream ceiling),
+    /// NOT by the streamed path's `runsPollBudget` — see both knobs' docs.
+    ///
     /// Throws in every non-answer case, in the sessions sync path's style, so
     /// `send(...)`'s existing catch turns it into a `.system` failure message:
     /// a caller that got no answer must never be handed an empty success.
@@ -543,12 +546,24 @@ extension SessionsHermesClient {
             profileID: hop.profileID
         )
 
-        guard let snapshot = await pollRunToTerminal(runID: submit.runID, profileID: hop.profileID) else {
-            // Budget, 404 or cancellation. The run may still be going — this
-            // path has no `.interrupted` to arm, so it reports honestly
-            // instead of returning a blank answer.
+        // `runsSyncBudget`, NOT `runsPollBudget`: a `send(...)` caller holds
+        // no continuation, so there is no `.interrupted` to degrade to and
+        // nothing to justify a two-minute wait. #145 Part A's non-stream
+        // ceiling governs here, and the sessions `/chat` turn this replaces
+        // was already capped at that same 20s by `requestTimeout(forAccept:)`.
+        guard let snapshot = await pollRunToTerminal(
+            runID: submit.runID,
+            profileID: hop.profileID,
+            budget: runsSyncBudget
+        ) else {
+            // Budget, 404 or cancellation. Giving up WATCHING is not the run
+            // being lost: the submit was accepted, so the answer keeps being
+            // produced and stays readable on the status object for the TTL
+            // (1h). Say that, rather than implying the turn died — this path
+            // has no `.interrupted` to arm, so the words are the whole
+            // hand-off.
             throw SessionsClientError.requestFailed(
-                "The Hermes run did not finish before the status poll gave up."
+                "The Hermes run did not answer in time. It may still finish on the host — check the conversation shortly."
             )
         }
 
@@ -672,8 +687,18 @@ extension SessionsHermesClient {
     ///
     /// `Task.isCancelled` exits silently: the consumer stopped, so there is
     /// nothing left to deliver an answer to.
-    func pollRunToTerminal(runID: String, profileID: UUID?) async -> RunStatusSnapshot? {
-        let deadline = ContinuousClock.now + runsPollBudget
+    ///
+    /// `budget` defaults to `runsPollBudget` — the STREAMED path's allowance,
+    /// which is long because it degrades to `.interrupted` rather than making
+    /// anyone wait. The sync path passes its own, much shorter
+    /// `runsSyncBudget`: it has a user waiting on one answer and nothing to
+    /// degrade to, so it lives under the #145 Part A non-stream policy.
+    func pollRunToTerminal(
+        runID: String,
+        profileID: UUID?,
+        budget: Duration? = nil
+    ) async -> RunStatusSnapshot? {
+        let deadline = ContinuousClock.now + (budget ?? runsPollBudget)
         var reads = 0
         var consecutiveUnreadable = 0
 
