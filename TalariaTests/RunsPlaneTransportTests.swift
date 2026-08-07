@@ -52,6 +52,16 @@ struct RunsPlaneTransportTests {
             /// no finish, no error, the connection just stays open. Distinct
             /// from `failAfterBody`, which at least ends the stream.
             let hangAfterBody: @Sendable (URLRequest) -> Bool
+            /// Task 7 finding 2: an artificial delay BEFORE a matching
+            /// request's response is delivered. The request log entry is
+            /// written the INSTANT `startLoading` begins — before this delay
+            /// — so a test can deterministically interleave a synchronous
+            /// client-side call (`abandonActiveRun()`) between "the request
+            /// went out" and "the response landed" (which is what starts
+            /// frame processing), rather than racing a Task.sleep poll loop
+            /// against however fast this stub answers. Zero by default so no
+            /// other test's timing changes.
+            var responseDelay: @Sendable (URLRequest) -> TimeInterval = { _ in 0 }
         }
         nonisolated(unsafe) static var script: Script?
         /// Ordered request log — the GET-before-POST ordering assertion and
@@ -114,23 +124,35 @@ struct RunsPlaneTransportTests {
                 client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
                 return
             }
+            let delay = script.responseDelay(request)
+            guard delay > 0 else {
+                Self.deliver(script, for: self)
+                return
+            }
+            DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self else { return }
+                Self.deliver(script, for: self)
+            }
+        }
+
+        private static func deliver(_ script: Script, for protocolTask: RunsStubURLProtocol) {
             do {
-                let (response, data) = try script.response(request)
-                client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-                client?.urlProtocol(self, didLoad: data)
-                if let error = script.failAfterBody(request) {
-                    DispatchQueue.global().asyncAfter(deadline: .now() + 0.1) { [weak self] in
-                        guard let self else { return }
-                        self.client?.urlProtocol(self, didFailWithError: error)
+                let (response, data) = try script.response(protocolTask.request)
+                protocolTask.client?.urlProtocol(protocolTask, didReceive: response, cacheStoragePolicy: .notAllowed)
+                protocolTask.client?.urlProtocol(protocolTask, didLoad: data)
+                if let error = script.failAfterBody(protocolTask.request) {
+                    DispatchQueue.global().asyncAfter(deadline: .now() + 0.1) { [weak protocolTask] in
+                        guard let protocolTask else { return }
+                        protocolTask.client?.urlProtocol(protocolTask, didFailWithError: error)
                     }
-                } else if script.hangAfterBody(request) {
+                } else if script.hangAfterBody(protocolTask.request) {
                     // Deliberately NOTHING: the connection stays open forever
                     // and only the stall guard can end this turn.
                 } else {
-                    client?.urlProtocolDidFinishLoading(self)
+                    protocolTask.client?.urlProtocolDidFinishLoading(protocolTask)
                 }
             } catch {
-                client?.urlProtocol(self, didFailWithError: error)
+                protocolTask.client?.urlProtocol(protocolTask, didFailWithError: error)
             }
         }
 
@@ -208,7 +230,8 @@ struct RunsPlaneTransportTests {
         statusTransportFailures: Set<Int> = [],
         eventsStatus: Int = 200,
         failEventsAfterBody: URLError.Code? = nil,
-        hangEventsAfterBody: Bool = false
+        hangEventsAfterBody: Bool = false,
+        eventsResponseDelay: TimeInterval = 0
     ) -> RunsStubURLProtocol.Script {
         RunsStubURLProtocol.Script(
             response: { request in
@@ -260,6 +283,9 @@ struct RunsPlaneTransportTests {
             },
             hangAfterBody: { request in
                 hangEventsAfterBody && request.url?.path == "/v1/runs/run-r1/events"
+            },
+            responseDelay: { request in
+                request.url?.path == "/v1/runs/run-r1/events" ? eventsResponseDelay : 0
             }
         )
     }
@@ -1107,6 +1133,147 @@ struct RunsPlaneTransportTests {
         try? await Task.sleep(for: .milliseconds(50))
 
         #expect(RunsStubURLProtocol.requests().isEmpty, "no active run means no request of any kind, not just no /stop")
+    }
+
+    // MARK: - Task 7 review finding 1: the poll's nil-terminal door
+
+    /// Review finding 1: `deliverPolledTerminal`'s terminal-SNAPSHOT arm
+    /// silences a self-stopped `cancelled` status, but every caller ALSO
+    /// falls back to `.interrupted` when the poll never reaches a terminal
+    /// snapshot at all (budget exhausted, `.gone`, or the unreadable-reads
+    /// limit) — a real gap: the host can honor `/stop` by closing the SSE
+    /// with no `run.cancelled` frame and then reap the run before any poll
+    /// catches it `cancelled`, leaving nothing but a `.gone` 404. That must
+    /// end silently too. Uses the `.gone` door specifically (`statusCodes:
+    /// [404]`) — it is the FASTEST of the three nil-exits (returns on the
+    /// very first read, no budget to burn), so this stays quick without
+    /// needing to shorten anything beyond what `makeClient` already does.
+    @Test @MainActor
+    func selfStoppedRunEndsSilentlyWhenTheRecoveryPollNeverResolves() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"message.delta","run_id":"run-r1","timestamp":1.0,"delta":"Wait"}"#,
+            ]),
+            statusBodies: [#"{"error":{"message":"Run not found: run-r1","code":"run_not_found"}}"#],
+            statusCodes: [404],
+            hangEventsAfterBody: true
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "self-stop-poll-gone")
+        client.streamStallThreshold = .milliseconds(300)
+
+        let collector = Task { @MainActor in
+            var updates: [StreamingUpdate] = []
+            for await update in client.sendStreaming(message: "hi", attachments: [], clientMessageID: UUID()) {
+                updates.append(update)
+            }
+            return updates
+        }
+        let belt = Task {
+            try? await Task.sleep(for: .seconds(10))
+            collector.cancel()
+        }
+
+        var pumps = 0
+        while RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") == nil, pumps < 200 {
+            pumps += 1
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") != nil)
+
+        client.abandonActiveRun()
+
+        let updates = await collector.value
+        belt.cancel()
+
+        // The `.gone` door, not the `cancelled`-snapshot door the earlier
+        // test pins — no `.interrupted` for the run WE stopped either way,
+        // and the collector finished on its own (the stall-guard → poll →
+        // `.gone` chain), never the 10s belt.
+        #expect(!updates.contains { if case .interrupted = $0 { return true } else { return false } })
+        #expect(labels(updates) == ["textDelta(Wait)"])
+    }
+
+    // MARK: - Task 7 review finding 2: the direct `run.cancelled` frame
+
+    /// Review finding 2a: pins the OTHER silencing branch — a `run.cancelled`
+    /// frame arriving directly on the SSE stream (`:461-468`), never
+    /// exercised by any prior test. `eventsResponseDelay` holds the events
+    /// response back until well after `abandonActiveRun()` has run:
+    /// the request log entry is written the instant the request goes out
+    /// (before the delay), so pumping for it and then calling
+    /// `abandonActiveRun()` is guaranteed to land before the frame is even
+    /// delivered, let alone processed — no race against however fast the
+    /// stub would otherwise answer.
+    @Test @MainActor
+    func selfStoppedRunReceivingCancelledFrameEndsSilently() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"run.cancelled","run_id":"run-r1","timestamp":1.0}"#,
+            ]),
+            eventsResponseDelay: 0.2
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "self-stop-frame")
+
+        let collector = Task { @MainActor in
+            var updates: [StreamingUpdate] = []
+            for await update in client.sendStreaming(message: "hi", attachments: [], clientMessageID: UUID()) {
+                updates.append(update)
+            }
+            return updates
+        }
+        let belt = Task {
+            try? await Task.sleep(for: .seconds(10))
+            collector.cancel()
+        }
+
+        var pumps = 0
+        while RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") == nil, pumps < 200 {
+            pumps += 1
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") != nil)
+
+        client.abandonActiveRun()
+
+        let updates = await collector.value
+        belt.cancel()
+
+        // Silent all the way: no `.interrupted`, no `.failed`, no `.finished`
+        // — the frame carried no answer, and the turn ends without
+        // announcing anything.
+        #expect(updates.isEmpty)
+    }
+
+    /// Review finding 2b, the control: a `run.cancelled` frame WITHOUT a
+    /// self-stop (a host-side or another-client cancel) must still yield
+    /// exactly one `.interrupted` — proving the flag actually discriminates
+    /// rather than the branch having quietly gone unconditional.
+    @Test @MainActor
+    func hostCancelledRunWithoutSelfStopYieldsInterrupted() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(sseBody: Self.runsSSE([
+            #"{"event":"run.cancelled","run_id":"run-r1","timestamp":1.0}"#,
+        ]))
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "host-cancel")
+        let updates = await collect(from: client)
+
+        let interruptions = updates.compactMap { update -> (String, String?)? in
+            if case let .interrupted(sessionId, runId) = update { return (sessionId, runId) }
+            return nil
+        }
+        #expect(interruptions.count == 1)
+        #expect(interruptions.first?.0 == "sess-r")
+        #expect(interruptions.first?.1 == "run-r1")
+        #expect(!updates.contains { if case .finished = $0 { return true } else { return false } })
+        #expect(!updates.contains { if case .failed = $0 { return true } else { return false } })
     }
 
     // MARK: - Task 5: dual-path dispatch pin (#218 guard)

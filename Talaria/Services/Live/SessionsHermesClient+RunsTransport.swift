@@ -814,7 +814,14 @@ extension SessionsHermesClient {
     }
 
     /// Polls to terminal and, if it gets there, delivers this turn's single
-    /// terminal yield from the status object. Returns whether it did.
+    /// terminal yield from the status object. Returns whether the turn is
+    /// now FULLY HANDLED — either a terminal yield was delivered, or (Task 7
+    /// finding 1, below) a self-stopped run was silenced without one. Every
+    /// call site's contract is "if this returns false, fall back to
+    /// `.interrupted`" — so silencing has to happen HERE, in the one place
+    /// all three fallback sites (subscribe-404, clean-close, the catch
+    /// block's recovery poll) share, rather than three separate copies of
+    /// the same check.
     ///
     /// Takes the session id and profile rather than the `PreparedHop` because
     /// the catch path reaches it holding only what it captured before the
@@ -828,6 +835,23 @@ extension SessionsHermesClient {
         into continuation: AsyncStream<StreamingUpdate>.Continuation
     ) async -> Bool {
         guard let snapshot = await pollRunToTerminal(runID: runID, profileID: profileID) else {
+            // Task 7 finding 1: the poll never reached a terminal snapshot —
+            // budget exhausted, the host 404'd it (`gone`, already reaped),
+            // or the unreadable-reads limit tripped. Every caller's fallback
+            // for `false` is `.interrupted`, which is right for a stream
+            // that merely dropped — but wrong for a run WE stopped: honoring
+            // `/stop` can close the SSE with no `run.cancelled` frame, and
+            // the host can reap the run before a poll ever catches it
+            // `cancelled`. That shape must still end silently, exactly like
+            // the terminal-snapshot `cancelled` arm below — just reached
+            // from the "never went terminal" door instead of the "went
+            // terminal as cancelled" one.
+            if consumeSelfStopped(runID: runID) {
+                runsTransportLogger.notice(
+                    "runs: status poll for \(runID, privacy: .public) never resolved — self-stopped, ending silently"
+                )
+                return true
+            }
             return false
         }
         switch snapshot.status {
