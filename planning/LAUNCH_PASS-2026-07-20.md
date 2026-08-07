@@ -103,8 +103,10 @@ distilled from each item's own DoD text — the item text remains canonical.
 - [ ] **#21** `probe-t21.pdf` fixture in Mac MobileDL: task the Mac → tap
       chip → preview + ShareLink; repeat against OJAMD. Eyeball: (1)
       announcement-scan noise (any MobileDL mention grows a bubble — grate
-      check); (2) relay rejects traversal (`MobileDL/../x`) — server
-      whitelist is the enforcement boundary.
+      check); (2) the relay's device-files route-containment check —
+      server-side, NOT a phone check, so it does not belong in this
+      session; mechanics in the out-of-repo security addendum, 2026-08-07
+      (OPEN_ITEMS #273).
 - [ ] **#107** The Shelley iMessage send from Talaria chat (after-hours
       slot). Closes #107 AND the #114 residual DoD.
 - [ ] **#116** AFTER Mini relay+connector restart on main + ojamd-deploy

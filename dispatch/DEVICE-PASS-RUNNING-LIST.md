@@ -114,11 +114,6 @@ bottom moved from ~3–3.5h to ~4–4.5h and that is not shaded down.**
 - [ ] #21 (OJAMD side) — Ask the OJAMD-backed agent to write a fresh file,
   then tap the resulting chip. (PASS: preview sheet presents and ShareLink
   works, matching the Mac-side PASS already recorded 2026-07-20.)
-- [ ] #21 (traversal check) (AMBIGUOUS: the OPEN_ITEMS entry names this check
-  but not a UI path for it — it reads as a direct relay-route probe against
-  the device-files endpoint with a crafted `MobileDL/../x` path, not a chat
-  action; confirm the exact method before running) — confirm the route
-  rejects the traversal. (PASS: rejected, not served.)
 - [ ] #21 (announcement-scan noise, passive, no setup) — over the course of
   this session, note whether any ordinary turn that merely *mentions* a
   MobileDL path grows an unwanted attachment bubble. (Record either outcome
@@ -420,6 +415,14 @@ second person to actually call the phone.
   worth a dedicated sitting" per its own row).
 - **A1/A1b** are listed in Group 8 as runnable IF a second person is
   arranged; if nobody can call, they roll to the next sitting untouched.
+- **#21's device-files route-containment check — removed from this queue
+  outright, 2026-08-07 (hygiene sweep, OPEN_ITEMS #273).** It was never a
+  phone check: it is a server-side confirmation on the relay with no UI
+  path, which is precisely what this list flagged AMBIGUOUS about it on
+  2026-08-06. Routed to **§G**. Method and reasoning live in the
+  out-of-repo security addendum, 2026-08-07 — the row here used to spell
+  out a crafted request path, and that is the kind of text #261 moved out
+  of the repo.
 
 **Total estimate for Groups 1–8: roughly 4 to 4.5 hours.** This grew from
 the ~3–3.5h first cut, honestly, not shaded down — batch-3's addition
@@ -1189,7 +1192,7 @@ four times total.
 | **#78** *(added 2026-08-06)* | Long-press each bubble type (user/Hermes/voice-transcript); Copy/Share/Select Text; Regenerate a MID-history reply; Edit & Resend with and without an attachment; confirm no menu on a streaming bubble. | **Source: OPEN_ITEMS #78's own device checklist**, never previously carried into this file. PASS: all actions work per bubble type; Regenerate truncates from the correct turn; Edit & Resend restores attachments; nothing history-mutating offered mid-stream. Merged (PR #52, confirmed on main); no new files, no xcodegen owed. |
 | **#80** *(added 2026-08-06, revised — see the notification-removal finding below §F8)* | Ask Hermes to create an inbox item, then pull-to-refresh/reopen Inbox; approve it; ask Hermes to read back the verdict. | **Source: OPEN_ITEMS #80's device checklist, minus the two sub-checks #238 killed** (silent-push wake, `notify="alert"` visible push — both dead, Inbox is poll-fed only now). PASS: item appears after a manual refresh/reopen; verdict readback matches the approval. |
 | **#21 (OJAMD side)** *(added 2026-08-06)* | Ask the OJAMD-backed agent to write a fresh file, tap the chip. | **Source: OPEN_ITEMS #21**, "Valid OJAMD retest: ask OJAMD's agent to WRITE a fresh file... then tap the chip." PASS: preview + ShareLink, matching the Mac-side PASS already recorded 2026-07-20 (the OJAMD side has never been measured). See §F9 for the Mac-side re-confirm. |
-| **#21 (traversal)** *(added 2026-08-06)* (AMBIGUOUS: no UI path is specified in the source entry — likely a direct relay-route probe against `.../device/files` with a `MobileDL/../x` path, not a chat action) | confirm the device-files route rejects `MobileDL/../x`. | **Source: OPEN_ITEMS #21**, "One relay-side check: confirm the device-files route rejects traversal." PASS: rejected, not served. |
+| **#21 (route containment)** *(added 2026-08-06; ~~queued here~~ → **routed to §G 2026-08-07**, hygiene sweep #273)* | **NOT a phone check — do not carry this into a sitting.** Server-side confirmation that the device-files route refuses to serve anything outside its configured directory. | **Source: OPEN_ITEMS #21**, "One relay-side check: confirm the device-files route rejects traversal." PASS: refused, not served. Method and reasoning: **out-of-repo security addendum, 2026-08-07**. |
 | **#21 (noise, passive)** *(added 2026-08-06)* | No setup — over the course of this session, note whether any ordinary turn that merely *mentions* a MobileDL path grows an unwanted attachment bubble. | **Source: OPEN_ITEMS #21**, "announcement-scan noise... if it grates, narrowing to write-shaped tools is a small follow-up." Record either outcome — an eyeball finding, not strictly pass/fail. |
 | **#75** *(added 2026-08-06)* | Chat header at default width, both brains (HERMES / ON-DEVICE), a long model name (e.g. `DEEPSEEK-V4-...`), and a Dynamic Type sweep (Settings → Accessibility → Display & Text Size). | **Source: OPEN_ITEMS #75's own acceptance pass**, never previously carried into this file. PASS: wordmark/status/model chip stay single-line, scale-then-truncate at every size; brain pill never resizes out of shape. Merged (PR #43); no new files, no xcodegen owed. Settings-dependent — batch with the Display Zoom re-test below. |
 
@@ -1492,6 +1495,15 @@ carry these into a device sitting.**
   writing `*_snapshot` at all. **Either run #148's cheap discriminator (read the
   Mac's `cron/jobs.json`) or close it as answered-for-the-world-that-exists** — do
   not put it in a device sitting expecting it to resolve.
+- **#21's device-files route-containment check — added 2026-08-07, not a
+  phone check.** A server-side confirmation that the relay's device-files
+  route refuses to serve anything outside its configured directory. It sat
+  in Group 1 and §F1 from 2026-08-06 until the 2026-08-07 hygiene sweep
+  (OPEN_ITEMS #273) took it out of both: there is no UI path, so a
+  phone-in-hand sitting cannot run it, and the row's old wording carried a
+  crafted request path of exactly the kind #261 moved out of the repo.
+  **Still owed on #21 — routed, not dropped.** Whoever runs it: method and
+  reasoning are in the out-of-repo security addendum, 2026-08-07.
 - **#74 (CarPlay Simulator functional pass) — added 2026-08-06, not a phone
   check.** `project.yml:61`'s `com.apple.developer.carplay-voice-based-conversation`
   is commented out today (verified 2026-08-06) — the entry's own text explains

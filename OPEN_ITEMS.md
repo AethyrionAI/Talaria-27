@@ -176,6 +176,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#189** 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and …
+- **#273** 🗃️ #261 extended to `dispatch/` and `design/` — the security-mechanics split is a STANDING rule, not a one-file cleanup …
 - **#272** 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode …
 - **#271** 🖥️ #251 SLICE 2D — OJAMD rollout: install the talaria plugin on the production host, re-run the 2A bars there …
 - **#270** 🪟 #251 SLICE 2C — desktop face v0: the `plugin.js` pane that answers "is it actually installed?" …
@@ -336,8 +337,9 @@ test INVALID:**
   only ever existed in the MAC’s MobileDL; OJAMD’s agent truthfully reported an absent file.
   Valid OJAMD retest: ask OJAMD’s agent to WRITE a fresh file (also exercises the
   announcement-scan + content-absent staging path), then tap the chip.
-- Still owed on this item: the OJAMD retest above, the relay traversal-rejection check
-  (`MobileDL/../x`), and the announcement-scan noise grate-check.
+- Still owed on this item: the OJAMD retest above, the relay route-containment check
+  (server-side, not a phone check — mechanics in the out-of-repo security addendum,
+  2026-08-07; see #273), and the announcement-scan noise grate-check.
 
 > **Tier 2 app-side MERGED 2026-07-16 (PR #99, branch `claude/fable-t27-21-agent-appfetch-prvsf2`,
 > 10 commits).** Built to the probe verdict (binaries never ride SSE; `write_file` never fires for
@@ -355,8 +357,9 @@ test INVALID:**
 > fixture — task the Mac, tap the chip, preview + ShareLink; repeat against OJAMD. Two things to
 > eyeball: (1) announcement-scan noise — ANY turn mentioning a MobileDL path grows a bubble (the
 > listing behavior as specced); if it grates, narrowing to write-shaped tools is a small follow-up.
-> (2) One relay-side check: confirm the device-files route rejects traversal (`MobileDL/../x`) —
-> the client regex admits `..` as a segment, so the server whitelist is the enforcement boundary.
+> (2) One relay-side check: confirm the device-files route refuses to serve anything outside its
+> configured directory. Enforcement is server-side by design; the client does not constrain it.
+> Not a phone check — mechanics in the out-of-repo security addendum, 2026-08-07 (see #273).
 
 > **Dispatch spec 2026-07-13 (eve):** `dispatch/FABLE-T27-21-agent-files-tier2-appfetch.md` (probe-first). Note: the OJAMD binary-`write_file` probe can't run from cloud CC — it's a local/after-work step. App-side fetch still to build.
 
@@ -4802,6 +4805,88 @@ Manual/Off app lane).**
 > slice 3B** (`design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §2.2). Note that
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
+
+## 273. 🗃️ #261 extended to `dispatch/` and `design/` — the security-mechanics split is a STANDING rule, not a one-file cleanup — **✅ SWEPT 2026-08-07. One category found, four places, all the same #21 example. Rule written down here so it is not rediscovered a third time.**
+
+**What #261 established (2026-08-06, Owen's instruction):** *"Take that out of
+open items, and make an addendum and put it somewhere else, outside of the
+repo."* Security-review output that reads as attack mechanics — crafted
+strings, copy-pasteable probes, step-by-step exploit sequences, concentrated
+bypass write-ups — leaves the repo. The repo keeps the defect in one clinical
+sentence, the fix, the decision, the bars, and a pointer. The out-of-repo
+addendum is `~/Documents/Claude/talaria-security-addendum.md`. **Neither
+location gets working payloads.**
+
+**Why this item exists.** #261 was applied to `OPEN_ITEMS.md` /
+`OPEN_ITEMS-ARCHIVE.md` and nowhere else — the convention was written as
+though those two files were the whole problem. They are not: `dispatch/` and
+`design/` are where review output *lands first*, before it is ever
+summarized into the tracker. The trigger was a device-pass row (see below)
+that survived #261 untouched, in a file loaded into an assistant's context
+every session. **Twice now that class of prose has tripped a safety
+classifier mid-session and derailed legitimate work** — which is a real cost
+on top of the plain "this should not sit in a repo that could go public."
+
+**Scope swept 2026-08-07:** `dispatch/` (126 markdown files, grep-triaged then
+read on match), `design/*.md` (incl. the two 2026-08-07 proposals), plus
+`planning/LAUNCH_PASS-2026-07-20.md` and a re-check of both tracker files
+because the same string was in all of them.
+
+**Found — one category, four places, all the same thing:** #21's device-files
+route-containment check was written with a crafted request path, and one
+instance also named where the only enforcement lives. Replaced everywhere
+with the clinical form (*"confirm the device-files route refuses to serve
+anything outside its configured directory; enforcement is server-side"*) plus
+a pointer to the addendum, §A4. Touched: `dispatch/DEVICE-PASS-RUNNING-LIST.md`
+(2 passages), this file (2), `planning/LAUNCH_PASS-2026-07-20.md` (1).
+
+**Second finding, independent of hygiene: that check was in the wrong document
+entirely.** It sat in the Consolidated-run Group 1 queue of the device-pass
+running list — a phone-in-hand script — and it is a server-side route check
+with no UI path. The running list had itself flagged it AMBIGUOUS on exactly
+that ground on 2026-08-06 and queued it anyway. **Removed from the runnable
+queue and routed to that file's §G ("NOT device work"). Still owed on #21 —
+routed, not dropped.**
+
+**Deliberately NOT swept, and this list is the useful half:** defensive
+specifications ("the route resolves relative segments then enforces
+containment"; the preview view's load/navigation posture; "server-declared
+tool metadata is display-only"), threat-model posture paragraphs
+(`design/MCP_CLIENT_DESIGN.md` §8, #77's seed-only rationale), the Phase 3
+plan's plugin-reach architecture, ordinary test names, defensive assertions,
+bars, and loopback/read-only ops commands. **A statement of what a defense
+DOES is not a recipe** — deleting those makes the repo worse at no security
+gain. `CLAUDE.md`, `README.md` and `SECURITY.md` were read and left untouched
+by design; their security content (the ATS four-arm evidence especially) is
+deliberate, load-bearing documentation.
+
+**THE STANDING RULE — write this into any future review lane's dispatch:**
+
+> When a lane produces exploit-shaped detail, it does **not** land in the
+> repo first and get cleaned up later. Mechanics go straight to the
+> out-of-repo addendum; the dispatch brief, the design doc, the tracker
+> entry and any device-pass row get the clinical sentence plus
+> *"mechanics in the out-of-repo security addendum, &lt;date&gt;"*. This applies
+> to `dispatch/` and `design/` exactly as it applies to `OPEN_ITEMS.md` —
+> those two directories are where the prose is *generated*, so they are the
+> more likely offenders, not the less. A defect's existence is never deleted
+> from the tracker; only its recipe moves.
+
+**Bars (written before the sweep):** (A) every crafted-string / probe-command
+/ exploit-sequence hit in `dispatch/` and `design/` either moved to the
+addendum or is recorded as a reasoned leave-in-place — **MET**, one category
+moved, the leave-in-place set enumerated above and in the addendum's sweep
+note; (B) no defect loses its existence in the tracker, only its recipe —
+**MET**, #21 still names the owed check in two places; (C) the addendum is
+appended to, never rewritten — **MET**, §A1–A3 and the closing convention
+section are byte-unchanged; (D) the standing rule is stated somewhere a
+future lane will hit it — **MET**, this entry.
+
+**Residual:** `.claude/worktrees/*` holds stale copies of these files from
+older branches and still carries the pre-sweep text. Those are excluded from
+git (`.git/info/exclude`) and never publish, so they were left alone — but a
+worktree resurrected onto a branch would reintroduce the string. Worth
+knowing, not worth a chore.
 
 ## 272. 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode — **Owen-reported on the 2026-07-25 device pass, NEVER FILED until surfaced by the 2026-08-06 reconciliation audit — 12 days lost. Unreproduced since; status unknown on the current build.**
 
