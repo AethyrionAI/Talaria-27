@@ -176,6 +176,10 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#189** 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and …
+- **#271** 🖥️ #251 SLICE 2D — OJAMD rollout: install the talaria plugin on the production host, re-run the 2A bars there …
+- **#270** 🪟 #251 SLICE 2C — desktop face v0: the `plugin.js` pane that answers "is it actually installed?" …
+- **#269** 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin, the user never sees a terminal …
+- **#268** 🗺️ ROADMAP MAP — the four phased plans in this project, what phase each is on, and where its detail lives …
 - **#267** 💬 Message QUEUING while a turn streams — compose the next message mid-turn, auto-send at run end …
 - **#266** 🗃️ Separate the board by actionability — notes, decision records, and waiting items out of the way so …
 - **#265** 🎨 Artifact chip anchor can split a word — snap the anchor back to the last word boundary …
@@ -4635,6 +4639,242 @@ Manual/Off app lane).**
 > ungated under mode=off. Also learned: `approvals.cron_mode: deny` — cron
 > runs deny side effects silently under current config. Item stays SHELVED;
 > the #251 venture's interactive half is now the natural reopen path.**
+
+## 271. 🖥️ #251 SLICE 2D — OJAMD rollout: install the talaria plugin on the production host, re-run the 2A bars there, retire the venv CLIs — **FILED 2026-08-07 by the roadmap-recovery pass (#268). Named as a slice only in handoff prose since 2026-08-06; this is its first tracker entry. NOT STARTED — no lane, no bars.**
+
+**What it is, in #251's own words (the deferral that created this slice):**
+*"**OJAMD install deliberately deferred to Phase 2** — Phase 1 adds no user
+value there and the venv CLIs it retires are only worth touching when pairing
+becomes consumable."* Pairing became consumable when slice 2A merged
+(PR #272, 2026-08-06) and passed its device pass, so the deferral's condition
+is now met. The slice name comes from `handoffs/HANDOFF-2026-08-06-T27-EVENING.md`:
+*"Owen's ordering call against slices B (conversational installer), C (desktop
+face), **D (OJAMD rollout)**."*
+
+**Scope (drafted here, not routed):** install + enable `talaria` in
+`~/.hermes/plugins/` on OJAMD; pair the phone against OJAMD's `:8642`; re-run
+the 2A bar set (A pair / B live query / C exactly-once inbox / D honest
+unreachable / F privacy round-trip) against the PRODUCTION host rather than the
+Mac; then retire the OJAMD venv CLIs the plugin's `register_cli_command`
+replaces. **This slice is the gate on #251 Phase 4 (relay decommission)** — the
+relay cannot go until the plugin is actually carrying the production host.
+
+**Known preconditions and hazards, all already recorded elsewhere — collected
+here so the lane does not rediscover them:**
+- **#263 first.** The two live transport defects (split hub singleton; the
+  enqueue wake missing the parked drain) were found on the Mac. Rolling them
+  onto a second host multiplies the surface. (b) is fixed and deployed on the
+  plugin main; (a) remains a WATCH.
+- **#264's ops rule applies double on OJAMD:** after ANY gateway bounce verify
+  the LISTENER (`lsof`/`Get-NetTCPConnection` on 8642), never the process — a
+  respawn can lose the bind and run headless with a healthy PID.
+- **The OJAMD `platform_hint` block is still unpasted** (owed since 2026-08-06
+  mid-day; see #251's decision round). Paste it in the same sitting.
+- CLAUDE.md's OJAMD rules govern: the gateway there is **not** a service and not
+  a scheduled task — never `Start-Service HermesGateway`; verify by process
+  start time, not version string; `hermes update` is Owen's bare-command
+  practice and the plugin must survive it (the clone-is-the-install shape does,
+  by construction).
+- **The ⛔ no-harden rule does NOT block this lane** — this is the deletion
+  direction the rule exists to protect.
+- **OJAMD's own operational ask, carried from its consult (quoted in #251):**
+  *"don't retire the relay until the adapter's process story is settled"* —
+  with the webhook shape the listener IS the gateway, so the residual is
+  accepting that gateway-down = whole paired tier down (the on-device fallback
+  already covers it).
+
+**Bars pre-register HERE, in this entry, before any code or any box-side
+change** — and the 2A bar set is the obvious template, restated against OJAMD
+rather than copied by reference (a bar that lives in two places drifts).
+2A-B's bar must be re-specified before reuse: the original measured
+whole-turn latency and was falsified at 32s vs ≤5s; the correct bar measures
+the transport leg alone (see #263, which absorbed that instrumentation).
+
+## 270. 🪟 #251 SLICE 2C — desktop face v0: the `plugin.js` pane that answers "is it actually installed?" — **FILED 2026-08-07 by the roadmap-recovery pass (#268). Recon was BANKED in #251 on 2026-08-05 and folded into Phase 2, but never given an entry, a lane, or bars. NOT STARTED.**
+
+**Why it exists — the confusion is the product.** From #251's Phase 2 block:
+*"read-only visibility for backend plugins — NOT an installer, but the
+verification layer of the install story (the 'is it actually installed?'
+moment gets a clickable answer — tonight's own confusion, productized)."*
+Owen had burned two Hermes Desktop restarts that night looking for talaria in
+the Settings → Plugins pane, **which cannot show it by design** — that pane
+manages only desktop UI plugins (`desktop-plugins/<id>/plugin.js`, ESM);
+agent plugins have no desktop surface at all. The slice name comes from
+`handoffs/HANDOFF-2026-08-06-T27-EVENING.md`: *"slices B (conversational
+installer), **C (desktop face)**, D (OJAMD rollout)."*
+
+**The mechanism was proven end-to-end during the recon (2026-08-05, live) —
+quoted from #251 so the lane starts from evidence, not memory:** desktop
+`plugin.js` (SDK: PANES/ROUTES/SIDEBAR areas, theme vars, `ctx.rest`) →
+`/api/plugins/talaria/…` → FastAPI `router` in
+`plugins/talaria/dashboard/plugin_api.py`, mounted by
+`web_server._mount_plugin_api_routes()` at backend start; the desktop app
+spawns `hermes serve --port 0` as its backend (verified live, PID child of
+Hermes.app); `tab.hidden` keeps the web dashboard clean; user plugins must be
+in `plugins.enabled` to mount.
+
+**The chicken-and-egg, and the design answer already chosen in #251:** *"the
+backend mounts only once talaria is installed+enabled, so the plugin.js half
+should render a friendly 'not installed yet — ask Hermes to set it up' card,
+making the pane double as the upgrade prompt surface."* That makes 2C the
+natural companion surface to #269's conversational installer, not an
+independent feature. **v0 grows paired-devices + outbox columns there.**
+
+**Carry into the lane:**
+- **Two-of-everything, plugin edition** (standing memory): verify with
+  `hermes plugins list`, never the desktop pane.
+- **`hermes serve` runs its OWN cron ticker** — beside the gateway that is two
+  tickers on one `state.db` (double-fire risk, found by the 2026-08-06
+  loopback probe). The desktop backend IS a `hermes serve`, so any state the
+  face touches must account for it.
+- Docs give platform-channel plugins a designated `plugins/platforms/<name>/`
+  layout distinct from general plugins — reconcile with the install's actual
+  `register_platform` path when this lane opens (open question carried from
+  #251's Phase 2 design note).
+
+**Bars pre-register HERE before any code.**
+
+## 269. 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin and the user never touches a terminal — **FILED 2026-08-07 by the roadmap-recovery pass (#268). Owen ROUTED the shape on 2026-08-05 ("I like this. Empowers the user too") but it was never given an entry, a lane, or bars. NOT STARTED.**
+
+**The correction that produced it (Owen, 2026-08-05 late, quoted in #251):**
+*"I didn't even know it had a terminal cli until I had update issues."* Real
+users get Hermes as a **desktop app from a GitHub-released installer** — no
+`curl | bash`, no terminal, ever. The curl path is OUR server-side reality on
+OJAMD and the Mini, not the user's. **Any setup story that says "just run one
+command" fails the actual audience on contact.**
+
+**The chosen shape, verbatim from #251:** *"Talaria's upgrade flow = connect
+the app to Hermes (the existing API-key handshake), then the APP SENDS THE
+SETUP PROMPT and the agent — which has hands on its own host — installs and
+enables the talaria plugin itself. Consent ('enable talaria?') surfaces in
+chat where the user lives; the app probes to verify."* Vehicle, in Owen's
+words: *"a skill more or less, and the intro prompt for the user, and hermes
+handles the rest."* **The load-bearing constraint is in the same paragraph:**
+*"the first contact must ride the app's prompt, since a skill can't ship
+inside a plugin that isn't installed yet."* The agent can lay down BOTH
+halves — the agent plugin and the desktop face's `plugin.js` (#270) — which
+dissolves every file-system-navigation step. **CLI stays as the power-user
+backup path: kept, documented, never the headline.**
+
+The slice name comes from `handoffs/HANDOFF-2026-08-06-T27-EVENING.md`:
+*"slices **B (conversational installer)**, C (desktop face), D (OJAMD
+rollout)."* It is called "the Phase 2 design star" in #251.
+
+**Open design questions this lane inherits (none answered):**
+- What exactly the app's first-contact prompt says, and how consent is worded
+  in chat — this is a **capability claim made by the app on the agent's
+  behalf**, which puts it in the same family as #257 (the on-device model
+  under-selling its own toolbelt). Wording is bars-worthy.
+- The verification probe: how the app confirms the install actually took, and
+  what it shows when the agent's host refuses or half-completes (a partial
+  install is the realistic failure, not a clean one).
+- Hosts where the agent has no write access to `~/.hermes/plugins/`, and
+  whether the flow degrades honestly (#180's rule) rather than claiming
+  success.
+
+**Bars pre-register HERE before any code** — and given this lane is mostly
+prose the model must produce, the #200-series discipline applies: measure the
+behaviour, do not assume the instruction landed.
+
+## 268. 🗺️ ROADMAP MAP — the four phased plans in this project, what phase each is on, and where its detail lives — **FILED 2026-08-07 (Owen: "we had done phase 0, 1, and 2 I believe and 3 was next up. We need to dredge that plan back up because I fear we may have lost the rest of it, if it wasn't filed"). A MAP, not a copy: one line per piece, each pointing at the doc that owns it.**
+
+**The fear was half-right, and the half that was right is worth naming.** The
+plan of record (#251's phase arc) IS filed and has been since 2026-08-05.
+What was NOT filed anywhere in the tracker was **the breakdown of Phase 2 into
+slices** — "slices B/C/D" appears in four handoff files and in **zero** lines
+of `OPEN_ITEMS.md` or `OPEN_ITEMS-ARCHIVE.md`. Handoffs are gitignored session
+notes. Three named units of routed future work were living only there; they
+are now #269, #270 and #271.
+
+**The second finding is the one that made the plan hard to find at all: there
+are FOUR independent phase sequences in this project, each numbered from 0 or
+1, none of them cross-referenced.** "Phase 3" alone means three different
+things depending on which plan the speaker is in. That is the actual failure
+mode, and this entry exists to fix it.
+
+### The four plans
+
+| plan | lives in | numbering | state |
+|---|---|---|---|
+| **A — Clean chat path** | `CLEAN_CHAT_PATH.md` (repo root, in-repo) | Phases 0–5 | **Historical.** Its own header: *"**Status: Phases 0–3 are complete and shipped.**"* Phase 4 (settings + UI polish, filed "optional") was absorbed by later lanes; Phase 5 = Tailscale HTTPS + TestFlight → TestFlight is **#8**. |
+| **B — Finish the board / road to ship** | `dispatch/PLAN-FINISH-OPEN-ITEMS.md` (written 2026-08-01) | Phases 0–7 | **Live but UNREFERENCED from the tracker until this line.** Phase 0 *"✅ **RAN 2026-08-01**"*; Phase 7 is *"App Store · **LAST, by decision**"*. Per-phase state below. |
+| **C — The plugin venture** (**the plan of record**) | **#251**, section *"THE PHASE ARC (plan of record — Owen blessed the shape 2026-08-05: 'That sounds like a good plan')"* | Phases 1–4; Phase 2 in slices A–D | **This is the one Owen means.** Phase 1 ✅, Phase 2 slice A ✅, slices B/C/D → #269/#270/#271, **Phase 3 next**, Phase 4 → #223. |
+| **D — Zero-setup consolidation** | **#223**, section *"THE PHASED PLAN (Owen routes each; blockers named)"* | Phases 0–5, plus its own Lanes 0–6 | **Largely SUPERSEDED** — see the contradictions below. Its Lane 5 (shim retirement) BUILT 2026-08-04; its Lanes 1/3/4 were retired by #238. |
+
+### Plan C — the phase arc, status and filing (the answer to Owen's question)
+
+| phase | definition (verbatim from #251) | status | filed where |
+|---|---|---|---|
+| **1** | *"Tools + admin plugin — `register_tool` (incl. #242's phone-query) + `hermes talaria pair\|status\|unpair`. Small, risks nothing, deletes the venv CLIs."* | **✅ SHIPPED 2026-08-05 evening.** Repo `AethyrionAI/talaria-plugin`, install at `~/.hermes/plugins/talaria`, CLI cycle smoked green. | TRACKED — #251 |
+| **2** | *"Webhook adapter — pairing handshake + durable outbox/directives over `POST /api/platforms/talaria/events` on the existing :8642 listener."* | **PARTIAL — slice A only.** | see below |
+| **2A** transport spine | #251: *"🔧 SLICE 2A LANE OPENED 2026-08-05 late (Owen routed: A-first…)"* | **✅ BUILT + MERGED** (PR #272, `3f3bdee`, 12 tasks, 6 fix rounds); bars 2A-A/C/D/E/F/G **MET**; **2A-B falsified as written** (32s vs ≤5s — *"the bar was MIS-SPECIFIED BY ME"*), its owed instrumentation absorbed by **#263**. | TRACKED — #251 |
+| **2B** conversational installer | routed 2026-08-05 (Owen: *"I like this. Empowers the user too"*) | NOT STARTED | **WAS UNFILED → now #269** |
+| **2C** desktop face v0 | recon banked 2026-08-05, *"FOLDED INTO PHASE 2 as the desktop face's v0"* | NOT STARTED | **WAS UNFILED → now #270** |
+| **2D** OJAMD rollout | *"OJAMD install deliberately deferred to Phase 2"* | NOT STARTED | **WAS UNFILED → now #271** |
+| **3** | *"Runs-transport migration — remote turns move `chat/stream` → `/v1/runs` + `/events`: in-chat approvals land (e2e proven above), and recovery gets SIMPLER (runs pollable by id…)."* | **NEXT UP — awaiting Owen's sit-down.** Well-lit: approvals e2e-green on `/v1/runs` (2026-08-05); **steering PROVEN twice** (tui `session.steer`; runs plane `BANANA`→`PLUM` via `_active_run_agents`); the steer constraint recorded (consumed at the next tool-result boundary, **silently dropped mid-prose with a false-positive `queued` ACK**). | TRACKED — #251 (which also says *"bars pre-register here"*). **Detail plan: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`.** Research: `planning/superpowers/research/251-phase3-gap/` A–H. Adjacent: `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` (#224). |
+| **4** | *"Relay decommission — stop/disable the OJAMD services, archive with a README pointer."* | NOT STARTED; **gated on #271 (2D)** — the relay cannot go until the plugin carries the production host. | TRACKED — **#223** is its tracker home; the arc line in #251 is the plan-of-record wording. |
+
+**On Owen's "phase 0, 1, and 2" — AMBIGUOUS, recorded rather than resolved.**
+Plan C's arc **has no Phase 0**. Two readings fit and I cannot pick between
+them from the sources: (a) the research/probe work that preceded the build —
+the 2026-08-05 approvals probe, the five `251-phase3-gap` reports, and the
+2026-08-06 steering probes F/H — functioned as a phase 0 and is often talked
+about that way; (b) carry-over from Plan A or Plan B, both of which really do
+start at Phase 0. **What is NOT ambiguous: Phase 2 is not finished.** Slice A
+is; B, C and D are not. "We had done 2" is half-true by design of the
+A-first routing, not by drift.
+
+### Plan B — road to ship, per-phase state (evidence in the item entries)
+
+- **Phase 0 make the board true** — ✅ RAN 2026-08-01; found *"the board is
+  MORE open than this plan claimed"* (6 phantom items, not ~20).
+- **Phase 1 crashes and lockups** — ✅ effectively closed: **#145** ✅ (device
+  pass clean 2026-08-02), **#193** ✅ (closed 2026-08-04), **#147** ⚰️ MOOT
+  (#238 deleted the notification surface it lived in).
+- **Phase 2 device verification** — **standing**, not a phase that closes;
+  runs against `dispatch/DEVICE-PASS-RUNNING-LIST.md` (consolidated again
+  2026-08-07).
+- **Phase 3 "on device means on device"** — ✅ **#192** and **#191** both
+  closed 2026-08-04; the #200-series residue is measured and recorded.
+- **Phase 4 #180 honesty umbrella** — **OPEN.** #180 is still on the live
+  board; #186 verified on main, #187 still a watch.
+- **Phase 5 infra + test honesty** — ✅ largely: **#144** ✅, **#183** ✅
+  (Phase 2 mutation check), **#133/#143** ✅, **#164** ✅. **#188 was
+  DECLINED** under the standing ⛔ no-harden rule — declined ≠ refuted.
+- **Phase 6 feature completion** — the long tail; every member is a filed item.
+- **Phase 7 App Store** — **LAST, by decision** (#166, #127, #140, #8, #90).
+  Its narrow carve-out — *"a public privacy-policy URL"* and creating the App
+  Store Connect records — is startable at any time because its latency is
+  external.
+
+### Contradictions between the plans — flagged, not silently merged
+
+1. **#223 Phase 2 ("push sender v1") is DEAD.** #238 removed the notification
+   stack; #251's filing decision 1 reads *"**Push stays DEAD.**"* The #223
+   entry already carries a retirement blockquote for its push lanes; the
+   phased-plan paragraph further down was never updated to match.
+2. **#223 Phase 3 ("the upstream conversation") conflicts with Owen's
+   no-upstream-PRs position** (2026-07-22 ruling; reaffirmed when #241 was
+   parked — *"I don't want to do a PR, anxious"*). Treat as blocked-by-policy,
+   not merely blocked-by-acceptance.
+3. **#223 Phase 5 and #251 Phase 4 are the same work under two numbers**
+   (relay retirement / relay decommission). **#251's arc is the live vehicle;
+   #223 is the tracker home.** Do not run them as two lanes.
+4. **"Phase 3" collides three ways:** Plan A Phase 3 = new chat + model picker
+   (shipped); Plan B Phase 3 = "on device means on device" (closed); Plan C
+   Phase 3 = the runs migration (next up). **Owen's "3 was next up" is Plan
+   C.** `CLEAN_CHAT_PATH.md`'s header — *"Phases 0–3 are complete and
+   shipped"* — is about Plan A and is **not** a statement about the plugin
+   venture, though it reads like one out of context.
+
+### The rule this entry exists to install
+
+**A phase name is not a filing.** When a plan names a unit of future work —
+a phase, a slice, a lane — it gets a numbered entry here **on the day it is
+named**, even if that entry is three lines pointing back at its parent. The
+handoffs are gitignored and the tracker is not; anything that lives only in a
+handoff is one lost laptop from gone. Corollary, learned the same day: **say
+which plan.** "Phase 3" unqualified has been ambiguous since 2026-08-05.
 
 ## 267. 💬 Message QUEUING while a turn streams — compose the next message mid-turn, auto-send at run end — **FILED 2026-08-06 late night (Owen: "How close are we to the steering / queuing stuff?"); the buildable half of 156f's pair**
 
