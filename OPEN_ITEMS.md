@@ -1619,6 +1619,9 @@ Regenerate/Edit while another run streams.
 >   reply appears AT THAT POSITION; 10s later (two poll ticks) and after a
 >   background/foreground, the removed turns have NOT reappeared; force-quit
 >   + relaunch — still absent. Any reappearance falsifies.
+>   *(REVISED 2026-08-07 — see the revision note at the end of this entry.
+>   The wording above was satisfiable without the assertion that exposed
+>   #281, and the brain it names was not the brain that ran it.)*
 >
 > Adjacent findings spun out rather than folded in: **#274** (three
 > implementations of one truncation primitive, two of them in the View,
@@ -1707,6 +1710,54 @@ Regenerate/Edit while another run streams.
 > diagnosis) must name a CLEAN thread, say which reply is regenerated
 > relative to the transcript, and assert the producing user row carries a
 > FRESH timestamp.
+
+> **Update 2026-08-07 (later) — BAR REVISION + a factual correction to the
+> closure above. #78's fix and closure STAND; the bar text did not.** The
+> device failure that preceded the passing run turned out not to be #78 at
+> all — it is **#281** (an already-id-confirmed refreshed row mints a
+> surplus content claim and the re-sent user row consumes it and vanishes),
+> now built and merged. Two consequences for this entry:
+>
+> **(1) The closure above says 78-F was met; it was — but 78-F's own text
+> says "on the local brain", and Owen's passing run was a fresh chat on
+> DEEPSEEK FLASH, a Hermes-hosted model.** The bar's substance held on the
+> path it actually ran; the brain it names was never exercised. Recorded as
+> a correction rather than left to read as a full pass, and covered by the
+> new 78-F2 below.
+>
+> **78-F — REVISED:** on a CLEAN thread created for the run (no user turn
+> carrying more than one reply — a pre-#78 thread's stacked replies make
+> the result unreadable), send at least three turns, then regenerate the
+> reply to the MIDDLE user turn so the truncation has rows below it to
+> remove. Assert: (a) at the tap that reply and every row below it vanish;
+> (b) **the producing user row is a FRESH row carrying the regenerate-time
+> timestamp** — a bubble still stamped with the original ask's time means
+> the re-sent row was filtered out of the merge, not that the turn was left
+> alone (#281); (c) the new reply appears at that position; (d) 10s later
+> and after a background/foreground the removed turns have NOT reappeared;
+> (e) force-quit + relaunch — still absent. Record which brain served it.
+>
+> **78-F2 — NEW: 78-F on the LOCAL BRAIN**, which the original bar named
+> but no recorded run used. Two clauses 78-F cannot reach, both from 78-E's
+> backend half: the re-roll must genuinely re-ask WITHOUT the original
+> answer in context (`LocalChatBackend` nils its `LanguageModelSession`, so
+> the new reply must not refer back to having already answered — on the
+> Hermes path the model DOES know and said so: Owen's re-roll answered
+> *"Still 4"*), and the truncated mirror must be what a relaunch restores.
+> Falsified by a reply that acknowledges its own previous answer, or by any
+> removed turn returning.
+>
+> **78-G — NEW: the REPEATED-PROMPT case, which is what actually failed the
+> first attempt.** On a thread where the same prompt text has been sent more
+> than once (send it twice deliberately; a thread reopened from the drawer
+> is the harder and more faithful setup, since every row then carries no
+> `clientMessageID`), regenerate the reply to the SECOND of the two
+> identical asks. The fresh user row must be present and stamped at
+> regenerate time, sitting below the earlier identical ask which keeps its
+> older timestamp — two visibly distinct bubbles with the same text. A
+> single bubble, or a bubble carrying the old time, is #281 unfixed.
+> **Same run as 281-E; one device pass satisfies both and they mark
+> together.**
 
 ---
 
