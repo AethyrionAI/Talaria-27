@@ -5691,6 +5691,34 @@ other work in flight.
 > is the only item whose text changed — by exactly this appended note, which
 > the verifier whitelists as a prefix-match.
 
+> **Update 2026-08-07 — the VERIFIER was stale, not the tracker; `oi-split-verify.py`
+> is now pinned at BOTH ends as a historical proof.** Reported symptom: the script
+> failed on a clean checkout of main (27 failures — 26 × 261-A "NOT byte-identical",
+> a 261-C count mismatch, 12 items "invented"), with a suspected stale default base.
+> **That diagnosis was wrong on the facts and is recorded here so it is not
+> re-derived:** `8077ecb` is the PARENT of the split commit `af59ea7`, i.e. it always
+> was the correct pre-split base. Proven by re-running the unmodified script in a
+> detached worktree at `af59ea7`, where it PASSES (104 live + 163 archive = 267).
+> **Real root cause:** the script compared that correct base against the WORKING TREE,
+> so it decayed by construction as soon as the tracker moved on — items #262+ were
+> filed, and the 2026-08-06 reconciliation audit amended entries in both files,
+> including **eight ARCHIVED ones (#34, #55, #83, #90, #203, #258, #259, #260)**.
+> Those archive edits are THE CLOSE-OUT RULE working as intended (corrections go
+> upstream, to the stale claim's own home), which makes byte-identity against
+> pre-split text **permanently unsatisfiable for the working tree** — so 261-A could
+> never pass again, and "tolerate items added after the split" would have fixed only
+> 1 of the 27 failures while leaving the verbatim bar to be gutted. Option (b) taken:
+> both endpoints pinned (`8077ecb` → `af59ea7`), both sides now read from **git**
+> rather than the worktree, output states plainly that it verifies a historical
+> commit range and says nothing about today's tracker. It PASSES at HEAD and is
+> verified to FAIL (exit 1) on a wrong split commit, a wrong base, and an invalid
+> ref. **Bars 261-A/B/C are unchanged and still proved** — the split itself was never
+> in doubt; only the harness's baseline was. `OPEN_ITEMS.md`/`OPEN_ITEMS-ARCHIVE.md`
+> content is untouched by this lane apart from this note. Durable properties the
+> pinned script no longer watches (files disjoint, nothing lost or renumbered) still
+> held when checked 2026-08-07; a live guard for them would be a different script,
+> and is **not** filed as owed work.
+
 ## 257. 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt, so "what can you do?" gets an improvised 3-of-15 answer — **FILED 2026-08-05 night (Owen's device screenshots, build 2047: "btw I thought it could do more than that"); measured lane, not yet opened**
 
 **Evidence (Owen, 9:04 PM, on-device brain, fresh conversation):**
