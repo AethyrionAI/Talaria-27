@@ -7,6 +7,305 @@ never "finished" — it is the queue that fills up between sittings.
 **Started 2026-08-01.** Owen drives the phone; Claude reads logs and records
 verdicts.
 
+---
+
+## Consolidated run 2026-08-07
+
+**Context (written 2026-08-06 evening):** Owen approved one consolidated
+phone-in-hand session covering all outstanding device debt, to run tomorrow
+at work on the build he installs at 7am. This section is the live queue for
+that session. The 2026-08-02 SITTING PLAN just below is not deleted — its
+Sitting 1 and most of Sitting 2 are DONE (their rows carry ✅ verdicts
+throughout §F1/§F5); Sitting 3 (voice+calls, Shelley, scheduled 2026-08-04)
+has **no verdict recorded anywhere in this file**, so it is treated as
+NOT run and folds into Group 6 below; Sitting 4 (§F8) is **retired outright**
+— see "Dropped from tomorrow" below.
+
+**New this pass, reconciled against OPEN_ITEMS #21/#56/#58/#61/#74/#75/#77/
+#78/#80/#81/#82, archived #83, and #262 (bar 262-E, PR #277 merged — it WILL
+be in tomorrow's build):** #262-E, #75, #77, #78, #80 (revised), #21
+(dual-host), #56, and the Display Zoom re-test are added below in their
+state groups. #61's and #81's existing rows needed no new check — #61 was
+already correctly filed in §F2; #81 turns out to be dead, see below.
+
+**#58 prerequisite check (git-verified 2026-08-06):** OPEN_ITEMS #58's header
+still reads "`.main` execution BUILT 2026-07-27 (cloud, NOT compiled)" — that
+wording is stale. `git log` shows the cloud branch
+(`claude/opus-t27-58-controls-eopguj`) merged same day via **PR #154**
+(`ebc0347`), with a Mac-side `xcodegen generate` regen committed eight
+minutes earlier (`0bfb80d`, "cloud lane could not produce this") — both are
+ancestors of current `HEAD` (`6b2f6d6`), and `TALARIA_MAIN_APP` is live in
+`project.yml:93` today. **Confidence: HIGH that it compiles** — the flag has
+ridden hundreds of green-suite/gate commits on `main` since 2026-07-27 — but
+no commit or tracker note ever recorded an explicit build-success check for
+THIS lane, so treat tomorrow's device pass as also closing that gap.
+**No new build needed — #58/#179 is runnable on tomorrow's OTA as filed in
+§F6.**
+
+**MAJOR FINDING — #238 (closed 2026-08-03, "notification removal") deleted
+the entire `UNUserNotificationCenter` surface. Confirmed by source grep
+2026-08-06: zero hits anywhere in the tree for `UNTextInputNotificationAction`,
+`HERMES_REPLY`, `handleNotificationReply`, `UNUserNotificationCenter`,
+`aps-environment`, or `remote-notification`.** #238's own closure text says
+explicitly: *"Confirmed collateral, Owen accepted explicitly:
+reply-from-the-lock-screen (#47) and its failure banner"* is gone, and its
+"everything goes" list names "the push-token pipeline (#189)" outright by
+number. **Three rows already in this document are therefore DEAD, not
+merely stale** — annotated MOOT in place below (§F1's `#147`, §F3's `#189`,
+§F4/§F8's `#81`, §F8's `#226`) rather than deleted or rewritten. This
+retires the entire former Sitting 4 (§F8 had exactly two rows, both dead).
+#80's silent-push sub-checks are dead for the same reason — Inbox is
+poll-fed only now (explicitly on #238's "STAYS" list) — its still-live
+checks are rewritten below to the poll path.
+
+**#225 update — the §F1 row below still reads like a first-time check; it
+is not.** It already ran the night it was filed (2026-08-02, "Lane 1":
+L1-A/C/D/E PASS, L1-B failed only on one refusal-grind trial), and the two
+findings that run produced — **#230** (WeatherKit daily forecast) and
+**#232** (the refusal grind) — are both built AND device-confirmed fixed
+(#232: "ZERO refusals on the control prompt (was 57), turn 5.9s (was
+minutes)," 2026-08-03). Tomorrow's run against the *original* 4-bar fixture
+(B1–B4) is a **confirmation run of a very likely-already-fixed defect**, not
+a first look — kept in the plan only because that exact fixture has not been
+re-run since the compound fix landed.
+
+**#82 residual, newly folded into §F6 (not previously a runnable row):** its
+2026-08-01 #220 flag records that the 2026-07-16 device confirm ran on ONE
+voice engine and nothing logged which — "the other engine's half is
+unverified." The engine-naming log line now exists
+(`VoiceEngineRouter.swift:196`, shipped with #221's fix). See Group 6.
+
+### (a) Runnable now, ordered to minimize churn
+
+**Group 1 — Default state: PAIRED + CONNECTED to OJAMD, no settings changes
+(start here, it's already where the phone rests).** Est. ~30 min.
+- [ ] #262-E — Send a prompt on the fastest available model that makes the
+  agent write a file mid-turn, and watch the reply as it streams. (PASS: the
+  artifact chip appears under the write_file card at its generation point
+  and does NOT move while later text streams beneath it; it is tappable
+  mid-turn; after relaunch/history reload the chip is still anchored in the
+  same place.)
+- [ ] #78 — Long-press a user bubble, a Hermes bubble, and a voice-transcript
+  row; exercise Copy/Share/Select Text on each; Regenerate a MID-history
+  (not-last) reply and confirm the transcript truncates from that turn;
+  Edit & Resend a turn with and without an attachment; start a new send and
+  confirm no context menu appears on the streaming bubble and
+  Regenerate/Edit are hidden while it streams. (PASS: all actions work per
+  bubble type; Regenerate truncates from the right turn; Edit & Resend
+  restores attachments; nothing history-mutating offers itself mid-stream.)
+- [ ] #80 (revised — push-delivery sub-checks are dead, see MAJOR FINDING
+  above) — Ask Hermes, in a Talaria chat, to create an inbox item; then
+  pull-to-refresh the Inbox screen (or leave/reopen it); approve it in-app
+  and ask Hermes to read back the verdict. (PASS: the item appears after a
+  manual refresh/reopen — NOT automatically, that path is gone — and the
+  verdict readback matches the approval. Do not expect any push banner.)
+- [ ] #21 (OJAMD side) — Ask the OJAMD-backed agent to write a fresh file,
+  then tap the resulting chip. (PASS: preview sheet presents and ShareLink
+  works, matching the Mac-side PASS already recorded 2026-07-20.)
+- [ ] #21 (traversal check) (AMBIGUOUS: the OPEN_ITEMS entry names this check
+  but not a UI path for it — it reads as a direct relay-route probe against
+  the device-files endpoint with a crafted `MobileDL/../x` path, not a chat
+  action; confirm the exact method before running) — confirm the route
+  rejects the traversal. (PASS: rejected, not served.)
+- [ ] #21 (announcement-scan noise, passive, no setup) — over the course of
+  this session, note whether any ordinary turn that merely *mentions* a
+  MobileDL path grows an unwanted attachment bubble. (Record either outcome
+  — this is an eyeball finding, not strictly pass/fail.)
+- [ ] C1 — Run `searchPlaces` with n=20 (never run at this n before).
+  (PASS: no exception/crash.)
+- [ ] C3 — Ask a `readLocation`-shaped question and read the returned
+  fields. (PASS: no crash; note whether `country` is present, per the
+  disclosed MapKit-migration delta.)
+- [ ] #184/#185 — Exercise all three ChatStore teardown paths (row still
+  reads "sim-only today"); send two attachments with the SAME filename in
+  one turn. (PASS: teardown clears consistently across all three paths;
+  each attachment resolves to its own local file, neither overwritten.)
+
+**Group 2 — Settings-dependent (batch these — one trip through Settings).**
+Est. ~15 min.
+- [ ] #75 — Check the chat header at: default width, both brains (HERMES /
+  ON-DEVICE), a long model name (e.g. `DEEPSEEK-V4-...`), and a Dynamic
+  Type sweep (Settings → Accessibility → Display & Text Size → Larger Text,
+  several notches). (PASS: wordmark/status/model chip stay single-line with
+  scale-then-truncate behavior at every size; the brain pill never resizes
+  itself out of shape.)
+- [ ] Display Zoom letterbox re-test (from archived #83): set Display Zoom
+  to Larger Text, launch, check for letterboxing; if it repros, file a NEW
+  item (do not reopen #83, closed as terminal against a toolchain that no
+  longer exists). Restore Display Zoom to Default afterward — it affects the
+  whole phone, not just Talaria.
+- [ ] #186 — Needs a Settings-level permission reset first (Settings →
+  Privacy → revoke Calendar/Contacts for Talaria). Then: (1) re-grant
+  Calendar as "Add Events Only," ask the agent to create an event — must
+  succeed on the FIRST attempt and every one after; (2) re-grant Contacts as
+  "Limited" via the picker, then look up a contact on a LATER app launch;
+  (3) with the add-only grant active, ask a calendar READ question — the
+  reply should name the add-only grant and how to widen it, not a generic
+  "enable it in Settings." (PASS: all three bars met. Sim-untestable —
+  framework permission stores — so this is the only way to confirm the
+  2026-08-04 grep-verified fix actually holds.)
+
+**Group 3 — STANDALONE / UNPAIRED (§F2). Disconnect from OJAMD once, run
+this whole block, then re-pair.** Est. ~25 min.
+- [ ] #61 — Create local sessions with short/ambiguous first turns
+  (attachment-only, or a reply that echoes the question), read the drawer.
+  (PASS: on-device titles + previews are distinct from each other and from
+  the reply's first line. Standalone only — the paired drawer never
+  exercises this code path.)
+- [ ] #190 — (a) start read-aloud, switch sessions mid-speech; (b) force a
+  session-open failure. (PASS: (a) read-aloud stops; (b) a failure banner
+  renders instead of a blank/stuck screen.)
+- [ ] #123 — Share a URL into the app from Safari, and an image from
+  Photos. (PASS: composer receives each, focused, works unpaired on the
+  on-device brain.)
+- [ ] #124 — Background then foreground with Face ID lock enabled. (PASS:
+  the privacy overlay covers the scene root; unlocking offers passcode
+  fallback, never biometry-only.)
+- [ ] #225 (confirmation re-run — see note above) — Standalone,
+  hand-launched (NOT via Xcode), on-device brain, fresh chat: "what's the
+  weather gonna be in Gulfport tomorrow." (PASS, all four required: B1 the
+  turn ends on its own at ≤12 tool calls; B2 non-empty reply text; B3
+  honest about any limit rather than inventing data — note #230 shipped a
+  real tomorrow forecast since this bar was written, so a correct answer
+  now also satisfies it; B4 a normal multi-tool control turn, e.g. "remind
+  me to call Shelley tomorrow at 4," still completes normally.)
+
+**Group 4 — Mac profile active (batch the one profile switch).**
+Est. ~15 min.
+- [ ] #21 (Mac side, re-confirm) — Switch the active backend to the Mac
+  profile. `probe-t21.pdf` should already sit in the Mac's MobileDL; tap
+  the chip. (PASS: preview sheet + ShareLink, matching the 2026-07-20 Mac
+  PASS — a light re-confirm, not a first look.)
+- [ ] #33 (from tonight's reconciliation) — Still on the Mac profile, from
+  the Talaria chat, ask Hermes to write an Apple Note and then read it
+  back. (PASS: the note appears in Notes.app with the requested content,
+  the #4 confirm gate fired before the write, and the read-back matches.)
+  Switch back to OJAMD afterward if anything later needs it.
+
+**Group 5 — Approvals, auto-mode OFF (§F7; needs host-side access to flip
+`approvals.mode` on the dashboard).** Est. ~25 min, plus however long F7d's
+stall takes (bounded by #145 to 20s/300s — it will not hang forever).
+- [ ] F7b — On-device brain, ask for a reminder/calendar create; EDIT a
+  field in the confirm card before approving. (PASS: the written record
+  matches the EDITED values, not the originally staged ones.)
+- [ ] F7c — Same, but background the phone while the card is waiting.
+  (PASS: the gate survives suspension — card still there and answerable on
+  return, tool not silently resolved either way.)
+- [ ] F7d — Set the host's `approvals.mode` to `manual` (it is `off` today,
+  dashboard `:9119` or `PUT /api/config`); ask the connected tier for
+  something that needs approval; **restore `off` after.** (DISCOVERY, not
+  pass/fail — record what actually shows: a hung run that fails cleanly at
+  #145's timeout, a silent stop, an inbox item, or nothing at all.)
+- [ ] F7e (optional) — Repeat F7d with `smart` instead of `manual`. (Record
+  whether Smart prompts at all for ordinary agent work.)
+
+**Group 6 — Voice, Control Center, and Siri: the leaving-the-app phase
+(§F6 + new §F9/§F10). Run this block LAST among the runnable groups —
+everything in it backgrounds the app or launches it from outside.**
+Est. ~60–75 min, the biggest and least predictable group; A1/A1b need a
+second person to actually call the phone.
+- [ ] #129 — Audition a voice mid-session. Read which engine the
+  `voice session starting on engine …` log line names. (PASS: no crash,
+  session survives, mic live afterwards.)
+- [ ] #82 residual (new — see note above) — If #129 named an engine that is
+  NOT the one #82's 2026-07-16 confirm used (unknown which that was — the
+  log line didn't exist yet), repeat #129 once more forcing the OTHER
+  engine (airplane mode pins native; paired+healthy pins realtime). (PASS:
+  same bar as #129, on whichever engine was still unverified.)
+- [ ] E1 residual — Start a native voice session; confirm the log shows a
+  real capture format (not rate=0.0) and no `nullptr == Tap()` crash.
+  (PASS: real format, no crash — the one leg §E1 couldn't test in sim.)
+- [ ] A2b (#221) — Arms 1–3: on-device brain voice session (expect
+  `engine native`, Apple TTS, `relayPaired=true`); Hermes brain voice
+  session (expect `engine realtime`, OpenAI voice); then the four
+  stickiness checks (mid-session switch both directions, cold relaunch,
+  after re-pair, after an airplane-mode flap). Network ON throughout — do
+  not use airplane mode as the fixture. (PASS: each arm reads the engine
+  the setting says it should, and it stays that way across all four
+  stickiness checks.)
+- [ ] §F6's #58/#179 — From the Lock Screen or Home Screen (cold, not from
+  inside the app), tap "Ask Hermes" in Control Center. (PASS: Talaria opens
+  on the Chat tab and the `.notice` perform log line appears under
+  subsystem `org.aethyrion.talaria27` — the APP process ran it, not the
+  widget extension; a second tap also routes correctly.) Then tap "Talk to
+  Hermes." (PASS: the voice overlay opens.)
+- [ ] §F10 (new) — #77: type `hermes://session/{a real id}` into Safari's
+  address bar. (PASS: the app opens that exact session.) Then, via
+  Shortcuts, run "Open URL" with `hermes://ask?q=hello`. (PASS: composer is
+  seeded with "hello" and focused, but NOT sent.) Confirm no other
+  installed app claims the `hermes` scheme.
+- [ ] §F10 (new) — #56 Siri Stop discriminator: "Hey Siri, ask Talaria
+  twenty-seven [a question]," say "Stop" IMMEDIATELY (before the ~25s
+  hand-off). (PASS: the run actually cancels, vs. the 2026-07-20 PARTIAL
+  FAIL where it kept generating.) Repeat with a longer question, say "Stop"
+  AFTER the hand-off. (Record whether this is uncancellable by design —
+  that would make it a wording defect, not a behavior defect.)
+- [ ] §F10 (new) — #56 tailnet-unreachable re-test: airplane mode ON, "Hey
+  Siri, ask Talaria twenty-seven [a question]." (PASS: Siri surfaces an
+  honest queued/will-auto-send dialog. Current source
+  (`AskHermesIntent.swift`'s `.queued` case) suggests this may already be
+  fixed via #90's offline compose outbox, but the 2026-07-20 sweep recorded
+  a FAIL on this exact scenario after that code had already merged — this
+  needs a fresh device confirm, not an inference from source. FAIL looks
+  like a "still working" hand-off with no error.)
+- [ ] A1 / A1b (needs a second person to call the phone — arrange in
+  advance) — Start a live voice session on one engine (airplane mode pins
+  native; paired+healthy pins realtime), have them call, and read the
+  engine name from the log BEFORE counting the call. Repeat for the other
+  engine if time allows. (PASS: the session reports interrupted, and after
+  declining/ending the call it resumes or ends cleanly — never a state
+  where the UI claims to be listening and nothing is captured.)
+
+### (b) Blocked on a build first
+
+- **#74 (CarPlay Simulator functional pass) — not a phone check at all, and
+  not runnable on tomorrow's OTA regardless of build state.** `project.yml:61`
+  still has `com.apple.developer.carplay-voice-based-conversation` commented
+  out (verified 2026-08-06) — active, it breaks **signed device builds**
+  (the restricted entitlement isn't granted). Running this needs a separate
+  SIMULATOR-only build with the entitlement uncommented, a CarPlay Simulator
+  session on the Mac, and re-commenting it before any device build. Off
+  tomorrow's plan entirely; filing Apple's discretionary grant needs no
+  phone time either and could happen independently.
+- **Nothing else surfaced by tonight's reconciliation is build-blocked.**
+  #58 was the suspect item and it checks out merged + regenerated (see the
+  note above) — treat it as build-clean.
+
+### Dropped from tomorrow — confirmed dead, annotated in place, not deleted
+
+- **§F1's `#147` row** — MOOT. #238 deleted the notification surface; there
+  is no inbox-alert notification left to tap, cold or warm.
+- **§F3's `#189` row** — MOOT. Its subject (authorization priming, the
+  false-green push panel) no longer exists.
+- **§F4's and §F8's `#81` rows** — MOOT. #238's own closure text names this
+  as accepted collateral. Confirmed by source grep: zero hits for
+  `UNTextInputNotificationAction`, `HERMES_REPLY`, or
+  `handleNotificationReply` anywhere in the tree.
+- **§F8's `#226` row** — MOOT. Same cause. The one durable fix this item
+  produced (`reconcileInFlight` single-flight) already landed and stays;
+  nothing left to verify on a phone.
+- **This retires the former Sitting 4 entirely** (§F8's only two rows were
+  #226 and #81, both dead).
+
+### Not part of tomorrow — needs its own time, not a build blocker
+
+- **#117** — needs sensors switched back on (currently off, deliberately)
+  AND a >25-minute induced outage window. Give it a dedicated evening.
+- **C2 (#206's row set)** (AMBIGUOUS: its own entry gives no specific check
+  beyond "outstanding from the #206 lane" — re-read #206 before scheduling
+  it) **and C4** (matched-thermal replication — explicitly "long; only
+  worth a dedicated sitting" per its own row).
+- **A1/A1b** are listed in Group 6 as runnable IF a second person is
+  arranged; if nobody can call, they roll to the next sitting untouched.
+
+**Total estimate for Groups 1–6: roughly 3 to 3.5 hours**, not counting
+A1/A1b's dependency on someone else's schedule or F7d's possible full
+timeout wait. This is a full session, not a lunch break — the group
+boundaries above are natural pause points if the day doesn't allow it in
+one sitting.
+
+---
+
 > ### 🗓 SITTING PLAN — the shortest path through this list (written 2026-08-02)
 >
 > The list is long because it is a queue, not a session. **Three sittings clear
@@ -422,6 +721,14 @@ the concrete cost of the bound that #219 argued about in the abstract.
 UNRESOLVED unless someone re-runs those cells — which is a real battery sitting,
 not a two-minute read. That asymmetry is the whole reason this is first.
 
+### C6 · Display Zoom letterbox re-test under beta4 *(added 2026-08-06, from archived #83)*
+
+Set Display Zoom to Larger Text, launch, check for letterboxing; if it
+repros, file a NEW item (do not reopen #83). #83 itself is closed as
+terminal against a toolchain that no longer exists (Xcode-beta.app /
+Xcode-beta3.app were deleted 2026-07-24) — this is a one-line sanity re-test
+under beta4, not a reopening. Restore Display Zoom to Default afterward.
+
 ---
 
 ## D · Spotted, never chased
@@ -714,12 +1021,34 @@ four times total.
 | # | check | pass |
 |---|---|---|
 | **#225** ⭐ | **Re-run the exact spiral prompt on a build with the cap:** *"what's the weather gonna be in Gulfport tomorrow"* — **on-device brain, STANDALONE (unpaired), hand-launched** (no Xcode, no battery arming). Count the tool chips. | **FOUR bars, all required — pre-registered in #225 before the fix.** **B1 bounded:** ≤ **12** tool calls and the turn ends on its own *(before: 64 and still climbing when killed)*. **B2 it SPEAKS:** non-empty reply text *(before: none, ever — this is the bar that matters most, a cap that yields silence is not a fix)*. **B3 HONEST:** says it cannot get tomorrow's forecast rather than inventing one — **#199's fabrication risk is live here and was untestable before precisely because no text was emitted**. **B4 no collateral:** a normal multi-tool turn ("remind me to call Shelley tomorrow at 4") still completes; if this fails the budget is too tight and the NUMBER is falsified, not the mechanism |
+
+> **UPDATE 2026-08-06 — this is not actually a first-time check; annotating
+> rather than rewriting the row above.** It already ran the night it was
+> filed: 2026-08-02's dedicated "Lane 1" device run (OPEN_ITEMS #225) scored
+> L1-A/C/D/E PASS and L1-B FAIL on one refusal-grind trial, and produced two
+> follow-on findings — **#230** (WeatherKit daily forecast, closes the
+> "tomorrow" trigger) and **#232** (the refusal grind) — both BUILT and
+> DEVICE-CONFIRMED fixed same week (#232: "ZERO refusals on the control
+> prompt (was 57), turn 5.9s (was minutes)," 2026-08-03 night). Tomorrow's
+> run against this row's original 4-bar fixture is therefore a
+> **confirmation of a very likely-already-fixed defect**, kept in the queue
+> only because the original fixture itself hasn't been re-run since the
+> compound fix landed. See "Consolidated run 2026-08-07," Group 3.
 | **#121** | Resume a session that has prior reasoning | thinking panes restore from stored messages. **✅ PASS 2026-08-02** — two resumed sessions verified (one viewed under the on-device brain, one Hermes/cron): expanded AND collapsed reasoning panes restored from stored messages, and the live pane streams on a fresh turn |
 | **#122** | Open a session with known usage | spend row shows real numbers; `$0.00` only where genuinely unknown. **✅ PASS 2026-08-02** — Settings → Sessions rows show real `IN/OUT/CALLS` figures including host-run cron sessions (so the wire carries usage, not just phone-side receipts); a brand-new session's line materialized in 14s (`IN 7.4K · OUT 84 · 1 CALLS`); no `$0.00` placeholder anywhere — absent data hides the line by design. Console corroborates: `run finished on hermes [stream-ended]` |
 | **#191** | Airplane mode ON with **on-device** active | header title + model pill name the ACTIVE brain, not the stale Hermes session. **✅ PASS 2026-08-02** — verified in BOTH an existing Hermes session and a fresh chat: header + pill read ON-DEVICE in airplane mode. Console: the flip was user-initiated (`activeBrain hermes → on-device initiator=refresh/override`), and the offline errors are honest (`listSessions: 'OJAMD' unreachable — Internet offline`) |
 | **#192** | On-device active → ask for a 500-word summary | app does **not** silently switch itself away from on-device. **✅ PASS 2026-08-02** — 500-word Brazil summary generated fully on-device in airplane mode (IN 505 · OUT 587). Console: `sendStreaming routed to on-device` → `run finished on on-device [stream-ended] — routing lock released (#192)`, no brain flip between. Bonus: the composition prompt was `turn routed toolless` — production routing behaving per #215 |
 | **#193** | Trigger any destructive-action confirmation | the **Cancel** button renders (iOS 27 regression). **✅ PASS 2026-08-02** — fixture note: sessions have NO delete (archive/pin only, by design), so the confirmation exercised was Servers → Mac Mini profile → Delete: the sheet rendered "Delete Mac Mini" AND **Cancel**, which Owen confirms did not render before the fix |
 | **#147** | Inbox-alert notification: **cold** tap, then warm tap | no crash on either. **Cold is the mis-verified case** — a merge commit plus one warm observation is what closed this wrongly last time. **⚠️ PARTIAL 2026-08-02, BLOCKED by a NEW delivery finding.** What ran: three notification taps with the app ACTIVE — no crash (weaker than the specced warm tap, which needs a tap from the backgrounded state). **What blocked it, twice-reproduced: run-completed notifications did NOT present while the app was backgrounded (1-min wait, then a 5-min wait), then presented as THREE duplicates the moment the app foregrounded — both attempts.** Neither specced tap is runnable until delivery works: a backgrounded phone shows nothing to tap. The ×3 rhymes with the OJAMD baseline's **2 APNs tokens with >1 active registration** (relay sends once per active row) — the post-re-pair recount will test that directly. Console coverage gap: the Xcode capture expired at ~17:07, before the push window; evidence is Owen's direct observation ×2. Cold tap STILL OWED once delivery is understood |
+
+> **⚰️ MOOT 2026-08-06 — annotating, not deleting.** OPEN_ITEMS #147 is now
+> `⚰️ MOOT` (archived) as of 2026-08-04: **#238 deleted the entire
+> notification surface** — "the `UNUserNotificationCenter` delegate this
+> crash lived in no longer exists, and notifications, if ever reintroduced,
+> are in-app surfaces only (permanent cut)." Confirmed by source grep
+> 2026-08-06: zero hits for `UNUserNotificationCenter` anywhere in the tree.
+> There is no inbox-alert notification left to tap, cold or warm. Drop this
+> row from any future sitting.
 | **#146** | Diagnostics push row after a healthy launch | **✅ PASS 2026-08-02** — row reads **`Relay Registered`**, not stuck on `TOKEN HELD · AWAITING RELAY`. Note: seeing the push arrive ×4 does **not** falsify this — that count is #143. *(Corrected 2026-08-02: #143 is **app-side identity churn**, not "relay-side". Measured 99 device rows / 99 distinct installation ids; the relay upserts correctly per identity and the app minted them. Root fixed in #133 — so on a build carrying that fix the multiplicity should not GROW, though pre-existing OJAMD rows still fan out until deactivated.)* |
 | **#133/#143** ⭐ | **The row-count check that closes both.** On a build with the durable-identity fix: note the relay's device-row count, then **unpair → force-quit → relaunch → re-pair**, and count again. | **NO new device row**, and no new `push_registrations` row for the same APNs token. This is the honest check — #144's lesson is that a suite proves nothing here, only the row count does. Read it with:<br>`SELECT COUNT(*), COUNT(DISTINCT installation_id) FROM devices;`<br>**Before the fix those two numbers were equal (99/99) — that equality IS the defect.** After it, re-pairing must leave both unchanged. **Do this on OJAMD if at all possible** — it is where the ×5 was actually seen and it has never been measured. **→ OJAMD BASELINE MEASURED 2026-08-02 (read-only sqlite, pre-re-pair): devices total=22, distinct installation_id=22, active=22; push_registrations 15 total / 12 active; 2 APNs tokens currently have >1 active registration.** Two notes: (1) the 22 is news — nothing like the 99-row fan-out is present today (all rows active, all distinct; whether the DB was recreated or rows were deleted is unexplained and deliberately not chased here); (2) the 2 duplicate active tokens predate the check — after the re-pair leg the bar is devices still 22/22/22, push_registrations not grown, and dup count not increased. **MID-POINT MEASURED 2026-08-02 (after Disconnect + relaunch, BEFORE re-pair): all numbers IDENTICAL to baseline — Disconnect is purely client-side; the relay's devices and push_registrations rows are untouched.** Two consequences: the honest test is now entirely about what RE-PAIR does, and **an unpaired phone stays push-registered on the relay** — hygiene note, relevant to D4's push arithmetic. Bonus datum: exactly one device (`f9b7678c…`) holds **2 active push registrations** — if that is this phone, D4's ×3 = 2 remote + 1 local decomposition holds arithmetically. **✅ FINAL VERDICT 2026-08-03: PASS — with a one-time, by-design migration step that a single-cycle read would have mis-scored as FAIL.** Four measurements: baseline 22/22/22 · 15/12 → mid-point (unpaired) IDENTICAL → **after re-pair #1: 23/23/23 · 16/13 (+1 row — looks like the bug!)** → **after re-pair #2: STILL 23/23/23 · 16/13, same row `f3e2c806`/install `913f0656` updated in place.** The +1 was the legacy→durable convergence: the old row's id (`c718cc64`, created 07-23) predates PR #241, so the durable id was fresh-to-relay tonight; cycle 2 proved it STICKS — no mint, clean upsert. The churn equality (every pairing = new id = new row) is broken. **Residuals, filed not fixed: (1) the ×5 IS IN THE TABLE** — token `0aa87bdf…` has **5 active registrations**, token `df04a6a7…` (this phone's, almost certainly) has **3 active** — the relay fans out per row, so the phone's next long-run D4 repro predicts **×4** banners (3 remote + 1 local); **(2) the #144-shape deactivation chore — ✅ EXECUTED same night, Owen approved:** OJAMD now holds **2 active devices + 2 active registrations, zero duplicate tokens** (21 devices + 11 registrations deactivated, never deleted; backup `hermes_mobile.backup-20260803.db` + rollback json beside the DB). The Mac relay's 97 harness device rows went the same way (#144 now fully closed). **D4's ×N arithmetic drops to 1 remote + 1 local = 2 predicted** until D4's app-side fix lands |
 | **#112** | Settings → toggle system appearance while foregrounded | Comic Book re-skins villain↔funnies **without relaunch**. **✅ PASS 2026-08-02** — system dark→light toggled while foregrounded; the app re-skinned live, no relaunch |
@@ -728,6 +1057,13 @@ four times total.
 | **#151** | Settings → Hermes Host → **Test Connection** against the LIVE host | verdict appears **within ~5s** with a latency figure. Shape 1 of 3 — the other two are in **§F5**. Pre-#146 this button was silent and, on a black-holed host, would have hung **five minutes** (the shared client stamps `timeoutInterval = 300`). **✅ PASS 2026-08-02 (shape 1 of 3)** — verdict with latency figure, **29ms**, ojamd:8642 answered. Shapes 2–3 stay in §F5 |
 | **#152** | Settings → Hermes Host → **"Pairing & Devices"** → reach Revoke | the renamed row lands on the revoke/disconnect surface, and **Pair New Device (QR)** is present so the screen is not destructive-only. Sim-verified 8/8 already; this is the device leg. **✅ PASS 2026-08-02** — lands on Pairing & Devices, **Pair New Device (QR) on top**, revoke host + disconnect below. Device leg done; #152 is fully closed |
 | **#222** | **On-device brain**, attach an image, then ask something OCR **cannot** answer from a list of strings — *"who posted this?"*, *"is this the Safe Harbor group?"*, or anything about layout/colour/what is depicted | **Either answer is informative.** A correct answer ⇒ the model genuinely sees the image and #222's premise falls. A wrong/hedged answer, or a `readImageText` chip firing and it reasoning only over extracted text, ⇒ the transcript really is text-only and the SDK's `ImageAttachment` is an unused capability. **Works in any state — Owen already ran the OCR half on-device in airplane mode.** Do NOT re-run "what's this say" — that already passed and answers the wrong question. **✅ ANSWERED 2026-08-02 — the premise HOLDS: the transcript is text-only and `ImageAttachment` is an unused capability.** Fixture: Facebook post screenshot (Safe Harbor group), "Who posted this?", airplane mode, on-device. A `READIMAGETEXT` chip fired and the reply said outright *"I can't see the image itself, but the text in it mentions 'Owen Jones'…"* — right answer, wrong faculty: the byline happened to be in the OCR text. Console nails it: the router KNEW (`turn routed armed ctx=none img=true`, 15 tools registered) and the model still only got text. Honesty note: the limitation was disclosed, not papered over — no #199 shape |
+| **#262-E** ⭐ *(added 2026-08-06)* | Fast-model artifact turn: prompt the agent to write a file mid-turn, watch the reply stream. | Bar text from OPEN_ITEMS #262: "the chip appears under the write_file card and DOES NOT MOVE while text streams beneath; tappable mid-turn; after relaunch/history reload the placement persists (anchor is persisted with the message)." Bars 262-A/B/C/D already MET in-suite + gate; **PR #277 merged, this is the device leg (262-E), rides the first OTA after merge — tomorrow's build is that OTA.** |
+| **#78** *(added 2026-08-06)* | Long-press each bubble type (user/Hermes/voice-transcript); Copy/Share/Select Text; Regenerate a MID-history reply; Edit & Resend with and without an attachment; confirm no menu on a streaming bubble. | **Source: OPEN_ITEMS #78's own device checklist**, never previously carried into this file. PASS: all actions work per bubble type; Regenerate truncates from the correct turn; Edit & Resend restores attachments; nothing history-mutating offered mid-stream. Merged (PR #52, confirmed on main); no new files, no xcodegen owed. |
+| **#80** *(added 2026-08-06, revised — see the notification-removal finding below §F8)* | Ask Hermes to create an inbox item, then pull-to-refresh/reopen Inbox; approve it; ask Hermes to read back the verdict. | **Source: OPEN_ITEMS #80's device checklist, minus the two sub-checks #238 killed** (silent-push wake, `notify="alert"` visible push — both dead, Inbox is poll-fed only now). PASS: item appears after a manual refresh/reopen; verdict readback matches the approval. |
+| **#21 (OJAMD side)** *(added 2026-08-06)* | Ask the OJAMD-backed agent to write a fresh file, tap the chip. | **Source: OPEN_ITEMS #21**, "Valid OJAMD retest: ask OJAMD's agent to WRITE a fresh file... then tap the chip." PASS: preview + ShareLink, matching the Mac-side PASS already recorded 2026-07-20 (the OJAMD side has never been measured). See §F9 for the Mac-side re-confirm. |
+| **#21 (traversal)** *(added 2026-08-06)* (AMBIGUOUS: no UI path is specified in the source entry — likely a direct relay-route probe against `.../device/files` with a `MobileDL/../x` path, not a chat action) | confirm the device-files route rejects `MobileDL/../x`. | **Source: OPEN_ITEMS #21**, "One relay-side check: confirm the device-files route rejects traversal." PASS: rejected, not served. |
+| **#21 (noise, passive)** *(added 2026-08-06)* | No setup — over the course of this session, note whether any ordinary turn that merely *mentions* a MobileDL path grows an unwanted attachment bubble. | **Source: OPEN_ITEMS #21**, "announcement-scan noise... if it grates, narrowing to write-shaped tools is a small follow-up." Record either outcome — an eyeball finding, not strictly pass/fail. |
+| **#75** *(added 2026-08-06)* | Chat header at default width, both brains (HERMES / ON-DEVICE), a long model name (e.g. `DEEPSEEK-V4-...`), and a Dynamic Type sweep (Settings → Accessibility → Display & Text Size). | **Source: OPEN_ITEMS #75's own acceptance pass**, never previously carried into this file. PASS: wordmark/status/model chip stay single-line, scale-then-truncate at every size; brain pill never resizes out of shape. Merged (PR #43); no new files, no xcodegen owed. Settings-dependent — batch with the Display Zoom re-test below. |
 
 ### F2 · STANDALONE / UNPAIRED
 
@@ -743,6 +1079,14 @@ four times total.
 | # | check | pass |
 |---|---|---|
 | **#189** | First dispatched send on a fresh install | the OS authorization prompt appears (status was `NotDetermined`, never `Denied`), and the Diagnostics panel reports the REAL `UNAuthorizationStatus` — no false green. **This is the last blocker-shaped verification** |
+
+> **⚰️ MOOT 2026-08-06 — annotating, not deleting.** #238 (closed 2026-08-03)
+> named "the push-token pipeline (#189)" explicitly in its removal scope.
+> `UNAuthorizationStatus` is no longer read anywhere in the app; there is no
+> authorization prompt left to observe and no push panel left to read.
+> Confirmed by source grep 2026-08-06 (zero hits for `aps-environment`,
+> `remote-notification`, `UNUserNotificationCenter`). §F3 has nothing left
+> to run — its only other row, #137, was already "not runnable as filed."
 | **#137** | ⚠️ **NOT RUNNABLE AS FILED — needs a rewritten check first.** The 2026-07-25 pass scored UNRUNNABLE, and the spec's "revoke/disconnect FIRST" setup is actively wrong: disconnect no longer produces a re-migratable device and neither does deleting the app. **Do not attempt until someone writes a sequence that can actually reach the un-stamped state.** Queued as a WRITING task, not a device task | — |
 
 ### F4 · LOCKED DEVICE
@@ -750,6 +1094,15 @@ four times total.
 | # | check | pass |
 |---|---|---|
 | **#81** | Let a run finish while the phone is locked | push carries **Reply**; long-press → Reply → headless post lands; the NEXT push also carries Reply. **⛔ MUST BE UNCORDED — see §F8**, which is where this runs; a live Xcode session never suspends, so a kept-alive rig measures nothing real here |
+
+> **⚰️ MOOT 2026-08-06 — annotating, not deleting.** #238's closure text
+> (2026-08-03) names this explicitly as accepted collateral: *"Confirmed
+> collateral, Owen accepted explicitly: reply-from-the-lock-screen (#47)
+> and its failure banner."* Confirmed by source grep 2026-08-06: zero hits
+> for `UNTextInputNotificationAction`, `HERMES_REPLY`, or
+> `handleNotificationReply` anywhere in the tree. There is no push, no
+> Reply action, and nothing to long-press. Drop this row from any future
+> sitting — see the matching annotation on the §F8 copy below.
 
 ### F5 · INDUCED OUTAGE (longest — run last, or on its own)
 
@@ -839,6 +1192,7 @@ four times total.
 | **#129** | Audition a voice mid-session | no crash, session survives, mic live afterwards. Owed since 2026-07-24. Known-and-accepted: native-engine sessions share the assistant TTS instance |
 | **#58 / #179** | First Control Center tap from cold | action does not report success before the widget extension exists. **One check closes both** — #179 is chained to #58's pass by its own decision point |
 | **E1 residual** | Start a native voice session; confirm the log shows a REAL capture format (not rate=0.0) and no `nullptr == Tap()` **crash** | **Zero extra setup — it rides any native voice session you are already running.** §E1 proved the double-install THROWS on the simulator, but on `mainMixerNode`; the sim's `inputNode` has a degenerate format and cannot host the test. This is the only unmeasured leg: `inputNode` on real hardware. **A crash here would falsify §E1's verdict on the node that actually matters** |
+| **#82 residual** *(added 2026-08-06)* | If #129 above named an engine (via `voice session starting on engine …`) that is NOT the one #82's 2026-07-16 device confirm used, repeat #129 once more forcing the OTHER engine (airplane mode pins native; paired+healthy pins realtime) | **Source: OPEN_ITEMS #82's own 2026-08-01 flag from the #220 audit** — "This item's device verdict was recorded while NOTHING logged which voice engine was active... the other engine's half is unverified." The engine-naming log line (`VoiceEngineRouter.swift:196`) shipped AFTER #82's 2026-07-16 confirm, with #221 — so which engine that confirm actually exercised is still unknown. PASS: no crash, no `@SpeechOutputService#2` spam mid-session, mic works after — on whichever engine turns out to be the unverified one |
 
 ### F7 · APPROVALS with auto-mode OFF · **[NEW 2026-08-02, Owen: "one thing I haven't done"]**
 
@@ -923,6 +1277,45 @@ afterwards unless you mean to; restore whatever state you started in.
 | **#226** ⭐ | **On a build carrying PR #243:** start a run, background to the home screen, wait for it to finish, then foreground. Do it twice — once with a SHORT run (finishes inside iOS's grace) and once with a LONG one (outlives it, e.g. ask for a 500-word summary) | **EXACTLY ONE banner, in both cases.** Before this lane: short run → **nothing ever**; long run → **×3**. Leg (a) arms the watch so a short run is no longer silent; leg (b) makes duplicates replace. **If >1: the ×N decomposition owed with #133/#143's OJAMD recount says where the extra came from** (N should be that token's active `push_registrations` rows + 1 local). If 0 on the short run, leg (a) did not arm — capture the log |
 | **#81** | Let a run finish while the phone is **locked** | push carries **Reply**; long-press → Reply → headless post lands; the NEXT push also carries Reply. **Same constraint — see the block above.** Duplicated from §F4 deliberately: it is listed there by state (locked) and here by what makes it runnable |
 
+> **⚰️ BOTH ROWS ABOVE MOOT 2026-08-06 — annotating, not deleting. This
+> retires §F8 (former Sitting 4) entirely; it had exactly these two rows.**
+> - **`#226`:** OPEN_ITEMS #226 is `⚰️ MOOT` (2026-08-04, archived) — "the
+>   push-watch surface itself was deleted by #238 (app posts no `push/watch`
+>   calls; banners cannot exist without the notification plane)." The one
+>   durable piece it produced, the reconcile-leg single-flight fix
+>   (`reconcileInFlight`, `0b8aad4`), already landed and stays — nothing
+>   left to verify on a phone.
+> - **`#81`:** see the matching §F4 annotation above — #238's own text names
+>   this feature as accepted collateral, and source grep confirms zero
+>   remaining notification code.
+> - PR #243 (`4adc0fc`) did merge, for the record — but the feature it
+>   fixed was deleted three weeks later, so the merge no longer matters.
+
+---
+
+### F9 · MAC PROFILE ACTIVE — **[NEW 2026-08-06, from tonight's #21/#33 reconciliation]**
+
+Every other section assumes OJAMD is the paired host, since OJAMD is the
+default per CLAUDE.md. This is the one state where the Mac Mini is the
+active backend profile instead — batch the profile switch, run both rows,
+switch back.
+
+| # | check | pass |
+|---|---|---|
+| **#21** | Switch the active backend to the Mac profile. `probe-t21.pdf` already sits in the Mac's MobileDL as a fixture (staged 2026-07-20) — tap the chip. | Preview sheet presents, ShareLink works. This is a re-confirm of the 2026-07-20 Mac PASS, not a first look — the OJAMD side (never yet measured) is the new ground in §F1. |
+| **#33** | Still on the Mac profile, from the Talaria chat, ask Hermes to write an Apple Note and then read it back. | The note appears in Notes.app with the requested content, the #4 confirm gate fired before the write, and the read-back matches. **Source: OPEN_ITEMS #33**, 2026-08-07 reconciliation note — iMessage-from-Talaria-chat was device-verified 2026-07-20 (Shelley send, read receipt), but Notes-from-Talaria-chat never was; the T6 spec's own acceptance scoring called connector end-to-end ⚠️ PARTIAL on exactly this line. This is the one check that closes it. |
+
+### F10 · SIRI / DEEP LINK — leaving the app · **[NEW 2026-08-06]**
+
+Two items whose device checklists were never carried into this file — both
+require leaving the app (Safari, Shortcuts, or Siri) to trigger.
+
+| # | check | pass |
+|---|---|---|
+| **#77** | Type `hermes://session/{id}` (a real session id) into Safari's address bar. Then, via Shortcuts, run "Open URL" with `hermes://ask?q=hello`. | The Safari URL opens that exact session. The Shortcuts URL seeds the composer with "hello," focused, but does **NOT** send — seed-only is the deliberate security posture (any app/webpage can fire a custom scheme; auto-send would let external content inject agent turns). While here: confirm no other installed app already claims the `hermes` scheme. |
+| **#56** | Siri Stop discriminator, two runs: "Hey Siri, ask Talaria twenty-seven [a question]," say "Stop" IMMEDIATELY (before the ~25s hand-off); then repeat with a longer question and say "Stop" AFTER the hand-off. | Run 1: the turn actually cancels (`cancelStreaming` path) — the 2026-07-20 sweep scored this a PARTIAL FAIL (kept generating to completion). Run 2: record whether it's uncancellable by design (intent already returned) — if so the defect is wording, not behavior, per the item's own discriminator. |
+| **#56** | Tailnet-unreachable re-test: airplane mode ON (off tailnet AND wifi), "Hey Siri, ask Talaria twenty-seven [a question]." | Siri surfaces an honest queued/will-auto-send dialog, not a false "still working." **2026-07-20 scored this a FAIL** (indistinguishable from slow); current source (`AskHermesIntent.swift`'s `.queued` case, riding #90's offline compose outbox) suggests this may already be fixed, but that's an inference from reading code, not a device result — needs a fresh confirm. |
+
 ---
 
 ## G · NOT device work — routed out of this list
@@ -971,6 +1364,17 @@ carry these into a device sitting.**
   writing `*_snapshot` at all. **Either run #148's cheap discriminator (read the
   Mac's `cron/jobs.json`) or close it as answered-for-the-world-that-exists** — do
   not put it in a device sitting expecting it to resolve.
+- **#74 (CarPlay Simulator functional pass) — added 2026-08-06, not a phone
+  check.** `project.yml:61`'s `com.apple.developer.carplay-voice-based-conversation`
+  is commented out today (verified 2026-08-06) — the entry's own text explains
+  why: active, it breaks **signed device builds**, because the dev provisioning
+  profile can't carry an ungranted restricted entitlement. Running the CarPlay
+  Simulator pass needs a dedicated Mac session (uncomment the key, `xcodegen
+  generate`, build to the SIMULATOR, run through CarPlay Simulator.app, then
+  re-comment before any device build) — it cannot ride a phone-in-hand OTA
+  session at all, corded or not. Apple's discretionary grant filing
+  (developer.apple.com/contact/carplay/) needs no phone or Mac time and could
+  happen independently of a sim pass.
 
 ---
 
