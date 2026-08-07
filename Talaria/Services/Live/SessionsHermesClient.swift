@@ -25,7 +25,9 @@ final class SessionsHermesClient: HermesClientProtocol {
     var connectionStatus: ConnectionStatus = .disconnected
     var currentConversation: Conversation?
 
-    private let session: URLSession
+    // runs-path-visible (#283): the runs driver opens its own SSE stream and
+    // status polls on this same session (`SessionsHermesClient+RunsTransport`).
+    let session: URLSession
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private let baseURLProvider: @MainActor () -> String?
@@ -59,7 +61,9 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// `run.completed` delivers usage, read back on `openSession` so a
     /// resumed session's CTX gauge has a numerator (the stored-messages
     /// endpoint carries none). Optional like `profileIndex`.
-    private let usageIndex: SessionUsageIndexStore?
+    // runs-path-visible (#283): the runs `run.completed` records usage the
+    // same way the sessions one does.
+    let usageIndex: SessionUsageIndexStore?
     /// Lane M PR 2 (M-5): resolves a NON-ACTIVE profile's chat endpoint
     /// (gateway base URL + that profile's API key). Requests for the active
     /// profile keep riding `baseURLProvider`/`apiKeyProvider` — byte-identical
@@ -205,12 +209,25 @@ final class SessionsHermesClient: HermesClientProtocol {
                     continuation.finish()
                     return
                 }
-                await self.streamTurn(
-                    message: content,
-                    attachments: attachments,
-                    into: continuation,
-                    allowStaleHopRetry: true
-                )
+                // #283 slice 3A: the Developer-screen switch picks the turn
+                // TRANSPORT and nothing else — both drivers yield into this
+                // same continuation, so ChatStore never learns which plane
+                // served the turn. Read once, here, so a mid-turn toggle
+                // cannot split one turn across two transports.
+                if self.useRunsTransportProvider() {
+                    await self.streamTurnViaRuns(
+                        message: content,
+                        attachments: attachments,
+                        into: continuation
+                    )
+                } else {
+                    await self.streamTurn(
+                        message: content,
+                        attachments: attachments,
+                        into: continuation,
+                        allowStaleHopRetry: true
+                    )
+                }
                 continuation.finish()
             }
         }
@@ -790,7 +807,9 @@ final class SessionsHermesClient: HermesClientProtocol {
 
     /// GET + decode + map of one session's history — shared by `openSession`
     /// (which adopts it) and `reconcileFromServer` (which must not).
-    private func fetchSessionConversation(_ id: String, profileID: UUID?) async throws -> (sessionId: String, conversation: Conversation) {
+    // runs-path-visible (#283): the runs history pre-fetch reads server truth
+    // through this same GET (N4 — runs WRITE the transcript but never read it).
+    func fetchSessionConversation(_ id: String, profileID: UUID?) async throws -> (sessionId: String, conversation: Conversation) {
         let path = "\(Self.sessionsPath)/\(id)/messages"
         let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json", profileID: profileID)
         let (data, httpResponse) = try await session.data(for: request)
@@ -904,7 +923,8 @@ final class SessionsHermesClient: HermesClientProtocol {
     // MARK: - Hop lifecycle (P1 / OPEN_ITEMS #90)
 
     /// A server session ready to carry the next turn.
-    private struct PreparedHop {
+    // runs-path-visible (#283): both turn drivers take a hop.
+    struct PreparedHop {
         let sessionId: String
         /// True when this call reused a persisted hop — whose server session
         /// may have expired; the 404 stale-hop retry applies only then.
@@ -936,7 +956,9 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// If the priming turn fails, no hop is recorded: the just-created server
     /// session is abandoned and the next attempt re-creates and re-primes —
     /// a little server-side litter, never a silently unprimed session.
-    private func ensureHopForTurn() async throws -> PreparedHop {
+    // runs-path-visible (#283): hop preparation (including the transplant
+    // priming turn, which stays on the SESSIONS plane in 3A) is shared.
+    func ensureHopForTurn() async throws -> PreparedHop {
         if let hop = journal.activeHop, journal.activeHopIsCurrent {
             return PreparedHop(sessionId: hop.apiSessionId, wasReused: true, priming: nil, profileID: hop.profileID)
         }
@@ -1047,7 +1069,9 @@ final class SessionsHermesClient: HermesClientProtocol {
         return try decoder.decode(T.self, from: data)
     }
 
-    private func postJSON<Body: Encodable, T: Decodable>(path: String, body: Body, profileID: UUID? = nil) async throws -> T {
+    // runs-path-visible (#283): the runs submit (`POST /v1/runs`) is an
+    // ordinary JSON post — same encode/status/decode discipline.
+    func postJSON<Body: Encodable, T: Decodable>(path: String, body: Body, profileID: UUID? = nil) async throws -> T {
         let encodedBody = try encoder.encode(body)
         let request = try makeRequest(path: path, method: "POST", body: encodedBody, accept: "application/json", profileID: profileID)
         let (data, response) = try await session.data(for: request)
@@ -1055,7 +1079,9 @@ final class SessionsHermesClient: HermesClientProtocol {
         return try decoder.decode(T.self, from: data)
     }
 
-    private func makeRequest(path: String, method: String, body: Data?, accept: String, profileID: UUID? = nil) throws -> URLRequest {
+    // runs-path-visible (#283): every runs-plane request is built here too, so
+    // auth, base-URL normalization and the #145 timeout split stay one policy.
+    func makeRequest(path: String, method: String, body: Data?, accept: String, profileID: UUID? = nil) throws -> URLRequest {
         let endpoint = try resolveEndpoint(profileID: requestProfileID(profileID))
         guard let url = URL(string: normalizedBaseURL(endpoint.baseURL) + path) else {
             throw SessionsClientError.notConfigured("Hermes API base URL is not set.")
@@ -1496,7 +1522,8 @@ final class SessionsHermesClient: HermesClientProtocol {
         return results
     }
 
-    private func failureMessage(for error: Error) -> String {
+    // runs-path-visible (#283): one failure-text policy across both planes.
+    func failureMessage(for error: Error) -> String {
         if let sessionsError = error as? SessionsClientError {
             return sessionsError.errorDescription ?? "Hermes API request failed."
         }

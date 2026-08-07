@@ -460,6 +460,7 @@
 		E06742071CFCB7AFF63C1F08 /* Icon-DeepField@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 31AF84E49DFBC89FAE4AD725 /* Icon-DeepField@3x.png */; };
 		E0A2060FDDE72120642D0D29 /* IconPreview-BubblegumMecha.png in Resources */ = {isa = PBXBuildFile; fileRef = DC5601B3CB25FED88BF723E7 /* IconPreview-BubblegumMecha.png */; };
 		E0D095F1F96D72A550434828 /* MessageListIdentityProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = F44FC928449FEFDDB4ABB8E3 /* MessageListIdentityProbe.swift */; };
+		E0F6DADCB44598B42115F307 /* RunsPlaneTransportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBD6742286DDFB93C517731F /* RunsPlaneTransportTests.swift */; };
 		E23BD96676CCAC2B0DCE3440 /* SensorUploadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABEA0742AA139362CA26B832 /* SensorUploadService.swift */; };
 		E2CC9E9449E1BE51D8077AAA /* CodeSyntaxHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25817220E61CE362BE6D4D9F /* CodeSyntaxHighlighter.swift */; };
 		E2F678F47EA23186FFF960F9 /* RelaySetupCodePayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70B13DA0CB2A5F95326C66C3 /* RelaySetupCodePayload.swift */; };
@@ -990,6 +991,7 @@
 		CACC22C0750EA080EB24C38F /* HermesBriefingWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesBriefingWidget.swift; sourceTree = "<group>"; };
 		CB23EEE4091D1A2F309E9B3C /* MockSessionBootstrapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockSessionBootstrapService.swift; sourceTree = "<group>"; };
 		CB2DC5750CEF76912105266B /* CodeSyntaxHighlighterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeSyntaxHighlighterTests.swift; sourceTree = "<group>"; };
+		CBD6742286DDFB93C517731F /* RunsPlaneTransportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunsPlaneTransportTests.swift; sourceTree = "<group>"; };
 		CCE85A8CE1548ED41FE4180D /* VoiceEngineRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceEngineRouter.swift; sourceTree = "<group>"; };
 		CEAF3310FF6B138C469841C2 /* SpotlightIndexingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightIndexingService.swift; sourceTree = "<group>"; };
 		CF4DD77146A6664BBB6ABC3F /* Talaria.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Talaria.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1268,6 +1270,7 @@
 				A5E8EF024C3134EA534CFABD /* RoutedTrialShapeTests.swift */,
 				7E5D2D9D3E685C1D98187926 /* RouterIntentTests.swift */,
 				83CCF9F3F1E13F2FB42A79B9 /* RunsFrameParserTests.swift */,
+				CBD6742286DDFB93C517731F /* RunsPlaneTransportTests.swift */,
 				92B8758ADF346AF83A9836FB /* RunsTransportSwitchTests.swift */,
 				D7B6A5F0468D6E4D5E4012C1 /* RunsTurnBodyEncodingTests.swift */,
 				AAA0D3900268D098B2590A75 /* SelectedIconHandoffTests.swift */,
@@ -2635,6 +2638,7 @@
 				20A1ED6E62216A11AC9486BC /* RoutedTrialShapeTests.swift in Sources */,
 				60E1156EC7FD9723A78E84BB /* RouterIntentTests.swift in Sources */,
 				AAC0981772760D7B81F36441 /* RunsFrameParserTests.swift in Sources */,
+				E0F6DADCB44598B42115F307 /* RunsPlaneTransportTests.swift in Sources */,
 				F749E3005CC8953DF12F88C5 /* RunsTransportSwitchTests.swift in Sources */,
 				0C915521C5A6BB04C896773A /* RunsTurnBodyEncodingTests.swift in Sources */,
 				D0B904EAE8DA90379BE72433 /* SelectedIconHandoffTests.swift in Sources */,
