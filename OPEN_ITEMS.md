@@ -2724,6 +2724,65 @@ and #129 DoDs on whichever engine is truthfully active. #128/#129 stay open unti
 
 Logged 2026-07-20.
 
+> **Update 2026-08-06 late night — LANE OPENED from batch-2 triage (this
+> item was the sweep's sharpest miss: spec'd, marked READY TO SEND, never
+> dispatched, zero implementation). Phase-1 re-validation FALSIFIED the
+> spec's diagnosis — and found the bug got WORSE on 2026-08-04.**
+> The spec's mechanism ("`isSessionActive` still false during connect")
+> was wrong the day it was written: both engines publish `.connecting`
+> through the event stream before the slow work, so the store IS active
+> and the overlay's teardown DOES fire — it is just ineffective. The real
+> crux: `prepareWebRTC()` returns the peer connection/track/channel as
+> LOCALS (`LiveVoiceSessionService.swift:894-912`); `endSession()` tears
+> down only the properties (`:310-314`), which are nil during the connect
+> window, so the in-flight start later assigns a live connection over the
+> nil'd fields → mic + speaker up, no overlay. Worse, **#247's 12s belt
+> (2026-08-04, `29a9812`) created three NEW zombie routes**: the router's
+> fallback (`VoiceEngineRouter.swift:241-252`) starts a LIVE LOCAL MIC
+> after dismissal on `.failed`, `.idle`, and belt-timeout resolutions.
+> Both engines affected (realtime directly; native via the router);
+> standalone-native not source-provable either way. The spec's "don't
+> touch NativeVoicePipelineService (#128 owns it)" constraint is expired
+> (#128 closed 2026-08-01). Fix shape F1-F4: TalkStore generation counter
+> + unconditional `abandonSession()`; router start-generation guard on
+> the fallback block; an `isEndingSession` guard at realtime's
+> post-bootstrap seam (the one change that stops the mic coming up at
+> all); overlay dismissal paths call abandon (camera hedge preserved).
+> D3/D4 (honest-failure copy + fallback-truth surface) recommended to
+> SPLIT into a sibling item — Owen's morning call.
+>
+> **BARS — written 2026-08-06 late night BEFORE any phase-2 code:**
+> - **139-A (unit):** a voice service resolving `startSession()` AFTER
+>   `abandonSession()` ends with `isSessionActive == false`, no
+>   `.connected`, ZERO `liveActivity.startVoiceSession()` calls, and
+>   exactly one extra `endSession()` (the stale-return belt). RED today.
+> - **139-B (unit):** `abandonSession()` during `.connecting` with
+>   `isSessionActive == false` (the prefix window) still calls
+>   `voiceService.endSession()` — the `guard isSessionActive` hole gone.
+> - **139-C (unit, the #247-created path):** router with a slow realtime
+>   start and `endSession()` mid-flight ends with `native.startCalls == 0`
+>   for ALL THREE resolutions (`.failed`, `.idle`, belt-timeout). This is
+>   the bar that stops a dismissed session starting a live local mic.
+> - **139-D (unit):** realtime with `isEndingSession == true` at the
+>   post-bootstrap seam never reaches `.connected`, never enables audio.
+> - **139-E (unit, no-regression):** happy path unchanged; start→abandon→
+>   start lands only the newest generation; the 500ms camera hedge still
+>   holds; and the four existing #247 router tests stay green UNMODIFIED
+>   — if the fix forces an edit to any of them, the fix shape is
+>   falsified, not the test.
+> - **139-F (device, Owen, ENGINE-TAGGED per #220):** dismiss during
+>   ESTABLISHING LINK / LOCAL VOICE · STARTING against a slow/dark host,
+>   wait ≥60s: no audio, no Live Activity, mic indicator never lights —
+>   BOTH arms (hermes-paired realtime incl. the fallback branch; on-device
+>   native), BOTH origins (composer + settings), each verdict quoting the
+>   `voice session starting on engine …` log line. A run that cannot name
+>   its engine does not count.
+>
+> Adjacent finding flagged (not asserted): reachable states where
+> realtime is never attempted (`canStartSession` false + overlay skipping
+> readiness) would produce observation (1)'s label lie — settleable for
+> free from the engine log line during 139-F.
+
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
 
 **Accuracy half DONE 2026-07-20 (`3367626`).** README status table corrected: voice row now
@@ -4929,6 +4988,27 @@ and a wake-path integration test that fails on a full-cycle delivery.
 > **Remaining: three consecutive sub-3s `talaria_phone_query` answers from
 > Owen's foregrounded phone on the Mac profile (was 25.0s deterministic);
 > then this closes and (a) survives only as the WATCH.**
+
+> **Update 2026-08-06 22:49-50 — 263-G MET. The (b) half of this item is
+> DONE end to end; the entry stays open ONLY as the (a) WATCH.** Owen ran
+> three consecutive steps queries on the Mac profile (screenshot: Mac Mini
+> ACTIVE, plugin link paired; build 2107). `agent.log`, verbatim:
+> `22:49:47 query delivered … enqueue_to_drain=0.001s` → tool completed
+> 0.15s · `22:49:58 … enqueue_to_drain=0.001s` → 0.21s · `22:50:11 …
+> enqueue_to_drain=0.016s` → 0.07s. Three for three, tool waits under a
+> quarter-second, from a 25.00s deterministic floor. (Orchestrator's
+> wrong turn recorded: the instrumentation lines live in `agent.log`, not
+> `gateway.log` — an "it was OJAMD" misread stood for ~10 minutes until
+> Owen's profile screenshot corrected it.) **WATCH observation, first
+> breadcrumb:** a SECOND `transport module loaded` stamp appears at
+> 22:49:23 in `agent.log` with DIFFERENT module/hub ids than the 22:33:24
+> boot stamp in `gateway.log` — either two processes each writing their
+> own log (benign; disambiguate cheaply via `hermes talaria status`
+> process-local counters or PID logging) or a genuine same-process
+> re-execution (route 2 of the split shape, live). The queries delivered
+> fine either way. This is exactly the breadcrumb the counters were built
+> to leave; chase it on the next gated-against-live-phone incident, or
+> add a PID to the load stamp when the lane next touches transport.py.
 
 ## 262. 🎨 Artifact chip placement is not stable across the finish boundary — inline at the generation point mid-turn, then JUMPS to end-of-response at `run.completed` — **FILED + ROUTED 2026-08-06 late evening (from 258-E's device pass; Owen picked "lane, queued behind #260")**
 
