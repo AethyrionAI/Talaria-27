@@ -176,6 +176,8 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#189** 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and …
+- **#275** 🐛 A dictated turn is invisible to the producing-turn search — regenerate/retry truncate the WRONG history …
+- **#274** 🔧 Three implementations of one truncation primitive, two of them in the View; `/undo` never persists …
 - **#273** 🗃️ #261 extended to `dispatch/` and `design/` — the security-mechanics split is a STANDING rule, not a one-file cleanup …
 - **#272** 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode …
 - **#271** 🖥️ #251 SLICE 2D — OJAMD rollout: install the talaria plugin on the production host, re-run the 2A bars there …
@@ -1533,6 +1535,95 @@ device: long-press each bubble type; copy/share/select prose; regenerate a
 mid-history reply (verify truncate-from-that-turn); edit-and-resend with and
 without attachments; confirm no menu on a streaming bubble and no
 Regenerate/Edit while another run streams.
+
+> **Update 2026-08-07 — DEVICE FAIL on the regenerate bar (OTA 2120), and
+> the diagnosis is worse than the symptom. LANE OPENED.** Owen, running the
+> consolidated pass: *"I regnerated the 10:50pm, and it never showed that I
+> did anything today until I responded to that regeneration. And it put it
+> below the previous answer I regenerated."* Also, on edit-and-resend:
+> *"was weird. worked technically."*
+>
+> **Mechanism (source-read, not inferred).** The truncation is PRESENT and
+> CORRECT — `ChatStore.regenerateReply` does `messages.removeSubrange(userIdx...)`
+> with sound index math, unconditional on last-ness, unchanged since
+> `a31cbe9` (2026-07-08). **It is then undone.** `ChatStore` treats the
+> backend's own `currentConversation` as an authoritative refresh source and
+> merges it back over the local transcript at the end of every turn, again
+> every 2s while a row is `.sending`, and once more on the fallback path —
+> and **no truncation ever touches that mirror**
+> (`LocalChatBackend.currentConversation` is appended per turn;
+> `SessionsHermesClient`'s is the last server fetch). `mergeConversationMetadata`
+> takes the refresh source as the BASE ordering, so the removed reply is
+> restored IN PLACE and the regenerated one is appended at the TAIL —
+> dedupe keys on sender+content+timestamp, so both survive. That is symptom
+> one exactly. Symptom two is the same cause seen from the viewport: the
+> region Owen was watching reverts to byte-identical pre-regenerate state
+> within one poll tick, the new reply is off-screen at the bottom, and the
+> scroll-to-bottom is suppressed for the whole streaming window — his next
+> send is what finally scrolled it into view. **Not a publish/observation
+> bug; the view faithfully rendered a store whose content was put back.**
+>
+> **Edit-and-resend has the SAME defect with a crueller shape:** it
+> truncates, nothing sends at that moment so no merge runs, it LOOKS
+> correct — and the truncation is wiped the moment the user taps send.
+> "Worked technically" is precisely that.
+>
+> **The bar was never satisfiable as written.** The merge predates #44 by
+> the whole project (it rides the original fork rename). #44 was built on a
+> store that structurally re-adopts the backend's copy of the transcript
+> and nobody closed the loop. The entry's existing caveat — "the server
+> session retains the old turns as CONTEXT" — understates it: the old turns
+> come back into the RENDERED TRANSCRIPT.
+>
+> **Why the suite is green:** `ChatStorePersistenceTests` asserts exactly
+> the right thing and passes, because its double never populates
+> `currentConversation`, so the merge returns the local truncated
+> conversation untouched. The resurrection path is structurally absent from
+> the fixture. **The test is correct; the double is the lie** — the
+> green-certifies-broken family again (#258, #259).
+>
+> **Fix shape (routed):** one truncation primitive the backends adopt —
+> a defaulted `adoptTruncatedConversation(_:)` on `HermesClientProtocol`
+> (no new files → no xcodegen), implemented by `LocalChatBackend` (which
+> must ALSO nil its `LanguageModelSession` — the live session holds its own
+> transcript, so without that the "re-roll" re-asks with the original
+> answer still in context) and by `SessionsHermesClient`; the router
+> forwards to BOTH backends (truncation is a property of the thread, not a
+> brain — #192 can flip brains mid-thread); `ChatStore` calls it right
+> after each `removeSubrange` and gains the cache save `regenerateReply`
+> is missing. **Honest limit to keep, not overstate:** on the Hermes path
+> this fixes our mirror but cannot survive an `openSession` re-fetch — the
+> server transcript is authoritative and still holds the turns.
+>
+> **BARS — written 2026-08-07 BEFORE any code. The unit pins MUST use a new
+> double that mirrors the transcript; reusing the existing one would
+> re-certify the bug.**
+> - **78-A (unit, fails today):** with a mirroring double, regenerate a
+>   mid-history reply of a 4-turn history → `messages.count == 2`.
+> - **78-B (unit, fails today):** same setup — the original reply row is
+>   ABSENT and `messages.last` is the new reply.
+> - **78-C (unit, fails today):** poll-tick pin — one `loadConversation()`
+>   merge after a truncation leaves the truncated rows gone.
+> - **78-D (unit, fails today):** edit-and-resend durability — after the
+>   resend settles, the extracted turn and everything after it stay absent.
+> - **78-E (unit, fails today):** mechanism pin — after a truncation the
+>   backend's mirror equals the truncated list AND its session is nil.
+> - **78-F (device, Owen):** on the local brain, regenerate a previous-day
+>   mid-history reply: it and everything below vanish AT THE TAP; the new
+>   reply appears AT THAT POSITION; 10s later (two poll ticks) and after a
+>   background/foreground, the removed turns have NOT reappeared; force-quit
+>   + relaunch — still absent. Any reappearance falsifies.
+>
+> Adjacent findings spun out rather than folded in: **#274** (three
+> implementations of one truncation primitive, two of them in the View,
+> `/undo` never persisting) and **#275** (`.voiceUser` invisible to the
+> producing-turn search — a data-destruction path, not cosmetic). Two
+> smaller residuals stay here for the fix to absorb: `regenerateReply` can
+> truncate and then return without sending if `sendMessage`'s duplicate
+> guard swallows the byte-identical re-send (history destroyed in memory,
+> nothing sent, nothing persisted), and `regenerateReply` emits no log line
+> at all — one `chatLog.notice` would have settled this diagnosis in a
+> minute instead of a file-by-file trace.
 
 ---
 
@@ -4803,6 +4894,37 @@ Manual/Off app lane).**
 > slice 3B** (`design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §2.2). Note that
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
+
+## 275. 🐛 A dictated turn is invisible to the producing-turn search — regenerate/retry truncate the WRONG history and re-send the wrong prompt — **FILED 2026-08-07 from #78's diagnosis; data-destruction class, not cosmetic**
+
+`ChatStore.regenerateReply` finds the turn that produced a reply by scanning
+backwards for `$0.sender == .user` — and `.voiceUser` is a distinct sender
+case. So when the producing turn was DICTATED, the scan skips it and finds
+an **earlier text turn**, truncating far more history than the user asked
+for and re-sending the wrong prompt. `retryMessage` shares the assumption.
+
+Neither symptom is visible until it happens to a mixed voice/text thread,
+which is exactly how Owen uses the app. **Filed separately from #78 because
+its fix is a sender-set correction, not the mirror-adoption work** — but
+78's lane should not ship without it, since 78's own bars pass on
+text-only threads while this stays broken.
+
+**Bars pre-register here before any code.**
+
+## 274. 🔧 Three implementations of one truncation primitive, two of them in the View; `/undo` never persists — **FILED 2026-08-07 from #78's diagnosis**
+
+`/retry` and `/undo` each mutate `chatStore.conversation?.messages`
+directly from `ChatScreen`, duplicating what `ChatStore.regenerateReply`
+and `extractTurnForEditing` do — three implementations of one operation,
+two of them in the view layer. Both View paths carry #78's resurrection
+defect by construction, and **`/undo` never saves the conversation cache at
+all**, so its effect does not survive a relaunch even before the merge
+undoes it.
+
+Fix shape: collapse to a single `ChatStore` truncation primitive (the same
+one #78's lane introduces) and have every caller route through it. Cheap
+once #78 lands; pointless before it. **Bars pre-register here before any
+code.**
 
 ## 273. 🗃️ #261 extended to `dispatch/` and `design/` — the security-mechanics split is a STANDING rule, not a one-file cleanup — **✅ SWEPT 2026-08-07. One category found, four places, all the same #21 example. Rule written down here so it is not rediscovered a third time.**
 
