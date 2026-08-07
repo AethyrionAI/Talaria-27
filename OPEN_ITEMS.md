@@ -4972,6 +4972,98 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
+## 283. 🔧 Phase 3 slice 3A — runs transport parity (`chat/stream` → `/v1/runs` + `/events` behind a Developer switch) — **LANE OPENED 2026-08-07 (Owen: "begin on phase 3" — Q2 of the plan's §5 answered; the other eight questions stand as recommended/pending and none blocks 3A). Plan of record: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`; parent arc #251; say "Plan C Phase 3" per #268.**
+
+**3A-0 BLOCKING PROBE — ✅ ANSWERED 2026-08-07 before any code, as the plan
+required (read-only, live Mac gateway 0.20.0 @ `01a1037d1`, no install
+modification, probe session `api_1786118893_f3250a12`; full transcript + the
+reproducible script =
+`planning/superpowers/research/251-phase3-gap/I-3a0-persistence-attachment-probe.md`):**
+
+- **N4 is a SPLIT the plan's either/or didn't anticipate: runs WRITE the
+  SessionDB row but never READ it.**
+  - **Write ✓** (`run_ce5c0a77…`): a `/v1/runs` turn carrying an existing
+    `session_id` landed BOTH rows — user prompt and assistant reply, verbatim,
+    reasoning column populated — in the exact row
+    `GET /api/sessions/{id}/messages` reads. Mechanism (code-read): both planes
+    share `_create_agent(session_db=…, session_id=…)` and
+    `run_conversation` → `turn_finalizer:410` → `_persist_session` →
+    `_flush_messages_to_session_db`. **So server-side history, `openSession`,
+    fork, and the #190 local store survive the migration unchanged.**
+  - **Read ✗** (`run_db145f01…`): a second run on the SAME `session_id`, asked
+    for the first run's marker word, did not have it — `_handle_runs` passes
+    `conversation_history=[]` (`api_server.py:6329-6360` builds only from the
+    request body or `previous_response_id`; nothing loads from the DB), where
+    the chat plane calls `_conversation_history_for_session` server-side
+    (`:3584`). The reply ("BANANA") came from the long-term-memory scope — a
+    2-day-old steering-probe leftover — which is its own lesson: **runs tap
+    long-term memory like chat does, so continuity failures will
+    HALLUCINATE plausibly rather than fail loud. S29's keep-sending-the-key
+    rule stays load-bearing.**
+  - **`previous_response_id` is NOT the fix:** only the `/v1/responses`
+    handlers `put()` into the response store (`:4557`, `:5352`);
+    `_handle_runs` only reads (`:6349`). A completed run stores nothing.
+  - **Design consequence (the app supplies context per turn), options for the
+    slice:** (i) send the app-local thread as `conversation_history`, or
+    (ii) pre-fetch `GET /api/sessions/{id}/messages` → build history from
+    server truth (which the write half keeps current, including runs' own
+    turns). (ii) matches today's chat-plane fidelity; (i) saves a round trip
+    and drops tool-call detail. Decide inside the slice; bar 3A-G pins the
+    outcome either way.
+
+- **N9 ANSWERED: the app's exact `ChatTurnBody` attachment shape is DEAD on
+  `/v1/runs`; the message-array wrap works end-to-end.**
+  - The parts-array body the app sends today
+    (`input: [{type:text,…},{type:image_url,…}]`,
+    `SessionsHermesClient.swift:1698`) → **400 "No user message found in
+    input"**, both part orders — `_handle_runs` treats a list input as a
+    MESSAGE array and reads `raw_input[-1].get("content")` (`:6320`), which no
+    content-part has.
+  - `input: [{"role":"user","content":[<same parts>]}]` → 202, run completed,
+    and the agent SAW the image (answered the 8×8 red-PNG fixture's color
+    correctly; chat-plane control on the same parts answered identically,
+    kimi-coding/kimi-k3).
+  - **Caveat carried to the slice:** the runs path never calls
+    `_normalize_multimodal_content` (`:550`) — parts reach the agent
+    unvalidated, so the client keeps its own data:image-only + size
+    discipline, and server-side rejection of bad parts cannot be relied on.
+  - Text-only turns are unaffected (plain-string `input` is the arm-1 shape).
+
+**BARS (pre-registered here per #215 before any code; refined from the plan's
+§3 sketch with the probe's answers):**
+- **3A-A (decode, unit):** captured runs frames decode to the same
+  `StreamingUpdate` sequence the sessions frames produce for an equivalent
+  turn — including reasoning (N3's `reasoning.available`) and usage.
+- **3A-B (recovery, unit + integration):** a turn whose `/events` stream is
+  killed mid-flight still delivers the final answer via status polling,
+  exactly once, with usage — the #237 duplicate shape explicitly pinned
+  absent.
+- **3A-C (stop, device):** Stop on a long tool actually stops host-side work
+  (contrast: today's Stop leaves the worker running, S24). Evidence = the
+  host's own log, not the app's UI.
+- **3A-D (artifacts, honesty):** with 3D not yet built, an agent-written file
+  on the runs plane renders a chip with NO fabricated content — absence is
+  honest, invention is a bar failure.
+- **3A-E (gate):** `scripts/mac/lane-gate.sh` PASS, units AND Release, unit
+  count MOVED.
+- **3A-F (device, Owen):** one real remote conversation end-to-end on the runs
+  path, including a tool-using turn and a stream killed by backgrounding the
+  app.
+- **3A-G (history continuity — NEW, from N4's read-✗):** on the runs path,
+  turn N+1 demonstrably sees turn N's content (the probe's marker-word shape,
+  automated), and a device thread resumed via `openSession` shows the same
+  transcript the sessions plane would have shown. A run that answers from
+  long-term memory instead of supplied history is a FAILURE of this bar, not
+  a pass — assert the marker, not just a non-empty answer.
+- **3A-H (attachments — NEW, from N9):** an image turn on the runs path
+  reaches the agent (message-array wrap) and answers about the image
+  correctly; AND the parts-array body shape is unreachable from production
+  code on the runs path (the 400 is a shape our client can no longer emit).
+
+Sessions path stays intact and default until 3A-F passes; the runs client
+ships behind a Developer switch (plan §5 Q3 as recommended — dual path during
+3A only, wholesale at 3E).
+
 ## 282. 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` user row can eat the claim minted by a LATER identical prompt and silently leave the transcript — **FILED 2026-08-07 by the tracker tidy pass, carried verbatim out of #281's closure so it does not sit in the archive unnumbered. NOT STARTED — no lane, no bars, and the scope question is Owen's call.**
 
 **Why this has a number.** #281 closed the same day with every bar met and
@@ -6596,6 +6688,19 @@ falsification, not a redefinition):**
   XCUITest + Release, unit count moved by the net new tests.
 2A-A/B/C/F are device bars (Owen's pass, likely tomorrow); D/E/G close
 build-side.
+
+> **Update 2026-08-07 — PHASE 3 OPENED (Owen: "begin on phase 3").** That
+> instruction answers the plan's §5 Q2 (Phase 3 now, ahead of #271/2D); the
+> remaining §5 questions stand as recommended/pending and none blocks slice
+> 3A. The slice lane is **#283**, which owns 3A's bars per the phase-name-
+> is-not-a-filing rule (#268). The plan's blocking probe **3A-0 ran the same
+> day, before any code: N4 = runs WRITE SessionDB but never READ it (history
+> must be app-supplied; `previous_response_id` is not an option — runs never
+> store responses); N9 = the app's parts-array attachment shape 400s on
+> `/v1/runs`, the message-array wrap works end-to-end.** Full evidence and
+> the two new bars it forced (3A-G history continuity, 3A-H attachments) are
+> in #283; `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §1.6 N4/N9
+> carry the same answers as dated ANSWERED notes.
 
 **✅ 2A BUILT OVERNIGHT 2026-08-06 (~23:00–02:30), subagent-driven
 (sonnet/opus implementers+reviewers, FABLE whole-branch review), merged
