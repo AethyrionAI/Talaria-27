@@ -4545,6 +4545,25 @@ the half that needs nothing upstream: let the composer stay unlocked
 while a turn streams, hold the composed message app-side, and post it
 when `run.completed` lands.
 
+**CORRECTION, same night (Owen caught it: "I thought we had found and
+even tested steering and made it work"):** the paragraph above is
+TRUE-BUT-STALE for the plugin plane. The 2026-08-06 solo-day probes
+PROVED steering twice on the wire — tui `session.steer` mid-tool-call
+(answer changed), and the runs plane via our plugin's in-process reach
+(`APIServerAdapter._active_run_agents`; control run BANANA → steered run
+PLUM). The 156f "parked" verdict applies only to the bare Sessions API.
+Steering therefore rides the **Phase 3 runs migration** (approvals +
+steering + poll-recovery, one plugin-bundled lane — see the solo-day
+handoff), gated on Owen's Phase-3 sit-down. **The steer constraint
+(Owen called it; probe confirmed):** a steer is consumed at the next
+TOOL-RESULT boundary; mid-prose it is silently dropped and the RPC still
+answers `{"status":"queued"}` — a false-positive ACK. Any steer UI gates
+on "a tool is running or expected" and never treats queued as applied.
+**This makes #267's queuing the complement, not the consolation:** steer
+covers mid-tool injection; queue-at-run-end covers exactly the prose
+phase where steer drops. Design them as one composer behavior when
+Phase 3 lands.
+
 **Scope sketch (route before building):** composer unlock during
 streaming · an app-held queue (likely depth 1 to start — a "next
 message," not a mailbox) · visible state ("queued — sends when this turn
