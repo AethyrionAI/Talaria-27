@@ -176,6 +176,8 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#189** 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and …
+- **#266** 🗃️ Separate the board by actionability — notes, decision records, and waiting items out of the way so …
+- **#265** 🎨 Artifact chip anchor can split a word — snap the anchor back to the last word boundary …
 - **#264** ⚠️ A bounced gateway can come up WITHOUT the chat plane: api_server loses the :8642 bind race and never …
 - **#263** 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton; the enqueue wake misses the …
 - **#262** 🎨 Artifact chip placement is not stable across the finish boundary — inline at the generation point …
@@ -4531,6 +4533,50 @@ Manual/Off app lane).**
 > ungated under mode=off. Also learned: `approvals.cron_mode: deny` — cron
 > runs deny side effects silently under current config. Item stays SHELVED;
 > the #251 venture's interactive half is now the natural reopen path.**
+
+## 266. 🗃️ Separate the board by actionability — notes, decision records, and waiting items out of the way so OPEN_ITEMS reads as "what we need to work on" — **FILED 2026-08-06 late night (Owen: "we should probably separate the doc notes and other things from open items, so that its truly only 'open' items. Then, we'll know what we need to work on"); the successor to #261's archive split**
+
+The oldest-20 triage (2026-08-06) put numbers on the problem: of 20 items,
+only ~13 were GENUINELY-LIVE, and the rest were convention notes, decision
+records, waiting-on-external items, and stale text. "Open" currently means
+"not closed," which is a weaker claim than "actionable."
+
+**Proposed taxonomy (from the triage buckets, which worked):** ACTIONABLE
+(work someone could route today) · DECISION-OWED (Owen's call blocks it) ·
+WAITING (external event: Apple grants, upstream merges) · WATCH (defect
+shape known, counters in place, waiting for recurrence — e.g. #263(a),
+#254) · notes/records → archive, as tonight's precedent already does.
+
+**Shape options for routing (pick one when this lane opens):**
+- (a) SECTIONS within OPEN_ITEMS.md — one file, entries grouped under
+  status headers, item moves between sections as status changes. Cheapest;
+  keeps one numbering home; the INDEX groups by section for free.
+- (b) A third file for WAITING/WATCH — keeps the live file shortest but
+  adds a third place to rot; counting rules must span three files.
+- Lean: (a). The archive already absorbs terminal text; what remains is
+  grouping, not another split. Numbering stays one monotonic sequence
+  regardless.
+
+**Prerequisite:** the oldest-to-newest triage sweep finishes classifying
+all ~100 live items (batches of 20, underway). The re-org executes once,
+with a verifier in the #261 style proving nothing was lost.
+
+## 265. 🎨 Artifact chip anchor can split a word — the #262 pin is honest but lands mid-token ("The file lan ⟨card+chip⟩ ded at ~/…") — **FILED 2026-08-06 late night from Owen's first 262-E screenshots on OTA 2107**
+
+Observed on the first #262 device run: Deepseek-flash narrated across the
+write ("…The file landed at…") and the tool fired mid-word, so the anchor
+(content length at fire time) split "landed" into "lan" / "ded" around the
+tool card + chip. Placement is stable — the #262 bars all held — this is
+purely where the split point falls when the model narrates THROUGH a tool
+call instead of pausing at a sentence boundary.
+
+**Fix shape (small, display-side):** when building the transcript layout,
+snap each anchor BACK to the last whitespace/newline at-or-before the raw
+offset before emitting the text split (clamp math otherwise unchanged;
+equal-anchor grouping still applies after snapping). Pure function change
+in `MessageBubble.transcriptLayout` — the stored anchor stays raw and
+honest; only the rendered split moves. Bars pre-register here before any
+code, per convention.
 
 ## 264. ⚠️ A bounced gateway can come up WITHOUT the chat plane: api_server loses the :8642 bind race to the dying process's socket and NEVER RETRIES — **FILED 2026-08-06 late night (bit us live, mid-device-pass); upstream Hermes behavior, ops rule until fixed**
 
