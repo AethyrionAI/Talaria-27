@@ -4578,6 +4578,27 @@ in `MessageBubble.transcriptLayout` — the stored anchor stays raw and
 honest; only the rendered split moves. Bars pre-register here before any
 code, per convention.
 
+**BARS — written 2026-08-06 late night BEFORE any code:**
+- **265-A (unit, the snap):** an anchor landing mid-word renders its split
+  at the last whitespace at-or-before the raw offset — the haiku shape
+  ("The file lan⟨items⟩ded at…") becomes "The file " ⟨items⟩ "landed at…".
+  The STORED `anchorOffset` stays raw — pinned by asserting the model value
+  is unchanged by rendering.
+- **265-B (unit, ordering preserved):** snapping never reorders or
+  un-groups — equal raw anchors still share a group after snapping; two
+  different raw anchors that snap to the same boundary merge into one
+  anchor point with tools-before-chips order preserved; a snapped anchor
+  never moves before the walk cursor (the existing clamp still binds).
+- **265-C (unit, degenerates):** an anchor already at a boundary is a
+  no-op; an anchor inside a run with no whitespace before the cursor
+  clamps to the cursor; out-of-range anchors clamp exactly as today
+  (#10's clamp pin stays green untouched).
+- **265-D (gate):** full lane gate green, unit count MOVED, Release
+  included.
+- **265-E (device, Owen):** re-run the narrate-through-a-write shape — the
+  split lands on a word boundary (no "lan/ded"), and #262's stability
+  semantics are unchanged (chip under the card, no movement, tappable).
+
 ## 264. ⚠️ A bounced gateway can come up WITHOUT the chat plane: api_server loses the :8642 bind race to the dying process's socket and NEVER RETRIES — **FILED 2026-08-06 late night (bit us live, mid-device-pass); upstream Hermes behavior, ops rule until fixed**
 
 Observed live: `kill` on the listener → the old process's shutdown logged
