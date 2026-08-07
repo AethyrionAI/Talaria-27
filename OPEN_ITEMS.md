@@ -2181,6 +2181,23 @@ Both competitors personalize across conversations; the continuity fabric (#93, m
 
 Logged 2026-07-11.
 
+> **Update 2026-08-07 (momentum report, validated — see
+> `planning/reports/2026-08-07-open-source-momentum-report.md` and #284's
+> filing note):** when this lane opens, shape it as LAYERED,
+> PROVENANCE-CARRYING, PRIVACY-SCOPED memory rather than a flat facts
+> store. Three keeps from `TencentCloud/TencentDB-Agent-Memory` (verified
+> real, active, and genuinely Hermes-integrated — badge + supported-platform
+> listing + reused Hermes Agent code): (1) the L0 conversation → L1 facts →
+> L2 project → L3 stable-preferences layering; (2) every derived item keeps
+> provenance back to the journal entries that caused it — which yields the
+> user-facing "why does Talaria remember this?" answer on the Memory
+> screen; (3) a privacy class per item (ordinary → auto-extractable;
+> sensitive → session-only unless explicitly saved; ephemeral → never
+> durable) — load-bearing here because the phone brain sees HealthKit/
+> location/contacts data that must not silently become permanent profile
+> facts. The journal REMAINS canonical; durable memory stays derived. Study
+> the repo for retrieval/provenance architecture; do not import a runtime.
+
 ## 109. 📝 True iPad multi-window — gated on a store-layer concurrent-scene audit (J-2 follow-up)
 
 Lane J PR 1 ships single-window-by-policy (`SingleWindowPolicy`, #108): `UIApplicationSupportsMultipleScenes` must stay true for CarPlay, so "New Window" / Stage Manager "+" affordances exist but a second app window scene is destroyed on connect. Lifting this properly requires auditing `ChatStore`/`AppContainer` (and every `@State`-held presentation shell: sessions drawer, model selector, composer text) for concurrent scene observation — two windows sharing one `@Observable` store graph means shared composer drafts, shared drawer state, racing scroll proxies, and double-driven streaming UI. Also decide per-window vs shared conversation identity (probably: second window = same conversation read-only, or independent conversation via scene-scoped selection). Until then the refusal stands. Cheap first rung if ever wanted: allow a second window only for the DEBUG GenUI harness (#106) or a future preview surface (#99), which don't touch ChatStore.
@@ -4972,6 +4989,48 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
+## 284. 💡 CAPABILITY BROKER for the local brain — capability discovery + selective typed-tool arming over ONE registry (native tools / MCP / Skills / Hermes-side) — **FILED 2026-08-07 from the open-source momentum report (`planning/reports/2026-08-07-open-source-momentum-report.md`), on Owen's instruction ("create / update open items for the ones we want to implement later"); claims VALIDATED same day against tracker, code, and the external repos. NO LANE, NO BARS — post-Phase-3 candidate by the report's own ordering; Owen routes.**
+
+**The idea (OpenWork's pattern, adapted):** instead of arming the full belt
+into every armed turn, the local brain gets a minimal belt + a discovery
+step — a CapabilityBroker searches one registry (native device tools,
+connected MCP capabilities later via #150, installed Skills per #163,
+Hermes-side capabilities) and re-arms the session with ONLY the applicable
+**strongly typed Swift `Tool`s**. Explicitly NOT a generic JSON executor —
+the typed-Tool discipline is the part of Talaria worth keeping. Pattern
+source validated 2026-08-07: `different-ai/openwork` really does expose
+`search_capabilities`/`execute_capability` as its agent surface.
+
+**Why it earned a number — it addresses three filed items at once, and the
+grounding checks out in code:**
+- **#257** (belt under-sold): the armed-branch capability blurb is a
+  HAND-WRITTEN PROSE STRING at `LocalChatBackend.swift:1845`, already stale
+  (misses `deviceStatus`, `readImageText`, `readBarcode`, …) — a registry
+  would GENERATE "what can I do?" from the belt itself. This is #257's root
+  cause, confirmed by the validation pass.
+- **#229** (closed; numbers stand): the belt alone measured ~18% of the
+  8,192-token window, belt + starting transcript ~41% — selective arming is
+  the structural relief valve beyond the toolless-routing cure.
+- **#150** (MCP client, parked post-launch): MCP multiplies capabilities;
+  injecting every schema into an 8k window does not scale. The broker is
+  the shape #150 lands into.
+- Adjacent, not drivers: **#253** (an AUTO route could consult the same
+  registry + descriptors), **#163** (a Skill could declare required
+  capabilities instead of loading everything).
+
+**Where it would live:** the belt already has ONE build site
+(`DeviceToolBelt.swift:16-92`, combined at `AppContainer.swift:957`) and ONE
+per-turn arming gate (`LocalChatBackend.effectiveOfferedTools`,
+`LocalChatBackend.swift:1215-1230`; image-filtering in
+`DeviceToolBelt.offeredTools`) — the seam exists; no registry/descriptor
+type exists today (`DeviceCapability` is OS permission status, unrelated).
+Descriptor sketch banked in the report (id / semanticDescription / source /
+riskClass / permissions / privacyClass / availability / argumentSummary).
+
+**Bars pre-register HERE before any code.** First bar candidate when a lane
+opens: a fresh session's "what can you do?" names the full belt (the #257
+screenshot shape, inverted), measured per the #200-series discipline.
+
 ## 283. 🔧 Phase 3 slice 3A — runs transport parity (`chat/stream` → `/v1/runs` + `/events` behind a Developer switch) — **LANE OPENED 2026-08-07 (Owen: "begin on phase 3" — Q2 of the plan's §5 answered; the other eight questions stand as recommended/pending and none blocks 3A). Plan of record: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`; parent arc #251; say "Plan C Phase 3" per #268.**
 
 **3A-0 BLOCKING PROBE — ✅ ANSWERED 2026-08-07 before any code, as the plan
@@ -5394,6 +5453,19 @@ rollout)."* It is called "the Phase 2 design star" in #251.
 **Bars pre-register HERE before any code** — and given this lane is mostly
 prose the model must produce, the #200-series discipline applies: measure the
 behaviour, do not assume the instruction landed.
+
+> **Update 2026-08-07 (momentum report, validated):** the pattern itself got
+> external confirmation — `different-ai/openwork` ships install-via-an-
+> existing-AI-agent as a first-class path, so #251's "the agent is the
+> installer" shape is convergent, not exotic. One SHARPENING to adopt when
+> this opens: the verification step must be MACHINE-VERIFIABLE, never the
+> agent's prose. The app already plans to "probe to verify" (#251); make
+> that probe deterministic — plugin name, version, protocol version,
+> capability list, and an explicit installation state, so a partial or
+> stale install is DETECTABLE and the app never renders 👍 off "Done!".
+> Rides the existing authenticated plugin surface (pair/status family), not
+> a new endpoint invented for it. Source + validation:
+> `planning/reports/2026-08-07-open-source-momentum-report.md`, #284 note.
 
 ## 268. 🗺️ ROADMAP MAP — the four phased plans in this project, what phase each is on, and where its detail lives — **FILED 2026-08-06 late night (Owen: "we had done phase 0, 1, and 2 I believe and 3 was next up. We need to dredge that plan back up because I fear we may have lost the rest of it, if it wasn't filed"). A MAP, not a copy: one line per piece, each pointing at the doc that owns it.**
 
@@ -6314,6 +6386,19 @@ reality). If ever routed: it's a chat-transport feature, not a settings
 feature; it would interact with #251 Phase 3 (runs migration) and the #215
 routed-production discipline. Nothing owed.
 
+> **Update 2026-08-07 (momentum report, validated):** if this maybe ever
+> routes, borrow ONE thing from the router ecosystem — **transparency, not
+> infrastructure**. `diegosouzapw/OmniRoute` (cite exactly that repo — the
+> name collides with several low-star forks; verified 2026-08-07) makes
+> every routing decision explainable (quality/latency/cost/quota/context/
+> provider-health). Talaria's version: the route chip says WHY ("Hermes —
+> image attached, ~11k context, exceeds local window" / "On Device — fits
+> local, no remote capability needed"). Keeps AUTO deliberate, debuggable,
+> and honest about privacy behavior. Hermes keeps owning model/provider
+> routing server-side; Talaria never grows a gateway. Would consult #284's
+> registry if that files into a lane. Source:
+> `planning/reports/2026-08-07-open-source-momentum-report.md`.
+
 ## 252. 🎨 SETTINGS REDESIGN — "Subsystem Channels" (Claude Design direction 1c): grid of nine live-telemetry cards ↔ swipeable full-bleed subsystem deck — **ROUTED 2026-08-05 (all four decisions), spec in progress**
 
 **Source:** Claude Design handoff bundle (Owen, 2026-08-05):
@@ -6701,6 +6786,25 @@ build-side.
 > the two new bars it forced (3A-G history continuity, 3A-H attachments) are
 > in #283; `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §1.6 N4/N9
 > carry the same answers as dated ANSWERED notes.
+
+> **Update 2026-08-07 (momentum report, validated — external convergence +
+> one deliberate deferral).** The open-source wave is independently landing
+> on this arc's exact shape: `stablyai/orca` (verified — durable resumable
+> runs, phone-side monitor/steer) and Block's `buzz` (verified — normalized
+> signed event log) both treat agent work as durable, steerable runs, and
+> the report's steering section restates S4's own rule (never render
+> "applied" off a positive ACK). Validation, not new work. The report's one
+> Phase-3 suggestion — a normalized `TalariaEvent` envelope — is
+> **DEFERRED, deliberately**: slice 3A's safety story is that the runs
+> decoder emits the SAME `StreamingUpdate` contract (ChatStore changes zero
+> lines; the sessions path stays the control arm), and re-enveloping
+> mid-migration is the #218 two-paths-one-tested shape. The envelope
+> question is live again at 3B/3C/3D when approvals + steer genuinely grow
+> the update vocabulary — weigh it there, against the fact (N1, probe-
+> proven) that the real runs wire has no artifact event at all; the
+> report's `artifact.created` example is aspirational, ours rides the
+> plugin mirror (3D). Source:
+> `planning/reports/2026-08-07-open-source-momentum-report.md`.
 
 **✅ 2A BUILT OVERNIGHT 2026-08-06 (~23:00–02:30), subagent-driven
 (sonnet/opus implementers+reviewers, FABLE whole-branch review), merged
