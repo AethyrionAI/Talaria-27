@@ -92,14 +92,19 @@ struct VoiceOverlayScreen: View {
             // Always clean up the voice session when the overlay disappears.
             // Use a short delay to avoid killing the session when the camera
             // fullScreenCover appears (which triggers onDisappear transiently).
-            if talkStore.isSessionActive {
-                Task {
-                    try? await Task.sleep(for: .milliseconds(500))
-                    // Re-check — if the overlay was re-presented (camera dismiss),
-                    // the session is still wanted. Only end if truly gone.
-                    if !showLiveCameraOverlay {
-                        await talkStore.endSession()
-                    }
+            //
+            // #139: NO `isSessionActive` guard. That guard is why dismissal
+            // during a slow connect tore nothing down: a start that has not yet
+            // published `.connecting` is invisible to the flag, and the session
+            // that came back later with a live mic was exactly that one.
+            // `abandonSession()` revokes the connect whether or not it has
+            // reached a state the store can see.
+            Task {
+                try? await Task.sleep(for: .milliseconds(500))
+                // Re-check — if the overlay was re-presented (camera dismiss),
+                // the session is still wanted. Only end if truly gone.
+                if !showLiveCameraOverlay {
+                    await talkStore.abandonSession()
                 }
             }
         }

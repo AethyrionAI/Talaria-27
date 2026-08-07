@@ -47,6 +47,10 @@ final class TalkStore {
     private let voiceService: any VoiceSessionServiceProtocol
     private let liveActivity = LiveActivityService()
     private var eventTask: Task<Void, Never>?
+    /// #139: monotonic session intent. Dismissal bumps it, so a connect that
+    /// returns afterwards is recognised as belonging to a session the user
+    /// already left, and is discarded instead of being flipped live.
+    private var sessionGeneration = 0
 
     init(voiceService: any VoiceSessionServiceProtocol) {
         self.voiceService = voiceService
@@ -70,7 +74,12 @@ final class TalkStore {
         connectionState = .connecting
         voiceState = .thinking
         statusMessage = "Connecting..."
+        let generation = beginSessionGeneration()
         await voiceService.startSession()
+        guard generation == sessionGeneration else {
+            await discardAbandonedStart()
+            return
+        }
         applySnapshot(voiceService.snapshot)
         if isSessionActive {
             liveActivity.startVoiceSession()
@@ -78,14 +87,49 @@ final class TalkStore {
     }
 
     func startSession() async {
+        let generation = beginSessionGeneration()
         await voiceService.startSession()
+        guard generation == sessionGeneration else {
+            await discardAbandonedStart()
+            return
+        }
         applySnapshot(voiceService.snapshot)
         if isSessionActive {
             liveActivity.startVoiceSession()
         }
     }
 
+    /// #139: the dismissal path.
+    ///
+    /// Unlike `endSessionIfNeeded()` this does NOT guard on `isSessionActive` —
+    /// and that guard is the whole reason the defect survived overlay teardown.
+    /// A start that has not yet published `.connecting` is invisible to the
+    /// flag, and a session that IS still connecting is exactly the one that
+    /// must be revoked. Bumping the generation first means a connect already in
+    /// flight is discarded on return even if its RPC cannot be cancelled.
+    func abandonSession() async {
+        sessionGeneration &+= 1
+        await endSession()
+    }
+
+    /// Belt for a start that resolved after its session was abandoned. The
+    /// engines guard their own late connects (#139), so this should find
+    /// nothing live — but adopting such a snapshot is precisely the bug, so
+    /// end rather than apply.
+    private func discardAbandonedStart() async {
+        await voiceService.endSession()
+        applySnapshot(voiceService.snapshot)
+    }
+
+    private func beginSessionGeneration() -> Int {
+        sessionGeneration &+= 1
+        return sessionGeneration
+    }
+
     func endSession() async {
+        // #139: an explicit end revokes any connect still in flight, so a slow
+        // start cannot land live after the user hung up.
+        sessionGeneration &+= 1
         // Capture session metadata before the service resets
         let sessionId = voiceSessionID
         let duration = sessionDuration
@@ -131,6 +175,10 @@ final class TalkStore {
     }
 
     func endSessionIfNeeded() async {
+        // #139: revoke first, THEN decide whether there is a live session to
+        // tear down — an in-flight connect is not `isSessionActive` yet, and it
+        // is the one that must not survive this call.
+        sessionGeneration &+= 1
         guard isSessionActive else { return }
         await endSession()
     }
