@@ -91,6 +91,12 @@ bottom moved from ~3–3.5h to ~4–4.5h and that is not shaded down.**
 
 **Group 1 — Default state: PAIRED + CONNECTED to OJAMD, no settings changes
 (start here, it's already where the phone rests).** Est. ~30 min.
+- [~] #262-E + #265-E — **PARTIAL PASS 2026-08-07 on OTA 2120 (Deepseek
+  flash, narrate-through-a-write prompt).** Owen: *"chip stayed put. Locked
+  to a word instead of splitting one."* → the no-movement half of 262-E MET
+  and **265-E MET outright** (the "lan⟨chip⟩ded" split from 2026-08-06 is
+  gone). STILL OWED on 262-E: the mid-stream tap, and placement persistence
+  across kill + relaunch + history reload.
 - [ ] #262-E — Send a prompt on the fastest available model that makes the
   agent write a file mid-turn, and watch the reply as it streams. (PASS: the
   artifact chip appears under the write_file card at its generation point
