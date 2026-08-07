@@ -2975,7 +2975,7 @@ Logged 2026-07-20 (Session V launch sweep).
 
 ---
 
-## 139. 🐛 Engine truth + settings-origin session start — silent realtime→local fallback label lie; slow realtime connect with NO timeout and NO cancel-on-dismiss — abandoned session RESURRECTS with live audio (zombie, 2026-07-20 eve)
+## 139. 🐛 Engine truth + settings-origin session start — silent realtime→local fallback label lie; slow realtime connect with NO timeout and NO cancel-on-dismiss — abandoned session RESURRECTS with live audio (zombie, 2026-07-20 eve) — **✅ CLOSED 2026-08-07: 139-F MET on device, both brains, full-minute waits**
 
 **Dispatch spec 2026-07-20:** `dispatch/FABLE-T27-139-connect-teardown.md` — **READY TO
 SEND** (commit `1e9d57e`). Mechanism source-confirmed: `startSessionDirectly` awaits the
@@ -3102,6 +3102,29 @@ Logged 2026-07-20.
 > ran read-only in the main checkout, verified harmless; the agent
 > self-provisioned a real worktree for phase 2 and the main checkout ends
 > clean.
+
+> **Update 2026-08-07 — 139-F MET on device (OTA 2145). ITEM CLOSED, all
+> bars MET.** Owen dismissed connecting voice sessions repeatedly on BOTH
+> brains — *"did it a few times on both Hermes and on device"* — waiting a
+> **full minute on each brain** on the first pass (the belt fires at 12s and
+> the fallback start follows it, so a short wait would not have caught the
+> zombie). Result: *"Mic goes off after about 1s. no pop ups scaring me in
+> office today"* — the teardown completes about a second after dismissal and
+> nothing comes back. No audio, no Live Activity, no late mic.
+>
+> **One honest deviation from the bar as written:** 139-F required each
+> verdict to QUOTE the `voice session starting on engine …` line per #220's
+> rule. Owen ran it from the phone in an office, so engine identity is
+> INFERRED from the brain setting rather than quoted — Hermes-paired routes
+> to realtime (including the fallback branch this lane created guards for),
+> on-device routes to native, so both engines were exercised by
+> construction. Recorded as inference, not as a quoted verdict, because
+> #220's rule exists precisely to stop that distinction being blurred. If a
+> future regression is suspected here, re-run tethered and quote the line.
+>
+> **Adjacent finding (the `canStartSession`-false label lie) was NOT
+> settled** — it needed the same log line. It stays flagged, unasserted,
+> for whoever next runs voice work tethered.
 
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
 
@@ -5065,7 +5088,7 @@ the next merge — the same resurrection family as #78, through a path that
 lane deliberately did not touch. Fix shape: route it through the primitive
 like `/retry` and `/undo` now are.
 
-## 278. 🐛 Edit & Resend is offered on a LIVE run — the in-flight gate excludes `.sending`, but a stream that dropped leaves the row `.working` while the run keeps going — **FILED 2026-08-07 from Owen's device pass; PRE-EXISTING; truncates under a live run and can post a SECOND run to the same session**
+## 278. 🐛 Edit & Resend is offered on a LIVE run — the in-flight gate excludes `.sending`, but a stream that dropped leaves the row `.working` while the run keeps going — **FILED 2026-08-07 from Owen's device pass; PRE-EXISTING; truncates under a live run and can post a SECOND run to the same session** — **✅ CLOSED 2026-08-07: 278-D MET on device (OTA 2145)**
 
 Owen, OTA 2120: *"no edit and resend in a live streaming session. If you
 leave and come bck immediately, it presents the option."* Screenshot shows
@@ -5121,6 +5144,13 @@ menu hides an item the store would still honor. This is the same seam as
 > exist as a shared predicate and the menu was wired directly to
 > `isStreaming`; the test now pins both halves in the state Owen
 > photographed.
+
+> **Update 2026-08-07 — 278-D MET on device (OTA 2145). ITEM CLOSED, all
+> bars MET.** Owen: *"278D pass. No regenerate presented mid stream."* The
+> guard now holds across leaving the chat screen and returning while a run
+> is still live — the state that previously offered Edit & Resend on a row
+> whose run was in flight, which would have truncated under that run and
+> posted a second run to the same session.
 
 ## 277. 🐛 Agent-file chips do not survive leaving a thread — `openSession` ASSIGNS the server transcript over the local one, and the conversation cache is a single slot — **FILED 2026-08-07 from Owen's device pass; PRE-EXISTING (not a #262 regression); metadata loss is destructive and already committed for three of his threads**
 
