@@ -54,14 +54,18 @@ serving for binaries / other tools (#21 Tier 2) must live in **our relay sidecar
 replaces `~/.hermes/hermes-agent` and wipes core edits, while `config.yaml`/`.env`/skills/
 sessions persist.
 
-## Model switching (shim dual-write)
+## Model switching (gateway-only — #223 Lane 5, 2026-08-04)
 
-Picker `apply()` = shim `POST /models/default` (the expensive-model guard can interrupt →
-confirm) **then** the gateway `/model` session pin (`chat.selectModel`; slow + non-fatal).
-The checkmark moves optimistically; "Refresh models" reconciles. `ModelsSettingsModel`:
-`applyingModelID` drives in-flight, `pendingConfirm` = expensive guard, `errorMessage` on
-failure. **The gateway pin can hang ~37s+ or indefinitely** — do not block UI on it
-(see `OPEN_ITEMS.md` #9). CONFIRM only appears for shim-flagged expensive models.
+**The shim is RETIRED from the model path.** Picker `apply()` is instant by design —
+"no shim POST, no session pin, nothing to await" (`ModelsSettingsScreen.swift`); the
+catalog comes from the gateway (`/api/model/options` per the route table) and the pick
+persists client-side (the client's per-turn lock). The OJAMD `TalariaModelsShim`
+service is stopped and disabled. The old dual-write description that stood here —
+shim POST → gateway session pin, 37s hangs, shim-flagged CONFIRM — was deleted with
+Lane 5; see #223 Lane 5 and archived #9, and **read the code, not this file's summary
+of it**. (This section was false from 2026-08-04 until the 2026-08-06 reconciliation
+audit caught it — the ATS-lines shape again: the always-loaded rules file prescribing
+a falsified mechanism while the tracker was right.)
 
 ## OJAMD services (windowless, reboot-proof)
 
@@ -323,6 +327,14 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
 - Issues tracked in `OPEN_ITEMS.md` (dated update notes; closed items move verbatim to
   `OPEN_ITEMS-ARCHIVE.md` — see #261); session continuity in
   the local `handoffs/` notes (gitignored) + `CLEAN_CHAT_PATH.md`.
+- **THE CLOSE-OUT RULE (2026-08-06, from the reconciliation audit; pending Owen's
+  ratification but follow it meanwhile):** a lane does not close until every entry,
+  doc, and CLAUDE.md line whose text its result FALSIFIES is corrected in the same
+  commit — #218's promoted-clause discipline applied to prose. Corrections go
+  UPSTREAM, to the stale claim's own home (a dated supersession note at minimum),
+  never only downstream of it. Routing decisions and named-but-unstarted work get
+  tracker numbers the day they are made — "a phase name is not a filing" (#268);
+  a handoff is where a decision happened, not where it lives.
 
 ## Measurement discipline (#215 — the rule that cost the most to learn)
 
